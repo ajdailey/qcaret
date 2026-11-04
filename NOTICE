@@ -1,0 +1,12 @@
+QCaret
+Copyright 2026 Adam Dailey
+
+This product is licensed under the Apache License, Version 2.0 (LICENSE).
+
+Binary distributions include the Eclipse Standard Widget Toolkit (SWT),
+licensed under the Eclipse Public License 2.0. SWT source is available at
+https://github.com/eclipse-platform/eclipse.platform.swt.
+
+Binary distributions include a Java runtime image built from OpenJDK, licensed
+under the GNU General Public License, version 2, with the Classpath Exception.
+Its license and notices are in the image's legal/ directory.
