@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -18,6 +19,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +41,19 @@ class DocumentOpenerTest {
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
   private final List<Object> results = new ArrayList<Object>();
   private DocumentOpener opener;
+  private final AtomicInteger active = new AtomicInteger();
+  private final ActivityIndicator activity =
+      new ActivityIndicator() {
+        @Override
+        public void setActive() {
+          active.incrementAndGet();
+        }
+
+        @Override
+        public void setIdle() {
+          active.decrementAndGet();
+        }
+      };
   private MemoryBudget budget = new MemoryBudget(1L << 30, 50);
 
   @BeforeEach
@@ -62,6 +77,7 @@ class DocumentOpenerTest {
             workers,
             ui,
             budget,
+            activity,
             new DocumentOpener.Listener() {
               @Override
               public void opened(
@@ -88,6 +104,7 @@ class DocumentOpenerTest {
   void tearDown() {
     workers.close();
     assertNull(failure.get());
+    assertEquals(0, active.get(), "a load left its activity running");
   }
 
   private BooleanSupplier idle() {

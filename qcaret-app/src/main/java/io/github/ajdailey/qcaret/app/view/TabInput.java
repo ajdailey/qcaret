@@ -14,4 +14,14 @@ public interface TabInput {
    * @param index its new index
    */
   void moved(int index);
+
+  /** The user asked to close every other tab from this tab's menu. */
+  void closeOthersRequested();
+
+  /**
+   * The user asked to copy the tab's file path from its menu.
+   *
+   * @param nameOnly true for the file name without its folder
+   */
+  void copyPathRequested(boolean nameOnly);
 }

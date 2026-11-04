@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -93,6 +94,15 @@ final class FakeView implements MainView {
   String text;
   AboutInfo about;
   String clipboard;
+  int stateChanges;
+  String binaryName;
+  Runnable openBinary;
+  final AtomicInteger active = new AtomicInteger();
+  final List<String> notices = new ArrayList<String>();
+  final List<String> launched = new ArrayList<String>();
+  String log;
+  boolean warningMarker;
+  int fontStep;
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -161,12 +171,77 @@ final class FakeView implements MainView {
 
   @Override
   public TabView addTab(
-      DisplayProjection projection, SelectionModel selections, EditorInput editor, TabInput tab) {
+      DisplayProjection projection,
+      SelectionModel selections,
+      EditorInput editor,
+      TabInput tab,
+      int index) {
     ui.checkUiThread();
     FakeTab fake = new FakeTab(projection, selections, editor, tab);
-    tabs.add(fake);
+    tabs.add(index, fake);
     selected = fake;
     return fake;
+  }
+
+  @Override
+  public void documentStateChanged() {
+    ui.checkUiThread();
+    stateChanges++;
+  }
+
+  @Override
+  public void askOpenBinary(String name, Runnable open) {
+    ui.checkUiThread();
+    binaryName = name;
+    openBinary = open;
+  }
+
+  @Override
+  public void setActive() {
+    active.incrementAndGet();
+  }
+
+  @Override
+  public void setIdle() {
+    active.decrementAndGet();
+  }
+
+  @Override
+  public void showNotice(String message) {
+    ui.checkUiThread();
+    notices.add(message);
+  }
+
+  @Override
+  public void showLog(String value) {
+    ui.checkUiThread();
+    log = value;
+  }
+
+  @Override
+  public void showWarningMarker(boolean shown) {
+    ui.checkUiThread();
+    warningMarker = shown;
+  }
+
+  @Override
+  public boolean launch(Path target) {
+    ui.checkUiThread();
+    launched.add(target.toString());
+    return true;
+  }
+
+  @Override
+  public boolean launchUrl(String url) {
+    ui.checkUiThread();
+    launched.add(url);
+    return true;
+  }
+
+  @Override
+  public void setFontStep(int step) {
+    ui.checkUiThread();
+    fontStep = step;
   }
 
   @Override

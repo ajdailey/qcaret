@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Unpacks the $TARGET bundle from dist/, checks that its runtime reports
-# os.arch $EXPECTED_ARCH and has jdk.charsets, and starts the bundle's
-# launcher until the main window opens. Linux uses a private Xvfb display.
+# Unpacks the $TARGET bundle from dist/, verifies a macOS bundle's signature,
+# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets,
+# and starts the bundle's launcher until the main window opens. Then starts the
+# universal zip's bin/qcaret, which has no runtime, with $JAVA_HOME. Linux uses
+# a private Xvfb display.
 set -euo pipefail
 
 work="$PWD/bundle-run"
@@ -45,20 +47,33 @@ if [ "$(uname -s)" = Linux ]; then
 fi
 
 printf 'mock line\n' >"$work/notes.txt"
-"$launcher" -m -d 1 --settings "$work/settings" "$work/notes.txt" >"$work/out.log" 2>&1 &
-app=$!
-for _ in $(seq 1 60); do
-  grep -q 'Main window open' "$work/out.log" && break
-  kill -0 "$app" 2>/dev/null || break
-  sleep 1
-done
-kill "$app" 2>/dev/null || true
-echo "--- launcher output"
-cat "$work/out.log"
-echo "---"
 
-grep -qF "from $runtime" "$work/out.log" \
-  || { echo "FAIL: QCaret did not report java.home $runtime" >&2; exit 1; }
-grep -q 'Main window open' "$work/out.log" \
-  || { echo "FAIL: no main window within 60 s" >&2; exit 1; }
+# Runs launcher $1 until the main window opens; passes when QCaret reports
+# java.home $2. $3 names the run's settings directory and output.
+check_launcher() {
+  local out="$work/$3.out"
+  "$1" -m -d 1 --settings "$work/settings-$3" "$work/notes.txt" >"$out" 2>&1 &
+  local app=$!
+  for _ in $(seq 1 60); do
+    grep -q 'Main window open' "$out" && break
+    kill -0 "$app" 2>/dev/null || break
+    sleep 1
+  done
+  kill "$app" 2>/dev/null || true
+  echo "--- $3 output"
+  cat "$out"
+  echo "---"
+  grep -qF "from $2" "$out" \
+    || { echo "FAIL: $3 did not report java.home $2" >&2; exit 1; }
+  grep -q 'Main window open' "$out" \
+    || { echo "FAIL: $3 opened no main window within 60 s" >&2; exit 1; }
+}
+
+check_launcher "$launcher" "$runtime" bundle
 echo "PASS: $TARGET launcher ran $runtime (os.arch $arch) and opened the main window"
+
+universal="$(ls dist/qcaret-*.zip | grep -Ev -- '-(linux|macos|windows)-')"
+unzip -q "$universal" -d "$work/universal"
+jdk="$(cd "$JAVA_HOME" && pwd -P)"
+check_launcher "$work/universal/qcaret/bin/qcaret" "$jdk" universal
+echo "PASS: $universal bin/qcaret ran $jdk and opened the main window"

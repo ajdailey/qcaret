@@ -1,0 +1,154 @@
+package io.github.ajdailey.qcaret.app.controller;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.StatusFields;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/**
+ * Records the checked and enabled state of every command with no document, with a text document,
+ * and with a binary file's read-only view, over {@code Preferences.DEFAULTS}. Each state is two
+ * characters: {@code c} or {@code -} for checked, {@code e} or {@code -} for enabled. A mismatch
+ * prints the whole recorded table.
+ */
+class CommandStatesTest {
+  /** Per command: no document, a text document, a binary view. */
+  private static final String EXPECTED =
+      String.join(
+          "\n",
+          "NEW -e -e -e",
+          "OPEN -e -e -e",
+          "SAVE -- -e --",
+          "SAVE_AS -- -e --",
+          "CLOSE -- -e -e",
+          "CLOSE_ALL -- -e -e",
+          "QUIT -e -e -e",
+          "UNDO -- -e --",
+          "REDO -- -e --",
+          "CUT -- -e --",
+          "COPY -- -e -e",
+          "PASTE -- -e --",
+          "SELECT_ALL -- -e -e",
+          "WORD_WRAP -e -e -e",
+          "ZOOM_IN -e -e -e",
+          "ZOOM_OUT -e -e -e",
+          "ZOOM_RESET -e -e -e",
+          "THEME_LIGHT ce ce ce",
+          "THEME_DARK -e -e -e",
+          "THEME_SYSTEM -e -e -e",
+          "LINE_ENDING_CRLF -- -e --",
+          "LINE_ENDING_LF -- ce --",
+          "LINE_ENDING_CR -- -e --",
+          "NEXT_TAB -- -- -e",
+          "PREVIOUS_TAB -- -- -e",
+          "CLOSE_OTHERS -- -- -e",
+          "KEYBOARD_SHORTCUTS -e -e -e",
+          "COMMAND_LINE_OPTIONS -e -e -e",
+          "USER_GUIDE -e -e -e",
+          "SHOW_LOG -e -e -e",
+          "DEBUG_LOG_FILE -e -e -e",
+          "OPEN_LOG_FOLDER -e -e -e",
+          "OPEN_SETTINGS_FOLDER -e -e -e",
+          "REPORT_ISSUE -e -e -e",
+          "ABOUT -e -e -e",
+          "NEWLINE -- -e --",
+          "DELETE_BACK -- -e --",
+          "DELETE_FORWARD -- -e --",
+          "CANCEL -- -e -e",
+          "reopen - e -",
+          "saveEncoding - e -");
+
+  @TempDir Path temp;
+
+  private Harness harness;
+  private CommandStates states;
+
+  @BeforeEach
+  void create() {
+    harness = new Harness(temp);
+    states = new CommandStates(harness.application);
+  }
+
+  @AfterEach
+  void close() throws InterruptedException {
+    harness.application.documents().dispose();
+    harness.close();
+  }
+
+  private static String state(boolean checked, boolean enabled) {
+    return (checked ? "c" : "-") + (enabled ? "e" : "-");
+  }
+
+  @Test
+  void statesFollowTheSelectedDocument() throws Exception {
+    String[][] cells = new String[CommandId.values().length + 2][3];
+    record(cells, 0);
+    harness.open(Files.writeString(temp.resolve("text.txt"), "one\ntwo\n"));
+    record(cells, 1);
+    Path binary = Files.write(temp.resolve("data.bin"), ShellCommandsTest.BINARY);
+    harness.application.documents().open(List.of(binary));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.openBinary != null;
+          }
+        },
+        "binary prompt");
+    harness.view.openBinary.run();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.application.documents().count() == 2;
+          }
+        },
+        "binary view");
+    harness.awaitIdle("binary open");
+    record(cells, 2);
+    StringBuilder table = new StringBuilder();
+    for (int i = 0; i < cells.length; i++) {
+      String name =
+          i < CommandId.values().length
+              ? CommandId.values()[i].name()
+              : i == CommandId.values().length ? "reopen" : "saveEncoding";
+      if (table.length() > 0) {
+        table.append('\n');
+      }
+      table.append(name).append(' ').append(String.join(" ", cells[i]));
+    }
+    assertEquals(EXPECTED, table.toString());
+  }
+
+  private void record(String[][] cells, int column) {
+    CommandId[] commands = CommandId.values();
+    for (int i = 0; i < commands.length; i++) {
+      cells[i][column] = state(states.checked(commands[i]), states.enabled(commands[i]));
+    }
+    cells[commands.length][column] = states.reopenEnabled() ? "e" : "-";
+    cells[commands.length + 1][column] = states.saveEncodingEnabled() ? "e" : "-";
+  }
+
+  @Test
+  void statusFieldsDescribeThePrimaryCaret() throws Exception {
+    assertEquals(StatusFields.NONE, states.status());
+    harness.open(Files.writeString(temp.resolve("tabs.txt"), "a\tb\r\nsecond\r\n"));
+    harness.application.documents().activeEditor().selectFromView(0, 3);
+    StatusFields fields = states.status();
+    assertEquals(UiText.STATUS_POSITION.format(1, 6), fields.position());
+    assertEquals(UiText.STATUS_SELECTION.format(3), fields.selection());
+    assertEquals("UTF-8", fields.encoding());
+    assertEquals(UiText.STATUS_CRLF.text(), fields.lineEnding());
+    assertEquals(UiText.STATUS_PLAIN_TEXT.text(), fields.language());
+    assertEquals("", fields.readOnly());
+  }
+}

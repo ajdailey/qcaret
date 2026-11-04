@@ -8,21 +8,48 @@ uses public SWT API only. The package `ui.swt.search` is empty.
 ## Main window
 
 `MainWindow` holds a `CTabFolder` with one tab per document, each an
-`EditorPane`, and the File, Edit, View and Help menus built from `MenuTable`.
-`attach` connects the controller: menu items run
-`ApplicationController.execute`, a window-system close request runs Exit, and
-the check items (Word Wrap, the themes) follow `ApplicationController.checked`.
-A window-wide command's accelerator (`Mod+S`) becomes a menu accelerator with
-Mod as Ctrl, or Command on macOS.
+`EditorPane`, the menu bar and a status bar. `attach` connects the
+controller: menu items run `ApplicationController.execute`, and a
+window-system close request runs Exit.
 
-- A tab's close button and a middle click ask the `DocumentController` to
-  close it. Dragging a tab within the strip moves it: an item cannot change
+`MainMenuBar` builds one menu per `CommandGroup` from `MenuTable` and applies
+`CommandStates`; it reads no controller getter for item state. Each item shows
+every key of its command from the `Keymap`; only the first window binding
+becomes an accelerator (`SwtKeys.accelerator`, `SWT.MOD1` for Ctrl or
+Command), so editor keys never fire from another control. A disabled item's
+accelerator does not fire on win32 or GTK, so enablement syncs on every
+`documentStateChanged` and on shell activation, not only on a menu's `Show`;
+showing a menu or running one of its items syncs that menu's checks. The
+Encoding menu holds Reopen with Encoding and Save with Encoding cascades: the
+common charsets from the start, and an Other cascade disabled until
+`EncodingChoices` arrives from a worker, filled once and never rebuilt. The
+Window menu lists the open documents, rebuilt when it shows. A Display key
+filter runs window bindings that are not accelerators (Ctrl plus keypad +),
+when enabled.
+
+The status bar shows a notice for 8 s, the Warnings link to Show Log while a
+WARN or ERROR line is unseen, and the selected document's read-only marker,
+line and column, selection, encoding, line endings and language
+(`StatusFields`). A caret move or state change schedules one read on the next
+UI turn; further changes before it share that read. `BusyCounter` shows
+`CURSOR_APPSTARTING` while any load, save or conversion runs.
+
+`setFontStep` creates the new editor font, calls `EditorPane.setFont` on every
+editor and disposes the old font. The widgets, the menu bar and the focus stay;
+nothing is rebuilt.
+
+- One context menu serves every tab: each right click disposes its items and
+  adds Close, Close Others, Close All, Copy Path and Copy File Name for that
+  tab, enabled from `CommandStates.tabItems`. A tab's close button and a
+  middle click ask the `DocumentController` to close it. Dragging a tab within the strip moves it: an item cannot change
   position, so the move disposes and recreates it, and the `Selection` that
   `CTabFolder` sends for a neighbor while the selected item is disposed is
   ignored, so the moved tab stays shown.
 - Open and Save As use the native `FileDialog`, which runs a nested event
   loop. The unsaved-changes prompt (`UnsavedDialog`) does not: Save, Don't
   Save and Cancel answer through a callback, and closing it answers Cancel.
+  The binary-file prompt (`BinaryDialog`) opens the read-only view on Open
+  Read-Only; Cancel is the default and closing it declines.
 
 - `place` sizes and positions the shell through `WindowGeometry` before
   `open`. On Wayland (`org.eclipse.swt.internal.gdk.backend` is `wayland`) the
@@ -36,8 +63,8 @@ Mod as Ctrl, or Command on macOS.
 
 Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
-`showText` opens its window modal and owned by the innermost visible modal
-dialog when one is open, because GTK gives input only to the newest modal
+`showText` and `showLog` open their window modal and owned by the innermost
+visible modal dialog when one is open, because GTK gives input only to the newest modal
 shell; Licenses opened from About therefore stays usable. Three calls do run a
 nested event loop, so code around them must tolerate re-entrant events:
 `FileDialog.open`, `ColorDialog.open`, and `Clipboard.getContents` on GTK,
@@ -54,10 +81,11 @@ which `MainWindow.clipboardText` uses.
   edit. It sends no `textSet`; a loaded document gets a new adapter, read in
   `setContent`. A `replaceTextRange` or `setText` from the widget (IME preedit
   text) goes to the controller as an edit.
-- A `VerifyKey` listener turns typing, Enter, Tab, Backspace, Delete, Esc,
-  Mod+Z, Mod+Shift+Z, Mod+Y, Mod+X, Mod+C, Mod+V, Mod+A and the Insert-key
-  clipboard keys into `EditorInput` calls and consumes them; Ctrl+Alt (AltGr)
-  and, on macOS, Option produce typed chars. Any edit the widget still makes
+- A `VerifyKey` listener converts each key with `SwtKeys.stroke`, runs the
+  `Keymap`'s editor binding through `EditorInput.execute`, types printable
+  chars and Tab, and consumes both; Ctrl+Alt (AltGr) and, on macOS, Option
+  produce typed chars. Insert alone is consumed, so the widget never enters
+  overwrite mode. Any edit the widget still makes
   (word delete, middle-click paste, drag and drop) arrives as `Verify`, is
   canceled, and goes to `EditorInput.replaceFromView`; the controller applies
   it inside the listener, before `modifyContent` returns.
@@ -74,7 +102,9 @@ which `MainWindow.clipboardText` uses.
   line style backgrounds and secondary carets are 2 px bars at
   `getLocationAtOffset`, so both follow the widget's measured glyphs on any
   script.
-- Every resize sends the columns that fit the text area for word wrap. A
+- Every resize and font change sends the columns that fit the text area for
+  word wrap. `setFont` replaces the font in place and measures the advance
+  again. A
   double click at or past a wrapped row's right edge selects the row's last
   word, where the widget alone would take the trailing space and the virtual
   break.
@@ -148,3 +178,19 @@ measured position and of gutter ink. The pixel check skips when
 menu, re-inks tool icons on a dark background, checks `showsNow` per
 platform, the About logo by background, a text window over a modal dialog,
 Licenses over About, and the menu bar without an application menu.
+`ShellWindowTest` (tag `swt`) checks that opening and closing documents
+enable and disable Save, Undo and Next Tab with no menu shown; the Other
+encoding cascades filled once; one tab menu reused across tabs and after a
+drag, with the dragged document still shown; a font change that keeps the
+`StyledText`, the menu bar and the focus; the status fields; the warning
+marker and the log window; the busy count; the binary prompt, its marked tab
+and status, Save disabled and a typed key refused; and column 150, where the
+widget's x must match `ColumnMetrics` within 1 px and a secondary caret's
+pixels must sit at the widget's position. Under GTK 4 the window cannot grow
+past the screen, so the pixel half of the column 150 check skips.
+`ResourceLeakTest` (tag `swt`) runs `DeviceData.tracking` over a warm-up round
+and four rounds of tab open and close, the tab menu, both themes, zoom and
+every menu's `Show`; the live counts per type must return to the warm-up's.
+System cursors are left out: GTK SWT moves its cached cursors to a list it
+disposes with the Display on each theme switch, so the next request allocates
+another.

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -24,7 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * DisplayProjection#layout}) and its reservation lowered to the retained cost, which the listener
  * owns from then on. {@link #close} cancels the running loads; a load that finishes after it, on
  * the worker or in a task already posted, drops its document and releases its reservation, so no
- * document reaches a closed window.
+ * document reaches a closed window. Each load counts as one {@link ActivityIndicator} operation
+ * until its worker ends.
  */
 public final class DocumentOpener {
   /** Receives load results on the UI thread. */
@@ -61,6 +63,7 @@ public final class DocumentOpener {
   private final Workers workers;
   private final UiDispatcher ui;
   private final MemoryBudget budget;
+  private final ActivityIndicator activity;
   private final Listener listener;
   private final Set<CancellationToken> running = ConcurrentHashMap.newKeySet();
   private volatile boolean closed;
@@ -71,12 +74,19 @@ public final class DocumentOpener {
    * @param workers starts the loads
    * @param ui runs the results on the UI thread
    * @param budget the documents' heap share
+   * @param activity counts the running loads
    * @param listener receives the results
    */
-  public DocumentOpener(Workers workers, UiDispatcher ui, MemoryBudget budget, Listener listener) {
+  public DocumentOpener(
+      Workers workers,
+      UiDispatcher ui,
+      MemoryBudget budget,
+      ActivityIndicator activity,
+      Listener listener) {
     this.workers = workers;
     this.ui = ui;
     this.budget = budget;
+    this.activity = activity;
     this.listener = listener;
   }
 
@@ -93,6 +103,7 @@ public final class DocumentOpener {
     }
     final CancellationToken token = new CancellationToken();
     running.add(token);
+    activity.setActive();
     boolean started =
         workers.tryStart(
             Workers.Kind.IO,
@@ -127,11 +138,13 @@ public final class DocumentOpener {
                 } finally {
                   budget.release(reserved);
                   running.remove(token);
+                  activity.setIdle();
                 }
               }
             });
     if (!started) {
       running.remove(token);
+      activity.setIdle();
     }
   }
 

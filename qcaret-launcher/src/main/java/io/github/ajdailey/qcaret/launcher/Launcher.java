@@ -94,7 +94,7 @@ public final class Launcher {
     try {
       FileLog logFile =
           new FileLog(location.directory(), FileLog.fileName(false, ProcessHandle.current().pid()));
-      if (line.logToFile()) {
+      if (line.logToFile() || preferences.debugLogFile()) {
         try {
           logFile.attach();
         } catch (IOException e) {

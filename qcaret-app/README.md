@@ -26,11 +26,16 @@ from this module's jar manifest.
 thread, `timerExec` on the UI thread, no synchronous variant, and submissions
 after disposal are dropped. `MainView` is the main window as the controller
 sees it; every method runs on the UI thread and returns without waiting for
-the user. Its `DocumentsView` part adds a tab per document (`addTab` returns
-a `TabView`) and runs the file choosers and the unsaved-changes prompt, each
-answering through a callback. A tab forwards its close button, selection and
-drags as `TabInput`; an editor forwards its input as `EditorInput`, in
-display offsets.
+the user. Its `DocumentsView` part adds a tab per document at an index
+(`addTab` returns a `TabView`) and runs the file choosers, the unsaved-changes
+prompt and the binary-file prompt, each answering through a callback;
+`documentStateChanged` tells the view to read menu and status state again. A
+tab forwards its close button, selection, drags and context-menu items as
+`TabInput`; an editor forwards its input as `EditorInput`, in display offsets,
+and runs editing commands through `EditorInput.execute`. `MainView` is also an
+`ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
+`BusyCounter` counts overlapping operations on the UI thread for the busy
+cursor. `StatusFields` is the status bar's text for the selected document.
 
 `WindowGeometry.place` sizes and positions the main window before it opens.
 Per dimension the command line wins over the remembered geometry, which wins
@@ -42,21 +47,60 @@ where it ignores a position (Wayland) only the size applies.
 
 ## Commands (`app.command`)
 
-`CommandId` lists every command with its menu (`CommandGroup`), label, check
-state, cascade and, for a window-wide command, its accelerator: File > New,
-Open, Save, Save As, Close and Exit; Edit > Undo, Redo, Cut, Copy, Paste and
-Select All; View > Word Wrap and Theme > Light, Dark and System Theme; Help >
-About QCaret. Editing keys are not menu accelerators: the editor dispatches
-them, so they never fire from another control. `MenuTable.commands` returns a menu's commands in
-declaration order. Where the system supplies an application menu (macOS),
-About and Exit sit there and are left out of Help and File.
+`CommandId` lists every command with its group (`CommandGroup`), label, check
+state and cascade. The menus are File, Edit, View (word wrap, zoom, theme),
+Encoding (the line-ending conversions; the view adds the charset cascades),
+Window (next and previous tab, Close Others; the view lists the documents)
+and Help. The `EDITOR` group holds Enter, Backspace, Delete and Esc, which
+have no menu. `MenuTable.commands` returns a menu's commands in declaration
+order. Where the system supplies an application menu (macOS), About and Exit
+sit there and are left out of Help and File.
+
+`Keymap` is the one table of key bindings (`Binding`: a command, a
+`KeyStroke`, a scope). Menu item text, accelerators, the editor's key dispatch
+and Help > Keyboard Shortcuts all read it. A `WINDOW` binding is a menu
+accelerator when it is the command's first window binding; a second one (Ctrl
+plus keypad +) runs from the window's key filter. An `EDITOR` binding runs
+only from the focused editor, so `Ctrl+C` never fires in another control.
+`Keymap.defaults(mac)` binds `PRIMARY` (Ctrl, or Command on macOS); Ctrl+Y and
+the Insert and Delete clipboard keys are bound off macOS only. Shortcut
+overrides are not built.
 
 ## Controller (`app.controller`)
 
 `ApplicationController` runs the window's commands and owns the settings, the
-theme and the window's `DocumentController`. It is confined to the UI thread;
-settings writes and the license read run on `qcaret-lifecycle-` workers. Edit
-commands from the menu go to the selected editor's `EditorController`.
+theme, the keymap, the editor font step and the window's `DocumentController`
+and `HelpController`. It is confined to the UI thread; settings writes run on
+`qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
+editor's `EditorController`. After `quit` starts, `execute` does nothing.
+
+`CommandStates` computes every menu item's checked and enabled state, the
+Window menu's document list, a tab menu's state and the status bar's
+`StatusFields`, reading the controllers on each call. Views read this state
+there and never from controller getters (ArchUnit
+`viewsTakeCheckStateFromCommandStates`). Without a document only the window
+commands, zoom, theme and Help are enabled; a read-only document disables the
+edits and the line-ending conversions; a binary file's view also disables Save,
+Save As and both encoding cascades. A disabled menu item's accelerator does
+not fire, so the view syncs enablement on every `documentStateChanged`.
+`EncodingChoices` lists `TextEncoding.MENU` first, then every other charset;
+`Charset.availableCharsets` costs 130 to 229 ms cold (measured in QLogg), so
+`ApplicationController.loadEncodings` computes the list once per run on a
+worker.
+
+`HelpController` runs the Help commands. Keyboard Shortcuts shows
+`Keymap.reference`; Command-Line Options shows the usage text. User Guide
+copies the guide page from the jar to `<settings>/cache/guide.html` on a
+worker and opens it with the system's HTML application, else names the file
+in a notice; the page in this build is a placeholder. Show Log shows the
+`RecentLog` lines and clears the status-bar marker, which a WARN or ERROR line
+on any thread shows through one posted task at a time. Debug Log File attaches
+or detaches the log file on a worker, saves `log.debugFile`, and its check
+follows `LogFiles.attached`. Open Log Folder and Open Settings Folder create
+the folder owner-only when missing. Report an Issue copies the About details
+to the clipboard and opens the issue page; it is QCaret's only web address
+and opens only when the user picks the item. About and the license notices are
+read on workers.
 
 - A theme change saves `qcaret.conf` at once and pushes the palette. When
   native controls show the change only at the next start (`ThemeService
@@ -76,6 +120,9 @@ commands from the menu go to the selected editor's `EditorController`.
   it.
 - `showLicenses` reads `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` from the jar
   on a worker and shows them through `MainView.showText`.
+- Zoom In, Zoom Out and Reset Zoom step the editor font one point, from 6
+  below to 24 above the default, for this run; the view changes the font in
+  place.
 
 `DocumentController` holds the window's documents, one tab each:
 
@@ -83,6 +130,19 @@ commands from the menu go to the selected editor's `EditorController`.
   `DocumentOpener`; a missing file opens an empty document for its path, a
   file already open selects its tab, and a document whose text does not encode
   back to the file's bytes opens read-only with a notice.
+- A binary file opens only after the user accepts the prompt, as a read-only
+  ISO-8859-1 view whose tab and status bar say so. Save and Save As refuse it
+  in the controller, whichever command path calls them, and the editor
+  refuses its edits.
+- Reopen with Encoding loads a clean document's file again with the chosen
+  charset and replaces the document in its tab once loaded; a failed load
+  leaves it open. Save with Encoding changes only what the next save writes
+  and makes the document dirty; the byte order mark is dropped for another
+  charset.
+- A line-ending conversion builds the new text on a `qcaret-cpu-` worker
+  (`LineConversion`) and applies it as one whole-text replacement and one undo
+  step, then makes the ending the one Enter inserts. A result whose document
+  changed or closed meanwhile is dropped. Mixed endings are otherwise kept.
 - Save writes a `DocumentSnapshot` through `DocumentFiles.save` on a
   `qcaret-io-` worker while editing goes on, then calls `markSaved`. An
   untitled document asks for a file first. A save while one runs for the same
@@ -94,6 +154,10 @@ commands from the menu go to the selected editor's `EditorController`.
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
 - Word wrap is one setting for the window's editors.
+- Close All and Close Others ask for each dirty document in tab order and stop
+  at Cancel. Next and Previous Tab wrap around.
+- Loads, saves and conversions each count as one view activity until their
+  worker ends.
 
 `DocumentOpener` opens files for one window on `qcaret-io-` workers. Before
 reading, it estimates the load (`DocumentFiles.estimate`) and reserves it from
@@ -157,7 +221,8 @@ positions.
 `qcaret.conf` (portable), else the per-user directory of the OS. The
 bootstrap applies the same order to the SWT native cache.
 
-`ConfigStore` reads and writes `Preferences` (`ui.theme` and `window.*`) in
+`ConfigStore` reads and writes `Preferences` (`ui.theme`, `window.*` and
+`log.debugFile`, which attaches the debug log file at the next start) in
 `qcaret.conf`: Java properties, ISO-8859-1, sorted keys, no date comment,
 `version=1`. Both calls block and run off the UI thread; a lock serializes
 them.
@@ -202,7 +267,19 @@ modules.
 
 `ApplicationControllerTest` covers the theme save and its restart notice, the
 quit's placement save, the quit that saves nothing, licenses read on a worker
-and About. `DocumentOpenerTest` holds a load in its decoder past the window's
+and About. `Harness` builds a controller over `FakeView` with a recent log and
+a mock debug log file. `CommandDispatchTest` runs every `CommandId` with no
+document and with a document holding two selections: none throws on the UI
+thread or a worker, and none leaves an activity running. `CommandStatesTest`
+records every command's checked and enabled state with no document, a text
+document and a binary view, and the status fields. `ShellCommandsTest` runs
+every command but the open and close ones on a binary view and checks that the
+file's bytes and its folder's listing are unchanged; it also covers a declined
+binary prompt, Reopen and Save with Encoding, the line-ending conversion and
+its undo, a conversion dropped after an edit, the tab commands, the warning
+marker, Debug Log File with a failing attach, the user guide copy, Report an
+Issue and the zoom bounds. `KeymapTest` checks that no stroke is bound twice on
+either platform and the accelerator, editor and window-filter lookups. `DocumentOpenerTest` holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
 both release their reservation; a load over the budget is refused unread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
@@ -224,5 +301,5 @@ fallback. `ColumnMetricsTest` checks column 150 at a 7.22 px advance.
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
 and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,
 `WindowGeometryTest`, `ThemeControllerTest`, `MenuTableTest` (mnemonics unique
-per menu), `UiTextTest`, `RecentLogTest` and `EventLoopWatchdogTest` cover the
-rest.
+per menu), `UiTextTest`, `RecentLogTest`, `EventLoopWatchdogTest`,
+`EncodingChoicesTest` and `LineConversionTest` cover the rest.

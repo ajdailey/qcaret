@@ -12,16 +12,35 @@ import java.util.function.Consumer;
  */
 public interface DocumentsView {
   /**
-   * Adds a tab with an editor over a projection, after the other tabs, and selects it.
+   * Adds a tab with an editor over a projection and selects it.
    *
    * @param projection the display text the editor shows
    * @param selections the editor's carets and selections
    * @param editor receives the editor's input
    * @param tab receives the tab's input
+   * @param index the tab's position, from 0 to the tab count
    * @return the tab
    */
   TabView addTab(
-      DisplayProjection projection, SelectionModel selections, EditorInput editor, TabInput tab);
+      DisplayProjection projection,
+      SelectionModel selections,
+      EditorInput editor,
+      TabInput tab,
+      int index);
+
+  /**
+   * Reports that the selected document, a document's file, dirty, read-only, encoding or line
+   * ending state, or the document count changed. The view reads menu and status state again.
+   */
+  void documentStateChanged();
+
+  /**
+   * Asks whether to open a binary file as read-only ISO-8859-1 text.
+   *
+   * @param name the file's name
+   * @param open runs when the user accepts; not run on a decline
+   */
+  void askOpenBinary(String name, Runnable open);
 
   /**
    * Asks for files to open.

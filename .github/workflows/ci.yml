@@ -99,7 +99,8 @@ jobs:
           if-no-files-found: error
 
   # Each bundle on its own target: the runtime reports the target's os.arch,
-  # and the bundle's launcher opens the main window with that runtime.
+  # and the bundle's launcher opens the main window with that runtime. The
+  # universal zip, which has no runtime, then starts with setup-java's JDK.
   bundle:
     name: bundle ${{ matrix.target }}
     needs: package
@@ -125,6 +126,10 @@ jobs:
         with:
           name: qcaret-archives
           path: dist
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21.0.12+8"
       - name: Xvfb and GTK 3
         if: runner.os == 'Linux'
         run: .github/scripts/linux-display-deps.sh

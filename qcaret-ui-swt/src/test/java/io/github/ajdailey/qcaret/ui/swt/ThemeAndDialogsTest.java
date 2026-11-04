@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -19,6 +20,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,6 +75,7 @@ class ThemeAndDialogsTest {
             Preferences.DEFAULTS,
             system,
             new MemoryBudget(1L << 30, 60),
+            Keymap.defaults(SwtKeys.mac()),
             false);
     window.attach(controller);
     controller.documents().newDocument();
@@ -180,8 +183,17 @@ class ThemeAndDialogsTest {
   @Test
   void aboutOpensModalAndLicensesOpenOverIt() {
     controller.execute(CommandId.ABOUT);
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.shell().getShells().length == 1;
+              }
+            },
+            BOUND));
     final Shell[] about = window.shell().getShells();
-    assertEquals(1, about.length);
     assertTrue((about[0].getStyle() & SWT.APPLICATION_MODAL) != 0);
     controller.showLicenses();
     assertTrue(

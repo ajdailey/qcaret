@@ -1,5 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.editor;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -38,9 +41,10 @@ import org.eclipse.swt.widgets.Listener;
  * current line and the secondary carets and selections painted from the {@link SelectionModel}.
  *
  * <ul>
- *   <li>Input: a {@code VerifyKey} listener turns typing, Enter, Backspace, Delete, Esc and the
- *       Mod+Z, Y, X, C, V and A keys into {@link EditorInput} calls and consumes them. Any edit the
- *       widget still makes (word delete, drag and drop, middle-click paste) arrives as {@code
+ *   <li>Input: a {@code VerifyKey} listener runs the {@link Keymap}'s editor bindings through
+ *       {@link EditorInput#execute}, types printable chars through {@link EditorInput#type}, and
+ *       consumes both; Insert alone is consumed so the widget never enters overwrite mode. Any edit
+ *       the widget still makes (word delete, drag and drop, middle-click paste) arrives as {@code
  *       Verify}, is canceled and goes to {@link EditorInput#replaceFromView}. Navigation keys and
  *       the mouse move the widget's caret natively; each move is sent to the model.
  *   <li>Selections: the widget holds only the model's primary selection, set again after every
@@ -51,8 +55,10 @@ import org.eclipse.swt.widgets.Listener;
  *       StyledText#getLocationAtOffset} and secondary selections are line style backgrounds, so
  *       both follow the widget's measured glyph positions on any script.
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
- *       EditorInput#viewColumnsChanged} on every resize. A double click at or past a wrapped row's
- *       right edge selects the row's last word.
+ *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
+ *       a wrapped row's right edge selects the row's last word.
+ *   <li>Font: {@link #setFont} changes the font in place and measures it again; the widget, its
+ *       caret, scroll position and focus stay.
  * </ul>
  */
 public final class EditorPane {
@@ -70,7 +76,8 @@ public final class EditorPane {
   private final DisplayProjection projection;
   private final SelectionModel selections;
   private final EditorInput input;
-  private final Font font;
+  private final Keymap keymap;
+  private Font font;
   private final SelectionListener modelListener;
   private ColumnMetrics metrics;
   private int gutterWidth;
@@ -90,6 +97,7 @@ public final class EditorPane {
    * @param projection the display text
    * @param selections the model's selections for this view
    * @param input receives the input
+   * @param keymap the editor's key bindings
    * @param font the editor font, owned by the caller
    * @param palette the colors
    */
@@ -98,11 +106,13 @@ public final class EditorPane {
       DisplayProjection projection,
       SelectionModel selections,
       EditorInput input,
+      Keymap keymap,
       Font font,
       Palette palette) {
     this.projection = projection;
     this.selections = selections;
     this.input = input;
+    this.keymap = keymap;
     this.font = font;
     text = new StyledText(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
     // Font, tabs, margins and colors each reset the widget's per-line cache, O(lines) through a
@@ -166,6 +176,22 @@ public final class EditorPane {
    */
   public ColumnMetrics metrics() {
     return metrics;
+  }
+
+  /**
+   * Changes the font in place: the widget keeps its content, caret and scroll position, and the
+   * gutter and wrap width follow the new advance. Costs O(rows) in the widget.
+   *
+   * @param next the font, owned by the caller
+   */
+  public void setFont(Font next) {
+    if (text.isDisposed() || next == font) {
+      return;
+    }
+    font = next;
+    text.setFont(next);
+    measure();
+    text.redraw();
   }
 
   /** Scrolls so the primary caret shows. */
@@ -424,75 +450,14 @@ public final class EditorPane {
    */
   boolean route(char character, int keyCode, int stateMask) {
     int mods = stateMask & (SWT.CTRL | SWT.ALT | SWT.COMMAND);
-    boolean mod1 = (stateMask & SWT.MOD1) != 0;
-    boolean shift = (stateMask & SWT.SHIFT) != 0;
-    if (mod1 && (mods & ~SWT.MOD1) == 0) {
-      switch (Character.toLowerCase((char) keyCode)) {
-        case 'z' -> {
-          if (shift) {
-            input.redo();
-          } else {
-            input.undo();
-          }
-          return true;
-        }
-        case 'y' -> {
-          input.redo();
-          return true;
-        }
-        case 'x' -> {
-          input.cut();
-          return true;
-        }
-        case 'c' -> {
-          input.copy();
-          return true;
-        }
-        case 'v' -> {
-          input.paste();
-          return true;
-        }
-        case 'a' -> {
-          input.selectAll();
-          return true;
-        }
-        default -> {
-          // Not an editing key.
-        }
-      }
-    }
-    if (keyCode == SWT.INSERT && mods == 0) {
-      if (shift) {
-        input.paste();
-      }
+    if (keyCode == SWT.INSERT && stateMask == 0) {
       return true;
     }
-    if (keyCode == SWT.INSERT && mod1 && !shift) {
-      input.copy();
+    KeyStroke stroke = SwtKeys.stroke(stateMask, keyCode, character);
+    CommandId command = stroke == null ? null : keymap.editorCommand(stroke);
+    if (command != null) {
+      input.execute(command);
       return true;
-    }
-    if (mods == 0) {
-      switch (character) {
-        case SWT.ESC:
-          input.cancel();
-          return true;
-        case SWT.BS:
-          input.backspace();
-          return true;
-        case SWT.DEL:
-          if (shift) {
-            input.cut();
-          } else {
-            input.deleteForward();
-          }
-          return true;
-        case SWT.CR:
-        case SWT.LF:
-          input.newline();
-          return true;
-        default:
-          break;
-      }
     }
     boolean typed =
         character >= ' '

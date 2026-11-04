@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
@@ -183,6 +184,26 @@ public final class EditorController implements EditorInput {
   }
 
   // Edits.
+
+  @Override
+  public boolean execute(CommandId command) {
+    switch (command) {
+      case UNDO -> undo();
+      case REDO -> redo();
+      case CUT -> cut();
+      case COPY -> copy();
+      case PASTE -> paste();
+      case SELECT_ALL -> selectAll();
+      case NEWLINE -> newline();
+      case DELETE_BACK -> backspace();
+      case DELETE_FORWARD -> deleteForward();
+      case CANCEL -> cancel();
+      default -> {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @Override
   public void type(String text) {

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.launcher;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.WindowState;
@@ -18,6 +19,7 @@ import io.github.ajdailey.qcaret.ui.swt.AppMenu;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -126,7 +128,9 @@ final class Gui {
               preferences,
               system,
               MemoryBudget.fromRuntime(),
+              Keymap.defaults(SwtKeys.mac()),
               remember);
+      controller.setLogging(LogbackConfigurator.RECENT, logFiles);
       window.attach(controller);
       // macOS application menu.
       AppMenu.hook(display, controller);

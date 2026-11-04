@@ -2,7 +2,7 @@ package io.github.ajdailey.qcaret.app.command;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 
-/** The menu a command appears in. */
+/** Where a command appears: a menu, or the editor's own keys, which have no menu. */
 public enum CommandGroup {
   /** File menu. */
   FILE(UiText.GROUP_FILE, true),
@@ -10,8 +10,14 @@ public enum CommandGroup {
   EDIT(UiText.GROUP_EDIT, true),
   /** View menu. */
   VIEW(UiText.GROUP_VIEW, true),
+  /** Encoding menu; the menu adds the charset cascades. */
+  ENCODING(UiText.GROUP_ENCODING, true),
+  /** Window menu; the menu lists the open documents after its commands. */
+  WINDOW(UiText.GROUP_WINDOW, true),
   /** Help menu. */
-  HELP(UiText.GROUP_HELP, true);
+  HELP(UiText.GROUP_HELP, true),
+  /** Keys of the focused editor; listed in Keyboard Shortcuts only. */
+  EDITOR(UiText.GROUP_EDITOR, false);
 
   private final UiText label;
   private final boolean menu;

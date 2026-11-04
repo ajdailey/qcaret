@@ -17,21 +17,28 @@ import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
+import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
+import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +51,13 @@ import org.slf4j.LoggerFactory;
  *   <li>Open goes through {@link DocumentOpener}: the heap-budget check, the load and the rows on a
  *       worker. A missing file opens an empty document for its path; a file already open selects
  *       its tab. A document whose text does not encode back to the file's bytes opens read-only
- *       with a notice.
+ *       with a notice. A binary file opens only after the user accepts a read-only ISO-8859-1 view;
+ *       that document is never written: Save and Save As refuse it, whatever calls them.
+ *   <li>Reopen with an encoding loads the file again with that charset and replaces the clean
+ *       document in its tab once loaded; a failed load leaves the document open. Save with an
+ *       encoding changes only what the next save writes. Converting the line endings computes the
+ *       new text on a {@code qcaret-cpu-} worker and applies it as one undo step, dropped when the
+ *       document changed meanwhile.
  *   <li>Save writes a {@link DocumentSnapshot} through {@link DocumentFiles#save} on a {@code
  *       qcaret-io-} worker while editing goes on; the document is clean once the snapshot's state
  *       is current. A save while one runs for the same document shows a notice instead. Esc in the
@@ -54,6 +67,11 @@ import org.slf4j.LoggerFactory;
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
  *   <li>A closed document releases its {@link MemoryBudget} reservation.
  * </ul>
+ *
+ * <p>Loads, saves and conversions each count as one operation of the view's {@link
+ * io.github.ajdailey.qcaret.app.view.ActivityIndicator} until their worker ends. A change of the
+ * selected document or of its file, dirty, read-only, encoding or line-ending state calls {@link
+ * MainView#documentStateChanged}.
  */
 public final class DocumentController {
   private static final Logger LOG = LoggerFactory.getLogger(DocumentController.class);
@@ -65,6 +83,7 @@ public final class DocumentController {
   private final LoadOptions options;
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
+  private final Map<Path, Charset> reopening = new HashMap<Path, Charset>();
   private OpenDocument active;
   private int nextUntitled = 1;
   private boolean wrap;
@@ -73,12 +92,15 @@ public final class DocumentController {
   private final class OpenDocument implements DocumentListener {
     final Document document;
     final String untitled;
+    TabInput input;
     Path path;
     FileStamp baseline;
     long reserved;
     EditorController editor;
     TabView tab;
     CancellationToken saving;
+    CancellationToken converting;
+    boolean binary;
     boolean closed;
 
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
@@ -97,7 +119,13 @@ public final class DocumentController {
     void updateTitle() {
       if (!closed) {
         String name = name();
-        tab.setTitle((document.isDirty() ? "*" : "") + name, path == null ? name : path.toString());
+        String title = (document.isDirty() ? "*" : "") + name;
+        if (binary) {
+          title = UiText.TAB_BINARY.format(title);
+        } else if (document.isReadOnly()) {
+          title = UiText.TAB_READ_ONLY.format(title);
+        }
+        tab.setTitle(title, path == null ? name : path.toString());
       }
     }
 
@@ -109,6 +137,7 @@ public final class DocumentController {
     @Override
     public void dirtyChanged(boolean dirty) {
       updateTitle();
+      view.documentStateChanged();
     }
   }
 
@@ -133,6 +162,7 @@ public final class DocumentController {
             workers,
             ui,
             budget,
+            view,
             new DocumentOpener.Listener() {
               @Override
               public void opened(
@@ -179,6 +209,45 @@ public final class DocumentController {
     return active == null ? null : active.path;
   }
 
+  /** Returns the selected document's state, or null without a document. */
+  Document activeDocument() {
+    return active == null ? null : active.document;
+  }
+
+  /** Reports whether the selected document is a binary file's read-only view. */
+  boolean activeBinary() {
+    return active != null && active.binary;
+  }
+
+  /** Returns the tab labels in tab order: each path, or the title of an untitled document. */
+  List<String> labels() {
+    List<String> labels = new ArrayList<String>();
+    for (OpenDocument d : documents) {
+      labels.add(d.path == null ? d.untitled : d.path.toString());
+    }
+    return labels;
+  }
+
+  /** Returns the selected document's tab index, or -1 without a document. */
+  int activeIndex() {
+    return documents.indexOf(active);
+  }
+
+  /** Returns the index of the document behind a tab's input, or -1 when it is closed. */
+  int indexOf(TabInput input) {
+    for (int i = 0; i < documents.size(); i++) {
+      if (documents.get(i).input == input) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /** Reports whether the document at a tab index has a file. */
+  boolean hasFile(int index) {
+    return index >= 0 && index < documents.size() && documents.get(index).path != null;
+  }
+
   /**
    * Reports whether word wrap is on for the window's editors.
    *
@@ -203,7 +272,14 @@ public final class DocumentController {
     Document document =
         Document.of(
             "", TextEncoding.of(StandardCharsets.UTF_8, false), options.empty(), options.limits());
-    add(document, null, null, 0, DisplayProjection.Layout.empty(document.text()));
+    add(
+        document,
+        null,
+        null,
+        0,
+        DisplayProjection.Layout.empty(document.text()),
+        documents.size(),
+        false);
   }
 
   /** Asks for files and opens them. */
@@ -240,21 +316,34 @@ public final class DocumentController {
   }
 
   private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
+    boolean reopen = reopening.remove(path) != null;
+    int index = documents.size();
     for (OpenDocument d : documents) {
       if (path.equals(d.path)) {
-        budget.release(reserved);
-        d.tab.select();
-        return;
+        if (!reopen || d.document.isDirty()) {
+          budget.release(reserved);
+          d.tab.select();
+          return;
+        }
+        index = documents.indexOf(d);
+        discard(d);
+        break;
       }
     }
     Document document = file.document();
-    OpenDocument d = add(document, path, file.stamp(), reserved, layout);
-    if (!file.roundTrips()) {
+    OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
+    if (file.binary()) {
+      document.setReadOnly(true);
+      d.updateTitle();
+      view.documentStateChanged();
+    } else if (!file.roundTrips()) {
       document.setReadOnly(true);
       view.showInfo(
           UiText.OPEN_TITLE.text(),
           UiText.OPEN_READ_ONLY.format(
               d.name(), file.detection().encoding().charset().displayName()));
+      d.updateTitle();
+      view.documentStateChanged();
     }
   }
 
@@ -272,7 +361,19 @@ public final class DocumentController {
             suggested));
   }
 
-  private void loadFailed(Path path, IOException error) {
+  private void loadFailed(final Path path, IOException error) {
+    reopening.remove(path);
+    if (error instanceof BinaryFileException) {
+      view.askOpenBinary(
+          String.valueOf(path.getFileName()),
+          new Runnable() {
+            @Override
+            public void run() {
+              opener.open(path, options.asBinary());
+            }
+          });
+      return;
+    }
     if (error instanceof NoSuchFileException && path.isAbsolute() && path.getParent() != null) {
       Document document =
           Document.of(
@@ -280,13 +381,17 @@ public final class DocumentController {
               TextEncoding.of(StandardCharsets.UTF_8, false),
               options.empty(),
               options.limits());
-      add(document, path, null, 0, DisplayProjection.Layout.empty(document.text()));
+      add(
+          document,
+          path,
+          null,
+          0,
+          DisplayProjection.Layout.empty(document.text()),
+          documents.size(),
+          false);
       return;
     }
-    String reason =
-        error instanceof BinaryFileException
-            ? UiText.OPEN_BINARY.text()
-            : LogText.oneLine(error.getMessage());
+    String reason = LogText.oneLine(error.getMessage());
     LOG.debug("Open failed: {}", LogText.oneLine(String.valueOf(path)));
     view.showInfo(
         UiText.OPEN_TITLE.text(),
@@ -298,8 +403,12 @@ public final class DocumentController {
       Path path,
       FileStamp baseline,
       long reserved,
-      DisplayProjection.Layout layout) {
+      DisplayProjection.Layout layout,
+      int index,
+      boolean binary) {
     final OpenDocument d = new OpenDocument(document, path, baseline, reserved);
+    d.binary = binary;
+    d.input = tabInput(d);
     SelectionModel selections = document.newSelectionModel();
     DisplayProjection projection = new DisplayProjection(document, layout);
     d.editor =
@@ -315,15 +424,16 @@ public final class DocumentController {
                 cancelSave(d);
               }
             });
-    d.tab = view.addTab(projection, selections, d.editor, tabInput(d));
+    d.tab = view.addTab(projection, selections, d.editor, d.input, index);
     d.editor.attach(d.tab);
     document.addListener(d);
-    documents.add(d);
+    documents.add(index, d);
     active = d;
     d.updateTitle();
     if (wrap) {
       d.editor.setWrap(true);
     }
+    view.documentStateChanged();
     return d;
   }
 
@@ -336,8 +446,9 @@ public final class DocumentController {
 
       @Override
       public void activated() {
-        if (!d.closed) {
+        if (!d.closed && active != d) {
           active = d;
+          view.documentStateChanged();
         }
       }
 
@@ -345,6 +456,19 @@ public final class DocumentController {
       public void moved(int index) {
         documents.remove(d);
         documents.add(Math.max(0, Math.min(index, documents.size())), d);
+      }
+
+      @Override
+      public void closeOthersRequested() {
+        closeOthers(d);
+      }
+
+      @Override
+      public void copyPathRequested(boolean nameOnly) {
+        if (d.path != null) {
+          Path name = d.path.getFileName();
+          view.setText(nameOnly && name != null ? name.toString() : d.path.toString());
+        }
       }
     };
   }
@@ -373,6 +497,9 @@ public final class DocumentController {
   }
 
   private void save(OpenDocument d, Runnable then) {
+    if (binaryNotice(d)) {
+      return;
+    }
     if (d.path == null) {
       saveAs(d, then);
     } else {
@@ -381,7 +508,7 @@ public final class DocumentController {
   }
 
   private void saveAs(final OpenDocument d, final Runnable then) {
-    if (savingNotice(d)) {
+    if (binaryNotice(d) || savingNotice(d)) {
       return;
     }
     Path directory = d.path == null ? null : d.path.getParent();
@@ -396,6 +523,15 @@ public final class DocumentController {
             }
           }
         });
+  }
+
+  /** Shows the notice and returns true for a binary file's view, which is never written. */
+  private boolean binaryNotice(OpenDocument d) {
+    if (!d.binary) {
+      return false;
+    }
+    view.showInfo(UiText.SAVE_TITLE.text(), UiText.SAVE_BINARY.format(d.name()));
+    return true;
   }
 
   /** Shows the notice and returns true when a save of the document is running. */
@@ -417,12 +553,13 @@ public final class DocumentController {
   /** Writes a snapshot on a worker; on success records the stamp and runs {@code then}. */
   private void write(
       final OpenDocument d, final Path target, final FileStamp baseline, final Runnable then) {
-    if (savingNotice(d)) {
+    if (d.binary || savingNotice(d)) {
       return;
     }
     final DocumentSnapshot snapshot = d.document.snapshot();
     final CancellationToken token = new CancellationToken();
     d.saving = token;
+    view.setActive();
     boolean started =
         workers.tryStart(
             Workers.Kind.IO,
@@ -438,6 +575,7 @@ public final class DocumentController {
                 } catch (CancellationException e) {
                   // Canceled: the target is unchanged unless the move had happened.
                 } finally {
+                  view.setIdle();
                   final FileStamp saved = stamp;
                   final IOException failure = error;
                   ui.asyncExec(
@@ -452,6 +590,7 @@ public final class DocumentController {
             });
     if (!started) {
       d.saving = null;
+      view.setIdle();
     }
   }
 
@@ -474,6 +613,7 @@ public final class DocumentController {
       d.baseline = stamp;
       d.document.markSaved(snapshot);
       d.updateTitle();
+      view.documentStateChanged();
       if (then != null) {
         then.run();
       }
@@ -506,18 +646,71 @@ public final class DocumentController {
   }
 
   private void closeNext(final Runnable then) {
-    if (documents.isEmpty()) {
-      then.run();
+    closeNext(null, then);
+  }
+
+  /** Closes the first document other than {@code kept}, asking when dirty, then the next. */
+  private void closeNext(final OpenDocument kept, final Runnable then) {
+    OpenDocument next = null;
+    for (OpenDocument d : documents) {
+      if (d != kept) {
+        next = d;
+        break;
+      }
+    }
+    if (next == null) {
+      if (kept != null && !kept.closed) {
+        kept.tab.select();
+      }
+      if (then != null) {
+        then.run();
+      }
       return;
     }
     close(
-        documents.get(0),
+        next,
         new Runnable() {
           @Override
           public void run() {
-            closeNext(then);
+            closeNext(kept, then);
           }
         });
+  }
+
+  /** Closes every document but the selected one, asking for each dirty one; Cancel stops. */
+  public void closeOthers() {
+    if (active != null) {
+      closeOthers(active);
+    }
+  }
+
+  private void closeOthers(OpenDocument kept) {
+    closeNext(kept, null);
+  }
+
+  /**
+   * Selects the tab after (or before) the selected one, wrapping around.
+   *
+   * @param forward true for the next tab
+   */
+  public void selectNext(boolean forward) {
+    if (documents.size() < 2 || active == null) {
+      return;
+    }
+    int at = documents.indexOf(active);
+    int next = (at + (forward ? 1 : documents.size() - 1)) % documents.size();
+    select(next);
+  }
+
+  /**
+   * Selects a tab.
+   *
+   * @param index the tab index; out of range does nothing
+   */
+  public void select(int index) {
+    if (index >= 0 && index < documents.size()) {
+      documents.get(index).tab.select();
+    }
   }
 
   /** Cancels running loads and closes every document without asking. */
@@ -573,6 +766,9 @@ public final class DocumentController {
     }
     d.closed = true;
     cancelSave(d);
+    if (d.converting != null) {
+      d.converting.cancel();
+    }
     d.document.removeListener(d);
     d.editor.dispose();
     budget.release(d.reserved);
@@ -581,6 +777,124 @@ public final class DocumentController {
       active = documents.isEmpty() ? null : documents.get(documents.size() - 1);
     }
     d.tab.close();
+    view.documentStateChanged();
+  }
+
+  // Encodings and line endings.
+
+  /**
+   * Loads the selected document's file again, decoded with a charset, and replaces the document in
+   * its tab. Does nothing for an untitled, dirty or binary document.
+   *
+   * @param charset the charset
+   */
+  public void reopenWithEncoding(Charset charset) {
+    if (active == null || active.path == null || active.binary || active.document.isDirty()) {
+      return;
+    }
+    reopening.put(active.path, charset);
+    opener.open(active.path, options.withForced(charset));
+  }
+
+  /**
+   * Sets the charset the selected document's next save writes; the document is dirty until then.
+   * The byte order mark is kept for the same charset and dropped for another. Does nothing for a
+   * binary file's view.
+   *
+   * @param charset the charset
+   */
+  public void saveWithEncoding(Charset charset) {
+    if (active == null || active.binary) {
+      return;
+    }
+    TextEncoding current = active.document.encoding();
+    if (!current.charset().equals(charset)) {
+      active.document.setEncoding(TextEncoding.of(charset, false));
+      active.updateTitle();
+      view.documentStateChanged();
+    }
+  }
+
+  /**
+   * Converts every line break of the selected document to one ending, as one undo step, and makes
+   * it the ending Enter inserts. The new text is computed on a {@code qcaret-cpu-} worker; the
+   * result is dropped when the document changed or closed meanwhile. Does nothing for a read-only
+   * document.
+   *
+   * @param ending the ending
+   */
+  public void convertLineEndings(final LineEnding ending) {
+    final OpenDocument d = active;
+    if (d == null || d.document.isReadOnly()) {
+      return;
+    }
+    if (!d.document.lineEndings().isMixed()
+        && d.document.lineEndings().dominant(ending) == ending) {
+      d.document.setLineEnding(ending);
+      view.documentStateChanged();
+      return;
+    }
+    if (d.converting != null) {
+      d.converting.cancel();
+    }
+    final CancellationToken token = new CancellationToken();
+    d.converting = token;
+    final DocumentSnapshot snapshot = d.document.snapshot();
+    final long revision = d.document.revision();
+    final int caret = d.editor.selections().selections().primary().caret();
+    view.setActive();
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              LineConversion converted = null;
+              try {
+                converted = LineConversion.convert(snapshot.text(), ending, caret, token);
+              } catch (CancellationException e) {
+                // Closed or replaced by a newer conversion.
+              } finally {
+                view.setIdle();
+                final LineConversion result = converted;
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        converted(d, token, revision, ending, result);
+                      }
+                    });
+              }
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      d.converting = null;
+      view.setIdle();
+    }
+  }
+
+  private void converted(
+      OpenDocument d,
+      CancellationToken token,
+      long revision,
+      LineEnding ending,
+      LineConversion result) {
+    if (d.converting != token) {
+      return;
+    }
+    d.converting = null;
+    if (result == null
+        || d.closed
+        || d.document.isReadOnly()
+        || d.document.revision() != revision) {
+      return;
+    }
+    d.document.apply(
+        EditBatch.of(EditBatch.Kind.COMMAND, List.of(result.replacement())),
+        d.editor.selections(),
+        SelectionSet.caret(result.caret()));
+    d.document.setLineEnding(ending);
+    d.tab.showCaret();
+    view.documentStateChanged();
   }
 
   /**

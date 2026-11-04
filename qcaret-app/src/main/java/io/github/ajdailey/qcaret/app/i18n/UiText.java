@@ -57,6 +57,130 @@ public enum UiText {
   COMMAND_THEME_SYSTEM,
   /** Command label. */
   COMMAND_ABOUT,
+  /** Encoding menu. */
+  GROUP_ENCODING,
+  /** Window menu. */
+  GROUP_WINDOW,
+  /** Editor keys, in Keyboard Shortcuts. */
+  GROUP_EDITOR,
+  /** Command label. */
+  COMMAND_CLOSE_ALL,
+  /** Command label. */
+  COMMAND_ZOOM_IN,
+  /** Command label. */
+  COMMAND_ZOOM_OUT,
+  /** Command label. */
+  COMMAND_ZOOM_RESET,
+  /** Encoding submenu of the line-ending conversions. */
+  MENU_LINE_ENDINGS,
+  /** Command label. */
+  COMMAND_LINE_ENDING_CRLF,
+  /** Command label. */
+  COMMAND_LINE_ENDING_LF,
+  /** Command label. */
+  COMMAND_LINE_ENDING_CR,
+  /** Command label. */
+  COMMAND_NEXT_TAB,
+  /** Command label. */
+  COMMAND_PREVIOUS_TAB,
+  /** Command label. */
+  COMMAND_CLOSE_OTHERS,
+  /** Command label. */
+  COMMAND_KEYBOARD_SHORTCUTS,
+  /** Command label. */
+  COMMAND_COMMAND_LINE_OPTIONS,
+  /** Command label. */
+  COMMAND_USER_GUIDE,
+  /** Command label. */
+  COMMAND_SHOW_LOG,
+  /** Command label. */
+  COMMAND_DEBUG_LOG_FILE,
+  /** Command label. */
+  COMMAND_OPEN_LOG_FOLDER,
+  /** Command label. */
+  COMMAND_OPEN_SETTINGS_FOLDER,
+  /** Command label. */
+  COMMAND_REPORT_ISSUE,
+  /** Editor key, in Keyboard Shortcuts. */
+  COMMAND_NEWLINE,
+  /** Editor key, in Keyboard Shortcuts. */
+  COMMAND_DELETE_BACK,
+  /** Editor key, in Keyboard Shortcuts. */
+  COMMAND_DELETE_FORWARD,
+  /** Editor key, in Keyboard Shortcuts. */
+  COMMAND_CANCEL,
+  /** Encoding submenu: load the file again with a charset. */
+  MENU_REOPEN_ENCODING,
+  /** Encoding submenu: the charset the next save writes. */
+  MENU_SAVE_ENCODING,
+  /** Encoding cascade of every other charset. */
+  MENU_ENCODING_OTHER,
+  /** Tab title of a read-only document. */
+  TAB_READ_ONLY,
+  /** Tab title of a binary file's read-only view. */
+  TAB_BINARY,
+  /** Tab menu item. */
+  TAB_COPY_PATH,
+  /** Tab menu item. */
+  TAB_COPY_FILE_NAME,
+  /** Save refused for a binary file's view. */
+  SAVE_BINARY,
+  /** Title of the binary file prompt. */
+  BINARY_TITLE,
+  /** Binary file prompt. */
+  BINARY_MESSAGE,
+  /** Binary file prompt button. */
+  BUTTON_OPEN_READ_ONLY,
+  /** Title of the key binding list. */
+  SHORTCUTS_TITLE,
+  /** Title of the command-line usage. */
+  COMMAND_LINE_TITLE,
+  /** Title of the log window. */
+  SHOW_LOG_TITLE,
+  /** Log window text when nothing was logged. */
+  SHOW_LOG_EMPTY,
+  /** Notice after Debug Log File opens the file. */
+  NOTICE_LOG_FILE_ON,
+  /** Notice after Debug Log File closes the file. */
+  NOTICE_LOG_FILE_OFF,
+  /** Notice when the debug log file does not open. */
+  NOTICE_LOG_FILE_FAILED,
+  /** Notice when a folder cannot be created. */
+  NOTICE_FOLDER_FAILED,
+  /** Notice when no application opened a file, folder or page. */
+  NOTICE_LAUNCH_FAILED,
+  /** Notice after Report an Issue. */
+  NOTICE_ISSUE_DETAILS,
+  /** Notice when the user guide cannot be written. */
+  NOTICE_GUIDE_FAILED,
+  /** Notice naming the user guide when no application opened it. */
+  NOTICE_GUIDE_AT,
+  /** Status bar: line and column. */
+  STATUS_POSITION,
+  /** Status bar: selected chars. */
+  STATUS_SELECTION,
+  /** Status bar: selected chars and carets. */
+  STATUS_SELECTION_CARETS,
+  /** Status bar: a charset written with a byte order mark. */
+  STATUS_BOM,
+  /** Status bar line endings. */
+  STATUS_CRLF,
+  /** Status bar line endings. */
+  STATUS_LF,
+  /** Status bar line endings. */
+  STATUS_CR,
+  /** Status bar line endings: more than one kind. */
+  STATUS_MIXED,
+  /** Status bar language without a syntax. */
+  STATUS_PLAIN_TEXT,
+  /** Status bar marker of a read-only document. */
+  STATUS_READ_ONLY,
+  /** Status bar marker of a binary file's view. */
+  STATUS_BINARY,
+  /** Status bar link to Show Log after a warning. */
+  STATUS_WARNINGS,
+  /** Tooltip of the warnings link. */
+  STATUS_WARNINGS_TIP,
   /** Title of the notice that native controls change at the next start. */
   THEME_RESTART_TITLE,
   /** The notice that native controls change at the next start. */
@@ -107,8 +231,6 @@ public enum UiText {
   OPEN_TITLE,
   /** Open failure: the file name and the reason. */
   OPEN_FAILED,
-  /** Open failure reason for a binary file. */
-  OPEN_BINARY,
   /** Opened read-only: the file name and the charset. */
   OPEN_READ_ONLY,
   /**

@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
+
 /**
  * What an editor view forwards to its controller. Offsets are display offsets of the view's {@code
  * DisplayProjection}. Called on the UI thread.
@@ -11,6 +13,15 @@ public interface EditorInput {
    * @param text the typed chars
    */
   void type(String text);
+
+  /**
+   * Runs an editing command: an {@link io.github.ajdailey.qcaret.app.command.CommandGroup#EDIT} or
+   * {@link io.github.ajdailey.qcaret.app.command.CommandGroup#EDITOR} command.
+   *
+   * @param command the command
+   * @return false for a command the editor does not run
+   */
+  boolean execute(CommandId command);
 
   /** Replaces every selection with the document's line ending. */
   void newline();

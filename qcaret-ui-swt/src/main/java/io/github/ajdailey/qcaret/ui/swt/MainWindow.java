@@ -1,27 +1,32 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
-import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.CommandStates;
+import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
+import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
@@ -37,10 +42,16 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.program.Program;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -48,16 +59,29 @@ import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * The main window: a tab per document, each holding an {@link EditorPane}, and the File, Edit, View
- * and Help menus built from {@link MenuTable}. The editors take their colors from the {@link
- * Palette}; native controls follow {@link SwtThemeService}. {@link ToolIcons} owned by the window
- * re-ink on the UI turn after a palette change, once native controls have restyled.
+ * The main window: a tab per document, each holding an {@link EditorPane}, the {@link MainMenuBar}
+ * built from {@link MenuTable} and the {@link Keymap}, and a status bar. The editors take their
+ * colors from the {@link Palette}; native controls follow {@link SwtThemeService}. {@link
+ * ToolIcons} owned by the window re-ink on the UI turn after a palette change, once native controls
+ * have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
  * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
  * {@code Selection} that {@code CTabFolder} sends for a neighbor while the selected item is
- * disposed is ignored (QLogg UI-14). The file choosers are native dialogs and run a nested event
- * loop; the unsaved-changes prompt does not.
+ * disposed is ignored (QLogg UI-14). One context menu serves every tab; each right click replaces
+ * its items. The file choosers are native dialogs and run a nested event loop; the unsaved-changes
+ * and binary-file prompts do not.
+ *
+ * <p>Menu enablement syncs on {@link #documentStateChanged} and when the shell is activated, so an
+ * accelerator works without a menu having been shown. The status bar shows the selected document's
+ * {@link StatusFields}, read once per UI turn however many caret moves or state changes arrive in
+ * it; a notice; and a Warnings link to Show Log while a warning is unseen. A Display key filter
+ * runs window bindings that are not accelerators. {@link #setFontStep} replaces the editor font in
+ * every editor in place, without rebuilding the menus or the window, and keeps the focus.
+ *
+ * <p>{@link #setActive} and {@link #setIdle} count overlapping operations through a {@link
+ * BusyCounter}: while any is active the shell shows {@code SWT.CURSOR_APPSTARTING}, which keeps the
+ * window usable.
  *
  * <p>{@link #place} sizes and positions the shell before {@link #open}; the normal bounds are kept
  * on every unmaximized move and resize for {@link #windowBounds}. Dialogs open without a nested
@@ -71,15 +95,33 @@ public final class MainWindow implements MainView {
   /** System property SWT sets on GTK to the GTK version. */
   static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
 
+  /** How long a notice stays in the status bar. */
+  static final int NOTICE_MILLIS = 8000;
+
   private final Shell shell;
   private final CTabFolder tabs;
-  private final Font font;
   private final List<Image> icons;
   private final ToolIcons toolIcons;
   private final SwtUiDispatcher dispatcher;
-  private final Map<CommandId, MenuItem> checkItems =
-      new EnumMap<CommandId, MenuItem>(CommandId.class);
+  private final Composite statusBar;
+  private final Label position;
+  private final Label selection;
+  private final Label encoding;
+  private final Label lineEnding;
+  private final Label language;
+  private final Label readOnly;
+  private final Label notice;
+  private final Link warnings;
+  private final BusyCounter busy;
+  private final int baseFontSize;
+  private Font font;
   private ApplicationController controller;
+  private MainMenuBar menuBar;
+  private Keymap keymap;
+  private Menu tabMenu;
+  private TextWindow logWindow;
+  private boolean statusPending;
+  private long noticeGeneration;
   private PaletteListener paletteListener;
   private Palette palette;
   private Clipboard clipboard;
@@ -88,17 +130,27 @@ public final class MainWindow implements MainView {
   private boolean movingTab;
 
   /** One document tab: its item, which a move recreates, and its editor. */
-  private final class Tab implements TabView {
+  private final class Tab implements TabView, SelectionListener {
     final EditorPane pane;
     final TabInput input;
+    final SelectionModel selections;
     String title = "";
     String toolTip = "";
     CTabItem item;
 
-    Tab(EditorPane pane, TabInput input, int index) {
+    Tab(EditorPane pane, TabInput input, SelectionModel selections, int index) {
       this.pane = pane;
       this.input = input;
+      this.selections = selections;
       this.item = newItem(this, index);
+      selections.addListener(this);
+    }
+
+    @Override
+    public void selectionsChanged(SelectionModel model) {
+      if (!item.isDisposed() && tabs.getSelection() == item) {
+        scheduleStatus();
+      }
     }
 
     @Override
@@ -127,6 +179,7 @@ public final class MainWindow implements MainView {
 
     @Override
     public void close() {
+      selections.removeListener(this);
       if (!item.isDisposed()) {
         item.dispose();
       }
@@ -151,9 +204,59 @@ public final class MainWindow implements MainView {
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
-    shell.setLayout(new FillLayout());
+    GridLayout layout = new GridLayout(1, false);
+    layout.marginWidth = 0;
+    layout.marginHeight = 0;
+    layout.verticalSpacing = 0;
+    shell.setLayout(layout);
     tabs = new CTabFolder(shell, SWT.TOP | SWT.FLAT);
-    font = new Font(display, Dialogs.monospaceName(), Dialogs.monospaceSize(), SWT.NORMAL);
+    tabs.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    baseFontSize = Dialogs.monospaceSize();
+    font = new Font(display, Dialogs.monospaceName(), baseFontSize, SWT.NORMAL);
+    statusBar = new Composite(shell, SWT.NONE);
+    statusBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    GridLayout statusLayout = new GridLayout(8, false);
+    statusLayout.marginHeight = 1;
+    statusLayout.marginWidth = 6;
+    statusLayout.horizontalSpacing = 14;
+    statusBar.setLayout(statusLayout);
+    notice = new Label(statusBar, SWT.NONE);
+    notice.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    warnings = new Link(statusBar, SWT.NONE);
+    warnings.setText("<a>" + UiText.STATUS_WARNINGS.text() + "</a>");
+    warnings.setToolTipText(UiText.STATUS_WARNINGS_TIP.text());
+    GridData warningsData = new GridData(SWT.END, SWT.CENTER, false, false);
+    warningsData.exclude = true;
+    warnings.setLayoutData(warningsData);
+    warnings.setVisible(false);
+    warnings.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (controller != null) {
+              controller.execute(CommandId.SHOW_LOG);
+            }
+          }
+        });
+    readOnly = statusLabel();
+    position = statusLabel();
+    selection = statusLabel();
+    encoding = statusLabel();
+    lineEnding = statusLabel();
+    language = statusLabel();
+    busy =
+        new BusyCounter(
+            dispatcher,
+            new BusyCounter.Indicator() {
+              @Override
+              public void busyChanged(boolean active) {
+                if (!shell.isDisposed()) {
+                  shell.setCursor(
+                      active ? shell.getDisplay().getSystemCursor(SWT.CURSOR_APPSTARTING) : null);
+                }
+              }
+            });
     toolIcons = new ToolIcons(shell);
     applyPalette(palette);
     trackWindowState();
@@ -166,6 +269,9 @@ public final class MainWindow implements MainView {
               controller.theme().removeListener(paletteListener);
             }
             font.dispose();
+            if (tabMenu != null) {
+              tabMenu.dispose();
+            }
             for (Image image : icons) {
               image.dispose();
             }
@@ -177,16 +283,36 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Connects the window to its controller: builds the menu bar, routes close requests to {@link
-   * ApplicationController#quit}, and follows the controller's palette. Call once, before {@link
-   * #open}.
+   * Connects the window to its controller: builds the menu bar, starts listing the charsets, routes
+   * close requests to {@link CommandId#QUIT}, and follows the controller's palette. Call once,
+   * before {@link #open} and before the first tab.
    *
    * @param owner the controller
    */
   public void attach(ApplicationController owner) {
     controller = owner;
-    buildMenuBar();
+    keymap = owner.keymap();
+    menuBar = new MainMenuBar(shell, owner);
+    menuBar.build(keymap);
+    owner.loadEncodings(
+        new EncodingChoices.Listener() {
+          @Override
+          public void loaded(EncodingChoices choices) {
+            if (!shell.isDisposed()) {
+              menuBar.encodingsLoaded(choices);
+            }
+          }
+        });
     listenToTabs();
+    dispatchWindowKeys();
+    shell.addListener(
+        SWT.Activate,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            menuBar.syncEnablement();
+          }
+        });
     onCloseRequest(
         new Runnable() {
           @Override
@@ -205,83 +331,10 @@ public final class MainWindow implements MainView {
     applyPalette(controller.theme().palette());
   }
 
-  private void buildMenuBar() {
-    Menu bar = new Menu(shell, SWT.BAR);
-    boolean appMenu = AppMenu.present(shell.getDisplay());
-    for (CommandGroup group : CommandGroup.values()) {
-      if (!group.menu()) {
-        continue;
-      }
-      List<CommandId> commands = MenuTable.commands(group, appMenu);
-      if (commands.isEmpty()) {
-        continue;
-      }
-      MenuItem header = new MenuItem(bar, SWT.CASCADE);
-      header.setText(group.label());
-      Menu menu = new Menu(shell, SWT.DROP_DOWN);
-      header.setMenu(menu);
-      Menu target = menu;
-      String cascade = null;
-      for (final CommandId command : commands) {
-        String submenu = command.submenu();
-        if (submenu == null) {
-          target = menu;
-          cascade = null;
-        } else if (!submenu.equals(cascade)) {
-          if (command.separatorBefore() && menu.getItemCount() > 0) {
-            new MenuItem(menu, SWT.SEPARATOR);
-          }
-          MenuItem holder = new MenuItem(menu, SWT.CASCADE);
-          holder.setText(submenu);
-          target = new Menu(shell, SWT.DROP_DOWN);
-          holder.setMenu(target);
-          cascade = submenu;
-        }
-        if (command.separatorBefore() && target.getItemCount() > 0) {
-          new MenuItem(target, SWT.SEPARATOR);
-        }
-        MenuItem item = new MenuItem(target, command.check() ? SWT.CHECK : SWT.PUSH);
-        item.setData(command);
-        int accelerator = Accelerators.parse(command.accelerator());
-        if (accelerator != 0) {
-          item.setText(command.label() + "\t" + Accelerators.text(command.accelerator()));
-          item.setAccelerator(accelerator);
-        } else {
-          item.setText(command.label());
-        }
-        item.addListener(
-            SWT.Selection,
-            new Listener() {
-              @Override
-              public void handleEvent(Event event) {
-                controller.execute(command);
-                syncChecks();
-              }
-            });
-        if (command.check()) {
-          checkItems.put(command, item);
-        }
-      }
-      menu.addListener(
-          SWT.Show,
-          new Listener() {
-            @Override
-            public void handleEvent(Event event) {
-              syncChecks();
-            }
-          });
-    }
-    shell.setMenuBar(bar);
-    syncChecks();
-  }
-
-  /** Checks the items whose setting is on: word wrap and the theme. */
-  private void syncChecks() {
-    for (Map.Entry<CommandId, MenuItem> entry : checkItems.entrySet()) {
-      if (!entry.getValue().isDisposed()) {
-        entry.getValue().setSelection(controller.checked(entry.getKey()));
-      }
-    }
+  private Label statusLabel() {
+    Label label = new Label(statusBar, SWT.NONE);
+    label.setLayoutData(new GridData(SWT.END, SWT.CENTER, false, false));
+    return label;
   }
 
   private void applyPalette(Palette next) {
@@ -343,12 +396,64 @@ public final class MainWindow implements MainView {
 
   @Override
   public TabView addTab(
-      DisplayProjection projection, SelectionModel selections, EditorInput editor, TabInput input) {
-    EditorPane pane = new EditorPane(tabs, projection, selections, editor, font, palette);
-    Tab tab = new Tab(pane, input, tabs.getItemCount());
+      DisplayProjection projection,
+      SelectionModel selections,
+      EditorInput editor,
+      TabInput input,
+      int index) {
+    EditorPane pane = new EditorPane(tabs, projection, selections, editor, keymap, font, palette);
+    Tab tab = new Tab(pane, input, selections, Math.min(index, tabs.getItemCount()));
     tabs.setSelection(tab.item);
     pane.focus();
     return tab;
+  }
+
+  @Override
+  public void documentStateChanged() {
+    if (menuBar != null && !shell.isDisposed()) {
+      menuBar.syncEnablement();
+    }
+    scheduleStatus();
+  }
+
+  /** Shows the status fields on a later UI turn; calls before then share that one read. */
+  private void scheduleStatus() {
+    if (statusPending || shell.isDisposed()) {
+      return;
+    }
+    statusPending = true;
+    dispatcher.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            statusPending = false;
+            showStatus();
+          }
+        });
+  }
+
+  private void showStatus() {
+    if (shell.isDisposed() || menuBar == null) {
+      return;
+    }
+    StatusFields fields = menuBar.states().status();
+    boolean changed = set(position, fields.position());
+    changed |= set(selection, fields.selection());
+    changed |= set(encoding, fields.encoding());
+    changed |= set(lineEnding, fields.lineEnding());
+    changed |= set(language, fields.language());
+    changed |= set(readOnly, fields.readOnly());
+    if (changed) {
+      statusBar.layout(true);
+    }
+  }
+
+  private static boolean set(Label label, String text) {
+    if (label.getText().equals(text)) {
+      return false;
+    }
+    label.setText(text.replace("&", "&&"));
+    return true;
   }
 
   private CTabItem newItem(Tab tab, int index) {
@@ -370,6 +475,7 @@ public final class MainWindow implements MainView {
             if (!movingTab && event.item != null && event.item.getData() instanceof Tab tab) {
               tab.pane.focus();
               tab.input.activated();
+              scheduleStatus();
             }
           }
         });
@@ -392,6 +498,18 @@ public final class MainWindow implements MainView {
           }
         });
     tabs.addListener(
+        SWT.MenuDetect,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            CTabItem item = tabs.getItem(tabs.toControl(event.x, event.y));
+            if (item != null && item.getData() instanceof Tab tab) {
+              event.doit = false;
+              showTabMenu(tab, event.x, event.y);
+            }
+          }
+        });
+    tabs.addListener(
         SWT.MouseUp,
         new Listener() {
           @Override
@@ -410,6 +528,99 @@ public final class MainWindow implements MainView {
             }
           }
         });
+  }
+
+  /**
+   * Opens a tab's context menu: Close, Close Others, Close All, then the path items. One menu
+   * serves every tab; each call replaces its items.
+   *
+   * @param tab the tab
+   * @param x display x
+   * @param y display y
+   * @return the menu, already visible
+   */
+  Menu showTabMenu(final Tab tab, int x, int y) {
+    if (tabMenu == null || tabMenu.isDisposed()) {
+      tabMenu = new Menu(shell, SWT.POP_UP);
+    }
+    for (MenuItem old : tabMenu.getItems()) {
+      old.dispose();
+    }
+    CommandStates.TabItems state = menuBar.states().tabItems(tab.input);
+    tabMenuItem(
+        UiText.COMMAND_CLOSE,
+        true,
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.closeRequested();
+          }
+        });
+    tabMenuItem(
+        UiText.COMMAND_CLOSE_OTHERS,
+        state.closeOthers(),
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.closeOthersRequested();
+          }
+        });
+    tabMenuItem(
+        UiText.COMMAND_CLOSE_ALL,
+        true,
+        new Runnable() {
+          @Override
+          public void run() {
+            controller.execute(CommandId.CLOSE_ALL);
+          }
+        });
+    new MenuItem(tabMenu, SWT.SEPARATOR);
+    tabMenuItem(
+        UiText.TAB_COPY_PATH,
+        state.file(),
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.copyPathRequested(false);
+          }
+        });
+    tabMenuItem(
+        UiText.TAB_COPY_FILE_NAME,
+        state.file(),
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.copyPathRequested(true);
+          }
+        });
+    tabMenu.setLocation(x, y);
+    tabMenu.setVisible(true);
+    return tabMenu;
+  }
+
+  private void tabMenuItem(UiText label, boolean enabled, final Runnable action) {
+    MenuItem item = new MenuItem(tabMenu, SWT.PUSH);
+    item.setText(label.text());
+    item.setEnabled(enabled);
+    item.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            action.run();
+          }
+        });
+  }
+
+  /**
+   * Opens the context menu of the tab at an index; for tests.
+   *
+   * @param index the tab index
+   * @return the menu
+   */
+  Menu showTabMenu(int index) {
+    Point at = tabs.toDisplay(0, 0);
+    return showTabMenu((Tab) tabs.getItem(index).getData(), at.x, at.y);
   }
 
   /**
@@ -478,6 +689,213 @@ public final class MainWindow implements MainView {
       return;
     }
     new UnsavedDialog(shell, name, answer).open();
+  }
+
+  @Override
+  public void askOpenBinary(String name, Runnable open) {
+    if (!shell.isDisposed()) {
+      new BinaryDialog(shell, name, open).open();
+    }
+  }
+
+  @Override
+  public void setActive() {
+    busy.setActive();
+  }
+
+  @Override
+  public void setIdle() {
+    busy.setIdle();
+  }
+
+  /**
+   * Returns the operation counter behind the busy cursor.
+   *
+   * @return the counter
+   */
+  BusyCounter busy() {
+    return busy;
+  }
+
+  @Override
+  public void showNotice(String message) {
+    if (notice.isDisposed()) {
+      return;
+    }
+    notice.setText(message.replace("&", "&&"));
+    statusBar.layout(new Control[] {notice});
+    final long shown = ++noticeGeneration;
+    dispatcher.timerExec(
+        NOTICE_MILLIS,
+        new Runnable() {
+          @Override
+          public void run() {
+            if (shown == noticeGeneration && !notice.isDisposed()) {
+              notice.setText("");
+            }
+          }
+        });
+  }
+
+  @Override
+  public void showLog(String text) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (logWindow == null || logWindow.shell().isDisposed()) {
+      Shell owner = modalOwner();
+      logWindow = new TextWindow(owner, UiText.SHOW_LOG_TITLE.text(), text, this, owner != shell);
+      logWindow.open();
+      logWindow.showStart();
+    } else {
+      logWindow.setContent(text);
+      logWindow.shell().setActive();
+    }
+  }
+
+  @Override
+  public void showWarningMarker(boolean shown) {
+    if (warnings.isDisposed() || warnings.getVisible() == shown) {
+      return;
+    }
+    warnings.setVisible(shown);
+    ((GridData) warnings.getLayoutData()).exclude = !shown;
+    statusBar.layout(true);
+  }
+
+  @Override
+  public boolean launch(Path target) {
+    return Program.launch(target.toString());
+  }
+
+  @Override
+  public boolean launchUrl(String url) {
+    return Program.launch(url);
+  }
+
+  @Override
+  public void setFontStep(int step) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    Font old = font;
+    font =
+        new Font(
+            shell.getDisplay(),
+            Dialogs.monospaceName(),
+            Math.max(1, baseFontSize + step),
+            SWT.NORMAL);
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        tab.pane.setFont(font);
+      }
+    }
+    old.dispose();
+    if (menuBar != null) {
+      menuBar.syncEnablement();
+    }
+  }
+
+  /**
+   * Returns the editor font.
+   *
+   * @return the font every editor uses
+   */
+  Font editorFont() {
+    return font;
+  }
+
+  /**
+   * Returns the menu bar.
+   *
+   * @return the menu bar's owner
+   */
+  MainMenuBar menuBar() {
+    return menuBar;
+  }
+
+  /**
+   * Returns the status bar's fields as shown, joined by {@code |}.
+   *
+   * @return read-only marker, position, selection, encoding, line endings and language
+   */
+  String statusText() {
+    return readOnly.getText()
+        + "|"
+        + position.getText()
+        + "|"
+        + selection.getText()
+        + "|"
+        + encoding.getText()
+        + "|"
+        + lineEnding.getText()
+        + "|"
+        + language.getText();
+  }
+
+  /**
+   * Returns the status bar's notice.
+   *
+   * @return the notice, empty when none shows
+   */
+  String noticeText() {
+    return notice.getText();
+  }
+
+  /**
+   * Reports whether the status bar shows the warning marker.
+   *
+   * @return true while shown
+   */
+  boolean warningMarkerShown() {
+    return !warnings.isDisposed() && warnings.getVisible();
+  }
+
+  /**
+   * Returns the log window.
+   *
+   * @return the window, or null before Show Log
+   */
+  TextWindow logWindow() {
+    return logWindow;
+  }
+
+  /**
+   * Runs window bindings that are not a menu item's accelerator, such as a command's second window
+   * key, from a Display filter while this window has a key event. A disabled command does not run.
+   */
+  private void dispatchWindowKeys() {
+    final Display display = shell.getDisplay();
+    final Listener filter =
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (controller == null
+                || !(event.widget instanceof Control control)
+                || control.isDisposed()
+                || control.getShell() != shell) {
+              return;
+            }
+            KeyStroke stroke = SwtKeys.stroke(event.stateMask, event.keyCode, event.character);
+            CommandId command = stroke == null ? null : keymap.windowCommand(stroke);
+            if (command != null) {
+              event.type = SWT.None;
+              event.doit = false;
+              if (menuBar.states().enabled(command)) {
+                controller.execute(command);
+              }
+            }
+          }
+        };
+    display.addFilter(SWT.KeyDown, filter);
+    shell.addListener(
+        SWT.Dispose,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            display.removeFilter(SWT.KeyDown, filter);
+          }
+        });
   }
 
   /**

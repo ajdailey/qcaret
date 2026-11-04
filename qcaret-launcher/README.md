@@ -97,6 +97,12 @@ not imported. A rule is never deleted to pass a build. A needed violation is
 an `ignoreDependency` or a narrowed predicate naming the class, approved and
 recorded with the design's rule table.
 
+Each rule is shown to fail: a fixture class in an `archfixture` package of the
+test sources breaks it, and a test asserts that the rule's report names the
+violation, and not the allowed call beside it where the fixture has one.
+`unusedConstants` runs the `UiText` check on a fixture enum. Fixtures are test
+classes, so the rules over the main classes never see them.
+
 | Rule | Why |
 |---|---|
 | SWT only in `ui.swt` and `launcher` | Model and controllers test without a display |
@@ -120,6 +126,7 @@ recorded with the design's rule table.
 | No `synchronized` methods in `core.concurrent`, `core.io` and `app.ipc` | A monitor pins a virtual thread; blocking code uses `ReentrantLock`. Synchronized blocks are not visible to ArchUnit |
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
+| `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
 | `DocumentBuilderFactory`, `SAXParserFactory` and `XMLInputFactory` only in `core.syntax` | Grammar files are the only XML parsed |
 
 ## Tests

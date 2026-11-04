@@ -10,8 +10,9 @@ SWT. It runs no macros, scripts or plugins.
 
 Version 0.1.0 is in development. The current build opens, edits and saves
 files in tabs, with undo and redo, word wrap, line numbers and multiple carets
-(painted; created by Alt+click), along with the main window's theme handling,
-menus, About and Licenses and its remembered placement. Planned for 0.1.0: large-file
+(painted; created by Alt+click), encoding and line-ending conversion, a
+read-only view of binary files, a status bar, the Help menu and its remembered
+window placement. Planned for 0.1.0: large-file
 editing with multiple carets and column selection, syntax highlighting for 19
 languages, folding, HyperSearch across files and folders with replace, a
 workspace browser, sessions and crash recovery.
@@ -82,12 +83,13 @@ on demand, with Temurin 21.0.12+8:
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets`; uploads the seven archives as `qcaret-archives` |
-| `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens |
+| `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
 `runtime\bin\javaw.exe` with the target's PE machine type (`ARM64` on
-`windows-11-arm`). On macOS it also runs `codesign --verify --deep --strict`
+`windows-11-arm`); the universal zip's `qcaret.exe` must start the JDK's
+`javaw.exe`. On macOS it also runs `codesign --verify --deep --strict`
 on `QCaret.app`. The `package` job caches the JDK archives and `rcodesign`
 under `~/.cache/qcaret-build`, apart from the Maven cache.
 `.github/workflows/dependency-check.yml` scans the dependencies for known
@@ -162,6 +164,18 @@ open (loads at the budget limit completed without an out-of-memory error):
 
 The 8 GiB row is the same 20% and 12% of the heap, computed, not measured. No
 file over 2 GiB opens.
+
+Switching the theme recolors every open editor line by line: about 1 s per
+million-line document, measured on Linux under Xvfb, during which the window
+does not respond. A font size change (View > Zoom) resets the same per-line
+state and costs the same.
+
+## Network access
+
+QCaret makes no network connection. Help > Report an Issue is the one command
+that opens a web address, the project's issue page in the system browser, and
+only when the user picks it. Help > User Guide opens a copy of the guide page
+written to the settings directory, which loads nothing from elsewhere.
 
 ## Settings directory
 

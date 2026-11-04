@@ -80,7 +80,7 @@ class EditorControllerTest {
                 saveCancels[0]++;
               }
             });
-    tab = (FakeView.FakeTab) view.addTab(projection, selections, editor, null);
+    tab = (FakeView.FakeTab) view.addTab(projection, selections, editor, null, 0);
     editor.attach(tab);
   }
 

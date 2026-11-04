@@ -2,11 +2,11 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -98,6 +98,7 @@ class ApplicationControllerTest {
         Preferences.DEFAULTS,
         system,
         new MemoryBudget(1L << 30, 60),
+        Keymap.defaults(false),
         rememberWindow);
   }
 
@@ -184,9 +185,17 @@ class ApplicationControllerTest {
   }
 
   @Test
-  void aboutCollectsTheRuntimeDetails() {
+  void aboutCollectsTheRuntimeDetailsOnAWorker() throws InterruptedException {
     controller(true).execute(CommandId.ABOUT);
-    assertNotNull(view.about);
+    assertTrue(
+        ui.runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return view.about != null;
+              }
+            },
+            BOUND));
     assertEquals("mock toolkit", view.about.toolkit());
     assertEquals(temp, view.about.settingsDirectory());
   }
