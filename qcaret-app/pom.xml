@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.ajdailey.qcaret</groupId>
+        <artifactId>qcaret-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>qcaret-app</artifactId>
+    <name>QCaret application</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.ajdailey.qcaret</groupId>
+            <artifactId>qcaret-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.ajdailey.qcaret</groupId>
+            <artifactId>qcaret-core</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- Help > About > Licenses reads the notices from the jar. -->
+            <resource>
+                <directory>${project.basedir}/..</directory>
+                <includes>
+                    <include>LICENSE</include>
+                    <include>NOTICE</include>
+                </includes>
+                <targetPath>io/github/ajdailey/qcaret/app/about</targetPath>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../qcaret-dist/src/dist</directory>
+                <includes>
+                    <include>THIRD-PARTY.txt</include>
+                </includes>
+                <targetPath>io/github/ajdailey/qcaret/app/about</targetPath>
+            </resource>
+        </resources>
+        <plugins>
+            <!-- ManualUiDispatcher is shared with the UI and launcher tests. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

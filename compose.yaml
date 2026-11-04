@@ -1,0 +1,46 @@
+# Containerized build: mounts, caches and environment. scripts/container.sh
+# and scripts/container.bat wrap it.
+#
+#   docker compose build                  # the build image
+#   docker compose run --rm build         # all seven archives into dist/
+#   docker compose run --rm build ./mvnw -B spotless:check
+
+name: qcaret
+
+services:
+  build:
+    build:
+      context: docker
+      dockerfile: Dockerfile
+    image: qcaret-build:local
+    # Packaging runs launch4j's x86-64 Linux linker; an arm64 host runs the
+    # image under its engine's emulation.
+    platform: linux/amd64
+    working_dir: /work
+    # An init process as PID 1: xvfb-run as PID 1 never sees Xvfb's ready
+    # signal and hangs.
+    init: true
+    # Set by scripts/container.sh so files on a Linux bind mount belong to the
+    # caller. Unset on Windows, where the engine maps ownership.
+    user: "${QCARET_UID:-0}:${QCARET_GID:-0}"
+    volumes:
+      - .:/work
+      # The archives go through this mount; the build never deletes dist/.
+      - ${QCARET_OUT:-./dist}:/work/dist
+      - maven:/opt/qcaret/.m2
+    environment:
+      MAVEN_USER_HOME: /opt/qcaret/.m2
+      # The JDK and rcodesign cache lives in the volume as well.
+      MAVEN_OPTS: >-
+        -Dmaven.repo.local=/opt/qcaret/.m2/repository -Duser.home=/opt/qcaret
+        -Dqcaret.cache.dir=/opt/qcaret/.m2/qcaret-build
+      # The bind-mounted tree belongs to a uid git does not recognize; without
+      # this, git refuses the repository and Spotless loses .gitattributes.
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /work
+    command: ./scripts/build-in-container.sh
+
+volumes:
+  maven:
+    name: qcaret-maven-repo

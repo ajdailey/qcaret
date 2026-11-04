@@ -1,0 +1,24 @@
+Third-party software in QCaret distributions
+
+Eclipse Standard Widget Toolkit (SWT) 3.135.0 (3.135.0.v20260819-1952)
+  License: Eclipse Public License 2.0, with third-party content listed in each
+  fragment's about.html (bundles: lib/swt/about.html and lib/swt/about_files/).
+  Source: https://github.com/eclipse-platform/eclipse.platform.swt
+  tag I20260820-0719, commit 3e3b24b4691c4f18a7d5e22653fe28d4c47385d7.
+  The fragment jars are shipped unmodified inside lib/qcaret.jar.
+
+SLF4J API 2.0.20
+  License: MIT. https://www.slf4j.org
+
+Logback 1.6.6 (logback-classic, logback-core)
+  License: Eclipse Public License 1.0 or GNU Lesser General Public License 2.1.
+  https://logback.qos.ch
+
+Eclipse Temurin OpenJDK 21.0.12+8 (per-target bundles only: runtime/, and the
+macOS launcher Contents/MacOS/QCaret from the jdk.jpackage module)
+  License: GNU General Public License version 2 with the Classpath Exception.
+  The runtime's notices are in its legal/ directory.
+  https://adoptium.net
+
+Launch4j 3.50 executable header (qcaret.exe)
+  License: MIT. https://launch4j.sourceforge.net

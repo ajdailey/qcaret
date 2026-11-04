@@ -1,0 +1,1 @@
+io/github/ajdailey/qcaret/core/text/LogText.oneLine(Ljava/lang/Object;)Ljava/lang/String;:0|+CR_ENCODED,+LF_ENCODED

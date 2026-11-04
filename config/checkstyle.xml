@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!-- Java style rules. Formatting is google-java-format through Spotless. -->
+<module name="Checker">
+  <property name="severity" value="error"/>
+  <module name="TreeWalker">
+    <!-- Anonymous inner classes, not lambdas; method references are allowed. -->
+    <!-- The LAMBDA token also marks a switch-rule arrow, which is allowed. -->
+    <module name="MatchXpath">
+      <property name="query" value="//LAMBDA[not(parent::SWITCH_RULE)]"/>
+      <message key="matchxpath.match" value="Use an anonymous inner class, not a lambda."/>
+    </module>
+    <module name="IllegalImport">
+      <property name="illegalPkgs" value="java.util.stream"/>
+      <property name="illegalClasses" value="java.util.concurrent.CompletableFuture"/>
+    </module>
+    <module name="MatchXpath">
+      <property name="query" value="//VARIABLE_DEF/TYPE/IDENT[@text='var']"/>
+      <message key="matchxpath.match" value="Declare the type explicitly, not var."/>
+    </module>
+    <module name="MatchXpath">
+      <property name="query"
+          value="//METHOD_CALL/DOT/IDENT[@text='stream' or @text='parallelStream']"/>
+      <message key="matchxpath.match" value="Use a loop, not a stream."/>
+    </module>
+    <module name="IllegalCatch">
+      <property name="illegalClassNames"
+          value="NullPointerException, java.lang.NullPointerException, RuntimeException, java.lang.RuntimeException, Throwable, java.lang.Throwable"/>
+    </module>
+  </module>
+</module>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.ajdailey.qcaret</groupId>
+        <artifactId>qcaret-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>qcaret-ui-swt</artifactId>
+    <name>QCaret SWT views</name>
+
+    <!-- src/icons/*.svg render to light and dark PNGs at 16 and 32 px under
+         target/generated-resources/icons, which the jar includes. -->
+    <properties>
+        <qcaret.icons.out>${project.build.directory}/generated-resources/icons</qcaret.icons.out>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.ajdailey.qcaret</groupId>
+            <artifactId>qcaret-app</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.ajdailey.qcaret</groupId>
+            <artifactId>qcaret-core</artifactId>
+        </dependency>
+        <!-- The build host's fragment; qcaret-dist packages all six. -->
+        <dependency>
+            <groupId>org.eclipse.platform</groupId>
+            <artifactId>org.eclipse.swt.${swt.fragment}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>icon-renderer</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.github.weisj</groupId>
+                                    <artifactId>jsvg</artifactId>
+                                    <version>${jsvg.version}</version>
+                                    <destFileName>jsvg.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/icon-tools</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>render-icons</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${java.home}/bin/java</executable>
+                            <arguments>
+                                <argument>-Djava.awt.headless=true</argument>
+                                <argument>-cp</argument>
+                                <argument>${project.build.directory}/icon-tools/jsvg.jar</argument>
+                                <argument>${project.basedir}/src/build/IconRenderer.java</argument>
+                                <argument>${project.basedir}/src/icons</argument>
+                                <argument>${qcaret.icons.out}/io/github/ajdailey/qcaret/ui/swt/icons/tool</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>icon-resources</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-resource</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>${qcaret.icons.out}</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Assembles the universal jar and zip and the per-target bundles. Run by
+     maven-antrun-plugin from qcaret-dist/pom.xml, which supplies the staged
+     jars and every property used here. The archives need a Linux x86_64 build
+     host (tar, jlink, jmod, rcodesign); with qcaret.archives false only
+     qcaret.jar is built. -->
+<project name="qcaret-dist" default="all" xmlns:if="ant:if" xmlns:unless="ant:unless">
+
+  <property name="build" location="${project.build.directory}"/>
+  <property name="stage" location="${build}/stage"/>
+  <property name="jar.root" location="${build}/jar-root"/>
+  <property name="universal.jar" location="${build}/qcaret.jar"/>
+  <property name="out" location="${qcaret.dist.dir}"/>
+  <property name="jdk.top" value="jdk-21.0.12+8"/>
+  <property name="jdk.url"
+      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12%2B8"/>
+  <property name="jdk.linux-x86_64" value="OpenJDK21U-jdk_x64_linux_hotspot_21.0.12_8.tar.gz"/>
+  <property name="jdk.linux-x86_64.sha256" value="e4446ff06a276155697597cc0f1b15da004ff083f4964a35271ecee567177370"/>
+  <property name="jdk.linux-aarch64" value="OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.12_8.tar.gz"/>
+  <property name="jdk.linux-aarch64.sha256" value="eba38e871b02d407897bfe017ea35352dfc1420ef6d2112425b0c67325ca509d"/>
+  <property name="jdk.windows-x86_64" value="OpenJDK21U-jdk_x64_windows_hotspot_21.0.12_8.zip"/>
+  <property name="jdk.windows-x86_64.sha256" value="9ba963ee2371874a74185d18bc7bb2ab9407df7683300855ed7606e0662321d0"/>
+  <property name="jdk.windows-aarch64" value="OpenJDK21U-jdk_aarch64_windows_hotspot_21.0.12_8.zip"/>
+  <property name="jdk.windows-aarch64.sha256" value="e7ddf1cf45885cae2cfb8a018db60b0041ef69e96843b93a92b447d9a4cba676"/>
+  <property name="jdk.macos-x86_64" value="OpenJDK21U-jdk_x64_mac_hotspot_21.0.12_8.tar.gz"/>
+  <property name="jdk.macos-x86_64.sha256" value="6b85c260eea574a995eacd0b3ee23c8042aa93b23a08e6478edafca0a0333d7f"/>
+  <property name="jdk.macos-aarch64" value="OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.12_8.tar.gz"/>
+  <property name="jdk.macos-aarch64.sha256" value="021d629349ebc12a409faa517b837ec80ceee8f58a5ac85c788ecad07ca6881c"/>
+  <property name="rcodesign.archive" value="apple-codesign-0.29.0-x86_64-unknown-linux-musl.tar.gz"/>
+  <property name="rcodesign.sha256" value="dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002"/>
+  <property name="rcodesign.url"
+      value="https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.29.0"/>
+  <!-- jdeps over the application jars reports java.desktop (SWT_AWT only,
+       unused), java.logging and java.naming; jdk.zipfs serves the bootstrap's
+       nested-jar loader; jdk.charsets holds the legacy encodings (Big5, EUC-JP,
+       EUC-KR, GBK, Shift_JIS, windows-31j and more) that java.base lacks on
+       Windows and macOS. -->
+  <property name="modules"
+      value="java.base,java.logging,java.naming,jdk.charsets,jdk.unsupported,jdk.zipfs"/>
+
+  <!-- Downloads a file into the cache once and verifies its SHA-256. -->
+  <macrodef name="fetch">
+    <attribute name="url"/>
+    <attribute name="name"/>
+    <attribute name="sha256"/>
+    <sequential>
+      <mkdir dir="${qcaret.cache.dir}"/>
+      <local name="cached"/>
+      <available file="${qcaret.cache.dir}/@{name}" property="cached"/>
+      <get unless:set="cached" src="@{url}/@{name}" dest="${qcaret.cache.dir}/@{name}.part"/>
+      <move unless:set="cached" file="${qcaret.cache.dir}/@{name}.part"
+          tofile="${qcaret.cache.dir}/@{name}"/>
+      <local name="verified"/>
+      <checksum file="${qcaret.cache.dir}/@{name}" algorithm="SHA-256"
+          property="@{sha256}" verifyproperty="verified"/>
+      <fail message="${qcaret.cache.dir}/@{name} does not match its SHA-256; delete it to download again.">
+        <condition><isfalse value="${verified}"/></condition>
+      </fail>
+    </sequential>
+  </macrodef>
+
+  <target name="all" depends="universal,universal-zip,bundles"/>
+
+  <!-- qcaret.jar: the bootstrap at the root, the application jars and all six
+       SWT fragments nested unmodified, and the SHA-256 of every native. -->
+  <target name="universal">
+    <delete dir="${jar.root}"/>
+    <copy todir="${jar.root}">
+      <fileset dir="${stage}/bootstrap" excludes="META-INF/MANIFEST.MF,META-INF/maven/**"/>
+    </copy>
+    <copy todir="${jar.root}/META-INF/qcaret/lib">
+      <fileset dir="${stage}/lib" includes="*.jar"/>
+    </copy>
+    <copy todir="${jar.root}/META-INF/qcaret/swt">
+      <fileset dir="${stage}/swt" includes="*.jar"/>
+    </copy>
+    <natives target="linux-x86_64"/>
+    <natives target="linux-aarch64"/>
+    <natives target="windows-x86_64"/>
+    <natives target="windows-aarch64"/>
+    <natives target="macos-x86_64"/>
+    <natives target="macos-aarch64"/>
+    <pathconvert property="libs" pathsep=",">
+      <sort><fileset dir="${stage}/lib" includes="*.jar"/></sort>
+      <flattenmapper/>
+    </pathconvert>
+    <echo file="${jar.root}/META-INF/qcaret/index.properties" encoding="UTF-8">swt.version=${swt.version}
+lib=${libs}
+natives.linux-x86_64=${natives.linux-x86_64}
+natives.linux-aarch64=${natives.linux-aarch64}
+natives.windows-x86_64=${natives.windows-x86_64}
+natives.windows-aarch64=${natives.windows-aarch64}
+natives.macos-x86_64=${natives.macos-x86_64}
+natives.macos-aarch64=${natives.macos-aarch64}
+</echo>
+    <jar destfile="${universal.jar}" basedir="${jar.root}"
+        modificationtime="${project.build.outputTimestamp}">
+      <manifest>
+        <attribute name="Main-Class" value="io.github.ajdailey.qcaret.bootstrap.Main"/>
+        <attribute name="Implementation-Title" value="QCaret"/>
+        <attribute name="Implementation-Version" value="${project.version}"/>
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="archives">
+    <condition property="archives">
+      <istrue value="${qcaret.archives}"/>
+    </condition>
+  </target>
+
+  <target name="universal-zip" depends="archives" if="archives">
+    <mkdir dir="${out}"/>
+    <zip destfile="${out}/qcaret-${project.version}.zip"
+        modificationtime="${project.build.outputTimestamp}">
+      <zipfileset file="${basedir}/src/bin/qcaret" fullpath="qcaret/bin/qcaret" filemode="755"/>
+      <zipfileset file="${universal.jar}" fullpath="qcaret/lib/qcaret.jar"/>
+      <zipfileset file="${build}/qcaret.exe" fullpath="qcaret/qcaret.exe"/>
+      <zipfileset refid="notices" prefix="qcaret"/>
+      <zipfileset file="${basedir}/src/dist/THIRD-PARTY.txt" fullpath="qcaret/THIRD-PARTY.txt"/>
+    </zip>
+  </target>
+
+  <fileset id="notices" dir="${qcaret.root}" includes="LICENSE,NOTICE"/>
+
+  <!-- Extracts one target's natives from its fragment and writes their
+       digests; sets natives.<target> to the comma-separated names. -->
+  <macrodef name="natives">
+    <attribute name="target"/>
+    <sequential>
+      <delete dir="${build}/natives/@{target}"/>
+      <unzip src="${stage}/swt/@{target}.jar" dest="${build}/natives/@{target}">
+        <patternset includes="*.so,*.dll,*.jnilib"/>
+      </unzip>
+      <checksum algorithm="SHA-256" fileext=".sha256"
+          todir="${jar.root}/META-INF/qcaret/natives/@{target}">
+        <fileset dir="${build}/natives/@{target}"/>
+      </checksum>
+      <pathconvert property="natives.@{target}" pathsep=",">
+        <sort><fileset dir="${build}/natives/@{target}"/></sort>
+        <flattenmapper/>
+      </pathconvert>
+    </sequential>
+  </macrodef>
+
+  <target name="bundles" depends="archives" if="archives">
+    <condition property="bundle.linux-x86_64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="linux-x86_64"/></or>
+    </condition>
+    <condition property="bundle.linux-aarch64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="linux-aarch64"/></or>
+    </condition>
+    <condition property="bundle.windows-x86_64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="windows-x86_64"/></or>
+    </condition>
+    <condition property="bundle.windows-aarch64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="windows-aarch64"/></or>
+    </condition>
+    <condition property="bundle.macos-x86_64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="macos-x86_64"/></or>
+    </condition>
+    <condition property="bundle.macos-aarch64">
+      <or><istrue value="${qcaret.all-targets}"/><equals arg1="${qcaret.target.name}" arg2="macos-aarch64"/></or>
+    </condition>
+    <posix-bundle if:set="bundle.linux-x86_64" target="linux-x86_64"/>
+    <posix-bundle if:set="bundle.linux-aarch64" target="linux-aarch64"/>
+    <windows-bundle if:set="bundle.windows-x86_64" target="windows-x86_64"/>
+    <windows-bundle if:set="bundle.windows-aarch64" target="windows-aarch64"/>
+    <macos-bundle if:set="bundle.macos-x86_64" target="macos-x86_64"/>
+    <macos-bundle if:set="bundle.macos-aarch64" target="macos-aarch64"/>
+  </target>
+
+  <!-- Fetches a target's JDK and extracts its jmods to ${build}/jdk/<target>. -->
+  <macrodef name="jmods">
+    <attribute name="target"/>
+    <attribute name="zip" default="false"/>
+    <sequential>
+      <fetch url="${jdk.url}" name="${jdk.@{target}}" sha256="${jdk.@{target}.sha256}"/>
+      <delete dir="${build}/jdk/@{target}"/>
+      <mkdir dir="${build}/jdk/@{target}"/>
+      <unzip if:true="@{zip}" src="${qcaret.cache.dir}/${jdk.@{target}}" dest="${build}/jdk/@{target}">
+        <patternset includes="*/jmods/**"/>
+      </unzip>
+      <exec unless:true="@{zip}" executable="tar" failonerror="true">
+        <arg value="-xzf"/>
+        <arg file="${qcaret.cache.dir}/${jdk.@{target}}"/>
+        <arg value="-C"/>
+        <arg file="${build}/jdk/@{target}"/>
+        <arg value="--wildcards"/>
+        <arg value="*/jmods/*"/>
+      </exec>
+    </sequential>
+  </macrodef>
+
+  <!-- Links a runtime image for a target from its jmods with the build JDK's
+       jlink. Debug symbols are kept: strip-debug runs the host objcopy on
+       target binaries and fails across targets. -->
+  <macrodef name="runtime">
+    <attribute name="jmods"/>
+    <attribute name="output"/>
+    <sequential>
+      <delete dir="@{output}"/>
+      <exec executable="${java.home}/bin/jlink" failonerror="true">
+        <arg value="--module-path"/>
+        <arg file="@{jmods}"/>
+        <arg value="--add-modules"/>
+        <arg value="${modules}"/>
+        <arg value="--strip-java-debug-attributes"/>
+        <arg value="--no-header-files"/>
+        <arg value="--no-man-pages"/>
+        <arg value="--output"/>
+        <arg file="@{output}"/>
+      </exec>
+    </sequential>
+  </macrodef>
+
+  <!-- Unzips a target's SWT natives and notices into a lib/swt directory. -->
+  <macrodef name="swt-dir">
+    <attribute name="target"/>
+    <attribute name="dest"/>
+    <sequential>
+      <unzip src="${stage}/swt/@{target}.jar" dest="@{dest}">
+        <patternset includes="*.so,*.dll,*.jnilib,about.html,about_files/**"/>
+      </unzip>
+    </sequential>
+  </macrodef>
+
+  <!-- Unzips a target's SWT notices, without its natives. -->
+  <macrodef name="swt-notices">
+    <attribute name="target"/>
+    <attribute name="dest"/>
+    <sequential>
+      <unzip src="${stage}/swt/@{target}.jar" dest="@{dest}">
+        <patternset includes="about.html,about_files/**"/>
+      </unzip>
+    </sequential>
+  </macrodef>
+
+  <macrodef name="posix-bundle">
+    <attribute name="target"/>
+    <sequential>
+      <jmods target="@{target}"/>
+      <local name="home"/>
+      <property name="home" location="${build}/bundles/@{target}/qcaret"/>
+      <delete dir="${build}/bundles/@{target}"/>
+      <runtime jmods="${build}/jdk/@{target}/${jdk.top}/jmods" output="${home}/runtime"/>
+      <copy file="${universal.jar}" todir="${home}/lib"/>
+      <swt-dir target="@{target}" dest="${home}/lib/swt"/>
+      <copy file="${basedir}/src/bin/qcaret" todir="${home}/bin"/>
+      <copy todir="${home}"><fileset refid="notices"/></copy>
+      <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
+      <mkdir dir="${out}"/>
+      <tar destfile="${out}/qcaret-${project.version}-@{target}.tar.gz" compression="gzip" longfile="posix">
+        <tarfileset dir="${build}/bundles/@{target}" filemode="755"
+            includes="qcaret/bin/qcaret,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
+        <tarfileset dir="${build}/bundles/@{target}"
+            excludes="qcaret/bin/qcaret,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
+      </tar>
+    </sequential>
+  </macrodef>
+
+  <macrodef name="windows-bundle">
+    <attribute name="target"/>
+    <sequential>
+      <jmods target="@{target}" zip="true"/>
+      <local name="home"/>
+      <property name="home" location="${build}/bundles/@{target}/qcaret"/>
+      <delete dir="${build}/bundles/@{target}"/>
+      <runtime jmods="${build}/jdk/@{target}/${jdk.top}/jmods" output="${home}/runtime"/>
+      <copy file="${universal.jar}" todir="${home}/lib"/>
+      <swt-dir target="@{target}" dest="${home}/lib/swt"/>
+      <copy file="${build}/qcaret.exe" todir="${home}"/>
+      <copy todir="${home}"><fileset refid="notices"/></copy>
+      <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
+      <mkdir dir="${out}"/>
+      <zip destfile="${out}/qcaret-${project.version}-@{target}.zip"
+          modificationtime="${project.build.outputTimestamp}">
+        <zipfileset dir="${build}/bundles/@{target}"/>
+      </zip>
+    </sequential>
+  </macrodef>
+
+  <!-- QCaret.app: the jpackage launcher from the target JDK's jdk.jpackage
+       module reads Contents/app/QCaret.cfg and runs Contents/runtime. The
+       bundle is ad-hoc signed with rcodesign. It carries no lib/swt: signing
+       would rewrite the jnilibs and break their digests, so the bootstrap
+       extracts them from the jar into the user cache. -->
+  <macrodef name="macos-bundle">
+    <attribute name="target"/>
+    <sequential>
+      <jmods target="@{target}"/>
+      <local name="jmods"/>
+      <property name="jmods" location="${build}/jdk/@{target}/${jdk.top}/Contents/Home/jmods"/>
+      <local name="app"/>
+      <property name="app" location="${build}/bundles/@{target}/QCaret.app"/>
+      <local name="contents"/>
+      <property name="contents" location="${app}/Contents"/>
+      <delete dir="${build}/bundles/@{target}"/>
+
+      <runtime jmods="${jmods}" output="${contents}/runtime/Contents/Home"/>
+      <copy file="${contents}/runtime/Contents/Home/lib/libjli.dylib"
+          todir="${contents}/runtime/Contents/MacOS"/>
+
+      <delete dir="${build}/jpackage/@{target}"/>
+      <exec executable="${java.home}/bin/jmod" failonerror="true">
+        <arg value="extract"/>
+        <arg value="--dir"/>
+        <arg file="${build}/jpackage/@{target}"/>
+        <arg file="${jmods}/jdk.jpackage.jmod"/>
+      </exec>
+      <local name="resources"/>
+      <property name="resources"
+          location="${build}/jpackage/@{target}/classes/jdk/jpackage/internal/resources"/>
+      <copy file="${resources}/jpackageapplauncher" tofile="${contents}/MacOS/QCaret"/>
+      <copy file="${resources}/Runtime-Info.plist.template"
+          tofile="${contents}/runtime/Contents/Info.plist">
+        <filterchain>
+          <replacestring from="CF_BUNDLE_IDENTIFIER" to="io.github.ajdailey.qcaret"/>
+          <replacestring from="CF_BUNDLE_NAME" to="QCaret"/>
+          <replacestring from="CF_BUNDLE_SHORT_VERSION_STRING" to="${project.version}"/>
+          <replacestring from="CF_BUNDLE_VERSION" to="${project.version}"/>
+        </filterchain>
+      </copy>
+      <copy file="${basedir}/src/macos/Info.plist" todir="${contents}">
+        <filterchain><replacestring from="@VERSION@" to="${project.version}"/></filterchain>
+      </copy>
+      <copy file="${basedir}/src/macos/QCaret.cfg" todir="${contents}/app"/>
+      <copy file="${universal.jar}" todir="${contents}/app/lib"/>
+      <swt-notices target="@{target}" dest="${contents}/Resources/swt"/>
+      <copy file="${basedir}/src/icons/QCaret.icns" todir="${contents}/Resources"/>
+      <copy todir="${contents}/Resources"><fileset refid="notices"/></copy>
+      <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${contents}/Resources"/>
+      <chmod perm="755" type="file">
+        <fileset dir="${contents}" includes="MacOS/QCaret,runtime/Contents/Home/bin/*,runtime/Contents/Home/lib/jspawnhelper"/>
+      </chmod>
+
+      <!-- jlink writes legal/ entries as symlinks, which <zip> dereferences
+           after signing and breaks the seal; sign real files instead. -->
+      <exec executable="sh" failonerror="true">
+        <arg value="-c"/>
+        <arg value="find &quot;$1&quot; -type l | while IFS= read -r link; do cp --remove-destination &quot;$(readlink -f &quot;$link&quot;)&quot; &quot;$link&quot;; done"/>
+        <arg value="sh"/>
+        <arg file="${contents}"/>
+      </exec>
+
+      <fetch url="${rcodesign.url}" name="${rcodesign.archive}" sha256="${rcodesign.sha256}"/>
+      <local name="rcodesign"/>
+      <property name="rcodesign"
+          location="${build}/tools/apple-codesign-0.29.0-x86_64-unknown-linux-musl/rcodesign"/>
+      <mkdir dir="${build}/tools"/>
+      <exec executable="tar" failonerror="true">
+        <arg value="-xzf"/>
+        <arg file="${qcaret.cache.dir}/${rcodesign.archive}"/>
+        <arg value="-C"/>
+        <arg file="${build}/tools"/>
+      </exec>
+      <exec executable="${rcodesign}" failonerror="true">
+        <arg value="sign"/>
+        <arg value="--entitlements-xml-file"/>
+        <arg file="${basedir}/src/macos/qcaret.entitlements"/>
+        <arg file="${app}"/>
+      </exec>
+
+      <mkdir dir="${out}"/>
+      <zip destfile="${out}/qcaret-${project.version}-@{target}.zip"
+          modificationtime="${project.build.outputTimestamp}">
+        <zipfileset dir="${build}/bundles/@{target}" filemode="755"
+            includes="QCaret.app/Contents/MacOS/QCaret,QCaret.app/Contents/runtime/Contents/Home/bin/*,QCaret.app/Contents/runtime/Contents/Home/lib/jspawnhelper"/>
+        <zipfileset dir="${build}/bundles/@{target}"
+            excludes="QCaret.app/Contents/MacOS/QCaret,QCaret.app/Contents/runtime/Contents/Home/bin/*,QCaret.app/Contents/runtime/Contents/Home/lib/jspawnhelper"/>
+      </zip>
+    </sequential>
+  </macrodef>
+</project>

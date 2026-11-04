@@ -1,0 +1,30 @@
+#!/bin/sh
+# Starts QCaret with the bundled runtime, else $JAVA_HOME, else java on PATH.
+# Uses no readlink -f, which older macOS lacks.
+self=$0
+while [ -h "$self" ]; do
+    link=$(readlink "$self")
+    case $link in
+        /*) self=$link ;;
+        *) self=${self%/*}/$link ;;
+    esac
+done
+case $self in
+    */*) bin=${self%/*} ;;
+    *) bin=. ;;
+esac
+home=$(cd "$bin/.." && pwd -P)
+
+if [ -x "$home/runtime/bin/java" ]; then
+    java=$home/runtime/bin/java
+elif [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    java=$JAVA_HOME/bin/java
+else
+    java=java
+fi
+
+# SWT on macOS needs the process main thread.
+if [ "$(uname -s)" = Darwin ]; then
+    exec "$java" -XX:MaxRAMPercentage=50 -XstartOnFirstThread -jar "$home/lib/qcaret.jar" "$@"
+fi
+exec "$java" -XX:MaxRAMPercentage=50 -jar "$home/lib/qcaret.jar" "$@"
