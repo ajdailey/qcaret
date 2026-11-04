@@ -12,7 +12,6 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
-import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
@@ -34,11 +33,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Startup to shutdown through the composed application, on the test thread as UI thread. The
- * position assertions need X11 (Xvfb), not Wayland.
+ * position assertions need X11 (Xvfb), not Wayland, and are skipped on SWT GTK 4, which cannot move
+ * a window.
  */
 @Tag("swt")
 class GuiTest {
   private static final long BOUND_NANOS = TimeUnit.SECONDS.toNanos(10);
+  private static final boolean POSITIONED = !"1".equals(System.getenv("SWT_GTK4"));
 
   @TempDir Path temp;
 
@@ -75,7 +76,9 @@ class GuiTest {
               if (ready || System.nanoTime() > deadline) {
                 observed.add(window.shell().getText());
                 observed.add(area.width + "x" + area.height);
-                observed.add(window.shell().getLocation().toString());
+                if (POSITIONED) {
+                  observed.add(window.shell().getLocation().toString());
+                }
                 controller.quit();
               } else {
                 display.timerExec(20, this);
@@ -105,7 +108,7 @@ class GuiTest {
     final Recorder recorder = new Recorder(900, 600);
     StartupRequest request = request(List.of(new FileRequest(file)), 900, 600, 50, 40, true);
     assertEquals(0, run(request, Preferences.DEFAULTS, recorder));
-    assertEquals(List.of("QCaret", "900x600", "Point {50, 40}"), recorder.observed);
+    assertEquals(placed("900x600", "Point {50, 40}"), recorder.observed);
     assertTrue(
         Poll.until(
             new BooleanSupplier() {
@@ -126,8 +129,13 @@ class GuiTest {
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
     Recorder recorder = new Recorder(700, 500);
     assertEquals(0, run(request(List.of(), null, null, null, null, false), remembered, recorder));
-    assertEquals(List.of("QCaret", "700x500", "Point {60, 50}"), recorder.observed);
-    assertEquals(remembered.window(), config().load().window());
+    assertEquals(placed("700x500", "Point {60, 50}"), recorder.observed);
+    WindowState saved = config().load().window();
+    assertEquals(remembered.window().width(), saved.width());
+    assertEquals(remembered.window().height(), saved.height());
+    if (POSITIONED) {
+      assertEquals(remembered.window(), saved);
+    }
   }
 
   @Test
@@ -143,12 +151,17 @@ class GuiTest {
 
   @Test
   void aMultiInstanceDoesNotSaveThePlacement() {
-    Recorder recorder = new Recorder(WindowGeometry.DEFAULT_WIDTH, WindowGeometry.DEFAULT_HEIGHT);
-    assertEquals(
-        0, run(request(List.of(), null, null, null, null, true), Preferences.DEFAULTS, recorder));
-    assertEquals(
-        WindowGeometry.DEFAULT_WIDTH + "x" + WindowGeometry.DEFAULT_HEIGHT,
-        recorder.observed.get(1));
+    // A size smaller than the CI runners' 1024 x 768 screens, so the window is not clamped.
+    Preferences remembered =
+        Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
+    Recorder recorder = new Recorder(700, 500);
+    assertEquals(0, run(request(List.of(), null, null, null, null, true), remembered, recorder));
+    assertEquals("700x500", recorder.observed.get(1));
     assertEquals(WindowState.UNKNOWN, config().load().window());
+  }
+
+  /** The title, client size and, where positions apply, the location the recorder observes. */
+  private static List<String> placed(String size, String location) {
+    return POSITIONED ? List.of("QCaret", size, location) : List.of("QCaret", size);
   }
 }

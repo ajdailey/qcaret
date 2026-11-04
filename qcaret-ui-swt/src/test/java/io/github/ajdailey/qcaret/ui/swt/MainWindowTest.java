@@ -51,8 +51,10 @@ class MainWindowTest {
             },
             BOUND),
         "client area " + shell.getClientArea());
-    Point location = shell.getLocation();
-    assertEquals(new Point(50, 40), location);
+    // SWT on GTK 4 cannot move a window; place() skips the position there.
+    if (!"1".equals(System.getenv("SWT_GTK4"))) {
+      assertEquals(new Point(50, 40), shell.getLocation());
+    }
     assertTrue(shell.getImages().length > 0);
     window.dispose();
     assertTrue(shell.isDisposed());

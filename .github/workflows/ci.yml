@@ -51,12 +51,12 @@ jobs:
         shell: cmd
         run: mvnw.cmd -B verify
 
-  # The SWT tests on the experimental GTK 4 backend. Not gating.
+  # The SWT tests on the experimental GTK 4 backend. Gating: a test that hits a known SWT GTK 4
+  # defect is skipped there with the SWT issue named.
   test-gtk4:
     name: test linux-x86_64 GTK 4 (experimental)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    continue-on-error: true
     env:
       SWT_GTK4: "1"
     steps:

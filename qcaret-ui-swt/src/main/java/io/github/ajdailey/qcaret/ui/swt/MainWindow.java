@@ -275,7 +275,8 @@ public final class MainWindow implements MainView {
 
   /**
    * Sizes and positions the window from a request; call before {@link #open}. The position is not
-   * applied where the window system ignores it (Wayland).
+   * applied where the window system ignores it: Wayland, and SWT on GTK 4, which has no window
+   * move.
    *
    * @param request command-line geometry; null fields are not given
    * @param persisted geometry from the previous session, or null
@@ -290,7 +291,9 @@ public final class MainWindow implements MainView {
     }
     WindowGeometry.Screen primary = screen(display.getPrimaryMonitor());
     Rectangle trim = shell.computeTrim(0, 0, 100, 100);
-    boolean positionSupported = !"wayland".equals(System.getProperty(GDK_BACKEND));
+    boolean positionSupported =
+        !"wayland".equals(System.getProperty(GDK_BACKEND))
+            && !"1".equals(System.getenv("SWT_GTK4"));
     WindowGeometry.Placement placement =
         WindowGeometry.place(
             request,

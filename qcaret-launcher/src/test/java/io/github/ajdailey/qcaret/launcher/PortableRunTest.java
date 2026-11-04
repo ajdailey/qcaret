@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -81,6 +82,10 @@ class PortableRunTest {
   private ThemeMode run(SettingsLocation location, final boolean first) {
     ConfigStore config = new ConfigStore(location);
     Preferences loaded = config.load();
+    if (first) {
+      // Smaller than the CI runners' screens, so the window is not maximized and saves its size.
+      loaded = loaded.withWindow(new WindowState(60, 50, 700, 500, false));
+    }
     StartupRequest request = new StartupRequest(List.of(), null, null, null, null, null, false);
     final boolean[] done = new boolean[1];
     Gui.Observer observer =
