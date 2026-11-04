@@ -1,10 +1,10 @@
 # qcaret-core
 
 Model-side code with no SWT and no logging dependency: thread ownership,
-paths and atomic writes, log-safe text and small utilities. The document
-engine packages (`buffer`, `document`, `edit`, `syntax`, `search`, `diff`,
-`watch`, `workspace`) exist as empty packages with their layer rules in place.
-Tests run without a display.
+paths and atomic writes, log-safe text, text storage and small utilities. The
+other document engine packages (`document`, `edit`, `syntax`, `search`,
+`diff`, `watch`, `workspace`) exist as empty packages with their layer rules
+in place. Tests run without a display.
 
 The test jar carries `testkit` for the other modules' tests and
 `qcaret-bench`: `Poll.until`, a bounded poll for state another thread
@@ -20,7 +20,7 @@ delete-pending for a moment.
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread` |
 | `core.io` | 3 | `SafePaths`, `AtomicFiles` |
 | `core.text` | 4 | `LogText` |
-| `core.buffer` | 5 | Text storage and snapshots |
+| `core.buffer` | 5 | `TextStorage`, `TextSnapshot` and three storage candidates |
 | `core.document` | 6 | The mutable document |
 | `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing operations, grammars, search, line diff; none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
@@ -95,6 +95,29 @@ the content through a 64 KiB buffer. `writeOwnerOnly`, for a secret, also
 replaces the temporary file's ACL with one entry for its owner where there are
 ACLs but no POSIX permissions (Windows).
 
+## Text storage (`core.buffer`)
+
+`TextStorage` is mutable text with a line index, edited through
+`replace(offset, removeLength, text)` on one thread. `snapshot()` returns an
+immutable `TextSnapshot` that later edits do not change, for reading on a
+worker. Both read through `TextContent`: `CharSequence`, `lineCount`,
+`lineAt`, `offsetOfLine`, `lineLength`, `line` and `readChunks`, which passes
+the text one internal chunk at a time.
+
+Line breaks are LF, CR LF and CR; lines are zero-based. A CR LF pair split
+across two chunks or leaves is one break: each node counts a trailing CR as a
+break, and joining a node that ends with CR to one that starts with LF
+subtracts one (`LineBreaks`).
+
+| Candidate | Structure | Snapshot |
+|---|---|---|
+| `PieceTreeStorage` | AVL tree of pieces over immutable 64 Ki-char `String` chunks with line-break offsets and append-only add chunks; edits copy the path | O(1) |
+| `RopeStorage` | AVL tree of immutable `String` leaves of at most 2 Ki chars; an edit rebuilds the leaves it touches and copies the path | O(1) |
+| `GapBufferStorage` | One `char[]` with a gap; line starts in a gapped `int[]`, stored from the end of the text past the gap | O(1); the next edit copies both arrays, O(n) |
+
+The storage benchmark in `qcaret-bench` decides between them; the others are
+then deleted.
+
 ## Log text (`core.text`)
 
 `LogText.oneLine` reduces a value that did not originate in QCaret's code (a
@@ -116,6 +139,11 @@ removing CR and LF.
 `tryStart`, and that no task runs after `close` returns. A pool can report
 terminated just before its last thread ends, and the live set lags a removal,
 so the lifecycle checks poll.
+`TextStorageTest` applies 2,000 seeded random inserts, deletes and
+replacements to each candidate (400 on documents above 128 Ki chars, with a
+CR LF across a chunk boundary) and compares content, every line, every offset's
+line, chunk reads and earlier snapshots with a `StringBuilder`. A case is
+named by candidate and seed; `-Dqcaret.storage.seed=N` runs one seed.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on
 every OS), `AtomicFilesTest`, `LogTextTest`, `UtilTest` and `TestkitTest`
 cover the other classes.
