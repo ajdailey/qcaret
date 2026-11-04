@@ -9,11 +9,14 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
+import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,8 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Runs the main window's commands and owns the settings and the theme. Confined to the UI thread;
- * file reads and settings writes run on {@code qcaret-lifecycle-} workers.
+ * Runs the main window's commands and owns the settings, the theme and the window's {@link
+ * DocumentController}. Confined to the UI thread; file reads and settings writes run on {@code
+ * qcaret-lifecycle-} workers. Edit commands from the menu go to the selected editor.
+ *
+ * <p>{@link CommandId#QUIT} first closes the documents, asking about each dirty one; a Cancel keeps
+ * the window open. {@link #quit} itself asks nothing: the shutdown hook calls it.
  *
  * <p>A theme change saves {@code qcaret.conf} at once. {@link #quit} records and saves the window's
  * normal bounds and maximized state unless {@code rememberWindow} is false (a {@code --window-*}
@@ -41,6 +48,7 @@ public final class ApplicationController {
   private final MainView view;
   private final ConfigStore config;
   private final ThemeController theme;
+  private final DocumentController documents;
   private final boolean rememberWindow;
   private final List<Runnable> finishListeners = new ArrayList<Runnable>();
   private Preferences preferences;
@@ -62,6 +70,7 @@ public final class ApplicationController {
    * @param config the settings store
    * @param preferences the settings loaded at startup
    * @param system the system's light or dark setting
+   * @param budget the documents' heap share
    * @param rememberWindow false when the quit saves nothing
    */
   public ApplicationController(
@@ -71,6 +80,7 @@ public final class ApplicationController {
       ConfigStore config,
       Preferences preferences,
       ThemeService system,
+      MemoryBudget budget,
       boolean rememberWindow) {
     this.workers = workers;
     this.ui = ui;
@@ -78,7 +88,17 @@ public final class ApplicationController {
     this.config = config;
     this.preferences = preferences;
     this.theme = new ThemeController(system, preferences.theme());
+    this.documents = new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS);
     this.rememberWindow = rememberWindow;
+  }
+
+  /**
+   * Returns the window's documents.
+   *
+   * @return the document controller
+   */
+  public DocumentController documents() {
+    return documents;
   }
 
   /**
@@ -125,12 +145,65 @@ public final class ApplicationController {
    */
   public void execute(CommandId command) {
     switch (command) {
-      case QUIT -> quit();
+      case NEW -> documents.newDocument();
+      case OPEN -> documents.open();
+      case SAVE -> documents.save();
+      case SAVE_AS -> documents.saveAs();
+      case CLOSE -> documents.closeActive();
+      case QUIT -> requestQuit();
+      case UNDO, REDO, CUT, COPY, PASTE, SELECT_ALL -> edit(command);
+      case WORD_WRAP -> documents.toggleWrap();
       case THEME_LIGHT -> setTheme(ThemeMode.LIGHT);
       case THEME_DARK -> setTheme(ThemeMode.DARK);
       case THEME_SYSTEM -> setTheme(ThemeMode.SYSTEM);
       case ABOUT -> showAbout();
     }
+  }
+
+  /**
+   * Reports whether a check command is on.
+   *
+   * @param command a command whose {@link CommandId#check()} is true
+   * @return true when the menu shows it checked
+   */
+  public boolean checked(CommandId command) {
+    return switch (command) {
+      case WORD_WRAP -> documents.wrap();
+      case THEME_LIGHT -> theme.mode() == ThemeMode.LIGHT;
+      case THEME_DARK -> theme.mode() == ThemeMode.DARK;
+      case THEME_SYSTEM -> theme.mode() == ThemeMode.SYSTEM;
+      default -> false;
+    };
+  }
+
+  private void edit(CommandId command) {
+    EditorInput editor = documents.activeInput();
+    if (editor == null) {
+      return;
+    }
+    switch (command) {
+      case UNDO -> editor.undo();
+      case REDO -> editor.redo();
+      case CUT -> editor.cut();
+      case COPY -> editor.copy();
+      case PASTE -> editor.paste();
+      case SELECT_ALL -> editor.selectAll();
+      default -> throw new IllegalArgumentException("not an edit command: " + command);
+    }
+  }
+
+  /** Closes the documents, asking about unsaved changes, then quits unless the user canceled. */
+  public void requestQuit() {
+    if (quitting) {
+      return;
+    }
+    documents.closeAll(
+        new Runnable() {
+          @Override
+          public void run() {
+            quit();
+          }
+        });
   }
 
   /**
@@ -188,14 +261,16 @@ public final class ApplicationController {
   }
 
   /**
-   * Quits: records and saves the window placement when remembered, hides the window, closes the
-   * workers and disposes the window. A second call does nothing. Call on the UI thread.
+   * Quits without asking: closes the documents, records and saves the window placement when
+   * remembered, hides the window, closes the workers and disposes the window. A second call does
+   * nothing. Call on the UI thread.
    */
   public void quit() {
     if (quitting) {
       return;
     }
     quitting = true;
+    documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();
       preferences =

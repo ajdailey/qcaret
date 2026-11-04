@@ -34,13 +34,14 @@ the settings directory. With `-l` it attaches the debug log file.
    and dark it sets the native controls' theme (system leaves them to the OS);
    on macOS native controls always follow the OS.
 3. The `MainWindow` with the resolved palette and its
-   `ApplicationController`; `AppMenu.hook` connects the macOS application menu
+   `ApplicationController`, whose documents draw on `MemoryBudget.fromRuntime()`; `AppMenu.hook` connects the macOS application menu
    (a no-op elsewhere).
 4. The window is placed from the `--window-*` options, else the remembered
    `window.*` bounds, and maximized when it was maximized and no `--window-*`
    option is given. It opens and logs
    `Main window open: client area <w>x<h>, location <x>,<y>` at INFO.
-5. File arguments are logged at INFO and not opened.
+5. File arguments open in tabs through `DocumentController.open`; without
+   any, an untitled document opens.
 6. At `-d 2` and above an `EventLoopWatchdog` logs UI-thread stalls.
 
 The controller saves the placement at quit only when neither `-m` nor a
@@ -52,7 +53,8 @@ A JVM shutdown hook covers an exit that skips the ordered quit (SIGTERM,
 logoff, a parent ending the process). `ShutdownHook` posts
 `ApplicationController.quit` through the dispatcher, waits up to 3 s for it to
 save and close the workers, logs the threads still running past that bound,
-and touches no widget. After an ordered quit `Gui` removes the hook.
+and touches no widget; that quit asks nothing about unsaved documents. After
+an ordered quit `Gui` removes the hook.
 
 ## Logging
 

@@ -6,7 +6,7 @@ import io.github.ajdailey.qcaret.app.about.AboutInfo;
  * The main window as the controllers see it. Every method is called on the UI thread and returns
  * without waiting for the user.
  */
-public interface MainView extends ClipboardService {
+public interface MainView extends ClipboardService, DocumentsView {
   /** Hides the window while shutdown completes. */
   void hide();
 

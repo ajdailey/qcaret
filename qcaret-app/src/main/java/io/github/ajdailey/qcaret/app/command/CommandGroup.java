@@ -6,6 +6,8 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 public enum CommandGroup {
   /** File menu. */
   FILE(UiText.GROUP_FILE, true),
+  /** Edit menu. */
+  EDIT(UiText.GROUP_EDIT, true),
   /** View menu. */
   VIEW(UiText.GROUP_VIEW, true),
   /** Help menu. */

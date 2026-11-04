@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -71,8 +72,10 @@ class ThemeAndDialogsTest {
             new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp)),
             Preferences.DEFAULTS,
             system,
+            new MemoryBudget(1L << 30, 60),
             false);
     window.attach(controller);
+    controller.documents().newDocument();
     window.open();
   }
 
@@ -118,7 +121,8 @@ class ThemeAndDialogsTest {
     dark.setSelection(true);
     dark.notifyListeners(SWT.Selection, null);
     assertSame(Palette.DARK, window.palette());
-    assertEquals(new Color(0x1e, 0x1e, 0x1e).getRGB(), window.text().getBackground().getRGB());
+    assertEquals(
+        new Color(0x1e, 0x1e, 0x1e).getRGB(), window.activeText().getBackground().getRGB());
     assertTrue(dark.getSelection());
     assertFalse(item(CommandId.THEME_LIGHT).getSelection());
   }

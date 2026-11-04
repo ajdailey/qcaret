@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.ui.swt.AppMenu;
@@ -18,7 +19,10 @@ import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.graphics.Point;
@@ -34,12 +38,12 @@ import org.slf4j.LoggerFactory;
  * theme ({@link SwtThemeService#open}), which on win32 a later switch reaches only at the next
  * start; on cocoa native controls follow the system. The window opens at the command-line geometry,
  * else the remembered one; the placement is saved at quit only when the command line gave no {@code
- * --window-*} option and no {@code -m}. File arguments are logged and not opened. At {@code -d 2}
- * and above an {@link EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook ({@link
- * ShutdownHook}) runs the quit when the process is ended without it. With the debug log file
- * attached, other processes' old log files are deleted on a lifecycle worker ({@link
- * FileLog#prune}). The loop ends when the window is disposed, then the Display is disposed and
- * {@link #run} returns.
+ * --window-*} option and no {@code -m}. File arguments open in tabs; without any, the window opens
+ * an untitled document. At {@code -d 2} and above an {@link EventLoopWatchdog} logs UI-thread
+ * stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is ended
+ * without it. With the debug log file attached, other processes' old log files are deleted on a
+ * lifecycle worker ({@link FileLog#prune}). The loop ends when the window is disposed, then the
+ * Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -114,7 +118,15 @@ final class Gui {
       final MainWindow window = new MainWindow(display, palette);
       boolean remember = !request.multi() && !request.placesWindow();
       ApplicationController controller =
-          new ApplicationController(workers, ui, window, config, preferences, system, remember);
+          new ApplicationController(
+              workers,
+              ui,
+              window,
+              config,
+              preferences,
+              system,
+              MemoryBudget.fromRuntime(),
+              remember);
       window.attach(controller);
       // macOS application menu.
       AppMenu.hook(display, controller);
@@ -134,8 +146,14 @@ final class Gui {
               logGeometry(window.shell());
             }
           });
-      for (FileRequest file : request.files()) {
-        LOG.info("Not opened, file opening is not built yet: {}", LogText.oneLine(file.path()));
+      if (request.files().isEmpty()) {
+        controller.documents().newDocument();
+      } else {
+        List<Path> paths = new ArrayList<Path>();
+        for (FileRequest file : request.files()) {
+          paths.add(file.path());
+        }
+        controller.documents().open(paths);
       }
       if (EventLoopWatchdog.enabled()) {
         new EventLoopWatchdog(

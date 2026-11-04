@@ -5,19 +5,28 @@ import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
-import io.github.ajdailey.qcaret.app.theme.Rgb;
-import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.TabInput;
+import io.github.ajdailey.qcaret.app.view.TabView;
+import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabFolder2Adapter;
+import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.dnd.Clipboard;
@@ -31,6 +40,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -38,10 +48,16 @@ import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * The main window: one tab holding an empty {@link StyledText}, and the File, View and Help menus
- * built from {@link MenuTable}. The text view takes its colors from the {@link Palette}; native
- * controls follow {@link SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI
- * turn after a palette change, once native controls have restyled.
+ * The main window: a tab per document, each holding an {@link EditorPane}, and the File, Edit, View
+ * and Help menus built from {@link MenuTable}. The editors take their colors from the {@link
+ * Palette}; native controls follow {@link SwtThemeService}. {@link ToolIcons} owned by the window
+ * re-ink on the UI turn after a palette change, once native controls have restyled.
+ *
+ * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
+ * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
+ * {@code Selection} that {@code CTabFolder} sends for a neighbor while the selected item is
+ * disposed is ignored (QLogg UI-14). The file choosers are native dialogs and run a nested event
+ * loop; the unsaved-changes prompt does not.
  *
  * <p>{@link #place} sizes and positions the shell before {@link #open}; the normal bounds are kept
  * on every unmaximized move and resize for {@link #windowBounds}. Dialogs open without a nested
@@ -57,7 +73,6 @@ public final class MainWindow implements MainView {
 
   private final Shell shell;
   private final CTabFolder tabs;
-  private final StyledText text;
   private final Font font;
   private final List<Image> icons;
   private final ToolIcons toolIcons;
@@ -69,6 +84,59 @@ public final class MainWindow implements MainView {
   private Palette palette;
   private Clipboard clipboard;
   private WindowGeometry.Request normalBounds = new WindowGeometry.Request(null, null, null, null);
+  private CTabItem dragged;
+  private boolean movingTab;
+
+  /** One document tab: its item, which a move recreates, and its editor. */
+  private final class Tab implements TabView {
+    final EditorPane pane;
+    final TabInput input;
+    String title = "";
+    String toolTip = "";
+    CTabItem item;
+
+    Tab(EditorPane pane, TabInput input, int index) {
+      this.pane = pane;
+      this.input = input;
+      this.item = newItem(this, index);
+    }
+
+    @Override
+    public void setTitle(String value, String tip) {
+      title = value;
+      toolTip = tip;
+      if (!item.isDisposed()) {
+        item.setText(value.replace("&", "&&"));
+        item.setToolTipText(tip);
+      }
+    }
+
+    @Override
+    public void select() {
+      if (!item.isDisposed()) {
+        tabs.setSelection(item);
+        pane.focus();
+        input.activated();
+      }
+    }
+
+    @Override
+    public void showCaret() {
+      pane.showCaret();
+    }
+
+    @Override
+    public void close() {
+      if (!item.isDisposed()) {
+        item.dispose();
+      }
+      pane.dispose();
+      CTabItem next = tabs.getSelection();
+      if (next != null && next.getData() instanceof Tab shown) {
+        shown.pane.focus();
+      }
+    }
+  }
 
   /**
    * Creates the window, not yet visible.
@@ -85,14 +153,7 @@ public final class MainWindow implements MainView {
     shell.setImages(icons.toArray(new Image[0]));
     shell.setLayout(new FillLayout());
     tabs = new CTabFolder(shell, SWT.TOP | SWT.FLAT);
-    CTabItem tab = new CTabItem(tabs, SWT.NONE);
-    tab.setText(UiText.TAB_UNTITLED.text());
-    text = new StyledText(tabs, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
     font = new Font(display, Dialogs.monospaceName(), Dialogs.monospaceSize(), SWT.NORMAL);
-    text.setFont(font);
-    text.setEditable(false);
-    tab.setControl(text);
-    tabs.setSelection(tab);
     toolIcons = new ToolIcons(shell);
     applyPalette(palette);
     trackWindowState();
@@ -125,11 +186,12 @@ public final class MainWindow implements MainView {
   public void attach(ApplicationController owner) {
     controller = owner;
     buildMenuBar();
+    listenToTabs();
     onCloseRequest(
         new Runnable() {
           @Override
           public void run() {
-            controller.quit();
+            controller.execute(CommandId.QUIT);
           }
         });
     paletteListener =
@@ -180,7 +242,13 @@ public final class MainWindow implements MainView {
         }
         MenuItem item = new MenuItem(target, command.check() ? SWT.CHECK : SWT.PUSH);
         item.setData(command);
-        item.setText(command.label());
+        int accelerator = Accelerators.parse(command.accelerator());
+        if (accelerator != 0) {
+          item.setText(command.label() + "\t" + Accelerators.text(command.accelerator()));
+          item.setAccelerator(accelerator);
+        } else {
+          item.setText(command.label());
+        }
         item.addListener(
             SWT.Selection,
             new Listener() {
@@ -207,28 +275,21 @@ public final class MainWindow implements MainView {
     syncChecks();
   }
 
-  /** Checks the theme item that matches the setting. */
+  /** Checks the items whose setting is on: word wrap and the theme. */
   private void syncChecks() {
-    ThemeMode mode = controller.theme().mode();
-    check(CommandId.THEME_LIGHT, mode == ThemeMode.LIGHT);
-    check(CommandId.THEME_DARK, mode == ThemeMode.DARK);
-    check(CommandId.THEME_SYSTEM, mode == ThemeMode.SYSTEM);
-  }
-
-  private void check(CommandId command, boolean selected) {
-    MenuItem item = checkItems.get(command);
-    if (item != null && !item.isDisposed()) {
-      item.setSelection(selected);
+    for (Map.Entry<CommandId, MenuItem> entry : checkItems.entrySet()) {
+      if (!entry.getValue().isDisposed()) {
+        entry.getValue().setSelection(controller.checked(entry.getKey()));
+      }
     }
   }
 
   private void applyPalette(Palette next) {
     palette = next;
-    if (!text.isDisposed()) {
-      text.setForeground(color(next.text()));
-      text.setBackground(color(next.background()));
-      text.setSelectionBackground(color(next.selection()));
-      text.setSelectionForeground(color(next.selectionText()));
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        tab.pane.setPalette(next);
+      }
     }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
     dispatcher.asyncExec(
@@ -242,10 +303,6 @@ public final class MainWindow implements MainView {
         });
   }
 
-  private static Color color(Rgb rgb) {
-    return new Color(rgb.red(), rgb.green(), rgb.blue());
-  }
-
   /**
    * Returns the palette the text view paints with.
    *
@@ -256,12 +313,171 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Returns the text view.
+   * Returns the selected tab's editor.
    *
-   * @return the view
+   * @return the editor, or null without a tab
    */
-  public StyledText text() {
-    return text;
+  public EditorPane activeEditor() {
+    CTabItem item = tabs.getSelection();
+    return item != null && item.getData() instanceof Tab tab ? tab.pane : null;
+  }
+
+  /**
+   * Returns the selected tab's text widget.
+   *
+   * @return the widget, or null without a tab
+   */
+  public StyledText activeText() {
+    EditorPane pane = activeEditor();
+    return pane == null ? null : pane.text();
+  }
+
+  /**
+   * Returns the tab strip.
+   *
+   * @return the folder holding one item per document
+   */
+  CTabFolder tabs() {
+    return tabs;
+  }
+
+  @Override
+  public TabView addTab(
+      DisplayProjection projection, SelectionModel selections, EditorInput editor, TabInput input) {
+    EditorPane pane = new EditorPane(tabs, projection, selections, editor, font, palette);
+    Tab tab = new Tab(pane, input, tabs.getItemCount());
+    tabs.setSelection(tab.item);
+    pane.focus();
+    return tab;
+  }
+
+  private CTabItem newItem(Tab tab, int index) {
+    CTabItem item = new CTabItem(tabs, SWT.CLOSE, index);
+    item.setControl(tab.pane.text());
+    item.setData(tab);
+    item.setText(tab.title.replace("&", "&&"));
+    item.setToolTipText(tab.toolTip);
+    return item;
+  }
+
+  /** Tab selection, close buttons, middle clicks and drags go to the controller. */
+  private void listenToTabs() {
+    tabs.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (!movingTab && event.item != null && event.item.getData() instanceof Tab tab) {
+              tab.pane.focus();
+              tab.input.activated();
+            }
+          }
+        });
+    tabs.addCTabFolder2Listener(
+        new CTabFolder2Adapter() {
+          @Override
+          public void close(CTabFolderEvent event) {
+            event.doit = false;
+            if (event.item.getData() instanceof Tab tab) {
+              tab.input.closeRequested();
+            }
+          }
+        });
+    tabs.addListener(
+        SWT.MouseDown,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            dragged = event.button == 1 ? tabs.getItem(new Point(event.x, event.y)) : null;
+          }
+        });
+    tabs.addListener(
+        SWT.MouseUp,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            CTabItem target = tabs.getItem(new Point(event.x, event.y));
+            if (event.button == 2) {
+              if (target != null && target.getData() instanceof Tab tab) {
+                tab.input.closeRequested();
+              }
+              return;
+            }
+            CTabItem source = dragged;
+            dragged = null;
+            if (source != null && !source.isDisposed() && target != null && target != source) {
+              moveTab(source, tabs.indexOf(target));
+            }
+          }
+        });
+  }
+
+  /**
+   * Recreates a tab at another index. Disposing the selected item makes {@code CTabFolder} select a
+   * neighbor and send {@code Selection}; the listener ignores it while {@link #movingTab} is set.
+   *
+   * @param source the dragged item
+   * @param index the drop index
+   */
+  void moveTab(CTabItem source, int index) {
+    Tab tab = (Tab) source.getData();
+    boolean selected = tabs.getSelection() == source;
+    movingTab = true;
+    try {
+      source.dispose();
+      tab.item = newItem(tab, index);
+      if (selected) {
+        tabs.setSelection(tab.item);
+      }
+    } finally {
+      movingTab = false;
+    }
+    tab.input.moved(index);
+  }
+
+  @Override
+  public void chooseFilesToOpen(Path directory, Consumer<List<Path>> chosen) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    FileDialog dialog = new FileDialog(shell, SWT.OPEN | SWT.MULTI);
+    if (directory != null) {
+      dialog.setFilterPath(directory.toString());
+    }
+    if (dialog.open() == null) {
+      return;
+    }
+    List<Path> paths = new ArrayList<Path>();
+    for (String name : dialog.getFileNames()) {
+      paths.add(Path.of(dialog.getFilterPath(), name));
+    }
+    chosen.accept(paths);
+  }
+
+  @Override
+  public void chooseSaveTarget(Path directory, String name, Consumer<Path> chosen) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    FileDialog dialog = new FileDialog(shell, SWT.SAVE);
+    dialog.setOverwrite(true);
+    dialog.setFileName(name);
+    if (directory != null) {
+      dialog.setFilterPath(directory.toString());
+    }
+    String chosenPath = dialog.open();
+    if (chosenPath != null) {
+      chosen.accept(Path.of(chosenPath));
+    }
+  }
+
+  @Override
+  public void askUnsaved(String name, Consumer<UnsavedChoice> answer) {
+    if (shell.isDisposed()) {
+      answer.accept(UnsavedChoice.CANCEL);
+      return;
+    }
+    new UnsavedDialog(shell, name, answer).open();
   }
 
   /**

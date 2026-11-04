@@ -17,7 +17,7 @@ delete-pending for a moment.
 | Package | Layer | Contents |
 |---|---|---|
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package |
-| `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread` |
+| `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread`, `MemoryBudget` |
 | `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `FileStamp`, `BinaryDetector` |
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
@@ -69,6 +69,11 @@ call comes before `isDone()` turns true. `CancellationToken.check()` throws
 until `close()`, `exit()` ends it, and `awaitIdle` returns once the gate is
 closed and the count is zero. `enter` and `exit` are lock-free, so the UI
 thread may call them.
+
+`MemoryBudget` is the share of `Runtime.maxMemory()` that open documents
+hold, `DOCUMENT_PERCENT` (60%). `reserve` is lock-free and refuses, reserving
+nothing, what the share cannot hold; the holder calls `release` when the
+document closes.
 
 `@WorkerThread` marks a method that runs only on a worker. In `app.controller`
 a blocking file or settings call, or a call to a `@WorkerThread` method, must
@@ -235,6 +240,15 @@ dirty until then.
 `DocumentFiles.load` and `save` run on a worker (`@WorkerThread`) and check
 their `CancellationToken` per block.
 
+- `estimate` reads the size and the first 64 KiB and returns a `LoadCost`. A
+  char costs 1 byte when the sample is ASCII and 2 otherwise; a UTF-16 or
+  UTF-32 BOM divides the char count by 2 or 4. The peak is the bytes read plus
+  the decoded text plus the document's text; the retained cost is the
+  document's text plus undo headroom of the same size, at most
+  `UndoLimits.maxBytes`. A caller reserves `reserveBytes()`, the larger of the
+  two, before `load`, and keeps the retained cost while the document is open.
+  An ASCII-sampled file whose later text is not Latin-1 is underestimated by
+  up to half its text.
 - Load reads the file whole (at most `Integer.MAX_VALUE - 8` bytes), takes the
   forced charset or `EncodingDetector`'s choice, throws `BinaryFileException`
   for a binary file unless `LoadOptions.asBinary()` (ISO-8859-1, which maps
@@ -285,12 +299,15 @@ document holding the saved text, the line ending counts, and every selection
 set sorted, disjoint and in bounds. It ends by undoing every step and redoing
 them. `-Dqcaret.document.seed=N` runs one seed.
 
+`MemoryBudgetTest` covers the share and refusals.
+
 `DocumentTest` covers change events, coalescing rules, groups, redo
 discard, dirty state, the undo bounds, refused edits, anchors, the position
 map bound, selection mapping and block rows. `DocumentFilesTest` round-trips
 every BOM and mixed line endings byte for byte, and covers the fallback,
 binary files, an unmappable save, a malformed forced decode, text that does
-not encode back, and a canceled load. `SafeSaveTest` covers permissions, a new
+not encode back, a canceled load, a file larger than one 1 MiB read block
+(regression: the read stopped after the first block), and the load estimate. `SafeSaveTest` covers permissions, a new
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.

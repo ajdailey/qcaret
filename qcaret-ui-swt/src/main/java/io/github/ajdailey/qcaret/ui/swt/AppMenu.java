@@ -14,8 +14,8 @@ import org.eclipse.swt.widgets.MenuItem;
  * CommandId#QUIT}, so the menu bar leaves them out ({@link
  * io.github.ajdailey.qcaret.app.command.MenuTable}). Preferences is disabled until QCaret has a
  * settings dialog. Hide, Hide Others and Show All stay native. A quit request from the system
- * (Cmd-Q, logout) runs {@link ApplicationController#quit} in place of SWT's own disposal. Elsewhere
- * {@link Display#getSystemMenu()} is null and nothing is added.
+ * (Cmd-Q, logout) runs {@link CommandId#QUIT}, with its unsaved-changes prompts, in place of SWT's
+ * own disposal. Elsewhere {@link Display#getSystemMenu()} is null and nothing is added.
  */
 public final class AppMenu {
   private AppMenu() {}
@@ -64,7 +64,7 @@ public final class AppMenu {
           @Override
           public void handleEvent(Event event) {
             event.doit = false;
-            controller.quit();
+            controller.execute(CommandId.QUIT);
           }
         });
     return true;

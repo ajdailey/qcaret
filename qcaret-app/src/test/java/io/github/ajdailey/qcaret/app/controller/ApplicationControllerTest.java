@@ -18,6 +18,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,7 +91,14 @@ class ApplicationControllerTest {
 
   private ApplicationController controller(boolean rememberWindow) {
     return new ApplicationController(
-        workers, ui, view, config, Preferences.DEFAULTS, system, rememberWindow);
+        workers,
+        ui,
+        view,
+        config,
+        Preferences.DEFAULTS,
+        system,
+        new MemoryBudget(1L << 30, 60),
+        rememberWindow);
   }
 
   private BooleanSupplier saved(final Preferences expected) {

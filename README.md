@@ -8,9 +8,10 @@
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
 SWT. It runs no macros, scripts or plugins.
 
-Version 0.1.0 is in development. The current build opens the main window with
-its theme handling, menus, About and Licenses, and remembers the window's
-placement; it does not open or edit files yet. Planned for 0.1.0: large-file
+Version 0.1.0 is in development. The current build opens, edits and saves
+files in tabs, with undo and redo, word wrap, line numbers and multiple carets
+(painted; created by Alt+click), along with the main window's theme handling,
+menus, About and Licenses and its remembered placement. Planned for 0.1.0: large-file
 editing with multiple carets and column selection, syntax highlighting for 19
 languages, folding, HyperSearch across files and folders with replace, a
 workspace browser, sessions and crash recovery.
@@ -130,11 +131,37 @@ java -jar qcaret.jar [options] [file]...
 | `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
 | `--settings <dir>` | Settings directory, created owner-only; holds `qcaret.conf` and QCaret's SWT native cache |
 | `--` | End of options |
-| `file` | Accepted and logged; opening files is not built yet |
+| `file` | Opened in a tab; a missing file opens an empty document that saves to that path. Without a file, an untitled document opens |
 
 Options combine: `-ml`, `--opt=value`, `-d2`. An unknown option or a bad value
 prints a message to stderr and exits 1; an SWT start failure, such as missing
 GTK libraries, exits 3.
+
+## Large files
+
+A file opens only when its estimated memory cost fits the 60% of the maximum
+Java heap that documents share; otherwise QCaret refuses it unread and names
+the file's size, the memory it needs and the `-Xmx` value to start with. The
+estimate is 3 bytes of heap per file byte for a file whose first 64 KiB are
+ASCII and 5 bytes otherwise, held during the load; an open document keeps
+about twice its text. The launchers set the maximum heap to half of the
+physical memory (`-XX:MaxRAMPercentage=50`). To raise it, run the jar with
+the bundle's runtime and `-Xmx`, for example
+`runtime/bin/java -Xmx8g -jar lib/qcaret.jar` (on Windows, add `-Xmx8g` as a
+line in `qcaret.l4j.ini` next to `qcaret.exe`).
+
+Largest single file that opens, measured on Linux x86_64 with nothing else
+open (loads at the budget limit completed without an out-of-memory error):
+
+| Maximum heap | ASCII text | UTF-8 text with non-ASCII chars |
+|---|---|---|
+| 512 MiB | 102 MiB | 61 MiB |
+| 1 GiB | 204 MiB | 122 MiB |
+| 2 GiB | 409 MiB | 245 MiB |
+| 8 GiB | 1.6 GiB | 983 MiB |
+
+The 8 GiB row is the same 20% and 12% of the heap, computed, not measured. No
+file over 2 GiB opens.
 
 ## Settings directory
 
@@ -168,9 +195,9 @@ next start, and macOS native controls follow the system appearance.
 | Path | Contents |
 |---|---|
 | `qcaret-bootstrap/` | Entry point of `qcaret.jar`: Java version check, target selection, SWT natives, nested-jar class loader |
-| `qcaret-core/` | Threads, paths and atomic writes, log-safe text; the document engine packages to come; no SWT, no logging dependency |
-| `qcaret-app/` | Command line, commands and menus, controllers, view contracts, settings, theme, About facts; no SWT |
-| `qcaret-ui-swt/` | SWT views: main window, dialogs, theme service; the toolbar icon set (`src/icons/*.svg`), rendered to PNG at build time |
+| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model; no SWT, no logging dependency |
+| `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
+| `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the toolbar icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
 | `qcaret-dist/` | Universal jar, launchers, runtimes and archives; icons |
 | `qcaret-bench/` | Benchmarks; not shipped |

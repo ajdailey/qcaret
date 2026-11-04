@@ -35,7 +35,60 @@ public final class DocumentFiles {
   private static final int BLOCK_BYTES = 1 << 20;
   private static final int BLOCK_CHARS = 1 << 16;
 
+  /** Bytes {@link #estimate} reads from the start of a file. */
+  static final int SAMPLE_BYTES = 64 * 1024;
+
   private DocumentFiles() {}
+
+  /**
+   * Estimates the heap a load of a file needs, from its size and its first {@value #SAMPLE_BYTES}
+   * bytes. A char costs 1 byte when the sample is ASCII (a Latin-1 {@code String} leaf) and 2
+   * otherwise; a UTF-16 or UTF-32 byte order mark divides the char count by 2 or 4. The peak is the
+   * bytes read plus the decoded text plus the document's text; the retained cost is the document's
+   * text plus undo headroom of the same size, at most {@code limits.maxBytes()}.
+   *
+   * @param file the file, validated by the caller
+   * @param limits the undo bounds the document will have
+   * @return the estimate
+   * @throws IOException when the file cannot be read
+   */
+  @WorkerThread
+  public static LoadCost estimate(Path file, UndoLimits limits) throws IOException {
+    try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+      long size = channel.size();
+      ByteBuffer sample = ByteBuffer.allocate((int) Math.min(SAMPLE_BYTES, size));
+      while (sample.hasRemaining() && channel.read(sample) >= 0) {
+        // Fill the sample.
+      }
+      return estimate(size, sample.array(), sample.position(), limits);
+    }
+  }
+
+  static LoadCost estimate(long size, byte[] sample, int length, UndoLimits limits) {
+    int unit = 1;
+    if (length >= 4
+        && ((sample[0] == 0
+                && sample[1] == 0
+                && (sample[2] & 0xff) == 0xfe
+                && (sample[3] & 0xff) == 0xff)
+            || ((sample[0] & 0xff) == 0xff
+                && (sample[1] & 0xff) == 0xfe
+                && sample[2] == 0
+                && sample[3] == 0))) {
+      unit = 4;
+    } else if (length >= 2
+        && (((sample[0] & 0xff) == 0xfe && (sample[1] & 0xff) == 0xff)
+            || ((sample[0] & 0xff) == 0xff && (sample[1] & 0xff) == 0xfe))) {
+      unit = 2;
+    }
+    boolean ascii = unit == 1;
+    for (int i = 0; ascii && i < length; i++) {
+      ascii = sample[i] >= 0;
+    }
+    long text = size / unit * (ascii ? 1 : 2);
+    long retained = text + Math.min(limits.maxBytes(), text);
+    return new LoadCost(size, size + 2 * text, retained);
+  }
 
   /**
    * Loads a file: reads it whole, chooses the encoding ({@link EncodingDetector}, or the forced
@@ -113,7 +166,8 @@ public final class DocumentFiles {
         throw new IOException("File too large: " + size + " bytes");
       }
       ByteBuffer buffer = ByteBuffer.allocate((int) size);
-      while (buffer.hasRemaining()) {
+      // Each read is capped at one block, so the loop tests the capacity, not the limit.
+      while (buffer.position() < buffer.capacity()) {
         token.check();
         int limit = Math.min(buffer.capacity(), buffer.position() + BLOCK_BYTES);
         buffer.limit(limit);
