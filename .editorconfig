@@ -1,0 +1,33 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+# google-java-format: 2-space indent, +4 continuation, 100 columns.
+[*.java]
+indent_size = 2
+max_line_length = 100
+
+# Trailing whitespace can be significant in a heredoc.
+[{**/src/bin/*,tools/*.sh,scripts/*.sh,scripts/*.bat,.github/scripts/*}]
+trim_trailing_whitespace = false
+
+# Fixtures are byte-exact.
+[**/src/test/resources/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset

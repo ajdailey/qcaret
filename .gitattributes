@@ -1,0 +1,37 @@
+# Normalize text to LF in the repository and the working tree.
+* text=auto eol=lf
+
+# Windows scripts stay CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Diff drivers.
+*.java   text diff=java
+*.md     text diff=markdown
+
+# Test fixtures are byte-exact (CRLF, UTF-16, BOM, no final newline):
+# no end-of-line conversion.
+**/src/test/resources/** -text
+*.log -text
+
+# Binaries.
+*.jar   binary
+*.class binary
+*.png   binary
+*.gif   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.icns  binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.so    binary
+*.dll   binary
+*.dylib binary
+*.exe   binary
+*.msi   binary
+*.dmg   binary
+*.pkg   binary
+*.deb   binary
+*.rpm   binary
