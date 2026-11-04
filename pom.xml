@@ -34,8 +34,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <!-- Fixed entry times in every jar and archive, so two builds of one
-             commit are byte-identical. -->
+        <!-- Entry time of every jar and archive the build writes, and the
+             qcaret.exe link time. Set it to the release date when the version
+             changes. ISO-8601 UTC with seconds, the form dist.xml passes to
+             Ant, GNU tar and PeTimestamp. -->
         <project.build.outputTimestamp>2026-11-04T00:00:00Z</project.build.outputTimestamp>
 
         <!-- ===== Plugin versions (alphabetical). Newest stable; milestones

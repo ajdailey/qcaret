@@ -51,9 +51,26 @@ macOS. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so it is
 left out. `--strip-debug` is not used: it runs the host `objcopy` on target
 binaries and fails across targets.
 
-`qcaret.jar` and the zip archives carry `project.build.outputTimestamp` as
-every entry's time, so two builds of one commit give the same `qcaret.jar`.
-The `.tar.gz` bundles carry build-time entry times.
+## Reproducible output
+
+Every archive entry, and every entry of `qcaret.jar`, is dated
+`project.build.outputTimestamp` (parent POM; set it to the release date when
+the version changes):
+
+- `jar` and `zip` take `modificationtime` from `archive.time`, the instant's
+  UTC wall time. Ant writes DOS entry times in the host time zone, so every
+  host then writes the same fields.
+- The `.tar.gz` bundles are written by GNU `tar` with entries sorted by name,
+  one mtime, owner and group 0, and modes set by `chmod` beforehand, then
+  compressed by Ant's `gzip`. Ant's `tar` has no `modificationtime`.
+- launch4j's `ld` stamps `qcaret.exe` with the link time. `PeTimestamp.java`
+  rewrites the COFF time stamp and the PE checksum to the values `ld` writes
+  with `SOURCE_DATE_EPOCH` set, which cannot reach `ld` inside the Maven JVM.
+
+The jlink runtimes and the ad-hoc rcodesign signature hold no build time.
+`.github/scripts/check-reproducible.sh` builds twice, the second time under
+another time zone and umask, and compares the SHA-256 of every archive,
+`qcaret.exe` and module jar.
 
 ## Launchers
 

@@ -45,8 +45,12 @@ Linux linker and `rcodesign`. On any other host `qcaret-dist` builds and
 smoke-tests `qcaret.jar` and writes no archive. The Temurin JDK archives and
 `rcodesign` are downloaded once into `~/.cache/qcaret-build/`
 (`-Dqcaret.cache.dir` overrides it) and checked against pinned SHA-256
-digests. Two builds of one commit produce the same `qcaret.jar`: every jar
-entry carries the fixed `project.build.outputTimestamp`.
+digests.
+
+Builds are reproducible: with the same JDK, two builds of one commit write
+byte-identical jars, `qcaret.exe` and archives, every entry dated
+`project.build.outputTimestamp` from the parent POM.
+`.github/scripts/check-reproducible.sh` builds twice and compares SHA-256.
 
 ### Container build
 

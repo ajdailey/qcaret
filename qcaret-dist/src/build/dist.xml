@@ -38,6 +38,15 @@
   <property name="modules"
       value="java.base,java.logging,java.naming,jdk.charsets,jdk.unsupported,jdk.zipfs"/>
 
+  <!-- Every jar and zip entry carries project.build.outputTimestamp. Ant
+       writes zip entry times in the host time zone, so archive.time is that
+       instant's UTC wall time in a local-time pattern: each host then writes
+       the UTC fields, as maven-jar-plugin does. -->
+  <property name="ant.tstamp.now.iso" value="${project.build.outputTimestamp}"/>
+  <tstamp>
+    <format property="archive.time" pattern="MM/dd/yyyy hh:mm:ss a" locale="en,US" timezone="UTC"/>
+  </tstamp>
+
   <!-- Downloads a file into the cache once and verifies its SHA-256. -->
   <macrodef name="fetch">
     <attribute name="url"/>
@@ -59,7 +68,7 @@
     </sequential>
   </macrodef>
 
-  <target name="all" depends="universal,universal-zip,bundles"/>
+  <target name="all" depends="universal,exe,universal-zip,bundles"/>
 
   <!-- qcaret.jar: the bootstrap at the root, the application jars and all six
        SWT fragments nested unmodified, and the SHA-256 of every native. -->
@@ -94,7 +103,7 @@ natives.macos-x86_64=${natives.macos-x86_64}
 natives.macos-aarch64=${natives.macos-aarch64}
 </echo>
     <jar destfile="${universal.jar}" basedir="${jar.root}"
-        modificationtime="${project.build.outputTimestamp}">
+        modificationtime="${archive.time}">
       <manifest>
         <attribute name="Main-Class" value="io.github.ajdailey.qcaret.bootstrap.Main"/>
         <attribute name="Implementation-Title" value="QCaret"/>
@@ -109,10 +118,21 @@ natives.macos-aarch64=${natives.macos-aarch64}
     </condition>
   </target>
 
+  <!-- launch4j's ld stamps qcaret.exe with the link time and runs inside
+       Maven, where SOURCE_DATE_EPOCH cannot be set; PeTimestamp writes the
+       build instant and checksum that ld writes with it set. -->
+  <target name="exe" depends="archives" if="archives">
+    <exec executable="${java.home}/bin/java" failonerror="true">
+      <arg file="${basedir}/src/build/PeTimestamp.java"/>
+      <arg file="${build}/qcaret.exe"/>
+      <arg value="${project.build.outputTimestamp}"/>
+    </exec>
+  </target>
+
   <target name="universal-zip" depends="archives" if="archives">
     <mkdir dir="${out}"/>
     <zip destfile="${out}/qcaret-${project.version}.zip"
-        modificationtime="${project.build.outputTimestamp}">
+        modificationtime="${archive.time}">
       <zipfileset file="${basedir}/src/bin/qcaret" fullpath="qcaret/bin/qcaret" filemode="755"/>
       <zipfileset file="${universal.jar}" fullpath="qcaret/lib/qcaret.jar"/>
       <zipfileset file="${build}/qcaret.exe" fullpath="qcaret/qcaret.exe"/>
@@ -250,12 +270,30 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <copy todir="${home}"><fileset refid="notices"/></copy>
       <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
       <mkdir dir="${out}"/>
-      <tar destfile="${out}/qcaret-${project.version}-@{target}.tar.gz" compression="gzip" longfile="posix">
-        <tarfileset dir="${build}/bundles/@{target}" filemode="755"
+      <!-- Ant's tar has no modificationtime and dates each entry from its
+           file, so GNU tar writes the archive: entries sorted by name, one
+           mtime, root owner, and modes set here rather than by the umask. -->
+      <chmod perm="755" type="dir"><dirset dir="${build}/bundles/@{target}"/></chmod>
+      <chmod perm="644" type="file"><fileset dir="${build}/bundles/@{target}"/></chmod>
+      <chmod perm="755" type="file">
+        <fileset dir="${build}/bundles/@{target}"
             includes="qcaret/bin/qcaret,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
-        <tarfileset dir="${build}/bundles/@{target}"
-            excludes="qcaret/bin/qcaret,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
-      </tar>
+      </chmod>
+      <exec executable="tar" failonerror="true">
+        <env key="LC_ALL" value="C"/>
+        <arg value="--sort=name"/>
+        <arg value="--mtime=${project.build.outputTimestamp}"/>
+        <arg value="--owner=0"/>
+        <arg value="--group=0"/>
+        <arg value="--numeric-owner"/>
+        <arg value="--format=gnu"/>
+        <arg value="-cf"/>
+        <arg file="${build}/bundles/@{target}.tar"/>
+        <arg value="-C"/>
+        <arg file="${build}/bundles/@{target}"/>
+        <arg value="qcaret"/>
+      </exec>
+      <gzip src="${build}/bundles/@{target}.tar" destfile="${out}/qcaret-${project.version}-@{target}.tar.gz"/>
     </sequential>
   </macrodef>
 
@@ -274,7 +312,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
       <mkdir dir="${out}"/>
       <zip destfile="${out}/qcaret-${project.version}-@{target}.zip"
-          modificationtime="${project.build.outputTimestamp}">
+          modificationtime="${archive.time}">
         <zipfileset dir="${build}/bundles/@{target}"/>
       </zip>
     </sequential>
@@ -363,7 +401,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
 
       <mkdir dir="${out}"/>
       <zip destfile="${out}/qcaret-${project.version}-@{target}.zip"
-          modificationtime="${project.build.outputTimestamp}">
+          modificationtime="${archive.time}">
         <zipfileset dir="${build}/bundles/@{target}" filemode="755"
             includes="QCaret.app/Contents/MacOS/QCaret,QCaret.app/Contents/runtime/Contents/Home/bin/*,QCaret.app/Contents/runtime/Contents/Home/lib/jspawnhelper"/>
         <zipfileset dir="${build}/bundles/@{target}"
