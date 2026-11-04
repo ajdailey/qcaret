@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.bench;
 
 import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
+import io.github.ajdailey.qcaret.core.buffer.LineView;
+import io.github.ajdailey.qcaret.core.buffer.TextCursor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import java.util.SplittableRandom;
 import java.util.concurrent.TimeUnit;
@@ -18,7 +20,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-/** W6 line lookups on 10 MiB and W7 sequential reads of 100 MiB, both after W3. */
+/** W6 line lookups on 10 MiB and W7 sequential reads of 100 MiB, both after W3, on the rope. */
 @BenchmarkMode(Mode.AverageTime)
 @Fork(value = 2, jvmArgsAppend = "-XX:MaxRAMPercentage=50")
 @Warmup(iterations = 5, time = 1)
@@ -29,22 +31,19 @@ public class ReadBenchmark {
   /** A 10 MiB snapshot after W3 and 1,000,000 random offsets and lines. */
   @State(Scope.Benchmark)
   public static class Lookups {
-    /** Candidate. */
-    @Param({"PIECE_TREE", "ROPE", "GAP_BUFFER"})
-    public Candidate candidate;
-
     /** Input kind. */
-    @Param({"ASCII", "MIXED"})
+    @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
     TextSnapshot text;
+    LineView view = new LineView();
     int[] offsets = new int[LOOKUPS];
     int[] lines = new int[LOOKUPS];
 
     /** Builds the document, applies W3 and draws the lookups. */
     @Setup
     public void build() {
-      text = Workloads.afterW3(candidate, corpus, 10).snapshot();
+      text = Workloads.afterW3(corpus, 10).snapshot();
       SplittableRandom random = new SplittableRandom(Workloads.SEED);
       for (int i = 0; i < LOOKUPS; i++) {
         offsets[i] = random.nextInt(text.length() + 1);
@@ -56,12 +55,8 @@ public class ReadBenchmark {
   /** A 100 MiB snapshot after W3. */
   @State(Scope.Benchmark)
   public static class Whole {
-    /** Candidate. */
-    @Param({"PIECE_TREE", "ROPE", "GAP_BUFFER"})
-    public Candidate candidate;
-
     /** Input kind. */
-    @Param({"ASCII", "MIXED"})
+    @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
     TextSnapshot text;
@@ -69,7 +64,7 @@ public class ReadBenchmark {
     /** Builds the document and applies W3. */
     @Setup
     public void build() {
-      text = Workloads.afterW3(candidate, corpus, 100).snapshot();
+      text = Workloads.afterW3(corpus, 100).snapshot();
     }
   }
 
@@ -123,7 +118,44 @@ public class ReadBenchmark {
   }
 
   /**
-   * W7 through {@code charAt}.
+   * W6 line view: positions one reused {@link LineView} and reads its length and last char.
+   *
+   * @param s the lookups
+   * @return a checksum
+   */
+  @Benchmark
+  @OperationsPerInvocation(LOOKUPS)
+  @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  public long lineView(Lookups s) {
+    long sum = 0;
+    LineView view = s.view;
+    for (int i = 0; i < LOOKUPS; i++) {
+      s.text.lineView(s.lines[i], view);
+      int n = view.length();
+      sum += n == 0 ? 0 : view.charAt(n - 1);
+    }
+    return sum;
+  }
+
+  /**
+   * W7 through a {@link TextCursor}.
+   *
+   * @param s the text
+   * @return a checksum
+   */
+  @Benchmark
+  @OutputTimeUnit(TimeUnit.MILLISECONDS)
+  public long cursor(Whole s) {
+    TextCursor cursor = s.text.cursor(0);
+    long sum = 0;
+    while (cursor.hasNext()) {
+      sum += cursor.next();
+    }
+    return sum;
+  }
+
+  /**
+   * W7 through {@code charAt}, no limit applies.
    *
    * @param s the text
    * @return a checksum

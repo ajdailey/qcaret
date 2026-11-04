@@ -52,6 +52,13 @@
     </Or>
     <Bug pattern="AT_NONATOMIC_64BIT_PRIMITIVE,AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE,AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
   </Match>
+  <!-- A document is confined to the thread that edits it: Document.checkThread
+       binds the first mutating thread and refuses every other. Workers read
+       immutable snapshots, never these fields. -->
+  <Match>
+    <Class name="io.github.ajdailey.qcaret.core.document.Document"/>
+    <Bug pattern="AT_NONATOMIC_64BIT_PRIMITIVE,AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE,AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
+  </Match>
   <!-- The uncaught-exception handler logs the throwable as the throwable
        argument; its stack trace is multi-line by design and its thread name
        passes through LogText.oneLine. -->

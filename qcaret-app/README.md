@@ -65,6 +65,13 @@ read run on `qcaret-lifecycle-` workers.
 - `showLicenses` reads `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` from the jar
   on a worker and shows them through `MainView.showText`.
 
+`DocumentOpener` opens files for one window: each `DocumentFiles.load` runs on
+a `qcaret-io-` worker and its `LoadedFile`, or the failure, reaches the
+listener on the UI thread. `close` sets a flag and cancels the running loads.
+A load that finishes after it drops its document, whether the worker checks
+the flag before posting or the posted task checks it on the UI thread, so no
+document reaches a closed window.
+
 ## Settings (`app.config`)
 
 `SettingsLocation` picks the settings directory: `--settings <dir>`
@@ -117,7 +124,9 @@ modules.
 
 `ApplicationControllerTest` covers the theme save and its restart notice, the
 quit's placement save, the quit that saves nothing, licenses read on a worker
-and About. `ConfigStoreTest` covers the round trip, defaults, malformed and
+and About. `DocumentOpenerTest` holds a load in its decoder past the window's
+close and closes after a result is posted; neither reaches the listener.
+`ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
 and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,
 `WindowGeometryTest`, `ThemeControllerTest`, `MenuTableTest` (mnemonics unique

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.bench;
 
+import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextStorage;
 import java.util.SplittableRandom;
 
@@ -59,28 +60,17 @@ public final class Workloads {
   }
 
   /**
-   * Builds a candidate from a corpus and applies W3. The gap buffer's state is its text and gap
-   * position, so for it the text after W3 comes from the rope and the gap is moved to the last
-   * edit's offset. W3 on a 10 MiB gap buffer takes about 80 s (measured).
+   * Builds a rope from a corpus and applies W3.
    *
-   * @param candidate the candidate
    * @param corpus the corpus
    * @param sizeMiB the corpus size
    * @return the storage after W3
    */
-  public static TextStorage afterW3(Candidate candidate, Corpus corpus, int sizeMiB) {
+  public static TextStorage afterW3(Corpus corpus, int sizeMiB) {
     String text = corpus.generate(sizeMiB * Corpus.MIB, SEED);
-    Edit[] edits = w3(text.length());
-    if (candidate != Candidate.GAP_BUFFER) {
-      TextStorage storage = candidate.create(text);
-      apply(storage, edits, null);
-      return storage;
-    }
-    TextStorage rope = Candidate.ROPE.create(text);
-    apply(rope, edits, null);
-    TextStorage gap = candidate.create(rope.toString());
-    gap.replace(edits[edits.length - 1].offset, 0, "");
-    return gap;
+    TextStorage storage = RopeStorage.of(text);
+    apply(storage, w3(text.length()), null);
+    return storage;
   }
 
   /**

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.core.testkit.TempTrees;
+import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -166,29 +167,10 @@ class SmokeTest {
   }
 
   /**
-   * Encodings an editor's Encoding menu offers. Windows and macOS keep the legacy ones in {@code
-   * jdk.charsets}; Linux's {@code java.base} carries most of them, so the module list is checked
-   * too.
+   * The Encoding menu's charsets. Windows and macOS keep the legacy ones in {@code jdk.charsets};
+   * Linux's {@code java.base} carries most of them, so the module list is checked too.
    */
-  static final List<String> ENCODINGS =
-      List.of(
-          "UTF-8",
-          "UTF-16LE",
-          "UTF-16BE",
-          "UTF-32",
-          "ISO-8859-1",
-          "ISO-8859-15",
-          "windows-1252",
-          "US-ASCII",
-          "windows-1251",
-          "KOI8-R",
-          "GB18030",
-          "GBK",
-          "Big5",
-          "Shift_JIS",
-          "windows-31j",
-          "EUC-JP",
-          "EUC-KR");
+  static final List<String> ENCODINGS = TextEncoding.MENU;
 
   @Test
   void linuxBundleRunsWithoutASystemJava() throws Exception {

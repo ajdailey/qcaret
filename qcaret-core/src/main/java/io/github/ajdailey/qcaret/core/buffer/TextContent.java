@@ -48,25 +48,34 @@ public interface TextContent extends CharSequence {
    * @return the char count
    * @throws IndexOutOfBoundsException when the line is out of range
    */
-  default int lineLength(int line) {
-    int start = offsetOfLine(line);
-    if (line == lineCount() - 1) {
-      return length() - start;
-    }
-    int next = offsetOfLine(line + 1);
-    boolean crLf = next - 2 >= start && charAt(next - 1) == '\n' && charAt(next - 2) == '\r';
-    return next - start - (crLf ? 2 : 1);
-  }
+  int lineLength(int line);
 
   /**
-   * Returns a line's text without its line break.
+   * Returns a line's text without its line break, copied.
    *
    * @param line a line index from 0 to {@code lineCount() - 1}
    * @return the line text
    * @throws IndexOutOfBoundsException when the line is out of range
    */
-  default String line(int line) {
-    int start = offsetOfLine(line);
-    return subSequence(start, start + lineLength(line)).toString();
-  }
+  String line(int line);
+
+  /**
+   * Positions {@code view} on a line's text without its line break. No chars are copied; the view
+   * reads this text version until it is positioned again.
+   *
+   * @param line a line index from 0 to {@code lineCount() - 1}
+   * @param view the view to position
+   * @return {@code view}
+   * @throws IndexOutOfBoundsException when the line is out of range
+   */
+  LineView lineView(int line, LineView view);
+
+  /**
+   * Returns a cursor for sequential reads of this text version.
+   *
+   * @param offset the starting offset, from 0 to {@link #length()}
+   * @return the cursor
+   * @throws IndexOutOfBoundsException when the offset is out of range
+   */
+  TextCursor cursor(int offset);
 }

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.bench;
 
+import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextStorage;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -25,12 +26,8 @@ public class EditBenchmark {
   /** A fresh 10 MiB document per iteration. */
   @State(Scope.Benchmark)
   public static class Fresh {
-    /** Candidate. */
-    @Param({"PIECE_TREE", "ROPE", "GAP_BUFFER"})
-    public Candidate candidate;
-
     /** Input kind. */
-    @Param({"ASCII", "MIXED"})
+    @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
     String text;
@@ -47,19 +44,15 @@ public class EditBenchmark {
     /** Builds the document. */
     @Setup(Level.Iteration)
     public void build() {
-      storage = candidate.create(text);
+      storage = RopeStorage.of(text);
     }
   }
 
   /** A 10 MiB document after W3, with the text each edit removed. */
   @State(Scope.Benchmark)
   public static class Edited {
-    /** Candidate. */
-    @Param({"PIECE_TREE", "ROPE", "GAP_BUFFER"})
-    public Candidate candidate;
-
     /** Input kind. */
-    @Param({"ASCII", "MIXED"})
+    @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
     Workloads.Edit[] edits;
@@ -72,7 +65,7 @@ public class EditBenchmark {
       String text = corpus.generate(10 * Corpus.MIB, Workloads.SEED);
       edits = Workloads.w3(text.length());
       removed = new String[edits.length];
-      storage = candidate.create(text);
+      storage = RopeStorage.of(text);
       Workloads.apply(storage, edits, removed);
     }
   }

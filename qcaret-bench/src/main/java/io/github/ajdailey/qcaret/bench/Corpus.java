@@ -4,12 +4,16 @@ import java.util.SplittableRandom;
 
 /** Generated benchmark input; the same kind, size and seed give the same text. */
 public enum Corpus {
-  /** Source-like ASCII lines of 80 chars including the LF. */
+  /** Source-like ASCII lines of 80 chars including the LF; every corpus but LONGLINE has 80. */
   ASCII,
   /** {@link #ASCII} with 30% of the chars other than LF outside Latin-1. */
   MIXED,
   /** One line of source-like ASCII with no line break. */
-  LONGLINE;
+  LONGLINE,
+  /** {@link #ASCII} with CR LF line breaks. */
+  CRLF,
+  /** {@link #ASCII} with LF, CR LF and CR line breaks drawn at random. */
+  MIXED_EOL;
 
   private static final String[] WORDS = {
     "int", "return", "value", "count", "(", ")", "{", "}", ";", "=", "+", "if", "for", "String",
@@ -39,9 +43,9 @@ public enum Corpus {
       while (line.length() < 79) {
         line.append(WORDS[random.nextInt(WORDS.length)]).append(' ');
       }
-      line.setLength(79);
-      sb.append(line);
-      sb.append(this == LONGLINE ? ' ' : '\n');
+      String eol = terminator(random);
+      line.setLength(80 - eol.length());
+      sb.append(line).append(eol);
     }
     sb.setLength(chars);
     if (this == MIXED) {
@@ -52,6 +56,21 @@ public enum Corpus {
       }
     }
     return sb.toString();
+  }
+
+  /** Returns the line break, or a space for {@link #LONGLINE}. */
+  private String terminator(SplittableRandom random) {
+    switch (this) {
+      case LONGLINE:
+        return " ";
+      case CRLF:
+        return "\r\n";
+      case MIXED_EOL:
+        int kind = random.nextInt(3);
+        return kind == 0 ? "\n" : kind == 1 ? "\r\n" : "\r";
+      default:
+        return "\n";
+    }
   }
 
   private static char nonLatin1(SplittableRandom random) {

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.bench;
 
+import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.buffer.TextStorage;
 import java.lang.management.ManagementFactory;
@@ -8,9 +9,8 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * Latency percentiles (W2, W4) and live heap (W1, after W3) for one candidate per run. Arguments:
- * the candidate name, then any of {@code w1heap}, {@code w2}, {@code w3heap}, {@code w4}; none runs
- * all four.
+ * Latency percentiles (W2, W4) and live heap (W1, after W3) for the rope. Arguments: any of {@code
+ * w1heap}, {@code w2}, {@code w3heap}, {@code w4}; none runs all four.
  */
 public final class StorageHarness {
   /** W2 keystrokes measured per size. */
@@ -26,37 +26,32 @@ public final class StorageHarness {
   /**
    * Runs the harness.
    *
-   * @param args the candidate, then the workloads
+   * @param args the workloads
    */
   public static void main(String[] args) {
-    Candidate candidate = Candidate.valueOf(args[0]);
-    String[] workloads =
-        args.length > 1
-            ? Arrays.copyOfRange(args, 1, args.length)
-            : new String[] {"w1heap", "w2", "w3heap", "w4"};
+    String[] workloads = args.length > 0 ? args : new String[] {"w1heap", "w2", "w3heap", "w4"};
     System.out.printf(
-        "candidate %s, max heap %d MiB, args %s%n",
-        candidate,
+        "max heap %d MiB, args %s%n",
         Runtime.getRuntime().maxMemory() / Corpus.MIB,
         ManagementFactory.getRuntimeMXBean().getInputArguments());
     for (String w : workloads) {
       switch (w) {
-        case "w1heap" -> w1Heap(candidate);
-        case "w2" -> w2(candidate);
-        case "w3heap" -> w3Heap(candidate);
-        case "w4" -> w4(candidate);
+        case "w1heap" -> w1Heap();
+        case "w2" -> w2();
+        case "w3heap" -> w3Heap();
+        case "w4" -> w4();
         default -> throw new IllegalArgumentException("unknown workload " + w);
       }
     }
   }
 
-  private static void w1Heap(Candidate candidate) {
-    Corpus[] corpora = {Corpus.ASCII, Corpus.MIXED, Corpus.LONGLINE};
+  private static void w1Heap() {
+    Corpus[] corpora = {Corpus.ASCII, Corpus.MIXED, Corpus.CRLF, Corpus.MIXED_EOL, Corpus.LONGLINE};
     for (Corpus corpus : corpora) {
       int[] sizes = corpus == Corpus.LONGLINE ? new int[] {4} : new int[] {1, 10, 100};
       for (int size : sizes) {
         long base = liveHeap();
-        TextStorage storage = candidate.create(corpus.generate(size * Corpus.MIB, Workloads.SEED));
+        TextStorage storage = RopeStorage.of(corpus.generate(size * Corpus.MIB, Workloads.SEED));
         long used = liveHeap() - base;
         System.out.printf(
             Locale.ROOT,
@@ -69,10 +64,10 @@ public final class StorageHarness {
     }
   }
 
-  private static void w3Heap(Candidate candidate) {
-    for (Corpus corpus : new Corpus[] {Corpus.ASCII, Corpus.MIXED}) {
+  private static void w3Heap() {
+    for (Corpus corpus : new Corpus[] {Corpus.ASCII, Corpus.MIXED, Corpus.CRLF, Corpus.MIXED_EOL}) {
       long base = liveHeap();
-      TextStorage storage = candidate.create(corpus.generate(10 * Corpus.MIB, Workloads.SEED));
+      TextStorage storage = RopeStorage.of(corpus.generate(10 * Corpus.MIB, Workloads.SEED));
       long t0 = System.nanoTime();
       Workloads.apply(storage, Workloads.w3(storage.length()), null);
       long t1 = System.nanoTime();
@@ -87,17 +82,17 @@ public final class StorageHarness {
     }
   }
 
-  private static void w2(Candidate candidate) {
+  private static void w2() {
     // JIT warm-up on a separate document.
-    typing(candidate, Corpus.ASCII, 1, 3, 20_000_000_000L);
-    for (Corpus corpus : new Corpus[] {Corpus.ASCII, Corpus.MIXED}) {
-      typing(candidate, corpus, 10, 1, W2_BOUND_NANOS);
-      typing(candidate, corpus, 100, 1, W2_BOUND_NANOS);
+    typing(Corpus.ASCII, 1, 3, 20_000_000_000L);
+    for (Corpus corpus : new Corpus[] {Corpus.ASCII, Corpus.MIXED, Corpus.CRLF, Corpus.MIXED_EOL}) {
+      typing(corpus, 10, 1, W2_BOUND_NANOS);
+      typing(corpus, 100, 1, W2_BOUND_NANOS);
     }
   }
 
-  private static void typing(Candidate candidate, Corpus corpus, int size, int rounds, long bound) {
-    TextStorage storage = candidate.create(corpus.generate(size * Corpus.MIB, Workloads.SEED));
+  private static void typing(Corpus corpus, int size, int rounds, long bound) {
+    TextStorage storage = RopeStorage.of(corpus.generate(size * Corpus.MIB, Workloads.SEED));
     long[] times = new long[W2_KEYS];
     int done = 0;
     long sink = 0;
@@ -118,10 +113,11 @@ public final class StorageHarness {
     }
   }
 
-  private static void w4(Candidate candidate) {
+  private static void w4() {
     for (int round = 0; round < 2; round++) {
-      for (Corpus corpus : new Corpus[] {Corpus.ASCII, Corpus.MIXED}) {
-        TextStorage storage = candidate.create(corpus.generate(10 * Corpus.MIB, Workloads.SEED));
+      for (Corpus corpus :
+          new Corpus[] {Corpus.ASCII, Corpus.MIXED, Corpus.CRLF, Corpus.MIXED_EOL}) {
+        TextStorage storage = RopeStorage.of(corpus.generate(10 * Corpus.MIB, Workloads.SEED));
         int[] carets = Workloads.carets(storage.length());
         long[] times = new long[W4_KEYS];
         for (int k = 0; k < W4_KEYS; k++) {

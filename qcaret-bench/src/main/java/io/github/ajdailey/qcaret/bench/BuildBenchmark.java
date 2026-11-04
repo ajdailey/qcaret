@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.bench;
 
+import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextStorage;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -23,12 +24,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class BuildBenchmark {
-  /** Candidate; {@code decode} ignores it. */
-  @Param({"PIECE_TREE", "ROPE", "GAP_BUFFER"})
-  public Candidate candidate;
-
   /** Input kind. */
-  @Param({"ASCII", "MIXED"})
+  @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
   public Corpus corpus;
 
   /** Input size. */
@@ -46,13 +43,13 @@ public class BuildBenchmark {
   }
 
   /**
-   * Builds the candidate.
+   * Builds the rope.
    *
    * @return the storage
    */
   @Benchmark
   public TextStorage build() {
-    return candidate.create(text);
+    return RopeStorage.of(text);
   }
 
   /**
