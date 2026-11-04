@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- CVE-2020-27225 is in the Eclipse Platform Help System web server. The
+       CPE eclipse:platform matches the SWT artifacts by name; QCaret ships SWT
+       only, with no help server. -->
+  <suppress>
+    <notes>Eclipse Help System; SWT does not contain it.</notes>
+    <packageUrl regex="true">^pkg:maven/org\.eclipse\.platform/org\.eclipse\.swt.*$</packageUrl>
+    <cve>CVE-2020-27225</cve>
+  </suppress>
+</suppressions>
