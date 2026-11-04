@@ -154,7 +154,7 @@ class ShellCommandsTest {
 
   @Test
   void aDeclinedBinaryPromptOpensNothing() throws Exception {
-    Path file = Files.write(temp.resolve("nul.bin"), BINARY);
+    Path file = Files.write(temp.resolve("zeros.bin"), BINARY);
     documents().open(List.of(file));
     harness.await(
         new BooleanSupplier() {

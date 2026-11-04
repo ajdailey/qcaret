@@ -170,8 +170,9 @@ class EditorSurfaceTest {
     key(text, (char) ('z' - 'a' + 1), 'z', SWT.MOD1);
     assertEquals("alpha\r\nbeta\n", modelText());
     assertEquals("alpha\r\nbeta\n", text.getText());
-    key(text, (char) ('y' - 'a' + 1), 'y', SWT.MOD1);
-    key(text, (char) ('y' - 'a' + 1), 'y', SWT.MOD1);
+    // Mod+Shift+Z redoes on every platform; Mod+Y is not bound on macOS.
+    key(text, (char) ('z' - 'a' + 1), 'z', SWT.MOD1 | SWT.SHIFT);
+    key(text, (char) ('z' - 'a' + 1), 'z', SWT.MOD1 | SWT.SHIFT);
     // An edit the widget makes itself is canceled and applied to the model by the controller.
     text.setSelection(0);
     text.insert("Q");
