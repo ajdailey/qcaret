@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Unpacks the $TARGET bundle from dist/, checks that its runtime reports
-# os.arch $EXPECTED_ARCH, and starts the bundle's launcher until the main
-# window opens. Linux uses a private Xvfb display.
+# os.arch $EXPECTED_ARCH and has jdk.charsets, and starts the bundle's
+# launcher until the main window opens. Linux uses a private Xvfb display.
 set -euo pipefail
 
 work="$PWD/bundle-run"
@@ -29,6 +29,8 @@ if [ "$(uname -s)" = Darwin ]; then
   codesign --verify --deep --strict "$work/QCaret.app"
   echo "codesign: QCaret.app matches its seal"
 fi
+"$runtime/bin/java" --list-modules | grep '^jdk\.charsets@' >/dev/null \
+  || { echo "FAIL: runtime lacks jdk.charsets" >&2; exit 1; }
 
 arch="$("$runtime/bin/java" -XshowSettings:properties -version 2>&1 \
   | sed -n 's/^ *os\.arch = //p')"
