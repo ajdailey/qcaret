@@ -4,7 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # One weekly pull request for every Maven update.
+    groups:
+      maven:
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
