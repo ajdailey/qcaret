@@ -141,10 +141,9 @@ public final class FileSearch {
    * canceled.
    *
    * @param workers runs the reads and matches
-   * @param root the directory
+   * @param root the directory's real path; a link at the root is not walked
    * @param recursive false to search only the files directly in {@code root}
-   * @param searchedElsewhere absolute normalized paths not read, such as open documents searched
-   *     from their text
+   * @param searchedElsewhere real paths not read, such as open documents searched from their text
    * @param options the query and limits
    * @param sink receives the results
    * @param token cancels the search
@@ -190,7 +189,7 @@ public final class FileSearch {
                   || name == null
                   || !options.filter().acceptsFile(name)
                   || (!options.filter().hidden() && hidden(file))
-                  || searchedElsewhere.contains(file.toAbsolutePath().normalize())) {
+                  || searchedElsewhere.contains(file)) {
                 return FileVisitResult.CONTINUE;
               }
               if (sink.room() <= 0) {

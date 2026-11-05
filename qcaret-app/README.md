@@ -265,7 +265,15 @@ scope, or without a directory shows a message instead.
 | Workspace folder, Directory and subdirectories | The folder's tree through `FileSearch`; Directory reads its files only |
 
 Open documents are searched from their snapshots in every scope, so a folder
-search reads a dirty buffer as edited and not its file. Each run is an
+search reads a dirty buffer as edited and not its file. The match is by real
+path: a document holds its file's real path (`SafePaths.userFile`, and Save
+As records the real path), and a search root is resolved to its real path on
+a `qcaret-io-` worker before the search starts, when the dialog submits a
+directory or tree scope and when the workspace folder is set. A rerun uses
+the stored root. Without that, a folder reached through a link (macOS `/var`)
+or a Windows short name holds no open document, the walk reads the file on
+disk, and a link at the root is not walked at all. A root that does not
+resolve keeps its absolute path and reports as unreadable. Each run is an
 `app.search.HyperSearch` filling a `ResultSet`:
 
 - Documents are matched on `qcaret-cpu-` workers, one task each; a folder is
@@ -300,8 +308,8 @@ there has the searched length and hash; otherwise the match is marked stale,
 the caret goes to its line and a notice says so. Next and Previous Result
 step through the set last navigated, or the newest set, wrapping at its ends.
 
-File > Set Workspace Folder stores one folder per window for the run
-(`WorkspaceController`).
+File > Set Workspace Folder stores one folder per window for the run, as its
+real path (`WorkspaceController`).
 
 ### Overview strip
 
@@ -676,8 +684,9 @@ inside a tree search, the dock's rows, opening a match in an open document
 and in a closed file, an edit moving a match and one marking it stale, a file
 changed on disk, Next and Previous Result wrapping, a stopped rerun keeping
 the finished set and a done one replacing it (QLogg APP-2), the retained
-limit with a pin, the dialog's seed and history, the refused requests and
-the workspace folder. `HyperSearchTest` covers documents and a folder in one
+limit with a pin, the dialog's seed and history, the refused requests,
+the workspace folder, and a tree searched through a symbolic link reading the
+open buffer once (skipped where links cannot be created). `HyperSearchTest` covers documents and a folder in one
 set, the match limit, a refused reservation, a cancel, a regex overflow on
 its group and a document group following edits. `OverviewTest` covers find,
 HyperSearch and bookmark marks, recomputed after an edit, and a hidden strip

@@ -131,7 +131,7 @@ public final class ApplicationController {
             });
     this.rememberWindow = rememberWindow;
     this.find = new FindController(documents, workers, ui);
-    this.workspace = new WorkspaceController(view);
+    this.workspace = new WorkspaceController(view, workers, ui);
     this.search =
         new SearchController(
             documents, workspace, workers, ui, view, budget, HyperSearch.Limits.DEFAULTS);

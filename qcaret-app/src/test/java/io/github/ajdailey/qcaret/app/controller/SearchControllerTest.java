@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -179,6 +181,48 @@ class SearchControllerTest {
     assertEquals(UiText.SEARCH_STALE.format(1), last(harness.view.notices));
   }
 
+  /**
+   * A folder reached through a link (macOS {@code /var}, a Windows short name) holds the open
+   * document under another path; the buffer is searched as edited and its file is not read again.
+   */
+  @Test
+  void aTreeSearchThroughALinkReadsTheOpenBufferOnce() throws Exception {
+    Path real = Files.createDirectories(temp.resolve("real")).toRealPath();
+    Path link = temp.resolve("link");
+    try {
+      Files.createSymbolicLink(link, real);
+    } catch (UnsupportedOperationException | IOException e) {
+      Assumptions.abort("symbolic links unavailable: " + e);
+    }
+    Files.writeString(real.resolve("disk.txt"), "needle\n");
+    harness.open(Files.writeString(real.resolve("open.txt"), "needle\n"));
+    EditorController editor = harness.application.documents().activeEditor();
+    editor.selections().set(SelectionSet.caret(0));
+    editor.type("needle ");
+    run("needle", SearchScope.TREE, link.toString());
+    List<String> names = files(0);
+    assertEquals(2, names.size(), names.toString());
+    assertTrue(names.get(0).startsWith("open.txt"), names.toString());
+    assertEquals(2, search.matchCount(0, 0));
+    assertEquals(real, search.sets().get(0).request().folder());
+    harness.application.execute(CommandId.HYPERSEARCH);
+    assertEquals(real.toString(), harness.view.searchForm.directoryHistory().get(0));
+    harness.application.execute(CommandId.SET_WORKSPACE);
+    harness.view.folderChooser.accept(link);
+    awaitWorkspace(real);
+  }
+
+  private void awaitWorkspace(final Path root) throws InterruptedException {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return root.equals(harness.application.workspace().root());
+          }
+        },
+        "workspace set to " + root);
+  }
+
   @Test
   void theSelectionAndOpenDocumentScopes() throws Exception {
     open("one.txt", "key key key");
@@ -246,7 +290,7 @@ class SearchControllerTest {
     editor.selections().set(SelectionSet.of(List.of(Selection.of(6, 9)), 0));
     harness.application.execute(CommandId.HYPERSEARCH);
     assertEquals("key", harness.view.searchForm.text());
-    assertEquals(temp.toAbsolutePath().toString(), harness.view.searchForm.directory());
+    assertEquals(temp.toRealPath().toString(), harness.view.searchForm.directory());
     editor.selections().set(SelectionSet.of(List.of(Selection.of(0, 15)), 0));
     harness.application.execute(CommandId.HYPERSEARCH);
     assertEquals(SearchScope.SELECTION, harness.view.searchForm.scope());
@@ -295,6 +339,7 @@ class SearchControllerTest {
             List.of(),
             List.of(),
             List.of()));
+    settle();
     assertTrue(info().startsWith("Invalid file mask"));
     run("key", SearchScope.TREE, "");
     assertEquals(UiText.SEARCH_NO_DIRECTORY.format(""), info());
@@ -308,11 +353,11 @@ class SearchControllerTest {
 
   @Test
   void theWorkspaceFolderIsChosenAndSearched() throws Exception {
-    Path folder = Files.createDirectories(temp.resolve("ws")).toAbsolutePath().normalize();
+    Path folder = Files.createDirectories(temp.resolve("ws")).toRealPath();
     Files.writeString(folder.resolve("w.txt"), "key\n");
     harness.application.execute(CommandId.SET_WORKSPACE);
     harness.view.folderChooser.accept(folder);
-    assertEquals(folder, harness.application.workspace().root());
+    awaitWorkspace(folder);
     assertEquals(UiText.WORKSPACE_SET.format(folder), last(harness.view.notices));
     run("key", SearchScope.WORKSPACE, "");
     assertEquals(1, search.fileCount(0));

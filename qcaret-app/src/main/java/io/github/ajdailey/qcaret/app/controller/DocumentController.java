@@ -773,8 +773,14 @@ public final class DocumentController {
               public void run() {
                 FileStamp stamp = null;
                 IOException error = null;
+                Path written = target;
                 try {
                   stamp = DocumentFiles.save(target, snapshot, baseline, token);
+                  try {
+                    written = target.toRealPath();
+                  } catch (IOException e) {
+                    // Saved; the path as named stands.
+                  }
                 } catch (IOException e) {
                   error = e;
                 } catch (CancellationException e) {
@@ -783,11 +789,12 @@ public final class DocumentController {
                   view.setIdle();
                   final FileStamp saved = stamp;
                   final IOException failure = error;
+                  final Path file = written;
                   ui.asyncExec(
                       new Runnable() {
                         @Override
                         public void run() {
-                          saved(d, token, target, snapshot, saved, failure, then);
+                          saved(d, token, file, snapshot, saved, failure, then);
                         }
                       });
                 }
@@ -1064,7 +1071,7 @@ public final class DocumentController {
     return entry(document) != null;
   }
 
-  /** Returns an open document's file, or null when untitled or closed. */
+  /** Returns an open document's real path, or null when untitled or closed. */
   Path pathOf(Document document) {
     OpenDocument d = entry(document);
     return d == null ? null : d.path;

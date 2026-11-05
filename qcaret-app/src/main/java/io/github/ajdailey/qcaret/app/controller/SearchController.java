@@ -80,6 +80,7 @@ public final class SearchController implements ResultsInput {
   private final List<String> directories = new ArrayList<String>();
   private final List<String> masks = new ArrayList<String>();
   private SearchForm last;
+  private int resolving;
   private long nextId = 1;
   private boolean shown;
   private boolean disposed;
@@ -195,11 +196,12 @@ public final class SearchController implements ResultsInput {
   }
 
   /**
-   * Runs a search from the dialog's fields; an invalid field shows a message instead.
+   * Runs a search from the dialog's fields; an invalid field shows a message instead. A directory
+   * or tree search starts once a {@code qcaret-io-} worker has resolved the folder's real path.
    *
    * @param form the fields
    */
-  public void run(SearchForm form) {
+  public void run(final SearchForm form) {
     if (disposed) {
       return;
     }
@@ -224,8 +226,38 @@ public final class SearchController implements ResultsInput {
         view.showInfo(UiText.SEARCH_TITLE.text(), UiText.SEARCH_NO_DIRECTORY.format(entered));
         return;
       }
-      remember(directories, folder.toString());
+      final Path given = folder;
+      resolving++;
+      boolean started =
+          workers.tryStart(
+              Workers.Kind.IO,
+              new Runnable() {
+                @Override
+                public void run() {
+                  final Path real = WorkspaceController.realFolder(given);
+                  ui.asyncExec(
+                      new Runnable() {
+                        @Override
+                        public void run() {
+                          resolving--;
+                          if (!disposed) {
+                            remember(directories, real.toString());
+                            start(form, real);
+                          }
+                        }
+                      });
+                }
+              });
+      if (!started) {
+        resolving--;
+      }
+      return;
     }
+    start(form, folder);
+  }
+
+  /** Starts a search from the dialog's fields into a new set. */
+  private void start(SearchForm form, Path folder) {
     start(
         new SearchRequest(
             form.text(),
@@ -288,7 +320,7 @@ public final class SearchController implements ResultsInput {
     for (Document d : documents.openDocuments()) {
       Path path = documents.pathOf(d);
       if (path != null) {
-        open.add(path.toAbsolutePath().normalize());
+        open.add(path);
       }
     }
     HyperSearch.Folder folder =
@@ -372,10 +404,7 @@ public final class SearchController implements ResultsInput {
           if (path != null
               && !documents.binary(d)
               && inFolder(
-                  path.toAbsolutePath().normalize(),
-                  request.folder(),
-                  request.scope() != SearchScope.DIRECTORY,
-                  filter)) {
+                  path, request.folder(), request.scope() != SearchScope.DIRECTORY, filter)) {
             sources.add(source(d, null));
           }
         }
@@ -405,7 +434,8 @@ public final class SearchController implements ResultsInput {
 
   /**
    * Reports whether a folder search would read a file: inside the folder (directly, unless
-   * recursive), its name passing the masks, no directory between them excluded or hidden.
+   * recursive), its name passing the masks, no directory between them excluded or hidden. Both
+   * paths are real paths.
    */
   static boolean inFolder(Path file, Path folder, boolean recursive, FileFilter filter) {
     if (!file.startsWith(folder) || file.equals(folder)) {
@@ -548,11 +578,14 @@ public final class SearchController implements ResultsInput {
   }
 
   /**
-   * Reports whether a search or a rerun runs.
+   * Reports whether a search or a rerun runs, or a folder is being resolved for one.
    *
    * @return true while any runs
    */
   boolean running() {
+    if (resolving > 0) {
+      return true;
+    }
     for (Entry e : entries) {
       if (e.run != null || e.rerun != null) {
         return true;

@@ -142,8 +142,8 @@ public final class HyperSearch {
    * @param matcher the compiled query
    * @param sources the open documents to search
    * @param folder the folder to search, or null
-   * @param searchedElsewhere absolute normalized paths of open documents, which the folder search
-   *     leaves to their snapshots
+   * @param searchedElsewhere real paths of open documents, which the folder search leaves to their
+   *     snapshots; {@code folder}'s root is a real path too
    * @param limits the bounds
    * @param workers runs the search
    * @param ui receives the results
