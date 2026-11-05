@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -113,7 +112,11 @@ class DocumentControllerTest {
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
-                return workers.liveThreadNames().replaceAll("qcaret-cpu-\\* x\\d+", "").isEmpty();
+                return workers
+                    .liveThreadNames()
+                    .replaceAll("qcaret-cpu-\\* x\\d+|qcaret-watch-\\d+", "")
+                    .replaceAll("[, ]", "")
+                    .isEmpty();
               }
             },
             BOUND));
@@ -221,13 +224,11 @@ class DocumentControllerTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return !view.infos.isEmpty();
+            return !view.changePrompts.isEmpty();
           }
         });
     settle();
-    assertEquals(
-        List.of(UiText.SAVE_TITLE.text() + ": " + UiText.SAVE_CHANGED_ON_DISK.format("a.txt")),
-        view.infos);
+    assertEquals(List.of("save a.txt"), view.changePrompts);
     assertEquals("changed on disk", Files.readString(file, StandardCharsets.ISO_8859_1));
   }
 

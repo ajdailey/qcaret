@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -33,7 +34,9 @@ import java.util.Set;
  * commands need fold regions in the focused view, the unfold commands a collapsed one. Next,
  * Previous and Clear Bookmarks need a bookmark; the Bookmarks list shows without a document.
  * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
- * in a retained set. A disabled menu item's accelerator does not fire.
+ * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
+ * Compare Documents needs a second document, Compare with File on Disk a file. A disabled menu
+ * item's accelerator does not fire.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -61,7 +64,12 @@ public final class CommandStates {
           CommandId.REPLACE_IN_RESULTS,
           CommandId.RESTORE_REPLACE_RUN,
           CommandId.OVERVIEW_STRIP,
-          CommandId.BOOKMARKS_LIST);
+          CommandId.BOOKMARKS_LIST,
+          CommandId.QUICK_OPEN,
+          CommandId.CLEAR_RECENT_FILES,
+          CommandId.WORKSPACE_BROWSER,
+          CommandId.GO_BACK,
+          CommandId.GO_FORWARD);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -164,6 +172,7 @@ public final class CommandStates {
       case SEARCH_RESULTS -> application.search().resultsShown();
       case OVERVIEW_STRIP -> application.documents().overviewShown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
+      case WORKSPACE_BROWSER -> application.workspace().shown();
       default -> false;
     };
   }
@@ -183,6 +192,9 @@ public final class CommandStates {
         case ZOOM_IN -> application.fontStep() < ApplicationController.MAX_FONT_STEP;
         case ZOOM_OUT -> application.fontStep() > ApplicationController.MIN_FONT_STEP;
         case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
+        case CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
+        case GO_BACK -> application.history().canBack();
+        case GO_FORWARD -> application.history().canForward();
         default -> true;
       };
     }
@@ -204,7 +216,7 @@ public final class CommandStates {
     return switch (command) {
       case SAVE, SAVE_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
-      case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS -> documents.count() > 1;
+      case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS, COMPARE_DOCUMENTS -> documents.count() > 1;
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;
       case FOLD, TOGGLE_FOLD, FOLD_ALL ->
           documents.activeEditor() != null
@@ -214,6 +226,7 @@ public final class CommandStates {
               && documents.activeEditor().projection().collapsedCount() > 0;
       case NEXT_BOOKMARK, PREVIOUS_BOOKMARK, CLEAR_BOOKMARKS ->
           documents.activeBookmarks().length > 0;
+      case COMPARE_WITH_DISK -> documents.activeOpenedPath() != null;
       default -> true;
     };
   }
@@ -279,6 +292,19 @@ public final class CommandStates {
     List<OpenedDocument> list = new ArrayList<OpenedDocument>(labels.size());
     for (int i = 0; i < labels.size(); i++) {
       list.add(new OpenedDocument(labels.get(i), i == shown));
+    }
+    return list;
+  }
+
+  /**
+   * Lists File > Recent Files.
+   *
+   * @return each file's path, newest first
+   */
+  public List<String> recentFiles() {
+    List<String> list = new ArrayList<String>();
+    for (Path path : application.recentFiles().paths()) {
+      list.add(path.toString());
     }
     return list;
   }

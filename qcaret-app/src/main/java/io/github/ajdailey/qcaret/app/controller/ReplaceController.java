@@ -60,7 +60,9 @@ import java.util.function.IntFunction;
  *   <li>When the run ends, each file group it changed is marked stale; Rerun File searches it
  *       again.
  *   <li>Restore Replace Run lists the runs kept under {@code <settings>/replace-backups} and writes
- *       one back ({@link ReplaceRun#restore}); a file changed since the run is refused.
+ *       one back ({@link ReplaceRun#restore}); a file changed since the run is refused. An open
+ *       document whose file was restored is checked at once, so a clean one reloads and a dirty one
+ *       asks.
  * </ul>
  */
 public final class ReplaceController implements ReplaceInput {
@@ -831,6 +833,12 @@ public final class ReplaceController implements ReplaceInput {
         view.resultsChanged(true);
         documents.refreshOverview();
         view.documentStateChanged();
+      } else {
+        for (ReplaceRun.Row r : run.rows()) {
+          if (r.status() == ReplaceRun.Status.CHANGED && r.path() != null) {
+            documents.checkFile(r.path());
+          }
+        }
       }
       view.replaceReportChanged(this);
     }

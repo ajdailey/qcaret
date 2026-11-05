@@ -10,7 +10,13 @@ import java.nio.file.Path;
  * busy cursor.
  */
 public interface MainView
-    extends ClipboardService, DocumentsView, ActivityIndicator, SearchView, BookmarksView {
+    extends ClipboardService,
+        DocumentsView,
+        ActivityIndicator,
+        SearchView,
+        BookmarksView,
+        WorkspaceView,
+        CompareView {
   /** Hides the window while shutdown completes. */
   void hide();
 

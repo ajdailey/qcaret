@@ -269,6 +269,36 @@ class ReplaceControllerTest {
   }
 
   @Test
+  void restoreReloadsACleanOpenDocument() throws Exception {
+    Path tree = Files.createDirectories(temp.resolve("tree"));
+    Path one = Files.writeString(tree.resolve("one.txt"), "key one\n");
+    run("key", SearchScope.DIRECTORY, tree.toString());
+    apply(preview("lock"));
+    final EditorController editor = open(one);
+    assertEquals("lock one\n", editor.document().text().toString());
+    replace.chooseRun();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.runChooser != null;
+          }
+        },
+        "runs listed");
+    harness.view.runChooser.accept(0);
+    awaitReport(harness.view.reports.get(1));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return editor.document().text().toString().equals("key one\n");
+          }
+        },
+        "the restored file reloads");
+    assertFalse(editor.document().isDirty());
+  }
+
+  @Test
   void cancelStopsBetweenFilesAndLeavesTheRestUntouched() throws Exception {
     Path tree = Files.createDirectories(temp.resolve("many"));
     for (int i = 0; i < 300; i++) {

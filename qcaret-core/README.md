@@ -3,9 +3,9 @@
 Model-side code with no SWT and no logging dependency: thread ownership,
 paths, atomic and safe file writes, encodings and line endings, text storage,
 the document model, editing commands, grammars and the tokenizer, the find
-matcher, the HyperSearch text and file search, and small utilities. The
-packages `diff`, `watch` and `workspace` are empty, with their layer rules in
-place. Tests run without a display.
+matcher, the HyperSearch text and file search, the line diff, external change
+detection, the workspace folder's listings and file index, and small
+utilities. Tests run without a display.
 
 The test jar carries `testkit` for the other modules' tests and
 `qcaret-bench`: `Poll.until`, a bounded poll for state another thread
@@ -19,12 +19,12 @@ delete-pending for a moment.
 |---|---|---|
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package |
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread`, `MemoryBudget` |
-| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `FileStamp`, `BinaryDetector` |
+| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles` |
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
 | `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search and file replace (`TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups`), line diff (`LineDiff`); none uses another |
-| `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
+| `core.watch`, `core.workspace` | above `io` | External change detection (`FileCheck`, `FileMonitor`); `WalkRules`, `DirectoryListing`, `FileIndex` |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
 `qcaret-launcher`).
@@ -287,11 +287,16 @@ their `CancellationToken` per block.
   every byte), decodes strictly (`TextCodingException` with the byte offset)
   and encodes the text back. `LoadedFile.roundTrips` false means the bytes
   would change on save; the caller opens the document read-only and names the
-  encoding.
+  encoding. `LoadedFile.baseline` holds the stamp read before the bytes and
+  the SHA-256 of the bytes read.
 - Save encodes the snapshot once to find an unmappable char
   (`TextCodingException` with the char offset, no file touched), then writes
-  the BOM and the text through `SafeSave` and returns the new `FileStamp`; the
-  caller passes it to the next save and the snapshot to `markSaved`.
+  the BOM and the text through `SafeSave` and returns a `FileBaseline`: the
+  new stamp and the SHA-256 of the bytes written. The caller passes the stamp
+  to the next save and the snapshot to `markSaved`.
+
+`Document.markUnsaved` makes a document dirty until the next `markSaved`, for
+a buffer whose file was deleted; undo cannot make it clean.
 
 ## Grammars and highlighting (`core.syntax`)
 
@@ -512,6 +517,62 @@ edits the rest is reported as all lines removed, then all added: correct, not
 shortest, and bounded in time and memory. `hunks` groups a script into
 changes with a given number of context lines.
 
+## Workspace folder (`core.workspace`)
+
+`WalkRules` leaves out hidden entries (`HiddenFiles`: a name starting with
+`.`, or the DOS hidden attribute on Windows) and directories with an excluded
+name, with their trees. `FileSearch` applies the same hidden rule.
+
+`DirectoryListing.read` lists one directory for the browser: directories
+first, then files, each by name ignoring case. It reads at most 50,000
+entries, in directory order, and reports the cut. A link to a directory lists
+as a directory unless its target contains the link (`CYCLE`, never listed
+further); a link to a file and a broken link list as files.
+
+`FileIndex.build` walks a folder for Quick Open into paths relative to the
+root, joined with `/`. It follows no link to a directory, so a link cycle is
+never entered, and lists links to files. Each path reserves 64 bytes plus 2
+per char from the `MemoryBudget`; the walk stops at its file limit
+(`MAX_FILES`, 200,000) or at a refused reservation and reports which
+(`Cut`). A cancel throws `CancellationException` with nothing left charged;
+the owner returns `charged()` when it drops the index. An unreadable directory
+is skipped.
+
+## External change detection (`core.watch`)
+
+`FileCheck.check(path, baseline, token)` compares the file at the path the
+user opened with a `FileBaseline` (stamp, SHA-256, time taken) on a worker.
+The path is read through symbolic links at each check, so a retargeted link
+compares its new target.
+
+| File at the path | Result |
+|---|---|
+| No regular file | `MISSING`; `UNCHANGED` when the baseline is null (no file existed) |
+| Stamp equals the baseline's, baseline not racy | `UNCHANGED`, nothing read |
+| Same SHA-256 | `UNCHANGED` with the new stamp: a touch, or the same bytes renamed over the file |
+| Other SHA-256, or a file where the baseline is null | `CHANGED` with the new baseline |
+
+A baseline is racy (`FileBaseline.racy`) while its modification time lies
+within 2 s of the time it was taken. A file system with a coarse clock, a copy
+that keeps times, or NTFS tunneling can then record a second write of the same
+size with the same stamp; the digest decides instead. The next check after the
+2 s returns the baseline again with a new time, which settles it. Without a
+file key (Windows), a file replaced with the same size and modification time
+under a settled baseline reads `UNCHANGED`. `read` digests in 1 MiB blocks and
+repeats while the stamp changes during the read, at most three times.
+
+`FileMonitor` runs one `qcaret-watch-` thread while any file is watched. It
+calls its listener with every watched file every `pollMillis`, on `checkAll`
+(window activation), and with the files `check` names or a directory event
+names. Each directory holding a watched file is registered once with a
+`WatchService` and released with its last file; a directory that cannot be
+registered is polled only. The poll stays on: a `WatchService` misses network
+mounts, polls on macOS, and never sees a link's target change in another
+directory. An exception from the listener goes to the thread's
+uncaught-exception handler once per run of failures, and checking goes on
+(QLogg THR-17). The thread ends within 100 ms of the last `unwatch` or of
+`close`.
+
 ## Bounded reads (`core.text`)
 
 `BoundedChars` is a `CharSequence` over a line that throws `LimitReached` once
@@ -576,7 +637,8 @@ map bound, selection mapping and block rows. `DocumentFilesTest` round-trips
 every BOM and mixed line endings byte for byte, and covers the fallback,
 binary files, an unmappable save, a malformed forced decode, text that does
 not encode back, a canceled load, a file larger than one 1 MiB read block
-(regression: the read stopped after the first block), and the load estimate. `SafeSaveTest` covers permissions, a new
+(regression: the read stopped after the first block), the load estimate, and
+the digests of a load and a save. `SafeSaveTest` covers permissions, a new
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.
@@ -602,6 +664,23 @@ since, and listing and pruning runs. `LineDiffTest` compares 400 seeded random
 edits with a dynamic-programming longest common subsequence: each script
 rebuilds both lists, keeps a longest common subsequence and lists removed
 lines first; hunks keep their context. It also covers the edit bound.
+`WorkspaceWalkTest` lists and indexes a temp tree: the listing order, hidden
+and excluded entries, a link to an ancestor listed as a cycle and not
+indexed (skipped where links are refused), the index's charge, its file
+limit, a refused reservation, a canceled build returning its charge, and an
+unreadable root.
+
+`FileCheckTest` covers an untouched file read by its stamp only, a touch with
+the same bytes, other bytes, a truncate and regrow to the same size and time
+(QLogg CORE-1), a racy baseline settling, a file renamed over the name with
+other and with the same bytes (the first skipped without a file key: NTFS
+tunneling, QLogg TEST-17), a delete and the return of the same and of other
+bytes, a file where none was, a directory at the path, a retargeted link
+(QLogg CORE-6) and a 3 MiB file changed in its last byte. `FileMonitorTest`
+covers the poll, requested checks, one registration per directory released
+with its last file, a throwing listener reported once while checks go on, a
+directory event naming its file (skipped on macOS, whose `WatchService` polls:
+QLogg TEST-14), and `close`.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
 its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break, a
 diff hunk's `---` line and here documents' opening lines and bodies included,

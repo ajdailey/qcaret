@@ -14,8 +14,9 @@ files in tabs, with undo and redo, word wrap, line numbers and multiple carets
 read-only view of binary files, a status bar, the Help menu, its remembered
 window placement, syntax highlighting for 35 languages and 12 file formats
 with user grammars and comment commands, multiple carets, column selection
-and folding. Planned for 0.1.0: HyperSearch across files and folders with
-replace, a workspace browser, sessions and crash recovery.
+and folding, HyperSearch across files and folders with replace, a workspace
+browser with Quick Open, and Go Back and Go Forward. Planned for 0.1.0:
+sessions and crash recovery.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/qcaret-dark.png">

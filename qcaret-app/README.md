@@ -50,7 +50,14 @@ the `ResultsInput` model by index (`ResultLabel` rows) after each
 `resultsChanged`. As a `BookmarksView`, `MainView` shows the Bookmarks list,
 which reads the `BookmarksInput` model by index (`BookmarkRow` rows) after
 each `bookmarksChanged`, and asks for a bookmark comment, answering null on a
-cancel. `MainView` is also an
+cancel. As a `WorkspaceView`, it shows the workspace browser, which reads
+`WorkspaceInput` rows (`WorkspaceNode`) per directory after each
+`workspaceChanged`, and the Quick Open popup, which reads `QuickOpenInput`
+rows (`QuickOpenRow`) after each filter change and `quickOpenChanged`.
+As a `CompareView` it asks about an external change
+(`askExternalChange`, answering `ChangeChoice`s; Compare can come more than
+once before the last answer), asks for a document to compare with, and shows a
+`Comparison`. `MainView` is also an
 `ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
 `BusyCounter` counts overlapping operations on the UI thread for the busy
 cursor. `StatusFields` is the status bar's text for the selected document.
@@ -113,13 +120,17 @@ HyperSearch is Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Set
 Workspace Folder (File), Search Results and Overview Strip are menu only. `Fuzzy`
 scores the palette's filter: the query's chars in order, ignoring case, more
 for runs and word starts.
+Quick Open is Mod+P and Switch Document Mod+Shift+O. Go Back and Go Forward
+are Alt+Left and Alt+Right, and Control+Command+Left and Right on macOS, where
+Option+Left and Right move by word. Workspace Browser and Clear Recent Files
+are menu only.
 
 ## Controller (`app.controller`)
 
 `ApplicationController` runs the window's commands and owns the settings, the
 theme, the keymap, the editor font step and the window's `DocumentController`,
-`HelpController`, `FindController`, `SearchController`, `WorkspaceController`
-and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
+`HelpController`, `FindController`, `SearchController`, `WorkspaceController`,
+`NavigationHistory`, `RecentFiles` and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
 editor's `EditorController`. After `quit` starts, `execute` does nothing.
 
@@ -131,7 +142,8 @@ there and never from controller getters (ArchUnit
 commands, zoom, theme and Help are enabled; a read-only document disables the
 edits and the line-ending conversions; a binary file's view also disables Save,
 Save As and both encoding cascades. HyperSearch runs without a document;
-Next and Previous Result need a match in a retained set. A disabled menu
+Next and Previous Result need a match in a retained set; Go Back and Go
+Forward a position that way, Clear Recent Files a file. A disabled menu
 item's accelerator does not fire, so the view syncs enablement on every `documentStateChanged`.
 `EncodingChoices` lists `TextEncoding.MENU` first, then every other charset;
 `Charset.availableCharsets` costs 130 to 229 ms cold (measured in QLogg), so
@@ -206,8 +218,11 @@ read on workers.
   untitled document asks for a file first. A save while one runs for the same
   document shows a notice instead. Esc in the editor and closing the tab
   cancel a running save; a cancel before the move leaves the target unchanged.
-  A target changed on disk since the load or the last save is not written and
-  the notice points to Save As. Save As keeps that check when the target's
+  Save writes through the path the user opened, so a symbolic link is
+  followed at each save. A target changed on disk since the load, the last
+  save or the last reload is not written; the save conflict prompt offers
+  Overwrite, Reload, Compare and Cancel (see External changes). Save As keeps
+  that check when the target's
   real path, resolved on the save worker, is the document's file, so Save As
   through a link to it is checked too. Save As onto a file another tab holds
   (by real path, resolved on a `qcaret-io-` worker) closes that tab once the
@@ -328,8 +343,59 @@ its bytes. The new group takes the old one's place and may use the matches
 the set's limit leaves free; a source without matches leaves the set. A
 selection set reruns whole, since the selection is not kept.
 
+### Workspace folder, browser and Quick Open
+
 File > Set Workspace Folder stores one folder per window for the run, as its
-real path (`WorkspaceController`).
+real path (`WorkspaceController`). Both the browser and the index leave out
+hidden entries and the search's default excluded directories (`.git`, `.svn`,
+`.hg`).
+
+- View > Workspace Browser shows the folder's tree. A directory is listed on a
+  `qcaret-io-` worker the first time it expands (`DirectoryListing`), 500
+  entries at a time behind a "Show N more" row. A link to a directory that
+  contains it lists as a row that does not expand. Refresh lists every listed
+  directory again, keeping the old rows until the new ones arrive, and
+  rebuilds the index. Reveal Active File lists each directory down to the
+  selected document's file, shows enough entries to hold it and selects it.
+  A file row opens on activation; the row menu offers Open in Default
+  Application, Set as Workspace Folder and Copy Path.
+- Open in Default Application refuses a file the system would run: on
+  Windows by extension (QLogg SWT-8: `Files.isExecutable` is true for every
+  readable file there), elsewhere by the executable bit, read on a worker.
+- The file index (`FileIndex`, at most 200,000 files, charged to the
+  `MemoryBudget`) is built on a `qcaret-search-` worker when the folder is
+  set and on Refresh; a new build cancels the running one. A folder change
+  drops the old index at once; Refresh keeps it until the new one arrives. A
+  dropped, replaced or stale index and window close return its charge.
+- File > Quick Open (`QuickOpen`) lists the open documents that match, in tab
+  order among equals, then the index's files, at most 100 rows. `Fuzzy`
+  scores the file name; a file whose name does not match is scored on its
+  path below the folder and ranks after every name match; equal scores put
+  the shorter path first. A file open in a tab is listed once, as the
+  document. A query ending in `:line` or `:line:column` opens there. An index
+  of up to 2,000 files is matched on the UI thread, a larger one on a
+  `qcaret-cpu-` worker canceled by the next query or the popup's close. An
+  index build that ends while the popup shows matches the query again.
+  Window > Switch Document is the same popup over the open documents only.
+
+### Navigation history and Recent Files
+
+`NavigationHistory` keeps Go Back and Go Forward's caret positions (Search
+menu), at most 100. A position is recorded where the caret was before a
+jump: Go to Line, Next or Previous Bookmark, a Bookmarks list row, a search
+result, Quick Open (`EditorController.jumping`), and a change of the selected
+document, which records the caret of the document left. A jump in the turn a
+document was selected records nothing more, so opening a result in another
+document adds one position. Ordinary caret moves record nothing. A position
+in an open document is an `Anchor` and follows edits; when the document
+closes it becomes the file's line and column, and an untitled document's
+positions are dropped. Going to a closed file's position checks on a
+`qcaret-io-` worker that the file exists, then opens it; a missing file's
+position is dropped with a notice and the move goes on.
+
+`RecentFiles` is File > Recent Files for the run: the last 20 files opened,
+newest first, once each by real path, so a file opened through a link and
+through its target is one entry. Clear Recent Files empties it. S7 saves it.
 
 ### Replace
 
@@ -362,8 +428,54 @@ newest set with matches). Every scope goes through the same preview and run.
   with the error, or not attempted. When the run ends, each file group it
   changed is marked stale. No undo spans files: Restore Run in the report, or
   Search > Restore Replace Run, writes a run's backups back, refusing a file
-  changed since the run. An open document is not reloaded by a restore; its
-  next save reports the file changed on disk.
+  changed since the run. An open document whose file a restore wrote is
+  checked at once: a clean one reloads, a dirty one asks.
+
+### External changes
+
+`ExternalChanges` checks each open document's file through `FileCheck` (see
+`qcaret-core`) on the `FileMonitor`'s `qcaret-watch-` thread: every 5 s
+(`ExternalChanges.POLL_MILLIS`, the `file.pollSeconds` setting once S7
+persists settings), on window activation (`ApplicationController.
+windowActivated`), on a directory event and after Restore Run. It checks the
+path the user opened, kept per document beside the real path that names the
+tab and deduplicates opens. A result reaches `DocumentController` on the UI
+thread only when the document's watch generation is unchanged: a save or a
+reload pauses the watch and raises the generation, so the document's own
+write is never reported.
+
+| Check result | Clean document | Dirty document |
+|---|---|---|
+| Same bytes, newer stamp | Stamp taken as the save baseline | Same, unless the user kept a change |
+| Other bytes | Reload (`DocumentController.AUTO_RELOAD_CLEAN`, the `file.autoReloadClean` setting from S7) | Prompt: Keep Mine, Reload, Compare |
+| No file | Kept, marked missing in the tab and dirty | Same |
+| File back with the same bytes | Missing mark cleared; clean again when the text is unchanged since | Missing mark cleared |
+
+- Reload reads the file on a `qcaret-io-` worker in the document's charset
+  (detection when that does not decode; ISO-8859-1 for a binary file's view),
+  reserving the load's cost from the budget while it reads, and replaces the
+  span between the common prefix and suffix as one undo step. Each view's
+  caret keeps its line and column; the views keep their top line. The
+  document is clean afterwards and undo returns to the text before, dirty. A
+  document edited during the read reloads again, at most three times.
+- One prompt per document at a time. A newer change while it is open becomes
+  the change the answer acts on. Keep Mine takes the file's new baseline for
+  the checks but keeps the save baseline, so the next save asks; closing the
+  prompt keeps.
+- The save conflict prompt replaces the save's notice: Overwrite writes
+  without the baseline check, Reload and Compare act as in the change prompt,
+  Cancel leaves the document dirty.
+- Save of a missing file writes it without a prompt and clears the mark.
+
+`CompareController` opens the read-only comparison: Compare Documents (View >
+Compare) asks for another open document, and Compare with File on Disk and
+the prompts' Compare put the file on disk left of the buffer. The texts are
+snapshots; the file is read as a reload reads it; `Comparisons` builds the
+rows with `LineDiff` on a `qcaret-cpu-` worker. A side over 100,000 lines or
+16 Mi chars gets a notice instead (`Comparisons.MAX_LINES`, `MAX_CHARS`); a
+line over 10,000 chars is compared whole and shown cut. A `Comparison` holds
+both sides' rows (a line on one side only faces an empty filler row), each
+row's kind and the first row of each run of changes.
 
 ### Bookmarks list
 
@@ -691,7 +803,9 @@ a changed palette to its `PaletteListener`s.
 
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection, current line, gutter and line numbers, caret,
-whitespace marks, the find-match background, and a `TokenStyle` (color, bold,
+whitespace marks, the find-match background, the comparison window's row
+backgrounds (`diffRemoved`, `diffAdded`, `diffChanged`), and a `TokenStyle`
+(color, bold,
 italic, underline) for every `TokenRole`; a grammar token type paints with the
 role of the same name. The
 light and dark defaults derive from the brand navy `#1B2E44`, cyan `#56C1F0`
@@ -730,7 +844,8 @@ binary prompt, Reopen and Save with Encoding, the line-ending conversion and
 its undo, a conversion dropped after an edit, the tab commands, the warning
 marker, Debug Log File with a failing attach, the user guide copy, Report an
 Issue and the zoom bounds. `KeymapTest` checks that no stroke is bound twice on
-any platform, the platform key choices (Add Caret, F6), the reference filter
+any platform, the platform key choices (Add Caret, F6, Go Back and Go
+Forward), the Quick Open keys, the reference filter
 and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`
 holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
@@ -740,12 +855,23 @@ thread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
 document, a missing file, a second open of one file, a file opened again
 through a symbolic link selecting its tab and running the HyperSearch
-callback, Save As through a link to a file changed on disk reporting the
-change (both skipped where links cannot be created), the unsaved prompt's
+callback, Save As through a link to a file changed on disk opening the save
+conflict prompt (both skipped where links cannot be created), the unsaved prompt's
 three answers, `closeAll` stopping at Cancel, word wrap across editors and the
 heap refusal. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
 second save while the first is held shows the notice.
+`ExternalChangeTest` covers a clean document reloaded as one undo step with
+its caret line kept, a dirty document's prompt with Keep Mine making the next
+save ask and Overwrite writing, Reload keeping the edits in undo, a newer
+change updating the open prompt, a deleted file kept missing and dirty until
+the same bytes return, a missing file saved without a prompt, a touch with the
+same bytes neither prompting nor blocking the save, five saves never reported
+as external changes, Compare from the prompt, Compare Documents, a
+retargeted link reloading and saving its new target (skipped where links
+cannot be created), and a 3 MiB file reloaded. Each check runs on window
+activation; a case that asserts nothing was reported waits for two finished
+check passes requested after the change.
 `MultiCaretTest` covers every caret moving and selecting, vertical and page
 moves at the preferred column, block keys into virtual space with padded
 typing undone as one step, a block from the view's columns with copy and cut,
@@ -794,7 +920,8 @@ a selection replaced as one undo step, open documents with one changed since
 the search skipped, a tree replace with an unchecked match and file, a CRLF
 file, a file changed between the preview and Apply, a read-only file, a file
 opened after the search edited as its buffer, Restore Run refusing a file
-changed since and restoring the others, Stop between 300 files leaving the
+changed since and restoring the others, a restore reloading a clean open
+document, Stop between 300 files leaving the
 rest untouched, Rerun File on a stale group, and Save As onto a dirty file
 open in another tab. `OverviewTest` covers find,
 HyperSearch and bookmark marks, recomputed after an edit, and a hidden strip
@@ -841,6 +968,23 @@ empty answer, a cancel, a refusal, the prompt's line followed through an
 edit), the list following an insert, undo, a tab change and close, Go To
 into a collapsed region, Edit Comment and Remove from the list, and the row
 limit, text cut and a budget refusal.
+
+`WorkspaceControllerTest` covers a directory listed when it expands, Refresh
+keeping the old rows until a new file arrives, 1,200 entries shown 500 at a
+time, Reveal Active File's chain and a file outside the folder, the index's
+charge across a folder change and its return on dispose, and Open in Default
+Application by extension and by the executable bit (POSIX only).
+`QuickOpenTest` covers `:line` and `:line:column` parsing, name matches before
+path matches and shorter paths first, an open document listed once and first,
+a file opened at a line and column, Switch Document, and an index over 2,000
+files matched on a worker. `NavigationHistoryTest` covers Go to Line and Next
+Bookmark positions following an insert, a jump after Go Back dropping the
+positions ahead, plain caret moves recording nothing, a tab switch recorded
+once, a closed file reopened at its line with an untitled document skipped, a
+deleted file dropped with a notice, and the 100-position limit.
+`RecentFilesTest` covers newest first, a reopen moving a file up, a file
+opened through a link and its target as one entry (skipped where links are
+refused), the 20-file limit and Clear.
 
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory

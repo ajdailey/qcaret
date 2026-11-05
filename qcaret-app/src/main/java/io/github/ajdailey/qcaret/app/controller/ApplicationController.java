@@ -73,6 +73,9 @@ public final class ApplicationController {
   private final SearchController search;
   private final ReplaceController replace;
   private final BookmarkList bookmarkList;
+  private final NavigationHistory history;
+  private final RecentFiles recentFiles;
+  private final CompareController compare;
   private final GrammarLibrary grammars;
   private final Keymap keymap;
   private final boolean rememberWindow;
@@ -134,7 +137,9 @@ public final class ApplicationController {
             });
     this.rememberWindow = rememberWindow;
     this.find = new FindController(documents, workers, ui);
-    this.workspace = new WorkspaceController(view, workers, ui);
+    this.workspace = new WorkspaceController(view, workers, ui, documents, budget);
+    this.history = new NavigationHistory(documents, workers, ui, view);
+    this.recentFiles = new RecentFiles(documents, view);
     this.search =
         new SearchController(
             documents, workspace, workers, ui, view, budget, HyperSearch.Limits.DEFAULTS);
@@ -150,6 +155,8 @@ public final class ApplicationController {
             ReplaceBackups.DEFAULT_DAYS);
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
+    this.compare = new CompareController(documents, workers, ui, view, budget);
+    documents.setCompare(compare);
     documents.setOverviewSources(
         new OverviewSources() {
           @Override
@@ -209,6 +216,27 @@ public final class ApplicationController {
    */
   public BookmarkList bookmarkList() {
     return bookmarkList;
+  }
+
+  /** Returns Go Back and Go Forward's positions; for {@link CommandStates}. */
+  NavigationHistory history() {
+    return history;
+  }
+
+  /** Returns File > Recent Files; for {@link CommandStates}. */
+  RecentFiles recentFiles() {
+    return recentFiles;
+  }
+
+  /**
+   * Opens a file of File > Recent Files, or selects its tab.
+   *
+   * @param index the entry, newest first
+   */
+  public void openRecent(int index) {
+    if (!quitting) {
+      recentFiles.open(index);
+    }
   }
 
   /**
@@ -345,6 +373,22 @@ public final class ApplicationController {
     finishListeners.add(listener);
   }
 
+  /** Checks the open files for changes by other programs; the window was activated. */
+  public void windowActivated() {
+    if (!quitting) {
+      documents.checkFiles();
+    }
+  }
+
+  /**
+   * Returns the comparison controller.
+   *
+   * @return the compare controller
+   */
+  public CompareController compare() {
+    return compare;
+  }
+
   /**
    * Runs a command.
    *
@@ -439,6 +483,16 @@ public final class ApplicationController {
           EDIT_BOOKMARK_COMMENT ->
           edit(command);
       case BOOKMARKS_LIST -> bookmarkList.toggle();
+      case QUICK_OPEN ->
+          view.showQuickOpen(new QuickOpen(documents, workspace, workers, ui, view, false));
+      case SWITCH_DOCUMENT ->
+          view.showQuickOpen(new QuickOpen(documents, workspace, workers, ui, view, true));
+      case CLEAR_RECENT_FILES -> recentFiles.clear();
+      case WORKSPACE_BROWSER -> workspace.toggle();
+      case GO_BACK -> history.back();
+      case GO_FORWARD -> history.forward();
+      case COMPARE_DOCUMENTS -> compare.compareDocuments();
+      case COMPARE_WITH_DISK -> compare.compareWithDisk();
       case SHOW_WHITESPACE -> documents.toggleMarks(false);
       case SHOW_LINE_ENDINGS -> documents.toggleMarks(true);
       case COMMAND_PALETTE -> view.showCommandPalette(new CommandPalette(this, keymap));
@@ -600,6 +654,9 @@ public final class ApplicationController {
     search.dispose();
     replace.dispose();
     bookmarkList.dispose();
+    workspace.dispose();
+    history.dispose();
+    compare.dispose();
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();

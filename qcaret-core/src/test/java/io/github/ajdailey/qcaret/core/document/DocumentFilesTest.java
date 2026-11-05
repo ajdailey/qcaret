@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.io.Digests;
+import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.text.DetectionReason;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
@@ -62,10 +64,12 @@ class DocumentFilesTest {
       assertEquals(LineEnding.CRLF, doc.lineEnding());
       doc.apply(EditBatch.replace(0, 0, "x"));
       doc.undo(null);
-      FileStamp saved =
+      FileBaseline saved =
           DocumentFiles.save(file, doc.snapshot(), loaded.stamp(), new CancellationToken());
       assertArrayEquals(bytes, Files.readAllBytes(file), file.toString());
-      assertEquals(FileStamp.read(file), saved);
+      assertEquals(FileStamp.read(file), saved.stamp());
+      assertEquals(Digests.of(bytes, bytes.length), saved.digest());
+      assertEquals(saved.digest(), loaded.baseline().digest());
     }
   }
 

@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.BinaryDetector;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
+import io.github.ajdailey.qcaret.core.io.HiddenFiles;
 import io.github.ajdailey.qcaret.core.text.EncodingDetection;
 import io.github.ajdailey.qcaret.core.text.EncodingDetector;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -175,7 +176,7 @@ public final class FileSearch {
               Path name = dir.getFileName();
               if (name == null
                   || !options.filter().acceptsDirectory(name)
-                  || (!options.filter().hidden() && hidden(dir))) {
+                  || (!options.filter().hidden() && HiddenFiles.hidden(dir))) {
                 return FileVisitResult.SKIP_SUBTREE;
               }
               return FileVisitResult.CONTINUE;
@@ -188,7 +189,7 @@ public final class FileSearch {
               if (!attrs.isRegularFile()
                   || name == null
                   || !options.filter().acceptsFile(name)
-                  || (!options.filter().hidden() && hidden(file))
+                  || (!options.filter().hidden() && HiddenFiles.hidden(file))
                   || searchedElsewhere.contains(file)) {
                 return FileVisitResult.CONTINUE;
               }
@@ -234,18 +235,6 @@ public final class FileSearch {
     }
     if (interrupted) {
       Thread.currentThread().interrupt();
-    }
-  }
-
-  private static boolean hidden(Path path) {
-    Path name = path.getFileName();
-    if (name != null && name.toString().startsWith(".")) {
-      return true;
-    }
-    try {
-      return Files.isHidden(path);
-    } catch (IOException e) {
-      return false;
     }
   }
 

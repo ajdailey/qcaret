@@ -184,8 +184,10 @@ public final class Keymap {
   }
 
   /**
-   * Adds the bookmark, bracket, completion and command palette bindings. Word completion is
-   * Ctrl+Space, or Option+Esc on macOS, where Ctrl+Space switches the input source.
+   * Adds the bookmark, bracket, completion, command palette, Quick Open and history bindings. Word
+   * completion is Ctrl+Space, or Option+Esc on macOS, where Ctrl+Space switches the input source.
+   * Go Back and Go Forward are Alt+Left and Alt+Right, or Control+Command+Left and Right on macOS,
+   * where Option+Left and Right move by word.
    */
   private static void productivity(List<Binding> b, boolean mac) {
     editor(b, CommandId.TOGGLE_BOOKMARK, P, F2);
@@ -200,6 +202,11 @@ public final class Keymap {
       editor(b, CommandId.COMPLETE_WORD, P, KeyStroke.SPACE);
     }
     window(b, CommandId.COMMAND_PALETTE, P | S, 'p');
+    window(b, CommandId.QUICK_OPEN, P, 'p');
+    window(b, CommandId.SWITCH_DOCUMENT, P | S, 'o');
+    int back = mac ? KeyStroke.CONTROL | P : KeyStroke.ALT;
+    window(b, CommandId.GO_BACK, back, KeyStroke.LEFT);
+    window(b, CommandId.GO_FORWARD, back, KeyStroke.RIGHT);
   }
 
   private static void window(List<Binding> b, CommandId command, int modifiers, char c) {

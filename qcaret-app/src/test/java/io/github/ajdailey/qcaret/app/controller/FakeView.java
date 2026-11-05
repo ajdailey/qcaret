@@ -7,11 +7,14 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
+import io.github.ajdailey.qcaret.app.view.ChangeChoice;
+import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
@@ -21,6 +24,8 @@ import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -424,6 +429,11 @@ final class FakeView implements MainView {
   final List<ReportInput> reports = new ArrayList<ReportInput>();
   List<String> runChoices;
   Consumer<Integer> runChooser;
+  final List<String> changePrompts = new ArrayList<String>();
+  Consumer<ChangeChoice> changeAnswer;
+  List<String> documentChoices;
+  Consumer<Integer> documentChooser;
+  final List<Comparison> comparisons = new ArrayList<Comparison>();
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -624,6 +634,53 @@ final class FakeView implements MainView {
     folderChooser = chosen;
   }
 
+  // Workspace browser and Quick Open.
+
+  WorkspaceInput workspace;
+  boolean workspaceShown;
+  final List<WorkspaceNode> workspaceChanges = new ArrayList<WorkspaceNode>();
+  List<WorkspaceNode> revealedChain;
+  QuickOpenInput quickOpen;
+  int quickOpenChanges;
+  boolean windows;
+
+  @Override
+  public void showWorkspace(WorkspaceInput input, boolean shown) {
+    ui.checkUiThread();
+    workspace = input;
+    workspaceShown = shown;
+  }
+
+  @Override
+  public void workspaceChanged(WorkspaceNode directory) {
+    ui.checkUiThread();
+    workspaceChanges.add(directory);
+  }
+
+  @Override
+  public void revealWorkspace(List<WorkspaceNode> chain) {
+    ui.checkUiThread();
+    revealedChain = chain;
+  }
+
+  @Override
+  public void showQuickOpen(QuickOpenInput input) {
+    ui.checkUiThread();
+    quickOpen = input;
+  }
+
+  @Override
+  public void quickOpenChanged() {
+    ui.checkUiThread();
+    quickOpenChanges++;
+  }
+
+  @Override
+  public boolean launchesByExtension() {
+    ui.checkUiThread();
+    return windows;
+  }
+
   @Override
   public void showBookmarks(BookmarksInput input, boolean shown) {
     ui.checkUiThread();
@@ -693,5 +750,25 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     runChoices = runs;
     runChooser = chosen;
+  }
+
+  @Override
+  public void askExternalChange(String name, boolean saving, Consumer<ChangeChoice> answer) {
+    ui.checkUiThread();
+    changePrompts.add((saving ? "save " : "") + name);
+    changeAnswer = answer;
+  }
+
+  @Override
+  public void chooseDocument(List<String> names, Consumer<Integer> chosen) {
+    ui.checkUiThread();
+    documentChoices = names;
+    documentChooser = chosen;
+  }
+
+  @Override
+  public void showComparison(Comparison comparison) {
+    ui.checkUiThread();
+    comparisons.add(comparison);
   }
 }

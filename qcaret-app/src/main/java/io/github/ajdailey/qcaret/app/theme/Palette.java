@@ -161,6 +161,33 @@ public record Palette(
     return dark ? Rgb.of(0x5fd3b0) : Rgb.of(0x18736a);
   }
 
+  /**
+   * Returns the comparison window's background of a line on the left only.
+   *
+   * @return pale red on light, dark red on dark
+   */
+  public Rgb diffRemoved() {
+    return dark ? Rgb.of(0x4a2a30) : Rgb.of(0xfde2e1);
+  }
+
+  /**
+   * Returns the comparison window's background of a line on the right only.
+   *
+   * @return pale green on light, dark green on dark
+   */
+  public Rgb diffAdded() {
+    return dark ? Rgb.of(0x1f4232) : Rgb.of(0xdcf5e3);
+  }
+
+  /**
+   * Returns the comparison window's background of a line that differs between the sides.
+   *
+   * @return pale amber on light, dark amber on dark
+   */
+  public Rgb diffChanged() {
+    return dark ? Rgb.of(0x4a3d1f) : Rgb.of(0xfdf0cc);
+  }
+
   /** Maps the styles, given in {@link TokenRole} declaration order. */
   private static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
     TokenRole[] roles = TokenRole.values();

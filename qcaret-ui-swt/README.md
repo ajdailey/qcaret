@@ -8,11 +8,13 @@ results dock and the replace windows.
 
 ## Main window
 
-`MainWindow` holds the menu bar, a vertical `SashForm` with a `CTabFolder` (one
+`MainWindow` holds the menu bar, a horizontal `SashForm` with the workspace
+browser left of a vertical `SashForm`, which holds a `CTabFolder` (one
 tab per document) over a horizontal `SashForm` holding the HyperSearch results
 dock and the Bookmarks list dock side by side, the find bar and a status bar.
 A hidden dock is an invisible control the sash leaves out; with both hidden
-the folder is maximized. A tab's control is a
+the folder is maximized, and with the browser hidden the vertical sash is. A
+tab's control is a
 `SashForm` holding one `EditorPane`'s `control()`, or two after a split (`SWT.HORIZONTAL` side by side,
 `SWT.VERTICAL` one above the other). The pane that took the focus last is the
 tab's focused view; a pane's `FocusIn` reports it to the controller, and a
@@ -31,7 +33,9 @@ showing a menu or running one of its items syncs that menu's checks. The
 Encoding menu holds Reopen with Encoding and Save with Encoding cascades: the
 common charsets from the start, and an Other cascade disabled until
 `EncodingChoices` arrives from a worker, filled once and never rebuilt. The
-Window menu lists the open documents, rebuilt when it shows. A Display key
+Window menu lists the open documents, and File > Recent Files the recent
+files above Clear Recent Files, each rebuilt when its menu shows; a path's
+`&` is doubled (QLogg SWT-22). A Display key
 filter runs window bindings that are not accelerators (Ctrl plus keypad +),
 when enabled.
 
@@ -46,6 +50,23 @@ filter field over the rows `PaletteInput.filter` returns: command, menu and
 keys, a disabled command in gray. Up, Down, Page Up and Page Down in the field
 move the selection; Enter or a double click closes the dialog and runs the
 command on the next UI turn, after the editor has its focus back.
+
+File > Quick Open and Window > Switch Document open `QuickOpenWindow`, the
+same kind of dialog over `QuickOpenInput`: name and path columns and a summary
+line, refilled on each field change and on `quickOpenChanged`. Enter passes
+the row to the controller on the next UI turn; closing the dialog cancels a
+running match.
+
+`WorkspaceDock` is the workspace browser: Refresh, Reveal Active File and
+Hide over the folder and a `Tree`. A directory row holds an empty placeholder
+child until it first expands, which asks `WorkspaceInput.expand` to list it;
+the listed rows replace the placeholder on `workspaceChanged`, and a refill
+keeps the expansion of rows that remain. Enter or a double click opens a
+file, shows more entries on a "more" row and toggles a directory. One context
+menu, built on the first `MenuDetect`, serves every row (QLogg SWT-15,
+SWT-20). The tree is not virtual: GTK's virtual `Tree` is quadratic in a
+node's child count (measured in S5a), and a directory shows 500 rows at a
+time.
 
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
@@ -129,6 +150,24 @@ report, modeless: the summary, a virtual table of file, folder and result
 not stop the run. `RunChooser` lists the runs kept for Restore Replace Run.
 `ReplaceOpenDialog` asks before Save As replaces a file another tab holds with
 unsaved changes.
+
+`ChangeDialog` asks about a file another program changed: Keep Mine, Reload
+and Compare, or, for a save that found the change, Overwrite, Reload, Compare
+and Cancel. It is modeless, so the comparison window it opens takes input;
+Compare leaves it open and closing it answers Keep Mine, or Cancel for a
+save. `DocumentChooser` asks for the document Compare Documents compares
+with. `DiffWindow` shows a `Comparison`: a modeless window owned by the main
+window, two read-only monospace `StyledText` controls in a `SashForm`, each
+row's background from `Palette.diffRemoved`, `diffAdded` and `diffChanged` (a
+filler row in the gutter color), recolored on a palette change. After a
+scroll bar move, a caret move or a paint, each side copies its top line and
+horizontal offset to the other when they differ from the last position either
+side reached; the side that moved leads, so a stale paint of the other side
+does not pull it back. It opens at the first
+difference; Next and Previous Difference, F7 and Shift+F7, scroll both sides
+to a run of changes three rows below the top, wrapping; Esc closes it.
+`MainWindow` asks the controller to check the open files whenever the shell
+is activated.
 
 Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
@@ -404,6 +443,17 @@ prompt, the list's cells, Go To, Edit Comment, Remove and Hide, and both
 docks shown at once; with `-Dqcaret.screenshots=<dir>` it saves
 `bookmark-tooltip.png` (the whole screen, so the tooltip shows) and
 `bookmarks-list.png`.
+`WorkspaceSurfaceTest` (tag `swt`) expands browser rows, opens a file with
+Enter, copies a path, reveals the active file, chooses a Quick Open match at
+`:2` and checks the Recent Files entry; with `-Dqcaret.screenshots=<dir>` it
+saves `workspace-browser.png` and `quick-open.png`.
+
+`CompareSurfaceTest` (tag `swt`) changes a dirty document's file, activates
+the window until the prompt shows, opens Compare from it, checks both sides'
+rows, Next, Previous and Shift+F7 with wrapping, the other side following a
+scroll, and the dark palette's background after a theme switch; Reload from
+the prompt loads the file. With `-Dqcaret.screenshots=<dir>` it saves
+`change-prompt.png` and `diff-view.png` (the whole screen).
 `ReplaceSurfaceTest` (tag `swt`) opens the preview from the dock over a tree
 search, types a replacement, unchecks a match, applies, checks the report's
 rows and the files, and restores the run from the report; with
@@ -420,8 +470,11 @@ bar searching and closed, unsplit, the command palette, the completion list
 with the whitespace and line-ending marks on, a HyperSearch from its dialog
 into the dock with a group expanded, the replace preview opened over it and
 closed, the overview strip hidden and shown, a bookmark comment through its
-prompt with the gutter tooltip and the Bookmarks list opened and hidden, and
-every menu's `Show`; the live counts per type must return to the warm-ups',
+prompt with the gutter tooltip and the Bookmarks list opened and hidden, the
+workspace browser with a directory expanded and its row menu, Quick Open
+filtered and closed, a comparison with the file on disk opened, recolored by
+both themes and closed, the change prompt and the document chooser opened and
+closed, and every menu's `Show`; the live counts per type must return to the warm-ups',
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it
 disposes with the Display on each theme switch, so the next request allocates

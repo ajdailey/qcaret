@@ -144,6 +144,33 @@ class KeymapTest {
   }
 
   /**
+   * Quick Open is Mod+P beside the palette's Mod+Shift+P, Switch Document Mod+Shift+O. Go Back and
+   * Go Forward are window keys: Alt+Left and Alt+Right, which no editor key uses off macOS, and
+   * Control+Command+Left and Right on macOS, where Option+Left and Right move by word.
+   */
+  @Test
+  void quickOpenAndHistoryKeys() {
+    for (boolean mac : new boolean[] {false, true}) {
+      for (boolean linux : new boolean[] {false, true}) {
+        Keymap keymap = Keymap.defaults(mac, linux);
+        assertEquals(List.of(), keymap.duplicates(), mac + " " + linux);
+        assertEquals(
+            KeyStroke.of(KeyStroke.PRIMARY, 'p'), keymap.accelerator(CommandId.QUICK_OPEN));
+        assertEquals(
+            KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'o'),
+            keymap.accelerator(CommandId.SWITCH_DOCUMENT));
+        int back = mac ? KeyStroke.CONTROL | KeyStroke.PRIMARY : KeyStroke.ALT;
+        assertEquals(new KeyStroke(back, KeyStroke.LEFT), keymap.accelerator(CommandId.GO_BACK));
+        assertEquals(
+            new KeyStroke(back, KeyStroke.RIGHT), keymap.accelerator(CommandId.GO_FORWARD));
+        assertNull(keymap.editorCommand(new KeyStroke(back, KeyStroke.LEFT)));
+      }
+    }
+    assertEquals("Ctrl+P", Keymap.defaults(false).keysText(CommandId.QUICK_OPEN));
+    assertEquals("Alt+Left", Keymap.defaults(false).keysText(CommandId.GO_BACK));
+  }
+
+  /**
    * Edit Bookmark Comment takes Mod+Shift+F2 beside the other bookmark keys: no default of GNOME,
    * KDE, Windows or macOS uses it, unlike Alt+F2 (GNOME and KDE run dialogs) and Ctrl+F2 (macOS
    * menu bar focus).

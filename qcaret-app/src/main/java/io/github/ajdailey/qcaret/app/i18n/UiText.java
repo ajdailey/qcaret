@@ -362,8 +362,6 @@ public enum UiText {
   SAVE_TITLE,
   /** Save refused while one runs: the document name. */
   SAVE_RUNNING,
-  /** Save stopped by an external change: the document name. */
-  SAVE_CHANGED_ON_DISK,
   /** Save failure: the document name and the reason. */
   SAVE_FAILED,
   /** Title of the unsaved-changes prompt. */
@@ -537,6 +535,84 @@ public enum UiText {
   PALETTE_TITLE,
   /** Command palette filter field hint. */
   PALETTE_FILTER,
+  /** Command label. */
+  COMMAND_QUICK_OPEN,
+  /** Command label. */
+  COMMAND_SWITCH_DOCUMENT,
+  /** File cascade of the recent files. */
+  MENU_RECENT_FILES,
+  /** Command label. */
+  COMMAND_CLEAR_RECENT_FILES,
+  /** Recent Files entry: its number and path. */
+  RECENT_FILE,
+  /** Command label. */
+  COMMAND_WORKSPACE_BROWSER,
+  /** Command label. */
+  COMMAND_GO_BACK,
+  /** Command label. */
+  COMMAND_GO_FORWARD,
+  /** Notice: a history position's file is gone. */
+  HISTORY_MISSING,
+  /** Quick Open title. */
+  QUICK_OPEN_TITLE,
+  /** Switch Document title. */
+  SWITCH_DOCUMENT_TITLE,
+  /** Quick Open filter hint. */
+  QUICK_OPEN_FILTER,
+  /** Quick Open column. */
+  QUICK_OPEN_NAME,
+  /** Quick Open column. */
+  QUICK_OPEN_PATH,
+  /** Quick Open row detail of an open document: its path or title. */
+  QUICK_OPEN_OPEN,
+  /** Quick Open summary: matched and indexed files. */
+  QUICK_OPEN_FILES,
+  /** Quick Open summary after the index stopped at its file limit. */
+  QUICK_OPEN_CUT_LIMIT,
+  /** Quick Open summary after the index stopped for memory. */
+  QUICK_OPEN_CUT_MEMORY,
+  /** Quick Open summary while the index builds. */
+  QUICK_OPEN_INDEXING,
+  /** Quick Open summary while a worker matches. */
+  QUICK_OPEN_MATCHING,
+  /** Quick Open summary without a workspace folder. */
+  QUICK_OPEN_NO_WORKSPACE,
+  /** Switch Document summary. */
+  QUICK_OPEN_DOCUMENTS,
+  /** Workspace browser title without a folder. */
+  WORKSPACE_NONE,
+  /** Workspace browser row while a directory is listed. */
+  WORKSPACE_LOADING,
+  /** Workspace browser row of an empty directory. */
+  WORKSPACE_EMPTY,
+  /** Workspace browser row of an unreadable directory. */
+  WORKSPACE_UNREADABLE,
+  /** Workspace browser row after the entry limit. */
+  WORKSPACE_TRUNCATED,
+  /** Workspace browser row: entries the next activation adds and entries not shown. */
+  WORKSPACE_MORE,
+  /** Workspace browser button. */
+  WORKSPACE_REFRESH,
+  /** Workspace browser button. */
+  WORKSPACE_REVEAL,
+  /** Workspace browser button. */
+  WORKSPACE_HIDE,
+  /** Workspace browser menu item. */
+  WORKSPACE_OPEN,
+  /** Workspace browser menu item. */
+  WORKSPACE_OPEN_DEFAULT,
+  /** Workspace browser menu item. */
+  WORKSPACE_SET_FOLDER,
+  /** Workspace browser menu item. */
+  WORKSPACE_COPY_PATH,
+  /** Notice: the selected document is not below the workspace folder. */
+  WORKSPACE_OUTSIDE,
+  /** Notice: the selected document is hidden or in an excluded directory. */
+  WORKSPACE_NOT_LISTED,
+  /** Notice: Open in Default Application refused a file the system would run. */
+  WORKSPACE_RUNS,
+  /** Notice: no application opened the file. */
+  WORKSPACE_LAUNCH_FAILED,
   /** Notice: a line command dropped its result because the document changed. */
   LINES_STALE,
   /** Command label. */
@@ -770,7 +846,67 @@ public enum UiText {
   /** Replace skip reason. */
   REASON_CHANGED_SINCE,
   /** Notice: the workspace folder. */
-  WORKSPACE_SET;
+  WORKSPACE_SET,
+  /** Tab title of a document whose file was deleted. */
+  TAB_MISSING,
+  /** Save notice: a reload runs. */
+  SAVE_RELOADING,
+  /** Notice: a file was deleted. */
+  CHANGE_MISSING,
+  /** External change prompt title. */
+  CHANGE_TITLE,
+  /** External change prompt. */
+  CHANGE_MESSAGE,
+  /** Save conflict prompt. */
+  CHANGE_SAVE_MESSAGE,
+  /** Button label. */
+  BUTTON_KEEP_MINE,
+  /** Button label. */
+  BUTTON_RELOAD,
+  /** Button label. */
+  BUTTON_COMPARE,
+  /** Button label. */
+  BUTTON_OVERWRITE,
+  /** Notice: a reload failed. */
+  RELOAD_FAILED,
+  /** Notice: no memory to reload. */
+  RELOAD_TOO_LARGE,
+  /** Notice: edits kept a reload from finishing. */
+  RELOAD_EDITED,
+  /** Compare cascade in the View menu. */
+  MENU_COMPARE,
+  /** Command label. */
+  COMMAND_COMPARE_DOCUMENTS,
+  /** Command label. */
+  COMMAND_COMPARE_WITH_DISK,
+  /** Compare chooser title. */
+  COMPARE_CHOOSE_TITLE,
+  /** Compare chooser label. */
+  COMPARE_CHOOSE_LABEL,
+  /** Notice: one document only. */
+  COMPARE_NO_OTHER,
+  /** Notice: a side exceeds the bounds. */
+  COMPARE_TOO_LARGE,
+  /** Comparison side: the file on disk. */
+  COMPARE_DISK,
+  /** Notice: no file to compare. */
+  COMPARE_NO_FILE,
+  /** Notice: the file cannot be read. */
+  COMPARE_FAILED,
+  /** Comparison notice: no differences. */
+  COMPARE_IDENTICAL,
+  /** Comparison notice: long lines cut. */
+  COMPARE_LINES_CUT,
+  /** Comparison window title. */
+  COMPARE_WINDOW_TITLE,
+  /** Comparison button. */
+  COMPARE_NEXT,
+  /** Comparison button. */
+  COMPARE_PREVIOUS,
+  /** Comparison position. */
+  COMPARE_POSITION,
+  /** Comparison position without differences. */
+  COMPARE_NONE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.TabInput;
@@ -27,9 +28,11 @@ import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
+import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
+import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
@@ -37,6 +40,7 @@ import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -78,6 +82,10 @@ import org.slf4j.LoggerFactory;
  *       editor and closing the tab cancel a running save, which leaves the target unchanged when
  *       the cancel lands before the file is replaced. Save As onto a file another tab holds closes
  *       that tab once the write succeeds, asking first when it has unsaved changes.
+ *   <li>Each document with a file is checked through {@link ExternalChanges} on the path the user
+ *       opened: a clean document reloads a changed file as one undo step, a dirty one asks Keep
+ *       Mine, Reload or Compare, a deleted file leaves its buffer open, marked missing and dirty. A
+ *       save that finds the file changed asks Overwrite, Reload, Compare or Cancel.
  *   <li>Closing a dirty document asks Save, Don't Save or Cancel; Save closes once the save
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
  *   <li>A closed document releases its {@link MemoryBudget} reservation. The paths of the last
@@ -135,6 +143,9 @@ public final class DocumentController {
   private boolean overviewShown = true;
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
+  private final ExternalChanges changes;
+  private CompareController compare;
+  private final Map<Path, Path> requestedPaths = new HashMap<Path, Path>();
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
@@ -156,6 +167,13 @@ public final class DocumentController {
     SyntaxHighlighter syntax;
     String grammar = GrammarSet.PLAIN;
     boolean manualGrammar;
+    Path given;
+    ExternalChanges.Watch watch;
+    boolean missing;
+    DocumentSnapshot cleanAtMissing;
+    boolean changePrompt;
+    CancellationToken reloading;
+    int reloadAttempts;
 
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
       this.document = document;
@@ -178,6 +196,9 @@ public final class DocumentController {
           title = UiText.TAB_BINARY.format(title);
         } else if (document.isReadOnly()) {
           title = UiText.TAB_READ_ONLY.format(title);
+        }
+        if (missing) {
+          title = UiText.TAB_MISSING.format(title);
         }
         tab.setTitle(title, path == null ? name : path.toString());
       }
@@ -211,6 +232,21 @@ public final class DocumentController {
     this.view = view;
     this.budget = budget;
     this.options = options;
+    this.changes =
+        new ExternalChanges(
+            workers,
+            ui,
+            ExternalChanges.POLL_MILLIS,
+            new ExternalChanges.Listener() {
+              @Override
+              public void found(ExternalChanges.Watch watch, FileCheck.Result result) {
+                for (OpenDocument d : documents) {
+                  if (d.watch == watch) {
+                    externalChange(d, result);
+                  }
+                }
+              }
+            });
     this.completion =
         new WordCompletion(
             workers,
@@ -505,6 +541,7 @@ public final class DocumentController {
     }
     OpenDocument d = reopening.containsKey(path) ? null : find(path);
     if (d == null) {
+      requestedPaths.put(path, requested.toAbsolutePath().normalize());
       return false;
     }
     d.tab.select();
@@ -514,6 +551,7 @@ public final class DocumentController {
 
   private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
     boolean reopen = reopening.remove(path) != null;
+    Path given = requestedPaths.remove(path);
     int index = documents.size();
     for (OpenDocument d : documents) {
       if (path.equals(d.path)) {
@@ -530,6 +568,7 @@ public final class DocumentController {
     }
     Document document = file.document();
     OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
+    watch(d, given == null ? path : given, file.baseline());
     opened(path, d);
     if (file.binary()) {
       document.setReadOnly(true);
@@ -562,6 +601,7 @@ public final class DocumentController {
 
   private void loadFailed(final Path path, IOException error) {
     reopening.remove(path);
+    requestedPaths.remove(path);
     Consumer<EditorController> then = afterOpen.remove(path);
     if (error instanceof BinaryFileException) {
       view.askOpenBinary(
@@ -590,6 +630,7 @@ public final class DocumentController {
               DisplayProjection.Layout.empty(document.text()),
               documents.size(),
               false);
+      watch(d, path.normalize(), null);
       if (then != null) {
         then.accept(d.editor);
       }
@@ -709,6 +750,15 @@ public final class DocumentController {
           }
         });
     d.editors.add(editor);
+    editor.setJumpListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (jumpListener != null) {
+              jumpListener.accept(editor);
+            }
+          }
+        });
     editor.setSyntax(d.syntax);
     editor.setGrammar(grammar(d));
     return editor;
@@ -792,7 +842,8 @@ public final class DocumentController {
     if (d.path == null) {
       saveAs(d, then);
     } else {
-      write(d, d.path, d.path, d.baseline, then);
+      Path file = d.given == null ? d.path : d.given;
+      write(d, file, file, d.baseline, then);
     }
   }
 
@@ -905,8 +956,12 @@ public final class DocumentController {
     return true;
   }
 
-  /** Shows the notice and returns true when a save of the document is running. */
+  /** Shows the notice and returns true when a save or a reload of the document is running. */
   private boolean savingNotice(OpenDocument d) {
+    if (d.reloading != null) {
+      view.showInfo(UiText.SAVE_TITLE.text(), UiText.SAVE_RELOADING.format(d.name()));
+      return true;
+    }
     if (d.saving == null) {
       return false;
     }
@@ -938,6 +993,9 @@ public final class DocumentController {
     final DocumentSnapshot snapshot = d.document.snapshot();
     final CancellationToken token = new CancellationToken();
     d.saving = token;
+    if (d.watch != null) {
+      changes.pause(d.watch);
+    }
     view.setActive();
     boolean started =
         workers.tryStart(
@@ -945,7 +1003,7 @@ public final class DocumentController {
             new Runnable() {
               @Override
               public void run() {
-                FileStamp stamp = null;
+                FileBaseline stamp = null;
                 IOException error = null;
                 Path written = target;
                 try {
@@ -962,14 +1020,14 @@ public final class DocumentController {
                   // Canceled: the target is unchanged unless the move had happened.
                 } finally {
                   view.setIdle();
-                  final FileStamp saved = stamp;
+                  final FileBaseline saved = stamp;
                   final IOException failure = error;
                   final Path file = written;
                   ui.asyncExec(
                       new Runnable() {
                         @Override
                         public void run() {
-                          saved(d, token, file, snapshot, saved, failure, then);
+                          saved(d, token, target, file, snapshot, saved, failure, then);
                         }
                       });
                 }
@@ -977,6 +1035,7 @@ public final class DocumentController {
             });
     if (!started) {
       d.saving = null;
+      resumeWatch(d);
       view.setIdle();
     }
   }
@@ -1000,9 +1059,10 @@ public final class DocumentController {
   private void saved(
       OpenDocument d,
       CancellationToken token,
+      Path named,
       Path target,
       DocumentSnapshot snapshot,
-      FileStamp stamp,
+      FileBaseline stamp,
       IOException error,
       Runnable then) {
     if (d.saving == token) {
@@ -1014,7 +1074,16 @@ public final class DocumentController {
     if (stamp != null) {
       boolean renamed = !target.equals(d.path);
       d.path = target;
-      d.baseline = stamp;
+      d.baseline = stamp.stamp();
+      d.missing = false;
+      d.cleanAtMissing = null;
+      Path file = named.toAbsolutePath().normalize();
+      d.given = file;
+      if (d.watch == null) {
+        watch(d, file, stamp);
+      } else {
+        changes.resume(d.watch, file, stamp);
+      }
       if (renamed) {
         detect(d);
       }
@@ -1024,8 +1093,11 @@ public final class DocumentController {
       if (then != null) {
         then.run();
       }
-    } else if (error instanceof ExternalModificationException) {
-      view.showInfo(UiText.SAVE_TITLE.text(), UiText.SAVE_CHANGED_ON_DISK.format(d.name()));
+      return;
+    }
+    resumeWatch(d);
+    if (error instanceof ExternalModificationException) {
+      askConflict(d, then);
     } else if (error != null) {
       view.showInfo(
           UiText.SAVE_TITLE.text(),
@@ -1124,6 +1196,7 @@ public final class DocumentController {
   public void dispose() {
     disposing = true;
     opener.close();
+    changes.close();
     completion.cancel();
     for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
       discard(d);
@@ -1178,6 +1251,12 @@ public final class DocumentController {
       closeListener.accept(d.document);
     }
     cancelSave(d);
+    if (d.watch != null) {
+      changes.unwatch(d.watch);
+    }
+    if (d.reloading != null) {
+      d.reloading.cancel();
+    }
     if (d.converting != null) {
       d.converting.cancel();
     }
@@ -1224,7 +1303,27 @@ public final class DocumentController {
     opener.open(path, options);
   }
 
+  // Navigation history and Recent Files.
+
+  private Consumer<EditorController> jumpListener;
+  private Consumer<Path> openListener;
+
+  /** Sets what runs before an editor's caret jumps; it receives that editor. */
+  void setJumpListener(Consumer<EditorController> listener) {
+    jumpListener = listener;
+  }
+
+  /**
+   * Sets what runs when a file opens or an open one is selected by opening it; it gets the path.
+   */
+  void setOpenListener(Consumer<Path> listener) {
+    openListener = listener;
+  }
+
   private void opened(Path path, OpenDocument d) {
+    if (openListener != null) {
+      openListener.accept(path);
+    }
     Consumer<EditorController> then = afterOpen.remove(path);
     if (then != null) {
       then.accept(d.editor);
@@ -1868,5 +1967,344 @@ public final class DocumentController {
 
   private static double mebibytes(long bytes) {
     return bytes / (double) (1L << 20);
+  }
+
+  // External changes.
+
+  /**
+   * Whether a clean document reloads a changed file without asking ({@code file.autoReloadClean}).
+   */
+  static final boolean AUTO_RELOAD_CLEAN = true;
+
+  /** Reloads retried while the document changes under them. */
+  static final int RELOAD_ATTEMPTS = 3;
+
+  /** A reloaded file on its way to the UI thread. */
+  private record Reloaded(
+      Replacement replacement,
+      TextEncoding encoding,
+      LineEnding lineEnding,
+      FileBaseline baseline,
+      Path real) {}
+
+  /** Sets the controller that shows the prompt's Compare. */
+  void setCompare(CompareController value) {
+    compare = value;
+  }
+
+  /** Returns the options files load with. */
+  LoadOptions loadOptions() {
+    return options;
+  }
+
+  /** Returns the path the user opened the selected document by, or null without a file. */
+  Path activeOpenedPath() {
+    return active == null || active.path == null ? null : active.given;
+  }
+
+  /** Checks every open file for changes by other programs now, as on window activation. */
+  public void checkFiles() {
+    changes.checkAll();
+  }
+
+  /**
+   * Checks the file of an open document now; a file not open is ignored.
+   *
+   * @param path the file's real path
+   */
+  void checkFile(Path path) {
+    OpenDocument d = find(path);
+    if (d != null && d.watch != null) {
+      changes.check(d.watch);
+    }
+  }
+
+  /** Reports whether the monitor's thread runs; for tests. */
+  boolean watching() {
+    return changes.running();
+  }
+
+  /** Counts the finished checks of every due file; for tests. */
+  long checkPasses() {
+    return changes.passes();
+  }
+
+  private void watch(OpenDocument d, Path given, FileBaseline baseline) {
+    d.given = given;
+    d.watch = changes.watch(given, baseline);
+  }
+
+  /** Checks again after a save or a reload that did not change the baseline. */
+  private void resumeWatch(OpenDocument d) {
+    if (d.watch != null) {
+      changes.resume(d.watch, d.watch.path(), d.watch.baseline());
+      d.watch.setMissing(d.missing);
+    }
+  }
+
+  private void externalChange(OpenDocument d, FileCheck.Result result) {
+    if (d.closed || d.saving != null || d.reloading != null) {
+      return;
+    }
+    switch (result.state()) {
+      case UNCHANGED -> {
+        FileBaseline old = d.watch.baseline();
+        if (old != null && old.stamp().equals(d.baseline)) {
+          d.baseline = result.current().stamp();
+        }
+        changes.accept(d.watch, result.current());
+        if (d.missing) {
+          clearMissing(d);
+        }
+      }
+      case MISSING -> markMissing(d);
+      case CHANGED -> {
+        if (d.missing) {
+          clearMissing(d);
+        }
+        if (AUTO_RELOAD_CLEAN && !d.document.isDirty()) {
+          reload(d);
+        } else {
+          changes.accept(d.watch, result.current());
+          askChange(d);
+        }
+      }
+    }
+  }
+
+  /** Keeps the buffer of a deleted file, dirty, and remembers whether it matched the file. */
+  private void markMissing(OpenDocument d) {
+    if (d.missing) {
+      return;
+    }
+    d.missing = true;
+    d.watch.setMissing(true);
+    d.cleanAtMissing = d.document.isDirty() ? null : d.document.snapshot();
+    d.document.markUnsaved();
+    d.updateTitle();
+    view.documentStateChanged();
+    view.showNotice(UiText.CHANGE_MISSING.format(d.name()));
+  }
+
+  /** Clears the missing mark; the document is clean again when it still holds the file's text. */
+  private void clearMissing(OpenDocument d) {
+    d.missing = false;
+    d.watch.setMissing(false);
+    DocumentSnapshot clean = d.cleanAtMissing;
+    d.cleanAtMissing = null;
+    if (clean != null && d.document.snapshot().state() == clean.state()) {
+      d.document.markSaved(clean);
+    }
+    d.updateTitle();
+    view.documentStateChanged();
+  }
+
+  /** Asks about a change of a dirty document's file; one prompt per document at a time. */
+  private void askChange(final OpenDocument d) {
+    if (d.changePrompt) {
+      return;
+    }
+    d.changePrompt = true;
+    view.askExternalChange(
+        d.name(),
+        false,
+        new Consumer<ChangeChoice>() {
+          @Override
+          public void accept(ChangeChoice choice) {
+            if (choice != ChangeChoice.COMPARE) {
+              d.changePrompt = false;
+            }
+            if (d.closed) {
+              return;
+            }
+            switch (choice) {
+              case RELOAD -> reload(d);
+              case COMPARE -> compareWithDisk(d);
+              default -> {
+                // Kept: the watch has the file's baseline, the save keeps the old one.
+              }
+            }
+          }
+        });
+  }
+
+  /** Asks what a save that found the file changed does next. */
+  private void askConflict(final OpenDocument d, final Runnable then) {
+    view.askExternalChange(
+        d.name(),
+        true,
+        new Consumer<ChangeChoice>() {
+          @Override
+          public void accept(ChangeChoice choice) {
+            if (d.closed) {
+              return;
+            }
+            switch (choice) {
+              case OVERWRITE -> {
+                Path file = d.given == null ? d.path : d.given;
+                write(d, file, file, null, then);
+              }
+              case RELOAD -> reload(d);
+              case COMPARE -> compareWithDisk(d);
+              default -> {
+                // Canceled: the document stays dirty.
+              }
+            }
+          }
+        });
+  }
+
+  private void compareWithDisk(OpenDocument d) {
+    if (compare != null && d.watch != null) {
+      compare.compareWithDisk(d.document, d.watch.path(), d.binary);
+    }
+  }
+
+  /**
+   * Loads the file the user opened on a {@code qcaret-io-} worker and replaces the text between the
+   * common prefix and suffix as one undo step, keeping each view's caret by line and column. The
+   * document is clean afterwards; undo returns to the text before the reload, dirty. A document
+   * edited during the read reloads again, at most {@value #RELOAD_ATTEMPTS} times.
+   */
+  private void reload(final OpenDocument d) {
+    if (d.closed || d.watch == null || d.reloading != null || d.saving != null) {
+      return;
+    }
+    final CancellationToken token = new CancellationToken();
+    d.reloading = token;
+    changes.pause(d.watch);
+    d.document.clearPreedit();
+    final DocumentSnapshot snapshot = d.document.snapshot();
+    final Path file = d.watch.path();
+    final Charset charset = d.document.encoding().charset();
+    final boolean binary = d.binary;
+    view.setActive();
+    boolean started =
+        workers.tryStart(
+            Workers.Kind.IO,
+            new Runnable() {
+              @Override
+              public void run() {
+                Reloaded result = null;
+                IOException error = null;
+                long reserved = 0;
+                try {
+                  LoadCost cost = DocumentFiles.estimate(file, options.limits());
+                  if (budget.reserve(cost.reserveBytes())) {
+                    reserved = cost.reserveBytes();
+                    LoadedFile loaded =
+                        CompareController.load(file, options, charset, binary, token);
+                    Document read = loaded.document();
+                    result =
+                        new Reloaded(
+                            ExternalChanges.difference(snapshot.text(), read.text()),
+                            read.encoding(),
+                            read.lineEnding(),
+                            loaded.baseline(),
+                            realFile(file));
+                  }
+                } catch (IOException e) {
+                  error = e;
+                } catch (CancellationException e) {
+                  // Closed.
+                } finally {
+                  budget.release(reserved);
+                  view.setIdle();
+                  final Reloaded reloaded = result;
+                  final IOException failure = error;
+                  ui.asyncExec(
+                      new Runnable() {
+                        @Override
+                        public void run() {
+                          reloaded(d, token, snapshot.revision(), reloaded, failure);
+                        }
+                      });
+                }
+              }
+            });
+    if (!started) {
+      d.reloading = null;
+      resumeWatch(d);
+      view.setIdle();
+    }
+  }
+
+  private void reloaded(
+      OpenDocument d, CancellationToken token, long revision, Reloaded result, IOException error) {
+    if (d.reloading != token) {
+      return;
+    }
+    d.reloading = null;
+    if (d.closed) {
+      return;
+    }
+    if (result == null) {
+      d.reloadAttempts = 0;
+      resumeWatch(d);
+      if (error instanceof NoSuchFileException) {
+        markMissing(d);
+      } else if (error != null) {
+        view.showNotice(UiText.RELOAD_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
+      } else if (!token.isCanceled()) {
+        view.showNotice(UiText.RELOAD_TOO_LARGE.format(d.name()));
+      }
+      return;
+    }
+    if (d.document.revision() != revision) {
+      if (++d.reloadAttempts < RELOAD_ATTEMPTS) {
+        reload(d);
+        return;
+      }
+      d.reloadAttempts = 0;
+      resumeWatch(d);
+      view.showNotice(UiText.RELOAD_EDITED.format(d.name()));
+      return;
+    }
+    d.reloadAttempts = 0;
+    applyReload(d, result);
+  }
+
+  private void applyReload(OpenDocument d, Reloaded r) {
+    Document document = d.document;
+    if (r.replacement() != null) {
+      int count = d.editors.size();
+      int[] lines = new int[count];
+      int[] columns = new int[count];
+      TextSnapshot text = document.text();
+      for (int i = 0; i < count; i++) {
+        int caret = d.editors.get(i).selections().selections().primary().caret();
+        lines[i] = text.lineAt(caret);
+        columns[i] = caret - text.offsetOfLine(lines[i]);
+      }
+      boolean readOnly = document.isReadOnly();
+      document.clearPreedit();
+      document.setReadOnly(false);
+      try {
+        document.apply(
+            EditBatch.of(EditBatch.Kind.COMMAND, List.of(r.replacement())),
+            d.editor.selections(),
+            null);
+      } finally {
+        document.setReadOnly(readOnly);
+      }
+      text = document.text();
+      for (int i = 0; i < count; i++) {
+        int line = Math.min(lines[i], text.lineCount() - 1);
+        int offset = text.offsetOfLine(line) + Math.min(columns[i], text.lineLength(line));
+        d.editors.get(i).selections().set(SelectionSet.caret(offset));
+      }
+    }
+    if (!document.encoding().equals(r.encoding())) {
+      document.setEncoding(r.encoding());
+    }
+    document.setLineEnding(r.lineEnding());
+    document.markSaved(document.snapshot());
+    d.path = r.real();
+    d.baseline = r.baseline().stamp();
+    d.missing = false;
+    d.cleanAtMissing = null;
+    changes.resume(d.watch, d.watch.path(), r.baseline());
+    d.updateTitle();
+    view.documentStateChanged();
   }
 }

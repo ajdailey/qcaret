@@ -38,7 +38,9 @@ import org.eclipse.swt.widgets.Shell;
  * EncodingChoices#commonCharsets()} from the start and an Other cascade, disabled and empty until
  * {@link #encodingsLoaded} fills it once; neither is rebuilt. The View menu's Syntax cascade holds
  * the {@link SyntaxMenu} entries above Reload Grammars, rebuilt each time the View menu shows;
- * {@link #showSyntaxMenu} pops up the same entries. Call on the UI thread.
+ * {@link #showSyntaxMenu} pops up the same entries. The File menu's Recent Files cascade lists the
+ * recent files above Clear Recent Files, rebuilt each time the File menu shows. Call on the UI
+ * thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
@@ -46,6 +48,9 @@ final class MainMenuBar {
 
   /** Widget data of the Syntax cascade's grammar entries. */
   private static final String SYNTAX = "qcaret.syntax";
+
+  /** Widget data of the Recent Files cascade's file entries. */
+  private static final String RECENT = "qcaret.recent";
 
   /** The last language popup; replaced by the next and disposed with the shell. */
   private Menu syntaxPopup;
@@ -272,6 +277,42 @@ final class MainMenuBar {
     }
     if (group == CommandGroup.VIEW) {
       syncSyntax();
+    }
+    if (group == CommandGroup.FILE) {
+      syncRecent();
+    }
+  }
+
+  /** Lists the recent files above Clear Recent Files, the first nine numbered as mnemonics. */
+  private void syncRecent() {
+    MenuItem clear = items.get(CommandId.CLEAR_RECENT_FILES);
+    if (clear == null || clear.isDisposed()) {
+      return;
+    }
+    Menu menu = clear.getParent();
+    for (MenuItem item : menu.getItems()) {
+      if (RECENT.equals(item.getData())) {
+        item.dispose();
+      }
+    }
+    List<String> paths = states.recentFiles();
+    for (int i = 0; i < paths.size(); i++) {
+      final int index = i;
+      MenuItem item = new MenuItem(menu, SWT.PUSH, i);
+      String text = UiText.RECENT_FILE.format(i + 1, paths.get(i).replace("&", "&&"));
+      item.setText(i < 9 ? text : text.substring(1));
+      item.setData(RECENT);
+      item.addListener(
+          SWT.Selection,
+          new Listener() {
+            @Override
+            public void handleEvent(Event event) {
+              controller.openRecent(index);
+            }
+          });
+    }
+    if (!paths.isEmpty()) {
+      new MenuItem(menu, SWT.SEPARATOR, paths.size()).setData(RECENT);
     }
   }
 

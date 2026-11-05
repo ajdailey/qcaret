@@ -588,11 +588,34 @@ public final class EditorController implements EditorInput {
    * @param column the zero-based visual column, clamped to the line
    */
   public void goTo(int line, int column) {
+    jumping();
     TextSnapshot text = document.text();
     int at = Math.max(0, Math.min(line, text.lineCount() - 1));
     LineView lineView = text.lineView(at, new LineView());
     int index = Columns.index(lineView, Math.max(0, column), document.tabWidth(), false);
     selections.set(SelectionSet.caret(lineView.start() + index));
+    showCaret();
+  }
+
+  // Navigation history.
+
+  private Runnable jumpListener;
+
+  /** Sets what runs before the caret jumps: Go to Line, a bookmark, a search result. */
+  void setJumpListener(Runnable listener) {
+    jumpListener = listener;
+  }
+
+  /** Reports a jump about to move the caret, so the history records where it was. */
+  void jumping() {
+    if (jumpListener != null) {
+      jumpListener.run();
+    }
+  }
+
+  /** Moves the primary caret to an offset, drops the other selections and shows the caret. */
+  void moveCaret(int offset) {
+    selections.set(SelectionSet.caret(Math.max(0, Math.min(offset, document.text().length()))));
     showCaret();
   }
 
@@ -1791,6 +1814,7 @@ public final class EditorController implements EditorInput {
     TextSnapshot text = document.text();
     int line = bookmarks.next(text.lineAt(current().primary().caret()), forward);
     if (line >= 0) {
+      jumping();
       selections.set(SelectionSet.caret(text.offsetOfLine(line)));
       showCaret();
     }

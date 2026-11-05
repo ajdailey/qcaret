@@ -27,6 +27,11 @@ public enum CommandId {
   REOPEN_CLOSED(CommandGroup.FILE, UiText.COMMAND_REOPEN_CLOSED, false, false, null),
   /** Choose the window's workspace folder, the HyperSearch workspace scope. */
   SET_WORKSPACE(CommandGroup.FILE, UiText.COMMAND_SET_WORKSPACE, true, false, null),
+  /** Open a document or workspace file chosen by a fuzzy match on its name or path. */
+  QUICK_OPEN(CommandGroup.FILE, UiText.COMMAND_QUICK_OPEN, false, false, null),
+  /** Empty File > Recent Files; the menu lists the files above it. */
+  CLEAR_RECENT_FILES(
+      CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, true, false, UiText.MENU_RECENT_FILES),
   /** Close the window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, true, false, null),
   /** Undo in the selected editor. */
@@ -232,6 +237,20 @@ public enum CommandId {
   OVERVIEW_STRIP(CommandGroup.VIEW, UiText.COMMAND_OVERVIEW_STRIP, false, true, null),
   /** Find and run a command by name. */
   COMMAND_PALETTE(CommandGroup.VIEW, UiText.COMMAND_COMMAND_PALETTE, true, false, null),
+  /** Show or hide the workspace folder's tree. */
+  WORKSPACE_BROWSER(CommandGroup.VIEW, UiText.COMMAND_WORKSPACE_BROWSER, true, true, null),
+  /** Move the caret to the position before the last jump. */
+  GO_BACK(CommandGroup.SEARCH, UiText.COMMAND_GO_BACK, true, false, null),
+  /** Move the caret to the position Go Back left. */
+  GO_FORWARD(CommandGroup.SEARCH, UiText.COMMAND_GO_FORWARD, false, false, null),
+  /** Select an open document chosen by a fuzzy match on its name or path. */
+  SWITCH_DOCUMENT(CommandGroup.WINDOW, UiText.COMMAND_SWITCH_DOCUMENT, true, false, null),
+  /** Compare the selected document with another open document, side by side. */
+  COMPARE_DOCUMENTS(
+      CommandGroup.VIEW, UiText.COMMAND_COMPARE_DOCUMENTS, true, false, UiText.MENU_COMPARE),
+  /** Compare the selected document's file on disk with its text, side by side. */
+  COMPARE_WITH_DISK(
+      CommandGroup.VIEW, UiText.COMMAND_COMPARE_WITH_DISK, false, false, UiText.MENU_COMPARE),
   /** Move every caret one char left, or to the start of its selection. */
   CARET_LEFT(CommandGroup.EDITOR, UiText.COMMAND_CARET_LEFT, false, false, null),
   /** Move every caret one char right, or to the end of its selection. */

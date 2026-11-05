@@ -15,8 +15,10 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.DeviceData;
 import org.eclipse.swt.graphics.Image;
@@ -53,10 +56,12 @@ import org.junit.jupiter.api.io.TempDir;
  * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
  * command palette, the completion list, the whitespace marks, a HyperSearch from its dialog into
  * the results dock, the replace preview opened and closed, the overview strip hidden and shown, and
- * a bookmark comment with its gutter tooltip and the Bookmarks list opened and hidden return the
- * Display's tracked graphics resources ({@code DeviceData.tracking}) to their count after a warm-up
- * round. Theme switches, zoom and split each rebuild or add a primary caret image. A failure lists
- * each leaked object's allocation stack.
+ * a bookmark comment with its gutter tooltip and the Bookmarks list opened and hidden, the
+ * workspace browser with a directory expanded and its context menu, Quick Open filtered and closed,
+ * a comparison window opened, recolored and closed, and the external-change prompt and the document
+ * chooser opened and closed return the Display's tracked graphics resources ({@code
+ * DeviceData.tracking}) to their count after a warm-up round. Theme switches, zoom and split each
+ * rebuild or add a primary caret image. A failure lists each leaked object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -358,6 +363,104 @@ class ResourceLeakTest {
     drain();
   }
 
+  /**
+   * Shows the workspace browser, expands a directory, opens its context menu and hides it; opens
+   * Quick Open, filters it and closes it.
+   */
+  private void workspaceAndQuickOpen() throws IOException {
+    final Path folder = temp.resolve("ws").toAbsolutePath();
+    if (controller.workspace().root() == null) {
+      Files.createDirectories(folder.resolve("sub"));
+      Files.writeString(folder.resolve("sub").resolve("mock.txt"), "mock\n");
+      controller.workspace().set(folder);
+      assertTrue(
+          runUntil(
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return controller.workspace().root() != null;
+                }
+              }));
+    }
+    controller.execute(CommandId.WORKSPACE_BROWSER);
+    final WorkspaceDock dock = window.workspaceDock();
+    final WorkspaceNode sub =
+        new WorkspaceNode(
+            controller.workspace().root().resolve("sub"), "sub", WorkspaceNode.Kind.DIRECTORY);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return dock.texts(null).equals(List.of("sub/"));
+              }
+            }));
+    dock.expand(sub);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return dock.texts(sub).equals(List.of("mock.txt"));
+              }
+            }));
+    dock.tree().setSelection(dock.tree().getItem(0));
+    dock.tree().notifyListeners(SWT.MenuDetect, new Event());
+    dock.tree().getMenu().setVisible(false);
+    dock.tree().getItem(0).setExpanded(false);
+    controller.execute(CommandId.WORKSPACE_BROWSER);
+    controller.execute(CommandId.QUICK_OPEN);
+    drain();
+    window.quickOpen().filter().setText("mock");
+    drain();
+    window.quickOpen().shell().close();
+    drain();
+  }
+
+  /**
+   * Opens the comparison of the file on disk with the buffer, recolors it, steps through it and
+   * closes it; opens and answers the external-change prompt and the document chooser.
+   */
+  private void compareAndPrompt() {
+    controller.execute(CommandId.COMPARE_WITH_DISK);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.diffWindows().size() == 1;
+              }
+            }));
+    DiffWindow diff = window.diffWindows().get(0);
+    theme(CommandId.THEME_DARK, Palette.DARK);
+    theme(CommandId.THEME_LIGHT, Palette.LIGHT);
+    diff.next();
+    diff.left().redraw();
+    diff.left().update();
+    diff.shell().dispose();
+    window.askExternalChange(
+        "mock.txt",
+        cycles % 2 == 0,
+        new Consumer<ChangeChoice>() {
+          @Override
+          public void accept(ChangeChoice choice) {
+            // The prompt only.
+          }
+        });
+    window.changeDialog().press(ChangeChoice.COMPARE);
+    window.changeDialog().press(ChangeChoice.RELOAD);
+    window.chooseDocument(
+        List.of("first.txt", "second.txt"),
+        new Consumer<Integer>() {
+          @Override
+          public void accept(Integer index) {
+            // The chooser only.
+          }
+        });
+    window.documentChooser().shell().dispose();
+    drain();
+  }
+
   /** One round of every operation; the first rounds create lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
@@ -374,6 +477,8 @@ class ResourceLeakTest {
     paletteAndCompletion();
     searchAndStrip();
     bookmarkList();
+    workspaceAndQuickOpen();
+    compareAndPrompt();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {
         window.menuBar().menu(group).notifyListeners(SWT.Show, new Event());

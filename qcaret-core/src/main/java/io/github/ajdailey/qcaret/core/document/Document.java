@@ -576,6 +576,17 @@ public final class Document {
     fireDirty(wasDirty);
   }
 
+  /**
+   * Records that no file holds the text, as when the file was deleted: the document is dirty until
+   * the next {@link #markSaved}. Undo cannot return it to clean.
+   */
+  public void markUnsaved() {
+    checkThread();
+    boolean wasDirty = isDirty();
+    savedState = -1;
+    fireDirty(wasDirty);
+  }
+
   /** Throws unless called on the editing thread, which the first call binds. */
   void checkThread() {
     Thread current = Thread.currentThread();

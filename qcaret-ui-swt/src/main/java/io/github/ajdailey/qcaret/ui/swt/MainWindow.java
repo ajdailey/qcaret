@@ -17,10 +17,13 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
+import io.github.ajdailey.qcaret.app.view.ChangeChoice;
+import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
@@ -31,6 +34,8 @@ import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
@@ -78,7 +83,8 @@ import org.eclipse.swt.widgets.Shell;
 /**
  * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
  * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it, beside the {@link
- * BookmarksDock}, hidden until Bookmarks List shows it; the {@link MainMenuBar} built from {@link
+ * BookmarksDock}, hidden until Bookmarks List shows it, with the {@link WorkspaceDock} on the left,
+ * hidden until View > Workspace Browser shows it; the {@link MainMenuBar} built from {@link
  * MenuTable} and the {@link Keymap}, the {@link FindBar} and a status bar. The editors take their
  * colors from the {@link Palette}; native controls follow {@link SwtThemeService}. {@link
  * ToolIcons} owned by the window re-ink on the UI turn after a palette change, once native controls
@@ -151,6 +157,9 @@ public final class MainWindow implements MainView {
   private boolean movingTab;
   private FindBar findBar;
   private final SashForm body;
+  private final SashForm side;
+  private WorkspaceDock workspaceDock;
+  private QuickOpenWindow quickOpen;
   private SashForm docks;
   private ResultsDock resultsDock;
   private BookmarksDock bookmarksDock;
@@ -159,6 +168,9 @@ public final class MainWindow implements MainView {
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
   private RunChooser runChooser;
+  private ChangeDialog changeDialog;
+  private DocumentChooser documentChooser;
+  private final List<DiffWindow> diffWindows = new ArrayList<DiffWindow>();
 
   /**
    * One document tab: its item, which a move recreates, and one or two editor views in a {@link
@@ -408,8 +420,9 @@ public final class MainWindow implements MainView {
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     shell.setLayout(layout);
-    body = new SashForm(shell, SWT.VERTICAL);
-    body.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    side = new SashForm(shell, SWT.HORIZONTAL);
+    side.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    body = new SashForm(side, SWT.VERTICAL);
     tabs = new CTabFolder(body, SWT.TOP | SWT.FLAT);
     baseFontSize = Dialogs.monospaceSize();
     font = new Font(display, Dialogs.monospaceName(), baseFontSize, SWT.NORMAL);
@@ -526,12 +539,17 @@ public final class MainWindow implements MainView {
     docks.setWeights(new int[] {3, 2});
     body.setWeights(new int[] {3, 1});
     body.setMaximizedControl(tabs);
+    workspaceDock = new WorkspaceDock(side);
+    workspaceDock.control().moveAbove(body);
+    side.setWeights(new int[] {1, 3});
+    side.setMaximizedControl(body);
     shell.addListener(
         SWT.Activate,
         new Listener() {
           @Override
           public void handleEvent(Event event) {
             menuBar.syncEnablement();
+            controller.windowActivated();
           }
         });
     onCloseRequest(
@@ -562,6 +580,9 @@ public final class MainWindow implements MainView {
     palette = next;
     if (resultsDock != null) {
       resultsDock.setPalette(next);
+    }
+    for (DiffWindow window : diffWindows) {
+      window.setPalette(next);
     }
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
@@ -1451,6 +1472,84 @@ public final class MainWindow implements MainView {
     return commandPalette;
   }
 
+  // Workspace browser and Quick Open.
+
+  @Override
+  public void showWorkspace(WorkspaceInput input, boolean shown) {
+    if (shell.isDisposed() || workspaceDock == null) {
+      return;
+    }
+    workspaceDock.setInput(input);
+    side.setMaximizedControl(shown ? null : body);
+    side.layout(true);
+  }
+
+  @Override
+  public void workspaceChanged(WorkspaceNode directory) {
+    if (workspaceDock != null && !shell.isDisposed()) {
+      workspaceDock.changed(directory);
+    }
+  }
+
+  @Override
+  public void revealWorkspace(List<WorkspaceNode> chain) {
+    if (workspaceDock != null && !shell.isDisposed()) {
+      workspaceDock.reveal(chain);
+    }
+  }
+
+  @Override
+  public void showQuickOpen(QuickOpenInput input) {
+    if (shell.isDisposed()) {
+      input.close();
+      return;
+    }
+    if (quickOpen != null && !quickOpen.shell().isDisposed()) {
+      quickOpen.shell().dispose();
+    }
+    quickOpen = new QuickOpenWindow(shell, input, dispatcher);
+    quickOpen.open();
+  }
+
+  @Override
+  public void quickOpenChanged() {
+    if (quickOpen != null) {
+      quickOpen.changed();
+    }
+  }
+
+  @Override
+  public boolean launchesByExtension() {
+    return "win32".equals(SWT.getPlatform());
+  }
+
+  /**
+   * Returns the workspace browser.
+   *
+   * @return the dock, or null before {@link #attach}
+   */
+  WorkspaceDock workspaceDock() {
+    return workspaceDock;
+  }
+
+  /**
+   * Reports whether the workspace browser shows.
+   *
+   * @return true while shown
+   */
+  boolean workspaceShown() {
+    return workspaceDock != null && side.getMaximizedControl() == null;
+  }
+
+  /**
+   * Returns the Quick Open popup opened last.
+   *
+   * @return the popup, or null before one opened
+   */
+  QuickOpenWindow quickOpen() {
+    return quickOpen;
+  }
+
   // HyperSearch.
 
   @Override
@@ -1671,5 +1770,70 @@ public final class MainWindow implements MainView {
    */
   boolean bookmarksShown() {
     return bookmarksDock.control().getVisible() && body.getMaximizedControl() == null;
+  }
+
+  @Override
+  public void askExternalChange(String name, boolean saving, Consumer<ChangeChoice> answer) {
+    if (shell.isDisposed()) {
+      answer.accept(saving ? ChangeChoice.CANCEL : ChangeChoice.KEEP);
+      return;
+    }
+    changeDialog = new ChangeDialog(shell, name, saving, answer);
+    changeDialog.open();
+  }
+
+  @Override
+  public void chooseDocument(List<String> names, Consumer<Integer> chosen) {
+    if (!shell.isDisposed()) {
+      documentChooser = new DocumentChooser(shell, names, chosen);
+      documentChooser.open();
+    }
+  }
+
+  @Override
+  public void showComparison(Comparison comparison) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    final DiffWindow window = new DiffWindow(shell, comparison, palette, font.getFontData());
+    diffWindows.add(window);
+    window
+        .shell()
+        .addListener(
+            SWT.Dispose,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                diffWindows.remove(window);
+              }
+            });
+    window.open();
+  }
+
+  /**
+   * Returns the newest external-change prompt.
+   *
+   * @return the dialog, or null before one opened
+   */
+  ChangeDialog changeDialog() {
+    return changeDialog;
+  }
+
+  /**
+   * Returns the newest Compare Documents chooser.
+   *
+   * @return the dialog, or null before one opened
+   */
+  DocumentChooser documentChooser() {
+    return documentChooser;
+  }
+
+  /**
+   * Returns the open comparison windows, oldest first.
+   *
+   * @return the windows
+   */
+  List<DiffWindow> diffWindows() {
+    return new ArrayList<DiffWindow>(diffWindows);
   }
 }

@@ -6,6 +6,8 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.BinaryDetector;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
+import io.github.ajdailey.qcaret.core.io.Digests;
+import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
 import io.github.ajdailey.qcaret.core.text.EncodingDetection;
@@ -20,8 +22,12 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Loads a file into a {@link Document} and saves a {@link DocumentSnapshot} through {@link
@@ -91,9 +97,9 @@ public final class DocumentFiles {
   }
 
   /**
-   * Loads a file: reads it whole, chooses the encoding ({@link EncodingDetector}, or the forced
-   * charset), rejects a binary file unless allowed, decodes it and checks that the text encodes
-   * back to the same bytes.
+   * Loads a file: reads it whole, digests it, chooses the encoding ({@link EncodingDetector}, or
+   * the forced charset), rejects a binary file unless allowed, decodes it and checks that the text
+   * encodes back to the same bytes.
    *
    * @param file the file, validated by the caller
    * @param options the forced charset, fallback and undo bounds
@@ -107,8 +113,13 @@ public final class DocumentFiles {
   @WorkerThread
   public static LoadedFile load(Path file, LoadOptions options, CancellationToken token)
       throws IOException {
+    long recorded = System.currentTimeMillis();
     FileStamp stamp = FileStamp.read(file);
     byte[] bytes = read(file, token);
+    if (stamp == null) {
+      throw new NoSuchFileException(String.valueOf(file));
+    }
+    FileBaseline baseline = new FileBaseline(stamp, Digests.of(bytes, bytes.length), recorded);
     EncodingDetection detection =
         options.forced() != null
             ? EncodingDetector.forced(options.forced(), bytes, bytes.length)
@@ -122,7 +133,7 @@ public final class DocumentFiles {
     StringBuilder text = decode(bytes, bom, encoding, token);
     boolean roundTrips = encodesTo(text, encoding, bytes, bom, token);
     Document document = Document.of(text, encoding, options.empty(), options.limits());
-    return new LoadedFile(document, stamp, detection, binary, roundTrips);
+    return new LoadedFile(document, baseline, detection, binary, roundTrips);
   }
 
   /**
@@ -134,29 +145,37 @@ public final class DocumentFiles {
    * @param baseline the stamp from the load or the last save, or null for a new file
    * @param token canceled by a close of the document or Esc; a cancel before the target is replaced
    *     leaves it unchanged
-   * @return the saved file's stamp
+   * @return the saved file's stamp and the SHA-256 of the bytes written
    * @throws TextCodingException when a char cannot be encoded; no file is touched
    * @throws io.github.ajdailey.qcaret.core.io.ExternalModificationException when the target changed
    *     since {@code baseline}
    * @throws IOException when the write fails
    */
   @WorkerThread
-  public static FileStamp save(
+  public static FileBaseline save(
       Path file, final DocumentSnapshot snapshot, FileStamp baseline, final CancellationToken token)
       throws IOException {
     final TextEncoding encoding = snapshot.encoding();
     encode(snapshot.text(), encoding, null, token);
-    return SafeSave.save(
-        file,
-        baseline,
-        new ContentWriter() {
-          @Override
-          public void write(OutputStream out) throws IOException {
-            out.write(encoding.bomBytes());
-            encode(snapshot.text(), encoding, out, token);
-          }
-        },
-        token);
+    final AtomicReference<String> digest = new AtomicReference<String>();
+    long recorded = System.currentTimeMillis();
+    FileStamp stamp =
+        SafeSave.save(
+            file,
+            baseline,
+            new ContentWriter() {
+              @Override
+              public void write(OutputStream out) throws IOException {
+                MessageDigest sha = Digests.sha256();
+                OutputStream digesting = new DigestOutputStream(out, sha);
+                digesting.write(encoding.bomBytes());
+                encode(snapshot.text(), encoding, digesting, token);
+                digesting.flush();
+                digest.set(Digests.hex(sha));
+              }
+            },
+            token);
+    return new FileBaseline(stamp, digest.get(), recorded);
   }
 
   private static byte[] read(Path file, CancellationToken token) throws IOException {

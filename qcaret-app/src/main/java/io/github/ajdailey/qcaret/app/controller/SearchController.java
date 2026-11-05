@@ -998,6 +998,7 @@ public final class SearchController implements ResultsInput {
     if (editor == null || disposed) {
       return;
     }
+    editor.jumping();
     Document document = editor.document();
     TextSnapshot text = document.text();
     int start = f.start(match);
