@@ -20,6 +20,8 @@ import org.eclipse.swt.widgets.Listener;
  *       block; Alt+Shift+click and drag extend the block from its anchor or the primary caret. In
  *       column selection mode a plain drag selects a block.
  *   <li>Mod+click adds a caret, or removes the one clicked when several exist.
+ *   <li>A click in the gutter's fold marker column toggles the fold region starting on that row's
+ *       line; the widget's caret stays.
  *   <li>A block drag held above, below, left or right of the text area extends the block toward the
  *       pointer every {@link #AUTOSCROLL_MILLIS} on a {@link UiDispatcher} timer, and the
  *       controller scrolls to the block's caret. Release, focus loss and dispose cancel the timer.
@@ -45,6 +47,8 @@ final class EditorGestures implements Listener {
   private boolean autoscrolling;
   private int dragX;
   private int dragY;
+  private int foldLeft;
+  private int foldRight;
 
   EditorGestures(
       StyledText text, DisplayProjection projection, EditorInput input, UiDispatcher timers) {
@@ -82,6 +86,12 @@ final class EditorGestures implements Listener {
     columnMode = on;
   }
 
+  /** Sets the fold marker column's horizontal extent, in pixels from the widget's left edge. */
+  void setFoldColumn(int left, int right) {
+    foldLeft = left;
+    foldRight = right;
+  }
+
   @Override
   public void handleEvent(Event event) {
     if (event.widget != text || text.isDisposed()) {
@@ -112,7 +122,17 @@ final class EditorGestures implements Listener {
   }
 
   private void down(Event event) {
-    if (event.button != 1 || event.count > 1) {
+    if (event.button != 1) {
+      return;
+    }
+    if (event.x >= foldLeft && event.x < foldRight) {
+      if (event.count == 1 && (event.stateMask & SWT.MODIFIER_MASK) == 0) {
+        input.toggleFoldFromView(text.getLineIndex(event.y));
+      }
+      consume(event);
+      return;
+    }
+    if (event.count > 1) {
       return;
     }
     int mask = event.stateMask;

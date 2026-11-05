@@ -444,7 +444,19 @@ public enum UiText {
   /** Status bar language field's tip. */
   STATUS_LANGUAGE_TIP,
   /** Notice: grammar files skipped, the first with its reason. */
-  NOTICE_GRAMMARS_SKIPPED;
+  NOTICE_GRAMMARS_SKIPPED,
+  /** View submenu of the fold commands. */
+  MENU_FOLDING,
+  /** Command label. */
+  COMMAND_FOLD,
+  /** Command label. */
+  COMMAND_UNFOLD,
+  /** Command label. */
+  COMMAND_TOGGLE_FOLD,
+  /** Command label. */
+  COMMAND_FOLD_ALL,
+  /** Command label. */
+  COMMAND_UNFOLD_ALL;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

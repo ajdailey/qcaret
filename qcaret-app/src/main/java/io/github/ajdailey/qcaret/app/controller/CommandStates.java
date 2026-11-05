@@ -29,7 +29,8 @@ import java.util.Set;
  *
  * <p>A command that acts on the selected document is disabled without one. A binary file's view
  * disables every command that would write or edit it; a read-only document disables the edits and
- * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. A disabled
+ * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. The fold
+ * commands need fold regions in the focused view, the unfold commands a collapsed one. A disabled
  * menu item's accelerator does not fire.
  */
 public final class CommandStates {
@@ -179,6 +180,12 @@ public final class CommandStates {
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS -> documents.count() > 1;
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;
+      case FOLD, TOGGLE_FOLD, FOLD_ALL ->
+          documents.activeEditor() != null
+              && documents.activeEditor().projection().foldRegionCount() > 0;
+      case UNFOLD, UNFOLD_ALL ->
+          documents.activeEditor() != null
+              && documents.activeEditor().projection().collapsedCount() > 0;
       default -> true;
     };
   }

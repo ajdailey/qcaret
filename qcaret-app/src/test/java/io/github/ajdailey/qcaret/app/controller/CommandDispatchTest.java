@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,6 +97,48 @@ class CommandDispatchTest {
         .activeEditor()
         .selections()
         .set(SelectionSet.of(List.of(Selection.of(3, 12), Selection.caret(40)), 0));
+  }
+
+  private static final String FOLDED = "a {\n  b {\n    c\n  }\n  d\n}\ne\n";
+
+  /** Shows the indented text in the selected view with every region collapsed. */
+  private void folded() throws Exception {
+    DocumentController documents = harness.application.documents();
+    if (documents.activeEditor() == null) {
+      harness.open(Files.writeString(temp.resolve("folded.txt"), FOLDED));
+    }
+    final EditorController editor = documents.activeEditor();
+    editor.document().setReadOnly(false);
+    if (!editor.document().text().toString().equals(FOLDED)) {
+      editor.selectAll();
+      editor.type(FOLDED);
+    }
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return editor.projection().foldRegionCount() == 2;
+          }
+        },
+        "fold regions");
+    editor.projection().foldAll();
+    editor.selections().set(SelectionSet.caret(1));
+  }
+
+  @Test
+  void everyCommandRunsWithCollapsedRegionsInASplitView() throws Exception {
+    folded();
+    harness.application.execute(CommandId.SPLIT_HORIZONTAL);
+    for (CommandId command : commands()) {
+      folded();
+      run(command);
+      if (harness.view.unsaved != null) {
+        Consumer<UnsavedChoice> answer = harness.view.unsaved;
+        harness.view.unsaved = null;
+        answer.accept(UnsavedChoice.CANCEL);
+      }
+    }
+    assertEquals(0, harness.view.active.get());
   }
 
   @Test

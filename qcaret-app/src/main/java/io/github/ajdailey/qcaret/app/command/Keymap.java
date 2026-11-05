@@ -100,6 +100,10 @@ public final class Keymap {
     editor(b, CommandId.DELETE_BACK, S, KeyStroke.BACKSPACE);
     editor(b, CommandId.DELETE_FORWARD, 0, KeyStroke.DELETE);
     editor(b, CommandId.CANCEL, 0, KeyStroke.ESCAPE);
+    editor(b, CommandId.FOLD, P | S, '[');
+    editor(b, CommandId.UNFOLD, P | S, ']');
+    editor(b, CommandId.FOLD_ALL, P | KeyStroke.ALT, '[');
+    editor(b, CommandId.UNFOLD_ALL, P | KeyStroke.ALT, ']');
     return new Keymap(b, mac);
   }
 

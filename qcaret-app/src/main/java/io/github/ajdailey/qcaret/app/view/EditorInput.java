@@ -132,6 +132,14 @@ public interface EditorInput {
   void commitFromView(int count);
 
   /**
+   * Expands the collapsed region starting on a row's line, or else collapses the region starting
+   * there, after a click on its gutter marker.
+   *
+   * @param row the clicked display row
+   */
+  void toggleFoldFromView(int row);
+
+  /**
    * Reports the display range the view shows, for find highlights.
    *
    * @param start the display offset of the first visible row

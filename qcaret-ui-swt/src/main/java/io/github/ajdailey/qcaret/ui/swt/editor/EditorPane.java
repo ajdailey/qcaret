@@ -70,11 +70,14 @@ import org.eclipse.swt.widgets.Listener;
  *       model change and every display change. A widget report of that primary, such as after a
  *       resize, keeps the other selections; a plain click leaves one.
  *   <li>Painting: the gutter is drawn in the widget's left margin by a paint listener, its digits
- *       placed by {@link ColumnMetrics}. Secondary carets sit at {@link
- *       StyledText#getLocationAtOffset} and secondary selections are line style backgrounds, so
- *       both follow the widget's measured glyph positions on any script. A block's part past a
- *       line's end and its carets there are painted from the line end's measured position at the
- *       font's fractional advance.
+ *       placed by {@link ColumnMetrics}. Its right column shows a fold marker on each line that
+ *       starts a fold region, a box with a minus sign, or a plus sign while collapsed; a click
+ *       there goes to {@link EditorInput#toggleFoldFromView}. A collapsed region's first line ends
+ *       in a box with an ellipsis. Secondary carets in hidden lines are not painted. Secondary
+ *       carets sit at {@link StyledText#getLocationAtOffset} and secondary selections are line
+ *       style backgrounds, so both follow the widget's measured glyph positions on any script. A
+ *       block's part past a line's end and its carets there are painted from the line end's
+ *       measured position at the font's fractional advance.
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
  *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
  *       a wrapped row's right edge selects the row's last word.
@@ -97,6 +100,9 @@ public final class EditorPane implements EditorView {
 
   /** Pixels between the gutter and the text. */
   static final int GUTTER_GAP = 4;
+
+  /** Columns of the fold marker column, right of the line numbers. */
+  static final int FOLD_COLUMNS = 2;
 
   /** Width of the primary caret and of a painted secondary caret. */
   public static final int CARET_WIDTH = 2;
@@ -219,6 +225,7 @@ public final class EditorPane implements EditorView {
               }
             });
     gestures = new EditorGestures(text, projection, input, ui);
+    gestures.setFoldColumn(foldColumn(), gutterWidth);
     listen();
     syncWidget();
   }
@@ -406,11 +413,23 @@ public final class EditorPane implements EditorView {
     updateCaret();
   }
 
+  /**
+   * Returns the fold marker column's left edge.
+   *
+   * @return pixels from the widget's left edge
+   */
+  public int foldColumn() {
+    return gutterWidth - metrics.x(FOLD_COLUMNS);
+  }
+
   private void updateGutter() {
     int digits = ColumnMetrics.gutterDigits(projection.lineCount());
     if (digits != gutterDigits) {
       gutterDigits = digits;
-      gutterWidth = metrics.x(digits) + 2 * GUTTER_PADDING;
+      gutterWidth = metrics.x(digits) + 2 * GUTTER_PADDING + metrics.x(FOLD_COLUMNS);
+      if (gestures != null) {
+        gestures.setFoldColumn(foldColumn(), gutterWidth);
+      }
       text.setLeftMargin(gutterWidth + GUTTER_GAP);
       reportColumns();
       text.redraw();
@@ -584,6 +603,7 @@ public final class EditorPane implements EditorView {
           @Override
           public void paintControl(PaintEvent event) {
             paintGutter(event.gc, event.y, event.height);
+            paintCollapsed(event.gc);
             if (selections.block() != null) {
               paintBlock(event.gc);
             } else {
@@ -747,9 +767,59 @@ public final class EditorPane implements EditorView {
         break;
       }
       if (projection.subRow(row) == 0) {
-        String number = Integer.toString(projection.lineOfRow(row) + 1);
-        int x = gutterWidth - GUTTER_PADDING - metrics.x(number.length());
+        int line = projection.lineOfRow(row);
+        String number = Integer.toString(line + 1);
+        int x = foldColumn() - GUTTER_PADDING - metrics.x(number.length());
         gc.drawString(number, x, top, true);
+        if (projection.foldEnd(line) >= 0) {
+          paintFoldMarker(gc, top, projection.collapsed(line));
+        }
+      }
+    }
+  }
+
+  /**
+   * Draws a fold marker box in the gutter's fold column: a minus sign, or a plus when collapsed.
+   */
+  private void paintFoldMarker(GC gc, int top, boolean collapsed) {
+    int lineHeight = text.getLineHeight();
+    int size = Math.max(5, Math.min(metrics.x(FOLD_COLUMNS) - 4, lineHeight - 4)) | 1;
+    int x = foldColumn() + (metrics.x(FOLD_COLUMNS) - size) / 2;
+    int y = top + (lineHeight - size) / 2;
+    int middle = size / 2;
+    gc.drawRectangle(x, y, size - 1, size - 1);
+    gc.drawLine(x + 2, y + middle, x + size - 3, y + middle);
+    if (collapsed) {
+      gc.drawLine(x + middle, y + 2, x + middle, y + size - 3);
+    }
+  }
+
+  /** Draws an ellipsis box after the last row of each visible collapsed region's first line. */
+  private void paintCollapsed(GC gc) {
+    if (projection.collapsedCount() == 0) {
+      return;
+    }
+    Rectangle area = text.getClientArea();
+    int rows = projection.rowCount();
+    int lineHeight = text.getLineHeight();
+    gc.setForeground(lineNumbers);
+    gc.setFont(font);
+    for (int row = text.getTopIndex(); row < rows; row++) {
+      int top = text.getLinePixel(row);
+      if (top > area.height) {
+        break;
+      }
+      int line = projection.lineOfRow(row);
+      boolean lastRow = row + 1 >= rows || projection.lineOfRow(row + 1) != line;
+      if (!lastRow || !projection.collapsed(line)) {
+        continue;
+      }
+      Point end =
+          text.getLocationAtOffset(projection.rowStart(row) + projection.rowText(row).length());
+      int x = end.x + metrics.x(1);
+      if (x >= text.getLeftMargin()) {
+        gc.drawRectangle(x, top + 1, metrics.x(3) + 1, lineHeight - 3);
+        gc.drawString("...", x + 1, top, true);
       }
     }
   }
@@ -772,7 +842,10 @@ public final class EditorPane implements EditorView {
       if (s.start() > to) {
         break;
       }
-      if (i == set.primaryIndex() || s.caret() < from || s.caret() > to) {
+      if (i == set.primaryIndex()
+          || s.caret() < from
+          || s.caret() > to
+          || projection.hidden(projection.lineAt(s.caret()))) {
         continue;
       }
       Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));

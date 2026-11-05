@@ -345,7 +345,12 @@ public final class ApplicationController {
           BLOCK_LEFT,
           BLOCK_RIGHT,
           BLOCK_UP,
-          BLOCK_DOWN ->
+          BLOCK_DOWN,
+          FOLD,
+          UNFOLD,
+          TOGGLE_FOLD,
+          FOLD_ALL,
+          UNFOLD_ALL ->
           edit(command);
       case TAB_WIDTH_2 -> documents.setTabWidth(2);
       case TAB_WIDTH_4 -> documents.setTabWidth(4);

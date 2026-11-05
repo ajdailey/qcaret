@@ -132,7 +132,12 @@ which `MainWindow.clipboardText` uses.
   Past a row's end columns continue at the fractional advance.
 - The gutter is painted in the widget's left margin by a paint listener, with
   the line number on each line's first row; `ColumnMetrics` places the digits
-  and sizes the margin. The current line's rows get the palette's
+  and sizes the margin. A two-column fold marker column right of the numbers
+  shows a box with a minus on each line that starts a fold region, a plus
+  while it is collapsed; `EditorGestures` takes a click there from the
+  Display filter and sends `toggleFoldFromView`, so the widget's caret stays.
+  A collapsed region's first line ends in a box with an ellipsis. Secondary
+  carets in hidden lines are not painted. The current line's rows get the palette's
   current-line background (`LineBackgroundListener`). Secondary selections are
   line style backgrounds and secondary carets are 2 px bars at
   `getLocationAtOffset`, so both follow the widget's measured glyphs on any
@@ -272,12 +277,19 @@ bar; the Focus Other View item shows F6 and switches views.
 palette color and bold, a number keeping its color under a find match, the
 Syntax cascade's grammar list and a switch to Plain Text that clears the
 styles and the status field.
+
+`FoldingSurfaceTest` (tag `swt`) clicks fold markers and checks the widget's
+lines against the projection's rows, moves the caret by key over a collapsed
+region, folds one split view and types in it with the other unchanged, and
+sends Enter after an opener; with `-Dqcaret.screenshots=<dir>` it saves
+`folding.png`.
 `SwtUiDispatcherTest` checks that a canceled timer does not run and that
 cancel after dispose does nothing. `CaretInkTest` checks the caret image color
 under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
 `DeviceData.tracking` over a
 warm-up round and four rounds of tab open and close, the tab menu, both
-themes, zoom, split with the find bar searching and closed, unsplit, and
+themes, zoom, split with Fold All and Unfold All in both views and the find
+bar searching and closed, unsplit, and
 every menu's `Show`; the live counts per type must return to the warm-up's,
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it

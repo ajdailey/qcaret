@@ -111,6 +111,16 @@ public enum CommandId {
   /** Read the grammars again; the Syntax cascade lists the languages above it. */
   RELOAD_GRAMMARS(
       CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, true, false, UiText.MENU_SYNTAX),
+  /** Collapse the fold region the caret's line starts, or else the innermost one holding it. */
+  FOLD(CommandGroup.VIEW, UiText.COMMAND_FOLD, true, false, UiText.MENU_FOLDING),
+  /** Expand the collapsed region the caret's line starts. */
+  UNFOLD(CommandGroup.VIEW, UiText.COMMAND_UNFOLD, false, false, UiText.MENU_FOLDING),
+  /** Expand the collapsed region at the caret's line, or else fold. */
+  TOGGLE_FOLD(CommandGroup.VIEW, UiText.COMMAND_TOGGLE_FOLD, false, false, UiText.MENU_FOLDING),
+  /** Collapse every fold region in the focused view. */
+  FOLD_ALL(CommandGroup.VIEW, UiText.COMMAND_FOLD_ALL, true, false, UiText.MENU_FOLDING),
+  /** Expand every collapsed region in the focused view. */
+  UNFOLD_ALL(CommandGroup.VIEW, UiText.COMMAND_UNFOLD_ALL, false, false, UiText.MENU_FOLDING),
   /** Open the find bar. */
   FIND(CommandGroup.SEARCH, UiText.COMMAND_FIND, false, false, null),
   /** Select the next match. */

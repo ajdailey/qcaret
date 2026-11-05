@@ -61,7 +61,7 @@ state and cascade. The menus are File, Edit (also the line commands, case,
 indent, tab width, indent with spaces, Go to Line and Read-Only), Selection
 (add caret above and below, add next occurrence, split into lines, column
 selection mode), Search (Find, Find Next, Find Previous, Replace), View (word
-wrap, zoom, theme, the Split cascade), Encoding (the line-ending conversions;
+wrap, zoom, theme, the Split and Folding cascades), Encoding (the line-ending conversions;
 the view adds the charset cascades), Window (next and previous tab, Close
 Others; the view lists the documents) and Help. The `EDITOR` group holds the
 caret moves, block selection keys, Tab, Enter, Backspace, Delete and Esc, which
@@ -85,7 +85,9 @@ Mod+H, Cmd+Option+F on macOS, where Cmd+H hides the application. Add Caret
 Above and Below are Ctrl+Shift+Up and Down on every platform: Linux desktops
 take Ctrl+Alt+Up and Down, and GNOME Ctrl+Alt+Shift+Up and Down, for
 workspaces. `KeyStroke.CONTROL` is the macOS Control key. F6 focuses the
-other split view; the split commands have no key. `reference(filter)` lists
+other split view; the split commands have no key. Fold and Unfold are
+Mod+Shift+[ and ], Fold All and Unfold All Mod+Alt+[ and ], editor bindings;
+Toggle Fold has no key. `reference(filter)` lists
 the bindings whose group,
 command or keys contain the filter. Shortcut overrides are not built.
 
@@ -261,6 +263,20 @@ document ignores edits. The controller also runs the projection's rewraps on
   document grammar's delimiters at every selection, as one undo step; a
   grammar without a line comment toggles a block comment around each block of
   lines.
+- Enter and a typed closer go through `SmartIndent` with the view's
+  `IndentRules` (`IndentRules.BRACKETS` until a grammar supplies its own).
+- Folding: Fold collapses the region the primary caret's line starts, else the
+  innermost expanded region holding it; Unfold expands the collapsed region
+  the line starts; Toggle Fold does either; Fold All and Unfold All take every
+  region of the view. Folding moves each caret and anchor in hidden lines to
+  the end of the line before them. A primary caret that any other command
+  puts in hidden lines (find, Go to Line, undo) expands the regions hiding
+  it. Left, Right, the word moves and Mod+End step over hidden lines.
+- Fold regions come from a `FoldRegionSource` (`setFoldSource`; by default
+  `IndentFoldSource` at the document's tab width) on a `qcaret-cpu-` worker,
+  300 ms after the last change and at once on a tab width change, one run at
+  a time; a result for an older revision is dropped. Each view computes its
+  own.
 
 ### Syntax highlighting
 
@@ -320,6 +336,26 @@ the next row.
 - A document change recomputes the changed lines' rows on the UI thread. A
   change over 1 Mi chars with wrap on gets only the long-line splits there,
   and the projection asks its owner for a rewrap.
+- Folds: `setFoldRegions` gives the regions a view offers, one per start
+  line; `fold`, `foldAt`, `unfold`, `foldAll`, `unfoldAll` and `reveal`
+  change the collapsed set, each as one display change over the lines it
+  affects. `FoldLayer` holds the collapsed regions, sorted by start line, and
+  the hidden spans they merge into: region `(a, b)` hides lines `a + 1` to
+  `b`, and line `a` is followed by line `b`'s delimiter. Each span keeps the
+  chars and rows it hides and where its hidden text starts in the unfolded
+  display, so a display lookup is a binary search over spans and reads no
+  text. A model offset in hidden text maps to the end of the span's first
+  line (`visibleOffset` gives a shown offset in either direction).
+- An edit that touches a collapsed region's hidden text, from the end of its
+  first line to the end of its last, expands it. An edit that ends at the
+  first line's end, or inserts there without a line break, keeps it, unless a
+  CR would join that line's LF; the region then follows the edit. Spans after
+  an edit move by the change's char and row deltas; spans inside it are
+  measured again. With a deferred rewrap (over 1 Mi chars), a region whose
+  hidden lines lose their wrap also expands. Offered regions follow edits
+  approximately until the next `setFoldRegions`, which also expands a
+  collapsed region when no offered region starts on its first line and takes
+  a changed end.
 - Turning wrap on or off, a new wrap width and, with wrap on, a new tab width
   need a rewrap of every line:
   `rewrapRequest` returns a `Rewrap`, `compute` runs on a worker from the
@@ -338,6 +374,17 @@ splits the line's tokens around it, any other edit drops the lines it touches,
 and a CR and LF joining or parting at an edit (line count off from the edits'
 sum) drops every line. `FoldRegionSource` is the fold layer's input: `{start,
 end}` line pairs per revision.
+
+`IndentFoldSource` opens a region on a non-blank line when the next non-blank
+line is indented deeper and ends it on the last non-blank line before a line
+indented no deeper; blank lines stay outside. `SmartIndent`: Enter copies the
+caret line's leading whitespace up to the caret; after an opener
+(`IndentRules.increase`) it adds a tab or a tab width of spaces as the
+document indents, and with a closer after the caret (`IndentRules.decrease`)
+the closer moves to its own line at the old indentation. A closer typed after
+only whitespace outdents the line to the previous non-blank line's
+indentation, one level less unless that line opens one, and never indents it
+further.
 
 `ColumnMetrics` holds a monospace font's column geometry: the advance is the
 measured width of 1,000 digits over 1,000, kept fractional, and column `c`
@@ -464,6 +511,16 @@ line by line from `RowBreaks` after 1,500 seeded random edits that join and
 part CR LF pairs, wrap on and off, replaying each display change on a mirror
 string; it also covers stale and superseded rewraps and the large-change
 fallback, one change over distant edits, and a rewrap on a tab width change.
+`FoldingTest` compares the projection with a display text built line by line
+with the collapsed lines left out, through 80 seeded rounds of random region
+sets, folds, unfolds, reveals and edits that join and part CR LF pairs, wrap
+on and off, replaying each display change on a mirror (`-DfoldRounds=N` runs
+more; 20,000 passed); it also covers rewraps with folds, the expand rules, the
+offered regions' reconciliation and indentation regions. `FoldingCommandsTest`
+runs the fold commands, caret moves over a collapsed region, the reveal, an
+edit at a hidden secondary caret, independent split views and smart indent
+through the controllers; `CommandDispatchTest` also runs every command with
+every region collapsed in a split view.
 `ColumnMetricsTest` checks column 150 at a 7.22 px advance.
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory

@@ -3,6 +3,10 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.CaretNavigation;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
+import io.github.ajdailey.qcaret.app.editor.IndentFoldSource;
+import io.github.ajdailey.qcaret.app.editor.IndentRules;
+import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
@@ -15,9 +19,12 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Columns;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.DocumentChange;
+import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.Selection;
+import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.edit.BlockEdits;
@@ -54,14 +61,26 @@ import java.util.concurrent.RejectedExecutionException;
  *       first removes it.
  *   <li>Toggle Line Comment and Toggle Block Comment use the document grammar's delimiters ({@link
  *       CommentEdits}), at every selection, as one undo step.
+ *   <li>Enter and typed closers indent through {@link SmartIndent} and the view's {@link
+ *       IndentRules}.
+ *   <li>Folding: the fold commands act on the primary caret's line. Folding moves every caret out
+ *       of the hidden lines, to the end of the region's first line; a primary caret placed in
+ *       hidden lines by any other command, such as find or go to line, expands the regions around
+ *       it. Left, Right, word and document-end moves step over hidden lines.
  * </ul>
  *
  * <p>The controller also schedules the projection's rewraps: each runs on a {@code qcaret-cpu-}
- * worker, and a newer request cancels the running one. Confined to the UI thread.
+ * worker, and a newer request cancels the running one. Fold regions come from a {@link
+ * FoldRegionSource} on a {@code qcaret-cpu-} worker, {@value #FOLD_DELAY_MILLIS} ms after the last
+ * change, one run at a time; a result for an older revision is dropped and the regions requested
+ * again. Confined to the UI thread.
  */
 public final class EditorController implements EditorInput {
   /** Rows a page move takes without a view. */
   static final int DEFAULT_PAGE_ROWS = 20;
+
+  /** Milliseconds from a change to the fold region update it starts. */
+  static final int FOLD_DELAY_MILLIS = 300;
 
   private final Document document;
   private final SelectionModel selections;
@@ -77,6 +96,37 @@ public final class EditorController implements EditorInput {
   private boolean columnMode;
   private boolean disposed;
   private Grammar.Comments comments = Grammar.Comments.NONE;
+  private FoldRegionSource foldSource;
+  private IndentRules indentRules = IndentRules.BRACKETS;
+  private boolean foldsRunning;
+  private boolean foldsAgain;
+  private final Runnable foldTimer =
+      new Runnable() {
+        @Override
+        public void run() {
+          scheduleFolds();
+        }
+      };
+  private final SelectionListener revealer =
+      new SelectionListener() {
+        @Override
+        public void selectionsChanged(SelectionModel model) {
+          revealPrimary();
+        }
+      };
+  private final DocumentListener foldFollower =
+      new DocumentListener() {
+        @Override
+        public void textChanged(DocumentChange change) {
+          ui.cancelTimer(foldTimer);
+          ui.timerExec(FOLD_DELAY_MILLIS, foldTimer);
+        }
+
+        @Override
+        public void dirtyChanged(boolean dirty) {
+          // Fold regions do not depend on the dirty state.
+        }
+      };
 
   /**
    * Creates the controller.
@@ -109,6 +159,9 @@ public final class EditorController implements EditorInput {
             scheduleRewrap();
           }
         });
+    selections.addListener(revealer);
+    document.addListener(foldFollower);
+    scheduleFolds();
   }
 
   /**
@@ -157,6 +210,9 @@ public final class EditorController implements EditorInput {
       if (occurrence != null) {
         occurrence.cancel();
       }
+      ui.cancelTimer(foldTimer);
+      selections.removeListener(revealer);
+      document.removeListener(foldFollower);
       projection.dispose();
       selections.dispose();
     }
@@ -186,6 +242,10 @@ public final class EditorController implements EditorInput {
     scheduleRewrap();
     if (view != null) {
       view.setTabWidth(document.tabWidth());
+    }
+    if (foldSource == null) {
+      ui.cancelTimer(foldTimer);
+      ui.timerExec(0, foldTimer);
     }
   }
 
@@ -370,6 +430,7 @@ public final class EditorController implements EditorInput {
           applyEdit(
               CommentEdits.toggleBlock(
                   document.text(), current(), comments.blockStart(), comments.blockEnd()));
+      case FOLD, UNFOLD, TOGGLE_FOLD, FOLD_ALL, UNFOLD_ALL -> fold(command);
       default -> {
         return false;
       }
@@ -441,12 +502,41 @@ public final class EditorController implements EditorInput {
               document.text(), block, document.tabWidth(), text, EditBatch.Kind.TYPING));
       return;
     }
+    Edit outdent =
+        block == null
+            ? SmartIndent.typed(
+                document.text(),
+                current(),
+                text,
+                indentRules,
+                document.tabWidth(),
+                document.insertSpaces())
+            : null;
+    if (outdent != null) {
+      applyEdit(outdent);
+      return;
+    }
     replaceSelections(text, EditBatch.Kind.TYPING);
   }
 
   @Override
   public void newline() {
-    replaceSelections(document.lineEnding().text(), EditBatch.Kind.TYPING);
+    if (document.isReadOnly()) {
+      return;
+    }
+    document.clearPreedit();
+    if (selections.block() != null) {
+      replaceSelections(document.lineEnding().text(), EditBatch.Kind.TYPING);
+      return;
+    }
+    applyEdit(
+        SmartIndent.newline(
+            document.text(),
+            current(),
+            document.lineEnding().text(),
+            indentRules,
+            document.tabWidth(),
+            document.insertSpaces()));
   }
 
   @Override
@@ -724,6 +814,9 @@ public final class EditorController implements EditorInput {
         continue;
       }
       int[] target = target(text, motion, s);
+      if (target[1] < 0) {
+        target[0] = projection.visibleOffset(target[0], target[0] > s.caret());
+      }
       out.add(
           extend
               ? new Selection(s.anchor(), target[0], target[1])
@@ -791,6 +884,133 @@ public final class EditorController implements EditorInput {
   private void setBlock(BlockSelection block) {
     selections.setBlock(block, document.tabWidth());
     showCaret();
+  }
+
+  // Folding and indent rules.
+
+  /**
+   * Sets where fold regions come from and requests them again.
+   *
+   * @param source the source, or null for indentation folding at the document's tab width
+   */
+  public void setFoldSource(FoldRegionSource source) {
+    foldSource = source;
+    ui.cancelTimer(foldTimer);
+    ui.timerExec(0, foldTimer);
+  }
+
+  /**
+   * Sets the rules smart indent follows.
+   *
+   * @param rules the rules
+   */
+  public void setIndentRules(IndentRules rules) {
+    indentRules = rules;
+  }
+
+  @Override
+  public void toggleFoldFromView(int row) {
+    int line = projection.lineOfRow(Math.max(0, Math.min(row, projection.rowCount() - 1)));
+    if (!projection.unfold(line) && projection.foldAt(line)) {
+      caretsOutOfFolds();
+    }
+  }
+
+  private void fold(CommandId command) {
+    int line = projection.lineAt(selections.selections().primary().caret());
+    boolean changed =
+        switch (command) {
+          case FOLD -> projection.fold(line);
+          case UNFOLD -> projection.unfold(line);
+          case TOGGLE_FOLD -> projection.unfold(line) || projection.fold(line);
+          case FOLD_ALL -> projection.foldAll();
+          default -> projection.unfoldAll();
+        };
+    if (changed) {
+      caretsOutOfFolds();
+      showCaret();
+    }
+  }
+
+  /** Moves every caret and anchor in hidden lines to the end of the line before them. */
+  private void caretsOutOfFolds() {
+    if (selections.block() != null) {
+      return;
+    }
+    SelectionSet set = selections.selections();
+    List<Selection> out = new ArrayList<Selection>(set.size());
+    boolean moved = false;
+    for (Selection s : set.selections()) {
+      int anchor = projection.visibleOffset(s.anchor(), false);
+      int caret = projection.visibleOffset(s.caret(), false);
+      moved |= anchor != s.anchor() || caret != s.caret();
+      out.add(Selection.of(anchor, caret));
+    }
+    if (moved) {
+      selections.set(SelectionSet.of(out, set.primaryIndex()));
+    }
+  }
+
+  /** Expands the regions that hide the primary caret. */
+  private void revealPrimary() {
+    if (projection.collapsedCount() > 0) {
+      projection.reveal(projection.lineAt(selections.selections().primary().caret()));
+    }
+  }
+
+  /** Computes the fold regions on a worker, after the one running. */
+  private void scheduleFolds() {
+    if (disposed) {
+      return;
+    }
+    if (foldsRunning) {
+      foldsAgain = true;
+      return;
+    }
+    final FoldRegionSource source =
+        foldSource != null ? foldSource : new IndentFoldSource(document.tabWidth());
+    final TextSnapshot text = document.text();
+    final long revision = document.revision();
+    foldsRunning = true;
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              List<int[]> regions = null;
+              try {
+                regions = source.regions(text, revision);
+              } finally {
+                final List<int[]> result = regions;
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        foldsComputed(revision, result);
+                      }
+                    });
+              }
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      foldsRunning = false;
+    }
+  }
+
+  /** Installs computed regions while the document is at their revision; null after a failure. */
+  private void foldsComputed(long revision, List<int[]> regions) {
+    foldsRunning = false;
+    if (disposed) {
+      return;
+    }
+    if (foldsAgain) {
+      foldsAgain = false;
+      scheduleFolds();
+      return;
+    }
+    if (regions != null && document.revision() == revision) {
+      projection.setFoldRegions(regions);
+    }
   }
 
   // Selections.

@@ -98,14 +98,17 @@ class DocumentControllerTest {
     };
   }
 
-  /** Waits until every worker ended, then runs what they posted. */
+  /**
+   * Waits until every started worker ended, then runs what they posted. The CPU pool's threads stay
+   * once fold regions ran on them.
+   */
   private void settle() throws Exception {
     assertTrue(
         Poll.until(
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
-                return workers.liveThreads() == 0;
+                return workers.liveThreadNames().replaceAll("qcaret-cpu-\\* x\\d+", "").isEmpty();
               }
             },
             BOUND));

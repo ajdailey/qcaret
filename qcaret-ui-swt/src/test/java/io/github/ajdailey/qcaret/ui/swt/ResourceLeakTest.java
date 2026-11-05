@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -45,10 +46,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit, and
- * the find bar opened, searching and closed return the Display's tracked graphics resources ({@code
- * DeviceData.tracking}) to their count after a warm-up round. Theme switches, zoom and split each
- * rebuild or add a primary caret image. A failure lists each leaked object's allocation stack.
+ * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
+ * folding and unfolding in both views of a split, and the find bar opened, searching and closed
+ * return the Display's tracked graphics resources ({@code DeviceData.tracking}) to their count
+ * after a warm-up round. Theme switches, zoom and split each rebuild or add a primary caret image.
+ * A failure lists each leaked object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -130,7 +132,7 @@ class ResourceLeakTest {
     if (!Files.exists(file)) {
       StringBuilder text = new StringBuilder();
       for (int i = 0; i < 200; i++) {
-        text.append("line ").append(i).append('\n');
+        text.append(i % 4 == 0 ? "line " : "  line ").append(i).append('\n');
       }
       Files.writeString(file, text.toString(), StandardCharsets.US_ASCII);
     }
@@ -176,7 +178,26 @@ class ResourceLeakTest {
     drain();
   }
 
-  /** Splits the tab, finds with the bar open in both views, closes the bar and unsplits. */
+  /** Collapses every region in the focused view once its regions arrive. */
+  private void foldAll() {
+    final EditorController editor = controller.documents().activeEditor();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return editor.projection().foldRegionCount() > 0;
+              }
+            }));
+    controller.execute(CommandId.FOLD_ALL);
+    drain();
+    assertEquals(editor.projection().foldRegionCount(), editor.projection().collapsedCount());
+  }
+
+  /**
+   * Splits the tab, folds and unfolds in both views, finds with the bar open in both views, closes
+   * the bar and unsplits, keeping the new view.
+   */
   private void splitAndFind() {
     controller.execute(CommandId.SPLIT_VERTICAL);
     drain();
@@ -184,6 +205,13 @@ class ResourceLeakTest {
     for (EditorPane pane : window.activeEditors()) {
       assertFalse(pane.caretImage().isDisposed());
     }
+    foldAll();
+    controller.execute(CommandId.FOCUS_OTHER_VIEW);
+    foldAll();
+    controller.execute(CommandId.UNFOLD_ALL);
+    controller.execute(CommandId.FOCUS_OTHER_VIEW);
+    controller.execute(CommandId.UNFOLD_ALL);
+    drain();
     controller.execute(CommandId.FIND);
     window.findBar().field().setText("line " + (cycles++ % 2));
     assertTrue(

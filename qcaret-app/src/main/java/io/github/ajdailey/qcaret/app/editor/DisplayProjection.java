@@ -10,6 +10,8 @@ import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.TextEdit;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +37,14 @@ import java.util.concurrent.CancellationException;
  * the result to {@link #install} on the UI thread, which applies it only while the document is
  * still at the snapshot's revision. Confined to the UI thread.
  *
- * <p>Folds attach as a second sparse layer keyed by model line, a hidden line contributing no rows
- * and no chars; none is applied yet.
+ * <p>Folds: the view's collapsed regions ({@link FoldLayer}) hide their lines from the display
+ * text, keyed by model line, without changing the rows of the other lines. A collapsed region's
+ * first line shows, followed by its last line's delimiter; a hidden line has no rows and no chars,
+ * and a model offset in hidden text maps to the end of the region's first line. An edit that
+ * touches a collapsed region's hidden text, its first line's line break included, expands the
+ * region; typing on the first line keeps it. The available regions come from {@link
+ * #setFoldRegions}; until the next call they follow edits approximately. Each view holds its own
+ * folds; a projection made from {@link #currentLayout} starts with none.
  */
 public final class DisplayProjection implements DocumentListener {
   /** Chars per row at most, wrap on or off: longer rows make the widget's layout stall. */
@@ -129,6 +137,9 @@ public final class DisplayProjection implements DocumentListener {
   private int pendingTabWidth;
   private Runnable rewrapHook;
   private boolean disposed;
+  private FoldLayer folds = FoldLayer.NONE;
+  private int[] regionStarts = new int[0];
+  private int[] regionEnds = new int[0];
 
   /**
    * Creates a projection and starts following the document. Call on the UI thread.
@@ -436,11 +447,13 @@ public final class DisplayProjection implements DocumentListener {
     }
     int oldLength = length();
     int oldRows = rowCount();
-    int newRows = text.lineCount() + result.index.totalBreaks();
-    int newLength = text.length() + result.index.totalBreaks();
+    FoldLayer measured = folds.remeasured(text, result.index);
+    int newRows = text.lineCount() + result.index.totalBreaks() - measured.totalRows();
+    int newLength = text.length() + result.index.totalBreaks() - measured.totalChars();
     DisplayChange change = new DisplayChange(0, oldLength, newLength, oldRows - 1, newRows - 1);
     fireChanging(change);
     index = result.index;
+    folds = measured;
     appliedColumns = result.wrapColumns;
     appliedTabWidth = result.tabWidth;
     rowCache.clear();
@@ -476,28 +489,57 @@ public final class DisplayProjection implements DocumentListener {
     }
     int[] head = groups.get(0);
     int[] tail = groups.get(groups.size() - 1);
-    int firstLine = head[0];
-    boolean toEnd = tail[1] == before.lineCount() - 1;
-    int oldBreaks = index.breaksBefore(tail[1] + 1) - index.breaksBefore(firstLine);
-    int newBreaks = oldBreaks - oldGroupBreaks + newGroupBreaks;
-    int start = before.offsetOfLine(firstLine) + index.breaksBefore(firstLine);
+    int lineDelta = after.lineCount() - before.lineCount();
+    int breakDelta = newGroupBreaks - oldGroupBreaks;
+    FoldLayer.Edited edited =
+        folds.afterEdit(
+            before,
+            after,
+            change.edits(),
+            groups,
+            deferred,
+            index,
+            after.length() - before.length() + breakDelta,
+            lineDelta + breakDelta);
+    FoldLayer next = edited.layer();
+    int from = edited.from();
+    int to = edited.to();
+    boolean toEnd = to == before.lineCount() - 1;
+    int start = before.offsetOfLine(from) + index.breaksBefore(from);
     int oldEnd =
         toEnd
             ? before.length() + index.totalBreaks()
-            : before.offsetOfLine(tail[1] + 1) + index.breaksBefore(tail[1] + 1);
-    int newModelEnd = toEnd ? after.length() : after.offsetOfLine(tail[3] + 1);
-    int newEnd = newModelEnd + index.breaksBefore(firstLine) + newBreaks;
-    int oldRows = tail[1] - firstLine + 1 + oldBreaks - (toEnd ? 1 : 0);
-    int newRows = tail[3] - head[2] + 1 + newBreaks - (toEnd ? 1 : 0);
+            : before.offsetOfLine(to + 1) + index.breaksBefore(to + 1);
+    int oldEndRow =
+        toEnd ? before.lineCount() + index.totalBreaks() - 1 : to + 1 + index.breaksBefore(to + 1);
+    int oldRows = oldEndRow - from - index.breaksBefore(from);
+    int k0 = folds.firstSpanFrom(from);
+    int k1 = folds.firstSpanFrom(to + 1);
+    int n0 = next.firstSpanFrom(from);
+    int n1 = next.firstSpanFrom(to + lineDelta + 1);
+    int oldHiddenChars = folds.charsBefore(k1) - folds.charsBefore(k0);
+    int oldHiddenRows = folds.rowsBefore(k1) - folds.rowsBefore(k0);
+    int newHiddenChars = next.charsBefore(n1) - next.charsBefore(n0);
+    int newHiddenRows = next.rowsBefore(n1) - next.rowsBefore(n0);
+    int oldChars = oldEnd - start;
+    int newChars = oldChars + after.length() - before.length() + breakDelta;
     DisplayChange display =
-        new DisplayChange(start, oldEnd - start, newEnd - start, oldRows, newRows);
+        new DisplayChange(
+            start - folds.charsBefore(k0),
+            oldChars - oldHiddenChars,
+            newChars - newHiddenChars,
+            oldRows - oldHiddenRows,
+            oldRows + lineDelta + breakDelta - newHiddenRows);
     fireChanging(display);
     for (int i = groups.size() - 1; i >= 0; i--) {
       int[] g = groups.get(i);
       int newEndLine = g[0] + (g[3] - g[2]) + 1;
       index.replace(g[0], g[1] + 1, newEndLine, builders.get(i));
     }
+    next.place(after, index, n0, n1);
+    shiftRegions(before, after, change.edits(), head[0], tail[1]);
     text = after;
+    folds = next;
     rowCache.clear();
     fireChanged(display);
     if (deferred) {
@@ -576,24 +618,494 @@ public final class DisplayProjection implements DocumentListener {
     }
   }
 
+  // Folding.
+
+  /**
+   * Replaces the fold regions the view offers. A collapsed region expands when no offered region
+   * starts on its first line, and takes the end of the one that does.
+   *
+   * @param regions {@code {startLine, endLine}} pairs; a pair whose end is not below its start or
+   *     is past the text is skipped, and of pairs with one start line the longest is kept
+   */
+  public void setFoldRegions(List<int[]> regions) {
+    List<int[]> sorted = regions;
+    for (int i = 1; i < regions.size(); i++) {
+      if (regions.get(i)[0] < regions.get(i - 1)[0]) {
+        sorted = new ArrayList<int[]>(regions);
+        sorted.sort(
+            new Comparator<int[]>() {
+              @Override
+              public int compare(int[] a, int[] b) {
+                return Integer.compare(a[0], b[0]);
+              }
+            });
+        break;
+      }
+    }
+    int last = text.lineCount() - 1;
+    int[] starts = new int[sorted.size()];
+    int[] ends = new int[sorted.size()];
+    int count = 0;
+    for (int[] r : sorted) {
+      if (r[0] < 0 || r[1] <= r[0] || r[1] > last) {
+        continue;
+      }
+      if (count > 0 && starts[count - 1] == r[0]) {
+        ends[count - 1] = Math.max(ends[count - 1], r[1]);
+      } else {
+        starts[count] = r[0];
+        ends[count++] = r[1];
+      }
+    }
+    regionStarts = Arrays.copyOf(starts, count);
+    regionEnds = Arrays.copyOf(ends, count);
+    int n = folds.regionCount();
+    int[] keptStarts = new int[n];
+    int[] keptEnds = new int[n];
+    int kept = 0;
+    int lo = Integer.MAX_VALUE;
+    int hi = -1;
+    for (int i = 0; i < n; i++) {
+      int a = folds.regionStart(i);
+      int b = folds.regionEnd(i);
+      int j = Arrays.binarySearch(regionStarts, a);
+      if (j < 0 || regionEnds[j] != b) {
+        lo = Math.min(lo, a);
+        hi = Math.max(hi, j < 0 ? b : Math.max(b, regionEnds[j]));
+      }
+      if (j >= 0) {
+        keptStarts[kept] = a;
+        keptEnds[kept++] = regionEnds[j];
+      }
+    }
+    if (hi >= 0) {
+      applyFolds(Arrays.copyOf(keptStarts, kept), Arrays.copyOf(keptEnds, kept), lo, hi);
+    }
+  }
+
+  /**
+   * Returns the number of fold regions the view offers.
+   *
+   * @return regions from the last {@link #setFoldRegions}, moved by the edits since
+   */
+  public int foldRegionCount() {
+    return regionStarts.length;
+  }
+
+  /**
+   * Returns the last line of the region a line starts, collapsed or not.
+   *
+   * @param line a model line
+   * @return the region's end line, or -1 when no region starts there
+   */
+  public int foldEnd(int line) {
+    int i = folds.regionAt(line);
+    if (i >= 0) {
+      return folds.regionEnd(i);
+    }
+    int j = Arrays.binarySearch(regionStarts, line);
+    return j >= 0 ? regionEnds[j] : -1;
+  }
+
+  /**
+   * Reports whether a collapsed region starts at a line.
+   *
+   * @param line a model line
+   * @return true for a collapsed region's first line
+   */
+  public boolean collapsed(int line) {
+    return folds.regionAt(line) >= 0;
+  }
+
+  /**
+   * Returns the number of collapsed regions.
+   *
+   * @return collapsed regions, nested ones included
+   */
+  public int collapsedCount() {
+    return folds.regionCount();
+  }
+
+  /**
+   * Reports whether a collapsed region hides a line.
+   *
+   * @param line a model line
+   * @return true when the line has no rows
+   */
+  public boolean hidden(int line) {
+    return folds.spanHiding(line) >= 0;
+  }
+
+  /**
+   * Returns the shown offset nearest a model offset: the offset itself when its line shows, else,
+   * forward, the start of the line after the hidden lines, or the end of the line before them.
+   *
+   * @param offset a model offset
+   * @param forward true to move past the hidden lines
+   * @return a model offset on a shown line
+   */
+  public int visibleOffset(int offset, boolean forward) {
+    int k = folds.spanHiding(text.lineAt(offset));
+    if (k < 0) {
+      return offset;
+    }
+    int after = folds.last(k) + 1;
+    if (forward && after < text.lineCount()) {
+      return text.offsetOfLine(after);
+    }
+    return FoldLayer.lineEnd(text, folds.head(k));
+  }
+
+  /**
+   * Collapses the region starting at a line, or else the innermost expanded region holding it.
+   *
+   * @param line a model line
+   * @return false when no expanded region holds the line
+   */
+  public boolean fold(int line) {
+    int j = Arrays.binarySearch(regionStarts, line);
+    for (j = j >= 0 ? j : -j - 2; j >= 0; j--) {
+      if (regionEnds[j] >= line && folds.regionAt(regionStarts[j]) < 0) {
+        collapse(regionStarts[j], regionEnds[j]);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Collapses the region starting at a line.
+   *
+   * @param line a model line
+   * @return false when no expanded region starts there
+   */
+  public boolean foldAt(int line) {
+    int j = Arrays.binarySearch(regionStarts, line);
+    if (j < 0 || folds.regionAt(line) >= 0) {
+      return false;
+    }
+    collapse(line, regionEnds[j]);
+    return true;
+  }
+
+  /**
+   * Expands the collapsed region starting at a line; regions nested in it stay collapsed.
+   *
+   * @param line a model line
+   * @return false when no collapsed region starts there
+   */
+  public boolean unfold(int line) {
+    int i = folds.regionAt(line);
+    if (i < 0) {
+      return false;
+    }
+    int n = folds.regionCount();
+    int[] starts = new int[n - 1];
+    int[] ends = new int[n - 1];
+    System.arraycopy(folds.starts(), 0, starts, 0, i);
+    System.arraycopy(folds.starts(), i + 1, starts, i, n - 1 - i);
+    System.arraycopy(folds.ends(), 0, ends, 0, i);
+    System.arraycopy(folds.ends(), i + 1, ends, i, n - 1 - i);
+    applyFolds(starts, ends, line, folds.regionEnd(i));
+    return true;
+  }
+
+  /**
+   * Collapses every region, nested ones included.
+   *
+   * @return false when every region was collapsed
+   */
+  public boolean foldAll() {
+    int n = regionStarts.length;
+    int m = folds.regionCount();
+    int[] starts = new int[n + m];
+    int[] ends = new int[n + m];
+    int count = 0;
+    int i = 0;
+    int j = 0;
+    while (i < n || j < m) {
+      if (j >= m || (i < n && regionStarts[i] < folds.regionStart(j))) {
+        starts[count] = regionStarts[i];
+        ends[count++] = regionEnds[i++];
+      } else {
+        if (i < n && regionStarts[i] == folds.regionStart(j)) {
+          i++;
+        }
+        starts[count] = folds.regionStart(j);
+        ends[count++] = folds.regionEnd(j++);
+      }
+    }
+    if (count == m) {
+      return false;
+    }
+    applyFolds(Arrays.copyOf(starts, count), Arrays.copyOf(ends, count), 0, text.lineCount() - 1);
+    return true;
+  }
+
+  /**
+   * Expands every collapsed region.
+   *
+   * @return false when none was collapsed
+   */
+  public boolean unfoldAll() {
+    if (folds.regionCount() == 0) {
+      return false;
+    }
+    applyFolds(new int[0], new int[0], 0, text.lineCount() - 1);
+    return true;
+  }
+
+  /**
+   * Expands every collapsed region that hides a line.
+   *
+   * @param line a model line
+   * @return false when no region hides it
+   */
+  public boolean reveal(int line) {
+    if (folds.spanHiding(line) < 0) {
+      return false;
+    }
+    int n = folds.regionCount();
+    int[] starts = new int[n];
+    int[] ends = new int[n];
+    int count = 0;
+    int lo = line;
+    int hi = line;
+    for (int i = 0; i < n; i++) {
+      int a = folds.regionStart(i);
+      int b = folds.regionEnd(i);
+      if (a < line && line <= b) {
+        lo = Math.min(lo, a);
+        hi = Math.max(hi, b);
+      } else {
+        starts[count] = a;
+        ends[count++] = b;
+      }
+    }
+    applyFolds(Arrays.copyOf(starts, count), Arrays.copyOf(ends, count), lo, hi);
+    return true;
+  }
+
+  private void collapse(int start, int end) {
+    int n = folds.regionCount();
+    int at = -Arrays.binarySearch(folds.starts(), start) - 1;
+    int[] starts = new int[n + 1];
+    int[] ends = new int[n + 1];
+    System.arraycopy(folds.starts(), 0, starts, 0, at);
+    System.arraycopy(folds.ends(), 0, ends, 0, at);
+    starts[at] = start;
+    ends[at] = end;
+    System.arraycopy(folds.starts(), at, starts, at + 1, n - at);
+    System.arraycopy(folds.ends(), at, ends, at + 1, n - at);
+    applyFolds(starts, ends, start, end);
+  }
+
+  /**
+   * Installs collapsed regions that differ from the current ones only within lines {@code [lo,
+   * hi]}: one display change from the start of {@code lo} to the end of {@code hi}, each moved out
+   * of any hidden span of either state.
+   */
+  private void applyFolds(int[] starts, int[] ends, int lo, int hi) {
+    FoldLayer next = FoldLayer.of(starts, ends, text, index, folds);
+    int last = text.lineCount() - 1;
+    boolean moved = true;
+    while (moved) {
+      moved = false;
+      for (FoldLayer layer : new FoldLayer[] {folds, next}) {
+        int k = layer.spanHiding(lo);
+        if (k >= 0) {
+          lo = layer.head(k);
+          moved = true;
+        }
+        k = hi < last ? layer.spanHiding(hi + 1) : -1;
+        if (k >= 0) {
+          hi = layer.last(k);
+          moved = true;
+        }
+      }
+    }
+    int start = toFolded(folds, text.offsetOfLine(lo) + index.breaksBefore(lo));
+    int startRow = rowToFolded(folds, lo + index.breaksBefore(lo));
+    int[] old = rangeEnd(folds, hi);
+    int[] now = rangeEnd(next, hi);
+    DisplayChange change =
+        new DisplayChange(
+            start, old[0] - start, now[0] - start, old[1] - startRow, now[1] - startRow);
+    fireChanging(change);
+    folds = next;
+    rowCache.clear();
+    fireChanged(change);
+  }
+
+  /**
+   * Returns {display offset, row} where line {@code hi} ends in a fold state: the next line's
+   * start, or the text's end and its last row.
+   */
+  private int[] rangeEnd(FoldLayer layer, int hi) {
+    if (hi == text.lineCount() - 1) {
+      return new int[] {
+        text.length() + index.totalBreaks() - layer.totalChars(),
+        text.lineCount() + index.totalBreaks() - layer.totalRows() - 1
+      };
+    }
+    return new int[] {
+      toFolded(layer, text.offsetOfLine(hi + 1) + index.breaksBefore(hi + 1)),
+      rowToFolded(layer, hi + 1 + index.breaksBefore(hi + 1))
+    };
+  }
+
+  /**
+   * Moves the offered regions through a change: by the line delta after line {@code last}, and
+   * through the edits inside {@code [first, last]}; a region left without lines is dropped.
+   */
+  private void shiftRegions(
+      TextSnapshot before, TextSnapshot after, List<TextEdit> edits, int first, int last) {
+    int n = regionStarts.length;
+    if (n == 0) {
+      return;
+    }
+    int delta = after.lineCount() - before.lineCount();
+    int lastLine = after.lineCount() - 1;
+    FoldLayer.EditMap map = null;
+    int[] starts = new int[n];
+    int[] ends = new int[n];
+    int count = 0;
+    for (int i = 0; i < n; i++) {
+      int a = regionStarts[i];
+      int b = regionEnds[i];
+      if (a > last) {
+        a += delta;
+        b += delta;
+      } else if (b >= first) {
+        if (map == null) {
+          map = new FoldLayer.EditMap(before, edits);
+        }
+        a = a < first ? a : after.lineAt(map.map(before.offsetOfLine(a)));
+        b = b > last ? b + delta : after.lineAt(map.map(before.offsetOfLine(b)));
+      }
+      if (b <= a || b > lastLine) {
+        continue;
+      }
+      if (count > 0 && starts[count - 1] >= a) {
+        ends[count - 1] = Math.max(ends[count - 1], b);
+      } else {
+        starts[count] = a;
+        ends[count++] = b;
+      }
+    }
+    regionStarts = Arrays.copyOf(starts, count);
+    regionEnds = Arrays.copyOf(ends, count);
+  }
+
+  // Unfolded and folded display coordinates.
+
+  private static int spanStart(FoldLayer layer, int k) {
+    return layer.hiddenStart(k);
+  }
+
+  private static int spanRow(FoldLayer layer, int k) {
+    return layer.hiddenRow(k);
+  }
+
+  /** Maps an unfolded display offset; one in hidden text maps to the end of its span's head. */
+  private int toFolded(FoldLayer layer, int offset) {
+    int lo = 0;
+    int hi = layer.spans() - 1;
+    int k = -1;
+    while (lo <= hi) {
+      int mid = (lo + hi) >>> 1;
+      if (spanStart(layer, mid) < offset) {
+        k = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (k < 0) {
+      return offset;
+    }
+    int start = spanStart(layer, k);
+    if (offset <= start + layer.charsBefore(k + 1) - layer.charsBefore(k)) {
+      return start - layer.charsBefore(k);
+    }
+    return offset - layer.charsBefore(k + 1);
+  }
+
+  /** Maps a folded display offset; the end of a span's head maps to the head's end. */
+  private int toUnfolded(FoldLayer layer, int offset) {
+    int lo = 0;
+    int hi = layer.spans() - 1;
+    int k = -1;
+    while (lo <= hi) {
+      int mid = (lo + hi) >>> 1;
+      if (spanStart(layer, mid) - layer.charsBefore(mid) < offset) {
+        k = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return k < 0 ? offset : offset + layer.charsBefore(k + 1);
+  }
+
+  /** Maps an unfolded row; a hidden row maps to the last row of its span's head. */
+  private int rowToFolded(FoldLayer layer, int row) {
+    int lo = 0;
+    int hi = layer.spans() - 1;
+    int k = -1;
+    while (lo <= hi) {
+      int mid = (lo + hi) >>> 1;
+      if (spanRow(layer, mid) <= row) {
+        k = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (k < 0) {
+      return row;
+    }
+    int first = spanRow(layer, k);
+    if (row < first + layer.rowsBefore(k + 1) - layer.rowsBefore(k)) {
+      return first - layer.rowsBefore(k) - 1;
+    }
+    return row - layer.rowsBefore(k + 1);
+  }
+
+  private int rowToUnfolded(FoldLayer layer, int row) {
+    int lo = 0;
+    int hi = layer.spans() - 1;
+    int k = -1;
+    while (lo <= hi) {
+      int mid = (lo + hi) >>> 1;
+      if (spanRow(layer, mid) - layer.rowsBefore(mid) <= row) {
+        k = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return k < 0 ? row : row + layer.rowsBefore(k + 1);
+  }
+
   // Queries, for the text last reported.
 
   /**
    * Returns the display text's length.
    *
-   * @return model chars plus virtual breaks
+   * @return model chars plus virtual breaks, less the hidden ones
    */
   public int length() {
-    return text.length() + index.totalBreaks();
+    return text.length() + index.totalBreaks() - folds.totalChars();
   }
 
   /**
    * Returns the number of display rows.
    *
-   * @return model lines plus virtual breaks
+   * @return model lines plus virtual breaks, less the hidden ones
    */
   public int rowCount() {
-    return text.lineCount() + index.totalBreaks();
+    return text.lineCount() + index.totalBreaks() - folds.totalRows();
   }
 
   /**
@@ -612,6 +1124,10 @@ public final class DisplayProjection implements DocumentListener {
    * @return the model line
    */
   public int lineOfRow(int row) {
+    return unfoldedLineOfRow(rowToUnfolded(folds, row));
+  }
+
+  private int unfoldedLineOfRow(int row) {
     int j = index.entryAtOrBeforeRow(row);
     if (j >= 0) {
       int rowStart = index.line(j) + index.firstBreak(j);
@@ -630,6 +1146,10 @@ public final class DisplayProjection implements DocumentListener {
    * @return 0 for a line's first row
    */
   public int subRow(int row) {
+    return unfoldedSubRow(rowToUnfolded(folds, row));
+  }
+
+  private int unfoldedSubRow(int row) {
     int j = index.entryAtOrBeforeRow(row);
     if (j >= 0) {
       int rowStart = index.line(j) + index.firstBreak(j);
@@ -641,13 +1161,14 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
-   * Returns a model line's first row.
+   * Returns a model line's first row; a hidden line gives the last row of the line shown in its
+   * place.
    *
    * @param line a model line
    * @return the display row
    */
   public int rowOfLine(int line) {
-    return line + index.breaksBefore(line);
+    return rowToFolded(folds, line + index.breaksBefore(line));
   }
 
   /**
@@ -657,8 +1178,12 @@ public final class DisplayProjection implements DocumentListener {
    * @return the display offset
    */
   public int rowStart(int row) {
-    int line = lineOfRow(row);
-    int sub = subRow(row);
+    return toFolded(folds, unfoldedRowStart(rowToUnfolded(folds, row)));
+  }
+
+  private int unfoldedRowStart(int row) {
+    int line = unfoldedLineOfRow(row);
+    int sub = unfoldedSubRow(row);
     int lineStart = text.offsetOfLine(line);
     if (sub == 0) {
       return lineStart + index.breaksBefore(line);
@@ -678,12 +1203,10 @@ public final class DisplayProjection implements DocumentListener {
     if (cached != null) {
       return cached;
     }
-    int line = lineOfRow(row);
-    int sub = subRow(row);
-    int lineStart = text.offsetOfLine(line);
-    int from = rowModelStart(line, sub) - lineStart;
-    int to = rowModelEnd(line, sub) - lineStart;
-    String value = text.subSequence(lineStart + from, lineStart + to).toString();
+    int unfolded = rowToUnfolded(folds, row);
+    int line = unfoldedLineOfRow(unfolded);
+    int sub = unfoldedSubRow(unfolded);
+    String value = text.subSequence(rowModelStart(line, sub), rowModelEnd(line, sub)).toString();
     if (rowCache.size() >= CACHED_ROWS) {
       rowCache.clear();
     }
@@ -714,6 +1237,10 @@ public final class DisplayProjection implements DocumentListener {
    * @return the row
    */
   public int rowAt(int offset) {
+    return rowToFolded(folds, unfoldedRowAt(toUnfolded(folds, offset)));
+  }
+
+  private int unfoldedRowAt(int offset) {
     int lo = 0;
     int hi = index.entries() - 1;
     int j = -1;
@@ -753,22 +1280,25 @@ public final class DisplayProjection implements DocumentListener {
 
   /**
    * Maps a display offset to the model. An offset on a virtual break gives the break's model
-   * offset; an offset inside a CR LF delimiter gives the offset before it.
+   * offset; an offset inside a CR LF delimiter gives the offset before it; the end of a collapsed
+   * region's first line gives that line's end.
    *
    * @param offset a display offset from 0 to {@link #length()}
    * @return the model offset
    */
   public int toModel(int offset) {
-    int row = rowAt(offset);
-    int line = lineOfRow(row);
-    int sub = subRow(row);
+    int unfolded = toUnfolded(folds, offset);
+    int row = unfoldedRowAt(unfolded);
+    int line = unfoldedLineOfRow(row);
+    int sub = unfoldedSubRow(row);
     int start = rowModelStart(line, sub);
     int length = rowModelEnd(line, sub) - start;
-    return start + Math.min(offset - rowStart(row), length);
+    return start + Math.min(unfolded - unfoldedRowStart(row), length);
   }
 
   /**
-   * Maps a model offset to the display; an offset at a virtual break maps to the next row's start.
+   * Maps a model offset to the display; an offset at a virtual break maps to the next row's start,
+   * and an offset in hidden text to the end of the collapsed region's first line.
    *
    * @param offset a model offset from 0 to the model length
    * @return the display offset
@@ -784,7 +1314,7 @@ public final class DisplayProjection implements DocumentListener {
         breaks++;
       }
     }
-    return offset + breaks;
+    return toFolded(folds, offset + breaks);
   }
 
   /**
@@ -820,13 +1350,17 @@ public final class DisplayProjection implements DocumentListener {
     return out.toString();
   }
 
-  /** Returns the delimiter after a row: {@code \n} for a virtual break, else the model's. */
+  /**
+   * Returns the delimiter after a row: {@code \n} for a virtual break, else the model's; after a
+   * collapsed region's first line, its last hidden line's.
+   */
   private String delimiter(int row, int rowEnd, int nextRowStart) {
     int line = lineOfRow(row);
     if (row + 1 < rowCount() && lineOfRow(row + 1) == line) {
       return "\n";
     }
-    int modelEnd = rowModelEnd(line, subRow(row));
+    int k = folds.spanWithHead(line);
+    int modelEnd = k >= 0 ? FoldLayer.lineEnd(text, folds.last(k)) : rowModelEnd(line, subRow(row));
     return text.subSequence(modelEnd, modelEnd + (nextRowStart - rowEnd)).toString();
   }
 
@@ -888,5 +1422,10 @@ public final class DisplayProjection implements DocumentListener {
    */
   int[] breaksOf(int line) {
     return index.breaksOf(line);
+  }
+
+  /** Returns the collapsed regions, for tests. */
+  FoldLayer folds() {
+    return folds;
   }
 }
