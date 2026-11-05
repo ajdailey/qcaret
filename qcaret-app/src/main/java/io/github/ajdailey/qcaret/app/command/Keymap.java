@@ -14,6 +14,7 @@ import java.util.Locale;
 public final class Keymap {
   private static final int P = KeyStroke.PRIMARY;
   private static final int S = KeyStroke.SHIFT;
+  private static final int F3 = KeyStroke.F1 + 2;
 
   private final List<Binding> bindings;
   private final boolean mac;
@@ -80,6 +81,16 @@ public final class Keymap {
     window(b, CommandId.NEXT_TAB, P, KeyStroke.PAGE_DOWN);
     window(b, CommandId.PREVIOUS_TAB, P, KeyStroke.PAGE_UP);
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);
+    window(b, CommandId.FIND, P, 'f');
+    window(b, CommandId.FIND_NEXT, 0, F3);
+    window(b, CommandId.FIND_PREVIOUS, S, F3);
+    if (mac) {
+      window(b, CommandId.FIND_NEXT, P, 'g');
+      window(b, CommandId.FIND_PREVIOUS, P | S, 'g');
+      window(b, CommandId.REPLACE, P | KeyStroke.ALT, 'f');
+    } else {
+      window(b, CommandId.REPLACE, P, 'h');
+    }
     editor(b, CommandId.NEWLINE, 0, KeyStroke.ENTER);
     editor(b, CommandId.NEWLINE, S, KeyStroke.ENTER);
     editor(b, CommandId.DELETE_BACK, 0, KeyStroke.BACKSPACE);

@@ -94,6 +94,24 @@ public enum CommandId {
   THEME_DARK(CommandGroup.VIEW, UiText.COMMAND_THEME_DARK, false, true, UiText.MENU_THEME),
   /** The palette that follows the system setting. */
   THEME_SYSTEM(CommandGroup.VIEW, UiText.COMMAND_THEME_SYSTEM, false, true, UiText.MENU_THEME),
+  /** Show the selected document in two views, one above the other; checked while so. */
+  SPLIT_HORIZONTAL(
+      CommandGroup.VIEW, UiText.COMMAND_SPLIT_HORIZONTAL, true, true, UiText.MENU_SPLIT),
+  /** Show the selected document in two views side by side; checked while so. */
+  SPLIT_VERTICAL(CommandGroup.VIEW, UiText.COMMAND_SPLIT_VERTICAL, false, true, UiText.MENU_SPLIT),
+  /** Close every view of the selected document but the focused one. */
+  UNSPLIT(CommandGroup.VIEW, UiText.COMMAND_UNSPLIT, true, false, UiText.MENU_SPLIT),
+  /** Focus the selected document's other view. */
+  FOCUS_OTHER_VIEW(
+      CommandGroup.VIEW, UiText.COMMAND_FOCUS_OTHER_VIEW, false, false, UiText.MENU_SPLIT),
+  /** Open the find bar. */
+  FIND(CommandGroup.SEARCH, UiText.COMMAND_FIND, false, false, null),
+  /** Select the next match. */
+  FIND_NEXT(CommandGroup.SEARCH, UiText.COMMAND_FIND_NEXT, false, false, null),
+  /** Select the previous match. */
+  FIND_PREVIOUS(CommandGroup.SEARCH, UiText.COMMAND_FIND_PREVIOUS, false, false, null),
+  /** Open the find bar with its replace row. */
+  REPLACE(CommandGroup.SEARCH, UiText.COMMAND_REPLACE, true, false, null),
   /** Convert every line break to CR LF; checked while every break is CR LF. */
   LINE_ENDING_CRLF(
       CommandGroup.ENCODING, UiText.COMMAND_LINE_ENDING_CRLF, true, true, UiText.MENU_LINE_ENDINGS),

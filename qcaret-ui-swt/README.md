@@ -7,8 +7,12 @@ uses public SWT API only. The package `ui.swt.search` is empty.
 
 ## Main window
 
-`MainWindow` holds a `CTabFolder` with one tab per document, each an
-`EditorPane`, the menu bar and a status bar. `attach` connects the
+`MainWindow` holds a `CTabFolder` with one tab per document, the menu bar,
+the find bar and a status bar. A tab's control is a `SashForm` holding one
+`EditorPane`, or two after a split (`SWT.HORIZONTAL` side by side,
+`SWT.VERTICAL` one above the other). The pane that took the focus last is the
+tab's focused view; a pane's `FocusIn` reports it to the controller, and a
+view the controller focuses becomes it without waiting for the event. `attach` connects the
 controller: menu items run `ApplicationController.execute`, and a
 window-system close request runs Exit.
 
@@ -67,6 +71,13 @@ nothing is rebuilt.
 - The window icon is the `qcaret-*.png` set at 16 to 256 px
   (`Icons.Variant.DARK`).
 
+`FindBar` sits above the status bar while `FindController` is open: the
+search field, Match case, Whole word, Regex, Previous, Next, the notice and
+Close, plus a replace row (field, Replace, Replace All) for Replace. Typing
+finds incrementally; Enter finds the next match, Shift+Enter the previous one,
+Enter in the replace field replaces, and Escape anywhere in the bar closes it
+and focuses the editor. Mod+F with the bar open focuses and selects the field.
+
 Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
 `showText` and `showLog` open their window modal and owned by the innermost
@@ -123,6 +134,12 @@ which `MainWindow.clipboardText` uses.
   script. A block's part past a short line's end, and each row's caret there,
   are painted from the line end's measured position at the fractional
   advance.
+  Secondary carets take the palette's caret color; the primary caret
+  is the widget's native caret.
+- Each paint that shows another display range reports it through
+  `EditorInput.viewportChanged`. `showMatches` stores the find matches
+  (`MatchLayer`), painted as line style backgrounds; a secondary selection on
+  the same chars wins.
 - Every resize and font change sends the columns that fit the text area for
   word wrap. `setFont` replaces the font in place and measures the advance
   again. A
@@ -132,7 +149,9 @@ which `MainWindow.clipboardText` uses.
 - Font, tabs, margins and the text and background colors each make the
   widget reset its per-line cache, O(rows) through a `TreeSet` (about 1 s at
   1M rows): the pane sets them before `setContent`, and a palette change sets
-  only colors that differ.
+  only colors that differ. A theme switch therefore costs about 1 s per view
+  of a 1M-line document (measured 970 ms for one view, 1,882 ms for two, load
+  1-2).
 
 ## Themes
 
@@ -220,8 +239,14 @@ to Line through its dialog; and filters and copies Keyboard Shortcuts. With
 `-Dqcaret.screenshots=<dir>` it saves the multi-caret and block windows as
 PNG. Under GTK 4 its pixel half skips: the window cannot grow past the screen,
 and `Control.print` draws nothing there (SWT issue 2819).
-`ResourceLeakTest` (tag `swt`) runs `DeviceData.tracking` over a warm-up round
-and four rounds of tab open and close, the tab menu, both themes, zoom and
+`SplitAndFindTest` (tag `swt`) types in one of two views and checks the text
+and both carets, switches the arrangement and unsplits; it opens the find bar,
+types a query, and checks the selected match, the matches in both views, the
+match background in pixels in the light and the dark theme (skipped when
+`Control.print` returns false), and Escape closing the bar and clearing the
+matches. `ResourceLeakTest` (tag `swt`) runs `DeviceData.tracking` over a
+warm-up round and four rounds of tab open and close, the tab menu, both
+themes, zoom, split with the find bar searching and closed, unsplit, and
 every menu's `Show`; the live counts per type must return to the warm-up's.
 System cursors are left out: GTK SWT moves its cached cursors to a list it
 disposes with the Display on each theme switch, so the next request allocates

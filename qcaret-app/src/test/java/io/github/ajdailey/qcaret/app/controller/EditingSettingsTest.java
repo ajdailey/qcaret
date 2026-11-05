@@ -64,6 +64,27 @@ class EditingSettingsTest {
   }
 
   @Test
+  void saveDuringACompositionWritesNoCompositionText() throws Exception {
+    final Path a = file("a.txt", "a");
+    harness.open(a);
+    final EditorController editor = documents.activeEditor();
+    editor.type("1");
+    editor.preeditFromView(1, 1, "ka");
+    harness.application.execute(CommandId.SAVE);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !editor.document().isDirty();
+          }
+        },
+        "saved");
+    harness.awaitIdle("save");
+    assertEquals("1a", Files.readString(a));
+    assertEquals("1a", editor.document().text().toString());
+  }
+
+  @Test
   void reopenClosedOpensTheLastClosedFileAgain() throws Exception {
     harness.open(file("first.txt", "1"));
     harness.open(file("second.txt", "2"));

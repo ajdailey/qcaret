@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -68,9 +69,12 @@ import org.eclipse.swt.widgets.Listener;
  *       a wrapped row's right edge selects the row's last word.
  *   <li>Font: {@link #setFont} changes the font in place and measures it again; the widget, its
  *       caret, scroll position and focus stay.
+ *   <li>Find: each paint that shows another display range reports it through {@link
+ *       EditorInput#viewportChanged}; {@link #showMatches} paints the matches as line style
+ *       backgrounds under the secondary selections.
  * </ul>
  */
-public final class EditorPane {
+public final class EditorPane implements EditorView {
   /** Pixels between the line numbers and the gutter's edges. */
   static final int GUTTER_PADDING = 6;
 
@@ -97,6 +101,10 @@ public final class EditorPane {
   private Color selectionBack;
   private Color selectionFore;
   private Color caret;
+  private Color findMatch;
+  private final MatchLayer matches = new MatchLayer();
+  private int reportedStart = -1;
+  private int reportedEnd = -1;
   private boolean syncing;
   private final EditorLayout layout;
   private final EditorGestures gestures;
@@ -217,6 +225,7 @@ public final class EditorPane {
   }
 
   /** Scrolls so the primary caret shows. */
+  @Override
   public void showCaret() {
     if (!text.isDisposed()) {
       text.showSelection();
@@ -224,6 +233,7 @@ public final class EditorPane {
   }
 
   /** Focuses the widget. */
+  @Override
   public void focus() {
     if (!text.isDisposed()) {
       text.setFocus();
@@ -260,7 +270,8 @@ public final class EditorPane {
     gutter = color(palette.gutter());
     lineNumbers = color(palette.lineNumbers());
     currentLine = color(palette.currentLine());
-    caret = color(palette.text());
+    caret = color(palette.caret());
+    findMatch = color(palette.findMatch());
     text.redraw();
   }
 
@@ -451,7 +462,13 @@ public final class EditorPane {
         new LineStyleListener() {
           @Override
           public void lineGetStyle(LineStyleEvent event) {
-            event.styles = secondaryStyles(event.lineOffset, event.lineText.length());
+            event.styles =
+                matches.merge(
+                    secondaryStyles(event.lineOffset, event.lineText.length()),
+                    event.lineOffset,
+                    projection.toModel(event.lineOffset),
+                    event.lineText.length(),
+                    findMatch);
           }
         });
     text.addPaintListener(
@@ -464,6 +481,7 @@ public final class EditorPane {
             } else {
               paintCarets(event.gc);
             }
+            reportViewport();
           }
         });
   }
@@ -629,6 +647,7 @@ public final class EditorPane {
    *
    * @return the layout
    */
+  @Override
   public ViewLayout layout() {
     return layout;
   }
@@ -638,6 +657,7 @@ public final class EditorPane {
    *
    * @param columns from 1 to 16
    */
+  @Override
   public void setTabWidth(int columns) {
     if (!text.isDisposed() && text.getTabs() != columns) {
       text.setTabs(columns);
@@ -649,6 +669,7 @@ public final class EditorPane {
    *
    * @param on true when a plain drag selects a block
    */
+  @Override
   public void setColumnMode(boolean on) {
     gestures.setColumnMode(on);
   }
@@ -693,6 +714,39 @@ public final class EditorPane {
         gc.setBackground(caret);
         gc.fillRectangle(x, at.y, CARET_WIDTH, lineHeight);
       }
+    }
+  }
+
+  // Find matches.
+
+  @Override
+  public void showMatches(int[] ranges) {
+    matches.set(ranges);
+    if (!text.isDisposed()) {
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns the matches shown.
+   *
+   * @return model offset pairs
+   */
+  public int[] matches() {
+    return matches.ranges();
+  }
+
+  /** Reports the visible display range when it differs from the last one reported. */
+  private void reportViewport() {
+    int rows = projection.rowCount();
+    int top = Math.min(text.getTopIndex(), rows - 1);
+    int bottom = Math.min(rows - 1, text.getLineIndex(text.getClientArea().height));
+    int start = projection.rowStart(top);
+    int end = projection.rowStart(bottom) + projection.rowText(bottom).length();
+    if (start != reportedStart || end != reportedEnd) {
+      reportedStart = start;
+      reportedEnd = end;
+      input.viewportChanged(start, end);
     }
   }
 }

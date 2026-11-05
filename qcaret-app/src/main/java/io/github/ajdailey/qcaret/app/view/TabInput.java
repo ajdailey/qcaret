@@ -24,4 +24,11 @@ public interface TabInput {
    * @param nameOnly true for the file name without its folder
    */
   void copyPathRequested(boolean nameOnly);
+
+  /**
+   * One of the tab's editor views took the focus.
+   *
+   * @param editor the input of the focused view
+   */
+  void viewFocused(EditorInput editor);
 }

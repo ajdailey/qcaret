@@ -64,6 +64,7 @@ public final class ApplicationController {
   private final ThemeController theme;
   private final DocumentController documents;
   private final HelpController help;
+  private final FindController find;
   private final Keymap keymap;
   private final boolean rememberWindow;
   private final List<Runnable> finishListeners = new ArrayList<Runnable>();
@@ -123,6 +124,16 @@ public final class ApplicationController {
               }
             });
     this.rememberWindow = rememberWindow;
+    this.find = new FindController(documents, workers, ui);
+  }
+
+  /**
+   * Returns the find bar's controller.
+   *
+   * @return the find controller
+   */
+  public FindController find() {
+    return find;
   }
 
   /**
@@ -318,6 +329,14 @@ public final class ApplicationController {
       case THEME_LIGHT -> setTheme(ThemeMode.LIGHT);
       case THEME_DARK -> setTheme(ThemeMode.DARK);
       case THEME_SYSTEM -> setTheme(ThemeMode.SYSTEM);
+      case SPLIT_HORIZONTAL -> documents.split(false);
+      case SPLIT_VERTICAL -> documents.split(true);
+      case UNSPLIT -> documents.unsplit();
+      case FOCUS_OTHER_VIEW -> documents.focusOtherView();
+      case FIND -> find.open(false);
+      case FIND_NEXT -> find.findNext();
+      case FIND_PREVIOUS -> find.findPrevious();
+      case REPLACE -> find.open(true);
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
       case LINE_ENDING_CR -> documents.convertLineEndings(LineEnding.CR);
@@ -442,6 +461,7 @@ public final class ApplicationController {
     }
     quitting = true;
     help.close();
+    find.dispose();
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();

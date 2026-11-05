@@ -67,7 +67,8 @@ public final class CommandStates {
           CommandId.LOWER_CASE,
           CommandId.INDENT,
           CommandId.OUTDENT,
-          CommandId.INSERT_TAB);
+          CommandId.INSERT_TAB,
+          CommandId.REPLACE);
 
   /**
    * An open document as the Window menu lists it.
@@ -110,6 +111,10 @@ public final class CommandStates {
       case THEME_DARK -> theme == ThemeMode.DARK;
       case THEME_SYSTEM -> theme == ThemeMode.SYSTEM;
       case DEBUG_LOG_FILE -> application.debugLogFile();
+      case SPLIT_HORIZONTAL ->
+          application.documents().activeSplit() == DocumentController.Split.HORIZONTAL;
+      case SPLIT_VERTICAL ->
+          application.documents().activeSplit() == DocumentController.Split.VERTICAL;
       case LINE_ENDING_CRLF -> uniformEnding() == LineEnding.CRLF;
       case LINE_ENDING_LF -> uniformEnding() == LineEnding.LF;
       case LINE_ENDING_CR -> uniformEnding() == LineEnding.CR;
@@ -153,6 +158,7 @@ public final class CommandStates {
       case SAVE, SAVE_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS -> documents.count() > 1;
+      case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;
       default -> true;
     };
   }

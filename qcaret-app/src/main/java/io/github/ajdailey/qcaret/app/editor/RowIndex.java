@@ -67,6 +67,11 @@ final class RowIndex {
     }
   }
 
+  /** Returns an independent copy, for a second view's projection. */
+  RowIndex copy() {
+    return new RowIndex(lines.clone(), first.clone(), breaks.clone(), size);
+  }
+
   /**
    * Returns the number of virtual breaks.
    *

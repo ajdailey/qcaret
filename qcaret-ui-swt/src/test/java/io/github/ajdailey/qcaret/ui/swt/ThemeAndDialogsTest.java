@@ -125,7 +125,12 @@ class ThemeAndDialogsTest {
     dark.notifyListeners(SWT.Selection, null);
     assertSame(Palette.DARK, window.palette());
     assertEquals(
-        new Color(0x1e, 0x1e, 0x1e).getRGB(), window.activeText().getBackground().getRGB());
+        new Color(
+                Palette.DARK.background().red(),
+                Palette.DARK.background().green(),
+                Palette.DARK.background().blue())
+            .getRGB(),
+        window.activeText().getBackground().getRGB());
     assertTrue(dark.getSelection());
     assertFalse(item(CommandId.THEME_LIGHT).getSelection());
   }

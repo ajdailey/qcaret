@@ -871,6 +871,16 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
+   * Returns a copy of the rows the projection shows, for another view of the document to start
+   * from. Call between changes, when the projection answers for the document's current text.
+   *
+   * @return the layout, independent of this projection
+   */
+  public Layout currentLayout() {
+    return new Layout(text, appliedColumns, tabWidth, index.copy());
+  }
+
+  /**
    * Returns a model line's breaks, for tests.
    *
    * @param line a model line

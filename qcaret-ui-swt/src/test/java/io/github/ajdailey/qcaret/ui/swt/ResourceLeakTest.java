@@ -42,9 +42,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tab open and close, theme switches, font zoom, the tab menu and menu syncs return the Display's
- * tracked graphics resources ({@code DeviceData.tracking}) to their count after a warm-up round. A
- * failure lists each leaked object's allocation stack.
+ * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit, and
+ * the find bar opened, searching and closed return the Display's tracked graphics resources ({@code
+ * DeviceData.tracking}) to their count after a warm-up round. A failure lists each leaked object's
+ * allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -62,6 +63,7 @@ class ResourceLeakTest {
   private Workers workers;
   private MainWindow window;
   private ApplicationController controller;
+  private int cycles;
 
   @BeforeEach
   void open() throws Exception {
@@ -171,6 +173,26 @@ class ResourceLeakTest {
     drain();
   }
 
+  /** Splits the tab, finds with the bar open in both views, closes the bar and unsplits. */
+  private void splitAndFind() {
+    controller.execute(CommandId.SPLIT_VERTICAL);
+    drain();
+    controller.execute(CommandId.FIND);
+    window.findBar().field().setText("line " + (cycles++ % 2));
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !controller.find().state().running();
+              }
+            }));
+    drain();
+    controller.find().close();
+    controller.execute(CommandId.UNSPLIT);
+    drain();
+  }
+
   /** One round of every operation; the first round creates lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
@@ -180,6 +202,7 @@ class ResourceLeakTest {
     theme(CommandId.THEME_LIGHT, Palette.LIGHT);
     controller.execute(CommandId.ZOOM_IN);
     controller.execute(CommandId.ZOOM_OUT);
+    splitAndFind();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {
         window.menuBar().menu(group).notifyListeners(SWT.Show, new Event());

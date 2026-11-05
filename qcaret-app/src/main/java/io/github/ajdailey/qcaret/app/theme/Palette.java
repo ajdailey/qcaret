@@ -1,17 +1,28 @@
 package io.github.ajdailey.qcaret.app.theme;
 
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.Map;
+
 /**
- * Colors of the text views. The views create their toolkit colors from it and recreate them when
- * the palette changes.
+ * The editor color scheme: the colors of the text views and a {@link TokenStyle} for every {@link
+ * TokenRole}. The views create their toolkit colors from it and recreate them when the palette
+ * changes. The defaults derive from the brand colors navy {@code #1B2E44}, cyan {@code #56C1F0} and
+ * amber {@code #F3B65B}; every token color has a contrast ratio of at least 4.5 against the
+ * background, the current line and a find match.
  *
  * @param dark true for a dark palette; selects the matching icon variant
- * @param text text
+ * @param text text that is no token
  * @param background view background
  * @param selection selected text background
  * @param selectionText selected text
  * @param currentLine background of the caret's line
  * @param lineNumbers line number text
  * @param gutter line number background
+ * @param caret painted carets
+ * @param whitespace whitespace marks
+ * @param findMatch background of a find match
+ * @param tokens the style of each role; every role has one
  */
 public record Palette(
     boolean dark,
@@ -21,28 +32,109 @@ public record Palette(
     Rgb selectionText,
     Rgb currentLine,
     Rgb lineNumbers,
-    Rgb gutter) {
+    Rgb gutter,
+    Rgb caret,
+    Rgb whitespace,
+    Rgb findMatch,
+    Map<TokenRole, TokenStyle> tokens) {
   /** The default palette. */
   public static final Palette LIGHT =
       new Palette(
           false,
-          Rgb.of(0x1e1e1e),
+          Rgb.of(0x1b2e44),
           Rgb.of(0xffffff),
-          Rgb.of(0x3874d8),
-          Rgb.of(0xffffff),
-          Rgb.of(0xeef3fb),
-          Rgb.of(0x8a8a8a),
-          Rgb.of(0xf3f3f3));
+          Rgb.of(0xbfe6f8),
+          Rgb.of(0x1b2e44),
+          Rgb.of(0xf1f6fa),
+          Rgb.of(0x6e7f91),
+          Rgb.of(0xf3f5f8),
+          Rgb.of(0xb5740f),
+          Rgb.of(0xbfc9d3),
+          Rgb.of(0xfdebc8),
+          tokens(
+              TokenStyle.italic(0x5a6a7b),
+              TokenStyle.plain(0x9a5600),
+              TokenStyle.plain(0xa8410e),
+              TokenStyle.bold(0x0a6a96),
+              TokenStyle.plain(0x2c5d8c),
+              TokenStyle.plain(0x18736a),
+              TokenStyle.plain(0x8338a0),
+              TokenStyle.plain(0x8338a0),
+              TokenStyle.plain(0x1b2e44),
+              TokenStyle.plain(0x45576b),
+              TokenStyle.plain(0x22507a),
+              TokenStyle.plain(0x7a5a00),
+              TokenStyle.plain(0x0a6a96),
+              TokenStyle.plain(0x8a5000),
+              TokenStyle.bold(0x1b2e44),
+              TokenStyle.italic(0x1b2e44),
+              TokenStyle.underline(0x0a6a96),
+              TokenStyle.underline(0xc0281f)));
 
   /** The dark palette. */
   public static final Palette DARK =
       new Palette(
           true,
-          Rgb.of(0xd4d4d4),
-          Rgb.of(0x1e1e1e),
-          Rgb.of(0x264f78),
+          Rgb.of(0xdce6f0),
+          Rgb.of(0x1b2e44),
+          Rgb.of(0x2f5f88),
           Rgb.of(0xffffff),
-          Rgb.of(0x2a2d2e),
-          Rgb.of(0x858585),
-          Rgb.of(0x252526));
+          Rgb.of(0x223a54),
+          Rgb.of(0x8095aa),
+          Rgb.of(0x162638),
+          Rgb.of(0xf3b65b),
+          Rgb.of(0x40597a),
+          Rgb.of(0x463818),
+          tokens(
+              TokenStyle.italic(0x98abbf),
+              TokenStyle.plain(0xf3b65b),
+              TokenStyle.plain(0xf8cf8f),
+              TokenStyle.bold(0x56c1f0),
+              TokenStyle.plain(0x93d5f5),
+              TokenStyle.plain(0x7fd8c5),
+              TokenStyle.plain(0xdcaaf2),
+              TokenStyle.plain(0xdcaaf2),
+              TokenStyle.plain(0xdce6f0),
+              TokenStyle.plain(0xb3c3d4),
+              TokenStyle.plain(0xa3cdef),
+              TokenStyle.plain(0xe8c872),
+              TokenStyle.plain(0x56c1f0),
+              TokenStyle.plain(0xf3b65b),
+              TokenStyle.bold(0x56c1f0),
+              TokenStyle.italic(0xdce6f0),
+              TokenStyle.underline(0x56c1f0),
+              TokenStyle.underline(0xff8a80)));
+
+  /** Checks that every role has a style and keeps an unmodifiable copy. */
+  public Palette {
+    for (TokenRole role : TokenRole.values()) {
+      if (tokens.get(role) == null) {
+        throw new IllegalArgumentException("no style for " + role);
+      }
+    }
+    tokens = Collections.unmodifiableMap(new EnumMap<TokenRole, TokenStyle>(tokens));
+  }
+
+  /**
+   * Returns a role's style.
+   *
+   * @param role the role
+   * @return the style
+   */
+  public TokenStyle style(TokenRole role) {
+    return tokens.get(role);
+  }
+
+  /** Maps the styles, given in {@link TokenRole} declaration order. */
+  private static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
+    TokenRole[] roles = TokenRole.values();
+    if (styles.length != roles.length) {
+      throw new IllegalArgumentException(styles.length + " styles for " + roles.length + " roles");
+    }
+    Map<TokenRole, TokenStyle> map = new EnumMap<TokenRole, TokenStyle>(TokenRole.class);
+    for (int i = 0; i < roles.length; i++) {
+      map.put(roles[i], styles[i]);
+    }
+    return map;
+  }
 }

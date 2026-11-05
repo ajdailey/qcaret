@@ -32,9 +32,15 @@ prompt and the binary-file prompt, each answering through a callback;
 `documentStateChanged` tells the view to read menu and status state again. A
 tab forwards its close button, selection, drags and context-menu items as
 `TabInput`; an editor forwards its input as `EditorInput`, in display offsets,
-and runs editing commands through `EditorInput.execute`. A tab's `ViewLayout`
+and runs editing commands through `EditorInput.execute`. A view's `ViewLayout`
 answers the pixel and column queries caret navigation needs: rows per page, the
-row at a y, and the visual column at an x, past a line's end too. `MainView` is also an
+row at a y, and the visual column at an x, past a line's end too. A tab holds
+one or two `EditorView`s of its document (`TabView.firstView`, `split`,
+`setSideBySide`, `unsplit`); a view reports focus through
+`TabInput.viewFocused` and its visible display range through
+`EditorInput.viewportChanged`, and shows find matches through
+`EditorView.showMatches`. The find bar reads `FindState` and listens as a
+`FindListener`. `MainView` is also an
 `ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
 `BusyCounter` counts overlapping operations on the UI thread for the busy
 cursor. `StatusFields` is the status bar's text for the selected document.
@@ -53,11 +59,12 @@ where it ignores a position (Wayland) only the size applies.
 state and cascade. The menus are File, Edit (also the line commands, case,
 indent, tab width, indent with spaces, Go to Line and Read-Only), Selection
 (add caret above and below, add next occurrence, split into lines, column
-selection mode), View (word wrap, zoom, theme), Encoding (the line-ending
-conversions; the view adds the charset cascades), Window (next and previous
-tab, Close Others; the view lists the documents) and Help. The `EDITOR` group
-holds the caret moves, block selection keys, Tab, Enter, Backspace, Delete and
-Esc, which have no menu. `MenuTable.commands` returns a menu's commands in declaration
+selection mode), Search (Find, Find Next, Find Previous, Replace), View (word
+wrap, zoom, theme, the Split cascade), Encoding (the line-ending conversions;
+the view adds the charset cascades), Window (next and previous tab, Close
+Others; the view lists the documents) and Help. The `EDITOR` group holds the
+caret moves, block selection keys, Tab, Enter, Backspace, Delete and Esc, which
+have no menu. `MenuTable.commands` returns a menu's commands in declaration
 order. Where the system supplies an application menu (macOS), About and Exit
 sit there and are left out of Help and File.
 
@@ -71,15 +78,17 @@ only from the focused editor, so `Ctrl+C` never fires in another control.
 Ctrl+Y and the Insert and Delete clipboard keys are bound off macOS only. Upper
 and lower case have no keys on Linux (IBus takes Ctrl+Shift+U). Block selection
 is Alt+Shift with an arrow key, and Command+Option+Shift on macOS, where
-Option+Shift with Left or Right selects words. `reference(filter)` lists the
-bindings whose group, command or keys contain the filter. Shortcut overrides
-are not built.
+Option+Shift with Left or Right selects words. Find is Mod+F, Find Next and
+Previous F3 and Shift+F3 (macOS adds Cmd+G and Cmd+Shift+G), and Replace
+Mod+H, Cmd+Option+F on macOS, where Cmd+H hides the application. The split
+commands have no key. `reference(filter)` lists the bindings whose group,
+command or keys contain the filter. Shortcut overrides are not built.
 
 ## Controller (`app.controller`)
 
 `ApplicationController` runs the window's commands and owns the settings, the
-theme, the keymap, the editor font step and the window's `DocumentController`
-and `HelpController`. It is confined to the UI thread; settings writes run on
+theme, the keymap, the editor font step and the window's `DocumentController`,
+`HelpController` and `FindController`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
 editor's `EditorController`. After `quit` starts, `execute` does nothing.
 
@@ -163,6 +172,13 @@ read on workers.
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
 - Word wrap is one setting for the window's editors.
+- Split shows the selected document in a second view, side by side or one
+  above the other; with two views, the other arrangement only rearranges them.
+  Each view is an `EditorController` with its own `SelectionModel`,
+  `DisplayProjection` (copied from the focused view's rows) and scroll
+  position, so view state lives per view, not per tab. The focused view is the
+  one menu and find commands act on. Unsplit closes every view but the
+  focused one; closing the tab disposes every view.
 - Close All and Close Others ask for each dirty document in tab order and stop
   at Cancel. Next and Previous Tab wrap around.
 - Loads, saves and conversions each count as one view activity until their
@@ -172,6 +188,25 @@ read on workers.
   indentation with spaces are per document; a binary file's view stays
   read-only. Go to Line asks for `line`, `line:column` or `line,column`, from
   1; other input shows a notice.
+
+`FindController` runs the find bar against the selected document:
+
+- Find opens the bar; a selection within one line of up to 1,000 chars becomes
+  the search text. Typing finds from where the selection started when the bar
+  opened, or from the last match found. Find Next and Previous search from the
+  focused view's selection to the end (start), then wrap with a notice; with
+  no text they open the bar.
+- While the bar is open, each view of the selected document highlights the
+  matches in its visible range, at most 5,000. A text change shifts the shown
+  highlights at once, dropping those it touches, and recomputes them.
+- Replace replaces the selection when the query matches exactly that range,
+  then finds the next match; Replace All replaces every match. Each is one
+  undo step, line breaks in the replacement become the document's line ending,
+  and a read-only document disables both (`FindState.replaceEnabled`).
+- Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
+  request cancels the running one. A result carries its generation and
+  revision and is dropped when either is stale. An invalid regex, a stack
+  overflow and an invalid replacement end with a notice in the bar.
 
 `DocumentOpener` opens files for one window on `qcaret-io-` workers. Before
 reading, it estimates the load (`DocumentFiles.estimate`) and reserves it from
@@ -279,8 +314,15 @@ values.
 `ThemeMode` is `ui.theme`: light, dark or system. `ThemeController` resolves
 it to a `Palette` (system follows `ThemeService.systemDark` and its change
 events), calls `ThemeService.preferDark` so native controls match, and pushes
-a changed palette to its `PaletteListener`s. `Palette` holds the text view's
-colors as toolkit-free `Rgb` values.
+a changed palette to its `PaletteListener`s.
+
+`Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
+background, selection, current line, gutter and line numbers, caret,
+whitespace marks, the find-match background, and a `TokenStyle` (color, bold,
+italic, underline) for every `TokenRole`, which S4's highlighter assigns. The
+light and dark defaults derive from the brand navy `#1B2E44`, cyan `#56C1F0`
+and amber `#F3B65B`; every token color reaches a contrast ratio of 4.5 on the
+background, the current line and a find match (`PaletteTest`).
 
 ## UI text, About and logs
 
@@ -332,6 +374,14 @@ Next Occurrence from a worker, line commands whose undo restores every caret,
 paste per caret, composition text with a commit as one undo step, and Go to
 with a tab width change. `EditingSettingsTest` covers Save All, Reopen Closed
 Tab, Read-Only, the tab settings and the Go to Line prompt.
+
+`SplitViewTest` covers two views with their own selections over one text,
+the arrangement switch, focus, Unsplit keeping the focused view, and both
+views stopped with the tab and reached by word wrap. `FindControllerTest`
+covers incremental find and highlights, wrap notices, the selection seed, a
+result dropped after an edit, regex and replacement failures, Replace and
+Replace All as one undo step each, a regex replacement with the line ending,
+a read-only document, highlights in both views and their shift on an edit.
 `EditorControllerTest` covers multi-caret typing as one undo step, Enter's
 line ending, Backspace and Delete over CR LF and surrogate pairs, cut, copy and
 paste with line ending conversion and one line per caret, a read-only
@@ -345,6 +395,6 @@ fallback, one change over distant edits, and a rewrap on a tab width change.
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
 and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,
-`WindowGeometryTest`, `ThemeControllerTest`, `MenuTableTest` (mnemonics unique
+`WindowGeometryTest`, `ThemeControllerTest`, `PaletteTest`, `MenuTableTest` (mnemonics unique
 per menu), `UiTextTest`, `RecentLogTest`, `EventLoopWatchdogTest`,
 `EncodingChoicesTest` and `LineConversionTest` cover the rest.

@@ -2,8 +2,8 @@
 
 Model-side code with no SWT and no logging dependency: thread ownership,
 paths, atomic and safe file writes, encodings and line endings, text storage,
-the document model and small utilities. The packages `edit`, `syntax`,
-`search`, `diff`, `watch` and `workspace` are empty, with their layer rules in
+the document model, the find matcher and small utilities. The packages `edit`,
+`syntax`, `diff`, `watch` and `workspace` are empty, with their layer rules in
 place. Tests run without a display.
 
 The test jar carries `testkit` for the other modules' tests and
@@ -287,6 +287,30 @@ their `CancellationToken` per block.
   the BOM and the text through `SafeSave` and returns the new `FileStamp`; the
   caller passes it to the next save and the snapshot to `markSaved`.
 
+## Search (`core.search`)
+
+`SearchQuery` (text, regex, case, whole word) compiles to a `TextMatcher`; an
+invalid regex throws `PatternSyntaxException` and empty text
+`IllegalArgumentException`. A regex compiles with `MULTILINE`, so `^` and `$`
+match at CR, LF and CR LF. Case folding is Unicode-aware; whole word rejects a
+letter, digit or `_` touching either end. Lookbehind and lookahead see text
+outside a searched range.
+
+- `next`, `previous` and `all` return non-empty `Match`es; empty matches are
+  skipped. `replacementAt` returns the replacement when the query matches
+  exactly a range; `replaceAll` returns one `Replacement` per match.
+- Every call reads through a char sequence that checks the
+  `CancellationToken` every 4,096 chars, so a catastrophic regex stops on
+  cancel. A `StackOverflowError` in the regex engine becomes
+  `PatternTooComplexException`.
+- `ReplaceTemplate` parses a regex replacement once: `$n`, `${name}`, `\n`,
+  `\t`, and a backslash before any other char inserts that char. A missing
+  group or a dangling `\` or `$` throws `IllegalArgumentException`. A literal
+  query's replacement is inserted as is.
+
+The calls are `@WorkerThread`: the find bar runs them on `qcaret-cpu-` workers
+from a snapshot, and HyperSearch (S5) reuses them.
+
 ## Log text (`core.text`)
 
 `LogText.oneLine` reduces a value that did not originate in QCaret's code (a
@@ -343,6 +367,9 @@ not encode back, a canceled load, a file larger than one 1 MiB read block
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.
+`TextMatcherTest` covers case folding, whole word, the line-break anchors,
+skipped empty matches, lookbehind before the range, cancellation, a stack
+overflow on 400,000 chars as a typed failure, and replacement templates.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on
 every OS), `AtomicFilesTest`, `LogTextTest`, `UtilTest` and `TestkitTest`
 cover the other classes.

@@ -1,6 +1,9 @@
 package io.github.ajdailey.qcaret.app.view;
 
-/** One document tab and its editor as the controllers see it. Called on the UI thread. */
+import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.core.document.SelectionModel;
+
+/** One document tab and its editor views as the controllers see it. Called on the UI thread. */
 public interface TabView {
   /**
    * Sets the tab's label.
@@ -10,33 +13,50 @@ public interface TabView {
    */
   void setTitle(String title, String toolTip);
 
-  /** Shows the tab and focuses its editor. */
+  /** Shows the tab and focuses the view that had the focus last. */
   void select();
 
-  /** Scrolls the editor so the primary caret shows. */
+  /** Scrolls that view so its primary caret shows. */
   void showCaret();
 
-  /** Removes the tab and disposes its editor. */
+  /** Removes the tab and disposes its views. */
   void close();
 
-  /**
-   * Returns the editor's pixel and column queries.
-   *
-   * @return the layout
-   */
-  ViewLayout layout();
+  // Split views.
 
   /**
-   * Sets the editor's columns per tab stop.
+   * Returns the editor view the tab was created with.
    *
-   * @param columns from 1 to 16
+   * @return the first view
    */
-  void setTabWidth(int columns);
+  EditorView firstView();
 
   /**
-   * Turns column selection mode on or off: a plain mouse drag then selects a block.
+   * Adds a second editor view of the document beside or below the first, and focuses it.
    *
-   * @param on true for column mode
+   * @param projection the new view's display text
+   * @param selections the new view's selections
+   * @param editor receives the new view's input
+   * @param sideBySide true for views side by side, false for one above the other
+   * @return the new view
    */
-  void setColumnMode(boolean on);
+  EditorView split(
+      DisplayProjection projection,
+      SelectionModel selections,
+      EditorInput editor,
+      boolean sideBySide);
+
+  /**
+   * Arranges a split tab's views side by side or one above the other.
+   *
+   * @param sideBySide true for side by side
+   */
+  void setSideBySide(boolean sideBySide);
+
+  /**
+   * Disposes every view but one.
+   *
+   * @param kept the view that stays
+   */
+  void unsplit(EditorView kept);
 }

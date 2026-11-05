@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
@@ -34,6 +35,7 @@ import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabFolder2Adapter;
 import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
@@ -60,11 +62,11 @@ import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * The main window: a tab per document, each holding an {@link EditorPane}, the {@link MainMenuBar}
- * built from {@link MenuTable} and the {@link Keymap}, and a status bar. The editors take their
- * colors from the {@link Palette}; native controls follow {@link SwtThemeService}. {@link
- * ToolIcons} owned by the window re-ink on the UI turn after a palette change, once native controls
- * have restyled.
+ * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
+ * SashForm}, the {@link MainMenuBar} built from {@link MenuTable} and the {@link Keymap}, the
+ * {@link FindBar} and a status bar. The editors take their colors from the {@link Palette}; native
+ * controls follow {@link SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI
+ * turn after a palette change, once native controls have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
  * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
@@ -130,22 +132,95 @@ public final class MainWindow implements MainView {
   private WindowGeometry.Request normalBounds = new WindowGeometry.Request(null, null, null, null);
   private CTabItem dragged;
   private boolean movingTab;
+  private FindBar findBar;
 
-  /** One document tab: its item, which a move recreates, and its editor. */
+  /**
+   * One document tab: its item, which a move recreates, and one or two editor views in a {@link
+   * SashForm}, one above the other or side by side.
+   */
   private final class Tab implements TabView, SelectionListener {
-    final EditorPane pane;
+    final SashForm sash;
+    final List<EditorPane> panes = new ArrayList<EditorPane>(2);
+    final List<View> views = new ArrayList<View>(2);
+    final List<SelectionModel> models = new ArrayList<SelectionModel>(2);
     final TabInput input;
-    final SelectionModel selections;
+    EditorPane pane;
     String title = "";
     String toolTip = "";
     CTabItem item;
 
-    Tab(EditorPane pane, TabInput input, SelectionModel selections, int index) {
-      this.pane = pane;
+    /** A view as its controller sees it; focusing it makes it the tab's focused view. */
+    private final class View implements EditorView {
+      final EditorPane editor;
+
+      View(EditorPane editor) {
+        this.editor = editor;
+      }
+
+      @Override
+      public void showCaret() {
+        editor.showCaret();
+      }
+
+      @Override
+      public void focus() {
+        pane = editor;
+        editor.focus();
+      }
+
+      @Override
+      public void showMatches(int[] ranges) {
+        editor.showMatches(ranges);
+      }
+
+      @Override
+      public ViewLayout layout() {
+        return editor.layout();
+      }
+
+      @Override
+      public void setTabWidth(int columns) {
+        editor.setTabWidth(columns);
+      }
+
+      @Override
+      public void setColumnMode(boolean on) {
+        editor.setColumnMode(on);
+      }
+    }
+
+    Tab(SashForm sash, TabInput input, int index) {
+      this.sash = sash;
       this.input = input;
-      this.selections = selections;
       this.item = newItem(this, index);
+    }
+
+    /** Adds a view; its focus selects it as the tab's focused view. */
+    EditorPane add(
+        DisplayProjection projection, SelectionModel selections, final EditorInput editor) {
+      final EditorPane added =
+          new EditorPane(sash, projection, selections, editor, keymap, font, palette);
+      added
+          .text()
+          .addListener(
+              SWT.FocusIn,
+              new Listener() {
+                @Override
+                public void handleEvent(Event event) {
+                  if (pane != added && panes.contains(added)) {
+                    pane = added;
+                    input.viewFocused(editor);
+                  }
+                }
+              });
+      panes.add(added);
+      views.add(new View(added));
+      models.add(selections);
       selections.addListener(this);
+      if (pane == null) {
+        pane = added;
+      }
+      return added;
     }
 
     @Override
@@ -181,11 +256,18 @@ public final class MainWindow implements MainView {
 
     @Override
     public void close() {
-      selections.removeListener(this);
+      for (SelectionModel model : models) {
+        model.removeListener(this);
+      }
       if (!item.isDisposed()) {
         item.dispose();
       }
-      pane.dispose();
+      for (EditorPane p : panes) {
+        p.dispose();
+      }
+      if (!sash.isDisposed()) {
+        sash.dispose();
+      }
       CTabItem next = tabs.getSelection();
       if (next != null && next.getData() instanceof Tab shown) {
         shown.pane.focus();
@@ -193,18 +275,42 @@ public final class MainWindow implements MainView {
     }
 
     @Override
-    public ViewLayout layout() {
-      return pane.layout();
+    public EditorView firstView() {
+      return views.get(0);
     }
 
     @Override
-    public void setTabWidth(int columns) {
-      pane.setTabWidth(columns);
+    public EditorView split(
+        DisplayProjection projection,
+        SelectionModel selections,
+        EditorInput editor,
+        boolean sideBySide) {
+      sash.setOrientation(sideBySide ? SWT.HORIZONTAL : SWT.VERTICAL);
+      add(projection, selections, editor);
+      sash.setWeights(new int[] {1, 1});
+      sash.layout(true);
+      View added = views.get(views.size() - 1);
+      added.focus();
+      return added;
     }
 
     @Override
-    public void setColumnMode(boolean on) {
-      pane.setColumnMode(on);
+    public void setSideBySide(boolean sideBySide) {
+      sash.setOrientation(sideBySide ? SWT.HORIZONTAL : SWT.VERTICAL);
+    }
+
+    @Override
+    public void unsplit(EditorView kept) {
+      for (int i = panes.size() - 1; i >= 0; i--) {
+        if (views.get(i) != kept) {
+          models.remove(i).removeListener(this);
+          views.remove(i);
+          panes.remove(i).dispose();
+        }
+      }
+      pane = panes.get(0);
+      sash.layout(true);
+      pane.focus();
     }
   }
 
@@ -322,6 +428,8 @@ public final class MainWindow implements MainView {
         });
     listenToTabs();
     dispatchWindowKeys();
+    findBar = new FindBar(shell, owner.find());
+    findBar.control().moveAbove(statusBar);
     shell.addListener(
         SWT.Activate,
         new Listener() {
@@ -358,7 +466,9 @@ public final class MainWindow implements MainView {
     palette = next;
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
-        tab.pane.setPalette(next);
+        for (EditorPane pane : tab.panes) {
+          pane.setPalette(next);
+        }
       }
     }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
@@ -418,8 +528,9 @@ public final class MainWindow implements MainView {
       EditorInput editor,
       TabInput input,
       int index) {
-    EditorPane pane = new EditorPane(tabs, projection, selections, editor, keymap, font, palette);
-    Tab tab = new Tab(pane, input, selections, Math.min(index, tabs.getItemCount()));
+    Tab tab =
+        new Tab(new SashForm(tabs, SWT.VERTICAL), input, Math.min(index, tabs.getItemCount()));
+    EditorPane pane = tab.add(projection, selections, editor);
     tabs.setSelection(tab.item);
     pane.focus();
     return tab;
@@ -475,7 +586,7 @@ public final class MainWindow implements MainView {
 
   private CTabItem newItem(Tab tab, int index) {
     CTabItem item = new CTabItem(tabs, SWT.CLOSE, index);
-    item.setControl(tab.pane.text());
+    item.setControl(tab.sash);
     item.setData(tab);
     item.setText(tab.title.replace("&", "&&"));
     item.setToolTipText(tab.toolTip);
@@ -804,7 +915,9 @@ public final class MainWindow implements MainView {
             SWT.NORMAL);
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
-        tab.pane.setFont(font);
+        for (EditorPane pane : tab.panes) {
+          pane.setFont(font);
+        }
       }
     }
     old.dispose();
@@ -820,6 +933,27 @@ public final class MainWindow implements MainView {
    */
   Font editorFont() {
     return font;
+  }
+
+  /**
+   * Returns the find bar.
+   *
+   * @return the bar, or null before {@link #attach}
+   */
+  FindBar findBar() {
+    return findBar;
+  }
+
+  /**
+   * Returns the selected tab's editor views.
+   *
+   * @return the views, empty without a tab
+   */
+  List<EditorPane> activeEditors() {
+    CTabItem item = tabs.getSelection();
+    return item != null && item.getData() instanceof Tab tab
+        ? new ArrayList<EditorPane>(tab.panes)
+        : new ArrayList<EditorPane>();
   }
 
   /**

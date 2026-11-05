@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The documents of one window, one tab each: New, Open, Save, Save As and Close, the
- * unsaved-changes prompt and the window-wide word wrap setting. Confined to the UI thread.
+ * unsaved-changes prompt, split views and the window-wide word wrap setting. Confined to the UI
+ * thread.
  *
  * <ul>
  *   <li>Open goes through {@link DocumentOpener}: the heap-budget check, the load and the rows on a
@@ -71,6 +72,9 @@ import org.slf4j.LoggerFactory;
  *       {@value #REOPEN_LIMIT} closed files are kept for Reopen Closed Tab, newest first.
  *   <li>Tab width, indentation with spaces and read-only are per document; a binary file's view
  *       stays read-only.
+ *   <li>A tab shows its document in one view or two ({@link #split}); each view is an {@link
+ *       EditorController} with its own selections and rows, and the focused one receives menu
+ *       commands. Closing the tab disposes every view.
  * </ul>
  *
  * <p>Loads, saves and conversions each count as one operation of the view's {@link
@@ -107,6 +111,8 @@ public final class DocumentController {
     FileStamp baseline;
     long reserved;
     EditorController editor;
+    final List<EditorController> editors = new ArrayList<EditorController>(2);
+    boolean sideBySide;
     TabView tab;
     CancellationToken saving;
     CancellationToken converting;
@@ -271,7 +277,9 @@ public final class DocumentController {
   public void toggleWrap() {
     wrap = !wrap;
     for (OpenDocument d : documents) {
-      d.editor.setWrap(wrap);
+      for (EditorController e : d.editors) {
+        e.setWrap(wrap);
+      }
     }
   }
 
@@ -421,7 +429,24 @@ public final class DocumentController {
     d.input = tabInput(d);
     SelectionModel selections = document.newSelectionModel();
     DisplayProjection projection = new DisplayProjection(document, layout);
-    d.editor =
+    d.editor = newEditor(d, projection, selections);
+    d.tab = view.addTab(projection, selections, d.editor, d.input, index);
+    d.editor.attach(d.tab.firstView());
+    document.addListener(d);
+    documents.add(index, d);
+    active = d;
+    d.updateTitle();
+    if (wrap) {
+      d.editor.setWrap(true);
+    }
+    view.documentStateChanged();
+    viewsChanged();
+    return d;
+  }
+
+  private EditorController newEditor(
+      final OpenDocument d, DisplayProjection projection, SelectionModel selections) {
+    final EditorController editor =
         new EditorController(
             projection,
             selections,
@@ -434,17 +459,17 @@ public final class DocumentController {
                 cancelSave(d);
               }
             });
-    d.tab = view.addTab(projection, selections, d.editor, d.input, index);
-    d.editor.attach(d.tab);
-    document.addListener(d);
-    documents.add(index, d);
-    active = d;
-    d.updateTitle();
-    if (wrap) {
-      d.editor.setWrap(true);
-    }
-    view.documentStateChanged();
-    return d;
+    editor.setViewportListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (viewListener != null && active == d) {
+              viewListener.viewportChanged(editor);
+            }
+          }
+        });
+    d.editors.add(editor);
+    return editor;
   }
 
   private TabInput tabInput(final OpenDocument d) {
@@ -459,6 +484,7 @@ public final class DocumentController {
         if (!d.closed && active != d) {
           active = d;
           view.documentStateChanged();
+          viewsChanged();
         }
       }
 
@@ -478,6 +504,17 @@ public final class DocumentController {
         if (d.path != null) {
           Path name = d.path.getFileName();
           view.setText(nameOnly && name != null ? name.toString() : d.path.toString());
+        }
+      }
+
+      @Override
+      public void viewFocused(EditorInput editor) {
+        for (EditorController e : d.editors) {
+          if (e == editor && d.editor != e) {
+            d.editor = e;
+            view.documentStateChanged();
+            viewsChanged();
+          }
         }
       }
     };
@@ -566,6 +603,7 @@ public final class DocumentController {
     if (d.binary || savingNotice(d)) {
       return;
     }
+    d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
     final CancellationToken token = new CancellationToken();
     d.saving = token;
@@ -788,7 +826,9 @@ public final class DocumentController {
         closedPaths.removeLast();
       }
     }
-    d.editor.dispose();
+    for (EditorController e : d.editors) {
+      e.dispose();
+    }
     budget.release(d.reserved);
     documents.remove(d);
     if (active == d) {
@@ -796,6 +836,127 @@ public final class DocumentController {
     }
     d.tab.close();
     view.documentStateChanged();
+    viewsChanged();
+  }
+
+  // Split views.
+
+  /** How the selected document's views are arranged. */
+  enum Split {
+    /** One view. */
+    NONE,
+    /** Two views, one above the other. */
+    HORIZONTAL,
+    /** Two views side by side. */
+    VERTICAL
+  }
+
+  /** Receives changes of the views a find highlights in. */
+  interface ViewListener {
+    /** The selected document, its focused view or its set of views changed. */
+    void viewsChanged();
+
+    /**
+     * A view of the selected document scrolled or resized.
+     *
+     * @param editor the view's controller
+     */
+    void viewportChanged(EditorController editor);
+  }
+
+  private ViewListener viewListener;
+
+  /** Sets the one listener for view changes. */
+  void setViewListener(ViewListener listener) {
+    viewListener = listener;
+  }
+
+  private void viewsChanged() {
+    if (viewListener != null) {
+      viewListener.viewsChanged();
+    }
+  }
+
+  /** Returns the selected document's arrangement; {@link Split#NONE} without a document. */
+  Split activeSplit() {
+    if (active == null || active.editors.size() < 2) {
+      return Split.NONE;
+    }
+    return active.sideBySide ? Split.VERTICAL : Split.HORIZONTAL;
+  }
+
+  /** Returns the views of the selected document, the focused one first; empty without one. */
+  List<EditorController> activeEditors() {
+    List<EditorController> list = new ArrayList<EditorController>();
+    if (active != null) {
+      list.add(active.editor);
+      for (EditorController e : active.editors) {
+        if (e != active.editor) {
+          list.add(e);
+        }
+      }
+    }
+    return list;
+  }
+
+  /**
+   * Shows the selected document in two views, side by side or one above the other; an existing
+   * split takes the new arrangement. The new view starts with the focused view's selections and
+   * rows and keeps its own selections, scroll position and rows from then on.
+   *
+   * @param sideBySide true for side by side
+   */
+  public void split(boolean sideBySide) {
+    OpenDocument d = active;
+    if (d == null) {
+      return;
+    }
+    d.sideBySide = sideBySide;
+    if (d.editors.size() > 1) {
+      d.tab.setSideBySide(sideBySide);
+      view.documentStateChanged();
+      return;
+    }
+    EditorController from = d.editor;
+    SelectionModel selections = d.document.newSelectionModel();
+    selections.set(from.selections().selections());
+    DisplayProjection projection =
+        new DisplayProjection(d.document, from.projection().currentLayout());
+    EditorController editor = newEditor(d, projection, selections);
+    editor.attach(d.tab.split(projection, selections, editor, sideBySide));
+    d.editor = editor;
+    editor.setWrap(wrap);
+    view.documentStateChanged();
+    viewsChanged();
+  }
+
+  /** Closes every view of the selected document but the focused one. */
+  public void unsplit() {
+    OpenDocument d = active;
+    if (d == null || d.editors.size() < 2) {
+      return;
+    }
+    for (EditorController e : new ArrayList<EditorController>(d.editors)) {
+      if (e != d.editor) {
+        d.editors.remove(e);
+        e.dispose();
+      }
+    }
+    d.tab.unsplit(d.editor.view());
+    view.documentStateChanged();
+    viewsChanged();
+  }
+
+  /** Focuses the selected document's other view. */
+  public void focusOtherView() {
+    OpenDocument d = active;
+    if (d == null || d.editors.size() < 2) {
+      return;
+    }
+    d.editor = d.editors.get((d.editors.indexOf(d.editor) + 1) % d.editors.size());
+    d.editor.view().focus();
+    view.documentStateChanged();
+    viewsChanged();
   }
 
   // Encodings and line endings.
@@ -857,6 +1018,7 @@ public final class DocumentController {
     }
     final CancellationToken token = new CancellationToken();
     d.converting = token;
+    d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
     final long revision = d.document.revision();
     final int caret = d.editor.selections().selections().primary().caret();
@@ -971,7 +1133,9 @@ public final class DocumentController {
   public void setTabWidth(int columns) {
     if (active != null && active.document.tabWidth() != columns) {
       active.document.setTabWidth(columns);
-      active.editor.tabWidthChanged();
+      for (EditorController e : active.editors) {
+        e.tabWidthChanged();
+      }
       view.documentStateChanged();
     }
   }

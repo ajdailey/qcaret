@@ -392,7 +392,11 @@ class ShellWindowTest {
     assumeTrue(printed, "Control.print not supported here");
     ImageData data = image.getImageData();
     image.dispose();
-    RGB ink = new RGB(0x1e, 0x1e, 0x1e);
+    RGB ink =
+        new RGB(
+            Palette.LIGHT.caret().red(),
+            Palette.LIGHT.caret().green(),
+            Palette.LIGHT.caret().blue());
     int lineHeight = text.getLineHeight();
     int dark = 0;
     for (int y = at.y + 1; y < at.y + lineHeight - 1; y++) {

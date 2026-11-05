@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.TabInput;
@@ -17,14 +18,65 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Records what the controllers show and holds each prompt's callback for the test to answer; every
  * call fails off the dispatcher's UI thread.
  */
 final class FakeView implements MainView {
-  /** A tab: its title and what the controller asked of it. */
-  final class FakeTab implements TabView {
+  /** One editor view: what the controller asked of it. */
+  final class FakeEditor implements EditorView {
+    final EditorInput editor;
+    int caretShown;
+    int focused;
+    int[] matches = new int[0];
+    int tabWidth;
+    boolean columnMode;
+
+    FakeEditor(EditorInput editor) {
+      this.editor = editor;
+    }
+
+    @Override
+    public void showCaret() {
+      ui.checkUiThread();
+      caretShown++;
+    }
+
+    @Override
+    public void focus() {
+      ui.checkUiThread();
+      focused++;
+    }
+
+    @Override
+    public void showMatches(int[] ranges) {
+      ui.checkUiThread();
+      matches = ranges.clone();
+    }
+
+    @Override
+    public ViewLayout layout() {
+      ui.checkUiThread();
+      return LAYOUT;
+    }
+
+    @Override
+    public void setTabWidth(int columns) {
+      ui.checkUiThread();
+      tabWidth = columns;
+    }
+
+    @Override
+    public void setColumnMode(boolean on) {
+      ui.checkUiThread();
+      columnMode = on;
+    }
+  }
+
+  /** A tab: its title, its views and what the controller asked of it. */
+  final class FakeTab implements TabView, EditorView {
     final DisplayProjection projection;
     final SelectionModel selections;
     final EditorInput editor;
@@ -35,6 +87,9 @@ final class FakeView implements MainView {
     boolean closed;
     int tabWidth;
     boolean columnMode;
+    int[] matches = new int[0];
+    final List<FakeEditor> splits = new ArrayList<FakeEditor>();
+    boolean sideBySide;
 
     FakeTab(
         DisplayProjection projection,
@@ -65,6 +120,53 @@ final class FakeView implements MainView {
     public void showCaret() {
       ui.checkUiThread();
       caretShown++;
+    }
+
+    @Override
+    public void focus() {
+      ui.checkUiThread();
+    }
+
+    @Override
+    public void showMatches(int[] ranges) {
+      ui.checkUiThread();
+      matches = ranges.clone();
+    }
+
+    @Override
+    public EditorView firstView() {
+      return this;
+    }
+
+    @Override
+    public EditorView split(
+        DisplayProjection splitProjection,
+        SelectionModel splitSelections,
+        EditorInput splitEditor,
+        boolean side) {
+      ui.checkUiThread();
+      FakeEditor view = new FakeEditor(splitEditor);
+      splits.add(view);
+      sideBySide = side;
+      return view;
+    }
+
+    @Override
+    public void setSideBySide(boolean side) {
+      ui.checkUiThread();
+      sideBySide = side;
+    }
+
+    @Override
+    public void unsplit(EditorView kept) {
+      ui.checkUiThread();
+      splits.removeIf(
+          new Predicate<FakeEditor>() {
+            @Override
+            public boolean test(FakeEditor view) {
+              return view != kept;
+            }
+          });
     }
 
     @Override

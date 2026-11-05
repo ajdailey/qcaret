@@ -189,9 +189,9 @@ open (loads at the budget limit completed without an out-of-memory error):
 The 8 GiB row is the same 20% and 12% of the heap, computed, not measured. No
 file over 2 GiB opens.
 
-Switching the theme recolors every open editor line by line: about 1 s per
-million-line document, measured on Linux under Xvfb, during which the window
-does not respond. A font size change (View > Zoom) resets the same per-line
+Switching the theme recolors every open editor view line by line: about 1 s
+per million-line view (a split document has two), measured on Linux under
+Xvfb, during which the window does not respond. A font size change (View > Zoom) resets the same per-line
 state and costs the same.
 
 ## Network access

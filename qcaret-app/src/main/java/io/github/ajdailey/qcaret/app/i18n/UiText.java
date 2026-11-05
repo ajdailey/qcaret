@@ -375,7 +375,61 @@ public enum UiText {
   /** Button. */
   BUTTON_DONT_SAVE,
   /** Button. */
-  BUTTON_CANCEL;
+  BUTTON_CANCEL,
+  /** Search menu. */
+  GROUP_SEARCH,
+  /** View submenu of the split commands. */
+  MENU_SPLIT,
+  /** Command label. */
+  COMMAND_SPLIT_HORIZONTAL,
+  /** Command label. */
+  COMMAND_SPLIT_VERTICAL,
+  /** Command label. */
+  COMMAND_UNSPLIT,
+  /** Command label. */
+  COMMAND_FOCUS_OTHER_VIEW,
+  /** Command label. */
+  COMMAND_FIND,
+  /** Command label. */
+  COMMAND_FIND_NEXT,
+  /** Command label. */
+  COMMAND_FIND_PREVIOUS,
+  /** Command label. */
+  COMMAND_REPLACE,
+  /** Find bar label of the search field. */
+  FIND_LABEL,
+  /** Find bar label of the replacement field. */
+  FIND_REPLACE_LABEL,
+  /** Find bar check box. */
+  FIND_MATCH_CASE,
+  /** Find bar check box. */
+  FIND_WHOLE_WORD,
+  /** Find bar check box. */
+  FIND_REGEX,
+  /** Button. */
+  BUTTON_PREVIOUS,
+  /** Button. */
+  BUTTON_NEXT,
+  /** Button. */
+  BUTTON_REPLACE,
+  /** Button. */
+  BUTTON_REPLACE_ALL,
+  /** Find bar notice while a search runs. */
+  FIND_SEARCHING,
+  /** Find bar notice. */
+  FIND_NOT_FOUND,
+  /** Find bar notice: a forward search continued from the top. */
+  FIND_WRAPPED_TOP,
+  /** Find bar notice: a backward search continued from the bottom. */
+  FIND_WRAPPED_BOTTOM,
+  /** Find bar notice: the regex error and its index. */
+  FIND_BAD_PATTERN,
+  /** Find bar notice: the replacement error. */
+  FIND_BAD_REPLACEMENT,
+  /** Find bar notice: the regex overflowed the stack. */
+  FIND_TOO_COMPLEX,
+  /** Find bar notice: the number of matches Replace All replaced. */
+  FIND_REPLACED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

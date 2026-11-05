@@ -5,7 +5,7 @@ import io.github.ajdailey.qcaret.app.editor.CaretNavigation;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
-import io.github.ajdailey.qcaret.app.view.TabView;
+import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.buffer.LineView;
@@ -66,7 +66,7 @@ public final class EditorController implements EditorInput {
   private final Workers workers;
   private final UiDispatcher ui;
   private final Runnable cancelSave;
-  private TabView view;
+  private EditorView view;
   private CancellationToken rewrap;
   private CancellationToken occurrence;
   private boolean columnMode;
@@ -108,10 +108,10 @@ public final class EditorController implements EditorInput {
   /**
    * Connects the view the controller scrolls.
    *
-   * @param tab the view
+   * @param editorView the view
    */
-  public void attach(TabView tab) {
-    view = tab;
+  public void attach(EditorView editorView) {
+    view = editorView;
   }
 
   /**
@@ -181,6 +181,61 @@ public final class EditorController implements EditorInput {
     if (view != null) {
       view.setTabWidth(document.tabWidth());
     }
+  }
+
+  // Viewport, for find highlights.
+
+  private int visibleStart;
+  private int visibleEnd;
+  private Runnable viewportListener;
+
+  @Override
+  public void viewportChanged(int start, int end) {
+    int from = projection.toModel(start);
+    int to = projection.toModel(end);
+    if (from != visibleStart || to != visibleEnd) {
+      visibleStart = from;
+      visibleEnd = to;
+      if (viewportListener != null) {
+        viewportListener.run();
+      }
+    }
+  }
+
+  /**
+   * Returns the model offset of the first visible row.
+   *
+   * @return the offset, 0 before the view reported
+   */
+  public int visibleStart() {
+    return visibleStart;
+  }
+
+  /**
+   * Returns the model offset after the last visible row.
+   *
+   * @return the offset, 0 before the view reported
+   */
+  public int visibleEnd() {
+    return visibleEnd;
+  }
+
+  /**
+   * Sets what runs when the visible range changes.
+   *
+   * @param listener the listener, or null
+   */
+  public void setViewportListener(Runnable listener) {
+    viewportListener = listener;
+  }
+
+  /**
+   * Returns the view.
+   *
+   * @return the view, or null before {@link #attach}
+   */
+  public EditorView view() {
+    return view;
   }
 
   /** Starts the rewrap the projection needs, canceling the running one. */

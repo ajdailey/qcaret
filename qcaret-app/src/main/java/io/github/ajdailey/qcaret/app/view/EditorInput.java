@@ -127,4 +127,12 @@ public interface EditorInput {
    * @param count the committed chars
    */
   void commitFromView(int count);
+
+  /**
+   * Reports the display range the view shows, for find highlights.
+   *
+   * @param start the display offset of the first visible row
+   * @param end the display offset after the last visible row
+   */
+  void viewportChanged(int start, int end);
 }
