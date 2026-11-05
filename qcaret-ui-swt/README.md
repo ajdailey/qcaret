@@ -53,7 +53,8 @@ command on the next UI turn, after the editor has its focus back.
 
 File > Quick Open and Window > Switch Document open `QuickOpenWindow`, the
 same kind of dialog over `QuickOpenInput`: name and path columns and a summary
-line, refilled on each field change and on `quickOpenChanged`. Enter passes
+line, refilled on each field change and on `quickOpenChanged`; an open
+document's row is in bold. Enter passes
 the row to the controller on the next UI turn; closing the dialog cancels a
 running match.
 
@@ -259,15 +260,16 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   the app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain
   Text, then one cascade per category. `MainMenuBar` rebuilds the cascade's
   entries above Reload Grammars on each show and the popup on each click.
-- Bookmarked lines get a bar at the gutter's left edge on their first row,
-  inside the padding left of the line numbers, so it never meets the fold
-  marker column: the caret color for a bookmark, `Palette.bookmarkComment`
-  (teal, mint on dark) for one with a comment. With the pointer over the
-  gutter left of the fold markers, a commented bookmark's line shows its
-  comment as the `StyledText` tooltip. The pane follows the document's
-  `Bookmarks` and repaints on each change they report; a palette change
-  recolors the bars. The overview strip marks a commented bookmark like any
-  other.
+- Bookmarked lines get a mark on their first row in the gutter's bookmark
+  column (`EditorPane.BOOKMARK_COLUMN`, 14 px left of the line numbers), so
+  it never meets the digits or the fold marker column: a bar in the caret
+  color for a bookmark, a flag (the bar and a square at its top right) in
+  `Palette.bookmarkComment` (teal, mint on dark) for one with a comment.
+  With the pointer over the gutter left of the fold markers, a commented
+  bookmark's line shows its comment as the `StyledText` tooltip. The pane
+  follows the document's `Bookmarks` and repaints on each change they
+  report; a palette change recolors the marks. The overview strip marks a
+  commented bookmark like any other.
 - `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
   whole-text operation computes and applies.
 - Show Whitespace paints a dot in each space and an arrow across each tab,
@@ -436,8 +438,8 @@ pixels (skipped when `Control.print` returns false) and toggles the marks;
 with `-Dqcaret.screenshots=<dir>` it saves the marks with a bookmark and
 occurrences, the open palette, and a Java file with a collapsed region,
 occurrences and a matched bracket (`merge.png`), as PNG.
-`BookmarksSurfaceTest` (tag `swt`) checks a plain and a commented bookmark's
-bar colors in pixels in both themes (skipped when `Control.print` returns
+`BookmarksSurfaceTest` (tag `swt`) checks a plain bookmark's bar and a
+commented bookmark's flag in pixels, by color and by x range, in both themes (skipped when `Control.print` returns
 false), the tooltip over the gutter and its absence elsewhere, the comment
 prompt, the list's cells, Go To, Edit Comment, Remove and Hide, and both
 docks shown at once; with `-Dqcaret.screenshots=<dir>` it saves
@@ -445,8 +447,10 @@ docks shown at once; with `-Dqcaret.screenshots=<dir>` it saves
 `bookmarks-list.png`.
 `WorkspaceSurfaceTest` (tag `swt`) expands browser rows, opens a file with
 Enter, copies a path, reveals the active file, chooses a Quick Open match at
-`:2` and checks the Recent Files entry; with `-Dqcaret.screenshots=<dir>` it
-saves `workspace-browser.png` and `quick-open.png`.
+`:2`, checks the Recent Files entry and an empty Quick Open (the open
+document in bold, then a closed recent file); with
+`-Dqcaret.screenshots=<dir>` it saves `workspace-browser.png`,
+`quick-open-empty.png` and `quick-open.png`.
 
 `CompareSurfaceTest` (tag `swt`) changes a dirty document's file, activates
 the window until the prompt shows, opens Compare from it, checks both sides'

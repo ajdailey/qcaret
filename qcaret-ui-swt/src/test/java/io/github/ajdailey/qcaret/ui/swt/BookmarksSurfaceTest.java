@@ -49,9 +49,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Bookmark comments in the gutter and the Bookmarks list dock: a commented bookmark's color in both
- * themes, its tooltip, the comment prompt, the list's rows and buttons, and, with {@code
- * -Dqcaret.screenshots=<dir>}, the gutter with a tooltip and the open list as PNG.
+ * Bookmark comments in the gutter and the Bookmarks list dock: a commented bookmark's shape and
+ * color in both themes, its tooltip, the comment prompt, the list's rows and buttons, and, with
+ * {@code -Dqcaret.screenshots=<dir>}, the gutter with a tooltip and the open list as PNG.
  */
 @Tag("swt")
 class BookmarksSurfaceTest {
@@ -181,11 +181,16 @@ class BookmarksSurfaceTest {
 
   /** Reports whether a line's first row holds a color in the gutter left of the fold markers. */
   private boolean gutterHas(ImageData data, int line, Rgb color) {
+    return gutterHas(data, line, color, 0, pane().foldColumn());
+  }
+
+  /** Reports whether a line's first row holds a color between two gutter x positions. */
+  private boolean gutterHas(ImageData data, int line, Rgb color, int from, int to) {
     StyledText text = pane().text();
     RGB wanted = rgb(color);
     int top = text.getLinePixel(line);
     for (int y = top; y < top + text.getLineHeight(); y++) {
-      for (int x = 0; x < pane().foldColumn(); x++) {
+      for (int x = from; x < to; x++) {
         if (wanted.equals(data.palette.getRGB(data.getPixel(x, y)))) {
           return true;
         }
@@ -216,7 +221,7 @@ class BookmarksSurfaceTest {
   }
 
   @Test
-  void aCommentedBookmarkHasItsOwnColorInBothThemesAndItsCommentAsTooltip() {
+  void aCommentedBookmarkHasItsOwnShapeAndColorInBothThemesAndItsCommentAsTooltip() {
     bookmarks();
     StyledText text = pane().text();
     Event move = new Event();
@@ -233,19 +238,25 @@ class BookmarksSurfaceTest {
     assertNull(text.getToolTipText());
 
     ImageData light = print();
-    assertTrue(gutterHas(light, 1, Palette.LIGHT.caret()), "plain bookmark");
-    assertTrue(gutterHas(light, 4, Palette.LIGHT.bookmarkComment()), "commented bookmark");
+    int bar = EditorPane.BOOKMARK_BAR;
+    int column = EditorPane.BOOKMARK_COLUMN;
+    assertTrue(gutterHas(light, 1, Palette.LIGHT.caret(), 0, bar), "plain bar");
+    assertTrue(!gutterHas(light, 1, Palette.LIGHT.caret(), bar, column), "plain bookmark flag");
+    assertTrue(gutterHas(light, 4, Palette.LIGHT.bookmarkComment(), 0, bar), "commented bar");
+    assertTrue(gutterHas(light, 4, Palette.LIGHT.bookmarkComment(), bar, column), "flag");
     assertTrue(!gutterHas(light, 4, Palette.LIGHT.caret()), "commented bookmark in caret color");
     controller.execute(CommandId.THEME_DARK);
     await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return gutterHas(print(), 4, Palette.DARK.bookmarkComment());
+            return gutterHas(print(), 4, Palette.DARK.bookmarkComment(), bar, column);
           }
         },
-        "dark comment color");
-    assertTrue(gutterHas(print(), 1, Palette.DARK.caret()), "dark plain bookmark");
+        "dark flag");
+    ImageData dark = print();
+    assertTrue(gutterHas(dark, 1, Palette.DARK.caret(), 0, bar), "dark plain bar");
+    assertTrue(!gutterHas(dark, 1, Palette.DARK.caret(), bar, column), "dark plain bookmark flag");
   }
 
   @Test

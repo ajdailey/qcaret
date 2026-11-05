@@ -109,10 +109,10 @@ import org.eclipse.swt.widgets.Slider;
  *       #showBrackets}), the word occurrences ({@link #showOccurrences}) and the secondary
  *       selections; each run takes its token role's color and font style and its background's color
  *       from the palette.
- *   <li>Bookmarks: a bar at the gutter's left edge on each bookmarked line's first row, in the
- *       caret color, or the comment color when the bookmark has a comment, whose text shows as the
- *       tooltip over the gutter left of the fold markers; repainted when the {@link Bookmarks}
- *       change.
+ *   <li>Bookmarks: in the gutter's bookmark column, a bar on each bookmarked line's first row in
+ *       the caret color; a commented bookmark is a flag (the bar and a square at its top right) in
+ *       the comment color, and its comment shows as the tooltip over the gutter left of the fold
+ *       markers. Repainted when the {@link Bookmarks} change.
  *   <li>Marks: in the whitespace color, a dot centered in each space, an arrow across each tab, and
  *       after each line's last row its break's kind ({@code CRLF}, {@code LF}, {@code CR}), each
  *       placed from the widget's measured offsets.
@@ -121,7 +121,13 @@ import org.eclipse.swt.widgets.Slider;
  * </ul>
  */
 public final class EditorPane implements EditorView {
-  /** Pixels between the line numbers and the gutter's edges. */
+  /** Pixels left of the line numbers, holding the bookmark marks. */
+  public static final int BOOKMARK_COLUMN = 14;
+
+  /** Pixels from the gutter's left edge to the bookmark bar's right edge. */
+  public static final int BOOKMARK_BAR = 5;
+
+  /** Pixels between the line numbers and the fold marker column. */
   static final int GUTTER_PADDING = 6;
 
   /** Pixels between the gutter and the text. */
@@ -558,7 +564,7 @@ public final class EditorPane implements EditorView {
     int digits = ColumnMetrics.gutterDigits(projection.lineCount());
     if (digits != gutterDigits) {
       gutterDigits = digits;
-      gutterWidth = metrics.x(digits) + 2 * GUTTER_PADDING + metrics.x(FOLD_COLUMNS);
+      gutterWidth = BOOKMARK_COLUMN + metrics.x(digits) + GUTTER_PADDING + metrics.x(FOLD_COLUMNS);
       if (gestures != null) {
         gestures.setFoldColumn(foldColumn(), gutterWidth);
       }
@@ -1324,8 +1330,8 @@ public final class EditorPane implements EditorView {
   }
 
   /**
-   * Paints a bar at the gutter's left edge on the first row of each visible bookmarked line, in the
-   * comment color when the bookmark has a comment.
+   * Paints the bookmark column on the first row of each visible bookmarked line: a bar in the caret
+   * color, or for a commented bookmark the bar and a square at its top right in the comment color.
    */
   private void paintBookmarks(GC gc) {
     if (bookmarks == null) {
@@ -1346,8 +1352,15 @@ public final class EditorPane implements EditorView {
       }
       int line = projection.lineOfRow(row);
       if (projection.subRow(row) == 0 && Arrays.binarySearch(lines, line) >= 0) {
-        gc.setBackground(Arrays.binarySearch(commented, line) >= 0 ? bookmarkComment : caret);
-        gc.fillRectangle(1, top + 1, GUTTER_PADDING - 2, Math.max(1, lineHeight - 2));
+        int height = Math.max(1, lineHeight - 2);
+        if (Arrays.binarySearch(commented, line) >= 0) {
+          gc.setBackground(bookmarkComment);
+          gc.fillRectangle(
+              BOOKMARK_BAR, top + 1, BOOKMARK_COLUMN - BOOKMARK_BAR - 3, Math.min(height, 7));
+        } else {
+          gc.setBackground(caret);
+        }
+        gc.fillRectangle(1, top + 1, BOOKMARK_BAR - 1, height);
       }
     }
   }

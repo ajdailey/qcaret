@@ -563,10 +563,10 @@ public enum UiText {
   QUICK_OPEN_NAME,
   /** Quick Open column. */
   QUICK_OPEN_PATH,
-  /** Quick Open row detail of an open document: its path or title. */
-  QUICK_OPEN_OPEN,
   /** Quick Open summary: matched and indexed files. */
   QUICK_OPEN_FILES,
+  /** Quick Open summary for an empty query: indexed files. */
+  QUICK_OPEN_INDEXED,
   /** Quick Open summary after the index stopped at its file limit. */
   QUICK_OPEN_CUT_LIMIT,
   /** Quick Open summary after the index stopped for memory. */

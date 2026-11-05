@@ -6,6 +6,8 @@ import io.github.ajdailey.qcaret.app.view.QuickOpenRow;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.List;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
@@ -18,11 +20,11 @@ import org.eclipse.swt.widgets.Text;
 
 /**
  * File > Quick Open and Window > Switch Document: a modal dialog with a filter field over a table
- * of names and paths and a summary line. Each change of the field calls {@link
- * QuickOpenInput#filter}; the table refills then and on each {@link #changed}, selecting its first
- * row. Up, Down, Page Up and Page Down in the field move the selection; Enter or a double click
- * closes the dialog and passes the row to {@link QuickOpenInput#choose} on the next UI turn. Esc
- * closes the dialog; closing it calls {@link QuickOpenInput#close}.
+ * of names and paths and a summary line; an open document's row is in bold. Each change of the
+ * field calls {@link QuickOpenInput#filter}; the table refills then and on each {@link #changed},
+ * selecting its first row. Up, Down, Page Up and Page Down in the field move the selection; Enter
+ * or a double click closes the dialog and passes the row to {@link QuickOpenInput#choose} on the
+ * next UI turn. Esc closes the dialog; closing it calls {@link QuickOpenInput#close}.
  */
 final class QuickOpenWindow {
   private final Shell shell;
@@ -31,6 +33,7 @@ final class QuickOpenWindow {
   private final Text filter;
   private final Table table;
   private final Label summary;
+  private final Font bold;
 
   QuickOpenWindow(Shell parent, final QuickOpenInput input, UiDispatcher ui) {
     this.input = input;
@@ -48,6 +51,11 @@ final class QuickOpenWindow {
     path.setText(UiText.QUICK_OPEN_PATH.text());
     path.setWidth(420);
     table.setHeaderVisible(true);
+    FontData[] data = table.getFont().getFontData();
+    for (FontData each : data) {
+      each.setStyle(SWT.BOLD);
+    }
+    bold = new Font(shell.getDisplay(), data);
     summary = new Label(shell, SWT.NONE);
     summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     filter.addListener(
@@ -95,6 +103,7 @@ final class QuickOpenWindow {
           @Override
           public void handleEvent(Event event) {
             input.close();
+            bold.dispose();
           }
         });
     fill();
@@ -113,7 +122,11 @@ final class QuickOpenWindow {
     try {
       table.removeAll();
       for (QuickOpenRow row : rows) {
-        new TableItem(table, SWT.NONE).setText(new String[] {row.name(), row.detail()});
+        TableItem item = new TableItem(table, SWT.NONE);
+        item.setText(new String[] {row.name(), row.detail()});
+        if (row.open()) {
+          item.setFont(bold);
+        }
       }
       if (!rows.isEmpty()) {
         table.setSelection(0);

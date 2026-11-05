@@ -484,9 +484,11 @@ public final class ApplicationController {
           edit(command);
       case BOOKMARKS_LIST -> bookmarkList.toggle();
       case QUICK_OPEN ->
-          view.showQuickOpen(new QuickOpen(documents, workspace, workers, ui, view, false));
+          view.showQuickOpen(
+              new QuickOpen(documents, workspace, workers, ui, view, false, recentFiles.paths()));
       case SWITCH_DOCUMENT ->
-          view.showQuickOpen(new QuickOpen(documents, workspace, workers, ui, view, true));
+          view.showQuickOpen(
+              new QuickOpen(documents, workspace, workers, ui, view, true, List.of()));
       case CLEAR_RECENT_FILES -> recentFiles.clear();
       case WORKSPACE_BROWSER -> workspace.toggle();
       case GO_BACK -> history.back();

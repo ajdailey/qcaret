@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -39,6 +40,8 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.TreeItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +51,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The workspace browser dock, the Quick Open popup and File > Recent Files in the window: rows
- * listed on expand, a file opened by Enter, a Quick Open match chosen, the recent entries, and,
- * with {@code -Dqcaret.screenshots=<dir>}, the browser and the popup as PNG.
+ * listed on expand, a file opened by Enter, a Quick Open match chosen, the recent entries, an empty
+ * Quick Open's open documents in bold over the Recent Files not open, and, with {@code
+ * -Dqcaret.screenshots=<dir>}, the browser and the popup as PNG.
  */
 @Tag("swt")
 class WorkspaceSurfaceTest {
@@ -258,7 +262,44 @@ class WorkspaceSurfaceTest {
     assertTrue(clear.getEnabled());
   }
 
-  /** Saves the browser ({@code workspace-browser.png}) and the Quick Open popup. */
+  /** Opens a file and waits for its tab count. */
+  private void openFile(String relative, final int tabs) {
+    controller.documents().open(List.of(root.resolve(relative)));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.tabs().getItemCount() == tabs;
+          }
+        },
+        "opened " + relative);
+  }
+
+  private static boolean bold(TableItem item) {
+    return (item.getFont().getFontData()[0].getStyle() & SWT.BOLD) != 0;
+  }
+
+  @Test
+  void anEmptyQuickOpenListsOpenDocumentsInBoldThenRecentFiles() {
+    openFile("README.txt", 1);
+    controller.documents().closeActive();
+    openFile("src/main/java/mock/Totals.java", 1);
+    controller.execute(CommandId.QUICK_OPEN);
+    QuickOpenWindow popup = window.quickOpen();
+    Table table = popup.table();
+    assertEquals(2, table.getItemCount());
+    assertEquals("Totals.java", table.getItem(0).getText(0));
+    assertEquals("src/main/java/mock/Totals.java", table.getItem(0).getText(1));
+    assertTrue(bold(table.getItem(0)));
+    assertEquals("README.txt", table.getItem(1).getText(1));
+    assertFalse(bold(table.getItem(1)));
+    popup.shell().close();
+  }
+
+  /**
+   * Saves the browser ({@code workspace-browser.png}) and the Quick Open popup with an empty query
+   * ({@code quick-open-empty.png}) and with a query ({@code quick-open.png}).
+   */
   @Test
   void screenshotsWhenAsked() {
     String dir = System.getProperty("qcaret.screenshots");
@@ -268,19 +309,15 @@ class WorkspaceSurfaceTest {
     expand(dock, root.resolve("src/main"), List.of("java/"));
     expand(dock, root.resolve("src/main/java"), List.of("mock/"));
     expand(dock, root.resolve("src/main/java/mock"), List.of("Report.java", "Totals.java"));
-    controller.documents().open(List.of(root.resolve("src/main/java/mock/Totals.java")));
-    await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return window.tabs().getItemCount() == 1;
-          }
-        },
-        "opened");
+    openFile("README.txt", 1);
+    controller.documents().closeActive();
+    openFile("docs/guide.txt", 1);
+    openFile("src/main/java/mock/Totals.java", 2);
     dock.press(null, UiText.WORKSPACE_REVEAL);
     capture(dir, "workspace-browser", window.shell().getBounds());
     controller.execute(CommandId.QUICK_OPEN);
     final QuickOpenWindow popup = window.quickOpen();
+    capture(dir, "quick-open-empty", window.shell().getBounds());
     popup.filter().setText("tot");
     capture(dir, "quick-open", window.shell().getBounds());
   }

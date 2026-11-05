@@ -372,7 +372,11 @@ hidden entries and the search's default excluded directories (`.git`, `.svn`,
   scores the file name; a file whose name does not match is scored on its
   path below the folder and ranks after every name match; equal scores put
   the shorter path first. A file open in a tab is listed once, as the
-  document. A query ending in `:line` or `:line:column` opens there. An index
+  document. An empty query lists the open documents in tab order, then the
+  Recent Files not open, newest first, and the summary counts the indexed
+  files; both lists hold real paths, so a file shows once. A row's detail is the path below the folder, the whole path
+  outside it, or empty for an untitled document; `QuickOpenRow.open` marks
+  an open document. A query ending in `:line` or `:line:column` opens there. An index
   of up to 2,000 files is matched on the UI thread, a larger one on a
   `qcaret-cpu-` worker canceled by the next query or the popup's close. An
   index build that ends while the popup shows matches the query again.

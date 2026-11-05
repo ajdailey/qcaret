@@ -29,8 +29,11 @@ import java.util.regex.Pattern;
  * all. Each candidate is scored with {@link Fuzzy} on its file name; one whose name does not match
  * is scored on its path below the workspace folder and ranks after every name match. Equal scores
  * put the shorter path first, then the path in code-unit order. An empty query lists the open
- * documents only. A query ending in {@code :line} or {@code :line:column} (from 1) matches the text
- * before it and moves the caret there on open. Confined to the UI thread.
+ * documents in tab order, then (Quick Open only) the Recent Files not open, newest first; both hold
+ * real paths, so a file is listed once. A row's detail is the path below the workspace folder, the
+ * whole path outside it, or empty for an untitled document. A query ending in {@code :line} or
+ * {@code :line:column} (from 1) matches the text before it and moves the caret there on open.
+ * Confined to the UI thread.
  *
  * <p>An index of up to {@value #SYNC_FILES} files is matched on the UI thread; a larger one on a
  * {@code qcaret-cpu-} worker, canceled by the next query or the popup's close, and the rows change
@@ -79,6 +82,7 @@ final class QuickOpen implements QuickOpenInput {
   private final UiDispatcher ui;
   private final MainView view;
   private final boolean documentsOnly;
+  private final List<Path> recent;
   private final Runnable indexChanged =
       new Runnable() {
         @Override
@@ -104,13 +108,15 @@ final class QuickOpen implements QuickOpenInput {
       Workers workers,
       UiDispatcher ui,
       MainView view,
-      boolean documentsOnly) {
+      boolean documentsOnly,
+      List<Path> recent) {
     this.documents = documents;
     this.workspace = workspace;
     this.workers = workers;
     this.ui = ui;
     this.view = view;
     this.documentsOnly = documentsOnly;
+    this.recent = documentsOnly ? List.<Path>of() : List.copyOf(recent);
     if (!documentsOnly) {
       workspace.addIndexListener(indexChanged);
     }
@@ -135,6 +141,10 @@ final class QuickOpen implements QuickOpenInput {
     fileTargets = List.of();
     filesMatched = 0;
     matchedIndex = null;
+    if (query.text().isEmpty()) {
+      showRecent();
+      return;
+    }
     FileIndex index = documentsOnly ? null : workspace.index();
     if (index == null || query.text().isEmpty()) {
       return;
@@ -205,6 +215,35 @@ final class QuickOpen implements QuickOpenInput {
     matchedIndex = index;
   }
 
+  /** Lists the Recent Files that are not open, after the open documents. */
+  private void showRecent() {
+    Set<Path> listed = new HashSet<Path>();
+    for (Document document : documents.openDocuments()) {
+      Path path = documents.pathOf(document);
+      if (path != null) {
+        listed.add(path);
+      }
+    }
+    Path root = workspace.root();
+    int room = Math.max(0, MAX_ROWS - documentRows.size());
+    List<QuickOpenRow> list = new ArrayList<QuickOpenRow>();
+    List<Path> paths = new ArrayList<Path>();
+    for (Path path : recent) {
+      if (paths.size() == room) {
+        break;
+      }
+      if (listed.add(path)) {
+        Path name = path.getFileName();
+        list.add(
+            new QuickOpenRow(
+                name == null ? path.toString() : name.toString(), below(root, path), false));
+        paths.add(path);
+      }
+    }
+    fileRows = list;
+    fileTargets = paths;
+  }
+
   /** Lists the open documents matching the query, by tier, then score, then tab order. */
   private void matchDocuments() {
     Path root = workspace.root();
@@ -244,9 +283,7 @@ final class QuickOpen implements QuickOpenInput {
       Document document = open.get(keys.get(i)[2]);
       Path path = documents.pathOf(document);
       String name = documents.nameOf(document);
-      list.add(
-          new QuickOpenRow(
-              name, UiText.QUICK_OPEN_OPEN.format(path == null ? name : below(root, path)), true));
+      list.add(new QuickOpenRow(name, path == null ? "" : below(root, path), true));
       targets.add(document);
     }
     documentRows = list;
@@ -370,7 +407,10 @@ final class QuickOpen implements QuickOpenInput {
       return UiText.QUICK_OPEN_MATCHING.format(index.size());
     }
     int matched = matchedIndex == null ? 0 : filesMatched;
-    String files = UiText.QUICK_OPEN_FILES.format(matched, index.size());
+    String files =
+        query.text().isEmpty()
+            ? UiText.QUICK_OPEN_INDEXED.format(index.size())
+            : UiText.QUICK_OPEN_FILES.format(matched, index.size());
     return switch (index.cut()) {
       case NONE -> files;
       case LIMIT -> UiText.QUICK_OPEN_CUT_LIMIT.format(files, FileIndex.MAX_FILES);
