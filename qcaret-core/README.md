@@ -351,8 +351,9 @@ gets no tokens and keeps its state. Each search reads the line through a
   reads scan each leaf once per line.
 - `run` returns the `request`ed lines first, then tokenizes from the frontier
   until a deadline, the end, or the frontier passing the last view line it
-  had not reached. After the last edited line, a line ending in the state its
-  successor already holds ends the work: the edit has converged.
+  had not reached. After the last edited line, and after a stopped frontier
+  that an edit moved back, a line ending in the state its successor already
+  holds ends the work: the edit has converged.
 - The frontier returns the lines of each view range (`setViewport`) as it
   passes them; a requested line beyond it is tokenized from a stored state, or
   from the initial state, and returned again when the frontier passes.
@@ -470,10 +471,13 @@ overflow on 400,000 chars as a typed failure, and replacement templates.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
 its tokens, HTML's embedded JavaScript and CSS included. `SyntaxEngineTest`
 applies seeded random edits that open and close comments, strings and
-braces and join CR LF pairs, then checks every line's tokens and the fold
-regions against a new engine; it also checks that a converging edit
-retokenizes three lines, view lines before and after the frontier, the line
-limit and marker folding. `TokenizerTest` covers states across lines, the
+braces and join CR LF pairs, between passes stopped at a deadline or after a
+seeded line count, then checks every line's tokens and the fold regions
+against a new engine. Two cases pin defects that random edits found: an
+edit before a stopped frontier converging before it, and an edit between a
+CR and an LF shifting the lines after it by one line too few. It also checks
+that a converging edit retokenizes three lines, view lines before and after
+the frontier, the line limit and marker folding. `TokenizerTest` covers states across lines, the
 line limit, a runaway regex and a stack overflow left plain, a cancel, the
 zero-width guard and refused backreferences. `GrammarReaderTest` covers every
 element, a refused DOCTYPE, schema errors with their line, bad regexes and

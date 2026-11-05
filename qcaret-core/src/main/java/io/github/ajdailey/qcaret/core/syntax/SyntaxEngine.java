@@ -24,8 +24,9 @@ import java.util.regex.Matcher;
  *       another 4. The lines before the frontier hold correct values.
  *   <li>{@link #edit} shifts both arrays by each edit's line delta and moves the frontier back to
  *       the first edited line. {@link #run} tokenizes from the frontier; when a line after the last
- *       edited one ends in the state its successor already holds, the edit has converged and the
- *       frontier moves to where the values were correct before the edit.
+ *       edited one, and after the frontier the edit moved back, ends in the state its successor
+ *       already holds, the edit has converged and the frontier moves to where the values were
+ *       correct before the edit.
  *   <li>Lines {@link #request}ed are tokenized and returned by the next run, from the stored state
  *       where the frontier has passed or one is stored, else from {@link Tokenizer#INITIAL}. The
  *       frontier returns the lines of each view range ({@link #setViewport}) again as it passes
@@ -155,19 +156,25 @@ public final class SyntaxEngine {
   public void edit(List<TextEdit> edits, TextSnapshot after) {
     List<int[]> regions = new ArrayList<int[]>();
     int shift = 0;
+    int lineShift = 0;
     int oldLast = text.lineCount() - 1;
     int newLast = after.lineCount() - 1;
     for (TextEdit e : edits) {
       int oldEnd = e.offset() + e.removed().length();
       int newStart = e.offset() + shift;
       int newEnd = newStart + e.inserted().length();
-      int oldA = Math.max(0, text.lineAt(e.offset()) - 1);
+      // Line first starts before the offset, so only earlier edits move it; lineAt at the offset
+      // itself changes when the edit parts or joins a CR and an LF there.
+      int first = Math.max(0, text.lineAt(e.offset()) - 1);
+      int oldEndLine = text.lineAt(oldEnd);
+      int newEndLine = after.lineAt(newEnd);
       int[] region = {
-        oldA,
-        Math.min(oldLast, text.lineAt(oldEnd) + 1),
-        Math.max(0, after.lineAt(newStart) - 1),
-        Math.min(newLast, after.lineAt(newEnd) + 1)
+        first,
+        Math.min(oldLast, oldEndLine + 1),
+        first + lineShift,
+        Math.min(newLast, newEndLine + 1)
       };
+      lineShift = newEndLine - oldEndLine;
       int[] previous = regions.isEmpty() ? null : regions.get(regions.size() - 1);
       if (previous != null && region[0] <= previous[1] + 1) {
         previous[1] = Math.max(previous[1], region[1]);
@@ -187,6 +194,10 @@ public final class SyntaxEngine {
         System.arraycopy(folds, from, folds, from + delta, lineCount + 1 - from);
       }
       lineCount += delta;
+      if (frontier < known) {
+        // States past a stopped frontier predate the edits since; converging before it keeps them.
+        dirtyEnd = Math.max(dirtyEnd, frontier);
+      }
       frontier = Math.min(frontier, r[0]);
       known = shift(known, r[0], r[1], delta);
       dirtyEnd = shift(dirtyEnd, r[0], r[1], delta);
@@ -261,6 +272,20 @@ public final class SyntaxEngine {
    */
   @WorkerThread
   public Slice run(long deadline, CancellationToken cancel) {
+    return run(deadline, Integer.MAX_VALUE, cancel);
+  }
+
+  /**
+   * As {@link #run(long, CancellationToken)}, also stopping once the frontier has tokenized {@code
+   * maxLines} lines.
+   *
+   * @param deadline {@link System#nanoTime} to stop at
+   * @param maxLines the most lines the frontier tokenizes, at least 1
+   * @param cancel checked while reading
+   * @return the output
+   */
+  @WorkerThread
+  Slice run(long deadline, int maxLines, CancellationToken cancel) {
     List<Integer> lines = new ArrayList<Integer>();
     List<int[]> lineTokens = new ArrayList<int[]>();
     for (int[] range : requests) {
@@ -274,6 +299,7 @@ public final class SyntaxEngine {
     boolean reached = frontier > viewEnd;
     int from = -1;
     int to = -1;
+    int count = 0;
     while (frontier < lineCount) {
       int line = frontier;
       int end = tokenizeLine(line, states[line], cancel);
@@ -294,7 +320,10 @@ public final class SyntaxEngine {
         frontier = next;
         known = Math.max(known, frontier);
       }
-      if (System.nanoTime() - deadline > 0 || (!reached && frontier > viewEnd)) {
+      count++;
+      if (count >= maxLines
+          || System.nanoTime() - deadline > 0
+          || (!reached && frontier > viewEnd)) {
         break;
       }
     }

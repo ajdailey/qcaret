@@ -84,55 +84,144 @@ class SyntaxEngineTest {
 
   @Test
   void randomEditsLeaveTheSameTokensAndRegionsAsTokenizingAgain() {
-    Syntax java = Tokens.BUILT_IN.syntax("java");
     for (long seed = 1; seed <= 12; seed++) {
-      Random random = new Random(seed);
-      Document document = document(mockJava(20));
-      final List<DocumentChange> changes = new ArrayList<DocumentChange>();
-      document.addListener(
-          new DocumentListener() {
-            @Override
-            public void textChanged(DocumentChange change) {
-              changes.add(change);
-            }
+      randomEdits(seed, false);
+    }
+  }
 
-            @Override
-            public void dirtyChanged(boolean dirty) {
-              // Not used.
-            }
-          });
-      SyntaxEngine engine = new SyntaxEngine(java, document.text(), 200);
-      finish(engine);
-      for (int step = 0; step < 60; step++) {
-        int length = document.text().length();
-        List<Replacement> batch = new ArrayList<Replacement>();
-        int at = random.nextInt(length + 1);
-        int remove = random.nextInt(3) == 0 ? Math.min(length - at, random.nextInt(40)) : 0;
-        batch.add(new Replacement(at, remove, SNIPPETS[random.nextInt(SNIPPETS.length)]));
-        if (random.nextBoolean() && at > 10) {
-          batch.add(new Replacement(random.nextInt(at - 5), 0, SNIPPETS[random.nextInt(4)]));
-        }
-        try {
-          document.apply(EditBatch.of(EditBatch.Kind.COMMAND, batch));
-        } catch (IllegalArgumentException e) {
-          continue;
-        }
-        DocumentChange change = changes.get(changes.size() - 1);
-        engine.edit(change.edits(), document.text());
-        if (random.nextInt(4) == 0) {
-          List<int[]> regions = finish(engine);
-          SyntaxEngine fresh = new SyntaxEngine(java, document.text(), 200);
-          List<int[]> expected = finish(fresh);
-          assertNotNull(regions, "seed " + seed + " step " + step);
-          assertEquals(expected.size(), regions.size(), "seed " + seed + " step " + step);
-          for (int i = 0; i < expected.size(); i++) {
-            assertArrayEquals(expected.get(i), regions.get(i), "seed " + seed + " step " + step);
+  @Test
+  void randomEditsBetweenPartialPassesOfRandomLengthLeaveTheSameTokensAndRegions() {
+    for (long seed = 1; seed <= 600; seed++) {
+      randomEdits(seed, true);
+    }
+  }
+
+  /**
+   * Applies seeded random edits to 240 lines of Java; after some edits runs a partial pass, after
+   * others finishes the pass and compares with a new engine.
+   *
+   * @param lineStops true to stop a partial pass after a seeded random line count, false at a 50 us
+   *     deadline
+   */
+  private static void randomEdits(long seed, boolean lineStops) {
+    Syntax java = Tokens.BUILT_IN.syntax("java");
+    Random random = new Random(seed);
+    Random stops = new Random(-seed);
+    Document document = document(mockJava(20));
+    final List<DocumentChange> changes = new ArrayList<DocumentChange>();
+    document.addListener(
+        new DocumentListener() {
+          @Override
+          public void textChanged(DocumentChange change) {
+            changes.add(change);
           }
-          assertEquals(allTokens(fresh), allTokens(engine), "seed " + seed + " step " + step);
-        } else if (random.nextBoolean()) {
+
+          @Override
+          public void dirtyChanged(boolean dirty) {
+            // Not used.
+          }
+        });
+    SyntaxEngine engine = new SyntaxEngine(java, document.text(), 200);
+    finish(engine);
+    String where = "seed " + seed + " step ";
+    for (int step = 0; step < 60; step++) {
+      int length = document.text().length();
+      List<Replacement> batch = new ArrayList<Replacement>();
+      int at = random.nextInt(length + 1);
+      int remove = random.nextInt(3) == 0 ? Math.min(length - at, random.nextInt(40)) : 0;
+      batch.add(new Replacement(at, remove, SNIPPETS[random.nextInt(SNIPPETS.length)]));
+      if (random.nextBoolean() && at > 10) {
+        batch.add(new Replacement(random.nextInt(at - 5), 0, SNIPPETS[random.nextInt(4)]));
+      }
+      try {
+        document.apply(EditBatch.of(EditBatch.Kind.COMMAND, batch));
+      } catch (IllegalArgumentException e) {
+        continue;
+      }
+      DocumentChange change = changes.get(changes.size() - 1);
+      engine.edit(change.edits(), document.text());
+      if (random.nextInt(4) == 0) {
+        List<int[]> regions = finish(engine);
+        SyntaxEngine fresh = new SyntaxEngine(java, document.text(), 200);
+        List<int[]> expected = finish(fresh);
+        assertNotNull(regions, where + step);
+        assertEquals(expected.size(), regions.size(), where + step);
+        for (int i = 0; i < expected.size(); i++) {
+          assertArrayEquals(expected.get(i), regions.get(i), where + step);
+        }
+        assertEquals(allTokens(fresh), allTokens(engine), where + step);
+      } else if (random.nextBoolean()) {
+        if (lineStops) {
+          int stop = 1 + stops.nextInt(document.text().lineCount());
+          engine.run(System.nanoTime() + FAR, stop, new CancellationToken());
+        } else {
           engine.run(System.nanoTime() + 50_000, new CancellationToken());
         }
       }
+    }
+  }
+
+  @Test
+  void anEditBeforeAStoppedFrontierDoesNotConvergeBeforeIt() {
+    Syntax java = Tokens.BUILT_IN.syntax("java");
+    Document document = document("class A {\nint a;\nint b;\nint c;\nvoid f() {\n}\n}\n");
+    final List<DocumentChange> changes = new ArrayList<DocumentChange>();
+    document.addListener(
+        new DocumentListener() {
+          @Override
+          public void textChanged(DocumentChange change) {
+            changes.add(change);
+          }
+
+          @Override
+          public void dirtyChanged(boolean dirty) {
+            // Not used.
+          }
+        });
+    SyntaxEngine engine = new SyntaxEngine(java, document.text(), 10_000);
+    finish(engine);
+    document.apply(EditBatch.replace(document.text().offsetOfLine(2), 0, "/*"));
+    engine.edit(changes.get(0).edits(), document.text());
+    // Lines 3 and 4 now start in the comment; line 5 still holds the code state.
+    engine.run(System.nanoTime() + FAR, 3, new CancellationToken());
+    assertEquals(4, engine.frontier());
+    document.apply(EditBatch.replace(0, 0, "x"));
+    engine.edit(changes.get(1).edits(), document.text());
+    // Line 4's stored state matches the new one; line 5's predates the first edit.
+    List<int[]> regions = finish(engine);
+    SyntaxEngine fresh = new SyntaxEngine(java, document.text(), 10_000);
+    assertEquals(finish(fresh).size(), regions.size());
+    assertEquals(allTokens(fresh), allTokens(engine));
+  }
+
+  @Test
+  void anEditBetweenACrAndAnLfShiftsTheLinesAfterItByItsLineDelta() {
+    Syntax java = Tokens.BUILT_IN.syntax("java");
+    String text = "class A {\nint a;\r\nvoid f() {\n}\n}\n";
+    Document document = document(text);
+    final List<DocumentChange> changes = new ArrayList<DocumentChange>();
+    document.addListener(
+        new DocumentListener() {
+          @Override
+          public void textChanged(DocumentChange change) {
+            changes.add(change);
+          }
+
+          @Override
+          public void dirtyChanged(boolean dirty) {
+            // Not used.
+          }
+        });
+    SyntaxEngine engine = new SyntaxEngine(java, document.text(), 10_000);
+    finish(engine);
+    // CR, CR LF, LF: two lines more; lineAt at the offset counts the first CR only afterwards.
+    document.apply(EditBatch.replace(text.indexOf('\r') + 1, 0, "\r\n"));
+    engine.edit(changes.get(0).edits(), document.text());
+    List<int[]> regions = finish(engine);
+    List<int[]> expected = finish(new SyntaxEngine(java, document.text(), 10_000));
+    assertEquals(expected.size(), regions.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertArrayEquals(expected.get(i), regions.get(i));
     }
   }
 
