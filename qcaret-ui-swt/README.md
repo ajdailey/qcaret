@@ -37,6 +37,12 @@ rows on the clipboard as `Keymap.reference(filter)` writes them. A second
 request brings the open window forward. Edit > Go to Line opens `GoToDialog`,
 a modal prompt without a nested event loop.
 
+View > Command Palette opens `CommandPaletteWindow`, a modal dialog with a
+filter field over the rows `PaletteInput.filter` returns: command, menu and
+keys, a disabled command in gray. Up, Down, Page Up and Page Down in the field
+move the selection; Enter or a double click closes the dialog and runs the
+command on the next UI turn, after the editor has its focus back.
+
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings and language
@@ -156,12 +162,29 @@ which `MainWindow.clipboardText` uses.
 - Each paint that shows another display range reports it through
   `EditorInput.viewportChanged`.
 - Line styles come from the pane's `HighlightComposer`: the syntax tokens
-  (`setSyntax`), the find matches (`showMatches`) and the secondary
-  selections, which win over both. A run takes its `TokenRole`'s palette
-  color, bold, italic and underline; `redrawHighlights` repaints after new
-  tokens arrive. The status bar's language field pops up the grammar list;
-  the View menu's Syntax cascade lists it above Reload Grammars, rebuilt on
-  each show.
+  (`setSyntax`), the find matches (`showMatches`), the bracket pair
+  (`showBrackets`), the word occurrences (`showOccurrences`) and the
+  secondary selections. A run takes its `TokenRole`'s palette color, bold,
+  italic and underline; on the same chars the background of a secondary
+  selection wins over a bracket, a bracket over a find match, and a find
+  match over an occurrence. `redrawHighlights` repaints after new tokens
+  arrive. The status bar's language field pops up the grammar list; the View
+  menu's Syntax cascade lists it above Reload Grammars, rebuilt on each show.
+- Bookmarked lines get a bar in the caret color at the gutter's left edge on
+  their first row, inside the padding left of the line numbers, so it never
+  meets the fold marker column; the pane follows the document's `Bookmarks`
+  and repaints on a toggle or a clear.
+- `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
+  whole-text operation computes and applies.
+- Show Whitespace paints a dot in each space and an arrow across each tab,
+  and Show Line Endings the break's kind (`CRLF`, `LF`, `CR`) after each
+  line's last row, in the palette's whitespace color, which a theme switch
+  recolors. Positions come from `getLocationAtOffset` at each run's ends.
+- The completion list (`CompletionPopup`) is a shell that takes no focus
+  below the primary caret, created on show and disposed on hide; the editor
+  keeps the keys, which the controller routes to the list. A double click
+  chooses a word. When the editor loses focus to another control, the list
+  closes on the next UI turn.
 - Every resize and font change sends the columns that fit the text area for
   word wrap. `setFont` replaces the font in place and measures the advance
   again. A
@@ -283,14 +306,23 @@ lines against the projection's rows, moves the caret by key over a collapsed
 region, folds one split view and types in it with the other unchanged, and
 sends Enter after an opener; with `-Dqcaret.screenshots=<dir>` it saves
 `folding.png`.
+`ProductivitySurfaceTest` (tag `swt`) runs a command from the palette's
+filter, completes a word from the editor's keys, checks the bracket and
+occurrence backgrounds and a bookmark bar left of the fold marker column in
+pixels (skipped when `Control.print` returns false) and toggles the marks;
+with `-Dqcaret.screenshots=<dir>` it saves the marks with a bookmark and
+occurrences, the open palette, and a Java file with a collapsed region,
+occurrences and a matched bracket (`merge.png`), as PNG.
 `SwtUiDispatcherTest` checks that a canceled timer does not run and that
 cancel after dispose does nothing. `CaretInkTest` checks the caret image color
 under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
-`DeviceData.tracking` over a
-warm-up round and four rounds of tab open and close, the tab menu, both
+`DeviceData.tracking` over two
+warm-up rounds (the second adds one cached `StyledText` line layout) and four
+rounds of tab open and close, the tab menu, both
 themes, zoom, split with Fold All and Unfold All in both views and the find
-bar searching and closed, unsplit, and
-every menu's `Show`; the live counts per type must return to the warm-up's,
+bar searching and closed, unsplit, the command palette, the completion list
+with the whitespace and line-ending marks on, and
+every menu's `Show`; the live counts per type must return to the warm-ups',
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it
 disposes with the Display on each theme switch, so the next request allocates

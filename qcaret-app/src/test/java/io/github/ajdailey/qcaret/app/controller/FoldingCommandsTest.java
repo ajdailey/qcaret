@@ -58,6 +58,18 @@ class FoldingCommandsTest {
         "fold regions");
   }
 
+  private void awaitCollapsed(final DisplayProjection p, final int count)
+      throws InterruptedException {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return p.collapsedCount() == count;
+          }
+        },
+        count + " collapsed regions");
+  }
+
   private void caret(EditorController editor, int line, int column) {
     editor.goTo(line, column);
   }
@@ -68,7 +80,7 @@ class FoldingCommandsTest {
   }
 
   @Test
-  void indentationGivesTheRegionsAndTheCommandsFoldThem() {
+  void indentationGivesTheRegionsAndTheCommandsFoldThem() throws InterruptedException {
     EditorController editor = documents.activeEditor();
     DisplayProjection p = editor.projection();
     assertEquals(2, p.foldRegionCount());
@@ -88,7 +100,7 @@ class FoldingCommandsTest {
     harness.application.execute(CommandId.TOGGLE_FOLD);
     assertFalse(p.collapsed(1));
     harness.application.execute(CommandId.FOLD_ALL);
-    assertEquals(2, p.collapsedCount());
+    awaitCollapsed(p, 2);
     assertEquals("class A {\n}\ntail\n", shown(editor));
     harness.application.execute(CommandId.UNFOLD);
     assertTrue(p.collapsed(1));
@@ -145,10 +157,28 @@ class FoldingCommandsTest {
     assertEquals(0, second.projection().collapsedCount());
     assertTrue(first.projection().collapsed(0));
     harness.application.execute(CommandId.FOLD_ALL);
-    assertEquals(2, second.projection().collapsedCount());
+    awaitCollapsed(second.projection(), 2);
     assertEquals(1, first.projection().collapsedCount());
     harness.application.execute(CommandId.UNSPLIT);
     assertEquals(2, documents.activeEditor().projection().collapsedCount());
+  }
+
+  @Test
+  void nextAndPreviousBookmarkExpandTheRegionHidingTheirLine() {
+    EditorController editor = documents.activeEditor();
+    DisplayProjection p = editor.projection();
+    caret(editor, 3, 0);
+    harness.application.execute(CommandId.TOGGLE_BOOKMARK);
+    caret(editor, 0, 0);
+    p.foldAt(1);
+    harness.application.execute(CommandId.NEXT_BOOKMARK);
+    assertEquals(TEXT.indexOf("    two"), caretOf(editor));
+    assertFalse(p.collapsed(1));
+    caret(editor, 6, 0);
+    p.foldAt(1);
+    harness.application.execute(CommandId.PREVIOUS_BOOKMARK);
+    assertEquals(TEXT.indexOf("    two"), caretOf(editor));
+    assertFalse(p.collapsed(1));
   }
 
   @Test

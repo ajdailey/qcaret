@@ -162,6 +162,55 @@ public enum CommandId {
   REPORT_ISSUE(CommandGroup.HELP, UiText.COMMAND_REPORT_ISSUE, true, false, null),
   /** Show the About dialog. */
   ABOUT(CommandGroup.HELP, UiText.COMMAND_ABOUT, false, false, null),
+  /** Sort the touched lines, or every line, by code unit. */
+  SORT_LINES_ASCENDING(
+      CommandGroup.EDIT, UiText.COMMAND_SORT_LINES_ASCENDING, true, false, UiText.MENU_SORT_LINES),
+  /** Sort the touched lines, or every line, by code unit, last first. */
+  SORT_LINES_DESCENDING(
+      CommandGroup.EDIT,
+      UiText.COMMAND_SORT_LINES_DESCENDING,
+      false,
+      false,
+      UiText.MENU_SORT_LINES),
+  /** Sort the touched lines, or every line, ignoring case. */
+  SORT_LINES_IGNORE_CASE(
+      CommandGroup.EDIT,
+      UiText.COMMAND_SORT_LINES_IGNORE_CASE,
+      false,
+      false,
+      UiText.MENU_SORT_LINES),
+  /** Remove repeated lines from the touched lines, or every line. */
+  REMOVE_DUPLICATE_LINES(
+      CommandGroup.EDIT, UiText.COMMAND_REMOVE_DUPLICATE_LINES, false, false, null),
+  /** Remove trailing spaces and tabs from the touched lines, or every line. */
+  TRIM_TRAILING_WHITESPACE(
+      CommandGroup.EDIT, UiText.COMMAND_TRIM_TRAILING_WHITESPACE, false, false, null),
+  /** Complete the word before the caret from the words of the open documents. */
+  COMPLETE_WORD(CommandGroup.EDIT, UiText.COMMAND_COMPLETE_WORD, true, false, null),
+  /** Select from each caret's bracket to its partner, both included. */
+  SELECT_TO_MATCHING_BRACKET(
+      CommandGroup.SELECTION, UiText.COMMAND_SELECT_TO_MATCHING_BRACKET, true, false, null),
+  /** Move each caret past the partner of the bracket beside it. */
+  GO_TO_MATCHING_BRACKET(
+      CommandGroup.SEARCH, UiText.COMMAND_GO_TO_MATCHING_BRACKET, true, false, null),
+  /** Bookmark each caret's line, or remove its bookmark. */
+  TOGGLE_BOOKMARK(
+      CommandGroup.SEARCH, UiText.COMMAND_TOGGLE_BOOKMARK, false, false, UiText.MENU_BOOKMARKS),
+  /** Move the caret to the next bookmarked line. */
+  NEXT_BOOKMARK(
+      CommandGroup.SEARCH, UiText.COMMAND_NEXT_BOOKMARK, false, false, UiText.MENU_BOOKMARKS),
+  /** Move the caret to the previous bookmarked line. */
+  PREVIOUS_BOOKMARK(
+      CommandGroup.SEARCH, UiText.COMMAND_PREVIOUS_BOOKMARK, false, false, UiText.MENU_BOOKMARKS),
+  /** Remove every bookmark of the selected document. */
+  CLEAR_BOOKMARKS(
+      CommandGroup.SEARCH, UiText.COMMAND_CLEAR_BOOKMARKS, false, false, UiText.MENU_BOOKMARKS),
+  /** Mark spaces and tabs in the window's editors. */
+  SHOW_WHITESPACE(CommandGroup.VIEW, UiText.COMMAND_SHOW_WHITESPACE, true, true, null),
+  /** Mark each line break in the window's editors with its kind. */
+  SHOW_LINE_ENDINGS(CommandGroup.VIEW, UiText.COMMAND_SHOW_LINE_ENDINGS, false, true, null),
+  /** Find and run a command by name. */
+  COMMAND_PALETTE(CommandGroup.VIEW, UiText.COMMAND_COMMAND_PALETTE, true, false, null),
   /** Move every caret one char left, or to the start of its selection. */
   CARET_LEFT(CommandGroup.EDITOR, UiText.COMMAND_CARET_LEFT, false, false, null),
   /** Move every caret one char right, or to the end of its selection. */

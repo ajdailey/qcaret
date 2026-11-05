@@ -214,10 +214,13 @@ open (loads at the budget limit completed without an out-of-memory error):
 The 8 GiB row is the same 20% and 12% of the heap, computed, not measured. No
 file over 2 GiB opens.
 
-Switching the theme recolors every open editor view line by line: about 1 s
-per million-line view (a split document has two), measured on Linux under
-Xvfb, during which the window does not respond. A font size change (View > Zoom) resets the same per-line
-state and costs the same.
+These operations run on the UI thread, and the window does not respond while
+they apply (measured on Linux under Xvfb, one million lines):
+
+| Operation | Time |
+|---|---|
+| Theme switch or font size change (View > Zoom): every open view's per-line state is reset | About 1 s per view; a split document has two |
+| Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the computed text replaces the document's (busy cursor) | Sort: 1.2-2.0 s for the apply, after the edit is computed on a worker; the others not measured |
 
 ## Network access
 

@@ -140,6 +140,7 @@ public final class DisplayProjection implements DocumentListener {
   private FoldLayer folds = FoldLayer.NONE;
   private int[] regionStarts = new int[0];
   private int[] regionEnds = new int[0];
+  private long foldOps;
 
   /**
    * Creates a projection and starts following the document. Call on the UI thread.
@@ -816,6 +817,19 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when every region was collapsed
    */
   public boolean foldAll() {
+    int[][] merged = foldAllRegions();
+    if (merged.length == 0) {
+      return false;
+    }
+    applyFolds(merged[0], merged[1], 0, text.lineCount() - 1);
+    return true;
+  }
+
+  /**
+   * Returns the collapsed regions plus every offered one as {starts, ends}, or an empty array when
+   * no offered one is new.
+   */
+  private int[][] foldAllRegions() {
     int n = regionStarts.length;
     int m = folds.regionCount();
     int[] starts = new int[n + m];
@@ -836,10 +850,103 @@ public final class DisplayProjection implements DocumentListener {
       }
     }
     if (count == m) {
-      return false;
+      return new int[0][];
     }
-    applyFolds(Arrays.copyOf(starts, count), Arrays.copyOf(ends, count), 0, text.lineCount() - 1);
-    return true;
+    return new int[][] {Arrays.copyOf(starts, count), Arrays.copyOf(ends, count)};
+  }
+
+  /** What became of a {@link FoldAll} at {@link #installFoldAll}. */
+  public enum FoldAllOutcome {
+    /** The regions collapsed. */
+    APPLIED,
+    /** A fold or unfold since the request; nothing changed. */
+    DROPPED,
+    /** The text, rows or offered regions changed since the request; request again. */
+    STALE
+  }
+
+  /**
+   * A Fold All whose spans are measured on a worker: requested by {@link #foldAllRequest}, measured
+   * by {@link #computeFoldAll}, applied by {@link #installFoldAll}.
+   */
+  public static final class FoldAll {
+    private final long revision;
+    private final long ops;
+    private final TextSnapshot snapshot;
+    private final RowIndex live;
+    private final RowIndex rows;
+    private final FoldLayer reuse;
+    private final int[] offered;
+    private final int[] starts;
+    private final int[] ends;
+    private FoldLayer result;
+
+    private FoldAll(
+        long revision,
+        long ops,
+        TextSnapshot snapshot,
+        RowIndex live,
+        FoldLayer reuse,
+        int[] offered,
+        int[] starts,
+        int[] ends) {
+      this.revision = revision;
+      this.ops = ops;
+      this.snapshot = snapshot;
+      this.live = live;
+      this.rows = live.copy();
+      this.reuse = reuse;
+      this.offered = offered;
+      this.starts = starts;
+      this.ends = ends;
+    }
+  }
+
+  /**
+   * Returns a Fold All of every region, nested ones included, for {@link #computeFoldAll} on a
+   * worker. Takes a snapshot and a copy of the rows.
+   *
+   * @return the request, or null when every region is collapsed
+   */
+  public FoldAll foldAllRequest() {
+    int[][] merged = foldAllRegions();
+    if (merged.length == 0) {
+      return null;
+    }
+    return new FoldAll(
+        document.revision(), foldOps, text, index, folds, regionStarts, merged[0], merged[1]);
+  }
+
+  /**
+   * Measures a Fold All's spans in its snapshot and rows.
+   *
+   * @param request the request
+   */
+  @WorkerThread
+  public static void computeFoldAll(FoldAll request) {
+    request.result =
+        FoldLayer.of(request.starts, request.ends, request.snapshot, request.rows, request.reuse);
+  }
+
+  /**
+   * Collapses a Fold All's regions when the text, the rows, the offered regions and the collapsed
+   * ones are those of its request.
+   *
+   * @param request a request {@link #computeFoldAll} measured, or one whose measuring failed
+   * @return the outcome
+   */
+  public FoldAllOutcome installFoldAll(FoldAll request) {
+    if (disposed || request.result == null || request.ops != foldOps) {
+      return FoldAllOutcome.DROPPED;
+    }
+    if (request.revision != document.revision()
+        || request.live != index
+        || request.reuse != folds
+        || request.offered != regionStarts) {
+      return FoldAllOutcome.STALE;
+    }
+    applyFolds(request.result, 0, text.lineCount() - 1);
+    return FoldAllOutcome.APPLIED;
   }
 
   /**
@@ -906,7 +1013,11 @@ public final class DisplayProjection implements DocumentListener {
    * of any hidden span of either state.
    */
   private void applyFolds(int[] starts, int[] ends, int lo, int hi) {
-    FoldLayer next = FoldLayer.of(starts, ends, text, index, folds);
+    applyFolds(FoldLayer.of(starts, ends, text, index, folds), lo, hi);
+  }
+
+  private void applyFolds(FoldLayer next, int lo, int hi) {
+    foldOps++;
     int last = text.lineCount() - 1;
     boolean moved = true;
     while (moved) {

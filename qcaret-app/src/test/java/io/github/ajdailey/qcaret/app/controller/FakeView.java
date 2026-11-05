@@ -2,12 +2,14 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
@@ -26,6 +28,18 @@ import java.util.function.Predicate;
  * call fails off the dispatcher's UI thread.
  */
 final class FakeView implements MainView {
+  /** The highlights, bookmarks, marks and completion list a view was given. */
+  static final class Shown {
+    int[] brackets = new int[0];
+    int[] occurrences = new int[0];
+    Bookmarks bookmarks;
+    boolean whitespace;
+    boolean lineEndings;
+    List<String> completions = List.of();
+    int completionSelected;
+    final List<Boolean> busy = new ArrayList<Boolean>();
+  }
+
   /** One editor view: what the controller asked of it. */
   final class FakeEditor implements EditorView {
     final EditorInput editor;
@@ -36,6 +50,7 @@ final class FakeView implements MainView {
     boolean columnMode;
     TokenSource syntax;
     int redraws;
+    final Shown shown = new Shown();
 
     FakeEditor(EditorInput editor) {
       this.editor = editor;
@@ -88,6 +103,44 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       redraws++;
     }
+
+    @Override
+    public void showBrackets(int[] ranges) {
+      ui.checkUiThread();
+      shown.brackets = ranges.clone();
+    }
+
+    @Override
+    public void showOccurrences(int[] ranges) {
+      ui.checkUiThread();
+      shown.occurrences = ranges.clone();
+    }
+
+    @Override
+    public void setBookmarks(Bookmarks bookmarks) {
+      ui.checkUiThread();
+      shown.bookmarks = bookmarks;
+    }
+
+    @Override
+    public void setMarks(boolean whitespace, boolean lineEndings) {
+      ui.checkUiThread();
+      shown.whitespace = whitespace;
+      shown.lineEndings = lineEndings;
+    }
+
+    @Override
+    public void setBusy(boolean busy) {
+      ui.checkUiThread();
+      shown.busy.add(busy);
+    }
+
+    @Override
+    public void showCompletions(List<String> words, int selected) {
+      ui.checkUiThread();
+      shown.completions = List.copyOf(words);
+      shown.completionSelected = selected;
+    }
   }
 
   /** A tab: its title, its views and what the controller asked of it. */
@@ -107,6 +160,7 @@ final class FakeView implements MainView {
     boolean sideBySide;
     TokenSource syntax;
     int redraws;
+    final Shown shown = new Shown();
 
     FakeTab(
         DisplayProjection projection,
@@ -228,6 +282,44 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       columnMode = on;
     }
+
+    @Override
+    public void showBrackets(int[] ranges) {
+      ui.checkUiThread();
+      shown.brackets = ranges.clone();
+    }
+
+    @Override
+    public void showOccurrences(int[] ranges) {
+      ui.checkUiThread();
+      shown.occurrences = ranges.clone();
+    }
+
+    @Override
+    public void setBookmarks(Bookmarks bookmarks) {
+      ui.checkUiThread();
+      shown.bookmarks = bookmarks;
+    }
+
+    @Override
+    public void setMarks(boolean whitespace, boolean lineEndings) {
+      ui.checkUiThread();
+      shown.whitespace = whitespace;
+      shown.lineEndings = lineEndings;
+    }
+
+    @Override
+    public void setBusy(boolean busy) {
+      ui.checkUiThread();
+      shown.busy.add(busy);
+    }
+
+    @Override
+    public void showCompletions(List<String> words, int selected) {
+      ui.checkUiThread();
+      shown.completions = List.copyOf(words);
+      shown.completionSelected = selected;
+    }
   }
 
   /** A grid of 10 by 10 pixel cells, five rows to a page; row and column from x and y alone. */
@@ -278,6 +370,7 @@ final class FakeView implements MainView {
   int goToLines;
   Consumer<String> goTo;
   Keymap shortcuts;
+  PaletteInput palette;
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -450,5 +543,11 @@ final class FakeView implements MainView {
   public void showKeyboardShortcuts(Keymap keymap) {
     ui.checkUiThread();
     shortcuts = keymap;
+  }
+
+  @Override
+  public void showCommandPalette(PaletteInput input) {
+    ui.checkUiThread();
+    palette = input;
   }
 }

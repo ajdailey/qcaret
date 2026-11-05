@@ -3,9 +3,11 @@ package io.github.ajdailey.qcaret.ui.swt.editor;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.HighlightComposer;
+import io.github.ajdailey.qcaret.app.editor.LineEnds;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -20,6 +22,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.text.LineEnding;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
@@ -90,8 +93,17 @@ import org.eclipse.swt.widgets.Listener;
  *   <li>Find: each paint that shows another display range reports it through {@link
  *       EditorInput#viewportChanged}.
  *   <li>Line styles: a {@link HighlightComposer} composes each painted row from the syntax tokens
- *       ({@link #setSyntax}), the find matches ({@link #showMatches}) and the secondary selections;
- *       each run takes its token role's color and font style from the palette.
+ *       ({@link #setSyntax}), the find matches ({@link #showMatches}), the bracket pair ({@link
+ *       #showBrackets}), the word occurrences ({@link #showOccurrences}) and the secondary
+ *       selections; each run takes its token role's color and font style and its background's color
+ *       from the palette.
+ *   <li>Bookmarks: a bar in the caret color at the gutter's left edge on each bookmarked line's
+ *       first row, repainted when the {@link Bookmarks} change.
+ *   <li>Marks: in the whitespace color, a dot centered in each space, an arrow across each tab, and
+ *       after each line's last row its break's kind ({@code CRLF}, {@code LF}, {@code CR}), each
+ *       placed from the widget's measured offsets.
+ *   <li>Completion: {@link CompletionPopup} below the primary caret; it closes when the editor
+ *       loses focus.
  * </ul>
  */
 public final class EditorPane implements EditorView {
@@ -128,6 +140,9 @@ public final class EditorPane implements EditorView {
   private Color[] roleColors = new Color[0];
   private int[] roleFontStyles = new int[0];
   private boolean[] roleUnderlines = new boolean[0];
+  private Color occurrenceBack;
+  private Color bracketBack;
+  private Color whitespace;
   private Palette palette;
   private final Caret primaryCaret;
   private Image caretImage;
@@ -137,6 +152,20 @@ public final class EditorPane implements EditorView {
   private boolean syncing;
   private final EditorLayout layout;
   private final EditorGestures gestures;
+  private final UiDispatcher ui;
+  private final CompletionPopup completion;
+  private final Runnable bookmarksChanged =
+      new Runnable() {
+        @Override
+        public void run() {
+          if (!text.isDisposed()) {
+            text.redraw();
+          }
+        }
+      };
+  private Bookmarks bookmarks;
+  private boolean markWhitespace;
+  private boolean markLineEndings;
 
   /**
    * Creates the editor.
@@ -164,7 +193,9 @@ public final class EditorPane implements EditorView {
     this.input = input;
     this.keymap = keymap;
     this.font = font;
+    this.ui = ui;
     text = new StyledText(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
+    completion = new CompletionPopup(text, input);
     primaryCaret = new Caret(text, SWT.NONE);
     text.setCaret(primaryCaret);
     text.addListener(
@@ -172,6 +203,7 @@ public final class EditorPane implements EditorView {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
+            completion.dispose();
             // The caret goes first: cocoa reads its image while releasing it.
             if (!primaryCaret.isDisposed()) {
               primaryCaret.dispose();
@@ -292,6 +324,9 @@ public final class EditorPane implements EditorView {
   /** Disposes the widget and the caret image and stops following the model. */
   public void dispose() {
     selections.removeListener(modelListener);
+    if (bookmarks != null) {
+      bookmarks.removeListener(bookmarksChanged);
+    }
     content.dispose();
     if (!text.isDisposed()) {
       text.dispose();
@@ -351,6 +386,9 @@ public final class EditorPane implements EditorView {
           (style.bold() ? SWT.BOLD : SWT.NORMAL) | (style.italic() ? SWT.ITALIC : SWT.NORMAL);
       roleUnderlines[role.ordinal()] = style.underline();
     }
+    occurrenceBack = color(palette.occurrence());
+    bracketBack = color(palette.bracket());
+    whitespace = color(palette.whitespace());
     updateCaret();
     text.redraw();
   }
@@ -580,6 +618,14 @@ public final class EditorPane implements EditorView {
             }
           }
         });
+    text.addListener(
+        SWT.FocusOut,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            closeCompletionUnlessFocused();
+          }
+        });
     text.addLineBackgroundListener(
         new LineBackgroundListener() {
           @Override
@@ -604,6 +650,8 @@ public final class EditorPane implements EditorView {
           public void paintControl(PaintEvent event) {
             paintGutter(event.gc, event.y, event.height);
             paintCollapsed(event.gc);
+            paintBookmarks(event.gc);
+            paintMarks(event.gc);
             if (selections.block() != null) {
               paintBlock(event.gc);
             } else {
@@ -686,6 +734,7 @@ public final class EditorPane implements EditorView {
         composer.compose(line, lineStart, from, from + rowLength, secondaryRanges(from, rowLength));
     StyleRange[] styles = new StyleRange[runs.length / 4];
     int selection = HighlightComposer.Background.SELECTION.ordinal();
+    Color[] backgrounds = {selectionBack, bracketBack, findMatch, occurrenceBack};
     for (int i = 0; i < runs.length; i += 4) {
       int role = runs[i + 2];
       int background = runs[i + 3];
@@ -701,7 +750,7 @@ public final class EditorPane implements EditorView {
         style.foreground = selectionFore;
         style.background = selectionBack;
       } else if (background != HighlightComposer.NONE) {
-        style.background = findMatch;
+        style.background = backgrounds[background];
       }
       styles[i / 4] = style;
     }
@@ -987,6 +1036,206 @@ public final class EditorPane implements EditorView {
       reportedStart = start;
       reportedEnd = end;
       input.viewportChanged(start, end);
+    }
+  }
+
+  // Bracket and occurrence highlights, bookmarks, marks and the completion list.
+
+  @Override
+  public void showBrackets(int[] ranges) {
+    composer.setBrackets(ranges);
+    if (!text.isDisposed()) {
+      text.redraw();
+    }
+  }
+
+  @Override
+  public void showOccurrences(int[] ranges) {
+    composer.setOccurrences(ranges);
+    if (!text.isDisposed()) {
+      text.redraw();
+    }
+  }
+
+  @Override
+  public void setBookmarks(Bookmarks value) {
+    if (bookmarks != null) {
+      bookmarks.removeListener(bookmarksChanged);
+    }
+    bookmarks = value;
+    value.addListener(bookmarksChanged);
+    bookmarksChanged.run();
+  }
+
+  @Override
+  public void setBusy(boolean busy) {
+    if (!text.isDisposed()) {
+      text.setCursor(busy ? text.getDisplay().getSystemCursor(SWT.CURSOR_APPSTARTING) : null);
+    }
+  }
+
+  @Override
+  public void setMarks(boolean whitespaceMarks, boolean lineEndingMarks) {
+    if (markWhitespace != whitespaceMarks || markLineEndings != lineEndingMarks) {
+      markWhitespace = whitespaceMarks;
+      markLineEndings = lineEndingMarks;
+      if (!text.isDisposed()) {
+        text.redraw();
+      }
+    }
+  }
+
+  @Override
+  public void showCompletions(List<String> words, int selected) {
+    if (text.isDisposed()) {
+      return;
+    }
+    int caretOffset = projection.toDisplay(selections.selections().primary().caret());
+    completion.show(
+        words, selected, text.getLocationAtOffset(caretOffset), text.getLineHeight(), font);
+  }
+
+  /**
+   * Returns the bracket highlight.
+   *
+   * @return model offset pairs
+   */
+  public int[] brackets() {
+    return composer.brackets();
+  }
+
+  /**
+   * Returns the occurrence highlight.
+   *
+   * @return model offset pairs
+   */
+  public int[] occurrences() {
+    return composer.occurrences();
+  }
+
+  /**
+   * Returns the words the completion list shows.
+   *
+   * @return the words, empty while it is hidden
+   */
+  public List<String> completionWords() {
+    return completion.words();
+  }
+
+  /**
+   * Reports whether the whitespace and line-ending marks show.
+   *
+   * @return {whitespace, line endings}
+   */
+  public boolean[] marks() {
+    return new boolean[] {markWhitespace, markLineEndings};
+  }
+
+  /** Closes the completion list one UI turn after the editor lost focus, unless it has it again. */
+  private void closeCompletionUnlessFocused() {
+    if (!completion.visible()) {
+      return;
+    }
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (!text.isDisposed() && !text.isFocusControl() && completion.visible()) {
+              input.execute(CommandId.CANCEL);
+            }
+          }
+        });
+  }
+
+  /** Paints a bar at the gutter's left edge on the first row of each visible bookmarked line. */
+  private void paintBookmarks(GC gc) {
+    if (bookmarks == null) {
+      return;
+    }
+    int[] lines = bookmarks.lines();
+    if (lines.length == 0) {
+      return;
+    }
+    Rectangle area = text.getClientArea();
+    int rows = projection.rowCount();
+    int lineHeight = text.getLineHeight();
+    gc.setBackground(caret);
+    for (int row = text.getTopIndex(); row < rows; row++) {
+      int top = text.getLinePixel(row);
+      if (top > area.height) {
+        break;
+      }
+      if (projection.subRow(row) == 0
+          && Arrays.binarySearch(lines, projection.lineOfRow(row)) >= 0) {
+        gc.fillRectangle(1, top + 1, GUTTER_PADDING - 2, Math.max(1, lineHeight - 2));
+      }
+    }
+  }
+
+  /** Paints the whitespace and line-ending marks on the visible rows. */
+  private void paintMarks(GC gc) {
+    if (!markWhitespace && !markLineEndings) {
+      return;
+    }
+    Rectangle area = text.getClientArea();
+    int rows = projection.rowCount();
+    int lineHeight = text.getLineHeight();
+    gc.setForeground(whitespace);
+    gc.setBackground(whitespace);
+    gc.setFont(font);
+    for (int row = text.getTopIndex(); row < rows; row++) {
+      int top = text.getLinePixel(row);
+      if (top > area.height) {
+        break;
+      }
+      String rowText = projection.rowText(row);
+      int rowStart = projection.rowStart(row);
+      if (markWhitespace) {
+        paintBlanks(gc, rowText, rowStart, top + lineHeight / 2);
+      }
+      int line = projection.lineOfRow(row);
+      if (markLineEndings && (row + 1 == rows || projection.lineOfRow(row + 1) != line)) {
+        LineEnding ending = LineEnds.of(projection.document(), line);
+        if (ending != null) {
+          Point end = text.getLocationAtOffset(rowStart + rowText.length());
+          gc.drawString(ending.name(), end.x + metrics.x(1) / 2, top, true);
+        }
+      }
+    }
+  }
+
+  /** Paints a dot in each space and an arrow across each tab of one row. */
+  private void paintBlanks(GC gc, String rowText, int rowStart, int middle) {
+    int i = 0;
+    int length = rowText.length();
+    while (i < length) {
+      char c = rowText.charAt(i);
+      if (c == ' ') {
+        int j = i;
+        while (j < length && rowText.charAt(j) == ' ') {
+          j++;
+        }
+        int x0 = text.getLocationAtOffset(rowStart + i).x;
+        int x1 = text.getLocationAtOffset(rowStart + j).x;
+        int n = j - i;
+        for (int k = 0; k < n; k++) {
+          int x = x0 + (x1 - x0) * (2 * k + 1) / (2 * n);
+          gc.fillRectangle(x - 1, middle - 1, 2, 2);
+        }
+        i = j;
+      } else if (c == '\t') {
+        int x0 = text.getLocationAtOffset(rowStart + i).x + 2;
+        int x1 = text.getLocationAtOffset(rowStart + i + 1).x - 2;
+        if (x1 > x0) {
+          int head = Math.min(3, x1 - x0);
+          gc.drawLine(x0, middle, x1, middle);
+          gc.drawLine(x1 - head, middle - head, x1, middle);
+          gc.drawLine(x1 - head, middle + head, x1, middle);
+        }
+        i++;
+      } else {
+        i++;
+      }
     }
   }
 }

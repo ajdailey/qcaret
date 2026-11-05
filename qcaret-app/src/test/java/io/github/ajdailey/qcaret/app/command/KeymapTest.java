@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** The default bindings on both key-name platforms. */
@@ -73,13 +75,22 @@ class KeymapTest {
     assertEquals("", Keymap.defaults(false).reference("no such command"));
   }
 
+  /** Line transforms stay menu only, as the reference keymap proposes. */
+  private static final Set<CommandId> MENU_ONLY =
+      EnumSet.of(
+          CommandId.SORT_LINES_ASCENDING,
+          CommandId.SORT_LINES_DESCENDING,
+          CommandId.SORT_LINES_IGNORE_CASE,
+          CommandId.REMOVE_DUPLICATE_LINES,
+          CommandId.TRIM_TRAILING_WHITESPACE);
+
   @Test
   void everyEditingCommandHasAKey() {
     Keymap keymap = Keymap.defaults(true);
     for (CommandId command : CommandId.values()) {
       boolean editing =
           command.group() == CommandGroup.EDIT || command.group() == CommandGroup.EDITOR;
-      if (editing && !command.check()) {
+      if (editing && !command.check() && !MENU_ONLY.contains(command)) {
         assertFalse(keymap.keysText(command).isEmpty(), command.name());
       }
     }

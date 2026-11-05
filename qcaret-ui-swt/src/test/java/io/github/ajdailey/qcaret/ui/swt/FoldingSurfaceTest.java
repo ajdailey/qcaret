@@ -241,6 +241,14 @@ class FoldingSurfaceTest {
         },
         "second view's regions");
     controller.execute(CommandId.FOLD_ALL);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return second.projection().collapsedCount() > 0;
+          }
+        },
+        "Fold All");
     drain();
     List<EditorPane> panes = window.activeEditors();
     assertEquals(2, panes.size());

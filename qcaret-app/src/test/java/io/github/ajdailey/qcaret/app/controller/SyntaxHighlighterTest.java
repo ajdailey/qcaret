@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.editor.TokenCache;
@@ -148,7 +149,7 @@ class SyntaxHighlighterTest {
     assertTrue(repaints.get() <= shown + 1, "the pass below the view repainted it");
     final long revision = document.revision();
     assertEquals(3000, highlighter.regions(document.text(), revision).size());
-    assertEquals(0, highlighter.regions(document.text(), revision + 1).size());
+    assertNull(highlighter.regions(document.text(), revision + 1));
   }
 
   @Test

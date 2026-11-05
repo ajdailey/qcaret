@@ -47,6 +47,7 @@ public final class ConfigStore {
   static final String WINDOW_HEIGHT = "window.height";
   static final String WINDOW_MAXIMIZED = "window.maximized";
   static final String DEBUG_LOG_FILE = "log.debugFile";
+  static final String COMPLETION_CHARS = "editor.completionChars";
   static final String INVALID_SUFFIX = ".invalid";
 
   /** Largest window coordinate or size accepted, in pixels. */
@@ -197,6 +198,10 @@ public final class ConfigStore {
       }
     }
     preferences = preferences.withDebugLogFile(flag(properties, DEBUG_LOG_FILE, false, file));
+    long chars = number(properties, COMPLETION_CHARS, 0, Preferences.MAX_COMPLETION_CHARS, file);
+    if (chars != Long.MIN_VALUE) {
+      preferences = preferences.withCompletionChars((int) chars);
+    }
     return preferences.withWindow(
         new WindowState(
             optional(properties, WINDOW_X, -MAX_PIXELS, MAX_PIXELS, file),
@@ -262,6 +267,7 @@ public final class ConfigStore {
     storeOptional(properties, WINDOW_HEIGHT, window.height());
     properties.setProperty(WINDOW_MAXIMIZED, Boolean.toString(window.maximized()));
     properties.setProperty(DEBUG_LOG_FILE, Boolean.toString(preferences.debugLogFile()));
+    properties.setProperty(COMPLETION_CHARS, Integer.toString(preferences.completionChars()));
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     properties.store(out, null);
     String text = out.toString(StandardCharsets.ISO_8859_1);

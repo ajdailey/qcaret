@@ -256,6 +256,48 @@ class FoldingTest {
   }
 
   @Test
+  void foldAllMeasuredOnAWorkerInstallsOnlyAtItsTextRowsAndFolds() {
+    Document document = document("a\n b\n c\nd\n e\nf\n");
+    DisplayProjection p = projection(document, 0);
+    StringBuilder mirror = mirror(p);
+    p.setFoldRegions(List.of(new int[] {0, 2}, new int[] {3, 4}));
+
+    DisplayProjection.FoldAll request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    assertEquals(DisplayProjection.FoldAllOutcome.APPLIED, p.installFoldAll(request));
+    assertEquals("a\nd\nf\n", p.textRange(0, p.length()));
+    assertEquals(mirror.toString(), p.textRange(0, p.length()));
+    assertEquals(null, p.foldAllRequest());
+
+    // An edit after the request makes it stale; a fold command drops it.
+    assertTrue(p.unfoldAll());
+    request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    document.apply(EditBatch.replace(document.text().length(), 0, "g\n"));
+    assertEquals(DisplayProjection.FoldAllOutcome.STALE, p.installFoldAll(request));
+    request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    assertTrue(p.fold(0));
+    assertEquals(DisplayProjection.FoldAllOutcome.DROPPED, p.installFoldAll(request));
+    assertEquals(1, p.collapsedCount());
+
+    // A rewrap that installs new rows makes it stale.
+    request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    p.setViewColumns(1);
+    p.setWrap(true);
+    DisplayProjection.Rewrap rewrap = p.rewrapRequest();
+    p.install(rewrap, DisplayProjection.compute(rewrap, new CancellationToken()));
+    assertEquals(DisplayProjection.FoldAllOutcome.STALE, p.installFoldAll(request));
+    request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    assertEquals(DisplayProjection.FoldAllOutcome.APPLIED, p.installFoldAll(request));
+    assertEquals(2, p.collapsedCount());
+    check(p, document.text().toString(), 1);
+    assertEquals(mirror.toString(), p.textRange(0, p.length()));
+  }
+
+  @Test
   void anEditInsideAFoldOrOnItsLineBreakExpandsIt() {
     Document document = document("a\n b\n c\nd\n");
     DisplayProjection p = projection(document, 0);

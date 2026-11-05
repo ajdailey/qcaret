@@ -30,8 +30,8 @@ import java.util.Set;
  * <p>A command that acts on the selected document is disabled without one. A binary file's view
  * disables every command that would write or edit it; a read-only document disables the edits and
  * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. The fold
- * commands need fold regions in the focused view, the unfold commands a collapsed one. A disabled
- * menu item's accelerator does not fire.
+ * commands need fold regions in the focused view, the unfold commands a collapsed one. Next,
+ * Previous and Clear Bookmarks need a bookmark. A disabled menu item's accelerator does not fire.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -47,7 +47,10 @@ public final class CommandStates {
           CommandId.THEME_LIGHT,
           CommandId.THEME_DARK,
           CommandId.THEME_SYSTEM,
-          CommandId.RELOAD_GRAMMARS);
+          CommandId.RELOAD_GRAMMARS,
+          CommandId.SHOW_WHITESPACE,
+          CommandId.SHOW_LINE_ENDINGS,
+          CommandId.COMMAND_PALETTE);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -74,7 +77,13 @@ public final class CommandStates {
           CommandId.TOGGLE_LINE_COMMENT,
           CommandId.TOGGLE_BLOCK_COMMENT,
           CommandId.INSERT_TAB,
-          CommandId.REPLACE);
+          CommandId.REPLACE,
+          CommandId.SORT_LINES_ASCENDING,
+          CommandId.SORT_LINES_DESCENDING,
+          CommandId.SORT_LINES_IGNORE_CASE,
+          CommandId.REMOVE_DUPLICATE_LINES,
+          CommandId.TRIM_TRAILING_WHITESPACE,
+          CommandId.COMPLETE_WORD);
 
   /**
    * A grammar as the Syntax menu lists it.
@@ -139,6 +148,8 @@ public final class CommandStates {
       case COLUMN_MODE ->
           application.documents().activeEditor() != null
               && application.documents().activeEditor().columnMode();
+      case SHOW_WHITESPACE -> application.documents().whitespaceShown();
+      case SHOW_LINE_ENDINGS -> application.documents().lineEndingsShown();
       default -> false;
     };
   }
@@ -186,6 +197,8 @@ public final class CommandStates {
       case UNFOLD, UNFOLD_ALL ->
           documents.activeEditor() != null
               && documents.activeEditor().projection().collapsedCount() > 0;
+      case NEXT_BOOKMARK, PREVIOUS_BOOKMARK, CLEAR_BOOKMARKS ->
+          documents.activeBookmarks().length > 0;
       default -> true;
     };
   }

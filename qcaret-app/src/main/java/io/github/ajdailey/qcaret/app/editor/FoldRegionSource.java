@@ -15,7 +15,7 @@ public interface FoldRegionSource {
    * @param text the snapshot
    * @param revision the document revision of the snapshot
    * @return {@code {startLine, endLine}} pairs, ascending by start line, each end above its start;
-   *     empty when the regions of that revision are not computed
+   *     null when the regions of that revision are not computed, so the regions installed stay
    */
   List<int[]> regions(TextSnapshot text, long revision);
 }

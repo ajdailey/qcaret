@@ -9,7 +9,7 @@ import java.util.Map;
  * TokenRole}. The views create their toolkit colors from it and recreate them when the palette
  * changes. The defaults derive from the brand colors navy {@code #1B2E44}, cyan {@code #56C1F0} and
  * amber {@code #F3B65B}; every token color has a contrast ratio of at least 4.5 against the
- * background, the current line and a find match.
+ * background, the current line, a find match, an occurrence and a bracket highlight.
  *
  * @param dark true for a dark palette; selects the matching icon variant
  * @param text text that is no token
@@ -22,6 +22,8 @@ import java.util.Map;
  * @param caret the primary and secondary carets
  * @param whitespace whitespace marks
  * @param findMatch background of a find match
+ * @param occurrence background of the occurrences of the word at the caret
+ * @param bracket background of the bracket at the caret and its partner
  * @param tokens the style of each role; every role has one
  */
 public record Palette(
@@ -36,6 +38,8 @@ public record Palette(
     Rgb caret,
     Rgb whitespace,
     Rgb findMatch,
+    Rgb occurrence,
+    Rgb bracket,
     Map<TokenRole, TokenStyle> tokens) {
   /** The default palette. */
   public static final Palette LIGHT =
@@ -51,6 +55,8 @@ public record Palette(
           Rgb.of(0xb5740f),
           Rgb.of(0xbfc9d3),
           Rgb.of(0xfdebc8),
+          Rgb.of(0xe4eef7),
+          Rgb.of(0xd5f0e3),
           tokens(
               TokenStyle.italic(0x5a6a7b),
               TokenStyle.plain(0x9a5600),
@@ -85,6 +91,8 @@ public record Palette(
           Rgb.of(0xf3b65b),
           Rgb.of(0x40597a),
           Rgb.of(0x463818),
+          Rgb.of(0x2a3d5c),
+          Rgb.of(0x1d4436),
           tokens(
               TokenStyle.italic(0x98abbf),
               TokenStyle.plain(0xf3b65b),

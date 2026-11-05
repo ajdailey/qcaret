@@ -235,6 +235,7 @@ class ShellCommandsTest {
         },
         "converted");
     harness.awaitIdle("conversion");
+    assertEquals(List.of(true, false), harness.view.selected.shown.busy);
     assertEquals(LineEnding.LF, active().lineEnding());
     assertTrue(states.checked(CommandId.LINE_ENDING_LF));
     assertEquals(UiText.STATUS_LF.text(), states.status().lineEnding());

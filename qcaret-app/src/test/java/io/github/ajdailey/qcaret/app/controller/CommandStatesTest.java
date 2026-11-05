@@ -98,6 +98,21 @@ class CommandStatesTest {
           "OPEN_SETTINGS_FOLDER -e -e -e",
           "REPORT_ISSUE -e -e -e",
           "ABOUT -e -e -e",
+          "SORT_LINES_ASCENDING -- -e --",
+          "SORT_LINES_DESCENDING -- -e --",
+          "SORT_LINES_IGNORE_CASE -- -e --",
+          "REMOVE_DUPLICATE_LINES -- -e --",
+          "TRIM_TRAILING_WHITESPACE -- -e --",
+          "COMPLETE_WORD -- -e --",
+          "SELECT_TO_MATCHING_BRACKET -- -e -e",
+          "GO_TO_MATCHING_BRACKET -- -e -e",
+          "TOGGLE_BOOKMARK -- -e -e",
+          "NEXT_BOOKMARK -- -- --",
+          "PREVIOUS_BOOKMARK -- -- --",
+          "CLEAR_BOOKMARKS -- -- --",
+          "SHOW_WHITESPACE -e -e -e",
+          "SHOW_LINE_ENDINGS -e -e -e",
+          "COMMAND_PALETTE -e -e -e",
           "CARET_LEFT -- -e -e",
           "CARET_RIGHT -- -e -e",
           "CARET_UP -- -e -e",
@@ -217,5 +232,18 @@ class CommandStatesTest {
     assertEquals(UiText.STATUS_CRLF.text(), fields.lineEnding());
     assertEquals(UiText.STATUS_PLAIN_TEXT.text(), fields.language());
     assertEquals("", fields.readOnly());
+  }
+
+  @Test
+  void marksAreCheckedAndBookmarkMovesNeedABookmark() throws Exception {
+    harness.open(Files.writeString(temp.resolve("marks.txt"), "one\ntwo\n"));
+    harness.application.execute(CommandId.SHOW_WHITESPACE);
+    assertEquals(true, states.checked(CommandId.SHOW_WHITESPACE));
+    assertEquals(false, states.checked(CommandId.SHOW_LINE_ENDINGS));
+    harness.application.execute(CommandId.TOGGLE_BOOKMARK);
+    assertEquals(true, states.enabled(CommandId.NEXT_BOOKMARK));
+    assertEquals(true, states.enabled(CommandId.CLEAR_BOOKMARKS));
+    harness.application.execute(CommandId.CLEAR_BOOKMARKS);
+    assertEquals(false, states.enabled(CommandId.PREVIOUS_BOOKMARK));
   }
 }

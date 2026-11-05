@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -47,6 +48,7 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +86,9 @@ import org.slf4j.LoggerFactory;
  *       on a {@code qcaret-cpu-} worker from the file name and the first line when the document
  *       opens, when a save gives it another name and when the grammars are read again, unless the
  *       user chose one ({@link #setSyntax}).
+ *   <li>Bookmarks are per document, shared by its views. Word completion ({@link WordCompletion})
+ *       reads every open document. Show Whitespace, Show Line Endings and the completion trigger
+ *       apply to every editor of the window.
  * </ul>
  *
  * <p>Loads, saves and conversions each count as one operation of the view's {@link
@@ -111,6 +116,10 @@ public final class DocumentController {
   private int nextUntitled = 1;
   private boolean wrap;
   private GrammarLibrary grammars;
+  private final WordCompletion completion;
+  private boolean showWhitespace;
+  private boolean showLineEndings;
+  private int completionChars;
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
@@ -124,6 +133,7 @@ public final class DocumentController {
     final List<EditorController> editors = new ArrayList<EditorController>(2);
     boolean sideBySide;
     TabView tab;
+    Bookmarks bookmarks;
     CancellationToken saving;
     CancellationToken converting;
     boolean binary;
@@ -186,6 +196,16 @@ public final class DocumentController {
     this.view = view;
     this.budget = budget;
     this.options = options;
+    this.completion =
+        new WordCompletion(
+            workers,
+            ui,
+            new Supplier<List<Document>>() {
+              @Override
+              public List<Document> get() {
+                return openDocuments();
+              }
+            });
     this.opener =
         new DocumentOpener(
             workers,
@@ -294,6 +314,64 @@ public final class DocumentController {
         e.setWrap(wrap);
       }
     }
+  }
+
+  // Whitespace marks, word completion and bookmarks.
+
+  /** Reports whether the window's editors mark spaces and tabs. */
+  boolean whitespaceShown() {
+    return showWhitespace;
+  }
+
+  /** Reports whether the window's editors mark line breaks. */
+  boolean lineEndingsShown() {
+    return showLineEndings;
+  }
+
+  /**
+   * Turns the whitespace or the line-ending marks on or off in every editor of the window.
+   *
+   * @param lineEndings true for the line-ending marks, false for the whitespace marks
+   */
+  public void toggleMarks(boolean lineEndings) {
+    if (lineEndings) {
+      showLineEndings = !showLineEndings;
+    } else {
+      showWhitespace = !showWhitespace;
+    }
+    for (OpenDocument d : documents) {
+      for (EditorController e : d.editors) {
+        e.setMarks(showWhitespace, showLineEndings);
+      }
+    }
+  }
+
+  /**
+   * Sets how many word chars typed open the completion list on their own, in every editor.
+   *
+   * @param chars the count, 0 for never
+   */
+  public void setCompletionChars(int chars) {
+    completionChars = chars;
+    for (OpenDocument d : documents) {
+      for (EditorController e : d.editors) {
+        e.setCompletionChars(chars);
+      }
+    }
+  }
+
+  /** Returns the open documents in tab order. */
+  List<Document> openDocuments() {
+    List<Document> list = new ArrayList<Document>(documents.size());
+    for (OpenDocument d : documents) {
+      list.add(d.document);
+    }
+    return list;
+  }
+
+  /** Returns the selected document's bookmarked lines, empty without a document. */
+  int[] activeBookmarks() {
+    return active == null ? new int[0] : active.bookmarks.lines();
   }
 
   // New and Open.
@@ -440,7 +518,17 @@ public final class DocumentController {
     final OpenDocument d = new OpenDocument(document, path, baseline, reserved);
     d.binary = binary;
     d.syntax = highlighter(d);
+    d.syntax.setRegionsListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            for (EditorController e : d.editors) {
+              e.syntaxRegionsChanged();
+            }
+          }
+        });
     d.input = tabInput(d);
+    d.bookmarks = new Bookmarks(document);
     SelectionModel selections = document.newSelectionModel();
     DisplayProjection projection = new DisplayProjection(document, layout);
     d.editor = newEditor(d, projection, selections);
@@ -494,8 +582,20 @@ public final class DocumentController {
             }
           }
         });
+    editor.setBookmarks(d.bookmarks);
+    editor.setCompletion(completion);
+    editor.setCompletionChars(completionChars);
+    editor.setMarks(showWhitespace, showLineEndings);
+    editor.setNoticeListener(
+        new Consumer<String>() {
+          @Override
+          public void accept(String message) {
+            view.showNotice(message);
+          }
+        });
     d.editors.add(editor);
-    editor.setComments(comments(d));
+    editor.setSyntax(d.syntax);
+    editor.setGrammar(grammar(d));
     return editor;
   }
 
@@ -796,6 +896,7 @@ public final class DocumentController {
   public void dispose() {
     disposing = true;
     opener.close();
+    completion.cancel();
     for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
       discard(d);
     }
@@ -861,6 +962,7 @@ public final class DocumentController {
       e.dispose();
     }
     d.syntax.dispose();
+    d.bookmarks.dispose();
     budget.release(d.reserved);
     documents.remove(d);
     if (active == d) {
@@ -1033,9 +1135,9 @@ public final class DocumentController {
 
   /**
    * Converts every line break of the selected document to one ending, as one undo step, and makes
-   * it the ending Enter inserts. The new text is computed on a {@code qcaret-cpu-} worker; the
-   * result is dropped when the document changed or closed meanwhile. Does nothing for a read-only
-   * document.
+   * it the ending Enter inserts. The new text is computed on a {@code qcaret-cpu-} worker and
+   * applied on the UI thread, with every view of the document busy until the apply; the result is
+   * dropped when the document changed or closed meanwhile. Does nothing for a read-only document.
    *
    * @param ending the ending
    */
@@ -1060,6 +1162,7 @@ public final class DocumentController {
     final long revision = d.document.revision();
     final int caret = d.editor.selections().selections().primary().caret();
     view.setActive();
+    busy(d, true);
     try {
       workers.executeCpu(
           new Runnable() {
@@ -1071,13 +1174,19 @@ public final class DocumentController {
               } catch (CancellationException e) {
                 // Closed or replaced by a newer conversion.
               } finally {
-                view.setIdle();
                 final LineConversion result = converted;
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
-                        converted(d, token, revision, ending, result);
+                        try {
+                          converted(d, token, revision, ending, result);
+                        } finally {
+                          view.setIdle();
+                          if (d.converting == null) {
+                            busy(d, false);
+                          }
+                        }
                       }
                     });
               }
@@ -1086,6 +1195,16 @@ public final class DocumentController {
     } catch (RejectedExecutionException e) {
       d.converting = null;
       view.setIdle();
+      busy(d, false);
+    }
+  }
+
+  /** Shows or clears the busy cursor over every view of a document. */
+  private static void busy(OpenDocument d, boolean on) {
+    for (EditorController e : d.editors) {
+      if (e.view() != null) {
+        e.view().setBusy(on);
+      }
     }
   }
 
@@ -1351,7 +1470,7 @@ public final class DocumentController {
     d.grammar = id;
     d.syntax.setSyntax(GrammarSet.PLAIN.equals(id) ? null : set.syntax(id));
     for (EditorController e : d.editors) {
-      e.setComments(comments(d));
+      e.setGrammar(grammar(d));
     }
     view.documentStateChanged();
   }
@@ -1360,10 +1479,10 @@ public final class DocumentController {
     return grammars == null ? null : grammars.set();
   }
 
-  private Grammar.Comments comments(OpenDocument d) {
+  /** Returns the document's grammar, or null for plain text and before the grammars are read. */
+  private Grammar grammar(OpenDocument d) {
     GrammarSet set = grammars == null ? null : grammars.set();
-    Grammar g = set == null ? null : set.get(d.grammar);
-    return g == null ? Grammar.Comments.NONE : g.comments();
+    return set == null || GrammarSet.PLAIN.equals(d.grammar) ? null : set.get(d.grammar);
   }
 
   private static double mebibytes(long bytes) {

@@ -47,10 +47,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
- * folding and unfolding in both views of a split, and the find bar opened, searching and closed
- * return the Display's tracked graphics resources ({@code DeviceData.tracking}) to their count
- * after a warm-up round. Theme switches, zoom and split each rebuild or add a primary caret image.
- * A failure lists each leaked object's allocation stack.
+ * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
+ * command palette, the completion list and the whitespace marks return the Display's tracked
+ * graphics resources ({@code DeviceData.tracking}) to their count after a warm-up round. Theme
+ * switches, zoom and split each rebuild or add a primary caret image. A failure lists each leaked
+ * object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -130,7 +131,7 @@ class ResourceLeakTest {
   private void openTab(String name) throws IOException {
     Path file = temp.resolve(name);
     if (!Files.exists(file)) {
-      StringBuilder text = new StringBuilder();
+      StringBuilder text = new StringBuilder("lines linear\n");
       for (int i = 0; i < 200; i++) {
         text.append(i % 4 == 0 ? "line " : "  line ").append(i).append('\n');
       }
@@ -190,8 +191,16 @@ class ResourceLeakTest {
               }
             }));
     controller.execute(CommandId.FOLD_ALL);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return editor.projection().collapsedCount()
+                    == editor.projection().foldRegionCount();
+              }
+            }));
     drain();
-    assertEquals(editor.projection().foldRegionCount(), editor.projection().collapsedCount());
   }
 
   /**
@@ -228,7 +237,40 @@ class ResourceLeakTest {
     drain();
   }
 
-  /** One round of every operation; the first round creates lazily cached resources. */
+  /**
+   * Opens and closes the command palette, and the completion list with the whitespace and
+   * line-ending marks on.
+   */
+  private void paletteAndCompletion() {
+    controller.execute(CommandId.COMMAND_PALETTE);
+    drain();
+    window.commandPalette().filter().setText("zoom");
+    window.commandPalette().shell().close();
+    drain();
+    controller.execute(CommandId.SHOW_WHITESPACE);
+    controller.execute(CommandId.SHOW_LINE_ENDINGS);
+    final EditorPane pane = window.activeEditor();
+    pane.text().setSelection(pane.text().getText().indexOf("line 1") + 2);
+    pane.text().notifyListeners(SWT.Selection, new Event());
+    controller.execute(CommandId.COMPLETE_WORD);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !pane.completionWords().isEmpty();
+              }
+            }));
+    pane.text().redraw();
+    pane.text().update();
+    controller.execute(CommandId.CANCEL);
+    assertTrue(pane.completionWords().isEmpty());
+    controller.execute(CommandId.SHOW_WHITESPACE);
+    controller.execute(CommandId.SHOW_LINE_ENDINGS);
+    drain();
+  }
+
+  /** One round of every operation; the first rounds create lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
     window.showTabMenu(1).setVisible(false);
@@ -241,6 +283,7 @@ class ResourceLeakTest {
     assertTrue(caret.isDisposed());
     assertFalse(window.activeEditor().caretImage().isDisposed());
     splitAndFind();
+    paletteAndCompletion();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {
         window.menuBar().menu(group).notifyListeners(SWT.Show, new Event());
@@ -252,6 +295,9 @@ class ResourceLeakTest {
 
   @Test
   void tabsThemesZoomAndMenusReleaseTheirResources() throws IOException {
+    // The second round adds one StyledText line layout to the widget's cache, whatever the count
+    // of later rounds (measured over 4 and 9), so the baseline follows two.
+    cycle();
     cycle();
     Map<Object, Error> baseline = tracked();
     Map<String, Integer> types = counts(baseline.keySet());

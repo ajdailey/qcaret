@@ -1,12 +1,16 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.CaretNavigation;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.editor.IndentFoldSource;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
+import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
+import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
@@ -15,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.buffer.LineView;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Columns;
@@ -27,18 +32,23 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.edit.AutoClose;
 import io.github.ajdailey.qcaret.core.edit.BlockEdits;
+import io.github.ajdailey.qcaret.core.edit.Brackets;
 import io.github.ajdailey.qcaret.core.edit.CommentEdits;
 import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.edit.LineEdits;
+import io.github.ajdailey.qcaret.core.edit.LineTransforms;
 import io.github.ajdailey.qcaret.core.edit.Moves;
 import io.github.ajdailey.qcaret.core.edit.Occurrences;
+import io.github.ajdailey.qcaret.core.edit.Pairs;
 import io.github.ajdailey.qcaret.core.edit.Words;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 
 /**
  * Runs one editor view's input against its document: every edit is one {@link Document#apply} with
@@ -67,6 +77,18 @@ import java.util.concurrent.RejectedExecutionException;
  *       of the hidden lines, to the end of the region's first line; a primary caret placed in
  *       hidden lines by any other command, such as find or go to line, expands the regions around
  *       it. Left, Right, word and document-end moves step over hidden lines.
+ *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()}.
+ *   <li>Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their edit on a {@code
+ *       qcaret-cpu-} worker and apply it on the UI thread, with the view busy from the command to
+ *       the apply; a result for an older revision is dropped with a notice.
+ *   <li>The view shows the bracket beside the primary caret with its partner, searched on the UI
+ *       thread within the visible range and {@value #BRACKET_SCAN} chars on each side, and on a
+ *       worker beyond that; and the whole-word occurrences of the word at the primary caret in the
+ *       visible range, found on a worker. Both are recomputed one UI turn after a caret move, an
+ *       edit or a scroll, and a result for an older revision is dropped.
+ *   <li>Word completion ({@link WordCompletion}) shows its list in the view; while it shows, Up,
+ *       Down, Page Up and Page Down move in the list, Enter and Tab insert the selected word at
+ *       every caret, Esc closes it, and typing narrows it.
  * </ul>
  *
  * <p>The controller also schedules the projection's rewraps: each runs on a {@code qcaret-cpu-}
@@ -99,6 +121,7 @@ public final class EditorController implements EditorInput {
   private FoldRegionSource foldSource;
   private IndentRules indentRules = IndentRules.BRACKETS;
   private boolean foldsRunning;
+  private DisplayProjection.FoldAll foldAll;
   private boolean foldsAgain;
   private final Runnable foldTimer =
       new Runnable() {
@@ -162,6 +185,8 @@ public final class EditorController implements EditorInput {
     selections.addListener(revealer);
     document.addListener(foldFollower);
     scheduleFolds();
+    selections.addListener(selectionListener);
+    document.addListener(documentListener);
   }
 
   /**
@@ -171,6 +196,10 @@ public final class EditorController implements EditorInput {
    */
   public void attach(EditorView editorView) {
     view = editorView;
+    if (bookmarks != null) {
+      view.setBookmarks(bookmarks);
+    }
+    view.setMarks(marksWhitespace, marksLineEndings);
   }
 
   /**
@@ -213,6 +242,7 @@ public final class EditorController implements EditorInput {
       ui.cancelTimer(foldTimer);
       selections.removeListener(revealer);
       document.removeListener(foldFollower);
+      disposeProductivity();
       projection.dispose();
       selections.dispose();
     }
@@ -265,6 +295,7 @@ public final class EditorController implements EditorInput {
       if (viewportListener != null) {
         viewportListener.run();
       }
+      scheduleHighlights();
     }
   }
 
@@ -353,6 +384,9 @@ public final class EditorController implements EditorInput {
     if (!document.isReadOnly()) {
       document.clearPreedit();
     }
+    if (completionShown != null && completionKey(command)) {
+      return true;
+    }
     switch (command) {
       case UNDO -> undo();
       case REDO -> redo();
@@ -431,6 +465,23 @@ public final class EditorController implements EditorInput {
               CommentEdits.toggleBlock(
                   document.text(), current(), comments.blockStart(), comments.blockEnd()));
       case FOLD, UNFOLD, TOGGLE_FOLD, FOLD_ALL, UNFOLD_ALL -> fold(command);
+      case SORT_LINES_ASCENDING,
+          SORT_LINES_DESCENDING,
+          SORT_LINES_IGNORE_CASE,
+          REMOVE_DUPLICATE_LINES,
+          TRIM_TRAILING_WHITESPACE ->
+          transformLines(command);
+      case COMPLETE_WORD -> requestCompletion(true);
+      case GO_TO_MATCHING_BRACKET -> matchingBracket(false);
+      case SELECT_TO_MATCHING_BRACKET -> matchingBracket(true);
+      case TOGGLE_BOOKMARK -> toggleBookmarks();
+      case NEXT_BOOKMARK -> nextBookmark(true);
+      case PREVIOUS_BOOKMARK -> nextBookmark(false);
+      case CLEAR_BOOKMARKS -> {
+        if (bookmarks != null) {
+          bookmarks.clear();
+        }
+      }
       default -> {
         return false;
       }
@@ -445,6 +496,54 @@ public final class EditorController implements EditorInput {
    */
   void setComments(Grammar.Comments value) {
     comments = value;
+  }
+
+  /**
+   * Takes the document grammar's comments, fold mode, indent rules and pairs. A {@code brackets} or
+   * {@code markers} grammar's fold regions come from the document's highlighter; every other
+   * grammar, and plain text, folds by indentation.
+   *
+   * @param grammar the grammar, or null for plain text
+   */
+  void setGrammar(Grammar grammar) {
+    comments = grammar == null ? Grammar.Comments.NONE : grammar.comments();
+    Grammar.FoldMode mode = grammar == null ? Grammar.FoldMode.NONE : grammar.folding().mode();
+    boolean regions = mode == Grammar.FoldMode.BRACKETS || mode == Grammar.FoldMode.MARKERS;
+    setFoldSource(regions ? syntax : null);
+    indentRules =
+        grammar == null || (grammar.indentIncrease() == null && grammar.indentDecrease() == null)
+            ? IndentRules.BRACKETS
+            : new PatternIndentRules(grammar.indentIncrease(), grammar.indentDecrease());
+    pairs = grammar == null ? Pairs.DEFAULT : pairsOf(grammar.autoClose());
+    bracketPairs = grammar == null ? Pairs.DEFAULT : pairsOf(grammar.brackets());
+  }
+
+  /** Returns the single-char pairs of a grammar list; {@link Pairs#DEFAULT} for an empty list. */
+  private static Pairs pairsOf(List<String[]> list) {
+    StringBuilder chars = new StringBuilder();
+    for (String[] pair : list) {
+      if (pair[0].length() == 1 && pair[1].length() == 1) {
+        chars.append(pair[0]).append(pair[1]);
+      }
+    }
+    return list.isEmpty() ? Pairs.DEFAULT : new Pairs(chars.toString());
+  }
+
+  /**
+   * Sets the document's highlighter, whose tokens leave strings and comments out of bracket
+   * matching and whose regions a {@code brackets} or {@code markers} grammar folds by.
+   *
+   * @param highlighter the highlighter
+   */
+  void setSyntax(SyntaxHighlighter highlighter) {
+    syntax = highlighter;
+  }
+
+  /** Runs the fold step again when the regions come from the highlighter, which has new ones. */
+  void syntaxRegionsChanged() {
+    if (foldSource != null && foldSource == syntax) {
+      scheduleFolds();
+    }
   }
 
   /** Returns the comment delimiters; for {@link CommandStates}. */
@@ -502,8 +601,12 @@ public final class EditorController implements EditorInput {
               document.text(), block, document.tabWidth(), text, EditBatch.Kind.TYPING));
       return;
     }
+    Edit paired =
+        block == null && text.length() == 1
+            ? AutoClose.type(document.text(), current(), text.charAt(0), pairs())
+            : null;
     Edit outdent =
-        block == null
+        block == null && paired == null
             ? SmartIndent.typed(
                 document.text(),
                 current(),
@@ -512,11 +615,14 @@ public final class EditorController implements EditorInput {
                 document.tabWidth(),
                 document.insertSpaces())
             : null;
-    if (outdent != null) {
+    if (paired != null) {
+      applyTyped(paired);
+    } else if (outdent != null) {
       applyEdit(outdent);
-      return;
+    } else {
+      replaceSelections(text, EditBatch.Kind.TYPING);
     }
-    replaceSelections(text, EditBatch.Kind.TYPING);
+    typed(text);
   }
 
   @Override
@@ -547,6 +653,14 @@ public final class EditorController implements EditorInput {
         applyBlock(BlockEdits.backspace(document.text(), block, document.tabWidth()));
       }
       return;
+    }
+    if (!document.isReadOnly()) {
+      document.clearPreedit();
+      Edit paired = AutoClose.backspace(document.text(), current(), pairs());
+      if (paired != null) {
+        applyTyped(paired);
+        return;
+      }
     }
     deleteAround(true);
   }
@@ -917,18 +1031,72 @@ public final class EditorController implements EditorInput {
   }
 
   private void fold(CommandId command) {
+    foldAll = null;
+    if (command == CommandId.FOLD_ALL) {
+      requestFoldAll();
+      return;
+    }
     int line = projection.lineAt(selections.selections().primary().caret());
     boolean changed =
         switch (command) {
           case FOLD -> projection.fold(line);
           case UNFOLD -> projection.unfold(line);
           case TOGGLE_FOLD -> projection.unfold(line) || projection.fold(line);
-          case FOLD_ALL -> projection.foldAll();
           default -> projection.unfoldAll();
         };
     if (changed) {
       caretsOutOfFolds();
       showCaret();
+    }
+  }
+
+  /**
+   * Measures Fold All's spans on a worker and collapses them at the same text and rows; asks again
+   * when those changed meanwhile.
+   */
+  private void requestFoldAll() {
+    final DisplayProjection.FoldAll request = projection.foldAllRequest();
+    if (request == null || disposed) {
+      return;
+    }
+    foldAll = request;
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                DisplayProjection.computeFoldAll(request);
+              } finally {
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        foldAllComputed(request);
+                      }
+                    });
+              }
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      foldAll = null;
+    }
+  }
+
+  private void foldAllComputed(DisplayProjection.FoldAll request) {
+    if (disposed || request != foldAll) {
+      return;
+    }
+    foldAll = null;
+    switch (projection.installFoldAll(request)) {
+      case APPLIED -> {
+        caretsOutOfFolds();
+        showCaret();
+      }
+      case STALE -> requestFoldAll();
+      default -> {
+        // A fold command since the request decides the collapsed regions.
+      }
     }
   }
 
@@ -1261,6 +1429,790 @@ public final class EditorController implements EditorInput {
     document.apply(
         EditBatch.of(kind, replacements), selections, SelectionSet.of(after, set.primaryIndex()));
     showCaret();
+  }
+
+  // Productivity: auto-close, line transforms, bookmarks, brackets, occurrences, completion.
+
+  /** Chars scanned on each side of the visible range for a bracket's partner on the UI thread. */
+  static final int BRACKET_SCAN = 1 << 14;
+
+  /** Occurrences of the word at the caret highlighted in one view at most. */
+  static final int VIEW_OCCURRENCES = 2000;
+
+  /** Rows Page Up and Page Down move in the completion list. */
+  static final int COMPLETION_PAGE = 8;
+
+  /** Word chars before the caret a completion prefix takes at most. */
+  static final int MAX_PREFIX = 100;
+
+  private final SelectionListener selectionListener =
+      new SelectionListener() {
+        @Override
+        public void selectionsChanged(SelectionModel model) {
+          if (completionShown != null) {
+            refilterCompletion();
+          }
+          scheduleHighlights();
+        }
+      };
+
+  private final DocumentListener documentListener =
+      new DocumentListener() {
+        @Override
+        public void textChanged(DocumentChange change) {
+          if (view != null && (occurrences.length > 0 || brackets.length > 0)) {
+            occurrences = FindController.shifted(occurrences, change.edits());
+            brackets = FindController.shifted(brackets, change.edits());
+            view.showOccurrences(occurrences);
+            view.showBrackets(brackets);
+          }
+          scheduleHighlights();
+        }
+
+        @Override
+        public void dirtyChanged(boolean dirty) {
+          // Highlights follow the text only.
+        }
+      };
+
+  private Bookmarks bookmarks;
+  private SyntaxHighlighter syntax;
+  private Pairs pairs = Pairs.DEFAULT;
+  private Pairs bracketPairs = Pairs.DEFAULT;
+  private WordCompletion completion;
+  private Consumer<String> notices;
+  private int completionChars;
+  private String completionPrefix;
+  private List<String> completionAll;
+  private List<String> completionShown;
+  private int completionSelected;
+  private boolean marksWhitespace;
+  private boolean marksLineEndings;
+  private boolean highlightPending;
+  private CancellationToken lineWork;
+  private CancellationToken bracketSearch;
+  private CancellationToken occurrenceSearch;
+  private String occurrenceKey;
+  private int[] occurrences = new int[0];
+  private int[] brackets = new int[0];
+
+  /**
+   * Returns the pairs auto-close inserts: the grammar's {@code autoClose}.
+   *
+   * @return the pairs
+   */
+  Pairs pairs() {
+    return pairs;
+  }
+
+  /**
+   * Returns the pairs bracket matching uses: the grammar's {@code brackets}.
+   *
+   * @return the pairs
+   */
+  Pairs bracketPairs() {
+    return bracketPairs;
+  }
+
+  /** Returns what leaves brackets in strings and comments out of matching on the UI thread. */
+  private Brackets.Filter bracketFilter(TextSnapshot text) {
+    return syntax == null ? Brackets.Filter.ALL : new TokenBracketFilter(text, syntax);
+  }
+
+  /** Returns the same filter over a copy of the tokens, for a worker. */
+  private Brackets.Filter workerBracketFilter(TextSnapshot text) {
+    return syntax == null ? Brackets.Filter.ALL : new TokenBracketFilter(text, syntax.tokensCopy());
+  }
+
+  /**
+   * Sets the document's bookmarks, shared by its views.
+   *
+   * @param value the bookmarks
+   */
+  void setBookmarks(Bookmarks value) {
+    bookmarks = value;
+    if (view != null) {
+      view.setBookmarks(value);
+    }
+  }
+
+  /** Sets the window's word completion. */
+  void setCompletion(WordCompletion value) {
+    completion = value;
+  }
+
+  /**
+   * Sets how many word chars typed open the completion list on their own.
+   *
+   * @param chars the count, 0 for never
+   */
+  void setCompletionChars(int chars) {
+    completionChars = chars;
+  }
+
+  /** Sets what shows a notice, such as a dropped line transform. */
+  void setNoticeListener(Consumer<String> listener) {
+    notices = listener;
+  }
+
+  /**
+   * Turns the view's whitespace and line-ending marks on or off.
+   *
+   * @param whitespace true to mark spaces and tabs
+   * @param lineEndings true to mark line breaks
+   */
+  void setMarks(boolean whitespace, boolean lineEndings) {
+    marksWhitespace = whitespace;
+    marksLineEndings = lineEndings;
+    if (view != null) {
+      view.setMarks(whitespace, lineEndings);
+    }
+  }
+
+  /**
+   * Returns the bracket highlight.
+   *
+   * @return model offset pairs
+   */
+  int[] brackets() {
+    return brackets.clone();
+  }
+
+  /**
+   * Returns the occurrence highlight.
+   *
+   * @return model offset pairs
+   */
+  int[] occurrences() {
+    return occurrences.clone();
+  }
+
+  /**
+   * Returns the completion list shown.
+   *
+   * @return the words, or null when no list shows
+   */
+  List<String> completions() {
+    return completionShown;
+  }
+
+  private void disposeProductivity() {
+    selections.removeListener(selectionListener);
+    document.removeListener(documentListener);
+    for (CancellationToken token :
+        new CancellationToken[] {lineWork, bracketSearch, occurrenceSearch}) {
+      if (token != null) {
+        token.cancel();
+      }
+    }
+    if (completionShown != null && completion != null) {
+      completion.cancel();
+    }
+  }
+
+  /** Applies an {@link AutoClose} edit; with nothing to replace, only the carets move. */
+  private void applyTyped(Edit edit) {
+    if (edit.batch().replacements().isEmpty()) {
+      selections.set(edit.after());
+      showCaret();
+    } else {
+      applyEdit(edit);
+    }
+  }
+
+  // Line transforms.
+
+  /** Computes a sort, duplicate removal or trim on a worker and applies it at the same revision. */
+  private void transformLines(final CommandId command) {
+    if (document.isReadOnly()) {
+      return;
+    }
+    final TextSnapshot text = document.text();
+    final SelectionSet set = current();
+    final long revision = document.revision();
+    if (lineWork != null) {
+      lineWork.cancel();
+    }
+    final CancellationToken token = new CancellationToken();
+    lineWork = token;
+    if (view != null) {
+      view.setBusy(true);
+    }
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              Edit edit = null;
+              try {
+                edit = lineEdit(command, text, set, token);
+              } catch (CancellationException e) {
+                // Replaced by a newer transform, or the view closed.
+              } finally {
+                final Edit result = edit;
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        linesComputed(token, revision, set, result);
+                      }
+                    });
+              }
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      lineWork = null;
+      if (view != null) {
+        view.setBusy(false);
+      }
+    }
+  }
+
+  /** Returns the edit of a line transform command, or null when it changes nothing. */
+  @WorkerThread
+  static Edit lineEdit(
+      CommandId command, TextSnapshot text, SelectionSet set, CancellationToken token) {
+    return switch (command) {
+      case SORT_LINES_ASCENDING ->
+          LineTransforms.sort(text, set, LineTransforms.Order.ASCENDING, token);
+      case SORT_LINES_DESCENDING ->
+          LineTransforms.sort(text, set, LineTransforms.Order.DESCENDING, token);
+      case SORT_LINES_IGNORE_CASE ->
+          LineTransforms.sort(text, set, LineTransforms.Order.IGNORE_CASE, token);
+      case REMOVE_DUPLICATE_LINES -> LineTransforms.removeDuplicates(text, set, token);
+      default -> LineTransforms.trimTrailing(text, set, token);
+    };
+  }
+
+  private void linesComputed(CancellationToken token, long revision, SelectionSet set, Edit edit) {
+    if (token != lineWork) {
+      return;
+    }
+    lineWork = null;
+    try {
+      applyLines(revision, set, edit);
+    } finally {
+      if (view != null) {
+        view.setBusy(false);
+      }
+    }
+  }
+
+  private void applyLines(long revision, SelectionSet set, Edit edit) {
+    if (disposed || edit == null || document.isReadOnly()) {
+      return;
+    }
+    if (document.revision() != revision) {
+      if (notices != null) {
+        notices.accept(UiText.LINES_STALE.text());
+      }
+      return;
+    }
+    document.clearPreedit();
+    boolean moved = !set.equals(selections.selections());
+    applyEdit(moved ? new Edit(edit.batch(), null) : edit);
+  }
+
+  // Bookmarks.
+
+  private void toggleBookmarks() {
+    if (bookmarks == null) {
+      return;
+    }
+    TextSnapshot text = document.text();
+    int last = -1;
+    for (Selection s : current().selections()) {
+      int line = text.lineAt(s.caret());
+      if (line != last) {
+        bookmarks.toggle(line);
+        last = line;
+      }
+    }
+  }
+
+  private void nextBookmark(boolean forward) {
+    if (bookmarks == null) {
+      return;
+    }
+    TextSnapshot text = document.text();
+    int line = bookmarks.next(text.lineAt(current().primary().caret()), forward);
+    if (line >= 0) {
+      selections.set(SelectionSet.caret(text.offsetOfLine(line)));
+      showCaret();
+    }
+  }
+
+  // Brackets.
+
+  /**
+   * Moves each caret beside a bracket past the bracket's partner, or selects from the bracket to
+   * the partner, both included. Each partner is sought on the UI thread within {@value
+   * #BRACKET_SCAN} chars of its bracket; when one lies beyond, every partner is sought on a worker
+   * and the result applies only at the same revision and selections.
+   */
+  private void matchingBracket(final boolean select) {
+    final TextSnapshot text = document.text();
+    final SelectionSet set = current();
+    final Pairs pairs = bracketPairs();
+    int[] partners =
+        partners(text, set, pairs, BRACKET_SCAN, new CancellationToken(), bracketFilter(text));
+    if (partners.length > 0) {
+      moveToPartners(set, partners, select);
+      return;
+    }
+    final long revision = document.revision();
+    if (bracketSearch != null) {
+      bracketSearch.cancel();
+    }
+    final CancellationToken token = new CancellationToken();
+    final Brackets.Filter filter = workerBracketFilter(text);
+    bracketSearch = token;
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              final int[] found;
+              try {
+                found = partners(text, set, pairs, Integer.MAX_VALUE, token, filter);
+              } catch (CancellationException e) {
+                return;
+              }
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (token != bracketSearch) {
+                        return;
+                      }
+                      bracketSearch = null;
+                      if (!disposed
+                          && document.revision() == revision
+                          && set.equals(selections.selections())) {
+                        moveToPartners(set, found, select);
+                      }
+                    }
+                  });
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      bracketSearch = null;
+    }
+  }
+
+  /**
+   * Returns each selection's bracket and partner as pairs, -1 where none, or an empty array when a
+   * partner lies more than {@code scan} chars from its bracket.
+   */
+  static int[] partners(
+      TextSnapshot text,
+      SelectionSet set,
+      Pairs pairs,
+      int scan,
+      CancellationToken token,
+      Brackets.Filter filter) {
+    int[] out = new int[set.size() * 2];
+    int i = 0;
+    for (Selection s : set.selections()) {
+      int at = Brackets.at(text, s.caret(), pairs, filter);
+      int partner = -1;
+      if (at >= 0) {
+        long from = (long) at - scan;
+        long to = (long) at + 1 + scan;
+        partner =
+            Brackets.match(
+                text,
+                at,
+                pairs,
+                (int) Math.max(0, from),
+                (int) Math.min(text.length(), to),
+                token,
+                filter);
+        if (partner == Brackets.BEYOND) {
+          return new int[0];
+        }
+      }
+      out[i++] = at;
+      out[i++] = partner;
+    }
+    return out;
+  }
+
+  private void moveToPartners(SelectionSet set, int[] partners, boolean select) {
+    List<Selection> out = new ArrayList<Selection>(set.size());
+    boolean moved = false;
+    for (int i = 0; i < set.size(); i++) {
+      Selection s = set.selections().get(i);
+      int at = partners[2 * i];
+      int partner = partners[2 * i + 1];
+      if (partner < 0) {
+        out.add(s);
+        continue;
+      }
+      moved = true;
+      boolean forward = partner > at;
+      if (select) {
+        out.add(forward ? Selection.of(at, partner + 1) : Selection.of(at + 1, partner));
+      } else {
+        out.add(Selection.caret(forward ? partner + 1 : partner));
+      }
+    }
+    if (moved) {
+      selections.set(SelectionSet.of(out, set.primaryIndex()));
+      showCaret();
+    }
+  }
+
+  // Highlights.
+
+  /** Recomputes the bracket and occurrence highlights on the next UI turn, once. */
+  private void scheduleHighlights() {
+    if (highlightPending || disposed) {
+      return;
+    }
+    highlightPending = true;
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            highlightPending = false;
+            if (!disposed && view != null) {
+              highlightBrackets();
+              highlightOccurrences();
+            }
+          }
+        });
+  }
+
+  private void showBrackets(int[] ranges) {
+    if (view != null && (ranges.length != 0 || brackets.length != 0)) {
+      brackets = ranges;
+      view.showBrackets(ranges);
+    }
+  }
+
+  private void showOccurrences(int[] ranges) {
+    if (view != null && (ranges.length != 0 || occurrences.length != 0)) {
+      occurrences = ranges;
+      view.showOccurrences(ranges);
+    }
+  }
+
+  private void highlightBrackets() {
+    if (bracketSearch != null) {
+      bracketSearch.cancel();
+      bracketSearch = null;
+    }
+    Selection primary = current().primary();
+    final TextSnapshot text = document.text();
+    final Pairs pairs = bracketPairs();
+    Brackets.Filter filter = bracketFilter(text);
+    final int at =
+        primary.isEmpty() && selections.block() == null
+            ? Brackets.at(text, primary.caret(), pairs, filter)
+            : -1;
+    if (at < 0) {
+      showBrackets(new int[0]);
+      return;
+    }
+    int from = Math.max(0, Math.min(visibleStart, at) - BRACKET_SCAN);
+    int to = (int) Math.min(text.length(), (long) Math.max(visibleEnd, at + 1) + BRACKET_SCAN);
+    int partner = Brackets.match(text, at, pairs, from, to, new CancellationToken(), filter);
+    if (partner != Brackets.BEYOND) {
+      showBrackets(bracketRanges(at, partner));
+      return;
+    }
+    final long revision = document.revision();
+    final int caret = primary.caret();
+    final CancellationToken token = new CancellationToken();
+    final Brackets.Filter workerFilter = workerBracketFilter(text);
+    bracketSearch = token;
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              final int found;
+              try {
+                found = Brackets.match(text, at, pairs, 0, text.length(), token, workerFilter);
+              } catch (CancellationException e) {
+                return;
+              }
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (token != bracketSearch) {
+                        return;
+                      }
+                      bracketSearch = null;
+                      if (!disposed
+                          && document.revision() == revision
+                          && current().primary().caret() == caret) {
+                        showBrackets(bracketRanges(at, found));
+                      }
+                    }
+                  });
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      bracketSearch = null;
+    }
+  }
+
+  private static int[] bracketRanges(int at, int partner) {
+    if (partner < 0) {
+      return new int[0];
+    }
+    int a = Math.min(at, partner);
+    int b = Math.max(at, partner);
+    return new int[] {a, a + 1, b, b + 1};
+  }
+
+  private void highlightOccurrences() {
+    Selection primary = current().primary();
+    final TextSnapshot text = document.text();
+    int[] word =
+        primary.isEmpty() && selections.block() == null
+            ? Words.at(text, primary.caret())
+            : new int[0];
+    if (word.length == 0) {
+      occurrenceKey = null;
+      if (occurrenceSearch != null) {
+        occurrenceSearch.cancel();
+        occurrenceSearch = null;
+      }
+      showOccurrences(new int[0]);
+      return;
+    }
+    final String needle = text.subSequence(word[0], word[1]).toString();
+    final long revision = document.revision();
+    final int from = visibleStart - needle.length();
+    final int to = visibleEnd + needle.length();
+    String key = needle + '\n' + revision + '\n' + from + '\n' + to;
+    if (key.equals(occurrenceKey)) {
+      return;
+    }
+    occurrenceKey = key;
+    if (occurrenceSearch != null) {
+      occurrenceSearch.cancel();
+    }
+    final CancellationToken token = new CancellationToken();
+    occurrenceSearch = token;
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              final int[] found;
+              try {
+                found = Occurrences.words(text, needle, from, to, VIEW_OCCURRENCES, token);
+              } catch (CancellationException e) {
+                return;
+              }
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (token != occurrenceSearch) {
+                        return;
+                      }
+                      occurrenceSearch = null;
+                      if (!disposed && document.revision() == revision) {
+                        showOccurrences(found.length >= 4 ? found : new int[0]);
+                      }
+                    }
+                  });
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      occurrenceSearch = null;
+      occurrenceKey = null;
+    }
+  }
+
+  // Word completion.
+
+  /** Returns the word chars before an offset, at most {@value #MAX_PREFIX}. */
+  private String prefixAt(int caret) {
+    TextSnapshot text = document.text();
+    int start = caret;
+    while (start > 0 && caret - start < MAX_PREFIX && isWordChar(text.charAt(start - 1))) {
+      start--;
+    }
+    return text.subSequence(start, caret).toString();
+  }
+
+  private static boolean isWordChar(char c) {
+    return Character.isLetterOrDigit(c) || c == '_';
+  }
+
+  /** Opens the completion list after a typed word char once enough of the word is typed. */
+  private void typed(String text) {
+    if (completionChars > 0
+        && completionShown == null
+        && text.length() == 1
+        && isWordChar(text.charAt(0))
+        && prefixAt(current().primary().caret()).length() >= completionChars) {
+      requestCompletion(false);
+    }
+  }
+
+  /**
+   * Looks up the words completing the one before the primary caret. An explicit request with one
+   * word inserts it at once; otherwise the list shows.
+   */
+  private void requestCompletion(final boolean explicit) {
+    Selection primary = current().primary();
+    if (completion == null || selections.block() != null || !primary.isEmpty()) {
+      return;
+    }
+    final String prefix = prefixAt(primary.caret());
+    if (prefix.isEmpty() || Character.isDigit(prefix.charAt(0))) {
+      return;
+    }
+    final long revision = document.revision();
+    final int caret = primary.caret();
+    completion.request(
+        document,
+        prefix,
+        new Consumer<List<String>>() {
+          @Override
+          public void accept(List<String> words) {
+            completed(explicit, prefix, revision, caret, words);
+          }
+        });
+  }
+
+  private void completed(
+      boolean explicit, String prefix, long revision, int caret, List<String> words) {
+    Selection primary = current().primary();
+    if (disposed
+        || words.isEmpty()
+        || document.revision() != revision
+        || !primary.isEmpty()
+        || primary.caret() != caret) {
+      return;
+    }
+    completionPrefix = prefix;
+    completionAll = words;
+    completionShown = words;
+    completionSelected = 0;
+    if (explicit && words.size() == 1) {
+      acceptCompletion(0);
+    } else if (view != null) {
+      view.showCompletions(completionShown, 0);
+    }
+  }
+
+  /** Narrows the list to the word now before the primary caret, or closes it. */
+  private void refilterCompletion() {
+    Selection primary = current().primary();
+    String prefix =
+        primary.isEmpty() && selections.block() == null ? prefixAt(primary.caret()) : "";
+    if (prefix.length() < completionPrefix.length()
+        || !prefix.regionMatches(true, 0, completionPrefix, 0, completionPrefix.length())) {
+      closeCompletion();
+      return;
+    }
+    List<String> shown = new ArrayList<String>();
+    for (String word : completionAll) {
+      if (word.regionMatches(true, 0, prefix, 0, prefix.length()) && !word.equals(prefix)) {
+        shown.add(word);
+      }
+    }
+    if (shown.isEmpty()) {
+      closeCompletion();
+      return;
+    }
+    if (!shown.equals(completionShown)) {
+      completionShown = shown;
+      completionSelected = 0;
+    }
+    if (view != null) {
+      view.showCompletions(completionShown, completionSelected);
+    }
+  }
+
+  /** Runs a command against the open list; returns false for a command the list ignores. */
+  private boolean completionKey(CommandId command) {
+    switch (command) {
+      case CARET_UP -> selectCompletion(completionSelected - 1);
+      case CARET_DOWN -> selectCompletion(completionSelected + 1);
+      case PAGE_UP -> selectCompletion(completionSelected - COMPLETION_PAGE);
+      case PAGE_DOWN -> selectCompletion(completionSelected + COMPLETION_PAGE);
+      case NEWLINE, INSERT_TAB -> acceptCompletion(completionSelected);
+      case CANCEL -> closeCompletion();
+      case DELETE_BACK, COMPLETE_WORD -> {
+        return false;
+      }
+      default -> {
+        closeCompletion();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private void selectCompletion(int index) {
+    completionSelected = Math.max(0, Math.min(completionShown.size() - 1, index));
+    if (view != null) {
+      view.showCompletions(completionShown, completionSelected);
+    }
+  }
+
+  @Override
+  public void completionChosen(int index) {
+    if (completionShown != null && index >= 0 && index < completionShown.size()) {
+      acceptCompletion(index);
+    }
+  }
+
+  /**
+   * Replaces the typed prefix before every caret that ends with it, ignoring case, with a listed
+   * word, as one undo step, and closes the list.
+   */
+  private void acceptCompletion(int index) {
+    String word = completionShown.get(index);
+    String prefix = prefixAt(current().primary().caret());
+    closeCompletion();
+    if (document.isReadOnly()) {
+      return;
+    }
+    document.clearPreedit();
+    TextSnapshot text = document.text();
+    SelectionSet set = current();
+    int n = prefix.length();
+    List<Replacement> out = new ArrayList<Replacement>();
+    List<Selection> after = new ArrayList<Selection>(set.size());
+    int shift = 0;
+    for (Selection s : set.selections()) {
+      int at = s.caret();
+      if (s.isEmpty()
+          && at >= n
+          && prefix.regionMatches(true, 0, text.subSequence(at - n, at).toString(), 0, n)) {
+        out.add(new Replacement(at - n, n, word));
+        shift += word.length() - n;
+        after.add(Selection.caret(at + shift));
+      } else {
+        after.add(new Selection(s.anchor() + shift, s.caret() + shift, s.preferredColumn()));
+      }
+    }
+    applyEdit(
+        new Edit(
+            EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex())));
+  }
+
+  private void closeCompletion() {
+    if (completionShown == null) {
+      return;
+    }
+    completionShown = null;
+    completionAll = null;
+    completionPrefix = null;
+    if (view != null) {
+      view.showCompletions(List.of(), 0);
+    }
   }
 
   /** Rewrites every CR LF, CR and LF in {@code text} as {@code ending}. */

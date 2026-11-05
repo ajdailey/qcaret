@@ -32,7 +32,13 @@ class PaletteTest {
   void tokensAndTextAreReadableOnEveryBackground() {
     for (Palette palette : new Palette[] {Palette.LIGHT, Palette.DARK}) {
       for (Rgb back :
-          new Rgb[] {palette.background(), palette.currentLine(), palette.findMatch()}) {
+          new Rgb[] {
+            palette.background(),
+            palette.currentLine(),
+            palette.findMatch(),
+            palette.occurrence(),
+            palette.bracket()
+          }) {
         assertTrue(contrast(palette.text(), back) >= 4.5, "text on " + back);
         for (TokenRole role : TokenRole.values()) {
           double ratio = contrast(palette.style(role).foreground(), back);
@@ -65,7 +71,7 @@ class PaletteTest {
         new Executable() {
           @Override
           public void execute() {
-            new Palette(false, c, c, c, c, c, c, c, c, c, c, tokens);
+            new Palette(false, c, c, c, c, c, c, c, c, c, c, c, c, tokens);
           }
         });
   }

@@ -91,6 +91,14 @@ Toggle Fold has no key. `reference(filter)` lists
 the bindings whose group,
 command or keys contain the filter. Shortcut overrides are not built.
 
+Bookmarks are Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and
+Select to Matching Bracket Mod+B and Mod+Shift+B; Complete Word Ctrl+Space,
+Option+Esc on macOS, where Ctrl+Space switches the input source; Command
+Palette Mod+Shift+P. Sort, Remove Duplicate Lines, Trim Trailing Whitespace,
+Clear Bookmarks and Show Whitespace and Line Endings are menu only. `Fuzzy`
+scores the palette's filter: the query's chars in order, ignoring case, more
+for runs and word starts.
+
 ## Controller (`app.controller`)
 
 `ApplicationController` runs the window's commands and owns the settings, the
@@ -112,6 +120,11 @@ not fire, so the view syncs enablement on every `documentStateChanged`.
 `Charset.availableCharsets` costs 130 to 229 ms cold (measured in QLogg), so
 `ApplicationController.loadEncodings` computes the list once per run on a
 worker.
+
+View > Command Palette opens the view's palette over `CommandPalette`: every
+menu command with its menu, keys and enabled state, filtered with `Fuzzy` on
+its title, then on its menu and title. Choosing an enabled row runs the
+command.
 
 `HelpController` runs the Help commands. Keyboard Shortcuts opens the view's
 filtered table of the `Keymap`; Command-Line Options shows the usage text. User Guide
@@ -178,7 +191,12 @@ read on workers.
 - Close asks Save, Don't Save or Cancel for a dirty document; Save closes once
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
-- Word wrap is one setting for the window's editors.
+- Word wrap, Show Whitespace, Show Line Endings and the completion trigger
+  are settings for the window's editors.
+- Each document has one `Bookmarks`, shared by its views and disposed on
+  close. `WordCompletion` keeps one `WordIndex` per open document and builds
+  it again on a `qcaret-cpu-` worker when the document's revision moved since
+  the last build.
 - Split shows the selected document in a second view, side by side or one
   above the other; with two views, the other arrangement only rearranges them.
   Each view is an `EditorController` with its own `SelectionModel`,
@@ -264,19 +282,60 @@ document ignores edits. The controller also runs the projection's rewraps on
   grammar without a line comment toggles a block comment around each block of
   lines.
 - Enter and a typed closer go through `SmartIndent` with the view's
-  `IndentRules` (`IndentRules.BRACKETS` until a grammar supplies its own).
+  `IndentRules`: `PatternIndentRules` over the grammar's `indent` regexes,
+  `IndentRules.BRACKETS` for plain text and a grammar without them. A typed
+  char that `AutoClose` handles does not outdent.
 - Folding: Fold collapses the region the primary caret's line starts, else the
   innermost expanded region holding it; Unfold expands the collapsed region
   the line starts; Toggle Fold does either; Fold All and Unfold All take every
-  region of the view. Folding moves each caret and anchor in hidden lines to
+  region of the view. Fold All measures its spans on a `qcaret-cpu-` worker
+  against a snapshot and a copy of the rows and collapses them only if the
+  text, rows and offered regions are unchanged, else asks again; a fold
+  command meanwhile drops it. Folding moves each caret and anchor in hidden lines to
   the end of the line before them. A primary caret that any other command
   puts in hidden lines (find, Go to Line, undo) expands the regions hiding
   it. Left, Right, the word moves and Mod+End step over hidden lines.
-- Fold regions come from a `FoldRegionSource` (`setFoldSource`; by default
-  `IndentFoldSource` at the document's tab width) on a `qcaret-cpu-` worker,
-  300 ms after the last change and at once on a tab width change, one run at
-  a time; a result for an older revision is dropped. Each view computes its
-  own.
+- Fold regions come from a `FoldRegionSource` on a `qcaret-cpu-` worker, 300
+  ms after the last change and at once on a tab width change, one run at a
+  time; a result for an older revision is dropped. Each view computes its
+  own. A `brackets` or `markers` grammar's source is the document's
+  `SyntaxHighlighter`, whose new regions run the step again; other grammars
+  and plain text use `IndentFoldSource` at the document's tab width. A source
+  that has no regions for the snapshot's revision returns null, and the
+  installed regions stay.
+- Typing and Backspace follow `AutoClose` with the pairs `pairs()` returns: the
+  grammar's `autoClose` pairs, `Pairs.DEFAULT` for plain text and a grammar
+  without any; a block types plainly.
+- Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their
+  `LineTransforms` edit on a `qcaret-cpu-` worker and apply it on the UI
+  thread as one undo step, with the view's busy cursor from the command to
+  the apply; a result for an older revision is dropped with a notice.
+- Bookmarks: Toggle at every caret's line, Next and Previous from the primary
+  caret's line with wrap-around, Clear; Next and Previous onto a hidden line
+  expand the regions hiding it. The `Bookmarks` are the document's, shared by
+  its views.
+- Bracket matching pairs the grammar's `brackets` (`Pairs.DEFAULT` for plain
+  text) and skips a bracket whose token is a comment, string or escape
+  (`TokenBracketFilter`). A line without tokens yet counts every bracket. A
+  worker search reads a copy of the token cache taken when it starts.
+- Go to Matching Bracket moves each caret beside a bracket past its partner;
+  Select to Matching Bracket selects from the bracket to the partner. Each
+  partner is sought on the UI thread within 16 Ki chars of its bracket; one
+  further away sends every search to a worker, applied only at the same
+  revision and selections.
+- One UI turn after a caret move, an edit or a scroll, the view gets the
+  bracket beside the primary caret with its partner (sought on the UI thread
+  within the visible range and 16 Ki chars on each side, else on a worker) and
+  the whole-word occurrences of the word at the primary caret in the visible
+  range (on a worker, at most 2,000, shown when there are two or more). An
+  edit shifts both at once; a result for an older revision is dropped.
+- Complete Word looks up the word chars before the primary caret in every open
+  document (`WordCompletion`); one match is inserted at once, more show the
+  view's list. With `editor.completionChars` above 0 the list also opens after
+  that many word chars are typed. While it shows, Up, Down, Page Up and Page
+  Down move in it, Enter and Tab replace the typed prefix at every caret that
+  ends with it, Esc closes it, typing narrows it, and any other command or a
+  caret moving off the word closes it.
 
 ### Syntax highlighting
 
@@ -293,7 +352,9 @@ extension, then the first 1,000 chars of the first line) when it opens, when a
 save gives it another name and when the grammars are read again. View >
 Syntax or a click on the status bar's language field sets one for the
 document (`setSyntax`); that choice survives a reload while the grammar
-exists.
+exists. Each grammar switch, the reload included, passes the grammar to every
+view's `EditorController.setGrammar`: comment delimiters, fold source, indent
+rules and pairs.
 
 `SyntaxHighlighter` keeps the painted tokens in a `TokenCache` on the UI
 thread and runs a `SyntaxEngine` on the CPU pool; the UI thread runs no regex.
@@ -311,7 +372,6 @@ thread and runs a `SyntaxEngine` on the CPU pool; the UI thread runs no regex.
   `FoldRegionSource` (`activeFoldRegions`) for that revision.
 - Lines over 10,000 chars stay plain; the count goes to the log at INFO
   when a complete pass finds a new count.
-
 ## Editor state (`app.editor`)
 
 `DisplayProjection` maps a document's text to the display text an editor
@@ -363,17 +423,24 @@ the next row.
   still at that revision; a stale or superseded result is dropped and the
   owner asks again.
 
-`HighlightComposer` composes what one view paints on a row, lowest layer
-first: the syntax tokens' foreground (`TokenSource`), the find matches'
-background, then the secondary selections, which set both. It returns runs of
-role and background ordinals; the view maps them to its toolkit styles.
+`HighlightComposer` composes what one view paints on a row: the syntax
+tokens' foreground (`TokenSource`) and one background per char, taken from
+the first layer that covers it in the order secondary selection (which also
+sets the foreground), bracket pair, find match, word occurrence. It returns
+runs of role and background ordinals; the view maps them to its toolkit
+styles.
 `TokenCache` holds the tokens of the last 2,000 painted lines, maps each token
 type to the `TokenRole` of the same name and shifts entries through a change:
 an edit without breaks moves the tokens in its line, an insert with breaks
 splits the line's tokens around it, any other edit drops the lines it touches,
 and a CR and LF joining or parting at an edit (line count off from the edits'
-sum) drops every line. `FoldRegionSource` is the fold layer's input: `{start,
-end}` line pairs per revision.
+sum) drops every line; `copy` gives a worker the entries held.
+`FoldRegionSource` is the fold layer's input: `{start, end}` line pairs per
+revision, null while that revision's are not computed. `TokenBracketFilter`
+reads a `TokenSource` and leaves comment, string and escape brackets out of
+`Brackets` matching. `PatternIndentRules` finds a grammar's `indent` regexes
+in at most 1,000 chars of the line through a `BoundedChars`; a regex that
+reaches the read bound or overflows the stack does not match.
 
 `IndentFoldSource` opens a region on a non-blank line when the next non-blank
 line is indented deeper and ends it on the last non-blank line before a line
@@ -392,6 +459,11 @@ starts at `round(c * advance)`. The gutter width and the wrap width in columns
 use it; text outside printable ASCII is placed at the widget's measured glyph
 positions.
 
+`Bookmarks` holds one document's bookmarks as `Anchor`s at their lines'
+starts with `Bias.AFTER`, so a break inserted at that start moves a bookmark
+down with its line's text; bookmarks that land on one line count once.
+`LineEnds` names the break after a line for the line-ending marks.
+
 ## Settings (`app.config`)
 
 `SettingsLocation` picks the settings directory: `--settings <dir>`
@@ -399,8 +471,10 @@ positions.
 `qcaret.conf` (portable), else the per-user directory of the OS. The
 bootstrap applies the same order to the SWT native cache.
 
-`ConfigStore` reads and writes `Preferences` (`ui.theme`, `window.*` and
-`log.debugFile`, which attaches the debug log file at the next start) in
+`ConfigStore` reads and writes `Preferences` (`ui.theme`, `window.*`,
+`log.debugFile`, which attaches the debug log file at the next start, and
+`editor.completionChars`, 0 to 20, the word chars typed before the completion
+list opens on its own, 0 for never) in
 `qcaret.conf`: Java properties, ISO-8859-1, sorted keys, no date comment,
 `version=1`. Both calls block and run off the UI thread; a lock serializes
 them.
@@ -490,8 +564,13 @@ and the final tokens equal a new pass, and outputs queued for an older
 revision do not overwrite newer text. `SyntaxControllerTest` covers detection
 by name and first line, the manual choice across a reload, a user grammar
 replacing a built-in, the notice for an invalid file, and both comment
-commands at two carets as one undo step. `HighlightComposerTest` and
-`TokenCacheTest` cover the layers and the cache through edits.
+commands at two carets as one undo step. `GrammarWiringTest` covers fold
+regions from the highlighter for a `brackets` grammar and from indentation
+for the others through switches and a reload, the grammar's indent rules and
+pairs, and bracket matching that counts a string's bracket until the tokens
+arrive and skips it after. `HighlightComposerTest` (the background
+precedence), `TokenCacheTest` and `GrammarRulesTest` cover the layers, the
+cache through edits, the indent regexes and the token filter.
 
 `SplitViewTest` covers two views with their own selections over one text,
 the arrangement switch, focus, Unsplit keeping the focused view, and both
@@ -516,12 +595,28 @@ with the collapsed lines left out, through 80 seeded rounds of random region
 sets, folds, unfolds, reveals and edits that join and part CR LF pairs, wrap
 on and off, replaying each display change on a mirror (`-DfoldRounds=N` runs
 more; 20,000 passed); it also covers rewraps with folds, the expand rules, the
-offered regions' reconciliation and indentation regions. `FoldingCommandsTest`
-runs the fold commands, caret moves over a collapsed region, the reveal, an
-edit at a hidden secondary caret, independent split views and smart indent
-through the controllers; `CommandDispatchTest` also runs every command with
+offered regions' reconciliation, indentation regions, and a worker-measured
+Fold All applied, stale after an edit or a rewrap and dropped after a fold.
+`FoldingCommandsTest` runs the fold commands, caret moves over a collapsed
+region, the reveal, Next and Previous Bookmark onto a hidden line, an edit at
+a hidden secondary caret, independent split views and smart indent through
+the controllers; `CommandDispatchTest` also runs every command with
 every region collapsed in a split view.
 `ColumnMetricsTest` checks column 150 at a 7.22 px advance.
+
+`ProductivityTest` covers typed pairs, type-over and pair delete at two
+carets, a block typing plainly, a sort on a worker as one undo step with the
+view busy until it applies, a line transform dropped with a notice after an
+edit, bookmarks following an
+inserted break with wrap-around navigation, Go to and Select to Matching
+Bracket at every caret and past the UI-thread bound, the bracket and
+occurrence highlights, and completion: words of another open document, the
+list narrowing, arrows, Esc, Enter, the single-word insert and the automatic
+trigger. `CommandPaletteTest` covers `Fuzzy`, every menu command listed in
+menu order, cascade titles, keys and enabled state, and running only an
+enabled command. `BookmarksTest` covers bookmarks through edits, two on one
+line, wrap-around and `LineEnds`.
+
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
 and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,

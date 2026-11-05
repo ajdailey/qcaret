@@ -456,7 +456,47 @@ public enum UiText {
   /** Command label. */
   COMMAND_FOLD_ALL,
   /** Command label. */
-  COMMAND_UNFOLD_ALL;
+  COMMAND_UNFOLD_ALL,
+  /** Edit submenu of the sort commands. */
+  MENU_SORT_LINES,
+  /** Command label. */
+  COMMAND_SORT_LINES_ASCENDING,
+  /** Command label. */
+  COMMAND_SORT_LINES_DESCENDING,
+  /** Command label. */
+  COMMAND_SORT_LINES_IGNORE_CASE,
+  /** Command label. */
+  COMMAND_REMOVE_DUPLICATE_LINES,
+  /** Command label. */
+  COMMAND_TRIM_TRAILING_WHITESPACE,
+  /** Command label. */
+  COMMAND_COMPLETE_WORD,
+  /** Command label. */
+  COMMAND_SELECT_TO_MATCHING_BRACKET,
+  /** Command label. */
+  COMMAND_GO_TO_MATCHING_BRACKET,
+  /** Search submenu of the bookmark commands. */
+  MENU_BOOKMARKS,
+  /** Command label. */
+  COMMAND_TOGGLE_BOOKMARK,
+  /** Command label. */
+  COMMAND_NEXT_BOOKMARK,
+  /** Command label. */
+  COMMAND_PREVIOUS_BOOKMARK,
+  /** Command label. */
+  COMMAND_CLEAR_BOOKMARKS,
+  /** Command label. */
+  COMMAND_SHOW_WHITESPACE,
+  /** Command label. */
+  COMMAND_SHOW_LINE_ENDINGS,
+  /** Command label. */
+  COMMAND_COMMAND_PALETTE,
+  /** Command palette title. */
+  PALETTE_TITLE,
+  /** Command palette filter field hint. */
+  PALETTE_FILTER,
+  /** Notice: a line command dropped its result because the document changed. */
+  LINES_STALE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

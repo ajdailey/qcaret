@@ -146,4 +146,11 @@ public interface EditorInput {
    * @param end the display offset after the last visible row
    */
   void viewportChanged(int start, int end);
+
+  /**
+   * Inserts a word from the completion list the view shows.
+   *
+   * @param index the word's index in the list
+   */
+  void completionChosen(int index);
 }

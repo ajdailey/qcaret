@@ -110,4 +110,12 @@ public interface MainView extends ClipboardService, DocumentsView, ActivityIndic
    * @param keymap the bindings it lists
    */
   void showKeyboardShortcuts(Keymap keymap);
+
+  /**
+   * Shows the command palette: a filter field over the rows {@link PaletteInput#filter} returns.
+   * Choosing a row closes the palette and passes the row's command to {@link PaletteInput#run}.
+   *
+   * @param input the palette's controller
+   */
+  void showCommandPalette(PaletteInput input);
 }

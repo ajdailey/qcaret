@@ -86,6 +86,18 @@ class ConfigStoreTest {
   }
 
   @Test
+  void theCompletionTriggerRoundTripsAndAnOutOfRangeValueFallsBack() throws IOException {
+    Preferences saved = DARK.withCompletionChars(3);
+    assertTrue(store(temp).save(saved));
+    assertTrue(
+        Files.readString(conf(), StandardCharsets.ISO_8859_1)
+            .contains("editor.completionChars=3\n"));
+    assertEquals(saved, store(temp).load());
+    Files.writeString(conf(), "editor.completionChars=21\n");
+    assertEquals(0, store(temp).load().completionChars());
+  }
+
+  @Test
   void anUnknownPlacementWritesNoCoordinates() throws IOException {
     assertTrue(store(temp).save(Preferences.DEFAULTS));
     String text = Files.readString(conf(), StandardCharsets.ISO_8859_1);

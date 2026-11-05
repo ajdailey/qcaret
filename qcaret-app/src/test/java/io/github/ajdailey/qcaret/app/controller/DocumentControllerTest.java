@@ -100,7 +100,7 @@ class DocumentControllerTest {
 
   /**
    * Waits until every started worker ended, then runs what they posted. The CPU pool's threads stay
-   * once fold regions ran on them.
+   * once a task ran on them, so they are not counted.
    */
   private void settle() throws Exception {
     assertTrue(

@@ -14,6 +14,7 @@ import java.util.Locale;
 public final class Keymap {
   private static final int P = KeyStroke.PRIMARY;
   private static final int S = KeyStroke.SHIFT;
+  private static final int F2 = KeyStroke.F1 + 1;
   private static final int F3 = KeyStroke.F1 + 2;
   private static final int F6 = KeyStroke.F1 + 5;
 
@@ -75,6 +76,7 @@ public final class Keymap {
     }
     editor(b, CommandId.SELECT_ALL, P, 'a');
     editing(b, mac, linux);
+    productivity(b, mac);
     window(b, CommandId.ZOOM_IN, P, '=');
     window(b, CommandId.ZOOM_IN, P, KeyStroke.KEYPAD_ADD);
     window(b, CommandId.ZOOM_OUT, P, '-');
@@ -174,6 +176,24 @@ public final class Keymap {
     editor(b, CommandId.BLOCK_RIGHT, block, KeyStroke.RIGHT);
     editor(b, CommandId.BLOCK_UP, block, KeyStroke.UP);
     editor(b, CommandId.BLOCK_DOWN, block, KeyStroke.DOWN);
+  }
+
+  /**
+   * Adds the bookmark, bracket, completion and command palette bindings. Word completion is
+   * Ctrl+Space, or Option+Esc on macOS, where Ctrl+Space switches the input source.
+   */
+  private static void productivity(List<Binding> b, boolean mac) {
+    editor(b, CommandId.TOGGLE_BOOKMARK, P, F2);
+    editor(b, CommandId.NEXT_BOOKMARK, 0, F2);
+    editor(b, CommandId.PREVIOUS_BOOKMARK, S, F2);
+    editor(b, CommandId.GO_TO_MATCHING_BRACKET, P, 'b');
+    editor(b, CommandId.SELECT_TO_MATCHING_BRACKET, P | S, 'b');
+    if (mac) {
+      editor(b, CommandId.COMPLETE_WORD, KeyStroke.ALT, KeyStroke.ESCAPE);
+    } else {
+      editor(b, CommandId.COMPLETE_WORD, P, KeyStroke.SPACE);
+    }
+    window(b, CommandId.COMMAND_PALETTE, P | S, 'p');
   }
 
   private static void window(List<Binding> b, CommandId command, int modifiers, char c) {

@@ -129,6 +129,7 @@ public final class ApplicationController {
     this.grammars =
         new GrammarLibrary(workers, ui, view, config.location().directory().resolve("grammars"));
     documents.setGrammars(grammars);
+    documents.setCompletionChars(preferences.completionChars());
   }
 
   /**
@@ -350,8 +351,23 @@ public final class ApplicationController {
           UNFOLD,
           TOGGLE_FOLD,
           FOLD_ALL,
-          UNFOLD_ALL ->
+          UNFOLD_ALL,
+          SORT_LINES_ASCENDING,
+          SORT_LINES_DESCENDING,
+          SORT_LINES_IGNORE_CASE,
+          REMOVE_DUPLICATE_LINES,
+          TRIM_TRAILING_WHITESPACE,
+          COMPLETE_WORD,
+          SELECT_TO_MATCHING_BRACKET,
+          GO_TO_MATCHING_BRACKET,
+          TOGGLE_BOOKMARK,
+          NEXT_BOOKMARK,
+          PREVIOUS_BOOKMARK,
+          CLEAR_BOOKMARKS ->
           edit(command);
+      case SHOW_WHITESPACE -> documents.toggleMarks(false);
+      case SHOW_LINE_ENDINGS -> documents.toggleMarks(true);
+      case COMMAND_PALETTE -> view.showCommandPalette(new CommandPalette(this, keymap));
       case TAB_WIDTH_2 -> documents.setTabWidth(2);
       case TAB_WIDTH_4 -> documents.setTabWidth(4);
       case TAB_WIDTH_8 -> documents.setTabWidth(8);

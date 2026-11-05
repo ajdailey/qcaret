@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.core.document.TextEdit;
 import io.github.ajdailey.qcaret.core.syntax.TokenType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,6 +137,22 @@ public final class TokenCache {
         lines.remove(line);
       }
     }
+  }
+
+  /**
+   * Returns the lines held, for reading on another thread; the token arrays are shared and never
+   * modified.
+   *
+   * @return a copy of the entries, without the use order
+   */
+  public TokenSource copy() {
+    final Map<Integer, int[]> copy = new HashMap<Integer, int[]>(lines);
+    return new TokenSource() {
+      @Override
+      public int[] tokens(int line) {
+        return copy.get(line);
+      }
+    };
   }
 
   /** Drops every line. */

@@ -22,7 +22,7 @@ delete-pending for a moment.
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
-| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `BlockEdits`, `CommentEdits`, `Moves`, `Words`, `Occurrences`), grammars and highlighting, search, line diff; none uses another |
+| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search, line diff; none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
@@ -249,8 +249,12 @@ ending at a line's start leaves that line out.
 | `LineEdits` | Duplicate (each range after itself, or each caret's lines below them), move lines up or down (touching blocks move together; nothing moves at the edge), delete lines (the last line takes the break before it), join (break and the next line's indentation become one space, or none after an empty line or whitespace), upper and lower case one code point at a time (the word at a caret), indent and outdent (empty lines skipped; outdent removes a tab or up to a tab width of spaces), the Tab key (indents when a range spans lines, else a tab or spaces to the next stop), split a range into one selection per line |
 | `BlockEdits` | Typing, Backspace, Delete and paste in a `BlockSelection` (Notepad++ column mode): a row that ends left of the block is padded with spaces; the block stays a block, as wide as nothing after typing; paste gives each row one line |
 | `Moves`, `Words` | Caret steps by char (a CR LF and a surrogate pair are one), smart Home, End, and word moves that stop at runs of word chars, of other non-blank chars and at line breaks |
-| `Occurrences` | The next exact occurrence of a text at or after an offset, wrapping; cancelable, for a worker |
 | `CommentEdits` | Toggle line comments on the touched lines (removed when every non-blank line has one after its indentation, else added at the block's smallest indentation; a block comment per block of lines without a line comment) and block comments around each selection or a caret's trimmed line; a range keeps text inserted at its ends |
+| `Occurrences` | The next exact occurrence of a text at or after an offset, wrapping, and the whole-word occurrences of a word in a range; cancelable, for a worker |
+| `LineTransforms` | Sort (code unit, descending, ignoring case), remove duplicate lines (keeps the first) and trim trailing spaces and tabs, over each range's touched lines or, when every selection is a caret, every line but an empty last one. A sort leaves each break in its place, so offsets and selections stay; a removed last line takes the break before it. Cancelable, for a worker |
+| `AutoClose`, `Pairs` | Typing with auto-closed pairs at each caret: an open char inserts its pair before a line end, blank, close bracket, `,` or `;` (a quote also needs no word char or same quote before it), a close char before the same char moves over it, Backspace between a pair deletes both. Returns null when no caret uses a pair, so plain typing applies. `Pairs.DEFAULT` is `() [] {} "" ''` |
+| `Brackets` | The bracket beside a caret (the char before first) and its partner within bounds: same-pair brackets nest, other chars are ignored, and a `Filter` leaves out brackets (the app passes the ones in strings and comments); `NONE` when the text holds no partner, `BEYOND` when the bounds ended the search |
+| `WordIndex` | The distinct words of a text for completion (letter or `_` first, 2 to 100 chars, at most 100,000), sorted by lower case; prefix lookup ignoring case. A word is copied only the first time it is seen |
 
 ### Line endings and encoding
 
@@ -440,6 +444,11 @@ them. `-Dqcaret.document.seed=N` runs one seed.
 `LineEditsTest`, `BlockEditsTest` and `MovesTest` cover each command at one
 and several selections with the selections it leaves, padding into virtual
 space, one undo step per block typing run, and a canceled search.
+`LineTransformsTest` covers mixed breaks staying in place through a sort, the
+final break staying last, duplicates per range, a caret in trimmed blanks and
+one undo step each; `AutoCloseTest` the insert, type-over and pair-delete
+rules per caret; `BracketsTest` nesting, unmatched brackets and the bounds;
+`WordIndexTest` the word rules, prefix lookup and whole-word occurrences.
 `PreeditTest` covers composition text outside undo and the dirty state, undo
 removing it, `applyInBlock` and the tab settings.
 

@@ -3,24 +3,31 @@ package io.github.ajdailey.qcaret.app.editor;
 import java.util.Arrays;
 
 /**
- * Composes what one view paints on a row from its layers, lowest first: the syntax tokens'
- * foreground, the find matches' background, then the secondary selections, which set both. The view
- * maps each run to its toolkit style. Toolkit-free; confined to the UI thread.
+ * Composes what one view paints on a row from its layers: the syntax tokens' foreground and one
+ * background per char from, highest first, the secondary selections (which also set the
+ * foreground), the bracket pair, the find matches and the word occurrences. The view maps each run
+ * to its toolkit style. Toolkit-free; confined to the UI thread.
  */
 public final class HighlightComposer {
   /** No role or no background in a run. */
   public static final int NONE = -1;
 
-  /** A run's background layer. */
+  /** A run's background layer, highest precedence first. */
   public enum Background {
+    /** A secondary selection; it also sets the foreground. */
+    SELECTION,
+    /** The bracket beside the caret or its partner. */
+    BRACKET,
     /** A find match. */
     FIND_MATCH,
-    /** A secondary selection; it also sets the foreground. */
-    SELECTION
+    /** An occurrence of the word at the caret. */
+    OCCURRENCE
   }
 
   private TokenSource syntax;
   private int[] matches = new int[0];
+  private int[] brackets = new int[0];
+  private int[] occurrences = new int[0];
 
   /**
    * Sets the syntax layer.
@@ -59,6 +66,42 @@ public final class HighlightComposer {
   }
 
   /**
+   * Replaces the bracket pair.
+   *
+   * @param ranges model offset pairs, ascending
+   */
+  public void setBrackets(int[] ranges) {
+    brackets = ranges.clone();
+  }
+
+  /**
+   * Returns the bracket pair.
+   *
+   * @return model offset pairs, ascending
+   */
+  public int[] brackets() {
+    return brackets.clone();
+  }
+
+  /**
+   * Replaces the word occurrences.
+   *
+   * @param ranges model offset pairs, ascending
+   */
+  public void setOccurrences(int[] ranges) {
+    occurrences = ranges.clone();
+  }
+
+  /**
+   * Returns the word occurrences.
+   *
+   * @return model offset pairs, ascending
+   */
+  public int[] occurrences() {
+    return occurrences.clone();
+  }
+
+  /**
    * Returns the styled runs of part of a line.
    *
    * @param line the model line
@@ -73,17 +116,19 @@ public final class HighlightComposer {
    */
   public int[] compose(int line, int lineStart, int from, int to, int[] selected) {
     int[] tokens = syntax == null ? null : syntax.tokens(line);
-    int firstMatch = firstEndingAfter(matches, from);
-    int lastMatch = firstMatch * 2;
-    while (lastMatch < matches.length && matches[lastMatch] < to) {
-      lastMatch += 2;
+    int[][] layers = {selected, brackets, matches, occurrences};
+    int[] next = new int[layers.length];
+    int[] last = new int[layers.length];
+    int cutCount = 2 + (tokens == null ? 0 : tokens.length);
+    for (int k = 0; k < layers.length; k++) {
+      next[k] = firstEndingAfter(layers[k], from) * 2;
+      last[k] = next[k];
+      while (last[k] < layers[k].length && layers[k][last[k]] < to) {
+        last[k] += 2;
+      }
+      cutCount += last[k] - next[k];
     }
-    int[] cuts =
-        new int
-            [2
-                + (tokens == null ? 0 : tokens.length)
-                + (lastMatch - firstMatch * 2)
-                + selected.length];
+    int[] cuts = new int[cutCount];
     int n = 0;
     cuts[n++] = from;
     cuts[n++] = to;
@@ -93,19 +138,15 @@ public final class HighlightComposer {
         n = cut(cuts, n, lineStart + tokens[i + 1], from, to);
       }
     }
-    for (int i = firstMatch * 2; i < lastMatch; i += 2) {
-      n = cut(cuts, n, matches[i], from, to);
-      n = cut(cuts, n, matches[i + 1], from, to);
-    }
-    for (int i = 0; i < selected.length; i++) {
-      n = cut(cuts, n, selected[i], from, to);
+    for (int k = 0; k < layers.length; k++) {
+      for (int i = next[k]; i < last[k]; i++) {
+        n = cut(cuts, n, layers[k][i], from, to);
+      }
     }
     Arrays.sort(cuts, 0, n);
     int[] out = new int[n * 4];
     int size = 0;
     int t = 0;
-    int m = firstMatch * 2;
-    int s = 0;
     for (int i = 0; i + 1 < n; i++) {
       int a = cuts[i];
       int b = cuts[i + 1];
@@ -117,17 +158,15 @@ public final class HighlightComposer {
       }
       int role =
           tokens != null && t < tokens.length && lineStart + tokens[t] <= a ? tokens[t + 2] : NONE;
-      while (m < matches.length && matches[m + 1] <= a) {
-        m += 2;
-      }
-      while (s < selected.length && selected[s + 1] <= a) {
-        s += 2;
-      }
       int background = NONE;
-      if (s < selected.length && selected[s] <= a) {
-        background = Background.SELECTION.ordinal();
-      } else if (m < matches.length && matches[m] <= a) {
-        background = Background.FIND_MATCH.ordinal();
+      for (int k = 0; k < layers.length; k++) {
+        int[] ranges = layers[k];
+        while (next[k] < ranges.length && ranges[next[k] + 1] <= a) {
+          next[k] += 2;
+        }
+        if (background == NONE && next[k] < ranges.length && ranges[next[k]] <= a) {
+          background = k;
+        }
       }
       if (role == NONE && background == NONE) {
         continue;

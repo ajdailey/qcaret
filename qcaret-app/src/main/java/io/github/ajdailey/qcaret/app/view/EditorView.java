@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import java.util.List;
 
 /**
  * One editor view of a document as its controller sees it; a split tab holds two. Called on the UI
@@ -50,4 +52,48 @@ public interface EditorView {
 
   /** Repaints the visible text after the syntax tokens changed. */
   void redrawHighlights();
+
+  /**
+   * Shows the busy cursor over the view, or the text cursor again.
+   *
+   * @param busy true while a whole-text operation computes and applies
+   */
+  void setBusy(boolean busy);
+
+  /**
+   * Shows the bracket at the caret and its partner; replaces the ones shown before.
+   *
+   * @param ranges model offset pairs, ascending; empty for none
+   */
+  void showBrackets(int[] ranges);
+
+  /**
+   * Shows the occurrences of the word at the caret; replaces the ones shown before.
+   *
+   * @param ranges model offset pairs, ascending; empty for none
+   */
+  void showOccurrences(int[] ranges);
+
+  /**
+   * Sets the document's bookmarks, which the view marks in its gutter and follows.
+   *
+   * @param bookmarks the bookmarks
+   */
+  void setBookmarks(Bookmarks bookmarks);
+
+  /**
+   * Turns the whitespace and line-ending marks on or off.
+   *
+   * @param whitespace true to mark spaces and tabs
+   * @param lineEndings true to mark each line break with its kind
+   */
+  void setMarks(boolean whitespace, boolean lineEndings);
+
+  /**
+   * Shows the word completion list below the primary caret, or hides it.
+   *
+   * @param words the words, best first; empty hides the list
+   * @param selected the index of the selected word
+   */
+  void showCompletions(List<String> words, int selected);
 }

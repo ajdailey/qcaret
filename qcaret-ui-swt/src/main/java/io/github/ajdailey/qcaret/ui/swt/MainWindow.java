@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
+import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -17,6 +18,7 @@ import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
@@ -125,6 +127,7 @@ public final class MainWindow implements MainView {
   private Menu tabMenu;
   private TextWindow logWindow;
   private ShortcutsWindow shortcuts;
+  private CommandPaletteWindow commandPalette;
   private boolean statusPending;
   private long noticeGeneration;
   private PaletteListener paletteListener;
@@ -197,6 +200,36 @@ public final class MainWindow implements MainView {
       @Override
       public void redrawHighlights() {
         editor.redrawHighlights();
+      }
+
+      @Override
+      public void showBrackets(int[] ranges) {
+        editor.showBrackets(ranges);
+      }
+
+      @Override
+      public void showOccurrences(int[] ranges) {
+        editor.showOccurrences(ranges);
+      }
+
+      @Override
+      public void setBookmarks(Bookmarks bookmarks) {
+        editor.setBookmarks(bookmarks);
+      }
+
+      @Override
+      public void setMarks(boolean whitespace, boolean lineEndings) {
+        editor.setMarks(whitespace, lineEndings);
+      }
+
+      @Override
+      public void setBusy(boolean busy) {
+        editor.setBusy(busy);
+      }
+
+      @Override
+      public void showCompletions(List<String> words, int selected) {
+        editor.showCompletions(words, selected);
       }
     }
 
@@ -1342,5 +1375,28 @@ public final class MainWindow implements MainView {
    */
   ShortcutsWindow shortcutsWindow() {
     return shortcuts;
+  }
+
+  // Command palette.
+
+  @Override
+  public void showCommandPalette(PaletteInput input) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (commandPalette != null && !commandPalette.shell().isDisposed()) {
+      commandPalette.shell().dispose();
+    }
+    commandPalette = new CommandPaletteWindow(shell, input, dispatcher);
+    commandPalette.open();
+  }
+
+  /**
+   * Returns the command palette.
+   *
+   * @return the palette, or null before it opened
+   */
+  CommandPaletteWindow commandPalette() {
+    return commandPalette;
   }
 }

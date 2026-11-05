@@ -257,7 +257,16 @@ final class SyntaxHighlighter implements TokenSource, FoldRegionSource, Document
   @Override
   public List<int[]> regions(TextSnapshot snapshot, long revision) {
     Folds current = folds;
-    return revision == current.revision() ? current.regions() : List.of();
+    return revision == current.revision() ? current.regions() : null;
+  }
+
+  /**
+   * Returns a copy of the cached tokens, for a worker; lines not cached have none.
+   *
+   * @return a copy of the cache
+   */
+  TokenSource tokensCopy() {
+    return cache.copy();
   }
 
   @Override
