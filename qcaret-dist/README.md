@@ -68,9 +68,10 @@ the version changes):
   with `SOURCE_DATE_EPOCH` set, which cannot reach `ld` inside the Maven JVM.
 
 The jlink runtimes and the ad-hoc rcodesign signature hold no build time.
-`.github/scripts/check-reproducible.sh` builds twice, the second time under
-another time zone and umask, and compares the SHA-256 of every archive,
-`qcaret.exe` and module jar.
+jlink runs under `LC_ALL=C.UTF-8`: under a non-UTF-8 locale it writes a
+different `lib/modules`. `.github/scripts/check-reproducible.sh` builds twice,
+the second time under another time zone, umask and locale, and compares the
+SHA-256 of every archive, `qcaret.exe` and module jar.
 
 ## Release artifacts
 

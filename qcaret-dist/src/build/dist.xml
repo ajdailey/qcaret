@@ -220,7 +220,9 @@ natives.macos-aarch64=${natives.macos-aarch64}
     <attribute name="output"/>
     <sequential>
       <delete dir="@{output}"/>
+      <!-- jlink writes a different lib/modules under a non-UTF-8 locale. -->
       <exec executable="${java.home}/bin/jlink" failonerror="true">
+        <env key="LC_ALL" value="C.UTF-8"/>
         <arg value="--module-path"/>
         <arg file="@{jmods}"/>
         <arg value="--add-modules"/>
