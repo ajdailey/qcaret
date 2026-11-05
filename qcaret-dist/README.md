@@ -43,7 +43,7 @@ are in `Resources/swt/`.
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 (Temurin 21.0.12+8, downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with
-`java.base,java.logging,java.naming,jdk.charsets,jdk.unsupported,jdk.zipfs`,
+`java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.unsupported,jdk.zipfs`,
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.
 `jdk.charsets` carries the legacy encodings (Big5, EUC-JP, EUC-KR, GBK,
 Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and

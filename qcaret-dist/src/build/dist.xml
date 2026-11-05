@@ -31,12 +31,12 @@
   <property name="rcodesign.url"
       value="https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.29.0"/>
   <!-- jdeps over the application jars reports java.desktop (SWT_AWT only,
-       unused), java.logging and java.naming; jdk.zipfs serves the bootstrap's
+       unused), java.logging, java.naming and java.xml; jdk.zipfs serves the bootstrap's
        nested-jar loader; jdk.charsets holds the legacy encodings (Big5, EUC-JP,
        EUC-KR, GBK, Shift_JIS, windows-31j and more) that java.base lacks on
        Windows and macOS. -->
   <property name="modules"
-      value="java.base,java.logging,java.naming,jdk.charsets,jdk.unsupported,jdk.zipfs"/>
+      value="java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.unsupported,jdk.zipfs"/>
 
   <!-- Every jar and zip entry carries project.build.outputTimestamp. Ant
        writes zip entry times in the host time zone, so archive.time is that

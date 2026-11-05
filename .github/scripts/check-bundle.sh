@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Unpacks the $TARGET bundle from dist/, verifies a macOS bundle's signature,
-# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets,
-# and starts the bundle's launcher until the main window opens. Then starts the
+# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets
+# and java.xml, and starts the bundle's launcher until the main window opens
+# and the grammars are read, with no unhandled failure. Then starts the
 # universal zip's bin/qcaret, which has no runtime, with $JAVA_HOME. Linux uses
 # a private Xvfb display.
 set -euo pipefail
@@ -33,6 +34,8 @@ if [ "$(uname -s)" = Darwin ]; then
 fi
 "$runtime/bin/java" --list-modules | grep '^jdk\.charsets@' >/dev/null \
   || { echo "FAIL: runtime lacks jdk.charsets" >&2; exit 1; }
+"$runtime/bin/java" --list-modules | grep '^java\.xml@' >/dev/null \
+  || { echo "FAIL: runtime lacks java.xml" >&2; exit 1; }
 
 arch="$("$runtime/bin/java" -XshowSettings:properties -version 2>&1 \
   | sed -n 's/^ *os\.arch = //p')"
@@ -55,7 +58,7 @@ check_launcher() {
   "$1" -m -d 1 --settings "$work/settings-$3" "$work/notes.txt" >"$out" 2>&1 &
   local app=$!
   for _ in $(seq 1 60); do
-    grep -q 'Main window open' "$out" && break
+    grep -q 'Grammars read' "$out" && break
     kill -0 "$app" 2>/dev/null || break
     sleep 1
   done
@@ -67,6 +70,12 @@ check_launcher() {
     || { echo "FAIL: $3 did not report java.home $2" >&2; exit 1; }
   grep -q 'Main window open' "$out" \
     || { echo "FAIL: $3 opened no main window within 60 s" >&2; exit 1; }
+  grep -q 'Grammars read: 0 skipped' "$out" \
+    || { echo "FAIL: $3 did not read every grammar within 60 s" >&2; exit 1; }
+  if grep -q 'Unhandled failure' "$out"; then
+    echo "FAIL: $3 logged an unhandled failure" >&2
+    exit 1
+  fi
 }
 
 check_launcher "$launcher" "$runtime" bundle

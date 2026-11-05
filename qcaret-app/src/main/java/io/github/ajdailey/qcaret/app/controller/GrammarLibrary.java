@@ -153,6 +153,7 @@ public final class GrammarLibrary {
       return;
     }
     set = loaded;
+    LOG.info("Grammars read: {} skipped", errors.size());
     for (String error : errors) {
       LOG.warn("Grammar skipped: {}", LogText.oneLine(error));
     }

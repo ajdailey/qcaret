@@ -1,5 +1,5 @@
 # Unpacks the $env:TARGET bundle from dist\, checks that its runtime reports
-# os.arch $env:EXPECTED_ARCH and has jdk.charsets, then starts qcaret.exe and
+# os.arch $env:EXPECTED_ARCH and has jdk.charsets and java.xml, then starts qcaret.exe and
 # finds the javaw.exe it starts. Passes only when that child runs runtime\bin\javaw.exe from the
 # bundle and the image's PE machine is $env:EXPECTED_MACHINE. An ARM64 image
 # cannot run under x86 or x64 emulation, so ARM64 proves a native arm64 JVM.
@@ -71,6 +71,7 @@ Write-Output "runtime os.arch=$arch, expected $env:EXPECTED_ARCH"
 if ($arch -ne $env:EXPECTED_ARCH) { throw "runtime os.arch is $arch" }
 $modules = & (Join-Path $bundle 'runtime\bin\java.exe') --list-modules
 if (-not ($modules -match '^jdk\.charsets@')) { throw 'runtime lacks jdk.charsets' }
+if (-not ($modules -match '^java\.xml@')) { throw 'runtime lacks java.xml' }
 
 $log = Join-Path $work 'notes.txt'
 Set-Content -Path $log -Value 'mock line'

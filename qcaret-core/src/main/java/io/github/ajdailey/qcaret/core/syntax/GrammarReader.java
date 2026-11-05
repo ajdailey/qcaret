@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.core.syntax;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +13,7 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import org.w3c.dom.Document;
@@ -60,17 +60,18 @@ public final class GrammarReader {
    * @throws IllegalStateException when the shipped schema does not load
    */
   public GrammarReader() {
-    URL url = GrammarReader.class.getResource(SCHEMA);
-    if (url == null) {
-      throw new IllegalStateException("grammar schema missing");
-    }
-    try {
+    // A stream, not a URL: the JDK parser resolves a URL's protocol itself and has no handler for
+    // the bootstrap loader's nested-jar URLs.
+    try (InputStream in = GrammarReader.class.getResourceAsStream(SCHEMA)) {
+      if (in == null) {
+        throw new IllegalStateException("grammar schema missing");
+      }
       SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
       factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
       factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
       factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-      schema = factory.newSchema(url);
-    } catch (SAXException e) {
+      schema = factory.newSchema(new StreamSource(in, SCHEMA));
+    } catch (IOException | SAXException e) {
       throw new IllegalStateException("grammar schema did not load", e);
     }
   }
