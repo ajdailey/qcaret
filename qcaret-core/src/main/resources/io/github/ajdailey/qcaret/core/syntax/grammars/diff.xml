@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GNU diffutils manual 3.10, sections 2.2.2 and 2.2.3 (context and unified formats), with git-diff(1) extended headers and git-format-patch(1) mail headers. -->
+<grammar id="diff" name="Diff" version="1">
+  <detect>
+    <extension>diff</extension>
+    <extension>patch</extension>
+    <extension>rej</extension>
+    <firstLine>^(?:diff -|Index: |From [0-9a-f]{40} |--- \S)</firstLine>
+  </detect>
+  <folding mode="none"/>
+  <context id="main">
+    <match token="heading" regex="^(?:diff|Index:|=+$|index|new file mode|deleted file mode|old mode|new mode|similarity index|dissimilarity index|rename from|rename to|copy from|copy to|Binary files|Only in|Files)(?:\s.*)?$"/>
+    <match token="delimiter" regex="^\*{15}$"/>
+    <match token="keyword" regex="^\*\*\* \d+(?:,\d+)? \*\*\*\*$|^--- \d+(?:,\d+)? ----$"/>
+    <match token="heading" regex="^(?:---|\+\+\+|\*\*\*) .*$"/>
+    <match token="keyword" regex="^@{2,3} [^@]*@{2,3}" push="hunk"/>
+    <match token="preprocessor" regex="^From [0-9a-f]{40} .*$"/>
+    <match token="attribute" regex="^(?:From|Date|Subject):"/>
+    <include context="lines"/>
+    <match token="constant" regex="^! .*$"/>
+  </context>
+  <context id="hunk">
+    <match regex="^(?=[^-+ \\@])" pop="true"/>
+    <match token="keyword" regex="^@{2,3} [^@]*@{2,3}"/>
+    <match token="function" regex="(?&lt;=@@)\s.+$"/>
+    <include context="lines"/>
+  </context>
+  <context id="lines">
+    <match token="type" regex="^\+.*$"/>
+    <match token="escape" regex="^-.*$"/>
+    <match token="comment" regex="^\\.*$"/>
+  </context>
+</grammar>

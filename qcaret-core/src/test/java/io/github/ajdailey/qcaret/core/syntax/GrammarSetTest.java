@@ -95,6 +95,42 @@ class GrammarSetTest {
   }
 
   @Test
+  void detectsBuildConfigAndDataFormats() {
+    GrammarSet set = Tokens.BUILT_IN;
+    assertEquals("dockerfile", detect(set, "Dockerfile", ""));
+    assertEquals("dockerfile", detect(set, "Containerfile", ""));
+    assertEquals("dockerfile", detect(set, "mock.Dockerfile", ""));
+    assertEquals("dockerfile", detect(set, "build", "# syntax=docker/dockerfile:1"));
+    assertEquals("makefile", detect(set, "Makefile", ""));
+    assertEquals("makefile", detect(set, "makefile", ""));
+    assertEquals("makefile", detect(set, "GNUmakefile", ""));
+    assertEquals("makefile", detect(set, "rules.mk", ""));
+    assertEquals("cmake", detect(set, "CMakeLists.txt", ""));
+    assertEquals("cmake", detect(set, "mock.cmake", ""));
+    assertEquals("plain", detect(set, "notes.txt", ""));
+    assertEquals("toml", detect(set, "Cargo.toml", ""));
+    assertEquals("toml", detect(set, "Cargo.lock", ""));
+    assertEquals("diff", detect(set, "fix.patch", ""));
+    assertEquals("diff", detect(set, "a.diff", ""));
+    assertEquals("diff", detect(set, null, "diff --git a/x b/x"));
+    assertEquals("diff", detect(set, null, "--- a/x"));
+    assertEquals("csv", detect(set, "data.CSV", ""));
+    assertEquals("tsv", detect(set, "data.tsv", ""));
+    assertEquals("log", detect(set, "app.log", ""));
+    assertEquals("log", detect(set, "nohup.out", ""));
+    assertEquals("log", detect(set, "app.log.1", "2026-01-02 03:04:05,678 INFO start"));
+    assertEquals("hcl", detect(set, "main.tf", ""));
+    assertEquals("hcl", detect(set, "prod.tfvars", ""));
+    assertEquals("protobuf", detect(set, "mock.proto", ""));
+    assertEquals("protobuf", detect(set, null, "syntax = \"proto3\";"));
+    assertEquals("graphql", detect(set, "schema.graphql", ""));
+    assertEquals("graphql", detect(set, "q.gql", ""));
+    assertEquals("nginx", detect(set, "nginx.conf", ""));
+    assertEquals("nginx", detect(set, "default", "server {"));
+    assertEquals("ini", detect(set, "site.conf", "server {"));
+  }
+
+  @Test
   void aUserGrammarReplacesTheBuiltInWithItsIdAndIsDetectedFirst() throws Exception {
     Map<String, Grammar> users = new LinkedHashMap<String, Grammar>();
     users.put(

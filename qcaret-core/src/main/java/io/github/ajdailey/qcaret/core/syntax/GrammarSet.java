@@ -62,7 +62,19 @@ public final class GrammarSet {
           "r",
           "haskell",
           "objectivec",
-          "vbnet");
+          "vbnet",
+          "dockerfile",
+          "makefile",
+          "cmake",
+          "toml",
+          "diff",
+          "csv",
+          "tsv",
+          "log",
+          "hcl",
+          "protobuf",
+          "graphql",
+          "nginx");
 
   /** Chars of the first line the first-line regexes see. */
   public static final int FIRST_LINE_CHARS = 1000;

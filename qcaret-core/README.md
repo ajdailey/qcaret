@@ -299,15 +299,16 @@ A grammar is an XML file in QCaret's own format, validated against
 declarations refused and external DTD and schema access off
 (`GrammarReader`). Each regex compiles at read time and each context a rule
 names must exist; a failure is an `InvalidGrammarException` naming the file
-and, for a schema error, the line. `GrammarSet.BUILT_IN` lists the
-built-in grammars (`grammars/<id>.xml`), written from the language
-specifications each file names.
+and, for a schema error, the line. `GrammarSet.BUILT_IN` lists the 47
+built-in grammars (`grammars/<id>.xml`), written from the language or
+format specifications each file names.
 
 Languages: plain text, Java, XML, HTML, JSON, YAML, SQL, Python, JavaScript,
 TypeScript, C, C++, shell, PowerShell, batch, properties, INI, CSS, Markdown,
 Go, Rust, C#, Kotlin, Ruby, PHP, Perl, Lua, Groovy (with `Jenkinsfile` and
-`*.gradle`), Scala, Swift, Dart, R, Haskell, Objective-C and VB.NET. Each
-extension belongs to one built-in grammar (`GrammarSetTest`): `.h` is C, `.m`
+`*.gradle`), Scala, Swift, Dart, R, Haskell, Objective-C and VB.NET. Formats: Dockerfile,
+Makefile, CMake, TOML, diff, CSV, TSV, log files, HCL, Protobuf, GraphQL and
+nginx configuration. Each extension belongs to one built-in grammar (`GrammarSetTest`): `.h` is C, `.m`
 and `.mm` are Objective-C, `.kts` (so `build.gradle.kts`) is Kotlin. PHP text
 outside `<?php ... ?>` is HTML.
 
@@ -386,6 +387,19 @@ by id, and a user grammar that does not compile is left out with a message.
 `detect` takes a grammar naming the file name, then the extension (any
 case), then a first-line regex over the first 1,000 chars, read through
 `BoundedChars`; user grammars come first, then plain text.
+
+The format grammars use the token set as follows:
+
+| Grammar | Tokens |
+|---|---|
+| `csv`, `tsv` | Columns cycle through `keyword2`, `type`, `number`, `preprocessor`, `string`: a separator match pops the column context and pushes the next, and a zero-width `$` match pops it at the line's end, so a CSV quoted field keeps its column across a line break |
+| `log` | Levels: FATAL and ERROR `invalid`, WARN `escape`, INFO `type`, DEBUG `keyword2`, TRACE `comment`, as upper-case words, logfmt `level=` and JSON `"level":` values, and one-letter forms (`[E]`, Android `E/Tag`, glog `E0102`). Timestamps `number`, bracketed thread names `delimiter`, `package.Class` logger names `function`, exception names and `Caused by:` `keyword`, `at` and `... N more` lines `comment`, URLs `link`, keys of `key=value` `attribute` |
+| `diff` | File headers `heading`, hunk headers `keyword`, added lines `type`, removed lines `escape`, context-format changed lines `constant`; inside a unified hunk a `---` line is a removed line, and a line starting with any other char ends the hunk |
+
+Bracket comments, bracket arguments (CMake) and heredocs (Dockerfile, HCL)
+need a backreference to match their closing delimiter: CMake handles zero to
+two `=`, a Dockerfile heredoc marks only its `<<EOF` line, and an HCL heredoc
+ends at the first line holding only an identifier.
 
 ## Search (`core.search`)
 
@@ -488,7 +502,8 @@ wrapper failed with "Unclosed group"), the line-break anchors,
 skipped empty matches, lookbehind before the range, cancellation, a stack
 overflow on 400,000 chars as a typed failure, and replacement templates.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
-its tokens, HTML's embedded JavaScript and CSS included. `SyntaxEngineTest`
+its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break and
+a diff hunk's `---` line included. `SyntaxEngineTest`
 applies seeded random edits that open and close comments, strings and
 braces and join CR LF pairs, between passes stopped at a deadline or after a
 seeded line count, then checks every line's tokens and the fold regions
@@ -504,7 +519,8 @@ using `\1`, shared derived contexts and the derive and depth limits.
 `GrammarReaderTest` covers every
 element, a refused DOCTYPE, schema errors with their line, bad regexes and
 missing contexts. `GrammarSetTest` covers the detection order, each
-language's extensions, file names and shebangs, one grammar per extension, user grammars and a runaway
+language's extensions, file names and shebangs, every format grammar's file
+names and extensions, one grammar per extension, user grammars and a runaway
 first-line regex. `CommentEditsTest` and `BoundedCharsTest`
 cover the rest of the area.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on

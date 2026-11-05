@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Dockerfile reference (docs.docker.com/reference/dockerfile): instructions, parser directives, flags, environment replacement, here-documents. -->
+<grammar id="dockerfile" name="Dockerfile" version="1">
+  <detect>
+    <extension>dockerfile</extension>
+    <extension>containerfile</extension>
+    <fileName>Dockerfile</fileName>
+    <fileName>Containerfile</fileName>
+    <firstLine>^#\s*(?i:syntax|escape|check)\s*=</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <context id="main">
+    <match token="preprocessor" regex="^#\s*(?i:syntax|escape|check)\s*=.*$"/>
+    <span token="comment" begin="^\s*#"/>
+    <match token="keyword" regex="(?i)^\s*(?:FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)(?=\s|$)"/>
+    <match token="keyword" regex="(?i)(?&lt;=\s)AS(?=\s+[\w.-]+\s*$)"/>
+    <match token="attribute" regex="(?&lt;=\s)--[a-z][\w-]*"/>
+    <span token="string" begin='"' end='"' escape="\\." context="expansions"/>
+    <span token="string" begin="'" end="'"/>
+    <match token="string" regex="&lt;&lt;-?[&quot;']?[A-Za-z_]\w*[&quot;']?"/>
+    <include context="expansions"/>
+    <match token="attribute" regex="(?&lt;![\w.$/:-])[A-Za-z_][\w.-]*(?==)"/>
+    <match token="number" regex="(?&lt;![\w.$/:-])\d+(?:/(?:tcp|udp|sctp))?(?![\w.:-])"/>
+    <match token="operator" regex="\\$|&amp;&amp;|\|\||[|;=]"/>
+    <match token="delimiter" regex="[\[\]{},]"/>
+  </context>
+  <context id="expansions">
+    <match token="constant" regex="\$\{[^}]*\}|\$[A-Za-z_]\w*"/>
+  </context>
+</grammar>

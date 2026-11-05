@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GNU make manual 4.4, chapters 3 to 8 (rules, recipes, variables, conditionals, functions), and POSIX.1-2024 make. -->
+<grammar id="makefile" name="Makefile" version="1">
+  <detect>
+    <extension>mk</extension>
+    <extension>mak</extension>
+    <fileName>Makefile</fileName>
+    <fileName>GNUmakefile</fileName>
+    <firstLine>^#!.*\bmake\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <folding mode="markers" begin="^\s*(?:define|ifeq|ifneq|ifdef|ifndef)(?=\s|$)" end="^\s*(?:endef|endif)(?=\s|$)"/>
+  <context id="main">
+    <span token="comment" begin="(?&lt;!\\)#"/>
+    <match token="operator" regex="^\t[@+-]+"/>
+    <match token="keyword" regex="^\s*-?(?:include|sinclude|define|endef|undefine|ifdef|ifndef|ifeq|ifneq|else|endif|export|unexport|override|private|vpath)(?=\s|$)"/>
+    <match token="attribute" regex="^\s*(?:(?:export|override|private)\s+)*[A-Za-z_.][\w.-]*(?=\s*(?:::?|:::|[+?!])?=)"/>
+    <match token="function" regex="^[^\s#=:$][^#=:]*?(?=\s*::?(?![=:])|\s*&amp;:)"/>
+    <include context="refs"/>
+    <match token="operator" regex=":::?=|::?|[+?!]?=|&amp;:|\|"/>
+    <match token="operator" regex="\\$"/>
+  </context>
+  <context id="refs">
+    <match token="escape" regex="\$\$"/>
+    <match token="constant" regex="\$[@&lt;^?*+|%]|\$[({][@&lt;^?*+%][DF]?[)}]|\$[A-Za-z0-9_]"/>
+    <match token="delimiter" regex="\$\(" push="paren"/>
+    <match token="delimiter" regex="\$\{" push="brace"/>
+  </context>
+  <context id="paren">
+    <match token="delimiter" regex="\)" pop="true"/>
+    <include context="args"/>
+  </context>
+  <context id="brace">
+    <match token="delimiter" regex="\}" pop="true"/>
+    <include context="args"/>
+  </context>
+  <context id="args">
+    <match token="function" regex="(?&lt;=\$[({])(?:subst|patsubst|strip|findstring|filter|filter-out|sort|word|wordlist|words|firstword|lastword|dir|notdir|suffix|basename|addsuffix|addprefix|join|wildcard|realpath|abspath|if|or|and|intcmp|foreach|file|call|value|eval|origin|flavor|error|warning|info|shell|guile|let)(?=\s)"/>
+    <match token="constant" regex="(?&lt;=\$[({])[A-Za-z_.][\w.-]*(?=[)}:])"/>
+    <include context="refs"/>
+    <match token="delimiter" regex=","/>
+  </context>
+</grammar>

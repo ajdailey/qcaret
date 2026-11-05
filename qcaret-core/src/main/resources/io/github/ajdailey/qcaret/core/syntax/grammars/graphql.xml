@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GraphQL specification, October 2021 edition, section 2 (language) and section 3 (type system). -->
+<grammar id="graphql" name="GraphQL" version="1">
+  <detect>
+    <extension>graphql</extension>
+    <extension>graphqls</extension>
+    <extension>gql</extension>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="#"/>
+    <span token="string" begin='"""' end='"""' escape='\\"""' multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:u[0-9A-Fa-f]{4}|[&quot;\\/bfnrt])"/>
+    <match token="preprocessor" regex="@[A-Za-z_]\w*"/>
+    <match token="constant" regex="\$[A-Za-z_]\w*"/>
+    <keywords token="keyword">query mutation subscription fragment on type interface union enum input scalar schema extend directive implements repeatable</keywords>
+    <keywords token="constant">true false null</keywords>
+    <keywords token="type">Int Float String Boolean ID</keywords>
+    <match token="attribute" regex="(?&lt;![\w$@])[A-Za-z_]\w*(?=\s*:)"/>
+    <match token="constant" regex="(?&lt;![\w$@])[A-Z][A-Z0-9_]+(?!\w)"/>
+    <match token="type" regex="(?&lt;![\w$@])[A-Z]\w*"/>
+    <match token="number" regex="(?&lt;![\w.])-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.])"/>
+    <match token="operator" regex="\.\.\.|[!=|&amp;]"/>
+    <match token="delimiter" regex="[(){}\[\]:,]"/>
+  </context>
+</grammar>

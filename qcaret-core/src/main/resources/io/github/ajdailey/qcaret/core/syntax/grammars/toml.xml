@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TOML v1.0.0 specification (toml.io/en/v1.0.0). -->
+<grammar id="toml" name="TOML" version="1">
+  <detect>
+    <extension>toml</extension>
+    <fileName>Cargo.lock</fileName>
+    <fileName>Pipfile</fileName>
+    <fileName>poetry.lock</fileName>
+    <fileName>uv.lock</fileName>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[\[{]\s*(#.*)?$" decrease="^\s*[\]}]"/>
+  <context id="main">
+    <span token="comment" begin="#"/>
+    <match token="keyword" regex="^\s*\[\[?\s*(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*')(?:\s*\.\s*(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*'))*\s*\]\]?"/>
+    <match token="attribute" regex="(?&lt;=^\s{0,64}|[{,]\s{0,8})(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*')(?:\s*\.\s*(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*'))*(?=\s*=)"/>
+    <span token="string" begin='"""' end='"""(?!")|""""(?!")|"""""' escape="\\(?:[btnfr&quot;\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|\s*$)" context="bad-escape" multiLine="true"/>
+    <span token="string" begin="'''" end="'''(?!')|''''(?!')|'''''" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:[btnfr&quot;\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})" context="bad-escape"/>
+    <span token="string" begin="'" end="'"/>
+    <match token="number" regex="(?&lt;![\w.:+-])\d{4}-\d{2}-\d{2}(?:[Tt ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:\d{2})?)?(?![\w.:-])|(?&lt;![\w.:+-])\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?![\w.:-])"/>
+    <match token="constant" regex="(?&lt;![\w.-])(?:true|false)(?![\w.-])"/>
+    <match token="number" regex="(?&lt;![\w.-])(?:0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0o[0-7](?:_?[0-7])*|0b[01](?:_?[01])*|[+-]?(?:inf|nan)|[+-]?(?:0|[1-9](?:_?\d)*)(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?)(?![\w.-])"/>
+    <match token="operator" regex="="/>
+    <match token="delimiter" regex="[\[\]{},.]"/>
+  </context>
+  <context id="bad-escape">
+    <match token="invalid" regex="\\."/>
+  </context>
+</grammar>

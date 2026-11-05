@@ -12,10 +12,10 @@ Version 0.1.0 is in development. The current build opens, edits and saves
 files in tabs, with undo and redo, word wrap, line numbers and multiple carets
 (painted; created by Alt+click), encoding and line-ending conversion, a
 read-only view of binary files, a status bar, the Help menu, its remembered
-window placement, and syntax highlighting for 19 languages with user grammars
-and comment commands. Planned for 0.1.0: large-file editing with multiple
-carets and column selection, folding, HyperSearch across files and folders
-with replace, a workspace browser, sessions and crash recovery.
+window placement, syntax highlighting for 35 languages and 12 file formats
+with user grammars and comment commands, multiple carets, column selection
+and folding. Planned for 0.1.0: HyperSearch across files and folders with
+replace, a workspace browser, sessions and crash recovery.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/qcaret-dark.png">
@@ -29,7 +29,10 @@ mock files.
 
 QCaret highlights Plain Text, Java, XML, HTML (with embedded JavaScript and
 CSS), JSON, YAML, SQL, Python, JavaScript, TypeScript, C, C++, Shell Script,
-PowerShell, Windows Batch, Properties, INI, CSS and Markdown. The grammar
+PowerShell, Windows Batch, Properties, INI, CSS and Markdown, and the file
+formats Dockerfile, Makefile, CMake, TOML, diff and patch, CSV and TSV (one
+color per column), log files (levels, timestamps, stack traces), HCL and
+Terraform, Protocol Buffers, GraphQL and nginx configuration. The grammar
 follows the file name, its extension, or its first line (a shebang, `<?xml`,
 `<!DOCTYPE html>`); View > Syntax or a click on the status bar's language
 field chooses another. A line over 10,000 chars shows without colors.

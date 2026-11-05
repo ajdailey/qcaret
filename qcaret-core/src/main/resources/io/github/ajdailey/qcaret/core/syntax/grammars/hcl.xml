@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HCL native syntax specification (hashicorp/hcl, hclsyntax/spec.md) and the Terraform language documentation (blocks, references, type constraints). -->
+<grammar id="hcl" name="HCL / Terraform" version="1">
+  <detect>
+    <extension>tf</extension>
+    <extension>tfvars</extension>
+    <extension>hcl</extension>
+    <extension>nomad</extension>
+    <fileName>.terraformrc</fileName>
+    <fileName>terraform.rc</fileName>
+  </detect>
+  <comments line="#" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(?:(?:#|//).*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{[" close="}]"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="#|//"/>
+    <span token="string" begin="&lt;&lt;-?[A-Za-z_][\w-]*\s*$" end="^\s*[A-Za-z_][\w-]*\s*$" context="template" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:[ntr&quot;\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|\$\$\{|%%\{" context="template"/>
+    <match token="keyword" regex="^\s*[A-Za-z_][\w-]*(?=(?:\s+(?:&quot;[^&quot;]*&quot;|[A-Za-z_][\w-]*))*\s*\{)"/>
+    <match token="attribute" regex="(?&lt;![\w.-])[A-Za-z_][\w-]*(?=\s*=(?![=&gt;]))"/>
+    <include context="expression"/>
+  </context>
+  <context id="expression">
+    <keywords token="keyword" wordChars="_-">for in if</keywords>
+    <keywords token="constant" wordChars="_-">true false null</keywords>
+    <keywords token="type" wordChars="_-">string number bool list map set object tuple any optional</keywords>
+    <match token="keyword2" regex="(?&lt;![\w.-])(?:var|local|module|data|each|count|path|self|terraform|resource|provider)(?=\.)"/>
+    <match token="function" regex="(?&lt;![\w.-])[A-Za-z_][\w-]*(?:::[A-Za-z_][\w-]*)*(?=\()"/>
+    <match token="number" regex="(?&lt;![\w.-])\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.-])"/>
+    <match token="operator" regex="=&gt;|\.\.\.|==|!=|&lt;=|&gt;=|&amp;&amp;|\|\||[-+*/%!&lt;&gt;?:=]"/>
+    <match token="delimiter" regex="[()\[\]{},.]"/>
+  </context>
+  <context id="template">
+    <match token="delimiter" regex="[$%]\{~?" push="interp"/>
+  </context>
+  <context id="interp">
+    <match token="delimiter" regex="~?\}" pop="true"/>
+    <keywords token="keyword" wordChars="_-">if else endif for in endfor</keywords>
+    <span token="string" begin='"' end='"' escape="\\." context="template"/>
+    <match token="delimiter" regex="\{" push="interp"/>
+    <include context="expression"/>
+  </context>
+</grammar>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- IANA media type text/tab-separated-values: one record per line, fields separated by tabs, no quoting. Columns cycle through five colors. -->
+<grammar id="tsv" name="TSV" version="1">
+  <detect>
+    <extension>tsv</extension>
+    <extension>tab</extension>
+  </detect>
+  <folding mode="none"/>
+  <context id="main">
+    <match token="keyword2" regex="[^\t]+"/>
+    <match token="delimiter" regex="\t" push="c2"/>
+  </context>
+  <context id="c2">
+    <match regex="$" pop="true"/>
+    <match token="type" regex="[^\t]+"/>
+    <match token="delimiter" regex="\t" pop="true" push="c3"/>
+  </context>
+  <context id="c3">
+    <match regex="$" pop="true"/>
+    <match token="number" regex="[^\t]+"/>
+    <match token="delimiter" regex="\t" pop="true" push="c4"/>
+  </context>
+  <context id="c4">
+    <match regex="$" pop="true"/>
+    <match token="preprocessor" regex="[^\t]+"/>
+    <match token="delimiter" regex="\t" pop="true" push="c5"/>
+  </context>
+  <context id="c5">
+    <match regex="$" pop="true"/>
+    <match token="string" regex="[^\t]+"/>
+    <match token="delimiter" regex="\t" pop="true"/>
+  </context>
+</grammar>

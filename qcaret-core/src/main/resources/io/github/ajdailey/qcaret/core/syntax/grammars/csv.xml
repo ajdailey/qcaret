@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RFC 4180, Common Format and MIME Type for Comma-Separated Values (CSV) Files. Columns cycle through five colors. -->
+<grammar id="csv" name="CSV" version="1">
+  <detect>
+    <extension>csv</extension>
+  </detect>
+  <autoClose>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <folding mode="none"/>
+  <context id="main">
+    <span token="keyword2" begin='"' end='"' escape='""' multiLine="true"/>
+    <match token="keyword2" regex='[^,"]+'/>
+    <match token="delimiter" regex="," push="c2"/>
+  </context>
+  <context id="c2">
+    <match regex="$" pop="true"/>
+    <span token="type" begin='"' end='"' escape='""' multiLine="true"/>
+    <match token="type" regex='[^,"]+'/>
+    <match token="delimiter" regex="," pop="true" push="c3"/>
+  </context>
+  <context id="c3">
+    <match regex="$" pop="true"/>
+    <span token="number" begin='"' end='"' escape='""' multiLine="true"/>
+    <match token="number" regex='[^,"]+'/>
+    <match token="delimiter" regex="," pop="true" push="c4"/>
+  </context>
+  <context id="c4">
+    <match regex="$" pop="true"/>
+    <span token="preprocessor" begin='"' end='"' escape='""' multiLine="true"/>
+    <match token="preprocessor" regex='[^,"]+'/>
+    <match token="delimiter" regex="," pop="true" push="c5"/>
+  </context>
+  <context id="c5">
+    <match regex="$" pop="true"/>
+    <span token="string" begin='"' end='"' escape='""' multiLine="true"/>
+    <match token="string" regex='[^,"]+'/>
+    <match token="delimiter" regex="," pop="true"/>
+  </context>
+</grammar>

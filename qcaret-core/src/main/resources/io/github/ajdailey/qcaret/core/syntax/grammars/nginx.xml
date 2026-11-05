@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- nginx documentation (nginx.org/en/docs): configuration file structure, measurement units, ngx_http_core_module location matching and variables. -->
+<grammar id="nginx" name="nginx Configuration" version="1">
+  <detect>
+    <extension>nginx</extension>
+    <fileName>nginx.conf</fileName>
+    <fileName>mime.types</fileName>
+    <fileName>fastcgi_params</fileName>
+    <fileName>fastcgi.conf</fileName>
+    <fileName>proxy_params</fileName>
+    <fileName>scgi_params</fileName>
+    <fileName>uwsgi_params</fileName>
+    <firstLine>^\s*(?:user|worker_processes|load_module|pid|error_log|events|http|stream|server|upstream|map)\b[^=:]*[;{]\s*(?:#.*)?$</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="\{\s*(#.*)?$" decrease="^\s*\}"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="(?&lt;![^\s;{}])#"/>
+    <match token="keyword" regex="(?&lt;=^\s{0,64}|[;{}]\s{0,64})[A-Za-z_][\w.-]*"/>
+    <span token="string" begin='"' end='"' escape="\\." context="variables" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="\\." context="variables" multiLine="true"/>
+    <include context="variables"/>
+    <match token="operator" regex="(?&lt;=\s)(?:\^~|~\*|!~\*|!~|~|=|!=|!-[fdex]|-[fdex])(?=\s)"/>
+    <match token="constant" regex="(?&lt;![\w.$/-])(?:on|off)(?![\w.-])"/>
+    <match token="number" regex="(?&lt;![\w.$/:-])\d+(?:\.\d+)?(?:[kKmMgG]|ms|s|m|h|d|w|M|y)?(?![\w.:/-])"/>
+    <match token="delimiter" regex="[;{}]"/>
+  </context>
+  <context id="variables">
+    <match token="constant" regex="\$\{[A-Za-z_]\w*\}|\$[A-Za-z_]\w*|\$\d"/>
+  </context>
+</grammar>

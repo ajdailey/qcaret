@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CMake 3.31, cmake-language(7) (comments, bracket and quoted arguments, variable references) and cmake-commands(7). -->
+<grammar id="cmake" name="CMake" version="1">
+  <detect>
+    <extension>cmake</extension>
+    <fileName>CMakeLists.txt</fileName>
+    <fileName>CMakeCache.txt</fileName>
+  </detect>
+  <comments line="#" blockStart="#[[" blockEnd="]]"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="(?i)^\s*(?:if|elseif|else|foreach|while|function|macro|block)\s*\(.*$" decrease="(?i)^\s*(?:endif|elseif|else|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
+  <folding mode="markers" begin="(?i)(?&lt;![\w.-])(?:if|foreach|while|function|macro|block)\s*\(" end="(?i)(?&lt;![\w.-])(?:endif|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
+  <context id="main">
+    <span token="comment" begin="#\[\[" end="\]\]" multiLine="true"/>
+    <span token="comment" begin="#\[=\[" end="\]=\]" multiLine="true"/>
+    <span token="comment" begin="#\[==\[" end="\]==\]" multiLine="true"/>
+    <span token="comment" begin="#"/>
+    <span token="string" begin="\[\[" end="\]\]" multiLine="true"/>
+    <span token="string" begin="\[=\[" end="\]=\]" multiLine="true"/>
+    <span token="string" begin="\[==\[" end="\]==\]" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:[^A-Za-z0-9;]|[trn;])|\\$" context="refs" multiLine="true"/>
+    <match token="keyword" regex="(?i)(?&lt;![\w.-])(?:if|elseif|else|endif|foreach|endforeach|while|endwhile|break|continue|return|function|endfunction|macro|endmacro|block|endblock)(?=\s*\()"/>
+    <match token="function" regex="(?&lt;![\w.-])[A-Za-z_]\w*(?=\s*\()"/>
+    <include context="refs"/>
+    <match token="constant" regex="(?&lt;![\w.-])(?:ON|OFF|TRUE|FALSE|YES|NO|Y|N|IGNORE|NOTFOUND|[\w-]*-NOTFOUND)(?![\w.-])"/>
+    <match token="operator" regex="(?&lt;![\w.-])(?:NOT|AND|OR|COMMAND|POLICY|TARGET|TEST|DEFINED|EXISTS|IS_NEWER_THAN|IS_DIRECTORY|IS_SYMLINK|IS_ABSOLUTE|IS_READABLE|IS_WRITABLE|IS_EXECUTABLE|PATH_EQUAL|IN_LIST|MATCHES|LESS|GREATER|EQUAL|LESS_EQUAL|GREATER_EQUAL|STRLESS|STRGREATER|STREQUAL|STRLESS_EQUAL|STRGREATER_EQUAL|VERSION_LESS|VERSION_GREATER|VERSION_EQUAL|VERSION_LESS_EQUAL|VERSION_GREATER_EQUAL)(?![\w.-])"/>
+    <match token="keyword2" regex="(?&lt;![\w.-])[A-Z][A-Z0-9_]+(?![\w.-])"/>
+    <match token="number" regex="(?&lt;![\w.-])\d+(?:\.\d+)*(?![\w.-])"/>
+    <match token="delimiter" regex="[()]"/>
+  </context>
+  <context id="refs">
+    <match token="constant" regex="\$(?:ENV|CACHE)?\{" push="ref"/>
+    <match token="preprocessor" regex="\$&lt;" push="genex"/>
+    <match token="constant" regex="@[A-Za-z_][\w]*@"/>
+  </context>
+  <context id="ref">
+    <match token="constant" regex="\}" pop="true"/>
+    <match token="constant" regex="[\w/.+-]+"/>
+    <include context="refs"/>
+  </context>
+  <context id="genex">
+    <match token="preprocessor" regex="&gt;" pop="true"/>
+    <match token="preprocessor" regex="(?&lt;=\$&lt;)[A-Za-z_][\w:]*"/>
+    <include context="refs"/>
+  </context>
+</grammar>

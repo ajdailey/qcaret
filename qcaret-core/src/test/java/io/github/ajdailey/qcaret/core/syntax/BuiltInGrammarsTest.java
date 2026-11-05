@@ -1071,4 +1071,394 @@ class BuiltInGrammarsTest {
         "CONSTANT:Nothing",
         "KEYWORD:End");
   }
+
+  @Test
+  void dockerfile() {
+    assertTokens(
+        "dockerfile",
+        "# syntax=docker/dockerfile:1\n# build\nFROM mock/base:1.0 AS build\nARG MOCK_VERSION=2\n"
+            + "ENV PATH=\"/opt/mock/bin:${PATH}\"\nrun --mount=type=cache apt-get update && \\\n"
+            + "    echo 'done'\nCOPY --from=build /src /app\nEXPOSE 8080/tcp\n"
+            + "CMD [\"mock\", \"--serve\"]",
+        "PREPROCESSOR:# syntax=docker/dockerfile:1",
+        "COMMENT:# build",
+        "KEYWORD:FROM",
+        "KEYWORD:AS",
+        "KEYWORD:ARG",
+        "ATTRIBUTE:MOCK_VERSION",
+        "NUMBER:2",
+        "KEYWORD:ENV",
+        "STRING:\"/opt/mock/bin:",
+        "CONSTANT:${PATH}",
+        "KEYWORD:run",
+        "ATTRIBUTE:--mount",
+        "OPERATOR:&&",
+        "OPERATOR:\\",
+        "STRING:'done'",
+        "ATTRIBUTE:--from",
+        "NUMBER:8080/tcp",
+        "DELIMITER:[",
+        "STRING:\"mock\"");
+  }
+
+  @Test
+  void makefile() {
+    assertTokens(
+        "makefile",
+        "# mock\nCC ?= cc\nSRC := $(wildcard src/*.c)\n.PHONY: all\nall: mock $(OBJ)\n"
+            + "\t@echo \"$@ from $< in $${HOME}\"\n\t-$(CC) $(patsubst %.c,%.o,$(SRC))\n"
+            + "ifeq ($(OS),Windows_NT)\nendif",
+        "COMMENT:# mock",
+        "ATTRIBUTE:CC",
+        "OPERATOR:?=",
+        "ATTRIBUTE:SRC",
+        "OPERATOR::=",
+        "DELIMITER:$(",
+        "FUNCTION:wildcard",
+        "DELIMITER:)",
+        "FUNCTION:.PHONY",
+        "FUNCTION:all",
+        "CONSTANT:OBJ",
+        "OPERATOR:\t@",
+        "CONSTANT:$@",
+        "CONSTANT:$<",
+        "ESCAPE:$$",
+        "OPERATOR:\t-",
+        "CONSTANT:CC",
+        "FUNCTION:patsubst",
+        "CONSTANT:SRC",
+        "DELIMITER:))",
+        "KEYWORD:ifeq",
+        "CONSTANT:OS",
+        "KEYWORD:endif");
+  }
+
+  @Test
+  void cmake() {
+    assertTokens(
+        "cmake",
+        "cmake_minimum_required(VERSION 3.20)\n#[[ block\ncomment ]]\n"
+            + "set(MOCK_SRC \"a.c;${PROJECT_SOURCE_DIR}/x.c\" CACHE STRING \"doc\")\n"
+            + "if(NOT DEFINED ENV{MOCK_HOME})\n  message(STATUS \"$ENV{MOCK_HOME}\\n\")\nendif()\n"
+            + "target_compile_definitions(mock PRIVATE $<$<CONFIG:Debug>:MOCK=1>)\n"
+            + "option(MOCK_TESTS \"tests\" ON) # trailing",
+        "FUNCTION:cmake_minimum_required",
+        "KEYWORD2:VERSION",
+        "NUMBER:3.20",
+        "COMMENT:#[[ block",
+        "COMMENT:comment ]]",
+        "FUNCTION:set",
+        "STRING:\"a.c;",
+        "CONSTANT:${PROJECT_SOURCE_DIR}",
+        "KEYWORD2:CACHE",
+        "KEYWORD:if",
+        "OPERATOR:NOT",
+        "OPERATOR:DEFINED",
+        "FUNCTION:message",
+        "CONSTANT:$ENV{MOCK_HOME}",
+        "ESCAPE:\\n",
+        "KEYWORD:endif",
+        "KEYWORD2:PRIVATE",
+        "PREPROCESSOR:$<$<CONFIG:Debug>",
+        "CONSTANT:ON",
+        "COMMENT:# trailing");
+  }
+
+  @Test
+  void toml() {
+    assertTokens(
+        "toml",
+        "# mock\ntitle = \"Mock \\u0041\\q\"\n[server.alpha]\nip = '10.0.0.1'\n"
+            + "\"quoted key\".sub = 1_000\nenabled = true\nratio = -3.5e2\nhex = 0xDEAD_BEEF\n"
+            + "when = 1979-05-27T07:32:00Z\n[[products]]\npoint = { x = 1, y = inf }\n"
+            + "text = \"\"\"\nline \\\nend\"\"\"\"",
+        "COMMENT:# mock",
+        "ATTRIBUTE:title",
+        "OPERATOR:=",
+        "STRING:\"Mock ",
+        "ESCAPE:\\u0041",
+        "INVALID:\\q",
+        "KEYWORD:[server.alpha]",
+        "STRING:'10.0.0.1'",
+        "ATTRIBUTE:\"quoted key\".sub",
+        "NUMBER:1_000",
+        "CONSTANT:true",
+        "NUMBER:-3.5e2",
+        "NUMBER:0xDEAD_BEEF",
+        "NUMBER:1979-05-27T07:32:00Z",
+        "KEYWORD:[[products]]",
+        "ATTRIBUTE:x",
+        "ATTRIBUTE:y",
+        "NUMBER:inf",
+        "STRING:\"\"\"",
+        "STRING:line ",
+        "ESCAPE:\\",
+        "STRING:end\"\"\"\"");
+  }
+
+  @Test
+  void diff() {
+    assertEquals(
+        List.of(
+            "HEADING:diff --git a/mock.txt b/mock.txt",
+            "HEADING:index 1234567..89abcde 100644",
+            "HEADING:--- a/mock.txt",
+            "HEADING:+++ b/mock.txt",
+            "KEYWORD:@@ -1,4 +1,4 @@",
+            "FUNCTION: class Mock",
+            "ESCAPE:-old",
+            "ESCAPE:--- removed comment",
+            "TYPE:+new",
+            "COMMENT:\\ No newline at end of file",
+            "HEADING:diff -c a/other b/other",
+            "HEADING:*** a/other",
+            "HEADING:--- b/other",
+            "DELIMITER:***************",
+            "KEYWORD:*** 1,2 ****",
+            "CONSTANT:! changed",
+            "KEYWORD:--- 1,2 ----",
+            "TYPE:+ added"),
+        Tokens.of(
+            "diff",
+            "diff --git a/mock.txt b/mock.txt\nindex 1234567..89abcde 100644\n--- a/mock.txt\n"
+                + "+++ b/mock.txt\n@@ -1,4 +1,4 @@ class Mock\n context\n-old\n--- removed comment\n"
+                + "+new\n\\ No newline at end of file\ndiff -c a/other b/other\n*** a/other\n"
+                + "--- b/other\n***************\n*** 1,2 ****\n! changed\n--- 1,2 ----\n+ added"));
+  }
+
+  @Test
+  void csvColorsColumnsAndKeepsAQuotedLineBreakInItsColumn() {
+    assertEquals(
+        List.of(
+            "KEYWORD2:name",
+            "DELIMITER:,",
+            "TYPE:\"quoted, value\"",
+            "DELIMITER:,",
+            "NUMBER:count",
+            "KEYWORD2:a",
+            "DELIMITER:,",
+            "TYPE:\"multi",
+            "TYPE:line ",
+            "ESCAPE:\"\"",
+            "TYPE:x",
+            "ESCAPE:\"\"",
+            "TYPE:\"",
+            "DELIMITER:,",
+            "NUMBER:3",
+            "DELIMITER:,",
+            "PREPROCESSOR:d",
+            "DELIMITER:,",
+            "STRING:e",
+            "DELIMITER:,",
+            "KEYWORD2:f",
+            "DELIMITER:,,",
+            "NUMBER:h",
+            "KEYWORD2:next"),
+        Tokens.of(
+            "csv", "name,\"quoted, value\",count\na,\"multi\nline \"\"x\"\"\",3,d,e,f,,h\nnext"));
+  }
+
+  @Test
+  void tsvColorsColumns() {
+    assertEquals(
+        List.of(
+            "KEYWORD2:name",
+            "DELIMITER:\t",
+            "TYPE:\"value\"",
+            "DELIMITER:\t",
+            "NUMBER:count",
+            "KEYWORD2:a"),
+        Tokens.of("tsv", "name\t\"value\"\tcount\na"));
+  }
+
+  @Test
+  void log() {
+    assertTokens(
+        "log",
+        "2026-01-02T03:04:05.678Z [main] INFO  com.example.mock.Service - Started"
+            + " url=https://example.invalid/a?b=c\n"
+            + "2026-01-02 03:04:05,678 ERROR [pool-1-thread-2] c.e.MockJob: id=42 user=\"mock\"\n"
+            + "Jan  2 03:04:05 mockhost mockd[123]: WARNING: low disk\n"
+            + "127.0.0.1 - - [02/Jan/2026:03:04:05 +0000] \"GET / HTTP/1.1\" 200 512\n"
+            + "java.lang.IllegalStateException: mock failure\n"
+            + "\tat com.example.mock.Service.run(Service.java:42)\n\t... 3 more\n"
+            + "Caused by: java.io.IOException: closed\n"
+            + "time=03:04:05 level=warn msg=\"retry\" lvl=debug\n"
+            + "{\"level\":\"error\",\"msg\":\"x\"}\n"
+            + "E0102 03:04:05.678901 12345 mock.go:42] failure\n"
+            + "D/MockTag( 123): debug\n[TRACE] tracing [W] short",
+        "NUMBER:2026-01-02T03:04:05.678Z",
+        "DELIMITER:[main]",
+        "TYPE:INFO",
+        "FUNCTION:com.example.mock.Service",
+        "ATTRIBUTE:url",
+        "LINK:https://example.invalid/a?b=c",
+        "NUMBER:2026-01-02 03:04:05,678",
+        "INVALID:ERROR",
+        "DELIMITER:[pool-1-thread-2]",
+        "FUNCTION:c.e.MockJob",
+        "ATTRIBUTE:id",
+        "STRING:\"mock\"",
+        "NUMBER:Jan  2 03:04:05",
+        "ESCAPE:WARNING",
+        "NUMBER:[02/Jan/2026:03:04:05 +0000]",
+        "KEYWORD:java.lang.IllegalStateException",
+        "COMMENT:\tat com.example.mock.Service.run(Service.java:42)",
+        "COMMENT:\t... 3 more",
+        "KEYWORD:Caused by:",
+        "KEYWORD:java.io.IOException",
+        "NUMBER:03:04:05",
+        "ESCAPE:warn",
+        "KEYWORD2:debug",
+        "STRING:\"level\"",
+        "INVALID:\"error\"",
+        "INVALID:E",
+        "NUMBER:03:04:05.678901",
+        "KEYWORD2:D",
+        "COMMENT:TRACE",
+        "ESCAPE:W");
+    assertAbsent("log", "no error found in Info", "INVALID:error");
+  }
+
+  @Test
+  void hcl() {
+    assertTokens(
+        "hcl",
+        "# mock\nresource \"mock_instance\" \"web\" {\n  count = var.enabled ? 2 : 0\n"
+            + "  name  = \"web-${count.index}-%{ if local.x }a%{ endif }\"\n"
+            + "  list  = [for s in var.items : upper(s)]\n  /* note */\n  policy = <<-EOF\n"
+            + "    {\"a\": 1}\n  EOF\n}\nvariable \"size\" {\n  type = list(string)\n"
+            + "  default = null\n}",
+        "COMMENT:# mock",
+        "KEYWORD:resource",
+        "STRING:\"mock_instance\"",
+        "DELIMITER:{",
+        "ATTRIBUTE:count",
+        "KEYWORD2:var",
+        "OPERATOR:?",
+        "NUMBER:2",
+        "STRING:\"web-",
+        "DELIMITER:${",
+        "KEYWORD2:count",
+        "DELIMITER:%{",
+        "KEYWORD:if",
+        "KEYWORD:endif",
+        "KEYWORD:for",
+        "KEYWORD:in",
+        "FUNCTION:upper",
+        "COMMENT:/* note */",
+        "STRING:<<-EOF",
+        "STRING:    {\"a\": 1}",
+        "STRING:  EOF",
+        "KEYWORD:variable",
+        "TYPE:list",
+        "TYPE:string",
+        "CONSTANT:null");
+  }
+
+  @Test
+  void protobuf() {
+    assertTokens(
+        "protobuf",
+        "syntax = \"proto3\";\nimport \"google/protobuf/timestamp.proto\";\n// note\n"
+            + "message Mock {\n  option (mock.opt) = true;\n"
+            + "  repeated string names = 1 [deprecated = true];\n  map<string, int64> counts = 2;\n"
+            + "  double ratio = 3; google.protobuf.Timestamp at = 4; /* x */\n}\n"
+            + "service MockService {\n  rpc Get(Mock) returns (stream Mock);\n}",
+        "KEYWORD:syntax",
+        "STRING:\"proto3\"",
+        "KEYWORD:import",
+        "COMMENT:// note",
+        "KEYWORD:message",
+        "TYPE:Mock",
+        "KEYWORD:option",
+        "ATTRIBUTE:(mock.opt)",
+        "CONSTANT:true",
+        "KEYWORD:repeated",
+        "TYPE:string",
+        "NUMBER:1",
+        "KEYWORD:map",
+        "TYPE:int64",
+        "TYPE:double",
+        "TYPE:google.protobuf.Timestamp",
+        "COMMENT:/* x */",
+        "KEYWORD:service",
+        "TYPE:MockService",
+        "KEYWORD:rpc",
+        "FUNCTION:Get",
+        "TYPE:Mock",
+        "KEYWORD:returns",
+        "KEYWORD:stream");
+  }
+
+  @Test
+  void graphql() {
+    assertTokens(
+        "graphql",
+        "# mock\nquery GetMock($id: ID!, $first: Int = 10) @cached {\n"
+            + "  mock(id: $id) { name ...MockFields }\n}\n\"\"\"\nBlock \\\"\"\" doc\n\"\"\"\n"
+            + "type Mock implements Node {\n  status: Status! @deprecated(reason: \"a\\\"b\")\n}\n"
+            + "enum Status { ACTIVE INACTIVE }",
+        "COMMENT:# mock",
+        "KEYWORD:query",
+        "TYPE:GetMock",
+        "CONSTANT:$id",
+        "TYPE:ID",
+        "OPERATOR:!",
+        "TYPE:Int",
+        "NUMBER:10",
+        "PREPROCESSOR:@cached",
+        "ATTRIBUTE:id",
+        "OPERATOR:...",
+        "TYPE:MockFields",
+        "STRING:\"\"\"",
+        "STRING:Block ",
+        "ESCAPE:\\\"\"\"",
+        "STRING: doc",
+        "STRING:\"\"\"",
+        "KEYWORD:type",
+        "KEYWORD:implements",
+        "ATTRIBUTE:status",
+        "PREPROCESSOR:@deprecated",
+        "ESCAPE:\\\"",
+        "KEYWORD:enum",
+        "CONSTANT:ACTIVE");
+  }
+
+  @Test
+  void nginx() {
+    assertTokens(
+        "nginx",
+        "# mock\nuser mock;\nhttp {\n    client_max_body_size 10m;\n    server {\n"
+            + "        listen 8080;\n        location ~* \\.(png|jpg)$ {\n"
+            + "            add_header X-Mock \"v=$host\"; expires 30d;\n        }\n"
+            + "        if ($request_uri = /x) { return 301 https://${host}; } # done\n"
+            + "        gzip on;\n    }\n}",
+        "COMMENT:# mock",
+        "KEYWORD:user",
+        "DELIMITER:;",
+        "KEYWORD:http",
+        "DELIMITER:{",
+        "KEYWORD:client_max_body_size",
+        "NUMBER:10m",
+        "KEYWORD:server",
+        "KEYWORD:listen",
+        "NUMBER:8080",
+        "KEYWORD:location",
+        "OPERATOR:~*",
+        "KEYWORD:add_header",
+        "STRING:\"v=",
+        "CONSTANT:$host",
+        "KEYWORD:expires",
+        "NUMBER:30d",
+        "KEYWORD:if",
+        "CONSTANT:$request_uri",
+        "OPERATOR:=",
+        "KEYWORD:return",
+        "NUMBER:301",
+        "CONSTANT:${host}",
+        "COMMENT:# done",
+        "KEYWORD:gzip",
+        "CONSTANT:on");
+  }
 }

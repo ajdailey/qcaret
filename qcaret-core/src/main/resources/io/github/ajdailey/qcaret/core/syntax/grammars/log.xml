@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generic log text: ISO 8601 and RFC 3339 timestamps, RFC 3164 and RFC 5424 syslog severities, the Common Log Format date, java.util.logging, Log4j, Logback and Python logging levels, Java and Python stack traces, RFC 3986 URLs and logfmt key=value pairs. -->
+<grammar id="log" name="Log File" version="1">
+  <detect>
+    <extension>log</extension>
+    <extension>out</extension>
+    <firstLine>^\[?\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}</firstLine>
+  </detect>
+  <folding mode="indent"/>
+  <context id="main">
+    <match token="comment" regex="^\s+(?:at\s+\S.*|\.\.\.\s+\d+\s+(?:more|common frames omitted)|File &quot;.*&quot;, line \d+.*)$"/>
+    <match token="keyword" regex="^(?:Caused by|Suppressed|Traceback \(most recent call last\)):?"/>
+    <match token="number" regex="(?&lt;![\w.:-])\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?(?![\w:])|(?&lt;![\w.:/-])\d{4}/\d{2}/\d{2}(?: \d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)?(?![\w:])|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2}\b|\[\d{2}/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\]|(?&lt;![\w.:-])\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?![\w:])"/>
+    <match token="invalid" regex="(?&lt;![\w.-])(?:FATAL|ERROR|SEVERE|CRITICAL|CRIT|EMERG|EMERGENCY|ALERT|ERR|FTL|EROR)(?![\w.-])"/>
+    <match token="invalid" regex="(?&lt;![\w.-])(?&lt;=\b(?:level|lvl|severity)=)(?i:fatal|error|err|critical|crit|emerg|alert|panic)\b"/>
+    <match token="invalid" regex="(?&lt;=&quot;(?:level|severity)&quot;:\s?)&quot;(?i:fatal|error|err|critical|crit|emerg|alert|panic)&quot;"/>
+    <match token="invalid" regex="(?&lt;![\w.-])(?:(?&lt;=[\[&lt;])[EF](?=[\]&gt;])|(?&lt;=^|\s)[EF](?=/[\w.$-]+(?:\(\s*\d+\))?:)|^[EF](?=\d{4} \d{2}:))"/>
+    <match token="escape" regex="(?&lt;![\w.-])(?:WARN|WARNING|WRN)(?![\w.-])"/>
+    <match token="escape" regex="(?&lt;![\w.-])(?&lt;=\b(?:level|lvl|severity)=)(?i:warn|warning)\b"/>
+    <match token="escape" regex="(?&lt;=&quot;(?:level|severity)&quot;:\s?)&quot;(?i:warn|warning)&quot;"/>
+    <match token="escape" regex="(?&lt;![\w.-])(?:(?&lt;=[\[&lt;])W(?=[\]&gt;])|(?&lt;=^|\s)W(?=/[\w.$-]+(?:\(\s*\d+\))?:)|^W(?=\d{4} \d{2}:))"/>
+    <match token="type" regex="(?&lt;![\w.-])(?:INFO|NOTICE|CONFIG|INF)(?![\w.-])"/>
+    <match token="type" regex="(?&lt;![\w.-])(?&lt;=\b(?:level|lvl|severity)=)(?i:info|notice)\b"/>
+    <match token="type" regex="(?&lt;=&quot;(?:level|severity)&quot;:\s?)&quot;(?i:info|notice)&quot;"/>
+    <match token="type" regex="(?&lt;![\w.-])(?:(?&lt;=[\[&lt;])I(?=[\]&gt;])|(?&lt;=^|\s)I(?=/[\w.$-]+(?:\(\s*\d+\))?:)|^I(?=\d{4} \d{2}:))"/>
+    <match token="keyword2" regex="(?&lt;![\w.-])(?:DEBUG|FINE|DBG)(?![\w.-])"/>
+    <match token="keyword2" regex="(?&lt;![\w.-])(?&lt;=\b(?:level|lvl|severity)=)(?i:debug)\b"/>
+    <match token="keyword2" regex="(?&lt;=&quot;(?:level|severity)&quot;:\s?)&quot;(?i:debug)&quot;"/>
+    <match token="keyword2" regex="(?&lt;![\w.-])(?:(?&lt;=[\[&lt;])D(?=[\]&gt;])|(?&lt;=^|\s)D(?=/[\w.$-]+(?:\(\s*\d+\))?:))"/>
+    <match token="comment" regex="(?&lt;![\w.-])(?:TRACE|FINER|FINEST|TRC|VERBOSE)(?![\w.-])"/>
+    <match token="comment" regex="(?&lt;![\w.-])(?&lt;=\b(?:level|lvl|severity)=)(?i:trace|verbose)\b"/>
+    <match token="comment" regex="(?&lt;=&quot;(?:level|severity)&quot;:\s?)&quot;(?i:trace|verbose)&quot;"/>
+    <match token="comment" regex="(?&lt;![\w.-])(?:(?&lt;=[\[&lt;])[TV](?=[\]&gt;])|(?&lt;=^|\s)[TV](?=/[\w.$-]+(?:\(\s*\d+\))?:))"/>
+    <match token="delimiter" regex="\[(?!\s*(?i:fatal|error|severe|critical|crit|emerg|alert|err|ftl|warn|warning|wrn|info|notice|config|inf|debug|fine|dbg|trace|finer|finest|trc|verbose|[EFWIDTV])\s*\])[^\[\]]{1,80}\]"/>
+    <match token="link" regex="(?&lt;![\w.-])(?:https?|ftps?|wss?|file)://[^\s&quot;'&lt;&gt;]+"/>
+    <match token="keyword" regex="(?&lt;![\w$.])(?:[A-Za-z_$][\w$]*\.)*[A-Z][\w$]*(?:Exception|Error|Throwable)(?![\w$])"/>
+    <match token="function" regex="(?&lt;![\w$.])(?:[a-z_][\w$]*\.)+[A-Z][\w$]*(?![\w$])"/>
+    <match token="attribute" regex="(?&lt;![\w.-])[A-Za-z_][\w.-]*(?==)"/>
+    <span token="string" begin='"' end='"' escape="\\."/>
+  </context>
+</grammar>

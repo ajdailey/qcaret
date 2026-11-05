@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Protocol Buffers language specifications for proto2, proto3 and editions (protobuf.dev/reference/protobuf). -->
+<grammar id="protobuf" name="Protocol Buffers" version="1">
+  <detect>
+    <extension>proto</extension>
+    <firstLine>^\s*(?:syntax|edition)\s*=\s*["']</firstLine>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open="&lt;" close="&gt;"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="//"/>
+    <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|[0-7]{1,3}|[abfnrtv\\?'&quot;])"/>
+    <span token="string" begin="'" end="'" escape="\\(?:x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|[0-7]{1,3}|[abfnrtv\\?'&quot;])"/>
+    <match token="type" regex="(?&lt;=\b(?:message|enum|service|extend|group)\s{1,16})\.?[A-Za-z_][\w.]*"/>
+    <match token="function" regex="(?&lt;=\brpc\s{1,16})[A-Za-z_]\w*"/>
+    <keywords token="keyword">syntax edition package import weak public option message enum service rpc returns stream oneof map reserved extensions extend to max optional required repeated group export local</keywords>
+    <keywords token="type">double float int32 int64 uint32 uint64 sint32 sint64 fixed32 fixed64 sfixed32 sfixed64 bool string bytes</keywords>
+    <keywords token="constant">true false inf nan</keywords>
+    <match token="attribute" regex="(?&lt;=\boption\s{1,8}|[\[,]\s{0,8})\(\.?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\)"/>
+    <match token="type" regex="(?&lt;![\w.])\.?(?:[A-Za-z_]\w*\.)+[A-Z]\w*"/>
+    <match token="number" regex="(?&lt;![\w.])[-+]?(?:\d+\.\d*(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+|\.\d+(?:[eE][+-]?\d+)?|0[xX][0-9A-Fa-f]+|0[0-7]*|[1-9]\d*)(?![\w.])"/>
+    <match token="type" regex="(?&lt;![\w.])[A-Z]\w*(?:\.[A-Z]\w*)*"/>
+    <match token="operator" regex="="/>
+    <match token="delimiter" regex="[(){}\[\]&lt;&gt;;,.]"/>
+  </context>
+</grammar>
