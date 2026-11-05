@@ -26,9 +26,6 @@ final class EditorGestures implements Listener {
   private final EditorInput input;
   private boolean columnMode;
   private boolean dragging;
-  private boolean extending;
-  private int anchorX;
-  private int anchorY;
 
   EditorGestures(StyledText text, DisplayProjection projection, EditorInput input) {
     this.text = text;
@@ -93,11 +90,10 @@ final class EditorGestures implements Listener {
     boolean shift = (mask & SWT.SHIFT) != 0;
     boolean primary = (mask & SWT.MOD1) != 0;
     if (alt && shift && !primary) {
-      extending = true;
+      input.extendBlockFromView(event.x, event.y);
     } else if (alt || (columnMode && (mask & (SWT.MOD1 | SWT.SHIFT)) == 0)) {
-      extending = false;
-      anchorX = event.x;
-      anchorY = event.y;
+      // The anchor becomes a line and column here: a drag step can scroll the widget.
+      input.blockFromView(event.x, event.y, event.x, event.y);
     } else if (primary && !shift) {
       input.toggleCaretFromView(offsetAt(event.x, event.y));
       text.setFocus();
@@ -108,16 +104,11 @@ final class EditorGestures implements Listener {
     }
     dragging = true;
     text.setFocus();
-    drag(event.x, event.y);
     consume(event);
   }
 
   private void drag(int x, int y) {
-    if (extending) {
-      input.extendBlockFromView(x, y);
-    } else {
-      input.blockFromView(anchorX, anchorY, x, y);
-    }
+    input.extendBlockFromView(x, y);
   }
 
   /** Returns the display offset nearest a point, the row's end past it. */

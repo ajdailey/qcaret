@@ -236,11 +236,21 @@ class EditingSurfaceTest {
     int x150 = text.getLocationAtOffset(150).x;
     window.shell().setSize(Math.max(window.shell().getSize().x, x150 + 260), 420);
     drain();
+    // A runner screen narrower than column 150 clamps the window; scroll the block's columns in.
+    if (x150 + 120 > text.getClientArea().width) {
+      text.setHorizontalPixel(x150 + 120 - text.getClientArea().width);
+      drain();
+    }
     int line6 = editor().projection().lineStart(6);
     Point from = text.getLocationAtOffset(150);
-    Point to = text.getLocationAtOffset(line6 + 156);
     int half = text.getLineHeight() / 2;
     mouse(text, SWT.MouseDown, from.x, from.y + half, SWT.MOD3);
+    // A scroll during the drag keeps the anchor's column (the drag auto-scrolls at an edge).
+    int before = text.getHorizontalPixel();
+    text.setHorizontalPixel(before + pane.metrics().x(4));
+    drain();
+    assertTrue(text.getHorizontalPixel() > before, "no room to scroll");
+    Point to = text.getLocationAtOffset(line6 + 156);
     mouse(text, SWT.MouseMove, to.x, to.y + half, SWT.MOD3 | SWT.BUTTON1);
     mouse(text, SWT.MouseUp, to.x, to.y + half, SWT.MOD3);
     assertEquals(new BlockSelection(0, 150, 6, 156), editor().selections().block());

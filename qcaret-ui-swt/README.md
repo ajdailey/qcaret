@@ -120,7 +120,9 @@ which `MainWindow.clipboardText` uses.
   Alt+drag, and Ctrl+Alt+drag where the window manager takes Alt+drag, select
   a block; Alt+Shift+click and drag extend it; in column selection mode a
   plain drag selects a block; Mod+click adds a caret or removes the one
-  clicked.
+  clicked. The press fixes the block's anchor as a line and column, and each
+  drag step extends from it, so a horizontal scroll during the drag keeps the
+  anchor.
 - `EditorLayout` is the pane's `ViewLayout`. A printable ASCII row without
   tabs maps x to a column at the font's fractional advance from the row's
   left edge (UI-1); any other row uses the widget's measured glyph positions.
@@ -230,8 +232,8 @@ pixels must sit at the widget's position. Under GTK 4 the window cannot grow
 past the screen, so the pixel half of the column 150 check skips.
 `EditingSurfaceTest` (tag `swt`) adds carets with Ctrl+Alt+Down, moves and
 extends every caret by key, adds one with Mod+click and drops them with Esc;
-drags with Alt from column 150 across long and short lines and checks the
-block, its copy, and in a print of the widget the block's left edge on a short
+drags with Alt from column 150 across long and short lines, scrolling the
+widget between press and drag, and checks the block, its copy, and in a print of the widget the block's left edge on a short
 line within 1 px of the measured column 150 on a long line, with the virtual
 part painted after a resize and a horizontal scroll (TEST-10); sends
 composition text through the content and checks it stays out of undo; runs Go
