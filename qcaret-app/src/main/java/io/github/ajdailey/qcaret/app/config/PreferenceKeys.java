@@ -42,6 +42,7 @@ final class PreferenceKeys {
   static final String HISTORY_TEXT = "search.history.text.";
   static final String HISTORY_DIRECTORY = "search.history.directory.";
   static final String HISTORY_MASK = "search.history.mask.";
+  static final String HISTORY_REPLACE = "search.history.replace.";
   static final String RECENT_GRAMMARS = "syntax.recent";
   static final String DIALOG = "dialog.";
   static final String WIDTH = ".width";
@@ -89,6 +90,7 @@ final class PreferenceKeys {
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
+    putList(keys, HISTORY_REPLACE, s.replacements());
     if (!s.recentGrammars().isEmpty()) {
       keys.put(RECENT_GRAMMARS, String.join(";", s.recentGrammars()));
     }
@@ -207,6 +209,7 @@ final class PreferenceKeys {
         list(p, HISTORY_TEXT),
         list(p, HISTORY_DIRECTORY),
         list(p, HISTORY_MASK),
+        list(p, HISTORY_REPLACE),
         grammars,
         dialogs(p, file));
   }

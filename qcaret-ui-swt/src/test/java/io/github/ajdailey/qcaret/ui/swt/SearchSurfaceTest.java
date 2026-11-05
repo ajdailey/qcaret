@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -12,6 +13,7 @@ import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
@@ -37,7 +39,14 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.ImageLoader;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Slider;
@@ -53,7 +62,8 @@ import org.junit.jupiter.api.io.TempDir;
  * two sets stay listed newest first, Enter on a match opens its file with the match selected, F4
  * steps on; the strip marks find matches, scrolls on a click, hides from the View menu, recolors on
  * a theme switch and exists in each view of a split; the slider follows wheel, page and fold
- * scrolling and scrolls the text.
+ * scrolling and scrolls the text; the find bar's fields offer the saved history. With {@code
+ * -Dqcaret.screenshots=<dir>} it saves {@code find-history.png} there, the list open.
  */
 @Tag("swt")
 class SearchSurfaceTest {
@@ -311,6 +321,86 @@ class SearchSurfaceTest {
       assertTrue(view.overviewStrip().isVisible());
       awaitFindRows(view, 100, 900);
     }
+  }
+
+  /** Presses Enter in a find bar field and waits for the search to end. */
+  private void pressEnter(Combo field) {
+    Event enter = new Event();
+    enter.keyCode = SWT.CR;
+    field.notifyListeners(SWT.KeyDown, enter);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !controller.find().state().running();
+          }
+        },
+        "search ends");
+    drain();
+  }
+
+  @Test
+  void theFindBarOffersTheSavedHistory() throws Exception {
+    openFile(Files.writeString(temp.resolve("find.txt"), lines(20, 3, 9)));
+    controller.execute(CommandId.REPLACE);
+    drain();
+    Combo field = window.findBar().field();
+    Combo replace = window.findBar().replaceField();
+    Point size = field.getSize();
+    field.setText("needle");
+    pressEnter(field);
+    field.setText("line");
+    pressEnter(field);
+    assertArrayEquals(new String[] {"line", "needle"}, field.getItems());
+    assertEquals("line", field.getText());
+    replace.setText("thread");
+    pressEnter(replace);
+    assertArrayEquals(new String[] {"thread"}, replace.getItems());
+    assertEquals("thread", replace.getText());
+    field.select(1);
+    assertEquals("needle", field.getText());
+    assertEquals("needle", controller.find().state().text());
+    historyScreenshot(field);
+    field.setText("z".repeat(UiState.MAX_ENTRY_CHARS));
+    pressEnter(field);
+    assertEquals(3, field.getItemCount());
+    window.shell().layout(true, true);
+    assertEquals(size, field.getSize());
+    controller.execute(CommandId.HYPERSEARCH);
+    drain();
+    assertArrayEquals(field.getItems(), window.searchDialog().text().getItems());
+    window.searchDialog().shell().close();
+  }
+
+  /** Saves the screen as {@code find-history.png} under {@code qcaret.screenshots}, when set. */
+  private void historyScreenshot(Combo field) {
+    String dir = System.getProperty("qcaret.screenshots");
+    if (dir == null) {
+      return;
+    }
+    field.setListVisible(true);
+    final long until = System.nanoTime() + 500_000_000L;
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return System.nanoTime() > until;
+          }
+        },
+        "the list shows");
+    Rectangle bounds = window.shell().getBounds();
+    Image image = new Image(display, bounds.width, bounds.height);
+    GC gc = new GC(display);
+    try {
+      gc.copyArea(image, bounds.x, bounds.y);
+    } finally {
+      gc.dispose();
+    }
+    ImageLoader loader = new ImageLoader();
+    loader.data = new ImageData[] {image.getImageData()};
+    loader.save(Path.of(dir, "find-history.png").toString(), SWT.IMAGE_PNG);
+    image.dispose();
+    field.setListVisible(false);
   }
 
   private static org.eclipse.swt.graphics.RGB rgb(Rgb value) {

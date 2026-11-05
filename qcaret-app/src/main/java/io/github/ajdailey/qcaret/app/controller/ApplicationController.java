@@ -226,6 +226,10 @@ public final class ApplicationController {
     if (!after.state().search().equals(before.state().search())) {
       find.togglesChanged();
     }
+    if (!after.state().texts().equals(before.state().texts())
+        || !after.state().replacements().equals(before.state().replacements())) {
+      find.historyChanged();
+    }
     if (!after.shortcuts().equals(before.shortcuts())) {
       keymap = defaultKeymap.withOverrides(after.shortcuts());
       help.setKeymap(keymap);

@@ -273,6 +273,20 @@ class ConfigStoreTest {
   }
 
   @Test
+  void fullHistoriesOfEscapedTextFitHalfTheLimit() throws IOException {
+    List<String> full = new ArrayList<String>();
+    for (int i = 0; i < UiState.MAX_HISTORY; i++) {
+      full.add(i + "\u00e9".repeat(UiState.MAX_ENTRY_CHARS - 2));
+    }
+    Preferences saved =
+        Preferences.DEFAULTS.withState(
+            UiState.DEFAULTS.withHistory(full, full, full).withReplacements(full));
+    assertTrue(store(temp).save(Preferences.DEFAULTS, saved));
+    assertTrue(Files.size(conf()) < ConfigStore.MAX_BYTES / 2, "size " + Files.size(conf()));
+    assertEquals(saved, store(temp).load());
+  }
+
+  @Test
   void everySettingRoundTrips() throws IOException {
     Options options = new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist");
     UiState state =
@@ -281,6 +295,7 @@ class ConfigStoreTest {
                 List.of("needle", "two\nlines"),
                 List.of("/a"),
                 List.of("*.java"),
+                List.of("swapped", " padded "),
                 List.of("java", "xml"),
                 Map.of())
             .withDialog("preferences", new UiState.Size(640, 480));
@@ -300,6 +315,7 @@ class ConfigStoreTest {
                     "editor.fontSize=14",
                     "shortcut.COMPARE_DOCUMENTS=Mod+Alt+K",
                     "shortcut.FIND=",
+                    "search.history.replace.0=swapped",
                     "syntax.recent=java;xml",
                     "dialog.preferences.width=640")));
   }

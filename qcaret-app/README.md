@@ -268,6 +268,11 @@ read on workers.
 - Esc in a view with one caret and no block closes the bar and removes the
   highlights; with extra carets or a block, Esc drops those first
   (`EditorController.cancel`, `DocumentController.ViewListener.escapePressed`).
+- Find Next, Find Previous and closing the bar put a query that compiles first
+  in `UiState.texts`, the list HyperSearch reads. Replace and Replace All also
+  put the replacement first in `UiState.replacements`. Typing saves nothing.
+  `FindState` carries both lists; `ApplicationController.apply` updates an open
+  bar when another source changes them.
 - Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
   request cancels the running one. A result carries its generation and
   revision and is dropped when either is stale. An invalid regex, a stack
@@ -279,8 +284,8 @@ read on workers.
 dock's `ResultsInput`. The dialog opens with a one-line selection of up to
 1,000 chars as its text, or the selection scope for a selection over several
 lines, and the last run's options; texts, directories and include masks are
-kept in `UiState`, 20 each, up to 1,000 chars an entry; the toggles are the
-find bar's. A request without text, with a regex or mask
+kept in `UiState`, 20 each, up to 1,000 chars an entry; the texts and the
+toggles are shared with the find bar. A request without text, with a regex or mask
 that does not parse, without a document, selection or workspace folder for its
 scope, or without a directory shows a message instead.
 
@@ -954,7 +959,9 @@ result dropped after an edit, regex and replacement failures, Replace and
 Replace All as one undo step each, the notice for a Replace All dropped after
 an edit, Esc dropping extra carets before it closes the bar, a regex
 replacement with the line ending,
-a read-only document, highlights in both views and their shift on an edit.
+a read-only document, highlights in both views and their shift on an edit, and
+the saved history: what saves an entry, the 20-entry and 1,000-char limits, a
+refused Replace saving nothing, and the text list shared with HyperSearch.
 `SearchControllerTest` covers every scope, a dirty buffer searched as edited
 inside a tree search, the dock's rows, opening a match in an open document
 and in a closed file, an edit moving a match and one marking it stale, a file
@@ -1036,8 +1043,9 @@ opened through a link and its target as one entry (skipped where links are
 refused), the 20-file limit and Clear.
 
 `ConfigStoreTest` covers the round trip, defaults, malformed and
-other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
-and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,
+other-version files, the `.invalid` copy, the 1 MiB cap, four full histories of
+escaped text staying under half of it, a read-only directory and owner-only
+creation. `CommandLineParserTest`, `SettingsLocationTest`,
 `WindowGeometryTest`, `ThemeControllerTest`, `PaletteTest`, `MenuTableTest` (mnemonics unique
 per menu), `UiTextTest`, `RecentLogTest`, `EventLoopWatchdogTest`,
 `EncodingChoicesTest` and `LineConversionTest` cover the rest.

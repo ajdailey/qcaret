@@ -268,7 +268,7 @@ before the next save.
 | `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Edit > Preferences, Search and Workspace |
 | `shortcut.<COMMAND>` | Keys separated by spaces, such as `Mod+Alt+K F7`; `Mod` is Ctrl, or Command on macOS, and `Control` is the macOS Control key; empty for no key | The command's default keys | Edit > Preferences, Keys |
 | `search.regex`, `.caseSensitive`, `.wholeWord`, `.hiddenFiles` | The find bar's and HyperSearch's toggles | `false` | The find bar, HyperSearch |
-| `search.history.text.N`, `.directory.N`, `.mask.N` | HyperSearch's history, newest first, 20 each | none | HyperSearch |
+| `search.history.text.N`, `.directory.N`, `.mask.N`, `.replace.N` | Search texts of the find bar and HyperSearch, HyperSearch's directories and include masks, the find bar's replacements; newest first, 20 each | none | The find bar, HyperSearch |
 | `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
 | `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
 

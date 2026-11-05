@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import java.util.List;
+
 /**
  * What the find bar shows.
  *
@@ -14,6 +16,8 @@ package io.github.ajdailey.qcaret.app.view;
  * @param running a search runs on a worker
  * @param notice the last outcome, such as not found or an invalid pattern, or empty
  * @param error true when the notice is a failure: the text matches nothing or does not compile
+ * @param textHistory the search field's saved texts, shared with HyperSearch, newest first
+ * @param replaceHistory the replace field's saved texts, newest first
  */
 public record FindState(
     boolean open,
@@ -26,4 +30,6 @@ public record FindState(
     boolean replaceEnabled,
     boolean running,
     String notice,
-    boolean error) {}
+    boolean error,
+    List<String> textHistory,
+    List<String> replaceHistory) {}

@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.FindListener;
 import io.github.ajdailey.qcaret.app.view.FindState;
@@ -320,6 +322,129 @@ class FindControllerTest {
     first.type("_");
     assertArrayEquals(new int[] {1, 3, 7, 9, 13, 15}, harness.view.selected.matches);
     awaitMatches(new int[] {1, 3, 7, 9, 13, 15});
+  }
+
+  private UiState saved() {
+    return harness.application.settings().current().state();
+  }
+
+  @Test
+  void findNextAndPreviousSaveTheTextAndTypingDoesNot() throws Exception {
+    open("alpha beta alpha\n");
+    find.open(false);
+    find.setText("al");
+    settle();
+    find.setText("alpha");
+    settle();
+    assertEquals(List.of(), saved().texts());
+    find.findNext();
+    settle();
+    assertEquals(List.of("alpha"), saved().texts());
+    find.setText("beta");
+    settle();
+    find.findPrevious();
+    settle();
+    find.setText("alpha");
+    settle();
+    assertEquals(List.of("beta", "alpha"), last.textHistory());
+    find.findNext();
+    settle();
+    assertEquals(List.of("alpha", "beta"), saved().texts());
+    assertEquals(List.of("alpha", "beta"), last.textHistory());
+  }
+
+  @Test
+  void closingTheBarSavesATextThatCompiles() throws Exception {
+    open("alpha\n");
+    find.open(false);
+    find.setOptions(false, false, true);
+    find.setText("(");
+    settle();
+    find.close();
+    assertEquals(List.of(), saved().texts());
+    find.open(false);
+    find.setText("alp+");
+    settle();
+    find.close();
+    assertEquals(List.of("alp+"), saved().texts());
+  }
+
+  @Test
+  void theHistoryKeepsTwentyAndLeavesOutALongEntry() throws Exception {
+    open("x\n");
+    find.open(false);
+    for (int i = 0; i < UiState.MAX_HISTORY + 5; i++) {
+      find.setText("text " + i);
+      settle();
+      find.findNext();
+      settle();
+    }
+    find.setText("y".repeat(UiState.MAX_ENTRY_CHARS + 1));
+    settle();
+    find.findNext();
+    settle();
+    assertEquals(UiState.MAX_HISTORY, saved().texts().size());
+    assertEquals("text 24", saved().texts().get(0));
+    assertEquals("text 5", saved().texts().get(UiState.MAX_HISTORY - 1));
+  }
+
+  @Test
+  void replaceAndReplaceAllSaveBothTexts() throws Exception {
+    open("alpha alpha\n");
+    find.open(true);
+    find.setText("alpha");
+    settle();
+    find.setReplacement("beta");
+    find.replace();
+    settle();
+    assertEquals(List.of("beta"), saved().replacements());
+    assertEquals(List.of("alpha"), saved().texts());
+    find.setReplacement("gamma");
+    find.replaceAll();
+    settle();
+    assertEquals(List.of("gamma", "beta"), last.replaceHistory());
+    find.setText("beta");
+    settle();
+    find.setReplacement("");
+    find.replaceAll();
+    settle();
+    assertEquals(List.of("gamma", "beta"), saved().replacements());
+    assertEquals(List.of("beta", "alpha"), saved().texts());
+  }
+
+  @Test
+  void aRefusedReplaceSavesNothing() throws Exception {
+    EditorController editor = open("alpha\n");
+    find.open(true);
+    find.setText("alpha");
+    settle();
+    editor.document().setReadOnly(true);
+    find.setReplacement("beta");
+    find.replace();
+    find.replaceAll();
+    assertEquals(List.of(), saved().texts());
+    assertEquals(List.of(), saved().replacements());
+  }
+
+  @Test
+  void theFindBarAndHyperSearchShareTheTextHistory() throws Exception {
+    open("alpha\n");
+    find.open(false);
+    find.setText("alpha");
+    settle();
+    find.findNext();
+    settle();
+    harness.application.execute(CommandId.HYPERSEARCH);
+    assertEquals(List.of("alpha"), harness.view.searchForm.textHistory());
+    Preferences current = harness.application.settings().current();
+    UiState state = current.state();
+    harness
+        .application
+        .settings()
+        .set(
+            current.withState(
+                state.withHistory(List.of("beta", "alpha"), state.directories(), state.masks())));
+    assertEquals(List.of("beta", "alpha"), last.textHistory());
   }
 
   @Test

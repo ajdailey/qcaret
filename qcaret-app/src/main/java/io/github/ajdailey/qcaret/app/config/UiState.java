@@ -14,6 +14,7 @@ import java.util.Map;
  * @param texts {@code search.history.text.N}: search texts, newest first
  * @param directories {@code search.history.directory.N}: searched directories, newest first
  * @param masks {@code search.history.mask.N}: include masks, newest first
+ * @param replacements {@code search.history.replace.N}: the find bar's replacements, newest first
  * @param recentGrammars {@code syntax.recent}: grammar ids chosen in the Syntax menu, newest first
  * @param dialogs {@code dialog.<name>.width} and {@code .height}: a dialog's last size
  */
@@ -22,6 +23,7 @@ public record UiState(
     List<String> texts,
     List<String> directories,
     List<String> masks,
+    List<String> replacements,
     List<String> recentGrammars,
     Map<String, Size> dialogs) {
   /** Entries per search history. */
@@ -38,7 +40,8 @@ public record UiState(
 
   /** Nothing remembered. */
   public static final UiState DEFAULTS =
-      new UiState(SearchToggles.DEFAULTS, List.of(), List.of(), List.of(), List.of(), Map.of());
+      new UiState(
+          SearchToggles.DEFAULTS, List.of(), List.of(), List.of(), List.of(), List.of(), Map.of());
 
   /**
    * A dialog's size in pixels.
@@ -63,6 +66,7 @@ public record UiState(
     texts = limited(texts, MAX_HISTORY);
     directories = limited(directories, MAX_HISTORY);
     masks = limited(masks, MAX_HISTORY);
+    replacements = limited(replacements, MAX_HISTORY);
     recentGrammars = limited(recentGrammars, MAX_RECENT_GRAMMARS);
     dialogs = Collections.unmodifiableMap(new LinkedHashMap<String, Size>(dialogs));
   }
@@ -95,7 +99,7 @@ public record UiState(
    * @return the copy
    */
   public UiState withSearch(SearchToggles value) {
-    return new UiState(value, texts, directories, masks, recentGrammars, dialogs);
+    return new UiState(value, texts, directories, masks, replacements, recentGrammars, dialogs);
   }
 
   /**
@@ -108,7 +112,18 @@ public record UiState(
    */
   public UiState withHistory(
       List<String> textList, List<String> directoryList, List<String> maskList) {
-    return new UiState(search, textList, directoryList, maskList, recentGrammars, dialogs);
+    return new UiState(
+        search, textList, directoryList, maskList, replacements, recentGrammars, dialogs);
+  }
+
+  /**
+   * Returns a copy with another replacement history.
+   *
+   * @param value replacements, newest first
+   * @return the copy
+   */
+  public UiState withReplacements(List<String> value) {
+    return new UiState(search, texts, directories, masks, value, recentGrammars, dialogs);
   }
 
   /**
@@ -118,7 +133,7 @@ public record UiState(
    * @return the copy
    */
   public UiState withRecentGrammars(List<String> value) {
-    return new UiState(search, texts, directories, masks, value, dialogs);
+    return new UiState(search, texts, directories, masks, replacements, value, dialogs);
   }
 
   /**
@@ -138,6 +153,6 @@ public record UiState(
     while (copy.size() > MAX_DIALOGS) {
       copy.remove(copy.keySet().iterator().next());
     }
-    return new UiState(search, texts, directories, masks, recentGrammars, copy);
+    return new UiState(search, texts, directories, masks, replacements, recentGrammars, copy);
   }
 }

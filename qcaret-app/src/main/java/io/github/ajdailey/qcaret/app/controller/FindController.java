@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SearchToggles;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.FindListener;
@@ -49,6 +50,9 @@ import java.util.regex.PatternSyntaxException;
  *   <li>Replace replaces the focused view's selection when the query matches exactly that range,
  *       then finds the next match. Replace All replaces every match in the document. Each is one
  *       undo step; line breaks in the replacement become the document's line ending.
+ *   <li>Find Next, Find Previous and closing the bar save a query that compiles in the search
+ *       history HyperSearch also reads; Replace and Replace All save the query and the replacement.
+ *       Typing saves nothing, so a partly typed query stays out of the history.
  *   <li>Every result carries the operation's generation and the document revision it read; a result
  *       from an older operation or an older revision is dropped. A regex that does not compile or
  *       overflows the stack, and a replacement that does not parse, end with a notice in the bar.
@@ -149,7 +153,9 @@ public final class FindController implements DocumentController.ViewListener {
         editable && matcher != null,
         finding != null,
         notice,
-        error);
+        error,
+        settings.current().state().texts(),
+        settings.current().state().replacements());
   }
 
   // Bar commands.
@@ -202,6 +208,9 @@ public final class FindController implements DocumentController.ViewListener {
   public void close() {
     if (!open) {
       return;
+    }
+    if (matcher != null) {
+      remember(false);
     }
     open = false;
     documents.refreshOverview();
@@ -306,6 +315,28 @@ public final class FindController implements DocumentController.ViewListener {
     }
   }
 
+  /** A saved history changed: updates the bar. */
+  void historyChanged() {
+    if (!disposed) {
+      changed();
+    }
+  }
+
+  /** Puts the search text, and the replacement when asked, first in their saved histories. */
+  private void remember(boolean withReplacement) {
+    Preferences current = settings.current();
+    UiState state = current.state();
+    settings.set(
+        current.withState(
+            state
+                .withHistory(
+                    UiState.remember(state.texts(), text), state.directories(), state.masks())
+                .withReplacements(
+                    withReplacement
+                        ? UiState.remember(state.replacements(), replacement)
+                        : state.replacements())));
+  }
+
   /** Selects the next match after the focused view's selection; opens the bar without a text. */
   public void findNext() {
     next(true);
@@ -325,6 +356,7 @@ public final class FindController implements DocumentController.ViewListener {
       open(replace);
       return;
     }
+    remember(false);
     Selection primary = editor.selections().selections().primary();
     find(forward, forward ? primary.end() : primary.start(), true);
   }
@@ -336,6 +368,7 @@ public final class FindController implements DocumentController.ViewListener {
     if (editor == null || template == null || editor.document().isReadOnly()) {
       return;
     }
+    remember(true);
     final Selection primary = editor.selections().selections().primary();
     final Document document = editor.document();
     document.clearPreedit();
@@ -382,6 +415,7 @@ public final class FindController implements DocumentController.ViewListener {
     if (editor == null || template == null || editor.document().isReadOnly()) {
       return;
     }
+    remember(true);
     final Document document = editor.document();
     document.clearPreedit();
     final TextSnapshot snapshot = document.text();

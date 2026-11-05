@@ -122,10 +122,13 @@ nothing is rebuilt.
 
 `FindBar` sits above the status bar while `FindController` is open: the
 search field, Match case, Whole word, Regex, Previous, Next, the notice and
-Close, plus a replace row (field, Replace, Replace All) for Replace. Typing
-finds incrementally; Enter finds the next match, Shift+Enter the previous one,
-Enter in the replace field replaces, and Escape anywhere in the bar closes it
-and focuses the editor. Mod+F with the bar open focuses and selects the field.
+Close, plus a replace row (field, Replace, Replace All) for Replace. Both
+fields are editable `Combo`s listing the saved history from `FindState`, as
+`SearchDialog` does. Typing or choosing an entry finds incrementally; Enter
+finds the next match, Shift+Enter the previous one, Enter in the replace field
+replaces, and Escape anywhere in the bar closes it and focuses the editor.
+While a field's list is open, Enter and Escape go to the list. Mod+F with the
+bar open focuses and selects the field.
 
 `SearchDialog` (Search > HyperSearch) is modal: the text with its history,
 Match case, Whole word, Regex, the scope, the workspace folder, the directory
@@ -440,7 +443,8 @@ Enter and steps with F4 to another file; it checks the strip's find marks,
 a click on the strip scrolling there, the slider following that, its own
 moves and the wheel, hiding and showing the strip, its recolor on a theme
 switch and a strip in each split view, and the slider following Page Down and
-Fold All. `ResultRowsTest` covers row paths through expansion, expansion
+Fold All; it checks both find bar fields listing the saved history, the
+field's width with a 1,000-char entry, and HyperSearch listing the same texts. `ResultRowsTest` covers row paths through expansion, expansion
 kept by set id, and groups collapsed when a search ends.
 `SyntaxPaneTest` (tag `swt`) opens a Java file and checks the keyword's
 palette color and bold, a number keeping its color under a find match, Java
