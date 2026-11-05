@@ -31,6 +31,8 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -462,6 +464,42 @@ class EditingSurfaceTest {
   }
 
   /** Copies one screen pixel. */
+  /** Within 2 per channel: cocoa's color matching moves a composited pixel by one step. */
+  private static boolean near(RGB a, RGB b) {
+    return Math.abs(a.red - b.red) <= 2
+        && Math.abs(a.green - b.green) <= 2
+        && Math.abs(a.blue - b.blue) <= 2;
+  }
+
+  /**
+   * Saves the window and a 40 by 40 screen square around a point to {@code target/diagnostics/},
+   * which CI uploads when a test job fails.
+   */
+  private void diagnose(String name, int x, int y) {
+    try {
+      Path dir = Files.createDirectories(Path.of("target", "diagnostics"));
+      Rectangle bounds = window.shell().getBounds();
+      saveScreen(dir.resolve(name + "-window.png"), bounds);
+      saveScreen(dir.resolve(name + "-square.png"), new Rectangle(x - 20, y - 20, 40, 40));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  private void saveScreen(Path file, Rectangle area) {
+    Image image = new Image(display, area.width, area.height);
+    GC gc = new GC(display);
+    try {
+      gc.copyArea(image, area.x, area.y);
+    } finally {
+      gc.dispose();
+    }
+    ImageLoader loader = new ImageLoader();
+    loader.data = new ImageData[] {image.getImageData()};
+    loader.save(file.toString(), SWT.IMAGE_PNG);
+    image.dispose();
+  }
+
   private RGB screenPixel(int x, int y) {
     Image image = new Image(display, 1, 1);
     GC gc = new GC(display);
@@ -529,14 +567,35 @@ class EditingSurfaceTest {
                 @Override
                 public boolean getAsBoolean() {
                   seen[0] = screenPixel(x, y);
-                  return expected.equals(seen[0]);
+                  return near(expected, seen[0]);
                 }
               },
               Duration.ofSeconds(5));
       // Under GTK 4 and Xvfb a Display GC copy never showed the caret (measured; no SWT issue
       // found).
       assumeTrue(shown || !"1".equals(System.getenv("SWT_GTK4")), "no screen copy under GTK 4");
-      assertTrue(shown, palette.dark() + ": expected " + expected + ", last " + seen[0]);
+      if (!shown) {
+        diagnose("caret-" + (palette.dark() ? "dark" : "light"), x, y);
+      }
+      assertTrue(
+          shown,
+          palette.dark()
+              + ": expected "
+              + expected
+              + ", last "
+              + seen[0]
+              + " at "
+              + x
+              + ","
+              + y
+              + "; caret "
+              + text.getCaret().getLocation()
+              + " visible "
+              + text.getCaret().isVisible()
+              + ", shell "
+              + window.shell().getBounds()
+              + ", zoom "
+              + text.getMonitor().getZoom());
       if (palette.dark()) {
         capture("dark-caret");
       }
