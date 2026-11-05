@@ -29,6 +29,11 @@ public final class ManualUiDispatcher implements UiDispatcher {
   }
 
   @Override
+  public void cancelTimer(Runnable task) {
+    queue.remove(task);
+  }
+
+  @Override
   public boolean isUiThread() {
     return Thread.currentThread() == uiThread;
   }

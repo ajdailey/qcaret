@@ -73,6 +73,10 @@ public final class SwtKeys {
     if ((stateMask & SWT.MOD3) != 0) {
       modifiers |= KeyStroke.ALT;
     }
+    // MOD4 is Control on macOS and 0 elsewhere.
+    if (SWT.MOD4 != 0 && (stateMask & SWT.MOD4) != 0) {
+      modifiers |= KeyStroke.CONTROL;
+    }
     if ((modifiers & (KeyStroke.PRIMARY | KeyStroke.ALT)) != 0) {
       for (int[] pair : KEYPAD) {
         if (pair[0] == keyCode) {
@@ -93,7 +97,7 @@ public final class SwtKeys {
     if ((keyCode & SWT.MODIFIER_MASK) != 0) {
       return null;
     }
-    if ((modifiers & (KeyStroke.PRIMARY | KeyStroke.ALT)) != 0) {
+    if ((modifiers & (KeyStroke.PRIMARY | KeyStroke.ALT | KeyStroke.CONTROL)) != 0) {
       if (keyCode > ' ' && keyCode < 0x7f) {
         return new KeyStroke(modifiers, Character.toLowerCase(keyCode));
       }
@@ -124,6 +128,9 @@ public final class SwtKeys {
     }
     if ((stroke.modifiers() & KeyStroke.ALT) != 0) {
       value |= SWT.MOD3;
+    }
+    if ((stroke.modifiers() & KeyStroke.CONTROL) != 0) {
+      value |= SWT.MOD4;
     }
     int key = stroke.key();
     for (int[] pair : SPECIAL) {

@@ -429,7 +429,9 @@ public enum UiText {
   /** Find bar notice: the regex overflowed the stack. */
   FIND_TOO_COMPLEX,
   /** Find bar notice: the number of matches Replace All replaced. */
-  FIND_REPLACED;
+  FIND_REPLACED,
+  /** Find bar notice: Replace All dropped its result because the document changed. */
+  FIND_REPLACE_ALL_STALE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

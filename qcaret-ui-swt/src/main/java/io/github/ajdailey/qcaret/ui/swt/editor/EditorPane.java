@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -34,8 +35,14 @@ import org.eclipse.swt.events.VerifyEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.ImageDataProvider;
+import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Caret;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.IME;
@@ -67,6 +74,10 @@ import org.eclipse.swt.widgets.Listener;
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
  *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
  *       a wrapped row's right edge selects the row's last word.
+ *   <li>Primary caret: the widget's caret is an SWT {@link Caret} whose image, {@value
+ *       #CARET_WIDTH} px wide and one line high, shows the scheme's caret color over the current
+ *       line ({@link CaretInk}). The image is rebuilt on a font change, a zoom change and a palette
+ *       change, and disposed with the editor.
  *   <li>Font: {@link #setFont} changes the font in place and measures it again; the widget, its
  *       caret, scroll position and focus stay.
  *   <li>Find: each paint that shows another display range reports it through {@link
@@ -81,8 +92,8 @@ public final class EditorPane implements EditorView {
   /** Pixels between the gutter and the text. */
   static final int GUTTER_GAP = 4;
 
-  /** Width of a painted secondary caret. */
-  static final int CARET_WIDTH = 2;
+  /** Width of the primary caret and of a painted secondary caret. */
+  public static final int CARET_WIDTH = 2;
 
   private final StyledText text;
   private final ContentAdapter content;
@@ -102,6 +113,9 @@ public final class EditorPane implements EditorView {
   private Color selectionFore;
   private Color caret;
   private Color findMatch;
+  private Palette palette;
+  private final Caret primaryCaret;
+  private Image caretImage;
   private final MatchLayer matches = new MatchLayer();
   private int reportedStart = -1;
   private int reportedEnd = -1;
@@ -119,6 +133,7 @@ public final class EditorPane implements EditorView {
    * @param keymap the editor's key bindings
    * @param font the editor font, owned by the caller
    * @param palette the colors
+   * @param ui runs the block drag's timer
    */
   public EditorPane(
       Composite parent,
@@ -127,13 +142,27 @@ public final class EditorPane implements EditorView {
       EditorInput input,
       Keymap keymap,
       Font font,
-      Palette palette) {
+      Palette palette,
+      UiDispatcher ui) {
     this.projection = projection;
     this.selections = selections;
     this.input = input;
     this.keymap = keymap;
     this.font = font;
     text = new StyledText(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
+    primaryCaret = new Caret(text, SWT.NONE);
+    text.setCaret(primaryCaret);
+    text.addListener(
+        SWT.Dispose,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (caretImage != null) {
+              caretImage.dispose();
+              caretImage = null;
+            }
+          }
+        });
     // Font, tabs, margins and colors each reset the widget's per-line cache, O(lines) through a
     // TreeSet: set them while the widget still holds its empty default content.
     text.setFont(font);
@@ -176,7 +205,7 @@ public final class EditorPane implements EditorView {
                 return metrics;
               }
             });
-    gestures = new EditorGestures(text, projection, input);
+    gestures = new EditorGestures(text, projection, input, ui);
     listen();
     syncWidget();
   }
@@ -240,7 +269,7 @@ public final class EditorPane implements EditorView {
     }
   }
 
-  /** Disposes the widget and stops following the model. */
+  /** Disposes the widget and the caret image and stops following the model. */
   public void dispose() {
     selections.removeListener(modelListener);
     content.dispose();
@@ -250,11 +279,30 @@ public final class EditorPane implements EditorView {
   }
 
   /**
+   * Returns the primary caret's image.
+   *
+   * @return the image, null after dispose
+   */
+  public Image caretImage() {
+    return caretImage;
+  }
+
+  /**
+   * Reports whether a block drag held outside the text area is scrolling.
+   *
+   * @return true while the drag timer is armed
+   */
+  public boolean autoscrolling() {
+    return gestures.autoscrolling();
+  }
+
+  /**
    * Applies a palette. A changed text or background color costs O(rows) in the widget.
    *
    * @param palette the colors
    */
   public void setPalette(Palette palette) {
+    this.palette = palette;
     Color foreground = color(palette.text());
     Color background = color(palette.background());
     if (!foreground.equals(text.getForeground())) {
@@ -272,7 +320,48 @@ public final class EditorPane implements EditorView {
     currentLine = color(palette.currentLine());
     caret = color(palette.caret());
     findMatch = color(palette.findMatch());
+    updateCaret();
     text.redraw();
+  }
+
+  /** Builds the primary caret's image for the line height, zoom and palette. */
+  private void updateCaret() {
+    if (palette == null || text.isDisposed()) {
+      return;
+    }
+    RGB ink =
+        CaretInk.source(rgb(palette.currentLine()), rgb(palette.caret()), CaretInk.platform());
+    final int pixel = (ink.red << 16) | (ink.green << 8) | ink.blue;
+    final int height = Math.max(1, text.getLineHeight());
+    Image next =
+        new Image(
+            text.getDisplay(),
+            new ImageDataProvider() {
+              @Override
+              public ImageData getImageData(int zoom) {
+                ImageData data =
+                    new ImageData(
+                        Math.max(1, CARET_WIDTH * zoom / 100),
+                        Math.max(1, height * zoom / 100),
+                        24,
+                        new PaletteData(0xff0000, 0xff00, 0xff));
+                for (int y = 0; y < data.height; y++) {
+                  for (int x = 0; x < data.width; x++) {
+                    data.setPixel(x, y, pixel);
+                  }
+                }
+                return data;
+              }
+            });
+    primaryCaret.setImage(next);
+    if (caretImage != null) {
+      caretImage.dispose();
+    }
+    caretImage = next;
+  }
+
+  private static RGB rgb(Rgb value) {
+    return new RGB(value.red(), value.green(), value.blue());
   }
 
   private static Color color(Rgb rgb) {
@@ -290,6 +379,7 @@ public final class EditorPane implements EditorView {
     }
     gutterDigits = 0;
     updateGutter();
+    updateCaret();
   }
 
   private void updateGutter() {

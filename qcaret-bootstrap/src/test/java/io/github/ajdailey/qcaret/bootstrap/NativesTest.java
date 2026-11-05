@@ -2,17 +2,21 @@ package io.github.ajdailey.qcaret.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,6 +71,56 @@ class NativesTest {
     Files.write(dir.resolve(LIB), "tampered".getBytes(StandardCharsets.US_ASCII));
     prepare(dir, true);
     assertArrayEquals(CONTENT, Files.readAllBytes(dir.resolve(LIB)));
+  }
+
+  private void prepare(Path dir, Natives.Mover mover) throws Exception {
+    try (FileSystem outer = FileSystems.newFileSystem(jar);
+        FileSystem fragment =
+            FileSystems.newFileSystem(outer.getPath(BootIndex.fragment(Target.LINUX_X86_64)))) {
+      Natives.prepare(
+          dir, true, outer, fragment.getPath("/"), Target.LINUX_X86_64, List.of(LIB), mover);
+    }
+  }
+
+  /** A move that loses the race: another start places {@code placed}, then the replace fails. */
+  private static Natives.Mover losingMove(final byte[] placed, final IOException failure) {
+    return new Natives.Mover() {
+      @Override
+      public void move(Path source, Path file) throws IOException {
+        Files.write(file, placed);
+        throw failure;
+      }
+    };
+  }
+
+  @Test
+  void aFailedMoveOverAMatchingLibrarySucceeds() throws Exception {
+    Path dir = temp.resolve("swt");
+    prepare(dir, losingMove(CONTENT, new AccessDeniedException("mock")));
+    assertArrayEquals(CONTENT, Files.readAllBytes(dir.resolve(LIB)));
+    List<String> names = new ArrayList<String>();
+    try (DirectoryStream<Path> entries = Files.newDirectoryStream(dir)) {
+      for (Path entry : entries) {
+        names.add(entry.getFileName().toString());
+      }
+    }
+    assertEquals(List.of(LIB), names);
+  }
+
+  @Test
+  void aFailedMoveOverAMismatchedLibraryFails() throws Exception {
+    final Path dir = temp.resolve("swt");
+    final IOException failure = new AccessDeniedException("mock");
+    IOException e =
+        assertThrows(
+            IOException.class,
+            new Executable() {
+              @Override
+              public void execute() throws Throwable {
+                prepare(dir, losingMove("tampered".getBytes(StandardCharsets.US_ASCII), failure));
+              }
+            });
+    assertSame(failure, e);
   }
 
   @Test

@@ -23,10 +23,11 @@ from this module's jar manifest.
 ## Views and the UI thread (`app.view`)
 
 `UiDispatcher` is the only route onto the UI thread: `asyncExec` from any
-thread, `timerExec` on the UI thread, no synchronous variant, and submissions
-after disposal are dropped. `MainView` is the main window as the controller
-sees it; every method runs on the UI thread and returns without waiting for
-the user. Its `DocumentsView` part adds a tab per document at an index
+thread, `timerExec` and `cancelTimer` on the UI thread, no synchronous
+variant, and submissions after disposal are dropped. `MainView` is the main
+window as the controller sees it; every method runs on the UI thread and
+returns without waiting for the user. Its `DocumentsView` part adds a tab
+per document at an index
 (`addTab` returns a `TabView`) and runs the file choosers, the unsaved-changes
 prompt and the binary-file prompt, each answering through a callback;
 `documentStateChanged` tells the view to read menu and status state again. A
@@ -80,8 +81,14 @@ and lower case have no keys on Linux (IBus takes Ctrl+Shift+U). Block selection
 is Alt+Shift with an arrow key, and Command+Option+Shift on macOS, where
 Option+Shift with Left or Right selects words. Find is Mod+F, Find Next and
 Previous F3 and Shift+F3 (macOS adds Cmd+G and Cmd+Shift+G), and Replace
-Mod+H, Cmd+Option+F on macOS, where Cmd+H hides the application. The split
-commands have no key. `reference(filter)` lists the bindings whose group,
+Mod+H, Cmd+Option+F on macOS, where Cmd+H hides the application. Add Caret
+Above and Below are Mod+Alt+Shift+Up and Down, and Ctrl+Shift+Up and Down on
+macOS (Ctrl+Alt+Up and Down switch workspaces on several Linux desktops).
+GNOME's defaults bind Ctrl+Alt+Shift+Up and Down to move the window to another
+workspace (verified on Ubuntu GNOME), so there only the Selection menu reaches
+the commands. `KeyStroke.CONTROL` is the macOS Control key. F6 focuses the
+other split view; the split commands have no key. `reference(filter)` lists
+the bindings whose group,
 command or keys contain the filter. Shortcut overrides are not built.
 
 ## Controller (`app.controller`)
@@ -202,7 +209,11 @@ read on workers.
 - Replace replaces the selection when the query matches exactly that range,
   then finds the next match; Replace All replaces every match. Each is one
   undo step, line breaks in the replacement become the document's line ending,
-  and a read-only document disables both (`FindState.replaceEnabled`).
+  and a read-only document disables both (`FindState.replaceEnabled`). A
+  Replace All result dropped because the document changed shows a notice.
+- Esc in a view with one caret and no block closes the bar and removes the
+  highlights; with extra carets or a block, Esc drops those first
+  (`EditorController.cancel`, `DocumentController.ViewListener.escapePressed`).
 - Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
   request cancels the running one. A result carries its generation and
   revision and is dropped when either is stale. An invalid regex, a stack
@@ -246,6 +257,8 @@ document ignores edits. The controller also runs the projection's rewraps on
 - Composition text from the input method goes to `Document.preedit`, outside
   undo; a commit the view reports with the composition becomes one undo step.
   Every edit removes a composition first.
+- Esc cancels a running save and drops the secondary selections and the
+  block; with neither, it closes the find bar.
 
 ## Editor state (`app.editor`)
 
@@ -356,8 +369,9 @@ binary prompt, Reopen and Save with Encoding, the line-ending conversion and
 its undo, a conversion dropped after an edit, the tab commands, the warning
 marker, Debug Log File with a failing attach, the user guide copy, Report an
 Issue and the zoom bounds. `KeymapTest` checks that no stroke is bound twice on
-any platform, the platform key choices, the reference filter and the
-accelerator, editor and window-filter lookups. `DocumentOpenerTest` holds a load in its decoder past the window's
+any platform, the platform key choices (Add Caret, F6), the reference filter
+and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`
+holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
 both release their reservation; a load over the budget is refused unread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
@@ -380,7 +394,9 @@ the arrangement switch, focus, Unsplit keeping the focused view, and both
 views stopped with the tab and reached by word wrap. `FindControllerTest`
 covers incremental find and highlights, wrap notices, the selection seed, a
 result dropped after an edit, regex and replacement failures, Replace and
-Replace All as one undo step each, a regex replacement with the line ending,
+Replace All as one undo step each, the notice for a Replace All dropped after
+an edit, Esc dropping extra carets before it closes the bar, a regex
+replacement with the line ending,
 a read-only document, highlights in both views and their shift on an edit.
 `EditorControllerTest` covers multi-caret typing as one undo step, Enter's
 line ending, Backspace and Delete over CR LF and surrogate pairs, cut, copy and

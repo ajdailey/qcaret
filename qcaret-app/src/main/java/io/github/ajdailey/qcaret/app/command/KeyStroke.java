@@ -5,7 +5,8 @@ package io.github.ajdailey.qcaret.app.command;
  * case with {@link #SHIFT} when shifted, and any other printable char ({@code $}, {@code ^}) as
  * itself without {@link #SHIFT}. Other keys, the space bar included, use the constants below.
  *
- * @param modifiers a combination of {@link #PRIMARY}, {@link #SHIFT} and {@link #ALT}
+ * @param modifiers a combination of {@link #PRIMARY}, {@link #SHIFT}, {@link #ALT} and {@link
+ *     #CONTROL}
  * @param key a printable char or one of the key constants
  */
 public record KeyStroke(int modifiers, int key) {
@@ -17,6 +18,9 @@ public record KeyStroke(int modifiers, int key) {
 
   /** Alt, or Option on macOS. */
   public static final int ALT = 4;
+
+  /** Control on macOS; elsewhere Ctrl is {@link #PRIMARY}. */
+  public static final int CONTROL = 8;
 
   private static final int SPECIAL = 0x110000;
 
@@ -98,7 +102,7 @@ public record KeyStroke(int modifiers, int key) {
 
   /** Checks the components. */
   public KeyStroke {
-    if ((modifiers & ~(PRIMARY | SHIFT | ALT)) != 0) {
+    if ((modifiers & ~(PRIMARY | SHIFT | ALT | CONTROL)) != 0) {
       throw new IllegalArgumentException("unknown modifier");
     }
     boolean printable = key > ' ' && key < SPECIAL && !Character.isUpperCase(key);
@@ -140,6 +144,9 @@ public record KeyStroke(int modifiers, int key) {
    */
   public String text(boolean mac) {
     StringBuilder text = new StringBuilder();
+    if ((modifiers & CONTROL) != 0) {
+      text.append("Ctrl+");
+    }
     if ((modifiers & PRIMARY) != 0) {
       text.append(mac ? "Cmd+" : "Ctrl+");
     }

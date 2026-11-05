@@ -15,6 +15,7 @@ public final class Keymap {
   private static final int P = KeyStroke.PRIMARY;
   private static final int S = KeyStroke.SHIFT;
   private static final int F3 = KeyStroke.F1 + 2;
+  private static final int F6 = KeyStroke.F1 + 5;
 
   private final List<Binding> bindings;
   private final boolean mac;
@@ -44,7 +45,8 @@ public final class Keymap {
    * Returns the default bindings. {@link KeyStroke#PRIMARY} is Command on macOS and Ctrl elsewhere;
    * Ctrl+Y and the Insert and Delete clipboard keys are bound only off macOS. Upper and lower case
    * have no keys on Linux, where IBus takes Ctrl+Shift+U. On macOS, where Option+Shift with Left or
-   * Right selects words, the block selection keys add Command.
+   * Right selects words, the block selection keys add Command, and Add Caret Above and Below take
+   * Control+Shift.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -81,6 +83,7 @@ public final class Keymap {
     window(b, CommandId.NEXT_TAB, P, KeyStroke.PAGE_DOWN);
     window(b, CommandId.PREVIOUS_TAB, P, KeyStroke.PAGE_UP);
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);
+    window(b, CommandId.FOCUS_OTHER_VIEW, 0, F6);
     window(b, CommandId.FIND, P, 'f');
     window(b, CommandId.FIND_NEXT, 0, F3);
     window(b, CommandId.FIND_PREVIOUS, S, F3);
@@ -119,8 +122,9 @@ public final class Keymap {
     editor(b, CommandId.OUTDENT, P, '[');
     editor(b, CommandId.OUTDENT, S, KeyStroke.TAB);
     editor(b, CommandId.INSERT_TAB, 0, KeyStroke.TAB);
-    editor(b, CommandId.ADD_CARET_ABOVE, P | a, KeyStroke.UP);
-    editor(b, CommandId.ADD_CARET_BELOW, P | a, KeyStroke.DOWN);
+    int addCaret = mac ? KeyStroke.CONTROL | S : P | a | S;
+    editor(b, CommandId.ADD_CARET_ABOVE, addCaret, KeyStroke.UP);
+    editor(b, CommandId.ADD_CARET_BELOW, addCaret, KeyStroke.DOWN);
     editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');
     int word = mac ? a : P;
     int block = mac ? P | a | S : a | S;

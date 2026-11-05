@@ -111,6 +111,22 @@ class FindControllerTest {
   }
 
   @Test
+  void escDropsExtraCaretsFirstThenClosesTheBar() throws Exception {
+    EditorController editor = open("alpha beta alpha\n");
+    find.open(false);
+    find.setText("alpha");
+    settle();
+    awaitMatches(new int[] {0, 5, 11, 16});
+    editor.selections().set(SelectionSet.of(List.of(Selection.caret(0), Selection.caret(6)), 0));
+    editor.execute(CommandId.CANCEL);
+    assertEquals(SelectionSet.caret(0), editor.selections().selections());
+    assertTrue(last.open());
+    editor.execute(CommandId.CANCEL);
+    assertFalse(last.open());
+    assertArrayEquals(new int[0], harness.view.selected.matches);
+  }
+
+  @Test
   void nextAndPreviousWrapWithANotice() throws Exception {
     EditorController editor = open("alpha beta alpha\nALPHA\n");
     find.open(false);
@@ -217,6 +233,22 @@ class FindControllerTest {
     settle();
     assertEquals("dog dog\n", editor.document().text().toString());
     assertNull(editor.document().preeditRange());
+  }
+
+  @Test
+  void replaceAllAfterAnEditReportsTheDroppedResult() throws Exception {
+    EditorController editor = open("cat cat\n");
+    find.open(true);
+    find.setText("cat");
+    find.setReplacement("dog");
+    settle();
+    editor.selections().set(SelectionSet.caret(0));
+    find.replaceAll();
+    editor.type("x");
+    settle();
+    assertEquals("xcat cat\n", editor.document().text().toString());
+    assertEquals(UiText.FIND_REPLACE_ALL_STALE.text(), last.notice());
+    assertTrue(last.error());
   }
 
   @Test

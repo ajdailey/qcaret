@@ -41,6 +41,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.MenuItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -171,6 +172,16 @@ class SplitAndFindTest {
     first.text().notifyListeners(SWT.FocusIn, new Event());
     drain();
     assertSame(first, window.activeEditor());
+    MenuItem focusOther = window.menuBar().item(CommandId.FOCUS_OTHER_VIEW);
+    assertEquals(SWT.F6, focusOther.getAccelerator());
+    assertTrue(focusOther.getText().endsWith("\tF6"), focusOther.getText());
+    assertTrue(focusOther.getEnabled());
+    focusOther.notifyListeners(SWT.Selection, new Event());
+    drain();
+    assertSame(second, window.activeEditor());
+    controller.execute(CommandId.FOCUS_OTHER_VIEW);
+    drain();
+    assertSame(first, window.activeEditor());
     controller.execute(CommandId.UNSPLIT);
     drain();
     assertEquals(List.of(first), window.activeEditors());
@@ -223,6 +234,36 @@ class SplitAndFindTest {
     drain();
     assertFalse(bar.control().isVisible());
     assertEquals(0, pane.matches().length);
+
+    // Esc in the editor: extra carets go first, then the bar and its matches.
+    controller.execute(CommandId.FIND);
+    drain();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.matches().length >= 4;
+          }
+        },
+        "matches again");
+    EditorController focusedEditor = controller.documents().activeEditor();
+    controller.execute(CommandId.ADD_CARET_BELOW);
+    assertEquals(2, focusedEditor.selections().selections().size());
+    StyledText focused = window.activeText();
+    escape(focused);
+    assertEquals(1, focusedEditor.selections().selections().size());
+    assertTrue(bar.control().isVisible());
+    escape(focused);
+    assertFalse(bar.control().isVisible());
+    assertEquals(0, pane.matches().length);
+  }
+
+  private void escape(StyledText text) {
+    Event event = new Event();
+    event.keyCode = SWT.ESC;
+    event.character = SWT.ESC;
+    text.notifyListeners(SWT.KeyDown, event);
+    drain();
   }
 
   /** Checks the background just inside a match on a row the editor shows. */

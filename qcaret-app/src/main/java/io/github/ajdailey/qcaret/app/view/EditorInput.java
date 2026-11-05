@@ -50,7 +50,10 @@ public interface EditorInput {
   /** Selects the whole document. */
   void selectAll();
 
-  /** Cancels a running save of the document and drops the secondary selections. */
+  /**
+   * Cancels a running save of the document and drops the secondary selections and the block; with
+   * neither, closes the find bar.
+   */
   void cancel();
 
   /**

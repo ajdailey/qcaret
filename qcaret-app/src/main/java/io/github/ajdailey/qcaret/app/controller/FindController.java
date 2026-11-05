@@ -43,7 +43,7 @@ import java.util.regex.PatternSyntaxException;
  *       from where the selection started when the bar opened or the last match was found.
  *   <li>While the bar is open, each view of the selected document highlights the matches in its
  *       visible range, at most {@value #VIEW_MATCHES}. A text change shifts the highlights at once
- *       and recomputes them.
+ *       and recomputes them. Esc in a view with one caret and no block closes the bar.
  *   <li>Replace replaces the focused view's selection when the query matches exactly that range,
  *       then finds the next match. Replace All replaces every match in the document. Each is one
  *       undo step; line breaks in the replacement become the document's line ending.
@@ -378,7 +378,11 @@ public final class FindController implements DocumentController.ViewListener {
             return new Runnable() {
               @Override
               public void run() {
-                if (document.revision() != revision || document.isReadOnly()) {
+                if (document.revision() != revision) {
+                  report(UiText.FIND_REPLACE_ALL_STALE.text(), true);
+                  return;
+                }
+                if (document.isReadOnly()) {
                   return;
                 }
                 if (replacements.isEmpty()) {
@@ -582,6 +586,11 @@ public final class FindController implements DocumentController.ViewListener {
   }
 
   // Highlights.
+
+  @Override
+  public void escapePressed() {
+    close();
+  }
 
   @Override
   public void viewsChanged() {

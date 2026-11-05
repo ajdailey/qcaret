@@ -69,6 +69,7 @@ public final class EditorController implements EditorInput {
   private EditorView view;
   private CancellationToken rewrap;
   private CancellationToken occurrence;
+  private Runnable escapeListener;
   private boolean columnMode;
   private boolean disposed;
 
@@ -508,7 +509,18 @@ public final class EditorController implements EditorInput {
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
       selections.set(SelectionSet.of(List.of(set.primary()), 0));
+    } else if (escapeListener != null) {
+      escapeListener.run();
     }
+  }
+
+  /**
+   * Sets what {@link #cancel} runs when there are no secondary selections and no block.
+   *
+   * @param listener the listener, or null
+   */
+  void setEscapeListener(Runnable listener) {
+    escapeListener = listener;
   }
 
   @Override

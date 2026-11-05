@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandGroup;
@@ -16,6 +17,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -33,6 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.DeviceData;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.junit.jupiter.api.AfterEach;
@@ -44,8 +47,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit, and
  * the find bar opened, searching and closed return the Display's tracked graphics resources ({@code
- * DeviceData.tracking}) to their count after a warm-up round. A failure lists each leaked object's
- * allocation stack.
+ * DeviceData.tracking}) to their count after a warm-up round. Theme switches, zoom and split each
+ * rebuild or add a primary caret image. A failure lists each leaked object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -177,6 +180,10 @@ class ResourceLeakTest {
   private void splitAndFind() {
     controller.execute(CommandId.SPLIT_VERTICAL);
     drain();
+    assertEquals(2, window.activeEditors().size());
+    for (EditorPane pane : window.activeEditors()) {
+      assertFalse(pane.caretImage().isDisposed());
+    }
     controller.execute(CommandId.FIND);
     window.findBar().field().setText("line " + (cycles++ % 2));
     assertTrue(
@@ -198,10 +205,13 @@ class ResourceLeakTest {
     openTab("second.txt");
     window.showTabMenu(1).setVisible(false);
     closeTab();
+    Image caret = window.activeEditor().caretImage();
     theme(CommandId.THEME_DARK, Palette.DARK);
     theme(CommandId.THEME_LIGHT, Palette.LIGHT);
     controller.execute(CommandId.ZOOM_IN);
     controller.execute(CommandId.ZOOM_OUT);
+    assertTrue(caret.isDisposed());
+    assertFalse(window.activeEditor().caretImage().isDisposed());
     splitAndFind();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {

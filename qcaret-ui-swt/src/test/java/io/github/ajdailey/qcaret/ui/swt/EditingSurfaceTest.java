@@ -28,6 +28,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.charset.StandardCharsets;
@@ -184,6 +185,15 @@ class EditingSurfaceTest {
           }
         },
         BOUND);
+    capture(name);
+  }
+
+  /** Saves the window without waiting when {@code qcaret.screenshots} is set. */
+  private void capture(String name) {
+    String dir = System.getProperty("qcaret.screenshots");
+    if (dir == null) {
+      return;
+    }
     Rectangle bounds = window.shell().getBounds();
     Image image = new Image(display, bounds.width, bounds.height);
     GC gc = new GC(display);
@@ -203,8 +213,9 @@ class EditingSurfaceTest {
     openFile("carets.txt", "alpha one\nbeta two\ngamma three\n");
     StyledText text = window.activeText();
     editor().selections().set(SelectionSet.caret(0));
-    key(text, SWT.ARROW_DOWN, SWT.MOD1 | SWT.MOD3);
-    key(text, SWT.ARROW_DOWN, SWT.MOD1 | SWT.MOD3);
+    int addCaret = SwtKeys.mac() ? SWT.MOD4 | SWT.MOD2 : SWT.MOD1 | SWT.MOD3 | SWT.MOD2;
+    key(text, SWT.ARROW_DOWN, addCaret);
+    key(text, SWT.ARROW_DOWN, addCaret);
     assertEquals(3, editor().selections().selections().size());
     int word = SwtKeys.mac() ? SWT.MOD3 : SWT.MOD1;
     key(text, SWT.ARROW_RIGHT, word);
@@ -320,6 +331,209 @@ class EditingSurfaceTest {
       }
     }
     return -1;
+  }
+
+  /** Dispatches events for a time measured by a Display timer. */
+  private void dispatchFor(int millis) {
+    final boolean[] done = new boolean[1];
+    display.timerExec(
+        millis,
+        new Runnable() {
+          @Override
+          public void run() {
+            done[0] = true;
+          }
+        });
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return done[0];
+          }
+        },
+        millis + " ms");
+  }
+
+  /** Alt+presses at one point, moves to another outside the view and waits for the scroll. */
+  private void holdOutside(
+      final StyledText text, Point down, Point held, BooleanSupplier scrolled, String what) {
+    mouse(text, SWT.MouseDown, down.x, down.y, SWT.MOD3);
+    mouse(text, SWT.MouseMove, held.x, held.y, SWT.MOD3 | SWT.BUTTON1);
+    await(scrolled, what);
+    assertTrue(window.activeEditor().autoscrolling(), what);
+  }
+
+  /** QLogg f380b90: a block drag held outside the view keeps scrolling until it ends. */
+  @Test
+  void aBlockDragHeldOutsideTheViewScrollsUntilReleaseFocusLossOrClose() throws Exception {
+    StringBuilder content = new StringBuilder();
+    for (int i = 0; i < 300; i++) {
+      content.append("row ").append(i).append(' ').append("x".repeat(300)).append('\n');
+    }
+    openFile("drag.txt", content.toString());
+    final StyledText text = window.activeText();
+    final EditorPane pane = window.activeEditor();
+    final int half = text.getLineHeight() / 2;
+    final int left = text.getLeftMargin() + pane.metrics().x(2);
+    final int height = text.getClientArea().height;
+
+    // Below the view, ended by the release.
+    holdOutside(
+        text,
+        new Point(left, half),
+        new Point(left, height + 10),
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getTopIndex() >= 3;
+          }
+        },
+        "scrolled down");
+    assertTrue(editor().selections().block().caretLine() > text.getTopIndex());
+    mouse(text, SWT.MouseUp, left, height + 10, SWT.MOD3);
+    assertFalse(pane.autoscrolling());
+    int top = text.getTopIndex();
+    dispatchFor(4 * 50);
+    assertEquals(top, text.getTopIndex());
+
+    // Right of the view, ended by focus loss.
+    text.setTopIndex(0);
+    drain();
+    final int width = text.getClientArea().width;
+    holdOutside(
+        text,
+        new Point(left, half),
+        new Point(width + 10, half),
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getHorizontalPixel() > pane.metrics().x(3);
+          }
+        },
+        "scrolled right");
+    text.notifyListeners(SWT.FocusOut, new Event());
+    assertFalse(pane.autoscrolling());
+    final int scrolled = text.getHorizontalPixel();
+    dispatchFor(4 * 50);
+    assertEquals(scrolled, text.getHorizontalPixel());
+
+    // Left of the text area, then above the view, ended by closing the tab.
+    holdOutside(
+        text,
+        new Point(width / 2, half),
+        new Point(0, half),
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getHorizontalPixel() < scrolled;
+          }
+        },
+        "scrolled left");
+    mouse(text, SWT.MouseUp, 0, half, SWT.MOD3);
+    text.setTopIndex(100);
+    drain();
+    final int from = text.getTopIndex();
+    holdOutside(
+        text,
+        new Point(left, half),
+        new Point(left, -10),
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getTopIndex() <= from - 3;
+          }
+        },
+        "scrolled up");
+    controller.execute(CommandId.CLOSE);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.isDisposed();
+          }
+        },
+        "tab closed");
+    assertFalse(pane.autoscrolling());
+    dispatchFor(4 * 50);
+  }
+
+  private static RGB rgb(Rgb value) {
+    return new RGB(value.red(), value.green(), value.blue());
+  }
+
+  /** Copies one screen pixel. */
+  private RGB screenPixel(int x, int y) {
+    Image image = new Image(display, 1, 1);
+    GC gc = new GC(display);
+    try {
+      gc.copyArea(image, x, y);
+    } finally {
+      gc.dispose();
+    }
+    ImageData data = image.getImageData();
+    image.dispose();
+    return data.palette.getRGB(data.getPixel(0, 0));
+  }
+
+  /**
+   * The primary caret's image shows the scheme's caret color over the current line, and the screen
+   * shows it while the caret blinks on.
+   */
+  @Test
+  void thePrimaryCaretTakesTheSchemeCaretColorInBothThemes() throws Exception {
+    openFile("caret.txt", "\nsecond line\nthird line\n");
+    final StyledText text = window.activeText();
+    editor().selections().set(SelectionSet.caret(0));
+    window.shell().forceActive();
+    text.setFocus();
+    drain();
+    CaretInk.Blend blend = CaretInk.platform();
+    Palette[] palettes = {Palette.LIGHT, Palette.DARK};
+    for (final Palette palette : palettes) {
+      controller.execute(palette.dark() ? CommandId.THEME_DARK : CommandId.THEME_LIGHT);
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return window.palette().equals(palette);
+            }
+          },
+          "palette");
+      drain();
+      EditorPane pane = window.activeEditor();
+      RGB line = rgb(palette.currentLine());
+      RGB source = CaretInk.source(line, rgb(palette.caret()), blend);
+      ImageData image = pane.caretImage().getImageData();
+      assertEquals(EditorPane.CARET_WIDTH, image.width);
+      assertEquals(text.getLineHeight(), image.height);
+      assertEquals(source, image.palette.getRGB(image.getPixel(1, image.height / 2)));
+      assertEquals(
+          new Point(EditorPane.CARET_WIDTH, text.getLineHeight()), text.getCaret().getSize());
+      final RGB expected = CaretInk.shown(line, source, blend);
+      Point at = display.map(text, null, text.getCaret().getLocation());
+      final int x = at.x;
+      final int y = at.y + text.getLineHeight() / 2;
+      final RGB[] seen = new RGB[1];
+      // The caret blinks; poll the screen until it shows.
+      boolean shown =
+          EventLoop.runUntil(
+              display,
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  seen[0] = screenPixel(x, y);
+                  return expected.equals(seen[0]);
+                }
+              },
+              Duration.ofSeconds(5));
+      // Under GTK 4 and Xvfb a Display GC copy never showed the caret (measured; no SWT issue
+      // found).
+      assumeTrue(shown || !"1".equals(System.getenv("SWT_GTK4")), "no screen copy under GTK 4");
+      assertTrue(shown, palette.dark() + ": expected " + expected + ", last " + seen[0]);
+      if (palette.dark()) {
+        capture("dark-caret");
+      }
+    }
   }
 
   @Test

@@ -199,7 +199,7 @@ public final class MainWindow implements MainView {
     EditorPane add(
         DisplayProjection projection, SelectionModel selections, final EditorInput editor) {
       final EditorPane added =
-          new EditorPane(sash, projection, selections, editor, keymap, font, palette);
+          new EditorPane(sash, projection, selections, editor, keymap, font, palette, dispatcher);
       added
           .text()
           .addListener(

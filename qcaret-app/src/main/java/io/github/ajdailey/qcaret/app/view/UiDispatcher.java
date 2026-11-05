@@ -23,6 +23,14 @@ public interface UiDispatcher {
   void timerExec(int delayMillis, Runnable task);
 
   /**
+   * Cancels a task scheduled with {@link #timerExec} that has not run yet; does nothing when none
+   * is scheduled or the UI is disposed. Call on the UI thread.
+   *
+   * @param task the task given to {@code timerExec}
+   */
+  void cancelTimer(Runnable task);
+
+  /**
    * Reports whether the caller is on the UI thread.
    *
    * @return true on the UI thread

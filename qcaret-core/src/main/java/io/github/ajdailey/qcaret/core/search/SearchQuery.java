@@ -15,6 +15,9 @@ public record SearchQuery(String text, boolean regex, boolean caseSensitive, boo
   /** Word chars for whole-word matching. */
   private static final String WORD = "[\\p{L}\\p{N}_]";
 
+  /** Text tried after a pattern so the wrapper's closing group stays outside it. */
+  private static final String[] CLOSERS = {"", "\\E", "\n", "\\E\n"};
+
   /** Checks the components. */
   public SearchQuery {
     if (text == null) {
@@ -40,8 +43,35 @@ public record SearchQuery(String text, boolean regex, boolean caseSensitive, boo
     }
     String source = regex ? text : Pattern.quote(text);
     if (wholeWord) {
-      source = "(?<!" + WORD + ")(?:" + source + ")(?!" + WORD + ")";
+      source = wholeWord(source);
     }
     return new TextMatcher(Pattern.compile(source, flags), regex);
+  }
+
+  /**
+   * Wraps a regex so a match has no letter, digit or {@code _} touching either end. The pattern is
+   * closed first with {@code \E} when it ends inside {@code \Q}, with a line feed when it ends
+   * inside a {@code (?x)} comment, or with both for a {@code \Q} inside such a comment, which
+   * {@link Pattern} still reads as a quote. Each would otherwise swallow the wrapper's closing
+   * parenthesis.
+   *
+   * @param pattern a regex that compiles alone
+   * @return the wrapped regex
+   * @throws PatternSyntaxException when the pattern does not compile
+   */
+  public static String wholeWord(String pattern) {
+    int groups = Pattern.compile(pattern).matcher("").groupCount();
+    for (String closer : CLOSERS) {
+      String closed = pattern + closer;
+      try {
+        // A group appended after the closer counts only when the closer ends quoting or a comment.
+        if (Pattern.compile(closed + "()").matcher("").groupCount() == groups + 1) {
+          return "(?<!" + WORD + ")(?:" + closed + ")(?!" + WORD + ")";
+        }
+      } catch (PatternSyntaxException e) {
+        // A stray \E outside \Q; the next closer applies.
+      }
+    }
+    throw new PatternSyntaxException("Whole word cannot close the pattern", pattern, -1);
   }
 }

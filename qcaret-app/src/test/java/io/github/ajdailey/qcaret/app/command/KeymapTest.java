@@ -56,7 +56,7 @@ class KeymapTest {
             "  New Line\tEnter, Shift+Enter\n"
                 + "  Delete Previous Char\tBackspace, Shift+Backspace\n"
                 + "  Delete Next Char\tDelete\n"
-                + "  Cancel Save and Extra Carets\tEsc\n"),
+                + "  Cancel Save, Extra Carets or Find Bar\tEsc\n"),
         reference);
   }
 
@@ -99,5 +99,35 @@ class KeymapTest {
     assertEquals("Cmd+Option+Shift+Left", Keymap.defaults(true).keysText(CommandId.BLOCK_LEFT));
     assertTrue(
         Keymap.defaults(true).keysText(CommandId.SELECT_WORD_LEFT).contains("Option+Shift+Left"));
+  }
+
+  /**
+   * Add Caret avoids Ctrl+Alt+Up and Down (workspace switching on Linux) and macOS's block keys; F6
+   * focuses the other view as a window key, so its menu item shows it.
+   */
+  @Test
+  void addCaretAndFocusOtherViewKeys() {
+    for (boolean linux : new boolean[] {false, true}) {
+      Keymap keymap = Keymap.defaults(false, linux);
+      assertEquals("Ctrl+Alt+Shift+Up", keymap.keysText(CommandId.ADD_CARET_ABOVE));
+      assertEquals("Ctrl+Alt+Shift+Down", keymap.keysText(CommandId.ADD_CARET_BELOW));
+      assertNull(
+          keymap.editorCommand(new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT, KeyStroke.UP)));
+    }
+    Keymap mac = Keymap.defaults(true);
+    assertEquals("Ctrl+Shift+Up", mac.keysText(CommandId.ADD_CARET_ABOVE));
+    assertEquals(
+        CommandId.ADD_CARET_BELOW,
+        mac.editorCommand(new KeyStroke(KeyStroke.CONTROL | KeyStroke.SHIFT, KeyStroke.DOWN)));
+    assertEquals(
+        CommandId.BLOCK_UP,
+        mac.editorCommand(
+            new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT | KeyStroke.SHIFT, KeyStroke.UP)));
+    for (boolean onMac : new boolean[] {false, true}) {
+      Keymap keymap = Keymap.defaults(onMac);
+      KeyStroke f6 = new KeyStroke(0, KeyStroke.F1 + 5);
+      assertEquals(f6, keymap.accelerator(CommandId.FOCUS_OTHER_VIEW));
+      assertEquals("F6", keymap.keysText(CommandId.FOCUS_OTHER_VIEW));
+    }
   }
 }

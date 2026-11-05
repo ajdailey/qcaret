@@ -1,8 +1,10 @@
 package io.github.ajdailey.qcaret.core.search;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.document.Replacement;
@@ -47,6 +49,31 @@ class TextMatcherTest {
     TextMatcher m = literal("id", true, true);
     String text = "_id id2 éid id.";
     assertEquals(List.of(new Match(12, 14)), m.all(text, 0, text.length(), 10, LIVE));
+  }
+
+  private static boolean wordMatches(String pattern, String text) {
+    return new SearchQuery(pattern, true, true, true).compile().next(text, 0, LIVE) != null;
+  }
+
+  /** An open {@code \Q} or a trailing {@code (?x)} comment would swallow the wrapper's group. */
+  @Test
+  void wholeWordClosesAnOpenQuoteOrComment() {
+    String[] patterns = {
+      "\\Qa.b",
+      "(?x) a \\. b  # the dot is literal",
+      "(?x) a\\.b # \\Q quoted in the comment",
+      "a\\.b"
+    };
+    for (String pattern : patterns) {
+      assertTrue(wordMatches(pattern, "x a.b y"), pattern);
+      assertTrue(wordMatches(pattern, "a.b"), pattern);
+      assertFalse(wordMatches(pattern, "xa.b"), pattern);
+      assertFalse(wordMatches(pattern, "a.bc"), pattern);
+      assertFalse(wordMatches(pattern, "axb"), pattern);
+    }
+    String word = "[\\p{L}\\p{N}_]";
+    assertEquals("(?<!" + word + ")(?:a|ab)(?!" + word + ")", SearchQuery.wholeWord("a|ab"));
+    assertTrue(wordMatches("a|ab", "ab"));
   }
 
   @Test

@@ -19,7 +19,7 @@ import java.util.Map;
  * @param currentLine background of the caret's line
  * @param lineNumbers line number text
  * @param gutter line number background
- * @param caret painted carets
+ * @param caret the primary and secondary carets
  * @param whitespace whitespace marks
  * @param findMatch background of a find match
  * @param tokens the style of each role; every role has one

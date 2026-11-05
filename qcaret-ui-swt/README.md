@@ -122,7 +122,10 @@ which `MainWindow.clipboardText` uses.
   plain drag selects a block; Mod+click adds a caret or removes the one
   clicked. The press fixes the block's anchor as a line and column, and each
   drag step extends from it, so a horizontal scroll during the drag keeps the
-  anchor.
+  anchor. A block drag held above, below, left or right of the text area
+  extends the block toward the pointer every 50 ms from a
+  `UiDispatcher.timerExec` timer, and the controller scrolls to the block's
+  caret. Release, focus loss and dispose cancel the timer (`cancelTimer`).
 - `EditorLayout` is the pane's `ViewLayout`. A printable ASCII row without
   tabs maps x to a column at the font's fractional advance from the row's
   left edge (UI-1); any other row uses the widget's measured glyph positions.
@@ -136,8 +139,15 @@ which `MainWindow.clipboardText` uses.
   script. A block's part past a short line's end, and each row's caret there,
   are painted from the line end's measured position at the fractional
   advance.
-  Secondary carets take the palette's caret color; the primary caret
-  is the widget's native caret.
+  Secondary carets take the palette's caret color.
+- The primary caret is an SWT `Caret` with a 2 px image one line high, rebuilt
+  on a font change, a zoom change and a palette change and disposed with the
+  widget. The platform composites the image over the text, so `CaretInk`
+  picks the image color that shows the caret color over the current line:
+  difference on GTK 3 and cocoa, XOR on win32 (assumed, not yet checked on
+  Windows), over on GTK 4. Under difference, a channel the background cannot
+  reach shows the nearest value: the dark palette's amber shows red 0xdd for
+  0xf3.
 - Each paint that shows another display range reports it through
   `EditorInput.viewportChanged`. `showMatches` stores the find matches
   (`MatchLayer`), painted as line style backgrounds; a secondary selection on
@@ -230,26 +240,37 @@ and status, Save disabled and a typed key refused; and column 150, where the
 widget's x must match `ColumnMetrics` within 1 px and a secondary caret's
 pixels must sit at the widget's position. Under GTK 4 the window cannot grow
 past the screen, so the pixel half of the column 150 check skips.
-`EditingSurfaceTest` (tag `swt`) adds carets with Ctrl+Alt+Down, moves and
+`EditingSurfaceTest` (tag `swt`) adds carets with Add Caret Below, moves and
 extends every caret by key, adds one with Mod+click and drops them with Esc;
 drags with Alt from column 150 across long and short lines, scrolling the
 widget between press and drag, and checks the block, its copy, and in a print of the widget the block's left edge on a short
 line within 1 px of the measured column 150 on a long line, with the virtual
 part painted after a resize and a horizontal scroll (TEST-10); sends
 composition text through the content and checks it stays out of undo; runs Go
-to Line through its dialog; and filters and copies Keyboard Shortcuts. With
-`-Dqcaret.screenshots=<dir>` it saves the multi-caret and block windows as
-PNG. Under GTK 4 its pixel half skips: the window cannot grow past the screen,
+to Line through its dialog; filters and copies Keyboard Shortcuts; holds a
+block drag below, right, left and above the view and checks that it scrolls
+until release, focus loss and tab close (QLogg `f380b90`); and checks the
+primary caret's image color and size and, polled while the caret blinks, its
+screen pixel in both themes. With `-Dqcaret.screenshots=<dir>` it saves the
+multi-caret, block and dark-caret windows as PNG. Under GTK 4 the caret's
+screen check skips (a Display GC copy never showed the caret under Xvfb) and
+its pixel half skips: the window cannot grow past the screen,
 and `Control.print` draws nothing there (SWT issue 2819).
 `SplitAndFindTest` (tag `swt`) types in one of two views and checks the text
 and both carets, switches the arrangement and unsplits; it opens the find bar,
 types a query, and checks the selected match, the matches in both views, the
 match background in pixels in the light and the dark theme (skipped when
-`Control.print` returns false), and Escape closing the bar and clearing the
-matches. `ResourceLeakTest` (tag `swt`) runs `DeviceData.tracking` over a
+`Control.print` returns false), Escape closing the bar and clearing the
+matches, and Esc in the editor dropping an extra caret before it closes the
+bar; the Focus Other View item shows F6 and switches views.
+`SwtUiDispatcherTest` checks that a canceled timer does not run and that
+cancel after dispose does nothing. `CaretInkTest` checks the caret image color
+under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
+`DeviceData.tracking` over a
 warm-up round and four rounds of tab open and close, the tab menu, both
 themes, zoom, split with the find bar searching and closed, unsplit, and
-every menu's `Show`; the live counts per type must return to the warm-up's.
+every menu's `Show`; the live counts per type must return to the warm-up's,
+and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it
 disposes with the Display on each theme switch, so the next request allocates
 another.

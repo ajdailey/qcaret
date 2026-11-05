@@ -41,6 +41,13 @@ public final class SwtUiDispatcher implements UiDispatcher {
   }
 
   @Override
+  public void cancelTimer(Runnable task) {
+    if (!display.isDisposed()) {
+      display.timerExec(-1, task);
+    }
+  }
+
+  @Override
   public boolean isUiThread() {
     return !display.isDisposed() && display.getThread() == Thread.currentThread();
   }

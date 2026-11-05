@@ -468,6 +468,15 @@ public final class DocumentController {
             }
           }
         });
+    editor.setEscapeListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (viewListener != null && active == d) {
+              viewListener.escapePressed();
+            }
+          }
+        });
     d.editors.add(editor);
     return editor;
   }
@@ -851,7 +860,7 @@ public final class DocumentController {
     VERTICAL
   }
 
-  /** Receives changes of the views a find highlights in. */
+  /** Receives changes of the views a find highlights in, and Esc in those views. */
   interface ViewListener {
     /** The selected document, its focused view or its set of views changed. */
     void viewsChanged();
@@ -862,6 +871,9 @@ public final class DocumentController {
      * @param editor the view's controller
      */
     void viewportChanged(EditorController editor);
+
+    /** Esc in a view of the selected document, with one caret and no block. */
+    void escapePressed();
   }
 
   private ViewListener viewListener;

@@ -292,8 +292,11 @@ their `CancellationToken` per block.
 `SearchQuery` (text, regex, case, whole word) compiles to a `TextMatcher`; an
 invalid regex throws `PatternSyntaxException` and empty text
 `IllegalArgumentException`. A regex compiles with `MULTILINE`, so `^` and `$`
-match at CR, LF and CR LF. Case folding is Unicode-aware; whole word rejects a
-letter, digit or `_` touching either end. Lookbehind and lookahead see text
+match at CR, LF and CR LF. Case folding is Unicode-aware; whole word
+(`SearchQuery.wholeWord`) rejects a letter, digit or `_` touching either end.
+A regex that ends inside `\Q`, a `(?x)` comment, or a `\Q` inside such a
+comment (`Pattern` reads it as a quote) gets `\E`, a line feed or both before
+the wrapper's closing parenthesis. Lookbehind and lookahead see text
 outside a searched range.
 
 - `next`, `previous` and `all` return non-empty `Match`es; empty matches are
@@ -367,7 +370,9 @@ not encode back, a canceled load, a file larger than one 1 MiB read block
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.
-`TextMatcherTest` covers case folding, whole word, the line-break anchors,
+`TextMatcherTest` covers case folding, whole word (including a regex ending
+inside `\Q`, a `(?x)` comment and a `\Q` in such a comment, which the plain
+wrapper failed with "Unclosed group"), the line-break anchors,
 skipped empty matches, lookbehind before the range, cancellation, a stack
 overflow on 400,000 chars as a typed failure, and replacement templates.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on

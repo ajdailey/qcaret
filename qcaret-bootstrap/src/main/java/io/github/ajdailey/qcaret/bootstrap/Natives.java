@@ -24,12 +24,35 @@ import java.util.Set;
  *
  * <p>A writable directory is created owner-only and a missing or mismatched library is extracted
  * from the fragment: written to a temp file in the directory, checked, then moved over its name
- * with {@code ATOMIC_MOVE}. A read-only directory (a bundle's {@code lib/swt}) is verified only.
+ * with {@code ATOMIC_MOVE}. When that move fails and the name already holds a matching library,
+ * placed by a concurrent start, extraction succeeds. A read-only directory (a bundle's {@code
+ * lib/swt}) is verified only.
  */
 final class Natives {
   private static final int BUFFER = 64 * 1024;
   private static final Set<PosixFilePermission> OWNER_DIR =
       PosixFilePermissions.fromString("rwx------");
+
+  /** Moves an extracted temp file over its library name. */
+  interface Mover {
+    /**
+     * Moves the file.
+     *
+     * @param temp the verified temp file
+     * @param file the library's name in the directory
+     * @throws IOException when the move fails
+     */
+    void move(Path temp, Path file) throws IOException;
+  }
+
+  private static final Mover ATOMIC =
+      new Mover() {
+        @Override
+        public void move(Path temp, Path file) throws IOException {
+          Files.move(
+              temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        }
+      };
 
   private Natives() {}
 
@@ -63,6 +86,33 @@ final class Natives {
       Target target,
       List<String> names)
       throws MismatchException, IOException {
+    prepare(dir, writable, jar, fragmentRoot, target, names, ATOMIC);
+  }
+
+  /**
+   * Verifies, and where the directory is writable extracts, every library, moving each extracted
+   * file into place with the given mover.
+   *
+   * @param dir the natives directory; created when writable and absent
+   * @param writable false for a bundle directory, which is never written
+   * @param jar the universal jar, holding the digests
+   * @param fragmentRoot root of the target's nested SWT fragment, holding the libraries
+   * @param target the target
+   * @param names the library names from the index, already validated
+   * @param mover moves a verified temp file over its name
+   * @throws MismatchException when a library does not match after one extraction, or a read-only
+   *     directory holds a missing or mismatched library
+   * @throws IOException when the directory or a library cannot be read or written
+   */
+  static void prepare(
+      Path dir,
+      boolean writable,
+      FileSystem jar,
+      Path fragmentRoot,
+      Target target,
+      List<String> names,
+      Mover mover)
+      throws MismatchException, IOException {
     if (writable) {
       createOwnerOnly(dir);
     }
@@ -75,7 +125,7 @@ final class Natives {
       if (!writable) {
         throw new MismatchException(mismatchMessage(name, dir));
       }
-      extract(fragmentRoot, name, dir, file, expected);
+      extract(fragmentRoot, name, dir, file, expected, mover);
       if (!matches(file, expected)) {
         throw new MismatchException(mismatchMessage(name, dir));
       }
@@ -171,7 +221,8 @@ final class Natives {
     return MessageDigest.isEqual(digest.digest(), expected);
   }
 
-  private static void extract(Path fragmentRoot, String name, Path dir, Path file, byte[] expected)
+  private static void extract(
+      Path fragmentRoot, String name, Path dir, Path file, byte[] expected, Mover mover)
       throws IOException, MismatchException {
     Path source = fragmentRoot.resolve(name);
     if (!Files.isRegularFile(source)) {
@@ -198,8 +249,15 @@ final class Natives {
       if (posix(temp)) {
         Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rwx------"));
       }
-      Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-      moved = true;
+      try {
+        mover.move(temp, file);
+        moved = true;
+      } catch (IOException e) {
+        // On Windows the replace fails while another start has the library loaded.
+        if (!matches(file, expected)) {
+          throw e;
+        }
+      }
     } finally {
       if (!moved) {
         Files.deleteIfExists(temp);
