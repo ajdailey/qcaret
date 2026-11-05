@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- IANA media type text/tab-separated-values: one record per line, fields separated by tabs, no quoting. Columns cycle through five colors. -->
-<grammar id="tsv" name="TSV" version="1">
+<grammar id="tsv" name="TSV" version="1" category="markup">
   <detect>
     <extension>tsv</extension>
     <extension>tab</extension>

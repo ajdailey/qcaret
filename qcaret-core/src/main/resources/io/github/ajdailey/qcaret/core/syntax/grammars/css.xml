@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CSS Syntax Module Level 3 and Selectors Level 4 (W3C), with CSS nesting. -->
-<grammar id="css" name="CSS" version="1">
+<grammar id="css" name="CSS" version="1" category="markup">
   <detect>
     <extension>css</extension>
   </detect>

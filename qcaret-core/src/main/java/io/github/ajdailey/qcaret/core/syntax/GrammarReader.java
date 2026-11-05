@@ -182,6 +182,7 @@ public final class GrammarReader {
         id,
         root.getAttribute("name"),
         root.getAttribute("version"),
+        attribute(root, "category"),
         extensions,
         fileNames,
         firstLine,
@@ -229,7 +230,12 @@ public final class GrammarReader {
                   token(r),
                   attribute(r, "context"),
                   Boolean.parseBoolean(r.getAttribute("multiLine")),
-                  Boolean.parseBoolean(r.getAttribute("nested")));
+                  Boolean.parseBoolean(r.getAttribute("nested")),
+                  Boolean.parseBoolean(r.getAttribute("bodyNextLine")));
+          if (span.nested() && span.bodyNextLine()) {
+            throw new IllegalArgumentException(
+                "span " + span.begin() + " is nested and bodyNextLine");
+          }
           if ((Syntax.templated(span.end()) || Syntax.templated(span.escape()))
               && span.begin().matcher("").groupCount() == 0) {
             throw new IllegalArgumentException(

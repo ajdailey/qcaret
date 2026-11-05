@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- TOML v1.0.0 specification (toml.io/en/v1.0.0). -->
-<grammar id="toml" name="TOML" version="1">
+<grammar id="toml" name="TOML" version="1" category="build">
   <detect>
     <extension>toml</extension>
     <fileName>Cargo.lock</fileName>

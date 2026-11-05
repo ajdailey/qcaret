@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- INI files as the Windows profile API (GetPrivateProfileString) and Python configparser read them. -->
-<grammar id="ini" name="INI" version="1">
+<grammar id="ini" name="INI" version="1" category="build">
   <detect>
     <extension>ini</extension>
     <extension>cfg</extension>

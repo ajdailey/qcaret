@@ -85,7 +85,8 @@ import org.slf4j.LoggerFactory;
  *   <li>Each document has a {@link SyntaxHighlighter} its views paint from. Its grammar is detected
  *       on a {@code qcaret-cpu-} worker from the file name and the first line when the document
  *       opens, when a save gives it another name and when the grammars are read again, unless the
- *       user chose one ({@link #setSyntax}).
+ *       user chose one ({@link #setSyntax}). The last {@value #RECENT_GRAMMARS} grammars chosen,
+ *       Plain Text aside, are kept for the run.
  *   <li>Bookmarks are per document, shared by its views. Word completion ({@link WordCompletion})
  *       reads every open document. Show Whitespace, Show Line Endings and the completion trigger
  *       apply to every editor of the window.
@@ -102,6 +103,9 @@ public final class DocumentController {
   /** Closed files Reopen Closed Tab remembers. */
   static final int REOPEN_LIMIT = 20;
 
+  /** Chosen grammars {@link #recentGrammars} keeps. */
+  static final int RECENT_GRAMMARS = 5;
+
   private final Workers workers;
   private final UiDispatcher ui;
   private final MainView view;
@@ -111,6 +115,7 @@ public final class DocumentController {
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
   private final Map<Path, Charset> reopening = new HashMap<Path, Charset>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
+  private final List<String> recentGrammars = new ArrayList<String>();
   private boolean disposing;
   private OpenDocument active;
   private int nextUntitled = 1;
@@ -1391,7 +1396,19 @@ public final class DocumentController {
     if (active != null && set != null && set.get(id) != null) {
       active.manualGrammar = true;
       applyGrammar(active, id, set);
+      if (!GrammarSet.PLAIN.equals(id)) {
+        recentGrammars.remove(id);
+        recentGrammars.add(0, id);
+        if (recentGrammars.size() > RECENT_GRAMMARS) {
+          recentGrammars.remove(RECENT_GRAMMARS);
+        }
+      }
     }
+  }
+
+  /** Returns the ids of the grammars last chosen with {@link #setSyntax}, most recent first. */
+  List<String> recentGrammars() {
+    return List.copyOf(recentGrammars);
   }
 
   /** Returns the selected document's grammar, or null without a document or before the read. */

@@ -356,6 +356,13 @@ exists. Each grammar switch, the reload included, passes the grammar to every
 view's `EditorController.setGrammar`: comment delimiters, fold source, indent
 rules and pairs.
 
+`CommandStates.syntaxMenu` builds the `SyntaxMenu` both lists show: the last
+five grammars chosen with `setSyntax` in this run, Plain Text aside, then Plain
+Text, then one submenu per category that holds a grammar, in `byName` order.
+A grammar's `category` picks the submenu (`programming` splits into A-M and
+N-Z by the name's first letter, then `markup`, `build`); a grammar without one
+goes in User.
+
 `SyntaxHighlighter` keeps the painted tokens in a `TokenCache` on the UI
 thread and runs a `SyntaxEngine` on the CPU pool; the UI thread runs no regex.
 
@@ -564,9 +571,12 @@ Tab, Read-Only, the tab settings and the Go to Line prompt.
 arrive and the regions follow the pass, an edit's shifted tokens paint at once
 and the final tokens equal a new pass, and outputs queued for an older
 revision do not overwrite newer text. `SyntaxControllerTest` covers detection
-by name and first line, the manual choice across a reload, a user grammar
+by name and first line, the manual choice across a reload, the Syntax
+menu's five recent grammars, a user grammar
 replacing a built-in, the notice for an invalid file, and both comment
-commands at two carets as one undo step. `GrammarWiringTest` covers fold
+commands at two carets as one undo step. `SyntaxMenuTest` covers the
+category submenus of the built-in grammars, a user grammar in its category or
+in User, and the recent list. `GrammarWiringTest` covers fold
 regions from the highlighter for a `brackets` grammar and from indentation
 for the others through switches and a reload, the grammar's indent rules and
 pairs, and bracket matching that counts a string's bracket until the tokens

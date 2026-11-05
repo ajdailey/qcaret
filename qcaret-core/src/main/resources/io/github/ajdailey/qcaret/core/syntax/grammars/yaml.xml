@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- YAML 1.2.2 specification, chapters 5 to 9, with the YAML 1.1 boolean words. -->
-<grammar id="yaml" name="YAML" version="1">
+<grammar id="yaml" name="YAML" version="1" category="markup">
   <detect>
     <extension>yaml</extension>
     <extension>yml</extension>

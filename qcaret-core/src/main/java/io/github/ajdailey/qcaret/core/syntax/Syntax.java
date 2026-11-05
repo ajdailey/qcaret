@@ -32,6 +32,9 @@ import java.util.regex.Pattern;
  * tokenizer takes from {@link #derive} one context per text the begin's first group matched: the
  * template's rules with {@code \1} replaced by that text, quoted. A syntax derives at most {@value
  * #MAX_DERIVED} contexts, each for a text of at most {@value #MAX_CAPTURE} chars.
+ *
+ * <p>A {@code bodyNextLine} span's begin pushes a pending context from {@link #pending}, which the
+ * tokenizer replaces with the span's body at the line's end.
  */
 public final class Syntax {
   /** Rejected regex features: backreferences and named groups, which alternation renumbers. */
@@ -103,6 +106,15 @@ public final class Syntax {
     /** For a template context, the span whose end or escape uses {@code \1}; else null. */
     final Grammar.Span template;
 
+    /** True for a span body that starts at the line after its begin. */
+    boolean nextLine;
+
+    /**
+     * For a pending context, the body it becomes at the line's end; else -1. A pending context has
+     * no rules: the tokenizer applies the context below it.
+     */
+    int body = -1;
+
     Context(
         int id,
         String name,
@@ -149,6 +161,7 @@ public final class Syntax {
   private final List<Context> contexts;
   private final Map<Long, Combined> combined = new ConcurrentHashMap<Long, Combined>();
   private final Map<String, Integer> derived = new ConcurrentHashMap<String, Integer>();
+  private final Map<Integer, Integer> pending = new ConcurrentHashMap<Integer, Integer>();
 
   private Syntax(Grammar grammar, List<Context> contexts) {
     this.grammar = grammar;
@@ -237,6 +250,7 @@ public final class Syntax {
       Grammar.Span s = t.template;
       Context c =
           new Context(contexts.size(), t.name + ":" + text, t.content, t.lineEnd, null, null);
+      c.nextLine = t.nextLine;
       try {
         if (s.escape() != null) {
           c.alts.add(
@@ -253,6 +267,31 @@ public final class Syntax {
       contexts.add(c);
       derived.put(key, c.id);
       return c.id;
+    }
+  }
+
+  /**
+   * Returns the pending context of a span body, created on first use.
+   *
+   * @param body a context whose {@code nextLine} is set
+   * @return the pending context's id
+   */
+  int pending(int body) {
+    Integer found = pending.get(body);
+    if (found != null) {
+      return found;
+    }
+    synchronized (this) {
+      found = pending.get(body);
+      if (found == null) {
+        Context b = contexts.get(body);
+        Context c = new Context(contexts.size(), b.name + ":pending", null, false, null, null);
+        c.body = body;
+        contexts.add(c);
+        found = c.id;
+        pending.put(body, found);
+      }
+      return found;
     }
   }
 
@@ -546,6 +585,7 @@ public final class Syntax {
               s.end() == null || !s.multiLine(),
               null,
               template ? s : null);
+      c.nextLine = s.bodyNextLine();
       for (Pattern p : new Pattern[] {s.escape(), s.end()}) {
         if (templated(p)) {
           if (UNSUPPORTED.matcher(substitute(p, "").pattern()).find()) {

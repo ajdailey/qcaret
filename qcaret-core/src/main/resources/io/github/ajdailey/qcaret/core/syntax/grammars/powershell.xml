@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- PowerShell 7 language specification: lexical structure (chapter 2) and the about_Reserved_Words and about_Operators topics. -->
-<grammar id="powershell" name="PowerShell" version="1">
+<grammar id="powershell" name="PowerShell" version="1" category="programming">
   <detect>
     <extension>ps1</extension>
     <extension>psm1</extension>

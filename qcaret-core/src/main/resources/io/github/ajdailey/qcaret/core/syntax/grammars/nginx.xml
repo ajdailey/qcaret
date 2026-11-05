@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- nginx documentation (nginx.org/en/docs): configuration file structure, measurement units, ngx_http_core_module location matching and variables. -->
-<grammar id="nginx" name="nginx Configuration" version="1">
+<grammar id="nginx" name="nginx Configuration" version="1" category="build">
   <detect>
     <extension>nginx</extension>
     <fileName>nginx.conf</fileName>

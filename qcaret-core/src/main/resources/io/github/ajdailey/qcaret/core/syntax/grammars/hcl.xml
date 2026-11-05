@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- HCL native syntax specification (hashicorp/hcl, hclsyntax/spec.md) and the Terraform language documentation (blocks, references, type constraints). -->
-<grammar id="hcl" name="HCL / Terraform" version="1">
+<grammar id="hcl" name="HCL / Terraform" version="1" category="build">
   <detect>
     <extension>tf</extension>
     <extension>tfvars</extension>
@@ -26,7 +26,7 @@
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="#|//"/>
-    <span token="string" begin="&lt;&lt;-?[A-Za-z_][\w-]*\s*$" end="^\s*[A-Za-z_][\w-]*\s*$" context="template" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;-?([A-Za-z_][\w-]*)\s*$" end="^\s*\1\s*$" context="template" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin='"' end='"' escape="\\(?:[ntr&quot;\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|\$\$\{|%%\{" context="template"/>
     <match token="keyword" regex="^\s*[A-Za-z_][\w-]*(?=(?:\s+(?:&quot;[^&quot;]*&quot;|[A-Za-z_][\w-]*))*\s*\{)"/>
     <match token="attribute" regex="(?&lt;![\w.-])[A-Za-z_][\w-]*(?=\s*=(?![=&gt;]))"/>

@@ -445,6 +445,16 @@ public enum UiText {
   STATUS_LANGUAGE_TIP,
   /** Notice: grammar files skipped, the first with its reason. */
   NOTICE_GRAMMARS_SKIPPED,
+  /** Syntax submenu of the programming languages A to M. */
+  MENU_SYNTAX_PROGRAMMING_A_M,
+  /** Syntax submenu of the programming languages N to Z. */
+  MENU_SYNTAX_PROGRAMMING_N_Z,
+  /** Syntax submenu of the markup and data formats. */
+  MENU_SYNTAX_MARKUP,
+  /** Syntax submenu of the build, configuration and log formats. */
+  MENU_SYNTAX_BUILD,
+  /** Syntax submenu of the user grammars without a known category. */
+  MENU_SYNTAX_USER,
   /** View submenu of the fold commands. */
   MENU_FOLDING,
   /** Command label. */

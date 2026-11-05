@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generic log text: ISO 8601 and RFC 3339 timestamps, RFC 3164 and RFC 5424 syslog severities, the Common Log Format date, java.util.logging, Log4j, Logback and Python logging levels, Java and Python stack traces, RFC 3986 URLs and logfmt key=value pairs. -->
-<grammar id="log" name="Log File" version="1">
+<grammar id="log" name="Log File" version="1" category="build">
   <detect>
     <extension>log</extension>
     <extension>out</extension>

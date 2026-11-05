@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- GraphQL specification, October 2021 edition, section 2 (language) and section 3 (type system). -->
-<grammar id="graphql" name="GraphQL" version="1">
+<grammar id="graphql" name="GraphQL" version="1" category="markup">
   <detect>
     <extension>graphql</extension>
     <extension>graphqls</extension>

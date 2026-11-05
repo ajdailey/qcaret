@@ -114,6 +114,24 @@ class SyntaxEngineTest {
     }
   }
 
+  @Test
+  void randomEditsOverHereDocumentsLeaveTheSameTokensAndRegions() {
+    String[] ruby = {"<<~EOS", "EOS", "<<A <<B", "\nA\n", "\nB\n", "\n", "#{", "}", " x ", "#"};
+    String[] shell = {"<<EOF", "\nEOF\n", "<<-'A' <<B", "\n\tA\n", "\nB\n", "\n", "\"", "$(", ")"};
+    StringBuilder rubyText = new StringBuilder();
+    StringBuilder shellText = new StringBuilder();
+    for (int i = 0; i < 20; i++) {
+      rubyText.append("def m").append(i).append("\n  s = <<~EOS.strip + f(x) # note\n");
+      rubyText.append("    Mock #{i}\n  EOS\n  t = <<A + <<B\na\nA\nb\nB\nend\n");
+      shellText.append("m").append(i).append("() {\n  cat <<EOF | wc -l # note\n");
+      shellText.append("Mock $HOME\nEOF\n  x=$(cat <<-'A'\n\ta\n\tA\n  )\n}\n");
+    }
+    for (long seed = 1; seed <= 100; seed++) {
+      randomEdits("ruby", rubyText.toString(), ruby, seed, true);
+      randomEdits("shell", shellText.toString(), shell, seed, true);
+    }
+  }
+
   /**
    * Applies seeded random edits to 240 lines of Java; after some edits runs a partial pass, after
    * others finishes the pass and compares with a new engine.

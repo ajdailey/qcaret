@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Perl 5.38 documentation: perldata, perlop (quote and quote-like operators), perlsyn, perlpod and perlfunc. -->
-<grammar id="perl" name="Perl" version="1">
+<grammar id="perl" name="Perl" version="1" category="programming">
   <detect>
     <extension>pl</extension>
     <extension>pm</extension>
@@ -27,8 +27,8 @@
     <span token="comment" begin="^=[A-Za-z]\w*" end="^=cut\b.*" multiLine="true"/>
     <span token="comment" begin="^__(?:END|DATA)__\b" end="(?!)" multiLine="true"/>
     <span token="comment" begin="#"/>
-    <span token="string" begin="&lt;&lt;~?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true"/>
-    <span token="string" begin="&lt;&lt;~?(?:&quot;|(?=[A-Z_]))([A-Za-z_]\w*)&quot;?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;~?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="&lt;&lt;~?(?:&quot;|(?=[A-Z_]))([A-Za-z_]\w*)&quot;?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin='"' end='"' escape="\\." context="interpolation" multiLine="true"/>
     <span token="string" begin="`" end="`" escape="\\." context="interpolation" multiLine="true"/>
     <span token="string" begin="'" end="'" escape="\\[\\']" multiLine="true"/>

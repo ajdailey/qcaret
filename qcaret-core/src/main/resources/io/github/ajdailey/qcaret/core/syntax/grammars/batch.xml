@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Windows command interpreter (cmd.exe) batch files, from the Windows Commands reference. -->
-<grammar id="batch" name="Windows Batch" version="1">
+<grammar id="batch" name="Windows Batch" version="1" category="programming">
   <detect>
     <extension>bat</extension>
     <extension>cmd</extension>

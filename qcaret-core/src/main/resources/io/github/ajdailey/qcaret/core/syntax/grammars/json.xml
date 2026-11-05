@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- JSON, RFC 8259. Comments, which RFC 8259 does not allow, are colored for JSON with comments. -->
-<grammar id="json" name="JSON" version="1">
+<grammar id="json" name="JSON" version="1" category="markup">
   <detect>
     <extension>json</extension>
     <extension>jsonc</extension>

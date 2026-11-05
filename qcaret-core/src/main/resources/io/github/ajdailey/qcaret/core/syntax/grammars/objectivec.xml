@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- C23 (ISO/IEC 9899:2024) clause 6.4 with the Objective-C additions in the Clang documentation (Objective-C literals, ARC and nullability) and Apple's Programming with Objective-C. -->
-<grammar id="objectivec" name="Objective-C" version="1">
+<grammar id="objectivec" name="Objective-C" version="1" category="programming">
   <detect>
     <extension>m</extension>
     <extension>mm</extension>

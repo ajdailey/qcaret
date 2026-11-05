@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Haskell 2010 Language Report, chapter 2 (lexical structure), with the GHC User's Guide pragmas. -->
-<grammar id="haskell" name="Haskell" version="1">
+<grammar id="haskell" name="Haskell" version="1" category="programming">
   <detect>
     <extension>hs</extension>
     <extension>hs-boot</extension>

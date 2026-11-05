@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- C23, ISO/IEC 9899:2024, clauses 6.4 (lexical elements) and 6.10 (preprocessing directives). -->
-<grammar id="c" name="C" version="1">
+<grammar id="c" name="C" version="1" category="programming">
   <detect>
     <extension>c</extension>
     <extension>h</extension>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- GNU diffutils manual 3.10, sections 2.2.2 and 2.2.3 (context and unified formats), with git-diff(1) extended headers and git-format-patch(1) mail headers. -->
-<grammar id="diff" name="Diff" version="1">
+<grammar id="diff" name="Diff" version="1" category="build">
   <detect>
     <extension>diff</extension>
     <extension>patch</extension>

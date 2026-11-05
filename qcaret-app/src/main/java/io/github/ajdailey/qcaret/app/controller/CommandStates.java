@@ -204,21 +204,18 @@ public final class CommandStates {
   }
 
   /**
-   * Lists the grammars for View > Syntax and the status bar's language field.
+   * Returns the entries of View > Syntax and the status bar's language popup.
    *
-   * @return plain text first, then by name; empty without a document or before the grammars load
+   * @return the menu; {@link SyntaxMenu#EMPTY} without a document or before the grammars load
    */
-  public List<SyntaxChoice> syntaxChoices() {
+  public SyntaxMenu syntaxMenu() {
     DocumentController documents = application.documents();
+    List<Grammar> grammars = documents.grammarChoices();
+    if (documents.activeDocument() == null || grammars.isEmpty()) {
+      return SyntaxMenu.EMPTY;
+    }
     Grammar active = documents.activeGrammar();
-    List<SyntaxChoice> out = new ArrayList<SyntaxChoice>();
-    if (documents.activeDocument() == null) {
-      return out;
-    }
-    for (Grammar g : documents.grammarChoices()) {
-      out.add(new SyntaxChoice(g.id(), g.name(), active != null && g.id().equals(active.id())));
-    }
-    return out;
+    return SyntaxMenu.of(grammars, documents.recentGrammars(), active == null ? null : active.id());
   }
 
   /**

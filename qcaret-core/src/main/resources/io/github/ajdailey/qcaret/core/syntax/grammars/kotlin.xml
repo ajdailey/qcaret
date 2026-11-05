@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Kotlin language specification (Kotlin 2.0), chapter Syntax and grammar (lexical grammar, keywords and operators). -->
-<grammar id="kotlin" name="Kotlin" version="1">
+<grammar id="kotlin" name="Kotlin" version="1" category="programming">
   <detect>
     <extension>kt</extension>
     <extension>kts</extension>

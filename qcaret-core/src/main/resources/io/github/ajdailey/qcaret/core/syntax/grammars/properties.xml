@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Java properties files, as java.util.Properties.load(Reader) reads them. -->
-<grammar id="properties" name="Properties" version="1">
+<grammar id="properties" name="Properties" version="1" category="build">
   <detect>
     <extension>properties</extension>
   </detect>

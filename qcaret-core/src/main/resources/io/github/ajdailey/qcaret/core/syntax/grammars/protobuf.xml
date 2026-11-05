@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Protocol Buffers language specifications for proto2, proto3 and editions (protobuf.dev/reference/protobuf). -->
-<grammar id="protobuf" name="Protocol Buffers" version="1">
+<grammar id="protobuf" name="Protocol Buffers" version="1" category="markup">
   <detect>
     <extension>proto</extension>
     <firstLine>^\s*(?:syntax|edition)\s*=\s*["']</firstLine>

@@ -35,13 +35,15 @@ color per column), log files (levels, timestamps, stack traces), HCL and
 Terraform, Protocol Buffers, GraphQL and nginx configuration. The grammar
 follows the file name, its extension, or its first line (a shebang, `<?xml`,
 `<!DOCTYPE html>`); View > Syntax or a click on the status bar's language
-field chooses another. A line over 10,000 chars shows without colors.
+field chooses another, from the last five chosen or from a category submenu.
+A line over 10,000 chars shows without colors.
 Highlighting runs on worker threads: opening a large file and typing never
 wait for it.
 
 User grammars go in `grammars/*.xml` in the settings directory, in the format
 `qcaret-core/README.md` describes; one with a built-in grammar's id replaces
-it. They are read at startup and on View > Syntax > Reload Grammars, and an
+it, and its `category` attribute picks its Syntax submenu (User without one).
+They are read at startup and on View > Syntax > Reload Grammars, and an
 invalid file is skipped with a notice. Edit > Toggle Line Comment (Mod+/) and
 Toggle Block Comment (Mod+Shift+/) use the grammar's comment delimiters.
 

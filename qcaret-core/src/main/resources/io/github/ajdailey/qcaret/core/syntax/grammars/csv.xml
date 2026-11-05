@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- RFC 4180, Common Format and MIME Type for Comma-Separated Values (CSV) Files. Columns cycle through five colors. -->
-<grammar id="csv" name="CSV" version="1">
+<grammar id="csv" name="CSV" version="1" category="markup">
   <detect>
     <extension>csv</extension>
   </detect>

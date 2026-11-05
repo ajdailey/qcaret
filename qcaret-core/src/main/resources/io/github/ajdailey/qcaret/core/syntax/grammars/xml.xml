@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- XML 1.0 (Fifth Edition), section 2 (documents) and 4.1 (character and entity references). -->
-<grammar id="xml" name="XML" version="1">
+<grammar id="xml" name="XML" version="1" category="markup">
   <detect>
     <extension>xml</extension>
     <extension>xsd</extension>

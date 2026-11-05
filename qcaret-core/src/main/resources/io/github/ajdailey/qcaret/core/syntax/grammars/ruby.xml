@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Ruby, ISO/IEC 30170:2012 clause 8 (lexical structure), with the Ruby 3.3 syntax documentation (literals, here documents, pattern matching). -->
-<grammar id="ruby" name="Ruby" version="1">
+<grammar id="ruby" name="Ruby" version="1" category="programming">
   <detect>
     <extension>rb</extension>
     <extension>rbw</extension>
@@ -34,8 +34,8 @@
     <span token="comment" begin="^=begin\b" end="^=end\b.*" multiLine="true"/>
     <span token="comment" begin="(?&lt;!\$)#(?!\{)"/>
     <span token="comment" begin="^__END__$" end="(?!)" multiLine="true"/>
-    <span token="string" begin="&lt;&lt;[~-]?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true"/>
-    <span token="string" begin="&lt;&lt;(?=[~-]|[&quot;`]?[A-Z_])[~-]?[&quot;`]?([A-Za-z_]\w*)[&quot;`]?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;[~-]?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="&lt;&lt;(?=[~-]|[&quot;`]?[A-Z_])[~-]?[&quot;`]?([A-Za-z_]\w*)[&quot;`]?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f ]+\}|[0-7]{1,3}|c.|C-.|M-.|.)" context="interpolation" multiLine="true"/>
     <span token="string" begin="`" end="`" escape="\\." context="interpolation" multiLine="true"/>
     <span token="string" begin="'" end="'" escape="\\[\\']" multiLine="true"/>

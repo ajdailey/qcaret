@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CommonMark 0.31.2 with the GitHub Flavored Markdown table and strikethrough extensions. -->
-<grammar id="markdown" name="Markdown" version="1">
+<grammar id="markdown" name="Markdown" version="1" category="markup">
   <detect>
     <extension>md</extension>
     <extension>markdown</extension>

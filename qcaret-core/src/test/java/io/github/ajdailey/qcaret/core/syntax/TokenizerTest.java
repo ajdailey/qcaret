@@ -217,6 +217,82 @@ class TokenizerTest {
   }
 
   @Test
+  void aBodyNextLineSpanLeavesTheRestOfItsLineToTheEnclosingRules() throws Exception {
+    Syntax syntax = hereDocuments();
+    assertEquals(
+        List.of(
+            "STRING:<<EOT",
+            "KEYWORD:x",
+            "STRING:\"<<A\"",
+            "COMMENT:# x",
+            "STRING: x <<B",
+            "STRING:EOT",
+            "KEYWORD:x"),
+        Tokens.of(syntax, "<<EOT x \"<<A\" # x\n x <<B\nEOT\nx"));
+  }
+
+  @Test
+  void bodiesOfMarkersOnOneLineFollowInTheirOrder() throws Exception {
+    Syntax syntax = hereDocuments();
+    assertEquals(
+        List.of(
+            "STRING:<<A",
+            "STRING:<<B",
+            "STRING:B",
+            "STRING:A",
+            "STRING:A",
+            "STRING:B",
+            "KEYWORD:x"),
+        Tokens.of(syntax, "<<A <<B\nB\nA\nA\nB\nx"));
+  }
+
+  @Test
+  void aPopOnTheMarkersLineRemovesTheEnclosingContextAndKeepsTheBody() throws Exception {
+    Syntax syntax = hereDocuments();
+    Tokenizer t = syntax.tokenizer(100);
+    TokenList list = new TokenList();
+    CancellationToken token = new CancellationToken();
+    int opened = t.tokenize("(<<EOT) x", Tokenizer.INITIAL, list, token);
+    assertEquals(TokenType.KEYWORD, list.typeAt(8));
+    assertEquals(2, t.depth(opened));
+    int body = t.tokenize("x", opened, list, token);
+    assertEquals(TokenType.STRING, list.typeAt(0));
+    assertEquals(Tokenizer.INITIAL, t.tokenize("EOT", body, list, token));
+    int inParen = t.tokenize("(<<EOT", Tokenizer.INITIAL, list, token);
+    assertEquals(3, t.depth(inParen));
+    int back = t.tokenize("EOT", inParen, list, token);
+    assertEquals(2, t.depth(back));
+  }
+
+  @Test
+  void aSpanCannotBeNestedAndBeginItsBodyOnTheNextLine() {
+    assertThrows(
+        InvalidGrammarException.class,
+        new Executable() {
+          @Override
+          public void execute() throws Exception {
+            spans(
+                "<span token=\"string\" begin=\"&lt;&lt;\" end=\"x\" multiLine=\"true\""
+                    + " nested=\"true\" bodyNextLine=\"true\"/>");
+          }
+        });
+  }
+
+  /** Here documents ending at a line holding only their name, strings, comments and parens. */
+  private static Syntax hereDocuments() throws Exception {
+    return Tokens.compile(
+        "<grammar id=\"mock\" name=\"Mock\"><context id=\"main\">"
+            + "<span token=\"string\" begin=\"&lt;&lt;([A-Z]+)\" end=\"^\\1$\" multiLine=\"true\""
+            + " bodyNextLine=\"true\"/>"
+            + "<span token=\"string\" begin=\"&quot;\" end=\"&quot;\"/>"
+            + "<span token=\"comment\" begin=\"#\"/>"
+            + "<match token=\"delimiter\" regex=\"\\(\" push=\"paren\"/>"
+            + "<match token=\"keyword\" regex=\"x\"/></context>"
+            + "<context id=\"paren\"><match token=\"delimiter\" regex=\"\\)\" pop=\"true\"/>"
+            + "<include context=\"main\"/></context></grammar>");
+  }
+
+  @Test
   void groupOneNeedsAGroupInTheBeginAndOtherBackreferencesStayRefused() {
     for (final String span :
         new String[] {

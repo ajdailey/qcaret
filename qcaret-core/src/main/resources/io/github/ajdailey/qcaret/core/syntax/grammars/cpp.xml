@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- C++23, ISO/IEC 14882:2024, clause 5 (lexical conventions) and 15 (preprocessing directives). -->
-<grammar id="cpp" name="C++" version="1">
+<grammar id="cpp" name="C++" version="1" category="programming">
   <detect>
     <extension>cpp</extension>
     <extension>cc</extension>

@@ -168,8 +168,11 @@ which `MainWindow.clipboardText` uses.
   italic and underline; on the same chars the background of a secondary
   selection wins over a bracket, a bracket over a find match, and a find
   match over an occurrence. `redrawHighlights` repaints after new tokens
-  arrive. The status bar's language field pops up the grammar list; the View
-  menu's Syntax cascade lists it above Reload Grammars, rebuilt on each show.
+  arrive.
+- The View menu's Syntax cascade and the status bar's language popup show
+  the app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain
+  Text, then one cascade per category. `MainMenuBar` rebuilds the cascade's
+  entries above Reload Grammars on each show and the popup on each click.
 - Bookmarked lines get a bar in the caret color at the gutter's left edge on
   their first row, inside the padding left of the line numbers, so it never
   meets the fold marker column; the pane follows the document's `Bookmarks`
@@ -297,8 +300,9 @@ match background in pixels in the light and the dark theme (skipped when
 matches, and Esc in the editor dropping an extra caret before it closes the
 bar; the Focus Other View item shows F6 and switches views.
 `SyntaxPaneTest` (tag `swt`) opens a Java file and checks the keyword's
-palette color and bold, a number keeping its color under a find match, the
-Syntax cascade's grammar list and a switch to Plain Text that clears the
+palette color and bold, a number keeping its color under a find match, Java
+checked in the Programming Languages A-M cascade, Python chosen from N-Z
+listed first on the next show, and a switch to Plain Text that clears the
 styles and the status field.
 
 `FoldingSurfaceTest` (tag `swt`) clicks fold markers and checks the widget's

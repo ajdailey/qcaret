@@ -125,6 +125,20 @@ class SyntaxPaneTest {
     return null;
   }
 
+  private static Menu cascade(Menu menu, String text) {
+    MenuItem holder = item(menu, text);
+    return holder == null ? null : holder.getMenu();
+  }
+
+  private static MenuItem item(Menu menu, String text) {
+    for (MenuItem item : menu.getItems()) {
+      if (text.equals(item.getText())) {
+        return item;
+      }
+    }
+    return null;
+  }
+
   @Test
   void aJavaKeywordPaintsInTheKeywordStyleAndTheSyntaxMenuSwitchesIt() throws Exception {
     Path file =
@@ -168,13 +182,18 @@ class SyntaxPaneTest {
     Menu syntax = window.menuBar().item(CommandId.RELOAD_GRAMMARS).getParent();
     MenuItem plain = syntax.getItem(0);
     assertEquals("Plain Text", plain.getText());
-    MenuItem java = null;
-    for (MenuItem item : syntax.getItems()) {
-      if ("Java".equals(item.getText())) {
-        java = item;
-      }
-    }
+    MenuItem java = item(cascade(syntax, "&Programming Languages A-M"), "Java");
     assertTrue(java != null && java.getSelection());
+    MenuItem python = item(cascade(syntax, "Programming Languages &N-Z"), "Python");
+    python.setSelection(true);
+    python.notifyListeners(SWT.Selection, null);
+    view.notifyListeners(SWT.Show, null);
+    syntax = window.menuBar().item(CommandId.RELOAD_GRAMMARS).getParent();
+    assertEquals("Python", syntax.getItem(0).getText());
+    assertTrue(syntax.getItem(0).getSelection());
+    assertEquals(SWT.SEPARATOR, syntax.getItem(1).getStyle() & SWT.SEPARATOR);
+    plain = syntax.getItem(2);
+    assertEquals("Plain Text", plain.getText());
     plain.setSelection(true);
     plain.notifyListeners(SWT.Selection, null);
     await(

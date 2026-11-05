@@ -23,6 +23,10 @@ import java.util.regex.Matcher;
  *       token. A search that reaches the count or overflows the stack leaves the rest of the line
  *       plain; a cancel throws {@link java.util.concurrent.CancellationException}.
  *   <li>At a line's end, spans that do not continue past it are closed.
+ *   <li>A {@code bodyNextLine} span's begin pushes a pending context. Until the line's end the
+ *       rules of the context below it apply, and a pop removes that context; at the line's end each
+ *       pending context becomes its span's body, the first pushed on top, and single-line contexts
+ *       below it close.
  *   <li>A push that would make the stack deeper than {@value #MAX_DEPTH} is skipped, so a file
  *       opening nested comments without end does not grow the states without bound.
  * </ul>
@@ -112,7 +116,7 @@ public final class Tokenizer {
     int zeroWidth = 0;
     try {
       while (pos <= length) {
-        Syntax.Context context = syntax.context(work[depth - 1]);
+        Syntax.Context context = syntax.context(work[effective()]);
         Syntax.Combined combined = combined(context.id, embedFrame());
         Matcher m = null;
         Syntax.Combined used = null;
@@ -153,6 +157,11 @@ public final class Tokenizer {
               m.start(group) < 0 ? "" : line.subSequence(m.start(group), m.end(group)).toString();
           target = syntax.derive(target, captured);
         }
+        if (alt.kind() == Syntax.Kind.SPAN_BEGIN
+            && target >= 0
+            && syntax.context(target).nextLine) {
+          target = syntax.pending(target);
+        }
         apply(alt, target, out, start, end);
         if (alt.kind() == Syntax.Kind.EMBED_END) {
           end = start;
@@ -163,7 +172,7 @@ public final class Tokenizer {
         } else if (depth != before || work[depth - 1] != top) {
           pos = start;
           if (++zeroWidth > ZERO_WIDTH_STEPS) {
-            out.add(start, Math.min(start + 1, length), syntax.context(work[depth - 1]).content);
+            out.add(start, Math.min(start + 1, length), syntax.context(work[effective()]).content);
             pos = start + 1;
             zeroWidth = 0;
           }
@@ -175,9 +184,7 @@ public final class Tokenizer {
     } catch (BoundedChars.LimitReached | StackOverflowError e) {
       failed = true;
     }
-    while (depth > 1 && syntax.context(work[depth - 1]).lineEnd) {
-      depth--;
-    }
+    lineEnd();
     return intern();
   }
 
@@ -186,8 +193,8 @@ public final class Tokenizer {
     switch (alt.kind()) {
       case MATCH -> {
         out.add(start, end, alt.token());
-        if (alt.pop() && depth > 1) {
-          depth--;
+        if (alt.pop()) {
+          pop();
         }
         if (target >= 0) {
           push(target);
@@ -201,9 +208,7 @@ public final class Tokenizer {
       }
       case SPAN_END -> {
         out.add(start, end, alt.token());
-        if (depth > 1) {
-          depth--;
-        }
+        pop();
       }
       case ESCAPE -> out.add(start, end, TokenType.ESCAPE);
       case EMBED_END -> {
@@ -215,6 +220,45 @@ public final class Tokenizer {
           depth--;
         }
       }
+    }
+  }
+
+  /** Returns the work-stack index of the context whose rules apply: the top one not pending. */
+  private int effective() {
+    int i = depth - 1;
+    while (i > 0 && syntax.context(work[i]).body >= 0) {
+      i--;
+    }
+    return i;
+  }
+
+  /** Removes the context whose rules apply, keeping the pending contexts above it. */
+  private void pop() {
+    int at = effective();
+    if (at > 0) {
+      System.arraycopy(work, at + 1, work, at, depth - at - 1);
+      depth--;
+    }
+  }
+
+  /** Closes single-line contexts and turns pending contexts into their span bodies. */
+  private void lineEnd() {
+    int[] bodies = null;
+    int count = 0;
+    while (depth > 1) {
+      Syntax.Context top = syntax.context(work[depth - 1]);
+      if (top.body >= 0) {
+        if (bodies == null) {
+          bodies = new int[depth];
+        }
+        bodies[count++] = top.body;
+      } else if (!top.lineEnd) {
+        break;
+      }
+      depth--;
+    }
+    for (int i = 0; i < count; i++) {
+      push(bodies[i]);
     }
   }
 

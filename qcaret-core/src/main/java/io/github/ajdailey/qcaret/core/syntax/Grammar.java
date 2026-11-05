@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
  * @param id the identifier, which a user grammar with the same id replaces
  * @param name the name menus show
  * @param version the grammar's own version
+ * @param category the Syntax menu category, one of {@link #CATEGORIES}, or null
  * @param extensions file extensions without the dot, lower case
  * @param fileNames whole file names, matched ignoring case
  * @param firstLine matched against a file's first line, or null
@@ -27,6 +28,7 @@ public record Grammar(
     String id,
     String name,
     String version,
+    String category,
     List<String> extensions,
     List<String> fileNames,
     Pattern firstLine,
@@ -40,6 +42,9 @@ public record Grammar(
     Map<String, List<Rule>> contexts) {
   /** The context every file starts in. */
   public static final String MAIN = "main";
+
+  /** The values {@link #category} takes: the Syntax menu's category submenus. */
+  public static final List<String> CATEGORIES = List.of("programming", "markup", "build");
 
   /** Copies the lists and checks that {@link #MAIN} exists. */
   public Grammar {
@@ -144,6 +149,8 @@ public record Grammar(
    * @param multiLine true when the span continues past a line's end
    * @param nested true when {@code begin} inside the span opens one more level, which its own
    *     {@code end} closes
+   * @param bodyNextLine true when the span's body starts at the next line: the rest of the line
+   *     holding {@code begin} keeps the enclosing context's rules, as after a here-document marker
    */
   public record Span(
       Pattern begin,
@@ -152,7 +159,8 @@ public record Grammar(
       TokenType token,
       String context,
       boolean multiLine,
-      boolean nested)
+      boolean nested,
+      boolean bodyNextLine)
       implements Rule {}
 
   /**

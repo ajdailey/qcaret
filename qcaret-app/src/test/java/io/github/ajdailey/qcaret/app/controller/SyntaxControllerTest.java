@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -82,16 +83,37 @@ class SyntaxControllerTest {
     awaitLanguage("Plain Text");
     harness.application.setSyntax("python");
     awaitLanguage("Python");
-    List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
-    assertEquals("plain", choices.get(0).id());
-    assertEquals(GrammarSet.BUILT_IN.size(), choices.size());
+    SyntaxMenu menu = states.syntaxMenu();
+    assertEquals(GrammarSet.PLAIN, menu.plain().id());
+    assertEquals("python", menu.recent().get(0).id());
+    assertTrue(menu.recent().get(0).checked());
+    int count = 1;
     int checked = 0;
-    for (CommandStates.SyntaxChoice choice : choices) {
-      checked += choice.checked() ? 1 : 0;
+    for (SyntaxMenu.Category category : menu.categories()) {
+      for (CommandStates.SyntaxChoice choice : category.choices()) {
+        count++;
+        checked += choice.checked() ? 1 : 0;
+      }
     }
+    assertEquals(GrammarSet.BUILT_IN.size(), count);
     assertEquals(1, checked);
     loadGrammars();
     awaitLanguage("Python");
+  }
+
+  @Test
+  void theSyntaxMenuKeepsTheLastFiveGrammarsChosenWithoutPlainText() throws Exception {
+    loadGrammars();
+    open("notes", "plain words\n");
+    awaitLanguage("Plain Text");
+    for (String id : new String[] {"java", "go", "ruby", "perl", "lua", "rust", "go", "plain"}) {
+      harness.application.setSyntax(id);
+    }
+    List<String> recent = new ArrayList<String>();
+    for (CommandStates.SyntaxChoice choice : states.syntaxMenu().recent()) {
+      recent.add(choice.id());
+    }
+    assertEquals(List.of("go", "rust", "lua", "perl", "ruby"), recent);
   }
 
   @Test

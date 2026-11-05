@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- R Language Definition (R 4.4), section 10.3 (tokens), with the raw string literals of R 4.0 and the base package functions. -->
-<grammar id="r" name="R" version="1">
+<grammar id="r" name="R" version="1" category="programming">
   <detect>
     <extension>r</extension>
     <fileName>.Rprofile</fileName>

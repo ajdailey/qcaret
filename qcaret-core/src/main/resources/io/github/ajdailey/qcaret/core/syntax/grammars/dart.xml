@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Dart Programming Language Specification (6th edition draft, Dart 3), sections on reserved words, comments, numbers, strings and metadata. -->
-<grammar id="dart" name="Dart" version="1">
+<grammar id="dart" name="Dart" version="1" category="programming">
   <detect>
     <extension>dart</extension>
     <firstLine>^#!.*\bdart\b</firstLine>

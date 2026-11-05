@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Java SE 21, The Java Language Specification, chapter 3. -->
-<grammar id="java" name="Java" version="1">
+<grammar id="java" name="Java" version="1" category="programming">
   <detect>
     <extension>java</extension>
   </detect>

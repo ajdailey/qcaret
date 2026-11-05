@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- HTML Living Standard (WHATWG), section 13.1 (writing HTML documents); script and style content uses the JavaScript and CSS grammars. -->
-<grammar id="html" name="HTML" version="1">
+<grammar id="html" name="HTML" version="1" category="markup">
   <detect>
     <extension>html</extension>
     <extension>htm</extension>

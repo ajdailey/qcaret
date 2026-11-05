@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- The Swift Programming Language (Swift 5.10), Language Reference: Lexical Structure, Attributes and Compiler Control Statements. -->
-<grammar id="swift" name="Swift" version="1">
+<grammar id="swift" name="Swift" version="1" category="programming">
   <detect>
     <extension>swift</extension>
     <firstLine>^#!.*\bswift\b</firstLine>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Scala 3 Language Reference, chapter 1 (lexical syntax), with the Scala 3 syntax summary's soft keywords and string interpolation. -->
-<grammar id="scala" name="Scala" version="1">
+<grammar id="scala" name="Scala" version="1" category="programming">
   <detect>
     <extension>scala</extension>
     <extension>sc</extension>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- ECMAScript 2024 (ECMA-262, 15th edition), clause 12 (lexical grammar). -->
-<grammar id="javascript" name="JavaScript" version="1">
+<grammar id="javascript" name="JavaScript" version="1" category="programming">
   <detect>
     <extension>js</extension>
     <extension>mjs</extension>

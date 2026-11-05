@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- C# language specification (ECMA-334, 7th edition), section 6.4 (tokens) and 6.5 (pre-processing directives), with the C# 11 raw string literals. -->
-<grammar id="csharp" name="C#" version="1">
+<grammar id="csharp" name="C#" version="1" category="programming">
   <detect>
     <extension>cs</extension>
     <extension>csx</extension>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- POSIX.1-2024 Shell Command Language, chapter 2, with the Bash reference manual's reserved words and builtins. -->
-<grammar id="shell" name="Shell Script" version="1">
+<grammar id="shell" name="Shell Script" version="1" category="programming">
   <detect>
     <extension>sh</extension>
     <extension>bash</extension>
@@ -35,6 +35,10 @@
     <span token="string" begin='"' end='"' escape='\\[$`"\\]|\\$' context="expansions" multiLine="true"/>
     <span token="string" begin="\$'" end="'" escape="\\." multiLine="true"/>
     <span token="string" begin="'" end="'" multiLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\t*\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*([A-Za-z_]\w*)" end="^\t*\1$" escape="\\[$`\\]|\\$" context="expansions" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;[ \t]*([A-Za-z_]\w*)" end="^\1$" escape="\\[$`\\]|\\$" context="expansions" multiLine="true" bodyNextLine="true"/>
     <include context="expansions"/>
     <match token="function" regex="^\s*(?:function\s+)?[A-Za-z_][\w-]*(?=\s*\(\s*\))"/>
     <keywords token="keyword" wordChars="_-">if then else elif fi case esac for select while until do done in function time coproc</keywords>

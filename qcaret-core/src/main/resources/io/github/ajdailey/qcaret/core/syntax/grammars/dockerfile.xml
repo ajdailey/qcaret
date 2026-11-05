@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Dockerfile reference (docs.docker.com/reference/dockerfile): instructions, parser directives, flags, environment replacement, here-documents. -->
-<grammar id="dockerfile" name="Dockerfile" version="1">
+<grammar id="dockerfile" name="Dockerfile" version="1" category="build">
   <detect>
     <extension>dockerfile</extension>
     <extension>containerfile</extension>
@@ -27,7 +27,10 @@
     <match token="attribute" regex="(?&lt;=\s)--[a-z][\w-]*"/>
     <span token="string" begin='"' end='"' escape="\\." context="expansions"/>
     <span token="string" begin="'" end="'"/>
-    <match token="string" regex="&lt;&lt;-?[&quot;']?[A-Za-z_]\w*[&quot;']?"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\t*\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\1$" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*([A-Za-z_]\w*)" end="^\t*\1$" context="expansions" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="(?&lt;!&lt;)&lt;&lt;[ \t]*([A-Za-z_]\w*)" end="^\1$" context="expansions" multiLine="true" bodyNextLine="true"/>
     <include context="expansions"/>
     <match token="attribute" regex="(?&lt;![\w.$/:-])[A-Za-z_][\w.-]*(?==)"/>
     <match token="number" regex="(?&lt;![\w.$/:-])\d+(?:/(?:tcp|udp|sctp))?(?![\w.:-])"/>

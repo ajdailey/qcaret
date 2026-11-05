@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Python 3.12, The Python Language Reference, chapter 2 (lexical analysis), and the built-in functions. -->
-<grammar id="python" name="Python" version="1">
+<grammar id="python" name="Python" version="1" category="programming">
   <detect>
     <extension>py</extension>
     <extension>pyw</extension>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CMake 3.31, cmake-language(7) (comments, bracket and quoted arguments, variable references) and cmake-commands(7). -->
-<grammar id="cmake" name="CMake" version="1">
+<grammar id="cmake" name="CMake" version="1" category="build">
   <detect>
     <extension>cmake</extension>
     <fileName>CMakeLists.txt</fileName>
@@ -19,13 +19,9 @@
   <indent increase="(?i)^\s*(?:if|elseif|else|foreach|while|function|macro|block)\s*\(.*$" decrease="(?i)^\s*(?:endif|elseif|else|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
   <folding mode="markers" begin="(?i)(?&lt;![\w.-])(?:if|foreach|while|function|macro|block)\s*\(" end="(?i)(?&lt;![\w.-])(?:endif|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
   <context id="main">
-    <span token="comment" begin="#\[\[" end="\]\]" multiLine="true"/>
-    <span token="comment" begin="#\[=\[" end="\]=\]" multiLine="true"/>
-    <span token="comment" begin="#\[==\[" end="\]==\]" multiLine="true"/>
+    <span token="comment" begin="#\[(=*)\[" end="\]\1\]" multiLine="true"/>
     <span token="comment" begin="#"/>
-    <span token="string" begin="\[\[" end="\]\]" multiLine="true"/>
-    <span token="string" begin="\[=\[" end="\]=\]" multiLine="true"/>
-    <span token="string" begin="\[==\[" end="\]==\]" multiLine="true"/>
+    <span token="string" begin="\[(=*)\[" end="\]\1\]" multiLine="true"/>
     <span token="string" begin='"' end='"' escape="\\(?:[^A-Za-z0-9;]|[trn;])|\\$" context="refs" multiLine="true"/>
     <match token="keyword" regex="(?i)(?&lt;![\w.-])(?:if|elseif|else|endif|foreach|endforeach|while|endwhile|break|continue|return|function|endfunction|macro|endmacro|block|endblock)(?=\s*\()"/>
     <match token="function" regex="(?&lt;![\w.-])[A-Za-z_]\w*(?=\s*\()"/>

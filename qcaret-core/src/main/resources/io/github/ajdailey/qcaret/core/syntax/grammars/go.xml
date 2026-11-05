@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- The Go Programming Language Specification (Go 1.22), sections Lexical elements and Predeclared identifiers. -->
-<grammar id="go" name="Go" version="1">
+<grammar id="go" name="Go" version="1" category="programming">
   <detect>
     <extension>go</extension>
   </detect>

@@ -314,13 +314,13 @@ outside `<?php ... ?>` is HTML.
 
 | Element | Content |
 |---|---|
-| `grammar` | `id` (a user grammar with the same id replaces the built-in), `name`, `version` |
+| `grammar` | `id` (a user grammar with the same id replaces the built-in), `name`, `version`, optional `category` (`programming`, `markup` or `build`: the Syntax menu submenu; without it a user grammar goes in User) |
 | `detect` | `extension`s, `fileName`s, one `firstLine` regex |
 | `comments` | `line`, `blockStart`, `blockEnd` |
 | `brackets`, `autoClose` | `pair open close` |
 | `indent` | `increase`, `decrease` and `dedentNext` regexes |
 | `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
-| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
+| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`, `bodyNextLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
 
 Tokens are `TokenType`: comment, string, escape, keyword, keyword2, type,
 number, constant, operator, delimiter, function, preprocessor, tag,
@@ -350,7 +350,17 @@ with as many `=` and `]`, a Ruby here document only at its own identifier. Such
 a span compiles to a template, and `Syntax.derive` adds one context per
 captured text on first use: at most 512 per grammar, each for a text of at
 most 64 chars without a backslash. Past those limits the `begin` colors itself
-and opens nothing.
+and opens nothing. A `nested` span cannot also be `bodyNextLine`.
+
+A `bodyNextLine` span's body starts at the next line, so a here document's
+opening line keeps tokenizing as code after the marker. The `begin` pushes a
+pending context (`Syntax.pending`); until the line's end the rules of the
+context below it apply, and a `pop` or span end removes that context and
+keeps the pending one. At the line's end `Tokenizer` turns each pending
+context into its span's body, the first marker's body on top, so the bodies
+of `cat <<A <<B` follow in order; single-line contexts below a pending one
+close there too. Ruby, Perl, PHP, shell, Dockerfile and HCL here documents
+use it with a `\1` end.
 
 `Tokenizer` tokenizes one line from a start state to an end state; a state is
 an interned context stack of at most 256 contexts. A deeper push is skipped,
@@ -395,11 +405,6 @@ The format grammars use the token set as follows:
 | `csv`, `tsv` | Columns cycle through `keyword2`, `type`, `number`, `preprocessor`, `string`: a separator match pops the column context and pushes the next, and a zero-width `$` match pops it at the line's end, so a CSV quoted field keeps its column across a line break |
 | `log` | Levels: FATAL and ERROR `invalid`, WARN `escape`, INFO `type`, DEBUG `keyword2`, TRACE `comment`, as upper-case words, logfmt `level=` and JSON `"level":` values, and one-letter forms (`[E]`, Android `E/Tag`, glog `E0102`). Timestamps `number`, bracketed thread names `delimiter`, `package.Class` logger names `function`, exception names and `Caused by:` `keyword`, `at` and `... N more` lines `comment`, URLs `link`, keys of `key=value` `attribute` |
 | `diff` | File headers `heading`, hunk headers `keyword`, added lines `type`, removed lines `escape`, context-format changed lines `constant`; inside a unified hunk a `---` line is a removed line, and a line starting with any other char ends the hunk |
-
-Bracket comments, bracket arguments (CMake) and heredocs (Dockerfile, HCL)
-need a backreference to match their closing delimiter: CMake handles zero to
-two `=`, a Dockerfile heredoc marks only its `<<EOF` line, and an HCL heredoc
-ends at the first line holding only an identifier.
 
 ## Search (`core.search`)
 
@@ -502,20 +507,23 @@ wrapper failed with "Unclosed group"), the line-break anchors,
 skipped empty matches, lookbehind before the range, cancellation, a stack
 overflow on 400,000 chars as a typed failure, and replacement templates.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
-its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break and
-a diff hunk's `---` line included. `SyntaxEngineTest`
+its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break, a
+diff hunk's `---` line and here documents' opening lines and bodies included,
+and that every built-in grammar except plain text names a category. `SyntaxEngineTest`
 applies seeded random edits that open and close comments, strings and
 braces and join CR LF pairs, between passes stopped at a deadline or after a
 seeded line count, then checks every line's tokens and the fold regions
 against a new engine, over Java and over Lua long brackets and Rust nested
-comments and raw strings. Two cases pin defects that random edits found: an
+comments and raw strings, and over Ruby and shell here documents. Two cases pin defects that random edits found: an
 edit before a stopped frontier converging before it, and an edit between a
 CR and an LF shifting the lines after it by one line too few. It also checks
 that a converging edit retokenizes three lines, view lines before and after
 the frontier, the line limit and marker folding. `TokenizerTest` covers states across lines, the
 line limit, a runaway regex and a stack overflow left plain, a cancel, the
 zero-width guard, refused backreferences, nested spans, ends and escapes
-using `\1`, shared derived contexts and the derive and depth limits.
+using `\1`, shared derived contexts, the derive and depth limits, and
+`bodyNextLine` spans: the opening line's code, two markers on one line, and a
+pop on the marker's line.
 `GrammarReaderTest` covers every
 element, a refused DOCTYPE, schema errors with their line, bad regexes and
 missing contexts. `GrammarSetTest` covers the detection order, each

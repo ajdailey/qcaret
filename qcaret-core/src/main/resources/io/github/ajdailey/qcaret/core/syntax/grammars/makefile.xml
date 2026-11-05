@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- GNU make manual 4.4, chapters 3 to 8 (rules, recipes, variables, conditionals, functions), and POSIX.1-2024 make. -->
-<grammar id="makefile" name="Makefile" version="1">
+<grammar id="makefile" name="Makefile" version="1" category="build">
   <detect>
     <extension>mk</extension>
     <extension>mak</extension>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- The Rust Reference (Rust 1.80), chapter 2 (lexical structure) and chapter 7 (attributes). -->
-<grammar id="rust" name="Rust" version="1">
+<grammar id="rust" name="Rust" version="1" category="programming">
   <detect>
     <extension>rs</extension>
     <firstLine>^#!.*\brust-script\b</firstLine>

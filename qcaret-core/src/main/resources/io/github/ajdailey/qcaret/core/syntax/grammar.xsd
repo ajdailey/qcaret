@@ -126,6 +126,7 @@
                   <xs:attribute name="context" type="id"/>
                   <xs:attribute name="multiLine" type="xs:boolean" default="false"/>
                   <xs:attribute name="nested" type="xs:boolean" default="false"/>
+                  <xs:attribute name="bodyNextLine" type="xs:boolean" default="false"/>
                 </xs:complexType>
               </xs:element>
               <xs:element name="include">
@@ -156,6 +157,15 @@
         </xs:simpleType>
       </xs:attribute>
       <xs:attribute name="version" type="xs:string" default="1"/>
+      <xs:attribute name="category">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="programming"/>
+            <xs:enumeration value="markup"/>
+            <xs:enumeration value="build"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
     </xs:complexType>
     <xs:unique name="contextIds">
       <xs:selector xpath="context"/>

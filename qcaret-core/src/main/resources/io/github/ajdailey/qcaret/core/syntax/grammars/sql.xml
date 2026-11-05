@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- SQL:2023, ISO/IEC 9075-2, clause 5 (lexical elements), with common procedural keywords. -->
-<grammar id="sql" name="SQL" version="1">
+<grammar id="sql" name="SQL" version="1" category="programming">
   <detect>
     <extension>sql</extension>
     <extension>ddl</extension>

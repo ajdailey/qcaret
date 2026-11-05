@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Visual Basic Language Specification 11.0, chapter 2 (lexical grammar) and chapter 3 (preprocessing directives), with interpolated strings from the Visual Basic 14 reference. -->
-<grammar id="vbnet" name="VB.NET" version="1">
+<grammar id="vbnet" name="VB.NET" version="1" category="programming">
   <detect>
     <extension>vb</extension>
   </detect>

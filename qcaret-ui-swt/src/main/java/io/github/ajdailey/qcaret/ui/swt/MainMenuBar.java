@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
+import io.github.ajdailey.qcaret.app.controller.SyntaxMenu;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.charset.Charset;
@@ -35,9 +36,9 @@ import org.eclipse.swt.widgets.Shell;
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
  * change, because a disabled item's accelerator does not fire. Each encoding cascade holds {@link
  * EncodingChoices#commonCharsets()} from the start and an Other cascade, disabled and empty until
- * {@link #encodingsLoaded} fills it once; neither is rebuilt. The View menu's Syntax cascade lists
- * the grammars above Reload Grammars, rebuilt each time the View menu shows; {@link
- * #showSyntaxMenu} pops up the same list. Call on the UI thread.
+ * {@link #encodingsLoaded} fills it once; neither is rebuilt. The View menu's Syntax cascade holds
+ * the {@link SyntaxMenu} entries above Reload Grammars, rebuilt each time the View menu shows;
+ * {@link #showSyntaxMenu} pops up the same entries. Call on the UI thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
@@ -274,7 +275,7 @@ final class MainMenuBar {
     }
   }
 
-  /** Lists the grammars above Reload Grammars, the selected document's checked. */
+  /** Lists the {@link SyntaxMenu} entries above Reload Grammars. */
   private void syncSyntax() {
     MenuItem reload = items.get(CommandId.RELOAD_GRAMMARS);
     if (reload == null || reload.isDisposed()) {
@@ -283,16 +284,47 @@ final class MainMenuBar {
     Menu menu = reload.getParent();
     for (MenuItem item : menu.getItems()) {
       if (SYNTAX.equals(item.getData())) {
+        if (item.getMenu() != null) {
+          item.getMenu().dispose();
+        }
         item.dispose();
       }
     }
-    List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
-    for (int i = 0; i < choices.size(); i++) {
-      syntaxItem(menu, i, choices.get(i));
+    int count = fillSyntax(menu, states.syntaxMenu());
+    if (count > 0) {
+      new MenuItem(menu, SWT.SEPARATOR, count).setData(SYNTAX);
     }
-    if (!choices.isEmpty()) {
-      new MenuItem(menu, SWT.SEPARATOR, choices.size()).setData(SYNTAX);
+  }
+
+  /**
+   * Inserts the recent grammars, a separator, Plain Text and the category cascades at the top of a
+   * menu, each item tagged {@link #SYNTAX}.
+   *
+   * @return the number of items inserted
+   */
+  private int fillSyntax(Menu menu, SyntaxMenu model) {
+    int index = 0;
+    for (CommandStates.SyntaxChoice choice : model.recent()) {
+      syntaxItem(menu, index++, choice);
     }
+    if (index > 0) {
+      new MenuItem(menu, SWT.SEPARATOR, index++).setData(SYNTAX);
+    }
+    if (model.plain() != null) {
+      syntaxItem(menu, index++, model.plain());
+    }
+    for (SyntaxMenu.Category category : model.categories()) {
+      MenuItem holder = new MenuItem(menu, SWT.CASCADE, index++);
+      holder.setText(category.label().text());
+      holder.setData(SYNTAX);
+      Menu cascade = new Menu(shell, SWT.DROP_DOWN);
+      holder.setMenu(cascade);
+      List<CommandStates.SyntaxChoice> choices = category.choices();
+      for (int i = 0; i < choices.size(); i++) {
+        syntaxItem(cascade, i, choices.get(i));
+      }
+    }
+    return index;
   }
 
   private void syntaxItem(Menu menu, int index, final CommandStates.SyntaxChoice choice) {
@@ -313,14 +345,14 @@ final class MainMenuBar {
   }
 
   /**
-   * Pops up the grammars below a control, the selected document's checked; choosing one sets it.
-   * The popup replaces the previous one.
+   * Pops up the {@link SyntaxMenu} entries below a control; choosing a grammar sets it. The popup
+   * replaces the previous one.
    *
    * @param below the control the menu opens at
    */
   void showSyntaxMenu(Control below) {
-    List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
-    if (choices.isEmpty()) {
+    SyntaxMenu model = states.syntaxMenu();
+    if (model.isEmpty()) {
       return;
     }
     if (syntaxPopup != null && !syntaxPopup.isDisposed()) {
@@ -328,9 +360,7 @@ final class MainMenuBar {
     }
     Menu popup = new Menu(shell, SWT.POP_UP);
     syntaxPopup = popup;
-    for (int i = 0; i < choices.size(); i++) {
-      syntaxItem(popup, i, choices.get(i));
-    }
+    fillSyntax(popup, model);
     Point at = below.toDisplay(0, below.getSize().y);
     popup.setLocation(at.x, at.y);
     popup.setVisible(true);

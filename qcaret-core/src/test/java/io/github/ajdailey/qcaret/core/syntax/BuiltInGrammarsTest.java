@@ -35,6 +35,17 @@ class BuiltInGrammarsTest {
   }
 
   @Test
+  void everyBuiltInGrammarButPlainTextNamesACategory() {
+    for (Grammar g : Tokens.BUILT_IN.byName()) {
+      if (g.id().equals(GrammarSet.PLAIN)) {
+        assertEquals(null, g.category());
+      } else {
+        assertTrue(Grammar.CATEGORIES.contains(g.category()), g.id());
+      }
+    }
+  }
+
+  @Test
   void plainTextHasNoTokens() {
     assertEquals(List.of(), Tokens.of("plain", "class Mock { // \"x\" 42 }"));
   }
@@ -197,7 +208,8 @@ class BuiltInGrammarsTest {
     assertTokens(
         "shell",
         "#!/bin/sh\nmock_run() {\n  if [ \"$#\" -gt 0 ]; then echo \"${1:-x} $HOME\"; fi\n"
-            + "  for f in *.txt; do cat 'a b' | wc -l; done # tail\n}",
+            + "  for f in *.txt; do cat 'a b' | wc -l; done # tail\n}\n"
+            + "cat <<EOF | wc -l # note\nHello $HOME\nEOF\ncat <<-'A'\n\tno $x\n\tA",
         "COMMENT:#!/bin/sh",
         "FUNCTION:mock_run",
         "KEYWORD:if",
@@ -213,7 +225,16 @@ class BuiltInGrammarsTest {
         "STRING:'a b'",
         "OPERATOR:|",
         "KEYWORD:done",
-        "COMMENT:# tail");
+        "COMMENT:# tail",
+        "STRING:<<EOF",
+        "OPERATOR:|",
+        "COMMENT:# note",
+        "STRING:Hello ",
+        "CONSTANT:$HOME",
+        "STRING:EOF",
+        "STRING:<<-'A'",
+        "STRING:\tno $x",
+        "STRING:\tA");
   }
 
   @Test
@@ -620,7 +641,7 @@ class BuiltInGrammarsTest {
             + "  attr_reader :name\n"
             + "  def initialize(name)\n"
             + "    @name = name; $count += 1\n"
-            + "    text = <<~EOS\n"
+            + "    text = <<~EOS.strip + name # note\n"
             + "      Hello #{name}\n"
             + "    EOS\n"
             + "    list = %w[a b c]; re = /ab+c/i\n"
@@ -640,6 +661,9 @@ class BuiltInGrammarsTest {
         "KEYWORD2:@name",
         "KEYWORD2:$count",
         "STRING:<<~EOS",
+        "DELIMITER:.",
+        "OPERATOR:+",
+        "COMMENT:# note",
         "STRING:      Hello ",
         "DELIMITER:#{",
         "STRING:    EOS",
@@ -667,7 +691,7 @@ class BuiltInGrammarsTest {
             + "final class Mock {\n"
             + "    public function run(int $n): string {\n"
             + "        $text = \"Count {$this->n} and $n\\n\"; // done\n"
-            + "        $raw = <<<'EOT'\n"
+            + "        $raw = <<<'EOT' . $tail;\n"
             + "        no $interp\n"
             + "        EOT;\n"
             + "        return strtoupper('a\\'b') . 0x1F;\n"
@@ -689,8 +713,12 @@ class BuiltInGrammarsTest {
         "ESCAPE:\\n",
         "COMMENT:// done",
         "STRING:<<<'EOT'",
+        "OPERATOR:.",
+        "KEYWORD2:$tail",
+        "DELIMITER:;",
         "STRING:        no $interp",
         "STRING:        EOT",
+        "DELIMITER:;",
         "FUNCTION:strtoupper",
         "ESCAPE:\\'",
         "NUMBER:0x1F",
@@ -715,7 +743,7 @@ class BuiltInGrammarsTest {
             + "sub run {\n"
             + "    my ($self, $n) = @_;\n"
             + "    $n =~ s/foo/bar/g; my $re = qr{ab+c}i;\n"
-            + "    print <<\"END\";\n"
+            + "    print <<\"END\", $tail;\n"
             + "Hello $n\n"
             + "END\n"
             + "    return $#items + 0x1F;\n"
@@ -736,7 +764,10 @@ class BuiltInGrammarsTest {
         "STRING:s/foo/bar/g",
         "STRING:qr{ab+c}i",
         "KEYWORD2:print",
-        "STRING:<<\"END\";",
+        "STRING:<<\"END\"",
+        "DELIMITER:,",
+        "KEYWORD2:$tail",
+        "DELIMITER:;",
         "STRING:Hello ",
         "KEYWORD2:$n",
         "STRING:END",
@@ -1079,7 +1110,7 @@ class BuiltInGrammarsTest {
         "# syntax=docker/dockerfile:1\n# build\nFROM mock/base:1.0 AS build\nARG MOCK_VERSION=2\n"
             + "ENV PATH=\"/opt/mock/bin:${PATH}\"\nrun --mount=type=cache apt-get update && \\\n"
             + "    echo 'done'\nCOPY --from=build /src /app\nEXPOSE 8080/tcp\n"
-            + "CMD [\"mock\", \"--serve\"]",
+            + "CMD [\"mock\", \"--serve\"]\nRUN <<EOF bash -c \"x\"\necho ${PATH}\nEOF",
         "PREPROCESSOR:# syntax=docker/dockerfile:1",
         "COMMENT:# build",
         "KEYWORD:FROM",
@@ -1098,7 +1129,13 @@ class BuiltInGrammarsTest {
         "ATTRIBUTE:--from",
         "NUMBER:8080/tcp",
         "DELIMITER:[",
-        "STRING:\"mock\"");
+        "STRING:\"mock\"",
+        "KEYWORD:RUN",
+        "STRING:<<EOF",
+        "STRING:\"x\"",
+        "STRING:echo ",
+        "CONSTANT:${PATH}",
+        "STRING:EOF");
   }
 
   @Test
@@ -1137,7 +1174,8 @@ class BuiltInGrammarsTest {
   void cmake() {
     assertTokens(
         "cmake",
-        "cmake_minimum_required(VERSION 3.20)\n#[[ block\ncomment ]]\n"
+        "cmake_minimum_required(VERSION 3.20)\n#[==[ block\ncomment ]] ]==]\n"
+            + "set(MOCK_DOC [=[ a ]] ]=])\n"
             + "set(MOCK_SRC \"a.c;${PROJECT_SOURCE_DIR}/x.c\" CACHE STRING \"doc\")\n"
             + "if(NOT DEFINED ENV{MOCK_HOME})\n  message(STATUS \"$ENV{MOCK_HOME}\\n\")\nendif()\n"
             + "target_compile_definitions(mock PRIVATE $<$<CONFIG:Debug>:MOCK=1>)\n"
@@ -1145,8 +1183,10 @@ class BuiltInGrammarsTest {
         "FUNCTION:cmake_minimum_required",
         "KEYWORD2:VERSION",
         "NUMBER:3.20",
-        "COMMENT:#[[ block",
-        "COMMENT:comment ]]",
+        "COMMENT:#[==[ block",
+        "COMMENT:comment ]] ]==]",
+        "FUNCTION:set",
+        "STRING:[=[ a ]] ]=]",
         "FUNCTION:set",
         "STRING:\"a.c;",
         "CONSTANT:${PROJECT_SOURCE_DIR}",
@@ -1327,7 +1367,7 @@ class BuiltInGrammarsTest {
         "# mock\nresource \"mock_instance\" \"web\" {\n  count = var.enabled ? 2 : 0\n"
             + "  name  = \"web-${count.index}-%{ if local.x }a%{ endif }\"\n"
             + "  list  = [for s in var.items : upper(s)]\n  /* note */\n  policy = <<-EOF\n"
-            + "    {\"a\": 1}\n  EOF\n}\nvariable \"size\" {\n  type = list(string)\n"
+            + "    {\"a\": ${var.x}}\n  EOF\n}\nvariable \"size\" {\n  type = list(string)\n"
             + "  default = null\n}",
         "COMMENT:# mock",
         "KEYWORD:resource",
@@ -1347,8 +1387,12 @@ class BuiltInGrammarsTest {
         "KEYWORD:in",
         "FUNCTION:upper",
         "COMMENT:/* note */",
+        "ATTRIBUTE:policy",
+        "OPERATOR:=",
         "STRING:<<-EOF",
-        "STRING:    {\"a\": 1}",
+        "STRING:    {\"a\": ",
+        "DELIMITER:${",
+        "KEYWORD2:var",
         "STRING:  EOF",
         "KEYWORD:variable",
         "TYPE:list",

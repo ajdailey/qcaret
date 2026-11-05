@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Lua 5.4 Reference Manual, section 3.1 (lexical conventions), 3.3.4 (labels), 3.3.7 (attributes) and chapter 6 (standard libraries). -->
-<grammar id="lua" name="Lua" version="1">
+<grammar id="lua" name="Lua" version="1" category="programming">
   <detect>
     <extension>lua</extension>
     <extension>wlua</extension>

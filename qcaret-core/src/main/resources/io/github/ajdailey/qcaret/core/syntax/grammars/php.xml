@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- PHP 8.3 manual, Language Reference (basic syntax, types, strings, attributes) and the list of keywords; text outside PHP tags uses the HTML grammar. -->
-<grammar id="php" name="PHP" version="1">
+<grammar id="php" name="PHP" version="1" category="programming">
   <detect>
     <extension>php</extension>
     <extension>phtml</extension>
@@ -37,8 +37,8 @@
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//|#(?!\[)" end="(?=\?&gt;)"/>
     <span token="preprocessor" begin="#\[" end="\]" context="attribute" multiLine="true"/>
-    <span token="string" begin="&lt;&lt;&lt;[ \t]*'([A-Za-z_]\w*)'" end="^\s*\1\b" multiLine="true"/>
-    <span token="string" begin="&lt;&lt;&lt;[ \t]*&quot;?([A-Za-z_]\w*)&quot;?" end="^\s*\1\b" escape="\\(?:[nrtvef\\$&quot;]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2}|u\{[0-9A-Fa-f]+\})" context="interpolation" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;&lt;[ \t]*'([A-Za-z_]\w*)'" end="^\s*\1\b" multiLine="true" bodyNextLine="true"/>
+    <span token="string" begin="&lt;&lt;&lt;[ \t]*&quot;?([A-Za-z_]\w*)&quot;?" end="^\s*\1\b" escape="\\(?:[nrtvef\\$&quot;]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2}|u\{[0-9A-Fa-f]+\})" context="interpolation" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin='"' end='"' escape="\\(?:[nrtvef\\$&quot;]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2}|u\{[0-9A-Fa-f]+\})" context="interpolation" multiLine="true"/>
     <span token="string" begin="`" end="`" escape="\\." context="interpolation" multiLine="true"/>
     <span token="string" begin="'" end="'" escape="\\[\\']" multiLine="true"/>
