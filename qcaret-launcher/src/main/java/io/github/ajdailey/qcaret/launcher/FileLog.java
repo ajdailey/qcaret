@@ -1,16 +1,5 @@
 package io.github.ajdailey.qcaret.launcher;
 
-import ch.qos.logback.classic.AsyncAppender;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.recovery.ResilientOutputStreamBase;
-import ch.qos.logback.core.rolling.FixedWindowRollingPolicy;
-import ch.qos.logback.core.rolling.RollingFileAppender;
-import ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy;
-import ch.qos.logback.core.status.Status;
-import ch.qos.logback.core.status.StatusListener;
-import ch.qos.logback.core.util.FileSize;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -21,7 +10,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.locks.ReentrantLock;
@@ -35,11 +23,9 @@ import org.slf4j.LoggerFactory;
  * The debug log file at DEBUG, rolled to {@code <name>.1} at {@link #ROLL_BYTES}: {@code
  * <settings>/logs/qcaret.log} for the instance holding the handoff lock, {@code qcaret-<pid>.log}
  * for any other process ({@link #fileName}), so no two processes roll one file. The folder is
- * created owner-only. A logback {@code AsyncAppender} named {@code qcaret-logfile} writes from a
- * {@link #QUEUE_LINES}-line queue on its own daemon thread ({@code
- * AsyncAppender-Worker-qcaret-logfile}), so a slow disk never holds the thread that logs; a line
- * the full queue has no room for is dropped. An error status from the file appender, its rolling
- * policy or its output stream detaches the file and logs an ERROR, which Show Log lists.
+ * created owner-only. A {@link LogFileHandler} on the root logger writes each line on the logging
+ * thread; no lock file is written. A failed write, roll or open detaches the file and logs an
+ * ERROR, which Show Log lists.
  *
  * <p>{@link #prune} deletes other processes' old {@code qcaret-<pid>.log} files; the primary runs
  * it at startup with the file attached.
@@ -54,9 +40,6 @@ final class FileLog implements LogFiles {
   /** Size at which the file rolls over. */
   static final long ROLL_BYTES = 10L << 20;
 
-  /** Lines the writer queue holds. */
-  static final int QUEUE_LINES = 4096;
-
   /** Age past which {@link #prune} deletes a {@code qcaret-<pid>.log} file. */
   static final Duration PRUNE_AGE = Duration.ofDays(7);
 
@@ -65,11 +48,9 @@ final class FileLog implements LogFiles {
 
   private final Path directory;
   private final String fileName;
+  private final long rollBytes;
   private final ReentrantLock lock = new ReentrantLock();
-  private volatile AsyncAppender writer;
-  private volatile RollingFileAppender<ILoggingEvent> file;
-  private StatusListener failures;
-  private volatile boolean attached;
+  private volatile LogFileHandler handler;
 
   /**
    * Creates the log file handle; nothing is opened.
@@ -89,8 +70,21 @@ final class FileLog implements LogFiles {
    * @throws IOException when the names cannot be resolved inside the settings directory
    */
   FileLog(Path settings, String file) throws IOException {
+    this(settings, file, ROLL_BYTES);
+  }
+
+  /**
+   * Creates the log file handle with a roll-over size; nothing is opened.
+   *
+   * @param settings the settings directory
+   * @param file the file's name in the folder
+   * @param rollBytes size at which the file rolls over
+   * @throws IOException when the names cannot be resolved inside the settings directory
+   */
+  FileLog(Path settings, String file, long rollBytes) throws IOException {
     this.directory = SafePaths.child(settings, FOLDER);
     this.fileName = file;
+    this.rollBytes = rollBytes;
     SafePaths.child(directory, file);
   }
 
@@ -175,69 +169,29 @@ final class FileLog implements LogFiles {
 
   @Override
   public boolean attached() {
-    return attached;
+    return handler != null;
   }
 
   @Override
   public void attach() throws IOException {
     lock.lock();
     try {
-      if (attached) {
+      if (handler != null) {
         return;
       }
-      stopWriter();
       Path dir = SafePaths.settingsDirectory(directory);
-      Path target = SafePaths.child(dir, fileName);
-      if (!Files.exists(target)
-          && dir.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-        Files.createFile(
-            target,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
-      }
-      LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-      PatternLayoutEncoder encoder = new PatternLayoutEncoder();
-      encoder.setContext(context);
-      encoder.setPattern(LogbackConfigurator.PATTERN);
-      encoder.start();
-      RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<ILoggingEvent>();
-      appender.setContext(context);
-      appender.setName("qcaret-file");
-      appender.setFile(target.toString());
-      appender.setAppend(true);
-      appender.setEncoder(encoder);
-      FixedWindowRollingPolicy rolling = new FixedWindowRollingPolicy();
-      rolling.setContext(context);
-      rolling.setParent(appender);
-      rolling.setFileNamePattern(target + ".%i");
-      rolling.setMinIndex(1);
-      rolling.setMaxIndex(1);
-      rolling.start();
-      SizeBasedTriggeringPolicy<ILoggingEvent> trigger =
-          new SizeBasedTriggeringPolicy<ILoggingEvent>();
-      trigger.setContext(context);
-      trigger.setMaxFileSize(new FileSize(ROLL_BYTES));
-      trigger.start();
-      appender.setRollingPolicy(rolling);
-      appender.setTriggeringPolicy(trigger);
-      appender.start();
-      if (!appender.isStarted()) {
-        appender.stop();
-        throw new IOException("Cannot open " + target);
-      }
-      AsyncAppender async = new AsyncAppender();
-      async.setContext(context);
-      async.setName("qcaret-logfile");
-      async.setQueueSize(QUEUE_LINES);
-      async.setDiscardingThreshold(0);
-      async.setNeverBlock(true);
-      async.addAppender(appender);
-      async.start();
-      file = appender;
-      writer = async;
-      watchFailures(context, appender, rolling);
-      root(context).addAppender(async);
-      attached = true;
-      LogbackConfigurator.setFileAttached(true);
+      LogFileHandler opened =
+          new LogFileHandler(
+              SafePaths.child(dir, fileName),
+              rollBytes,
+              new LogFileHandler.Failure() {
+                @Override
+                public void failed(LogFileHandler failed, IOException error) {
+                  writeFailed(failed, error);
+                }
+              });
+      handler = opened;
+      LogConfigurator.setFile(opened, true);
     } finally {
       lock.unlock();
     }
@@ -247,69 +201,35 @@ final class FileLog implements LogFiles {
   public void detach() {
     lock.lock();
     try {
-      stopWriter();
+      LogFileHandler current = handler;
+      if (current != null) {
+        stop(current);
+      }
     } finally {
       lock.unlock();
     }
   }
 
-  /** Detaches and stops the writer, which flushes the queue for up to a second; holds the lock. */
-  private void stopWriter() {
-    AsyncAppender async = writer;
-    writer = null;
-    file = null;
-    if (attached) {
-      attached = false;
-      LogbackConfigurator.setFileAttached(false);
-    }
-    LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-    if (failures != null) {
-      context.getStatusManager().remove(failures);
-      failures = null;
-    }
-    if (async != null) {
-      root(context).detachAppender(async);
-      async.stop();
-    }
+  /** Removes and closes the handler; holds the lock. */
+  private void stop(LogFileHandler current) {
+    handler = null;
+    LogConfigurator.setFile(current, false);
+    current.close();
   }
 
-  /**
-   * Detaches the file at its first error status. Runs on the thread that hit the error, usually the
-   * writer itself, so it only detaches; the next {@link #attach} or {@link #detach} stops it.
-   */
-  private void watchFailures(
-      LoggerContext context,
-      final RollingFileAppender<ILoggingEvent> appender,
-      final FixedWindowRollingPolicy rolling) {
-    failures =
-        new StatusListener() {
-          @Override
-          public void addStatusEvent(Status status) {
-            Object origin = status.getOrigin();
-            boolean ours =
-                origin == appender
-                    || origin == rolling
-                    || origin instanceof ResilientOutputStreamBase;
-            if (status.getLevel() == Status.ERROR && ours && file == appender) {
-              failed(appender, status.getMessage());
-            }
-          }
-        };
-    context.getStatusManager().add(failures);
-  }
-
-  private void failed(RollingFileAppender<ILoggingEvent> appender, String message) {
-    AsyncAppender async = writer;
-    if (!attached || async == null || file != appender) {
-      return;
+  /** Detaches a handler whose write failed, unless a detach or a new attach replaced it. */
+  private void writeFailed(LogFileHandler failed, IOException error) {
+    lock.lock();
+    try {
+      if (handler != failed) {
+        return;
+      }
+      stop(failed);
+    } finally {
+      lock.unlock();
     }
-    attached = false;
-    LogbackConfigurator.setFileAttached(false);
-    root((LoggerContext) LoggerFactory.getILoggerFactory()).detachAppender(async);
-    LOG.error("Debug log file closed after a write failure: {}", LogText.oneLine(message));
-  }
-
-  private static ch.qos.logback.classic.Logger root(LoggerContext context) {
-    return context.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+    LOG.error(
+        "Debug log file closed after a write failure: {}",
+        LogText.oneLine(error.getClass().getSimpleName() + ": " + error.getMessage()));
   }
 }

@@ -29,7 +29,7 @@ directory. Exit status 3 means the natives could not be prepared.
 |---|---|
 | `io/github/ajdailey/qcaret/bootstrap/` | This module |
 | `META-INF/qcaret/index.properties` | `swt.version`, `lib` (nested jar names), `natives.<target>` (library names) |
-| `META-INF/qcaret/lib/*.jar` | Application jars, slf4j, logback |
+| `META-INF/qcaret/lib/*.jar` | Application jars, slf4j-api, slf4j-jdk14 |
 | `META-INF/qcaret/swt/<target>.jar` | The six SWT fragments, unmodified |
 | `META-INF/qcaret/natives/<target>/<library>.sha256` | SHA-256 of each native, hex |
 
@@ -47,7 +47,10 @@ is visible through the application class loader.
 - Resources resolve to `qcaret-nested:` URLs. SWT calls `getResource` on its own
   classes while loading natives and throws `NullPointerException` without one.
 - `findResources` returns every root's match, which `ServiceLoader` needs for
-  logback's configurator and the SLF4J provider.
+  the SLF4J provider.
+- The loader is the main thread's context class loader. `LogManager` loads the
+  launcher's `RetainingLogManager` through it after the application class
+  loader fails.
 - Each package is defined from its jar's manifest, so
   `Package.getImplementationVersion()` works for `-v`.
 - The zip file systems stay open for the life of the process.

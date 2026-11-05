@@ -343,7 +343,7 @@ background, the current line and a find match (`PaletteTest`).
 `messages.properties` holds them, and `ArchitectureTest.everyUiTextIsUsed`
 fails on a constant nothing reads. `AboutInfo` collects the version, Java, OS,
 toolkit and settings directory for About and Copy Details. `RecentLog` keeps
-the last log lines for the launcher's `recent` appender, `LogFiles` is the
+the last log lines for the launcher's `RecentHandler`, `LogFiles` is the
 debug log file's contract, and `EventLoopWatchdog` reports UI-thread stalls at
 `-d 2` and above.
 

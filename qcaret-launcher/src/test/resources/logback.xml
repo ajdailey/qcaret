@@ -1,7 +1,0 @@
-<!-- Planted configuration: LogbackConfiguratorTest checks that logback ignores it. -->
-<configuration>
-  <appender name="planted" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder><pattern>PLANTED %msg%n</pattern></encoder>
-  </appender>
-  <root level="TRACE"><appender-ref ref="planted"/></root>
-</configuration>

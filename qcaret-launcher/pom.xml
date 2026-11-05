@@ -36,12 +36,8 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.ajdailey.qcaret</groupId>
@@ -60,4 +56,18 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- LogConfiguratorTest checks that the planted configuration
+                         is discarded. -->
+                    <argLine>-Duser.home=${project.build.directory}/test-home ${qcaret.test.jvmArgs} -Djava.util.logging.config.file=${project.basedir}/src/test/resources/planted-logging.properties</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

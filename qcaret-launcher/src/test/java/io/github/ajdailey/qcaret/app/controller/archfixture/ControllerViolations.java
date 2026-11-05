@@ -44,10 +44,10 @@ final class ControllerViolations {
     }
   }
 
-  /** Uses logback. */
-  static final class UsesLogback {
+  /** Uses java.util.logging. */
+  static final class UsesJul {
     Object level() {
-      return ch.qos.logback.classic.Level.DEBUG;
+      return java.util.logging.Level.FINE;
     }
   }
 

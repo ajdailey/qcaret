@@ -16,8 +16,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * SIGTERM to a running QCaret process: the shutdown hook runs the quit, which saves the window
- * placement, and the process ends within the hook's bound. Linux only: {@code Process.destroy}
- * sends SIGTERM there, while on Windows it terminates the process without running hooks.
+ * placement, the process ends within the hook's bound, and the hook's log line reaches the debug
+ * log file. Linux only: {@code Process.destroy} sends SIGTERM there, while on Windows it terminates
+ * the process without running hooks.
  */
 @Tag("swt")
 @EnabledOnOs(OS.LINUX)
@@ -73,6 +74,7 @@ class SigtermTest {
     }
     String saved = read(conf);
     assertTrue(saved.contains("window.width="), "placement not saved: " + saved);
+    assertTrue(read(log).contains("Exit requested by the system; quitting"), read(log));
   }
 
   private static String read(Path file) throws IOException {

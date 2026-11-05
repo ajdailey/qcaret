@@ -68,7 +68,7 @@ public final class Launcher {
       out.println("qcaret " + Version.get());
       return 0;
     }
-    LogbackConfigurator.setLevel(line.logLevel());
+    LogConfigurator.setLevel(line.logLevel());
     Thread.setDefaultUncaughtExceptionHandler(new FailureLogger());
     StartupRequest request = line.request();
     Path settings = null;

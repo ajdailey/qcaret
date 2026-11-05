@@ -150,7 +150,7 @@ java -jar qcaret.jar [options] [file]...
 |---|---|
 | `-h`, `--help` | Print usage and exit 0 |
 | `-v`, `--version` | Print `qcaret <version>` and exit 0 |
-| `-d`, `--debug <level>` | stderr log level: `1` INFO, `2` DEBUG, `3` and above TRACE, or `error`, `warn`, `info`, `debug`, `trace`; WARN when absent |
+| `-d`, `--debug <level>` | stderr log level: `1` INFO, `2` DEBUG, `3` and above TRACE, or `error`, `warn`, `info`, `debug`, `trace`; WARN when absent. Show Log (INFO) and the `-l` file (DEBUG) take it when finer. It applies to QCaret's own loggers; the Java runtime's stay at INFO |
 | `-l`, `--log` | Also write the log at DEBUG to `logs/qcaret-<pid>.log` in the settings directory, for this run |
 | `-m`, `--multi` | Run as an independent instance; the window placement is not saved |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |

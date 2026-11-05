@@ -114,9 +114,11 @@ not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
 ## Smoke tests
 
 `SmokeTest` (tag `swt`) runs at `integration-test`: `java -jar qcaret.jar -v`
-prints the manifest version; `java -jar qcaret.jar` opens a 900 x 600 window at
-50,40; and on linux-x86_64 the extracted bundle runs with `PATH` holding only
-`uname` and `readlink`, reports its own `runtime/` as `java.home`, and opens
-the same window. The bundle's `runtime/release` must list `jdk.charsets`, and
+prints the manifest version as its first line; `java -jar qcaret.jar` opens a
+900 x 600 window at 50,40 and writes no `logs` folder; and on linux-x86_64 the
+extracted bundle runs with `-l` and `PATH` holding only `uname` and
+`readlink`, reports its own `runtime/` as `java.home`, opens the same window,
+and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's
+line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, and
 its `java` runs `CharsetProbe`, which fails unless every encoding in
 `SmokeTest.ENCODINGS` is supported.

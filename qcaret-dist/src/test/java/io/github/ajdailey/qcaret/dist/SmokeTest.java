@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.dist;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -144,6 +146,7 @@ class SmokeTest {
     List<String> command = List.of(java(), "-jar", jar().toString(), "-v");
     try (Run run = new Run(command, Map.of(), false)) {
       assertNotNull(run.await(Pattern.compile("^qcaret ")), run.seen.toString());
+      // First line: LogManager prints an error first when it cannot load RetainingLogManager.
       assertEquals("qcaret " + System.getProperty("qcaret.version"), run.seen.get(0));
       assertTrue(run.process.waitFor(BOUND_SECONDS, TimeUnit.SECONDS));
       assertEquals(0, run.process.exitValue());
@@ -163,6 +166,7 @@ class SmokeTest {
     }
     Path settings = temp.resolve("settings");
     assertTrue(Files.isDirectory(settings.resolve("cache").resolve("swt")));
+    assertFalse(Files.exists(settings.resolve("logs")), "a run without -l wrote a logs folder");
     TempTrees.delete(settings, Duration.ofSeconds(BOUND_SECONDS));
   }
 
@@ -171,6 +175,32 @@ class SmokeTest {
    * Linux's {@code java.base} carries most of them, so the module list is checked too.
    */
   static final List<String> ENCODINGS = TextEncoding.MENU;
+
+  /**
+   * With {@code -l} and {@code -m}, the logs folder holds one {@code qcaret-<pid>.log} and no lock
+   * file, and the shutdown hook's line after SIGTERM reached it.
+   */
+  private static void assertOnlyTheLogFile(Path logs) throws IOException {
+    List<Path> files = new ArrayList<Path>();
+    try (DirectoryStream<Path> entries = Files.newDirectoryStream(logs)) {
+      for (Path entry : entries) {
+        files.add(entry);
+      }
+    }
+    assertEquals(1, files.size(), files.toString());
+    Path file = files.get(0);
+    assertTrue(file.getFileName().toString().matches("qcaret-[0-9]+\\.log"), file.toString());
+    List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+    System.out.println("Log file " + file.getFileName() + ", first lines:");
+    for (int i = 0; i < Math.min(5, lines.size()); i++) {
+      System.out.println("  " + lines.get(i));
+    }
+    boolean hook = false;
+    for (String line : lines) {
+      hook |= line.contains("Exit requested by the system; quitting");
+    }
+    assertTrue(hook, "no shutdown hook line in " + file);
+  }
 
   @Test
   void linuxBundleRunsWithoutASystemJava() throws Exception {
@@ -196,6 +226,7 @@ class SmokeTest {
     List<String> command = new ArrayList<String>();
     command.add(home.resolve("bin").resolve("qcaret").toString());
     Path log = Files.writeString(temp.resolve("bundle.txt"), "mock line\n");
+    command.add("-l");
     command.addAll(windowArgs(temp.resolve("bundle-settings"), log));
     Map<String, String> env = new HashMap<String, String>();
     env.put("PATH", bin.toString());
@@ -213,6 +244,7 @@ class SmokeTest {
       assertEquals(home.resolve("runtime").toRealPath().toString(), java.group(2));
       assertOpened(run);
     }
+    assertOnlyTheLogFile(temp.resolve("bundle-settings").resolve("logs"));
 
     String release = Files.readString(home.resolve("runtime").resolve("release"));
     assertTrue(release.contains("jdk.charsets"), release);

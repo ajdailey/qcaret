@@ -130,7 +130,7 @@ final class Gui {
               MemoryBudget.fromRuntime(),
               Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
               remember);
-      controller.setLogging(LogbackConfigurator.RECENT, logFiles);
+      controller.setLogging(LogConfigurator.RECENT, logFiles);
       window.attach(controller);
       // macOS application menu.
       AppMenu.hook(display, controller);

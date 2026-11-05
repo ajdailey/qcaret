@@ -80,10 +80,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Each rule is shown to fail on a fixture class that breaks it ({@code archfixture} packages in
  * this module's tests), so a rule that matches nothing is caught.
- *
- * <p>logback's {@code AsyncAppender} starts its own writer thread for the debug log file; the
- * thread rules see QCaret's classes only, and that thread is the one documented exception to {@code
- * Workers}-owned threads.
  */
 class ArchitectureTest {
   private static final String ROOT = "io.github.ajdailey.qcaret";
@@ -327,18 +323,19 @@ class ArchitectureTest {
     return slices().matching(ROOT + ".(**)").should().beFreeOfCycles();
   }
 
+  /** Only the launcher configures handlers, levels or the {@code LogManager}. */
   @Test
-  void logbackOnlyInLauncher() {
-    logbackOnlyInLauncherRule().check(classes);
+  void julOnlyInLauncher() {
+    julOnlyInLauncherRule().check(classes);
   }
 
-  private static ArchRule logbackOnlyInLauncherRule() {
+  private static ArchRule julOnlyInLauncherRule() {
     return noClasses()
         .that()
         .resideOutsideOfPackage(LAUNCHER)
         .should()
         .dependOnClassesThat()
-        .resideInAPackage("ch.qos.logback..");
+        .resideInAnyPackage("java.util.logging..", "org.slf4j.jul..");
   }
 
   @Test
@@ -828,7 +825,7 @@ class ArchitectureTest {
 
   @Test
   void securityRulesFailOnTheirFixtures() throws ClassNotFoundException {
-    assertViolations(logbackOnlyInLauncherRule(), CONTROLLER_FIXTURES + "UsesLogback", "Level");
+    assertViolations(julOnlyInLauncherRule(), CONTROLLER_FIXTURES + "UsesJul", "Level");
     List<ArchRule> network = noOutboundNetworkRules();
     assertViolations(
         network.get(0), CONTROLLER_FIXTURES + "Connects", "Socket", "openStream", "java.net.http");
