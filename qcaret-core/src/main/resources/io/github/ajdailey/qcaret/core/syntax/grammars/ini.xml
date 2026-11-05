@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- INI files as the Windows profile API (GetPrivateProfileString) and Python configparser read them. -->
+<grammar id="ini" name="INI" version="1">
+  <detect>
+    <extension>ini</extension>
+    <extension>cfg</extension>
+    <extension>conf</extension>
+    <extension>inf</extension>
+    <extension>desktop</extension>
+    <fileName>.editorconfig</fileName>
+    <fileName>.gitconfig</fileName>
+    <fileName>.npmrc</fileName>
+  </detect>
+  <comments line=";"/>
+  <brackets>
+    <pair open="[" close="]"/>
+  </brackets>
+  <autoClose>
+    <pair open="[" close="]"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <context id="main">
+    <span token="comment" begin="^\s*[;#]"/>
+    <match token="keyword" regex="^\s*\[[^\]]*\]"/>
+    <match token="attribute" regex="^\s*[^\s=:;#\[][^=:]*?(?=\s*[=:])"/>
+    <match token="operator" regex="[=:]"/>
+    <span token="string" begin='"' end='"' escape="\\."/>
+    <match token="constant" regex="(?i)(?&lt;![\w.-])(?:true|false|yes|no|on|off)(?![\w.-])"/>
+    <match token="number" regex="(?&lt;![\w.-])[-+]?\d+(?:\.\d+)?(?![\w.-])"/>
+    <match token="constant" regex="\$\{[^}]*\}|%\([^)]*\)s|%[A-Za-z_]\w*%"/>
+  </context>
+</grammar>

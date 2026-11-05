@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JSON, RFC 8259. Comments, which RFC 8259 does not allow, are colored for JSON with comments. -->
+<grammar id="json" name="JSON" version="1">
+  <detect>
+    <extension>json</extension>
+    <extension>jsonc</extension>
+    <extension>json5</extension>
+    <extension>geojson</extension>
+    <extension>webmanifest</extension>
+    <extension>har</extension>
+    <fileName>.babelrc</fileName>
+    <fileName>.prettierrc</fileName>
+  </detect>
+  <brackets>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="[{\[]\s*$" decrease="^\s*[}\]]"/>
+  <folding mode="brackets" open="{[" close="}]"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="//"/>
+    <match token="attribute" regex='"(?:[^"\\]|\\.)*"(?=\s*:)'/>
+    <span token="string" begin='"' end='"' escape='\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4})' context="bad-escape"/>
+    <keywords token="constant">true false null</keywords>
+    <match token="number" regex="-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?"/>
+    <match token="delimiter" regex="[{}\[\],:]"/>
+    <match token="invalid" regex="[^\s{}\[\],:&quot;]+"/>
+  </context>
+  <context id="bad-escape">
+    <match token="invalid" regex="\\."/>
+  </context>
+</grammar>

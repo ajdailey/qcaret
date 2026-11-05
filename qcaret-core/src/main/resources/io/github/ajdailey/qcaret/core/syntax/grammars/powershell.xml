@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PowerShell 7 language specification: lexical structure (chapter 2) and the about_Reserved_Words and about_Operators topics. -->
+<grammar id="powershell" name="PowerShell" version="1">
+  <detect>
+    <extension>ps1</extension>
+    <extension>psm1</extension>
+    <extension>psd1</extension>
+    <firstLine>^#!.*\bpwsh\b</firstLine>
+  </detect>
+  <comments line="#" blockStart="&lt;#" blockEnd="#&gt;"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="&lt;#" end="#&gt;" multiLine="true"/>
+    <span token="comment" begin="#"/>
+    <span token="string" begin='@"\s*$' end='^"@' context="variables" multiLine="true"/>
+    <span token="string" begin="@'\s*$" end="^'@" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape='`.|""' context="variables" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="''" multiLine="true"/>
+    <include context="variables"/>
+    <match token="type" regex="\[[A-Za-z_][\w.]*(?:\[\])?\]"/>
+    <match token="operator" regex="(?i)-(?:[ci]?(?:eq|ne|gt|ge|lt|le|like|notlike|match|notmatch|replace|contains|notcontains|in|notin|split)|join|and|or|xor|not|band|bor|bxor|bnot|shl|shr|is|isnot|as|f)(?![\w-])"/>
+    <keywords token="keyword" ignoreCase="true" wordChars="_-">begin break catch class clean continue data define do dynamicparam else elseif end enum exit filter finally for foreach from function hidden if in param process return static switch throw trap try until using var while workflow parallel sequence inlinescript</keywords>
+    <keywords token="constant" ignoreCase="true" wordChars="_-">$true $false $null</keywords>
+    <match token="function" regex="(?&lt;![\w-])[A-Za-z]+-[A-Za-z]\w*"/>
+    <match token="number" regex="(?&lt;![\w$.])(?:0[xX][0-9A-Fa-f]+|\d+\.?\d*(?:[eE][+-]?\d+)?)(?:[kKmMgGtTpP][bB])?(?![\w.])"/>
+    <match token="operator" regex="[-+*/%=!&lt;&gt;|&amp;]+"/>
+    <match token="delimiter" regex="[{}()\[\];,.@]"/>
+  </context>
+  <context id="variables">
+    <match token="constant" regex="\$(?:\{[^}]*\}|[A-Za-z_][\w:]*|[$?^_])"/>
+  </context>
+</grammar>

@@ -132,6 +132,7 @@ final class Gui {
               remember);
       controller.setLogging(LogConfigurator.RECENT, logFiles);
       window.attach(controller);
+      controller.loadGrammars();
       // macOS application menu.
       AppMenu.hook(display, controller);
       WindowState remembered = preferences.window();

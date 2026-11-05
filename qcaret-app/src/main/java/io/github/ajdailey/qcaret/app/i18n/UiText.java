@@ -432,7 +432,19 @@ public enum UiText {
   FIND_REPLACED,
   /** Find bar notice: Replace All dropped its result because the document changed. */
   FIND_REPLACE_ALL_STALE,
-  FIND_REPLACE_STALE;
+  FIND_REPLACE_STALE,
+  /** Command label. */
+  COMMAND_TOGGLE_LINE_COMMENT,
+  /** Command label. */
+  COMMAND_TOGGLE_BLOCK_COMMENT,
+  /** Command label. */
+  COMMAND_RELOAD_GRAMMARS,
+  /** View menu cascade of the languages. */
+  MENU_SYNTAX,
+  /** Status bar language field's tip. */
+  STATUS_LANGUAGE_TIP,
+  /** Notice: grammar files skipped, the first with its reason. */
+  NOTICE_GRAMMARS_SKIPPED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

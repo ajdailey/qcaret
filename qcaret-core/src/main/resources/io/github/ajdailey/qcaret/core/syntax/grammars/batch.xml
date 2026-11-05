@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Windows command interpreter (cmd.exe) batch files, from the Windows Commands reference. -->
+<grammar id="batch" name="Windows Batch" version="1">
+  <detect>
+    <extension>bat</extension>
+    <extension>cmd</extension>
+  </detect>
+  <comments line="REM"/>
+  <brackets>
+    <pair open="(" close=")"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="\(\s*$" decrease="^\s*\)"/>
+  <folding mode="brackets" open="(" close=")"/>
+  <context id="main">
+    <span token="comment" begin="(?i)^\s*@?rem(?=\s|$)"/>
+    <span token="comment" begin="^\s*::"/>
+    <match token="function" regex="^\s*:[^\s:]\S*"/>
+    <span token="string" begin='"' end='"' context="variables"/>
+    <include context="variables"/>
+    <keywords token="keyword" ignoreCase="true" wordChars="_-">if else for in do goto call exit not exist defined errorlevel cmdextversion equ neq lss leq gtr geq setlocal endlocal enableextensions disableextensions enabledelayedexpansion disabledelayedexpansion</keywords>
+    <keywords token="keyword2" ignoreCase="true" wordChars="_-">assoc break cd chdir choice cls color copy date del dir echo erase ftype md mkdir mklink move path pause popd prompt pushd rd ren rename rmdir set shift start time title type ver verify vol xcopy robocopy where findstr</keywords>
+    <match token="number" regex="(?&lt;![\w%.])\d+(?![\w.])"/>
+    <match token="operator" regex="==|[@|&amp;&lt;&gt;]+"/>
+    <match token="delimiter" regex="[()]"/>
+  </context>
+  <context id="variables">
+    <match token="constant" regex="%%~?[A-Za-z]|%~[a-zA-Z$:]*\d|%\d|%[A-Za-z_][\w#$'()*+,\-.?@\[\]`{}~]*(?::[^%]*)?%|![A-Za-z_][\w#$'()*+,\-.?@\[\]`{}~]*(?::[^!]*)?!"/>
+  </context>
+</grammar>

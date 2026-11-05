@@ -11,11 +11,36 @@ SWT. It runs no macros, scripts or plugins.
 Version 0.1.0 is in development. The current build opens, edits and saves
 files in tabs, with undo and redo, word wrap, line numbers and multiple carets
 (painted; created by Alt+click), encoding and line-ending conversion, a
-read-only view of binary files, a status bar, the Help menu and its remembered
-window placement. Planned for 0.1.0: large-file
-editing with multiple carets and column selection, syntax highlighting for 19
-languages, folding, HyperSearch across files and folders with replace, a
-workspace browser, sessions and crash recovery.
+read-only view of binary files, a status bar, the Help menu, its remembered
+window placement, and syntax highlighting for 19 languages with user grammars
+and comment commands. Planned for 0.1.0: large-file editing with multiple
+carets and column selection, folding, HyperSearch across files and folders
+with replace, a workspace browser, sessions and crash recovery.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/qcaret-dark.png">
+  <img src="docs/images/qcaret-light.png" alt="QCaret main window with a highlighted Java file" width="880">
+</picture>
+
+`tools/screenshots.sh` regenerates the screenshots under Xvfb from generated
+mock files.
+
+## Syntax highlighting
+
+QCaret highlights Plain Text, Java, XML, HTML (with embedded JavaScript and
+CSS), JSON, YAML, SQL, Python, JavaScript, TypeScript, C, C++, Shell Script,
+PowerShell, Windows Batch, Properties, INI, CSS and Markdown. The grammar
+follows the file name, its extension, or its first line (a shebang, `<?xml`,
+`<!DOCTYPE html>`); View > Syntax or a click on the status bar's language
+field chooses another. A line over 10,000 chars shows without colors.
+Highlighting runs on worker threads: opening a large file and typing never
+wait for it.
+
+User grammars go in `grammars/*.xml` in the settings directory, in the format
+`qcaret-core/README.md` describes; one with a built-in grammar's id replaces
+it. They are read at startup and on View > Syntax > Reload Grammars, and an
+invalid file is skipped with a notice. Edit > Toggle Line Comment (Mod+/) and
+Toggle Block Comment (Mod+Shift+/) use the grammar's comment delimiters.
 
 ## Building
 
@@ -233,7 +258,7 @@ next start, and macOS native controls follow the system appearance.
 | Path | Contents |
 |---|---|
 | `qcaret-bootstrap/` | Entry point of `qcaret.jar`: Java version check, target selection, SWT natives, nested-jar class loader |
-| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model; no SWT, no logging dependency |
+| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer; no SWT, no logging dependency |
 | `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
 | `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the toolbar icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
@@ -243,6 +268,7 @@ next start, and macOS native controls follow the system appearance.
 | `docker/`, `compose.yaml`, `scripts/` | Container build |
 | `.github/` | CI workflows, Dependabot and the scripts the CI steps run |
 | `tools/icons.sh` | Renders the application icon from `qcaret-dist/src/icons/*.svg` |
+| `tools/screenshots.sh`, `docs/images/` | README screenshots and the script that writes them |
 
 Each module's `README.md` describes its design and contracts. `NOTICE` and
 `qcaret-dist/src/dist/THIRD-PARTY.txt` list the licenses of shipped components.

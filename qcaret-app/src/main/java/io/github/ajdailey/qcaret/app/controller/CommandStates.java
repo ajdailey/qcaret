@@ -12,6 +12,8 @@ import io.github.ajdailey.qcaret.core.document.Columns;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.syntax.Grammar;
+import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -43,7 +45,8 @@ public final class CommandStates {
           CommandId.ZOOM_RESET,
           CommandId.THEME_LIGHT,
           CommandId.THEME_DARK,
-          CommandId.THEME_SYSTEM);
+          CommandId.THEME_SYSTEM,
+          CommandId.RELOAD_GRAMMARS);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -67,8 +70,19 @@ public final class CommandStates {
           CommandId.LOWER_CASE,
           CommandId.INDENT,
           CommandId.OUTDENT,
+          CommandId.TOGGLE_LINE_COMMENT,
+          CommandId.TOGGLE_BLOCK_COMMENT,
           CommandId.INSERT_TAB,
           CommandId.REPLACE);
+
+  /**
+   * A grammar as the Syntax menu lists it.
+   *
+   * @param id the grammar's id
+   * @param name its name
+   * @param checked true for the selected document's grammar
+   */
+  public record SyntaxChoice(String id, String name, boolean checked) {}
 
   /**
    * An open document as the Window menu lists it.
@@ -151,6 +165,12 @@ public final class CommandStates {
       return false;
     }
     boolean binary = documents.activeBinary();
+    if (command == CommandId.TOGGLE_LINE_COMMENT || command == CommandId.TOGGLE_BLOCK_COMMENT) {
+      Grammar.Comments comments = documents.activeEditor().comments();
+      boolean block = comments.hasBlock();
+      return !document.isReadOnly()
+          && (command == CommandId.TOGGLE_BLOCK_COMMENT ? block : block || comments.line() != null);
+    }
     if (EDITS.contains(command)) {
       return !document.isReadOnly();
     }
@@ -161,6 +181,24 @@ public final class CommandStates {
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;
       default -> true;
     };
+  }
+
+  /**
+   * Lists the grammars for View > Syntax and the status bar's language field.
+   *
+   * @return plain text first, then by name; empty without a document or before the grammars load
+   */
+  public List<SyntaxChoice> syntaxChoices() {
+    DocumentController documents = application.documents();
+    Grammar active = documents.activeGrammar();
+    List<SyntaxChoice> out = new ArrayList<SyntaxChoice>();
+    if (documents.activeDocument() == null) {
+      return out;
+    }
+    for (Grammar g : documents.grammarChoices()) {
+      out.add(new SyntaxChoice(g.id(), g.name(), active != null && g.id().equals(active.id())));
+    }
+    return out;
   }
 
   /**
@@ -263,8 +301,14 @@ public final class CommandStates {
         selection,
         encoding.bom() ? UiText.STATUS_BOM.format(charset) : charset,
         endingText(document.lineEndings(), document.lineEnding()),
-        UiText.STATUS_PLAIN_TEXT.text(),
+        language(documents.activeGrammar()),
         readOnly);
+  }
+
+  private static String language(Grammar grammar) {
+    return grammar == null || GrammarSet.PLAIN.equals(grammar.id())
+        ? UiText.STATUS_PLAIN_TEXT.text()
+        : grammar.name();
   }
 
   private static String endingText(LineEndingStats stats, LineEnding inserted) {

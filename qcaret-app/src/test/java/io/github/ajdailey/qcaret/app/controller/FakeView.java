@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -33,6 +34,8 @@ final class FakeView implements MainView {
     int[] matches = new int[0];
     int tabWidth;
     boolean columnMode;
+    TokenSource syntax;
+    int redraws;
 
     FakeEditor(EditorInput editor) {
       this.editor = editor;
@@ -73,6 +76,18 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       columnMode = on;
     }
+
+    @Override
+    public void setSyntax(TokenSource tokens) {
+      ui.checkUiThread();
+      syntax = tokens;
+    }
+
+    @Override
+    public void redrawHighlights() {
+      ui.checkUiThread();
+      redraws++;
+    }
   }
 
   /** A tab: its title, its views and what the controller asked of it. */
@@ -90,6 +105,8 @@ final class FakeView implements MainView {
     int[] matches = new int[0];
     final List<FakeEditor> splits = new ArrayList<FakeEditor>();
     boolean sideBySide;
+    TokenSource syntax;
+    int redraws;
 
     FakeTab(
         DisplayProjection projection,
@@ -136,6 +153,18 @@ final class FakeView implements MainView {
     @Override
     public EditorView firstView() {
       return this;
+    }
+
+    @Override
+    public void setSyntax(TokenSource tokens) {
+      ui.checkUiThread();
+      syntax = tokens;
+    }
+
+    @Override
+    public void redrawHighlights() {
+      ui.checkUiThread();
+      redraws++;
     }
 
     @Override

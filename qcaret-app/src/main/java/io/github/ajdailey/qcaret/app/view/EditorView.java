@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import io.github.ajdailey.qcaret.app.editor.TokenSource;
+
 /**
  * One editor view of a document as its controller sees it; a split tab holds two. Called on the UI
  * thread.
@@ -38,4 +40,14 @@ public interface EditorView {
    * @param on true for column mode
    */
   void setColumnMode(boolean on);
+
+  /**
+   * Sets the syntax tokens the view paints.
+   *
+   * @param tokens the document's tokens, or null for none
+   */
+  void setSyntax(TokenSource tokens);
+
+  /** Repaints the visible text after the syntax tokens changed. */
+  void redrawHighlights();
 }

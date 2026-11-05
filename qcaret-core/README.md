@@ -2,9 +2,9 @@
 
 Model-side code with no SWT and no logging dependency: thread ownership,
 paths, atomic and safe file writes, encodings and line endings, text storage,
-the document model, the find matcher and small utilities. The packages `edit`,
-`syntax`, `diff`, `watch` and `workspace` are empty, with their layer rules in
-place. Tests run without a display.
+the document model, editing commands, grammars and the tokenizer, the find
+matcher and small utilities. The packages `diff`, `watch` and `workspace` are
+empty, with their layer rules in place. Tests run without a display.
 
 The test jar carries `testkit` for the other modules' tests and
 `qcaret-bench`: `Poll.until`, a bounded poll for state another thread
@@ -19,10 +19,10 @@ delete-pending for a moment.
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package |
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread`, `MemoryBudget` |
 | `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `FileStamp`, `BinaryDetector` |
-| `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText` |
+| `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
-| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `BlockEdits`, `Moves`, `Words`, `Occurrences`), grammars, search, line diff; none uses another |
+| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `BlockEdits`, `CommentEdits`, `Moves`, `Words`, `Occurrences`), grammars and highlighting, search, line diff; none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
@@ -250,6 +250,7 @@ ending at a line's start leaves that line out.
 | `BlockEdits` | Typing, Backspace, Delete and paste in a `BlockSelection` (Notepad++ column mode): a row that ends left of the block is padded with spaces; the block stays a block, as wide as nothing after typing; paste gives each row one line |
 | `Moves`, `Words` | Caret steps by char (a CR LF and a surrogate pair are one), smart Home, End, and word moves that stop at runs of word chars, of other non-blank chars and at line breaks |
 | `Occurrences` | The next exact occurrence of a text at or after an offset, wrapping; cancelable, for a worker |
+| `CommentEdits` | Toggle line comments on the touched lines (removed when every non-blank line has one after its indentation, else added at the block's smallest indentation; a block comment per block of lines without a line comment) and block comments around each selection or a caret's trimmed line; a range keeps text inserted at its ends |
 
 ### Line endings and encoding
 
@@ -287,6 +288,81 @@ their `CancellationToken` per block.
   the BOM and the text through `SafeSave` and returns the new `FileStamp`; the
   caller passes it to the next save and the snapshot to `markSaved`.
 
+## Grammars and highlighting (`core.syntax`)
+
+A grammar is an XML file in QCaret's own format, validated against
+`grammar.xsd` (beside the classes) while the JDK parser reads it, with DOCTYPE
+declarations refused and external DTD and schema access off
+(`GrammarReader`). Each regex compiles at read time and each context a rule
+names must exist; a failure is an `InvalidGrammarException` naming the file
+and, for a schema error, the line. `GrammarSet.BUILT_IN` lists the 19
+built-in grammars (`grammars/<id>.xml`), written from the language
+specifications each file names.
+
+| Element | Content |
+|---|---|
+| `grammar` | `id` (a user grammar with the same id replaces the built-in), `name`, `version` |
+| `detect` | `extension`s, `fileName`s, one `firstLine` regex |
+| `comments` | `line`, `blockStart`, `blockEnd` |
+| `brackets`, `autoClose` | `pair open close` |
+| `indent` | `increase`, `decrease` regexes |
+| `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
+| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
+
+Tokens are `TokenType`: comment, string, escape, keyword, keyword2, type,
+number, constant, operator, delimiter, function, preprocessor, tag,
+attribute, heading, emphasis, link, invalid; text no rule covers is plain.
+
+`Syntax.compile` turns each context into a regex alternating its rules; the
+token at a position is the first rule matching there. A backreference or
+named group is refused: the alternation renumbers groups. Each rule's
+possible first chars come from matching its regex, without a leading
+lookbehind or `\b`, against each ASCII char (a match or a hit of the input's
+end means it may start); a rule whose leading negative lookbehind matches
+every ASCII letter, digit and `_` cannot start after one. Each context keeps
+one alternation per distinct set of rules a position may start, so the
+tokenizer tries only those, none inside most identifiers, and every rule at a
+non-ASCII char.
+A span becomes a context of its own (escape, end, inner rules); a span without
+`end`, or not `multiLine`, closes at the line's end. Inside an embedded
+grammar the embed's `end` is tried first in every context, so HTML's
+`</script>` ends JavaScript even inside a string. A zero-width rule that only
+switches contexts may repeat 16 times at one position before a char is
+skipped.
+
+`Tokenizer` tokenizes one line from a start state to an end state; a state is
+an interned context stack. A line over the limit (10,000 chars by default)
+gets no tokens and keeps its state. Each search reads the line through a
+`BoundedChars` that checks the `CancellationToken` and ends the search after
+`4 * (rules + 2) * remaining chars + 65,536` reads; that, or a
+`StackOverflowError`, leaves the rest of the line plain.
+
+`SyntaxEngine` highlights one document on one thread at a time:
+
+- It stores each line's start state and fold counts, 4 bytes each. `edit`
+  shifts both by each edit's line range widened by one line on each side (a
+  CR and an LF that join or part stay inside it) and moves the frontier back.
+- It copies up to 256 lines, at most 256 Ki chars, in one read: a
+  `LineView` locates its line from the start of its leaf, so line by line
+  reads scan each leaf once per line.
+- `run` returns the `request`ed lines first, then tokenizes from the frontier
+  until a deadline, the end, or the frontier passing the last view line it
+  had not reached. After the last edited line, a line ending in the state its
+  successor already holds ends the work: the edit has converged.
+- The frontier returns the lines of each view range (`setViewport`) as it
+  passes them; a requested line beyond it is tokenized from a stored state, or
+  from the initial state, and returned again when the frontier passes.
+- At the end it pairs the fold counts into regions: per line the closing and
+  opening marks left after pairing within the line, outside comments and
+  strings; one region per start line, the largest, spanning two lines or
+  more. It also counts the lines over the limit.
+
+`GrammarSet` holds the compiled grammars: user grammars replace built-in ones
+by id, and a user grammar that does not compile is left out with a message.
+`detect` takes a grammar naming the file name, then the extension (any
+case), then a first-line regex over the first 1,000 chars, read through
+`BoundedChars`; user grammars come first, then plain text.
+
 ## Search (`core.search`)
 
 `SearchQuery` (text, regex, case, whole word) compiles to a `TextMatcher`; an
@@ -313,6 +389,13 @@ outside a searched range.
 
 The calls are `@WorkerThread`: the find bar runs them on `qcaret-cpu-` workers
 from a snapshot, and HyperSearch (S5) reuses them.
+
+## Bounded reads (`core.text`)
+
+`BoundedChars` is a `CharSequence` over a line that throws `LimitReached` once
+`charAt` passes a read count, and checks a `CancellationToken` every 4,096
+reads, so a backtracking regex over it ends. `lineLimit` is `8 * length +
+65,536`.
 
 ## Log text (`core.text`)
 
@@ -375,6 +458,19 @@ inside `\Q`, a `(?x)` comment and a `\Q` in such a comment, which the plain
 wrapper failed with "Unclosed group"), the line-break anchors,
 skipped empty matches, lookbehind before the range, cancellation, a stack
 overflow on 400,000 chars as a typed failure, and replacement templates.
+`BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
+its tokens, HTML's embedded JavaScript and CSS included. `SyntaxEngineTest`
+applies seeded random edits that open and close comments, strings and
+braces and join CR LF pairs, then checks every line's tokens and the fold
+regions against a new engine; it also checks that a converging edit
+retokenizes three lines, view lines before and after the frontier, the line
+limit and marker folding. `TokenizerTest` covers states across lines, the
+line limit, a runaway regex and a stack overflow left plain, a cancel, the
+zero-width guard and refused backreferences. `GrammarReaderTest` covers every
+element, a refused DOCTYPE, schema errors with their line, bad regexes and
+missing contexts. `GrammarSetTest` covers the detection order, user grammars
+and a runaway first-line regex. `CommentEditsTest` and `BoundedCharsTest`
+cover the rest of the area.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on
 every OS), `AtomicFilesTest`, `LogTextTest`, `UtilTest` and `TestkitTest`
 cover the other classes.

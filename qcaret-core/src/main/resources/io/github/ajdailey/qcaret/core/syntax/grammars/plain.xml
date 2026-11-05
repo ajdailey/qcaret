@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grammar id="plain" name="Plain Text" version="1">
+  <detect>
+    <extension>txt</extension>
+    <extension>text</extension>
+  </detect>
+  <context id="main"/>
+</grammar>

@@ -93,7 +93,7 @@ command or keys contain the filter. Shortcut overrides are not built.
 
 `ApplicationController` runs the window's commands and owns the settings, the
 theme, the keymap, the editor font step and the window's `DocumentController`,
-`HelpController` and `FindController`. It is confined to the UI thread; settings writes run on
+`HelpController`, `FindController` and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
 editor's `EditorController`. After `quit` starts, `execute` does nothing.
 
@@ -257,6 +257,44 @@ document ignores edits. The controller also runs the projection's rewraps on
   Every edit removes a composition first.
 - Esc cancels a running save and drops the secondary selections and the
   block; with neither, it closes the find bar.
+- Toggle Line Comment and Toggle Block Comment apply `CommentEdits` with the
+  document grammar's delimiters at every selection, as one undo step; a
+  grammar without a line comment toggles a block comment around each block of
+  lines.
+
+### Syntax highlighting
+
+`GrammarLibrary` reads the built-in grammars and the user's
+`<settings>/grammars/*.xml` on a `qcaret-io-` worker at startup
+(`loadGrammars`) and on View > Syntax > Reload Grammars. A user file that does
+not parse, fails the schema or compiles badly, or is over 1 MiB, is skipped
+with a WARN log line and one notice per read; a user grammar with a built-in's
+id replaces it.
+
+`DocumentController` gives each document a `SyntaxHighlighter` and picks its
+grammar on a `qcaret-cpu-` worker with `GrammarSet.detect` (file name,
+extension, then the first 1,000 chars of the first line) when it opens, when a
+save gives it another name and when the grammars are read again. View >
+Syntax or a click on the status bar's language field sets one for the
+document (`setSyntax`); that choice survives a reload while the grammar
+exists.
+
+`SyntaxHighlighter` keeps the painted tokens in a `TokenCache` on the UI
+thread and runs a `SyntaxEngine` on the CPU pool; the UI thread runs no regex.
+
+- Each change, grammar switch, view range and request for missing lines goes
+  to a queue. One task at a time drains it, runs the engine for at most 10 ms,
+  posts the output and submits itself again while work remains.
+- An output carries the switch generation and the revision the engine read.
+  Its tokens apply only at the current revision; the lines the frontier
+  tokenized are dropped from the cache at any revision, mapped through the
+  `PositionMap`, so an edit the engine has seen leaves no stale entry.
+- A change shifts the cache at once, so typing does not flash plain text. An
+  output repaints the views only when it changes a line one of them shows.
+- The fold regions of the last complete pass are the document's
+  `FoldRegionSource` (`activeFoldRegions`) for that revision.
+- Lines over 10,000 chars stay plain; the count goes to the log at INFO
+  when a complete pass finds a new count.
 
 ## Editor state (`app.editor`)
 
@@ -288,6 +326,18 @@ the next row.
   request's snapshot, and `install` applies it only while the document is
   still at that revision; a stale or superseded result is dropped and the
   owner asks again.
+
+`HighlightComposer` composes what one view paints on a row, lowest layer
+first: the syntax tokens' foreground (`TokenSource`), the find matches'
+background, then the secondary selections, which set both. It returns runs of
+role and background ordinals; the view maps them to its toolkit styles.
+`TokenCache` holds the tokens of the last 2,000 painted lines, maps each token
+type to the `TokenRole` of the same name and shifts entries through a change:
+an edit without breaks moves the tokens in its line, an insert with breaks
+splits the line's tokens around it, any other edit drops the lines it touches,
+and a CR and LF joining or parting at an edit (line count off from the edits'
+sum) drops every line. `FoldRegionSource` is the fold layer's input: `{start,
+end}` line pairs per revision.
 
 `ColumnMetrics` holds a monospace font's column geometry: the advance is the
 measured width of 1,000 digits over 1,000, kept fractional, and column `c`
@@ -330,7 +380,8 @@ a changed palette to its `PaletteListener`s.
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection, current line, gutter and line numbers, caret,
 whitespace marks, the find-match background, and a `TokenStyle` (color, bold,
-italic, underline) for every `TokenRole`, which S4's highlighter assigns. The
+italic, underline) for every `TokenRole`; a grammar token type paints with the
+role of the same name. The
 light and dark defaults derive from the brand navy `#1B2E44`, cyan `#56C1F0`
 and amber `#F3B65B`; every token color reaches a contrast ratio of 4.5 on the
 background, the current line and a find match (`PaletteTest`).
@@ -386,6 +437,14 @@ Next Occurrence from a worker, line commands whose undo restores every caret,
 paste per caret, composition text with a commit as one undo step, and Go to
 with a tab width change. `EditingSettingsTest` covers Save All, Reopen Closed
 Tab, Read-Only, the tab settings and the Go to Line prompt.
+`SyntaxHighlighterTest` runs the highlighter on real workers: view lines
+arrive and the regions follow the pass, an edit's shifted tokens paint at once
+and the final tokens equal a new pass, and outputs queued for an older
+revision do not overwrite newer text. `SyntaxControllerTest` covers detection
+by name and first line, the manual choice across a reload, a user grammar
+replacing a built-in, the notice for an invalid file, and both comment
+commands at two carets as one undo step. `HighlightComposerTest` and
+`TokenCacheTest` cover the layers and the cache through edits.
 
 `SplitViewTest` covers two views with their own selections over one text,
 the arrangement switch, focus, Unsplit keeping the focused view, and both

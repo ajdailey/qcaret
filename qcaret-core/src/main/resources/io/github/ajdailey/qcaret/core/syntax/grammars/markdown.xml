@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CommonMark 0.31.2 with the GitHub Flavored Markdown table and strikethrough extensions. -->
+<grammar id="markdown" name="Markdown" version="1">
+  <detect>
+    <extension>md</extension>
+    <extension>markdown</extension>
+    <extension>mdown</extension>
+    <extension>mkd</extension>
+    <extension>mkdn</extension>
+  </detect>
+  <comments blockStart="&lt;!--" blockEnd="--&gt;"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="`" close="`"/>
+  </autoClose>
+  <context id="main">
+    <span token="comment" begin="&lt;!--" end="--&gt;" multiLine="true"/>
+    <span token="string" begin="^\s{0,3}```.*$" end="^\s{0,3}```\s*$" multiLine="true"/>
+    <span token="string" begin="^\s{0,3}~~~.*$" end="^\s{0,3}~~~\s*$" multiLine="true"/>
+    <match token="heading" regex="^\s{0,3}#{1,6}(?:\s.*)?$"/>
+    <match token="heading" regex="^\s{0,3}=+\s*$"/>
+    <match token="delimiter" regex="^\s{0,3}(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,})$"/>
+    <match token="delimiter" regex="^\s*(?:[-+*]|\d{1,9}[.)])(?=\s)|^\s*&gt;+"/>
+    <match token="link" regex="^\s{0,3}\[[^\]]+\]:\s*\S+.*$"/>
+    <match token="string" regex="``(?:[^`]|`(?!`))+``|`[^`]+`"/>
+    <match token="link" regex="!?\[[^\]]*\]\([^)\s]*(?:\s+&quot;[^&quot;]*&quot;)?\)|!?\[[^\]]*\]\[[^\]]*\]"/>
+    <match token="link" regex="&lt;(?:https?|ftp|mailto):[^&gt;\s]+&gt;|(?&lt;![\w/])(?:https?|ftp)://[^\s&lt;&gt;()]+[^\s&lt;&gt;().,;:!?]"/>
+    <match token="emphasis" regex="\*\*(?=\S)[^*]*?(?&lt;=\S)\*\*|__(?=\S)[^_]*?(?&lt;=\S)__(?!\w)"/>
+    <match token="emphasis" regex="(?&lt;!\*)\*(?=[^\s*])[^*]*?(?&lt;=[^\s*])\*(?!\*)|(?&lt;![\w_])_(?=[^\s_])[^_]*?(?&lt;=[^\s_])_(?![\w_])"/>
+    <match token="emphasis" regex="~~(?=\S)[^~]*?(?&lt;=\S)~~"/>
+    <match token="escape" regex="\\[!-/:-@\[-`{-~]"/>
+    <match token="tag" regex="&lt;/?[A-Za-z][\w-]*(?:\s[^&lt;&gt;]*)?/?&gt;"/>
+    <match token="delimiter" regex="\|"/>
+  </context>
+</grammar>

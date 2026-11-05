@@ -158,6 +158,9 @@ starts `Main` with `-l` as a child process, waits for the window line in its
 log, sends SIGTERM (`Process.destroy`) and checks that the process ends within
 the hook's bound, saved the placement, and logged the hook's INFO line to the
 file. Windows has no SIGTERM; `destroy` there terminates without hooks.
+`ScreenshotsTest` (tag `swt`) runs only with `-Dqcaret.screenshots=<dir>`
+(`tools/screenshots.sh`): it opens generated mock files and writes the README
+screenshots in the light and the dark theme.
 
 `ShutdownHookTest` runs the hook's task directly. Surefire plants
 `java.util.logging.config.file` (`planted-logging.properties`);

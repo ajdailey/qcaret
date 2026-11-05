@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CSS Syntax Module Level 3 and Selectors Level 4 (W3C), with CSS nesting. -->
+<grammar id="css" name="CSS" version="1">
+  <detect>
+    <extension>css</extension>
+  </detect>
+  <comments blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="\{\s*(/\*.*)?$" decrease="^\s*\}"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <include context="common"/>
+    <match token="delimiter" regex="\{" push="block"/>
+    <include context="selectors"/>
+  </context>
+  <context id="block">
+    <include context="common"/>
+    <match token="delimiter" regex="\}" pop="true"/>
+    <match token="attribute" regex="(?&lt;![\w-])-{0,2}[A-Za-z_][\w-]*(?=\s*:(?![^;{}]*\{))" push="value"/>
+    <match token="delimiter" regex="\{" push="block"/>
+    <match token="delimiter" regex=";"/>
+    <include context="selectors"/>
+  </context>
+  <context id="value">
+    <include context="common"/>
+    <match token="delimiter" regex=";" pop="true"/>
+    <match regex="(?=\})" pop="true"/>
+    <match token="keyword" regex="!\s*important\b"/>
+    <match token="constant" regex="#[0-9A-Fa-f]{3,8}(?![\w-])"/>
+    <match token="number" regex="(?&lt;![\w-])[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:%|[A-Za-z]+)?"/>
+    <match token="function" regex="(?&lt;![\w-])[A-Za-z-][\w-]*(?=\()"/>
+    <match token="constant" regex="(?&lt;![\w-])--[\w-]+"/>
+    <match token="delimiter" regex="[:,()/]"/>
+  </context>
+  <context id="selectors">
+    <match token="preprocessor" regex="@[\w-]+"/>
+    <match token="constant" regex="#[\w-]+"/>
+    <match token="type" regex="\.[A-Za-z_-][\w-]*"/>
+    <match token="keyword2" regex="::?[A-Za-z-][\w-]*"/>
+    <match token="attribute" regex="\[[^\]]*\]"/>
+    <match token="tag" regex="(?&lt;![\w-])[A-Za-z][\w-]*"/>
+    <match token="operator" regex="[&gt;+~*,&amp;|]"/>
+  </context>
+  <context id="common">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:[0-9A-Fa-f]{1,6}\s?|.|$)"/>
+    <span token="string" begin="'" end="'" escape="\\(?:[0-9A-Fa-f]{1,6}\s?|.|$)"/>
+    <match token="link" regex="(?i)(?&lt;=url\()[^)\s&quot;']+"/>
+  </context>
+</grammar>

@@ -21,11 +21,13 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.edit.BlockEdits;
+import io.github.ajdailey.qcaret.core.edit.CommentEdits;
 import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.edit.LineEdits;
 import io.github.ajdailey.qcaret.core.edit.Moves;
 import io.github.ajdailey.qcaret.core.edit.Occurrences;
 import io.github.ajdailey.qcaret.core.edit.Words;
+import io.github.ajdailey.qcaret.core.syntax.Grammar;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -50,6 +52,8 @@ import java.util.concurrent.RejectedExecutionException;
  *       older revision is dropped.
  *   <li>Input method composition text applies outside undo ({@link Document#preedit}); any edit
  *       first removes it.
+ *   <li>Toggle Line Comment and Toggle Block Comment use the document grammar's delimiters ({@link
+ *       CommentEdits}), at every selection, as one undo step.
  * </ul>
  *
  * <p>The controller also schedules the projection's rewraps: each runs on a {@code qcaret-cpu-}
@@ -72,6 +76,7 @@ public final class EditorController implements EditorInput {
   private Runnable escapeListener;
   private boolean columnMode;
   private boolean disposed;
+  private Grammar.Comments comments = Grammar.Comments.NONE;
 
   /**
    * Creates the controller.
@@ -353,11 +358,37 @@ public final class EditorController implements EditorInput {
         showCaret();
       }
       case COLUMN_MODE -> setColumnMode(!columnMode);
+      case TOGGLE_LINE_COMMENT ->
+          applyEdit(
+              CommentEdits.toggleLines(
+                  document.text(),
+                  current(),
+                  comments.line(),
+                  comments.blockStart(),
+                  comments.blockEnd()));
+      case TOGGLE_BLOCK_COMMENT ->
+          applyEdit(
+              CommentEdits.toggleBlock(
+                  document.text(), current(), comments.blockStart(), comments.blockEnd()));
       default -> {
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Sets the comment delimiters the comment commands use.
+   *
+   * @param value the document grammar's delimiters
+   */
+  void setComments(Grammar.Comments value) {
+    comments = value;
+  }
+
+  /** Returns the comment delimiters; for {@link CommandStates}. */
+  Grammar.Comments comments() {
+    return comments;
   }
 
   /**

@@ -149,9 +149,14 @@ which `MainWindow.clipboardText` uses.
   reach shows the nearest value: the dark palette's amber shows red 0xdd for
   0xf3.
 - Each paint that shows another display range reports it through
-  `EditorInput.viewportChanged`. `showMatches` stores the find matches
-  (`MatchLayer`), painted as line style backgrounds; a secondary selection on
-  the same chars wins.
+  `EditorInput.viewportChanged`.
+- Line styles come from the pane's `HighlightComposer`: the syntax tokens
+  (`setSyntax`), the find matches (`showMatches`) and the secondary
+  selections, which win over both. A run takes its `TokenRole`'s palette
+  color, bold, italic and underline; `redrawHighlights` repaints after new
+  tokens arrive. The status bar's language field pops up the grammar list;
+  the View menu's Syntax cascade lists it above Reload Grammars, rebuilt on
+  each show.
 - Every resize and font change sends the columns that fit the text area for
   word wrap. `setFont` replaces the font in place and measures the advance
   again. A
@@ -263,6 +268,10 @@ match background in pixels in the light and the dark theme (skipped when
 `Control.print` returns false), Escape closing the bar and clearing the
 matches, and Esc in the editor dropping an extra caret before it closes the
 bar; the Focus Other View item shows F6 and switches views.
+`SyntaxPaneTest` (tag `swt`) opens a Java file and checks the keyword's
+palette color and bold, a number keeping its color under a find match, the
+Syntax cascade's grammar list and a switch to Plain Text that clears the
+styles and the status field.
 `SwtUiDispatcherTest` checks that a canceled timer does not run and that
 cancel after dispose does nothing. `CaretInkTest` checks the caret image color
 under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs

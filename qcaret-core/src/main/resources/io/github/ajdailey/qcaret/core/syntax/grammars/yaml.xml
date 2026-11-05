@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- YAML 1.2.2 specification, chapters 5 to 9, with the YAML 1.1 boolean words. -->
+<grammar id="yaml" name="YAML" version="1">
+  <detect>
+    <extension>yaml</extension>
+    <extension>yml</extension>
+    <fileName>.clang-format</fileName>
+    <fileName>.clang-tidy</fileName>
+    <firstLine>^%YAML\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase=":\s*(#.*)?$"/>
+  <folding mode="indent"/>
+  <context id="main">
+    <span token="comment" begin="(?&lt;!\S)#"/>
+    <match token="preprocessor" regex="^(?:---|\.\.\.)(?=\s|$)|^%\w+.*$"/>
+    <match token="delimiter" regex="(?&lt;=^\s{0,64}|^\s{0,64}-\s{1,8})-(?=\s|$)"/>
+    <match token="attribute" regex="(?&lt;=^\s{0,64}|^\s{0,64}-\s{1,8}|[{,]\s{0,8})(?:&quot;(?:[^&quot;\\]|\\.)*&quot;|'(?:[^']|'')*'|[^\s#:'&quot;\[\]{},&amp;*!|&gt;%@`](?:[^:#]|:(?!\s|$)|(?&lt;!\s)#)*?)(?=\s*:(?:\s|$))"/>
+    <span token="string" begin='"' end='"' escape="\\." multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="''" multiLine="true"/>
+    <match token="type" regex="![^\s,\[\]{}]*"/>
+    <match token="constant" regex="[&amp;*][^\s,\[\]{}]+"/>
+    <match token="operator" regex="[|&gt;][-+]?\d*(?=\s*(?:#.*)?$)"/>
+    <match token="constant" regex="(?i)(?&lt;=:\s{1,8}|-\s{1,8}|[\[,]\s{0,8}|^\s{0,64})(?:true|false|null|yes|no|on|off|~)(?=\s*(?:[,\]}#]|$))"/>
+    <match token="number" regex="(?&lt;![\w.-])[-+]?(?:0[xX][0-9A-Fa-f]+|0[oO][0-7]+|\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.(?:inf|Inf|INF|nan|NaN|NAN))(?=\s*(?:[,\]}#]|$))"/>
+    <match token="delimiter" regex="[\[\]{},:]"/>
+  </context>
+</grammar>

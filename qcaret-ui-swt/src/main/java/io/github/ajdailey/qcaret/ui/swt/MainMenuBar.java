@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
@@ -33,11 +35,19 @@ import org.eclipse.swt.widgets.Shell;
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
  * change, because a disabled item's accelerator does not fire. Each encoding cascade holds {@link
  * EncodingChoices#commonCharsets()} from the start and an Other cascade, disabled and empty until
- * {@link #encodingsLoaded} fills it once; neither is rebuilt. Call on the UI thread.
+ * {@link #encodingsLoaded} fills it once; neither is rebuilt. The View menu's Syntax cascade lists
+ * the grammars above Reload Grammars, rebuilt each time the View menu shows; {@link
+ * #showSyntaxMenu} pops up the same list. Call on the UI thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
   private static final String LISTED = "qcaret.listed";
+
+  /** Widget data of the Syntax cascade's grammar entries. */
+  private static final String SYNTAX = "qcaret.syntax";
+
+  /** The last language popup; replaced by the next and disposed with the shell. */
+  private Menu syntaxPopup;
 
   private final Shell shell;
   private final ApplicationController controller;
@@ -259,6 +269,71 @@ final class MainMenuBar {
     if (group == CommandGroup.WINDOW) {
       syncDocuments();
     }
+    if (group == CommandGroup.VIEW) {
+      syncSyntax();
+    }
+  }
+
+  /** Lists the grammars above Reload Grammars, the selected document's checked. */
+  private void syncSyntax() {
+    MenuItem reload = items.get(CommandId.RELOAD_GRAMMARS);
+    if (reload == null || reload.isDisposed()) {
+      return;
+    }
+    Menu menu = reload.getParent();
+    for (MenuItem item : menu.getItems()) {
+      if (SYNTAX.equals(item.getData())) {
+        item.dispose();
+      }
+    }
+    List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
+    for (int i = 0; i < choices.size(); i++) {
+      syntaxItem(menu, i, choices.get(i));
+    }
+    if (!choices.isEmpty()) {
+      new MenuItem(menu, SWT.SEPARATOR, choices.size()).setData(SYNTAX);
+    }
+  }
+
+  private void syntaxItem(Menu menu, int index, final CommandStates.SyntaxChoice choice) {
+    MenuItem item = new MenuItem(menu, SWT.RADIO, index);
+    item.setText(choice.name().replace("&", "&&"));
+    item.setSelection(choice.checked());
+    item.setData(SYNTAX);
+    item.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (((MenuItem) event.widget).getSelection()) {
+              controller.setSyntax(choice.id());
+            }
+          }
+        });
+  }
+
+  /**
+   * Pops up the grammars below a control, the selected document's checked; choosing one sets it.
+   * The popup replaces the previous one.
+   *
+   * @param below the control the menu opens at
+   */
+  void showSyntaxMenu(Control below) {
+    List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
+    if (choices.isEmpty()) {
+      return;
+    }
+    if (syntaxPopup != null && !syntaxPopup.isDisposed()) {
+      syntaxPopup.dispose();
+    }
+    Menu popup = new Menu(shell, SWT.POP_UP);
+    syntaxPopup = popup;
+    for (int i = 0; i < choices.size(); i++) {
+      syntaxItem(popup, i, choices.get(i));
+    }
+    Point at = below.toDisplay(0, below.getSize().y);
+    popup.setLocation(at.x, at.y);
+    popup.setVisible(true);
   }
 
   /** Syncs every menu, as showing each would. */

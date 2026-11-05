@@ -57,6 +57,10 @@ public enum CommandId {
   INDENT(CommandGroup.EDIT, UiText.COMMAND_INDENT, true, false, null),
   /** Outdent the touched lines. */
   OUTDENT(CommandGroup.EDIT, UiText.COMMAND_OUTDENT, false, false, null),
+  /** Comment or uncomment the touched lines with the grammar's line comment. */
+  TOGGLE_LINE_COMMENT(CommandGroup.EDIT, UiText.COMMAND_TOGGLE_LINE_COMMENT, true, false, null),
+  /** Comment or uncomment each selection with the grammar's block comment. */
+  TOGGLE_BLOCK_COMMENT(CommandGroup.EDIT, UiText.COMMAND_TOGGLE_BLOCK_COMMENT, false, false, null),
   /** Two columns per tab stop in the selected document. */
   TAB_WIDTH_2(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_2, false, true, UiText.MENU_TAB_WIDTH),
   /** Four columns per tab stop. */
@@ -104,6 +108,9 @@ public enum CommandId {
   /** Focus the selected document's other view. */
   FOCUS_OTHER_VIEW(
       CommandGroup.VIEW, UiText.COMMAND_FOCUS_OTHER_VIEW, false, false, UiText.MENU_SPLIT),
+  /** Read the grammars again; the Syntax cascade lists the languages above it. */
+  RELOAD_GRAMMARS(
+      CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, true, false, UiText.MENU_SYNTAX),
   /** Open the find bar. */
   FIND(CommandGroup.SEARCH, UiText.COMMAND_FIND, false, false, null),
   /** Select the next match. */

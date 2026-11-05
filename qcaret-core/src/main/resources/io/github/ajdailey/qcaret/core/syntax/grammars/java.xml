@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Java SE 21, The Java Language Specification, chapter 3. -->
+<grammar id="java" name="Java" version="1">
+  <detect>
+    <extension>java</extension>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="//"/>
+    <span token="string" begin='"""' end='"""' escape="\\(?:u+[0-9A-Fa-f]{4}|[0-7]{1,3}|.)" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:u+[0-9A-Fa-f]{4}|[0-7]{1,3}|.)"/>
+    <span token="string" begin="'" end="'" escape="\\(?:u+[0-9A-Fa-f]{4}|[0-7]{1,3}|.)"/>
+    <match token="preprocessor" regex="@\s*(?!interface\b)[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*"/>
+    <keywords token="keyword" wordChars="_$">abstract assert break case catch class const continue default do else enum extends final finally for goto if implements import instanceof interface native new package private protected public return static strictfp super switch synchronized this throw throws transient try volatile while exports module non-sealed open opens permits provides record requires sealed to transitive uses var when with yield</keywords>
+    <keywords token="type" wordChars="_$">boolean byte char double float int long short void</keywords>
+    <keywords token="constant" wordChars="_$">true false null</keywords>
+    <match token="number" regex="(?&lt;![\w$.])(?:0[xX][0-9A-Fa-f_]*\.?[0-9A-Fa-f_]*(?:[pP][+-]?\d+)?|0[bB][01_]+|\d[\d_]*\.?[\d_]*(?:[eE][+-]?\d[\d_]*)?|\.\d[\d_]*(?:[eE][+-]?\d[\d_]*)?)[lLfFdD]?(?![\w$])"/>
+    <match token="function" regex="(?&lt;![\w$])[A-Za-z_$][\w$]*(?=\s*\()"/>
+    <match token="type" regex="(?&lt;![\w$])[A-Z][\w$]*[a-z][\w$]*"/>
+    <match token="constant" regex="(?&lt;![\w$])[A-Z][A-Z0-9_]+(?![\w$])"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:]+"/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+</grammar>

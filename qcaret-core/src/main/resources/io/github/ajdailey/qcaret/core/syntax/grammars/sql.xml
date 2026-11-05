@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SQL:2023, ISO/IEC 9075-2, clause 5 (lexical elements), with common procedural keywords. -->
+<grammar id="sql" name="SQL" version="1">
+  <detect>
+    <extension>sql</extension>
+    <extension>ddl</extension>
+  </detect>
+  <comments line="--" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="'" close="'"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="(?i)(?:\(|\bbegin)\s*(--.*)?$" decrease="(?i)^\s*(?:\)|end\b)"/>
+  <folding mode="markers" begin="(?i)\b(?:begin(?!\s+(?:tran|transaction|work)\b)|case)\b|\(" end="(?i)\bend\b|\)"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="--"/>
+    <span token="string" begin="(?i)(?:[nxbe]|u&amp;)?'" end="'" escape="''" multiLine="true"/>
+    <span token="attribute" begin='"' end='"' escape='""'/>
+    <span token="attribute" begin="`" end="`" escape="``"/>
+    <match token="attribute" regex="\[[^\]]*\]"/>
+    <keywords token="keyword" ignoreCase="true">add all alter analyze and any as asc begin between both by call cascade case cast check close column commit constraint create cross current cursor database declare default delete desc distinct do drop else elsif end escape except exception execute exists explain fetch for foreign from full function grant group having if ilike in index inner insert intersect into is join key language lateral leading left like limit loop merge natural not of offset on open or order outer over partition primary procedure references replace return returns revoke right rollback row rows savepoint schema select sequence set similar some table then to trailing transaction trigger truncate union unique update using values view when where while window with</keywords>
+    <keywords token="type" ignoreCase="true">bigint bigserial binary bit blob boolean char character clob date datetime decimal double float int integer interval json jsonb nchar numeric nvarchar precision real serial smallint text time timestamp timestamptz uuid varbinary varchar xml zone</keywords>
+    <keywords token="keyword2" ignoreCase="true">abs avg coalesce concat convert count current_date current_time current_timestamp current_user dense_rank extract first_value floor lag last_value lead length lower max min mod now nullif position rank round row_number substring sum trim upper</keywords>
+    <keywords token="constant" ignoreCase="true">null true false unknown</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f]+|\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)(?![\w.])"/>
+    <match token="constant" regex="[:@$?]\w+"/>
+    <match token="function" regex="(?&lt;![\w.])[A-Za-z_]\w*(?=\s*\()"/>
+    <match token="operator" regex="[-+*/%=&lt;&gt;!|&amp;^~]+"/>
+    <match token="delimiter" regex="[(),;.]"/>
+  </context>
+</grammar>

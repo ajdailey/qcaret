@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HTML Living Standard (WHATWG), section 13.1 (writing HTML documents); script and style content uses the JavaScript and CSS grammars. -->
+<grammar id="html" name="HTML" version="1">
+  <detect>
+    <extension>html</extension>
+    <extension>htm</extension>
+    <extension>xhtml</extension>
+    <extension>shtml</extension>
+    <firstLine>(?i)^\s*&lt;!doctype\s+html\b</firstLine>
+  </detect>
+  <comments blockStart="&lt;!--" blockEnd="--&gt;"/>
+  <brackets>
+    <pair open="&lt;" close="&gt;"/>
+  </brackets>
+  <autoClose>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="(?i)&lt;(?!(?:area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)\b)[a-z][\w-]*(?:\s[^&lt;&gt;]*)?(?&lt;!/)&gt;\s*$" decrease="^\s*&lt;/"/>
+  <folding mode="markers" begin="(?i)&lt;(?!(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b)[a-z][\w:-]*(?![^&lt;&gt;]*/&gt;)" end="(?i)&lt;/[a-z][\w:-]*\s*&gt;"/>
+  <context id="main">
+    <span token="comment" begin="&lt;!--" end="--&gt;" multiLine="true"/>
+    <span token="preprocessor" begin="(?i)&lt;!doctype\b" end="&gt;" multiLine="true"/>
+    <embed grammar="javascript" begin="(?i)(?&lt;=&lt;script\b[^&lt;&gt;]{0,1000}&gt;)(?!&lt;/script\b)" end="(?i)(?=&lt;/script\b)"/>
+    <embed grammar="css" begin="(?i)(?&lt;=&lt;style\b[^&lt;&gt;]{0,1000}&gt;)(?!&lt;/style\b)" end="(?i)(?=&lt;/style\b)"/>
+    <match token="tag" regex="&lt;/?[A-Za-z][\w:-]*" push="tag"/>
+    <include context="references"/>
+  </context>
+  <context id="tag">
+    <match token="tag" regex="/?&gt;" pop="true"/>
+    <match token="attribute" regex="[^\s&quot;'&lt;&gt;/=]+"/>
+    <match token="operator" regex="="/>
+    <span token="string" begin='"' end='"' context="references" multiLine="true"/>
+    <span token="string" begin="'" end="'" context="references" multiLine="true"/>
+  </context>
+  <context id="references">
+    <match token="escape" regex="&amp;(?:#\d+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);"/>
+  </context>
+</grammar>

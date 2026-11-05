@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- POSIX.1-2024 Shell Command Language, chapter 2, with the Bash reference manual's reserved words and builtins. -->
+<grammar id="shell" name="Shell Script" version="1">
+  <detect>
+    <extension>sh</extension>
+    <extension>bash</extension>
+    <extension>zsh</extension>
+    <extension>ksh</extension>
+    <fileName>.bashrc</fileName>
+    <fileName>.bash_profile</fileName>
+    <fileName>.bash_logout</fileName>
+    <fileName>.profile</fileName>
+    <fileName>.zshrc</fileName>
+    <fileName>.zprofile</fileName>
+    <fileName>.kshrc</fileName>
+    <firstLine>^#!.*\b(?:ba|z|k|da|a)?sh\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="(?:\bthen|\bdo|\{|\(\))\s*(#.*)?$|^\s*case\b" decrease="^\s*(?:fi|done|esac|else|elif|\})\b"/>
+  <folding mode="markers" begin="(?&lt;![\w-])(?:if|case)(?![\w-])|(?&lt;![\w-])do(?![\w-])|\{" end="(?&lt;![\w-])(?:fi|esac|done)(?![\w-])|\}"/>
+  <context id="main">
+    <span token="comment" begin="(?&lt;![^\s;|&amp;(])#"/>
+    <span token="string" begin='"' end='"' escape='\\[$`"\\]|\\$' context="expansions" multiLine="true"/>
+    <span token="string" begin="\$'" end="'" escape="\\." multiLine="true"/>
+    <span token="string" begin="'" end="'" multiLine="true"/>
+    <include context="expansions"/>
+    <match token="function" regex="^\s*(?:function\s+)?[A-Za-z_][\w-]*(?=\s*\(\s*\))"/>
+    <keywords token="keyword" wordChars="_-">if then else elif fi case esac for select while until do done in function time coproc</keywords>
+    <keywords token="keyword2" wordChars="_-">alias bg bind break builtin caller cd command compgen complete compopt continue declare dirs disown echo enable eval exec exit export false fc fg getopts hash help history jobs kill let local logout mapfile popd printf pushd pwd read readarray readonly return set shift shopt source suspend test times trap true type typeset ulimit umask unalias unset wait</keywords>
+    <match token="number" regex="(?&lt;![\w$.-])\d+(?![\w.])"/>
+    <match token="operator" regex="&amp;&amp;|\|\||[|&amp;;&lt;&gt;!=]+"/>
+    <match token="delimiter" regex="[(){}\[\]]"/>
+  </context>
+  <context id="expansions">
+    <match token="constant" regex="\$\{[^}]*\}|\$[A-Za-z_]\w*|\$[@*#?$!0-9-]"/>
+    <match token="delimiter" regex="\$\(\(?|`"/>
+  </context>
+</grammar>

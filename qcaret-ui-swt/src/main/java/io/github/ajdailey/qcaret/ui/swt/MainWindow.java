@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
@@ -186,6 +187,16 @@ public final class MainWindow implements MainView {
       @Override
       public void setColumnMode(boolean on) {
         editor.setColumnMode(on);
+      }
+
+      @Override
+      public void setSyntax(TokenSource tokens) {
+        editor.setSyntax(tokens);
+      }
+
+      @Override
+      public void redrawHighlights() {
+        editor.redrawHighlights();
       }
     }
 
@@ -368,6 +379,17 @@ public final class MainWindow implements MainView {
     encoding = statusLabel();
     lineEnding = statusLabel();
     language = statusLabel();
+    language.setToolTipText(UiText.STATUS_LANGUAGE_TIP.text());
+    language.addListener(
+        SWT.MouseUp,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (menuBar != null && event.button == 1) {
+              menuBar.showSyntaxMenu(language);
+            }
+          }
+        });
     busy =
         new BusyCounter(
             dispatcher,

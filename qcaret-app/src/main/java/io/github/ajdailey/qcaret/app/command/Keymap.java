@@ -126,6 +126,8 @@ public final class Keymap {
     editor(b, CommandId.ADD_CARET_ABOVE, addCaret, KeyStroke.UP);
     editor(b, CommandId.ADD_CARET_BELOW, addCaret, KeyStroke.DOWN);
     editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');
+    editor(b, CommandId.TOGGLE_LINE_COMMENT, P, '/');
+    editor(b, CommandId.TOGGLE_BLOCK_COMMENT, P | S, '/');
     int word = mac ? a : P;
     int block = mac ? P | a | S : a | S;
     for (int shift = 0; shift <= S; shift += S) {

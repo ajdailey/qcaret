@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML 1.0 (Fifth Edition), section 2 (documents) and 4.1 (character and entity references). -->
+<grammar id="xml" name="XML" version="1">
+  <detect>
+    <extension>xml</extension>
+    <extension>xsd</extension>
+    <extension>xsl</extension>
+    <extension>xslt</extension>
+    <extension>svg</extension>
+    <extension>wsdl</extension>
+    <extension>xaml</extension>
+    <extension>plist</extension>
+    <extension>rss</extension>
+    <extension>atom</extension>
+    <extension>fxml</extension>
+    <extension>csproj</extension>
+    <extension>vcxproj</extension>
+    <extension>props</extension>
+    <extension>targets</extension>
+    <extension>nuspec</extension>
+    <extension>resx</extension>
+    <extension>tld</extension>
+    <extension>jnlp</extension>
+    <extension>kml</extension>
+    <extension>gpx</extension>
+    <firstLine>^\s*&lt;\?xml\b</firstLine>
+  </detect>
+  <comments blockStart="&lt;!--" blockEnd="--&gt;"/>
+  <brackets>
+    <pair open="&lt;" close="&gt;"/>
+  </brackets>
+  <autoClose>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="&lt;[A-Za-z_:][\w:.-]*(?:\s[^&lt;&gt;]*)?(?&lt;!/)&gt;\s*$" decrease="^\s*&lt;/"/>
+  <folding mode="markers" begin="&lt;[A-Za-z_:][\w:.-]*(?![^&lt;&gt;]*/&gt;)" end="&lt;/[A-Za-z_:][\w:.-]*\s*&gt;"/>
+  <context id="main">
+    <span token="comment" begin="&lt;!--" end="--&gt;" multiLine="true"/>
+    <span token="string" begin="&lt;!\[CDATA\[" end="\]\]&gt;" multiLine="true"/>
+    <span token="preprocessor" begin="&lt;\?[\w:.-]*" end="\?&gt;" context="tag" multiLine="true"/>
+    <span token="preprocessor" begin="&lt;!(?i:doctype)\b" end="&gt;" multiLine="true"/>
+    <match token="tag" regex="&lt;/?[A-Za-z_:][\w:.-]*" push="tag"/>
+    <include context="references"/>
+  </context>
+  <context id="tag">
+    <match token="tag" regex="/?&gt;" pop="true"/>
+    <match token="attribute" regex="[A-Za-z_:][\w:.-]*"/>
+    <match token="operator" regex="="/>
+    <span token="string" begin='"' end='"' context="references" multiLine="true"/>
+    <span token="string" begin="'" end="'" context="references" multiLine="true"/>
+  </context>
+  <context id="references">
+    <match token="escape" regex="&amp;(?:#\d+|#x[0-9A-Fa-f]+|[A-Za-z_:][\w:.-]*);"/>
+  </context>
+</grammar>

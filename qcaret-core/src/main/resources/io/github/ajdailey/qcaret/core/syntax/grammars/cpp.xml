@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- C++23, ISO/IEC 14882:2024, clause 5 (lexical conventions) and 15 (preprocessing directives). -->
+<grammar id="cpp" name="C++" version="1">
+  <detect>
+    <extension>cpp</extension>
+    <extension>cc</extension>
+    <extension>cxx</extension>
+    <extension>c++</extension>
+    <extension>hpp</extension>
+    <extension>hh</extension>
+    <extension>hxx</extension>
+    <extension>h++</extension>
+    <extension>ipp</extension>
+    <extension>tpp</extension>
+    <extension>ino</extension>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="//"/>
+    <match token="preprocessor" regex="^\s*#\s*[A-Za-z_]\w*"/>
+    <match token="string" regex="(?&lt;=include\s{0,8})&lt;[^&gt;]*&gt;"/>
+    <span token="string" begin='(?:u8|[uUL])?R"\(' end='\)"' multiLine="true"/>
+    <span token="string" begin='(?:u8|[uUL])?"' end='"(?:[A-Za-z_]\w*)?' escape="\\(?:x[0-9A-Fa-f]+|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)"/>
+    <span token="string" begin="(?:u8|[uUL])?'" end="'" escape="\\(?:x[0-9A-Fa-f]+|[0-7]{1,3}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)"/>
+    <keywords token="keyword">alignas alignof and and_eq asm bitand bitor break case catch class co_await co_return co_yield compl concept const const_cast consteval constexpr constinit continue decltype default delete do dynamic_cast else enum explicit export extern final for friend goto if import inline module mutable namespace new noexcept not not_eq operator or or_eq override private protected public register reinterpret_cast requires return sizeof static static_assert static_cast struct switch template this thread_local throw try typedef typeid typename union using virtual volatile while xor xor_eq</keywords>
+    <keywords token="type">auto bool char char8_t char16_t char32_t double float int long short signed unsigned void wchar_t size_t ptrdiff_t int8_t int16_t int32_t int64_t uint8_t uint16_t uint32_t uint64_t</keywords>
+    <keywords token="constant">true false nullptr NULL</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f']*\.?[0-9A-Fa-f']*(?:[pP][+-]?\d+)?|0[bB][01']+|\d[\d']*\.?[\d']*(?:[eE][+-]?\d+)?|\.\d[\d']*(?:[eE][+-]?\d+)?)\w*"/>
+    <match token="function" regex="(?&lt;!\w)[A-Za-z_]\w*(?=\s*(?:&lt;[\w\s,:*&amp;]*&gt;\s*)?\()"/>
+    <match token="type" regex="(?&lt;!\w)[A-Za-z_]\w*(?=::)|(?&lt;!\w)[A-Z]\w*[a-z]\w*"/>
+    <match token="constant" regex="(?&lt;!\w)[A-Z][A-Z0-9_]+(?!\w)"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:]+"/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+</grammar>

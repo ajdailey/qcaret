@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -8,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -25,6 +27,9 @@ import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
+import io.github.ajdailey.qcaret.core.syntax.Grammar;
+import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
+import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -75,6 +80,10 @@ import org.slf4j.LoggerFactory;
  *   <li>A tab shows its document in one view or two ({@link #split}); each view is an {@link
  *       EditorController} with its own selections and rows, and the focused one receives menu
  *       commands. Closing the tab disposes every view.
+ *   <li>Each document has a {@link SyntaxHighlighter} its views paint from. Its grammar is detected
+ *       on a {@code qcaret-cpu-} worker from the file name and the first line when the document
+ *       opens, when a save gives it another name and when the grammars are read again, unless the
+ *       user chose one ({@link #setSyntax}).
  * </ul>
  *
  * <p>Loads, saves and conversions each count as one operation of the view's {@link
@@ -101,6 +110,7 @@ public final class DocumentController {
   private OpenDocument active;
   private int nextUntitled = 1;
   private boolean wrap;
+  private GrammarLibrary grammars;
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
@@ -118,6 +128,9 @@ public final class DocumentController {
     CancellationToken converting;
     boolean binary;
     boolean closed;
+    SyntaxHighlighter syntax;
+    String grammar = GrammarSet.PLAIN;
+    boolean manualGrammar;
 
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
       this.document = document;
@@ -426,12 +439,14 @@ public final class DocumentController {
       boolean binary) {
     final OpenDocument d = new OpenDocument(document, path, baseline, reserved);
     d.binary = binary;
+    d.syntax = highlighter(d);
     d.input = tabInput(d);
     SelectionModel selections = document.newSelectionModel();
     DisplayProjection projection = new DisplayProjection(document, layout);
     d.editor = newEditor(d, projection, selections);
     d.tab = view.addTab(projection, selections, d.editor, d.input, index);
     d.editor.attach(d.tab.firstView());
+    d.tab.firstView().setSyntax(d.syntax);
     document.addListener(d);
     documents.add(index, d);
     active = d;
@@ -441,6 +456,7 @@ public final class DocumentController {
     }
     view.documentStateChanged();
     viewsChanged();
+    detect(d);
     return d;
   }
 
@@ -463,6 +479,7 @@ public final class DocumentController {
         new Runnable() {
           @Override
           public void run() {
+            d.syntax.viewportChanged(editor, editor.visibleStart(), editor.visibleEnd());
             if (viewListener != null && active == d) {
               viewListener.viewportChanged(editor);
             }
@@ -478,6 +495,7 @@ public final class DocumentController {
           }
         });
     d.editors.add(editor);
+    editor.setComments(comments(d));
     return editor;
   }
 
@@ -666,8 +684,12 @@ public final class DocumentController {
       return;
     }
     if (stamp != null) {
+      boolean renamed = !target.equals(d.path);
       d.path = target;
       d.baseline = stamp;
+      if (renamed) {
+        detect(d);
+      }
       d.document.markSaved(snapshot);
       d.updateTitle();
       view.documentStateChanged();
@@ -838,6 +860,7 @@ public final class DocumentController {
     for (EditorController e : d.editors) {
       e.dispose();
     }
+    d.syntax.dispose();
     budget.release(d.reserved);
     documents.remove(d);
     if (active == d) {
@@ -936,6 +959,7 @@ public final class DocumentController {
         new DisplayProjection(d.document, from.projection().currentLayout());
     EditorController editor = newEditor(d, projection, selections);
     editor.attach(d.tab.split(projection, selections, editor, sideBySide));
+    editor.view().setSyntax(d.syntax);
     d.editor = editor;
     editor.setWrap(wrap);
     view.documentStateChanged();
@@ -951,6 +975,7 @@ public final class DocumentController {
     for (EditorController e : new ArrayList<EditorController>(d.editors)) {
       if (e != d.editor) {
         d.editors.remove(e);
+        d.syntax.removeView(e);
         e.dispose();
       }
     }
@@ -1209,6 +1234,136 @@ public final class DocumentController {
    */
   public EditorInput activeInput() {
     return active == null ? null : active.editor;
+  }
+
+  // Syntax.
+
+  /**
+   * Connects the grammars: every document's grammar is detected again whenever they are read; a
+   * grammar the user chose stays while the new grammars have it.
+   *
+   * @param library the grammars
+   */
+  public void setGrammars(GrammarLibrary library) {
+    grammars = library;
+    library.addListener(
+        new Consumer<GrammarSet>() {
+          @Override
+          public void accept(GrammarSet set) {
+            for (OpenDocument d : documents) {
+              if (d.manualGrammar && set.get(d.grammar) != null) {
+                applyGrammar(d, d.grammar, set);
+              } else {
+                d.manualGrammar = false;
+                detect(d);
+              }
+            }
+          }
+        });
+  }
+
+  /**
+   * Uses a grammar for the selected document from now on, whatever its file name.
+   *
+   * @param id the grammar's id; an unknown id does nothing
+   */
+  public void setSyntax(String id) {
+    GrammarSet set = grammars == null ? null : grammars.set();
+    if (active != null && set != null && set.get(id) != null) {
+      active.manualGrammar = true;
+      applyGrammar(active, id, set);
+    }
+  }
+
+  /** Returns the selected document's grammar, or null without a document or before the read. */
+  Grammar activeGrammar() {
+    GrammarSet set = grammars == null ? null : grammars.set();
+    return active == null || set == null ? null : set.get(active.grammar);
+  }
+
+  /** Returns the grammars, plain text first, then by name; empty before they are read. */
+  List<Grammar> grammarChoices() {
+    GrammarSet set = grammars == null ? null : grammars.set();
+    return set == null ? List.of() : set.byName();
+  }
+
+  /**
+   * Returns the fold regions of the selected document's grammar.
+   *
+   * @return the source, or null without a document
+   */
+  public FoldRegionSource activeFoldRegions() {
+    return active == null ? null : active.syntax;
+  }
+
+  private SyntaxHighlighter highlighter(final OpenDocument d) {
+    return new SyntaxHighlighter(
+        d.document,
+        workers,
+        ui,
+        new Runnable() {
+          @Override
+          public void run() {
+            for (EditorController e : d.editors) {
+              if (e.view() != null) {
+                e.view().redrawHighlights();
+              }
+            }
+          }
+        },
+        SyntaxEngine.DEFAULT_MAX_LINE_CHARS);
+  }
+
+  /** Picks the document's grammar on a worker from its file name and first line. */
+  private void detect(final OpenDocument d) {
+    final GrammarSet set = grammars == null ? null : grammars.set();
+    if (set == null || d.manualGrammar || d.closed) {
+      return;
+    }
+    Path file = d.path == null ? null : d.path.getFileName();
+    final String name = file == null ? null : file.toString();
+    final TextSnapshot text = d.document.text();
+    final CancellationToken token = new CancellationToken();
+    try {
+      workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              int length = Math.min(text.lineLength(0), GrammarSet.FIRST_LINE_CHARS);
+              final String id = set.detect(name, text.subSequence(0, length), token);
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (!d.closed && !d.manualGrammar && currentGrammars() == set) {
+                        applyGrammar(d, id, set);
+                      }
+                    }
+                  });
+            }
+          });
+    } catch (RejectedExecutionException e) {
+      LOG.debug("Syntax not detected: workers are closed");
+    }
+  }
+
+  private void applyGrammar(OpenDocument d, String id, GrammarSet set) {
+    d.grammar = id;
+    d.syntax.setSyntax(GrammarSet.PLAIN.equals(id) ? null : set.syntax(id));
+    for (EditorController e : d.editors) {
+      e.setComments(comments(d));
+    }
+    view.documentStateChanged();
+  }
+
+  private GrammarSet currentGrammars() {
+    return grammars == null ? null : grammars.set();
+  }
+
+  private Grammar.Comments comments(OpenDocument d) {
+    GrammarSet set = grammars == null ? null : grammars.set();
+    Grammar g = set == null ? null : set.get(d.grammar);
+    return g == null ? Grammar.Comments.NONE : g.comments();
   }
 
   private static double mebibytes(long bytes) {

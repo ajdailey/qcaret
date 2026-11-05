@@ -65,6 +65,7 @@ public final class ApplicationController {
   private final DocumentController documents;
   private final HelpController help;
   private final FindController find;
+  private final GrammarLibrary grammars;
   private final Keymap keymap;
   private final boolean rememberWindow;
   private final List<Runnable> finishListeners = new ArrayList<Runnable>();
@@ -125,6 +126,34 @@ public final class ApplicationController {
             });
     this.rememberWindow = rememberWindow;
     this.find = new FindController(documents, workers, ui);
+    this.grammars =
+        new GrammarLibrary(workers, ui, view, config.location().directory().resolve("grammars"));
+    documents.setGrammars(grammars);
+  }
+
+  /**
+   * Returns the grammars.
+   *
+   * @return the grammar library
+   */
+  public GrammarLibrary grammars() {
+    return grammars;
+  }
+
+  /** Reads the built-in and user grammars on a worker; call once the window is attached. */
+  public void loadGrammars() {
+    grammars.load();
+  }
+
+  /**
+   * Uses a grammar for the selected document; see {@link DocumentController#setSyntax}.
+   *
+   * @param id the grammar's id
+   */
+  public void setSyntax(String id) {
+    if (!quitting) {
+      documents.setSyntax(id);
+    }
   }
 
   /**
@@ -281,6 +310,8 @@ public final class ApplicationController {
           LOWER_CASE,
           INDENT,
           OUTDENT,
+          TOGGLE_LINE_COMMENT,
+          TOGGLE_BLOCK_COMMENT,
           INSERT_TAB,
           ADD_CARET_ABOVE,
           ADD_CARET_BELOW,
@@ -333,6 +364,7 @@ public final class ApplicationController {
       case SPLIT_VERTICAL -> documents.split(true);
       case UNSPLIT -> documents.unsplit();
       case FOCUS_OTHER_VIEW -> documents.focusOtherView();
+      case RELOAD_GRAMMARS -> grammars.load();
       case FIND -> find.open(false);
       case FIND_NEXT -> find.findNext();
       case FIND_PREVIOUS -> find.findPrevious();

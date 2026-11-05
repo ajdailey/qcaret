@@ -5,8 +5,12 @@ import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.HighlightComposer;
+import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.TokenRole;
+import io.github.ajdailey.qcaret.app.theme.TokenStyle;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -16,7 +20,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
@@ -81,8 +85,10 @@ import org.eclipse.swt.widgets.Listener;
  *   <li>Font: {@link #setFont} changes the font in place and measures it again; the widget, its
  *       caret, scroll position and focus stay.
  *   <li>Find: each paint that shows another display range reports it through {@link
- *       EditorInput#viewportChanged}; {@link #showMatches} paints the matches as line style
- *       backgrounds under the secondary selections.
+ *       EditorInput#viewportChanged}.
+ *   <li>Line styles: a {@link HighlightComposer} composes each painted row from the syntax tokens
+ *       ({@link #setSyntax}), the find matches ({@link #showMatches}) and the secondary selections;
+ *       each run takes its token role's color and font style from the palette.
  * </ul>
  */
 public final class EditorPane implements EditorView {
@@ -113,10 +119,13 @@ public final class EditorPane implements EditorView {
   private Color selectionFore;
   private Color caret;
   private Color findMatch;
+  private Color[] roleColors = new Color[0];
+  private int[] roleFontStyles = new int[0];
+  private boolean[] roleUnderlines = new boolean[0];
   private Palette palette;
   private final Caret primaryCaret;
   private Image caretImage;
-  private final MatchLayer matches = new MatchLayer();
+  private final HighlightComposer composer = new HighlightComposer();
   private int reportedStart = -1;
   private int reportedEnd = -1;
   private boolean syncing;
@@ -324,6 +333,17 @@ public final class EditorPane implements EditorView {
     currentLine = color(palette.currentLine());
     caret = color(palette.caret());
     findMatch = color(palette.findMatch());
+    TokenRole[] roles = TokenRole.values();
+    roleColors = new Color[roles.length];
+    roleFontStyles = new int[roles.length];
+    roleUnderlines = new boolean[roles.length];
+    for (TokenRole role : roles) {
+      TokenStyle style = palette.style(role);
+      roleColors[role.ordinal()] = color(style.foreground());
+      roleFontStyles[role.ordinal()] =
+          (style.bold() ? SWT.BOLD : SWT.NORMAL) | (style.italic() ? SWT.ITALIC : SWT.NORMAL);
+      roleUnderlines[role.ordinal()] = style.underline();
+    }
     updateCaret();
     text.redraw();
   }
@@ -556,13 +576,7 @@ public final class EditorPane implements EditorView {
         new LineStyleListener() {
           @Override
           public void lineGetStyle(LineStyleEvent event) {
-            event.styles =
-                matches.merge(
-                    secondaryStyles(event.lineOffset, event.lineText.length()),
-                    event.lineOffset,
-                    projection.toModel(event.lineOffset),
-                    event.lineText.length(),
-                    findMatch);
+            event.styles = styles(event.lineOffset, event.lineText.length());
           }
         });
     text.addPaintListener(
@@ -643,15 +657,46 @@ public final class EditorPane implements EditorView {
     return false;
   }
 
-  /** Returns the secondary selections' backgrounds within one row. */
-  private StyleRange[] secondaryStyles(int rowOffset, int rowLength) {
+  /** Returns a row's styles from the composer's runs. */
+  private StyleRange[] styles(int rowOffset, int rowLength) {
+    int from = projection.toModel(rowOffset);
+    int line = projection.lineOfRow(projection.rowAt(rowOffset));
+    int lineStart = projection.lineStart(line);
+    int[] runs =
+        composer.compose(line, lineStart, from, from + rowLength, secondaryRanges(from, rowLength));
+    StyleRange[] styles = new StyleRange[runs.length / 4];
+    int selection = HighlightComposer.Background.SELECTION.ordinal();
+    for (int i = 0; i < runs.length; i += 4) {
+      int role = runs[i + 2];
+      int background = runs[i + 3];
+      StyleRange style = new StyleRange();
+      style.start = rowOffset + runs[i];
+      style.length = runs[i + 1];
+      if (role != HighlightComposer.NONE) {
+        style.foreground = roleColors[role];
+        style.fontStyle = roleFontStyles[role];
+        style.underline = roleUnderlines[role];
+      }
+      if (background == selection) {
+        style.foreground = selectionFore;
+        style.background = selectionBack;
+      } else if (background != HighlightComposer.NONE) {
+        style.background = findMatch;
+      }
+      styles[i / 4] = style;
+    }
+    return styles;
+  }
+
+  /** Returns the secondary selections within one row as model offset pairs. */
+  private int[] secondaryRanges(int from, int rowLength) {
     SelectionSet set = selections.selections();
     if (set.size() == 1) {
-      return new StyleRange[0];
+      return new int[0];
     }
-    int from = projection.toModel(rowOffset);
     int to = from + rowLength;
-    List<StyleRange> styles = new ArrayList<StyleRange>();
+    int[] out = new int[16];
+    int size = 0;
     List<Selection> list = set.selections();
     for (int i = firstEndingAtOrAfter(list, from); i < list.size(); i++) {
       Selection s = list.get(i);
@@ -664,11 +709,14 @@ public final class EditorPane implements EditorView {
       int start = Math.max(s.start(), from);
       int end = Math.min(s.end(), to);
       if (end > start) {
-        styles.add(
-            new StyleRange(rowOffset + start - from, end - start, selectionFore, selectionBack));
+        if (size + 2 > out.length) {
+          out = Arrays.copyOf(out, out.length * 2);
+        }
+        out[size++] = start;
+        out[size++] = end;
       }
     }
-    return styles.toArray(new StyleRange[0]);
+    return Arrays.copyOf(out, size);
   }
 
   /** Returns the index of the first selection whose end is at or after {@code offset}. */
@@ -815,7 +863,7 @@ public final class EditorPane implements EditorView {
 
   @Override
   public void showMatches(int[] ranges) {
-    matches.set(ranges);
+    composer.setMatches(ranges);
     if (!text.isDisposed()) {
       text.redraw();
     }
@@ -827,7 +875,32 @@ public final class EditorPane implements EditorView {
    * @return model offset pairs
    */
   public int[] matches() {
-    return matches.ranges();
+    return composer.matches();
+  }
+
+  // Syntax.
+
+  @Override
+  public void setSyntax(TokenSource tokens) {
+    composer.setSyntax(tokens);
+    redrawHighlights();
+  }
+
+  @Override
+  public void redrawHighlights() {
+    if (!text.isDisposed()) {
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns the styles the widget paints a row with, for tests.
+   *
+   * @param row the display row
+   * @return the row's styles, offsets in the display text
+   */
+  public StyleRange[] rowStyles(int row) {
+    return styles(projection.rowStart(row), projection.rowText(row).length());
   }
 
   /** Reports the visible display range when it differs from the last one reported. */

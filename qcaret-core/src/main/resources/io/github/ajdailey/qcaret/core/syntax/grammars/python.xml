@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Python 3.12, The Python Language Reference, chapter 2 (lexical analysis), and the built-in functions. -->
+<grammar id="python" name="Python" version="1">
+  <detect>
+    <extension>py</extension>
+    <extension>pyw</extension>
+    <extension>pyi</extension>
+    <fileName>SConstruct</fileName>
+    <firstLine>^#!.*\bpython[0-9.]*\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase=":\s*(#.*)?$" decrease="^\s*(?:return|pass|break|continue|raise)\b"/>
+  <folding mode="indent"/>
+  <context id="main">
+    <span token="comment" begin="#"/>
+    <span token="string" begin='(?&lt;!\w)(?i:[rbuf]{0,2})"""' end='"""' escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;!\w)(?i:[rbuf]{0,2})'''" end="'''" escape="\\." multiLine="true"/>
+    <span token="string" begin='(?&lt;!\w)(?i:[rbuf]{0,2})"' end='"' escape="\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)"/>
+    <span token="string" begin="(?&lt;!\w)(?i:[rbuf]{0,2})'" end="'" escape="\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)"/>
+    <match token="preprocessor" regex="^\s*@[\w.]+"/>
+    <match token="function" regex="(?&lt;=\bdef\s{1,8})[A-Za-z_]\w*"/>
+    <match token="type" regex="(?&lt;=\bclass\s{1,8})[A-Za-z_]\w*"/>
+    <keywords token="keyword">and as assert async await break case class continue def del elif else except finally for from global if import in is lambda match nonlocal not or pass raise return try type while with yield</keywords>
+    <keywords token="constant">True False None Ellipsis NotImplemented __debug__</keywords>
+    <keywords token="keyword2">abs aiter all anext any ascii bin bool breakpoint bytearray bytes callable chr classmethod compile complex delattr dict dir divmod enumerate eval exec filter float format frozenset getattr globals hasattr hash help hex id input int isinstance issubclass iter len list locals map max memoryview min next object oct open ord pow print property range repr reversed round set setattr slice sorted staticmethod str sum super tuple vars zip __import__ self cls</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f_]+|0[oO][0-7_]+|0[bB][01_]+|(?:\d[\d_]*\.?[\d_]*|\.\d[\d_]*)(?:[eE][+-]?\d[\d_]*)?[jJ]?)(?!\w)"/>
+    <match token="function" regex="(?&lt;!\w)[A-Za-z_]\w*(?=\s*\()"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~@:]+"/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+</grammar>
