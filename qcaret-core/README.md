@@ -299,9 +299,17 @@ A grammar is an XML file in QCaret's own format, validated against
 declarations refused and external DTD and schema access off
 (`GrammarReader`). Each regex compiles at read time and each context a rule
 names must exist; a failure is an `InvalidGrammarException` naming the file
-and, for a schema error, the line. `GrammarSet.BUILT_IN` lists the 19
+and, for a schema error, the line. `GrammarSet.BUILT_IN` lists the
 built-in grammars (`grammars/<id>.xml`), written from the language
 specifications each file names.
+
+Languages: plain text, Java, XML, HTML, JSON, YAML, SQL, Python, JavaScript,
+TypeScript, C, C++, shell, PowerShell, batch, properties, INI, CSS, Markdown,
+Go, Rust, C#, Kotlin, Ruby, PHP, Perl, Lua, Groovy (with `Jenkinsfile` and
+`*.gradle`), Scala, Swift, Dart, R, Haskell, Objective-C and VB.NET. Each
+extension belongs to one built-in grammar (`GrammarSetTest`): `.h` is C, `.m`
+and `.mm` are Objective-C, `.kts` (so `build.gradle.kts`) is Kotlin. PHP text
+outside `<?php ... ?>` is HTML.
 
 | Element | Content |
 |---|---|
@@ -311,7 +319,7 @@ specifications each file names.
 | `brackets`, `autoClose` | `pair open close` |
 | `indent` | `increase`, `decrease` and `dedentNext` regexes |
 | `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
-| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
+| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
 
 Tokens are `TokenType`: comment, string, escape, keyword, keyword2, type,
 number, constant, operator, delimiter, function, preprocessor, tag,
@@ -334,9 +342,20 @@ grammar the embed's `end` is tried first in every context, so HTML's
 switches contexts may repeat 16 times at one position before a char is
 skipped.
 
+In a `nested` span the `begin` opens one more level, closed by its own `end`
+(Rust and Haskell block comments). A `\1` in a span's `end` or `escape` is the
+text the `begin`'s first group matched: Lua's `\[(=*)\[` closes only at `]`
+with as many `=` and `]`, a Ruby here document only at its own identifier. Such
+a span compiles to a template, and `Syntax.derive` adds one context per
+captured text on first use: at most 512 per grammar, each for a text of at
+most 64 chars without a backslash. Past those limits the `begin` colors itself
+and opens nothing.
+
 `Tokenizer` tokenizes one line from a start state to an end state; a state is
-an interned context stack. A line over the limit (10,000 chars by default)
-gets no tokens and keeps its state. Each search reads the line through a
+an interned context stack of at most 256 contexts. A deeper push is skipped,
+so unclosed nested comments do not grow the states without bound. A line over
+the limit (10,000 chars by default) gets no tokens and keeps its state. Each
+search reads the line through a
 `BoundedChars` that checks the `CancellationToken` and ends the search after
 `4 * (rules + 2) * remaining chars + 65,536` reads; that, or a
 `StackOverflowError`, leaves the rest of the line plain.
@@ -473,16 +492,20 @@ its tokens, HTML's embedded JavaScript and CSS included. `SyntaxEngineTest`
 applies seeded random edits that open and close comments, strings and
 braces and join CR LF pairs, between passes stopped at a deadline or after a
 seeded line count, then checks every line's tokens and the fold regions
-against a new engine. Two cases pin defects that random edits found: an
+against a new engine, over Java and over Lua long brackets and Rust nested
+comments and raw strings. Two cases pin defects that random edits found: an
 edit before a stopped frontier converging before it, and an edit between a
 CR and an LF shifting the lines after it by one line too few. It also checks
 that a converging edit retokenizes three lines, view lines before and after
 the frontier, the line limit and marker folding. `TokenizerTest` covers states across lines, the
 line limit, a runaway regex and a stack overflow left plain, a cancel, the
-zero-width guard and refused backreferences. `GrammarReaderTest` covers every
+zero-width guard, refused backreferences, nested spans, ends and escapes
+using `\1`, shared derived contexts and the derive and depth limits.
+`GrammarReaderTest` covers every
 element, a refused DOCTYPE, schema errors with their line, bad regexes and
-missing contexts. `GrammarSetTest` covers the detection order, user grammars
-and a runaway first-line regex. `CommentEditsTest` and `BoundedCharsTest`
+missing contexts. `GrammarSetTest` covers the detection order, each
+language's extensions, file names and shebangs, one grammar per extension, user grammars and a runaway
+first-line regex. `CommentEditsTest` and `BoundedCharsTest`
 cover the rest of the area.
 `OperationGateTest`, `SafePathsTest` (including the Windows device forms on
 every OS), `AtomicFilesTest`, `LogTextTest`, `UtilTest` and `TestkitTest`

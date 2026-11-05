@@ -23,6 +23,8 @@ import java.util.regex.Matcher;
  *       token. A search that reaches the count or overflows the stack leaves the rest of the line
  *       plain; a cancel throws {@link java.util.concurrent.CancellationException}.
  *   <li>At a line's end, spans that do not continue past it are closed.
+ *   <li>A push that would make the stack deeper than {@value #MAX_DEPTH} is skipped, so a file
+ *       opening nested comments without end does not grow the states without bound.
  * </ul>
  */
 public final class Tokenizer {
@@ -31,6 +33,9 @@ public final class Tokenizer {
 
   /** Context changes allowed at one position without consuming a char. */
   private static final int ZERO_WIDTH_STEPS = 16;
+
+  /** Deepest context stack; a push beyond it is skipped. */
+  static final int MAX_DEPTH = 256;
 
   private final Syntax syntax;
   private final int maxLineChars;
@@ -137,10 +142,18 @@ public final class Tokenizer {
         }
         int end = m.end();
         out.add(pos, start, context.content);
-        Syntax.Alt alt = matched(m, used);
+        int index = matched(m, used);
+        Syntax.Alt alt = used.alts()[index];
         int before = depth;
         int top = work[depth - 1];
-        apply(alt, out, start, end);
+        int target = alt.target();
+        if (alt.kind() == Syntax.Kind.SPAN_BEGIN && syntax.context(target).template != null) {
+          int group = used.groups()[index] + 1;
+          String captured =
+              m.start(group) < 0 ? "" : line.subSequence(m.start(group), m.end(group)).toString();
+          target = syntax.derive(target, captured);
+        }
+        apply(alt, target, out, start, end);
         if (alt.kind() == Syntax.Kind.EMBED_END) {
           end = start;
         }
@@ -168,20 +181,23 @@ public final class Tokenizer {
     return intern();
   }
 
-  private void apply(Syntax.Alt alt, TokenList out, int start, int end) {
+  /** Applies a matched rule; {@code target} is its context, or a derived one, or -1. */
+  private void apply(Syntax.Alt alt, int target, TokenList out, int start, int end) {
     switch (alt.kind()) {
       case MATCH -> {
         out.add(start, end, alt.token());
         if (alt.pop() && depth > 1) {
           depth--;
         }
-        if (alt.target() >= 0) {
-          push(alt.target());
+        if (target >= 0) {
+          push(target);
         }
       }
       case SPAN_BEGIN, EMBED_BEGIN -> {
         out.add(start, end, alt.token());
-        push(alt.target());
+        if (target >= 0) {
+          push(target);
+        }
       }
       case SPAN_END -> {
         out.add(start, end, alt.token());
@@ -206,11 +222,12 @@ public final class Tokenizer {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
   }
 
-  private static Syntax.Alt matched(Matcher m, Syntax.Combined combined) {
+  /** Returns the index of the alternative that matched. */
+  private static int matched(Matcher m, Syntax.Combined combined) {
     int[] groups = combined.groups();
     for (int i = 0; i < groups.length; i++) {
       if (m.start(groups[i]) >= 0) {
-        return combined.alts()[i];
+        return i;
       }
     }
     throw new IllegalStateException("no alternative matched");
@@ -254,6 +271,9 @@ public final class Tokenizer {
   }
 
   private void push(int context) {
+    if (depth >= MAX_DEPTH) {
+      return;
+    }
     if (depth == work.length) {
       work = Arrays.copyOf(work, depth * 2);
     }

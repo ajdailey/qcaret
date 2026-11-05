@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Apache Groovy 4 documentation, Syntax chapter (comments, keywords, identifiers, strings, numbers, operators). -->
+<grammar id="groovy" name="Groovy" version="1">
+  <detect>
+    <extension>groovy</extension>
+    <extension>gvy</extension>
+    <extension>gy</extension>
+    <extension>gsh</extension>
+    <extension>gradle</extension>
+    <fileName>Jenkinsfile</fileName>
+    <firstLine>^#!.*\bgroovy\b</firstLine>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{[" close="}]"/>
+  <context id="main">
+    <span token="comment" begin="^#!"/>
+    <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
+    <span token="comment" begin="//"/>
+    <span token="string" begin="'''" end="'''" escape="\\(?:u[0-9A-Fa-f]{4}|.|$)" multiLine="true"/>
+    <span token="string" begin='"""' end='"""' escape="\\(?:u[0-9A-Fa-f]{4}|.|$)" context="template" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="\\(?:u[0-9A-Fa-f]{4}|.)"/>
+    <span token="string" begin='"' end='"' escape="\\(?:u[0-9A-Fa-f]{4}|.)" context="template"/>
+    <span token="string" begin="\$/" end="/\$" escape="\$[$/]" context="template" multiLine="true"/>
+    <span token="string" begin="(?&lt;=^|[(,=:\[!&amp;|?{};~]|\breturn)\s*/(?![*/\s])" end="/" escape="\\/" context="template"/>
+    <match token="preprocessor" regex="@(?!interface\b)[A-Za-z_][\w.]*"/>
+    <keywords token="keyword" wordChars="_$">abstract as assert break case catch class const continue def default do else enum extends final finally for goto if implements import in instanceof interface native new non-sealed package permits private protected public record return sealed static strictfp super switch synchronized this threadsafe throw throws trait transient try var while yield</keywords>
+    <keywords token="type" wordChars="_$">boolean byte char double float int long short void</keywords>
+    <keywords token="constant" wordChars="_$">true false null</keywords>
+    <match token="number" regex="(?&lt;![\w$.])(?:0[xX][0-9A-Fa-f_]+|0[bB][01_]+|\d[\d_]*\.?[\d_]*(?:[eE][+-]?\d[\d_]*)?|\.\d[\d_]*(?:[eE][+-]?\d[\d_]*)?)[lLfFdDgGiI]?(?![\w$])"/>
+    <match token="function" regex="(?&lt;![\w$])[A-Za-z_$][\w$]*(?=\s*\()"/>
+    <match token="type" regex="(?&lt;![\w$])[A-Z][\w$]*[a-z][\w$]*"/>
+    <match token="constant" regex="(?&lt;![\w$])[A-Z][A-Z0-9_]+(?![\w$])"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:]+|\.\.&lt;?|\.@|\*\."/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+  <context id="template">
+    <match token="constant" regex="\$[A-Za-z_][\w]*(?:\.[A-Za-z_]\w*)*"/>
+    <match token="delimiter" regex="\$\{" push="substitution"/>
+  </context>
+  <context id="substitution">
+    <match token="delimiter" regex="\}" pop="true"/>
+    <include context="main"/>
+  </context>
+</grammar>

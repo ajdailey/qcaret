@@ -46,7 +46,23 @@ public final class GrammarSet {
           "properties",
           "ini",
           "css",
-          "markdown");
+          "markdown",
+          "go",
+          "rust",
+          "csharp",
+          "kotlin",
+          "ruby",
+          "php",
+          "perl",
+          "lua",
+          "groovy",
+          "scala",
+          "swift",
+          "dart",
+          "r",
+          "haskell",
+          "objectivec",
+          "vbnet");
 
   /** Chars of the first line the first-line regexes see. */
   public static final int FIRST_LINE_CHARS = 1000;

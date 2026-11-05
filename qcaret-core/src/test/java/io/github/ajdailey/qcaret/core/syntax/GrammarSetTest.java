@@ -35,6 +35,66 @@ class GrammarSetTest {
   }
 
   @Test
+  void detectsTheAddedLanguages() {
+    GrammarSet set = Tokens.BUILT_IN;
+    String[][] cases = {
+      {"main.go", "", "go"},
+      {"lib.rs", "", "rust"},
+      {"run", "#!/usr/bin/env rust-script", "rust"},
+      {"Program.cs", "", "csharp"},
+      {"build.csx", "", "csharp"},
+      {"App.kt", "", "kotlin"},
+      {"build.gradle.kts", "", "kotlin"},
+      {"tool", "#!/usr/bin/env kotlin", "kotlin"},
+      {"app.rb", "", "ruby"},
+      {"Rakefile", "", "ruby"},
+      {"Gemfile", "", "ruby"},
+      {"tool", "#!/usr/bin/env ruby", "ruby"},
+      {"index.php", "", "php"},
+      {"page", "<?php echo 1;", "php"},
+      {"tool", "#!/usr/bin/env php", "php"},
+      {"mock.pl", "", "perl"},
+      {"Mock.pm", "", "perl"},
+      {"basic.t", "", "perl"},
+      {"tool", "#!/usr/bin/perl -w", "perl"},
+      {"init.lua", "", "lua"},
+      {"tool", "#!/usr/bin/env lua5.4", "lua"},
+      {"Build.groovy", "", "groovy"},
+      {"build.gradle", "", "groovy"},
+      {"Jenkinsfile", "", "groovy"},
+      {"tool", "#!/usr/bin/env groovy", "groovy"},
+      {"Main.scala", "", "scala"},
+      {"tool", "#!/usr/bin/env -S scala-cli shebang", "scala"},
+      {"App.swift", "", "swift"},
+      {"main.dart", "", "dart"},
+      {"plot.r", "", "r"},
+      {"plot.R", "", "r"},
+      {".Rprofile", "", "r"},
+      {"tool", "#!/usr/bin/env Rscript", "r"},
+      {"Main.hs", "", "haskell"},
+      {"tool", "#!/usr/bin/env runghc", "haskell"},
+      {"Mock.m", "", "objectivec"},
+      {"Mock.mm", "", "objectivec"},
+      {"Mock.h", "", "c"},
+      {"Module1.vb", "", "vbnet"}
+    };
+    for (String[] c : cases) {
+      assertEquals(c[2], detect(set, c[0], c[1]), c[0] + " " + c[1]);
+    }
+  }
+
+  @Test
+  void anExtensionBelongsToOneBuiltInGrammar() {
+    Map<String, String> owners = new LinkedHashMap<String, String>();
+    for (String id : GrammarSet.BUILT_IN) {
+      for (String extension : Tokens.BUILT_IN.get(id).extensions()) {
+        String other = owners.put(extension, id);
+        assertTrue(other == null, extension + " in " + other + " and " + id);
+      }
+    }
+  }
+
+  @Test
   void aUserGrammarReplacesTheBuiltInWithItsIdAndIsDetectedFirst() throws Exception {
     Map<String, Grammar> users = new LinkedHashMap<String, Grammar>();
     users.put(

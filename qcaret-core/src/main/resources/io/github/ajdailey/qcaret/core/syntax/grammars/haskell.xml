@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Haskell 2010 Language Report, chapter 2 (lexical structure), with the GHC User's Guide pragmas. -->
+<grammar id="haskell" name="Haskell" version="1">
+  <detect>
+    <extension>hs</extension>
+    <extension>hs-boot</extension>
+    <extension>hsc</extension>
+    <firstLine>^#!.*\b(?:runhaskell|runghc|stack|cabal)\b</firstLine>
+  </detect>
+  <comments line="--" blockStart="{-" blockEnd="-}"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="(?:\b(?:where|let|do|of|if|then|else)|=|-&gt;|\|)\s*(--.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="indent"/>
+  <context id="main">
+    <span token="comment" begin="^#!"/>
+    <span token="preprocessor" begin="\{-#" end="#-\}" multiLine="true"/>
+    <span token="comment" begin="\{-" end="-\}" multiLine="true" nested="true"/>
+    <span token="comment" begin="--+(?![!#$%&amp;*+./&lt;=&gt;?@\\^|~:])"/>
+    <span token="string" begin='"' end='"' escape="\\(?:[0-9]+|o[0-7]+|x[0-9A-Fa-f]+|\^[A-Z@\[\\\]^_]|[A-Z]{2,3}|\s+\\|.|$)"/>
+    <match token="string" regex="(?&lt;![\w'])'(?:\\(?:[0-9]+|o[0-7]+|x[0-9A-Fa-f]+|\^[A-Z@\[\\\]^_]|[A-Z]{2,3}|.)|[^'\\])'"/>
+    <match token="preprocessor" regex="^#\s*[a-z]+\b"/>
+    <keywords token="keyword" wordChars="_'">case class data default deriving do else foreign if import in infix infixl infixr instance let module newtype of then type where qualified as hiding forall family pattern</keywords>
+    <match token="number" regex="(?&lt;![\w'.])(?:0[xX][0-9A-Fa-f_]+|0[oO][0-7_]+|0[bB][01_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d[\d_]*)?)(?![\w'])"/>
+    <match token="type" regex="(?&lt;![\w'])[A-Z][\w']*"/>
+    <match token="function" regex="^[a-z_][\w']*(?=\s.*?(?:=|::))"/>
+    <match token="operator" regex="[!#$%&amp;*+./&lt;=&gt;?@\\^|~:-]+"/>
+    <match token="delimiter" regex="[(),;\[\]`{}]"/>
+  </context>
+</grammar>

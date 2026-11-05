@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Rust Reference (Rust 1.80), chapter 2 (lexical structure) and chapter 7 (attributes). -->
+<grammar id="rust" name="Rust" version="1">
+  <detect>
+    <extension>rs</extension>
+    <firstLine>^#!.*\brust-script\b</firstLine>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>
+    <span token="comment" begin="//"/>
+    <span token="string" begin='(?&lt;!\w)[bc]?r(#*)"' end='"\1' multiLine="true"/>
+    <span token="string" begin='(?&lt;!\w)[bc]?"' end='"' escape="\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f_]{1,6}\}|[nrt\\0'&quot;]|$)" multiLine="true"/>
+    <match token="string" regex="(?&lt;!\w)b?'(?:\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f_]{1,6}\}|.)|[^'\\])'"/>
+    <match token="keyword2" regex="'(?:r#)?[A-Za-z_]\w*"/>
+    <span token="preprocessor" begin="#!?\[" end="\]" context="attribute" multiLine="true"/>
+    <match regex="(?&lt;!\w)r#[A-Za-z_]\w*"/>
+    <match token="function" regex="(?&lt;!\w)[A-Za-z_]\w*!(?=\s*[(\[{])"/>
+    <keywords token="keyword">as async await break const continue crate dyn else enum extern fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait type union unsafe use where while abstract become box do final macro override priv try typeof unsized virtual yield</keywords>
+    <keywords token="type">bool char str i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64</keywords>
+    <keywords token="constant">true false</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?[\d_]+)?|\d[\d_]*\.(?![.\w]))(?:[iu](?:8|16|32|64|128|size)|f32|f64)?(?!\w)"/>
+    <match token="function" regex="(?&lt;!\w)[a-z_]\w*(?=\s*(?:::\s*&lt;[^&lt;&gt;]*&gt;\s*)?\()"/>
+    <match token="constant" regex="(?&lt;!\w)[A-Z][A-Z0-9_]+(?!\w)"/>
+    <match token="type" regex="(?&lt;!\w)[A-Z]\w*"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^?:@]+|\.\.=?"/>
+    <match token="delimiter" regex="[{}()\[\];,.#$]"/>
+  </context>
+  <context id="attribute">
+    <span token="string" begin='(?&lt;!\w)r(#*)"' end='"\1'/>
+    <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f_]{1,6}\}|[nrt\\0'&quot;])"/>
+  </context>
+</grammar>

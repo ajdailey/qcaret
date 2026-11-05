@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Visual Basic Language Specification 11.0, chapter 2 (lexical grammar) and chapter 3 (preprocessing directives), with interpolated strings from the Visual Basic 14 reference. -->
+<grammar id="vbnet" name="VB.NET" version="1">
+  <detect>
+    <extension>vb</extension>
+  </detect>
+  <comments line="'"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="(?i)^\s*(?:(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|NotOverridable|Overloads|Shadows|Partial|ReadOnly|WriteOnly|Async|Iterator|Default|Static|MustInherit|NotInheritable|Widening|Narrowing)\s+)*(?:Sub|Function|Class|Module|Structure|Interface|Enum|Namespace|Property|Get|Set|Operator|Try|Catch|Finally|Else|ElseIf|Select|Case|With|Using|SyncLock|While|For|Do)\b(?!.*\bEnd\s+\w+\s*$)(?!.*\bThen\s+\S)|\bThen\s*('.*)?$" decrease="(?i)^\s*(?:End|Next|Loop|Wend|Else|ElseIf|Case|Catch|Finally)\b"/>
+  <folding mode="indent"/>
+  <context id="main">
+    <span token="comment" begin="'|(?i)(?&lt;![\w.])REM\b"/>
+    <match token="preprocessor" regex="(?i)^\s*#\s*(?:If|ElseIf|Else|End\s+If|Const|Region|End\s+Region|ExternalSource|End\s+ExternalSource|ExternalChecksum|Enable|Disable)\b"/>
+    <span token="string" begin='\$"' end='"[cC]?' escape='""|\{\{|\}\}' context="interpolation"/>
+    <span token="string" begin='"' end='"[cC]?' escape='""'/>
+    <match token="constant" regex="#[^#\r\n]{1,40}#"/>
+    <match token="preprocessor" regex="(?i)^\s*&lt;\s*(?:(?:Assembly|Module):\s*)?[A-Za-z_][\w.]*(?=\s*[(&gt;,])"/>
+    <match regex="\[[^\]]+\]"/>
+    <keywords token="keyword" ignoreCase="true">AddHandler AddressOf Alias And AndAlso As ByRef ByVal Call Case Catch Class Const Continue Declare Default Delegate Dim DirectCast Do Each Else ElseIf End EndIf Enum Erase Error Event Exit Finally For Friend Function Get GetType GetXMLNamespace Global GoSub GoTo Handles If Implements Imports In Inherits Interface Is IsNot Let Lib Like Loop Me Mod Module MustInherit MustOverride MyBase MyClass NameOf Namespace Narrowing New Next Not NotInheritable NotOverridable Of On Operator Option Optional Or OrElse Overloads Overridable Overrides ParamArray Partial Private Property Protected Public RaiseEvent ReadOnly ReDim RemoveHandler Resume Return Select Set Shadows Shared Static Step Stop Structure Sub SyncLock Then Throw To Try TryCast TypeOf Using Wend When While Widening With WithEvents WriteOnly Xor Aggregate Ansi Assembly Async Auto Await Binary By Compare Custom Distinct Equals Explicit From Group Infer Into Iterator Join Key Off Order Preserve Skip Strict Take Text Unicode Until Where Yield Ascending Descending</keywords>
+    <keywords token="type" ignoreCase="true">Boolean Byte Char Date Decimal Double Integer Long Object SByte Short Single String UInteger ULong UShort</keywords>
+    <keywords token="keyword2" ignoreCase="true">CBool CByte CChar CDate CDbl CDec CInt CLng CObj CSByte CShort CSng CStr CType CUInt CULng CUShort</keywords>
+    <keywords token="constant" ignoreCase="true">True False Nothing</keywords>
+    <match token="number" regex="(?i)(?&lt;![\w.])(?:&amp;H[0-9A-F_]+|&amp;O[0-7_]+|&amp;B[01_]+|\d[\d_]*\.?[\d_]*(?:E[+-]?\d+)?|\.\d[\d_]*(?:E[+-]?\d+)?)(?:U?[SIL]|[DFR@!#%&amp;])?(?!\w)"/>
+    <match token="function" regex="(?&lt;![\w])[A-Za-z_]\w*(?=\s*\()"/>
+    <match token="operator" regex="\s_$|[-+*/\\^=&amp;&lt;&gt;:?]+"/>
+    <match token="delimiter" regex="[{}(),.!]"/>
+  </context>
+  <context id="interpolation">
+    <match token="delimiter" regex="\{" push="hole"/>
+  </context>
+  <context id="hole">
+    <match token="delimiter" regex="\}" pop="true"/>
+    <include context="main"/>
+  </context>
+</grammar>

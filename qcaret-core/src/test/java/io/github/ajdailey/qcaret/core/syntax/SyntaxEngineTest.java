@@ -96,6 +96,24 @@ class SyntaxEngineTest {
     }
   }
 
+  @Test
+  void randomEditsOverNestedAndCountedSpansLeaveTheSameTokensAndRegions() {
+    String[] lua = {"--[==[", "]==]", "[[", "]]", "{", "}", "\n", "function f()", " end ", "--"};
+    String[] rust = {"/*", "*/", "r#\"", "\"#", "{", "}", "\n", "r##\"", "\"##", "x"};
+    StringBuilder luaText = new StringBuilder();
+    StringBuilder rustText = new StringBuilder();
+    for (int i = 0; i < 20; i++) {
+      luaText.append("--[=[ Mock ").append(i).append(" ]=]\nfunction m").append(i);
+      luaText.append("(t)\n  local s = [[a\n]] .. \"x\"\n  if t then return { } end\nend\n");
+      rustText.append("/* Mock /* ").append(i).append(" */ */\nfn m").append(i);
+      rustText.append("() {\n  let s = r#\"a\n\"#;\n  if t { call(); }\n}\n");
+    }
+    for (long seed = 1; seed <= 100; seed++) {
+      randomEdits("lua", luaText.toString(), lua, seed, true);
+      randomEdits("rust", rustText.toString(), rust, seed, true);
+    }
+  }
+
   /**
    * Applies seeded random edits to 240 lines of Java; after some edits runs a partial pass, after
    * others finishes the pass and compares with a new engine.
@@ -104,10 +122,16 @@ class SyntaxEngineTest {
    *     deadline
    */
   private static void randomEdits(long seed, boolean lineStops) {
-    Syntax java = Tokens.BUILT_IN.syntax("java");
+    randomEdits("java", mockJava(20), SNIPPETS, seed, lineStops);
+  }
+
+  /** As {@link #randomEdits(long, boolean)} for a grammar, a text and the snippets inserted. */
+  private static void randomEdits(
+      String grammar, String text, String[] snippets, long seed, boolean lineStops) {
+    Syntax syntax = Tokens.BUILT_IN.syntax(grammar);
     Random random = new Random(seed);
     Random stops = new Random(-seed);
-    Document document = document(mockJava(20));
+    Document document = document(text);
     final List<DocumentChange> changes = new ArrayList<DocumentChange>();
     document.addListener(
         new DocumentListener() {
@@ -121,7 +145,7 @@ class SyntaxEngineTest {
             // Not used.
           }
         });
-    SyntaxEngine engine = new SyntaxEngine(java, document.text(), 200);
+    SyntaxEngine engine = new SyntaxEngine(syntax, document.text(), 200);
     finish(engine);
     String where = "seed " + seed + " step ";
     for (int step = 0; step < 60; step++) {
@@ -129,9 +153,9 @@ class SyntaxEngineTest {
       List<Replacement> batch = new ArrayList<Replacement>();
       int at = random.nextInt(length + 1);
       int remove = random.nextInt(3) == 0 ? Math.min(length - at, random.nextInt(40)) : 0;
-      batch.add(new Replacement(at, remove, SNIPPETS[random.nextInt(SNIPPETS.length)]));
+      batch.add(new Replacement(at, remove, snippets[random.nextInt(snippets.length)]));
       if (random.nextBoolean() && at > 10) {
-        batch.add(new Replacement(random.nextInt(at - 5), 0, SNIPPETS[random.nextInt(4)]));
+        batch.add(new Replacement(random.nextInt(at - 5), 0, snippets[random.nextInt(4)]));
       }
       try {
         document.apply(EditBatch.of(EditBatch.Kind.COMMAND, batch));
@@ -142,7 +166,7 @@ class SyntaxEngineTest {
       engine.edit(change.edits(), document.text());
       if (random.nextInt(4) == 0) {
         List<int[]> regions = finish(engine);
-        SyntaxEngine fresh = new SyntaxEngine(java, document.text(), 200);
+        SyntaxEngine fresh = new SyntaxEngine(syntax, document.text(), 200);
         List<int[]> expected = finish(fresh);
         assertNotNull(regions, where + step);
         assertEquals(expected.size(), regions.size(), where + step);

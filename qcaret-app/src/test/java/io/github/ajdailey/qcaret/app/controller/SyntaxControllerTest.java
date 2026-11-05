@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,7 +84,7 @@ class SyntaxControllerTest {
     awaitLanguage("Python");
     List<CommandStates.SyntaxChoice> choices = states.syntaxChoices();
     assertEquals("plain", choices.get(0).id());
-    assertEquals(19, choices.size());
+    assertEquals(GrammarSet.BUILT_IN.size(), choices.size());
     int checked = 0;
     for (CommandStates.SyntaxChoice choice : choices) {
       checked += choice.checked() ? 1 : 0;

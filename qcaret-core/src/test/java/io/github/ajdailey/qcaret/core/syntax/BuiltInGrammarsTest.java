@@ -466,4 +466,609 @@ class BuiltInGrammarsTest {
         "NUMBER:42",
         "COMMENT:# other");
   }
+
+  @Test
+  void go() {
+    assertTokens(
+        "go",
+        "package main\n"
+            + "import \"fmt\"\n"
+            + "type Mock struct { n int }\n"
+            + "func (m *Mock) Run(x float64) error {\n"
+            + "\ts := `raw \\n\n"
+            + "line`\n"
+            + "\tr := '\\n'; v := 0x1F + 1_000i\n"
+            + "\tfmt.Println(\"a\\tb\", len(s), nil) // done\n"
+            + "\treturn nil\n"
+            + "}",
+        "KEYWORD:package",
+        "STRING:\"fmt\"",
+        "KEYWORD:type",
+        "TYPE:Mock",
+        "KEYWORD:func",
+        "FUNCTION:Run",
+        "TYPE:float64",
+        "TYPE:error",
+        "STRING:`raw \\n",
+        "STRING:line`",
+        "ESCAPE:\\n",
+        "NUMBER:0x1F",
+        "NUMBER:1_000i",
+        "FUNCTION:Println",
+        "ESCAPE:\\t",
+        "KEYWORD2:len",
+        "CONSTANT:nil",
+        "COMMENT:// done");
+  }
+
+  @Test
+  void rust() {
+    assertTokens(
+        "rust",
+        "#[derive(Debug, Clone)]\n"
+            + "pub struct Mock<'a> { name: &'a str }\n"
+            + "/* outer /* inner */ still */\n"
+            + "fn main() -> u32 {\n"
+            + "    let s = r#\"raw \"quoted\" \"#; let b = br##\"x\"#y\"##;\n"
+            + "    let c = 'x'; let e = \"tab\\t\";\n"
+            + "    println!(\"{}\", s); let n = 1_000u32 + 0xffi64;\n"
+            + "    let r#match = MAX_SIZE; Some(n)\n"
+            + "}",
+        "PREPROCESSOR:#[derive(Debug, Clone)]",
+        "KEYWORD:pub",
+        "KEYWORD:struct",
+        "TYPE:Mock",
+        "KEYWORD2:'a",
+        "COMMENT:/* outer /* inner */ still */",
+        "KEYWORD:fn",
+        "FUNCTION:main",
+        "TYPE:u32",
+        "STRING:r#\"raw \"quoted\" \"#",
+        "STRING:br##\"x\"#y\"##",
+        "STRING:'x'",
+        "ESCAPE:\\t",
+        "FUNCTION:println!",
+        "NUMBER:1_000u32",
+        "NUMBER:0xffi64",
+        "CONSTANT:MAX_SIZE",
+        "TYPE:Some");
+  }
+
+  @Test
+  void csharp() {
+    assertTokens(
+        "csharp",
+        "[Serializable]\n"
+            + "public sealed class Mock : IDisposable {\n"
+            + "#region Fields\n"
+            + "    private readonly string name = \"a\\tb\";\n"
+            + "    var path = @\"C:\\mock\\\"\"x\";\n"
+            + "    var msg = $\"Item {count + 1} of {{total}}\";\n"
+            + "    var raw = \"\"\"\n"
+            + "      text \"quoted\"\n"
+            + "      \"\"\";\n"
+            + "    public async Task<int> RunAsync() => 0x1F + 2.5m; // done\n"
+            + "#endregion\n"
+            + "}",
+        "PREPROCESSOR:[Serializable",
+        "KEYWORD:sealed",
+        "TYPE:IDisposable",
+        "PREPROCESSOR:#region",
+        "TYPE:string",
+        "ESCAPE:\\t",
+        "STRING:@\"C:\\mock\\",
+        "ESCAPE:\"\"",
+        "STRING:$\"Item ",
+        "DELIMITER:{",
+        "NUMBER:1",
+        "DELIMITER:}",
+        "ESCAPE:{{",
+        "STRING:\"\"\"",
+        "STRING:      text \"quoted\"",
+        "STRING:      \"\"\"",
+        "KEYWORD:async",
+        "TYPE:Task",
+        "FUNCTION:RunAsync",
+        "NUMBER:2.5m",
+        "COMMENT:// done",
+        "PREPROCESSOR:#endregion");
+  }
+
+  @Test
+  void kotlin() {
+    assertTokens(
+        "kotlin",
+        "@file:JvmName(\"Mock\")\n"
+            + "package mock\n"
+            + "/* a /* nested */ b */\n"
+            + "data class Box<T>(val item: T) {\n"
+            + "    fun show(): String = \"Item $item and ${item.hashCode() + 1}\\n\"\n"
+            + "    val raw = \"\"\"\n"
+            + "        raw $item\n"
+            + "    \"\"\"\n"
+            + "    val n = 0xFF_FFL; val c = '\\u0041'\n"
+            + "    override fun toString() = if (item == null) \"none\" else show()\n"
+            + "}",
+        "PREPROCESSOR:@file:JvmName",
+        "COMMENT:/* a /* nested */ b */",
+        "KEYWORD:data",
+        "TYPE:Box",
+        "KEYWORD:fun",
+        "FUNCTION:show",
+        "STRING:\"Item ",
+        "CONSTANT:$item",
+        "DELIMITER:${",
+        "FUNCTION:hashCode",
+        "DELIMITER:}",
+        "ESCAPE:\\n",
+        "STRING:\"\"\"",
+        "CONSTANT:$item",
+        "STRING:    \"\"\"",
+        "NUMBER:0xFF_FFL",
+        "ESCAPE:\\u0041",
+        "KEYWORD:override",
+        "CONSTANT:null");
+  }
+
+  @Test
+  void ruby() {
+    assertTokens(
+        "ruby",
+        "#!/usr/bin/env ruby\n"
+            + "require 'json'\n"
+            + "class Mock < Base\n"
+            + "  attr_reader :name\n"
+            + "  def initialize(name)\n"
+            + "    @name = name; $count += 1\n"
+            + "    text = <<~EOS\n"
+            + "      Hello #{name}\n"
+            + "    EOS\n"
+            + "    list = %w[a b c]; re = /ab+c/i\n"
+            + "    puts \"Name: #{@name}\\n\" if name.nil? || defined?(x)\n"
+            + "    { key: 1, 'b' => 2.5r }\n"
+            + "  end\n"
+            + "end\n"
+            + "=begin\n"
+            + "doc\n"
+            + "=end",
+        "COMMENT:#!/usr/bin/env ruby",
+        "KEYWORD2:require",
+        "STRING:'json'",
+        "TYPE:Mock",
+        "CONSTANT::name",
+        "FUNCTION:initialize",
+        "KEYWORD2:@name",
+        "KEYWORD2:$count",
+        "STRING:<<~EOS",
+        "STRING:      Hello ",
+        "DELIMITER:#{",
+        "STRING:    EOS",
+        "STRING:%w[a b c]",
+        "STRING: /ab+c/i",
+        "DELIMITER:#{",
+        "KEYWORD2:@name",
+        "ESCAPE:\\n",
+        "KEYWORD:if",
+        "KEYWORD:defined?",
+        "CONSTANT:key:",
+        "NUMBER:2.5r",
+        "KEYWORD:end",
+        "COMMENT:=begin",
+        "COMMENT:doc",
+        "COMMENT:=end");
+  }
+
+  @Test
+  void php() {
+    assertTokens(
+        "php",
+        "<?php\n"
+            + "#[Attribute]\n"
+            + "final class Mock {\n"
+            + "    public function run(int $n): string {\n"
+            + "        $text = \"Count {$this->n} and $n\\n\"; // done\n"
+            + "        $raw = <<<'EOT'\n"
+            + "        no $interp\n"
+            + "        EOT;\n"
+            + "        return strtoupper('a\\'b') . 0x1F;\n"
+            + "    }\n"
+            + "}\n"
+            + "?>\n"
+            + "<p class=\"x\">Hello <?= $name ?></p>",
+        "PREPROCESSOR:<?php",
+        "PREPROCESSOR:#[Attribute]",
+        "KEYWORD:final",
+        "KEYWORD:function",
+        "TYPE:int",
+        "KEYWORD2:$n",
+        "STRING:\"Count ",
+        "DELIMITER:{",
+        "KEYWORD2:$this",
+        "DELIMITER:}",
+        "KEYWORD2:$n",
+        "ESCAPE:\\n",
+        "COMMENT:// done",
+        "STRING:<<<'EOT'",
+        "STRING:        no $interp",
+        "STRING:        EOT",
+        "FUNCTION:strtoupper",
+        "ESCAPE:\\'",
+        "NUMBER:0x1F",
+        "PREPROCESSOR:?>",
+        "TAG:<p",
+        "ATTRIBUTE:class",
+        "STRING:\"x\"",
+        "PREPROCESSOR:<?=",
+        "KEYWORD2:$name",
+        "PREPROCESSOR:?>",
+        "TAG:</p>");
+  }
+
+  @Test
+  void perl() {
+    assertTokens(
+        "perl",
+        "#!/usr/bin/perl\n"
+            + "use strict;\n"
+            + "my @items = qw(a b c);\n"
+            + "my %h = (key => 1);\n"
+            + "sub run {\n"
+            + "    my ($self, $n) = @_;\n"
+            + "    $n =~ s/foo/bar/g; my $re = qr{ab+c}i;\n"
+            + "    print <<\"END\";\n"
+            + "Hello $n\n"
+            + "END\n"
+            + "    return $#items + 0x1F;\n"
+            + "}\n"
+            + "=pod\n"
+            + "Docs\n"
+            + "=cut\n"
+            + "__END__\n"
+            + "data",
+        "COMMENT:#!/usr/bin/perl",
+        "KEYWORD:use",
+        "KEYWORD2:@items",
+        "STRING:qw(a b c)",
+        "KEYWORD2:%h",
+        "KEYWORD:sub",
+        "FUNCTION:run",
+        "KEYWORD2:@_",
+        "STRING:s/foo/bar/g",
+        "STRING:qr{ab+c}i",
+        "KEYWORD2:print",
+        "STRING:<<\"END\";",
+        "STRING:Hello ",
+        "KEYWORD2:$n",
+        "STRING:END",
+        "KEYWORD2:$#items",
+        "NUMBER:0x1F",
+        "COMMENT:=pod",
+        "COMMENT:=cut",
+        "COMMENT:__END__",
+        "COMMENT:data");
+  }
+
+  @Test
+  void lua() {
+    assertTokens(
+        "lua",
+        "local Mock = {}\n"
+            + "--[==[ block\n"
+            + "comment ]] still ]==]\n"
+            + "function Mock.run(n)\n"
+            + "  local s = [[raw\n"
+            + "text]] .. \"a\\tb\"\n"
+            + "  if n ~= nil then return 0x1F end\n"
+            + "  local x <const> = 1.5e3\n"
+            + "  ::done::\n"
+            + "  print(#s, true)\n"
+            + "end",
+        "KEYWORD:local",
+        "COMMENT:--[==[ block",
+        "COMMENT:comment ]] still ]==]",
+        "KEYWORD:function",
+        "FUNCTION:Mock.run",
+        "STRING:[[raw",
+        "STRING:text]]",
+        "OPERATOR:..",
+        "ESCAPE:\\t",
+        "OPERATOR:~=",
+        "CONSTANT:nil",
+        "KEYWORD:then",
+        "NUMBER:0x1F",
+        "KEYWORD:end",
+        "PREPROCESSOR:<const>",
+        "NUMBER:1.5e3",
+        "PREPROCESSOR:::done::",
+        "KEYWORD2:print",
+        "CONSTANT:true");
+  }
+
+  @Test
+  void groovy() {
+    assertTokens(
+        "groovy",
+        "#!/usr/bin/env groovy\n"
+            + "@Grab('mock')\n"
+            + "def name = \"world\"\n"
+            + "pipeline {\n"
+            + "    stages { stage('Build') { steps { sh \"echo ${name} $name\" } } }\n"
+            + "}\n"
+            + "def re = /ab+c/; def ds = $/a/b$$/$\n"
+            + "def multi = '''raw\n"
+            + "text'''\n"
+            + "int n = 0x1F + 10G",
+        "COMMENT:#!/usr/bin/env groovy",
+        "PREPROCESSOR:@Grab",
+        "KEYWORD:def",
+        "STRING:\"world\"",
+        "FUNCTION:stage",
+        "STRING:\"echo ",
+        "DELIMITER:${",
+        "DELIMITER:}",
+        "CONSTANT:$name",
+        "STRING: /ab+c/",
+        "STRING:$/a/b",
+        "ESCAPE:$$",
+        "STRING:/$",
+        "STRING:'''raw",
+        "STRING:text'''",
+        "TYPE:int",
+        "NUMBER:10G");
+  }
+
+  @Test
+  void scala() {
+    assertTokens(
+        "scala",
+        "package mock\n"
+            + "/* a /* nested */ b */\n"
+            + "@main def run(): Unit =\n"
+            + "  val name = \"world\"\n"
+            + "  println(s\"Hello $name and ${name.length + 1}\")\n"
+            + "  val raw = \"\"\"a \"q\" b\"\"\"\n"
+            + "  val c = 'x'\n"
+            + "  given Ordering[Int] = Ordering.Int\n"
+            + "  case class Box[T](item: T) extends Serializable\n"
+            + "  if true then 0x1FL else 2.5",
+        "COMMENT:/* a /* nested */ b */",
+        "PREPROCESSOR:@main",
+        "KEYWORD:def",
+        "FUNCTION:run",
+        "TYPE:Unit",
+        "STRING:s\"Hello ",
+        "CONSTANT:$name",
+        "DELIMITER:${",
+        "NUMBER:1",
+        "DELIMITER:}",
+        "STRING:\"\"\"a \"q\" b\"\"\"",
+        "STRING:'x'",
+        "KEYWORD:given",
+        "KEYWORD:case",
+        "KEYWORD:class",
+        "TYPE:Box",
+        "KEYWORD:extends",
+        "KEYWORD:then",
+        "NUMBER:0x1FL");
+  }
+
+  @Test
+  void swift() {
+    assertTokens(
+        "swift",
+        "import Foundation\n"
+            + "/* a /* nested */ b */\n"
+            + "@MainActor\n"
+            + "struct Mock: Codable {\n"
+            + "    let raw = #\"raw \\n \"quoted\" \\#(x)\"#\n"
+            + "    var text = \"Item \\(count(of: list) + 1) done\\n\"\n"
+            + "    func run() async throws -> Int { return 0x1F }\n"
+            + "}\n"
+            + "#if DEBUG\n"
+            + "let block = \"\"\"\n"
+            + "  multi \\(name)\n"
+            + "  \"\"\"\n"
+            + "#endif",
+        "KEYWORD:import",
+        "COMMENT:/* a /* nested */ b */",
+        "PREPROCESSOR:@MainActor",
+        "KEYWORD:struct",
+        "TYPE:Codable",
+        "STRING:#\"raw \\n \"quoted\" ",
+        "ESCAPE:\\#(",
+        "STRING:x)\"#",
+        "STRING:\"Item ",
+        "DELIMITER:\\(",
+        "FUNCTION:count",
+        "DELIMITER:(",
+        "DELIMITER:)",
+        "NUMBER:1",
+        "DELIMITER:)",
+        "STRING: done",
+        "ESCAPE:\\n",
+        "KEYWORD:func",
+        "KEYWORD:async",
+        "KEYWORD:throws",
+        "PREPROCESSOR:#if",
+        "STRING:\"\"\"",
+        "DELIMITER:\\(",
+        "STRING:  \"\"\"",
+        "PREPROCESSOR:#endif");
+  }
+
+  @Test
+  void dart() {
+    assertTokens(
+        "dart",
+        "import 'package:mock/mock.dart';\n"
+            + "/* a /* nested */ b */\n"
+            + "@override\n"
+            + "class Box<T> extends Base {\n"
+            + "  final String name = 'Item $count and ${count + 1}\\n';\n"
+            + "  var raw = r'no $interp';\n"
+            + "  Future<void> run() async { return null; }\n"
+            + "  late final int n = 0x1F;\n"
+            + "}",
+        "KEYWORD:import",
+        "STRING:'package:mock/mock.dart'",
+        "COMMENT:/* a /* nested */ b */",
+        "PREPROCESSOR:@override",
+        "KEYWORD:class",
+        "TYPE:Box",
+        "KEYWORD:extends",
+        "STRING:'Item ",
+        "CONSTANT:$count",
+        "DELIMITER:${",
+        "DELIMITER:}",
+        "ESCAPE:\\n",
+        "STRING:r'no $interp'",
+        "TYPE:Future",
+        "TYPE:void",
+        "KEYWORD:async",
+        "CONSTANT:null",
+        "KEYWORD:late",
+        "NUMBER:0x1F");
+  }
+
+  @Test
+  void rLanguage() {
+    assertTokens(
+        "r",
+        "#!/usr/bin/env Rscript\n"
+            + "library(stats)\n"
+            + "mock <- function(x, ...) {\n"
+            + "  s <- r\"(raw \\n \"q\")\"\n"
+            + "  t <- r\"-[x]-\"\n"
+            + "  y <- x %in% c(1L, 2.5e3, NA)\n"
+            + "  if (is.null(x)) return(TRUE)\n"
+            + "  lapply(x, \\(v) v + 1) |> sum()\n"
+            + "}",
+        "COMMENT:#!/usr/bin/env Rscript",
+        "KEYWORD2:library",
+        "OPERATOR:<-",
+        "KEYWORD:function",
+        "STRING:r\"(raw \\n \"q\")\"",
+        "STRING:r\"-[x]-\"",
+        "OPERATOR:%in%",
+        "KEYWORD2:c",
+        "NUMBER:1L",
+        "NUMBER:2.5e3",
+        "CONSTANT:NA",
+        "KEYWORD2:is.null",
+        "CONSTANT:TRUE",
+        "KEYWORD2:lapply",
+        "OPERATOR:\\",
+        "OPERATOR:|>");
+  }
+
+  @Test
+  void haskell() {
+    assertTokens(
+        "haskell",
+        "{-# LANGUAGE OverloadedStrings #-}\n"
+            + "module Mock (run) where\n"
+            + "{- outer {- inner -} still -}\n"
+            + "import qualified Data.Map as M\n"
+            + "run :: Int -> Maybe String\n"
+            + "run n = case n of\n"
+            + "  0 -> Nothing -- none\n"
+            + "  _ -> Just (\"n=\" ++ show n ++ \"\\n\" ++ [c'])\n"
+            + "  where c' = 'x'\n"
+            + "x --> y = x",
+        "PREPROCESSOR:{-# LANGUAGE OverloadedStrings #-}",
+        "KEYWORD:module",
+        "TYPE:Mock",
+        "KEYWORD:where",
+        "COMMENT:{- outer {- inner -} still -}",
+        "KEYWORD:qualified",
+        "TYPE:Data",
+        "KEYWORD:as",
+        "FUNCTION:run",
+        "OPERATOR:::",
+        "TYPE:Maybe",
+        "KEYWORD:case",
+        "KEYWORD:of",
+        "TYPE:Nothing",
+        "COMMENT:-- none",
+        "STRING:\"n=\"",
+        "OPERATOR:++",
+        "ESCAPE:\\n",
+        "STRING:'x'",
+        "OPERATOR:-->");
+  }
+
+  @Test
+  void objectivec() {
+    assertTokens(
+        "objectivec",
+        "#import <Foundation/Foundation.h>\n"
+            + "@interface Mock : NSObject\n"
+            + "@property (nonatomic, strong) NSString *name;\n"
+            + "- (instancetype)initWithName:(NSString *)name;\n"
+            + "@end\n"
+            + "@implementation Mock\n"
+            + "- (BOOL)run { NSArray *a = @[@1, @\"x\\n\"]; return YES; } // done\n"
+            + "@end",
+        "PREPROCESSOR:#import",
+        "STRING:<Foundation/Foundation.h>",
+        "KEYWORD:@interface",
+        "TYPE:NSObject",
+        "KEYWORD:@property",
+        "KEYWORD:nonatomic",
+        "KEYWORD:strong",
+        "TYPE:NSString",
+        "TYPE:instancetype",
+        "KEYWORD:@end",
+        "KEYWORD:@implementation",
+        "TYPE:BOOL",
+        "OPERATOR:@",
+        "STRING:@\"x",
+        "ESCAPE:\\n",
+        "CONSTANT:YES",
+        "COMMENT:// done",
+        "KEYWORD:@end");
+  }
+
+  @Test
+  void vbnet() {
+    assertTokens(
+        "vbnet",
+        "Imports System.Text\n"
+            + "<Serializable>\n"
+            + "Public Class Mock\n"
+            + "    ' comment\n"
+            + "    Private ReadOnly _name As String = \"a\"\"b\"\n"
+            + "    Public Function Run(ByVal n As Integer) As Boolean\n"
+            + "        Dim msg = $\"Item {n + 1} of {{all}}\"\n"
+            + "        If n > &H1F Then Return True\n"
+            + "        Dim d = #1/1/2024#\n"
+            + "        REM old style\n"
+            + "        Return CBool(Nothing)\n"
+            + "    End Function\n"
+            + "End Class",
+        "KEYWORD:Imports",
+        "PREPROCESSOR:<Serializable",
+        "KEYWORD:Public",
+        "KEYWORD:Class",
+        "COMMENT:' comment",
+        "KEYWORD:ReadOnly",
+        "TYPE:String",
+        "ESCAPE:\"\"",
+        "KEYWORD:Function",
+        "FUNCTION:Run",
+        "KEYWORD:ByVal",
+        "TYPE:Integer",
+        "STRING:$\"Item ",
+        "DELIMITER:{",
+        "DELIMITER:}",
+        "ESCAPE:{{",
+        "NUMBER:&H1F",
+        "KEYWORD:Then",
+        "CONSTANT:True",
+        "CONSTANT:#1/1/2024#",
+        "COMMENT:REM old style",
+        "KEYWORD2:CBool",
+        "CONSTANT:Nothing",
+        "KEYWORD:End");
+  }
 }

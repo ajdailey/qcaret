@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Swift Programming Language (Swift 5.10), Language Reference: Lexical Structure, Attributes and Compiler Control Statements. -->
+<grammar id="swift" name="Swift" version="1">
+  <detect>
+    <extension>swift</extension>
+    <firstLine>^#!.*\bswift\b</firstLine>
+  </detect>
+  <comments line="//" blockStart="/*" blockEnd="*/"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(//.*)?$|^\s*(?:case\b.*|default):\s*(//.*)?$" decrease="^\s*(?:[})\]]|case\b|default:)"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="^#!"/>
+    <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>
+    <span token="comment" begin="//"/>
+    <span token="string" begin='(#+)"""' end='"""\1' escape='\\\1(?:[0\\tnr"&apos;(]|u\{[0-9A-Fa-f]{1,8}\})' multiLine="true"/>
+    <span token="string" begin='(#+)"' end='"\1' escape='\\\1(?:[0\\tnr"&apos;(]|u\{[0-9A-Fa-f]{1,8}\})'/>
+    <span token="string" begin='"""' end='"""' escape='\\(?:[0\\tnr"&apos;]|u\{[0-9A-Fa-f]{1,8}\}|$)' context="interpolation" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape='\\(?:[0\\tnr"&apos;]|u\{[0-9A-Fa-f]{1,8}\})' context="interpolation"/>
+    <match token="preprocessor" regex="@[A-Za-z_]\w*|#[A-Za-z_]\w*"/>
+    <match regex="`[^`]+`"/>
+    <keywords token="keyword">associatedtype borrowing class consuming deinit enum extension fileprivate func import init inout internal let nonisolated open operator precedencegroup private protocol public rethrows static struct subscript typealias var break case catch continue default defer do else fallthrough for guard if in repeat return throw switch where while as await is self Self super throws try associativity convenience didSet dynamic final get indirect infix lazy left mutating none nonmutating optional override package postfix precedence prefix required right set some any unowned weak willSet async actor macro consume copy discard each</keywords>
+    <keywords token="constant">true false nil</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0x[0-9A-Fa-f_]+(?:\.[0-9A-Fa-f_]+)?(?:[pP][+-]?\d[\d_]*)?|0o[0-7_]+|0b[01_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d[\d_]*)?)(?!\w)"/>
+    <match token="function" regex="(?&lt;=\bfunc\s{1,8})[A-Za-z_]\w*"/>
+    <match token="type" regex="(?&lt;!\w)[A-Z]\w*"/>
+    <match token="function" regex="(?&lt;!\w)[a-z_]\w*(?=\s*\()"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:]+|\.\.[.&lt;]"/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+  <context id="interpolation">
+    <match token="delimiter" regex="\\\(" push="parens"/>
+  </context>
+  <context id="parens">
+    <match token="delimiter" regex="\)" pop="true"/>
+    <match token="delimiter" regex="\(" push="parens"/>
+    <include context="main"/>
+  </context>
+</grammar>

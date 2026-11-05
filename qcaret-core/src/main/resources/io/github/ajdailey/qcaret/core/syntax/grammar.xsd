@@ -125,6 +125,7 @@
                   <xs:attribute name="token" type="token" use="required"/>
                   <xs:attribute name="context" type="id"/>
                   <xs:attribute name="multiLine" type="xs:boolean" default="false"/>
+                  <xs:attribute name="nested" type="xs:boolean" default="false"/>
                 </xs:complexType>
               </xs:element>
               <xs:element name="include">

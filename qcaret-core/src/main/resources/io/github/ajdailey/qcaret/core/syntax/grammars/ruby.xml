@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ruby, ISO/IEC 30170:2012 clause 8 (lexical structure), with the Ruby 3.3 syntax documentation (literals, here documents, pattern matching). -->
+<grammar id="ruby" name="Ruby" version="1">
+  <detect>
+    <extension>rb</extension>
+    <extension>rbw</extension>
+    <extension>rake</extension>
+    <extension>gemspec</extension>
+    <extension>ru</extension>
+    <fileName>Rakefile</fileName>
+    <fileName>Gemfile</fileName>
+    <fileName>Guardfile</fileName>
+    <fileName>Vagrantfile</fileName>
+    <fileName>Podfile</fileName>
+    <fileName>Brewfile</fileName>
+    <firstLine>^#!.*\bruby[0-9.]*\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="^\s*(?:(?:private|protected|public)\s+)?(?:def|class|module|if|unless|while|until|for|case|begin|else|elsif|when|in|rescue|ensure)\b(?!.*\bend\s*$)|\bdo(?:\s*\|[^|]*\|)?\s*(#.*)?$|[{(\[](?:\s*\|[^|]*\|)?\s*(#.*)?$" decrease="^\s*(?:(?:end|else|elsif|when|in|rescue|ensure)\b|[})\]])"/>
+  <folding mode="indent"/>
+  <context id="main">
+    <span token="comment" begin="^=begin\b" end="^=end\b.*" multiLine="true"/>
+    <span token="comment" begin="(?&lt;!\$)#(?!\{)"/>
+    <span token="comment" begin="^__END__$" end="(?!)" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;[~-]?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;(?=[~-]|[&quot;`]?[A-Z_])[~-]?[&quot;`]?([A-Za-z_]\w*)[&quot;`]?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f ]+\}|[0-7]{1,3}|c.|C-.|M-.|.)" context="interpolation" multiLine="true"/>
+    <span token="string" begin="`" end="`" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="\\[\\']" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[qwis]?\(" end="\)" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[qwis]?\[" end="\]" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[qwis]?\{" end="\}" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[qwis]?&lt;" end="&gt;" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[QWIrx]?\(" end="\)[a-z]*" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[QWIrx]?\[" end="\][a-z]*" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[QWIrx]?\{" end="\}[a-z]*" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w)\]}])%[qQwWiIrsx]?([^\w\s(\[{&lt;=])" end="\1[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;=^|[(,=~!:;{&amp;|?\[]|\bwhen|\bif|\bunless|\breturn)\s*/(?![\s=])" end="/[imxounse]*" escape="\\." context="interpolation"/>
+    <match token="keyword2" regex="@@?[A-Za-z_]\w*|\$(?:[A-Za-z_]\w*|[!@&amp;`'+~=/\\,;.&lt;&gt;_*$?:&quot;]|-\w|\d+)"/>
+    <match token="constant" regex="(?&lt;![:\w]):(?:[A-Za-z_]\w*[?!=]?|&quot;(?:\\.|[^&quot;\\])*&quot;)|(?&lt;![\w:])[A-Za-z_]\w*[?!]?:(?!:)"/>
+    <match token="function" regex="(?&lt;=\bdef\s{1,8})(?:self\.)?[A-Za-z_]\w*[?!=]?"/>
+    <keywords token="keyword" wordChars="_?!">BEGIN END alias and begin break case class def defined? do else elsif end ensure for if in module next not or redo rescue retry return self super then undef unless until when while yield __FILE__ __LINE__ __ENCODING__ __method__</keywords>
+    <keywords token="keyword2" wordChars="_?!">require require_relative include extend prepend attr_accessor attr_reader attr_writer private protected public module_function raise puts print p pp lambda proc loop catch throw</keywords>
+    <keywords token="constant" wordChars="_?!">true false nil</keywords>
+    <match regex="(?&lt;![\w@$:])[A-Za-z_]\w*[?!](?![=\w])"/>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO]?[0-7_]+|0[dD][\d_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d[\d_]*)?)r?i?(?!\w)"/>
+    <match token="type" regex="(?&lt;![\w@$])[A-Z]\w*"/>
+    <match token="function" regex="(?&lt;![\w@$])[a-z_]\w*[?!]?(?=\()"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:]+|\.\.\.?"/>
+    <match token="delimiter" regex="[{}()\[\];,.]"/>
+  </context>
+  <context id="interpolation">
+    <match token="delimiter" regex="#\{" push="substitution"/>
+    <match token="keyword2" regex="#[@$][@A-Za-z_]\w*"/>
+  </context>
+  <context id="substitution">
+    <match token="delimiter" regex="\}" pop="true"/>
+    <include context="main"/>
+  </context>
+</grammar>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Perl 5.38 documentation: perldata, perlop (quote and quote-like operators), perlsyn, perlpod and perlfunc. -->
+<grammar id="perl" name="Perl" version="1">
+  <detect>
+    <extension>pl</extension>
+    <extension>pm</extension>
+    <extension>t</extension>
+    <extension>psgi</extension>
+    <firstLine>^#!.*\bperl[0-9.]*\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{" close="}"/>
+  <context id="main">
+    <span token="comment" begin="^=[A-Za-z]\w*" end="^=cut\b.*" multiLine="true"/>
+    <span token="comment" begin="^__(?:END|DATA)__\b" end="(?!)" multiLine="true"/>
+    <span token="comment" begin="#"/>
+    <span token="string" begin="&lt;&lt;~?'([A-Za-z_]\w*)'" end="^\s*\1$" multiLine="true"/>
+    <span token="string" begin="&lt;&lt;~?(?:&quot;|(?=[A-Z_]))([A-Za-z_]\w*)&quot;?" end="^\s*\1$" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="`" end="`" escape="\\." context="interpolation" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="\\[\\']" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:qq|qw|qx|qr|q|m|s|tr|y)\s*\{" end="\}[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:qq|qw|qx|qr|q|m|s|tr|y)\s*\(" end="\)[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:qq|qw|qx|qr|q|m|s|tr|y)\s*\[" end="\][a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:qq|qw|qx|qr|q|m|s|tr|y)\s*&lt;" end="&gt;[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:s|tr|y)([^\w\s{(\[&lt;)\]}&gt;=,;])" end="\1(?:\\.|(?!\1).)*\1[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w$@%&amp;&gt;-])(?:qq|qw|qx|qr|q|m)([^\w\s{(\[&lt;)\]}&gt;=,;])" end="\1[a-z]*" escape="\\." multiLine="true"/>
+    <span token="string" begin="(?&lt;=^|[(,=~!:;{}&amp;|?]|\b(?:if|unless|and|or|not|split|grep|return))\s*/(?![\s=])" end="/[a-z]*" escape="\\." context="interpolation"/>
+    <match token="keyword2" regex="[$@%]\#?\{?\^?[A-Za-z_][\w:]*|\$\d+|\$[&amp;`'+!@/\\,;.0_&lt;&gt;\[\]]|@_"/>
+    <match token="function" regex="(?&lt;=\bsub\s{1,8})[A-Za-z_][\w:]*"/>
+    <keywords token="keyword">my our local state sub package use no require return if elsif else unless while until for foreach do last next redo goto and or not xor eq ne lt gt le ge cmp x BEGIN END INIT CHECK UNITCHECK AUTOLOAD DESTROY __PACKAGE__ __FILE__ __LINE__ __SUB__</keywords>
+    <keywords token="keyword2">print printf say open close binmode chomp chop chdir die warn eval exists delete defined undef keys values each push pop shift unshift splice join split map grep sort reverse length substr index rindex sprintf lc uc lcfirst ucfirst ref bless scalar wantarray exit sleep time localtime system exec abs int sqrt</keywords>
+    <match token="number" regex="(?&lt;![\w.$])(?:0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[0-7_]+|\d[\d_]*(?:\.(?!\.)[\d_]*)?(?:[eE][+-]?\d[\d_]*)?)(?!\w)"/>
+    <match token="function" regex="(?&lt;![\w$@%&amp;])[A-Za-z_]\w*(?=\s*\()"/>
+    <match token="type" regex="(?&lt;![\w$@%&amp;])[A-Z]\w*(?:::\w+)+"/>
+    <match token="operator" regex="[-+*/%=&amp;|!&lt;&gt;^~?:.\\]+"/>
+    <match token="delimiter" regex="[{}()\[\];,]"/>
+  </context>
+  <context id="interpolation">
+    <match token="keyword2" regex="[$@][A-Za-z_][\w:]*|\$\{[^}]*\}|\$\d+"/>
+  </context>
+</grammar>

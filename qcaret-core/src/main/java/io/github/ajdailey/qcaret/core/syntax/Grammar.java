@@ -132,6 +132,9 @@ public record Grammar(
   /**
    * Text between a begin and an end match, such as a string or a comment.
    *
+   * <p>A {@code \1} in {@code end} or {@code escape} stands for the text the begin's first group
+   * matched, so a closing delimiter can repeat the opener's count or name.
+   *
    * @param begin opens the span
    * @param end closes it; null runs to the line's end
    * @param escape matched before {@code end} inside the span, colored as {@link TokenType#ESCAPE},
@@ -139,6 +142,8 @@ public record Grammar(
    * @param token the span's token, the delimiters included
    * @param context rules applied inside the span, or null
    * @param multiLine true when the span continues past a line's end
+   * @param nested true when {@code begin} inside the span opens one more level, which its own
+   *     {@code end} closes
    */
   public record Span(
       Pattern begin,
@@ -146,7 +151,8 @@ public record Grammar(
       Pattern escape,
       TokenType token,
       String context,
-      boolean multiLine)
+      boolean multiLine,
+      boolean nested)
       implements Rule {}
 
   /**

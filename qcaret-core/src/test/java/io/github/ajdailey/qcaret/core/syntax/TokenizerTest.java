@@ -122,4 +122,115 @@ class TokenizerTest {
                 + "<match token=\"escape\" regex=\"\\\\1\"/></context></grammar>");
     assertEquals(List.of("ESCAPE:\\1"), Tokens.of(syntax, "\\1"));
   }
+
+  private static Syntax spans(String spans) throws Exception {
+    return Tokens.compile(
+        "<grammar id=\"mock\" name=\"Mock\"><context id=\"main\">"
+            + spans
+            + "<match token=\"keyword\" regex=\"x\"/></context></grammar>");
+  }
+
+  @Test
+  void aNestedSpanClosesAtTheDepthItOpened() throws Exception {
+    Syntax syntax =
+        spans(
+            "<span token=\"comment\" begin=\"\\{-\" end=\"-\\}\" multiLine=\"true\""
+                + " nested=\"true\"/>");
+    assertEquals(
+        List.of("COMMENT:{- a {- b", "COMMENT:-} c -}", "KEYWORD:x"),
+        Tokens.of(syntax, "{- a {- b\n-} c -} x"));
+    Tokenizer t = syntax.tokenizer(100);
+    int state = t.tokenize("{- {- {-", Tokenizer.INITIAL, new TokenList(), new CancellationToken());
+    assertEquals(4, t.depth(state));
+  }
+
+  @Test
+  void anEndUsingGroupOneClosesOnlyOnTheOpenersText() throws Exception {
+    Syntax syntax =
+        spans(
+            "<span token=\"string\" begin=\"\\[(=*)\\[\" end=\"\\]\\1\\]\" multiLine=\"true\"/>"
+                + "<span token=\"string\" begin=\"&lt;&lt;([A-Z]+)\" end=\"^\\1$\""
+                + " multiLine=\"true\"/>");
+    assertEquals(
+        List.of("STRING:[==[ ]] ]=]", "STRING:x ]==]", "KEYWORD:x"),
+        Tokens.of(syntax, "[==[ ]] ]=]\nx ]==] x"));
+    assertEquals(List.of("STRING:[[ x ]]", "KEYWORD:x"), Tokens.of(syntax, "[[ x ]] x"));
+    assertEquals(
+        List.of("STRING:<<EOT", "STRING: EOT", "STRING:EOTX", "STRING:EOT", "KEYWORD:x"),
+        Tokens.of(syntax, "<<EOT\n EOT\nEOTX\nEOT\nx"));
+  }
+
+  @Test
+  void anEscapeUsingGroupOneMatchesTheOpenersText() throws Exception {
+    Syntax syntax =
+        spans(
+            "<span token=\"string\" begin=\"(#+)&quot;\" end=\"&quot;\\1\""
+                + " escape=\"\\\\\\1n\"/>");
+    assertEquals(
+        List.of("STRING:##\"a \\n \"# ", "ESCAPE:\\##n", "STRING:\"##", "KEYWORD:x"),
+        Tokens.of(syntax, "##\"a \\n \"# \\##n\"## x"));
+  }
+
+  @Test
+  void equalOpenersShareOneDerivedContext() throws Exception {
+    Syntax syntax =
+        spans("<span token=\"string\" begin=\"&lt;(\\w*)\" end=\"\\1&gt;\" multiLine=\"true\"/>");
+    Tokenizer t = syntax.tokenizer(100);
+    TokenList list = new TokenList();
+    CancellationToken token = new CancellationToken();
+    int a = t.tokenize("<ab", Tokenizer.INITIAL, list, token);
+    assertEquals(a, t.tokenize("<ab", Tokenizer.INITIAL, list, token));
+    assertTrue(a != t.tokenize("<abc", Tokenizer.INITIAL, list, token));
+  }
+
+  @Test
+  void anOpenerPastTheLimitsColorsItselfAndOpensNothing() throws Exception {
+    Syntax syntax =
+        spans("<span token=\"string\" begin=\"&lt;(\\w*)\" end=\"\\1&gt;\" multiLine=\"true\"/>");
+    String longText = "a".repeat(Syntax.MAX_CAPTURE + 1);
+    assertEquals(
+        List.of("STRING:<" + longText, "KEYWORD:x"), Tokens.of(syntax, "<" + longText + " x"));
+    Tokenizer t = syntax.tokenizer(1000);
+    TokenList list = new TokenList();
+    CancellationToken token = new CancellationToken();
+    for (int i = 0; i < Syntax.MAX_DERIVED; i++) {
+      assertEquals(2, t.depth(t.tokenize("<w" + i, Tokenizer.INITIAL, list, token)));
+    }
+    assertEquals(Tokenizer.INITIAL, t.tokenize("<over x", Tokenizer.INITIAL, list, token));
+    assertEquals(TokenType.KEYWORD, list.typeAt(6));
+  }
+
+  @Test
+  void theStackStopsGrowingAtItsLimit() throws Exception {
+    Syntax syntax =
+        spans(
+            "<span token=\"comment\" begin=\"\\(\\*\" end=\"\\*\\)\" multiLine=\"true\""
+                + " nested=\"true\"/>");
+    Tokenizer t = syntax.tokenizer(Integer.MAX_VALUE);
+    int state =
+        t.tokenize(
+            "(*".repeat(Tokenizer.MAX_DEPTH * 2),
+            Tokenizer.INITIAL,
+            new TokenList(),
+            new CancellationToken());
+    assertEquals(Tokenizer.MAX_DEPTH, t.depth(state));
+  }
+
+  @Test
+  void groupOneNeedsAGroupInTheBeginAndOtherBackreferencesStayRefused() {
+    for (final String span :
+        new String[] {
+          "<span token=\"string\" begin=\"a\" end=\"\\1\"/>",
+          "<span token=\"string\" begin=\"(a)(b)\" end=\"\\2\"/>"
+        }) {
+      assertThrows(
+          InvalidGrammarException.class,
+          new Executable() {
+            @Override
+            public void execute() throws Exception {
+              spans(span);
+            }
+          });
+    }
+  }
 }

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- R Language Definition (R 4.4), section 10.3 (tokens), with the raw string literals of R 4.0 and the base package functions. -->
+<grammar id="r" name="R" version="1">
+  <detect>
+    <extension>r</extension>
+    <fileName>.Rprofile</fileName>
+    <firstLine>^#!.*\bRscript\b</firstLine>
+  </detect>
+  <comments line="#"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
+  <folding mode="brackets" open="{(" close="})"/>
+  <context id="main">
+    <span token="comment" begin="#"/>
+    <span token="string" begin="(?&lt;![\w.])[rR][&quot;'](-*)\(" end="\)\1[&quot;']" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w.])[rR][&quot;'](-*)\[" end="\]\1[&quot;']" multiLine="true"/>
+    <span token="string" begin="(?&lt;![\w.])[rR][&quot;'](-*)\{" end="\}\1[&quot;']" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{1,2}|u\{?[0-9A-Fa-f]{1,4}\}?|U\{?[0-9A-Fa-f]{1,8}\}?|[0-7]{1,3}|.)" multiLine="true"/>
+    <span token="string" begin="'" end="'" escape="\\(?:x[0-9A-Fa-f]{1,2}|u\{?[0-9A-Fa-f]{1,4}\}?|U\{?[0-9A-Fa-f]{1,8}\}?|[0-7]{1,3}|.)" multiLine="true"/>
+    <match regex="`[^`]*`"/>
+    <keywords token="keyword" wordChars="._">if else repeat while function for in next break</keywords>
+    <keywords token="constant" wordChars="._">TRUE FALSE NULL Inf NaN NA NA_integer_ NA_real_ NA_character_ NA_complex_</keywords>
+    <keywords token="keyword2" wordChars="._">library require requireNamespace return invisible stop warning message print cat paste paste0 c list vector matrix array data.frame factor length names seq seq_len seq_along rep lapply sapply vapply mapply apply tapply do.call is.null is.na missing switch tryCatch on.exit match.arg setdiff union unique sort order which nrow ncol sum mean max min round format sprintf</keywords>
+    <match token="operator" regex="%[^%\s]*%"/>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f]+(?:\.[0-9A-Fa-f]*)?(?:[pP][+-]?\d+)?|\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)[Li]?(?![\w.])"/>
+    <match token="function" regex="(?&lt;![\w.])[A-Za-z.][\w.]*(?=\s*\()"/>
+    <match token="operator" regex="&lt;&lt;?-|-&gt;&gt;?|\|&gt;|\\(?=\()|[-+*/^=&amp;|!&lt;&gt;~?:$@]+"/>
+    <match token="delimiter" regex="[{}()\[\];,]"/>
+  </context>
+</grammar>

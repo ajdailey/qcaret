@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lua 5.4 Reference Manual, section 3.1 (lexical conventions), 3.3.4 (labels), 3.3.7 (attributes) and chapter 6 (standard libraries). -->
+<grammar id="lua" name="Lua" version="1">
+  <detect>
+    <extension>lua</extension>
+    <extension>wlua</extension>
+    <extension>rockspec</extension>
+    <firstLine>^#!.*\blua[0-9.]*\b</firstLine>
+  </detect>
+  <comments line="--" blockStart="--[[" blockEnd="]]"/>
+  <brackets>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+  </brackets>
+  <autoClose>
+    <pair open="(" close=")"/>
+    <pair open="[" close="]"/>
+    <pair open="{" close="}"/>
+    <pair open='"' close='"'/>
+    <pair open="'" close="'"/>
+  </autoClose>
+  <indent increase="(?:\b(?:then|do|else|repeat)|\bfunction\b[^()]*\([^()]*\)|[{(\[])\s*(--.*)?$" decrease="^\s*(?:(?:end|else|elseif|until)\b|[})\]])"/>
+  <folding mode="markers" begin="\b(?:function|if|do|repeat)\b|\{" end="\b(?:end|until)\b|\}"/>
+  <context id="main">
+    <span token="comment" begin="^#!"/>
+    <span token="comment" begin="--\[(=*)\[" end="\]\1\]" multiLine="true"/>
+    <span token="comment" begin="--"/>
+    <span token="string" begin="\[(=*)\[" end="\]\1\]" multiLine="true"/>
+    <span token="string" begin='"' end='"' escape="\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]+\}|\d{1,3}|z\s*|.|$)"/>
+    <span token="string" begin="'" end="'" escape="\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]+\}|\d{1,3}|z\s*|.|$)"/>
+    <match token="preprocessor" regex="::\s*[A-Za-z_]\w*\s*::|&lt;\s*(?:const|close)\s*&gt;"/>
+    <match token="function" regex="(?&lt;=\bfunction\s{1,8})[A-Za-z_][\w.:]*"/>
+    <keywords token="keyword">and break do else elseif end for function goto if in local not or repeat return then until while</keywords>
+    <keywords token="constant">true false nil</keywords>
+    <keywords token="keyword2">assert collectgarbage dofile error getmetatable ipairs load loadfile next pairs pcall print rawequal rawget rawlen rawset require select setmetatable tonumber tostring type warn xpcall _G _ENV _VERSION coroutine debug io math os package string table utf8 self</keywords>
+    <match token="number" regex="(?&lt;![\w.])(?:0[xX][0-9A-Fa-f]*\.?[0-9A-Fa-f]*(?:[pP][+-]?\d+)?|\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)(?![\w])"/>
+    <match token="function" regex="(?&lt;![\w])[A-Za-z_]\w*(?=\s*[(&quot;'{])"/>
+    <match token="operator" regex="[-+*/%^#&amp;~|&lt;&gt;=]+|\.\.\.?"/>
+    <match token="delimiter" regex="[{}()\[\];,.:]"/>
+  </context>
+</grammar>

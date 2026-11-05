@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,7 +19,7 @@ import java.util.regex.Pattern;
  * that alternates its rules, so a match at a position is the first rule matching there. Includes
  * are expanded in place; a span becomes a context of its own holding its escape, its end and its
  * inner rules. Inside an embedded grammar, the embed's end is tried before every rule of the
- * current context. Immutable and thread-safe; {@link Tokenizer} holds the per-thread state.
+ * current context. Thread-safe; {@link Tokenizer} holds the per-thread state.
  *
  * <p>Each rule's possible first chars are found by matching its regex, without a leading lookbehind
  * or word boundary, against each ASCII char: a char that matches or needs more input may start it.
@@ -26,11 +27,26 @@ import java.util.regex.Pattern;
  * start after one. Each context keeps one regex per distinct set of rules a position may start, so
  * the tokenizer tries at each position only those rules, and none inside a word that only such
  * rules could start; a non-ASCII char tries every rule.
+ *
+ * <p>A span whose end or escape uses {@code \1} compiles to a template context without them. The
+ * tokenizer takes from {@link #derive} one context per text the begin's first group matched: the
+ * template's rules with {@code \1} replaced by that text, quoted. A syntax derives at most {@value
+ * #MAX_DERIVED} contexts, each for a text of at most {@value #MAX_CAPTURE} chars.
  */
 public final class Syntax {
   /** Rejected regex features: backreferences and named groups, which alternation renumbers. */
   private static final Pattern UNSUPPORTED =
       Pattern.compile("(?<!\\\\)(?:\\\\\\\\)*\\\\(?:[1-9]|k<)|\\(\\?<[A-Za-z]");
+
+  /** A {@code \1} not escaped and not followed by a digit; group 1 holds escaped backslashes. */
+  private static final Pattern GROUP_ONE =
+      Pattern.compile("(?<!\\\\)((?:\\\\\\\\)*)\\\\1(?![0-9])");
+
+  /** Contexts {@link #derive} creates per syntax at most. */
+  static final int MAX_DERIVED = 512;
+
+  /** Longest captured text {@link #derive} accepts. */
+  static final int MAX_CAPTURE = 64;
 
   /** What a matched rule does. */
   enum Kind {
@@ -84,12 +100,22 @@ public final class Syntax {
     final Alt embedEnd;
     final List<Alt> alts = new ArrayList<Alt>();
 
-    Context(int id, String name, TokenType content, boolean lineEnd, Alt embedEnd) {
+    /** For a template context, the span whose end or escape uses {@code \1}; else null. */
+    final Grammar.Span template;
+
+    Context(
+        int id,
+        String name,
+        TokenType content,
+        boolean lineEnd,
+        Alt embedEnd,
+        Grammar.Span template) {
       this.id = id;
       this.name = name;
       this.content = content;
       this.lineEnd = lineEnd;
       this.embedEnd = embedEnd;
+      this.template = template;
     }
   }
 
@@ -122,6 +148,7 @@ public final class Syntax {
   private final Grammar grammar;
   private final List<Context> contexts;
   private final Map<Long, Combined> combined = new ConcurrentHashMap<Long, Combined>();
+  private final Map<String, Integer> derived = new ConcurrentHashMap<String, Integer>();
 
   private Syntax(Grammar grammar, List<Context> contexts) {
     this.grammar = grammar;
@@ -141,8 +168,12 @@ public final class Syntax {
   public static Syntax compile(Grammar grammar, Function<String, Grammar> lookup)
       throws InvalidGrammarException {
     Compiler compiler = new Compiler(lookup);
-    compiler.context(grammar, Grammar.MAIN);
-    Syntax syntax = new Syntax(grammar, compiler.contexts);
+    try {
+      compiler.context(grammar, Grammar.MAIN);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidGrammarException(grammar.id() + ": " + e.getMessage(), e);
+    }
+    Syntax syntax = new Syntax(grammar, new CopyOnWriteArrayList<Context>(compiler.contexts));
     for (Context c : compiler.contexts) {
       try {
         syntax.combined(c.id, -1);
@@ -174,6 +205,85 @@ public final class Syntax {
 
   Context context(int id) {
     return contexts.get(id);
+  }
+
+  /**
+   * Returns the context of a template span for the text its begin's first group matched, created on
+   * first use.
+   *
+   * @param template a template context
+   * @param text the captured text
+   * @return the context's id, or -1 when the text is too long or holds a backslash, the derived
+   *     regexes do not compile, or the syntax holds {@value #MAX_DERIVED} derived contexts
+   */
+  int derive(int template, String text) {
+    if (text.length() > MAX_CAPTURE || text.indexOf('\\') >= 0) {
+      return -1;
+    }
+    String key = template + ":" + text;
+    Integer found = derived.get(key);
+    if (found != null) {
+      return found;
+    }
+    synchronized (this) {
+      found = derived.get(key);
+      if (found != null) {
+        return found;
+      }
+      if (derived.size() >= MAX_DERIVED) {
+        return -1;
+      }
+      Context t = contexts.get(template);
+      Grammar.Span s = t.template;
+      Context c =
+          new Context(contexts.size(), t.name + ":" + text, t.content, t.lineEnd, null, null);
+      try {
+        if (s.escape() != null) {
+          c.alts.add(
+              Alt.of(substitute(s.escape(), text), Kind.ESCAPE, TokenType.ESCAPE, -1, false));
+        }
+        if (s.end() != null) {
+          c.alts.add(Alt.of(substitute(s.end(), text), Kind.SPAN_END, s.token(), -1, true));
+        }
+        c.alts.addAll(t.alts.subList(fixed(s), t.alts.size()));
+        alternation(c.alts);
+      } catch (IllegalArgumentException e) {
+        return -1;
+      }
+      contexts.add(c);
+      derived.put(key, c.id);
+      return c.id;
+    }
+  }
+
+  /**
+   * Reports whether a span's end or escape uses {@code \1} for the text its begin captured.
+   *
+   * @param regex the end or escape, or null
+   * @return true when it does
+   */
+  static boolean templated(Pattern regex) {
+    return regex != null && GROUP_ONE.matcher(regex.pattern()).find();
+  }
+
+  /** Returns a regex with each {@code \1} replaced by a text, quoted. */
+  private static Pattern substitute(Pattern regex, String text) {
+    return Pattern.compile(
+        GROUP_ONE
+            .matcher(regex.pattern())
+            .replaceAll("$1" + Matcher.quoteReplacement(Pattern.quote(text))));
+  }
+
+  /** Returns how many of a template span's escape and end its template context holds. */
+  private static int fixed(Grammar.Span s) {
+    int n = 0;
+    if (s.escape() != null && !templated(s.escape())) {
+      n++;
+    }
+    if (s.end() != null && !templated(s.end())) {
+      n++;
+    }
+    return n;
   }
 
   /** Returns a context's regex, with the end of the embed frame {@code embed} first when given. */
@@ -381,14 +491,15 @@ public final class Syntax {
       if (id != null) {
         return id;
       }
-      Context c = add(key, null, false, null);
+      Context c = add(key, null, false, null, null);
       named.put(key, c.id);
       expand(g, name, c.alts, new HashSet<String>());
       return c.id;
     }
 
-    Context add(String name, TokenType content, boolean lineEnd, Alt embedEnd) {
-      Context c = new Context(contexts.size(), name, content, lineEnd, embedEnd);
+    Context add(
+        String name, TokenType content, boolean lineEnd, Alt embedEnd, Grammar.Span template) {
+      Context c = new Context(contexts.size(), name, content, lineEnd, embedEnd, template);
       contexts.add(c);
       return c;
     }
@@ -412,7 +523,7 @@ public final class Syntax {
           Grammar embedded = lookup.apply(e.grammar());
           if (embedded != null) {
             Alt end = Alt.of(e.end(), Kind.EMBED_END, null, -1, true);
-            Context frame = add(g.id() + ":embed:" + e.grammar(), null, false, end);
+            Context frame = add(g.id() + ":embed:" + e.grammar(), null, false, end, null);
             expand(embedded, Grammar.MAIN, frame.alts, new HashSet<String>());
             out.add(Alt.of(e.begin(), Kind.EMBED_BEGIN, e.token(), frame.id, false));
           }
@@ -421,14 +532,35 @@ public final class Syntax {
       visiting.remove(name);
     }
 
-    /** Compiles a span's own context: escape, end, then the inner context's rules. */
+    /**
+     * Compiles a span's own context: escape, end, a nested begin, then the inner context's rules. A
+     * template context leaves out an escape or end using {@code \1}, which is checked here with an
+     * empty text.
+     */
     int span(Grammar g, Grammar.Span s) {
-      Context c = add(g.id() + ":span", s.token(), s.end() == null || !s.multiLine(), null);
-      if (s.escape() != null) {
-        c.alts.add(Alt.of(s.escape(), Kind.ESCAPE, TokenType.ESCAPE, -1, false));
+      boolean template = templated(s.escape()) || templated(s.end());
+      Context c =
+          add(
+              g.id() + ":span",
+              s.token(),
+              s.end() == null || !s.multiLine(),
+              null,
+              template ? s : null);
+      for (Pattern p : new Pattern[] {s.escape(), s.end()}) {
+        if (templated(p)) {
+          if (UNSUPPORTED.matcher(substitute(p, "").pattern()).find()) {
+            throw new IllegalArgumentException("backreference or named group in " + p);
+          }
+        } else if (p != null) {
+          boolean escape = p == s.escape();
+          c.alts.add(
+              escape
+                  ? Alt.of(p, Kind.ESCAPE, TokenType.ESCAPE, -1, false)
+                  : Alt.of(p, Kind.SPAN_END, s.token(), -1, true));
+        }
       }
-      if (s.end() != null) {
-        c.alts.add(Alt.of(s.end(), Kind.SPAN_END, s.token(), -1, true));
+      if (s.nested()) {
+        c.alts.add(Alt.of(s.begin(), Kind.SPAN_BEGIN, s.token(), c.id, false));
       }
       if (s.context() != null) {
         expand(g, s.context(), c.alts, new HashSet<String>());

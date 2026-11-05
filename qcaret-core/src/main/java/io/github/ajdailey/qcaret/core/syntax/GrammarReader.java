@@ -220,15 +220,23 @@ public final class GrammarReader {
                   Boolean.parseBoolean(r.getAttribute("ignoreCase")),
                   r.getAttribute("wordChars")));
         }
-        case "span" ->
-            rules.add(
-                new Grammar.Span(
-                    regex(r, "begin"),
-                    regex(r, "end"),
-                    regex(r, "escape"),
-                    token(r),
-                    attribute(r, "context"),
-                    Boolean.parseBoolean(r.getAttribute("multiLine"))));
+        case "span" -> {
+          Grammar.Span span =
+              new Grammar.Span(
+                  regex(r, "begin"),
+                  regex(r, "end"),
+                  regex(r, "escape"),
+                  token(r),
+                  attribute(r, "context"),
+                  Boolean.parseBoolean(r.getAttribute("multiLine")),
+                  Boolean.parseBoolean(r.getAttribute("nested")));
+          if ((Syntax.templated(span.end()) || Syntax.templated(span.escape()))
+              && span.begin().matcher("").groupCount() == 0) {
+            throw new IllegalArgumentException(
+                "span end or escape uses \\1 but begin " + span.begin() + " has no group");
+          }
+          rules.add(span);
+        }
         case "include" -> rules.add(new Grammar.Include(r.getAttribute("context")));
         default ->
             rules.add(
