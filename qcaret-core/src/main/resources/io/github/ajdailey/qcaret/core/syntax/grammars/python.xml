@@ -21,7 +21,7 @@
     <pair open='"' close='"'/>
     <pair open="'" close="'"/>
   </autoClose>
-  <indent increase=":\s*(#.*)?$" decrease="^\s*(?:return|pass|break|continue|raise)\b"/>
+  <indent increase=":\s*(#.*)?$" dedentNext="^\s*(?:return|pass|break|continue|raise)\b"/>
   <folding mode="indent"/>
   <context id="main">
     <span token="comment" begin="#"/>

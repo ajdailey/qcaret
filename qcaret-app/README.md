@@ -448,7 +448,9 @@ indented no deeper; blank lines stay outside. `SmartIndent`: Enter copies the
 caret line's leading whitespace up to the caret; after an opener
 (`IndentRules.increase`) it adds a tab or a tab width of spaces as the
 document indents, and with a closer after the caret (`IndentRules.decrease`)
-the closer moves to its own line at the old indentation. A closer typed after
+the closer moves to its own line at the old indentation; after a block-ending
+statement (`IndentRules.dedentNext`, Python's `return` and `pass`) the new
+line takes one level less. A closer typed after
 only whitespace outdents the line to the previous non-blank line's
 indentation, one level less unless that line opens one, and never indents it
 further.

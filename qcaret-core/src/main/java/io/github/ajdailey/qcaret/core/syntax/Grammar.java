@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
  * @param autoClose pairs typing closes, each two strings
  * @param indentIncrease a line matching it indents the next one, or null
  * @param indentDecrease a line matching it outdents itself, or null
+ * @param indentDedentNext a line matching it outdents the line after it, or null
  * @param folding how fold regions are found
  * @param contexts the contexts by id; {@link #MAIN} starts every file
  */
@@ -34,6 +35,7 @@ public record Grammar(
     List<String[]> autoClose,
     Pattern indentIncrease,
     Pattern indentDecrease,
+    Pattern indentDedentNext,
     Folding folding,
     Map<String, List<Rule>> contexts) {
   /** The context every file starts in. */

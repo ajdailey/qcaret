@@ -309,7 +309,7 @@ specifications each file names.
 | `detect` | `extension`s, `fileName`s, one `firstLine` regex |
 | `comments` | `line`, `blockStart`, `blockEnd` |
 | `brackets`, `autoClose` | `pair open close` |
-| `indent` | `increase`, `decrease` regexes |
+| `indent` | `increase`, `decrease` and `dedentNext` regexes |
 | `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
 | `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
 

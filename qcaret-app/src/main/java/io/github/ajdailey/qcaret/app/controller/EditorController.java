@@ -511,9 +511,13 @@ public final class EditorController implements EditorInput {
     boolean regions = mode == Grammar.FoldMode.BRACKETS || mode == Grammar.FoldMode.MARKERS;
     setFoldSource(regions ? syntax : null);
     indentRules =
-        grammar == null || (grammar.indentIncrease() == null && grammar.indentDecrease() == null)
+        grammar == null
+                || (grammar.indentIncrease() == null
+                    && grammar.indentDecrease() == null
+                    && grammar.indentDedentNext() == null)
             ? IndentRules.BRACKETS
-            : new PatternIndentRules(grammar.indentIncrease(), grammar.indentDecrease());
+            : new PatternIndentRules(
+                grammar.indentIncrease(), grammar.indentDecrease(), grammar.indentDedentNext());
     pairs = grammar == null ? Pairs.DEFAULT : pairsOf(grammar.autoClose());
     bracketPairs = grammar == null ? Pairs.DEFAULT : pairsOf(grammar.brackets());
   }

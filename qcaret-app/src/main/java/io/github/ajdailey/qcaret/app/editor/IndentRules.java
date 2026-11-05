@@ -2,8 +2,8 @@ package io.github.ajdailey.qcaret.app.editor;
 
 /**
  * When smart indent adds or removes one indent level ({@link SmartIndent}). A grammar's {@code
- * indent} increase and decrease patterns implement it; {@link #BRACKETS} serves every other
- * document.
+ * indent} increase, decrease and dedentNext patterns implement it; {@link #BRACKETS} serves every
+ * other document.
  */
 public interface IndentRules {
   /** Increase after a line ending in {@code {}, {@code (} or {@code [}; decrease before a closer. */
@@ -17,6 +17,11 @@ public interface IndentRules {
               return c == '{' || c == '(' || c == '[';
             }
           }
+          return false;
+        }
+
+        @Override
+        public boolean dedentNext(CharSequence before) {
           return false;
         }
 
@@ -39,6 +44,15 @@ public interface IndentRules {
    * @return true after an opener
    */
   boolean increase(CharSequence before);
+
+  /**
+   * Reports whether the line after Enter takes one indent level less, as after a statement that
+   * ends a block ({@code return} in Python). {@link #increase} wins when both hold.
+   *
+   * @param before the line's text before the caret
+   * @return true after a block-ending statement
+   */
+  boolean dedentNext(CharSequence before);
 
   /**
    * Reports whether a line takes one indent level less than the line it follows.

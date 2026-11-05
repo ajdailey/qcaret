@@ -20,7 +20,8 @@ class GrammarRulesTest {
   @Test
   void patternRulesFindTheirRegexAndReadABoundedPart() {
     PatternIndentRules rules =
-        new PatternIndentRules(Pattern.compile(":\\s*(#.*)?$"), Pattern.compile("^\\s*end\\b"));
+        new PatternIndentRules(
+            Pattern.compile(":\\s*(#.*)?$"), Pattern.compile("^\\s*end\\b"), null);
     assertTrue(rules.increase("if x:  # note"));
     assertFalse(rules.increase("x = 1"));
     assertTrue(rules.decrease("  end"));
@@ -28,11 +29,11 @@ class GrammarRulesTest {
     // Only the last chars before the caret are read, so a match far back does not count.
     assertTrue(rules.increase("x".repeat(5000) + ":"));
     assertFalse(rules.decrease("x".repeat(PatternIndentRules.MAX_CHARS) + " end"));
-    PatternIndentRules none = new PatternIndentRules(null, null);
+    PatternIndentRules none = new PatternIndentRules(null, null, null);
     assertFalse(none.increase("{"));
     assertFalse(none.decrease("}"));
     // A backtracking regex that reaches the read bound reports false.
-    PatternIndentRules slow = new PatternIndentRules(Pattern.compile("(a|aa)+$"), null);
+    PatternIndentRules slow = new PatternIndentRules(Pattern.compile("(a|aa)+$"), null, null);
     assertFalse(slow.increase("a".repeat(900) + "b"));
   }
 

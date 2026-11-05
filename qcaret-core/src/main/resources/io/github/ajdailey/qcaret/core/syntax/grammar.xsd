@@ -74,6 +74,7 @@
           <xs:complexType>
             <xs:attribute name="increase" type="regex"/>
             <xs:attribute name="decrease" type="regex"/>
+            <xs:attribute name="dedentNext" type="regex"/>
           </xs:complexType>
         </xs:element>
         <xs:element name="folding" minOccurs="0">

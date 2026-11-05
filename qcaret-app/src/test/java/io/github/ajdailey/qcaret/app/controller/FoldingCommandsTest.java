@@ -7,12 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
+import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -208,6 +210,26 @@ class FoldingCommandsTest {
   }
 
   @Test
+  void pythonEnterAfterReturnDedentsAndAfterAColonIndents() throws Exception {
+    harness.open(Files.writeString(temp.resolve("mock.py"), "def f(x):\n    if x: return 1\n"));
+    EditorController editor = documents.activeEditor();
+    editor.document().setInsertSpaces(true);
+    editor.document().setTabWidth(4);
+    editor.setIndentRules(
+        new PatternIndentRules(
+            Pattern.compile(":\\s*(#.*)?$"),
+            null,
+            Pattern.compile("^\\s*(?:return|pass|break|continue|raise)\\b")));
+    caret(editor, 1, 10);
+    editor.newline();
+    assertEquals("def f(x):\n    if x: \n        return 1\n", editor.document().text().toString());
+    caret(editor, 2, 16);
+    editor.newline();
+    assertEquals(
+        "def f(x):\n    if x: \n        return 1\n    \n", editor.document().text().toString());
+  }
+
+  @Test
   void aCloserOnABlankLineOutdents() throws Exception {
     harness.open(Files.writeString(temp.resolve("close.txt"), "if (x) {\n    a();\n    \n"));
     EditorController editor = documents.activeEditor();
@@ -223,6 +245,11 @@ class FoldingCommandsTest {
         new IndentRules() {
           @Override
           public boolean increase(CharSequence before) {
+            return false;
+          }
+
+          @Override
+          public boolean dedentNext(CharSequence before) {
             return false;
           }
 

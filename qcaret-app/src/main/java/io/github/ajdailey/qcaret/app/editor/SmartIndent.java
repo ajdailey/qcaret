@@ -16,8 +16,9 @@ import java.util.List;
  * <ul>
  *   <li>Enter copies the leading whitespace of the caret's line, up to the caret, to the new line.
  *       After an opener ({@link IndentRules#increase}) the new line takes one more level, a tab or
- *       a tab width of spaces as the document indents; when the text after the caret starts with a
- *       closer ({@link IndentRules#decrease}), the closer moves to a line of its own at the
+ *       a tab width of spaces as the document indents; after a block-ending statement ({@link
+ *       IndentRules#dedentNext}) it takes one level less; when the text after the caret starts with
+ *       a closer ({@link IndentRules#decrease}), the closer moves to a line of its own at the
  *       original indentation and the caret stays on the indented line between.
  *   <li>A closer typed on a line holding only whitespace before the caret outdents the line to the
  *       previous non-blank line's indentation, one level less unless that line opens a level. The
@@ -67,7 +68,7 @@ public final class SmartIndent {
           insert += ending + indent;
         }
       } else {
-        insert = ending + indent;
+        insert = ending + (rules.dedentNext(before) ? lessOne(indent, tabWidth) : indent);
         caret = insert.length();
       }
       replacements.add(new Replacement(s.start(), s.end() - s.start(), insert));
@@ -138,6 +139,19 @@ public final class SmartIndent {
     return new Edit(
         EditBatch.of(EditBatch.Kind.TYPING, replacements),
         SelectionSet.of(after, set.primaryIndex()));
+  }
+
+  /** Removes one indent level: a trailing tab, else up to a tab width of trailing spaces. */
+  static String lessOne(String indent, int tabWidth) {
+    if (indent.endsWith("\t")) {
+      return indent.substring(0, indent.length() - 1);
+    }
+    int end = indent.length();
+    int stop = Math.max(0, end - tabWidth);
+    while (end > stop && indent.charAt(end - 1) == ' ') {
+      end--;
+    }
+    return indent.substring(0, end);
   }
 
   /** Returns the indentation a closer line takes after the previous non-blank line, or null. */

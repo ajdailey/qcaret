@@ -128,6 +128,7 @@ public final class GrammarReader {
     List<String[]> autoClose = new ArrayList<String[]>();
     Pattern increase = null;
     Pattern decrease = null;
+    Pattern dedentNext = null;
     Grammar.Folding folding = Grammar.Folding.NONE;
     Map<String, List<Grammar.Rule>> contexts = new LinkedHashMap<String, List<Grammar.Rule>>();
     for (Element e : children(root)) {
@@ -151,6 +152,7 @@ public final class GrammarReader {
         case "indent" -> {
           increase = regex(e, "increase");
           decrease = regex(e, "decrease");
+          dedentNext = regex(e, "dedentNext");
         }
         case "folding" ->
             folding =
@@ -188,6 +190,7 @@ public final class GrammarReader {
         autoClose,
         increase,
         decrease,
+        dedentNext,
         folding,
         contexts);
   }
