@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.launcher;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.cli.LogLevel;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
@@ -137,27 +138,71 @@ class FileLogTest {
   }
 
   @Test
-  void aFailedRollDetachesTheFile() throws Exception {
+  void aFailedRollKeepsWritingTheFileAndWarnsOnce() throws Exception {
     // A non-empty directory where the roll moves the file makes the move fail on every OS.
     Path blocker = Files.createDirectories(temp.resolve("logs").resolve("qcaret.log.1"));
     Files.writeString(blocker.resolve("keep.txt"), "mock\n");
     log = new FileLog(temp, FileLog.FILE, 512);
     log.attach();
-    for (int i = 0; i < 20 && log.attached(); i++) {
-      LOG.debug("mock line before the failed roll {}", i);
+    for (int i = 0; i < 20; i++) {
+      LOG.debug("mock line past the failed roll {}", i);
     }
-    assertFalse(log.attached());
-    for (Handler handler : LogConfigurator.handlers()) {
-      assertFalse(handler instanceof LogFileHandler, "file handler still on the root logger");
-    }
-    assertEquals(Level.INFO, LogConfigurator.level());
-    boolean reported = false;
+    assertTrue(log.attached());
+    Path file = temp.resolve("logs").resolve("qcaret.log");
+    assertTrue(Files.size(file) > 512);
+    assertTrue(fileContains(file, "mock line past the failed roll 19"));
+    int warnings = 0;
     for (String line : LogConfigurator.RECENT.snapshot()) {
-      reported |= line.contains(" ERROR ") && line.contains("Debug log file closed after a write");
+      if (line.contains(" WARN ") && line.contains("Debug log file not rolled over")) {
+        warnings++;
+      }
     }
-    assertTrue(reported);
+    assertEquals(1, warnings);
+    Files.delete(blocker.resolve("keep.txt"));
+    Files.delete(blocker);
+    LOG.debug("mock line after the blocker is gone");
+    assertEquals(List.of("qcaret.log", "qcaret.log.1"), names(temp.resolve("logs")));
+    assertTrue(Files.size(file) <= 512);
+  }
+
+  @Test
+  void aFailedReopenDetachesTheFile() throws Exception {
+    // A non-empty directory where the roll moves the file makes the move fail on every OS; a
+    // read-only log file then makes the reopen fail.
+    Path blocker = Files.createDirectories(temp.resolve("logs").resolve("qcaret.log.1"));
+    Files.writeString(blocker.resolve("keep.txt"), "mock\n");
+    log = new FileLog(temp, FileLog.FILE, 512);
     log.attach();
-    assertTrue(log.attached(), "a new attach opens the file again");
+    LOG.debug("mock first line");
+    Path file = temp.resolve("logs").resolve("qcaret.log");
+    if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("r--------"));
+    } else {
+      Files.setAttribute(file, "dos:readonly", Boolean.TRUE);
+    }
+    try {
+      assumeFalse(Files.isWritable(file), "the file stays writable, as for root");
+      for (int i = 0; i < 20 && log.attached(); i++) {
+        LOG.debug("mock line before the failed reopen {}", i);
+      }
+      assertFalse(log.attached());
+      for (Handler handler : LogConfigurator.handlers()) {
+        assertFalse(handler instanceof LogFileHandler, "file handler still on the root logger");
+      }
+      assertEquals(Level.INFO, LogConfigurator.level());
+      boolean reported = false;
+      for (String line : LogConfigurator.RECENT.snapshot()) {
+        reported |=
+            line.contains(" ERROR ") && line.contains("Debug log file closed after a write");
+      }
+      assertTrue(reported);
+    } finally {
+      if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+        Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+      } else {
+        Files.setAttribute(file, "dos:readonly", Boolean.FALSE);
+      }
+    }
   }
 
   /** Creates a file in the logs folder modified at the given time. */

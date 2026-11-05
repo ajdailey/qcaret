@@ -17,19 +17,32 @@ import java.util.logging.LogRecord;
  * <name>.1}, replacing it, and starts a new one. A file it creates is {@code rw-------} on POSIX.
  * It writes nothing beside the file and its {@code .1}.
  *
- * <p>The first failed write, move or open closes the file and runs the failure callback after the
- * handler's lock is released; later records are dropped.
+ * <p>A failed move reopens the file and keeps appending past {@code rollBytes}; the next record
+ * over the size tries the move again. The first failed move after a successful one runs {@link
+ * Failure#rollFailed}. The first failed write, close or open closes the file and runs {@link
+ * Failure#failed}; later records are dropped. Both callbacks run after the handler's lock is
+ * released.
  */
 final class LogFileHandler extends Handler {
-  /** Receives the handler's first write failure. */
+  /** Receives the handler's failures. */
   interface Failure {
     /**
-     * Called on the logging thread, outside the handler's lock.
+     * Called once, on the logging thread, outside the handler's lock, when a write, close or open
+     * fails and the file is closed.
      *
      * @param handler the failed handler
      * @param error the cause
      */
     void failed(LogFileHandler handler, IOException error);
+
+    /**
+     * Called on the logging thread, outside the handler's lock, when a move to {@code .1} fails and
+     * the last move did not; the handler keeps writing the file.
+     *
+     * @param handler the handler
+     * @param error the cause
+     */
+    void rollFailed(LogFileHandler handler, IOException error);
   }
 
   private final Path file;
@@ -38,6 +51,7 @@ final class LogFileHandler extends Handler {
   private final Failure failure;
   private OutputStream out;
   private long size;
+  private boolean rollFailing;
 
   /**
    * Opens the file for append, creating it when missing.
@@ -74,13 +88,14 @@ final class LogFileHandler extends Handler {
     }
     byte[] bytes = getFormatter().format(record).getBytes(StandardCharsets.UTF_8);
     IOException error = null;
+    IOException rollError = null;
     synchronized (this) {
       if (out == null) {
         return;
       }
       try {
         if (size > 0 && size + bytes.length > rollBytes) {
-          roll();
+          rollError = roll();
         }
         out.write(bytes);
         size += bytes.length;
@@ -91,16 +106,32 @@ final class LogFileHandler extends Handler {
     }
     if (error != null) {
       failure.failed(this, error);
+    } else if (rollError != null) {
+      failure.rollFailed(this, rollError);
     }
   }
 
-  /** Closes the file, moves it to {@code .1} and opens a new one; holds the lock. */
-  private void roll() throws IOException {
+  /**
+   * Closes the file, moves it to {@code .1} and opens a new one, or reopens the same file when the
+   * move fails; holds the lock.
+   *
+   * @return the move's failure when the last move succeeded, else null
+   * @throws IOException when the close or the open fails
+   */
+  private IOException roll() throws IOException {
     OutputStream current = out;
     out = null;
     current.close();
-    Files.move(file, rolled, StandardCopyOption.REPLACE_EXISTING);
+    IOException moveError = null;
+    try {
+      Files.move(file, rolled, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      moveError = e;
+    }
     open();
+    boolean report = moveError != null && !rollFailing;
+    rollFailing = moveError != null;
+    return report ? moveError : null;
   }
 
   private void closeQuietly() {

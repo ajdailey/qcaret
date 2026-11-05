@@ -87,7 +87,9 @@ message become `_`, a backstop behind `LogText.oneLine` at the call sites.
 no line, and a slow disk holds the thread that logs. Before a write would take
 the file past 10 MiB it moves the file to `.1` and starts a new one. It writes
 no lock file. The `logs` folder is created owner-only, and on POSIX the file
-`rw-------`. A failed write, roll or open detaches the file and logs an ERROR.
+`rw-------`. A failed move reopens the file and keeps appending; the next line
+over the size tries the move again, and the first failure after a successful
+move logs a WARN. A failed write or open detaches the file and logs an ERROR.
 
 `RetainingLogManager` ignores `reset()` once configured. The JDK's logging
 shutdown hook calls `reset()`, which would remove the handlers while
@@ -164,7 +166,9 @@ after `install`, and the format, level mapping and logger-name shortening.
 `RetainingLogManagerTest` checks that `reset()` keeps the handlers once
 retained. `FileLogTest` checks the file's location and levels, that the folder
 holds only the file after a detach, the per-process name, the roll to `.1`,
-that a failed roll (a non-empty directory named `qcaret.log.1`) detaches the
-file and its ERROR reaches the recent lines, and which files prune deletes. `LauncherTest`
+that a failed roll (a non-empty directory named `qcaret.log.1`) keeps writing
+the file with one WARN and rolls once the directory is gone, that a failed
+reopen (a read-only file) detaches the file and its ERROR reaches the recent
+lines, and which files prune deletes. `LauncherTest`
 checks help, version, exit 1 for a bad option or settings path, `user.home`
 per settings mode on Linux and the WebView2 data folder on Windows.
