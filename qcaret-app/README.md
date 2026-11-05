@@ -47,7 +47,10 @@ one or two `EditorView`s of its document (`TabView.firstView`, `split`,
 HyperSearch dialog takes and returns a `SearchForm` (`SearchScope` is one of
 the six scopes), `chooseFolder` asks for a folder, and the results dock reads
 the `ResultsInput` model by index (`ResultLabel` rows) after each
-`resultsChanged`. `MainView` is also an
+`resultsChanged`. As a `BookmarksView`, `MainView` shows the Bookmarks list,
+which reads the `BookmarksInput` model by index (`BookmarkRow` rows) after
+each `bookmarksChanged`, and asks for a bookmark comment, answering null on a
+cancel. `MainView` is also an
 `ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
 `BusyCounter` counts overlapping operations on the UI thread for the busy
 cursor. `StatusFields` is the status bar's text for the selected document.
@@ -98,11 +101,14 @@ Toggle Fold has no key. `reference(filter)` lists
 the bindings whose group,
 command or keys contain the filter. Shortcut overrides are not built.
 
-Bookmarks are Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and
+Bookmarks are Mod+F2 (toggle), F2 and Shift+F2 (next, previous), Edit
+Bookmark Comment Mod+Shift+F2 (Alt+F2 opens the GNOME and KDE run dialogs,
+Ctrl+F2 focuses the macOS menu bar); Go to and
 Select to Matching Bracket Mod+B and Mod+Shift+B; Complete Word Ctrl+Space,
 Option+Esc on macOS, where Ctrl+Space switches the input source; Command
 Palette Mod+Shift+P. Sort, Remove Duplicate Lines, Trim Trailing Whitespace,
-Clear Bookmarks and Show Whitespace and Line Endings are menu only.
+Clear Bookmarks, Bookmarks List and Show Whitespace and Line Endings are menu
+only.
 HyperSearch is Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Set
 Workspace Folder (File), Search Results and Overview Strip are menu only. `Fuzzy`
 scores the palette's filter: the query's chars in order, ignoring case, more
@@ -359,6 +365,22 @@ newest set with matches). Every scope goes through the same preview and run.
   changed since the run. An open document is not reloaded by a restore; its
   next save reports the file changed on disk.
 
+### Bookmarks list
+
+`BookmarkList` is the Bookmarks list's model (Search > Bookmarks > Bookmarks
+List). While shown it follows the selected document through
+`DocumentController.addActiveListener`, its edits and its `Bookmarks`
+changes; hidden, it reads nothing. A read waits 150 ms, then builds the rows
+on a `qcaret-cpu-` worker from a text snapshot and the bookmarks' offsets:
+the line, the comment and the line's first 160 chars, control chars as
+spaces, at most 10,000 rows. Rows show only at the snapshot's revision; an
+older result is dropped and read again. Each row reserves 96 bytes plus 2
+per char from the `MemoryBudget` while listed; rows past a refusal are left
+out, and the summary reads "first N of M". Go To, Edit Comment and Remove
+act on the row's bookmark at its current line (`Bookmarks.line(key)`), so an
+edit since the read does not move them to another line; Go To into a
+collapsed region expands it.
+
 ### Overview strip
 
 Each editor view has an `OverviewUpdater` that computes its strip's
@@ -451,7 +473,11 @@ document ignores edits. The controller also runs the projection's rewraps on
 - Bookmarks: Toggle at every caret's line, Next and Previous from the primary
   caret's line with wrap-around, Clear; Next and Previous onto a hidden line
   expand the regions hiding it. The `Bookmarks` are the document's, shared by
-  its views.
+  its views. Edit Bookmark Comment asks for the primary caret's line's
+  comment; the answer bookmarks the line and sets the comment, an empty one
+  keeps the bookmark without a comment, and a refusal (too long, too many)
+  shows a notice and changes nothing. An anchor follows the line while the
+  prompt shows.
 - Bracket matching pairs the grammar's `brackets` (`Pairs.DEFAULT` for plain
   text) and skips a bracket whose token is a comment, string or escape
   (`TokenBracketFilter`). A line without tokens yet counts every bracket. A
@@ -608,7 +634,25 @@ positions.
 
 `Bookmarks` holds one document's bookmarks as `Anchor`s at their lines'
 starts with `Bias.AFTER`, so a break inserted at that start moves a bookmark
-down with its line's text; bookmarks that land on one line count once.
+down with its line's text. Each bookmark has an optional comment: one line
+(`clean` turns breaks and other control chars into spaces), at most 1,000
+chars, at most 1,000 per document; removing the bookmark removes it.
+`Bookmarks` listens to the document and, for each edit that removes text,
+works in the coordinates before the edit:
+
+| Edit | Bookmark |
+|---|---|
+| Replaces the line, and the inserted text holds a line with the same text (Move Line, Sort) | Moves to that line |
+| Removes the line's text and its break, or the last line's text and the break before it | Removed |
+| Joins its line to a bookmarked line above | Removed; the upper one stays |
+| Anything else | Follows its anchor |
+
+A removed bookmark is kept with the removed text's length and hash and two
+anchors around the inserted text, for the newest 1,000 such edits; an undo or
+redo that puts the same text back between those anchors (at the start or the
+end of the span, so coalesced deletes match too) restores the bookmark with
+its comment. Toggle, Clear and Remove are not undoable, and Clear drops the
+kept ones.
 `LineEnds` names the break after a line for the line-ending marks.
 
 ## Settings (`app.config`)
@@ -788,8 +832,15 @@ occurrence highlights, and completion: words of another open document, the
 list narrowing, arrows, Esc, Enter, the single-word insert and the automatic
 trigger. `CommandPaletteTest` covers `Fuzzy`, every menu command listed in
 menu order, cascade titles, keys and enabled state, and running only an
-enabled command. `BookmarksTest` covers bookmarks through edits, two on one
-line, wrap-around and `LineEnds`.
+enabled command. `BookmarksTest` covers bookmarks and comments through edits:
+an insert above, a deleted line and last line restored by undo and removed
+again by redo, a join keeping the upper bookmark, a cleared line, moved and
+sorted lines, coalesced deletes undone; the comment bounds, wrap-around and
+`LineEnds`. `BookmarkListTest` covers Edit Bookmark Comment (cleaned text, an
+empty answer, a cancel, a refusal, the prompt's line followed through an
+edit), the list following an insert, undo, a tab change and close, Go To
+into a collapsed region, Edit Comment and Remove from the list, and the row
+limit, text cut and a budget refusal.
 
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory

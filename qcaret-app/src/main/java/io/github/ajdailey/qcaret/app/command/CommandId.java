@@ -219,6 +219,11 @@ public enum CommandId {
   /** Remove every bookmark of the selected document. */
   CLEAR_BOOKMARKS(
       CommandGroup.SEARCH, UiText.COMMAND_CLEAR_BOOKMARKS, false, false, UiText.MENU_BOOKMARKS),
+  /** Show the Bookmarks list of the selected document; checked while it shows. */
+  BOOKMARKS_LIST(
+      CommandGroup.SEARCH, UiText.COMMAND_BOOKMARKS_LIST, true, true, UiText.MENU_BOOKMARKS),
+  /** Ask for the comment of the primary caret's line's bookmark, bookmarking the line. */
+  EDIT_BOOKMARK_COMMENT(CommandGroup.EDIT, UiText.COMMAND_EDIT_BOOKMARK_COMMENT, true, false, null),
   /** Mark spaces and tabs in the window's editors. */
   SHOW_WHITESPACE(CommandGroup.VIEW, UiText.COMMAND_SHOW_WHITESPACE, true, true, null),
   /** Mark each line break in the window's editors with its kind. */

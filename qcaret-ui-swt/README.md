@@ -4,13 +4,15 @@ The SWT views: the main window with its tabs and menus, the editor
 (`ui.swt.editor`), dialogs, the theme service and the UI dispatcher. It
 depends on `qcaret-app`, `qcaret-core` and the build host's SWT fragment, and
 uses public SWT API only. The package `ui.swt.search` holds the HyperSearch
-results dock.
+results dock and the replace windows.
 
 ## Main window
 
 `MainWindow` holds the menu bar, a vertical `SashForm` with a `CTabFolder` (one
-tab per document) over the HyperSearch results dock, the find bar and a status
-bar; the dock is hidden by maximizing the folder. A tab's control is a
+tab per document) over a horizontal `SashForm` holding the HyperSearch results
+dock and the Bookmarks list dock side by side, the find bar and a status bar.
+A hidden dock is an invisible control the sash leaves out; with both hidden
+the folder is maximized. A tab's control is a
 `SashForm` holding one `EditorPane`'s `control()`, or two after a split (`SWT.HORIZONTAL` side by side,
 `SWT.VERTICAL` one above the other). The pane that took the focus last is the
 tab's focused view; a pane's `FocusIn` reports it to the controller, and a
@@ -107,6 +109,15 @@ act on the selected row's set, Rerun File on the selected row's group while
 it is stale, Clear All on every set, Hide hides the dock. A cut of more
 than 2,000 rows replaces the table, since GTK removes rows one at a time
 (4.6-7.7 s for 100,000 in the dock; a new table took 81-105 ms).
+
+`BookmarksDock` shows the `BookmarksInput` model in a virtual `Table` with
+Line (from 1), Comment and Text columns under Go To, Edit Comment, Remove,
+Hide and the model's summary. Enter and a double click go to the selected
+row, Delete removes its bookmark; a cut of more than 2,000 rows replaces the
+table, as in the results dock. `BookmarkCommentDialog` is the comment prompt:
+a modal one-line field limited to the comment length, starting with the
+current comment selected; OK answers its text, and Cancel, Esc and closing
+answer null.
 
 `ReplaceDialog` (`ui.swt.search`) is the replace preview: modal and
 resizable, the replacement field, the files and the selected file's matches
@@ -209,10 +220,15 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   the app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain
   Text, then one cascade per category. `MainMenuBar` rebuilds the cascade's
   entries above Reload Grammars on each show and the popup on each click.
-- Bookmarked lines get a bar in the caret color at the gutter's left edge on
-  their first row, inside the padding left of the line numbers, so it never
-  meets the fold marker column; the pane follows the document's `Bookmarks`
-  and repaints on a toggle or a clear.
+- Bookmarked lines get a bar at the gutter's left edge on their first row,
+  inside the padding left of the line numbers, so it never meets the fold
+  marker column: the caret color for a bookmark, `Palette.bookmarkComment`
+  (teal, mint on dark) for one with a comment. With the pointer over the
+  gutter left of the fold markers, a commented bookmark's line shows its
+  comment as the `StyledText` tooltip. The pane follows the document's
+  `Bookmarks` and repaints on each change they report; a palette change
+  recolors the bars. The overview strip marks a commented bookmark like any
+  other.
 - `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
   whole-text operation computes and applies.
 - Show Whitespace paints a dot in each space and an arrow across each tab,
@@ -381,6 +397,13 @@ pixels (skipped when `Control.print` returns false) and toggles the marks;
 with `-Dqcaret.screenshots=<dir>` it saves the marks with a bookmark and
 occurrences, the open palette, and a Java file with a collapsed region,
 occurrences and a matched bracket (`merge.png`), as PNG.
+`BookmarksSurfaceTest` (tag `swt`) checks a plain and a commented bookmark's
+bar colors in pixels in both themes (skipped when `Control.print` returns
+false), the tooltip over the gutter and its absence elsewhere, the comment
+prompt, the list's cells, Go To, Edit Comment, Remove and Hide, and both
+docks shown at once; with `-Dqcaret.screenshots=<dir>` it saves
+`bookmark-tooltip.png` (the whole screen, so the tooltip shows) and
+`bookmarks-list.png`.
 `ReplaceSurfaceTest` (tag `swt`) opens the preview from the dock over a tree
 search, types a replacement, unchecks a match, applies, checks the report's
 rows and the files, and restores the run from the report; with
@@ -396,7 +419,8 @@ themes, zoom, split with Fold All and Unfold All in both views and the find
 bar searching and closed, unsplit, the command palette, the completion list
 with the whitespace and line-ending marks on, a HyperSearch from its dialog
 into the dock with a group expanded, the replace preview opened over it and
-closed, the overview strip hidden and shown, and
+closed, the overview strip hidden and shown, a bookmark comment through its
+prompt with the gutter tooltip and the Bookmarks list opened and hidden, and
 every menu's `Show`; the live counts per type must return to the warm-ups',
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it

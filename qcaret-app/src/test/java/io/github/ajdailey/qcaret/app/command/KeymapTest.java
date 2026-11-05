@@ -142,4 +142,26 @@ class KeymapTest {
       assertEquals("F6", keymap.keysText(CommandId.FOCUS_OTHER_VIEW));
     }
   }
+
+  /**
+   * Edit Bookmark Comment takes Mod+Shift+F2 beside the other bookmark keys: no default of GNOME,
+   * KDE, Windows or macOS uses it, unlike Alt+F2 (GNOME and KDE run dialogs) and Ctrl+F2 (macOS
+   * menu bar focus).
+   */
+  @Test
+  void editBookmarkCommentTakesModShiftF2() {
+    for (boolean mac : new boolean[] {false, true}) {
+      for (boolean linux : new boolean[] {false, true}) {
+        Keymap keymap = Keymap.defaults(mac, linux);
+        KeyStroke stroke = new KeyStroke(KeyStroke.PRIMARY | KeyStroke.SHIFT, KeyStroke.F1 + 1);
+        assertEquals(CommandId.EDIT_BOOKMARK_COMMENT, keymap.editorCommand(stroke));
+        assertNull(keymap.editorCommand(new KeyStroke(KeyStroke.ALT, KeyStroke.F1 + 1)));
+        if (mac) {
+          assertNull(keymap.editorCommand(new KeyStroke(KeyStroke.CONTROL, KeyStroke.F1 + 1)));
+        }
+      }
+    }
+    assertEquals("Ctrl+Shift+F2", Keymap.defaults(false).keysText(CommandId.EDIT_BOOKMARK_COMMENT));
+    assertEquals("Cmd+Shift+F2", Keymap.defaults(true).keysText(CommandId.EDIT_BOOKMARK_COMMENT));
+  }
 }

@@ -52,10 +52,11 @@ import org.junit.jupiter.api.io.TempDir;
  * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
  * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
  * command palette, the completion list, the whitespace marks, a HyperSearch from its dialog into
- * the results dock, the replace preview opened and closed, and the overview strip hidden and shown
- * return the Display's tracked graphics resources ({@code DeviceData.tracking}) to their count
- * after a warm-up round. Theme switches, zoom and split each rebuild or add a primary caret image.
- * A failure lists each leaked object's allocation stack.
+ * the results dock, the replace preview opened and closed, the overview strip hidden and shown, and
+ * a bookmark comment with its gutter tooltip and the Bookmarks list opened and hidden return the
+ * Display's tracked graphics resources ({@code DeviceData.tracking}) to their count after a warm-up
+ * round. Theme switches, zoom and split each rebuild or add a primary caret image. A failure lists
+ * each leaked object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -321,6 +322,42 @@ class ResourceLeakTest {
     drain();
   }
 
+  /**
+   * Comments the caret's line through the prompt, shows its tooltip over the gutter, opens the
+   * Bookmarks list until it shows the row, and hides it.
+   */
+  private void bookmarkList() {
+    final EditorPane pane = window.activeEditor();
+    pane.text().setTopIndex(0);
+    pane.text().setSelection(0);
+    pane.text().notifyListeners(SWT.Selection, new Event());
+    controller.execute(CommandId.EDIT_BOOKMARK_COMMENT);
+    window.commentDialog().field().setText("mock note " + cycles);
+    window.commentDialog().ok().notifyListeners(SWT.Selection, new Event());
+    Event move = new Event();
+    move.x = 2;
+    move.y = pane.text().getLinePixel(0) + 2;
+    pane.text().notifyListeners(SWT.MouseMove, move);
+    assertEquals("mock note " + cycles, pane.text().getToolTipText());
+    pane.text().notifyListeners(SWT.MouseExit, new Event());
+    controller.execute(CommandId.BOOKMARKS_LIST);
+    final BookmarksDock dock = window.bookmarksDock();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return dock.table().getItemCount() > 0
+                    && dock.cells(0)[1].equals("mock note " + cycles);
+              }
+            }));
+    dock.table().redraw();
+    dock.table().update();
+    controller.execute(CommandId.CLEAR_BOOKMARKS);
+    controller.execute(CommandId.BOOKMARKS_LIST);
+    drain();
+  }
+
   /** One round of every operation; the first rounds create lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
@@ -336,6 +373,7 @@ class ResourceLeakTest {
     splitAndFind();
     paletteAndCompletion();
     searchAndStrip();
+    bookmarkList();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {
         window.menuBar().menu(group).notifyListeners(SWT.Show, new Event());

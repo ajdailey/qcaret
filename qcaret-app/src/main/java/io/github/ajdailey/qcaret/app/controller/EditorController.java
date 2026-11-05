@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * Runs one editor view's input against its document: every edit is one {@link Document#apply} with
@@ -484,6 +485,11 @@ public final class EditorController implements EditorInput {
       case CLEAR_BOOKMARKS -> {
         if (bookmarks != null) {
           bookmarks.clear();
+        }
+      }
+      case EDIT_BOOKMARK_COMMENT -> {
+        if (commentRequest != null) {
+          commentRequest.accept(document.text().lineAt(current().primary().caret()));
         }
       }
       default -> {
@@ -1484,6 +1490,7 @@ public final class EditorController implements EditorInput {
       };
 
   private Bookmarks bookmarks;
+  private IntConsumer commentRequest;
   private SyntaxHighlighter syntax;
   private Pairs pairs = Pairs.DEFAULT;
   private Pairs bracketPairs = Pairs.DEFAULT;
@@ -1542,6 +1549,11 @@ public final class EditorController implements EditorInput {
     if (view != null) {
       view.setBookmarks(value);
     }
+  }
+
+  /** Sets what Edit Bookmark Comment passes the primary caret's line to. */
+  void setCommentRequest(IntConsumer request) {
+    commentRequest = request;
   }
 
   /** Sets the window's word completion. */

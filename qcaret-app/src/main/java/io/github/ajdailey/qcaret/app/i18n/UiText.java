@@ -496,6 +496,38 @@ public enum UiText {
   /** Command label. */
   COMMAND_CLEAR_BOOKMARKS,
   /** Command label. */
+  COMMAND_BOOKMARKS_LIST,
+  /** Command label. */
+  COMMAND_EDIT_BOOKMARK_COMMENT,
+  /** Bookmark comment prompt title. */
+  BOOKMARK_COMMENT_TITLE,
+  /** Bookmark comment prompt: the line, from 1. */
+  BOOKMARK_COMMENT_MESSAGE,
+  /** Notice: a comment longer than the limit. */
+  BOOKMARK_COMMENT_TOO_LONG,
+  /** Notice: a document at its comment limit. */
+  BOOKMARK_COMMENT_TOO_MANY,
+  /** Bookmarks list button. */
+  BOOKMARKS_GO_TO,
+  /** Bookmarks list button. */
+  BOOKMARKS_EDIT,
+  /** Bookmarks list button. */
+  BOOKMARKS_REMOVE,
+  /** Bookmarks list button. */
+  BOOKMARKS_HIDE,
+  /** Bookmarks list column. */
+  BOOKMARKS_LINE,
+  /** Bookmarks list column. */
+  BOOKMARKS_COMMENT,
+  /** Bookmarks list column. */
+  BOOKMARKS_TEXT,
+  /** Bookmarks list summary: the document's name and its bookmark count. */
+  BOOKMARKS_SUMMARY,
+  /** Bookmarks list summary when rows were left out: name, rows, bookmarks. */
+  BOOKMARKS_SUMMARY_CUT,
+  /** Bookmarks list summary without a document. */
+  BOOKMARKS_NO_DOCUMENT,
+  /** Command label. */
   COMMAND_SHOW_WHITESPACE,
   /** Command label. */
   COMMAND_SHOW_LINE_ENDINGS,

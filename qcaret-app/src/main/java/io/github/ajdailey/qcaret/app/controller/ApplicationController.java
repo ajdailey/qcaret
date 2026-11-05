@@ -72,6 +72,7 @@ public final class ApplicationController {
   private final WorkspaceController workspace;
   private final SearchController search;
   private final ReplaceController replace;
+  private final BookmarkList bookmarkList;
   private final GrammarLibrary grammars;
   private final Keymap keymap;
   private final boolean rememberWindow;
@@ -148,6 +149,7 @@ public final class ApplicationController {
             config.location().directory().resolve(ReplaceBackups.DIRECTORY),
             ReplaceBackups.DEFAULT_DAYS);
     search.setReplace(replace);
+    this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
     documents.setOverviewSources(
         new OverviewSources() {
           @Override
@@ -198,6 +200,15 @@ public final class ApplicationController {
    */
   public FindController find() {
     return find;
+  }
+
+  /**
+   * Returns the Bookmarks list's model.
+   *
+   * @return the list
+   */
+  public BookmarkList bookmarkList() {
+    return bookmarkList;
   }
 
   /**
@@ -424,8 +435,10 @@ public final class ApplicationController {
           TOGGLE_BOOKMARK,
           NEXT_BOOKMARK,
           PREVIOUS_BOOKMARK,
-          CLEAR_BOOKMARKS ->
+          CLEAR_BOOKMARKS,
+          EDIT_BOOKMARK_COMMENT ->
           edit(command);
+      case BOOKMARKS_LIST -> bookmarkList.toggle();
       case SHOW_WHITESPACE -> documents.toggleMarks(false);
       case SHOW_LINE_ENDINGS -> documents.toggleMarks(true);
       case COMMAND_PALETTE -> view.showCommandPalette(new CommandPalette(this, keymap));
@@ -586,6 +599,7 @@ public final class ApplicationController {
     find.dispose();
     search.dispose();
     replace.dispose();
+    bookmarkList.dispose();
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();

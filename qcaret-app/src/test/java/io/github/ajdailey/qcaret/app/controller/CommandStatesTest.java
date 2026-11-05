@@ -118,6 +118,8 @@ class CommandStatesTest {
           "NEXT_BOOKMARK -- -- --",
           "PREVIOUS_BOOKMARK -- -- --",
           "CLEAR_BOOKMARKS -- -- --",
+          "BOOKMARKS_LIST -e -e -e",
+          "EDIT_BOOKMARK_COMMENT -- -e -e",
           "SHOW_WHITESPACE -e -e -e",
           "SHOW_LINE_ENDINGS -e -e -e",
           "OVERVIEW_STRIP ce ce ce",

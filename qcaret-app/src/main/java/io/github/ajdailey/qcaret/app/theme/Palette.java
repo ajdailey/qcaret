@@ -151,6 +151,16 @@ public record Palette(
     return dark ? Rgb.of(0x56c1f0) : Rgb.of(0x0a6a96);
   }
 
+  /**
+   * Returns the gutter mark of a bookmark with a comment; a bookmark without one is marked in the
+   * caret color.
+   *
+   * @return teal on light, mint on dark
+   */
+  public Rgb bookmarkComment() {
+    return dark ? Rgb.of(0x5fd3b0) : Rgb.of(0x18736a);
+  }
+
   /** Maps the styles, given in {@link TokenRole} declaration order. */
   private static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
     TokenRole[] roles = TokenRole.values();

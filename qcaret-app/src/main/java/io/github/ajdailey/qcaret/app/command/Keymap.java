@@ -191,6 +191,7 @@ public final class Keymap {
     editor(b, CommandId.TOGGLE_BOOKMARK, P, F2);
     editor(b, CommandId.NEXT_BOOKMARK, 0, F2);
     editor(b, CommandId.PREVIOUS_BOOKMARK, S, F2);
+    editor(b, CommandId.EDIT_BOOKMARK_COMMENT, P | S, F2);
     editor(b, CommandId.GO_TO_MATCHING_BRACKET, P, 'b');
     editor(b, CommandId.SELECT_TO_MATCHING_BRACKET, P | S, 'b');
     if (mac) {

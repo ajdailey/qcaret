@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
+import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
@@ -76,11 +77,12 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
- * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it; the {@link
- * MainMenuBar} built from {@link MenuTable} and the {@link Keymap}, the {@link FindBar} and a
- * status bar. The editors take their colors from the {@link Palette}; native controls follow {@link
- * SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI turn after a palette
- * change, once native controls have restyled.
+ * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it, beside the {@link
+ * BookmarksDock}, hidden until Bookmarks List shows it; the {@link MainMenuBar} built from {@link
+ * MenuTable} and the {@link Keymap}, the {@link FindBar} and a status bar. The editors take their
+ * colors from the {@link Palette}; native controls follow {@link SwtThemeService}. {@link
+ * ToolIcons} owned by the window re-ink on the UI turn after a palette change, once native controls
+ * have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
  * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
@@ -149,7 +151,10 @@ public final class MainWindow implements MainView {
   private boolean movingTab;
   private FindBar findBar;
   private final SashForm body;
+  private SashForm docks;
   private ResultsDock resultsDock;
+  private BookmarksDock bookmarksDock;
+  private BookmarkCommentDialog commentDialog;
   private SearchDialog searchDialog;
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
@@ -513,7 +518,12 @@ public final class MainWindow implements MainView {
     dispatchWindowKeys();
     findBar = new FindBar(shell, owner.find());
     findBar.control().moveAbove(statusBar);
-    resultsDock = new ResultsDock(body, palette);
+    docks = new SashForm(body, SWT.HORIZONTAL);
+    resultsDock = new ResultsDock(docks, palette);
+    bookmarksDock = new BookmarksDock(docks);
+    resultsDock.control().setVisible(false);
+    bookmarksDock.control().setVisible(false);
+    docks.setWeights(new int[] {3, 2});
     body.setWeights(new int[] {3, 1});
     body.setMaximizedControl(tabs);
     shell.addListener(
@@ -1485,7 +1495,40 @@ public final class MainWindow implements MainView {
       return;
     }
     resultsDock.setInput(results);
-    body.setMaximizedControl(shown ? null : tabs);
+    resultsDock.control().setVisible(shown);
+    layoutDocks();
+  }
+
+  /** Lays out the shown docks below the tabs; the tabs fill the body while no dock shows. */
+  private void layoutDocks() {
+    boolean any = resultsDock.control().getVisible() || bookmarksDock.control().getVisible();
+    body.setMaximizedControl(any ? null : tabs);
+    docks.layout(true);
+  }
+
+  @Override
+  public void showBookmarks(BookmarksInput input, boolean shown) {
+    if (shell.isDisposed() || bookmarksDock == null) {
+      return;
+    }
+    bookmarksDock.setInput(input);
+    bookmarksDock.control().setVisible(shown);
+    layoutDocks();
+  }
+
+  @Override
+  public void bookmarksChanged() {
+    if (bookmarksDock != null && !shell.isDisposed()) {
+      bookmarksDock.refresh();
+    }
+  }
+
+  @Override
+  public void askBookmarkComment(int line, String current, int maxLength, Consumer<String> answer) {
+    if (!shell.isDisposed()) {
+      commentDialog = new BookmarkCommentDialog(shell, line, current, maxLength, answer);
+      commentDialog.open();
+    }
   }
 
   @Override
@@ -1600,6 +1643,33 @@ public final class MainWindow implements MainView {
    * @return true while shown
    */
   boolean resultsShown() {
-    return body.getMaximizedControl() == null;
+    return resultsDock.control().getVisible() && body.getMaximizedControl() == null;
+  }
+
+  /**
+   * Returns the Bookmarks list dock.
+   *
+   * @return the dock, or null before {@link #attach}
+   */
+  BookmarksDock bookmarksDock() {
+    return bookmarksDock;
+  }
+
+  /**
+   * Returns the bookmark comment prompt opened last.
+   *
+   * @return the dialog, or null before one opened
+   */
+  BookmarkCommentDialog commentDialog() {
+    return commentDialog;
+  }
+
+  /**
+   * Reports whether the Bookmarks list shows.
+   *
+   * @return true while shown
+   */
+  boolean bookmarksShown() {
+    return bookmarksDock.control().getVisible() && body.getMaximizedControl() == null;
   }
 }

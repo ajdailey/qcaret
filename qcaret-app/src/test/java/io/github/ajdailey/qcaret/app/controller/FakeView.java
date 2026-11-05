@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -407,6 +408,13 @@ final class FakeView implements MainView {
   Consumer<Path> folderChooser;
   ResultsInput results;
   boolean resultsShown;
+  BookmarksInput bookmarkList;
+  boolean bookmarksShown;
+  int bookmarksChanges;
+  int commentLine = -1;
+  String commentCurrent;
+  int commentLimit;
+  Consumer<String> comment;
   int resultsChanges;
   int[] revealed;
   String replaceOpenName;
@@ -614,6 +622,28 @@ final class FakeView implements MainView {
   public void chooseFolder(Path start, Consumer<Path> chosen) {
     ui.checkUiThread();
     folderChooser = chosen;
+  }
+
+  @Override
+  public void showBookmarks(BookmarksInput input, boolean shown) {
+    ui.checkUiThread();
+    bookmarkList = input;
+    bookmarksShown = shown;
+  }
+
+  @Override
+  public void bookmarksChanged() {
+    ui.checkUiThread();
+    bookmarksChanges++;
+  }
+
+  @Override
+  public void askBookmarkComment(int line, String current, int maxLength, Consumer<String> answer) {
+    ui.checkUiThread();
+    commentLine = line;
+    commentCurrent = current;
+    commentLimit = maxLength;
+    comment = answer;
   }
 
   @Override

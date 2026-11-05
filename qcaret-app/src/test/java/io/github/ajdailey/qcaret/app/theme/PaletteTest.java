@@ -49,6 +49,7 @@ class PaletteTest {
       assertTrue(contrast(palette.selectionText(), palette.selection()) >= 4.5);
       assertTrue(contrast(palette.caret(), palette.background()) >= 3);
       assertTrue(contrast(palette.lineNumbers(), palette.gutter()) >= 3);
+      assertTrue(contrast(palette.bookmarkComment(), palette.gutter()) >= 3);
     }
   }
 

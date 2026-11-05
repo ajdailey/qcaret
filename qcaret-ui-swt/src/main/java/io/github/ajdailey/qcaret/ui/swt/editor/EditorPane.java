@@ -26,6 +26,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
@@ -108,8 +109,10 @@ import org.eclipse.swt.widgets.Slider;
  *       #showBrackets}), the word occurrences ({@link #showOccurrences}) and the secondary
  *       selections; each run takes its token role's color and font style and its background's color
  *       from the palette.
- *   <li>Bookmarks: a bar in the caret color at the gutter's left edge on each bookmarked line's
- *       first row, repainted when the {@link Bookmarks} change.
+ *   <li>Bookmarks: a bar at the gutter's left edge on each bookmarked line's first row, in the
+ *       caret color, or the comment color when the bookmark has a comment, whose text shows as the
+ *       tooltip over the gutter left of the fold markers; repainted when the {@link Bookmarks}
+ *       change.
  *   <li>Marks: in the whitespace color, a dot centered in each space, an arrow across each tab, and
  *       after each line's last row its break's kind ({@code CRLF}, {@code LF}, {@code CR}), each
  *       placed from the widget's measured offsets.
@@ -151,6 +154,7 @@ public final class EditorPane implements EditorView {
   private Color selectionBack;
   private Color selectionFore;
   private Color caret;
+  private Color bookmarkComment;
   private Color findMatch;
   private Color[] roleColors = new Color[0];
   private int[] roleFontStyles = new int[0];
@@ -460,6 +464,7 @@ public final class EditorPane implements EditorView {
     lineNumbers = color(palette.lineNumbers());
     currentLine = color(palette.currentLine());
     caret = color(palette.caret());
+    bookmarkComment = color(palette.bookmarkComment());
     findMatch = color(palette.findMatch());
     TokenRole[] roles = TokenRole.values();
     roleColors = new Color[roles.length];
@@ -760,6 +765,19 @@ public final class EditorPane implements EditorView {
             event.styles = styles(event.lineOffset, event.lineText.length());
           }
         });
+    Listener tipFollower =
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.type == SWT.MouseExit) {
+              updateToolTip(-1, -1);
+            } else {
+              updateToolTip(event.x, event.y);
+            }
+          }
+        };
+    text.addListener(SWT.MouseMove, tipFollower);
+    text.addListener(SWT.MouseExit, tipFollower);
     text.addPaintListener(
         new PaintListener() {
           @Override
@@ -1305,7 +1323,10 @@ public final class EditorPane implements EditorView {
         });
   }
 
-  /** Paints a bar at the gutter's left edge on the first row of each visible bookmarked line. */
+  /**
+   * Paints a bar at the gutter's left edge on the first row of each visible bookmarked line, in the
+   * comment color when the bookmark has a comment.
+   */
   private void paintBookmarks(GC gc) {
     if (bookmarks == null) {
       return;
@@ -1314,19 +1335,38 @@ public final class EditorPane implements EditorView {
     if (lines.length == 0) {
       return;
     }
+    int[] commented = bookmarks.commentedLines();
     Rectangle area = text.getClientArea();
     int rows = projection.rowCount();
     int lineHeight = text.getLineHeight();
-    gc.setBackground(caret);
     for (int row = text.getTopIndex(); row < rows; row++) {
       int top = text.getLinePixel(row);
       if (top > area.height) {
         break;
       }
-      if (projection.subRow(row) == 0
-          && Arrays.binarySearch(lines, projection.lineOfRow(row)) >= 0) {
+      int line = projection.lineOfRow(row);
+      if (projection.subRow(row) == 0 && Arrays.binarySearch(lines, line) >= 0) {
+        gc.setBackground(Arrays.binarySearch(commented, line) >= 0 ? bookmarkComment : caret);
         gc.fillRectangle(1, top + 1, GUTTER_PADDING - 2, Math.max(1, lineHeight - 2));
       }
+    }
+  }
+
+  /**
+   * Shows a commented bookmark's comment as the tooltip while the pointer is over the gutter left
+   * of the fold markers on its line, and no tooltip elsewhere.
+   */
+  private void updateToolTip(int x, int y) {
+    String tip = null;
+    if (bookmarks != null && x >= 0 && x < foldColumn() && projection.rowCount() > 0) {
+      int row = text.getLineIndex(y);
+      int top = text.getLinePixel(row);
+      if (y >= top && y < top + text.getLineHeight()) {
+        tip = bookmarks.comment(projection.lineOfRow(row));
+      }
+    }
+    if (!Objects.equals(tip, text.getToolTipText())) {
+      text.setToolTipText(tip);
     }
   }
 

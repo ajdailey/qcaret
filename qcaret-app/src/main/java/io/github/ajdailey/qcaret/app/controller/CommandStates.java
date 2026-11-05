@@ -31,9 +31,9 @@ import java.util.Set;
  * disables every command that would write or edit it; a read-only document disables the edits and
  * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. The fold
  * commands need fold regions in the focused view, the unfold commands a collapsed one. Next,
- * Previous and Clear Bookmarks need a bookmark. HyperSearch runs without a document; Next and
- * Previous Result and Replace in Results need a match in a retained set. A disabled menu item's
- * accelerator does not fire.
+ * Previous and Clear Bookmarks need a bookmark; the Bookmarks list shows without a document.
+ * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
+ * in a retained set. A disabled menu item's accelerator does not fire.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -60,7 +60,8 @@ public final class CommandStates {
           CommandId.SEARCH_RESULTS,
           CommandId.REPLACE_IN_RESULTS,
           CommandId.RESTORE_REPLACE_RUN,
-          CommandId.OVERVIEW_STRIP);
+          CommandId.OVERVIEW_STRIP,
+          CommandId.BOOKMARKS_LIST);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -162,6 +163,7 @@ public final class CommandStates {
       case SHOW_LINE_ENDINGS -> application.documents().lineEndingsShown();
       case SEARCH_RESULTS -> application.search().resultsShown();
       case OVERVIEW_STRIP -> application.documents().overviewShown();
+      case BOOKMARKS_LIST -> application.bookmarkList().shown();
       default -> false;
     };
   }

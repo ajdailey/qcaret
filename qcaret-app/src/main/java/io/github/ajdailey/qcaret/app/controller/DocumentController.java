@@ -15,6 +15,8 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.Anchor;
+import io.github.ajdailey.qcaret.core.document.Bias;
 import io.github.ajdailey.qcaret.core.document.BinaryFileException;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
@@ -49,6 +51,7 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -391,6 +394,56 @@ public final class DocumentController {
     return active == null ? new int[0] : active.bookmarks.lines();
   }
 
+  /** Returns an open document's bookmarks; null when closed. */
+  Bookmarks bookmarksOf(Document document) {
+    OpenDocument d = entry(document);
+    return d == null ? null : d.bookmarks;
+  }
+
+  /**
+   * Asks for the comment of a line's bookmark and sets it, bookmarking the line when it is not; an
+   * empty answer keeps the bookmark without a comment. The line is followed through edits made
+   * while the prompt shows. A refused comment shows a notice and changes nothing.
+   *
+   * @param document an open document
+   * @param line a zero-based line of it
+   */
+  void editBookmarkComment(Document document, int line) {
+    final OpenDocument d = entry(document);
+    if (d == null) {
+      return;
+    }
+    TextSnapshot text = document.text();
+    final Anchor at =
+        document.anchor(text.offsetOfLine(Math.min(line, text.lineCount() - 1)), Bias.AFTER);
+    String current = d.bookmarks.comment(line);
+    view.askBookmarkComment(
+        line,
+        current == null ? "" : current,
+        Bookmarks.MAX_COMMENT_LENGTH,
+        new Consumer<String>() {
+          @Override
+          public void accept(String answer) {
+            if (d.closed || at.isDisposed()) {
+              return;
+            }
+            int target = d.document.text().lineAt(at.offset());
+            at.dispose();
+            if (answer == null) {
+              return;
+            }
+            switch (d.bookmarks.setComment(target, answer)) {
+              case TOO_LONG ->
+                  view.showNotice(
+                      UiText.BOOKMARK_COMMENT_TOO_LONG.format(Bookmarks.MAX_COMMENT_LENGTH));
+              case TOO_MANY ->
+                  view.showNotice(UiText.BOOKMARK_COMMENT_TOO_MANY.format(Bookmarks.MAX_COMMENTS));
+              case DONE -> view.documentStateChanged();
+            }
+          }
+        });
+  }
+
   // New and Open.
 
   /** Opens an empty untitled document, UTF-8 with the default line ending. */
@@ -625,6 +678,13 @@ public final class DocumentController {
           }
         });
     editor.setBookmarks(d.bookmarks);
+    editor.setCommentRequest(
+        new IntConsumer() {
+          @Override
+          public void accept(int line) {
+            editBookmarkComment(d.document, line);
+          }
+        });
     editor.setOverview(
         new OverviewUpdater(
             editor,
@@ -1299,15 +1359,29 @@ public final class DocumentController {
   }
 
   private ViewListener viewListener;
+  private final List<Runnable> activeListeners = new ArrayList<Runnable>();
 
   /** Sets the one listener for view changes. */
   void setViewListener(ViewListener listener) {
     viewListener = listener;
   }
 
+  /** Adds what runs when the selected document, its focused view or its set of views changed. */
+  void addActiveListener(Runnable listener) {
+    activeListeners.add(listener);
+  }
+
+  /** Removes a listener {@link #addActiveListener} added. */
+  void removeActiveListener(Runnable listener) {
+    activeListeners.remove(listener);
+  }
+
   private void viewsChanged() {
     if (viewListener != null) {
       viewListener.viewsChanged();
+    }
+    for (Runnable listener : new ArrayList<Runnable>(activeListeners)) {
+      listener.run();
     }
   }
 
