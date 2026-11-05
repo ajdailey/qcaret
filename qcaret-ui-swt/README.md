@@ -32,7 +32,8 @@ accelerator does not fire on win32 or GTK, so enablement syncs on every
 showing a menu or running one of its items syncs that menu's checks. The
 Encoding menu holds Reopen with Encoding and Save with Encoding cascades: the
 common charsets from the start, and an Other cascade disabled until
-`EncodingChoices` arrives from a worker, filled once and never rebuilt. The
+`EncodingChoices` arrives from a worker, filled again when a keymap change
+rebuilds the menus. The
 Window menu lists the open documents, and File > Recent Files the recent
 files above Clear Recent Files, each rebuilt when its menu shows; a path's
 `&` is doubled (QLogg SWT-22). A Display key
@@ -44,6 +45,22 @@ bound command by menu with a filter field, as QLogg's; Copy puts the filtered
 rows on the clipboard as `Keymap.reference(filter)` writes them. A second
 request brings the open window forward. Edit > Go to Line opens `GoToDialog`,
 a modal prompt without a nested event loop.
+
+Edit > Preferences (the application menu on macOS) opens `PreferencesDialog`,
+a modeless window with one tab per `PreferencesForm.Group`, over
+`PreferencesInput`. OK and Apply pass the fields to the controller; a refused
+field shows its message above the buttons, selects its tab and keeps the
+dialog open. Restore Defaults fills every tab and applies nothing until OK or
+Apply. The Keys tab lists every command; the key field records one stroke, Add
+refuses a stroke that types or that another command holds and names that
+command, Remove and Default Keys edit the selected command. `setKeymap`
+rebuilds the menu bar and hands the keymap to every `EditorPane` and an open
+`ShortcutsWindow`.
+
+`MainWindow.rememberSize` gives the resizable windows (`preferences`,
+`shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`) their last
+size, within the monitor's client area, after they open, and keeps a size that
+changed when the window closes.
 
 View > Command Palette opens `CommandPaletteWindow`, a modal dialog with a
 filter field over the rows `PaletteInput.filter` returns: command, menu and
@@ -76,7 +93,7 @@ line and column, selection, encoding, line endings and language
 UI turn; further changes before it share that read. `BusyCounter` shows
 `CURSOR_APPSTARTING` while any load, save or conversion runs.
 
-`setFontStep` creates the new editor font, calls `EditorPane.setFont` on every
+`setFontSize` creates the new editor font, calls `EditorPane.setFont` on every
 editor and disposes the old font. The widgets, the menu bar and the focus stay;
 nothing is rebuilt.
 
@@ -341,10 +358,9 @@ can differ from the palette on cocoa and on win32 before a restart.
 
 ## macOS application menu
 
-`AppMenu.hook` wires the system's application menu on cocoa: About and Quit
-run `ABOUT` and `QUIT` in the controller and are left out of the menu bar;
-Preferences is disabled until a settings dialog exists; Hide, Hide Others and
-Show All stay native. A system quit request (Cmd-Q, logout) arrives as a
+`AppMenu.hook` wires the system's application menu on cocoa: About, Quit
+and Preferences run `ABOUT`, `QUIT` and `PREFERENCES` in the controller and
+are left out of the menu bar; Hide, Hide Others and Show All stay native. A system quit request (Cmd-Q, logout) arrives as a
 Display `SWT.Close`, which is vetoed and runs `QUIT`, so the unsaved-changes
 prompts and the ordered quit always run (unverified on cocoa). Elsewhere there is no application menu and `hook` does nothing.
 
@@ -364,6 +380,12 @@ Every test class runs under `HangWatchdog`, registered through
 5 s later, so a native call that blocks the main thread ends the CI job with a
 stack. `EventLoop.runUntil` dispatches events until a condition holds, with no
 fixed sleep.
+
+`PreferencesSurfaceTest` drives the dialog on a real window: a refused field
+keeps it open on its tab, Restore Defaults applies nothing, the Keys tab refuses
+a typing or taken key and a free one reaches the menu item's accelerator, a
+theme switch leaves it working, and a new size is remembered. With
+`-Dqcaret.screenshots=<dir>` it captures each group.
 
 `MainWindowTest` (tag `swt`) checks the requested client size and position
 under X11, clamping to the work area, close requests and the dispatcher after
@@ -469,7 +491,7 @@ under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
 `DeviceData.tracking` over two
 warm-up rounds (the second adds one cached `StyledText` line layout) and four
 rounds of tab open and close, the tab menu, both
-themes, zoom, split with Fold All and Unfold All in both views and the find
+themes, zoom, Preferences through a theme switch, split with Fold All and Unfold All in both views and the find
 bar searching and closed, unsplit, the command palette, the completion list
 with the whitespace and line-ending marks on, a HyperSearch from its dialog
 into the dock with a group expanded, the replace preview opened over it and

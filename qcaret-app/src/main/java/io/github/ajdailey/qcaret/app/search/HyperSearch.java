@@ -53,6 +53,16 @@ public final class HyperSearch {
     public static final Limits DEFAULTS =
         new Limits(100_000, 64L << 20, 1_000_000, Charset.forName("windows-1252"));
 
+    /**
+     * Returns a copy with another longest line.
+     *
+     * @param chars the longest line searched
+     * @return the copy
+     */
+    public Limits withMaxLineChars(int chars) {
+      return new Limits(maxResults, maxFileBytes, chars, fallback);
+    }
+
     /** Default limits with a smaller match bound, for tests. */
     static Limits withMaxResults(int max) {
       return new Limits(max, DEFAULTS.maxFileBytes, DEFAULTS.maxLineChars, StandardCharsets.UTF_8);

@@ -78,7 +78,8 @@ import java.util.function.IntConsumer;
  *       of the hidden lines, to the end of the region's first line; a primary caret placed in
  *       hidden lines by any other command, such as find or go to line, expands the regions around
  *       it. Left, Right, word and document-end moves step over hidden lines.
- *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()}.
+ *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()} unless {@code
+ *       editor.autoClose} is off.
  *   <li>Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their edit on a {@code
  *       qcaret-cpu-} worker and apply it on the UI thread, with the view busy from the command to
  *       the apply; a result for an older revision is dropped with a notice.
@@ -639,7 +640,7 @@ public final class EditorController implements EditorInput {
       return;
     }
     Edit paired =
-        block == null && text.length() == 1
+        autoClose && block == null && text.length() == 1
             ? AutoClose.type(document.text(), current(), text.charAt(0), pairs())
             : null;
     Edit outdent =
@@ -693,7 +694,7 @@ public final class EditorController implements EditorInput {
     }
     if (!document.isReadOnly()) {
       document.clearPreedit();
-      Edit paired = AutoClose.backspace(document.text(), current(), pairs());
+      Edit paired = autoClose ? AutoClose.backspace(document.text(), current(), pairs()) : null;
       if (paired != null) {
         applyTyped(paired);
         return;
@@ -1520,6 +1521,7 @@ public final class EditorController implements EditorInput {
   private WordCompletion completion;
   private Consumer<String> notices;
   private int completionChars;
+  private boolean autoClose = true;
   private String completionPrefix;
   private List<String> completionAll;
   private List<String> completionShown;
@@ -1591,6 +1593,15 @@ public final class EditorController implements EditorInput {
    */
   void setCompletionChars(int chars) {
     completionChars = chars;
+  }
+
+  /**
+   * Turns auto-close on or off ({@code editor.autoClose}).
+   *
+   * @param on true when typing an opener also inserts its closer
+   */
+  void setAutoClose(boolean on) {
+    autoClose = on;
   }
 
   /** Sets what shows a notice, such as a dropped line transform. */

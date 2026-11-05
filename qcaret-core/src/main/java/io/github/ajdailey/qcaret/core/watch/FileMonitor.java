@@ -51,7 +51,7 @@ public final class FileMonitor implements AutoCloseable {
   static final long SLICE_MILLIS = 100;
 
   private final Workers workers;
-  private final long pollMillis;
+  private volatile long pollMillis;
   private final Listener listener;
   private final ReentrantLock lock = new ReentrantLock();
   private final Map<Path, Integer> files = new HashMap<Path, Integer>();
@@ -60,6 +60,7 @@ public final class FileMonitor implements AutoCloseable {
   private final Set<Path> unregistered = new LinkedHashSet<Path>();
   private final List<Path> order = new ArrayList<Path>();
   private boolean all;
+  private boolean pollChanged;
   private boolean running;
   private boolean closed;
   private WatchService service;
@@ -76,6 +77,21 @@ public final class FileMonitor implements AutoCloseable {
     this.workers = workers;
     this.pollMillis = pollMillis;
     this.listener = listener;
+  }
+
+  /**
+   * Sets the interval between checks of every file; the next check is one new interval away.
+   *
+   * @param millis the interval
+   */
+  public void setPollMillis(long millis) {
+    lock.lock();
+    try {
+      pollMillis = millis;
+      pollChanged = true;
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
@@ -221,6 +237,10 @@ public final class FileMonitor implements AutoCloseable {
             return;
           }
           syncKeys();
+          if (pollChanged) {
+            pollChanged = false;
+            nextPoll = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(pollMillis);
+          }
           boolean poll = System.nanoTime() - nextPoll >= 0;
           if (poll || all) {
             due.addAll(order);

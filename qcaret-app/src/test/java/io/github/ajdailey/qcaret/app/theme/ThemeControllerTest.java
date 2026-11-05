@@ -123,7 +123,7 @@ class ThemeControllerTest {
     ConfigStore store = new ConfigStore(location);
     Preferences loaded = store.load();
     assertEquals(ThemeMode.LIGHT, loaded.theme());
-    store.save(loaded.withTheme(ThemeMode.SYSTEM));
+    store.save(loaded, loaded.withTheme(ThemeMode.SYSTEM));
     assertEquals(ThemeMode.SYSTEM, new ConfigStore(location).load().theme());
     List<String> lines =
         Files.readAllLines(temp.resolve(SettingsLocation.MARKER), StandardCharsets.ISO_8859_1);

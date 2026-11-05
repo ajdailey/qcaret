@@ -1,5 +1,8 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.SearchToggles;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.search.FileRerun;
 import io.github.ajdailey.qcaret.app.search.FileResult;
@@ -56,8 +59,8 @@ import java.util.regex.PatternSyntaxException;
  *       goes to its line and a notice says so.
  *   <li>Next and Previous Result step through the matches of the set last navigated, or the newest
  *       set, wrapping at its ends.
- *   <li>The dialog's texts, directories and masks are remembered for the run, newest first, at most
- *       {@value #HISTORY} each.
+ *   <li>The dialog's texts, directories and masks are kept in {@link Settings}, newest first, at
+ *       most {@value UiState#MAX_HISTORY} each.
  *   <li>Rerun File searches one stale group's document or file again ({@link FileRerun}); a
  *       selection set reruns whole. Replace opens a finished set in the {@link ReplaceController}'s
  *       preview.
@@ -66,9 +69,6 @@ import java.util.regex.PatternSyntaxException;
 public final class SearchController implements ResultsInput {
   /** Unpinned sets kept. */
   static final int RETAINED = 10;
-
-  /** Entries per dialog history. */
-  static final int HISTORY = 20;
 
   /** Longest selection the dialog takes as its text. */
   static final int SEED_CHARS = 1000;
@@ -79,11 +79,9 @@ public final class SearchController implements ResultsInput {
   private final UiDispatcher ui;
   private final MainView view;
   private final MemoryBudget budget;
-  private final HyperSearch.Limits limits;
+  private final Settings settings;
+  private HyperSearch.Limits limits;
   private final List<Entry> entries = new ArrayList<Entry>();
-  private final List<String> texts = new ArrayList<String>();
-  private final List<String> directories = new ArrayList<String>();
-  private final List<String> masks = new ArrayList<String>();
   private ReplaceController replace;
   private SearchForm last;
   private int resolving;
@@ -115,6 +113,7 @@ public final class SearchController implements ResultsInput {
    * @param view the window
    * @param budget charged for the results
    * @param limits the search bounds
+   * @param settings holds the toggles, the histories and the excluded directories
    */
   public SearchController(
       DocumentController documents,
@@ -123,7 +122,8 @@ public final class SearchController implements ResultsInput {
       UiDispatcher ui,
       MainView view,
       MemoryBudget budget,
-      HyperSearch.Limits limits) {
+      HyperSearch.Limits limits,
+      Settings settings) {
     this.documents = documents;
     this.workspace = workspace;
     this.workers = workers;
@@ -131,6 +131,7 @@ public final class SearchController implements ResultsInput {
     this.view = view;
     this.budget = budget;
     this.limits = limits;
+    this.settings = settings;
     documents.setCloseListener(
         new Consumer<Document>() {
           @Override
@@ -172,7 +173,8 @@ public final class SearchController implements ResultsInput {
         scope = SearchScope.SELECTION;
       }
     }
-    String directory = directories.isEmpty() ? "" : directories.get(0);
+    UiState state = settings.current().state();
+    String directory = state.directories().isEmpty() ? "" : state.directories().get(0);
     if (directory.isEmpty()) {
       Path active = documents.activePath();
       Path parent = active == null ? null : active.toAbsolutePath().getParent();
@@ -184,18 +186,18 @@ public final class SearchController implements ResultsInput {
     SearchForm form =
         new SearchForm(
             text,
-            last != null && last.regex(),
-            last != null && last.caseSensitive(),
-            last != null && last.wholeWord(),
+            state.search().regex(),
+            state.search().caseSensitive(),
+            state.search().wholeWord(),
             scope,
             directory,
             last == null ? "" : last.include(),
             last == null ? "" : last.exclude(),
-            last != null && last.hidden(),
+            state.search().hiddenFiles(),
             workspace.root() == null ? "" : workspace.root().toString(),
-            texts,
-            directories,
-            masks);
+            state.texts(),
+            state.directories(),
+            state.masks());
     view.showSearchDialog(
         form,
         new Consumer<SearchForm>() {
@@ -217,8 +219,18 @@ public final class SearchController implements ResultsInput {
       return;
     }
     last = form;
-    remember(texts, form.text());
-    remember(masks, form.include());
+    Preferences current = settings.current();
+    UiState state = current.state();
+    settings.set(
+        current.withState(
+            state
+                .withSearch(
+                    new SearchToggles(
+                        form.regex(), form.caseSensitive(), form.wholeWord(), form.hidden()))
+                .withHistory(
+                    UiState.remember(state.texts(), form.text()),
+                    state.directories(),
+                    UiState.remember(state.masks(), form.include()))));
     Path folder = null;
     if (form.scope() == SearchScope.WORKSPACE) {
       folder = workspace.root();
@@ -252,7 +264,7 @@ public final class SearchController implements ResultsInput {
                         public void run() {
                           resolving--;
                           if (!disposed) {
-                            remember(directories, real.toString());
+                            rememberDirectory(real.toString());
                             start(form, real);
                           }
                         }
@@ -279,20 +291,27 @@ public final class SearchController implements ResultsInput {
             folder,
             form.include(),
             form.exclude(),
-            FileFilter.DEFAULT_EXCLUDED_DIRECTORIES,
+            settings.current().options().excludedDirectories(),
             form.hidden()),
         null);
   }
 
-  private static void remember(List<String> history, String value) {
-    if (value.isBlank()) {
-      return;
-    }
-    history.remove(value);
-    history.add(0, value);
-    if (history.size() > HISTORY) {
-      history.remove(history.size() - 1);
-    }
+  private void rememberDirectory(String directory) {
+    Preferences current = settings.current();
+    UiState state = current.state();
+    settings.set(
+        current.withState(
+            state.withHistory(
+                state.texts(), UiState.remember(state.directories(), directory), state.masks())));
+  }
+
+  /**
+   * Sets the longest line a search reads ({@code search.maxLineChars}); the next search reads it.
+   *
+   * @param chars the longest line
+   */
+  void setMaxLineChars(int chars) {
+    limits = limits.withMaxLineChars(chars);
   }
 
   /**

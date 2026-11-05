@@ -148,7 +148,7 @@ public final class EditorPane implements EditorView {
   private final DisplayProjection projection;
   private final SelectionModel selections;
   private final EditorInput input;
-  private final Keymap keymap;
+  private Keymap keymap;
   private Font font;
   private final SelectionListener modelListener;
   private ColumnMetrics metrics;
@@ -383,6 +383,15 @@ public final class EditorPane implements EditorView {
    */
   public ColumnMetrics metrics() {
     return metrics;
+  }
+
+  /**
+   * Replaces the key bindings the editor dispatches.
+   *
+   * @param next the bindings
+   */
+  public void setKeymap(Keymap next) {
+    keymap = next;
   }
 
   /**

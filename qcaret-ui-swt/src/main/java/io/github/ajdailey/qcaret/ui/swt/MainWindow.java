@@ -19,10 +19,12 @@ import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.Comparison;
+import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
@@ -101,7 +103,7 @@ import org.eclipse.swt.widgets.Shell;
  * accelerator works without a menu having been shown. The status bar shows the selected document's
  * {@link StatusFields}, read once per UI turn however many caret moves or state changes arrive in
  * it; a notice; and a Warnings link to Show Log while a warning is unseen. A Display key filter
- * runs window bindings that are not accelerators. {@link #setFontStep} replaces the editor font in
+ * runs window bindings that are not accelerators. {@link #setFontSize} replaces the editor font in
  * every editor in place, without rebuilding the menus or the window, and keeps the focus.
  *
  * <p>{@link #setActive} and {@link #setIdle} count overlapping operations through a {@link
@@ -143,6 +145,7 @@ public final class MainWindow implements MainView {
   private ApplicationController controller;
   private MainMenuBar menuBar;
   private Keymap keymap;
+  private PreferencesDialog preferencesDialog;
   private Menu tabMenu;
   private TextWindow logWindow;
   private ShortcutsWindow shortcuts;
@@ -518,6 +521,10 @@ public final class MainWindow implements MainView {
     keymap = owner.keymap();
     menuBar = new MainMenuBar(shell, owner);
     menuBar.build(keymap);
+    int fontSize = owner.fontSize();
+    if (fontSize != 0) {
+      setFontSize(fontSize);
+    }
     owner.loadEncodings(
         new EncodingChoices.Listener() {
           @Override
@@ -1029,7 +1036,12 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public void setFontStep(int step) {
+  public int defaultFontSize() {
+    return baseFontSize;
+  }
+
+  @Override
+  public void setFontSize(int points) {
     if (shell.isDisposed()) {
       return;
     }
@@ -1038,7 +1050,7 @@ public final class MainWindow implements MainView {
         new Font(
             shell.getDisplay(),
             Dialogs.monospaceName(),
-            Math.max(1, baseFontSize + step),
+            points == 0 ? baseFontSize : points,
             SWT.NORMAL);
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
@@ -1435,6 +1447,7 @@ public final class MainWindow implements MainView {
     if (shortcuts == null || shortcuts.shell().isDisposed()) {
       shortcuts = new ShortcutsWindow(shell, bindings, this);
       shortcuts.open();
+      rememberSize(shortcuts.shell(), "shortcuts");
     } else {
       shortcuts.shell().setActive();
     }
@@ -1449,6 +1462,71 @@ public final class MainWindow implements MainView {
     return shortcuts;
   }
 
+  // Preferences and dialog sizes.
+
+  @Override
+  public void showPreferences(PreferencesInput input) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (preferencesDialog != null && !preferencesDialog.shell().isDisposed()) {
+      preferencesDialog.shell().setActive();
+      return;
+    }
+    preferencesDialog = new PreferencesDialog(shell, input);
+    preferencesDialog.open();
+    rememberSize(preferencesDialog.shell(), "preferences");
+  }
+
+  /**
+   * Returns the Preferences dialog.
+   *
+   * @return the dialog, or null before it opened
+   */
+  PreferencesDialog preferencesDialog() {
+    return preferencesDialog;
+  }
+
+  @Override
+  public void setKeymap(Keymap bindings) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    keymap = bindings;
+    menuBar.build(bindings);
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        for (EditorPane pane : tab.panes) {
+          pane.setKeymap(bindings);
+        }
+      }
+    }
+    if (shortcuts != null && !shortcuts.shell().isDisposed()) {
+      shortcuts.setKeymap(bindings);
+    }
+  }
+
+  /** Gives an open dialog its remembered size, within the monitor; a new size is kept at close. */
+  private void rememberSize(final Shell dialog, final String name) {
+    DialogSize size = controller.dialogSize(name);
+    if (size != null) {
+      Rectangle area = dialog.getMonitor().getClientArea();
+      dialog.setSize(Math.min(size.width(), area.width), Math.min(size.height(), area.height));
+    }
+    final Point opened = dialog.getSize();
+    dialog.addListener(
+        SWT.Dispose,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            Point closed = dialog.getSize();
+            if (!closed.equals(opened)) {
+              controller.rememberDialogSize(name, new DialogSize(closed.x, closed.y));
+            }
+          }
+        });
+  }
+
   // Command palette.
 
   @Override
@@ -1461,6 +1539,7 @@ public final class MainWindow implements MainView {
     }
     commandPalette = new CommandPaletteWindow(shell, input, dispatcher);
     commandPalette.open();
+    rememberSize(commandPalette.shell(), "palette");
   }
 
   /**
@@ -1509,6 +1588,7 @@ public final class MainWindow implements MainView {
     }
     quickOpen = new QuickOpenWindow(shell, input, dispatcher);
     quickOpen.open();
+    rememberSize(quickOpen.shell(), "quickOpen");
   }
 
   @Override
@@ -1655,6 +1735,7 @@ public final class MainWindow implements MainView {
     replaceDialog =
         new ReplaceDialog(shell, input, palette, Dialogs.monospaceName(), Dialogs.monospaceSize());
     replaceDialog.open();
+    rememberSize(replaceDialog.shell(), "replace");
   }
 
   @Override
@@ -1681,6 +1762,7 @@ public final class MainWindow implements MainView {
     ReportWindow window = new ReportWindow(shell, input);
     reportWindows.add(window);
     window.open();
+    rememberSize(window.shell(), "report");
   }
 
   @Override
@@ -1808,6 +1890,7 @@ public final class MainWindow implements MainView {
               }
             });
     window.open();
+    rememberSize(window.shell(), "compare");
   }
 
   /**

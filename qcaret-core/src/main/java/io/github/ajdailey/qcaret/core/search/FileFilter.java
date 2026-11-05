@@ -17,7 +17,8 @@ import java.util.Set;
  */
 public final class FileFilter {
   /** Directory names a search skips unless the user sets others. */
-  public static final String DEFAULT_EXCLUDED_DIRECTORIES = ".git;.svn;.hg";
+  public static final String DEFAULT_EXCLUDED_DIRECTORIES =
+      ".git;.svn;.hg;target;node_modules;build";
 
   private final List<PathMatcher> include;
   private final List<PathMatcher> exclude;

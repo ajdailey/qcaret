@@ -105,11 +105,18 @@ public interface MainView
   boolean launchUrl(String url);
 
   /**
-   * Sets the editor font size in every editor, in place.
+   * Sets the editor font size.
    *
-   * @param step points above (positive) or below the default size
+   * @param points the size, 0 for the platform's default
    */
-  void setFontStep(int step);
+  void setFontSize(int points);
+
+  /**
+   * Returns the editor font's platform default size.
+   *
+   * @return the size in points
+   */
+  int defaultFontSize();
 
   /**
    * Shows the Keyboard Shortcuts window with a filter, opening it or bringing it to the front.
@@ -125,4 +132,18 @@ public interface MainView
    * @param input the palette's controller
    */
   void showCommandPalette(PaletteInput input);
+
+  /**
+   * Shows the Preferences dialog, or raises it when it shows.
+   *
+   * @param input the dialog's controller
+   */
+  void showPreferences(PreferencesInput input);
+
+  /**
+   * Rebuilds the menus and the editors' keys from a keymap.
+   *
+   * @param keymap the bindings
+   */
+  void setKeymap(Keymap keymap);
 }

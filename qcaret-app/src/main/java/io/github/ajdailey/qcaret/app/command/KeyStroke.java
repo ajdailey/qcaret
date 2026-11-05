@@ -127,6 +127,86 @@ public record KeyStroke(int modifiers, int key) {
   }
 
   /**
+   * Parses {@link #stored()}'s form.
+   *
+   * @param text for example {@code Mod+Shift+K}, {@code Alt+Left} or {@code F2}
+   * @return the stroke, or null when the text is not a stroke
+   */
+  public static KeyStroke parse(String text) {
+    int modifiers = 0;
+    String rest = text;
+    while (true) {
+      if (rest.length() > 4 && rest.startsWith("Mod+")) {
+        modifiers |= PRIMARY;
+        rest = rest.substring(4);
+      } else if (rest.length() > 6 && rest.startsWith("Shift+")) {
+        modifiers |= SHIFT;
+        rest = rest.substring(6);
+      } else if (rest.length() > 4 && rest.startsWith("Alt+")) {
+        modifiers |= ALT;
+        rest = rest.substring(4);
+      } else if (rest.length() > 8 && rest.startsWith("Control+")) {
+        modifiers |= CONTROL;
+        rest = rest.substring(8);
+      } else {
+        break;
+      }
+    }
+    int key = keyNamed(rest);
+    return key < 0 ? null : new KeyStroke(modifiers, key);
+  }
+
+  /** Returns the key a name stands for, or -1. */
+  private static int keyNamed(String name) {
+    for (int i = 0; i < SPECIAL_NAMES.length; i++) {
+      if (SPECIAL_NAMES[i].equals(name)) {
+        return UP + i;
+      }
+    }
+    if (name.matches("F([1-9]|1[0-2])")) {
+      return F1 + Integer.parseInt(name.substring(1)) - 1;
+    }
+    if (name.codePointCount(0, name.length()) != 1) {
+      return -1;
+    }
+    int c = Character.toLowerCase(name.codePointAt(0));
+    return c > ' ' && c < SPECIAL && !Character.isUpperCase(c) ? c : -1;
+  }
+
+  /**
+   * Returns the stroke as {@code qcaret.conf} keeps it, the same on every platform: {@code Mod} is
+   * {@link #PRIMARY} and {@code Control} is {@link #CONTROL}.
+   *
+   * @return for example {@code Mod+Shift+K}
+   */
+  public String stored() {
+    StringBuilder text = new StringBuilder();
+    if ((modifiers & PRIMARY) != 0) {
+      text.append("Mod+");
+    }
+    if ((modifiers & CONTROL) != 0) {
+      text.append("Control+");
+    }
+    if ((modifiers & ALT) != 0) {
+      text.append("Alt+");
+    }
+    if ((modifiers & SHIFT) != 0) {
+      text.append("Shift+");
+    }
+    return text.append(keyText()).toString();
+  }
+
+  /**
+   * Reports whether the stroke types text: a printable key or the space bar without Ctrl, Alt or
+   * Command. Such a stroke cannot be bound, since it would take the key from the editor.
+   *
+   * @return true for a key that types
+   */
+  public boolean types() {
+    return (modifiers & (PRIMARY | ALT | CONTROL)) == 0 && (printable() || key == SPACE);
+  }
+
+  /**
    * Reports whether the key is a printable char.
    *
    * @return false for the key constants
@@ -156,15 +236,16 @@ public record KeyStroke(int modifiers, int key) {
     if ((modifiers & SHIFT) != 0) {
       text.append("Shift+");
     }
+    return text.append(keyText()).toString();
+  }
+
+  private String keyText() {
     if (key >= F1 && key < F1 + 12) {
-      text.append('F').append(key - F1 + 1);
-    } else if (key >= UP) {
-      text.append(SPECIAL_NAMES[key - UP]);
-    } else if (Character.isLetter(key)) {
-      text.appendCodePoint(Character.toUpperCase(key));
-    } else {
-      text.appendCodePoint(key);
+      return "F" + (key - F1 + 1);
     }
-    return text.toString();
+    if (key >= UP) {
+      return SPECIAL_NAMES[key - UP];
+    }
+    return Character.toString(Character.isLetter(key) ? Character.toUpperCase(key) : key);
   }
 }

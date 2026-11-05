@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
@@ -377,12 +378,12 @@ class ShellCommandsTest {
 
   @Test
   void zoomIsBounded() {
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 80; i++) {
       harness.application.execute(CommandId.ZOOM_IN);
     }
-    assertEquals(ApplicationController.MAX_FONT_STEP, harness.view.fontStep);
+    assertEquals(Options.MAX_FONT_SIZE, harness.view.fontSize);
     assertFalse(new CommandStates(harness.application).enabled(CommandId.ZOOM_IN));
     harness.application.execute(CommandId.ZOOM_RESET);
-    assertEquals(0, harness.view.fontStep);
+    assertEquals(0, harness.view.fontSize);
   }
 }

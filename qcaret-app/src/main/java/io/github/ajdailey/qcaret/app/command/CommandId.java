@@ -46,6 +46,8 @@ public enum CommandId {
   PASTE(CommandGroup.EDIT, UiText.COMMAND_PASTE, false, false, null),
   /** Select the whole document. */
   SELECT_ALL(CommandGroup.EDIT, UiText.COMMAND_SELECT_ALL, true, false, null),
+  /** Open the Preferences dialog; on macOS the application menu holds it. */
+  PREFERENCES(CommandGroup.EDIT, UiText.COMMAND_PREFERENCES, true, false, null),
   /** Duplicate the selections, or the touched lines when every selection is a caret. */
   DUPLICATE(CommandGroup.EDIT, UiText.COMMAND_DUPLICATE, true, false, null),
   /** Delete every touched line. */

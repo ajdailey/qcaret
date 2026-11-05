@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.Options;
+import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.view.ResultLabel;
@@ -50,6 +52,31 @@ class SearchControllerTest {
   void close() throws InterruptedException {
     harness.application.documents().dispose();
     harness.close();
+  }
+
+  @Test
+  void theLineLimitSkipsALongerLineAtTheNextSearch() throws Exception {
+    open("long.txt", "needle " + "x".repeat(20_000) + "\nneedle\n");
+    Preferences current = harness.application.preferences();
+    Options o = current.options();
+    harness
+        .application
+        .settings()
+        .set(
+            current.withOptions(
+                new Options(
+                    o.completionChars(),
+                    o.autoClose(),
+                    o.maxHighlightLineChars(),
+                    o.fontSize(),
+                    o.pollSeconds(),
+                    o.autoReloadClean(),
+                    o.backupDays(),
+                    Options.MIN_SEARCH_LINE_CHARS,
+                    o.excludedDirectories())));
+    search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
+    settle();
+    assertEquals(1, search.sets().get(0).matches());
   }
 
   /** A dialog answer: literal, case-sensitive, no masks, hidden files skipped. */

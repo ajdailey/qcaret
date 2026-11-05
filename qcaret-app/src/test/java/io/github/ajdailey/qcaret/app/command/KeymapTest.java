@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -190,5 +192,92 @@ class KeymapTest {
     }
     assertEquals("Ctrl+Shift+F2", Keymap.defaults(false).keysText(CommandId.EDIT_BOOKMARK_COMMENT));
     assertEquals("Cmd+Shift+F2", Keymap.defaults(true).keysText(CommandId.EDIT_BOOKMARK_COMMENT));
+  }
+
+  @Test
+  void aStrokeRoundTripsItsStoredForm() {
+    for (Binding binding : Keymap.defaults(true, false).bindings()) {
+      assertEquals(binding.stroke(), KeyStroke.parse(binding.stroke().stored()));
+    }
+    assertEquals(
+        new KeyStroke(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'k'), KeyStroke.parse("Mod+Shift+K"));
+    assertEquals(new KeyStroke(KeyStroke.PRIMARY, '+'), KeyStroke.parse("Mod++"));
+    assertEquals(
+        new KeyStroke(KeyStroke.CONTROL, KeyStroke.F1 + 11), KeyStroke.parse("Control+F12"));
+    assertNull(KeyStroke.parse("Mod+Nothing"));
+    assertNull(KeyStroke.parse("F13"));
+    assertNull(KeyStroke.parse(""));
+  }
+
+  @Test
+  void onlyAPlainPrintableKeyOrSpaceTypes() {
+    assertTrue(new KeyStroke(0, 'k').types());
+    assertTrue(new KeyStroke(KeyStroke.SHIFT, 'k').types());
+    assertTrue(new KeyStroke(0, KeyStroke.SPACE).types());
+    assertFalse(new KeyStroke(KeyStroke.ALT, 'k').types());
+    assertFalse(new KeyStroke(0, KeyStroke.F1).types());
+  }
+
+  @Test
+  void overridesReplaceACommandsKeysAndKeepItsScope() {
+    Keymap defaults = Keymap.defaults(false);
+    KeyStroke k = new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT, 'k');
+    Keymap keymap =
+        defaults.withOverrides(
+            ShortcutOverrides.NONE
+                .with(CommandId.FIND, List.of(k))
+                .with(CommandId.COPY, List.of(new KeyStroke(KeyStroke.ALT, 'c')))
+                .with(CommandId.SAVE, List.of()));
+    assertEquals(k, keymap.accelerator(CommandId.FIND));
+    assertEquals("Ctrl+Alt+K", keymap.keysText(CommandId.FIND));
+    assertEquals(CommandId.COPY, keymap.editorCommand(new KeyStroke(KeyStroke.ALT, 'c')));
+    assertNull(keymap.accelerator(CommandId.COPY));
+    assertEquals("", keymap.keysText(CommandId.SAVE));
+    assertNull(keymap.holder(new KeyStroke(KeyStroke.PRIMARY, 's'), CommandId.FIND));
+  }
+
+  @Test
+  void compareCommandsHaveNoDefaultKeyAndTakeOneAsWindowCommands() {
+    Keymap defaults = Keymap.defaults(false);
+    assertEquals("", defaults.keysText(CommandId.COMPARE_DOCUMENTS));
+    assertEquals("", defaults.keysText(CommandId.COMPARE_WITH_DISK));
+    KeyStroke f7 = new KeyStroke(0, KeyStroke.F1 + 6);
+    Keymap keymap =
+        defaults.withOverrides(
+            ShortcutOverrides.NONE.with(CommandId.COMPARE_WITH_DISK, List.of(f7)));
+    assertEquals(f7, keymap.accelerator(CommandId.COMPARE_WITH_DISK));
+  }
+
+  @Test
+  void aSharedKeyIsReportedInTheConflictsAndTheReference() {
+    Keymap defaults = Keymap.defaults(false);
+    assertTrue(defaults.conflicts().isEmpty());
+    assertFalse(defaults.reference().contains("Conflicts"));
+    KeyStroke save = new KeyStroke(KeyStroke.PRIMARY, 's');
+    assertEquals(CommandId.SAVE, defaults.holder(save, CommandId.FIND));
+    Keymap keymap =
+        defaults.withOverrides(ShortcutOverrides.NONE.with(CommandId.FIND, List.of(save)));
+    assertEquals(List.of("Ctrl+S: Save, Find"), keymap.conflicts());
+    assertTrue(keymap.reference().contains("Conflicts\n  Ctrl+S: Save, Find\n"));
+  }
+
+  @Test
+  void overridesParseAndRefuseWhatCannotBeBound() {
+    List<String> refused = new ArrayList<String>();
+    ShortcutOverrides overrides =
+        ShortcutOverrides.parse(
+            Map.of(
+                "shortcut.FIND", "Mod+K Alt+K",
+                "shortcut.SAVE", "",
+                "shortcut.COPY", "k",
+                "shortcut.CUT", "Mod+Nope",
+                "shortcut.GONE", "Mod+K"),
+            refused);
+    assertEquals(2, overrides.strokes(CommandId.FIND).size());
+    assertEquals(List.of(), overrides.strokes(CommandId.SAVE));
+    assertNull(overrides.strokes(CommandId.COPY));
+    assertEquals(2, refused.size());
+    assertEquals("Mod+K Alt+K", overrides.keys().get("shortcut.FIND"));
+    assertEquals(overrides, ShortcutOverrides.parse(overrides.keys(), new ArrayList<String>()));
   }
 }

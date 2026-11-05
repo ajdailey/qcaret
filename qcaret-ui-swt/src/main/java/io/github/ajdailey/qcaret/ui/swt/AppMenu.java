@@ -10,12 +10,12 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 
 /**
- * The macOS application menu: About and Quit run {@link CommandId#ABOUT} and {@link
- * CommandId#QUIT}, so the menu bar leaves them out ({@link
- * io.github.ajdailey.qcaret.app.command.MenuTable}). Preferences is disabled until QCaret has a
- * settings dialog. Hide, Hide Others and Show All stay native. A quit request from the system
- * (Cmd-Q, logout) runs {@link CommandId#QUIT}, with its unsaved-changes prompts, in place of SWT's
- * own disposal. Elsewhere {@link Display#getSystemMenu()} is null and nothing is added.
+ * The macOS application menu: About, Preferences and Quit run {@link CommandId#ABOUT}, {@link
+ * CommandId#PREFERENCES} and {@link CommandId#QUIT}, so the menu bar leaves them out ({@link
+ * io.github.ajdailey.qcaret.app.command.MenuTable}). Hide, Hide Others and Show All stay native. A
+ * quit request from the system (Cmd-Q, logout) runs {@link CommandId#QUIT}, with its
+ * unsaved-changes prompts, in place of SWT's own disposal. Elsewhere {@link
+ * Display#getSystemMenu()} is null and nothing is added.
  */
 public final class AppMenu {
   private AppMenu() {}
@@ -43,9 +43,6 @@ public final class AppMenu {
     }
     Menu menu = display.getSystemMenu();
     for (MenuItem item : menu.getItems()) {
-      if (item.getID() == SWT.ID_PREFERENCES) {
-        item.setEnabled(false);
-      }
       final CommandId command = command(item.getID());
       if (command != null) {
         item.addListener(
@@ -74,11 +71,12 @@ public final class AppMenu {
    * Returns the command an application-menu item runs.
    *
    * @param id the item's {@link MenuItem#getID()}
-   * @return the command, or null for an item that stays native or is disabled
+   * @return the command, or null for an item that stays native
    */
   static CommandId command(int id) {
     return switch (id) {
       case SWT.ID_ABOUT -> CommandId.ABOUT;
+      case SWT.ID_PREFERENCES -> CommandId.PREFERENCES;
       case SWT.ID_QUIT -> CommandId.QUIT;
       default -> null;
     };

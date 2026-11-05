@@ -44,6 +44,7 @@ class CommandStatesTest {
           "COPY -- -e -e",
           "PASTE -- -e --",
           "SELECT_ALL -- -e -e",
+          "PREFERENCES -e -e -e",
           "DUPLICATE -- -e --",
           "DELETE_LINE -- -e --",
           "MOVE_LINES_UP -- -e --",

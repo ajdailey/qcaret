@@ -257,8 +257,27 @@ before the next save.
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
+| `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
+| `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Edit > Preferences, Editor |
+| `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
+| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
+| `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
+| `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
+| `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Edit > Preferences, Search and Workspace |
+| `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Edit > Preferences, Search and Workspace |
+| `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Edit > Preferences, Search and Workspace |
+| `shortcut.<COMMAND>` | Keys separated by spaces, such as `Mod+Alt+K F7`; `Mod` is Ctrl, or Command on macOS, and `Control` is the macOS Control key; empty for no key | The command's default keys | Edit > Preferences, Keys |
+| `search.regex`, `.caseSensitive`, `.wholeWord`, `.hiddenFiles` | The find bar's and HyperSearch's toggles | `false` | The find bar, HyperSearch |
+| `search.history.text.N`, `.directory.N`, `.mask.N` | HyperSearch's history, newest first, 20 each | none | HyperSearch |
+| `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
+| `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
 
-A value out of range falls back to its default. Light and dark also set the
+A value out of range falls back to its default with one warning naming the key.
+Every Preferences setting applies to the running window; none needs a restart.
+Saving writes only the keys that changed, over a fresh read of the file, so
+a second instance's newer values and hand-added keys stay. Keys another command
+holds are refused in the dialog; a conflict written by hand is logged and
+listed at the end of Help > Keyboard Shortcuts. Light and dark also set the
 native controls' theme; Windows applies a change to native controls at the
 next start, and macOS native controls follow the system appearance.
 

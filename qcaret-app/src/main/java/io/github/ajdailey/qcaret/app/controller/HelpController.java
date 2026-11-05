@@ -35,7 +35,7 @@ final class HelpController {
   private final UiDispatcher ui;
   private final MainView view;
   private final SettingsLocation location;
-  private final Keymap keymap;
+  private Keymap keymap;
   private final BooleanSupplier closing;
   private final AtomicBoolean warningPosted = new AtomicBoolean();
   private RecentLog recent;
@@ -65,6 +65,11 @@ final class HelpController {
     this.location = location;
     this.keymap = keymap;
     this.closing = closing;
+  }
+
+  /** Sets the bindings Keyboard Shortcuts lists. */
+  void setKeymap(Keymap value) {
+    keymap = value;
   }
 
   /**

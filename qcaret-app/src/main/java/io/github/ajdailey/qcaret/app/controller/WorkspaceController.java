@@ -31,9 +31,9 @@ import java.util.function.Consumer;
  * thread.
  *
  * <p>The browser lists a directory on a {@code qcaret-io-} worker the first time it expands ({@link
- * DirectoryListing}, {@link #RULES}), and shows {@value #PAGE} entries at a time behind a "more"
- * row. Refresh lists every listed directory again, keeping the old rows until the new ones arrive,
- * and rebuilds the index.
+ * DirectoryListing}, {@code workspace.excludedDirectories}), and shows {@value #PAGE} entries at a
+ * time behind a "more" row. Refresh lists every listed directory again, keeping the old rows until
+ * the new ones arrive, and rebuilds the index.
  *
  * <p>The file index ({@link FileIndex}, at most {@link FileIndex#MAX_FILES} files, charged to the
  * {@link MemoryBudget}) is built on a {@code qcaret-search-} worker whenever the folder changes and
@@ -51,15 +51,16 @@ public final class WorkspaceController implements WorkspaceInput {
           ".bat", ".cmd", ".com", ".cpl", ".exe", ".hta", ".js", ".jse", ".lnk", ".msc", ".msi",
           ".pif", ".ps1", ".reg", ".scr", ".url", ".vbe", ".vbs", ".wsf", ".wsh");
 
-  /** The entries the browser and the index leave out: hidden ones and the search's defaults. */
-  static final WalkRules RULES = WalkRules.of(FileFilter.DEFAULT_EXCLUDED_DIRECTORIES);
-
   private final MainView view;
   private final Workers workers;
   private final UiDispatcher ui;
   private final DocumentController documents;
   private final MemoryBudget budget;
   private final Map<Path, Listing> listings = new HashMap<Path, Listing>();
+
+  /** The entries the browser and the index leave out ({@code workspace.excludedDirectories}). */
+  private WalkRules rules = WalkRules.of(FileFilter.DEFAULT_EXCLUDED_DIRECTORIES);
+
   private final List<Runnable> indexListeners = new ArrayList<Runnable>();
   private Path root;
   private boolean shown;
@@ -106,6 +107,22 @@ public final class WorkspaceController implements WorkspaceInput {
    */
   public Path root() {
     return root;
+  }
+
+  /**
+   * Sets the directory names the browser and the index skip; with a folder set, it is listed and
+   * indexed again.
+   *
+   * @param names {@code ;}-separated names
+   */
+  public void setExcludedDirectories(String names) {
+    WalkRules next = WalkRules.of(names);
+    if (!next.equals(rules)) {
+      rules = next;
+      if (root != null && !disposed) {
+        reset();
+      }
+    }
   }
 
   /** Asks for a folder and makes it the workspace. */
@@ -313,6 +330,7 @@ public final class WorkspaceController implements WorkspaceInput {
   private void list(final Path dir, final Listing listing) {
     cancel(listing);
     final CancellationToken token = new CancellationToken();
+    final WalkRules walk = rules;
     listing.reading = token;
     workers.tryStart(
         Workers.Kind.IO,
@@ -322,7 +340,7 @@ public final class WorkspaceController implements WorkspaceInput {
             DirectoryListing read = null;
             String error = null;
             try {
-              read = DirectoryListing.read(dir, RULES, token);
+              read = DirectoryListing.read(dir, walk, token);
             } catch (IOException e) {
               error = UiText.WORKSPACE_UNREADABLE.format(LogText.oneLine(String.valueOf(e)));
             } catch (CancellationException e) {
@@ -574,6 +592,7 @@ public final class WorkspaceController implements WorkspaceInput {
     final CancellationToken token = new CancellationToken();
     indexing = token;
     final Path folder = root;
+    final WalkRules walk = rules;
     boolean started =
         workers.tryStart(
             Workers.Kind.SEARCH,
@@ -582,7 +601,7 @@ public final class WorkspaceController implements WorkspaceInput {
               public void run() {
                 FileIndex built = null;
                 try {
-                  built = FileIndex.build(folder, RULES, FileIndex.MAX_FILES, budget, token);
+                  built = FileIndex.build(folder, walk, FileIndex.MAX_FILES, budget, token);
                 } catch (CancellationException e) {
                   built = null;
                 } finally {

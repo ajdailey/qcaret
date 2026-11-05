@@ -3,7 +3,9 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
@@ -12,12 +14,12 @@ import io.github.ajdailey.qcaret.app.search.HyperSearch;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
+import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
-import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
@@ -28,8 +30,8 @@ import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,29 +44,21 @@ import org.slf4j.LoggerFactory;
  * the window open. {@link #quit} itself asks nothing: the shutdown hook calls it.
  *
  * <p>Help commands run through {@link HelpController}. Menu check and enable state is read through
- * {@link CommandStates}. The editor font size steps by one point per zoom command between {@link
- * #MIN_FONT_STEP} and {@link #MAX_FONT_STEP} for this run.
+ * {@link CommandStates}. A zoom command steps {@code editor.fontSize} by one point.
  *
- * <p>A theme or Debug Log File change saves {@code qcaret.conf} at once. {@link #quit} records and
- * saves the window's normal bounds and maximized state unless {@code rememberWindow} is false (a
- * {@code --window-*} option or {@code -m} was given), closes the workers, then disposes the view.
- * Each save captures the settings with a sequence number on the UI thread; the writer holds {@link
- * #saveLock} and skips a capture older than the last one written, so a theme save that finishes
- * after the quit save cannot replace it.
+ * <p>{@link Settings} holds the settings and saves each change on a worker; {@link #apply} brings
+ * every running controller and view in line with a change, wherever it came from. {@link #quit}
+ * records the window's normal bounds and maximized state unless {@code rememberWindow} is false (a
+ * {@code --window-*} option or {@code -m} was given), saves, closes the workers, then disposes the
+ * view.
  */
 public final class ApplicationController {
-  /** Smallest font step: points below the default size. */
-  public static final int MIN_FONT_STEP = -6;
-
-  /** Largest font step: points above the default size. */
-  public static final int MAX_FONT_STEP = 24;
-
   private static final Logger LOG = LoggerFactory.getLogger(ApplicationController.class);
 
   private final Workers workers;
   private final UiDispatcher ui;
   private final MainView view;
-  private final ConfigStore config;
+  private final Settings settings;
   private final ThemeController theme;
   private final DocumentController documents;
   private final HelpController help;
@@ -77,19 +71,12 @@ public final class ApplicationController {
   private final RecentFiles recentFiles;
   private final CompareController compare;
   private final GrammarLibrary grammars;
-  private final Keymap keymap;
+  private final PreferencesController preferences;
+  private final Keymap defaultKeymap;
   private final boolean rememberWindow;
   private final List<Runnable> finishListeners = new ArrayList<Runnable>();
-  private Preferences preferences;
+  private Keymap keymap;
   private boolean quitting;
-  private int fontStep;
-  private long captured;
-
-  /** Orders settings writes from different lifecycle workers; the UI thread never takes it. */
-  private final ReentrantLock saveLock = new ReentrantLock();
-
-  /** The sequence of the last capture written; guarded by {@link #saveLock}. */
-  private long written;
 
   /**
    * Creates the controller.
@@ -101,7 +88,7 @@ public final class ApplicationController {
    * @param preferences the settings loaded at startup
    * @param system the system's light or dark setting
    * @param budget the documents' heap share
-   * @param keymap the key bindings
+   * @param keymap the default key bindings; the settings' overrides apply on top
    * @param rememberWindow false when the quit saves nothing
    */
   public ApplicationController(
@@ -117,18 +104,18 @@ public final class ApplicationController {
     this.workers = workers;
     this.ui = ui;
     this.view = view;
-    this.config = config;
-    this.preferences = preferences;
+    this.settings = new Settings(config, workers, ui, preferences);
     this.theme = new ThemeController(system, preferences.theme());
     this.documents = new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS);
-    this.keymap = keymap;
+    this.defaultKeymap = keymap;
+    this.keymap = keymap.withOverrides(preferences.shortcuts());
     this.help =
         new HelpController(
             workers,
             ui,
             view,
             config.location(),
-            keymap,
+            this.keymap,
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
@@ -136,13 +123,15 @@ public final class ApplicationController {
               }
             });
     this.rememberWindow = rememberWindow;
-    this.find = new FindController(documents, workers, ui);
+    this.find = new FindController(documents, workers, ui, settings);
     this.workspace = new WorkspaceController(view, workers, ui, documents, budget);
     this.history = new NavigationHistory(documents, workers, ui, view);
     this.recentFiles = new RecentFiles(documents, view);
+    Options options = preferences.options();
+    HyperSearch.Limits limits =
+        HyperSearch.Limits.DEFAULTS.withMaxLineChars(options.searchMaxLineChars());
     this.search =
-        new SearchController(
-            documents, workspace, workers, ui, view, budget, HyperSearch.Limits.DEFAULTS);
+        new SearchController(documents, workspace, workers, ui, view, budget, limits, settings);
     this.replace =
         new ReplaceController(
             documents,
@@ -150,9 +139,9 @@ public final class ApplicationController {
             ui,
             view,
             budget,
-            HyperSearch.Limits.DEFAULTS,
+            limits,
             config.location().directory().resolve(ReplaceBackups.DIRECTORY),
-            ReplaceBackups.DEFAULT_DAYS);
+            options.backupDays());
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
     this.compare = new CompareController(documents, workers, ui, view, budget);
@@ -172,7 +161,131 @@ public final class ApplicationController {
     this.grammars =
         new GrammarLibrary(workers, ui, view, config.location().directory().resolve("grammars"));
     documents.setGrammars(grammars);
-    documents.setCompletionChars(preferences.completionChars());
+    documents.setCompletionChars(options.completionChars());
+    documents.setAutoClose(options.autoClose());
+    documents.setMaxHighlightLineChars(options.maxHighlightLineChars());
+    documents.setPollSeconds(options.pollSeconds());
+    documents.setAutoReloadClean(options.autoReloadClean());
+    documents.setGrammarChosen(
+        new Consumer<String>() {
+          @Override
+          public void accept(String id) {
+            rememberGrammar(id);
+          }
+        });
+    workspace.setExcludedDirectories(options.excludedDirectories());
+    this.preferences = new PreferencesController(settings, view, defaultKeymap);
+    settings.addListener(
+        new Settings.Listener() {
+          @Override
+          public void changed(Preferences before, Preferences after) {
+            apply(before, after);
+          }
+        });
+    logConflicts();
+  }
+
+  private void logConflicts() {
+    for (String conflict : keymap.conflicts()) {
+      LOG.warn("Key conflict: {}", LogText.oneLine(conflict));
+    }
+  }
+
+  /** Brings the running controllers and the view in line with changed settings. */
+  private void apply(Preferences before, Preferences after) {
+    Options old = before.options();
+    Options now = after.options();
+    if (now.completionChars() != old.completionChars()) {
+      documents.setCompletionChars(now.completionChars());
+    }
+    if (now.autoClose() != old.autoClose()) {
+      documents.setAutoClose(now.autoClose());
+    }
+    if (now.maxHighlightLineChars() != old.maxHighlightLineChars()) {
+      documents.setMaxHighlightLineChars(now.maxHighlightLineChars());
+    }
+    if (now.fontSize() != old.fontSize()) {
+      view.setFontSize(now.fontSize());
+    }
+    if (now.pollSeconds() != old.pollSeconds()) {
+      documents.setPollSeconds(now.pollSeconds());
+    }
+    if (now.autoReloadClean() != old.autoReloadClean()) {
+      documents.setAutoReloadClean(now.autoReloadClean());
+    }
+    if (now.backupDays() != old.backupDays()) {
+      replace.setBackupDays(now.backupDays());
+    }
+    if (now.searchMaxLineChars() != old.searchMaxLineChars()) {
+      search.setMaxLineChars(now.searchMaxLineChars());
+      replace.setMaxLineChars(now.searchMaxLineChars());
+    }
+    if (!now.excludedDirectories().equals(old.excludedDirectories())) {
+      workspace.setExcludedDirectories(now.excludedDirectories());
+    }
+    if (!after.state().search().equals(before.state().search())) {
+      find.togglesChanged();
+    }
+    if (!after.shortcuts().equals(before.shortcuts())) {
+      keymap = defaultKeymap.withOverrides(after.shortcuts());
+      help.setKeymap(keymap);
+      view.setKeymap(keymap);
+      logConflicts();
+    }
+    if (after.theme() != before.theme() && !theme.setMode(after.theme())) {
+      view.showInfo(UiText.THEME_RESTART_TITLE.text(), UiText.THEME_RESTART_MESSAGE.text());
+    }
+  }
+
+  private void rememberGrammar(String id) {
+    Preferences current = settings.current();
+    List<String> recent = new ArrayList<String>(current.state().recentGrammars());
+    recent.remove(id);
+    recent.add(0, id);
+    settings.set(current.withState(current.state().withRecentGrammars(recent)));
+  }
+
+  /**
+   * Returns the running settings.
+   *
+   * @return the settings
+   */
+  public Settings settings() {
+    return settings;
+  }
+
+  /**
+   * Returns a dialog's remembered size.
+   *
+   * @param name the dialog's name
+   * @return its size, or null when none is remembered
+   */
+  public DialogSize dialogSize(String name) {
+    UiState.Size size = settings.current().state().dialogs().get(name);
+    return size == null ? null : new DialogSize(size.width(), size.height());
+  }
+
+  /**
+   * Remembers a dialog's size.
+   *
+   * @param name the dialog's name, {@code [A-Za-z0-9]+}
+   * @param size its size
+   */
+  public void rememberDialogSize(String name, DialogSize size) {
+    if (!quitting) {
+      Preferences current = settings.current();
+      UiState.Size kept = new UiState.Size(size.width(), size.height());
+      settings.set(current.withState(current.state().withDialog(name, kept)));
+    }
+  }
+
+  /**
+   * Returns {@code editor.fontSize}.
+   *
+   * @return the size in points, 0 for the platform's default
+   */
+  public int fontSize() {
+    return settings.current().options().fontSize();
   }
 
   /**
@@ -322,9 +435,10 @@ public final class ApplicationController {
     return help.debugLogFile();
   }
 
-  /** Returns the editor font step; for {@link CommandStates}. */
-  int fontStep() {
-    return fontStep;
+  /** Returns the editor font size in points; for {@link CommandStates}. */
+  int fontPoints() {
+    int size = settings.current().options().fontSize();
+    return size == 0 ? view.defaultFontSize() : size;
   }
 
   /**
@@ -351,7 +465,7 @@ public final class ApplicationController {
    * @return the settings
    */
   public Preferences preferences() {
-    return preferences;
+    return settings.current();
   }
 
   /**
@@ -505,9 +619,10 @@ public final class ApplicationController {
       case GO_TO_LINE -> documents.goToLine();
       case READ_ONLY -> documents.toggleReadOnly();
       case WORD_WRAP -> documents.toggleWrap();
-      case ZOOM_IN -> setFontStep(fontStep + 1);
-      case ZOOM_OUT -> setFontStep(fontStep - 1);
-      case ZOOM_RESET -> setFontStep(0);
+      case ZOOM_IN -> setFontSize(fontPoints() + 1);
+      case ZOOM_OUT -> setFontSize(fontPoints() - 1);
+      case ZOOM_RESET -> setFontSize(0);
+      case PREFERENCES -> preferences.open();
       case THEME_LIGHT -> setTheme(ThemeMode.LIGHT);
       case THEME_DARK -> setTheme(ThemeMode.DARK);
       case THEME_SYSTEM -> setTheme(ThemeMode.SYSTEM);
@@ -577,12 +692,11 @@ public final class ApplicationController {
     }
   }
 
-  private void setFontStep(int step) {
-    int bounded = Math.max(MIN_FONT_STEP, Math.min(MAX_FONT_STEP, step));
-    if (bounded != fontStep) {
-      fontStep = bounded;
-      view.setFontStep(bounded);
-    }
+  private void setFontSize(int points) {
+    int bounded =
+        points == 0 ? 0 : Math.max(Options.MIN_FONT_SIZE, Math.min(Options.MAX_FONT_SIZE, points));
+    Preferences current = settings.current();
+    settings.set(current.withOptions(current.options().withFontSize(bounded)));
   }
 
   /**
@@ -591,10 +705,7 @@ public final class ApplicationController {
    * @param on true to open it
    */
   private void setDebugLogFile(boolean on) {
-    if (preferences.debugLogFile() != on) {
-      preferences = preferences.withDebugLogFile(on);
-      save(capture());
-    }
+    settings.set(settings.current().withDebugLogFile(on));
     help.setDebugLogFile(
         on,
         new Runnable() {
@@ -620,8 +731,8 @@ public final class ApplicationController {
   }
 
   /**
-   * Sets {@code ui.theme}, saves it and applies the palette. When native controls show the theme
-   * only from the next start, says so.
+   * Sets {@code ui.theme} and applies the palette. When native controls show the theme only from
+   * the next start, says so.
    *
    * @param mode the theme
    */
@@ -629,11 +740,7 @@ public final class ApplicationController {
     if (quitting) {
       return;
     }
-    preferences = preferences.withTheme(mode);
-    save(capture());
-    if (!theme.setMode(mode)) {
-      view.showInfo(UiText.THEME_RESTART_TITLE.text(), UiText.THEME_RESTART_MESSAGE.text());
-    }
+    settings.set(settings.current().withTheme(mode));
   }
 
   /** Reads the license notices from the jar on a worker, then shows them; About's Licenses. */
@@ -662,21 +769,23 @@ public final class ApplicationController {
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();
-      preferences =
-          preferences.withWindow(
-              new WindowState(
-                  bounds.x(), bounds.y(), bounds.width(), bounds.height(), view.windowMaximized()));
+      settings.record(
+          settings
+              .current()
+              .withWindow(
+                  new WindowState(
+                      bounds.x(),
+                      bounds.y(),
+                      bounds.width(),
+                      bounds.height(),
+                      view.windowMaximized())));
     }
-    // Without a placement to record there is nothing new to write.
-    final Snapshot snapshot = rememberWindow ? capture() : null;
     view.hide();
     Runnable finish =
         new Runnable() {
           @Override
           public void run() {
-            if (snapshot != null) {
-              write(snapshot);
-            }
+            settings.flush();
             if (!workers.close(Workers.CLOSE_BOUND)) {
               LOG.warn(
                   "Worker threads still running after {}: {}",
@@ -702,44 +811,6 @@ public final class ApplicationController {
   private void finished() {
     for (Runnable listener : finishListeners) {
       listener.run();
-    }
-  }
-
-  /** The settings captured on the UI thread, with their capture order. */
-  private record Snapshot(long sequence, Preferences preferences) {}
-
-  private Snapshot capture() {
-    captured++;
-    return new Snapshot(captured, preferences);
-  }
-
-  /** Writes a snapshot on a lifecycle worker. */
-  private void save(final Snapshot snapshot) {
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.LIFECYCLE,
-            new Runnable() {
-              @Override
-              public void run() {
-                write(snapshot);
-              }
-            });
-    if (!started) {
-      LOG.warn("Settings not saved: workers are closed");
-    }
-  }
-
-  /** Writes a snapshot unless a later capture has been written. */
-  @WorkerThread
-  private void write(Snapshot snapshot) {
-    saveLock.lock();
-    try {
-      if (snapshot.sequence() > written) {
-        written = snapshot.sequence();
-        config.save(snapshot.preferences());
-      }
-    } finally {
-      saveLock.unlock();
     }
   }
 }

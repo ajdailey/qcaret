@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
@@ -54,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -116,9 +118,6 @@ public final class DocumentController {
   /** Closed files Reopen Closed Tab remembers. */
   static final int REOPEN_LIMIT = 20;
 
-  /** Chosen grammars {@link #recentGrammars} keeps. */
-  static final int RECENT_GRAMMARS = 5;
-
   private final Workers workers;
   private final UiDispatcher ui;
   private final MainView view;
@@ -128,7 +127,6 @@ public final class DocumentController {
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
   private final Map<Path, Charset> reopening = new HashMap<Path, Charset>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
-  private final List<String> recentGrammars = new ArrayList<String>();
   private boolean disposing;
   private OpenDocument active;
   private int nextUntitled = 1;
@@ -138,6 +136,10 @@ public final class DocumentController {
   private boolean showWhitespace;
   private boolean showLineEndings;
   private int completionChars;
+  private boolean autoClose = true;
+  private int maxHighlightLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
+  private boolean autoReloadClean = true;
+  private Consumer<String> grammarChosen;
   private final Map<Path, Consumer<EditorController>> afterOpen =
       new HashMap<Path, Consumer<EditorController>>();
   private boolean overviewShown = true;
@@ -236,7 +238,7 @@ public final class DocumentController {
         new ExternalChanges(
             workers,
             ui,
-            ExternalChanges.POLL_MILLIS,
+            TimeUnit.SECONDS.toMillis(Options.DEFAULTS.pollSeconds()),
             new ExternalChanges.Listener() {
               @Override
               public void found(ExternalChanges.Watch watch, FileCheck.Result result) {
@@ -414,6 +416,56 @@ public final class DocumentController {
         e.setCompletionChars(chars);
       }
     }
+  }
+
+  /**
+   * Turns auto-close on or off in every editor ({@code editor.autoClose}).
+   *
+   * @param on true when typing an opener also inserts its closer
+   */
+  public void setAutoClose(boolean on) {
+    autoClose = on;
+    for (OpenDocument d : documents) {
+      for (EditorController e : d.editors) {
+        e.setAutoClose(on);
+      }
+    }
+  }
+
+  /**
+   * Sets the longest line colored; every document highlights again.
+   *
+   * @param chars lines longer than this stay plain ({@code editor.maxHighlightLineChars})
+   */
+  public void setMaxHighlightLineChars(int chars) {
+    maxHighlightLineChars = chars;
+    for (OpenDocument d : documents) {
+      d.syntax.setMaxLineChars(chars);
+    }
+  }
+
+  /**
+   * Sets the interval between checks of every open file ({@code file.pollSeconds}).
+   *
+   * @param seconds the interval
+   */
+  public void setPollSeconds(int seconds) {
+    changes.setPollMillis(TimeUnit.SECONDS.toMillis(seconds));
+  }
+
+  /**
+   * Sets whether a changed file reloads a clean buffer without a prompt ({@code
+   * file.autoReloadClean}).
+   *
+   * @param on false to prompt for every change
+   */
+  public void setAutoReloadClean(boolean on) {
+    autoReloadClean = on;
+  }
+
+  /** Sets what receives a grammar's id when the user chooses it with {@link #setSyntax}. */
+  void setGrammarChosen(Consumer<String> listener) {
+    grammarChosen = listener;
   }
 
   /** Returns the open documents in tab order. */
@@ -741,6 +793,7 @@ public final class DocumentController {
         overviewShown);
     editor.setCompletion(completion);
     editor.setCompletionChars(completionChars);
+    editor.setAutoClose(autoClose);
     editor.setMarks(showWhitespace, showLineEndings);
     editor.setNoticeListener(
         new Consumer<String>() {
@@ -1861,17 +1914,10 @@ public final class DocumentController {
     if (active != null && set != null && set.get(id) != null) {
       active.manualGrammar = true;
       applyGrammar(active, id, set);
-      recentGrammars.remove(id);
-      recentGrammars.add(0, id);
-      if (recentGrammars.size() > RECENT_GRAMMARS) {
-        recentGrammars.remove(RECENT_GRAMMARS);
+      if (grammarChosen != null) {
+        grammarChosen.accept(id);
       }
     }
-  }
-
-  /** Returns the ids of the grammars last chosen with {@link #setSyntax}, most recent first. */
-  List<String> recentGrammars() {
-    return List.copyOf(recentGrammars);
   }
 
   /** Returns the selected document's grammar, or null without a document or before the read. */
@@ -1910,7 +1956,7 @@ public final class DocumentController {
             }
           }
         },
-        SyntaxEngine.DEFAULT_MAX_LINE_CHARS);
+        maxHighlightLineChars);
   }
 
   /** Picks the document's grammar on a worker from its file name and first line. */
@@ -1970,11 +2016,6 @@ public final class DocumentController {
   }
 
   // External changes.
-
-  /**
-   * Whether a clean document reloads a changed file without asking ({@code file.autoReloadClean}).
-   */
-  static final boolean AUTO_RELOAD_CLEAN = true;
 
   /** Reloads retried while the document changes under them. */
   static final int RELOAD_ATTEMPTS = 3;
@@ -2062,7 +2103,7 @@ public final class DocumentController {
         if (d.missing) {
           clearMissing(d);
         }
-        if (AUTO_RELOAD_CLEAN && !d.document.isDirty()) {
+        if (autoReloadClean && !d.document.isDirty()) {
           reload(d);
         } else {
           changes.accept(d.watch, result.current());

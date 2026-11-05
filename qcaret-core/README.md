@@ -457,7 +457,7 @@ ranges limit it to the selections; a match then lies inside one.
 `FileSearch.run` walks a directory on the calling `qcaret-search-` worker
 without following symbolic links. `FileFilter` holds the masks: `;`-separated
 globs on the file name (empty include takes every file), excluded directory
-names (default `.git;.svn;.hg`) and hidden files, a leading `.` or the
+names (default `.git;.svn;.hg;target;node_modules;build`) and hidden files, a leading `.` or the
 platform's hidden attribute. Paths in `searchedElsewhere` (open documents) are
 not read. Each file is read and decoded on a `qcaret-io-` thread, at most four
 at a time, and matched on the CPU pool.
@@ -571,7 +571,7 @@ mounts, polls on macOS, and never sees a link's target change in another
 directory. An exception from the listener goes to the thread's
 uncaught-exception handler once per run of failures, and checking goes on
 (QLogg THR-17). The thread ends within 100 ms of the last `unwatch` or of
-`close`.
+`close`. `setPollMillis` takes effect at once: the next check is one new interval away.
 
 ## Bounded reads (`core.text`)
 

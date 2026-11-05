@@ -61,7 +61,7 @@ final class SyntaxHighlighter implements TokenSource, FoldRegionSource, Document
   private final Workers workers;
   private final UiDispatcher ui;
   private final Runnable repaint;
-  private final int maxLineChars;
+  private volatile int maxLineChars;
   private final TokenCache cache = new TokenCache(TokenCache.DEFAULT_CAPACITY);
   private final Map<Object, int[]> views = new IdentityHashMap<Object, int[]>();
   private final Map<Object, Integer> keys = new IdentityHashMap<Object, Integer>();
@@ -163,6 +163,18 @@ final class SyntaxHighlighter implements TokenSource, FoldRegionSource, Document
     repaint.run();
     if (regionsListener != null) {
       regionsListener.run();
+    }
+  }
+
+  /**
+   * Sets the longest line colored and highlights the document again.
+   *
+   * @param chars lines longer than this stay plain
+   */
+  void setMaxLineChars(int chars) {
+    if (chars != maxLineChars) {
+      maxLineChars = chars;
+      setSyntax(syntax);
     }
   }
 

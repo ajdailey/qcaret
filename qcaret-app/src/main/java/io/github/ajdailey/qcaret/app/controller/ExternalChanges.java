@@ -34,9 +34,6 @@ import org.slf4j.LoggerFactory;
 final class ExternalChanges {
   private static final Logger LOG = LoggerFactory.getLogger(ExternalChanges.class);
 
-  /** Interval between checks of every open file ({@code file.pollSeconds}, a constant until S7). */
-  static final long POLL_MILLIS = 5000;
-
   /** Receives the results of the current generation on the UI thread. */
   interface Listener {
     /**
@@ -98,6 +95,11 @@ final class ExternalChanges {
                 checkFiles(files);
               }
             });
+  }
+
+  /** Sets the interval between checks of every open file ({@code file.pollSeconds}). */
+  void setPollMillis(long pollMillis) {
+    monitor.setPollMillis(pollMillis);
   }
 
   /** Starts checking a file against a baseline, null when no file exists yet. */

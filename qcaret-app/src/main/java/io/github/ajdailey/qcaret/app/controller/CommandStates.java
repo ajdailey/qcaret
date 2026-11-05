@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
@@ -69,7 +70,8 @@ public final class CommandStates {
           CommandId.CLEAR_RECENT_FILES,
           CommandId.WORKSPACE_BROWSER,
           CommandId.GO_BACK,
-          CommandId.GO_FORWARD);
+          CommandId.GO_FORWARD,
+          CommandId.PREFERENCES);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -189,8 +191,8 @@ public final class CommandStates {
     }
     if (WINDOW_COMMANDS.contains(command) || command.group() == CommandGroup.HELP) {
       return switch (command) {
-        case ZOOM_IN -> application.fontStep() < ApplicationController.MAX_FONT_STEP;
-        case ZOOM_OUT -> application.fontStep() > ApplicationController.MIN_FONT_STEP;
+        case ZOOM_IN -> application.fontPoints() < Options.MAX_FONT_SIZE;
+        case ZOOM_OUT -> application.fontPoints() > Options.MIN_FONT_SIZE;
         case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
         case CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
         case GO_BACK -> application.history().canBack();
@@ -243,7 +245,8 @@ public final class CommandStates {
       return SyntaxMenu.EMPTY;
     }
     Grammar active = documents.activeGrammar();
-    return SyntaxMenu.of(grammars, documents.recentGrammars(), active == null ? null : active.id());
+    List<String> recent = application.settings().current().state().recentGrammars();
+    return SyntaxMenu.of(grammars, recent, active == null ? null : active.id());
   }
 
   /**

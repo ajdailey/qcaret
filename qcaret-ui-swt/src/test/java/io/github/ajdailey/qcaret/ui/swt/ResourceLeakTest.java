@@ -52,14 +52,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
- * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
- * command palette, the completion list, the whitespace marks, a HyperSearch from its dialog into
- * the results dock, the replace preview opened and closed, the overview strip hidden and shown, and
- * a bookmark comment with its gutter tooltip and the Bookmarks list opened and hidden, the
- * workspace browser with a directory expanded and its context menu, Quick Open filtered and closed,
- * a comparison window opened, recolored and closed, and the external-change prompt and the document
- * chooser opened and closed return the Display's tracked graphics resources ({@code
+ * Tab open and close, theme switches, font zoom, Preferences, the tab menu, menu syncs, split and
+ * unsplit, folding and unfolding in both views of a split, the find bar opened, searching and
+ * closed, the command palette, the completion list, the whitespace marks, a HyperSearch from its
+ * dialog into the results dock, the replace preview opened and closed, the overview strip hidden
+ * and shown, and a bookmark comment with its gutter tooltip and the Bookmarks list opened and
+ * hidden, the workspace browser with a directory expanded and its context menu, Quick Open filtered
+ * and closed, a comparison window opened, recolored and closed, and the external-change prompt and
+ * the document chooser opened and closed return the Display's tracked graphics resources ({@code
  * DeviceData.tracking}) to their count after a warm-up round. Theme switches, zoom and split each
  * rebuild or add a primary caret image. A failure lists each leaked object's allocation stack.
  *
@@ -461,6 +461,25 @@ class ResourceLeakTest {
     drain();
   }
 
+  /** The Preferences dialog open through a theme switch, then closed. */
+  private void preferences() {
+    controller.execute(CommandId.PREFERENCES);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.preferencesDialog() != null
+                    && !window.preferencesDialog().shell().isDisposed();
+              }
+            }));
+    theme(CommandId.THEME_DARK, Palette.DARK);
+    theme(CommandId.THEME_LIGHT, Palette.LIGHT);
+    assertTrue(window.preferencesDialog().apply());
+    window.preferencesDialog().shell().dispose();
+    drain();
+  }
+
   /** One round of every operation; the first rounds create lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
@@ -478,6 +497,7 @@ class ResourceLeakTest {
     searchAndStrip();
     bookmarkList();
     workspaceAndQuickOpen();
+    preferences();
     compareAndPrompt();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {

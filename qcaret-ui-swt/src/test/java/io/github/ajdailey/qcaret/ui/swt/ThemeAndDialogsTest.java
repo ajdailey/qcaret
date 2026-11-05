@@ -219,7 +219,7 @@ class ThemeAndDialogsTest {
     assumeFalse(AppMenu.present(display), "Cocoa always has the application menu");
     assertSame(CommandId.ABOUT, AppMenu.command(SWT.ID_ABOUT));
     assertSame(CommandId.QUIT, AppMenu.command(SWT.ID_QUIT));
-    assertNull(AppMenu.command(SWT.ID_PREFERENCES));
+    assertSame(CommandId.PREFERENCES, AppMenu.command(SWT.ID_PREFERENCES));
     assertNull(AppMenu.command(SWT.ID_HIDE));
     assertNotNull(item(CommandId.ABOUT));
     assertNotNull(item(CommandId.QUIT));

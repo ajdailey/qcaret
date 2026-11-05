@@ -199,6 +199,23 @@ class SyntaxHighlighterTest {
   }
 
   @Test
+  void aChangedLineLimitHighlightsTheDocumentAgain() throws InterruptedException {
+    highlighter.setSyntax(GRAMMARS.syntax("java"));
+    show(0, 10);
+    awaitIdle();
+    assertEquals(TokenRole.KEYWORD.ordinal(), highlighter.tokens(0)[2]);
+    highlighter.setMaxLineChars(1);
+    show(0, 10);
+    awaitIdle();
+    int[] plain = highlighter.tokens(0);
+    assertTrue(plain == null || plain.length == 0);
+    highlighter.setMaxLineChars(10_000);
+    show(0, 10);
+    awaitIdle();
+    assertEquals(TokenRole.KEYWORD.ordinal(), highlighter.tokens(0)[2]);
+  }
+
+  @Test
   void plainTextHasNoTokensAndDisposeStopsTheWork() throws InterruptedException {
     highlighter.setSyntax(null);
     show(0, 10);

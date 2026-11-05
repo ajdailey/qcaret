@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.command;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -202,6 +203,7 @@ public final class Keymap {
       editor(b, CommandId.COMPLETE_WORD, P, KeyStroke.SPACE);
     }
     window(b, CommandId.COMMAND_PALETTE, P | S, 'p');
+    window(b, CommandId.PREFERENCES, P, ',');
     window(b, CommandId.QUICK_OPEN, P, 'p');
     window(b, CommandId.SWITCH_DOCUMENT, P | S, 'o');
     int back = mac ? KeyStroke.CONTROL | P : KeyStroke.ALT;
@@ -279,7 +281,7 @@ public final class Keymap {
 
   /**
    * Returns the shortcut reference as plain text: one line per command with keys, grouped by menu,
-   * the editor's keys last.
+   * the editor's keys last, then any {@link #conflicts}.
    *
    * @return the text
    */
@@ -315,6 +317,13 @@ public final class Keymap {
         text.append("  ").append(command.title()).append('\t').append(keys).append('\n');
       }
     }
+    List<String> conflicts = conflicts();
+    if (!conflicts.isEmpty() && needle.isEmpty()) {
+      text.append(UiText.SHORTCUTS_CONFLICTS.text()).append('\n');
+      for (String conflict : conflicts) {
+        text.append("  ").append(conflict).append('\n');
+      }
+    }
     return text.toString();
   }
 
@@ -347,6 +356,96 @@ public final class Keymap {
       }
     }
     return null;
+  }
+
+  /**
+   * Returns the keymap with a command's keys replaced wherever the overrides set them. A key keeps
+   * the scope of the command's default keys, so an editor command stays one; a command without
+   * defaults is a window command, or an editor one in {@link CommandGroup#EDITOR}.
+   *
+   * @param overrides the keys set in place of the defaults
+   * @return the keymap
+   */
+  public Keymap withOverrides(ShortcutOverrides overrides) {
+    List<Binding> merged = new ArrayList<Binding>();
+    for (Binding binding : bindings) {
+      if (overrides.strokes(binding.command()) == null) {
+        merged.add(binding);
+      }
+    }
+    for (CommandId command : CommandId.values()) {
+      List<KeyStroke> strokes = overrides.strokes(command);
+      if (strokes != null) {
+        Binding.Scope scope = scope(command);
+        for (KeyStroke stroke : strokes) {
+          merged.add(new Binding(command, stroke, scope));
+        }
+      }
+    }
+    return new Keymap(merged, mac);
+  }
+
+  private Binding.Scope scope(CommandId command) {
+    for (Binding binding : bindings) {
+      if (binding.command() == command) {
+        return binding.scope();
+      }
+    }
+    return command.group() == CommandGroup.EDITOR ? Binding.Scope.EDITOR : Binding.Scope.WINDOW;
+  }
+
+  /**
+   * Returns a command's keys.
+   *
+   * @param command the command
+   * @return its strokes in binding order
+   */
+  public List<KeyStroke> strokes(CommandId command) {
+    List<KeyStroke> strokes = new ArrayList<KeyStroke>();
+    for (Binding binding : bindings) {
+      if (binding.command() == command) {
+        strokes.add(binding.stroke());
+      }
+    }
+    return strokes;
+  }
+
+  /**
+   * Returns the command holding a stroke, apart from a given one.
+   *
+   * @param stroke the stroke
+   * @param except the command left out
+   * @return the first other command bound to the stroke, or null
+   */
+  public CommandId holder(KeyStroke stroke, CommandId except) {
+    for (Binding binding : bindings) {
+      if (binding.command() != except && binding.stroke().equals(stroke)) {
+        return binding.command();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Lists the keys two commands share, one line each. A window binding wins over an editor binding
+   * of the same stroke; within a scope the first binding wins.
+   *
+   * @return for example {@code Ctrl+K: Find, Copy}; empty when none
+   */
+  public List<String> conflicts() {
+    List<String> found = new ArrayList<String>();
+    for (int i = 0; i < bindings.size(); i++) {
+      for (int j = i + 1; j < bindings.size(); j++) {
+        Binding a = bindings.get(i);
+        Binding b = bindings.get(j);
+        if (a.stroke().equals(b.stroke()) && a.command() != b.command()) {
+          found.add(
+              UiText.SHORTCUTS_CONFLICT_LINE.format(
+                  a.text(mac), a.command().title(), b.command().title()));
+        }
+      }
+    }
+    return found;
   }
 
   /**

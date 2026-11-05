@@ -183,6 +183,17 @@ class ExternalChangeTest {
   }
 
   @Test
+  void aCleanDocumentAsksWhenAutoReloadIsOff() throws Exception {
+    Path file = write("a.txt", "one\n");
+    Document document = open(file);
+    documents.setAutoReloadClean(false);
+    write("a.txt", "two\n");
+    checkUntilPrompts(1);
+    assertEquals("one\n", document.text().toString());
+    view.changeAnswer.accept(ChangeChoice.KEEP);
+  }
+
+  @Test
   void aDirtyDocumentAsksAndKeepMineMakesTheSaveAsk() throws Exception {
     Path file = write("a.txt", "one\n");
     Document document = open(file);

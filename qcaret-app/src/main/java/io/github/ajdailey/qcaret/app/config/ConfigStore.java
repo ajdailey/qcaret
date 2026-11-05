@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.app.config;
 
-import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -15,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
@@ -28,30 +29,23 @@ import org.slf4j.LoggerFactory;
  * version 1, so an empty portable marker is valid. A file that cannot be read, is over {@link
  * #MAX_BYTES}, does not parse or has another version is malformed: defaults apply, one WARN names
  * it, and the first save copies it to {@code qcaret.conf.invalid} before replacing it. A value that
- * does not parse falls back to its default. Saves write atomically ({@link AtomicFiles}). A
- * read-only settings directory disables saving with one WARN. Only file names and keys are logged,
- * never values.
+ * does not parse falls back to its default. A read-only settings directory disables saving with one
+ * WARN. Only file names and keys are logged, never values.
+ *
+ * <p>{@link #save} re-reads the file and writes only the keys that differ between the two settings
+ * it is given, so another process's newer values and keys this version does not know stay. A
+ * missing or malformed file gets every key. Saves write atomically ({@link AtomicFiles}). Two
+ * processes saving within the same read and write can still lose one write: no file lock is held.
  */
 public final class ConfigStore {
-  /** Largest file read; a longer one is malformed. */
+  /** Largest file read or written; a longer one is malformed. */
   public static final int MAX_BYTES = 1 << 20;
 
   /** The format version written. */
   public static final String VERSION = "1";
 
   static final String VERSION_KEY = "version";
-  static final String THEME_KEY = "ui.theme";
-  static final String WINDOW_X = "window.x";
-  static final String WINDOW_Y = "window.y";
-  static final String WINDOW_WIDTH = "window.width";
-  static final String WINDOW_HEIGHT = "window.height";
-  static final String WINDOW_MAXIMIZED = "window.maximized";
-  static final String DEBUG_LOG_FILE = "log.debugFile";
-  static final String COMPLETION_CHARS = "editor.completionChars";
   static final String INVALID_SUFFIX = ".invalid";
-
-  /** Largest window coordinate or size accepted, in pixels. */
-  static final int MAX_PIXELS = 100_000;
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigStore.class);
 
@@ -105,18 +99,8 @@ public final class ConfigStore {
         disableSaving();
       }
       Path file = SafePaths.child(dir, SettingsLocation.MARKER);
-      byte[] bytes;
-      try (InputStream in = Files.newInputStream(file)) {
-        bytes = Streams.readLimited(in, MAX_BYTES);
-      } catch (NoSuchFileException e) {
-        return Preferences.DEFAULTS;
-      }
-      Properties properties = parse(bytes);
-      if (properties == null) {
-        malformed(file);
-        return Preferences.DEFAULTS;
-      }
-      return read(properties, file);
+      Properties properties = read(file);
+      return properties == null ? Preferences.DEFAULTS : PreferenceKeys.read(properties, file);
     } catch (IOException e) {
       LOG.warn(
           "Cannot read settings in {}: {}",
@@ -130,12 +114,15 @@ public final class ConfigStore {
   }
 
   /**
-   * Writes the settings atomically, creating a per-user directory first. Blocking.
+   * Writes the keys that differ between two settings over the file's current keys, atomically,
+   * creating a per-user directory first. Does nothing when no key differs and the file is valid.
+   * Blocking.
    *
-   * @param preferences the settings
+   * @param before the settings the change started from
+   * @param after the settings to save
    * @return false when saving is disabled or the write failed, which is logged
    */
-  public boolean save(Preferences preferences) {
+  public boolean save(Preferences before, Preferences after) {
     lock.lock();
     try {
       if (saveDisabled) {
@@ -146,12 +133,33 @@ public final class ConfigStore {
         SafePaths.settingsDirectory(dir);
       }
       Path file = SafePaths.child(dir, SettingsLocation.MARKER);
+      Map<String, String> changed = changes(before, after);
+      Properties properties = read(file);
+      if (properties == null) {
+        properties = new Properties();
+        changed.putAll(PreferenceKeys.write(after));
+      } else if (changed.isEmpty()) {
+        return true;
+      }
+      for (Map.Entry<String, String> entry : changed.entrySet()) {
+        if (entry.getValue() == null) {
+          properties.remove(entry.getKey());
+        } else {
+          properties.setProperty(entry.getKey(), entry.getValue());
+        }
+      }
+      properties.setProperty(VERSION_KEY, VERSION);
+      byte[] bytes = format(properties);
+      if (bytes.length > MAX_BYTES) {
+        LOG.warn("Settings not saved: {} would be over 1 MiB", SettingsLocation.MARKER);
+        return false;
+      }
       if (keepInvalid && Files.exists(file)) {
         Path invalid = SafePaths.child(dir, SettingsLocation.MARKER + INVALID_SUFFIX);
         Files.copy(file, invalid, StandardCopyOption.REPLACE_EXISTING);
       }
       keepInvalid = false;
-      AtomicFiles.write(file, format(preferences));
+      AtomicFiles.write(file, bytes);
       return true;
     } catch (AccessDeniedException e) {
       disableSaving();
@@ -171,12 +179,86 @@ public final class ConfigStore {
     }
   }
 
+  /**
+   * Applies another process's changes to settings that moved on since they were read.
+   *
+   * @param base the settings both sides started from
+   * @param theirs the settings as read from the file
+   * @param mine the settings to keep otherwise
+   * @return {@code mine} with the keys that differ between {@code base} and {@code theirs}, apart
+   *     from keys {@code mine} also changed: those are saved after the file was read
+   */
+  public static Preferences merge(Preferences base, Preferences theirs, Preferences mine) {
+    Properties keys = new Properties();
+    keys.putAll(PreferenceKeys.write(mine));
+    Map<String, String> changedHere = changes(base, mine);
+    for (Map.Entry<String, String> entry : changes(base, theirs).entrySet()) {
+      if (changedHere.containsKey(entry.getKey())) {
+        continue;
+      }
+      if (entry.getValue() == null) {
+        keys.remove(entry.getKey());
+      } else {
+        keys.setProperty(entry.getKey(), entry.getValue());
+      }
+    }
+    return PreferenceKeys.read(keys, Path.of(SettingsLocation.MARKER));
+  }
+
+  /** Returns the keys that differ, each with its new value or null when it goes. */
+  private static Map<String, String> changes(Preferences before, Preferences after) {
+    Map<String, String> old = PreferenceKeys.write(before);
+    Map<String, String> next = PreferenceKeys.write(after);
+    Map<String, String> changed = new HashMap<String, String>();
+    for (Map.Entry<String, String> entry : next.entrySet()) {
+      if (!entry.getValue().equals(old.get(entry.getKey()))) {
+        changed.put(entry.getKey(), entry.getValue());
+      }
+    }
+    for (String key : old.keySet()) {
+      if (!next.containsKey(key)) {
+        changed.put(key, null);
+      }
+    }
+    return changed;
+  }
+
+  /**
+   * Returns the file's properties, or null when it is missing or, with {@link #keepInvalid} set,
+   * when it is malformed or cannot be read.
+   */
+  private Properties read(Path file) {
+    byte[] bytes;
+    try (InputStream in = Files.newInputStream(file)) {
+      bytes = Streams.readLimited(in, MAX_BYTES);
+    } catch (NoSuchFileException e) {
+      keepInvalid = false;
+      return null;
+    } catch (IOException e) {
+      if (!keepInvalid) {
+        LOG.warn(
+            "Cannot read settings in {}: {}",
+            LogText.oneLine(location.directory()),
+            LogText.oneLine(e.getMessage()));
+      }
+      keepInvalid = true;
+      return null;
+    }
+    Properties properties = parse(bytes);
+    if (properties == null) {
+      malformed(file);
+      return null;
+    }
+    keepInvalid = false;
+    return properties;
+  }
+
   /** Returns the properties, or null when the bytes do not parse or name another version. */
-  private static Properties parse(byte[] bytes) throws IOException {
+  private static Properties parse(byte[] bytes) {
     Properties properties = new Properties();
     try {
       properties.load(new ByteArrayInputStream(bytes));
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException | IOException e) {
       return null;
     }
     String version = properties.getProperty(VERSION_KEY);
@@ -186,88 +268,8 @@ public final class ConfigStore {
     return properties;
   }
 
-  private static Preferences read(Properties properties, Path file) {
-    Preferences preferences = Preferences.DEFAULTS;
-    String theme = properties.getProperty(THEME_KEY);
-    if (theme != null) {
-      ThemeMode mode = ThemeMode.parse(theme);
-      if (mode == null) {
-        invalid(THEME_KEY, file);
-      } else {
-        preferences = preferences.withTheme(mode);
-      }
-    }
-    preferences = preferences.withDebugLogFile(flag(properties, DEBUG_LOG_FILE, false, file));
-    long chars = number(properties, COMPLETION_CHARS, 0, Preferences.MAX_COMPLETION_CHARS, file);
-    if (chars != Long.MIN_VALUE) {
-      preferences = preferences.withCompletionChars((int) chars);
-    }
-    return preferences.withWindow(
-        new WindowState(
-            optional(properties, WINDOW_X, -MAX_PIXELS, MAX_PIXELS, file),
-            optional(properties, WINDOW_Y, -MAX_PIXELS, MAX_PIXELS, file),
-            optional(properties, WINDOW_WIDTH, 1, MAX_PIXELS, file),
-            optional(properties, WINDOW_HEIGHT, 1, MAX_PIXELS, file),
-            flag(properties, WINDOW_MAXIMIZED, false, file)));
-  }
-
-  /** Returns a whole number in range, null when absent, or null with one WARN when invalid. */
-  private static Integer optional(Properties properties, String key, int min, int max, Path file) {
-    long value = number(properties, key, min, max, file);
-    return value == Long.MIN_VALUE ? null : Integer.valueOf((int) value);
-  }
-
-  /**
-   * Returns a whole number in range, {@code Long.MIN_VALUE} when absent, or {@code Long.MIN_VALUE}
-   * with one WARN when invalid.
-   */
-  private static long number(Properties properties, String key, long min, long max, Path file) {
-    String value = properties.getProperty(key);
-    if (value == null) {
-      return Long.MIN_VALUE;
-    }
-    try {
-      long parsed = Long.parseLong(value.strip());
-      if (parsed >= min && parsed <= max) {
-        return parsed;
-      }
-    } catch (NumberFormatException e) {
-      // Reported below.
-    }
-    invalid(key, file);
-    return Long.MIN_VALUE;
-  }
-
-  private static boolean flag(Properties properties, String key, boolean fallback, Path file) {
-    String value = properties.getProperty(key);
-    if (value == null) {
-      return fallback;
-    }
-    String text = value.strip();
-    if (text.equals("true") || text.equals("false")) {
-      return text.equals("true");
-    }
-    invalid(key, file);
-    return fallback;
-  }
-
-  private static void invalid(String key, Path file) {
-    LOG.warn("Ignoring an invalid {} in {}", LogText.oneLine(key), LogText.oneLine(file));
-  }
-
   /** Returns the file content: sorted keys, ISO-8859-1 with escapes, no date comment. */
-  static byte[] format(Preferences preferences) throws IOException {
-    Properties properties = new Properties();
-    properties.setProperty(VERSION_KEY, VERSION);
-    properties.setProperty(THEME_KEY, preferences.theme().key());
-    WindowState window = preferences.window();
-    storeOptional(properties, WINDOW_X, window.x());
-    storeOptional(properties, WINDOW_Y, window.y());
-    storeOptional(properties, WINDOW_WIDTH, window.width());
-    storeOptional(properties, WINDOW_HEIGHT, window.height());
-    properties.setProperty(WINDOW_MAXIMIZED, Boolean.toString(window.maximized()));
-    properties.setProperty(DEBUG_LOG_FILE, Boolean.toString(preferences.debugLogFile()));
-    properties.setProperty(COMPLETION_CHARS, Integer.toString(preferences.completionChars()));
+  private static byte[] format(Properties properties) throws IOException {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     properties.store(out, null);
     String text = out.toString(StandardCharsets.ISO_8859_1);
@@ -280,18 +282,14 @@ public final class ConfigStore {
     return kept.toString().getBytes(StandardCharsets.ISO_8859_1);
   }
 
-  private static void storeOptional(Properties properties, String key, Integer value) {
-    if (value != null) {
-      properties.setProperty(key, value.toString());
-    }
-  }
-
   private void malformed(Path file) {
+    if (!keepInvalid) {
+      LOG.warn(
+          "Malformed settings file {}; defaults apply and it is kept as {} before the next save",
+          LogText.oneLine(file),
+          SettingsLocation.MARKER + INVALID_SUFFIX);
+    }
     keepInvalid = true;
-    LOG.warn(
-        "Malformed settings file {}; defaults apply and it is kept as {} before the next save",
-        LogText.oneLine(file),
-        SettingsLocation.MARKER + INVALID_SUFFIX);
   }
 
   private void disableSaving() {

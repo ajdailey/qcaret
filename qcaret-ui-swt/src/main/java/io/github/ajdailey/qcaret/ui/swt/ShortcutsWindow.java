@@ -25,7 +25,7 @@ import org.eclipse.swt.widgets.Text;
  */
 final class ShortcutsWindow {
   private final Shell shell;
-  private final Keymap keymap;
+  private Keymap keymap;
   private final Table table;
   private final Text filter;
 
@@ -84,6 +84,12 @@ final class ShortcutsWindow {
         }
       }
     }
+  }
+
+  /** Lists another keymap's keys. */
+  void setKeymap(Keymap value) {
+    keymap = value;
+    fill();
   }
 
   void open() {

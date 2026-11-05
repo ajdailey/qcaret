@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
@@ -403,7 +404,9 @@ final class FakeView implements MainView {
   final List<String> launched = new ArrayList<String>();
   String log;
   boolean warningMarker;
-  int fontStep;
+  int fontSize;
+  Keymap keymap;
+  PreferencesInput preferences;
   int goToLines;
   Consumer<String> goTo;
   Keymap shortcuts;
@@ -570,9 +573,26 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public void setFontStep(int step) {
+  public void setFontSize(int points) {
     ui.checkUiThread();
-    fontStep = step;
+    fontSize = points;
+  }
+
+  @Override
+  public int defaultFontSize() {
+    return 10;
+  }
+
+  @Override
+  public void showPreferences(PreferencesInput input) {
+    ui.checkUiThread();
+    preferences = input;
+  }
+
+  @Override
+  public void setKeymap(Keymap bindings) {
+    ui.checkUiThread();
+    keymap = bindings;
   }
 
   @Override

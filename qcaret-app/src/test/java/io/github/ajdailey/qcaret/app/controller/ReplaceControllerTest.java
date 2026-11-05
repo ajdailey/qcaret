@@ -423,4 +423,23 @@ class ReplaceControllerTest {
       Files.setAttribute(file, "dos:readonly", on);
     }
   }
+
+  @Test
+  void theBackupDaysDecideWhatTheNextListingPrunes() throws Exception {
+    Path tree = Files.createDirectory(temp.resolve("days"));
+    Files.writeString(tree.resolve("one.txt"), "key one\n");
+    run("key", SearchScope.DIRECTORY, tree.toString());
+    apply(preview("lock"));
+    replace.setBackupDays(0);
+    replace.chooseRun();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.runChooser != null || !harness.view.infos.isEmpty();
+          }
+        },
+        "runs listed");
+    assertTrue(harness.view.runChoices == null || harness.view.runChoices.isEmpty());
+  }
 }

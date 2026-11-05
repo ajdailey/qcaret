@@ -86,6 +86,74 @@ public enum UiText {
   /** Command label. */
   COMMAND_CLOSE_OTHERS,
   /** Command label. */
+  COMMAND_PREFERENCES,
+  /** Heading of the conflict list in the shortcut reference. */
+  SHORTCUTS_CONFLICTS,
+  /** Two commands on one key: the key and their names. */
+  SHORTCUTS_CONFLICT_LINE,
+  /** Preferences dialog title. */
+  PREFERENCES_TITLE,
+  /** Preferences group. */
+  PREFERENCES_TAB_EDITOR,
+  /** Preferences group. */
+  PREFERENCES_TAB_FILES,
+  /** Preferences group. */
+  PREFERENCES_TAB_SEARCH,
+  /** Preferences group. */
+  PREFERENCES_TAB_APPEARANCE,
+  /** Preferences group. */
+  PREFERENCES_TAB_KEYS,
+  /** Preferences field. */
+  PREFERENCES_COMPLETION_CHARS,
+  /** Preferences field. */
+  PREFERENCES_AUTO_CLOSE,
+  /** Preferences field. */
+  PREFERENCES_HIGHLIGHT_CHARS,
+  /** Preferences field. */
+  PREFERENCES_POLL_SECONDS,
+  /** Preferences field. */
+  PREFERENCES_AUTO_RELOAD,
+  /** Preferences field. */
+  PREFERENCES_BACKUP_DAYS,
+  /** Preferences field. */
+  PREFERENCES_SEARCH_LINE_CHARS,
+  /** Preferences field. */
+  PREFERENCES_EXCLUDED_DIRECTORIES,
+  /** Preferences field. */
+  PREFERENCES_THEME,
+  /** Theme choice. */
+  PREFERENCES_THEME_LIGHT,
+  /** Theme choice. */
+  PREFERENCES_THEME_DARK,
+  /** Theme choice. */
+  PREFERENCES_THEME_SYSTEM,
+  /** Preferences field. */
+  PREFERENCES_FONT_SIZE,
+  /** Refused field: its label, the smallest and the largest value. */
+  PREFERENCES_BAD_NUMBER,
+  /** Refused field: its label. */
+  PREFERENCES_BAD_DIRECTORIES,
+  /** Notice after a failed save. */
+  PREFERENCES_NOT_SAVED,
+  /** Hint in the key field. */
+  PREFERENCES_KEY_CAPTURE,
+  /** Add refused: the key and the command holding it. */
+  PREFERENCES_KEY_TAKEN,
+  /** Add refused: the key. */
+  PREFERENCES_KEY_TYPES,
+  /** A row with keys set by the user: the command's name. */
+  PREFERENCES_KEY_CHANGED,
+  /** Button. */
+  BUTTON_APPLY,
+  /** Button. */
+  BUTTON_RESTORE_DEFAULTS,
+  /** Button. */
+  BUTTON_ADD_KEY,
+  /** Button. */
+  BUTTON_REMOVE_KEY,
+  /** Button. */
+  BUTTON_RESET_KEY,
+  /** Command label. */
   COMMAND_KEYBOARD_SHORTCUTS,
   /** Command label. */
   COMMAND_COMMAND_LINE_OPTIONS,

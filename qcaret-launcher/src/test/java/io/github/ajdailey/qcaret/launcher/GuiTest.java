@@ -127,6 +127,7 @@ class GuiTest {
   void theRememberedPlacementOpensAndIsSavedAgain() {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
+    assertTrue(config().save(Preferences.DEFAULTS, remembered));
     Recorder recorder = new Recorder(700, 500);
     assertEquals(0, run(request(List.of(), null, null, null, null, false), remembered, recorder));
     assertEquals(placed("700x500", "Point {60, 50}"), recorder.observed);
@@ -142,7 +143,7 @@ class GuiTest {
   void aCommandLinePlacementIsNotSavedBack() {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
-    assertTrue(config().save(remembered));
+    assertTrue(config().save(Preferences.DEFAULTS, remembered));
     Recorder recorder = new Recorder(900, 500);
     assertEquals(0, run(request(List.of(), 900, null, null, null, false), remembered, recorder));
     assertEquals("900x500", recorder.observed.get(1));

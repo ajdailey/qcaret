@@ -128,7 +128,7 @@ are menu only.
 ## Controller (`app.controller`)
 
 `ApplicationController` runs the window's commands and owns the settings, the
-theme, the keymap, the editor font step and the window's `DocumentController`,
+theme, the keymap, `Settings` and the window's `DocumentController`,
 `HelpController`, `FindController`, `SearchController`, `WorkspaceController`,
 `NavigationHistory`, `RecentFiles` and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
@@ -169,9 +169,8 @@ to the clipboard and opens the issue page; it is QCaret's only web address
 and opens only when the user picks the item. About and the license notices are
 read on workers.
 
-- A theme change saves `qcaret.conf` at once and pushes the palette. When
-  native controls show the change only at the next start (`ThemeService
-  .showsNow`), the view shows a notice.
+- A theme change pushes the palette. When native controls show the change
+  only at the next start (`ThemeService.showsNow`), the view shows a notice.
 - Exit (`QUIT`, the window's close button, the macOS Quit) first closes the
   documents through `DocumentController.closeAll`, which asks about each dirty
   one; Cancel keeps the window open.
@@ -181,14 +180,11 @@ read on workers.
   runs the finish listeners and posts the window's disposal. With
   `rememberWindow` false (a `--window-*` option or `-m`) it records and saves
   nothing.
-- Each save captures the settings with a sequence number on the UI thread.
-  The writer holds `saveLock` and skips a capture older than the last one
-  written, so a theme save that finishes after the quit save cannot replace
-  it.
+- `Settings` queues each change for a worker; see Settings below.
 - `showLicenses` reads `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` from the jar
   on a worker and shows them through `MainView.showText`.
-- Zoom In, Zoom Out and Reset Zoom step the editor font one point, from 6
-  below to 24 above the default, for this run; the view changes the font in
+- Zoom In and Zoom Out step `editor.fontSize` one point, from 4 to 72; Reset
+  Zoom sets it to 0, the platform's default. The view changes the font in
   place.
 
 `DocumentController` holds the window's documents, one tab each:
@@ -283,7 +279,8 @@ read on workers.
 dock's `ResultsInput`. The dialog opens with a one-line selection of up to
 1,000 chars as its text, or the selection scope for a selection over several
 lines, and the last run's options; texts, directories and include masks are
-remembered for the run, 20 each. A request without text, with a regex or mask
+kept in `UiState`, 20 each, up to 1,000 chars an entry; the toggles are the
+find bar's. A request without text, with a regex or mask
 that does not parse, without a document, selection or workspace folder for its
 scope, or without a directory shows a message instead.
 
@@ -347,8 +344,8 @@ selection set reruns whole, since the selection is not kept.
 
 File > Set Workspace Folder stores one folder per window for the run, as its
 real path (`WorkspaceController`). Both the browser and the index leave out
-hidden entries and the search's default excluded directories (`.git`, `.svn`,
-`.hg`).
+hidden entries and `workspace.excludedDirectories`; a change lists and indexes
+the folder again.
 
 - View > Workspace Browser shows the folder's tree. A directory is listed on a
   `qcaret-io-` worker the first time it expands (`DirectoryListing`), 500
@@ -372,7 +369,10 @@ hidden entries and the search's default excluded directories (`.git`, `.svn`,
   scores the file name; a file whose name does not match is scored on its
   path below the folder and ranks after every name match; equal scores put
   the shorter path first. A file open in a tab is listed once, as the
-  document. An empty query lists the open documents in tab order, then the
+  document. A typed query also matches the Recent Files neither open nor in
+  the index, after the workspace files, without a folder too; a link inside
+  the folder is indexed under its own path and can list beside its target. An
+  empty query lists the open documents in tab order, then the
   Recent Files not open, newest first, and the summary counts the indexed
   files; both lists hold real paths, so a file shows once. A row's detail is the path below the folder, the whole path
   outside it, or empty for an untitled document; `QuickOpenRow.open` marks
@@ -399,7 +399,7 @@ position is dropped with a notice and the move goes on.
 
 `RecentFiles` is File > Recent Files for the run: the last 20 files opened,
 newest first, once each by real path, so a file opened through a link and
-through its target is one entry. Clear Recent Files empties it. S7 saves it.
+through its target is one entry. Clear Recent Files empties it.
 
 ### Replace
 
@@ -425,8 +425,7 @@ newest set with matches). Every scope goes through the same preview and run.
 - A file not open goes through `FileReplace` (see `qcaret-core`) on up to
   four `qcaret-io-` workers, with its original bytes in the run's
   `ReplaceBackups` under `<settings>/replace-backups/<run>/`; each run first
-  deletes runs older than seven days (`ReplaceBackups.DEFAULT_DAYS`, the
-  `replace.backupDays` setting once S7 persists settings). Cancel (the
+  deletes runs older than `replace.backupDays`. Cancel (the
   report's Stop) stops between files.
 - The report lists each file as replaced, skipped with the reason, failed
   with the error, or not attempted. When the run ends, each file group it
@@ -438,9 +437,8 @@ newest set with matches). Every scope goes through the same preview and run.
 ### External changes
 
 `ExternalChanges` checks each open document's file through `FileCheck` (see
-`qcaret-core`) on the `FileMonitor`'s `qcaret-watch-` thread: every 5 s
-(`ExternalChanges.POLL_MILLIS`, the `file.pollSeconds` setting once S7
-persists settings), on window activation (`ApplicationController.
+`qcaret-core`) on the `FileMonitor`'s `qcaret-watch-` thread: every
+`file.pollSeconds`, on window activation (`ApplicationController.
 windowActivated`), on a directory event and after Restore Run. It checks the
 path the user opened, kept per document beside the real path that names the
 tab and deduplicates opens. A result reaches `DocumentController` on the UI
@@ -451,7 +449,7 @@ write is never reported.
 | Check result | Clean document | Dirty document |
 |---|---|---|
 | Same bytes, newer stamp | Stamp taken as the save baseline | Same, unless the user kept a change |
-| Other bytes | Reload (`DocumentController.AUTO_RELOAD_CLEAN`, the `file.autoReloadClean` setting from S7) | Prompt: Keep Mine, Reload, Compare |
+| Other bytes | Reload; with `file.autoReloadClean` off, the prompt | Prompt: Keep Mine, Reload, Compare |
 | No file | Kept, marked missing in the tab and dirty | Same |
 | File back with the same bytes | Missing mark cleared; clean again when the text is unchanged since | Missing mark cleared |
 
@@ -778,13 +776,25 @@ kept ones.
 `qcaret.conf` (portable), else the per-user directory of the OS. The
 bootstrap applies the same order to the SWT native cache.
 
-`ConfigStore` reads and writes `Preferences` (`ui.theme`, `window.*`,
-`log.debugFile`, which attaches the debug log file at the next start, and
-`editor.completionChars`, 0 to 20, the word chars typed before the completion
-list opens on its own, 0 for never) in
-`qcaret.conf`: Java properties, ISO-8859-1, sorted keys, no date comment,
-`version=1`. Both calls block and run off the UI thread; a lock serializes
-them.
+`Preferences` holds `ui.theme`, `window.*`, `log.debugFile` (attaches the debug
+log file at the next start), `Options` (the Preferences dialog's settings),
+`UiState` (search toggles, histories, recent grammars, dialog sizes) and
+`ShortcutOverrides`. The root README lists every key. `PreferenceKeys` maps
+them to and from `qcaret.conf`: a new setting is a record component and its
+lines there, plus a `PreferencesForm` field when the dialog shows it.
+
+`ConfigStore` has two blocking calls, serialized by a lock, that run off the
+UI thread apart from the first load before the Display:
+
+- `load()` reads the file.
+- `save(before, after)` re-reads the file and writes only the keys that differ
+  between the two settings, so another process's newer values and unknown keys
+  stay. No difference writes nothing. A missing or malformed file gets every
+  key of `after`.
+
+`merge(base, theirs, mine)` applies the keys that differ from `base` to
+`theirs` over `mine`, except keys `mine` also changed. The file is Java properties, ISO-8859-1, sorted keys, no
+date comment, `version=1`.
 
 | Condition | Behavior |
 |---|---|
@@ -793,10 +803,36 @@ them.
 | Unreadable, over 1 MiB, does not parse, or another version | Malformed: defaults, one WARN, and the first save copies it to `qcaret.conf.invalid` before replacing it |
 | A value that does not parse or is out of range | That value's default, one WARN naming the key; the file is not malformed |
 | Read-only directory | Saving disabled with one WARN |
+| A save over 1 MiB | Refused with one WARN; the file stays |
+| Malformed since the last load | As above: the save keeps it as `qcaret.conf.invalid` |
 | Per-user directory missing | Created owner-only by the first save |
 
 Writes go through `AtomicFiles`. Only file names and keys are logged, never
-values.
+values. No file lock is held: two processes saving within one read and write
+can lose one of the two.
+
+`Settings` (`app.controller`) is the one running copy. Every controller reads
+`current()`; no toggle or history has a per-window field. `set` replaces the
+copy, calls the listeners on the UI thread and queues the change for a
+`qcaret-lifecycle-` worker. Workers drain the queue in order under `saveLock`,
+which the UI thread never takes, as one `save` from the first change's `before`
+to the last change's `after`. `ApplicationController.apply` is the listener that
+brings the running window in line, whatever the change's source.
+
+`refresh` drains the queue, loads the file on a worker and takes up what another
+process changed; a change made meanwhile survives through `merge`. A failed save
+or a read-only directory keeps the running settings. `PreferencesController`
+runs it before the dialog opens, so the dialog shows the file's values, and
+hands checked fields to `set`; a failed save shows a notice and the settings
+stay applied for the run.
+
+`Keymap.withOverrides` replaces a command's keys from `ShortcutOverrides`. A key
+takes the scope of the command's default keys, or window scope for a menu
+command without any. `ShortcutOverrides.parse` refuses a value with a stroke
+that does not parse or that types text (`KeyStroke.types`), one WARN naming the
+key; a key naming no command stays in the file. `KeyStroke.stored` is the
+platform-free form: `Mod+Alt+K`. `Keymap.conflicts` is logged at start and on a
+change and ends the shortcut reference.
 
 ## Themes (`app.theme`)
 
@@ -833,6 +869,15 @@ The controller tests run the UI thread on the test thread through
 every method, so a view call from a worker fails the test instead of passing
 on the test thread. `ManualUiDispatcher` is in the test jar for the other
 modules.
+
+`ConfigStoreTest` covers two stores merging on one directory, a save that
+changes nothing, unknown keys, every key's round trip and invalid values.
+`SettingsTest` covers the ordered queue and `refresh`, including a change made
+during one and a read-only directory. `PreferencesControllerTest` drives
+`PreferencesInput` and asserts each setting's effect on the running window; the
+remaining effects sit with their area (`ExternalChangeTest`,
+`SyntaxHighlighterTest`, `SearchControllerTest`, `ReplaceControllerTest`,
+`FileMonitorTest`).
 
 `ApplicationControllerTest` covers the theme save and its restart notice, the
 quit's placement save, the quit that saves nothing, licenses read on a worker

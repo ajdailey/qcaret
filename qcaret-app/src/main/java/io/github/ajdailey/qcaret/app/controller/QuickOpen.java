@@ -29,8 +29,11 @@ import java.util.regex.Pattern;
  * all. Each candidate is scored with {@link Fuzzy} on its file name; one whose name does not match
  * is scored on its path below the workspace folder and ranks after every name match. Equal scores
  * put the shorter path first, then the path in code-unit order. An empty query lists the open
- * documents in tab order, then (Quick Open only) the Recent Files not open, newest first; both hold
- * real paths, so a file is listed once. A row's detail is the path below the workspace folder, the
+ * documents in tab order, then (Quick Open only) the Recent Files not open, newest first. A typed
+ * query also matches the Recent Files that are neither open nor in the index, ranked after the
+ * workspace files by the same score, then newest first. Documents, the index root and Recent Files
+ * hold real paths, so a file is listed once; a link inside the workspace is indexed under its own
+ * path and can list beside its target. A row's detail is the path below the workspace folder, the
  * whole path outside it, or empty for an untitled document. A query ending in {@code :line} or
  * {@code :line:column} (from 1) matches the text before it and moves the caret there on open.
  * Confined to the UI thread.
@@ -48,6 +51,21 @@ final class QuickOpen implements QuickOpenInput {
   static final int SYNC_FILES = 2_000;
 
   private static final Pattern POSITION = Pattern.compile("(.*?):(\\d{1,9})(?::(\\d{1,9}))?");
+
+  /** Orders {tier, score, position} keys: lower tier, higher score, lower position. */
+  private static final Comparator<int[]> BEST_FIRST =
+      new Comparator<int[]>() {
+        @Override
+        public int compare(int[] a, int[] b) {
+          if (a[0] != b[0]) {
+            return Integer.compare(a[0], b[0]);
+          }
+          if (a[1] != b[1]) {
+            return Integer.compare(b[1], a[1]);
+          }
+          return Integer.compare(a[2], b[2]);
+        }
+      };
 
   /**
    * A parsed query.
@@ -73,8 +91,9 @@ final class QuickOpen implements QuickOpenInput {
    *
    * @param files index positions, best first
    * @param matched every file that matched
+   * @param indexed the paths asked about that the index holds
    */
-  record Ranked(int[] files, int matched) {}
+  record Ranked(int[] files, int matched, Set<String> indexed) {}
 
   private final DocumentController documents;
   private final WorkspaceController workspace;
@@ -146,18 +165,25 @@ final class QuickOpen implements QuickOpenInput {
       return;
     }
     FileIndex index = documentsOnly ? null : workspace.index();
-    if (index == null || query.text().isEmpty()) {
+    if (index == null) {
+      List<QuickOpenRow> list = new ArrayList<QuickOpenRow>();
+      List<Path> paths = new ArrayList<Path>();
+      appendRecent(null, Set.of(), list, paths);
+      fileRows = list;
+      fileTargets = paths;
       return;
     }
     Set<String> open = openBelow(index.root());
+    Set<String> known = recentBelow(index.root());
     if (index.size() <= SYNC_FILES) {
-      showFiles(index, rank(query.text(), index, open, MAX_ROWS, new CancellationToken()));
+      showFiles(index, rank(query.text(), index, open, known, MAX_ROWS, new CancellationToken()));
     } else {
-      matchOnWorker(index, query.text(), open);
+      matchOnWorker(index, query.text(), open, known);
     }
   }
 
-  private void matchOnWorker(final FileIndex index, final String text, final Set<String> open) {
+  private void matchOnWorker(
+      final FileIndex index, final String text, final Set<String> open, final Set<String> known) {
     final CancellationToken token = new CancellationToken();
     running = token;
     try {
@@ -167,7 +193,7 @@ final class QuickOpen implements QuickOpenInput {
             public void run() {
               Ranked ranked = null;
               try {
-                ranked = rank(text, index, open, MAX_ROWS, token);
+                ranked = rank(text, index, open, known, MAX_ROWS, token);
               } catch (CancellationException e) {
                 ranked = null;
               } finally {
@@ -209,10 +235,76 @@ final class QuickOpen implements QuickOpenInput {
       list.add(new QuickOpenRow(path.substring(path.lastIndexOf('/') + 1), path, false));
       paths.add(index.resolve(file));
     }
+    appendRecent(index, ranked.indexed(), list, paths);
     fileRows = list;
     fileTargets = paths;
     filesMatched = ranked.matched();
     matchedIndex = index;
+  }
+
+  private static String fileName(Path path) {
+    Path name = path.getFileName();
+    return name == null ? path.toString() : name.toString();
+  }
+
+  /** Returns the relative paths of Recent Files below a folder, joined with {@code /}. */
+  private Set<String> recentBelow(Path root) {
+    Set<String> below = new HashSet<String>();
+    for (Path path : recent) {
+      if (path.startsWith(root)) {
+        below.add(below(root, path));
+      }
+    }
+    return below;
+  }
+
+  /**
+   * Appends the Recent Files that match and are neither open nor in the index: by tier, then score,
+   * then newest first.
+   *
+   * @param index the index, or null without one
+   * @param indexed relative paths the index holds
+   * @param list receives the rows
+   * @param paths receives their files
+   */
+  private void appendRecent(
+      FileIndex index, Set<String> indexed, List<QuickOpenRow> list, List<Path> paths) {
+    Set<Path> skip = new HashSet<Path>();
+    for (Document document : documents.openDocuments()) {
+      Path path = documents.pathOf(document);
+      if (path != null) {
+        skip.add(path);
+      }
+    }
+    Path root = workspace.root();
+    Path indexRoot = index == null ? null : index.root();
+    List<int[]> keys = new ArrayList<int[]>();
+    for (int i = 0; i < recent.size(); i++) {
+      Path path = recent.get(i);
+      boolean inIndex =
+          indexRoot != null
+              && path.startsWith(indexRoot)
+              && indexed.contains(below(indexRoot, path));
+      if (inIndex || skip.contains(path)) {
+        continue;
+      }
+      int tier = 0;
+      int score = Fuzzy.score(query.text(), fileName(path));
+      if (score < 0) {
+        tier = 1;
+        score = Fuzzy.score(query.text(), below(root, path));
+      }
+      if (score >= 0) {
+        keys.add(new int[] {tier, score, i});
+      }
+    }
+    keys.sort(BEST_FIRST);
+    int room = Math.max(0, MAX_ROWS - documentRows.size() - list.size());
+    for (int i = 0; i < Math.min(room, keys.size()); i++) {
+      Path path = recent.get(keys.get(i)[2]);
+      list.add(new QuickOpenRow(fileName(path), below(root, path), false));
+      paths.add(path);
+    }
   }
 
   /** Lists the Recent Files that are not open, after the open documents. */
@@ -233,10 +325,7 @@ final class QuickOpen implements QuickOpenInput {
         break;
       }
       if (listed.add(path)) {
-        Path name = path.getFileName();
-        list.add(
-            new QuickOpenRow(
-                name == null ? path.toString() : name.toString(), below(root, path), false));
+        list.add(new QuickOpenRow(fileName(path), below(root, path), false));
         paths.add(path);
       }
     }
@@ -263,19 +352,7 @@ final class QuickOpen implements QuickOpenInput {
         keys.add(new int[] {tier, score, i});
       }
     }
-    keys.sort(
-        new Comparator<int[]>() {
-          @Override
-          public int compare(int[] a, int[] b) {
-            if (a[0] != b[0]) {
-              return Integer.compare(a[0], b[0]);
-            }
-            if (a[1] != b[1]) {
-              return Integer.compare(b[1], a[1]);
-            }
-            return Integer.compare(a[2], b[2]);
-          }
-        });
+    keys.sort(BEST_FIRST);
     int count = Math.min(MAX_ROWS, keys.size());
     List<QuickOpenRow> list = new ArrayList<QuickOpenRow>(count);
     List<Document> targets = new ArrayList<Document>(count);
@@ -323,12 +400,18 @@ final class QuickOpen implements QuickOpenInput {
    * @param text the query text
    * @param index the files
    * @param skip relative paths left out
+   * @param known relative paths to report when the index holds them
    * @param max most files returned
    * @param token checked every 1,024 files
    * @return the best files and the match count
    */
   static Ranked rank(
-      String text, final FileIndex index, Set<String> skip, int max, CancellationToken token) {
+      String text,
+      final FileIndex index,
+      Set<String> skip,
+      Set<String> known,
+      int max,
+      CancellationToken token) {
     final Comparator<int[]> better =
         new Comparator<int[]>() {
           @Override
@@ -349,11 +432,15 @@ final class QuickOpen implements QuickOpenInput {
         };
     PriorityQueue<int[]> best = new PriorityQueue<int[]>(Math.max(1, max), better.reversed());
     int matched = 0;
+    Set<String> indexed = new HashSet<String>();
     for (int i = 0; i < index.size(); i++) {
       if ((i & 1023) == 0) {
         token.check();
       }
       String path = index.path(i);
+      if (known.contains(path)) {
+        indexed.add(path);
+      }
       if (skip.contains(path)) {
         continue;
       }
@@ -379,7 +466,7 @@ final class QuickOpen implements QuickOpenInput {
     for (int i = files.length - 1; i >= 0; i--) {
       files[i] = best.poll()[2];
     }
-    return new Ranked(files, matched);
+    return new Ranked(files, matched, indexed);
   }
 
   @Override

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.config;
 
+import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 
 /**
@@ -8,25 +9,31 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param theme {@code ui.theme}
  * @param window {@code window.*}: the main window's remembered placement
  * @param debugLogFile {@code log.debugFile}: write the log at DEBUG to a file from the start
- * @param completionChars {@code editor.completionChars}: word chars typed before the completion
- *     popup opens on its own, 0 for never
+ * @param options the Preferences dialog's settings
+ * @param state remembered UI state
+ * @param shortcuts {@code shortcut.*}: keys set in place of commands' defaults
  */
 public record Preferences(
-    ThemeMode theme, WindowState window, boolean debugLogFile, int completionChars) {
-  /** Largest {@code completionChars}. */
-  public static final int MAX_COMPLETION_CHARS = 20;
-
+    ThemeMode theme,
+    WindowState window,
+    boolean debugLogFile,
+    Options options,
+    UiState state,
+    ShortcutOverrides shortcuts) {
   /** The settings when the file is missing or malformed. */
   public static final Preferences DEFAULTS =
-      new Preferences(ThemeMode.LIGHT, WindowState.UNKNOWN, false, 0);
+      new Preferences(
+          ThemeMode.LIGHT,
+          WindowState.UNKNOWN,
+          false,
+          Options.DEFAULTS,
+          UiState.DEFAULTS,
+          ShortcutOverrides.NONE);
 
   /** Checks the components. */
   public Preferences {
-    if (theme == null || window == null) {
+    if (theme == null || window == null || options == null || state == null || shortcuts == null) {
       throw new IllegalArgumentException("every component is required");
-    }
-    if (completionChars < 0 || completionChars > MAX_COMPLETION_CHARS) {
-      throw new IllegalArgumentException("completionChars " + completionChars);
     }
   }
 
@@ -37,7 +44,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withTheme(ThemeMode mode) {
-    return new Preferences(mode, window, debugLogFile, completionChars);
+    return new Preferences(mode, window, debugLogFile, options, state, shortcuts);
   }
 
   /**
@@ -47,7 +54,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withWindow(WindowState value) {
-    return new Preferences(theme, value, debugLogFile, completionChars);
+    return new Preferences(theme, value, debugLogFile, options, state, shortcuts);
   }
 
   /**
@@ -57,16 +64,36 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withDebugLogFile(boolean on) {
-    return new Preferences(theme, window, on, completionChars);
+    return new Preferences(theme, window, on, options, state, shortcuts);
   }
 
   /**
-   * Returns a copy with another completion trigger.
+   * Returns a copy with other dialog settings.
    *
-   * @param chars word chars typed before the popup opens, 0 for never
+   * @param value the settings
    * @return the copy
    */
-  public Preferences withCompletionChars(int chars) {
-    return new Preferences(theme, window, debugLogFile, chars);
+  public Preferences withOptions(Options value) {
+    return new Preferences(theme, window, debugLogFile, value, state, shortcuts);
+  }
+
+  /**
+   * Returns a copy with other remembered state.
+   *
+   * @param value the state
+   * @return the copy
+   */
+  public Preferences withState(UiState value) {
+    return new Preferences(theme, window, debugLogFile, options, value, shortcuts);
+  }
+
+  /**
+   * Returns a copy with other key overrides.
+   *
+   * @param value the overrides
+   * @return the copy
+   */
+  public Preferences withShortcuts(ShortcutOverrides value) {
+    return new Preferences(theme, window, debugLogFile, options, state, value);
   }
 }

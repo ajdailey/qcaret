@@ -82,9 +82,9 @@ public final class ReplaceController implements ReplaceInput {
   private final UiDispatcher ui;
   private final MainView view;
   private final MemoryBudget budget;
-  private final HyperSearch.Limits limits;
+  private HyperSearch.Limits limits;
   private final Path backupRoot;
-  private final int backupDays;
+  private int backupDays;
   private final List<Report> reports = new ArrayList<Report>();
   private final List<PlanFile> files = new ArrayList<PlanFile>();
   private String replacement = "";
@@ -766,6 +766,24 @@ public final class ReplaceController implements ReplaceInput {
     reports.add(report);
     view.showReplaceReport(report);
     report.start(ReplaceRun.restore(directory, workers, ui, report));
+  }
+
+  /**
+   * Sets the days a run's backups are kept ({@code replace.backupDays}); the next prune reads it.
+   *
+   * @param days the days
+   */
+  void setBackupDays(int days) {
+    backupDays = days;
+  }
+
+  /**
+   * Sets the longest line a run reads ({@code search.maxLineChars}); the next run reads it.
+   *
+   * @param chars the longest line
+   */
+  void setMaxLineChars(int chars) {
+    limits = limits.withMaxLineChars(chars);
   }
 
   /** Stops every run; a file in progress finishes or is left untouched. */

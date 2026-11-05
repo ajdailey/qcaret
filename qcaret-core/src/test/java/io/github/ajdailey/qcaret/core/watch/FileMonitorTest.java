@@ -103,6 +103,17 @@ class FileMonitorTest {
   }
 
   @Test
+  void aShorterIntervalTakesEffectWhileRunning() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "a");
+    recording(NEVER);
+    monitor.watch(a);
+    monitor.setPollMillis(20);
+    assertTrue(Poll.until(checkedAtLeast(3), BOUND));
+    monitor.unwatch(a);
+    assertTrue(Poll.until(stopped(), BOUND));
+  }
+
+  @Test
   void aRequestedCheckRunsWithoutWaitingForThePoll() throws Exception {
     Path a = Files.writeString(dir.resolve("a.txt"), "a");
     Path b = Files.writeString(dir.resolve("b.txt"), "b");

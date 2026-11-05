@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.SearchToggles;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.FindListener;
@@ -62,6 +64,7 @@ public final class FindController implements DocumentController.ViewListener {
   private final DocumentController documents;
   private final Workers workers;
   private final UiDispatcher ui;
+  private final Settings settings;
   private final List<FindListener> listeners = new ArrayList<FindListener>();
   private final Map<EditorController, CancellationToken> highlighting =
       new IdentityHashMap<EditorController, CancellationToken>();
@@ -82,9 +85,6 @@ public final class FindController implements DocumentController.ViewListener {
   private boolean replace;
   private String text = "";
   private String replacement = "";
-  private boolean caseSensitive;
-  private boolean wholeWord;
-  private boolean regex;
   private String notice = "";
   private boolean error;
   private TextMatcher matcher;
@@ -101,11 +101,14 @@ public final class FindController implements DocumentController.ViewListener {
    * @param documents the window's documents
    * @param workers runs the searches
    * @param ui receives the results
+   * @param settings holds the search toggles
    */
-  public FindController(DocumentController documents, Workers workers, UiDispatcher ui) {
+  public FindController(
+      DocumentController documents, Workers workers, UiDispatcher ui, Settings settings) {
     this.documents = documents;
     this.workers = workers;
     this.ui = ui;
+    this.settings = settings;
     documents.setViewListener(this);
   }
 
@@ -140,9 +143,9 @@ public final class FindController implements DocumentController.ViewListener {
         replace,
         text,
         replacement,
-        caseSensitive,
-        wholeWord,
-        regex,
+        toggles().caseSensitive(),
+        toggles().wholeWord(),
+        toggles().regex(),
         editable && matcher != null,
         finding != null,
         notice,
@@ -234,13 +237,21 @@ public final class FindController implements DocumentController.ViewListener {
    * @param pattern the Regex box
    */
   public void setOptions(boolean matchCase, boolean word, boolean pattern) {
-    if (matchCase == caseSensitive && word == wholeWord && pattern == regex) {
-      return;
+    Preferences current = settings.current();
+    SearchToggles next =
+        new SearchToggles(pattern, matchCase, word, current.state().search().hiddenFiles());
+    settings.set(current.withState(current.state().withSearch(next)));
+  }
+
+  private SearchToggles toggles() {
+    return settings.current().state().search();
+  }
+
+  /** The shared toggles changed: finds again from the anchor, or updates the bar. */
+  void togglesChanged() {
+    if (!disposed) {
+      queryChanged();
     }
-    caseSensitive = matchCase;
-    wholeWord = word;
-    regex = pattern;
-    queryChanged();
   }
 
   /**
@@ -283,7 +294,10 @@ public final class FindController implements DocumentController.ViewListener {
       return;
     }
     try {
-      matcher = new SearchQuery(text, regex, caseSensitive, wholeWord).compile();
+      SearchToggles toggles = toggles();
+      matcher =
+          new SearchQuery(text, toggles.regex(), toggles.caseSensitive(), toggles.wholeWord())
+              .compile();
       notice = "";
       error = false;
     } catch (PatternSyntaxException e) {

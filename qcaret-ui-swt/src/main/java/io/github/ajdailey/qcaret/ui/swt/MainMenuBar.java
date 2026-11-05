@@ -36,11 +36,11 @@ import org.eclipse.swt.widgets.Shell;
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
  * change, because a disabled item's accelerator does not fire. Each encoding cascade holds {@link
  * EncodingChoices#commonCharsets()} from the start and an Other cascade, disabled and empty until
- * {@link #encodingsLoaded} fills it once; neither is rebuilt. The View menu's Syntax cascade holds
- * the {@link SyntaxMenu} entries above Reload Grammars, rebuilt each time the View menu shows;
- * {@link #showSyntaxMenu} pops up the same entries. The File menu's Recent Files cascade lists the
- * recent files above Clear Recent Files, rebuilt each time the File menu shows. Call on the UI
- * thread.
+ * {@link #encodingsLoaded} fills it; {@link #build} refills it for a new keymap. The View menu's
+ * Syntax cascade holds the {@link SyntaxMenu} entries above Reload Grammars, rebuilt each time the
+ * View menu shows; {@link #showSyntaxMenu} pops up the same entries. The File menu's Recent Files
+ * cascade lists the recent files above Clear Recent Files, rebuilt each time the File menu shows.
+ * Call on the UI thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
@@ -62,6 +62,7 @@ final class MainMenuBar {
   private final Map<CommandGroup, Menu> menus = new EnumMap<CommandGroup, Menu>(CommandGroup.class);
   private final EncodingCascade reopen = new EncodingCascade(true);
   private final EncodingCascade saveAs = new EncodingCascade(false);
+  private EncodingChoices encodings;
 
   /** One encoding cascade: the common charsets, then Other. */
   private final class EncodingCascade {
@@ -245,6 +246,9 @@ final class MainMenuBar {
     shell.setMenuBar(bar);
     if (old != null) {
       old.dispose();
+    }
+    if (encodings != null) {
+      encodingsLoaded(encodings);
     }
     syncAll();
   }
@@ -472,6 +476,7 @@ final class MainMenuBar {
    * @param choices the runtime's choices
    */
   void encodingsLoaded(EncodingChoices choices) {
+    encodings = choices;
     reopen.fill(choices);
     saveAs.fill(choices);
     syncEncodings();
