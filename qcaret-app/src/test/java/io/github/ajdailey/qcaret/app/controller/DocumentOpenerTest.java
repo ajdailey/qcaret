@@ -40,6 +40,8 @@ class DocumentOpenerTest {
   private Workers workers;
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
   private final List<Object> results = new ArrayList<Object>();
+  private final List<Path> resolved = new ArrayList<Path>();
+  private boolean alreadyOpen;
   private DocumentOpener opener;
   private final AtomicInteger active = new AtomicInteger();
   private final ActivityIndicator activity =
@@ -80,6 +82,13 @@ class DocumentOpenerTest {
             activity,
             new DocumentOpener.Listener() {
               @Override
+              public boolean resolved(Path requested, Path path) {
+                ui.checkUiThread();
+                resolved.add(path);
+                return alreadyOpen;
+              }
+
+              @Override
               public void opened(
                   Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
                 ui.checkUiThread();
@@ -112,6 +121,15 @@ class DocumentOpenerTest {
       @Override
       public boolean getAsBoolean() {
         return opener.running() == 0;
+      }
+    };
+  }
+
+  private BooleanSupplier resolved() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return !resolved.isEmpty();
       }
     };
   }
@@ -161,6 +179,7 @@ class DocumentOpenerTest {
     GatedCharset gate = new GatedCharset();
     gate.arm();
     opener.open(file("held"), LoadOptions.DEFAULTS.withForced(gate));
+    assertTrue(ui.runUntil(resolved(), BOUND));
     assertTrue(gate.awaitHeld());
     opener.close();
     gate.release();
@@ -173,6 +192,7 @@ class DocumentOpenerTest {
   @Test
   void aResultPostedBeforeTheCloseIsDropped() throws Exception {
     opener.open(file("posted"), LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(resolved(), BOUND));
     assertTrue(Poll.until(idle(), BOUND));
     opener.close();
     ui.runPending();
@@ -180,5 +200,35 @@ class DocumentOpenerTest {
     assertEquals(0, budget.reserved());
     opener.open(file("after"), LoadOptions.DEFAULTS);
     assertEquals(0, opener.running());
+  }
+
+  @Test
+  void anOpenDocumentEndsTheOpenUnread() throws Exception {
+    alreadyOpen = true;
+    Path file = file("open");
+    opener.open(file, LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(idle(), BOUND));
+    assertEquals(List.of(file.toRealPath()), resolved);
+    assertEquals(List.of(), results);
+    assertEquals(0, budget.reserved());
+  }
+
+  @Test
+  void aCloseEndsAnOpenWaitingForTheUiThread() throws Exception {
+    opener.open(file("waiting"), LoadOptions.DEFAULTS);
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return workers.liveThreadNames().isEmpty();
+              }
+            },
+            BOUND));
+    assertEquals(1, opener.running());
+    opener.close();
+    assertEquals(0, opener.running());
+    ui.runPending();
+    assertEquals(List.of(), resolved);
   }
 }

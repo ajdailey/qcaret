@@ -18,19 +18,30 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Opens files for one window: each load runs on a {@code qcaret-io-} worker and its document
- * reaches the {@link Listener} on the UI thread. Before reading, the worker estimates the load's
- * heap cost ({@link DocumentFiles#estimate}) and reserves it from the {@link MemoryBudget}; a load
- * the budget cannot hold is refused unread. A loaded document arrives with its rows ({@link
- * DisplayProjection#layout}) and its reservation lowered to the retained cost, which the listener
- * owns from then on. {@link #close} cancels the running loads; a load that finishes after it, on
- * the worker or in a task already posted, drops its document and releases its reservation, so no
- * document reaches a closed window. Each load counts as one {@link ActivityIndicator} operation
- * until its worker ends.
+ * Opens files for one window. A {@code qcaret-io-} worker resolves the path to its real path, the
+ * UI thread offers it to {@link Listener#resolved} (an open document ends the open there), and a
+ * second worker reads the file; every result reaches the {@link Listener} on the UI thread. Before
+ * reading, the worker estimates the load's heap cost ({@link DocumentFiles#estimate}) and reserves
+ * it from the {@link MemoryBudget}; a load the budget cannot hold is refused unread. A loaded
+ * document arrives with its rows ({@link DisplayProjection#layout}) and its reservation lowered to
+ * the retained cost, which the listener owns from then on. {@link #close} cancels the running
+ * loads; a load that finishes after it, on the worker or in a task already posted, drops its
+ * document and releases its reservation, so no document reaches a closed window. Each open counts
+ * as one {@link ActivityIndicator} operation until it ends: unread after {@link Listener#resolved},
+ * refused, failed, loaded or closed.
  */
 public final class DocumentOpener {
   /** Receives load results on the UI thread. */
   public interface Listener {
+    /**
+     * A path resolved, before the file is read.
+     *
+     * @param requested the path as requested
+     * @param path the validated path
+     * @return true to end the open unread, false to load the file
+     */
+    boolean resolved(Path requested, Path path);
+
     /**
      * A file loaded.
      *
@@ -66,6 +77,7 @@ public final class DocumentOpener {
   private final ActivityIndicator activity;
   private final Listener listener;
   private final Set<CancellationToken> running = ConcurrentHashMap.newKeySet();
+  private final Set<CancellationToken> waiting = ConcurrentHashMap.newKeySet();
   private volatile boolean closed;
 
   /**
@@ -91,8 +103,9 @@ public final class DocumentOpener {
   }
 
   /**
-   * Starts a load; called on the UI thread. Does nothing once closed or once the workers are
-   * closed.
+   * Starts a load; called on the UI thread. A worker resolves the path ({@link SafePaths#userFile})
+   * and the UI thread offers it to {@link Listener#resolved}; the file is read only when that
+   * returns false. Does nothing once closed or once the workers are closed.
    *
    * @param path the file as the user named it
    * @param options the forced charset, fallback and undo bounds
@@ -110,42 +123,96 @@ public final class DocumentOpener {
             new Runnable() {
               @Override
               public void run() {
-                long reserved = 0;
-                Path target = path;
+                boolean handedOn = false;
                 try {
                   if (closed) {
                     return;
                   }
                   Path file = SafePaths.userFile(path);
-                  target = file;
-                  LoadCost cost = DocumentFiles.estimate(file, options.limits());
-                  if (!budget.reserve(cost.reserveBytes())) {
-                    postTooLarge(file, cost, budget.available());
-                    return;
-                  }
-                  reserved = cost.reserveBytes();
-                  LoadedFile loaded = DocumentFiles.load(file, options, token);
-                  DisplayProjection.Layout layout =
-                      DisplayProjection.layout(loaded.document().text(), 0, token);
-                  budget.release(reserved - cost.retainedBytes());
-                  reserved = cost.retainedBytes();
-                  post(file, new Loaded(loaded, layout, reserved), null);
-                  reserved = 0;
+                  handedOn = postResolved(path, file, options, token);
                 } catch (IOException e) {
-                  post(target, null, e);
-                } catch (CancellationException e) {
-                  // Closed: nothing to report.
+                  post(path, null, e);
                 } finally {
-                  budget.release(reserved);
-                  running.remove(token);
-                  activity.setIdle();
+                  if (!handedOn) {
+                    end(token);
+                  }
                 }
               }
             });
     if (!started) {
-      running.remove(token);
-      activity.setIdle();
+      end(token);
     }
+  }
+
+  /**
+   * Posts the resolved path to the UI thread, which loads it or ends the open; false when closed.
+   * An open waiting for the UI thread is in {@link #waiting}, and whichever of the posted task and
+   * {@link #close} removes it ends it, so a task the dispatcher drops still ends.
+   */
+  private boolean postResolved(
+      final Path requested,
+      final Path file,
+      final LoadOptions options,
+      final CancellationToken token) {
+    waiting.add(token);
+    if (closed) {
+      return !waiting.remove(token);
+    }
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (!waiting.remove(token)) {
+              return;
+            }
+            if (closed || listener.resolved(requested, file) || !load(file, options, token)) {
+              end(token);
+            }
+          }
+        });
+    return true;
+  }
+
+  /** Starts reading a resolved file on a worker, which ends the open; false when not started. */
+  private boolean load(final Path file, final LoadOptions options, final CancellationToken token) {
+    return workers.tryStart(
+        Workers.Kind.IO,
+        new Runnable() {
+          @Override
+          public void run() {
+            long reserved = 0;
+            try {
+              if (closed) {
+                return;
+              }
+              LoadCost cost = DocumentFiles.estimate(file, options.limits());
+              if (!budget.reserve(cost.reserveBytes())) {
+                postTooLarge(file, cost, budget.available());
+                return;
+              }
+              reserved = cost.reserveBytes();
+              LoadedFile loaded = DocumentFiles.load(file, options, token);
+              DisplayProjection.Layout layout =
+                  DisplayProjection.layout(loaded.document().text(), 0, token);
+              budget.release(reserved - cost.retainedBytes());
+              reserved = cost.retainedBytes();
+              post(file, new Loaded(loaded, layout, reserved), null);
+              reserved = 0;
+            } catch (IOException e) {
+              post(file, null, e);
+            } catch (CancellationException e) {
+              // Closed: nothing to report.
+            } finally {
+              budget.release(reserved);
+              end(token);
+            }
+          }
+        });
+  }
+
+  private void end(CancellationToken token) {
+    running.remove(token);
+    activity.setIdle();
   }
 
   /**
@@ -155,6 +222,11 @@ public final class DocumentOpener {
     closed = true;
     for (CancellationToken token : running) {
       token.cancel();
+    }
+    for (CancellationToken token : waiting) {
+      if (waiting.remove(token)) {
+        end(token);
+      }
     }
   }
 

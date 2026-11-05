@@ -6,20 +6,25 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -150,7 +155,7 @@ class DocumentControllerTest {
     view.saveChooser.accept(target);
     await(title("new.txt"));
     assertEquals("new", Files.readString(target));
-    assertEquals(target, documents.activePath());
+    assertEquals(target.toRealPath(), documents.activePath());
   }
 
   @Test
@@ -164,6 +169,66 @@ class DocumentControllerTest {
     await(tabs(2));
     settle();
     assertEquals(2, view.tabs.size());
+  }
+
+  /**
+   * A symbolic link to {@code target} in the temp directory; aborts where links are unavailable.
+   */
+  private Path link(String name, Path target) throws Exception {
+    Path link = temp.resolve(name);
+    try {
+      Files.createSymbolicLink(link, target);
+    } catch (UnsupportedOperationException | IOException e) {
+      Assumptions.abort("symbolic links unavailable: " + e);
+    }
+    return link;
+  }
+
+  @Test
+  void aFileOpenedThroughALinkSelectsItsTab() throws Exception {
+    Path file = openOne("a.txt", "a");
+    Path link = link("link.txt", file);
+    final AtomicBoolean shown = new AtomicBoolean();
+    documents.open(
+        link,
+        new Consumer<EditorController>() {
+          @Override
+          public void accept(EditorController editor) {
+            shown.set(editor == documents.activeEditor());
+          }
+        });
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return shown.get() && documents.loading() == 0;
+          }
+        });
+    documents.open(List.of(link));
+    await(tabs(1));
+    settle();
+    assertEquals(1, view.tabs.size());
+  }
+
+  @Test
+  void saveAsThroughALinkToAChangedFileReportsTheChange() throws Exception {
+    Path file = openOne("a.txt", "a");
+    Path link = link("link.txt", file);
+    Files.writeString(file, "changed on disk", StandardCharsets.ISO_8859_1);
+    documents.saveAs();
+    view.saveChooser.accept(link);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !view.infos.isEmpty();
+          }
+        });
+    settle();
+    assertEquals(
+        List.of(UiText.SAVE_TITLE.text() + ": " + UiText.SAVE_CHANGED_ON_DISK.format("a.txt")),
+        view.infos);
+    assertEquals("changed on disk", Files.readString(file, StandardCharsets.ISO_8859_1));
   }
 
   @Test

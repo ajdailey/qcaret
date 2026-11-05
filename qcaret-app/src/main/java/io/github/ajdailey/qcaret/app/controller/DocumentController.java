@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BinaryFileException;
 import io.github.ajdailey.qcaret.core.document.Document;
@@ -224,6 +225,11 @@ public final class DocumentController {
             view,
             new DocumentOpener.Listener() {
               @Override
+              public boolean resolved(Path requested, Path path) {
+                return selectOpen(requested, path);
+              }
+
+              @Override
               public void opened(
                   Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
                 loaded(path, file, layout, reserved);
@@ -432,6 +438,24 @@ public final class DocumentController {
    */
   public int loading() {
     return opener.running();
+  }
+
+  /**
+   * Moves the callback of {@link #open(Path, Consumer)} to the real path and selects the document
+   * already open there, which ends the open unread; a reload by charset always reads.
+   */
+  private boolean selectOpen(Path requested, Path path) {
+    Consumer<EditorController> then = afterOpen.remove(requested);
+    if (then != null) {
+      afterOpen.put(path, then);
+    }
+    OpenDocument d = reopening.containsKey(path) ? null : find(path);
+    if (d == null) {
+      return false;
+    }
+    d.tab.select();
+    opened(path, d);
+    return true;
   }
 
   private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
@@ -707,7 +731,7 @@ public final class DocumentController {
     if (d.path == null) {
       saveAs(d, then);
     } else {
-      write(d, d.path, d.baseline, then);
+      write(d, d.path, d.path, d.baseline, then);
     }
   }
 
@@ -723,7 +747,7 @@ public final class DocumentController {
           @Override
           public void accept(Path target) {
             if (!d.closed) {
-              write(d, target, target.equals(d.path) ? d.baseline : null, then);
+              write(d, target, d.path, d.baseline, then);
             }
           }
         });
@@ -754,9 +778,16 @@ public final class DocumentController {
     }
   }
 
-  /** Writes a snapshot on a worker; on success records the stamp and runs {@code then}. */
+  /**
+   * Writes a snapshot on a worker; on success records the stamp and runs {@code then}. The baseline
+   * guards the write only when the target's real path is {@code known}, the file it was taken from.
+   */
   private void write(
-      final OpenDocument d, final Path target, final FileStamp baseline, final Runnable then) {
+      final OpenDocument d,
+      final Path target,
+      final Path known,
+      final FileStamp baseline,
+      final Runnable then) {
     if (d.binary || savingNotice(d)) {
       return;
     }
@@ -775,7 +806,8 @@ public final class DocumentController {
                 IOException error = null;
                 Path written = target;
                 try {
-                  stamp = DocumentFiles.save(target, snapshot, baseline, token);
+                  FileStamp expected = sameFile(target, known) ? baseline : null;
+                  stamp = DocumentFiles.save(target, snapshot, expected, token);
                   try {
                     written = target.toRealPath();
                   } catch (IOException e) {
@@ -803,6 +835,22 @@ public final class DocumentController {
     if (!started) {
       d.saving = null;
       view.setIdle();
+    }
+  }
+
+  /** Reports whether {@code path} resolves to {@code real}; false for a missing file or no real. */
+  @WorkerThread
+  private static boolean sameFile(Path path, Path real) {
+    if (real == null) {
+      return false;
+    }
+    if (path.equals(real)) {
+      return true;
+    }
+    try {
+      return path.toRealPath().equals(real);
+    } catch (IOException e) {
+      return false;
     }
   }
 

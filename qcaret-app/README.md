@@ -178,7 +178,10 @@ read on workers.
 - New opens an untitled UTF-8 document ("Untitled N"). Open goes through
   `DocumentOpener`; a missing file opens an empty document for its path, a
   file already open selects its tab, and a document whose text does not encode
-  back to the file's bytes opens read-only with a notice.
+  back to the file's bytes opens read-only with a notice. The match is by real
+  path, resolved on the opener's worker and looked up (`find`) on the UI thread
+  before the file is read, so a file reached again through a link or a short
+  name selects its tab unread.
 - A binary file opens only after the user accepts the prompt, as a read-only
   ISO-8859-1 view whose tab and status bar say so. Save and Save As refuse it
   in the controller, whichever command path calls them, and the editor
@@ -198,7 +201,9 @@ read on workers.
   document shows a notice instead. Esc in the editor and closing the tab
   cancel a running save; a cancel before the move leaves the target unchanged.
   A target changed on disk since the load or the last save is not written and
-  the notice points to Save As.
+  the notice points to Save As. Save As keeps that check when the target's
+  real path, resolved on the save worker, is the document's file, so Save As
+  through a link to it is checked too.
 - Close asks Save, Don't Save or Cancel for a dirty document; Save closes once
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
@@ -323,8 +328,12 @@ request it. A result shows only while the document is at its revision and the
 strip at its height. A hidden strip (View > Overview Strip, window-wide)
 computes nothing.
 
-`DocumentOpener` opens files for one window on `qcaret-io-` workers. Before
-reading, it estimates the load (`DocumentFiles.estimate`) and reserves it from
+`DocumentOpener` opens files for one window on `qcaret-io-` workers. A worker
+resolves the path (`SafePaths.userFile`) and posts it to the UI thread, where
+`Listener.resolved` ends the open unread for an open document; otherwise a
+second worker reads it. An open waiting for the UI thread is ended by `close`
+too, so a task the dispatcher drops still ends its activity. Before reading,
+it estimates the load (`DocumentFiles.estimate`) and reserves it from
 the `MemoryBudget`; a load the budget cannot hold is refused unread, and the
 notice names the size, the memory needed and a `-Xmx` value. A loaded
 document arrives with its rows (`DisplayProjection.layout`) and its
@@ -638,9 +647,14 @@ any platform, the platform key choices (Add Caret, F6), the reference filter
 and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`
 holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
-both release their reservation; a load over the budget is refused unread.
+both release their reservation; a load over the budget is refused unread; an
+open document ends the open unread; a close ends an open waiting for the UI
+thread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
-document, a missing file, a second open of one file, the unsaved prompt's
+document, a missing file, a second open of one file, a file opened again
+through a symbolic link selecting its tab and running the HyperSearch
+callback, Save As through a link to a file changed on disk reporting the
+change (both skipped where links cannot be created), the unsaved prompt's
 three answers, `closeAll` stopping at Cancel, word wrap across editors and the
 heap refusal. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
