@@ -72,6 +72,19 @@ The jlink runtimes and the ad-hoc rcodesign signature hold no build time.
 another time zone and umask, and compares the SHA-256 of every archive,
 `qcaret.exe` and module jar.
 
+## Release artifacts
+
+`-Psbom` writes `dist/qcaret-<version>-sbom.cdx.json`, a CycloneDX aggregate
+SBOM of the compile and runtime dependencies (cyclonedx-maven-plugin
+`makeAggregateBom`, run once in the parent, `qcaret-bench` excluded). The
+`sbom` profile here adds the six SWT fragments as dependencies so the SBOM
+lists them; `stage-lib` excludes `org.eclipse.platform`, so the archives are
+unchanged.
+
+A pushed `v*` tag ends in a draft GitHub Release holding the seven archives,
+`SHA256SUMS` and the SBOM; the maintainer reviews and publishes it. Steps and
+recovery are in the root `README.md` under "Continuous integration".
+
 ## Launchers
 
 | Launcher | Behavior |

@@ -44,6 +44,7 @@
              and 4.0.0 betas are not targets. ===== -->
         <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
         <checkstyle.version>14.4.0</checkstyle.version>
+        <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
         <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
         <findsecbugs.version>1.14.0</findsecbugs.version>
         <!-- 1.37.0 fails inside spotless-maven-plugin 3.10.4 (InvocationTargetException
@@ -244,6 +245,22 @@
                     <groupId>com.akathist.maven.plugins.launch4j</groupId>
                     <artifactId>launch4j-maven-plugin</artifactId>
                     <version>${launch4j-maven-plugin.version}</version>
+                </plugin>
+                <!-- The aggregate SBOM of what the archives ship: compile and
+                     runtime scope, without qcaret-bench. -->
+                <plugin>
+                    <groupId>org.cyclonedx</groupId>
+                    <artifactId>cyclonedx-maven-plugin</artifactId>
+                    <version>${cyclonedx-maven-plugin.version}</version>
+                    <configuration>
+                        <outputFormat>json</outputFormat>
+                        <outputName>qcaret-${project.version}-sbom.cdx</outputName>
+                        <outputDirectory>${maven.multiModuleProjectDirectory}/dist</outputDirectory>
+                        <includeProvidedScope>false</includeProvidedScope>
+                        <includeSystemScope>false</includeSystemScope>
+                        <includeTestScope>false</includeTestScope>
+                        <excludeArtifactId>qcaret-bench</excludeArtifactId>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>com.github.spotbugs</groupId>
@@ -537,6 +554,30 @@
     </build>
 
     <profiles>
+        <!-- -Psbom writes dist/qcaret-<version>-sbom.cdx.json at package. The
+             aggregate goal runs once, in the parent, over the whole reactor;
+             an inherited execution would rewrite the file per module. -->
+        <profile>
+            <id>sbom</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sbom</id>
+                                <phase>package</phase>
+                                <inherited>false</inherited>
+                                <goals>
+                                    <goal>makeAggregateBom</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <!-- On Linux without DISPLAY SWT cannot create a Display, so SWT tests
              are skipped; run them under a display or xvfb-run. Windows and
              macOS always run them. -->

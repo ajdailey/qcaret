@@ -79,15 +79,16 @@ arm64 host runs it under its engine's emulation.
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main`, every pull request and
-on demand, with Temurin 21.0.12+8:
+`.github/workflows/ci.yml` runs on every push to `main`, every pull request,
+every pushed `v*` tag and on demand, with Temurin 21.0.12+8:
 
 | Job | Runners | Does |
 |---|---|---|
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets`; uploads the seven archives as `qcaret-archives` |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: runs `check-reproducible.sh`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
@@ -95,7 +96,26 @@ running `qcaret.jar`, and passes only when the child's image is the bundle's
 `windows-11-arm`); the universal zip's `qcaret.exe` must start the JDK's
 `javaw.exe`. On macOS it also runs `codesign --verify --deep --strict`
 on `QCaret.app`. The `package` job caches the JDK archives and `rcodesign`
-under `~/.cache/qcaret-build`, apart from the Maven cache.
+under `~/.cache/qcaret-build`, apart from the Maven cache, keyed on
+`qcaret-dist/src/build/dist.xml`; the `release` job shares that cache.
+
+The draft Release carries the seven archives the `bundle` jobs ran,
+`SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
+release notes. To release:
+
+1. Push the tag: `git tag v<version> && git push origin v<version>`.
+2. Review the draft on the repository's Releases page.
+3. Publish it there, or with `gh release edit v<version> --draft=false`.
+
+A bad draft is fixed by deleting the draft and the tag
+(`gh release delete v<version> --cleanup-tag`) and tagging again. Only the
+`release` job has `contents: write`.
+
+`-Psbom` writes the CycloneDX SBOM to `dist/`: every compile and runtime
+dependency of the shipped modules, plus the six SWT fragments `qcaret.jar`
+carries. It leaves out build-only tools, `qcaret-bench`, the Temurin runtimes
+and launch4j's header.
+
 `.github/workflows/dependency-check.yml` scans the dependencies for known
 vulnerabilities weekly, and Dependabot proposes Maven and Actions updates.
 Actions are pinned by commit SHA.
