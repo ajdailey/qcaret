@@ -329,6 +329,7 @@ public final class FindController implements DocumentController.ViewListener {
               @Override
               public void run() {
                 if (document.revision() != revision) {
+                  report(UiText.FIND_REPLACE_STALE.text(), true);
                   return;
                 }
                 int after = primary.end();

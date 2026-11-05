@@ -122,7 +122,7 @@ public final class Keymap {
     editor(b, CommandId.OUTDENT, P, '[');
     editor(b, CommandId.OUTDENT, S, KeyStroke.TAB);
     editor(b, CommandId.INSERT_TAB, 0, KeyStroke.TAB);
-    int addCaret = mac ? KeyStroke.CONTROL | S : P | a | S;
+    int addCaret = (mac ? KeyStroke.CONTROL : P) | S;
     editor(b, CommandId.ADD_CARET_ABOVE, addCaret, KeyStroke.UP);
     editor(b, CommandId.ADD_CARET_BELOW, addCaret, KeyStroke.DOWN);
     editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');

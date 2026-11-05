@@ -213,7 +213,7 @@ class EditingSurfaceTest {
     openFile("carets.txt", "alpha one\nbeta two\ngamma three\n");
     StyledText text = window.activeText();
     editor().selections().set(SelectionSet.caret(0));
-    int addCaret = SwtKeys.mac() ? SWT.MOD4 | SWT.MOD2 : SWT.MOD1 | SWT.MOD3 | SWT.MOD2;
+    int addCaret = SwtKeys.mac() ? SWT.MOD4 | SWT.MOD2 : SWT.MOD1 | SWT.MOD2;
     key(text, SWT.ARROW_DOWN, addCaret);
     key(text, SWT.ARROW_DOWN, addCaret);
     assertEquals(3, editor().selections().selections().size());

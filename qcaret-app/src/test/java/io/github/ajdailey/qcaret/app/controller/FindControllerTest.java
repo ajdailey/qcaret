@@ -252,6 +252,22 @@ class FindControllerTest {
   }
 
   @Test
+  void replaceAfterAnEditReportsTheDroppedResult() throws Exception {
+    EditorController editor = open("cat cat\n");
+    find.open(true);
+    find.setText("cat");
+    find.setReplacement("dog");
+    settle();
+    find.replace();
+    editor.selections().set(SelectionSet.caret(7));
+    editor.type("x");
+    settle();
+    assertEquals("cat catx\n", editor.document().text().toString());
+    assertEquals(UiText.FIND_REPLACE_STALE.text(), last.notice());
+    assertTrue(last.error());
+  }
+
+  @Test
   void regexReplacementExpandsGroupsAndTakesTheLineEnding() throws Exception {
     EditorController editor = open("a=1\r\nb=2\r\n");
     find.open(true);

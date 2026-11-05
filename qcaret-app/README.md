@@ -82,11 +82,9 @@ is Alt+Shift with an arrow key, and Command+Option+Shift on macOS, where
 Option+Shift with Left or Right selects words. Find is Mod+F, Find Next and
 Previous F3 and Shift+F3 (macOS adds Cmd+G and Cmd+Shift+G), and Replace
 Mod+H, Cmd+Option+F on macOS, where Cmd+H hides the application. Add Caret
-Above and Below are Mod+Alt+Shift+Up and Down, and Ctrl+Shift+Up and Down on
-macOS (Ctrl+Alt+Up and Down switch workspaces on several Linux desktops).
-GNOME's defaults bind Ctrl+Alt+Shift+Up and Down to move the window to another
-workspace (verified on Ubuntu GNOME), so there only the Selection menu reaches
-the commands. `KeyStroke.CONTROL` is the macOS Control key. F6 focuses the
+Above and Below are Ctrl+Shift+Up and Down on every platform: Linux desktops
+take Ctrl+Alt+Up and Down, and GNOME Ctrl+Alt+Shift+Up and Down, for
+workspaces. `KeyStroke.CONTROL` is the macOS Control key. F6 focuses the
 other split view; the split commands have no key. `reference(filter)` lists
 the bindings whose group,
 command or keys contain the filter. Shortcut overrides are not built.

@@ -109,10 +109,11 @@ class KeymapTest {
   void addCaretAndFocusOtherViewKeys() {
     for (boolean linux : new boolean[] {false, true}) {
       Keymap keymap = Keymap.defaults(false, linux);
-      assertEquals("Ctrl+Alt+Shift+Up", keymap.keysText(CommandId.ADD_CARET_ABOVE));
-      assertEquals("Ctrl+Alt+Shift+Down", keymap.keysText(CommandId.ADD_CARET_BELOW));
+      assertEquals("Ctrl+Shift+Up", keymap.keysText(CommandId.ADD_CARET_ABOVE));
+      assertEquals("Ctrl+Shift+Down", keymap.keysText(CommandId.ADD_CARET_BELOW));
       assertNull(
-          keymap.editorCommand(new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT, KeyStroke.UP)));
+          keymap.editorCommand(
+              new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT | KeyStroke.SHIFT, KeyStroke.UP)));
     }
     Keymap mac = Keymap.defaults(true);
     assertEquals("Ctrl+Shift+Up", mac.keysText(CommandId.ADD_CARET_ABOVE));
