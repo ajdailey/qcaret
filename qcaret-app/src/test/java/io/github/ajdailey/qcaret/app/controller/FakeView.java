@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -8,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import java.nio.file.Path;
@@ -31,6 +33,8 @@ final class FakeView implements MainView {
     String toolTip;
     int caretShown;
     boolean closed;
+    int tabWidth;
+    boolean columnMode;
 
     FakeTab(
         DisplayProjection projection,
@@ -75,7 +79,44 @@ final class FakeView implements MainView {
         }
       }
     }
+
+    @Override
+    public ViewLayout layout() {
+      ui.checkUiThread();
+      return LAYOUT;
+    }
+
+    @Override
+    public void setTabWidth(int columns) {
+      ui.checkUiThread();
+      tabWidth = columns;
+    }
+
+    @Override
+    public void setColumnMode(boolean on) {
+      ui.checkUiThread();
+      columnMode = on;
+    }
   }
+
+  /** A grid of 10 by 10 pixel cells, five rows to a page; row and column from x and y alone. */
+  static final ViewLayout LAYOUT =
+      new ViewLayout() {
+        @Override
+        public int pageRows() {
+          return 5;
+        }
+
+        @Override
+        public int rowAt(int y) {
+          return Math.max(0, y / 10);
+        }
+
+        @Override
+        public int columnAt(int row, int x) {
+          return Math.max(0, (x + 5) / 10);
+        }
+      };
 
   final List<FakeTab> tabs = new ArrayList<FakeTab>();
   FakeTab selected;
@@ -103,6 +144,9 @@ final class FakeView implements MainView {
   String log;
   boolean warningMarker;
   int fontStep;
+  int goToLines;
+  Consumer<String> goTo;
+  Keymap shortcuts;
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -262,5 +306,18 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     unsavedName = name;
     unsaved = answer;
+  }
+
+  @Override
+  public void askGoToLine(int lines, Consumer<String> answer) {
+    ui.checkUiThread();
+    goToLines = lines;
+    goTo = answer;
+  }
+
+  @Override
+  public void showKeyboardShortcuts(Keymap keymap) {
+    ui.checkUiThread();
+    shortcuts = keymap;
   }
 }

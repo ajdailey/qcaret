@@ -109,6 +109,126 @@ public enum UiText {
   COMMAND_DELETE_FORWARD,
   /** Editor key, in Keyboard Shortcuts. */
   COMMAND_CANCEL,
+  /** Command label. */
+  COMMAND_SAVE_ALL,
+  /** Command label. */
+  COMMAND_REOPEN_CLOSED,
+  /** Command label. */
+  COMMAND_DUPLICATE,
+  /** Command label. */
+  COMMAND_DELETE_LINE,
+  /** Command label. */
+  COMMAND_MOVE_LINES_UP,
+  /** Command label. */
+  COMMAND_MOVE_LINES_DOWN,
+  /** Command label. */
+  COMMAND_JOIN_LINES,
+  /** Command label. */
+  COMMAND_UPPER_CASE,
+  /** Command label. */
+  COMMAND_LOWER_CASE,
+  /** Command label. */
+  COMMAND_INDENT,
+  /** Command label. */
+  COMMAND_OUTDENT,
+  /** Command label. */
+  COMMAND_TAB_WIDTH_2,
+  /** Command label. */
+  COMMAND_TAB_WIDTH_4,
+  /** Command label. */
+  COMMAND_TAB_WIDTH_8,
+  /** Command label. */
+  COMMAND_INDENT_WITH_SPACES,
+  /** Command label. */
+  COMMAND_GO_TO_LINE,
+  /** Command label. */
+  COMMAND_READ_ONLY,
+  /** Command label. */
+  COMMAND_ADD_CARET_ABOVE,
+  /** Command label. */
+  COMMAND_ADD_CARET_BELOW,
+  /** Command label. */
+  COMMAND_ADD_NEXT_OCCURRENCE,
+  /** Command label. */
+  COMMAND_SPLIT_INTO_LINES,
+  /** Command label. */
+  COMMAND_COLUMN_MODE,
+  /** Command label. */
+  COMMAND_CARET_LEFT,
+  /** Command label. */
+  COMMAND_CARET_RIGHT,
+  /** Command label. */
+  COMMAND_CARET_UP,
+  /** Command label. */
+  COMMAND_CARET_DOWN,
+  /** Command label. */
+  COMMAND_WORD_LEFT,
+  /** Command label. */
+  COMMAND_WORD_RIGHT,
+  /** Command label. */
+  COMMAND_LINE_START,
+  /** Command label. */
+  COMMAND_LINE_END,
+  /** Command label. */
+  COMMAND_PAGE_UP,
+  /** Command label. */
+  COMMAND_PAGE_DOWN,
+  /** Command label. */
+  COMMAND_DOCUMENT_START,
+  /** Command label. */
+  COMMAND_DOCUMENT_END,
+  /** Command label. */
+  COMMAND_SELECT_LEFT,
+  /** Command label. */
+  COMMAND_SELECT_RIGHT,
+  /** Command label. */
+  COMMAND_SELECT_UP,
+  /** Command label. */
+  COMMAND_SELECT_DOWN,
+  /** Command label. */
+  COMMAND_SELECT_WORD_LEFT,
+  /** Command label. */
+  COMMAND_SELECT_WORD_RIGHT,
+  /** Command label. */
+  COMMAND_SELECT_LINE_START,
+  /** Command label. */
+  COMMAND_SELECT_LINE_END,
+  /** Command label. */
+  COMMAND_SELECT_PAGE_UP,
+  /** Command label. */
+  COMMAND_SELECT_PAGE_DOWN,
+  /** Command label. */
+  COMMAND_SELECT_DOCUMENT_START,
+  /** Command label. */
+  COMMAND_SELECT_DOCUMENT_END,
+  /** Command label. */
+  COMMAND_BLOCK_LEFT,
+  /** Command label. */
+  COMMAND_BLOCK_RIGHT,
+  /** Command label. */
+  COMMAND_BLOCK_UP,
+  /** Command label. */
+  COMMAND_BLOCK_DOWN,
+  /** Command label. */
+  COMMAND_INSERT_TAB,
+  /** Selection menu. */
+  GROUP_SELECTION,
+  /** Edit menu cascade of tab widths. */
+  MENU_TAB_WIDTH,
+  /** Title of the Go to Line prompt. */
+  GO_TO_TITLE,
+  /** The Go to Line prompt: the line count. */
+  GO_TO_MESSAGE,
+  /** Go to Line input that is not a line, or a line and a column: the input. */
+  GO_TO_INVALID,
+  /** Keyboard Shortcuts filter hint. */
+  SHORTCUTS_FILTER,
+  /** Keyboard Shortcuts column. */
+  SHORTCUTS_GROUP,
+  /** Keyboard Shortcuts column. */
+  SHORTCUTS_COMMAND,
+  /** Keyboard Shortcuts column. */
+  SHORTCUTS_KEYS,
   /** Encoding submenu: load the file again with a charset. */
   MENU_REOPEN_ENCODING,
   /** Encoding submenu: the charset the next save writes. */

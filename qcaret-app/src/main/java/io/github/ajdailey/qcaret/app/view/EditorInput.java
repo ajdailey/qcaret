@@ -54,7 +54,7 @@ public interface EditorInput {
   void cancel();
 
   /**
-   * Applies an edit the widget made on its own (drag and drop, middle-click paste, IME).
+   * Applies an edit the widget made on its own (drag and drop, middle-click paste).
    *
    * @param start the first display offset replaced
    * @param end the display offset after the last
@@ -84,4 +84,47 @@ public interface EditorInput {
    * @param columns at least 1
    */
   void viewColumnsChanged(int columns);
+
+  /**
+   * Selects the block between two points of a mouse drag; the controller reads rows and columns
+   * from the view's {@link ViewLayout}.
+   *
+   * @param anchorX x where the drag started
+   * @param anchorY y where the drag started
+   * @param x x of the pointer
+   * @param y y of the pointer
+   */
+  void blockFromView(int anchorX, int anchorY, int x, int y);
+
+  /**
+   * Selects the block from the primary caret, or the current block's anchor, to a point.
+   *
+   * @param x x of the click
+   * @param y y of the click
+   */
+  void extendBlockFromView(int x, int y);
+
+  /**
+   * Adds a caret at a display offset, or removes the caret there when it is one of several.
+   *
+   * @param offset the clicked display offset
+   */
+  void toggleCaretFromView(int offset);
+
+  /**
+   * Replaces the input method's composition text, outside undo.
+   *
+   * @param start the first display offset replaced: the previous composition, or the caret
+   * @param end the display offset after the last
+   * @param text the composition text, empty when it ends
+   */
+  void preeditFromView(int start, int end, String text);
+
+  /**
+   * Commits the first chars of the composition text as typed text, one undo step; the rest stays
+   * composition text.
+   *
+   * @param count the committed chars
+   */
+  void commitFromView(int count);
 }

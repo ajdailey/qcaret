@@ -24,10 +24,21 @@ import java.util.function.LongSupplier;
  * <p>Each applied batch, undo and redo step increments {@link #revision()} and fires one {@link
  * DocumentChange}. Dirty is the undo state differing from the saved one, so undoing back to the
  * saved state clears it; a changed encoding also makes the document dirty until the next save.
+ *
+ * <p>An input method's composition text ({@link #preedit}) is a change outside undo: the undo
+ * state, and so the dirty state, stay as they are, and the change fires with {@link
+ * DocumentChange.Cause#PREEDIT} so recovery can skip it. Undo, redo and a group remove it first;
+ * {@link #apply} refuses while it shows, since the batch's offsets would include it.
  */
 public final class Document {
   /** Typing more than this many nanoseconds after the last keystroke starts a new undo step. */
   static final long COALESCE_NANOS = 1_000_000_000L;
+
+  /** Columns per tab stop of a new document. */
+  public static final int DEFAULT_TAB_WIDTH = 4;
+
+  /** Largest tab width. */
+  public static final int MAX_TAB_WIDTH = 16;
 
   private final RopeStorage storage;
   private final UndoHistory history;
@@ -47,6 +58,10 @@ public final class Document {
   private TextEncoding encoding;
   private TextEncoding savedEncoding;
   private boolean readOnly;
+  private int tabWidth = DEFAULT_TAB_WIDTH;
+  private boolean insertSpaces;
+  private int preeditStart = -1;
+  private int preeditLength;
   private boolean notifying;
   private int groupDepth;
   private UndoHistory.Step group;
@@ -196,6 +211,48 @@ public final class Document {
   }
 
   /**
+   * Returns the columns per tab stop, for display, columns and indentation.
+   *
+   * @return from 1 to {@link #MAX_TAB_WIDTH}
+   */
+  public int tabWidth() {
+    return tabWidth;
+  }
+
+  /**
+   * Sets the columns per tab stop; the text is unchanged.
+   *
+   * @param columns from 1 to {@link #MAX_TAB_WIDTH}
+   * @throws IllegalArgumentException when out of range
+   */
+  public void setTabWidth(int columns) {
+    checkThread();
+    if (columns < 1 || columns > MAX_TAB_WIDTH) {
+      throw new IllegalArgumentException("tab width " + columns);
+    }
+    tabWidth = columns;
+  }
+
+  /**
+   * Reports whether indentation inserts spaces instead of a tab.
+   *
+   * @return true for spaces
+   */
+  public boolean insertSpaces() {
+    return insertSpaces;
+  }
+
+  /**
+   * Sets whether indentation inserts spaces instead of a tab.
+   *
+   * @param value true for spaces
+   */
+  public void setInsertSpaces(boolean value) {
+    checkThread();
+    insertSpaces = value;
+  }
+
+  /**
    * Adds a listener.
    *
    * @param listener called after each change on the editing thread
@@ -249,10 +306,31 @@ public final class Document {
    * @param origin the selection model that edited, whose selections the undo step records, or null
    * @param after the origin's selections after the edit; null maps them like every other model's
    * @throws IndexOutOfBoundsException when a replacement ends past the text
-   * @throws IllegalStateException when read-only, called from a listener or another thread
+   * @throws IllegalStateException when read-only, while a composition shows, called from a listener
+   *     or another thread
    */
   public void apply(EditBatch batch, SelectionModel origin, SelectionSet after) {
+    apply(batch, origin, after, null);
+  }
+
+  /**
+   * Applies a batch as {@link #apply(EditBatch, SelectionModel, SelectionSet)} does and leaves the
+   * origin in block mode with the given block.
+   *
+   * @param batch the replacements, in the current text's coordinates
+   * @param origin the selection model that edited
+   * @param after the origin's block after the edit; its lines must exist in the new text
+   */
+  public void applyInBlock(EditBatch batch, SelectionModel origin, BlockSelection after) {
+    apply(batch, origin, null, Objects.requireNonNull(after));
+  }
+
+  private void apply(
+      EditBatch batch, SelectionModel origin, SelectionSet after, BlockSelection afterBlock) {
     checkEditable();
+    if (preeditStart >= 0) {
+      throw new IllegalStateException("composition shows");
+    }
     List<Replacement> replacements = batch.replacements();
     if (replacements.isEmpty()) {
       return;
@@ -297,7 +375,7 @@ public final class Document {
       history.push(step);
     }
     state = newState;
-    change(changes, DocumentChange.Cause.EDIT, origin, after, wasDirty);
+    change(changes, DocumentChange.Cause.EDIT, origin, after, afterBlock, wasDirty);
     if (groupDepth == 0) {
       history.top().after = origin != null ? origin.selections() : null;
     }
@@ -309,7 +387,7 @@ public final class Document {
    * @param batch the replacements
    */
   public void apply(EditBatch batch) {
-    apply(batch, null, null);
+    apply(batch, null, null, null);
   }
 
   /**
@@ -319,6 +397,7 @@ public final class Document {
    * @param origin the selection model whose selections the step records, or null
    */
   public void beginGroup(SelectionModel origin) {
+    clearPreedit();
     checkEditable();
     if (groupDepth++ == 0) {
       breakCoalescing();
@@ -380,6 +459,7 @@ public final class Document {
    * @return false when there was nothing to undo
    */
   public boolean undo(SelectionModel target) {
+    clearPreedit();
     checkEditable();
     if (!canUndo()) {
       return false;
@@ -397,6 +477,7 @@ public final class Document {
           DocumentChange.Cause.UNDO,
           restore != null ? target : null,
           restore,
+          null,
           wasDirty);
     }
     return true;
@@ -409,6 +490,7 @@ public final class Document {
    * @return false when there was nothing to redo
    */
   public boolean redo(SelectionModel target) {
+    clearPreedit();
     checkEditable();
     if (!canRedo()) {
       return false;
@@ -426,9 +508,57 @@ public final class Document {
           DocumentChange.Cause.REDO,
           restore != null ? target : null,
           restore,
+          null,
           wasDirty);
     }
     return true;
+  }
+
+  /**
+   * Replaces the composition text an input method shows, outside undo: the undo and dirty state
+   * stay as they are. The range replaced is the previous composition, or empty at the caret when
+   * none shows.
+   *
+   * @param offset the first offset replaced
+   * @param removeLength the chars removed
+   * @param text the new composition text, empty when the composition ends
+   * @throws IllegalStateException when read-only, inside a group, from a listener or another thread
+   */
+  public void preedit(int offset, int removeLength, String text) {
+    checkEditable();
+    if (groupDepth > 0) {
+      throw new IllegalStateException("composition inside a group");
+    }
+    Objects.checkFromIndexSize(offset, removeLength, storage.length());
+    if (removeLength > 0 || !text.isEmpty()) {
+      Change c =
+          new Change(offset, storage.subSequence(offset, offset + removeLength).toString(), text);
+      change(List.of(c), DocumentChange.Cause.PREEDIT, null, null, null, isDirty());
+    }
+    preeditStart = text.isEmpty() ? -1 : offset;
+    preeditLength = text.length();
+  }
+
+  /**
+   * Returns the composition text's range.
+   *
+   * @return {offset, length}, or null when no composition shows
+   */
+  public int[] preeditRange() {
+    return preeditStart < 0 ? null : new int[] {preeditStart, preeditLength};
+  }
+
+  /** Removes the composition text, outside undo; does nothing when none shows. */
+  public void clearPreedit() {
+    if (preeditStart >= 0) {
+      checkEditable();
+      int start = preeditStart;
+      int length = preeditLength;
+      preeditStart = -1;
+      preeditLength = 0;
+      Change c = new Change(start, storage.subSequence(start, start + length).toString(), "");
+      change(List.of(c), DocumentChange.Cause.PREEDIT, null, null, null, isDirty());
+    }
   }
 
   /**
@@ -500,6 +630,7 @@ public final class Document {
       DocumentChange.Cause cause,
       SelectionModel target,
       SelectionSet selections,
+      BlockSelection block,
       boolean wasDirty) {
     TextSnapshot before = storage.snapshot();
     List<TextEdit> edits = new ArrayList<TextEdit>(changes.size());
@@ -532,7 +663,9 @@ public final class Document {
     notifying = true;
     try {
       for (SelectionModel model : models) {
-        if (model == target && selections != null) {
+        if (model == target && block != null) {
+          model.restoreBlock(block);
+        } else if (model == target && selections != null) {
           model.restore(selections);
         } else {
           model.map(map, before);

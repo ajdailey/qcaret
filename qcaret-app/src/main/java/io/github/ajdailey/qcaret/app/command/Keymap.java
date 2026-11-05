@@ -30,13 +30,26 @@ public final class Keymap {
   }
 
   /**
-   * Returns the default bindings. {@link KeyStroke#PRIMARY} is Command on macOS and Ctrl elsewhere;
-   * Ctrl+Y and the Insert and Delete clipboard keys are bound only off macOS.
+   * Returns the default bindings off Linux; see {@link #defaults(boolean, boolean)}.
    *
    * @param mac true for macOS
    * @return the keymap
    */
   public static Keymap defaults(boolean mac) {
+    return defaults(mac, false);
+  }
+
+  /**
+   * Returns the default bindings. {@link KeyStroke#PRIMARY} is Command on macOS and Ctrl elsewhere;
+   * Ctrl+Y and the Insert and Delete clipboard keys are bound only off macOS. Upper and lower case
+   * have no keys on Linux, where IBus takes Ctrl+Shift+U. On macOS, where Option+Shift with Left or
+   * Right selects words, the block selection keys add Command.
+   *
+   * @param mac true for macOS
+   * @param linux true for Linux
+   * @return the keymap
+   */
+  public static Keymap defaults(boolean mac, boolean linux) {
     List<Binding> b = new ArrayList<Binding>();
     window(b, CommandId.NEW, P, 'n');
     window(b, CommandId.OPEN, P, 'o');
@@ -58,6 +71,7 @@ public final class Keymap {
       editor(b, CommandId.PASTE, S, KeyStroke.INSERT);
     }
     editor(b, CommandId.SELECT_ALL, P, 'a');
+    editing(b, mac, linux);
     window(b, CommandId.ZOOM_IN, P, '=');
     window(b, CommandId.ZOOM_IN, P, KeyStroke.KEYPAD_ADD);
     window(b, CommandId.ZOOM_OUT, P, '-');
@@ -73,6 +87,72 @@ public final class Keymap {
     editor(b, CommandId.DELETE_FORWARD, 0, KeyStroke.DELETE);
     editor(b, CommandId.CANCEL, 0, KeyStroke.ESCAPE);
     return new Keymap(b, mac);
+  }
+
+  /** Adds the editing, selection and caret-move bindings. */
+  private static void editing(List<Binding> b, boolean mac, boolean linux) {
+    int a = KeyStroke.ALT;
+    window(b, CommandId.SAVE_ALL, P | a, 's');
+    window(b, CommandId.REOPEN_CLOSED, P | S, 't');
+    window(b, CommandId.GO_TO_LINE, P, mac ? 'l' : 'g');
+    editor(b, CommandId.DUPLICATE, P, 'd');
+    editor(b, CommandId.DELETE_LINE, P | S, 'l');
+    editor(b, CommandId.MOVE_LINES_UP, a, KeyStroke.UP);
+    editor(b, CommandId.MOVE_LINES_DOWN, a, KeyStroke.DOWN);
+    editor(b, CommandId.JOIN_LINES, P, 'j');
+    if (!linux) {
+      editor(b, CommandId.UPPER_CASE, P | S, 'u');
+      editor(b, CommandId.LOWER_CASE, P, 'u');
+    }
+    editor(b, CommandId.INDENT, P, ']');
+    editor(b, CommandId.OUTDENT, P, '[');
+    editor(b, CommandId.OUTDENT, S, KeyStroke.TAB);
+    editor(b, CommandId.INSERT_TAB, 0, KeyStroke.TAB);
+    editor(b, CommandId.ADD_CARET_ABOVE, P | a, KeyStroke.UP);
+    editor(b, CommandId.ADD_CARET_BELOW, P | a, KeyStroke.DOWN);
+    editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');
+    int word = mac ? a : P;
+    int block = mac ? P | a | S : a | S;
+    for (int shift = 0; shift <= S; shift += S) {
+      boolean select = shift != 0;
+      editor(b, select ? CommandId.SELECT_LEFT : CommandId.CARET_LEFT, shift, KeyStroke.LEFT);
+      editor(b, select ? CommandId.SELECT_RIGHT : CommandId.CARET_RIGHT, shift, KeyStroke.RIGHT);
+      editor(b, select ? CommandId.SELECT_UP : CommandId.CARET_UP, shift, KeyStroke.UP);
+      editor(b, select ? CommandId.SELECT_DOWN : CommandId.CARET_DOWN, shift, KeyStroke.DOWN);
+      editor(
+          b,
+          select ? CommandId.SELECT_WORD_LEFT : CommandId.WORD_LEFT,
+          word | shift,
+          KeyStroke.LEFT);
+      editor(
+          b,
+          select ? CommandId.SELECT_WORD_RIGHT : CommandId.WORD_RIGHT,
+          word | shift,
+          KeyStroke.RIGHT);
+      CommandId start = select ? CommandId.SELECT_LINE_START : CommandId.LINE_START;
+      CommandId end = select ? CommandId.SELECT_LINE_END : CommandId.LINE_END;
+      editor(b, start, shift, KeyStroke.HOME);
+      editor(b, end, shift, KeyStroke.END);
+      if (mac) {
+        editor(b, start, P | shift, KeyStroke.LEFT);
+        editor(b, end, P | shift, KeyStroke.RIGHT);
+      }
+      editor(b, select ? CommandId.SELECT_PAGE_UP : CommandId.PAGE_UP, shift, KeyStroke.PAGE_UP);
+      editor(
+          b, select ? CommandId.SELECT_PAGE_DOWN : CommandId.PAGE_DOWN, shift, KeyStroke.PAGE_DOWN);
+      CommandId top = select ? CommandId.SELECT_DOCUMENT_START : CommandId.DOCUMENT_START;
+      CommandId bottom = select ? CommandId.SELECT_DOCUMENT_END : CommandId.DOCUMENT_END;
+      editor(b, top, P | shift, KeyStroke.HOME);
+      editor(b, bottom, P | shift, KeyStroke.END);
+      if (mac) {
+        editor(b, top, P | shift, KeyStroke.UP);
+        editor(b, bottom, P | shift, KeyStroke.DOWN);
+      }
+    }
+    editor(b, CommandId.BLOCK_LEFT, block, KeyStroke.LEFT);
+    editor(b, CommandId.BLOCK_RIGHT, block, KeyStroke.RIGHT);
+    editor(b, CommandId.BLOCK_UP, block, KeyStroke.UP);
+    editor(b, CommandId.BLOCK_DOWN, block, KeyStroke.DOWN);
   }
 
   private static void window(List<Binding> b, CommandId command, int modifiers, char c) {
@@ -150,12 +230,28 @@ public final class Keymap {
    * @return the text
    */
   public String reference() {
+    return reference("");
+  }
+
+  /**
+   * Returns the shortcut reference's rows whose group, command or keys contain a filter, ignoring
+   * case, as {@link #reference()} writes them.
+   *
+   * @param filter the text sought; empty keeps every row
+   * @return the text
+   */
+  public String reference(String filter) {
+    String needle = filter.toLowerCase(Locale.ROOT);
     StringBuilder text = new StringBuilder();
     for (CommandGroup group : CommandGroup.values()) {
       boolean header = false;
       for (CommandId command : CommandId.values()) {
         String keys = keysText(command);
         if (command.group() != group || keys.isEmpty()) {
+          continue;
+        }
+        String row = group.title() + " " + command.title() + " " + keys;
+        if (!row.toLowerCase(Locale.ROOT).contains(needle)) {
           continue;
         }
         if (!header) {

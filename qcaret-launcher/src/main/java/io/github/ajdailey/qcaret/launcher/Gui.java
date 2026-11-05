@@ -128,7 +128,7 @@ final class Gui {
               preferences,
               system,
               MemoryBudget.fromRuntime(),
-              Keymap.defaults(SwtKeys.mac()),
+              Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
               remember);
       controller.setLogging(LogbackConfigurator.RECENT, logFiles);
       window.attach(controller);

@@ -129,7 +129,7 @@ final class HelpController {
 
   /** Shows the key bindings. */
   void showShortcuts() {
-    view.showText(UiText.SHORTCUTS_TITLE.text(), keymap.reference());
+    view.showKeyboardShortcuts(keymap);
   }
 
   /** Shows the command-line usage. */

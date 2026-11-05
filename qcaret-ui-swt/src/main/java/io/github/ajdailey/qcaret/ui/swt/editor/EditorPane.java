@@ -8,12 +8,15 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.ViewLayout;
+import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
 import org.eclipse.swt.custom.CaretListener;
@@ -34,6 +37,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.IME;
 import org.eclipse.swt.widgets.Listener;
 
 /**
@@ -41,19 +45,24 @@ import org.eclipse.swt.widgets.Listener;
  * current line and the secondary carets and selections painted from the {@link SelectionModel}.
  *
  * <ul>
- *   <li>Input: a {@code VerifyKey} listener runs the {@link Keymap}'s editor bindings through
- *       {@link EditorInput#execute}, types printable chars through {@link EditorInput#type}, and
- *       consumes both; Insert alone is consumed so the widget never enters overwrite mode. Any edit
- *       the widget still makes (word delete, drag and drop, middle-click paste) arrives as {@code
- *       Verify}, is canceled and goes to {@link EditorInput#replaceFromView}. Navigation keys and
- *       the mouse move the widget's caret natively; each move is sent to the model.
+ *   <li>Input: a {@code VerifyKey} listener runs the {@link Keymap}'s editor bindings, caret moves
+ *       included, through {@link EditorInput#execute}, types printable chars through {@link
+ *       EditorInput#type}, and consumes both; Insert alone is consumed so the widget never enters
+ *       overwrite mode. Any edit the widget still makes (word delete, drag and drop, middle-click
+ *       paste) arrives as {@code Verify}, is canceled and goes to {@link
+ *       EditorInput#replaceFromView}. A plain click and drag move the widget's caret natively; each
+ *       move is sent to the model. {@link EditorGestures} takes the block and add-caret gestures
+ *       first. Input method composition text goes to {@link EditorInput#preeditFromView}, and a
+ *       commit reported with the composition to {@link EditorInput#commitFromView}.
  *   <li>Selections: the widget holds only the model's primary selection, set again after every
- *       model change and every display change. An Alt+click that adds a widget selection is sent to
- *       the model, which then owns it.
+ *       model change and every display change. A widget report of that primary, such as after a
+ *       resize, keeps the other selections; a plain click leaves one.
  *   <li>Painting: the gutter is drawn in the widget's left margin by a paint listener, its digits
  *       placed by {@link ColumnMetrics}. Secondary carets sit at {@link
  *       StyledText#getLocationAtOffset} and secondary selections are line style backgrounds, so
- *       both follow the widget's measured glyph positions on any script.
+ *       both follow the widget's measured glyph positions on any script. A block's part past a
+ *       line's end and its carets there are painted from the line end's measured position at the
+ *       font's fractional advance.
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
  *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
  *       a wrapped row's right edge selects the row's last word.
@@ -89,6 +98,8 @@ public final class EditorPane {
   private Color selectionFore;
   private Color caret;
   private boolean syncing;
+  private final EditorLayout layout;
+  private final EditorGestures gestures;
 
   /**
    * Creates the editor.
@@ -118,7 +129,7 @@ public final class EditorPane {
     // Font, tabs, margins and colors each reset the widget's per-line cache, O(lines) through a
     // TreeSet: set them while the widget still holds its empty default content.
     text.setFont(font);
-    text.setTabs(DisplayProjection.TAB_WIDTH);
+    text.setTabs(projection.tabWidth());
     measure();
     setPalette(palette);
     content = new ContentAdapter(projection, input);
@@ -147,6 +158,17 @@ public final class EditorPane {
           }
         };
     selections.addListener(modelListener);
+    layout =
+        new EditorLayout(
+            text,
+            projection,
+            new Supplier<ColumnMetrics>() {
+              @Override
+              public ColumnMetrics get() {
+                return metrics;
+              }
+            });
+    gestures = new EditorGestures(text, projection, input);
     listen();
     syncWidget();
   }
@@ -295,8 +317,11 @@ public final class EditorPane {
     text.redraw();
   }
 
-  /** Sends the widget's selections to the model after the user moved them. */
-  private void fromWidget() {
+  /**
+   * Sends the widget's selections to the model after the user moved them. A report of the primary
+   * as the model holds it, such as after a resize, keeps the other selections unless {@code click}.
+   */
+  private void fromWidget(boolean click) {
     if (syncing || text.isDisposed()) {
       return;
     }
@@ -305,7 +330,13 @@ public final class EditorPane {
     if (ranges.length == 2) {
       int start = ranges[0];
       int end = start + ranges[1];
-      input.selectFromView(caretOffset == start ? end : start, caretOffset);
+      int anchor = caretOffset == start ? end : start;
+      Selection primary = selections.selections().primary();
+      if (click
+          || anchor != projection.toDisplay(primary.anchor())
+          || caretOffset != projection.toDisplay(primary.caret())) {
+        input.selectFromView(anchor, caretOffset);
+      }
       return;
     }
     int[] pairs = new int[ranges.length];
@@ -344,7 +375,7 @@ public final class EditorPane {
         new CaretListener() {
           @Override
           public void caretMoved(CaretEvent event) {
-            fromWidget();
+            fromWidget(false);
           }
         });
     text.addListener(
@@ -352,7 +383,18 @@ public final class EditorPane {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            fromWidget();
+            fromWidget(false);
+          }
+        });
+    // Runs after the widget placed its caret: a plain click leaves one selection.
+    text.addListener(
+        SWT.MouseDown,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.button == 1 && (event.stateMask & SWT.MODIFIER_MASK) == 0) {
+              fromWidget(true);
+            }
           }
         });
     text.addListener(
@@ -381,6 +423,19 @@ public final class EditorPane {
             measure();
           }
         });
+    text.addListener(
+        SWT.ImeComposition,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            IME ime = text.getIME();
+            if (event.detail == SWT.COMPOSITION_CHANGED
+                && ime != null
+                && ime.getCommitCount() > 0) {
+              input.commitFromView(ime.getCommitCount());
+            }
+          }
+        });
     text.addLineBackgroundListener(
         new LineBackgroundListener() {
           @Override
@@ -404,7 +459,11 @@ public final class EditorPane {
           @Override
           public void paintControl(PaintEvent event) {
             paintGutter(event.gc, event.y, event.height);
-            paintCarets(event.gc);
+            if (selections.block() != null) {
+              paintBlock(event.gc);
+            } else {
+              paintCarets(event.gc);
+            }
           }
         });
   }
@@ -559,6 +618,80 @@ public final class EditorPane {
       Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
       if (at.x >= text.getLeftMargin() - CARET_WIDTH) {
         gc.fillRectangle(at.x, at.y, CARET_WIDTH, lineHeight);
+      }
+    }
+  }
+
+  // Block selection, tab width and layout queries.
+
+  /**
+   * Returns the pixel and column queries of this editor.
+   *
+   * @return the layout
+   */
+  public ViewLayout layout() {
+    return layout;
+  }
+
+  /**
+   * Sets the columns per tab stop. Costs O(rows) in the widget.
+   *
+   * @param columns from 1 to 16
+   */
+  public void setTabWidth(int columns) {
+    if (!text.isDisposed() && text.getTabs() != columns) {
+      text.setTabs(columns);
+    }
+  }
+
+  /**
+   * Turns column selection mode on or off.
+   *
+   * @param on true when a plain drag selects a block
+   */
+  public void setColumnMode(boolean on) {
+    gestures.setColumnMode(on);
+  }
+
+  /**
+   * Paints a block on the visible rows: its part past each short line's end in the selection color,
+   * and each row's caret but the widget's own, past the line end at the block's caret column.
+   */
+  private void paintBlock(GC gc) {
+    BlockSelection block = selections.block();
+    SelectionSet set = selections.selections();
+    Rectangle area = text.getClientArea();
+    int top = text.getTopIndex();
+    int bottom = Math.min(projection.rowCount() - 1, text.getLineIndex(area.height));
+    int from = projection.toModel(projection.rowStart(top));
+    int to = projection.toModel(projection.rowStart(bottom) + projection.rowText(bottom).length());
+    int left = Math.min(block.anchorColumn(), block.caretColumn());
+    int right = Math.max(block.anchorColumn(), block.caretColumn());
+    int lineHeight = text.getLineHeight();
+    List<Selection> list = set.selections();
+    for (int i = firstEndingAtOrAfter(list, from); i < list.size(); i++) {
+      Selection s = list.get(i);
+      if (s.start() > to) {
+        break;
+      }
+      Point end = text.getLocationAtOffset(projection.toDisplay(s.end()));
+      int endColumn = layout.lineColumn(projection.toDisplay(s.end()));
+      if (endColumn < right) {
+        int x0 = end.x + metrics.x(Math.max(0, left - endColumn));
+        int x1 = end.x + metrics.x(right - endColumn);
+        gc.setBackground(selectionBack);
+        gc.fillRectangle(x0, end.y, x1 - x0, lineHeight);
+      }
+      int caretColumn = layout.lineColumn(projection.toDisplay(s.caret()));
+      boolean virtual = caretColumn < block.caretColumn();
+      if (i == set.primaryIndex() && !virtual) {
+        continue;
+      }
+      Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
+      int x = virtual ? at.x + metrics.x(block.caretColumn() - caretColumn) : at.x;
+      if (x >= text.getLeftMargin() - CARET_WIDTH) {
+        gc.setBackground(caret);
+        gc.fillRectangle(x, at.y, CARET_WIDTH, lineHeight);
       }
     }
   }

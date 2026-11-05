@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
-import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
@@ -28,7 +27,8 @@ import java.util.Set;
  *
  * <p>A command that acts on the selected document is disabled without one. A binary file's view
  * disables every command that would write or edit it; a read-only document disables the edits and
- * the line-ending conversions. A disabled menu item's accelerator does not fire.
+ * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. A disabled
+ * menu item's accelerator does not fire.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -57,7 +57,17 @@ public final class CommandStates {
           CommandId.DELETE_FORWARD,
           CommandId.LINE_ENDING_CRLF,
           CommandId.LINE_ENDING_LF,
-          CommandId.LINE_ENDING_CR);
+          CommandId.LINE_ENDING_CR,
+          CommandId.DUPLICATE,
+          CommandId.DELETE_LINE,
+          CommandId.MOVE_LINES_UP,
+          CommandId.MOVE_LINES_DOWN,
+          CommandId.JOIN_LINES,
+          CommandId.UPPER_CASE,
+          CommandId.LOWER_CASE,
+          CommandId.INDENT,
+          CommandId.OUTDENT,
+          CommandId.INSERT_TAB);
 
   /**
    * An open document as the Window menu lists it.
@@ -103,6 +113,12 @@ public final class CommandStates {
       case LINE_ENDING_CRLF -> uniformEnding() == LineEnding.CRLF;
       case LINE_ENDING_LF -> uniformEnding() == LineEnding.LF;
       case LINE_ENDING_CR -> uniformEnding() == LineEnding.CR;
+      case TAB_WIDTH_2, TAB_WIDTH_4, TAB_WIDTH_8 -> tabWidthChecked(command);
+      case INDENT_WITH_SPACES -> document() != null && document().insertSpaces();
+      case READ_ONLY -> document() != null && document().isReadOnly();
+      case COLUMN_MODE ->
+          application.documents().activeEditor() != null
+              && application.documents().activeEditor().columnMode();
       default -> false;
     };
   }
@@ -114,6 +130,9 @@ public final class CommandStates {
    * @return true unless the command needs a document, a file or a state the document lacks
    */
   public boolean enabled(CommandId command) {
+    if (command == CommandId.REOPEN_CLOSED) {
+      return application.documents().canReopenClosed();
+    }
     if (WINDOW_COMMANDS.contains(command) || command.group() == CommandGroup.HELP) {
       return switch (command) {
         case ZOOM_IN -> application.fontStep() < ApplicationController.MAX_FONT_STEP;
@@ -131,7 +150,8 @@ public final class CommandStates {
       return !document.isReadOnly();
     }
     return switch (command) {
-      case SAVE, SAVE_AS -> !binary;
+      case SAVE, SAVE_AS, READ_ONLY -> !binary;
+      case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS -> documents.count() > 1;
       default -> true;
     };
@@ -217,7 +237,7 @@ public final class CommandStates {
     int line = text.lineAt(caret);
     LineView view = text.lineView(line, new LineView());
     int index = Math.min(caret - view.start(), view.length());
-    int column = Columns.column(view, index, DisplayProjection.TAB_WIDTH);
+    int column = Columns.column(view, index, document.tabWidth());
     long selected = 0;
     for (Selection s : set.selections()) {
       selected += s.end() - s.start();
@@ -250,6 +270,20 @@ public final class CommandStates {
       case LF -> UiText.STATUS_LF.text();
       case CR -> UiText.STATUS_CR.text();
     };
+  }
+
+  private Document document() {
+    return application.documents().activeDocument();
+  }
+
+  private boolean tabWidthChecked(CommandId command) {
+    int width =
+        switch (command) {
+          case TAB_WIDTH_2 -> 2;
+          case TAB_WIDTH_4 -> 4;
+          default -> 8;
+        };
+    return document() != null && document().tabWidth() == width;
   }
 
   /** Returns the ending every break has, the inserted one without breaks, or null when mixed. */

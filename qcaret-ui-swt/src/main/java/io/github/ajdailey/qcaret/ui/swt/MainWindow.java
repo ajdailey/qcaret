@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
@@ -120,6 +121,7 @@ public final class MainWindow implements MainView {
   private Keymap keymap;
   private Menu tabMenu;
   private TextWindow logWindow;
+  private ShortcutsWindow shortcuts;
   private boolean statusPending;
   private long noticeGeneration;
   private PaletteListener paletteListener;
@@ -188,6 +190,21 @@ public final class MainWindow implements MainView {
       if (next != null && next.getData() instanceof Tab shown) {
         shown.pane.focus();
       }
+    }
+
+    @Override
+    public ViewLayout layout() {
+      return pane.layout();
+    }
+
+    @Override
+    public void setTabWidth(int columns) {
+      pane.setTabWidth(columns);
+    }
+
+    @Override
+    public void setColumnMode(boolean on) {
+      pane.setColumnMode(on);
     }
   }
 
@@ -1138,5 +1155,36 @@ public final class MainWindow implements MainView {
     }
     Object value = clipboard.getContents(TextTransfer.getInstance());
     return value instanceof String string ? string : null;
+  }
+
+  // Editing prompts and Keyboard Shortcuts.
+
+  @Override
+  public void askGoToLine(int lines, Consumer<String> answer) {
+    if (!shell.isDisposed()) {
+      new GoToDialog(shell, lines, answer).open();
+    }
+  }
+
+  @Override
+  public void showKeyboardShortcuts(Keymap bindings) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (shortcuts == null || shortcuts.shell().isDisposed()) {
+      shortcuts = new ShortcutsWindow(shell, bindings, this);
+      shortcuts.open();
+    } else {
+      shortcuts.shell().setActive();
+    }
+  }
+
+  /**
+   * Returns the Keyboard Shortcuts window.
+   *
+   * @return the window, or null before it opened
+   */
+  ShortcutsWindow shortcutsWindow() {
+    return shortcuts;
   }
 }

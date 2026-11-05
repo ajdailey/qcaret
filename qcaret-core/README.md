@@ -22,7 +22,7 @@ delete-pending for a moment.
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
-| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing operations, grammars, search, line diff; none uses another |
+| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `BlockEdits`, `Moves`, `Words`, `Occurrences`), grammars, search, line diff; none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
@@ -75,9 +75,10 @@ hold, `DOCUMENT_PERCENT` (60%). `reserve` is lock-free and refuses, reserving
 nothing, what the share cannot hold; the holder calls `release` when the
 document closes.
 
-`@WorkerThread` marks a method that runs only on a worker. In `app.controller`
-a blocking file or settings call, or a call to a `@WorkerThread` method, must
-come from such a method or from a worker task's `run`.
+`@WorkerThread` marks a method that runs only on a worker, such as
+`DocumentFiles.load` and `DisplayProjection.compute`. Its callers are worker
+methods or tasks submitted to `Workers` (`ArchitectureTest` in
+`qcaret-launcher`).
 
 ## Paths and file writes (`core.io`)
 
@@ -196,7 +197,18 @@ fires one `DocumentChange` to `DocumentListener`s: the revision, the cause
 offset in the text before the change, with the removed and inserted text, the
 start line and the line breaks in each. Applying the edits highest offset
 first to the text before the change reproduces the text after it. A read-only
-document refuses `apply`, `undo` and `redo`.
+document refuses `apply`, `undo` and `redo`. `applyInBlock` applies a batch
+and leaves the origin model in block mode with the given block.
+
+`preedit(offset, removeLength, text)` replaces an input method's composition
+text outside undo: the undo state, and so the dirty state, stay as they are,
+and the change fires with cause `PREEDIT`, which recovery skips. Undo, redo
+and `beginGroup` remove the composition first; `apply` refuses while one
+shows, since the batch's offsets would include it, so callers run
+`clearPreedit()` before computing an edit.
+
+`tabWidth()` (1 to 16, default 4) and `insertSpaces()` are per document;
+they change no text.
 
 ### Undo
 
@@ -224,6 +236,20 @@ clear it.
 | `SelectionSet` | Immutable, sorted, with one primary; selections that overlap or touch merge when the set is built |
 | `SelectionModel` | One view's selections, from `Document.newSelectionModel()`, mapped through every change: a caret moves past an insert at it, a range does not grow at either end. `set` is a user move and ends typing coalescing |
 | `BlockSelection` | Lines and visual columns (`Columns`: tabs to the next stop, East Asian wide chars 2). `rows` gives one `BlockRow` per line with the spaces typing must insert to reach the left column on a short line; in block mode the model maps the block's lines and rebuilds its selections |
+
+## Editing commands (`core.edit`)
+
+Functions from a `TextContent` and a `SelectionSet` to an `Edit` (the batch and
+the selections after it, or null to map them), so a controller applies each as
+one `Document.apply`. A line a selection touches holds part of it; a range
+ending at a line's start leaves that line out.
+
+| Class | Commands |
+|---|---|
+| `LineEdits` | Duplicate (each range after itself, or each caret's lines below them), move lines up or down (touching blocks move together; nothing moves at the edge), delete lines (the last line takes the break before it), join (break and the next line's indentation become one space, or none after an empty line or whitespace), upper and lower case one code point at a time (the word at a caret), indent and outdent (empty lines skipped; outdent removes a tab or up to a tab width of spaces), the Tab key (indents when a range spans lines, else a tab or spaces to the next stop), split a range into one selection per line |
+| `BlockEdits` | Typing, Backspace, Delete and paste in a `BlockSelection` (Notepad++ column mode): a row that ends left of the block is padded with spaces; the block stays a block, as wide as nothing after typing; paste gives each row one line |
+| `Moves`, `Words` | Caret steps by char (a CR LF and a surrogate pair are one), smart Home, End, and word moves that stop at runs of word chars, of other non-blank chars and at line breaks |
+| `Occurrences` | The next exact occurrence of a text at or after an offset, wrapping; cancelable, for a worker |
 
 ### Line endings and encoding
 
@@ -300,6 +326,12 @@ set sorted, disjoint and in bounds. It ends by undoing every step and redoing
 them. `-Dqcaret.document.seed=N` runs one seed.
 
 `MemoryBudgetTest` covers the share and refusals.
+
+`LineEditsTest`, `BlockEditsTest` and `MovesTest` cover each command at one
+and several selections with the selections it leaves, padding into virtual
+space, one undo step per block typing run, and a canceled search.
+`PreeditTest` covers composition text outside undo and the dirty state, undo
+removing it, `applyInBlock` and the tab settings.
 
 `DocumentTest` covers change events, coalescing rules, groups, redo
 discard, dirty state, the undo bounds, refused edits, anchors, the position

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import java.nio.file.Path;
 
 /**
@@ -102,4 +103,11 @@ public interface MainView extends ClipboardService, DocumentsView, ActivityIndic
    * @param step points above (positive) or below the default size
    */
   void setFontStep(int step);
+
+  /**
+   * Shows the Keyboard Shortcuts window with a filter, opening it or bringing it to the front.
+   *
+   * @param keymap the bindings it lists
+   */
+  void showKeyboardShortcuts(Keymap keymap);
 }

@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller.archfixture;
 import io.github.ajdailey.qcaret.app.about.UserGuide;
 import io.github.ajdailey.qcaret.core.concurrent.OperationHandle;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.beans.XMLDecoder;
 import java.io.IOException;
@@ -98,16 +99,61 @@ final class ControllerViolations {
     }
   }
 
-  /** Reads a file and writes the guide off a worker; the worker method is allowed. */
+  /**
+   * Blocks on the UI thread and calls a worker method from it; {@code size}, {@code
+   * workerCallsWorker} and the task in {@code submit} are allowed.
+   */
   static final class BlocksOnTheUiThread {
+    private Workers workers;
+
     String read(Path file) throws IOException {
       UserGuide.writeCopy(file);
       return Files.readString(file);
     }
 
+    long uiCallsWorker(Path path) throws IOException {
+      return size(path);
+    }
+
     @WorkerThread
-    String onWorker(Path file) throws IOException {
-      return Files.readString(file);
+    long size(Path path) throws IOException {
+      return Files.size(path);
+    }
+
+    @WorkerThread
+    long workerCallsWorker(Path path) throws IOException {
+      return size(path);
+    }
+
+    void submit(final Path path) {
+      workers.tryStart(
+          Workers.Kind.IO,
+          new Runnable() {
+            @Override
+            public void run() {
+              Files.isDirectory(path);
+            }
+          });
+    }
+
+    /** Creates two tasks, so neither counts as the submitted one. */
+    void submitOneOfTwo(final Path path) {
+      Runnable later =
+          new Runnable() {
+            @Override
+            public void run() {
+              Files.isSymbolicLink(path);
+            }
+          };
+      workers.tryStart(
+          Workers.Kind.IO,
+          new Runnable() {
+            @Override
+            public void run() {
+              Files.isReadable(path);
+            }
+          });
+      later.run();
     }
   }
 

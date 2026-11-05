@@ -66,4 +66,12 @@ public interface DocumentsView {
    * @param answer receives the choice
    */
   void askUnsaved(String name, Consumer<UnsavedChoice> answer);
+
+  /**
+   * Asks for a line, or a line and a column, to move the caret to.
+   *
+   * @param lines the document's line count
+   * @param answer receives the text entered; not called when the user cancels
+   */
+  void askGoToLine(int lines, Consumer<String> answer);
 }

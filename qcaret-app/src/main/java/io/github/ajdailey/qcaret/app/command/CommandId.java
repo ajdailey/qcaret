@@ -17,10 +17,14 @@ public enum CommandId {
   SAVE(CommandGroup.FILE, UiText.COMMAND_SAVE, true, false, null),
   /** Save the selected document to a chosen file. */
   SAVE_AS(CommandGroup.FILE, UiText.COMMAND_SAVE_AS, false, false, null),
+  /** Save every document with unsaved changes; an untitled one asks for a file. */
+  SAVE_ALL(CommandGroup.FILE, UiText.COMMAND_SAVE_ALL, false, false, null),
   /** Close the selected document. */
   CLOSE(CommandGroup.FILE, UiText.COMMAND_CLOSE, true, false, null),
   /** Close every document, asking about each unsaved one. */
   CLOSE_ALL(CommandGroup.FILE, UiText.COMMAND_CLOSE_ALL, false, false, null),
+  /** Open the file of the tab closed last again. */
+  REOPEN_CLOSED(CommandGroup.FILE, UiText.COMMAND_REOPEN_CLOSED, false, false, null),
   /** Close the window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, true, false, null),
   /** Undo in the selected editor. */
@@ -35,6 +39,47 @@ public enum CommandId {
   PASTE(CommandGroup.EDIT, UiText.COMMAND_PASTE, false, false, null),
   /** Select the whole document. */
   SELECT_ALL(CommandGroup.EDIT, UiText.COMMAND_SELECT_ALL, true, false, null),
+  /** Duplicate the selections, or the touched lines when every selection is a caret. */
+  DUPLICATE(CommandGroup.EDIT, UiText.COMMAND_DUPLICATE, true, false, null),
+  /** Delete every touched line. */
+  DELETE_LINE(CommandGroup.EDIT, UiText.COMMAND_DELETE_LINE, false, false, null),
+  /** Move the touched lines up one line. */
+  MOVE_LINES_UP(CommandGroup.EDIT, UiText.COMMAND_MOVE_LINES_UP, false, false, null),
+  /** Move the touched lines down one line. */
+  MOVE_LINES_DOWN(CommandGroup.EDIT, UiText.COMMAND_MOVE_LINES_DOWN, false, false, null),
+  /** Join the touched lines, or a caret's line with the next. */
+  JOIN_LINES(CommandGroup.EDIT, UiText.COMMAND_JOIN_LINES, false, false, null),
+  /** Convert the selections, or the words at the carets, to upper case. */
+  UPPER_CASE(CommandGroup.EDIT, UiText.COMMAND_UPPER_CASE, true, false, null),
+  /** Convert the selections, or the words at the carets, to lower case. */
+  LOWER_CASE(CommandGroup.EDIT, UiText.COMMAND_LOWER_CASE, false, false, null),
+  /** Indent the touched lines. */
+  INDENT(CommandGroup.EDIT, UiText.COMMAND_INDENT, true, false, null),
+  /** Outdent the touched lines. */
+  OUTDENT(CommandGroup.EDIT, UiText.COMMAND_OUTDENT, false, false, null),
+  /** Two columns per tab stop in the selected document. */
+  TAB_WIDTH_2(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_2, false, true, UiText.MENU_TAB_WIDTH),
+  /** Four columns per tab stop. */
+  TAB_WIDTH_4(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_4, false, true, UiText.MENU_TAB_WIDTH),
+  /** Eight columns per tab stop. */
+  TAB_WIDTH_8(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_8, false, true, UiText.MENU_TAB_WIDTH),
+  /** Indent the selected document with spaces instead of tabs. */
+  INDENT_WITH_SPACES(CommandGroup.EDIT, UiText.COMMAND_INDENT_WITH_SPACES, false, true, null),
+  /** Move the caret to a line and column. */
+  GO_TO_LINE(CommandGroup.EDIT, UiText.COMMAND_GO_TO_LINE, true, false, null),
+  /** Refuse or allow edits to the selected document. */
+  READ_ONLY(CommandGroup.EDIT, UiText.COMMAND_READ_ONLY, true, true, null),
+  /** Add a caret one row above the top caret. */
+  ADD_CARET_ABOVE(CommandGroup.SELECTION, UiText.COMMAND_ADD_CARET_ABOVE, false, false, null),
+  /** Add a caret one row below the bottom caret. */
+  ADD_CARET_BELOW(CommandGroup.SELECTION, UiText.COMMAND_ADD_CARET_BELOW, false, false, null),
+  /** Select the next occurrence of the primary selection, or the word at the caret. */
+  ADD_NEXT_OCCURRENCE(
+      CommandGroup.SELECTION, UiText.COMMAND_ADD_NEXT_OCCURRENCE, false, false, null),
+  /** Split each selection that spans lines into one per line. */
+  SPLIT_INTO_LINES(CommandGroup.SELECTION, UiText.COMMAND_SPLIT_INTO_LINES, false, false, null),
+  /** Column selection mode: a mouse drag and Shift with an arrow key select a block. */
+  COLUMN_MODE(CommandGroup.SELECTION, UiText.COMMAND_COLUMN_MODE, true, true, null),
   /** Word wrap in the window's editors. */
   WORD_WRAP(CommandGroup.VIEW, UiText.COMMAND_WORD_WRAP, false, true, null),
   /** Enlarge the editor font. */
@@ -82,6 +127,65 @@ public enum CommandId {
   REPORT_ISSUE(CommandGroup.HELP, UiText.COMMAND_REPORT_ISSUE, true, false, null),
   /** Show the About dialog. */
   ABOUT(CommandGroup.HELP, UiText.COMMAND_ABOUT, false, false, null),
+  /** Move every caret one char left, or to the start of its selection. */
+  CARET_LEFT(CommandGroup.EDITOR, UiText.COMMAND_CARET_LEFT, false, false, null),
+  /** Move every caret one char right, or to the end of its selection. */
+  CARET_RIGHT(CommandGroup.EDITOR, UiText.COMMAND_CARET_RIGHT, false, false, null),
+  /** Move every caret one row up, keeping its column. */
+  CARET_UP(CommandGroup.EDITOR, UiText.COMMAND_CARET_UP, false, false, null),
+  /** Move every caret one row down, keeping its column. */
+  CARET_DOWN(CommandGroup.EDITOR, UiText.COMMAND_CARET_DOWN, false, false, null),
+  /** Move every caret to the previous word start. */
+  WORD_LEFT(CommandGroup.EDITOR, UiText.COMMAND_WORD_LEFT, false, false, null),
+  /** Move every caret past the next word. */
+  WORD_RIGHT(CommandGroup.EDITOR, UiText.COMMAND_WORD_RIGHT, false, false, null),
+  /** Move every caret to its line's first non-blank char, or the line start. */
+  LINE_START(CommandGroup.EDITOR, UiText.COMMAND_LINE_START, false, false, null),
+  /** Move every caret to its line's end. */
+  LINE_END(CommandGroup.EDITOR, UiText.COMMAND_LINE_END, false, false, null),
+  /** Move every caret one page up. */
+  PAGE_UP(CommandGroup.EDITOR, UiText.COMMAND_PAGE_UP, false, false, null),
+  /** Move every caret one page down. */
+  PAGE_DOWN(CommandGroup.EDITOR, UiText.COMMAND_PAGE_DOWN, false, false, null),
+  /** Move the caret to the document start. */
+  DOCUMENT_START(CommandGroup.EDITOR, UiText.COMMAND_DOCUMENT_START, false, false, null),
+  /** Move the caret to the document end. */
+  DOCUMENT_END(CommandGroup.EDITOR, UiText.COMMAND_DOCUMENT_END, false, false, null),
+  /** {@link #CARET_LEFT}, extending every selection. */
+  SELECT_LEFT(CommandGroup.EDITOR, UiText.COMMAND_SELECT_LEFT, false, false, null),
+  /** {@link #CARET_RIGHT}, extending every selection. */
+  SELECT_RIGHT(CommandGroup.EDITOR, UiText.COMMAND_SELECT_RIGHT, false, false, null),
+  /** {@link #CARET_UP}, extending every selection. */
+  SELECT_UP(CommandGroup.EDITOR, UiText.COMMAND_SELECT_UP, false, false, null),
+  /** {@link #CARET_DOWN}, extending every selection. */
+  SELECT_DOWN(CommandGroup.EDITOR, UiText.COMMAND_SELECT_DOWN, false, false, null),
+  /** {@link #WORD_LEFT}, extending every selection. */
+  SELECT_WORD_LEFT(CommandGroup.EDITOR, UiText.COMMAND_SELECT_WORD_LEFT, false, false, null),
+  /** {@link #WORD_RIGHT}, extending every selection. */
+  SELECT_WORD_RIGHT(CommandGroup.EDITOR, UiText.COMMAND_SELECT_WORD_RIGHT, false, false, null),
+  /** {@link #LINE_START}, extending every selection. */
+  SELECT_LINE_START(CommandGroup.EDITOR, UiText.COMMAND_SELECT_LINE_START, false, false, null),
+  /** {@link #LINE_END}, extending every selection. */
+  SELECT_LINE_END(CommandGroup.EDITOR, UiText.COMMAND_SELECT_LINE_END, false, false, null),
+  /** {@link #PAGE_UP}, extending every selection. */
+  SELECT_PAGE_UP(CommandGroup.EDITOR, UiText.COMMAND_SELECT_PAGE_UP, false, false, null),
+  /** {@link #PAGE_DOWN}, extending every selection. */
+  SELECT_PAGE_DOWN(CommandGroup.EDITOR, UiText.COMMAND_SELECT_PAGE_DOWN, false, false, null),
+  /** {@link #DOCUMENT_START}, extending every selection. */
+  SELECT_DOCUMENT_START(
+      CommandGroup.EDITOR, UiText.COMMAND_SELECT_DOCUMENT_START, false, false, null),
+  /** {@link #DOCUMENT_END}, extending every selection. */
+  SELECT_DOCUMENT_END(CommandGroup.EDITOR, UiText.COMMAND_SELECT_DOCUMENT_END, false, false, null),
+  /** Extend the block selection, or start one, one column left. */
+  BLOCK_LEFT(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_LEFT, false, false, null),
+  /** Extend the block selection, or start one, one column right. */
+  BLOCK_RIGHT(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_RIGHT, false, false, null),
+  /** Extend the block selection, or start one, one line up. */
+  BLOCK_UP(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_UP, false, false, null),
+  /** Extend the block selection, or start one, one line down. */
+  BLOCK_DOWN(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_DOWN, false, false, null),
+  /** Insert a tab or spaces at every caret, or indent the lines a selection spans. */
+  INSERT_TAB(CommandGroup.EDITOR, UiText.COMMAND_INSERT_TAB, false, false, null),
   /** Insert the document's line ending at every selection. */
   NEWLINE(CommandGroup.EDITOR, UiText.COMMAND_NEWLINE, false, false, null),
   /** Delete every selection, or the char before each caret. */

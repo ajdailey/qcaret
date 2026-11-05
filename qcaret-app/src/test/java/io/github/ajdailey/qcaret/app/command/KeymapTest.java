@@ -50,9 +50,10 @@ class KeymapTest {
     String reference = Keymap.defaults(false).reference();
     assertTrue(reference.startsWith("File\n  New\tCtrl+N\n"), reference);
     assertTrue(reference.contains("Help\n  Keyboard Shortcuts\tF1\n"), reference);
+    assertTrue(reference.contains("Editor\n  Caret Left\tLeft\n"), reference);
     assertTrue(
         reference.endsWith(
-            "Editor\n  New Line\tEnter, Shift+Enter\n"
+            "  New Line\tEnter, Shift+Enter\n"
                 + "  Delete Previous Char\tBackspace, Shift+Backspace\n"
                 + "  Delete Next Char\tDelete\n"
                 + "  Cancel Save and Extra Carets\tEsc\n"),
@@ -60,12 +61,43 @@ class KeymapTest {
   }
 
   @Test
+  void theReferenceFilterKeepsMatchingRowsUnderTheirGroup() {
+    String filtered = Keymap.defaults(false).reference("BLOCK select");
+    assertEquals(
+        "Editor\n"
+            + "  Block Select Left\tAlt+Shift+Left\n"
+            + "  Block Select Right\tAlt+Shift+Right\n"
+            + "  Block Select Up\tAlt+Shift+Up\n"
+            + "  Block Select Down\tAlt+Shift+Down\n",
+        filtered);
+    assertEquals("", Keymap.defaults(false).reference("no such command"));
+  }
+
+  @Test
   void everyEditingCommandHasAKey() {
     Keymap keymap = Keymap.defaults(true);
     for (CommandId command : CommandId.values()) {
-      if (command.group() == CommandGroup.EDIT || command.group() == CommandGroup.EDITOR) {
+      boolean editing =
+          command.group() == CommandGroup.EDIT || command.group() == CommandGroup.EDITOR;
+      if (editing && !command.check()) {
         assertFalse(keymap.keysText(command).isEmpty(), command.name());
       }
     }
+  }
+
+  /** D4: IBus takes Ctrl+Shift+U on Linux; Option+Shift+Left and Right select words on macOS. */
+  @Test
+  void platformCollisionsLeaveTheirKeysOut() {
+    for (boolean mac : new boolean[] {false, true}) {
+      for (boolean linux : new boolean[] {false, true}) {
+        assertEquals(List.of(), Keymap.defaults(mac, linux).duplicates(), mac + " " + linux);
+      }
+    }
+    assertEquals("", Keymap.defaults(false, true).keysText(CommandId.UPPER_CASE));
+    assertEquals("Ctrl+Shift+U", Keymap.defaults(false, false).keysText(CommandId.UPPER_CASE));
+    assertEquals("Alt+Shift+Left", Keymap.defaults(false).keysText(CommandId.BLOCK_LEFT));
+    assertEquals("Cmd+Option+Shift+Left", Keymap.defaults(true).keysText(CommandId.BLOCK_LEFT));
+    assertTrue(
+        Keymap.defaults(true).keysText(CommandId.SELECT_WORD_LEFT).contains("Option+Shift+Left"));
   }
 }

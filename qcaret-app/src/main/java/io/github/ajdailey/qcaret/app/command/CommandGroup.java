@@ -8,6 +8,8 @@ public enum CommandGroup {
   FILE(UiText.GROUP_FILE, true),
   /** Edit menu. */
   EDIT(UiText.GROUP_EDIT, true),
+  /** Selection menu: carets and block selection. */
+  SELECTION(UiText.GROUP_SELECTION, true),
   /** View menu. */
   VIEW(UiText.GROUP_VIEW, true),
   /** Encoding menu; the menu adds the charset cascades. */

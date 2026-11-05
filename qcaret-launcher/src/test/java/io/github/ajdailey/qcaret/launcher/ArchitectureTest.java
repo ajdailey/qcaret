@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.launcher;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
@@ -10,30 +12,49 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaAccess;
+import com.tngtech.archunit.core.domain.JavaCall;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaConstructorCall;
 import com.tngtech.archunit.core.domain.JavaField;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.EvaluationResult;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import io.github.ajdailey.qcaret.app.about.AboutInfo;
+import io.github.ajdailey.qcaret.app.about.UserGuide;
+import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.core.concurrent.OperationHandle;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.DocumentFiles;
+import io.github.ajdailey.qcaret.core.io.AtomicFiles;
+import io.github.ajdailey.qcaret.core.io.SafePaths;
+import io.github.ajdailey.qcaret.core.io.SafeSave;
 import java.beans.XMLDecoder;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Timer;
 import java.util.concurrent.AbstractExecutorService;
@@ -488,21 +509,142 @@ class ArchitectureTest {
         .callMethod(System.class, "getProperty", String.class, String.class);
   }
 
-  /**
-   * In a controller, a blocking file or settings call, or a call to a {@link WorkerThread} method,
-   * comes from a {@link WorkerThread} method or a worker task's {@code run}.
-   */
+  // Blocking calls in controllers.
+
+  /** Owners and method names of the blocking calls a controller makes only on a worker. */
+  private static final List<Blocking> BLOCKING =
+      List.of(
+          new Blocking(DocumentFiles.class, "estimate|load|save"),
+          new Blocking(SafeSave.class, ".*"),
+          new Blocking(Files.class, ".*"),
+          new Blocking(FileChannel.class, ".*"),
+          new Blocking(Path.class, "toRealPath"),
+          new Blocking(Charset.class, "availableCharsets"),
+          new Blocking(AtomicFiles.class, ".*"),
+          new Blocking(SafePaths.class, ".*"),
+          new Blocking(ConfigStore.class, "load|save"),
+          new Blocking(AboutInfo.class, "collect|licenseText"),
+          new Blocking(UserGuide.class, "writeCopy"),
+          new Blocking(LogFiles.class, "attach|detach"),
+          new Blocking(Workers.class, "close"));
+
+  private record Blocking(Class<?> owner, String names) {}
+
   @Test
   void controllersBlockOnlyOnWorkers() {
     controllersBlockOnlyOnWorkersRule().check(classes);
   }
 
+  @Test
+  void workerMethodsRunOnWorkers() {
+    workerMethodsRunOnWorkersRule().check(classes);
+  }
+
   private static ArchRule controllersBlockOnlyOnWorkersRule() {
-    return noClasses()
+    return classes()
         .that()
         .resideInAPackage(ROOT + ".app.controller..")
-        .should()
-        .callMethodWhere(blockingCallOffAWorker());
+        .should(
+            new ArchCondition<JavaClass>(
+                "make blocking calls only from @WorkerThread methods or tasks submitted to"
+                    + " Workers") {
+              @Override
+              public void check(JavaClass type, ConditionEvents events) {
+                for (JavaCall<?> call : type.getCodeUnitCallsFromSelf()) {
+                  if (blocking(call) && !onWorker(call.getOrigin())) {
+                    events.add(SimpleConditionEvent.violated(call, call.getDescription()));
+                  }
+                }
+              }
+            })
+        .because("the UI thread never waits");
+  }
+
+  /** Annotating a UI-thread method does not pass the blocking rule: its caller fails this one. */
+  private static ArchRule workerMethodsRunOnWorkersRule() {
+    return methods()
+        .that()
+        .areAnnotatedWith(WorkerThread.class)
+        .should(
+            new ArchCondition<JavaMethod>(
+                "be called only from @WorkerThread methods or tasks submitted to Workers") {
+              @Override
+              public void check(JavaMethod method, ConditionEvents events) {
+                for (JavaCall<?> call : method.getCallsOfSelf()) {
+                  if (!onWorker(call.getOrigin())) {
+                    events.add(SimpleConditionEvent.violated(call, call.getDescription()));
+                  }
+                }
+              }
+            });
+  }
+
+  private static boolean blocking(JavaCall<?> call) {
+    for (Blocking entry : BLOCKING) {
+      if (call.getTargetOwner().isAssignableTo(entry.owner())
+          && call.getTarget().getName().matches(entry.names())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Reports whether code runs on a worker: a method annotated {@code @WorkerThread}, or {@code run}
+   * of an anonymous {@code Runnable} whose creating method submits it to {@code Workers}, directly
+   * or through a method of its own class that takes a {@code Runnable} and submits it. The creating
+   * method must create no other anonymous {@code Runnable} and take no method reference, since
+   * bytecode does not show which task it submits.
+   */
+  private static boolean onWorker(JavaCodeUnit origin) {
+    if (origin.isAnnotatedWith(WorkerThread.class)) {
+      return true;
+    }
+    JavaClass task = origin.getOwner();
+    if (!origin.getName().equals("run") || !anonymousRunnable(task)) {
+      return false;
+    }
+    Optional<JavaCodeUnit> creator = task.getEnclosingCodeUnit();
+    if (creator.isEmpty() || !submits(creator.get(), true)) {
+      return false;
+    }
+    int created = creator.get().getMethodReferencesFromSelf().size();
+    for (JavaCall<?> call : creator.get().getCallsFromSelf()) {
+      if (call.getTarget().getName().equals("<init>") && anonymousRunnable(call.getTargetOwner())) {
+        created++;
+      }
+    }
+    return created == 1;
+  }
+
+  /** Reports whether a method submits a task to {@code Workers}, directly or through a helper. */
+  private static boolean submits(JavaCodeUnit code, boolean viaHelper) {
+    for (JavaCall<?> call : code.getCallsFromSelf()) {
+      if (call.getTargetOwner().isEquivalentTo(Workers.class)
+          && call.getTarget().getName().matches("tryStart|start|executeCpu")) {
+        return true;
+      }
+      if (viaHelper && call.getTargetOwner().equals(code.getOwner())) {
+        Optional<? extends JavaCodeUnit> helper = call.getTarget().resolveMember();
+        if (helper.isPresent() && takesRunnable(helper.get()) && submits(helper.get(), false)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private static boolean takesRunnable(JavaCodeUnit code) {
+    for (JavaClass type : code.getRawParameterTypes()) {
+      if (type.isEquivalentTo(Runnable.class)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean anonymousRunnable(JavaClass type) {
+    return type.isAnonymousClass() && type.isAssignableTo(Runnable.class);
   }
 
   @Test
@@ -742,7 +884,15 @@ class ArchitectureTest {
         CONTROLLER_FIXTURES + "BlocksOnTheUiThread",
         "Files.readString",
         "UserGuide.writeCopy",
-        "!onWorker");
+        "Files.isSymbolicLink",
+        "Files.isReadable",
+        "!Files.size",
+        "!Files.isDirectory");
+    assertViolations(
+        workerMethodsRunOnWorkersRule(),
+        CONTROLLER_FIXTURES + "BlocksOnTheUiThread",
+        "uiCallsWorker",
+        "!workerCallsWorker");
     assertViolations(
         onlyWorkersCreatesThreadsRule(),
         CONTROLLER_FIXTURES + "MakesThreads",
@@ -774,15 +924,17 @@ class ArchitectureTest {
   }
 
   /**
-   * Checks a rule against one fixture class: every fragment appears in the failure report, and no
-   * fragment prefixed {@code !} does.
+   * Checks a rule against one fixture class and the classes nested in it: every fragment appears in
+   * the failure report, and no fragment prefixed {@code !} does.
    */
   private static void assertViolations(ArchRule rule, String fixture, String... fragments)
       throws ClassNotFoundException {
     assertViolations(rule, new String[] {fixture}, new Class<?>[0], fragments);
   }
 
-  /** As above, importing several fixture classes and the classes they depend on. */
+  /**
+   * As above, importing several fixture classes, the given classes and the classes nested in each.
+   */
   private static void assertViolations(
       ArchRule rule, String[] fixtures, Class<?>[] also, String... fragments)
       throws ClassNotFoundException {
@@ -790,7 +942,27 @@ class ArchitectureTest {
     for (String fixture : fixtures) {
       types.add(Class.forName(fixture));
     }
-    JavaClasses imported = new ClassFileImporter().importClasses(types);
+    final List<String> files = new ArrayList<String>();
+    List<String> packages = new ArrayList<String>();
+    for (Class<?> type : types) {
+      files.add("/" + type.getName().replace('.', '/'));
+      packages.add(type.getPackageName());
+    }
+    JavaClasses imported =
+        new ClassFileImporter()
+            .withImportOption(
+                new ImportOption() {
+                  @Override
+                  public boolean includes(Location location) {
+                    for (String file : files) {
+                      if (location.contains(file + ".class") || location.contains(file + "$")) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  }
+                })
+            .importPackages(packages);
     EvaluationResult result = rule.evaluate(imported);
     String report = String.join("\n", result.getFailureReport().getDetails());
     String name = String.join(", ", fixtures);
@@ -845,41 +1017,6 @@ class ArchitectureTest {
       public boolean test(JavaMethodCall call) {
         return call.getTarget().getName().matches(namePattern)
             && call.getTarget().getOwner().getName().equals(owner);
-      }
-    };
-  }
-
-  /**
-   * Matches a blocking file or settings call, or a call to a {@link WorkerThread} method, made from
-   * a method that is neither a {@link WorkerThread} method nor the {@code run} of an anonymous
-   * {@code Runnable}.
-   */
-  private static DescribedPredicate<JavaMethodCall> blockingCallOffAWorker() {
-    return new DescribedPredicate<JavaMethodCall>("blocking call off a worker") {
-      @Override
-      public boolean test(JavaMethodCall call) {
-        String owner = call.getTarget().getOwner().getName();
-        String name = call.getTarget().getName();
-        boolean blocking =
-            owner.equals("java.nio.file.Files")
-                || owner.equals(ROOT + ".core.io.AtomicFiles")
-                || owner.equals(ROOT + ".core.io.SafePaths")
-                || (owner.equals(ROOT + ".app.config.ConfigStore") && name.matches("load|save"))
-                || (owner.equals(ROOT + ".app.about.AboutInfo") && name.equals("licenseText"));
-        boolean worker =
-            call.getTarget().resolveMember().isPresent()
-                && call.getTarget().resolveMember().get().isAnnotatedWith(WorkerThread.class);
-        if (!blocking && !worker) {
-          return false;
-        }
-        JavaCodeUnit origin = call.getOrigin();
-        if (origin.isAnnotatedWith(WorkerThread.class)) {
-          return false;
-        }
-        JavaClass from = origin.getOwner();
-        return !(origin.getName().equals("run")
-            && from.isAnonymousClass()
-            && from.isAssignableTo(Runnable.class));
       }
     };
   }

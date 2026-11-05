@@ -27,6 +27,12 @@ Window menu lists the open documents, rebuilt when it shows. A Display key
 filter runs window bindings that are not accelerators (Ctrl plus keypad +),
 when enabled.
 
+Help > Keyboard Shortcuts opens `ShortcutsWindow`, a modeless table of every
+bound command by menu with a filter field, as QLogg's; Copy puts the filtered
+rows on the clipboard as `Keymap.reference(filter)` writes them. A second
+request brings the open window forward. Edit > Go to Line opens `GoToDialog`,
+a modal prompt without a nested event loop.
+
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings and language
@@ -79,8 +85,11 @@ which `MainWindow.clipboardText` uses.
 - The adapter turns each projection change into one `textChanging` and
   `textChanged` pair, so the widget never re-reads the whole text after an
   edit. It sends no `textSet`; a loaded document gets a new adapter, read in
-  `setContent`. A `replaceTextRange` or `setText` from the widget (IME preedit
-  text) goes to the controller as an edit.
+  `setContent`. A `replaceTextRange` from the widget, which it calls only for
+  input method composition text, goes to `EditorInput.preeditFromView`,
+  outside undo; a commit the widget reports with the composition
+  (`IME.getCommitCount`) goes to `commitFromView`. `setText` goes to the
+  controller as an edit.
 - A `VerifyKey` listener converts each key with `SwtKeys.stroke`, runs the
   `Keymap`'s editor binding through `EditorInput.execute`, types printable
   chars and Tab, and consumes both; Ctrl+Alt (AltGr) and, on macOS, Option
@@ -89,19 +98,31 @@ which `MainWindow.clipboardText` uses.
   (word delete, middle-click paste, drag and drop) arrives as `Verify`, is
   canceled, and goes to `EditorInput.replaceFromView`; the controller applies
   it inside the listener, before `modifyContent` returns.
-- Navigation keys and the mouse move the widget's caret natively, and each
-  move goes to the model. The widget holds only the model's primary
-  selection, set again after every model change and every display change;
-  caret moves the widget makes while it applies a change are ignored. An
-  Alt+click that adds a widget selection goes to the model as a second
-  selection.
+- Caret moves are editor bindings, run by the controller at every caret. A
+  plain click and drag move the widget's caret natively, and each move goes to
+  the model. The widget holds only the model's primary selection, set again
+  after every model change and every display change; caret moves the widget
+  makes while it applies a change are ignored, and so is a widget report of
+  that primary, such as after a resize, unless it follows a plain click.
+- `EditorGestures`, a Display filter, takes the editor's mouse gestures before
+  the widget sees them (the widget's own Alt+click adds a native selection):
+  Alt+drag, and Ctrl+Alt+drag where the window manager takes Alt+drag, select
+  a block; Alt+Shift+click and drag extend it; in column selection mode a
+  plain drag selects a block; Mod+click adds a caret or removes the one
+  clicked.
+- `EditorLayout` is the pane's `ViewLayout`. A printable ASCII row without
+  tabs maps x to a column at the font's fractional advance from the row's
+  left edge (UI-1); any other row uses the widget's measured glyph positions.
+  Past a row's end columns continue at the fractional advance.
 - The gutter is painted in the widget's left margin by a paint listener, with
   the line number on each line's first row; `ColumnMetrics` places the digits
   and sizes the margin. The current line's rows get the palette's
   current-line background (`LineBackgroundListener`). Secondary selections are
   line style backgrounds and secondary carets are 2 px bars at
   `getLocationAtOffset`, so both follow the widget's measured glyphs on any
-  script.
+  script. A block's part past a short line's end, and each row's caret there,
+  are painted from the line end's measured position at the fractional
+  advance.
 - Every resize and font change sends the columns that fit the text area for
   word wrap. `setFont` replaces the font in place and measures the advance
   again. A
@@ -188,6 +209,17 @@ and status, Save disabled and a typed key refused; and column 150, where the
 widget's x must match `ColumnMetrics` within 1 px and a secondary caret's
 pixels must sit at the widget's position. Under GTK 4 the window cannot grow
 past the screen, so the pixel half of the column 150 check skips.
+`EditingSurfaceTest` (tag `swt`) adds carets with Ctrl+Alt+Down, moves and
+extends every caret by key, adds one with Mod+click and drops them with Esc;
+drags with Alt from column 150 across long and short lines and checks the
+block, its copy, and in a print of the widget the block's left edge on a short
+line within 1 px of the measured column 150 on a long line, with the virtual
+part painted after a resize and a horizontal scroll (TEST-10); sends
+composition text through the content and checks it stays out of undo; runs Go
+to Line through its dialog; and filters and copies Keyboard Shortcuts. With
+`-Dqcaret.screenshots=<dir>` it saves the multi-caret and block windows as
+PNG. Under GTK 4 its pixel half skips: the window cannot grow past the screen,
+and `Control.print` draws nothing there (SWT issue 2819).
 `ResourceLeakTest` (tag `swt`) runs `DeviceData.tracking` over a warm-up round
 and four rounds of tab open and close, the tab menu, both themes, zoom and
 every menu's `Show`; the live counts per type must return to the warm-up's.

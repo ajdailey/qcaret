@@ -18,6 +18,8 @@ public record DocumentChange(long revision, Cause cause, List<TextEdit> edits) {
     /** {@link Document#undo}. */
     UNDO,
     /** {@link Document#redo}. */
-    REDO
+    REDO,
+    /** {@link Document#preedit} or the removal of its text: outside undo, the state unchanged. */
+    PREEDIT
   }
 }

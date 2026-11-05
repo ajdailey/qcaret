@@ -46,6 +46,15 @@ public final class SwtKeys {
   }
 
   /**
+   * Reports whether the keymap follows Linux, where IBus takes Ctrl+Shift+U.
+   *
+   * @return true on GTK
+   */
+  public static boolean linux() {
+    return "gtk".equals(SWT.getPlatform());
+  }
+
+  /**
    * Converts a key press.
    *
    * @param stateMask the event's modifiers

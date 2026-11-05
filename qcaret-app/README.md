@@ -32,7 +32,9 @@ prompt and the binary-file prompt, each answering through a callback;
 `documentStateChanged` tells the view to read menu and status state again. A
 tab forwards its close button, selection, drags and context-menu items as
 `TabInput`; an editor forwards its input as `EditorInput`, in display offsets,
-and runs editing commands through `EditorInput.execute`. `MainView` is also an
+and runs editing commands through `EditorInput.execute`. A tab's `ViewLayout`
+answers the pixel and column queries caret navigation needs: rows per page, the
+row at a y, and the visual column at an x, past a line's end too. `MainView` is also an
 `ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
 `BusyCounter` counts overlapping operations on the UI thread for the busy
 cursor. `StatusFields` is the status bar's text for the selected document.
@@ -48,11 +50,14 @@ where it ignores a position (Wayland) only the size applies.
 ## Commands (`app.command`)
 
 `CommandId` lists every command with its group (`CommandGroup`), label, check
-state and cascade. The menus are File, Edit, View (word wrap, zoom, theme),
-Encoding (the line-ending conversions; the view adds the charset cascades),
-Window (next and previous tab, Close Others; the view lists the documents)
-and Help. The `EDITOR` group holds Enter, Backspace, Delete and Esc, which
-have no menu. `MenuTable.commands` returns a menu's commands in declaration
+state and cascade. The menus are File, Edit (also the line commands, case,
+indent, tab width, indent with spaces, Go to Line and Read-Only), Selection
+(add caret above and below, add next occurrence, split into lines, column
+selection mode), View (word wrap, zoom, theme), Encoding (the line-ending
+conversions; the view adds the charset cascades), Window (next and previous
+tab, Close Others; the view lists the documents) and Help. The `EDITOR` group
+holds the caret moves, block selection keys, Tab, Enter, Backspace, Delete and
+Esc, which have no menu. `MenuTable.commands` returns a menu's commands in declaration
 order. Where the system supplies an application menu (macOS), About and Exit
 sit there and are left out of Help and File.
 
@@ -62,9 +67,13 @@ and Help > Keyboard Shortcuts all read it. A `WINDOW` binding is a menu
 accelerator when it is the command's first window binding; a second one (Ctrl
 plus keypad +) runs from the window's key filter. An `EDITOR` binding runs
 only from the focused editor, so `Ctrl+C` never fires in another control.
-`Keymap.defaults(mac)` binds `PRIMARY` (Ctrl, or Command on macOS); Ctrl+Y and
-the Insert and Delete clipboard keys are bound off macOS only. Shortcut
-overrides are not built.
+`Keymap.defaults(mac, linux)` binds `PRIMARY` (Ctrl, or Command on macOS);
+Ctrl+Y and the Insert and Delete clipboard keys are bound off macOS only. Upper
+and lower case have no keys on Linux (IBus takes Ctrl+Shift+U). Block selection
+is Alt+Shift with an arrow key, and Command+Option+Shift on macOS, where
+Option+Shift with Left or Right selects words. `reference(filter)` lists the
+bindings whose group, command or keys contain the filter. Shortcut overrides
+are not built.
 
 ## Controller (`app.controller`)
 
@@ -88,8 +97,8 @@ not fire, so the view syncs enablement on every `documentStateChanged`.
 `ApplicationController.loadEncodings` computes the list once per run on a
 worker.
 
-`HelpController` runs the Help commands. Keyboard Shortcuts shows
-`Keymap.reference`; Command-Line Options shows the usage text. User Guide
+`HelpController` runs the Help commands. Keyboard Shortcuts opens the view's
+filtered table of the `Keymap`; Command-Line Options shows the usage text. User Guide
 copies the guide page from the jar to `<settings>/cache/guide.html` on a
 worker and opens it with the system's HTML application, else names the file
 in a notice; the page in this build is a placeholder. Show Log shows the
@@ -158,6 +167,11 @@ read on workers.
   at Cancel. Next and Previous Tab wrap around.
 - Loads, saves and conversions each count as one view activity until their
   worker ends.
+- Save All saves every dirty document in tab order. Reopen Closed Tab opens the
+  file of the last of up to 20 closed tabs again. Read-Only, the tab width and
+  indentation with spaces are per document; a binary file's view stays
+  read-only. Go to Line asks for `line`, `line:column` or `line,column`, from
+  1; other input shows a notice.
 
 `DocumentOpener` opens files for one window on `qcaret-io-` workers. Before
 reading, it estimates the load (`DocumentFiles.estimate`) and reserves it from
@@ -180,6 +194,24 @@ its own is mapped from display offsets and applied as a command. A read-only
 document ignores edits. The controller also runs the projection's rewraps on
 `qcaret-cpu-` workers, a newer request canceling the running one.
 
+- Caret moves apply to every selection; a move without Shift collapses a range
+  to its side first. Up, Down and the page keys follow the projection's rows
+  (`CaretNavigation`) at each caret's preferred column; a page is the view's
+  `ViewLayout.pageRows`.
+- Block selection: Alt+Shift with an arrow key, a mouse drag with Alt (the
+  view reads rows and columns through `ViewLayout`), or Shift with an arrow key
+  in column selection mode, moves the block's caret corner; columns past a
+  line's end are virtual. In block mode typing, Backspace, Delete, cut, copy
+  and paste follow `BlockEdits` and the block stays a block.
+- Line, case and indent commands are `core.edit` functions applied as one
+  command each; undo restores every caret.
+- Add Next Occurrence selects the word at a primary caret, else searches a
+  snapshot for the primary's text on a `qcaret-cpu-` worker and adds the match
+  as the new primary; a result for another revision is dropped.
+- Composition text from the input method goes to `Document.preedit`, outside
+  undo; a commit the view reports with the composition becomes one undo step.
+  Every edit removes a composition first.
+
 ## Editor state (`app.editor`)
 
 `DisplayProjection` maps a document's text to the display text an editor
@@ -192,7 +224,9 @@ the next row.
 - The projection answers for the text it last reported: during
   `Listener.changing` for the text before a change, during `changed` for the
   text after it. A document change becomes one display change covering the
-  changed lines (all of a batch's edits in one range).
+  changed lines (all of a batch's edits in one range): `StyledText` shifts its
+  per-line caches once per change, so one change per edited line cost 10,000
+  spread carets about 5 times as much (measured).
 - `RowBreaks` places a line's breaks: a row ends where the next char would
   pass the wrap column, after the row's last space or tab when it has one,
   and holds at most `MAX_ROW_CHARS` chars; columns count from the row start
@@ -202,7 +236,8 @@ the next row.
 - A document change recomputes the changed lines' rows on the UI thread. A
   change over 1 Mi chars with wrap on gets only the long-line splits there,
   and the projection asks its owner for a rewrap.
-- Turning wrap on or off and a new wrap width need a rewrap of every line:
+- Turning wrap on or off, a new wrap width and, with wrap on, a new tab width
+  need a rewrap of every line:
   `rewrapRequest` returns a `Rewrap`, `compute` runs on a worker from the
   request's snapshot, and `install` applies it only while the document is
   still at that revision; a stale or superseded result is dropped and the
@@ -279,7 +314,8 @@ binary prompt, Reopen and Save with Encoding, the line-ending conversion and
 its undo, a conversion dropped after an edit, the tab commands, the warning
 marker, Debug Log File with a failing attach, the user guide copy, Report an
 Issue and the zoom bounds. `KeymapTest` checks that no stroke is bound twice on
-either platform and the accelerator, editor and window-filter lookups. `DocumentOpenerTest` holds a load in its decoder past the window's
+any platform, the platform key choices, the reference filter and the
+accelerator, editor and window-filter lookups. `DocumentOpenerTest` holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
 both release their reservation; a load over the budget is refused unread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
@@ -288,6 +324,14 @@ three answers, `closeAll` stopping at Cancel, word wrap across editors and the
 heap refusal. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
 second save while the first is held shows the notice.
+`MultiCaretTest` covers every caret moving and selecting, vertical and page
+moves at the preferred column, block keys into virtual space with padded
+typing undone as one step, a block from the view's columns with copy and cut,
+column selection mode, add caret above and below and the click toggle, Add
+Next Occurrence from a worker, line commands whose undo restores every caret,
+paste per caret, composition text with a commit as one undo step, and Go to
+with a tab width change. `EditingSettingsTest` covers Save All, Reopen Closed
+Tab, Read-Only, the tab settings and the Go to Line prompt.
 `EditorControllerTest` covers multi-caret typing as one undo step, Enter's
 line ending, Backspace and Delete over CR LF and surrogate pairs, cut, copy and
 paste with line ending conversion and one line per caret, a read-only
@@ -296,7 +340,8 @@ document, view offsets mapped through virtual breaks, and Esc.
 line by line from `RowBreaks` after 1,500 seeded random edits that join and
 part CR LF pairs, wrap on and off, replaying each display change on a mirror
 string; it also covers stale and superseded rewraps and the large-change
-fallback. `ColumnMetricsTest` checks column 150 at a 7.22 px advance.
+fallback, one change over distant edits, and a rewrap on a tab width change.
+`ColumnMetricsTest` checks column 150 at a 7.22 px advance.
 `ConfigStoreTest` covers the round trip, defaults, malformed and
 other-version files, the `.invalid` copy, the 1 MiB cap, a read-only directory
 and owner-only creation. `CommandLineParserTest`, `SettingsLocationTest`,

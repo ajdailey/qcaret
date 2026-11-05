@@ -33,7 +33,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +67,10 @@ import org.slf4j.LoggerFactory;
  *       the cancel lands before the file is replaced.
  *   <li>Closing a dirty document asks Save, Don't Save or Cancel; Save closes once the save
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
- *   <li>A closed document releases its {@link MemoryBudget} reservation.
+ *   <li>A closed document releases its {@link MemoryBudget} reservation. The paths of the last
+ *       {@value #REOPEN_LIMIT} closed files are kept for Reopen Closed Tab, newest first.
+ *   <li>Tab width, indentation with spaces and read-only are per document; a binary file's view
+ *       stays read-only.
  * </ul>
  *
  * <p>Loads, saves and conversions each count as one operation of the view's {@link
@@ -76,6 +81,9 @@ import org.slf4j.LoggerFactory;
 public final class DocumentController {
   private static final Logger LOG = LoggerFactory.getLogger(DocumentController.class);
 
+  /** Closed files Reopen Closed Tab remembers. */
+  static final int REOPEN_LIMIT = 20;
+
   private final Workers workers;
   private final UiDispatcher ui;
   private final MainView view;
@@ -84,6 +92,8 @@ public final class DocumentController {
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
   private final Map<Path, Charset> reopening = new HashMap<Path, Charset>();
+  private final Deque<Path> closedPaths = new ArrayDeque<Path>();
+  private boolean disposing;
   private OpenDocument active;
   private int nextUntitled = 1;
   private boolean wrap;
@@ -715,6 +725,7 @@ public final class DocumentController {
 
   /** Cancels running loads and closes every document without asking. */
   public void dispose() {
+    disposing = true;
     opener.close();
     for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
       discard(d);
@@ -770,6 +781,13 @@ public final class DocumentController {
       d.converting.cancel();
     }
     d.document.removeListener(d);
+    if (d.path != null && !d.binary && !disposing) {
+      closedPaths.remove(d.path);
+      closedPaths.addFirst(d.path);
+      if (closedPaths.size() > REOPEN_LIMIT) {
+        closedPaths.removeLast();
+      }
+    }
     d.editor.dispose();
     budget.release(d.reserved);
     documents.remove(d);
@@ -895,6 +913,117 @@ public final class DocumentController {
     d.document.setLineEnding(ending);
     d.tab.showCaret();
     view.documentStateChanged();
+  }
+
+  // Editing settings and commands.
+
+  /** Saves every document with unsaved changes in tab order; an untitled one asks for a file. */
+  public void saveAll() {
+    for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
+      if (d.document.isDirty() && !d.binary && !d.closed) {
+        save(d, null);
+      }
+    }
+  }
+
+  /** Reports whether a document has unsaved changes; for {@link CommandStates}. */
+  boolean anyDirty() {
+    for (OpenDocument d : documents) {
+      if (d.document.isDirty() && !d.binary) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Opens the file closed last again; a file still open selects its tab. */
+  public void reopenClosed() {
+    Path path = closedPaths.pollFirst();
+    if (path != null) {
+      opener.open(path, options);
+    }
+  }
+
+  /** Reports whether Reopen Closed Tab has a file; for {@link CommandStates}. */
+  boolean canReopenClosed() {
+    return !closedPaths.isEmpty();
+  }
+
+  /** Refuses or allows edits to the selected document; a binary file's view stays read-only. */
+  public void toggleReadOnly() {
+    if (active == null || active.binary) {
+      return;
+    }
+    Document document = active.document;
+    if (!document.isReadOnly()) {
+      document.clearPreedit();
+    }
+    document.setReadOnly(!document.isReadOnly());
+    active.updateTitle();
+    view.documentStateChanged();
+  }
+
+  /**
+   * Sets the selected document's columns per tab stop.
+   *
+   * @param columns from 1 to {@link Document#MAX_TAB_WIDTH}
+   */
+  public void setTabWidth(int columns) {
+    if (active != null && active.document.tabWidth() != columns) {
+      active.document.setTabWidth(columns);
+      active.editor.tabWidthChanged();
+      view.documentStateChanged();
+    }
+  }
+
+  /** Switches the selected document between indenting with tabs and with spaces. */
+  public void toggleInsertSpaces() {
+    if (active != null) {
+      active.document.setInsertSpaces(!active.document.insertSpaces());
+      view.documentStateChanged();
+    }
+  }
+
+  /**
+   * Asks for a line, or {@code line:column} (also {@code line,column}), both from 1, and moves the
+   * selected editor's caret there; other input shows a notice.
+   */
+  public void goToLine() {
+    final OpenDocument d = active;
+    if (d == null) {
+      return;
+    }
+    view.askGoToLine(
+        d.document.text().lineCount(),
+        new Consumer<String>() {
+          @Override
+          public void accept(String input) {
+            if (d.closed) {
+              return;
+            }
+            int[] position = parsePosition(input);
+            if (position.length == 0) {
+              view.showNotice(UiText.GO_TO_INVALID.format(input.strip()));
+            } else {
+              d.editor.goTo(position[0] - 1, position[1] - 1);
+            }
+          }
+        });
+  }
+
+  /** Parses {@code line}, {@code line:column} or {@code line,column}; empty when invalid. */
+  static int[] parsePosition(String input) {
+    String[] parts = input.strip().split("[:,]", -1);
+    if (parts.length > 2) {
+      return new int[0];
+    }
+    try {
+      int line = Integer.parseInt(parts[0].strip());
+      int column = parts.length == 2 ? Integer.parseInt(parts[1].strip()) : 1;
+      return line >= 1 && column >= 1 ? new int[] {line, column} : new int[0];
+    } catch (NumberFormatException e) {
+      return new int[0];
+    }
   }
 
   /**

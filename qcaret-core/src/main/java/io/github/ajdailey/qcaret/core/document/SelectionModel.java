@@ -119,6 +119,12 @@ public final class SelectionModel {
     update(set);
   }
 
+  /** Enters block mode with the block an edit left, at the tab width of the last block. */
+  void restoreBlock(BlockSelection selection) {
+    block = selection;
+    update(selection.toSelections(document.text(), tabWidth));
+  }
+
   /** Maps the selections, or the block's lines, through a change. */
   void map(ChangeMap map, TextSnapshot before) {
     if (block != null) {

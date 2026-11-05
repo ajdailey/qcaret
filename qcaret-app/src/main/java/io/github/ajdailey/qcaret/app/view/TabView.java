@@ -18,4 +18,25 @@ public interface TabView {
 
   /** Removes the tab and disposes its editor. */
   void close();
+
+  /**
+   * Returns the editor's pixel and column queries.
+   *
+   * @return the layout
+   */
+  ViewLayout layout();
+
+  /**
+   * Sets the editor's columns per tab stop.
+   *
+   * @param columns from 1 to 16
+   */
+  void setTabWidth(int columns);
+
+  /**
+   * Turns column selection mode on or off: a plain mouse drag then selects a block.
+   *
+   * @param on true for column mode
+   */
+  void setColumnMode(boolean on);
 }

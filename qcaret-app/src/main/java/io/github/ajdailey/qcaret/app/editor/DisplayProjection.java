@@ -24,13 +24,16 @@ import java.util.concurrent.CancellationException;
  *
  * <p>The projection answers for the text it last reported ({@link Listener}): during {@link
  * Listener#changing} it still answers for the text before the change, during {@link
- * Listener#changed} for the text after it. A document change recomputes the rows of the changed
- * lines on the UI thread; when the change spans more than {@value #SYNC_CHARS} chars with wrap on,
- * those lines get only their long-line splits and the projection asks for a rewrap. Turning wrap on
- * or off and changing the wrap width also need a rewrap, which recomputes every line from a
- * snapshot: the owner takes a {@link Rewrap} from {@link #rewrapRequest}, runs {@link #compute} on
- * a worker and passes the result to {@link #install} on the UI thread, which applies it only while
- * the document is still at the snapshot's revision. Confined to the UI thread.
+ * Listener#changed} for the text after it. A document change fires one display change, from its
+ * first to its last edited line: {@code StyledText} shifts its per-line caches once per change, so
+ * one change per edited line costs 10,000 spread carets about 5 times as much (measured). A
+ * document change recomputes the rows of the changed lines on the UI thread; when the change spans
+ * more than {@value #SYNC_CHARS} chars with wrap on, those lines get only their long-line splits
+ * and the projection asks for a rewrap. Turning wrap on or off and changing the wrap width or, with
+ * wrap on, the tab width also need a rewrap, which recomputes every line from a snapshot: the owner
+ * takes a {@link Rewrap} from {@link #rewrapRequest}, runs {@link #compute} on a worker and passes
+ * the result to {@link #install} on the UI thread, which applies it only while the document is
+ * still at the snapshot's revision. Confined to the UI thread.
  *
  * <p>Folds attach as a second sparse layer keyed by model line, a hidden line contributing no rows
  * and no chars; none is applied yet.
@@ -39,8 +42,8 @@ public final class DisplayProjection implements DocumentListener {
   /** Chars per row at most, wrap on or off: longer rows make the widget's layout stall. */
   public static final int MAX_ROW_CHARS = 16_384;
 
-  /** Columns per tab stop. */
-  public static final int TAB_WIDTH = 4;
+  /** Columns per tab stop of a new document. */
+  public static final int TAB_WIDTH = Document.DEFAULT_TAB_WIDTH;
 
   /** Chars a change may span and still be rewrapped on the UI thread. */
   static final int SYNC_CHARS = 1 << 20;
@@ -84,11 +87,13 @@ public final class DisplayProjection implements DocumentListener {
   public static final class Layout {
     private final TextSnapshot text;
     private final int wrapColumns;
+    private final int tabWidth;
     private final RowIndex index;
 
-    private Layout(TextSnapshot text, int wrapColumns, RowIndex index) {
+    private Layout(TextSnapshot text, int wrapColumns, int tabWidth, RowIndex index) {
       this.text = text;
       this.wrapColumns = wrapColumns;
+      this.tabWidth = tabWidth;
       this.index = index;
     }
 
@@ -104,7 +109,7 @@ public final class DisplayProjection implements DocumentListener {
       if (text.length() > MAX_ROW_CHARS) {
         throw new IllegalArgumentException("text longer than a row");
       }
-      return new Layout(text, 0, new RowIndex());
+      return new Layout(text, 0, TAB_WIDTH, new RowIndex());
     }
   }
 
@@ -115,10 +120,13 @@ public final class DisplayProjection implements DocumentListener {
   private TextSnapshot text;
   private RowIndex index;
   private int appliedColumns;
+  private int tabWidth;
+  private int appliedTabWidth;
   private boolean wrap;
   private int viewColumns;
   private long generation;
   private int pendingColumns = -1;
+  private int pendingTabWidth;
   private Runnable rewrapHook;
   private boolean disposed;
 
@@ -138,6 +146,8 @@ public final class DisplayProjection implements DocumentListener {
     this.text = layout.text;
     this.index = layout.index;
     this.appliedColumns = layout.wrapColumns;
+    this.tabWidth = document.tabWidth();
+    this.appliedTabWidth = layout.tabWidth;
     this.wrap = layout.wrapColumns > 0;
     this.viewColumns = layout.wrapColumns;
     document.addListener(this);
@@ -155,14 +165,14 @@ public final class DisplayProjection implements DocumentListener {
    */
   @WorkerThread
   public static Layout layout(TextSnapshot text, int wrapColumns, CancellationToken token) {
-    return layout(text, wrapColumns, MAX_ROW_CHARS, token);
+    return layout(text, wrapColumns, TAB_WIDTH, MAX_ROW_CHARS, token);
   }
 
   static Layout layout(
-      TextSnapshot text, int wrapColumns, int maxRowChars, CancellationToken token) {
+      TextSnapshot text, int wrapColumns, int tabWidth, int maxRowChars, CancellationToken token) {
     RowIndex.Builder builder = new RowIndex.Builder();
-    rows(text, 0, text.lineCount() - 1, 0, wrapColumns, maxRowChars, token, builder);
-    return new Layout(text, wrapColumns, builder.build());
+    rows(text, 0, text.lineCount() - 1, 0, wrapColumns, tabWidth, maxRowChars, token, builder);
+    return new Layout(text, wrapColumns, tabWidth, builder.build());
   }
 
   /**
@@ -175,6 +185,7 @@ public final class DisplayProjection implements DocumentListener {
       int to,
       int shift,
       int wrapColumns,
+      int tabWidth,
       int maxRowChars,
       CancellationToken token,
       RowIndex.Builder builder) {
@@ -185,7 +196,7 @@ public final class DisplayProjection implements DocumentListener {
           token.check();
         }
         text.lineView(i, line);
-        builder.add(i - shift, RowBreaks.compute(line, wrapColumns, maxRowChars, TAB_WIDTH));
+        builder.add(i - shift, RowBreaks.compute(line, wrapColumns, maxRowChars, tabWidth));
       }
       return;
     }
@@ -195,7 +206,7 @@ public final class DisplayProjection implements DocumentListener {
         token.check();
       }
       text.lineView(i, line);
-      builder.add(i - shift, RowBreaks.compute(line, 0, maxRowChars, TAB_WIDTH));
+      builder.add(i - shift, RowBreaks.compute(line, 0, maxRowChars, tabWidth));
     }
   }
 
@@ -304,6 +315,24 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
+   * Returns the columns per tab stop the rows use.
+   *
+   * @return the tab width
+   */
+  public int tabWidth() {
+    return tabWidth;
+  }
+
+  /**
+   * Sets the columns per tab stop; with wrap on the rows need a rewrap.
+   *
+   * @param columns from 1 to {@link Document#MAX_TAB_WIDTH}
+   */
+  public void setTabWidth(int columns) {
+    tabWidth = columns;
+  }
+
+  /**
    * Reports whether a rewrap is out.
    *
    * @return true from {@link #rewrapRequest} until its {@link #install}
@@ -322,13 +351,21 @@ public final class DisplayProjection implements DocumentListener {
     private final long revision;
     private final TextSnapshot snapshot;
     private final int columns;
+    private final int tabWidth;
     private final int maxRowChars;
 
-    private Rewrap(long job, long revision, TextSnapshot snapshot, int columns, int maxRowChars) {
+    private Rewrap(
+        long job,
+        long revision,
+        TextSnapshot snapshot,
+        int columns,
+        int tabWidth,
+        int maxRowChars) {
       this.job = job;
       this.revision = revision;
       this.snapshot = snapshot;
       this.columns = columns;
+      this.tabWidth = tabWidth;
       this.maxRowChars = maxRowChars;
     }
   }
@@ -355,16 +392,18 @@ public final class DisplayProjection implements DocumentListener {
       return null;
     }
     int target = targetColumns();
-    if (target == pendingColumns) {
+    if (target == pendingColumns && (target == 0 || tabWidth == pendingTabWidth)) {
       return null;
     }
     generation++;
-    if (target == appliedColumns) {
+    if (target == appliedColumns && (target == 0 || tabWidth == appliedTabWidth)) {
       pendingColumns = -1;
       return null;
     }
     pendingColumns = target;
-    return new Rewrap(generation, document.revision(), document.text(), target, maxRowChars);
+    pendingTabWidth = tabWidth;
+    return new Rewrap(
+        generation, document.revision(), document.text(), target, tabWidth, maxRowChars);
   }
 
   /**
@@ -377,7 +416,7 @@ public final class DisplayProjection implements DocumentListener {
    */
   @WorkerThread
   public static Layout compute(Rewrap request, CancellationToken token) {
-    return layout(request.snapshot, request.columns, request.maxRowChars, token);
+    return layout(request.snapshot, request.columns, request.tabWidth, request.maxRowChars, token);
   }
 
   /**
@@ -403,6 +442,7 @@ public final class DisplayProjection implements DocumentListener {
     fireChanging(change);
     index = result.index;
     appliedColumns = result.wrapColumns;
+    appliedTabWidth = result.tabWidth;
     rowCache.clear();
     fireChanged(change);
   }
@@ -429,7 +469,7 @@ public final class DisplayProjection implements DocumentListener {
     int newGroupBreaks = 0;
     for (int[] g : groups) {
       RowIndex.Builder builder = new RowIndex.Builder();
-      rows(after, g[2], g[3], g[2] - g[0], rowColumns, maxRowChars, null, builder);
+      rows(after, g[2], g[3], g[2] - g[0], rowColumns, tabWidth, maxRowChars, null, builder);
       builders.add(builder);
       oldGroupBreaks += index.breaksBefore(g[1] + 1) - index.breaksBefore(g[0]);
       newGroupBreaks += builder.build().totalBreaks();

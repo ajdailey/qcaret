@@ -35,7 +35,8 @@ class DisplayProjectionTest {
   private static DisplayProjection projection(Document document, int columns) {
     return new DisplayProjection(
         document,
-        DisplayProjection.layout(document.text(), columns, MAX, new CancellationToken()),
+        DisplayProjection.layout(
+            document.text(), columns, DisplayProjection.TAB_WIDTH, MAX, new CancellationToken()),
         MAX);
   }
 
@@ -233,6 +234,56 @@ class DisplayProjectionTest {
     assertEquals(
         List.of(0, 2, 3),
         DisplayProjection.longLines(document.text(), 0, document.text().lineCount() - 1, MAX));
+  }
+
+  /**
+   * Edits on distant lines fire one change over the lines between: one change per edited line
+   * measured about 5 times slower in the widget for 10,000 spread carets.
+   */
+  @Test
+  void editsOnDistantLinesFireOneChange() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 100; i++) {
+      text.append("line ").append(i).append('\n');
+    }
+    Document document = document(text.toString());
+    final DisplayProjection p = projection(document, 0);
+    final List<String> seen = new ArrayList<String>();
+    p.setListener(
+        new DisplayProjection.Listener() {
+          @Override
+          public void changing(DisplayProjection.DisplayChange change) {
+            seen.add(p.lineAt(p.toModel(change.start())) + "+" + change.replaceRows());
+          }
+
+          @Override
+          public void changed(DisplayProjection.DisplayChange change) {
+            seen.add("changed");
+          }
+        });
+    int line10 = document.text().offsetOfLine(10);
+    int line90 = document.text().offsetOfLine(90);
+    document.apply(
+        EditBatch.of(
+            EditBatch.Kind.TYPING,
+            List.of(new Replacement(line10, 0, "x"), new Replacement(line90, 0, "x"))));
+    assertEquals(List.of("9+83", "changed"), seen);
+    check(p, document.text().toString(), 0);
+  }
+
+  @Test
+  void aTabWidthChangeWithWrapOnNeedsARewrap() {
+    Document document = document("\tab cd\tef gh");
+    DisplayProjection p = projection(document, 6);
+    p.setViewColumns(6);
+    p.setWrap(true);
+    assertNull(p.rewrapRequest());
+    p.setTabWidth(2);
+    assertEquals(2, p.tabWidth());
+    DisplayProjection.Rewrap request = p.rewrapRequest();
+    p.install(request, DisplayProjection.compute(request, new CancellationToken()));
+    assertNull(p.rewrapRequest());
+    assertFalse(p.rewrapPending());
   }
 
   private static String randomText(SplittableRandom random, int length) {

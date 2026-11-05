@@ -246,11 +246,71 @@ public final class ApplicationController {
       case OPEN -> documents.open();
       case SAVE -> documents.save();
       case SAVE_AS -> documents.saveAs();
+      case SAVE_ALL -> documents.saveAll();
+      case REOPEN_CLOSED -> documents.reopenClosed();
       case CLOSE -> documents.closeActive();
       case CLOSE_ALL -> documents.closeAll(null);
       case QUIT -> requestQuit();
-      case UNDO, REDO, CUT, COPY, PASTE, SELECT_ALL, NEWLINE, DELETE_BACK, DELETE_FORWARD, CANCEL ->
+      case UNDO,
+          REDO,
+          CUT,
+          COPY,
+          PASTE,
+          SELECT_ALL,
+          NEWLINE,
+          DELETE_BACK,
+          DELETE_FORWARD,
+          CANCEL,
+          DUPLICATE,
+          DELETE_LINE,
+          MOVE_LINES_UP,
+          MOVE_LINES_DOWN,
+          JOIN_LINES,
+          UPPER_CASE,
+          LOWER_CASE,
+          INDENT,
+          OUTDENT,
+          INSERT_TAB,
+          ADD_CARET_ABOVE,
+          ADD_CARET_BELOW,
+          ADD_NEXT_OCCURRENCE,
+          SPLIT_INTO_LINES,
+          COLUMN_MODE,
+          CARET_LEFT,
+          CARET_RIGHT,
+          CARET_UP,
+          CARET_DOWN,
+          WORD_LEFT,
+          WORD_RIGHT,
+          LINE_START,
+          LINE_END,
+          PAGE_UP,
+          PAGE_DOWN,
+          DOCUMENT_START,
+          DOCUMENT_END,
+          SELECT_LEFT,
+          SELECT_RIGHT,
+          SELECT_UP,
+          SELECT_DOWN,
+          SELECT_WORD_LEFT,
+          SELECT_WORD_RIGHT,
+          SELECT_LINE_START,
+          SELECT_LINE_END,
+          SELECT_PAGE_UP,
+          SELECT_PAGE_DOWN,
+          SELECT_DOCUMENT_START,
+          SELECT_DOCUMENT_END,
+          BLOCK_LEFT,
+          BLOCK_RIGHT,
+          BLOCK_UP,
+          BLOCK_DOWN ->
           edit(command);
+      case TAB_WIDTH_2 -> documents.setTabWidth(2);
+      case TAB_WIDTH_4 -> documents.setTabWidth(4);
+      case TAB_WIDTH_8 -> documents.setTabWidth(8);
+      case INDENT_WITH_SPACES -> documents.toggleInsertSpaces();
+      case GO_TO_LINE -> documents.goToLine();
+      case READ_ONLY -> documents.toggleReadOnly();
       case WORD_WRAP -> documents.toggleWrap();
       case ZOOM_IN -> setFontStep(fontStep + 1);
       case ZOOM_OUT -> setFontStep(fontStep - 1);
