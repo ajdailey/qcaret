@@ -16,6 +16,7 @@ public final class Keymap {
   private static final int S = KeyStroke.SHIFT;
   private static final int F2 = KeyStroke.F1 + 1;
   private static final int F3 = KeyStroke.F1 + 2;
+  private static final int F4 = KeyStroke.F1 + 3;
   private static final int F6 = KeyStroke.F1 + 5;
 
   private final List<Binding> bindings;
@@ -96,6 +97,9 @@ public final class Keymap {
     } else {
       window(b, CommandId.REPLACE, P, 'h');
     }
+    window(b, CommandId.HYPERSEARCH, P | S, 'f');
+    window(b, CommandId.NEXT_RESULT, 0, F4);
+    window(b, CommandId.PREVIOUS_RESULT, S, F4);
     editor(b, CommandId.NEWLINE, 0, KeyStroke.ENTER);
     editor(b, CommandId.NEWLINE, S, KeyStroke.ENTER);
     editor(b, CommandId.DELETE_BACK, 0, KeyStroke.BACKSPACE);

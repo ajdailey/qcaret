@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
+import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import java.util.List;
 
@@ -96,4 +97,18 @@ public interface EditorView {
    * @param selected the index of the selected word
    */
   void showCompletions(List<String> words, int selected);
+
+  /**
+   * Shows the overview strip's marks; replaces the ones shown before.
+   *
+   * @param marks the marks, computed for the strip's reported height
+   */
+  void showOverview(OverviewMarks marks);
+
+  /**
+   * Shows or hides the overview strip.
+   *
+   * @param shown true to show
+   */
+  void setOverviewShown(boolean shown);
 }

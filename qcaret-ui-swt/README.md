@@ -3,13 +3,15 @@
 The SWT views: the main window with its tabs and menus, the editor
 (`ui.swt.editor`), dialogs, the theme service and the UI dispatcher. It
 depends on `qcaret-app`, `qcaret-core` and the build host's SWT fragment, and
-uses public SWT API only. The package `ui.swt.search` is empty.
+uses public SWT API only. The package `ui.swt.search` holds the HyperSearch
+results dock.
 
 ## Main window
 
-`MainWindow` holds a `CTabFolder` with one tab per document, the menu bar,
-the find bar and a status bar. A tab's control is a `SashForm` holding one
-`EditorPane`, or two after a split (`SWT.HORIZONTAL` side by side,
+`MainWindow` holds the menu bar, a vertical `SashForm` with a `CTabFolder` (one
+tab per document) over the HyperSearch results dock, the find bar and a status
+bar; the dock is hidden by maximizing the folder. A tab's control is a
+`SashForm` holding one `EditorPane`'s `control()`, or two after a split (`SWT.HORIZONTAL` side by side,
 `SWT.VERTICAL` one above the other). The pane that took the focus last is the
 tab's focused view; a pane's `FocusIn` reports it to the controller, and a
 view the controller focuses becomes it without waiting for the event. `attach` connects the
@@ -84,6 +86,27 @@ finds incrementally; Enter finds the next match, Shift+Enter the previous one,
 Enter in the replace field replaces, and Escape anywhere in the bar closes it
 and focuses the editor. Mod+F with the bar open focuses and selects the field.
 
+`SearchDialog` (Search > HyperSearch) is modal: the text with its history,
+Match case, Whole word, Regex, the scope, the workspace folder, the directory
+with its history and Browse, the include masks with their history, the
+exclude masks and Hidden files. The directory fields are enabled for the
+directory scopes, the masks for the folder scopes. Search passes a
+`SearchForm` to the controller and closes. File > Set Workspace Folder and
+Browse use the native `DirectoryDialog`.
+
+`ResultsDock` (`ui.swt.search`) shows the `ResultsInput` model as an indented
+tree in a virtual `Table`: set rows, file group rows and match rows, a `+` or
+`-` before a set or group. GTK's `Tree` took 3.4 s to expand 10,000 children
+and 2 s to clear them (measured under Xvfb), and a virtual table changes only
+its row count; `ResultRows` maps rows to paths. A click on the mark, Enter, a
+double click, Right and Left expand and collapse; Left on a child selects its
+parent; Enter and a double click on a match open it. A match row paints the
+matched text over the palette's find-match color in the palette's text color;
+a stale row shows in the disabled color. Stop, Rerun, Pin and Clear act on the
+selected row's set, Clear All on every set, Hide hides the dock. A cut of more
+than 2,000 rows replaces the table, since GTK removes rows one at a time
+(4.6-7.7 s for 100,000 in the dock; a new table took 81-105 ms).
+
 Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
 `showText` and `showLog` open their window modal and owned by the innermost
@@ -97,7 +120,8 @@ which `MainWindow.clipboardText` uses.
 
 `EditorPane` is one editor: a `StyledText` over a `ContentAdapter`, the
 `StyledTextContent` that serves the display rows of the document's
-`DisplayProjection`. The model is the only authority:
+`DisplayProjection`, then the `OverviewStrip` and a `Slider` as the vertical
+scroll bar, in one composite (`control()`). The model is the only authority:
 
 - The adapter turns each projection change into one `textChanging` and
   `textChanged` pair, so the widget never re-reads the whole text after an
@@ -201,6 +225,26 @@ which `MainWindow.clipboardText` uses.
   of a 1M-line document (measured 970 ms for one view, 1,882 ms for two, load
   1-2).
 
+### Overview strip and scroll bar
+
+The `StyledText` has no native vertical bar, so the strip sits between the
+text and a `Slider`. The slider counts rows (one widget line each): maximum
+the row count, thumb the rows that fit, selection the top row; it follows the
+widget on each paint and resize and after the strip or the wheel scroll, and
+its own moves set the top row and hand the focus back to the text. The wheel
+scrolls the text by its event count in `MouseVerticalWheel` and consumes the
+event. Page and caret moves scroll the widget, folding and word wrap change
+its rows, and the next paint sets the slider.
+
+`OverviewStrip` (14 px) paints the last `OverviewMarks`: a HyperSearch mark
+per pixel row holding a match, a find mark over it, and a bookmark tick at
+the left edge, then a line down its left edge and lines at the first and last
+visible line, in the palette's gutter, line-number, `overviewFind`,
+`overviewSearch` and caret colors; a palette change recolors it. A click or
+drag scrolls the line under the pointer to the middle of the view. Each
+resize reports the height, 0 while View > Overview Strip hides it. Split views
+have one strip each.
+
 ## Themes
 
 `SwtThemeService` reports `Display.isSystemDarkTheme` with a change event from
@@ -299,6 +343,14 @@ match background in pixels in the light and the dark theme (skipped when
 `Control.print` returns false), Escape closing the bar and clearing the
 matches, and Esc in the editor dropping an extra caret before it closes the
 bar; the Focus Other View item shows F6 and switches views.
+`SearchSurfaceTest` (tag `swt`) runs two tree searches from the dialog into
+the dock, checks the rows newest first, expands a group, opens a match with
+Enter and steps with F4 to another file; it checks the strip's find marks,
+a click on the strip scrolling there, the slider following that, its own
+moves and the wheel, hiding and showing the strip, its recolor on a theme
+switch and a strip in each split view, and the slider following Page Down and
+Fold All. `ResultRowsTest` covers row paths through expansion, expansion
+kept by set id, and groups collapsed when a search ends.
 `SyntaxPaneTest` (tag `swt`) opens a Java file and checks the keyword's
 palette color and bold, a number keeping its color under a find match, Java
 checked in the Programming Languages A-M cascade, Python chosen from N-Z
@@ -325,7 +377,8 @@ warm-up rounds (the second adds one cached `StyledText` line layout) and four
 rounds of tab open and close, the tab menu, both
 themes, zoom, split with Fold All and Unfold All in both views and the find
 bar searching and closed, unsplit, the command palette, the completion list
-with the whitespace and line-ending marks on, and
+with the whitespace and line-ending marks on, a HyperSearch from its dialog
+into the dock with a group expanded, the overview strip hidden and shown, and
 every menu's `Show`; the live counts per type must return to the warm-ups',
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it

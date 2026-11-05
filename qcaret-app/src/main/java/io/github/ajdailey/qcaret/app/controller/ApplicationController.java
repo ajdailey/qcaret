@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
+import io.github.ajdailey.qcaret.app.search.HyperSearch;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
@@ -18,7 +19,9 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.charset.Charset;
@@ -65,6 +68,8 @@ public final class ApplicationController {
   private final DocumentController documents;
   private final HelpController help;
   private final FindController find;
+  private final WorkspaceController workspace;
+  private final SearchController search;
   private final GrammarLibrary grammars;
   private final Keymap keymap;
   private final boolean rememberWindow;
@@ -126,6 +131,22 @@ public final class ApplicationController {
             });
     this.rememberWindow = rememberWindow;
     this.find = new FindController(documents, workers, ui);
+    this.workspace = new WorkspaceController(view);
+    this.search =
+        new SearchController(
+            documents, workspace, workers, ui, view, budget, HyperSearch.Limits.DEFAULTS);
+    documents.setOverviewSources(
+        new OverviewSources() {
+          @Override
+          public TextMatcher findMatcher(Document document) {
+            return find.overviewMatcher(document);
+          }
+
+          @Override
+          public int[] searchOffsets(Document document) {
+            return search.offsets(document);
+          }
+        });
     this.grammars =
         new GrammarLibrary(workers, ui, view, config.location().directory().resolve("grammars"));
     documents.setGrammars(grammars);
@@ -164,6 +185,24 @@ public final class ApplicationController {
    */
   public FindController find() {
     return find;
+  }
+
+  /**
+   * Returns HyperSearch's controller.
+   *
+   * @return the search controller
+   */
+  public SearchController search() {
+    return search;
+  }
+
+  /**
+   * Returns the window's workspace folder.
+   *
+   * @return the workspace controller
+   */
+  public WorkspaceController workspace() {
+    return workspace;
   }
 
   /**
@@ -390,6 +429,12 @@ public final class ApplicationController {
       case FIND_NEXT -> find.findNext();
       case FIND_PREVIOUS -> find.findPrevious();
       case REPLACE -> find.open(true);
+      case SET_WORKSPACE -> workspace.choose();
+      case HYPERSEARCH -> search.showDialog();
+      case NEXT_RESULT -> search.next(true);
+      case PREVIOUS_RESULT -> search.next(false);
+      case SEARCH_RESULTS -> search.toggleResults();
+      case OVERVIEW_STRIP -> documents.toggleOverview();
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
       case LINE_ENDING_CR -> documents.convertLineEndings(LineEnding.CR);
@@ -515,6 +560,7 @@ public final class ApplicationController {
     quitting = true;
     help.close();
     find.dispose();
+    search.dispose();
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();

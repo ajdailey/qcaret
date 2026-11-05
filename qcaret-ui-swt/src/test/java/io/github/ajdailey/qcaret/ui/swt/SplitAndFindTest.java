@@ -156,7 +156,7 @@ class SplitAndFindTest {
     drain();
     List<EditorPane> panes = window.activeEditors();
     assertEquals(2, panes.size());
-    SashForm sash = (SashForm) first.text().getParent();
+    SashForm sash = (SashForm) first.control().getParent();
     assertEquals(SWT.HORIZONTAL, sash.getOrientation());
     EditorPane second = panes.get(1);
     assertSame(second, window.activeEditor());

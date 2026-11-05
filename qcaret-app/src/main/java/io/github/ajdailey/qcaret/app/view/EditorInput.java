@@ -153,4 +153,11 @@ public interface EditorInput {
    * @param index the word's index in the list
    */
   void completionChosen(int index);
+
+  /**
+   * Reports the overview strip's height, which its marks are computed for.
+   *
+   * @param height pixel rows, 0 while hidden
+   */
+  void overviewResized(int height);
 }

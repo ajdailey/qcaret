@@ -3,8 +3,9 @@
 Model-side code with no SWT and no logging dependency: thread ownership,
 paths, atomic and safe file writes, encodings and line endings, text storage,
 the document model, editing commands, grammars and the tokenizer, the find
-matcher and small utilities. The packages `diff`, `watch` and `workspace` are
-empty, with their layer rules in place. Tests run without a display.
+matcher, the HyperSearch text and file search, and small utilities. The
+packages `diff`, `watch` and `workspace` are empty, with their layer rules in
+place. Tests run without a display.
 
 The test jar carries `testkit` for the other modules' tests and
 `qcaret-bench`: `Poll.until`, a bounded poll for state another thread
@@ -22,7 +23,7 @@ delete-pending for a moment.
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
-| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search, line diff; none uses another |
+| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search (`TextMatcher`, `TextSearch`, `FileSearch`), line diff; none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
@@ -431,7 +432,42 @@ outside a searched range.
   query's replacement is inserted as is.
 
 The calls are `@WorkerThread`: the find bar runs them on `qcaret-cpu-` workers
-from a snapshot, and HyperSearch (S5) reuses them.
+from a snapshot, and HyperSearch reuses them.
+
+`TextSearch.search` lists every match of a `TextMatcher` in one text (a
+snapshot or a decoded file) as `Hit`s: offsets, line, column, the hash of the
+matched text and a snippet of the first line, control chars as spaces,
+trimmed, and cut to 500 chars around the match on a longer line. Optional
+ranges limit it to the selections; a match then lies inside one.
+
+- A line over `maxLineChars` is not searched and is counted in `skippedLines`
+  (QLogg CORE-4). One chunked pass finds those lines; each searched stretch
+  ends before a skipped line, so no match runs into one.
+- A `PatternTooComplexException` ends the search: the stretch is searched
+  again line by line, each line read through a view that ends at the line,
+  and `tooComplexLine` names the line that overflowed. The hits before it are
+  kept (QLogg CORE-2).
+- `limit` bounds the hits; `limited` reports that more existed.
+
+`FileSearch.run` walks a directory on the calling `qcaret-search-` worker
+without following symbolic links. `FileFilter` holds the masks: `;`-separated
+globs on the file name (empty include takes every file), excluded directory
+names (default `.git;.svn;.hg`) and hidden files, a leading `.` or the
+platform's hidden attribute. Paths in `searchedElsewhere` (open documents) are
+not read. Each file is read and decoded on a `qcaret-io-` thread, at most four
+at a time, and matched on the CPU pool.
+
+| File | Result |
+|---|---|
+| Over `maxFileBytes` | `Skip.TOO_LARGE` |
+| `BinaryDetector` says binary | `Skip.BINARY` |
+| Read fails, or its directory cannot be listed | `Skip.UNREADABLE` |
+| `MemoryBudget` refuses five bytes per file byte for the read | `Skip.NO_MEMORY` |
+| Otherwise | Decoded with `EncodingDetector` (malformed input as U+FFFD), matched; `FileHits` with encoding, `FileStamp` and SHA-256 when it has hits, skipped lines or a regex failure |
+
+The `Sink` receives results on worker threads in no fixed order; its `room()`
+bounds the hits, and 0 ends the walk. Cancel stops the walk; `run` returns
+once the reads in flight end.
 
 ## Bounded reads (`core.text`)
 
@@ -506,6 +542,14 @@ inside `\Q`, a `(?x)` comment and a `\Q` in such a comment, which the plain
 wrapper failed with "Unclosed group"), the line-break anchors,
 skipped empty matches, lookbehind before the range, cancellation, a stack
 overflow on 400,000 chars as a typed failure, and replacement templates.
+`TextSearchTest` covers line, column and snippet over CR, LF and CR LF on a
+string and on a rope, a cut snippet, selection ranges, the limit, skipped
+long lines with the lines around them searched, and a stack overflow that
+names its line and keeps the hits before it (regression: a per-line retry
+read past its line into the overflowing one). `FileSearchTest` walks a
+generated tree: masks, excluded and hidden directories, the top level only,
+open documents left out, binary, too-large and refused-memory skips, and the
+stamp and SHA-256 of a found file.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
 its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break, a
 diff hunk's `---` line and here documents' opening lines and bodies included,

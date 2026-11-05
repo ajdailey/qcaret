@@ -41,7 +41,13 @@ one or two `EditorView`s of its document (`TabView.firstView`, `split`,
 `TabInput.viewFocused` and its visible display range through
 `EditorInput.viewportChanged`, and shows find matches through
 `EditorView.showMatches`. The find bar reads `FindState` and listens as a
-`FindListener`. `MainView` is also an
+`FindListener`. An editor view shows its overview strip's `OverviewMarks`
+(`showOverview`, `setOverviewShown`) and reports the strip's height through
+`EditorInput.overviewResized`. `MainView` is also a `SearchView`: the
+HyperSearch dialog takes and returns a `SearchForm` (`SearchScope` is one of
+the six scopes), `chooseFolder` asks for a folder, and the results dock reads
+the `ResultsInput` model by index (`ResultLabel` rows) after each
+`resultsChanged`. `MainView` is also an
 `ActivityIndicator`: `setActive` and `setIdle` come from any thread, and
 `BusyCounter` counts overlapping operations on the UI thread for the busy
 cursor. `StatusFields` is the status bar's text for the selected document.
@@ -60,8 +66,9 @@ where it ignores a position (Wayland) only the size applies.
 state and cascade. The menus are File, Edit (also the line commands, case,
 indent, tab width, indent with spaces, Go to Line and Read-Only), Selection
 (add caret above and below, add next occurrence, split into lines, column
-selection mode), Search (Find, Find Next, Find Previous, Replace), View (word
-wrap, zoom, theme, the Split and Folding cascades), Encoding (the line-ending conversions;
+selection mode), Search (Find, Find Next, Find Previous, Replace, HyperSearch,
+Next and Previous Result, Search Results), View (word wrap, zoom, theme, the
+Split and Folding cascades, Overview Strip), Encoding (the line-ending conversions;
 the view adds the charset cascades), Window (next and previous tab, Close
 Others; the view lists the documents) and Help. The `EDITOR` group holds the
 caret moves, block selection keys, Tab, Enter, Backspace, Delete and Esc, which
@@ -95,7 +102,9 @@ Bookmarks are Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and
 Select to Matching Bracket Mod+B and Mod+Shift+B; Complete Word Ctrl+Space,
 Option+Esc on macOS, where Ctrl+Space switches the input source; Command
 Palette Mod+Shift+P. Sort, Remove Duplicate Lines, Trim Trailing Whitespace,
-Clear Bookmarks and Show Whitespace and Line Endings are menu only. `Fuzzy`
+Clear Bookmarks and Show Whitespace and Line Endings are menu only.
+HyperSearch is Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Set
+Workspace Folder (File), Search Results and Overview Strip are menu only. `Fuzzy`
 scores the palette's filter: the query's chars in order, ignoring case, more
 for runs and word starts.
 
@@ -103,7 +112,8 @@ for runs and word starts.
 
 `ApplicationController` runs the window's commands and owns the settings, the
 theme, the keymap, the editor font step and the window's `DocumentController`,
-`HelpController`, `FindController` and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
+`HelpController`, `FindController`, `SearchController`, `WorkspaceController`
+and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
 editor's `EditorController`. After `quit` starts, `execute` does nothing.
 
@@ -114,8 +124,9 @@ there and never from controller getters (ArchUnit
 `viewsTakeCheckStateFromCommandStates`). Without a document only the window
 commands, zoom, theme and Help are enabled; a read-only document disables the
 edits and the line-ending conversions; a binary file's view also disables Save,
-Save As and both encoding cascades. A disabled menu item's accelerator does
-not fire, so the view syncs enablement on every `documentStateChanged`.
+Save As and both encoding cascades. HyperSearch runs without a document;
+Next and Previous Result need a match in a retained set. A disabled menu
+item's accelerator does not fire, so the view syncs enablement on every `documentStateChanged`.
 `EncodingChoices` lists `TextEncoding.MENU` first, then every other charset;
 `Charset.availableCharsets` costs 130 to 229 ms cold (measured in QLogg), so
 `ApplicationController.loadEncodings` computes the list once per run on a
@@ -236,6 +247,73 @@ read on workers.
   request cancels the running one. A result carries its generation and
   revision and is dropped when either is stale. An invalid regex, a stack
   overflow and an invalid replacement end with a notice in the bar.
+
+### HyperSearch
+
+`SearchController` runs HyperSearch (Search > HyperSearch) and is the results
+dock's `ResultsInput`. The dialog opens with a one-line selection of up to
+1,000 chars as its text, or the selection scope for a selection over several
+lines, and the last run's options; texts, directories and include masks are
+remembered for the run, 20 each. A request without text, with a regex or mask
+that does not parse, without a document, selection or workspace folder for its
+scope, or without a directory shows a message instead.
+
+| Scope | Reads |
+|---|---|
+| Current document, Selection | The selected document's snapshot; Selection only inside the focused view's selections |
+| Open documents | Every open document's snapshot, binary views left out |
+| Workspace folder, Directory and subdirectories | The folder's tree through `FileSearch`; Directory reads its files only |
+
+Open documents are searched from their snapshots in every scope, so a folder
+search reads a dirty buffer as edited and not its file. Each run is an
+`app.search.HyperSearch` filling a `ResultSet`:
+
+- Documents are matched on `qcaret-cpu-` workers, one task each; a folder is
+  walked from a `qcaret-search-` worker. Workers queue file groups
+  (`FileResult`), and the UI thread moves them into the set at most every
+  100 ms, then calls `resultsChanged`; open documents come first in tab
+  order, files by path, once the search ends.
+- At most 100,000 matches per set (`HyperSearch.Limits`): the group crossing
+  the limit is cut, a source left unsearched for lack of room ends the set
+  truncated, and so does a group whose heap (`FileResult.bytes`, 96 bytes
+  per match plus its snippet) the `MemoryBudget` refuses. A dropped set
+  returns its reservation, groups that arrived after the drop included.
+- Files over 64 MiB, binary files and unreadable files are skipped and
+  counted; a line over 1,000,000 chars is skipped and counted (QLogg
+  CORE-4); a regex stack overflow ends that source and names its line in its
+  group row (QLogg CORE-2).
+- Stop ends a set canceled with what arrived. Rerun runs the request again
+  while the set shows its results; they are replaced when the rerun ends done
+  or truncated and kept, with a notice, when it is stopped (QLogg APP-2).
+- Sets are listed newest first; past ten unpinned sets the oldest unpinned
+  one is dropped. Pin keeps a set; Clear and Clear All stop and drop sets.
+
+Staleness: a document group maps its matches to the current revision through
+`Document.positions` (`FileResult.rebase`, on each row, navigation and
+overview read); a match whose text then differs in length or hash is stale,
+and past the position log the group is stale. A file group keeps the file's
+`FileStamp` and SHA-256; expanding it or opening one of its matches checks
+the stamp on a `qcaret-io-` worker, and a changed stamp whose bytes hash
+differently marks it stale. A closed document's groups keep their offsets
+and open the file from then on. Opening a match selects it only when the text
+there has the searched length and hash; otherwise the match is marked stale,
+the caret goes to its line and a notice says so. Next and Previous Result
+step through the set last navigated, or the newest set, wrapping at its ends.
+
+File > Set Workspace Folder stores one folder per window for the run
+(`WorkspaceController`).
+
+### Overview strip
+
+Each editor view has an `OverviewUpdater` that computes its strip's
+`OverviewMarks` on a `qcaret-cpu-` worker: the find bar's matches over the
+whole document while the bar is open on the selected document (at most
+1,000,000), the matches of the set last navigated or else the newest set,
+and the bookmarks. A request waits 150 ms, so an edit burst computes once;
+edits, bookmark changes, the find query, the results and the strip's height
+request it. A result shows only while the document is at its revision and the
+strip at its height. A hidden strip (View > Overview Strip, window-wide)
+computes nothing.
 
 `DocumentOpener` opens files for one window on `qcaret-io-` workers. Before
 reading, it estimates the load (`DocumentFiles.estimate`) and reserves it from
@@ -593,6 +671,17 @@ Replace All as one undo step each, the notice for a Replace All dropped after
 an edit, Esc dropping extra carets before it closes the bar, a regex
 replacement with the line ending,
 a read-only document, highlights in both views and their shift on an edit.
+`SearchControllerTest` covers every scope, a dirty buffer searched as edited
+inside a tree search, the dock's rows, opening a match in an open document
+and in a closed file, an edit moving a match and one marking it stale, a file
+changed on disk, Next and Previous Result wrapping, a stopped rerun keeping
+the finished set and a done one replacing it (QLogg APP-2), the retained
+limit with a pin, the dialog's seed and history, the refused requests and
+the workspace folder. `HyperSearchTest` covers documents and a folder in one
+set, the match limit, a refused reservation, a cancel, a regex overflow on
+its group and a document group following edits. `OverviewTest` covers find,
+HyperSearch and bookmark marks, recomputed after an edit, and a hidden strip
+computing nothing; `OverviewMarksTest` the line and row mapping.
 `EditorControllerTest` covers multi-caret typing as one undo step, Enter's
 line ending, Backspace and Delete over CR LF and surrogate pairs, cut, copy and
 paste with line ending conversion and one line per caret, a read-only

@@ -4,12 +4,15 @@ import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
@@ -38,6 +41,8 @@ final class FakeView implements MainView {
     List<String> completions = List.of();
     int completionSelected;
     final List<Boolean> busy = new ArrayList<Boolean>();
+    OverviewMarks overview = OverviewMarks.EMPTY;
+    boolean overviewShown;
   }
 
   /** One editor view: what the controller asked of it. */
@@ -140,6 +145,18 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       shown.completions = List.copyOf(words);
       shown.completionSelected = selected;
+    }
+
+    @Override
+    public void showOverview(OverviewMarks marks) {
+      ui.checkUiThread();
+      shown.overview = marks;
+    }
+
+    @Override
+    public void setOverviewShown(boolean value) {
+      ui.checkUiThread();
+      shown.overviewShown = value;
     }
   }
 
@@ -320,6 +337,18 @@ final class FakeView implements MainView {
       shown.completions = List.copyOf(words);
       shown.completionSelected = selected;
     }
+
+    @Override
+    public void showOverview(OverviewMarks marks) {
+      ui.checkUiThread();
+      shown.overview = marks;
+    }
+
+    @Override
+    public void setOverviewShown(boolean value) {
+      ui.checkUiThread();
+      shown.overviewShown = value;
+    }
   }
 
   /** A grid of 10 by 10 pixel cells, five rows to a page; row and column from x and y alone. */
@@ -371,6 +400,13 @@ final class FakeView implements MainView {
   Consumer<String> goTo;
   Keymap shortcuts;
   PaletteInput palette;
+  SearchForm searchForm;
+  Consumer<SearchForm> search;
+  Consumer<Path> folderChooser;
+  ResultsInput results;
+  boolean resultsShown;
+  int resultsChanges;
+  int[] revealed;
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -549,5 +585,37 @@ final class FakeView implements MainView {
   public void showCommandPalette(PaletteInput input) {
     ui.checkUiThread();
     palette = input;
+  }
+
+  @Override
+  public void showSearchDialog(SearchForm form, Consumer<SearchForm> run) {
+    ui.checkUiThread();
+    searchForm = form;
+    search = run;
+  }
+
+  @Override
+  public void chooseFolder(Path start, Consumer<Path> chosen) {
+    ui.checkUiThread();
+    folderChooser = chosen;
+  }
+
+  @Override
+  public void showResults(ResultsInput input, boolean shown) {
+    ui.checkUiThread();
+    results = input;
+    resultsShown = shown;
+  }
+
+  @Override
+  public void resultsChanged(boolean structure) {
+    ui.checkUiThread();
+    resultsChanges++;
+  }
+
+  @Override
+  public void revealResult(int set, int file, int match) {
+    ui.checkUiThread();
+    revealed = new int[] {set, file, match};
   }
 }

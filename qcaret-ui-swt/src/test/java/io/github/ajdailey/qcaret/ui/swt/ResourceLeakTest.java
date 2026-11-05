@@ -15,11 +15,13 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -48,10 +50,11 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
  * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
- * command palette, the completion list and the whitespace marks return the Display's tracked
- * graphics resources ({@code DeviceData.tracking}) to their count after a warm-up round. Theme
- * switches, zoom and split each rebuild or add a primary caret image. A failure lists each leaked
- * object's allocation stack.
+ * command palette, the completion list, the whitespace marks, a HyperSearch from its dialog into
+ * the results dock, and the overview strip hidden and shown return the Display's tracked graphics
+ * resources ({@code DeviceData.tracking}) to their count after a warm-up round. Theme switches,
+ * zoom and split each rebuild or add a primary caret image. A failure lists each leaked object's
+ * allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -270,6 +273,39 @@ class ResourceLeakTest {
     drain();
   }
 
+  /**
+   * Runs a HyperSearch from the dialog, shows a match row of the dock, hides and shows the overview
+   * strip, then clears and hides the dock.
+   */
+  private void searchAndStrip() {
+    controller.execute(CommandId.HYPERSEARCH);
+    drain();
+    window.searchDialog().text().setText("line " + (cycles % 3));
+    window.searchDialog().search();
+    final ResultsInput results = controller.search();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return results.setCount() > 0 && !results.running(0);
+              }
+            }));
+    drain();
+    ResultsDock dock = window.resultsDock();
+    dock.activate(dock.row(0, 0));
+    dock.table().showItem(dock.table().getItem(dock.row(0, 0, 0)));
+    dock.table().redraw();
+    dock.table().update();
+    controller.execute(CommandId.OVERVIEW_STRIP);
+    drain();
+    controller.execute(CommandId.OVERVIEW_STRIP);
+    drain();
+    results.clearAll();
+    controller.execute(CommandId.SEARCH_RESULTS);
+    drain();
+  }
+
   /** One round of every operation; the first rounds create lazily cached resources. */
   private void cycle() throws IOException {
     openTab("second.txt");
@@ -284,6 +320,7 @@ class ResourceLeakTest {
     assertFalse(window.activeEditor().caretImage().isDisposed());
     splitAndFind();
     paletteAndCompletion();
+    searchAndStrip();
     for (CommandGroup group : CommandGroup.values()) {
       if (group.menu()) {
         window.menuBar().menu(group).notifyListeners(SWT.Show, new Event());

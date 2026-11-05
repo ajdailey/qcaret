@@ -25,6 +25,8 @@ public enum CommandId {
   CLOSE_ALL(CommandGroup.FILE, UiText.COMMAND_CLOSE_ALL, false, false, null),
   /** Open the file of the tab closed last again. */
   REOPEN_CLOSED(CommandGroup.FILE, UiText.COMMAND_REOPEN_CLOSED, false, false, null),
+  /** Choose the window's workspace folder, the HyperSearch workspace scope. */
+  SET_WORKSPACE(CommandGroup.FILE, UiText.COMMAND_SET_WORKSPACE, true, false, null),
   /** Close the window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, true, false, null),
   /** Undo in the selected editor. */
@@ -129,6 +131,14 @@ public enum CommandId {
   FIND_PREVIOUS(CommandGroup.SEARCH, UiText.COMMAND_FIND_PREVIOUS, false, false, null),
   /** Open the find bar with its replace row. */
   REPLACE(CommandGroup.SEARCH, UiText.COMMAND_REPLACE, true, false, null),
+  /** Open the HyperSearch dialog. */
+  HYPERSEARCH(CommandGroup.SEARCH, UiText.COMMAND_HYPERSEARCH, true, false, null),
+  /** Open the next HyperSearch result. */
+  NEXT_RESULT(CommandGroup.SEARCH, UiText.COMMAND_NEXT_RESULT, false, false, null),
+  /** Open the previous HyperSearch result. */
+  PREVIOUS_RESULT(CommandGroup.SEARCH, UiText.COMMAND_PREVIOUS_RESULT, false, false, null),
+  /** Show the HyperSearch results dock; checked while it shows. */
+  SEARCH_RESULTS(CommandGroup.SEARCH, UiText.COMMAND_SEARCH_RESULTS, false, true, null),
   /** Convert every line break to CR LF; checked while every break is CR LF. */
   LINE_ENDING_CRLF(
       CommandGroup.ENCODING, UiText.COMMAND_LINE_ENDING_CRLF, true, true, UiText.MENU_LINE_ENDINGS),
@@ -209,6 +219,8 @@ public enum CommandId {
   SHOW_WHITESPACE(CommandGroup.VIEW, UiText.COMMAND_SHOW_WHITESPACE, true, true, null),
   /** Mark each line break in the window's editors with its kind. */
   SHOW_LINE_ENDINGS(CommandGroup.VIEW, UiText.COMMAND_SHOW_LINE_ENDINGS, false, true, null),
+  /** Show the overview strip beside each editor's text; checked while shown. */
+  OVERVIEW_STRIP(CommandGroup.VIEW, UiText.COMMAND_OVERVIEW_STRIP, false, true, null),
   /** Find and run a command by name. */
   COMMAND_PALETTE(CommandGroup.VIEW, UiText.COMMAND_COMMAND_PALETTE, true, false, null),
   /** Move every caret one char left, or to the start of its selection. */

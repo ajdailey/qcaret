@@ -506,7 +506,119 @@ public enum UiText {
   /** Command palette filter field hint. */
   PALETTE_FILTER,
   /** Notice: a line command dropped its result because the document changed. */
-  LINES_STALE;
+  LINES_STALE,
+  /** Command label. */
+  COMMAND_SET_WORKSPACE,
+  /** Command label. */
+  COMMAND_HYPERSEARCH,
+  /** Command label. */
+  COMMAND_NEXT_RESULT,
+  /** Command label. */
+  COMMAND_PREVIOUS_RESULT,
+  /** Command label. */
+  COMMAND_SEARCH_RESULTS,
+  /** Command label. */
+  COMMAND_OVERVIEW_STRIP,
+  /** HyperSearch scope. */
+  SCOPE_CURRENT_DOCUMENT,
+  /** HyperSearch scope. */
+  SCOPE_SELECTION,
+  /** HyperSearch scope. */
+  SCOPE_OPEN_DOCUMENTS,
+  /** HyperSearch scope. */
+  SCOPE_WORKSPACE,
+  /** HyperSearch scope. */
+  SCOPE_DIRECTORY,
+  /** HyperSearch scope. */
+  SCOPE_TREE,
+  /** HyperSearch dialog and message title. */
+  SEARCH_TITLE,
+  /** HyperSearch dialog field label. */
+  SEARCH_SCOPE_LABEL,
+  /** HyperSearch dialog field label. */
+  SEARCH_DIRECTORY_LABEL,
+  /** HyperSearch dialog button. */
+  SEARCH_BROWSE,
+  /** HyperSearch dialog field label. */
+  SEARCH_INCLUDE_LABEL,
+  /** HyperSearch dialog field label. */
+  SEARCH_EXCLUDE_LABEL,
+  /** HyperSearch dialog check box. */
+  SEARCH_HIDDEN,
+  /** HyperSearch dialog: the workspace folder. */
+  SEARCH_WORKSPACE,
+  /** HyperSearch dialog: no workspace folder. */
+  SEARCH_WORKSPACE_NONE,
+  /** HyperSearch dialog button. */
+  SEARCH_RUN,
+  /** Message: no search text. */
+  SEARCH_EMPTY,
+  /** Message: the scope needs a document. */
+  SEARCH_NO_DOCUMENT,
+  /** Message: the selection scope without a selection. */
+  SEARCH_NO_SELECTION,
+  /** Message: the workspace scope without a folder. */
+  SEARCH_NO_WORKSPACE,
+  /** Message: a directory scope without a valid directory. */
+  SEARCH_NO_DIRECTORY,
+  /** Message: a file mask does not parse. */
+  SEARCH_BAD_MASK,
+  /** Results row of a set: text, scope, matches, files. */
+  SEARCH_SET,
+  /** Set row suffix while running: files done, files to search. */
+  SEARCH_RUNNING,
+  /** Set row suffix. */
+  SEARCH_CANCELED,
+  /** Set row suffix: the match limit. */
+  SEARCH_TRUNCATED,
+  /** Set row suffix. */
+  SEARCH_NO_MEMORY,
+  /** Set row suffix. */
+  SEARCH_RERUNNING,
+  /** Set row suffix. */
+  SEARCH_PINNED,
+  /** Set row suffix: what was skipped. */
+  SEARCH_SKIPPED,
+  /** Skipped count. */
+  SEARCH_SKIPPED_BINARY,
+  /** Skipped count. */
+  SEARCH_SKIPPED_LARGE,
+  /** Skipped count. */
+  SEARCH_SKIPPED_UNREADABLE,
+  /** Skipped count. */
+  SEARCH_SKIPPED_LINES,
+  /** Skipped count. */
+  SEARCH_SKIPPED_COMPLEX,
+  /** Results row of a file: name, folder, matches. */
+  SEARCH_FILE,
+  /** File row suffix. */
+  SEARCH_FILE_COMPLEX,
+  /** File row suffix. */
+  SEARCH_FILE_LINES,
+  /** Row suffix of a changed source. */
+  SEARCH_CHANGED,
+  /** Notice: navigation found other text at a result. */
+  SEARCH_STALE,
+  /** Notice: a rerun stopped. */
+  SEARCH_RERUN_KEPT,
+  /** Notice: a result's untitled document is closed. */
+  SEARCH_CLOSED,
+  /** Notice: next result without results. */
+  SEARCH_NO_RESULTS,
+  /** Results dock button. */
+  RESULTS_STOP,
+  /** Results dock button. */
+  RESULTS_RERUN,
+  /** Results dock button. */
+  RESULTS_PIN,
+  /** Results dock button. */
+  RESULTS_CLEAR,
+  /** Results dock button. */
+  RESULTS_CLEAR_ALL,
+  /** Results dock button. */
+  RESULTS_HIDE,
+  /** Notice: the workspace folder. */
+  WORKSPACE_SET;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

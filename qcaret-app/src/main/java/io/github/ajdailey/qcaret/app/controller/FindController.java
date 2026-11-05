@@ -201,6 +201,7 @@ public final class FindController implements DocumentController.ViewListener {
       return;
     }
     open = false;
+    documents.refreshOverview();
     cancelFind();
     clearHighlights(new ArrayList<EditorController>(shown.keySet()));
     notice = "";
@@ -262,7 +263,19 @@ public final class FindController implements DocumentController.ViewListener {
     }
   }
 
+  /**
+   * Returns the query the overview strips mark while the bar is open.
+   *
+   * @param document a document
+   * @return the matcher for the selected document while the bar is open with a valid query; null
+   *     otherwise
+   */
+  TextMatcher overviewMatcher(Document document) {
+    return open && !disposed && document == documents.activeDocument() ? matcher : null;
+  }
+
   private void compile() {
+    documents.refreshOverview();
     matcher = null;
     if (text.isEmpty()) {
       notice = "";
@@ -601,6 +614,7 @@ public final class FindController implements DocumentController.ViewListener {
     EditorController editor = documents.activeEditor();
     if (editor != target) {
       target = editor;
+      documents.refreshOverview();
       cancelFind();
       if (editor != null) {
         anchor = editor.selections().selections().primary().start();

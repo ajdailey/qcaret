@@ -133,6 +133,24 @@ public record Palette(
     return tokens.get(role);
   }
 
+  /**
+   * Returns the overview strip's mark of a find-bar match.
+   *
+   * @return red on light, salmon on dark
+   */
+  public Rgb overviewFind() {
+    return dark ? Rgb.of(0xff8a80) : Rgb.of(0xc0281f);
+  }
+
+  /**
+   * Returns the overview strip's mark of a HyperSearch match.
+   *
+   * @return blue on light, brand cyan on dark
+   */
+  public Rgb overviewSearch() {
+    return dark ? Rgb.of(0x56c1f0) : Rgb.of(0x0a6a96);
+  }
+
   /** Maps the styles, given in {@link TokenRole} declaration order. */
   private static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
     TokenRole[] roles = TokenRole.values();

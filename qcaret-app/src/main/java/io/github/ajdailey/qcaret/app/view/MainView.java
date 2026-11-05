@@ -9,7 +9,7 @@ import java.nio.file.Path;
  * called on the UI thread and returns without waiting for the user. The activity count drives the
  * busy cursor.
  */
-public interface MainView extends ClipboardService, DocumentsView, ActivityIndicator {
+public interface MainView extends ClipboardService, DocumentsView, ActivityIndicator, SearchView {
   /** Hides the window while shutdown completes. */
   void hide();
 

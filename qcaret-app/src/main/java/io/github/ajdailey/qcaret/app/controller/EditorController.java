@@ -200,6 +200,7 @@ public final class EditorController implements EditorInput {
       view.setBookmarks(bookmarks);
     }
     view.setMarks(marksWhitespace, marksLineEndings);
+    view.setOverviewShown(overviewShown);
   }
 
   /**
@@ -243,6 +244,9 @@ public final class EditorController implements EditorInput {
       selections.removeListener(revealer);
       document.removeListener(foldFollower);
       disposeProductivity();
+      if (overview != null) {
+        overview.dispose();
+      }
       projection.dispose();
       selections.dispose();
     }
@@ -1557,6 +1561,40 @@ public final class EditorController implements EditorInput {
   /** Sets what shows a notice, such as a dropped line transform. */
   void setNoticeListener(Consumer<String> listener) {
     notices = listener;
+  }
+
+  // Overview strip.
+
+  private OverviewUpdater overview;
+  private boolean overviewShown = true;
+
+  /** Sets the strip's mark computation and whether the strip shows. */
+  void setOverview(OverviewUpdater updater, boolean shown) {
+    overview = updater;
+    setOverviewShown(shown);
+  }
+
+  /** Returns the strip's mark computation. */
+  OverviewUpdater overview() {
+    return overview;
+  }
+
+  /** Shows or hides the view's overview strip. */
+  void setOverviewShown(boolean shown) {
+    overviewShown = shown;
+    if (view != null) {
+      view.setOverviewShown(shown);
+    }
+    if (overview != null) {
+      overview.setShown(shown);
+    }
+  }
+
+  @Override
+  public void overviewResized(int height) {
+    if (overview != null) {
+      overview.setHeight(height);
+    }
   }
 
   /**

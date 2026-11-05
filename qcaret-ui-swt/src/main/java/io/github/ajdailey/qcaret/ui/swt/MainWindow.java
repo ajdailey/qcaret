@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -19,6 +20,8 @@ import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
@@ -29,6 +32,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +57,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
@@ -66,10 +71,11 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
- * SashForm}, the {@link MainMenuBar} built from {@link MenuTable} and the {@link Keymap}, the
- * {@link FindBar} and a status bar. The editors take their colors from the {@link Palette}; native
- * controls follow {@link SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI
- * turn after a palette change, once native controls have restyled.
+ * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it; the {@link
+ * MainMenuBar} built from {@link MenuTable} and the {@link Keymap}, the {@link FindBar} and a
+ * status bar. The editors take their colors from the {@link Palette}; native controls follow {@link
+ * SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI turn after a palette
+ * change, once native controls have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
  * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
@@ -137,6 +143,9 @@ public final class MainWindow implements MainView {
   private CTabItem dragged;
   private boolean movingTab;
   private FindBar findBar;
+  private final SashForm body;
+  private ResultsDock resultsDock;
+  private SearchDialog searchDialog;
 
   /**
    * One document tab: its item, which a move recreates, and one or two editor views in a {@link
@@ -230,6 +239,16 @@ public final class MainWindow implements MainView {
       @Override
       public void showCompletions(List<String> words, int selected) {
         editor.showCompletions(words, selected);
+      }
+
+      @Override
+      public void showOverview(OverviewMarks marks) {
+        editor.showOverview(marks);
+      }
+
+      @Override
+      public void setOverviewShown(boolean shown) {
+        editor.setOverviewShown(shown);
       }
     }
 
@@ -376,8 +395,9 @@ public final class MainWindow implements MainView {
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     shell.setLayout(layout);
-    tabs = new CTabFolder(shell, SWT.TOP | SWT.FLAT);
-    tabs.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    body = new SashForm(shell, SWT.VERTICAL);
+    body.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    tabs = new CTabFolder(body, SWT.TOP | SWT.FLAT);
     baseFontSize = Dialogs.monospaceSize();
     font = new Font(display, Dialogs.monospaceName(), baseFontSize, SWT.NORMAL);
     statusBar = new Composite(shell, SWT.NONE);
@@ -485,6 +505,9 @@ public final class MainWindow implements MainView {
     dispatchWindowKeys();
     findBar = new FindBar(shell, owner.find());
     findBar.control().moveAbove(statusBar);
+    resultsDock = new ResultsDock(body, palette);
+    body.setWeights(new int[] {3, 1});
+    body.setMaximizedControl(tabs);
     shell.addListener(
         SWT.Activate,
         new Listener() {
@@ -519,6 +542,9 @@ public final class MainWindow implements MainView {
 
   private void applyPalette(Palette next) {
     palette = next;
+    if (resultsDock != null) {
+      resultsDock.setPalette(next);
+    }
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
         for (EditorPane pane : tab.panes) {
@@ -1398,5 +1424,84 @@ public final class MainWindow implements MainView {
    */
   CommandPaletteWindow commandPalette() {
     return commandPalette;
+  }
+
+  // HyperSearch.
+
+  @Override
+  public void showSearchDialog(SearchForm form, Consumer<SearchForm> run) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (searchDialog != null && !searchDialog.shell().isDisposed()) {
+      searchDialog.shell().dispose();
+    }
+    searchDialog = new SearchDialog(shell, form, run);
+    searchDialog.open();
+  }
+
+  /**
+   * Returns the HyperSearch dialog.
+   *
+   * @return the dialog, or null before it opened
+   */
+  SearchDialog searchDialog() {
+    return searchDialog;
+  }
+
+  @Override
+  public void chooseFolder(Path start, Consumer<Path> chosen) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    DirectoryDialog dialog = new DirectoryDialog(shell);
+    if (start != null) {
+      dialog.setFilterPath(start.toString());
+    }
+    String folder = dialog.open();
+    if (folder != null) {
+      chosen.accept(Path.of(folder));
+    }
+  }
+
+  @Override
+  public void showResults(ResultsInput results, boolean shown) {
+    if (shell.isDisposed() || resultsDock == null) {
+      return;
+    }
+    resultsDock.setInput(results);
+    body.setMaximizedControl(shown ? null : tabs);
+  }
+
+  @Override
+  public void resultsChanged(boolean structure) {
+    if (resultsDock != null && !shell.isDisposed()) {
+      resultsDock.refresh(structure);
+    }
+  }
+
+  @Override
+  public void revealResult(int set, int file, int match) {
+    if (resultsDock != null && !shell.isDisposed()) {
+      resultsDock.reveal(set, file, match);
+    }
+  }
+
+  /**
+   * Returns the results dock.
+   *
+   * @return the dock, or null before {@link #attach}
+   */
+  ResultsDock resultsDock() {
+    return resultsDock;
+  }
+
+  /**
+   * Reports whether the results dock shows.
+   *
+   * @return true while shown
+   */
+  boolean resultsShown() {
+    return body.getMaximizedControl() == null;
   }
 }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +34,7 @@ class CommandStatesTest {
           "CLOSE -- -e -e",
           "CLOSE_ALL -- -e -e",
           "REOPEN_CLOSED -- -- --",
+          "SET_WORKSPACE -e -e -e",
           "QUIT -e -e -e",
           "UNDO -- -e --",
           "REDO -- -e --",
@@ -83,6 +85,10 @@ class CommandStatesTest {
           "FIND_NEXT -- -e -e",
           "FIND_PREVIOUS -- -e -e",
           "REPLACE -- -e --",
+          "HYPERSEARCH -e -e -e",
+          "NEXT_RESULT -- -- --",
+          "PREVIOUS_RESULT -- -- --",
+          "SEARCH_RESULTS -e -e -e",
           "LINE_ENDING_CRLF -- -e --",
           "LINE_ENDING_LF -- ce --",
           "LINE_ENDING_CR -- -e --",
@@ -112,6 +118,7 @@ class CommandStatesTest {
           "CLEAR_BOOKMARKS -- -- --",
           "SHOW_WHITESPACE -e -e -e",
           "SHOW_LINE_ENDINGS -e -e -e",
+          "OVERVIEW_STRIP ce ce ce",
           "COMMAND_PALETTE -e -e -e",
           "CARET_LEFT -- -e -e",
           "CARET_RIGHT -- -e -e",
@@ -245,5 +252,28 @@ class CommandStatesTest {
     assertEquals(true, states.enabled(CommandId.CLEAR_BOOKMARKS));
     harness.application.execute(CommandId.CLEAR_BOOKMARKS);
     assertEquals(false, states.enabled(CommandId.PREVIOUS_BOOKMARK));
+  }
+
+  @Test
+  void resultCommandsFollowTheRetainedSets() throws Exception {
+    harness.open(Files.writeString(temp.resolve("results.txt"), "key\nkey\n"));
+    final SearchController search = harness.application.search();
+    search.run(SearchControllerTest.form("key", SearchScope.CURRENT_DOCUMENT, ""));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !search.running();
+          }
+        },
+        "search ends");
+    assertEquals(true, states.checked(CommandId.SEARCH_RESULTS));
+    assertEquals(true, states.enabled(CommandId.NEXT_RESULT));
+    harness.application.execute(CommandId.SEARCH_RESULTS);
+    assertEquals(false, states.checked(CommandId.SEARCH_RESULTS));
+    search.clearAll();
+    assertEquals(false, states.enabled(CommandId.PREVIOUS_RESULT));
+    harness.application.execute(CommandId.OVERVIEW_STRIP);
+    assertEquals(false, states.checked(CommandId.OVERVIEW_STRIP));
   }
 }

@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.HighlightComposer;
 import io.github.ajdailey.qcaret.app.editor.LineEnds;
+import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -49,17 +50,27 @@ import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Caret;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.IME;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Slider;
 
 /**
  * One editor: a {@link StyledText} over a {@link ContentAdapter}, with a line-number gutter, the
- * current line and the secondary carets and selections painted from the {@link SelectionModel}.
+ * current line and the secondary carets and selections painted from the {@link SelectionModel},
+ * then the {@link OverviewStrip} and a {@link Slider} as the vertical scroll bar, in one composite
+ * ({@link #control()}).
  *
  * <ul>
+ *   <li>Vertical scrolling: the widget has no native vertical bar. The slider counts rows: maximum
+ *       the row count, thumb the rows that fit, selection the top row; it follows the widget on
+ *       each paint and resize and after a strip or wheel scroll, and its own moves set the top row.
+ *       The wheel scrolls by its event count and consumes the event.
  *   <li>Input: a {@code VerifyKey} listener runs the {@link Keymap}'s editor bindings, caret moves
  *       included, through {@link EditorInput#execute}, types printable chars through {@link
  *       EditorInput#type}, and consumes both; Insert alone is consumed so the widget never enters
@@ -119,7 +130,11 @@ public final class EditorPane implements EditorView {
   /** Width of the primary caret and of a painted secondary caret. */
   public static final int CARET_WIDTH = 2;
 
+  private final Composite frame;
   private final StyledText text;
+  private final OverviewStrip strip;
+  private final Slider vertical;
+  private int[] sliderValues = new int[0];
   private final ContentAdapter content;
   private final DisplayProjection projection;
   private final SelectionModel selections;
@@ -194,7 +209,32 @@ public final class EditorPane implements EditorView {
     this.keymap = keymap;
     this.font = font;
     this.ui = ui;
-    text = new StyledText(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
+    frame = new Composite(parent, SWT.NONE);
+    GridLayout frameLayout = new GridLayout(3, false);
+    frameLayout.marginWidth = 0;
+    frameLayout.marginHeight = 0;
+    frameLayout.horizontalSpacing = 0;
+    frame.setLayout(frameLayout);
+    text = new StyledText(frame, SWT.MULTI | SWT.H_SCROLL);
+    text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    strip =
+        new OverviewStrip(
+            frame,
+            text,
+            projection,
+            input,
+            palette,
+            new Runnable() {
+              @Override
+              public void run() {
+                syncScrollBar();
+              }
+            });
+    GridData stripData = new GridData(SWT.FILL, SWT.FILL, false, true);
+    stripData.widthHint = OverviewStrip.WIDTH;
+    strip.control().setLayoutData(stripData);
+    vertical = new Slider(frame, SWT.VERTICAL);
+    vertical.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, true));
     completion = new CompletionPopup(text, input);
     primaryCaret = new Caret(text, SWT.NONE);
     text.setCaret(primaryCaret);
@@ -272,6 +312,52 @@ public final class EditorPane implements EditorView {
   }
 
   /**
+   * Returns the composite holding the text, the overview strip and the vertical scroll bar; lay out
+   * the editor through it.
+   *
+   * @return the editor's top control
+   */
+  public Composite control() {
+    return frame;
+  }
+
+  /**
+   * Returns the vertical scroll bar.
+   *
+   * @return the slider beside the overview strip
+   */
+  public Slider verticalBar() {
+    return vertical;
+  }
+
+  /**
+   * Returns the overview strip's canvas.
+   *
+   * @return the canvas
+   */
+  public Canvas overviewStrip() {
+    return strip.control();
+  }
+
+  /**
+   * Returns the overview strip's marks.
+   *
+   * @return the marks shown
+   */
+  public OverviewMarks overviewMarks() {
+    return strip.marks();
+  }
+
+  /**
+   * Returns the overview strip's colors, for tests.
+   *
+   * @return background, frame, find mark, HyperSearch mark, bookmark
+   */
+  public Color[] overviewColors() {
+    return strip.colors();
+  }
+
+  /**
    * Returns the gutter's width.
    *
    * @return pixels left of the text area that hold the line numbers
@@ -328,8 +414,8 @@ public final class EditorPane implements EditorView {
       bookmarks.removeListener(bookmarksChanged);
     }
     content.dispose();
-    if (!text.isDisposed()) {
-      text.dispose();
+    if (!frame.isDisposed()) {
+      frame.dispose();
     }
   }
 
@@ -389,6 +475,9 @@ public final class EditorPane implements EditorView {
     occurrenceBack = color(palette.occurrence());
     bracketBack = color(palette.bracket());
     whitespace = color(palette.whitespace());
+    if (strip != null) {
+      strip.setPalette(palette);
+    }
     updateCaret();
     text.redraw();
   }
@@ -595,6 +684,33 @@ public final class EditorPane implements EditorView {
           @Override
           public void handleEvent(Event event) {
             reportColumns();
+            syncScrollBar();
+          }
+        });
+    // The text has no native vertical bar: the wheel scrolls it here.
+    text.addListener(
+        SWT.MouseVerticalWheel,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.doit && event.count != 0) {
+              event.doit = false;
+              text.setTopIndex(Math.max(0, text.getTopIndex() - event.count));
+              syncScrollBar();
+            }
+          }
+        });
+    vertical.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (!text.isDisposed() && text.getTopIndex() != vertical.getSelection()) {
+              text.setTopIndex(vertical.getSelection());
+            }
+            if (vertical.isFocusControl()) {
+              text.setFocus();
+            }
           }
         });
     text.addListener(
@@ -658,8 +774,50 @@ public final class EditorPane implements EditorView {
               paintCarets(event.gc);
             }
             reportViewport();
+            syncScrollBar();
           }
         });
+  }
+
+  /**
+   * Sets the slider from the widget's rows: one slider unit per row, the thumb the rows that fit.
+   * The strip repaints its visible-range lines when the top row or the row count changes.
+   */
+  private void syncScrollBar() {
+    if (text.isDisposed()) {
+      return;
+    }
+    int rows = projection.rowCount();
+    int visible = Math.max(1, text.getClientArea().height / Math.max(1, text.getLineHeight()));
+    int thumb = Math.max(1, Math.min(visible, rows));
+    int top = text.getTopIndex();
+    int[] values = {top, rows, thumb};
+    if (Arrays.equals(values, sliderValues)) {
+      return;
+    }
+    sliderValues = values;
+    vertical.setValues(top, 0, Math.max(rows, 1), thumb, 1, Math.max(1, visible - 1));
+    vertical.setEnabled(rows > visible);
+    strip.control().redraw();
+  }
+
+  // Overview strip.
+
+  @Override
+  public void showOverview(OverviewMarks marks) {
+    strip.setMarks(marks);
+  }
+
+  @Override
+  public void setOverviewShown(boolean shown) {
+    Canvas canvas = strip.control();
+    GridData data = (GridData) canvas.getLayoutData();
+    if (data.exclude != !shown) {
+      data.exclude = !shown;
+      canvas.setVisible(shown);
+      frame.layout(true);
+    }
+    strip.report();
   }
 
   /**

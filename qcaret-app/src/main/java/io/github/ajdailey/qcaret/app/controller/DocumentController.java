@@ -125,6 +125,11 @@ public final class DocumentController {
   private boolean showWhitespace;
   private boolean showLineEndings;
   private int completionChars;
+  private final Map<Path, Consumer<EditorController>> afterOpen =
+      new HashMap<Path, Consumer<EditorController>>();
+  private boolean overviewShown = true;
+  private OverviewSources overviewSources;
+  private Consumer<Document> closeListener;
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
@@ -437,6 +442,7 @@ public final class DocumentController {
         if (!reopen || d.document.isDirty()) {
           budget.release(reserved);
           d.tab.select();
+          opened(path, d);
           return;
         }
         index = documents.indexOf(d);
@@ -446,6 +452,7 @@ public final class DocumentController {
     }
     Document document = file.document();
     OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
+    opened(path, d);
     if (file.binary()) {
       document.setReadOnly(true);
       d.updateTitle();
@@ -477,6 +484,7 @@ public final class DocumentController {
 
   private void loadFailed(final Path path, IOException error) {
     reopening.remove(path);
+    Consumer<EditorController> then = afterOpen.remove(path);
     if (error instanceof BinaryFileException) {
       view.askOpenBinary(
           String.valueOf(path.getFileName()),
@@ -495,14 +503,18 @@ public final class DocumentController {
               TextEncoding.of(StandardCharsets.UTF_8, false),
               options.empty(),
               options.limits());
-      add(
-          document,
-          path,
-          null,
-          0,
-          DisplayProjection.Layout.empty(document.text()),
-          documents.size(),
-          false);
+      OpenDocument d =
+          add(
+              document,
+              path,
+              null,
+              0,
+              DisplayProjection.Layout.empty(document.text()),
+              documents.size(),
+              false);
+      if (then != null) {
+        then.accept(d.editor);
+      }
       return;
     }
     String reason = LogText.oneLine(error.getMessage());
@@ -588,6 +600,19 @@ public final class DocumentController {
           }
         });
     editor.setBookmarks(d.bookmarks);
+    editor.setOverview(
+        new OverviewUpdater(
+            editor,
+            d.bookmarks,
+            workers,
+            ui,
+            new Supplier<OverviewSources>() {
+              @Override
+              public OverviewSources get() {
+                return overviewSources;
+              }
+            }),
+        overviewShown);
     editor.setCompletion(completion);
     editor.setCompletionChars(completionChars);
     editor.setMarks(showWhitespace, showLineEndings);
@@ -951,6 +976,9 @@ public final class DocumentController {
       return;
     }
     d.closed = true;
+    if (closeListener != null) {
+      closeListener.accept(d.document);
+    }
     cancelSave(d);
     if (d.converting != null) {
       d.converting.cancel();
@@ -976,6 +1004,126 @@ public final class DocumentController {
     d.tab.close();
     view.documentStateChanged();
     viewsChanged();
+  }
+
+  // HyperSearch and the overview strip.
+
+  /**
+   * Opens a file, or selects its tab, and then passes the tab's focused editor to {@code then}; a
+   * load that fails or is refused does not call it.
+   *
+   * @param path the file
+   * @param then runs on the UI thread once the document shows
+   */
+  public void open(Path path, Consumer<EditorController> then) {
+    OpenDocument d = find(path);
+    if (d != null) {
+      d.tab.select();
+      then.accept(d.editor);
+      return;
+    }
+    afterOpen.put(path, then);
+    opener.open(path, options);
+  }
+
+  private void opened(Path path, OpenDocument d) {
+    Consumer<EditorController> then = afterOpen.remove(path);
+    if (then != null) {
+      then.accept(d.editor);
+    }
+  }
+
+  /** Returns the open document of a file, comparing absolute normalized paths; null when none. */
+  private OpenDocument find(Path path) {
+    Path wanted = path.toAbsolutePath().normalize();
+    for (OpenDocument d : documents) {
+      if (d.path != null && d.path.toAbsolutePath().normalize().equals(wanted)) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  /** Returns the open document of a file, or null. */
+  Document documentAt(Path path) {
+    OpenDocument d = find(path);
+    return d == null ? null : d.document;
+  }
+
+  private OpenDocument entry(Document document) {
+    for (OpenDocument d : documents) {
+      if (d.document == document) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  /** Reports whether a document is open in this window. */
+  boolean isOpen(Document document) {
+    return entry(document) != null;
+  }
+
+  /** Returns an open document's file, or null when untitled or closed. */
+  Path pathOf(Document document) {
+    OpenDocument d = entry(document);
+    return d == null ? null : d.path;
+  }
+
+  /** Returns an open document's tab name, or null when closed. */
+  String nameOf(Document document) {
+    OpenDocument d = entry(document);
+    return d == null ? null : d.name();
+  }
+
+  /** Reports whether an open document is a binary file's read-only view. */
+  boolean binary(Document document) {
+    OpenDocument d = entry(document);
+    return d != null && d.binary;
+  }
+
+  /** Selects an open document's tab and returns its focused editor; null when closed. */
+  EditorController show(Document document) {
+    OpenDocument d = entry(document);
+    if (d == null) {
+      return null;
+    }
+    d.tab.select();
+    return d.editor;
+  }
+
+  /** Sets what runs as each document closes, before it releases its text. */
+  void setCloseListener(Consumer<Document> listener) {
+    closeListener = listener;
+  }
+
+  /** Sets where the overview strips read the find and HyperSearch matches. */
+  void setOverviewSources(OverviewSources sources) {
+    overviewSources = sources;
+  }
+
+  /** Recomputes every overview strip's marks, after the find query or the results changed. */
+  void refreshOverview() {
+    for (OpenDocument d : documents) {
+      for (EditorController e : d.editors) {
+        e.overview().request();
+      }
+    }
+  }
+
+  /** Reports whether the editors show the overview strip. */
+  boolean overviewShown() {
+    return overviewShown;
+  }
+
+  /** Shows or hides the overview strip in every editor of the window. */
+  public void toggleOverview() {
+    overviewShown = !overviewShown;
+    for (OpenDocument d : documents) {
+      for (EditorController e : d.editors) {
+        e.setOverviewShown(overviewShown);
+      }
+    }
   }
 
   // Split views.
