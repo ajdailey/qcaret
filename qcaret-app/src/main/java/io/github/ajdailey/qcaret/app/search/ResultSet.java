@@ -222,6 +222,45 @@ public final class ResultSet {
     budget = from;
   }
 
+  /**
+   * Replaces a group with the result of searching its source again, or removes it.
+   *
+   * @param old the group
+   * @param next the new group, or null to remove it
+   * @param bytes the heap {@code from} holds for {@code next}
+   * @param from the budget charged for the groups
+   * @return false when {@code old} is not in the set
+   */
+  boolean replace(FileResult old, FileResult next, long bytes, MemoryBudget from) {
+    int at = files.indexOf(old);
+    if (at < 0) {
+      return false;
+    }
+    matches -= old.matchCount();
+    skippedLines -= old.skippedLines();
+    if (old.tooComplexLine() >= 0) {
+      tooComplex--;
+    }
+    long freed = old.bytes();
+    if (budget != null && reserved > 0) {
+      budget.release(Math.min(freed, reserved));
+    }
+    reserved = Math.max(0, reserved - freed);
+    if (next == null) {
+      files.remove(at);
+    } else {
+      files.set(at, next);
+      matches += next.matchCount();
+      skippedLines += next.skippedLines();
+      if (next.tooComplexLine() >= 0) {
+        tooComplex++;
+      }
+      reserved += bytes;
+      budget = from;
+    }
+    return true;
+  }
+
   /** Sets the counts read from the workers. */
   void progress(
       int searchedFiles,

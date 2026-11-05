@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -70,6 +71,7 @@ public final class ApplicationController {
   private final FindController find;
   private final WorkspaceController workspace;
   private final SearchController search;
+  private final ReplaceController replace;
   private final GrammarLibrary grammars;
   private final Keymap keymap;
   private final boolean rememberWindow;
@@ -135,6 +137,17 @@ public final class ApplicationController {
     this.search =
         new SearchController(
             documents, workspace, workers, ui, view, budget, HyperSearch.Limits.DEFAULTS);
+    this.replace =
+        new ReplaceController(
+            documents,
+            workers,
+            ui,
+            view,
+            budget,
+            HyperSearch.Limits.DEFAULTS,
+            config.location().directory().resolve(ReplaceBackups.DIRECTORY),
+            ReplaceBackups.DEFAULT_DAYS);
+    search.setReplace(replace);
     documents.setOverviewSources(
         new OverviewSources() {
           @Override
@@ -194,6 +207,15 @@ public final class ApplicationController {
    */
   public SearchController search() {
     return search;
+  }
+
+  /**
+   * Returns the replace preview's and the replace runs' controller.
+   *
+   * @return the replace controller
+   */
+  public ReplaceController replace() {
+    return replace;
   }
 
   /**
@@ -434,6 +456,8 @@ public final class ApplicationController {
       case NEXT_RESULT -> search.next(true);
       case PREVIOUS_RESULT -> search.next(false);
       case SEARCH_RESULTS -> search.toggleResults();
+      case REPLACE_IN_RESULTS -> search.replaceInResults();
+      case RESTORE_REPLACE_RUN -> replace.chooseRun();
       case OVERVIEW_STRIP -> documents.toggleOverview();
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
@@ -561,6 +585,7 @@ public final class ApplicationController {
     help.close();
     find.dispose();
     search.dispose();
+    replace.dispose();
     documents.dispose();
     if (rememberWindow) {
       WindowGeometry.Request bounds = view.windowBounds();

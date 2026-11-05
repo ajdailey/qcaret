@@ -41,6 +41,7 @@ public final class FileResult {
   private final int tooComplexLine;
   private Document document;
   private long revision;
+  private long searched;
   private boolean stale;
 
   private FileResult(
@@ -58,6 +59,7 @@ public final class FileResult {
     this.name = name;
     this.document = document;
     this.revision = revision;
+    this.searched = revision;
     this.encoding = encoding;
     this.stamp = stamp;
     this.digest = digest;
@@ -178,6 +180,31 @@ public final class FileResult {
    */
   public Document document() {
     return document;
+  }
+
+  /**
+   * Returns the document revision the matches belong to: the one searched, or the one a file group
+   * attached to.
+   *
+   * @return the revision, or -1 for a file group never attached
+   */
+  public long searchedRevision() {
+    return searched;
+  }
+
+  /**
+   * Returns the matches' offsets in the text searched, as ascending start and end pairs; once an
+   * edit moved them, in the document's current revision.
+   *
+   * @return the offsets
+   */
+  int[] spans() {
+    int[] spans = new int[2 * starts.length];
+    for (int i = 0; i < starts.length; i++) {
+      spans[2 * i] = starts[i];
+      spans[2 * i + 1] = ends[i];
+    }
+    return spans;
   }
 
   /**
@@ -364,5 +391,6 @@ public final class FileResult {
   public void attach(Document opened) {
     document = opened;
     revision = opened.revision();
+    searched = revision;
   }
 }

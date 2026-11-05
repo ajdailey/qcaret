@@ -34,8 +34,9 @@ import org.eclipse.swt.widgets.TableItem;
  *       expanding a group lets the model check its file.
  *   <li>A match row paints its matched text over the palette's find-match color in the palette's
  *       text color; a row whose source changed shows in the disabled color.
- *   <li>Stop, Rerun, Pin and Clear act on the set of the selected row, or the newest set; Clear All
- *       on every set; Hide hides the dock. The selection follows its row across changes.
+ *   <li>Stop, Rerun, Replace, Pin and Clear act on the set of the selected row, or the newest set;
+ *       Rerun File on the selected row's group while its source changed; Clear All on every set;
+ *       Hide hides the dock. The selection follows its row across changes.
  * </ul>
  */
 public final class ResultsDock {
@@ -49,6 +50,8 @@ public final class ResultsDock {
   private Table table;
   private final Button stop;
   private final Button rerun;
+  private final Button rerunFile;
+  private final Button replace;
   private final Button pin;
   private final Button clear;
   private final Button clearAll;
@@ -62,6 +65,8 @@ public final class ResultsDock {
   private enum Action {
     STOP,
     RERUN,
+    RERUN_FILE,
+    REPLACE,
     PIN,
     CLEAR,
     CLEAR_ALL,
@@ -93,6 +98,8 @@ public final class ResultsDock {
     buttons.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     stop = button(buttons, UiText.RESULTS_STOP, Action.STOP);
     rerun = button(buttons, UiText.RESULTS_RERUN, Action.RERUN);
+    rerunFile = button(buttons, UiText.RESULTS_RERUN_FILE, Action.RERUN_FILE);
+    replace = button(buttons, UiText.RESULTS_REPLACE, Action.REPLACE);
     pin = button(buttons, UiText.RESULTS_PIN, Action.PIN);
     clear = button(buttons, UiText.RESULTS_CLEAR, Action.CLEAR);
     clearAll = button(buttons, UiText.RESULTS_CLEAR_ALL, Action.CLEAR_ALL);
@@ -434,6 +441,15 @@ public final class ResultsDock {
     }
   }
 
+  /** Reports whether the selected row lies in a group whose source changed. */
+  private boolean staleGroup() {
+    return input != null
+        && selected.length >= 2
+        && selected[0] < input.setCount()
+        && selected[1] < input.fileCount(selected[0])
+        && input.file(selected[0], selected[1]).stale();
+  }
+
   /** Returns the index of the selected row's set, or the newest set, or -1 without sets. */
   private int selectedSet() {
     if (input == null || input.setCount() == 0) {
@@ -456,6 +472,16 @@ public final class ResultsDock {
       case RERUN -> {
         if (set >= 0) {
           input.rerun(set);
+        }
+      }
+      case RERUN_FILE -> {
+        if (staleGroup()) {
+          input.rerunFile(selected[0], selected[1]);
+        }
+      }
+      case REPLACE -> {
+        if (set >= 0) {
+          input.replace(set);
         }
       }
       case PIN -> {
@@ -486,6 +512,8 @@ public final class ResultsDock {
     boolean any = set >= 0;
     stop.setEnabled(any && input.running(set));
     rerun.setEnabled(any);
+    rerunFile.setEnabled(any && !input.running(set) && staleGroup());
+    replace.setEnabled(any && !input.running(set));
     pin.setEnabled(any);
     clear.setEnabled(any);
     clearAll.setEnabled(any);
@@ -518,7 +546,7 @@ public final class ResultsDock {
    * @param label the button's label
    */
   public void press(UiText label) {
-    for (Button button : new Button[] {stop, rerun, pin, clear, clearAll}) {
+    for (Button button : new Button[] {stop, rerun, rerunFile, replace, pin, clear, clearAll}) {
       if (button.getText().equals(label.text())) {
         button.notifyListeners(SWT.Selection, new Event());
       }

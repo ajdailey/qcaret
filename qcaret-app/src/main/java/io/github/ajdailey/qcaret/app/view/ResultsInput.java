@@ -131,4 +131,20 @@ public interface ResultsInput {
 
   /** Hides the dock. */
   void hide();
+
+  /**
+   * Searches a stale group's file or document again; the group's matches are replaced by the new
+   * ones.
+   *
+   * @param set the set's index
+   * @param file the group's index
+   */
+  void rerunFile(int set, int file);
+
+  /**
+   * Opens the replace preview for a set's matches.
+   *
+   * @param set the set's index
+   */
+  void replace(int set);
 }

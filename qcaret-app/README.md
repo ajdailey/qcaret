@@ -203,7 +203,10 @@ read on workers.
   A target changed on disk since the load or the last save is not written and
   the notice points to Save As. Save As keeps that check when the target's
   real path, resolved on the save worker, is the document's file, so Save As
-  through a link to it is checked too.
+  through a link to it is checked too. Save As onto a file another tab holds
+  (by real path, resolved on a `qcaret-io-` worker) closes that tab once the
+  write succeeds; when that tab has unsaved changes it asks first, and a
+  decline writes nothing.
 - Close asks Save, Don't Save or Cancel for a dirty document; Save closes once
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
@@ -313,8 +316,48 @@ there has the searched length and hash; otherwise the match is marked stale,
 the caret goes to its line and a notice says so. Next and Previous Result
 step through the set last navigated, or the newest set, wrapping at its ends.
 
+Rerun File (dock) searches one stale group's source again with the set's
+query (`app.search.FileRerun`): an open document from a snapshot, a file from
+its bytes. The new group takes the old one's place and may use the matches
+the set's limit leaves free; a source without matches leaves the set. A
+selection set reruns whole, since the selection is not kept.
+
 File > Set Workspace Folder stores one folder per window for the run, as its
 real path (`WorkspaceController`).
+
+### Replace
+
+`ReplaceController` replaces the matches of a finished set (dock Replace, or
+Search > Replace in Results, Mod+Shift+H, on the set last navigated or the
+newest set with matches). Every scope goes through the same preview and run.
+
+- The preview lists the set's groups with matches, every file and match
+  checked, and the replacement text (a regex query's `$n`, `${name}`, `
+`,
+  `	`; a literal query's text as is). The selected file's before and after
+  view (`app.search.ReplacePreview`: changed lines, two lines of context,
+  regions diffed by `core.diff.LineDiff`, at most 2,000 lines) is computed
+  on a worker from the open document's text or the file's bytes, again on
+  each change of the text or the checks; a file Apply would skip shows why.
+- Apply starts an `app.search.ReplaceRun` and opens its report; one run or
+  restore at a time. An open document is replaced in only at the revision
+  searched, as one `EditBatch` and one undo step, and stays dirty; a file
+  group whose file is open now is edited as its buffer while the buffer's
+  text, encoded, has the SHA-256 searched. Replacements are computed on the
+  worker from a snapshot and applied on the UI thread, which skips the
+  document if it changed, closed or became read-only meanwhile.
+- A file not open goes through `FileReplace` (see `qcaret-core`) on up to
+  four `qcaret-io-` workers, with its original bytes in the run's
+  `ReplaceBackups` under `<settings>/replace-backups/<run>/`; each run first
+  deletes runs older than seven days (`ReplaceBackups.DEFAULT_DAYS`, the
+  `replace.backupDays` setting once S7 persists settings). Cancel (the
+  report's Stop) stops between files.
+- The report lists each file as replaced, skipped with the reason, failed
+  with the error, or not attempted. When the run ends, each file group it
+  changed is marked stale. No undo spans files: Restore Run in the report, or
+  Search > Restore Replace Run, writes a run's backups back, refusing a file
+  changed since the run. An open document is not reloaded by a restore; its
+  next save reports the file changed on disk.
 
 ### Overview strip
 
@@ -702,7 +745,14 @@ limit with a pin, the dialog's seed and history, the refused requests,
 the workspace folder, and a tree searched through a symbolic link reading the
 open buffer once (skipped where links cannot be created). `HyperSearchTest` covers documents and a folder in one
 set, the match limit, a refused reservation, a cancel, a regex overflow on
-its group and a document group following edits. `OverviewTest` covers find,
+its group and a document group following edits. `ReplaceControllerTest` covers
+a selection replaced as one undo step, open documents with one changed since
+the search skipped, a tree replace with an unchecked match and file, a CRLF
+file, a file changed between the preview and Apply, a read-only file, a file
+opened after the search edited as its buffer, Restore Run refusing a file
+changed since and restoring the others, Stop between 300 files leaving the
+rest untouched, Rerun File on a stale group, and Save As onto a dirty file
+open in another tab. `OverviewTest` covers find,
 HyperSearch and bookmark marks, recomputed after an edit, and a hidden strip
 computing nothing; `OverviewMarksTest` the line and row mapping.
 `EditorControllerTest` covers multi-caret typing as one undo step, Enter's

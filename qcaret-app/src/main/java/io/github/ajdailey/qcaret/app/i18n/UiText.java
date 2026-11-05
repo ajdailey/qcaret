@@ -617,6 +617,126 @@ public enum UiText {
   RESULTS_CLEAR_ALL,
   /** Results dock button. */
   RESULTS_HIDE,
+  /** Command label. */
+  COMMAND_REPLACE_IN_RESULTS,
+  /** Command label. */
+  COMMAND_RESTORE_REPLACE_RUN,
+  /** Results dock button. */
+  RESULTS_RERUN_FILE,
+  /** Results dock button. */
+  RESULTS_REPLACE,
+  /** Notice: a file rerun could not read the file: its name and why. */
+  SEARCH_RERUN_FILE_SKIPPED,
+  /** Notice: a file rerun found no match: its name. */
+  SEARCH_RERUN_FILE_EMPTY,
+  /** Notice: replace or file rerun on a running set. */
+  SEARCH_NOT_FINISHED,
+  /** Replace preview title. */
+  REPLACE_TITLE,
+  /** Replace preview header: text, scope, matches, files. */
+  REPLACE_HEADER,
+  /** Replace preview label. */
+  REPLACE_WITH_LABEL,
+  /** Replace preview label. */
+  REPLACE_FILES_LABEL,
+  /** Replace preview label. */
+  REPLACE_MATCHES_LABEL,
+  /** Replace preview label. */
+  REPLACE_PREVIEW_LABEL,
+  /** Replace preview file row: name, folder, checked matches, matches. */
+  REPLACE_FILE,
+  /** Replace preview summary: matches and files checked. */
+  REPLACE_SUMMARY,
+  /** Replace preview summary. */
+  REPLACE_NOTHING_CHECKED,
+  /** Replace preview summary: the parse error. */
+  REPLACE_BAD_TEMPLATE,
+  /** Replace preview pane while computing. */
+  REPLACE_COMPUTING,
+  /** Replace preview note: changes not shown. */
+  REPLACE_MORE,
+  /** Replace preview note: why a file will be skipped. */
+  REPLACE_PREVIEW_SKIPPED,
+  /** Replace preview button. */
+  REPLACE_APPLY,
+  /** Notice: a replace already runs. */
+  REPLACE_RUNNING,
+  /** Replace report title: text and replacement. */
+  REPLACE_REPORT_TITLE,
+  /** Report summary while running: files done, files. */
+  REPLACE_REPORT_PROGRESS,
+  /** Report summary: changed, skipped, failed, not attempted. */
+  REPLACE_REPORT_DONE,
+  /** Report summary suffix: the backup folder. */
+  REPLACE_REPORT_BACKUPS,
+  /** Report row: matches replaced. */
+  REPLACE_ROW_CHANGED,
+  /** Report row. */
+  REPLACE_ROW_RESTORED,
+  /** Report row: the reason. */
+  REPLACE_ROW_SKIPPED,
+  /** Report row: the error. */
+  REPLACE_ROW_FAILED,
+  /** Report row. */
+  REPLACE_ROW_NOT_ATTEMPTED,
+  /** Report button. */
+  REPLACE_STOP,
+  /** Report button. */
+  REPLACE_RESTORE,
+  /** Report column. */
+  REPLACE_FILE_COLUMN,
+  /** Report column. */
+  REPLACE_FOLDER_COLUMN,
+  /** Report column. */
+  REPLACE_RESULT_COLUMN,
+  /** Restore report title: the run. */
+  RESTORE_TITLE,
+  /** Restore chooser title. */
+  RESTORE_CHOOSE_TITLE,
+  /** Restore chooser label. */
+  RESTORE_CHOOSE_LABEL,
+  /** Restore chooser row: start time, files. */
+  RESTORE_RUN_ROW,
+  /** Message: no run is kept. */
+  RESTORE_NO_RUNS,
+  /** Message: the runs cannot be listed. */
+  RESTORE_LIST_FAILED,
+  /** Save As over an open file: title. */
+  SAVE_AS_OPEN_TITLE,
+  /** Save As over an open file with unsaved changes: its name. */
+  SAVE_AS_OPEN_MESSAGE,
+  /** Save As over an open file: confirm. */
+  BUTTON_REPLACE_FILE,
+  /** Replace skip reason. */
+  REASON_MISSING,
+  /** Replace skip reason. */
+  REASON_CHANGED,
+  /** Replace skip reason. */
+  REASON_READ_ONLY,
+  /** Replace skip reason. */
+  REASON_UNREADABLE,
+  /** Replace skip reason. */
+  REASON_TOO_LARGE,
+  /** Replace skip reason. */
+  REASON_BINARY,
+  /** Replace skip reason. */
+  REASON_MALFORMED,
+  /** Replace skip reason. */
+  REASON_NO_ROUND_TRIP,
+  /** Replace skip reason. */
+  REASON_NO_MATCHES,
+  /** Replace skip reason. */
+  REASON_UNMAPPABLE,
+  /** Replace skip reason. */
+  REASON_NO_MEMORY,
+  /** Replace skip reason. */
+  REASON_CLOSED,
+  /** Replace skip reason. */
+  REASON_TOO_COMPLEX,
+  /** Replace skip reason. */
+  REASON_UNCHANGED,
+  /** Replace skip reason. */
+  REASON_CHANGED_SINCE,
   /** Notice: the workspace folder. */
   WORKSPACE_SET;
 

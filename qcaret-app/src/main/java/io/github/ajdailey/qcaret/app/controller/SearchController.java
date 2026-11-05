@@ -1,8 +1,10 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.search.FileRerun;
 import io.github.ajdailey.qcaret.app.search.FileResult;
 import io.github.ajdailey.qcaret.app.search.HyperSearch;
+import io.github.ajdailey.qcaret.app.search.ReplaceRun;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -56,6 +58,9 @@ import java.util.regex.PatternSyntaxException;
  *       set, wrapping at its ends.
  *   <li>The dialog's texts, directories and masks are remembered for the run, newest first, at most
  *       {@value #HISTORY} each.
+ *   <li>Rerun File searches one stale group's document or file again ({@link FileRerun}); a
+ *       selection set reruns whole. Replace opens a finished set in the {@link ReplaceController}'s
+ *       preview.
  * </ul>
  */
 public final class SearchController implements ResultsInput {
@@ -79,6 +84,7 @@ public final class SearchController implements ResultsInput {
   private final List<String> texts = new ArrayList<String>();
   private final List<String> directories = new ArrayList<String>();
   private final List<String> masks = new ArrayList<String>();
+  private ReplaceController replace;
   private SearchForm last;
   private int resolving;
   private long nextId = 1;
@@ -132,6 +138,11 @@ public final class SearchController implements ResultsInput {
             detach(closed);
           }
         });
+  }
+
+  /** Sets where Replace sends a set. */
+  void setReplace(ReplaceController controller) {
+    replace = controller;
   }
 
   // Dialog and runs.
@@ -725,6 +736,96 @@ public final class SearchController implements ResultsInput {
       e.rerun.cancel();
     }
     start(e.set.request(), e);
+  }
+
+  @Override
+  public void rerunFile(final int set, int file) {
+    final Entry e = entries.get(set);
+    if (e.run != null || e.rerun != null) {
+      view.showNotice(UiText.SEARCH_NOT_FINISHED.text());
+      return;
+    }
+    if (e.set.request().scope() == SearchScope.SELECTION) {
+      rerun(set);
+      return;
+    }
+    final FileResult group = e.set.files().get(file);
+    Document document = group.document();
+    if (document != null && !documents.isOpen(document)) {
+      group.detach();
+      document = null;
+    }
+    if (document == null && group.path() != null) {
+      document = documents.documentAt(group.path());
+    }
+    if (document == null && group.path() == null) {
+      view.showNotice(UiText.SEARCH_CLOSED.text());
+      return;
+    }
+    final String name = document == null ? group.name() : documents.nameOf(document);
+    final ResultSet results = e.set;
+    FileRerun.start(
+        results,
+        group,
+        results.request().query().compile(),
+        document,
+        group.path(),
+        name,
+        limits,
+        workers,
+        ui,
+        budget,
+        new FileRerun.Listener() {
+          @Override
+          public void finished(int matches, FileSearch.Skip skip) {
+            if (disposed) {
+              return;
+            }
+            if (skip != null) {
+              view.showNotice(
+                  UiText.SEARCH_RERUN_FILE_SKIPPED.format(
+                      name, ReplaceController.reasonText(ReplaceRun.Reason.valueOf(skip.name()))));
+            } else if (matches == 0) {
+              view.showNotice(UiText.SEARCH_RERUN_FILE_EMPTY.format(name));
+            }
+            if (cursorSet == results.id()) {
+              cursorMatch = -1;
+            }
+            view.resultsChanged(true);
+            documents.refreshOverview();
+            view.documentStateChanged();
+          }
+        });
+  }
+
+  @Override
+  public void replace(int set) {
+    Entry e = entries.get(set);
+    if (e.run != null || e.rerun != null) {
+      view.showNotice(UiText.SEARCH_NOT_FINISHED.text());
+      return;
+    }
+    if (replace != null) {
+      replace.preview(e.set);
+    }
+  }
+
+  /** Opens the replace preview for the set last navigated, or else the newest set with matches. */
+  public void replaceInResults() {
+    int set = indexOf(cursorSet);
+    if (set < 0 || entries.get(set).set.matches() == 0) {
+      set = -1;
+      for (int i = 0; i < entries.size() && set < 0; i++) {
+        if (entries.get(i).set.matches() > 0) {
+          set = i;
+        }
+      }
+    }
+    if (set < 0) {
+      view.showNotice(UiText.SEARCH_NO_RESULTS.text());
+      return;
+    }
+    replace(set);
   }
 
   @Override

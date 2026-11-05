@@ -73,7 +73,8 @@ import org.slf4j.LoggerFactory;
  *       qcaret-io-} worker while editing goes on; the document is clean once the snapshot's state
  *       is current. A save while one runs for the same document shows a notice instead. Esc in the
  *       editor and closing the tab cancel a running save, which leaves the target unchanged when
- *       the cancel lands before the file is replaced.
+ *       the cancel lands before the file is replaced. Save As onto a file another tab holds closes
+ *       that tab once the write succeeds, asking first when it has unsaved changes.
  *   <li>Closing a dirty document asks Save, Don't Save or Cancel; Save closes once the save
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
  *   <li>A closed document releases its {@link MemoryBudget} reservation. The paths of the last
@@ -747,10 +748,92 @@ public final class DocumentController {
           @Override
           public void accept(Path target) {
             if (!d.closed) {
-              write(d, target, d.path, d.baseline, then);
+              saveAsTarget(d, target, then);
             }
           }
         });
+  }
+
+  /** Resolves a Save As target's real path on a worker, then writes it. */
+  private void saveAsTarget(final OpenDocument d, final Path target, final Runnable then) {
+    boolean started =
+        workers.tryStart(
+            Workers.Kind.IO,
+            new Runnable() {
+              @Override
+              public void run() {
+                final Path real = realFile(target);
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        targetResolved(d, target, real, then);
+                      }
+                    });
+              }
+            });
+    if (!started) {
+      LOG.debug("Save As stopped: the workers are closed");
+    }
+  }
+
+  /**
+   * Writes a Save As target. When another tab holds the file, that tab closes once the write
+   * succeeds; with unsaved changes it asks first, and a decline writes nothing.
+   */
+  private void targetResolved(
+      final OpenDocument d, final Path target, Path real, final Runnable then) {
+    if (d.closed) {
+      return;
+    }
+    OpenDocument holder = null;
+    for (OpenDocument o : documents) {
+      if (o != d && o.path != null && o.path.equals(real)) {
+        holder = o;
+      }
+    }
+    if (holder == null) {
+      write(d, target, d.path, d.baseline, then);
+      return;
+    }
+    final OpenDocument other = holder;
+    final Runnable closeOther =
+        new Runnable() {
+          @Override
+          public void run() {
+            discard(other);
+            if (!d.closed) {
+              d.tab.select();
+            }
+            if (then != null) {
+              then.run();
+            }
+          }
+        };
+    if (!other.document.isDirty()) {
+      write(d, target, d.path, d.baseline, closeOther);
+      return;
+    }
+    view.askReplaceOpenFile(
+        other.name(),
+        new Runnable() {
+          @Override
+          public void run() {
+            if (!d.closed) {
+              write(d, target, d.path, d.baseline, closeOther);
+            }
+          }
+        });
+  }
+
+  /** Returns a file's real path, or its absolute normalized path when it does not exist. */
+  @WorkerThread
+  static Path realFile(Path file) {
+    try {
+      return file.toRealPath();
+    } catch (IOException e) {
+      return file.toAbsolutePath().normalize();
+    }
   }
 
   /** Shows the notice and returns true for a binary file's view, which is never written. */
@@ -1135,6 +1218,12 @@ public final class DocumentController {
   boolean binary(Document document) {
     OpenDocument d = entry(document);
     return d != null && d.binary;
+  }
+
+  /** Returns an open document's focused editor without selecting its tab; null when closed. */
+  EditorController editorOf(Document document) {
+    OpenDocument d = entry(document);
+    return d == null ? null : d.editor;
   }
 
   /** Selects an open document's tab and returns its focused editor; null when closed. */

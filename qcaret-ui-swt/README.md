@@ -102,10 +102,22 @@ its row count; `ResultRows` maps rows to paths. A click on the mark, Enter, a
 double click, Right and Left expand and collapse; Left on a child selects its
 parent; Enter and a double click on a match open it. A match row paints the
 matched text over the palette's find-match color in the palette's text color;
-a stale row shows in the disabled color. Stop, Rerun, Pin and Clear act on the
-selected row's set, Clear All on every set, Hide hides the dock. A cut of more
+a stale row shows in the disabled color. Stop, Rerun, Replace, Pin and Clear
+act on the selected row's set, Rerun File on the selected row's group while
+it is stale, Clear All on every set, Hide hides the dock. A cut of more
 than 2,000 rows replaces the table, since GTK removes rows one at a time
 (4.6-7.7 s for 100,000 in the dock; a new table took 81-105 ms).
+
+`ReplaceDialog` (`ui.swt.search`) is the replace preview: modal and
+resizable, the replacement field, the files and the selected file's matches
+as virtual check tables, the before and after view in a monospace
+`StyledText` (removed lines over a red tint of the editor background, added
+lines over a green one), the summary and Apply. `ReportWindow` is a run's
+report, modeless: the summary, a virtual table of file, folder and result
+(skips and failures in dark red), Stop, Restore Run and Close; closing it does
+not stop the run. `RunChooser` lists the runs kept for Restore Replace Run.
+`ReplaceOpenDialog` asks before Save As replaces a file another tab holds with
+unsaved changes.
 
 Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
@@ -369,6 +381,11 @@ pixels (skipped when `Control.print` returns false) and toggles the marks;
 with `-Dqcaret.screenshots=<dir>` it saves the marks with a bookmark and
 occurrences, the open palette, and a Java file with a collapsed region,
 occurrences and a matched bracket (`merge.png`), as PNG.
+`ReplaceSurfaceTest` (tag `swt`) opens the preview from the dock over a tree
+search, types a replacement, unchecks a match, applies, checks the report's
+rows and the files, and restores the run from the report; with
+`-Dqcaret.screenshots=<dir>` it saves `replace-preview.png` and
+`replace-report.png`.
 `SwtUiDispatcherTest` checks that a canceled timer does not run and that
 cancel after dispose does nothing. `CaretInkTest` checks the caret image color
 under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
@@ -378,7 +395,8 @@ rounds of tab open and close, the tab menu, both
 themes, zoom, split with Fold All and Unfold All in both views and the find
 bar searching and closed, unsplit, the command palette, the completion list
 with the whitespace and line-ending marks on, a HyperSearch from its dialog
-into the dock with a group expanded, the overview strip hidden and shown, and
+into the dock with a group expanded, the replace preview opened over it and
+closed, the overview strip hidden and shown, and
 every menu's `Show`; the live counts per type must return to the warm-ups',
 and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it

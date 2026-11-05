@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -51,10 +52,10 @@ import org.junit.jupiter.api.io.TempDir;
  * Tab open and close, theme switches, font zoom, the tab menu, menu syncs, split and unsplit,
  * folding and unfolding in both views of a split, the find bar opened, searching and closed, the
  * command palette, the completion list, the whitespace marks, a HyperSearch from its dialog into
- * the results dock, and the overview strip hidden and shown return the Display's tracked graphics
- * resources ({@code DeviceData.tracking}) to their count after a warm-up round. Theme switches,
- * zoom and split each rebuild or add a primary caret image. A failure lists each leaked object's
- * allocation stack.
+ * the results dock, the replace preview opened and closed, and the overview strip hidden and shown
+ * return the Display's tracked graphics resources ({@code DeviceData.tracking}) to their count
+ * after a warm-up round. Theme switches, zoom and split each rebuild or add a primary caret image.
+ * A failure lists each leaked object's allocation stack.
  *
  * <p>System cursors are left out: the Display owns them, and on each GTK settings change (a theme
  * switch) it moves its cached cursors to a list it disposes with itself, so the next {@code
@@ -300,6 +301,20 @@ class ResourceLeakTest {
     controller.execute(CommandId.OVERVIEW_STRIP);
     drain();
     controller.execute(CommandId.OVERVIEW_STRIP);
+    drain();
+    controller.execute(CommandId.REPLACE_IN_RESULTS);
+    final ReplaceDialog preview = window.replaceDialog();
+    preview.setReplacement("lane");
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return controller.replace().preview() != null
+                    && preview.previewText().contains("lane");
+              }
+            }));
+    preview.shell().dispose();
     drain();
     results.clearAll();
     controller.execute(CommandId.SEARCH_RESULTS);

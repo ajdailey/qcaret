@@ -68,6 +68,15 @@ public interface DocumentsView {
   void askUnsaved(String name, Consumer<UnsavedChoice> answer);
 
   /**
+   * Asks whether Save As may replace a file that another tab holds with unsaved changes; that tab
+   * then closes without saving.
+   *
+   * @param name the other tab's name
+   * @param replace runs when the user accepts; not run on a decline
+   */
+  void askReplaceOpenFile(String name, Runnable replace);
+
+  /**
    * Asks for a line, or a line and a column, to move the caret to.
    *
    * @param lines the document's line count

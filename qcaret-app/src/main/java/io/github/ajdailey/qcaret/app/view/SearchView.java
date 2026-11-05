@@ -1,9 +1,13 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Consumer;
 
-/** The HyperSearch dialog, the results dock and the folder chooser. Called on the UI thread. */
+/**
+ * The HyperSearch dialog, the results dock, the folder chooser, and the replace preview and
+ * reports. Called on the UI thread.
+ */
 public interface SearchView {
   /**
    * Shows the HyperSearch dialog without waiting.
@@ -45,4 +49,36 @@ public interface SearchView {
    * @param match the match's index
    */
   void revealResult(int set, int file, int match);
+
+  /**
+   * Shows the replace preview over its model, replacing an open one.
+   *
+   * @param input the preview's model
+   */
+  void showReplacePreview(ReplaceInput input);
+
+  /** Reports a change of the replace preview's rows, summary or before and after view. */
+  void replacePreviewChanged();
+
+  /**
+   * Shows a replace or restore run's report, beside any other open report.
+   *
+   * @param input the report's model
+   */
+  void showReplaceReport(ReportInput input);
+
+  /**
+   * Reports a change of a report's rows or state.
+   *
+   * @param input the report that changed
+   */
+  void replaceReportChanged(ReportInput input);
+
+  /**
+   * Asks which replace run to restore.
+   *
+   * @param runs one line per run, newest first
+   * @param chosen receives the chosen run's index; not called when the user cancels
+   */
+  void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen);
 }

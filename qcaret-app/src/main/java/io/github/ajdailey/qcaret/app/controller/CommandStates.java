@@ -32,7 +32,8 @@ import java.util.Set;
  * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. The fold
  * commands need fold regions in the focused view, the unfold commands a collapsed one. Next,
  * Previous and Clear Bookmarks need a bookmark. HyperSearch runs without a document; Next and
- * Previous Result need a match in a retained set. A disabled menu item's accelerator does not fire.
+ * Previous Result and Replace in Results need a match in a retained set. A disabled menu item's
+ * accelerator does not fire.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -57,6 +58,8 @@ public final class CommandStates {
           CommandId.NEXT_RESULT,
           CommandId.PREVIOUS_RESULT,
           CommandId.SEARCH_RESULTS,
+          CommandId.REPLACE_IN_RESULTS,
+          CommandId.RESTORE_REPLACE_RUN,
           CommandId.OVERVIEW_STRIP);
 
   /** Commands that change the text. */
@@ -177,7 +180,7 @@ public final class CommandStates {
       return switch (command) {
         case ZOOM_IN -> application.fontStep() < ApplicationController.MAX_FONT_STEP;
         case ZOOM_OUT -> application.fontStep() > ApplicationController.MIN_FONT_STEP;
-        case NEXT_RESULT, PREVIOUS_RESULT -> application.search().hasResults();
+        case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
         default -> true;
       };
     }

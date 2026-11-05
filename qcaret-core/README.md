@@ -23,7 +23,7 @@ delete-pending for a moment.
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
-| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search (`TextMatcher`, `TextSearch`, `FileSearch`), line diff; none uses another |
+| `core.edit`, `core.syntax`, `core.search`, `core.diff` | 7 | Editing commands (`LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`), grammars and highlighting, search and file replace (`TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups`), line diff (`LineDiff`); none uses another |
 | `core.watch`, `core.workspace` | above `io` | External change detection, folder index |
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
@@ -469,6 +469,49 @@ The `Sink` receives results on worker threads in no fixed order; its `room()`
 bounds the hits, and 0 ends the walk. Cancel stops the walk; `run` returns
 once the reads in flight end.
 
+`FileSearch.searchFile` reads, decodes and matches one file on the calling
+thread, as the walk does each file, for a per-file rerun.
+
+### File replace
+
+`FileReplace.replace` replaces a directory replace's matches in one file on
+disk; any skip leaves the file untouched.
+
+1. Read the stamp, then the bytes. Skip a missing, unreadable or read-only
+   (`Files.isWritable`) file, one over the size limit, one whose SHA-256
+   differs from the bytes searched, a binary file, one that does not decode
+   with `REPORT` in the encoding searched with, and one whose text does not
+   encode back to the same bytes (a stateful encoding would rewrite unchanged
+   text).
+2. Match each checked span again on exactly its range
+   (`TextMatcher.replacementAt`); a span that does not match is dropped.
+   Line breaks in a replacement become the file's dominant line ending; the
+   other breaks stay as read.
+3. Encode with `REPORT`; an unmappable char skips the file. The BOM is kept.
+4. `ReplaceBackups.record` writes the original bytes, then `SafeSave` writes
+   the file with the stamp from step 1 as its baseline. A change between the
+   read and that stamp check skips the file; a change after the check is
+   overwritten (the write time of one file).
+
+Six bytes per file byte are reserved from the `MemoryBudget` while a file is
+replaced. `ReplaceBackups` keeps one directory per run under
+`<settings>/replace-backups/`, named by its UTC start time. Each replaced file
+gets `<n>.bak`: a header line with its path and the SHA-256 of its bytes
+before and after, then the original bytes, forced to disk before the file is
+replaced; a write that does not happen deletes it. `restore` writes a backup
+back through `SafeSave` only while the file holds the bytes the run wrote; a
+file changed since is refused, one already holding its original reports
+unchanged. `prune` deletes runs older than the days kept.
+
+## Line diff (`core.diff`)
+
+`LineDiff.diff` returns the shortest edit script between two line lists
+(Myers' greedy algorithm after matching the common prefix and suffix), each
+run of changes listing its removed lines before its added ones. Past 1,000
+edits the rest is reported as all lines removed, then all added: correct, not
+shortest, and bounded in time and memory. `hunks` groups a script into
+changes with a given number of context lines.
+
 ## Bounded reads (`core.text`)
 
 `BoundedChars` is a `CharSequence` over a line that throws `LimitReached` once
@@ -550,6 +593,15 @@ read past its line into the overflowing one). `FileSearchTest` walks a
 generated tree: masks, excluded and hidden directories, the top level only,
 open documents left out, binary, too-large and refused-memory skips, and the
 stamp and SHA-256 of a found file.
+`FileReplaceTest` covers a replacement line break taking a CR LF file's
+ending, UTF-16 LE with its BOM, an unmappable replacement, a file changed
+after the search, a read-only file (skipped where the user writes read-only
+files), a dropped match, malformed and binary files, a 3 MiB file replaced at
+both ends, a cancel leaving no backup, a restore refusing a file changed
+since, and listing and pruning runs. `LineDiffTest` compares 400 seeded random
+edits with a dynamic-programming longest common subsequence: each script
+rebuilds both lists, keeps a longest common subsequence and lists removed
+lines first; hunks keep their context. It also covers the edit bound.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
 its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break, a
 diff hunk's `---` line and here documents' opening lines and bodies included,

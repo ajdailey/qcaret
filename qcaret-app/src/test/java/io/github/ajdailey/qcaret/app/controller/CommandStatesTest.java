@@ -89,6 +89,8 @@ class CommandStatesTest {
           "NEXT_RESULT -- -- --",
           "PREVIOUS_RESULT -- -- --",
           "SEARCH_RESULTS -e -e -e",
+          "REPLACE_IN_RESULTS -- -- --",
+          "RESTORE_REPLACE_RUN -e -e -e",
           "LINE_ENDING_CRLF -- -e --",
           "LINE_ENDING_LF -- ce --",
           "LINE_ENDING_CR -- -e --",
@@ -269,6 +271,9 @@ class CommandStatesTest {
         "search ends");
     assertEquals(true, states.checked(CommandId.SEARCH_RESULTS));
     assertEquals(true, states.enabled(CommandId.NEXT_RESULT));
+    assertEquals(true, states.enabled(CommandId.REPLACE_IN_RESULTS));
+    harness.application.execute(CommandId.REPLACE_IN_RESULTS);
+    assertEquals(true, harness.application.replace().previewOpen());
     harness.application.execute(CommandId.SEARCH_RESULTS);
     assertEquals(false, states.checked(CommandId.SEARCH_RESULTS));
     search.clearAll();

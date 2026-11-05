@@ -77,6 +77,16 @@ class ResultRowsTest {
     }
 
     @Override
+    public void rerunFile(int set, int file) {
+      // Not rerun here.
+    }
+
+    @Override
+    public void replace(int set) {
+      // Not replaced here.
+    }
+
+    @Override
     public void stop(int set) {
       // Not stopped here.
     }

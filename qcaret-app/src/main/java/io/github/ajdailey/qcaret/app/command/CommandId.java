@@ -139,6 +139,10 @@ public enum CommandId {
   PREVIOUS_RESULT(CommandGroup.SEARCH, UiText.COMMAND_PREVIOUS_RESULT, false, false, null),
   /** Show the HyperSearch results dock; checked while it shows. */
   SEARCH_RESULTS(CommandGroup.SEARCH, UiText.COMMAND_SEARCH_RESULTS, false, true, null),
+  /** Open the replace preview for the set last navigated, or the newest set with matches. */
+  REPLACE_IN_RESULTS(CommandGroup.SEARCH, UiText.COMMAND_REPLACE_IN_RESULTS, false, false, null),
+  /** Write back, from its backups, the files a replace run changed. */
+  RESTORE_REPLACE_RUN(CommandGroup.SEARCH, UiText.COMMAND_RESTORE_REPLACE_RUN, false, false, null),
   /** Convert every line break to CR LF; checked while every break is CR LF. */
   LINE_ENDING_CRLF(
       CommandGroup.ENCODING, UiText.COMMAND_LINE_ENDING_CRLF, true, true, UiText.MENU_LINE_ENDINGS),

@@ -380,6 +380,58 @@ public final class FileSearch {
     readers.release();
   }
 
+  /**
+   * One file searched on its own.
+   *
+   * @param hits what it gave, its outcome possibly without hits; null when skipped
+   * @param skip why it was not searched, or null
+   */
+  public record Single(FileHits hits, Skip skip) {}
+
+  /**
+   * Reads, decodes and matches one file on the calling thread, as the walk does each file it
+   * accepts.
+   *
+   * @param file the file's real path
+   * @param options the query and limits
+   * @param room the most matches reported
+   * @param token checked while reading and matching
+   * @return the hits, or why the file was skipped
+   * @throws CancellationException when canceled
+   */
+  @WorkerThread
+  public static Single searchFile(Path file, Options options, int room, CancellationToken token) {
+    long reserved = 0;
+    try {
+      long size = Files.size(file);
+      if (size > options.maxFileBytes()) {
+        return new Single(null, Skip.TOO_LARGE);
+      }
+      if (options.budget() != null) {
+        if (!options.budget().reserve(size * BYTES_RESERVED)) {
+          return new Single(null, Skip.NO_MEMORY);
+        }
+        reserved = size * BYTES_RESERVED;
+      }
+      token.check();
+      Decoded decoded = decode(file, options);
+      if (decoded.skip != null) {
+        return new Single(null, decoded.skip);
+      }
+      TextSearch.Outcome outcome =
+          TextSearch.search(
+              options.matcher(), decoded.text, null, room, options.maxLineChars(), token);
+      return new Single(
+          new FileHits(file, decoded.encoding, decoded.stamp, decoded.digest, outcome), null);
+    } catch (IOException e) {
+      return new Single(null, Skip.UNREADABLE);
+    } finally {
+      if (reserved > 0) {
+        options.budget().release(reserved);
+      }
+    }
+  }
+
   /** A file's text, or why it is skipped. */
   private record Decoded(
       String text, TextEncoding encoding, FileStamp stamp, byte[] digest, Skip skip) {}

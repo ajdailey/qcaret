@@ -98,6 +98,7 @@ public final class Keymap {
       window(b, CommandId.REPLACE, P, 'h');
     }
     window(b, CommandId.HYPERSEARCH, P | S, 'f');
+    window(b, CommandId.REPLACE_IN_RESULTS, P | S, 'h');
     window(b, CommandId.NEXT_RESULT, 0, F4);
     window(b, CommandId.PREVIOUS_RESULT, S, F4);
     editor(b, CommandId.NEWLINE, 0, KeyStroke.ENTER);

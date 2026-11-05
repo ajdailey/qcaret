@@ -20,6 +20,8 @@ import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.ReplaceInput;
+import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
@@ -32,7 +34,10 @@ import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
+import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
+import io.github.ajdailey.qcaret.ui.swt.search.RunChooser;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -146,6 +151,9 @@ public final class MainWindow implements MainView {
   private final SashForm body;
   private ResultsDock resultsDock;
   private SearchDialog searchDialog;
+  private ReplaceDialog replaceDialog;
+  private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
+  private RunChooser runChooser;
 
   /**
    * One document tab: its item, which a move recreates, and one or two editor views in a {@link
@@ -901,6 +909,13 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public void askReplaceOpenFile(String name, Runnable replace) {
+    if (!shell.isDisposed()) {
+      new ReplaceOpenDialog(shell, name, replace).open();
+    }
+  }
+
+  @Override
   public void askOpenBinary(String name, Runnable open) {
     if (!shell.isDisposed()) {
       new BinaryDialog(shell, name, open).open();
@@ -1485,6 +1500,89 @@ public final class MainWindow implements MainView {
     if (resultsDock != null && !shell.isDisposed()) {
       resultsDock.reveal(set, file, match);
     }
+  }
+
+  @Override
+  public void showReplacePreview(ReplaceInput input) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
+      replaceDialog.shell().dispose();
+    }
+    replaceDialog =
+        new ReplaceDialog(shell, input, palette, Dialogs.monospaceName(), Dialogs.monospaceSize());
+    replaceDialog.open();
+  }
+
+  @Override
+  public void replacePreviewChanged() {
+    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
+      replaceDialog.refresh();
+    }
+  }
+
+  /**
+   * Returns the replace preview.
+   *
+   * @return the dialog, or null before it opened
+   */
+  ReplaceDialog replaceDialog() {
+    return replaceDialog;
+  }
+
+  @Override
+  public void showReplaceReport(ReportInput input) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    ReportWindow window = new ReportWindow(shell, input);
+    reportWindows.add(window);
+    window.open();
+  }
+
+  @Override
+  public void replaceReportChanged(ReportInput input) {
+    for (int i = reportWindows.size() - 1; i >= 0; i--) {
+      ReportWindow window = reportWindows.get(i);
+      if (window.shell().isDisposed()) {
+        reportWindows.remove(i);
+      } else if (window.input() == input) {
+        window.refresh();
+      }
+    }
+  }
+
+  /**
+   * Returns the open report windows, oldest first.
+   *
+   * @return the windows
+   */
+  List<ReportWindow> reportWindows() {
+    List<ReportWindow> open = new ArrayList<ReportWindow>();
+    for (ReportWindow window : reportWindows) {
+      if (!window.shell().isDisposed()) {
+        open.add(window);
+      }
+    }
+    return open;
+  }
+
+  @Override
+  public void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen) {
+    if (!shell.isDisposed()) {
+      runChooser = new RunChooser(shell, runs, chosen);
+      runChooser.open();
+    }
+  }
+
+  /**
+   * Returns the Restore Replace Run chooser.
+   *
+   * @return the dialog, or null before it opened
+   */
+  RunChooser runChooser() {
+    return runChooser;
   }
 
   /**

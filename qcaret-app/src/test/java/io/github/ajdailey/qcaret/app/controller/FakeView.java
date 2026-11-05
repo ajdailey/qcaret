@@ -11,6 +11,8 @@ import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
+import io.github.ajdailey.qcaret.app.view.ReplaceInput;
+import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.TabInput;
@@ -407,6 +409,13 @@ final class FakeView implements MainView {
   boolean resultsShown;
   int resultsChanges;
   int[] revealed;
+  String replaceOpenName;
+  Runnable replaceOpen;
+  ReplaceInput replacePreview;
+  int previewChanges;
+  final List<ReportInput> reports = new ArrayList<ReportInput>();
+  List<String> runChoices;
+  Consumer<Integer> runChooser;
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
@@ -569,6 +578,13 @@ final class FakeView implements MainView {
   }
 
   @Override
+  public void askReplaceOpenFile(String name, Runnable replace) {
+    ui.checkUiThread();
+    replaceOpenName = name;
+    replaceOpen = replace;
+  }
+
+  @Override
   public void askGoToLine(int lines, Consumer<String> answer) {
     ui.checkUiThread();
     goToLines = lines;
@@ -617,5 +633,35 @@ final class FakeView implements MainView {
   public void revealResult(int set, int file, int match) {
     ui.checkUiThread();
     revealed = new int[] {set, file, match};
+  }
+
+  @Override
+  public void showReplacePreview(ReplaceInput input) {
+    ui.checkUiThread();
+    replacePreview = input;
+  }
+
+  @Override
+  public void replacePreviewChanged() {
+    ui.checkUiThread();
+    previewChanges++;
+  }
+
+  @Override
+  public void showReplaceReport(ReportInput input) {
+    ui.checkUiThread();
+    reports.add(input);
+  }
+
+  @Override
+  public void replaceReportChanged(ReportInput input) {
+    ui.checkUiThread();
+  }
+
+  @Override
+  public void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen) {
+    ui.checkUiThread();
+    runChoices = runs;
+    runChooser = chosen;
   }
 }
