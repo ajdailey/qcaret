@@ -510,6 +510,13 @@ class EditingSurfaceTest {
       assertEquals(
           new Point(EditorPane.CARET_WIDTH, text.getLineHeight()), text.getCaret().getSize());
       final RGB expected = CaretInk.shown(line, source, blend);
+      // Windows shows a caret only in the focused window; a runner desktop may not give the test
+      // window the foreground.
+      text.setFocus();
+      drain();
+      assumeTrue(
+          display.getActiveShell() == text.getShell() && text.isFocusControl(),
+          "the test window does not have focus");
       Point at = display.map(text, null, text.getCaret().getLocation());
       final int x = at.x;
       final int y = at.y + text.getLineHeight() / 2;

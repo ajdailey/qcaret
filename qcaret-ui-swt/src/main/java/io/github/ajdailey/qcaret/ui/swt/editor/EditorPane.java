@@ -157,6 +157,10 @@ public final class EditorPane implements EditorView {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
+            // The caret goes first: cocoa reads its image while releasing it.
+            if (!primaryCaret.isDisposed()) {
+              primaryCaret.dispose();
+            }
             if (caretImage != null) {
               caretImage.dispose();
               caretImage = null;
