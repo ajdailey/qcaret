@@ -35,6 +35,7 @@
     <span token="string" begin='"' end='"' escape='\\[$`"\\]|\\$' context="expansions" multiLine="true"/>
     <span token="string" begin="\$'" end="'" escape="\\." multiLine="true"/>
     <span token="string" begin="'" end="'" multiLine="true"/>
+    <match token="delimiter" regex="\$\(\(|(?&lt;![\w$)])\(\(" push="arith"/>
     <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\t*\1$" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin="(?&lt;!&lt;)&lt;&lt;[ \t]*(?:'|&quot;|\\)([A-Za-z_]\w*)['&quot;]?" end="^\1$" multiLine="true" bodyNextLine="true"/>
     <span token="string" begin="(?&lt;!&lt;)&lt;&lt;-[ \t]*([A-Za-z_]\w*)" end="^\t*\1$" escape="\\[$`\\]|\\$" context="expansions" multiLine="true" bodyNextLine="true"/>
@@ -46,6 +47,13 @@
     <match token="number" regex="(?&lt;![\w$.-])\d+(?![\w.])"/>
     <match token="operator" regex="&amp;&amp;|\|\||[|&amp;;&lt;&gt;!=]+"/>
     <match token="delimiter" regex="[(){}\[\]]"/>
+  </context>
+  <context id="arith">
+    <match token="delimiter" regex="\)\)" pop="true"/>
+    <include context="expansions"/>
+    <match token="number" regex="(?&lt;![\w$])(?:0[xX][0-9A-Fa-f]+|\d+)(?!\w)"/>
+    <match token="operator" regex="&lt;&lt;=?|&gt;&gt;=?|\*\*|&amp;&amp;|\|\||[-+*/%&lt;&gt;=!~^&amp;|?:]+"/>
+    <match token="delimiter" regex="[()]"/>
   </context>
   <context id="expansions">
     <match token="constant" regex="\$\{[^}]*\}|\$[A-Za-z_]\w*|\$[@*#?$!0-9-]"/>

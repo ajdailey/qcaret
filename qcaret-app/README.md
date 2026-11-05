@@ -435,8 +435,8 @@ view's `EditorController.setGrammar`: comment delimiters, fold source, indent
 rules and pairs.
 
 `CommandStates.syntaxMenu` builds the `SyntaxMenu` both lists show: the last
-five grammars chosen with `setSyntax` in this run, Plain Text aside, then Plain
-Text, then one submenu per category that holds a grammar, in `byName` order.
+five grammars chosen with `setSyntax` in this run, Plain Text included, then
+Plain Text, then one submenu per category that holds a grammar, in `byName` order.
 A grammar's `category` picks the submenu (`programming` splits into A-M and
 N-Z by the name's first letter, then `markup`, `build`); a grammar without one
 goes in User.

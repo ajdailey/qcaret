@@ -13,7 +13,7 @@ import java.util.List;
  * name, A-M and N-Z; a grammar without a known category goes in User. Each list keeps the order of
  * {@link GrammarSet#byName()}.
  *
- * @param recent the recently chosen grammars, most recent first; Plain Text is never one
+ * @param recent the recently chosen grammars, most recent first, Plain Text included
  * @param plain Plain Text, or null before the grammars load
  * @param categories the submenus that hold a grammar, in menu order
  */
@@ -79,7 +79,7 @@ public record SyntaxMenu(
     List<CommandStates.SyntaxChoice> recentChoices = new ArrayList<CommandStates.SyntaxChoice>();
     for (String id : recent) {
       for (Grammar g : grammars) {
-        if (g.id().equals(id) && !id.equals(GrammarSet.PLAIN)) {
+        if (g.id().equals(id)) {
           recentChoices.add(choice(g, active));
         }
       }

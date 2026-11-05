@@ -204,6 +204,28 @@ class BuiltInGrammarsTest {
   }
 
   @Test
+  void shellArithmeticShiftsAreNotHereDocuments() {
+    assertTokens(
+        "shell",
+        "x=$(( 1 << 4 ))\n(( y <<= 2 ))\nz=$((a<<b))\nif true; then echo ok; fi\nb",
+        "DELIMITER:$((",
+        "NUMBER:1",
+        "OPERATOR:<<",
+        "NUMBER:4",
+        "DELIMITER:))",
+        "DELIMITER:((",
+        "OPERATOR:<<=",
+        "NUMBER:2",
+        "DELIMITER:))",
+        "DELIMITER:$((",
+        "OPERATOR:<<",
+        "DELIMITER:))",
+        "KEYWORD:if",
+        "KEYWORD:then",
+        "KEYWORD:fi");
+  }
+
+  @Test
   void shell() {
     assertTokens(
         "shell",

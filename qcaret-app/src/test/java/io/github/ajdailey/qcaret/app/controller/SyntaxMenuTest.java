@@ -101,12 +101,12 @@ class SyntaxMenuTest {
   }
 
   @Test
-  void recentGrammarsComeFirstWithoutPlainTextOrAnUnknownId() {
+  void recentGrammarsComeFirstWithoutAnUnknownId() {
     SyntaxMenu menu =
         SyntaxMenu.of(byName(BUILT_IN), List.of("ruby", "missing", GrammarSet.PLAIN, "go"), "go");
-    assertEquals(List.of("ruby", "go"), ids(menu.recent()));
+    assertEquals(List.of("ruby", GrammarSet.PLAIN, "go"), ids(menu.recent()));
     assertFalse(menu.recent().get(0).checked());
-    assertTrue(menu.recent().get(1).checked());
+    assertTrue(menu.recent().get(2).checked());
   }
 
   @Test

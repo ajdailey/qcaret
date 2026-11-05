@@ -102,7 +102,7 @@ class SyntaxControllerTest {
   }
 
   @Test
-  void theSyntaxMenuKeepsTheLastFiveGrammarsChosenWithoutPlainText() throws Exception {
+  void theSyntaxMenuKeepsTheLastFiveGrammarsChosen() throws Exception {
     loadGrammars();
     open("notes", "plain words\n");
     awaitLanguage("Plain Text");
@@ -113,7 +113,7 @@ class SyntaxControllerTest {
     for (CommandStates.SyntaxChoice choice : states.syntaxMenu().recent()) {
       recent.add(choice.id());
     }
-    assertEquals(List.of("go", "rust", "lua", "perl", "ruby"), recent);
+    assertEquals(List.of("plain", "go", "rust", "lua", "perl"), recent);
   }
 
   @Test

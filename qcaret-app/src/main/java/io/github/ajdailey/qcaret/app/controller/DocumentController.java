@@ -1544,12 +1544,10 @@ public final class DocumentController {
     if (active != null && set != null && set.get(id) != null) {
       active.manualGrammar = true;
       applyGrammar(active, id, set);
-      if (!GrammarSet.PLAIN.equals(id)) {
-        recentGrammars.remove(id);
-        recentGrammars.add(0, id);
-        if (recentGrammars.size() > RECENT_GRAMMARS) {
-          recentGrammars.remove(RECENT_GRAMMARS);
-        }
+      recentGrammars.remove(id);
+      recentGrammars.add(0, id);
+      if (recentGrammars.size() > RECENT_GRAMMARS) {
+        recentGrammars.remove(RECENT_GRAMMARS);
       }
     }
   }
