@@ -305,6 +305,11 @@ public final class SearchController implements ResultsInput {
                 state.texts(), UiState.remember(state.directories(), directory), state.masks())));
   }
 
+  /** Drops the last run's fields, so the dialog opens without its masks, text or scope. */
+  void forgetLastRun() {
+    last = null;
+  }
+
   /**
    * Sets the longest line a search reads ({@code search.maxLineChars}); the next search reads it.
    *

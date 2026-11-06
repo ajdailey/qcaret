@@ -829,7 +829,14 @@ process changed; a change made meanwhile survives through `merge`. A failed save
 or a read-only directory keeps the running settings. `PreferencesController`
 runs it before the dialog opens, so the dialog shows the file's values, and
 hands checked fields to `set`; a failed save shows a notice and the settings
-stay applied for the run.
+stay applied for the run. `clearHistory` empties every `search.history.*.N` list
+and `SearchController`'s last run at once, apart from `apply`, so Cancel does
+not restore them. It runs `refresh` first, so another process's entries go too.
+An open find bar's list follows; its field texts stay. A failed save shows
+`PREFERENCES_HISTORY_NOT_REMOVED`: the lists stay empty for the run and the
+entries stay in the file. `PreferencesController` keeps the settings the file
+holds, and `Settings.setFrom` saves from them on the next press, which `set`
+would skip because the running settings already match.
 
 `Keymap.withOverrides` replaces a command's keys from `ShortcutOverrides`. A key
 takes the scope of the command's default keys, or window scope for a menu
@@ -878,9 +885,10 @@ modules.
 `ConfigStoreTest` covers two stores merging on one directory, a save that
 changes nothing, unknown keys, every key's round trip and invalid values.
 `SettingsTest` covers the ordered queue and `refresh`, including a change made
-during one and a read-only directory. `PreferencesControllerTest` drives
-`PreferencesInput` and asserts each setting's effect on the running window; the
-remaining effects sit with their area (`ExternalChangeTest`,
+during one, a read-only directory and `setFrom`. `PreferencesControllerTest` drives
+`PreferencesInput` and asserts each setting's effect on the running window,
+and Clear History in the file, after Apply, over another process's entries,
+for HyperSearch's last run and on a read-only directory; the remaining effects sit with their area (`ExternalChangeTest`,
 `SyntaxHighlighterTest`, `SearchControllerTest`, `ReplaceControllerTest`,
 `FileMonitorTest`).
 

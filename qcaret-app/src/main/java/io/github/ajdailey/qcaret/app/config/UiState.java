@@ -127,6 +127,15 @@ public record UiState(
   }
 
   /**
+   * Returns a copy with every {@code search.history.*.N} list empty.
+   *
+   * @return the copy
+   */
+  public UiState withoutHistory() {
+    return withHistory(List.of(), List.of(), List.of()).withReplacements(List.of());
+  }
+
+  /**
    * Returns a copy with other recent grammars.
    *
    * @param value ids, newest first

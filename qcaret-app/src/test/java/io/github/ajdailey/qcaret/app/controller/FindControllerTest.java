@@ -448,6 +448,24 @@ class FindControllerTest {
   }
 
   @Test
+  void clearedHistoriesReachAnOpenBarAndTheFieldsStay() throws Exception {
+    open("alpha\n");
+    find.open(true);
+    find.setText("alpha");
+    settle();
+    find.setReplacement("beta");
+    find.replaceAll();
+    settle();
+    assertEquals(List.of("beta"), last.replaceHistory());
+    Preferences current = harness.application.settings().current();
+    harness.application.settings().set(current.withState(current.state().withoutHistory()));
+    assertEquals(List.of(), last.textHistory());
+    assertEquals(List.of(), last.replaceHistory());
+    assertEquals("alpha", last.text());
+    assertEquals("beta", last.replacement());
+  }
+
+  @Test
   void shiftedDropsRangesAnEditTouches() {
     int[] ranges = {0, 2, 5, 7, 10, 12};
     List<TextEdit> edits =

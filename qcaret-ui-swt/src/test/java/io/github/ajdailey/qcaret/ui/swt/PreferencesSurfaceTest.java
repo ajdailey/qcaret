@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -23,6 +24,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -31,6 +33,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.MenuItem;
 import org.junit.jupiter.api.AfterEach;
@@ -139,6 +142,46 @@ class PreferencesSurfaceTest {
     assertEquals(9, controller.preferences().options().pollSeconds());
     dialog.shell().dispose();
     assertEquals(9, controller.preferences().options().pollSeconds());
+  }
+
+  @Test
+  void clearHistoryAsksThenClearsAtOnceAndAnOpenFindBarFollows() {
+    Preferences current = controller.settings().current();
+    controller
+        .settings()
+        .set(
+            current.withState(
+                current
+                    .state()
+                    .withHistory(List.of("needle"), List.of("/mock"), List.of("*.mock"))
+                    .withReplacements(List.of("thread"))));
+    controller.execute(CommandId.REPLACE);
+    final Combo field = window.findBar().field();
+    field.setText("typed");
+    assertArrayEquals(new String[] {"needle"}, field.getItems());
+    PreferencesDialog dialog = dialog();
+    ClearHistoryDialog prompt = dialog.askClearHistory();
+    prompt.cancel();
+    assertTrue(prompt.shell().isDisposed());
+    assertEquals(1, field.getItemCount());
+    dialog.askClearHistory().clear();
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return field.getItemCount() == 0;
+              }
+            },
+            BOUND));
+    assertEquals(0, window.findBar().replaceField().getItemCount());
+    assertEquals("typed", field.getText());
+    dialog.shell().close();
+    assertEquals(List.of(), controller.settings().current().state().texts());
+    assertEquals(List.of(), controller.settings().current().state().directories());
+    assertEquals(List.of(), controller.settings().current().state().masks());
+    assertEquals(List.of(), controller.settings().current().state().replacements());
   }
 
   @Test

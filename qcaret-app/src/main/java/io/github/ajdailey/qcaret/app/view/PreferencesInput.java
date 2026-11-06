@@ -35,4 +35,11 @@ public interface PreferencesInput {
    * @return null when applied, else the first invalid field
    */
   PreferencesForm.Problem apply(PreferencesForm form);
+
+  /**
+   * Clears every saved search history and HyperSearch's last run at once, independently of {@link
+   * #apply}: the file is read on a worker first, so entries another process saved go too, and
+   * Cancel does not bring them back. A failed save shows a notice; another call retries it.
+   */
+  void clearHistory();
 }

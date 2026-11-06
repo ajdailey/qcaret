@@ -199,6 +199,35 @@ class SettingsTest {
   }
 
   @Test
+  void aSaveFromTheFilesSettingsWritesWhenTheRunningOnesAlreadyMatch() throws Exception {
+    final Preferences running = settings.current();
+    Preferences dark = running.withTheme(ThemeMode.DARK);
+    assertTrue(other().save(running, dark));
+    final Boolean[] result = new Boolean[1];
+    settings.setFrom(
+        dark,
+        running,
+        new Consumer<Boolean>() {
+          @Override
+          public void accept(Boolean ok) {
+            result[0] = ok;
+          }
+        });
+    assertTrue(
+        ui.runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return result[0] != null;
+              }
+            },
+            BOUND));
+    assertTrue(result[0]);
+    assertEquals(running.theme(), other().load().theme());
+    assertTrue(heard.isEmpty());
+  }
+
+  @Test
   void aReadOnlyDirectoryKeepsTheRunningSettings() throws Exception {
     assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");
     Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("r-x------"));

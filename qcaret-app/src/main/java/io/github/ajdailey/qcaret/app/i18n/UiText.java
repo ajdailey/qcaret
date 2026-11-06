@@ -143,6 +143,14 @@ public enum UiText {
   PREFERENCES_KEY_TYPES,
   /** A row with keys set by the user: the command's name. */
   PREFERENCES_KEY_CHANGED,
+  /** Title of the prompt before the search histories are cleared. */
+  PREFERENCES_CLEAR_HISTORY_TITLE,
+  /** Message of the prompt before the search histories are cleared. */
+  PREFERENCES_CLEAR_HISTORY_MESSAGE,
+  /** Notice when the search histories stay in the settings file. */
+  PREFERENCES_HISTORY_NOT_REMOVED,
+  /** Button. */
+  BUTTON_CLEAR_HISTORY,
   /** Button. */
   BUTTON_APPLY,
   /** Button. */

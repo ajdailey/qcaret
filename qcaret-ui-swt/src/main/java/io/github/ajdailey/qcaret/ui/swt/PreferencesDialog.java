@@ -34,9 +34,11 @@ import org.eclipse.swt.widgets.Text;
  * Edit > Preferences: one tab per {@link PreferencesForm.Group}. OK and Apply hand the fields to
  * the {@link PreferencesInput}; a refused field shows its message above the buttons, selects its
  * tab and keeps the dialog open. Restore Defaults fills every tab and changes nothing until OK or
- * Apply. The Keys tab edits overrides on top of the default keymap: the key field records one
- * stroke, Add refuses a stroke that types or that another command holds, Default Keys returns the
- * selected command to its defaults. Modeless; it returns at once.
+ * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at
+ * once, whatever OK, Apply or Cancel do afterwards. The Keys tab edits overrides on top of the
+ * default keymap: the key field records one stroke, Add refuses a stroke that types or that another
+ * command holds, Default Keys returns the selected command to its defaults. Modeless; it returns at
+ * once.
  */
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
@@ -155,6 +157,31 @@ final class PreferencesDialog {
     searchMaxLineChars = field(page, UiText.PREFERENCES_SEARCH_LINE_CHARS);
     backupDays = field(page, UiText.PREFERENCES_BACKUP_DAYS);
     excludedDirectories = field(page, UiText.PREFERENCES_EXCLUDED_DIRECTORIES);
+    Dialogs.button(
+            page,
+            UiText.BUTTON_CLEAR_HISTORY.text(),
+            new Runnable() {
+              @Override
+              public void run() {
+                askClearHistory();
+              }
+            })
+        .setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
+  }
+
+  /** Opens the prompt before the histories are cleared. */
+  ClearHistoryDialog askClearHistory() {
+    ClearHistoryDialog prompt =
+        new ClearHistoryDialog(
+            shell,
+            new Runnable() {
+              @Override
+              public void run() {
+                input.clearHistory();
+              }
+            });
+    prompt.open();
+    return prompt;
   }
 
   private void appearance(Composite page) {

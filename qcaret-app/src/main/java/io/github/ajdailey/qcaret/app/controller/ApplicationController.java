@@ -174,7 +174,7 @@ public final class ApplicationController {
           }
         });
     workspace.setExcludedDirectories(options.excludedDirectories());
-    this.preferences = new PreferencesController(settings, view, defaultKeymap);
+    this.preferences = new PreferencesController(settings, view, defaultKeymap, search);
     settings.addListener(
         new Settings.Listener() {
           @Override

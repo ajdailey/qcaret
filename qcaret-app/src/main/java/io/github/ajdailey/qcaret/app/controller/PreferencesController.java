@@ -19,11 +19,17 @@ final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
   private final Keymap defaults;
+  private final SearchController search;
 
-  PreferencesController(Settings settings, MainView view, Keymap defaults) {
+  /** The settings the file holds after a failed clear, so a retry removes the same keys. */
+  private Preferences uncleared;
+
+  PreferencesController(
+      Settings settings, MainView view, Keymap defaults, SearchController search) {
     this.settings = settings;
     this.view = view;
     this.defaults = defaults;
+    this.search = search;
   }
 
   /** Shows the dialog once the file is read. */
@@ -153,6 +159,39 @@ final class PreferencesController implements PreferencesInput {
           }
         });
     return null;
+  }
+
+  @Override
+  public void clearHistory() {
+    search.forgetLastRun();
+    settings.refresh(
+        new Runnable() {
+          @Override
+          public void run() {
+            removeHistory();
+          }
+        });
+  }
+
+  private void removeHistory() {
+    Preferences current = settings.current();
+    Preferences cleared = current.withState(current.state().withoutHistory());
+    final Preferences file = uncleared == null ? current : uncleared;
+    if (file.equals(cleared)) {
+      return;
+    }
+    settings.setFrom(
+        file,
+        cleared,
+        new Consumer<Boolean>() {
+          @Override
+          public void accept(Boolean saved) {
+            uncleared = saved ? null : file;
+            if (!saved) {
+              view.showNotice(UiText.PREFERENCES_HISTORY_NOT_REMOVED.text());
+            }
+          }
+        });
   }
 
   /** A field's whole number, or why it was refused. */

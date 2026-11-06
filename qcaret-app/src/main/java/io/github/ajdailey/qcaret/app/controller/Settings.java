@@ -102,6 +102,28 @@ public final class Settings {
       return;
     }
     record(next, saved);
+    startSave();
+  }
+
+  /**
+   * Replaces the settings and saves the difference from the settings the file holds, also when the
+   * running settings already equal them: a failed save leaves the file behind them.
+   *
+   * @param file the settings the file holds
+   * @param next the new settings
+   * @param saved receives on the UI thread whether the file took them
+   */
+  void setFrom(Preferences file, Preferences next, Consumer<Boolean> saved) {
+    Preferences before = current;
+    current = next;
+    pending.add(new Change(file, next, saved));
+    if (!next.equals(before)) {
+      fire(before, next);
+    }
+    startSave();
+  }
+
+  private void startSave() {
     boolean started =
         workers.tryStart(
             Workers.Kind.LIFECYCLE,

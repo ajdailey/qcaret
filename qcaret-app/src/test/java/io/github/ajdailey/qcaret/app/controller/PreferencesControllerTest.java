@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
@@ -14,6 +15,8 @@ import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.config.UiState;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.DialogSize;
@@ -24,6 +27,7 @@ import io.github.ajdailey.qcaret.app.view.SearchScope;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -278,6 +282,172 @@ class PreferencesControllerTest {
     assertTrue(saved.state().search().hiddenFiles());
     assertEquals(List.of("x"), saved.state().texts());
     assertEquals(List.of("*.txt"), saved.state().masks());
+  }
+
+  private void remember(String text) {
+    Settings settings = harness.application.settings();
+    Preferences current = settings.current();
+    settings.set(
+        current.withState(
+            current
+                .state()
+                .withHistory(List.of(text), List.of("/mock"), List.of("*.mock"))
+                .withReplacements(List.of("swapped"))));
+  }
+
+  private void awaitCleared() throws InterruptedException {
+    final Settings settings = harness.application.settings();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return settings.current().state().equals(UiState.DEFAULTS);
+          }
+        },
+        "cleared");
+  }
+
+  /** Saves what is queued: a file condition alone wakes no wait on the UI queue. */
+  private Preferences flushed() {
+    harness.application.settings().flush();
+    return store().load();
+  }
+
+  @Test
+  void clearHistoryEmptiesEveryListAtOnceAndApplyKeepsThemEmpty() throws Exception {
+    remember("needle");
+    assertEquals(List.of("swapped"), flushed().state().replacements());
+    PreferencesInput input = input();
+    PreferencesForm form = input.form();
+    input.clearHistory();
+    awaitCleared();
+    assertEquals(UiState.DEFAULTS, flushed().state());
+    assertFalse(fileHas("search.history.").getAsBoolean());
+    assertNull(input.apply(form));
+    assertEquals(UiState.DEFAULTS, harness.application.settings().current().state());
+  }
+
+  @Test
+  void clearHistoryTakesEntriesAnotherProcessSaved() throws Exception {
+    remember("needle");
+    flushed();
+    PreferencesInput input = input();
+    Preferences mine = harness.application.settings().current();
+    UiState state = mine.state();
+    assertTrue(
+        store()
+            .save(
+                mine,
+                mine.withState(
+                    state.withHistory(
+                        List.of("other", "needle"), state.directories(), state.masks()))));
+    input.clearHistory();
+    awaitCleared();
+    assertEquals(UiState.DEFAULTS, flushed().state());
+    assertFalse(fileHas("search.history.").getAsBoolean());
+  }
+
+  @Test
+  void clearHistoryDropsHyperSearchsLastRun() throws Exception {
+    harness
+        .application
+        .search()
+        .run(
+            new SearchForm(
+                "x",
+                false,
+                false,
+                false,
+                SearchScope.OPEN_DOCUMENTS,
+                "",
+                "*.txt",
+                "*.log",
+                false,
+                "",
+                List.of(),
+                List.of(),
+                List.of()));
+    harness.application.execute(CommandId.HYPERSEARCH);
+    assertEquals("*.txt", harness.view.searchForm.include());
+    input().clearHistory();
+    awaitCleared();
+    harness.application.execute(CommandId.HYPERSEARCH);
+    SearchForm form = harness.view.searchForm;
+    assertEquals("", form.text());
+    assertEquals("", form.include());
+    assertEquals("", form.exclude());
+    assertEquals(SearchScope.CURRENT_DOCUMENT, form.scope());
+    assertEquals(List.of(), form.textHistory());
+  }
+
+  private void awaitNotices(final int count) throws InterruptedException {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.notices.size() == count;
+          }
+        },
+        count + " notices");
+  }
+
+  @Test
+  void aFailedClearSaysSoEachTimeAndTheFileKeepsTheHistory() throws Exception {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");
+    remember("needle");
+    flushed();
+    PreferencesInput input = input();
+    Path directory = temp.resolve("settings");
+    int before = harness.view.notices.size();
+    Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("r-x------"));
+    try {
+      assumeTrue(!Files.isWritable(directory), "running with permission to write anyway");
+      input.clearHistory();
+      awaitNotices(before + 1);
+      assertEquals(UiText.PREFERENCES_HISTORY_NOT_REMOVED.text(), harness.view.notices.get(before));
+      assertEquals(UiState.DEFAULTS, harness.application.settings().current().state());
+      input.clearHistory();
+      awaitNotices(before + 2);
+      assertEquals(List.of("needle"), store().load().state().texts());
+    } finally {
+      Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
+    }
+  }
+
+  @Test
+  void clearingNothingOnAReadOnlyDirectoryShowsNoNotice() throws Exception {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");
+    PreferencesInput input = input();
+    Path directory = temp.resolve("settings");
+    int before = harness.view.notices.size();
+    Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("r-x------"));
+    try {
+      assumeTrue(!Files.isWritable(directory), "running with permission to write anyway");
+      input.clearHistory();
+      final boolean[] done = new boolean[1];
+      harness
+          .application
+          .settings()
+          .refresh(
+              new Runnable() {
+                @Override
+                public void run() {
+                  done[0] = true;
+                }
+              });
+      harness.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return done[0];
+            }
+          },
+          "refreshed");
+      harness.ui.runPending();
+      assertEquals(before, harness.view.notices.size());
+    } finally {
+      Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
+    }
   }
 
   @Test

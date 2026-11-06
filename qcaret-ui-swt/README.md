@@ -51,7 +51,9 @@ a modeless window with one tab per `PreferencesForm.Group`, over
 `PreferencesInput`. OK and Apply pass the fields to the controller; a refused
 field shows its message above the buttons, selects its tab and keeps the
 dialog open. Restore Defaults fills every tab and applies nothing until OK or
-Apply. The Keys tab lists every command; the key field records one stroke, Add
+Apply. Clear History on the Search and Workspace tab asks through
+`ClearHistoryDialog`, then clears the saved histories and HyperSearch's last
+run at once; Cancel on the dialog does not restore them. The Keys tab lists every command; the key field records one stroke, Add
 refuses a stroke that types or that another command holds and names that
 command, Remove and Default Keys edit the selected command. `setKeymap`
 rebuilds the menu bar and hands the keymap to every `EditorPane` and an open
@@ -386,8 +388,9 @@ fixed sleep.
 
 `PreferencesSurfaceTest` drives the dialog on a real window: a refused field
 keeps it open on its tab, Restore Defaults applies nothing, the Keys tab refuses
-a typing or taken key and a free one reaches the menu item's accelerator, a
-theme switch leaves it working, and a new size is remembered. With
+a typing or taken key and a free one reaches the menu item's accelerator, Clear
+History's prompt declines and clears with an open find bar following, a theme
+switch leaves it working, and a new size is remembered. With
 `-Dqcaret.screenshots=<dir>` it captures each group.
 
 `MainWindowTest` (tag `swt`) checks the requested client size and position
