@@ -29,6 +29,12 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+        <!-- Shows WARN lines in CI logs; a failed test's reason may be only there. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
