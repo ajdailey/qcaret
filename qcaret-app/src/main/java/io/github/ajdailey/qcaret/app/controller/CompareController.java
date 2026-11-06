@@ -166,6 +166,59 @@ public final class CompareController {
   }
 
   /**
+   * Compares two files on disk ({@code --diff}): each is read on a worker, its encoding detected.
+   *
+   * @param left the left file
+   * @param right the right file
+   */
+  public void compareFiles(final Path left, final Path right) {
+    if (disposed) {
+      return;
+    }
+    final LoadOptions base = documents.loadOptions();
+    final CancellationToken token = new CancellationToken();
+    running.add(token);
+    view.setActive();
+    boolean started =
+        workers.tryStart(
+            Workers.Kind.IO,
+            new Runnable() {
+              @Override
+              public void run() {
+                boolean handedOn = false;
+                try {
+                  Document one = readDisk(left, base, null, false, token);
+                  Document other = one == null ? null : readDisk(right, base, null, false, token);
+                  if (other == null) {
+                    post(UiText.COMPARE_TOO_LARGE.format(left.getFileName()));
+                  } else {
+                    handedOn = true;
+                    build(
+                        String.valueOf(left),
+                        one.text(),
+                        String.valueOf(right),
+                        other.text(),
+                        token);
+                  }
+                } catch (IOException e) {
+                  post(
+                      UiText.COMPARE_FAILED.format(
+                          left.getFileName(), LogText.oneLine(e.getMessage())));
+                } catch (CancellationException e) {
+                  // Disposed.
+                } finally {
+                  if (!handedOn) {
+                    end(token);
+                  }
+                }
+              }
+            });
+    if (!started) {
+      end(token);
+    }
+  }
+
+  /**
    * Reads a file as a reload does ({@link #load}) while its cost is reserved from the budget.
    *
    * @return the document, or null when the budget cannot hold it

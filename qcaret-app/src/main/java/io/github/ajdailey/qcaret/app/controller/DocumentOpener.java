@@ -43,6 +43,15 @@ public final class DocumentOpener {
     boolean resolved(Path requested, Path path);
 
     /**
+     * Chooses how a resolved file loads.
+     *
+     * @param path the validated path
+     * @param requested the options the open asked for
+     * @return the options to load with
+     */
+    LoadOptions options(Path path, LoadOptions requested);
+
+    /**
      * A file loaded.
      *
      * @param path the validated path
@@ -165,7 +174,9 @@ public final class DocumentOpener {
             if (!waiting.remove(token)) {
               return;
             }
-            if (closed || listener.resolved(requested, file) || !load(file, options, token)) {
+            if (closed
+                || listener.resolved(requested, file)
+                || !load(file, listener.options(file, options), token)) {
               end(token);
             }
           }

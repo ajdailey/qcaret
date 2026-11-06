@@ -173,8 +173,8 @@ to approve the first launch.
 ## Command line
 
 ```text
-qcaret [options] [file]...
-java -jar qcaret.jar [options] [file]...
+qcaret [options] [[+<line>[:<column>]] file]...
+java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 ```
 
 | Option | Effect |
@@ -182,8 +182,14 @@ java -jar qcaret.jar [options] [file]...
 | `-h`, `--help` | Print usage and exit 0 |
 | `-v`, `--version` | Print `qcaret <version>` and exit 0 |
 | `-d`, `--debug <level>` | stderr log level: `1` INFO, `2` DEBUG, `3` and above TRACE, or `error`, `warn`, `info`, `debug`, `trace`; WARN when absent. Show Log (INFO) and the `-l` file (DEBUG) take it when finer. It applies to QCaret's own loggers; the Java runtime's stay at INFO |
-| `-l`, `--log` | Also write the log at DEBUG to `logs/qcaret-<pid>.log` in the settings directory, for this run |
-| `-m`, `--multi` | Run as an independent instance; the window placement is not saved |
+| `-l`, `--log` | Also write the log at DEBUG to `logs/qcaret.log` in the settings directory, for this run; a process other than the running instance writes `logs/qcaret-<pid>.log` |
+| `-m`, `--multi` | Run as an independent instance: no handoff, and the window placement is not saved |
+| `-n`, `--new-window` | Open in a new window of the running instance, placed by any `--window-*` option |
+| `-r`, `--read-only` | Open the following files read-only; also applies to a file already open |
+| `-e`, `--encoding <name>` | Open the following files in this encoding; a file already open keeps its own |
+| `+<line>[:<column>]` | Place the caret in the next file, counting from 1; also applies to a file already open |
+| `--session`, `--no-session` | Restore the previous session, or skip it; by default it restores when no file is given. A launch that hands off to a running instance ignores both |
+| `--diff <a> <b>` | Open the read-only comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |
 | `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
 | `--settings <dir>` | Settings directory, created owner-only; holds `qcaret.conf` and QCaret's SWT native cache |
@@ -192,7 +198,31 @@ java -jar qcaret.jar [options] [file]...
 
 Options combine: `-ml`, `--opt=value`, `-d2`. An unknown option or a bad value
 prints a message to stderr and exits 1; an SWT start failure, such as missing
-GTK libraries, exits 3.
+GTK libraries, exits 3. After `--`, a `+<line>` is a file name.
+
+Without `-m`, a launch hands its files to the instance running on the same
+settings directory and exits 0. Any failure opens the files in the launch's own
+window. A file another window holds selects that tab, so an instance holds one
+buffer per file.
+
+## Windows
+
+File > Quit asks about unsaved documents in every window. Closing a window asks
+about its own and leaves the others open; closing the last one quits. Window >
+New Window opens another window. Settings, the theme, the key bindings,
+grammars and Recent Files are shared; each window has its own tabs, find bar,
+workspace folder and search results.
+
+Drag a tab out of every QCaret window to open it in a new window, or onto
+another window's tab strip to dock it at that position; Window > Move to New
+Window and the tab menu do the first without a drag. The document moves live:
+undo history, unsaved changes, carets, scroll, folds, bookmarks and its recovery
+file go with it, and nothing is read again. A tab with a save, reload or conversion running does
+not move. Search results stay in their window and still lead to the moved tab.
+
+File associations: on Linux run `bin/install-desktop-entry`; on Windows run
+`register-associations.cmd`, each per user; the macOS bundle declares its
+document types itself. Details are in `qcaret-dist/README.md`.
 
 ## Large files
 
@@ -230,8 +260,9 @@ they apply (measured on Linux under Xvfb, one million lines):
 
 ## Network access
 
-QCaret makes no network connection. Help > Report an Issue is the one command
-that opens a web address, the project's issue page in the system browser, and
+QCaret makes no outbound network connections. Its only socket is a loopback
+endpoint that passes files from a second launch to the running instance. Help >
+Report an Issue is the one command that opens a web address, the project's issue page in the system browser, and
 only when the user picks it. Help > User Guide opens a copy of the guide page
 written to the settings directory, which loads nothing from elsewhere.
 
@@ -263,6 +294,9 @@ before the next save.
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
 | `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
 | `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
+| `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |
+| `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Edit > Preferences, Files |
+| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Edit > Preferences, Files |
 | `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Edit > Preferences, Search and Workspace |
 | `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Edit > Preferences, Search and Workspace |
 | `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Edit > Preferences, Search and Workspace |
@@ -280,6 +314,22 @@ holds are refused in the dialog; a conflict written by hand is logged and
 listed at the end of Help > Keyboard Shortcuts. Light and dark also set the
 native controls' theme; Windows applies a change to native controls at the
 next start, and macOS native controls follow the system appearance.
+
+### Sessions and recovery
+
+A start without file arguments restores the last session from
+`qcaret_session.conf` in the settings directory: every window at its position,
+with its tabs, carets, scroll positions, splits, folds, bookmarks, workspace and
+search dock with its requests, and Recent Files. A file that does not open is named and skipped. A `-m` instance
+never replaces the session. A malformed or unreadable session file, or one over
+4 MiB, is ignored with one warning and kept as `qcaret_session.conf.invalid`
+before the next save.
+
+Unsaved buffers are written to `recovery/` in the settings directory. After a
+crash the next start lists them with the state of each original file: Restore
+opens the buffer with its unsaved changes and does not touch the original,
+Discard deletes the recovery file, and Later keeps it. A damaged recovery file
+is reported and kept.
 
 ## Layout
 

@@ -22,7 +22,9 @@ public final class ResultSet {
     /** Stopped by the user; holds what was found before. */
     CANCELED,
     /** Stopped at the match limit or a refused memory reservation. */
-    TRUNCATED
+    TRUNCATED,
+    /** Restored with the session: holds the request and no results until a rerun. */
+    RESTORED
   }
 
   private final long id;
@@ -54,6 +56,21 @@ public final class ResultSet {
     this.id = id;
     this.request = request;
     this.started = started;
+  }
+
+  /**
+   * Creates a set a session restored, without results.
+   *
+   * @param id the set's id
+   * @param request the search
+   * @param pinned true when pinned
+   * @return the set
+   */
+  public static ResultSet restored(long id, SearchRequest request, boolean pinned) {
+    ResultSet set = new ResultSet(id, request, System.currentTimeMillis());
+    set.state = State.RESTORED;
+    set.pinned = pinned;
+    return set;
   }
 
   /**

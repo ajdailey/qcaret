@@ -68,6 +68,7 @@ public final class CommandStates {
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
           CommandId.CLEAR_RECENT_FILES,
+          CommandId.NEW_WINDOW,
           CommandId.WORKSPACE_BROWSER,
           CommandId.GO_BACK,
           CommandId.GO_FORWARD,
@@ -292,6 +293,21 @@ public final class CommandStates {
     DocumentController documents = application.documents();
     int shown = documents.activeIndex();
     List<String> labels = documents.labels();
+    List<OpenedDocument> list = new ArrayList<OpenedDocument>(labels.size());
+    for (int i = 0; i < labels.size(); i++) {
+      list.add(new OpenedDocument(labels.get(i), i == shown));
+    }
+    return list;
+  }
+
+  /**
+   * Lists the windows of the instance.
+   *
+   * @return one entry per window, in creation order
+   */
+  public List<OpenedDocument> openedWindows() {
+    int shown = application.windowIndex();
+    List<String> labels = application.windowLabels();
     List<OpenedDocument> list = new ArrayList<OpenedDocument>(labels.size());
     for (int i = 0; i < labels.size(); i++) {
       list.add(new OpenedDocument(labels.get(i), i == shown));

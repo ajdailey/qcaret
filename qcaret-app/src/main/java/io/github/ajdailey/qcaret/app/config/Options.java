@@ -19,6 +19,11 @@ import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
  * @param searchMaxLineChars {@code search.maxLineChars}: longer lines are skipped and counted
  * @param excludedDirectories {@code workspace.excludedDirectories}: directory names, {@code
  *     ;}-separated, that the browser, the index and directory searches skip
+ * @param recoveryIntervalSeconds {@code recovery.intervalSeconds}: seconds between writes of each
+ *     changed dirty buffer's recovery file
+ * @param recoveryKeepDays {@code recovery.keepDays}: days a dead instance's recovery files are kept
+ * @param sessionSnapshot {@code session.snapshot}: a quit asks nothing and the next start restores
+ *     unsaved and untitled buffers
  */
 public record Options(
     int completionChars,
@@ -29,7 +34,10 @@ public record Options(
     boolean autoReloadClean,
     int backupDays,
     int searchMaxLineChars,
-    String excludedDirectories) {
+    String excludedDirectories,
+    int recoveryIntervalSeconds,
+    int recoveryKeepDays,
+    boolean sessionSnapshot) {
   /** Largest {@code completionChars}. */
   public static final int MAX_COMPLETION_CHARS = 20;
 
@@ -66,6 +74,18 @@ public record Options(
   /** Longest {@code excludedDirectories}. */
   public static final int MAX_EXCLUDED_CHARS = 4096;
 
+  /** Shortest {@code recoveryIntervalSeconds}. */
+  public static final int MIN_RECOVERY_SECONDS = 5;
+
+  /** Longest {@code recoveryIntervalSeconds}. */
+  public static final int MAX_RECOVERY_SECONDS = 600;
+
+  /** Fewest {@code recoveryKeepDays}. */
+  public static final int MIN_RECOVERY_DAYS = 1;
+
+  /** Most {@code recoveryKeepDays}. */
+  public static final int MAX_RECOVERY_DAYS = 365;
+
   /** The settings when the file holds none. */
   public static final Options DEFAULTS =
       new Options(
@@ -77,7 +97,10 @@ public record Options(
           true,
           ReplaceBackups.DEFAULT_DAYS,
           1_000_000,
-          FileFilter.DEFAULT_EXCLUDED_DIRECTORIES);
+          FileFilter.DEFAULT_EXCLUDED_DIRECTORIES,
+          30,
+          30,
+          false);
 
   /** Checks the components. */
   public Options {
@@ -89,6 +112,8 @@ public record Options(
     range(pollSeconds, MIN_POLL_SECONDS, MAX_POLL_SECONDS);
     range(backupDays, MIN_BACKUP_DAYS, MAX_BACKUP_DAYS);
     range(searchMaxLineChars, MIN_SEARCH_LINE_CHARS, MAX_SEARCH_LINE_CHARS);
+    range(recoveryIntervalSeconds, MIN_RECOVERY_SECONDS, MAX_RECOVERY_SECONDS);
+    range(recoveryKeepDays, MIN_RECOVERY_DAYS, MAX_RECOVERY_DAYS);
     if (!validDirectories(excludedDirectories)) {
       throw new IllegalArgumentException("excludedDirectories");
     }
@@ -135,7 +160,10 @@ public record Options(
         autoReloadClean,
         backupDays,
         searchMaxLineChars,
-        excludedDirectories);
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot);
   }
 
   /**
@@ -154,6 +182,9 @@ public record Options(
         autoReloadClean,
         backupDays,
         searchMaxLineChars,
-        excludedDirectories);
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot);
   }
 }

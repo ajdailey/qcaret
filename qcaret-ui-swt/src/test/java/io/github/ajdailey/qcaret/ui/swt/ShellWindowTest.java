@@ -195,7 +195,7 @@ class ShellWindowTest {
     Menu second = window.showTabMenu(1);
     second.setVisible(false);
     assertSame(first, second);
-    assertEquals(6, second.getItemCount());
+    assertEquals(8, second.getItemCount());
     assertTrue(second.getItem(1).getEnabled());
     EditorPane shown = window.activeEditor();
     window.moveTab(window.tabs().getSelection(), 0);
@@ -205,7 +205,7 @@ class ShellWindowTest {
     assertSame(shown, window.activeEditor());
     assertEquals("two.txt", window.tabs().getItem(0).getText());
     // Copy File Name on the dragged tab.
-    again.getItem(5).notifyListeners(SWT.Selection, new Event());
+    again.getItem(7).notifyListeners(SWT.Selection, new Event());
     assertEquals("two.txt", window.clipboardText());
   }
 

@@ -2,14 +2,13 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.view.MainView;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * File > Recent Files for the run: the last {@value #LIMIT} files opened, newest first, each once.
- * Documents hold real paths, so a file opened through a link and through its target is one entry.
- * Confined to the UI thread.
+ * File > Recent Files: the last {@value #LIMIT} files opened in any window, newest first, each
+ * once; the session saves them. Documents hold real paths, so a file opened through a link and
+ * through its target is one entry. Confined to the UI thread.
  */
 final class RecentFiles {
   /** Files kept. */
@@ -17,11 +16,12 @@ final class RecentFiles {
 
   private final DocumentController documents;
   private final MainView view;
-  private final List<Path> paths = new ArrayList<Path>();
+  private final List<Path> paths;
 
-  RecentFiles(DocumentController documents, MainView view) {
+  RecentFiles(DocumentController documents, MainView view, List<Path> shared) {
     this.documents = documents;
     this.view = view;
+    this.paths = shared;
     documents.setOpenListener(
         new Consumer<Path>() {
           @Override
@@ -38,6 +38,13 @@ final class RecentFiles {
     if (paths.size() > LIMIT) {
       paths.remove(paths.size() - 1);
     }
+    view.documentStateChanged();
+  }
+
+  /** Replaces the list with a session's, newest first. */
+  void restore(List<Path> files) {
+    paths.clear();
+    paths.addAll(files.subList(0, Math.min(LIMIT, files.size())));
     view.documentStateChanged();
   }
 

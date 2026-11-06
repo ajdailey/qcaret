@@ -287,6 +287,30 @@ final class MainMenuBar {
     }
   }
 
+  /** Lists the windows of the instance when there are several. */
+  private void syncWindows(Menu menu) {
+    List<CommandStates.OpenedDocument> windows = states.openedWindows();
+    if (windows.size() < 2) {
+      return;
+    }
+    new MenuItem(menu, SWT.SEPARATOR).setData(LISTED);
+    for (int i = 0; i < windows.size(); i++) {
+      final int index = i;
+      MenuItem item = new MenuItem(menu, SWT.CHECK);
+      item.setText(windows.get(i).text().replace("&", "&&"));
+      item.setData(LISTED);
+      item.setSelection(windows.get(i).shown());
+      item.addListener(
+          SWT.Selection,
+          new Listener() {
+            @Override
+            public void handleEvent(Event event) {
+              controller.showWindow(index);
+            }
+          });
+    }
+  }
+
   /** Lists the recent files above Clear Recent Files, the first nine numbered as mnemonics. */
   private void syncRecent() {
     MenuItem clear = items.get(CommandId.CLEAR_RECENT_FILES);
@@ -447,6 +471,7 @@ final class MainMenuBar {
         item.dispose();
       }
     }
+    syncWindows(menu);
     List<CommandStates.OpenedDocument> documents = states.openedDocuments();
     if (!documents.isEmpty()) {
       new MenuItem(menu, SWT.SEPARATOR).setData(LISTED);

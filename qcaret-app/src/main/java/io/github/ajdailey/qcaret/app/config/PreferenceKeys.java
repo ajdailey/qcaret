@@ -35,6 +35,9 @@ final class PreferenceKeys {
   static final String BACKUP_DAYS = "replace.backupDays";
   static final String SEARCH_LINE_CHARS = "search.maxLineChars";
   static final String EXCLUDED = "workspace.excludedDirectories";
+  static final String RECOVERY_SECONDS = "recovery.intervalSeconds";
+  static final String RECOVERY_DAYS = "recovery.keepDays";
+  static final String SESSION_SNAPSHOT = "session.snapshot";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
   static final String SEARCH_WORD = "search.wholeWord";
@@ -82,6 +85,9 @@ final class PreferenceKeys {
     keys.put(BACKUP_DAYS, Integer.toString(o.backupDays()));
     keys.put(SEARCH_LINE_CHARS, Integer.toString(o.searchMaxLineChars()));
     keys.put(EXCLUDED, o.excludedDirectories());
+    keys.put(RECOVERY_SECONDS, Integer.toString(o.recoveryIntervalSeconds()));
+    keys.put(RECOVERY_DAYS, Integer.toString(o.recoveryKeepDays()));
+    keys.put(SESSION_SNAPSHOT, Boolean.toString(o.sessionSnapshot()));
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -187,7 +193,22 @@ final class PreferenceKeys {
             Options.MAX_SEARCH_LINE_CHARS,
             d.searchMaxLineChars(),
             file),
-        excluded.strip());
+        excluded.strip(),
+        number(
+            p,
+            RECOVERY_SECONDS,
+            Options.MIN_RECOVERY_SECONDS,
+            Options.MAX_RECOVERY_SECONDS,
+            d.recoveryIntervalSeconds(),
+            file),
+        number(
+            p,
+            RECOVERY_DAYS,
+            Options.MIN_RECOVERY_DAYS,
+            Options.MAX_RECOVERY_DAYS,
+            d.recoveryKeepDays(),
+            file),
+        flag(p, SESSION_SNAPSHOT, d.sessionSnapshot(), file));
   }
 
   private static UiState state(Properties p, Path file) {

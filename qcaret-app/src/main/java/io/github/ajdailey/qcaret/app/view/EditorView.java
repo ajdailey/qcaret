@@ -13,6 +13,20 @@ public interface EditorView {
   /** Scrolls the view so the primary caret shows. */
   void showCaret();
 
+  /**
+   * Returns the display row at the top of the view.
+   *
+   * @return the row, from 0
+   */
+  int topRow();
+
+  /**
+   * Scrolls so a row is the first visible one, as soon as the view has a size.
+   *
+   * @param row the display row
+   */
+  void scrollToRow(int row);
+
   /** Focuses the view. */
   void focus();
 

@@ -19,17 +19,17 @@ final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
   private final Keymap defaults;
-  private final SearchController search;
+  private final Runnable forgetLastRuns;
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
   private Preferences uncleared;
 
   PreferencesController(
-      Settings settings, MainView view, Keymap defaults, SearchController search) {
+      Settings settings, MainView view, Keymap defaults, Runnable forgetLastRuns) {
     this.settings = settings;
     this.view = view;
     this.defaults = defaults;
-    this.search = search;
+    this.forgetLastRuns = forgetLastRuns;
   }
 
   /** Shows the dialog once the file is read. */
@@ -61,6 +61,9 @@ final class PreferencesController implements PreferencesInput {
         Integer.toString(o.maxHighlightLineChars()),
         Integer.toString(o.pollSeconds()),
         o.autoReloadClean(),
+        Integer.toString(o.recoveryIntervalSeconds()),
+        Integer.toString(o.recoveryKeepDays()),
+        o.sessionSnapshot(),
         Integer.toString(o.backupDays()),
         Integer.toString(o.searchMaxLineChars()),
         o.excludedDirectories(),
@@ -97,6 +100,20 @@ final class PreferencesController implements PreferencesInput {
             Options.MAX_POLL_SECONDS,
             UiText.PREFERENCES_POLL_SECONDS,
             PreferencesForm.Group.FILES);
+    Checked recoverySeconds =
+        number(
+            form.recoveryIntervalSeconds(),
+            Options.MIN_RECOVERY_SECONDS,
+            Options.MAX_RECOVERY_SECONDS,
+            UiText.PREFERENCES_RECOVERY_SECONDS,
+            PreferencesForm.Group.FILES);
+    Checked recoveryDays =
+        number(
+            form.recoveryKeepDays(),
+            Options.MIN_RECOVERY_DAYS,
+            Options.MAX_RECOVERY_DAYS,
+            UiText.PREFERENCES_RECOVERY_DAYS,
+            PreferencesForm.Group.FILES);
     Checked days =
         number(
             form.backupDays(),
@@ -120,7 +137,10 @@ final class PreferencesController implements PreferencesInput {
                 Options.MAX_FONT_SIZE,
                 UiText.PREFERENCES_FONT_SIZE,
                 PreferencesForm.Group.APPEARANCE);
-    for (Checked checked : new Checked[] {completion, highlight, poll, days, lineChars, font}) {
+    Checked[] fields = {
+      completion, highlight, poll, recoverySeconds, recoveryDays, days, lineChars, font
+    };
+    for (Checked checked : fields) {
       if (checked.problem() != null) {
         return checked.problem();
       }
@@ -147,7 +167,10 @@ final class PreferencesController implements PreferencesInput {
                     form.autoReloadClean(),
                     days.value(),
                     lineChars.value(),
-                    excluded));
+                    excluded,
+                    recoverySeconds.value(),
+                    recoveryDays.value(),
+                    form.sessionSnapshot()));
     settings.set(
         next,
         new Consumer<Boolean>() {
@@ -163,7 +186,7 @@ final class PreferencesController implements PreferencesInput {
 
   @Override
   public void clearHistory() {
-    search.forgetLastRun();
+    forgetLastRuns.run();
     settings.refresh(
         new Runnable() {
           @Override

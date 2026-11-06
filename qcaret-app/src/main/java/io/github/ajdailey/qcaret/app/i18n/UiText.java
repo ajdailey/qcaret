@@ -113,6 +113,58 @@ public enum UiText {
   PREFERENCES_POLL_SECONDS,
   /** Preferences field. */
   PREFERENCES_AUTO_RELOAD,
+  /** Preferences field: seconds between recovery file writes. */
+  PREFERENCES_RECOVERY_SECONDS,
+  /** Preferences field: days a dead instance's recovery files are kept. */
+  PREFERENCES_RECOVERY_DAYS,
+  /** Preferences box: quit without asking and restore unsaved buffers. */
+  PREFERENCES_SESSION_SNAPSHOT,
+  /** Title of the session report. */
+  SESSION_TITLE,
+  /** Files of the last session that did not open: their names. */
+  SESSION_SKIPPED,
+  /** The names a session report lists and how many more it left out. */
+  SESSION_SKIPPED_MORE,
+  /** Snapshot write failed; the quit asks about each buffer. */
+  SESSION_SNAPSHOT_FAILED,
+  /** Note on a restored search set. */
+  SEARCH_RESTORED,
+  /** Recovery dialog title. */
+  RECOVERY_TITLE,
+  /** Recovery dialog message. */
+  RECOVERY_MESSAGE,
+  /** Recovery dialog column. */
+  RECOVERY_COLUMN_FILE,
+  /** Recovery dialog column. */
+  RECOVERY_COLUMN_TIME,
+  /** Recovery dialog column. */
+  RECOVERY_COLUMN_STATE,
+  /** Recovery dialog button. */
+  RECOVERY_RESTORE,
+  /** Recovery dialog button. */
+  RECOVERY_DISCARD,
+  /** Recovery dialog button. */
+  RECOVERY_LATER,
+  /** Recovery row: an untitled buffer. */
+  RECOVERY_NO_FILE,
+  /** Recovery row: the original file holds the bytes the buffer started from. */
+  RECOVERY_UNCHANGED,
+  /** Recovery row: the original file changed since. */
+  RECOVERY_CHANGED,
+  /** Recovery row: the original file is gone. */
+  RECOVERY_MISSING,
+  /** Recovery row: the recovery file is damaged. */
+  RECOVERY_DAMAGED,
+  /** A damaged recovery file was not restored. */
+  RECOVERY_DAMAGED_KEPT,
+  /** A recovered buffer does not fit the heap budget: the file's name. */
+  RECOVERY_TOO_LARGE,
+  /** A recovery file could not be read: its name. */
+  RECOVERY_READ_FAILED,
+  /** A tab of the file has unsaved changes: the file. */
+  RECOVERY_TAB_DIRTY,
+  /** A recovery file could not be written. */
+  RECOVERY_WRITE_FAILED,
   /** Preferences field. */
   PREFERENCES_BACKUP_DAYS,
   /** Preferences field. */
@@ -317,6 +369,21 @@ public enum UiText {
   TAB_BINARY,
   /** Tab menu item. */
   TAB_COPY_PATH,
+
+  /** Window > New Window. */
+  COMMAND_NEW_WINDOW,
+
+  /** Window > Move to New Window and the tab menu's item. */
+  COMMAND_MOVE_TO_NEW_WINDOW,
+
+  /** Window menu entry of a window with no document. */
+  WINDOW_EMPTY,
+
+  /** A tab that cannot move; takes the tab's name. */
+  NOTICE_MOVE_BUSY,
+
+  /** A tab whose file the target window holds; takes the tab's name. */
+  NOTICE_MOVE_SHOWN,
   /** Tab menu item. */
   TAB_COPY_FILE_NAME,
   /** Save refused for a binary file's view. */

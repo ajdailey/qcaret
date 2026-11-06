@@ -8,6 +8,8 @@ import io.github.ajdailey.qcaret.app.cli.Version;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
+import io.github.ajdailey.qcaret.app.ipc.InstanceClient;
+import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
@@ -22,8 +24,10 @@ import org.slf4j.LoggerFactory;
  * {@link Gui}. All of it runs before the Display exists, so the UI thread never waits on it. Exit
  * statuses: 0 normal, 1 bad command line or settings directory, 3 SWT failed to load.
  *
- * <p>Every process writes its debug log file as {@code qcaret-<pid>.log}; the single-instance lock
- * that names one process the owner of {@code qcaret.log} is not built yet.
+ * <p>Without {@code -m} the launch becomes the primary instance of its settings directory, or hands
+ * its files to the running primary and exits 0. Any failure, or a settings directory another user
+ * owns or can write, logs one WARN and the launch opens its own window, as with {@code -m}. The
+ * primary writes {@code qcaret.log}, any other process {@code qcaret-<pid>.log}.
  */
 public final class Launcher {
   static final int EXIT_USAGE = 1;
@@ -91,9 +95,19 @@ public final class Launcher {
     }
     ConfigStore config = new ConfigStore(location);
     Preferences preferences = config.load();
+    InstanceServer server = null;
+    if (!request.multi()) {
+      Handoff handoff = handOff(location.directory(), request);
+      if (handoff == Handoff.HANDED) {
+        return 0;
+      }
+      server = handoff == Handoff.PRIMARY ? primary : null;
+    }
     try {
       FileLog logFile =
-          new FileLog(location.directory(), FileLog.fileName(false, ProcessHandle.current().pid()));
+          new FileLog(
+              location.directory(),
+              FileLog.fileName(server != null, ProcessHandle.current().pid()));
       if (line.logToFile() || preferences.debugLogFile()) {
         try {
           logFile.attach();
@@ -101,10 +115,57 @@ public final class Launcher {
           LOG.warn("Cannot open the debug log file: {}", LogText.oneLine(e.getMessage()));
         }
       }
-      return new Gui(request, config, preferences, err, null, logFile).run();
+      return new Gui(request, config, preferences, err, null, server, logFile).run();
     } catch (IOException e) {
       err.println("qcaret: " + LogText.oneLine(e.getMessage()));
       return EXIT_USAGE;
+    } finally {
+      if (server != null) {
+        server.close();
+      }
+    }
+  }
+
+  /** What the single-instance step decided. */
+  private enum Handoff {
+    /** The files went to the running instance. */
+    HANDED,
+    /** This launch is the primary; {@link #primary} holds the listener. */
+    PRIMARY,
+    /** This launch runs on its own, as with {@code -m}. */
+    ALONE
+  }
+
+  private InstanceServer primary;
+
+  /** Becomes the primary instance, or hands the launch to it. */
+  private Handoff handOff(Path directory, StartupRequest request) {
+    try {
+      SafePaths.settingsDirectory(directory);
+    } catch (IOException e) {
+      LOG.warn("Single-instance handoff off: {}", LogText.oneLine(e.getMessage()));
+      return Handoff.ALONE;
+    }
+    String refusal = InstanceClient.refusal(directory, System.getProperty("user.name"));
+    if (refusal != null) {
+      LOG.warn("Single-instance handoff off: {}", LogText.oneLine(refusal));
+      return Handoff.ALONE;
+    }
+    try {
+      primary = InstanceServer.claim(directory);
+      if (primary != null) {
+        return Handoff.PRIMARY;
+      }
+      InstanceClient.handOff(directory, request);
+      if (LOG.isInfoEnabled()) {
+        LOG.info("Handed {} files to the running instance", request.files().size());
+      }
+      return Handoff.HANDED;
+    } catch (IOException e) {
+      LOG.warn(
+          "Handoff to the running instance failed; opening a window: {}",
+          LogText.oneLine(e.getMessage()));
+      return Handoff.ALONE;
     }
   }
 

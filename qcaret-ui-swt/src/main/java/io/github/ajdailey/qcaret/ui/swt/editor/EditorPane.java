@@ -172,6 +172,7 @@ public final class EditorPane implements EditorView {
   private final Caret primaryCaret;
   private Image caretImage;
   private final HighlightComposer composer = new HighlightComposer();
+  private int pendingTop = -1;
   private int reportedStart = -1;
   private int reportedEnd = -1;
   private boolean syncing;
@@ -418,6 +419,25 @@ public final class EditorPane implements EditorView {
     }
   }
 
+  /**
+   * Scrolls so a row is the first visible one; a view without a size yet does so on its first
+   * resize.
+   *
+   * @param row the display row
+   */
+  public void scrollToRow(int row) {
+    if (text.isDisposed()) {
+      return;
+    }
+    if (text.getClientArea().height > 0) {
+      pendingTop = -1;
+      text.setTopIndex(row);
+      syncScrollBar();
+    } else {
+      pendingTop = row;
+    }
+  }
+
   /** Focuses the widget. */
   @Override
   public void focus() {
@@ -436,6 +456,11 @@ public final class EditorPane implements EditorView {
     if (!frame.isDisposed()) {
       frame.dispose();
     }
+  }
+
+  @Override
+  public int topRow() {
+    return text.getTopIndex();
   }
 
   /**
@@ -704,6 +729,9 @@ public final class EditorPane implements EditorView {
           @Override
           public void handleEvent(Event event) {
             reportColumns();
+            if (pendingTop >= 0 && text.getClientArea().height > 0) {
+              scrollToRow(pendingTop);
+            }
             syncScrollBar();
           }
         });

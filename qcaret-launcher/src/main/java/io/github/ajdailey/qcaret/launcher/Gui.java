@@ -1,14 +1,17 @@
 package io.github.ajdailey.qcaret.launcher;
 
-import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.WindowSet;
+import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.app.log.EventLoopWatchdog;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
+import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -21,7 +24,6 @@ import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.io.PrintStream;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,12 +42,18 @@ import org.slf4j.LoggerFactory;
  * theme ({@link SwtThemeService#open}), which on win32 a later switch reaches only at the next
  * start; on cocoa native controls follow the system. The window opens at the command-line geometry,
  * else the remembered one; the placement is saved at quit only when the command line gave no {@code
- * --window-*} option and no {@code -m}. File arguments open in tabs; without any, the window opens
- * an untitled document. At {@code -d 2} and above an {@link EventLoopWatchdog} logs UI-thread
- * stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is ended
- * without it. With the debug log file attached, other processes' old log files are deleted on a
- * lifecycle worker ({@link FileLog#prune}). The loop ends when the window is disposed, then the
- * Display is disposed and {@link #run} returns.
+ * --window-*} option and no {@code -m}. A start that restores the session ({@link
+ * StartupRequest#restoresSession}, never with {@code -m}) owns it: the session's bounds place every
+ * window it lists, the first included, and {@code qcaret.conf} places the first window of any other
+ * start. A {@code --window-*} option wins over both. File arguments open in tabs, after the
+ * restore; a window left without a tab opens an untitled document. The session file is read before
+ * the Display, like the settings. At {@code -d 2} and above an {@link EventLoopWatchdog} logs
+ * UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is
+ * ended without it. On the primary instance with the debug log file attached, other processes' old
+ * log files are deleted on a lifecycle worker ({@link FileLog#prune}). The {@link InstanceServer}
+ * delivers handed launches to {@link WindowSet#openHandoff}, and quit closes it before the workers.
+ * The loop ends when every main window is disposed, then the Display is disposed and {@link #run}
+ * returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -68,9 +76,11 @@ final class Gui {
   private final PrintStream err;
   private final Observer observer;
   private final LogFiles logFiles;
+  private final InstanceServer server;
+  private final List<Shell> shells = new ArrayList<Shell>();
 
   /**
-   * Creates the composition.
+   * Creates the composition of an instance without a handoff listener.
    *
    * @param request the command line
    * @param config the settings store
@@ -86,20 +96,46 @@ final class Gui {
       PrintStream err,
       Observer observer,
       LogFiles logFiles) {
+    this(request, config, preferences, err, observer, null, logFiles);
+  }
+
+  /**
+   * Creates the composition.
+   *
+   * @param request the command line
+   * @param config the settings store
+   * @param preferences the settings loaded before the Display
+   * @param err receives the SWT start failure
+   * @param observer notified once the window is open, or null
+   * @param server the handoff listener when this instance is the primary, else null; {@link #run}
+   *     closes it
+   * @param logFiles the debug log file
+   */
+  Gui(
+      StartupRequest request,
+      ConfigStore config,
+      Preferences preferences,
+      PrintStream err,
+      Observer observer,
+      InstanceServer server,
+      LogFiles logFiles) {
     this.request = request;
     this.config = config;
     this.preferences = preferences;
     this.err = err;
     this.observer = observer;
     this.logFiles = logFiles;
+    this.server = server;
   }
 
   /**
-   * Runs until the main window closes.
+   * Runs until every main window closes.
    *
    * @return 0, or {@link Launcher#EXIT_SWT} when the Display cannot be created
    */
   int run() {
+    SessionStore sessions = new SessionStore(config.location());
+    Session session = sessions.load();
     Display.setAppName("QCaret");
     final Display display;
     try {
@@ -112,30 +148,55 @@ final class Gui {
     try (Workers workers =
         new Workers(Runtime.getRuntime().availableProcessors(), new Launcher.FailureLogger())) {
       final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
-      Palette palette = ThemeController.resolve(preferences.theme(), system.systemDark());
-      if (logFiles instanceof FileLog fileLog && fileLog.attached()) {
+      final Palette palette = ThemeController.resolve(preferences.theme(), system.systemDark());
+      if (server != null && logFiles instanceof FileLog fileLog && fileLog.attached()) {
         pruneLogs(workers, fileLog);
       }
       final SwtUiDispatcher ui = new SwtUiDispatcher(display);
-      final MainWindow window = new MainWindow(display, palette);
       boolean remember = !request.multi() && !request.placesWindow();
-      ApplicationController controller =
-          new ApplicationController(
+      final WindowSet set =
+          new WindowSet(
               workers,
               ui,
-              window,
               config,
               preferences,
               system,
               MemoryBudget.fromRuntime(),
               Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
               remember);
-      controller.setLogging(LogConfigurator.RECENT, logFiles);
-      window.attach(controller);
-      controller.loadGrammars();
+      set.setLogging(LogConfigurator.RECENT, logFiles);
+      set.setFactory(
+          new WindowSet.Factory() {
+            @Override
+            public ApplicationController create(
+                WindowSet owner, WindowGeometry.Request at, boolean maximized) {
+              WindowState remembered = owner.settings().current().window();
+              MainWindow window = new MainWindow(display, palette);
+              ApplicationController controller = new ApplicationController(owner, window);
+              window.attach(controller);
+              shells.add(window.shell());
+              window.place(
+                  at,
+                  new WindowGeometry.Request(null, null, remembered.width(), remembered.height()));
+              if (maximized) {
+                window.shell().setMaximized(true);
+              }
+              window.open();
+              return controller;
+            }
+          });
       // macOS application menu.
-      AppMenu.hook(display, controller);
-      WindowState remembered = preferences.window();
+      AppMenu.hook(display, set);
+      final MainWindow window = new MainWindow(display, palette);
+      ApplicationController controller = new ApplicationController(set, window);
+      window.attach(controller);
+      shells.add(window.shell());
+      controller.loadGrammars();
+      boolean restore = !request.multi() && request.restoresSession();
+      WindowState remembered =
+          restore && !session.windows().isEmpty()
+              ? session.windows().get(0).bounds()
+              : preferences.window();
       window.place(
           new WindowGeometry.Request(request.x(), request.y(), request.width(), request.height()),
           new WindowGeometry.Request(
@@ -151,15 +212,7 @@ final class Gui {
               logGeometry(window.shell());
             }
           });
-      if (request.files().isEmpty()) {
-        controller.documents().newDocument();
-      } else {
-        List<Path> paths = new ArrayList<Path>();
-        for (FileRequest file : request.files()) {
-          paths.add(file.path());
-        }
-        controller.documents().open(paths);
-      }
+      controller.startSession(sessions, session, restore, request);
       if (EventLoopWatchdog.enabled()) {
         new EventLoopWatchdog(
                 workers,
@@ -170,12 +223,15 @@ final class Gui {
                 EventLoopWatchdog.LOGGING)
             .start();
       }
-      Thread hook = registerHook(controller, ui, workers);
+      Thread hook = registerHook(set, ui, workers);
       try {
+        if (server != null) {
+          listen(set, ui, workers);
+        }
         if (observer != null) {
           observer.opened(window, controller, workers);
         }
-        while (!window.shell().isDisposed()) {
+        while (anyOpen()) {
           if (!display.readAndDispatch()) {
             display.sleep();
           }
@@ -184,9 +240,48 @@ final class Gui {
         removeHook(hook);
       }
     } finally {
+      if (server != null) {
+        server.close();
+      }
       display.dispose();
     }
     return 0;
+  }
+
+  /** Delivers handed launches to the UI thread; quit closes the listener first. */
+  private void listen(final WindowSet set, final SwtUiDispatcher ui, Workers workers) {
+    set.addQuitListener(server::close);
+    boolean started =
+        server.start(
+            workers,
+            new InstanceServer.Receiver() {
+              @Override
+              public boolean deliver(final StartupRequest handed) {
+                if (set.isQuitting()) {
+                  return false;
+                }
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        set.openHandoff(handed);
+                      }
+                    });
+                return true;
+              }
+            });
+    if (!started) {
+      LOG.debug("Handoff listener not started: workers are closed");
+    }
+  }
+
+  private boolean anyOpen() {
+    for (Shell shell : shells) {
+      if (!shell.isDisposed()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Runs {@link FileLog#prune} on a {@code qcaret-lifecycle-} worker. */
@@ -206,10 +301,10 @@ final class Gui {
   }
 
   /** Registers the JVM shutdown hook that quits when the process is ended without a quit. */
-  private static Thread registerHook(
-      final ApplicationController controller, final SwtUiDispatcher ui, final Workers workers) {
+  private Thread registerHook(
+      final WindowSet set, final SwtUiDispatcher ui, final Workers workers) {
     CountDownLatch finished = new CountDownLatch(1);
-    controller.addFinishListener(finished::countDown);
+    set.addFinishListener(finished::countDown);
     Thread hook =
         workers.shutdownHook(
             new ShutdownHook(
@@ -220,7 +315,7 @@ final class Gui {
                         new Runnable() {
                           @Override
                           public void run() {
-                            controller.quit();
+                            set.quit();
                           }
                         });
                   }
@@ -229,7 +324,9 @@ final class Gui {
                 new Runnable() {
                   @Override
                   public void run() {
-                    // No handoff endpoint to remove.
+                    if (server != null) {
+                      server.close();
+                    }
                   }
                 },
                 ShutdownHook.BOUND,

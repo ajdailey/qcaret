@@ -97,6 +97,8 @@ class CommandStatesTest {
           "LINE_ENDING_CRLF -- -e --",
           "LINE_ENDING_LF -- ce --",
           "LINE_ENDING_CR -- -e --",
+          "NEW_WINDOW -e -e -e",
+          "MOVE_TO_NEW_WINDOW -- -e -e",
           "NEXT_TAB -- -- -e",
           "PREVIOUS_TAB -- -- -e",
           "CLOSE_OTHERS -- -- -e",

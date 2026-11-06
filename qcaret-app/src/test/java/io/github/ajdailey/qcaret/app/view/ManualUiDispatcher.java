@@ -1,18 +1,30 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
 /**
  * A {@link UiDispatcher} for tests: submissions queue until the test runs them on its own thread,
- * which acts as the UI thread. Timer delays are ignored; timer tasks queue in submission order.
- * Fakes call {@link #checkUiThread} in every view method, so a controller that reaches the view
- * from a worker fails the test instead of passing on the test thread.
+ * which acts as the UI thread. Delays under {@value #LONG_MILLIS} ms are ignored and those tasks
+ * queue in submission order; a longer timer, which may rearm itself, waits for {@link
+ * #runLongTimers}. Fakes call {@link #checkUiThread} in every view method, so a controller that
+ * reaches the view from a worker fails the test instead of passing on the test thread.
  */
 public final class ManualUiDispatcher implements UiDispatcher {
+  /** The shortest delay that waits for {@link #runLongTimers}. */
+  public static final int LONG_MILLIS = 5000;
+
+  /** Longest wait before the condition of {@link #runUntil} is checked again. */
+  private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
+
   private final LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
+  private final Map<Runnable, Integer> longTimers = new LinkedHashMap<Runnable, Integer>();
   private final Thread uiThread = Thread.currentThread();
   private volatile boolean disposed;
 
@@ -25,12 +37,35 @@ public final class ManualUiDispatcher implements UiDispatcher {
 
   @Override
   public void timerExec(int delayMillis, Runnable task) {
-    asyncExec(task);
+    if (delayMillis >= LONG_MILLIS) {
+      longTimers.put(task, delayMillis);
+    } else {
+      asyncExec(task);
+    }
   }
 
   @Override
   public void cancelTimer(Runnable task) {
     queue.remove(task);
+    longTimers.remove(task);
+  }
+
+  /**
+   * Returns the delays of the long timers armed now.
+   *
+   * @return milliseconds, oldest timer first
+   */
+  public List<Integer> longTimerDelays() {
+    return new ArrayList<Integer>(longTimers.values());
+  }
+
+  /** Runs the long timers armed now, on the calling thread. */
+  public void runLongTimers() {
+    List<Runnable> due = new ArrayList<Runnable>(longTimers.keySet());
+    longTimers.clear();
+    for (Runnable task : due) {
+      task.run();
+    }
   }
 
   @Override
@@ -88,7 +123,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
       if (left <= 0) {
         return false;
       }
-      Runnable task = queue.poll(left, TimeUnit.NANOSECONDS);
+      Runnable task = queue.poll(Math.min(left, POLL_NANOS), TimeUnit.NANOSECONDS);
       if (task != null) {
         task.run();
       }

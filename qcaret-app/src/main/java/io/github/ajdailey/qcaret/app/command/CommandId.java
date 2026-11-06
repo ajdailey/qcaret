@@ -32,7 +32,7 @@ public enum CommandId {
   /** Empty File > Recent Files; the menu lists the files above it. */
   CLEAR_RECENT_FILES(
       CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, true, false, UiText.MENU_RECENT_FILES),
-  /** Close the window, asking about unsaved documents. */
+  /** Close every window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, true, false, null),
   /** Undo in the selected editor. */
   UNDO(CommandGroup.EDIT, UiText.COMMAND_UNDO, false, false, null),
@@ -159,8 +159,12 @@ public enum CommandId {
   /** Convert every line break to CR. */
   LINE_ENDING_CR(
       CommandGroup.ENCODING, UiText.COMMAND_LINE_ENDING_CR, false, true, UiText.MENU_LINE_ENDINGS),
+  /** Open a new window with an untitled document. */
+  NEW_WINDOW(CommandGroup.WINDOW, UiText.COMMAND_NEW_WINDOW, false, false, null),
+  /** Move the selected tab to a new window. */
+  MOVE_TO_NEW_WINDOW(CommandGroup.WINDOW, UiText.COMMAND_MOVE_TO_NEW_WINDOW, false, false, null),
   /** Select the tab to the right, wrapping around. */
-  NEXT_TAB(CommandGroup.WINDOW, UiText.COMMAND_NEXT_TAB, false, false, null),
+  NEXT_TAB(CommandGroup.WINDOW, UiText.COMMAND_NEXT_TAB, true, false, null),
   /** Select the tab to the left, wrapping around. */
   PREVIOUS_TAB(CommandGroup.WINDOW, UiText.COMMAND_PREVIOUS_TAB, false, false, null),
   /** Close every document but the selected one. */

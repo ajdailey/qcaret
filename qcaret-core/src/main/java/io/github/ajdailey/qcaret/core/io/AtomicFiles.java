@@ -1,11 +1,15 @@
 package io.github.ajdailey.qcaret.core.io;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.AclEntry;
 import java.nio.file.attribute.AclEntryPermission;
 import java.nio.file.attribute.AclEntryType;
@@ -69,20 +73,50 @@ public final class AtomicFiles {
     write(file, content, null, true);
   }
 
-  private static void write(Path file, byte[] content, InputStream source, boolean restrict)
-      throws IOException {
+  /**
+   * Writes a secret atomically from a writer and forces it to disk before the move: as {@link
+   * #writeOwnerOnly(Path, byte[])}, for content too large to hold as one array.
+   *
+   * @param file the target, in an existing directory
+   * @param content writes the bytes
+   * @throws IOException when the writer, the temporary file or the move fails; the target is then
+   *     unchanged and the temporary file deleted
+   */
+  public static void writeOwnerOnly(Path file, final ContentWriter content) throws IOException {
+    Path temp = createTemp(file);
+    boolean moved = false;
+    try {
+      ownerOnlyAcl(temp);
+      try (FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE);
+          OutputStream out = new BufferedOutputStream(Channels.newOutputStream(channel))) {
+        content.write(out);
+        out.flush();
+        channel.force(true);
+      }
+      Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      moved = true;
+    } finally {
+      if (!moved) {
+        Files.deleteIfExists(temp);
+      }
+    }
+  }
+
+  private static Path createTemp(Path file) throws IOException {
     Path dir = file.toAbsolutePath().getParent();
     if (dir == null) {
       throw new IOException("No parent directory");
     }
-    Path temp;
     if (dir.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      temp =
-          Files.createTempFile(
-              dir, ".qcaret-", ".tmp", PosixFilePermissions.asFileAttribute(OWNER_FILE));
-    } else {
-      temp = Files.createTempFile(dir, ".qcaret-", ".tmp");
+      return Files.createTempFile(
+          dir, ".qcaret-", ".tmp", PosixFilePermissions.asFileAttribute(OWNER_FILE));
     }
+    return Files.createTempFile(dir, ".qcaret-", ".tmp");
+  }
+
+  private static void write(Path file, byte[] content, InputStream source, boolean restrict)
+      throws IOException {
+    Path temp = createTemp(file);
     boolean moved = false;
     try {
       if (restrict) {

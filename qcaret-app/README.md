@@ -4,21 +4,70 @@ The application layer without a UI toolkit: command line, commands and menus,
 the controllers, the display projection, view contracts, settings, themes, UI
 strings, About facts and the log ring. It depends on `qcaret-core` and slf4j
 only; another toolkit reuses all of it and supplies `MainView` (with its tabs
-and editors), `UiDispatcher` and `ThemeService`. The packages `app.search`,
-`app.session`, `app.recovery` and `app.ipc` are empty.
+and editors), `UiDispatcher` and `ThemeService`.
 
 ## Command line (`app.cli`)
 
 `CommandLineParser` turns the arguments into a `CommandLine`: an action (run,
 help, version), the `-d` level, `-l`, and a `StartupRequest` holding the files,
-the `--window-*` geometry, `--settings` and `-m`. It accepts `--opt value`,
-`--opt=value`, `-o value`, combined short options (`-ml`, `-md2`) and `--`,
-after which every argument is a file. Paths resolve against the working
-directory without touching the file system; the caller validates them. An
-unknown option or a bad value throws `CommandLineException` with one line
-naming the argument. `StartupRequest.placesWindow` reports whether any
-`--window-*` option was given. `Version.get` reads `Implementation-Version`
-from this module's jar manifest.
+the `--window-*` geometry, `--settings`, `-m`, `-n`, `--session` or
+`--no-session` (`SessionMode`) and the two `--diff` files. Each `FileRequest`
+carries its `+<line>[:<column>]`, which goes to the next file only, and the
+`-r` and `-e` in force, which apply to every later file. It accepts `--opt
+value`, `--opt=value`, `-o value`, combined short options (`-ml`, `-md2`) and
+`--`, after which every argument is a file, a `+<line>` too. `--diff` takes the
+next two arguments. `-e` is checked against the runtime's charsets. Paths
+resolve against the working directory without touching the file system; the
+caller validates them. An unknown option, a bad value, a position with no file
+after it, or `-n` with `-m` throws `CommandLineException` with one line naming
+the argument. `StartupRequest.placesWindow` reports whether any `--window-*`
+option was given; `restoresSession` applies the session default.
+`Version.get` reads `Implementation-Version` from this module's jar manifest.
+
+## Single-instance handoff (`app.ipc`)
+
+Without `-m`, a launch hands itself to the primary instance of its settings
+directory over TCP on the loopback address. Any failure opens the launch's own
+window, as `-m` would, and logs one WARN.
+
+| File | Contents | Owner |
+|---|---|---|
+| `instance.lock` | empty; an OS file lock (`FileChannel.tryLock`) held for the primary's life | primary |
+| `instance.endpoint` | `version=1`, `port=<n>`, `token=<64 hex>`; owner-only, through `AtomicFiles.writeOwnerOnly` | primary |
+
+`InstanceServer.claim` takes the lock. The lock decides liveness, never the
+endpoint file: the OS releases it when the process dies, and the holder deletes
+any stale endpoint, binds an ephemeral loopback port and writes a new token.
+`close` stops accepting, deletes the endpoint, then releases the lock; in any
+other order a new primary can lose its own endpoint. Close it before
+`Workers.close`, which waits for the accept thread.
+
+`InstanceClient.handOff` runs in the launcher before the Display exists. It
+waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
+channels against one 5 s deadline (`LineChannel`), because the ArchUnit rules
+ban `java.net.Socket` and its timeouts. Lines are printable ASCII, at most 16
+KiB, 256 `OPEN` lines and 1 MiB per connection; the server serves 4 connections
+at once.
+
+```text
+C: QCARET 1 HELLO nonceC
+S: QCARET 1 PROOF nonceS HMAC(token, "server" nonceC nonceS)
+C: AUTH HMAC(token, "client" nonceS nonceC)
+C: WINDOW 0|1 x y width height                (1 = -n; - = not given)
+C: OPEN path line column readOnly encoding    (repeated; 0 and - = none)
+C: DIFF left right                            (at most once)
+C: END
+S: OK | ERR
+```
+
+Nonces are 32 bytes from `SecureRandom`, compared with `MessageDigest.isEqual`;
+paths and encoding names travel as base64url of their UTF-8 bytes, so a file
+name holding a line break cannot split a line. The server proves the token
+first, so a client sends no file to a process without it; a peer that fails
+`AUTH` gets no reply. A path must be absolute and an encoding known to the
+runtime, else the request gets `ERR`. `InstanceClient.refusal` turns the handoff
+off for a settings directory another user owns or can write (POSIX). A lost
+`OK` after the primary acted opens the files twice: the launch cannot tell.
 
 ## Views and the UI thread (`app.view`)
 
@@ -127,12 +176,15 @@ are menu only.
 
 ## Controller (`app.controller`)
 
-`ApplicationController` runs the window's commands and owns the settings, the
-theme, the keymap, `Settings` and the window's `DocumentController`,
-`HelpController`, `FindController`, `SearchController`, `WorkspaceController`,
-`NavigationHistory`, `RecentFiles` and `GrammarLibrary`. It is confined to the UI thread; settings writes run on
+`WindowSet` holds the main windows of an instance and what they share:
+`Settings`, the theme, the keymap, `GrammarLibrary`, the Recent Files list, the
+`MemoryBudget`, the recent log lines, the debug log file, `SessionController`
+and `RecoveryController`; see Multiple main windows below.
+`ApplicationController` runs one window's commands and owns its
+`DocumentController`, `HelpController`, `FindController`, `SearchController`,
+`WorkspaceController`, `NavigationHistory` and `RecentFiles`. It is confined to the UI thread; settings writes run on
 `qcaret-lifecycle-` workers. Edit commands from the menu go to the selected
-editor's `EditorController`. After `quit` starts, `execute` does nothing.
+editor's `EditorController`. Once the window stops, `execute` does nothing.
 
 `CommandStates` computes every menu item's checked and enabled state, the
 Window menu's document list, a tab menu's state and the status bar's
@@ -171,15 +223,6 @@ read on workers.
 
 - A theme change pushes the palette. When native controls show the change
   only at the next start (`ThemeService.showsNow`), the view shows a notice.
-- Exit (`QUIT`, the window's close button, the macOS Quit) first closes the
-  documents through `DocumentController.closeAll`, which asks about each dirty
-  one; Cancel keeps the window open.
-- `quit` asks nothing and runs once: it closes the documents, records the
-  window's normal bounds and maximized state,
-  hides the window, then on a worker saves the settings, closes `Workers`,
-  runs the finish listeners and posts the window's disposal. With
-  `rememberWindow` false (a `--window-*` option or `-m`) it records and saves
-  nothing.
 - `Settings` queues each change for a worker; see Settings below.
 - `showLicenses` reads `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` from the jar
   on a worker and shows them through `MainView.showText`.
@@ -278,6 +321,82 @@ read on workers.
   revision and is dropped when either is stale. An invalid regex, a stack
   overflow and an invalid replacement end with a notice in the bar.
 
+### Multiple main windows
+
+`WindowSet` is confined to the UI thread, except `isQuitting` and
+`addFinishListener`. Each window is an `ApplicationController` over its own
+`MainView`, created through `WindowSet.Factory`, implemented in the launcher.
+`ApplicationController`'s other constructor makes a set of its own.
+
+- Settings: `WindowSet` hears a change first and updates the keymap and the
+  theme once; then each window's `apply` updates its own controllers and view. A
+  closed window leaves `Settings` and `GrammarLibrary`.
+- Window menu: New Window (an untitled document, the remembered size), Move to
+  New Window, and with several windows one entry each. A window's activation
+  makes it the target of handed files.
+- `openHandoff` opens a handed launch in the window activated last, or a new one
+  with `-n`, and raises it. `DocumentController.open(FileRequest)` applies the
+  options; `+<line>` and `-r` also apply to a file already open, `-e` only to a
+  file read now.
+- One buffer per file: when `DocumentOpener` resolves a real path that another
+  window holds, the open ends unread, that tab is selected and its window raised
+  (`DocumentController.Elsewhere`). This covers every open, not only handed
+  files. Two windows opening one file in the same moment can still read it
+  twice, and Save As onto a file another window holds asks nothing there; the
+  external-change check then applies to that tab.
+- Exit (`QUIT`, the macOS Quit) runs `requestQuit`. With `session.snapshot` on
+  and this instance owning the session it writes the snapshot of every window
+  (see Session and recovery). Otherwise `SessionController.quitStarted` captures
+  the windows, then the documents of the window activated last close through
+  `DocumentController.closeAllForQuit`, which asks about each dirty one, and the
+  set looks again for any window with a document. A tab moved or a file handed
+  during a prompt is therefore asked about too. Cancel stops there, the windows
+  stay open and the session returns to the live windows. A window's close button
+  runs `requestClose`, which does the same for that window and then closes it
+  alone; the last window quits instead, and a further window stays open while
+  the session restores.
+- `quit` asks nothing and runs once: it captures the session, queues the last
+  recovery writes, stops every window, records the normal bounds and maximized
+  state of the window activated last, hides the windows, then on a worker runs
+  the quit listeners, saves the settings and the session, finishes recovery,
+  closes `Workers`, runs the finish listeners and posts the disposals. With
+  `rememberWindow` false (a `--window-*` option or `-m`) it records nothing.
+
+`WindowSet.moveDocument` moves a tab with its live `Document` to another window
+or a new one; nothing is read again. `EditorController`, `DisplayProjection`,
+`SelectionModel`, `Bookmarks` and `SyntaxHighlighter` stay and get new views, so
+undo history, dirty state, carets, folds, bookmarks, grammar, encoding, line
+endings and the read-only flag go with them; scroll is read from the old view
+(`EditorView.topRow`) and set on the new one on the next UI turn
+(`scrollToRow`). The buffer id goes with the document, so its recovery file and
+written revision stand, and the forced charset goes with the entry. The source's
+`OpenDocument` ends as
+closed, so a prompt or a late grammar detection holding it drops out, and the
+target builds its own around the same objects: the editors' callbacks, clipboard
+and overview are connected again, and the file watch moves to the target's
+`ExternalChanges`. A window left without a tab stays open, empty.
+
+The move is refused with a notice while the tab's save, conversion or reload
+runs, or its change prompt shows, because each delivers to the source's entry;
+and when the target holds the same file. Nothing moves while quitting.
+`addMoveListener` runs once per move; `SessionController.changed` is one
+listener.
+
+A running line transform (sort, duplicate removal, trim) or `ReplaceRun` does not
+hold the move back. Both deliver through objects that move: the transform through
+its `EditorController`, the run through `DocumentController.holderOf`. A result
+lands in the moved document at the revision it was computed from; after an edit
+in the target it is dropped, with `LINES_STALE` or a skipped row.
+
+Search results stay in the source's dock: `DocumentController.holderOf` finds the
+window holding a result's document, so a result selects the tab there and raises
+that window, and Replace reaches the document in any window. A document that
+closes in any window detaches its result groups in all of them
+(`SearchController.documentClosed`). A folder search reads the disk copy of a
+file another window holds, as it reads a file no window holds. Navigation history
+entries of a moved document turn into file positions, which then lead to its tab
+through the one-buffer rule.
+
 ### HyperSearch
 
 `SearchController` runs HyperSearch (Search > HyperSearch) and is the results
@@ -347,10 +466,10 @@ selection set reruns whole, since the selection is not kept.
 
 ### Workspace folder, browser and Quick Open
 
-File > Set Workspace Folder stores one folder per window for the run, as its
-real path (`WorkspaceController`). Both the browser and the index leave out
-hidden entries and `workspace.excludedDirectories`; a change lists and indexes
-the folder again.
+File > Set Workspace Folder stores one folder per window, kept by the session,
+as its real path (`WorkspaceController`). Both the browser and the index leave
+out hidden entries and `workspace.excludedDirectories`; a change lists and
+indexes the folder again.
 
 - View > Workspace Browser shows the folder's tree. A directory is listed on a
   `qcaret-io-` worker the first time it expands (`DirectoryListing`), 500
@@ -402,9 +521,9 @@ positions are dropped. Going to a closed file's position checks on a
 `qcaret-io-` worker that the file exists, then opens it; a missing file's
 position is dropped with a notice and the move goes on.
 
-`RecentFiles` is File > Recent Files for the run: the last 20 files opened,
-newest first, once each by real path, so a file opened through a link and
-through its target is one entry. Clear Recent Files empties it.
+`RecentFiles` is File > Recent Files: the last 20 files opened, newest first,
+once each by real path, so a file opened through a link and through its target
+is one entry. The session file keeps it. Clear Recent Files empties it.
 
 ### Replace
 
@@ -822,7 +941,7 @@ copy, calls the listeners on the UI thread and queues the change for a
 `qcaret-lifecycle-` worker. Workers drain the queue in order under `saveLock`,
 which the UI thread never takes, as one `save` from the first change's `before`
 to the last change's `after`. `ApplicationController.apply` is the listener that
-brings the running window in line, whatever the change's source.
+brings each running window in line, whatever the change's source.
 
 `refresh` drains the queue, loads the file on a worker and takes up what another
 process changed; a change made meanwhile survives through `merge`. A failed save
@@ -845,6 +964,90 @@ that does not parse or that types text (`KeyStroke.types`), one WARN naming the
 key; a key naming no command stays in the file. `KeyStroke.stored` is the
 platform-free form: `Mod+Alt+K`. `Keymap.conflicts` is logged at start and on a
 change and ends the shortcut reference.
+
+## Session and recovery (`app.session`, `app.recovery`)
+
+`SessionStore` reads and writes `qcaret_session.conf`: a list of windows, Recent
+Files and the per-file LRU. A file over 4 MiB, one that does not parse and one
+of another version load as nothing with one WARN and are kept as `.invalid`
+before the next save; a missing `version` reads as 1, a bad value falls back and
+a tab without a path or buffer is skipped. `Gui` reads the file before the
+Display.
+
+`SessionController` owns restore and save, one per `WindowSet`. Only an instance
+started with `restore` true saves, so `-m` never replaces the session. The first
+saved window restores into the window open at start and each further one into a
+new window at its saved bounds, in saved order; `Gui` places the first window
+from the session too. A window that cannot be created gives its tabs to the
+first. A window left without a tab opens an untitled document. Files on the
+command line (`--session` with files) open after the restore. After a
+`--window-*` start each saved window keeps the bounds it loaded.
+
+| What | Restored |
+|---|---|
+| Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
+| Per view | Selections, top line, collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
+| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments |
+| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, Reopen Closed Tab's files |
+| Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
+
+A remembered charset the runtime lacks warns and detects; one that no longer
+decodes the file warns and detects too. A change arms one 2 s timer, and changes
+before it fires share it, so a burst of edits cannot put a save off. The timer
+numbers a capture on the UI thread and a lifecycle worker writes it under
+`saveLock`, skipping any capture a later one has written (QLogg THR-5). An
+unchanged session writes nothing. New windows, closed windows and tab moves arm
+the same timer.
+
+A quit that closes documents keeps the windows as `quitStarted` found them and
+arms no save until it ends, so no save lists a half-closed window, a process end
+during a prompt included. The Recent Files and the LRU are read at the end and
+hold what the closes added. An untitled document saved at a quit prompt was not
+in the capture, so its file is not a tab of the next session.
+
+`DocumentController.FileMemory` is the LRU: 500 entries keyed by the opened
+document's real path (caret, top line, tab settings, forced charset, chosen
+grammar). A closing file's state goes in; an opening file's comes out, in
+`DocumentOpener.Listener.options` for the charset and after the load for the
+rest. Reopen Closed Tab therefore lands where the file was.
+
+`RecoveryFile` is format version 1: a header, the body and a trailer digest,
+streamed in chunks. A text with an unpaired surrogate goes as
+UTF-16BE, one char at a time, because the JDK's coders replace such a char.
+`RecoveryStore` holds `<settings>/recovery/<instance>/`. `owner.lock`, held
+through an OS lock, decides liveness. Closing any channel on a locked file drops
+the process's POSIX lock, so `HELD` keeps a process from opening its own lock
+file. `claimDead` locks each dead directory until its claim closes, so two
+starts cannot list one buffer.
+
+`RecoveryController` runs one queue on `qcaret-io-` workers under `runLock`, so
+a write cannot land after the delete that follows it. One controller and one
+instance directory serve every window: `WindowSet.dirtyBuffers` lists them, and a
+buffer id is unique in the instance. The dialog shows in the window activated
+last.
+
+| Event | Effect on the buffer's file |
+|---|---|
+| `recovery.intervalSeconds` | Dirty buffers whose revision is not on disk are written from a snapshot; a failed write is retried at the next interval, with one notice |
+| Save, undo back to the saved text, close with discard | Deleted |
+| Ordered quit | The instance directory goes |
+| `quit` with dirty buffers (shutdown hook) | Written, directory kept, offered at the next start |
+| Restore in the dialog | New file written first, then the old one deleted; a failed write keeps the old one until a retry succeeds or the buffer needs no recovery |
+| Damaged file | Listed, not restorable, kept; Discard is the user's choice |
+| `recovery.keepDays` | Older files in dead directories go at start |
+
+`addRecovered` opens the buffer dirty and writes nothing. When the original
+still holds the buffer's base the document takes the file's current baseline;
+otherwise it keeps the recorded base, so `ExternalChanges` shows the change
+prompt and a save asks first. A clean tab of the file gives way, in the window
+holding it; a dirty one keeps its text and the row stays. Any other buffer opens
+in the window activated last.
+
+With `session.snapshot` on and this instance owning the session, a quit writes
+every window's dirty buffers to `<settings>/snapshot/`, again when one changed meanwhile,
+and asks nothing; a failed write falls back to the prompts. The tabs name their
+buffers, and the next start opens them dirty. Without an owner the quit prompts.
+A shutdown hook quit goes through recovery files and the dialog instead.
 
 ## Themes (`app.theme`)
 
@@ -881,6 +1084,29 @@ The controller tests run the UI thread on the test thread through
 every method, so a view call from a worker fails the test instead of passing
 on the test thread. `ManualUiDispatcher` is in the test jar for the other
 modules.
+
+`HandoffTest` runs client and server over loopback in one JVM: options, `-n`,
+geometry and `--diff` carried; a wrong token, a peer without the token and a
+listener without the token; a stale endpoint with and without a live lock; a
+child JVM killed by `destroyForcibly` releases the lock. `WindowSetTest` covers
+what the windows share, handoff targets, the one-buffer rule, close and quit.
+`TabMoveTest` (over `Windows`, a set of `FakeView`s) covers the state a move
+carries, refusals, close and quit around a move, and a line transform or replace
+run delivered after the move; the budget returning to its start shows each
+document released once. `WindowSessionTest` covers a two-window restore, the
+capture before a quit's first close, Cancel and a process end at a quit prompt, a
+moved buffer's recovery file, a snapshot over two windows and Clear History in
+every window.
+
+`SessionStoreTest` covers the round trip, the limits and SET-5 and SET-8 faults.
+`RecoveryFileTest` round-trips a text over every buffer size, surrogates and
+damage. `RecoveryStoreTest` covers liveness by lock, age limits and the original
+file's state. `SessionControllerTest` restores through real files and runs
+debounced and shutdown saves on racing workers. `RecoveryControllerTest` covers
+each lifecycle step, the dialog's choices, failed writes (a non-empty directory
+in the file's place makes the move throw) and the snapshot quit, with `quit`
+standing in for a process end. `ManualUiDispatcher` holds timers of 5 s and over
+until `runLongTimers`, because the recovery timer rearms itself.
 
 `ConfigStoreTest` covers two stores merging on one directory, a save that
 changes nothing, unknown keys, every key's round trip and invalid values.

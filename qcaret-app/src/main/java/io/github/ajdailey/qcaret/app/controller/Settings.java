@@ -80,6 +80,15 @@ public final class Settings {
   }
 
   /**
+   * Removes a listener; a closed window leaves.
+   *
+   * @param listener the listener
+   */
+  public void removeListener(Listener listener) {
+    listeners.remove(listener);
+  }
+
+  /**
    * Replaces the settings; equal settings do nothing.
    *
    * @param next the new settings

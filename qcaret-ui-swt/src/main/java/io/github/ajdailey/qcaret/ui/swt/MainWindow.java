@@ -26,6 +26,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
+import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
@@ -93,11 +94,12 @@ import org.eclipse.swt.widgets.Shell;
  * have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
- * strip moves it. A tab's item cannot change position, so a move disposes and recreates it, and the
- * {@code Selection} that {@code CTabFolder} sends for a neighbor while the selected item is
- * disposed is ignored (QLogg UI-14). One context menu serves every tab; each right click replaces
- * its items. The file choosers are native dialogs and run a nested event loop; the unsaved-changes
- * and binary-file prompts do not.
+ * strip moves it, and a release off the strip moves it to another window ({@link #dropTab}). A
+ * tab's item cannot change position, so a move disposes and recreates it, and the {@code Selection}
+ * that {@code CTabFolder} sends for a neighbor while the selected item is disposed is ignored
+ * (QLogg UI-14). One context menu serves every tab; each right click replaces its items. The file
+ * choosers are native dialogs and run a nested event loop; the unsaved-changes and binary-file
+ * prompts do not.
  *
  * <p>Menu enablement syncs on {@link #documentStateChanged} and when the shell is activated, so an
  * accelerator works without a menu having been shown. The status bar shows the selected document's
@@ -124,6 +126,20 @@ public final class MainWindow implements MainView {
 
   /** How long a notice stays in the status bar. */
   static final int NOTICE_MILLIS = 8000;
+
+  /** Shell data naming the shell's main window, for a tab dropped on it. */
+  private static final String WINDOW = "qcaret.window";
+
+  /** Finds the control under a released tab drag. */
+  interface PointerProbe {
+    /**
+     * Returns the control under a point.
+     *
+     * @param point the point in display coordinates
+     * @return the control, or null outside every QCaret shell
+     */
+    Control controlAt(Point point);
+  }
 
   private final Shell shell;
   private final CTabFolder tabs;
@@ -158,6 +174,13 @@ public final class MainWindow implements MainView {
   private WindowGeometry.Request normalBounds = new WindowGeometry.Request(null, null, null, null);
   private CTabItem dragged;
   private boolean movingTab;
+  private PointerProbe pointer =
+      new PointerProbe() {
+        @Override
+        public Control controlAt(Point point) {
+          return shell.getDisplay().getCursorControl();
+        }
+      };
   private FindBar findBar;
   private final SashForm body;
   private final SashForm side;
@@ -172,6 +195,7 @@ public final class MainWindow implements MainView {
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
   private RunChooser runChooser;
   private ChangeDialog changeDialog;
+  private RecoveryDialog recoveryDialog;
   private DocumentChooser documentChooser;
   private final List<DiffWindow> diffWindows = new ArrayList<DiffWindow>();
 
@@ -201,6 +225,16 @@ public final class MainWindow implements MainView {
       @Override
       public void showCaret() {
         editor.showCaret();
+      }
+
+      @Override
+      public int topRow() {
+        return editor.topRow();
+      }
+
+      @Override
+      public void scrollToRow(int row) {
+        editor.scrollToRow(row);
       }
 
       @Override
@@ -391,6 +425,17 @@ public final class MainWindow implements MainView {
     }
 
     @Override
+    public int[] splitWeights() {
+      return sash.getWeights();
+    }
+
+    @Override
+    public void setSplitWeights(int[] weights) {
+      sash.setWeights(weights);
+      sash.layout(true);
+    }
+
+    @Override
     public void unsplit(EditorView kept) {
       for (int i = panes.size() - 1; i >= 0; i--) {
         if (views.get(i) != kept) {
@@ -415,6 +460,7 @@ public final class MainWindow implements MainView {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
     shell = new Shell(display, SWT.SHELL_TRIM);
+    shell.setData(WINDOW, this);
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
@@ -511,8 +557,8 @@ public final class MainWindow implements MainView {
 
   /**
    * Connects the window to its controller: builds the menu bar, starts listing the charsets, routes
-   * close requests to {@link CommandId#QUIT}, and follows the controller's palette. Call once,
-   * before {@link #open} and before the first tab.
+   * close requests to {@link ApplicationController#closeWindow}, and follows the controller's
+   * palette. Call once, before {@link #open} and before the first tab.
    *
    * @param owner the controller
    */
@@ -563,7 +609,7 @@ public final class MainWindow implements MainView {
         new Runnable() {
           @Override
           public void run() {
-            controller.execute(CommandId.QUIT);
+            controller.closeWindow();
           }
         });
     paletteListener =
@@ -778,11 +824,53 @@ public final class MainWindow implements MainView {
             }
             CTabItem source = dragged;
             dragged = null;
-            if (source != null && !source.isDisposed() && target != null && target != source) {
+            if (source == null || source.isDisposed()) {
+              return;
+            }
+            if (target == null) {
+              Point point = tabs.toDisplay(event.x, event.y);
+              dropTab((Tab) source.getData(), point, pointer.controlAt(point));
+            } else if (target != source) {
               moveTab(source, tabs.indexOf(target));
             }
           }
         });
+  }
+
+  /**
+   * Sets how a released tab drag finds the control under it; for tests.
+   *
+   * @param probe the probe
+   */
+  void setPointerProbe(PointerProbe probe) {
+    pointer = probe;
+  }
+
+  /**
+   * Ends a tab drag released off this window's tabs. Over another main window the tab moves there:
+   * before the tab under the point, else after the last tab. Outside every QCaret shell and outside
+   * this window's bounds it moves to a new window with its top-left corner at the point. A release
+   * anywhere else does nothing.
+   */
+  private void dropTab(Tab tab, Point point, Control under) {
+    if (under == null) {
+      if (!shell.getBounds().contains(point)) {
+        controller.moveTabToNewWindow(tab.input, point.x, point.y);
+      }
+      return;
+    }
+    Shell other = under.getShell();
+    if (other == shell
+        || !(other.getData(WINDOW) instanceof MainWindow target)
+        || target.controller == null) {
+      return;
+    }
+    int index = target.tabs.getItemCount();
+    CTabItem item = target.tabs.getItem(target.tabs.toControl(point));
+    if (item != null) {
+      index = target.tabs.indexOf(item);
+    }
+    controller.moveTab(tab.input, target.controller, index);
   }
 
   /**
@@ -827,6 +915,16 @@ public final class MainWindow implements MainView {
           @Override
           public void run() {
             controller.execute(CommandId.CLOSE_ALL);
+          }
+        });
+    new MenuItem(tabMenu, SWT.SEPARATOR);
+    tabMenuItem(
+        UiText.COMMAND_MOVE_TO_NEW_WINDOW,
+        true,
+        new Runnable() {
+          @Override
+          public void run() {
+            controller.moveTabToNewWindow(tab.input, null, null);
           }
         });
     new MenuItem(tabMenu, SWT.SEPARATOR);
@@ -1322,6 +1420,17 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public void toFront() {
+    if (shell.isDisposed()) {
+      return;
+    }
+    if (shell.getMinimized()) {
+      shell.setMinimized(false);
+    }
+    shell.forceActive();
+  }
+
+  @Override
   public void dispose() {
     if (!shell.isDisposed()) {
       shell.dispose();
@@ -1568,6 +1677,62 @@ public final class MainWindow implements MainView {
     if (workspaceDock != null && !shell.isDisposed()) {
       workspaceDock.changed(directory);
     }
+  }
+
+  @Override
+  public int[] sideWeights() {
+    return side.getWeights();
+  }
+
+  @Override
+  public void setSideWeights(int[] weights) {
+    side.setWeights(weights);
+  }
+
+  @Override
+  public int[] dockWeights() {
+    return body.getWeights();
+  }
+
+  @Override
+  public void setDockWeights(int[] weights) {
+    body.setWeights(weights);
+  }
+
+  @Override
+  public List<WorkspaceNode> expandedWorkspace() {
+    return workspaceDock == null ? List.of() : workspaceDock.expanded();
+  }
+
+  @Override
+  public void expandWorkspace(WorkspaceNode directory) {
+    if (workspaceDock != null && !shell.isDisposed()) {
+      workspaceDock.expand(directory);
+    }
+  }
+
+  @Override
+  public void showRecovery(RecoveryInput input) {
+    if (!shell.isDisposed()) {
+      recoveryDialog = new RecoveryDialog(shell, input);
+      recoveryDialog.open();
+    }
+  }
+
+  @Override
+  public void recoveryChanged() {
+    if (recoveryDialog != null) {
+      recoveryDialog.refresh();
+    }
+  }
+
+  /**
+   * Returns the recovery dialog.
+   *
+   * @return the dialog last opened, or null
+   */
+  RecoveryDialog recoveryDialog() {
+    return recoveryDialog;
   }
 
   @Override

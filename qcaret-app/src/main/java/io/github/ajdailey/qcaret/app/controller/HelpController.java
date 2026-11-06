@@ -16,7 +16,6 @@ import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +36,9 @@ final class HelpController {
   private final SettingsLocation location;
   private Keymap keymap;
   private final BooleanSupplier closing;
-  private final AtomicBoolean warningPosted = new AtomicBoolean();
+  private final WindowSet set;
   private RecentLog recent;
   private LogFiles files = LogFiles.NONE;
-  private long seenWarnings;
 
   /**
    * Creates the Help commands of a window.
@@ -51,6 +49,7 @@ final class HelpController {
    * @param location the settings directory
    * @param keymap the bindings Keyboard Shortcuts lists
    * @param closing true once the window is closing; results arriving later are dropped
+   * @param set holds which warnings Show Log has shown
    */
   HelpController(
       Workers workers,
@@ -58,13 +57,15 @@ final class HelpController {
       MainView view,
       SettingsLocation location,
       Keymap keymap,
-      BooleanSupplier closing) {
+      BooleanSupplier closing,
+      WindowSet set) {
     this.workers = workers;
     this.ui = ui;
     this.view = view;
     this.location = location;
     this.keymap = keymap;
     this.closing = closing;
+    this.set = set;
   }
 
   /** Sets the bindings Keyboard Shortcuts lists. */
@@ -73,8 +74,7 @@ final class HelpController {
   }
 
   /**
-   * Connects Show Log and the warning marker to the recent log lines, and Debug Log File to the log
-   * file. A warning logged on any thread shows the marker through one posted task at a time.
+   * Connects Show Log to the recent log lines and Debug Log File to the log file.
    *
    * @param lines the recent lines
    * @param logFiles the debug log file
@@ -82,30 +82,6 @@ final class HelpController {
   void setLogging(RecentLog lines, LogFiles logFiles) {
     recent = lines;
     files = logFiles;
-    seenWarnings = lines.warnings();
-    lines.setWarningListener(
-        new Runnable() {
-          @Override
-          public void run() {
-            if (warningPosted.compareAndSet(false, true)) {
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      warningPosted.set(false);
-                      showWarningMarker();
-                    }
-                  });
-            }
-          }
-        });
-  }
-
-  /** Stops following the recent log lines. */
-  void close() {
-    if (recent != null) {
-      recent.setWarningListener(null);
-    }
   }
 
   /**
@@ -114,7 +90,7 @@ final class HelpController {
    * @return true when the marker shows
    */
   boolean newWarnings() {
-    return recent != null && recent.warnings() > seenWarnings;
+    return set.newWarnings();
   }
 
   /**
@@ -124,12 +100,6 @@ final class HelpController {
    */
   boolean debugLogFile() {
     return files.attached();
-  }
-
-  private void showWarningMarker() {
-    if (!closing.getAsBoolean()) {
-      view.showWarningMarker(newWarnings());
-    }
   }
 
   /** Shows the key bindings. */
@@ -145,10 +115,7 @@ final class HelpController {
   /** Shows the recent log lines and clears the warning marker. */
   void showLog() {
     List<String> lines = recent == null ? List.of() : recent.snapshot();
-    if (recent != null) {
-      seenWarnings = recent.warnings();
-    }
-    showWarningMarker();
+    set.warningsSeen();
     view.showLog(
         lines.isEmpty()
             ? UiText.SHOW_LOG_EMPTY.text()

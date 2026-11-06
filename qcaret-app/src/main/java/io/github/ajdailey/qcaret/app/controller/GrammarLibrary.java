@@ -1,7 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -40,7 +39,7 @@ public final class GrammarLibrary {
 
   private final Workers workers;
   private final UiDispatcher ui;
-  private final MainView view;
+  private final Consumer<String> notices;
   private final Path directory;
   private final List<Consumer<GrammarSet>> listeners = new ArrayList<Consumer<GrammarSet>>();
   private volatile List<Grammar> builtIns;
@@ -52,13 +51,14 @@ public final class GrammarLibrary {
    *
    * @param workers runs the reads
    * @param ui receives the result
-   * @param view shows the notice for skipped files
+   * @param notices shows the notice for skipped files
    * @param directory the user grammars folder, which need not exist
    */
-  public GrammarLibrary(Workers workers, UiDispatcher ui, MainView view, Path directory) {
+  public GrammarLibrary(
+      Workers workers, UiDispatcher ui, Consumer<String> notices, Path directory) {
     this.workers = workers;
     this.ui = ui;
-    this.view = view;
+    this.notices = notices;
     this.directory = directory;
   }
 
@@ -78,6 +78,15 @@ public final class GrammarLibrary {
    */
   public void addListener(Consumer<GrammarSet> listener) {
     listeners.add(listener);
+  }
+
+  /**
+   * Removes a listener; a closed window leaves.
+   *
+   * @param listener the listener
+   */
+  public void removeListener(Consumer<GrammarSet> listener) {
+    listeners.remove(listener);
   }
 
   /** Reads the grammars again on a worker; the listeners receive the new set. */
@@ -158,7 +167,7 @@ public final class GrammarLibrary {
       LOG.warn("Grammar skipped: {}", LogText.oneLine(error));
     }
     if (!errors.isEmpty()) {
-      view.showNotice(
+      notices.accept(
           UiText.NOTICE_GRAMMARS_SKIPPED.format(errors.size(), LogText.oneLine(errors.get(0))));
     }
     for (Consumer<GrammarSet> listener : new ArrayList<Consumer<GrammarSet>>(listeners)) {

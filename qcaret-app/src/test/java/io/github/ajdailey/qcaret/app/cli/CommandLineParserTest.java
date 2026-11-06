@@ -155,4 +155,115 @@ class CommandLineParserTest {
       assertTrue(usage.contains(option), option);
     }
   }
+
+  @Test
+  void aPositionGoesToTheNextFileOnly() throws Exception {
+    List<FileRequest> files = parse("+12:3", "a.txt", "b.txt", "+7", "c.txt").request().files();
+    assertEquals(new FileRequest(CWD.resolve("a.txt"), 12, 3, false, null), files.get(0));
+    assertEquals(new FileRequest(CWD.resolve("b.txt")), files.get(1));
+    assertEquals(new FileRequest(CWD.resolve("c.txt"), 7, 0, false, null), files.get(2));
+  }
+
+  @Test
+  void readOnlyAndEncodingApplyToTheFollowingFiles() throws Exception {
+    List<FileRequest> files =
+        parse("a.txt", "-r", "b.txt", "-e", "iso-8859-1", "c.txt", "d.txt").request().files();
+    assertEquals(new FileRequest(CWD.resolve("a.txt")), files.get(0));
+    assertEquals(new FileRequest(CWD.resolve("b.txt"), 0, 0, true, null), files.get(1));
+    assertEquals(new FileRequest(CWD.resolve("c.txt"), 0, 0, true, "ISO-8859-1"), files.get(2));
+    assertEquals(new FileRequest(CWD.resolve("d.txt"), 0, 0, true, "ISO-8859-1"), files.get(3));
+  }
+
+  @Test
+  void readOnlyCombinesWithOtherShortOptions() throws Exception {
+    StartupRequest request = parse("-nre", "UTF-8", "a.txt").request();
+    assertTrue(request.newWindow());
+    assertEquals(
+        new FileRequest(CWD.resolve("a.txt"), 0, 0, true, "UTF-8"), request.files().get(0));
+  }
+
+  @Test
+  void afterTheEndOfOptionsAPositionIsAFile() throws Exception {
+    List<FileRequest> files = parse("+3", "--", "+4").request().files();
+    assertEquals(new FileRequest(CWD.resolve("+4"), 3, 0, false, null), files.get(0));
+    assertEquals(1, files.size());
+  }
+
+  @Test
+  void aPlusNameThatIsNoPositionIsAFile() throws Exception {
+    assertEquals(CWD.resolve("+notes"), parse("+notes").request().files().get(0).path());
+  }
+
+  @Test
+  void aNameWithAColonOrAMalformedPositionIsAFile() throws Exception {
+    assertEquals(CWD.resolve(":x"), parse(":x").request().files().get(0).path());
+    assertEquals(CWD.resolve("+1:"), parse("+1:").request().files().get(0).path());
+    assertEquals(CWD.resolve("+:2"), parse("+:2").request().files().get(0).path());
+    assertEquals(CWD.resolve("+"), parse("+").request().files().get(0).path());
+  }
+
+  @Test
+  void anEmptyArgumentIsRefused() {
+    assertThrows(
+        CommandLineException.class,
+        new Executable() {
+          @Override
+          public void execute() throws Throwable {
+            parse("");
+          }
+        });
+  }
+
+  @Test
+  void sessionOptionsSetTheMode() throws Exception {
+    assertEquals(SessionMode.DEFAULT, parse().request().session());
+    assertTrue(parse().request().restoresSession());
+    assertFalse(parse("a.txt").request().restoresSession());
+    assertTrue(parse("--session", "a.txt").request().restoresSession());
+    assertFalse(parse("--no-session").request().restoresSession());
+    assertFalse(parse("--diff", "a", "b").request().restoresSession());
+  }
+
+  @Test
+  void diffTakesTwoFiles() throws Exception {
+    StartupRequest request = parse("--diff", "a.txt", "b.txt", "c.txt").request();
+    assertEquals(CWD.resolve("a.txt"), request.diffLeft());
+    assertEquals(CWD.resolve("b.txt"), request.diffRight());
+    assertEquals(List.of(new FileRequest(CWD.resolve("c.txt"))), request.files());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "+0 a.txt",
+        "+1:0 a.txt",
+        "+99999999999 a.txt",
+        "+5",
+        "--diff a.txt",
+        "--diff=a.txt b.txt",
+        "-e no-such-charset a.txt",
+        "-e",
+        "-m -n",
+        "--session=1"
+      })
+  void refusedLines(final String line) {
+    assertThrows(
+        CommandLineException.class,
+        new Executable() {
+          @Override
+          public void execute() throws Throwable {
+            parse(line.split(" "));
+          }
+        });
+  }
+
+  @Test
+  void theUsageNamesEveryOption() {
+    String usage = CommandLineParser.usage();
+    for (String option :
+        List.of(
+            "--new-window", "--read-only", "--encoding", "--session", "--no-session", "--diff")) {
+      assertTrue(usage.contains(option), option);
+    }
+  }
 }

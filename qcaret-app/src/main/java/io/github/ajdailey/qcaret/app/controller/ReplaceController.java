@@ -354,9 +354,9 @@ public final class ReplaceController implements ReplaceInput {
   private Document openDocument(FileResult group) {
     Document d = group.document();
     if (d != null) {
-      return documents.isOpen(d) ? d : null;
+      return documents.holderOf(d) == null ? null : d;
     }
-    return group.path() == null ? null : documents.documentAt(group.path());
+    return group.path() == null ? null : documents.documentAnywhere(group.path());
   }
 
   /** Computes the selected file's before and after view on a worker. */
@@ -602,7 +602,7 @@ public final class ReplaceController implements ReplaceInput {
       ReplaceRun.Reason unavailable = null;
       if (group.document() != null && d.revision() != group.searchedRevision()) {
         unavailable = ReplaceRun.Reason.CHANGED;
-      } else if (d.isReadOnly() || documents.binary(d)) {
+      } else if (d.isReadOnly() || documents.holderOf(d).binary(d)) {
         unavailable = ReplaceRun.Reason.READ_ONLY;
       }
       return new ReplaceRun.Item(
@@ -638,7 +638,8 @@ public final class ReplaceController implements ReplaceInput {
   private ReplaceRun.Row applyToDocument(ReplaceRun.Item item, List<Replacement> replacements) {
     Document d = item.document();
     ReplaceRun.Reason reason = null;
-    if (!documents.isOpen(d)) {
+    DocumentController holder = documents.holderOf(d);
+    if (holder == null) {
       reason = ReplaceRun.Reason.CLOSED;
     } else if (d.revision() != item.revision() || d.preeditRange() != null) {
       reason = ReplaceRun.Reason.CHANGED;
@@ -650,7 +651,7 @@ public final class ReplaceController implements ReplaceInput {
           item.name(), item.path(), ReplaceRun.Status.SKIPPED, reason, 0, null);
     }
     EditBatch batch = EditBatch.of(EditBatch.Kind.COMMAND, replacements);
-    EditorController editor = documents.editorOf(d);
+    EditorController editor = holder.editorOf(d);
     if (editor == null) {
       d.apply(batch);
     } else {

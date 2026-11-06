@@ -288,7 +288,8 @@ class ConfigStoreTest {
 
   @Test
   void everySettingRoundTrips() throws IOException {
-    Options options = new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist");
+    Options options =
+        new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist", 45, 12, true);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),

@@ -89,6 +89,11 @@ class DocumentOpenerTest {
               }
 
               @Override
+              public LoadOptions options(Path path, LoadOptions requested) {
+                return requested;
+              }
+
+              @Override
               public void opened(
                   Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
                 ui.checkUiThread();

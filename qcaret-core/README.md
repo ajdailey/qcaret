@@ -100,7 +100,8 @@ directory (POSIX `rw-------`), then moves it over the target with
 deleted. Nothing goes to `java.io.tmpdir`. `write(Path, InputStream)` streams
 the content through a 64 KiB buffer. `writeOwnerOnly`, for a secret, also
 replaces the temporary file's ACL with one entry for its owner where there are
-ACLs but no POSIX permissions (Windows).
+ACLs but no POSIX permissions (Windows). `writeOwnerOnly(Path, ContentWriter)`
+takes content too large for one array and forces it to disk before the move.
 
 `SafeSave.save(target, baseline, content, token)` saves a user file. It runs
 on a worker.

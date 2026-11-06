@@ -96,12 +96,25 @@ class PreferencesControllerTest {
         field.equals("highlight") ? value : f.maxHighlightLineChars(),
         field.equals("poll") ? value : f.pollSeconds(),
         f.autoReloadClean(),
+        field.equals("recoverySeconds") ? value : f.recoveryIntervalSeconds(),
+        field.equals("recoveryDays") ? value : f.recoveryKeepDays(),
+        f.sessionSnapshot(),
         field.equals("days") ? value : f.backupDays(),
         field.equals("lines") ? value : f.searchMaxLineChars(),
         field.equals("excluded") ? value : f.excludedDirectories(),
         f.theme(),
         field.equals("font") ? value : f.fontSize(),
         f.shortcuts());
+  }
+
+  @Test
+  void recoverySettingsAreCheckedAndApplied() throws Exception {
+    PreferencesInput input = input();
+    PreferencesForm f = input.form();
+    assertEquals(PreferencesForm.Group.FILES, input.apply(with(f, "recoverySeconds", "4")).group());
+    assertEquals(PreferencesForm.Group.FILES, input.apply(with(f, "recoveryDays", "366")).group());
+    assertNull(input.apply(with(f, "recoverySeconds", "45")));
+    assertEquals(45, harness.application.preferences().options().recoveryIntervalSeconds());
   }
 
   @Test
@@ -171,6 +184,9 @@ class PreferencesControllerTest {
                 f.maxHighlightLineChars(),
                 f.pollSeconds(),
                 f.autoReloadClean(),
+                f.recoveryIntervalSeconds(),
+                f.recoveryKeepDays(),
+                f.sessionSnapshot(),
                 f.backupDays(),
                 f.searchMaxLineChars(),
                 f.excludedDirectories(),
@@ -211,6 +227,9 @@ class PreferencesControllerTest {
                 f.maxHighlightLineChars(),
                 f.pollSeconds(),
                 f.autoReloadClean(),
+                f.recoveryIntervalSeconds(),
+                f.recoveryKeepDays(),
+                f.sessionSnapshot(),
                 f.backupDays(),
                 f.searchMaxLineChars(),
                 f.excludedDirectories(),
@@ -246,7 +265,10 @@ class PreferencesControllerTest {
         o.autoReloadClean(),
         o.backupDays(),
         o.searchMaxLineChars(),
-        o.excludedDirectories());
+        o.excludedDirectories(),
+        o.recoveryIntervalSeconds(),
+        o.recoveryKeepDays(),
+        o.sessionSnapshot());
   }
 
   @Test

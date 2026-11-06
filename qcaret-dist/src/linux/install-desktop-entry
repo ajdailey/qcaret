@@ -1,0 +1,44 @@
+#!/bin/sh
+# Adds QCaret to the current user's applications and Open With lists, or
+# removes it with --uninstall. Writes only under XDG_DATA_HOME.
+set -eu
+
+self=$0
+while [ -h "$self" ]; do
+    link=$(readlink "$self")
+    case $link in
+        /*) self=$link ;;
+        *) self=${self%/*}/$link ;;
+    esac
+done
+case $self in
+    */*) bin=${self%/*} ;;
+    *) bin=. ;;
+esac
+home=$(cd "$bin/.." && pwd -P)
+
+data=${XDG_DATA_HOME:-$HOME/.local/share}
+entry=$data/applications/qcaret.desktop
+icon=$data/icons/hicolor/scalable/apps/qcaret.svg
+
+case ${1:-} in
+    --uninstall)
+        rm -f "$entry" "$icon"
+        ;;
+    '')
+        mkdir -p "$data/applications" "${icon%/*}"
+        # Desktop entry quoting: a backslash, quote, backtick or dollar sign is
+        # escaped inside the double quotes; sed needs its own \\ and & escaped.
+        quoted=$(printf '%s' "$home/bin/qcaret" | sed 's/[\\"`$]/\\\\&/g; s/[\\&|]/\\&/g')
+        sed "s|@EXEC@|\"$quoted\"|" "$home/share/qcaret.desktop" > "$entry"
+        cp "$home/share/qcaret.svg" "$icon"
+        ;;
+    *)
+        echo "Usage: install-desktop-entry [--uninstall]" >&2
+        exit 1
+        ;;
+esac
+
+if command -v update-desktop-database > /dev/null 2>&1; then
+    update-desktop-database "$data/applications" || true
+fi

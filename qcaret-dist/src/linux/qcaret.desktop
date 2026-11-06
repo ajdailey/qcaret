@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=QCaret
+GenericName=Text Editor
+Comment=Programmer's text editor
+Exec=@EXEC@ %F
+Icon=qcaret
+Terminal=false
+StartupNotify=true
+Categories=Development;TextEditor;Utility;
+Keywords=text;editor;code;
+MimeType=text/plain;text/markdown;text/css;text/csv;text/html;text/xml;text/x-c;text/x-csrc;text/x-chdr;text/x-c++src;text/x-c++hdr;text/x-java;text/x-python;text/x-shellscript;text/x-log;application/json;application/xml;application/x-shellscript;application/x-yaml;

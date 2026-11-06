@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.search.HyperSearch;
 import io.github.ajdailey.qcaret.app.search.ReplaceRun;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
+import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ResultLabel;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
@@ -583,6 +584,43 @@ public final class SearchController implements ResultsInput {
     shown = value;
     view.showResults(this, value);
     view.documentStateChanged();
+    documents.sessionChanged();
+  }
+
+  /**
+   * Returns the retained requests for the session, newest first; a text over {@link
+   * UiState#MAX_ENTRY_CHARS} chars is left out.
+   *
+   * @return the requests
+   */
+  List<Session.Search> retained() {
+    List<Session.Search> list = new ArrayList<Session.Search>();
+    for (Entry e : entries) {
+      if (e.set.request().text().length() <= UiState.MAX_ENTRY_CHARS) {
+        list.add(new Session.Search(e.set.request(), e.set.pinned()));
+      }
+    }
+    return list;
+  }
+
+  /**
+   * Adds a session's requests as sets without results, which Rerun fills, and shows the dock.
+   *
+   * @param searches the requests, newest first
+   * @param show true to show the dock
+   */
+  void restore(List<Session.Search> searches, boolean show) {
+    for (int i = searches.size() - 1; i >= 0; i--) {
+      Session.Search search = searches.get(i);
+      entries.add(0, new Entry(ResultSet.restored(nextId++, search.request(), search.pinned())));
+    }
+    evict();
+    if (show) {
+      setShown(true);
+    }
+    if (!searches.isEmpty()) {
+      view.resultsChanged(true);
+    }
   }
 
   /**
@@ -659,6 +697,7 @@ public final class SearchController implements ResultsInput {
               r.noMemory()
                   ? UiText.SEARCH_NO_MEMORY.text()
                   : UiText.SEARCH_TRUNCATED.format(r.matches()));
+      case RESTORED -> notes.add(UiText.SEARCH_RESTORED.text());
       case DONE -> {
         // No note.
       }
@@ -775,18 +814,19 @@ public final class SearchController implements ResultsInput {
     }
     final FileResult group = e.set.files().get(file);
     Document document = group.document();
-    if (document != null && !documents.isOpen(document)) {
+    if (document != null && documents.holderOf(document) == null) {
       group.detach();
       document = null;
     }
     if (document == null && group.path() != null) {
-      document = documents.documentAt(group.path());
+      document = documents.documentAnywhere(group.path());
     }
     if (document == null && group.path() == null) {
       view.showNotice(UiText.SEARCH_CLOSED.text());
       return;
     }
-    final String name = document == null ? group.name() : documents.nameOf(document);
+    final String name =
+        document == null ? group.name() : documents.holderOf(document).nameOf(document);
     final ResultSet results = e.set;
     FileRerun.start(
         results,
@@ -971,11 +1011,11 @@ public final class SearchController implements ResultsInput {
     view.revealResult(set, file, match);
     Document document = f.document();
     if (document != null) {
-      if (!documents.isOpen(document)) {
+      if (documents.holderOf(document) == null) {
         f.detach();
       } else {
         f.rebase();
-        select(documents.show(document), f, match);
+        select(documents.showAnywhere(document), f, match);
         return;
       }
     }
@@ -1106,6 +1146,11 @@ public final class SearchController implements ResultsInput {
     } catch (IOException e) {
       return true;
     }
+  }
+
+  /** A document closed in another window; see {@link #detach}. */
+  void documentClosed(Document closed) {
+    detach(closed);
   }
 
   /** A document closed: its groups keep their offsets and open the file from then on. */

@@ -2,6 +2,8 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.WindowSet;
+import java.nio.file.Path;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -11,10 +13,12 @@ import org.eclipse.swt.widgets.MenuItem;
 
 /**
  * The macOS application menu: About, Preferences and Quit run {@link CommandId#ABOUT}, {@link
- * CommandId#PREFERENCES} and {@link CommandId#QUIT}, so the menu bar leaves them out ({@link
- * io.github.ajdailey.qcaret.app.command.MenuTable}). Hide, Hide Others and Show All stay native. A
- * quit request from the system (Cmd-Q, logout) runs {@link CommandId#QUIT}, with its
- * unsaved-changes prompts, in place of SWT's own disposal. Elsewhere {@link
+ * CommandId#PREFERENCES} and {@link CommandId#QUIT} in the window activated last, so the menu bar
+ * leaves them out ({@link io.github.ajdailey.qcaret.app.command.MenuTable}). Hide, Hide Others and
+ * Show All stay native. A quit request from the system (Cmd-Q, logout) runs {@link
+ * WindowSet#requestQuit}, with its unsaved-changes prompts in every window, in place of SWT's own
+ * disposal. A file the system opens with QCaret (Open With, a Dock drop) arrives as {@code
+ * SWT.OpenDocument} and goes to {@link WindowSet#openFile}. Elsewhere {@link
  * Display#getSystemMenu()} is null and nothing is added.
  */
 public final class AppMenu {
@@ -34,10 +38,10 @@ public final class AppMenu {
    * Adds the listeners when the application menu is present; call once, on the UI thread.
    *
    * @param display the Display
-   * @param controller the main window's controller
+   * @param set the windows of the instance
    * @return true when the listeners were added
    */
-  public static boolean hook(Display display, final ApplicationController controller) {
+  public static boolean hook(Display display, final WindowSet set) {
     if (!present(display)) {
       return false;
     }
@@ -50,7 +54,10 @@ public final class AppMenu {
             new Listener() {
               @Override
               public void handleEvent(Event event) {
-                controller.execute(command);
+                ApplicationController window = set.target();
+                if (window != null) {
+                  window.execute(command);
+                }
               }
             });
       }
@@ -61,7 +68,17 @@ public final class AppMenu {
           @Override
           public void handleEvent(Event event) {
             event.doit = false;
-            controller.execute(CommandId.QUIT);
+            set.requestQuit();
+          }
+        });
+    display.addListener(
+        SWT.OpenDocument,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.text != null) {
+              set.openFile(Path.of(event.text));
+            }
           }
         });
     return true;

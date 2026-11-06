@@ -685,6 +685,15 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
+   * Returns the first lines of the collapsed regions.
+   *
+   * @return the zero-based lines, ascending
+   */
+  public int[] collapsedLines() {
+    return Arrays.copyOf(folds.starts(), folds.regionCount());
+  }
+
+  /**
    * Returns the number of fold regions the view offers.
    *
    * @return regions from the last {@link #setFoldRegions}, moved by the edits since

@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.core.workspace.FileIndex;
 import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -159,6 +160,7 @@ public final class WorkspaceController implements WorkspaceInput {
                       root = real;
                       view.showNotice(UiText.WORKSPACE_SET.format(real));
                       reset();
+                      documents.sessionChanged();
                     }
                   }
                 });
@@ -248,6 +250,7 @@ public final class WorkspaceController implements WorkspaceInput {
       expand(rootNode());
     }
     view.documentStateChanged();
+    documents.sessionChanged();
   }
 
   @Override
@@ -375,6 +378,86 @@ public final class WorkspaceController implements WorkspaceInput {
     if (revealing != null) {
       reveal();
     }
+    expandRestored();
+  }
+
+  // Session state.
+
+  /** Directories a session expanded that wait for their parent's listing. */
+  private final List<Path> restoredExpanded = new ArrayList<Path>();
+
+  /**
+   * Puts back a session's folder and browser: the folder's real path is resolved on a {@code
+   * qcaret-io-} worker, a folder that is gone is dropped, and each directory expands once its
+   * parent is listed.
+   *
+   * @param folder the folder, empty for none
+   * @param browser true to show the browser
+   * @param expanded the expanded directories, parents first
+   */
+  void restore(String folder, final boolean browser, final List<Path> expanded) {
+    if (folder.isEmpty()) {
+      setShown(browser);
+      return;
+    }
+    final Path given;
+    try {
+      given = Path.of(folder).toAbsolutePath().normalize();
+    } catch (InvalidPathException e) {
+      setShown(browser);
+      return;
+    }
+    workers.tryStart(
+        Workers.Kind.IO,
+        new Runnable() {
+          @Override
+          public void run() {
+            final Path real = Files.isDirectory(given) ? realFolder(given) : null;
+            ui.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (disposed) {
+                      return;
+                    }
+                    if (real != null) {
+                      root = real;
+                      restoredExpanded.addAll(expanded);
+                      reset();
+                    }
+                    setShown(browser);
+                  }
+                });
+          }
+        });
+  }
+
+  /** Expands each restored directory whose parent is listed; the others wait. */
+  private void expandRestored() {
+    for (Path directory : new ArrayList<Path>(restoredExpanded)) {
+      Listing parent = listings.get(directory.getParent());
+      if (parent != null && parent.reading == null) {
+        restoredExpanded.remove(directory);
+        int at =
+            parent.entries == null
+                ? -1
+                : indexOf(parent.entries.entries(), String.valueOf(directory.getFileName()));
+        if (at >= 0 && at < parent.shown) {
+          view.expandWorkspace(node(directory.getParent(), parent.entries.entries().get(at)));
+        }
+      }
+    }
+  }
+
+  /** Returns the browser's expanded directories, parents first; empty while it is hidden. */
+  List<String> expandedDirectories() {
+    List<String> paths = new ArrayList<String>();
+    if (shown) {
+      for (WorkspaceNode node : view.expandedWorkspace()) {
+        paths.add(node.path().toString());
+      }
+    }
+    return paths;
   }
 
   private WorkspaceNode directoryNode(Path dir) {

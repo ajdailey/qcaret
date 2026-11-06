@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
+import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
@@ -57,7 +58,9 @@ final class FakeView implements MainView {
   /** One editor view: what the controller asked of it. */
   final class FakeEditor implements EditorView {
     final EditorInput editor;
+    int topRow;
     int caretShown;
+    int scrolledTo = -1;
     int focused;
     int[] matches = new int[0];
     int tabWidth;
@@ -71,9 +74,21 @@ final class FakeView implements MainView {
     }
 
     @Override
+    public int topRow() {
+      return topRow;
+    }
+
+    @Override
     public void showCaret() {
       ui.checkUiThread();
       caretShown++;
+    }
+
+    @Override
+    public void scrollToRow(int row) {
+      ui.checkUiThread();
+      scrolledTo = row;
+      topRow = row;
     }
 
     @Override
@@ -171,6 +186,9 @@ final class FakeView implements MainView {
 
   /** A tab: its title, its views and what the controller asked of it. */
   final class FakeTab implements TabView, EditorView {
+    int topRow;
+    int scrolledTo = -1;
+    int[] weights = {1, 1};
     final DisplayProjection projection;
     final SelectionModel selections;
     final EditorInput editor;
@@ -200,6 +218,11 @@ final class FakeView implements MainView {
     }
 
     @Override
+    public int topRow() {
+      return topRow;
+    }
+
+    @Override
     public void setTitle(String value, String tip) {
       ui.checkUiThread();
       title = value;
@@ -217,6 +240,13 @@ final class FakeView implements MainView {
     public void showCaret() {
       ui.checkUiThread();
       caretShown++;
+    }
+
+    @Override
+    public void scrollToRow(int row) {
+      ui.checkUiThread();
+      scrolledTo = row;
+      topRow = row;
     }
 
     @Override
@@ -264,6 +294,18 @@ final class FakeView implements MainView {
     public void setSideBySide(boolean side) {
       ui.checkUiThread();
       sideBySide = side;
+    }
+
+    @Override
+    public int[] splitWeights() {
+      ui.checkUiThread();
+      return weights.clone();
+    }
+
+    @Override
+    public void setSplitWeights(int[] value) {
+      ui.checkUiThread();
+      weights = value.clone();
     }
 
     @Override
@@ -392,6 +434,7 @@ final class FakeView implements MainView {
   boolean maximized;
   boolean hidden;
   boolean disposed;
+  int raised;
   String textTitle;
   String text;
   AboutInfo about;
@@ -440,6 +483,11 @@ final class FakeView implements MainView {
 
   FakeView(ManualUiDispatcher ui) {
     this.ui = ui;
+  }
+
+  @Override
+  public void toFront() {
+    raised++;
   }
 
   @Override
@@ -790,5 +838,61 @@ final class FakeView implements MainView {
   public void showComparison(Comparison comparison) {
     ui.checkUiThread();
     comparisons.add(comparison);
+  }
+
+  // Session state and recovery.
+
+  int[] sideWeights = {1, 3};
+  int[] dockWeights = {3, 1};
+  final List<WorkspaceNode> expanded = new ArrayList<WorkspaceNode>();
+  RecoveryInput recovery;
+  int recoveryChanges;
+
+  @Override
+  public int[] sideWeights() {
+    ui.checkUiThread();
+    return sideWeights.clone();
+  }
+
+  @Override
+  public void setSideWeights(int[] weights) {
+    ui.checkUiThread();
+    sideWeights = weights.clone();
+  }
+
+  @Override
+  public int[] dockWeights() {
+    ui.checkUiThread();
+    return dockWeights.clone();
+  }
+
+  @Override
+  public void setDockWeights(int[] weights) {
+    ui.checkUiThread();
+    dockWeights = weights.clone();
+  }
+
+  @Override
+  public List<WorkspaceNode> expandedWorkspace() {
+    ui.checkUiThread();
+    return List.copyOf(expanded);
+  }
+
+  @Override
+  public void expandWorkspace(WorkspaceNode directory) {
+    ui.checkUiThread();
+    expanded.add(directory);
+  }
+
+  @Override
+  public void showRecovery(RecoveryInput input) {
+    ui.checkUiThread();
+    recovery = input;
+  }
+
+  @Override
+  public void recoveryChanged() {
+    ui.checkUiThread();
+    recoveryChanges++;
   }
 }

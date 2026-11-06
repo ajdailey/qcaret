@@ -109,10 +109,10 @@ public final class EditorController implements EditorInput {
   private final Document document;
   private final SelectionModel selections;
   private final DisplayProjection projection;
-  private final ClipboardService clipboard;
+  private ClipboardService clipboard;
   private final Workers workers;
   private final UiDispatcher ui;
-  private final Runnable cancelSave;
+  private Runnable cancelSave;
   private EditorView view;
   private CancellationToken rewrap;
   private CancellationToken occurrence;
@@ -143,6 +143,8 @@ public final class EditorController implements EditorInput {
       new DocumentListener() {
         @Override
         public void textChanged(DocumentChange change) {
+          restoredFolds = null;
+          restoredTop = -1;
           ui.cancelTimer(foldTimer);
           ui.timerExec(FOLD_DELAY_MILLIS, foldTimer);
         }
@@ -203,6 +205,29 @@ public final class EditorController implements EditorInput {
     }
     view.setMarks(marksWhitespace, marksLineEndings);
     view.setOverviewShown(overviewShown);
+    if (columnMode) {
+      view.setColumnMode(true);
+    }
+  }
+
+  /** Lets go of the view before its tab moves to another window; closes the completion list. */
+  void releaseView() {
+    if (completionShown != null && completion != null) {
+      completion.cancel();
+    }
+    completionShown = null;
+    view = null;
+  }
+
+  /**
+   * Takes the routes of the window the tab moved to.
+   *
+   * @param windowClipboard that window's clipboard
+   * @param windowCancelSave cancels a running save there
+   */
+  void rebind(ClipboardService windowClipboard, Runnable windowCancelSave) {
+    clipboard = windowClipboard;
+    cancelSave = windowCancelSave;
   }
 
   /**
@@ -293,6 +318,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void viewportChanged(int start, int end) {
+    restoredTop = -1;
     int from = projection.toModel(start);
     int to = projection.toModel(end);
     if (from != visibleStart || to != visibleEnd) {
@@ -321,6 +347,65 @@ public final class EditorController implements EditorInput {
    */
   public int visibleEnd() {
     return visibleEnd;
+  }
+
+  // Session state.
+
+  /** The line {@link #restoreView} scrolled to, until the view reports its viewport. */
+  private int restoredTop = -1;
+
+  /**
+   * The lines {@link #restoreView} collapses as regions arrive, until an edit or a fold command.
+   */
+  private int[] restoredFolds;
+
+  private int foldsTop;
+
+  /**
+   * Puts back a view's remembered state. The caret and top line apply now; each fold applies once a
+   * region starts on its line, and the view scrolls to the top line again after it.
+   *
+   * @param set the selections, or null to keep them
+   * @param top the zero-based first visible line
+   * @param folds the first lines of the regions to collapse
+   */
+  void restoreView(SelectionSet set, int top, int[] folds) {
+    if (set != null) {
+      selections.set(set);
+    }
+    int line = Math.max(0, Math.min(top, document.text().lineCount() - 1));
+    restoredFolds = folds.length == 0 ? null : folds;
+    foldsTop = line;
+    applyRestoredFolds();
+    restoredTop = line;
+    if (view != null) {
+      view.scrollToRow(projection.rowOfLine(line));
+    }
+  }
+
+  private void applyRestoredFolds() {
+    if (restoredFolds == null) {
+      return;
+    }
+    boolean folded = false;
+    for (int line : restoredFolds) {
+      folded |= !projection.collapsed(line) && projection.foldAt(line);
+    }
+    if (folded) {
+      caretsOutOfFolds();
+      if (view != null) {
+        view.scrollToRow(projection.rowOfLine(foldsTop));
+      }
+    }
+  }
+
+  /**
+   * Returns the first visible line.
+   *
+   * @return the zero-based line, the restored one until the view reports
+   */
+  int topLine() {
+    return restoredTop >= 0 ? restoredTop : document.text().lineAt(visibleStart);
   }
 
   /**
@@ -1062,6 +1147,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void toggleFoldFromView(int row) {
+    restoredFolds = null;
     int line = projection.lineOfRow(Math.max(0, Math.min(row, projection.rowCount() - 1)));
     if (!projection.unfold(line) && projection.foldAt(line)) {
       caretsOutOfFolds();
@@ -1069,6 +1155,7 @@ public final class EditorController implements EditorInput {
   }
 
   private void fold(CommandId command) {
+    restoredFolds = null;
     foldAll = null;
     if (command == CommandId.FOLD_ALL) {
       requestFoldAll();
@@ -1216,6 +1303,7 @@ public final class EditorController implements EditorInput {
     }
     if (regions != null && document.revision() == revision) {
       projection.setFoldRegions(regions);
+      applyRestoredFolds();
     }
   }
 
@@ -1616,6 +1704,9 @@ public final class EditorController implements EditorInput {
 
   /** Sets the strip's mark computation and whether the strip shows. */
   void setOverview(OverviewUpdater updater, boolean shown) {
+    if (overview != null) {
+      overview.dispose();
+    }
     overview = updater;
     setOverviewShown(shown);
   }

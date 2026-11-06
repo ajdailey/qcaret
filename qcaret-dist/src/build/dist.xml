@@ -134,8 +134,14 @@ natives.macos-aarch64=${natives.macos-aarch64}
     <zip destfile="${out}/qcaret-${project.version}.zip"
         modificationtime="${archive.time}">
       <zipfileset file="${basedir}/src/bin/qcaret" fullpath="qcaret/bin/qcaret" filemode="755"/>
+      <zipfileset file="${basedir}/src/linux/install-desktop-entry"
+          fullpath="qcaret/bin/install-desktop-entry" filemode="755"/>
+      <zipfileset file="${basedir}/src/linux/qcaret.desktop" fullpath="qcaret/share/qcaret.desktop"/>
+      <zipfileset file="${basedir}/src/icons/qcaret.svg" fullpath="qcaret/share/qcaret.svg"/>
       <zipfileset file="${universal.jar}" fullpath="qcaret/lib/qcaret.jar"/>
       <zipfileset file="${build}/qcaret.exe" fullpath="qcaret/qcaret.exe"/>
+      <zipfileset file="${basedir}/src/windows/register-associations.cmd"
+          fullpath="qcaret/register-associations.cmd"/>
       <zipfileset refid="notices" prefix="qcaret"/>
       <zipfileset file="${basedir}/src/dist/THIRD-PARTY.txt" fullpath="qcaret/THIRD-PARTY.txt"/>
     </zip>
@@ -269,6 +275,9 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${basedir}/src/bin/qcaret" todir="${home}/bin"/>
+      <copy file="${basedir}/src/linux/install-desktop-entry" todir="${home}/bin"/>
+      <copy file="${basedir}/src/linux/qcaret.desktop" todir="${home}/share"/>
+      <copy file="${basedir}/src/icons/qcaret.svg" todir="${home}/share"/>
       <copy todir="${home}"><fileset refid="notices"/></copy>
       <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
       <mkdir dir="${out}"/>
@@ -279,7 +288,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <chmod perm="644" type="file"><fileset dir="${build}/bundles/@{target}"/></chmod>
       <chmod perm="755" type="file">
         <fileset dir="${build}/bundles/@{target}"
-            includes="qcaret/bin/qcaret,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
+            includes="qcaret/bin/*,qcaret/runtime/bin/*,qcaret/runtime/lib/jspawnhelper"/>
       </chmod>
       <exec executable="tar" failonerror="true">
         <env key="LC_ALL" value="C"/>
@@ -310,6 +319,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${build}/qcaret.exe" todir="${home}"/>
+      <copy file="${basedir}/src/windows/register-associations.cmd" todir="${home}"/>
       <copy todir="${home}"><fileset refid="notices"/></copy>
       <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
       <mkdir dir="${out}"/>

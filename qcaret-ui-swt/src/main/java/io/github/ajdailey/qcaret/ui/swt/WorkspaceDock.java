@@ -3,7 +3,8 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.eclipse.swt.SWT;
@@ -252,7 +253,7 @@ final class WorkspaceDock {
   }
 
   private static Set<WorkspaceNode> expandedNodes(TreeItem[] items) {
-    Set<WorkspaceNode> open = new HashSet<WorkspaceNode>();
+    Set<WorkspaceNode> open = new LinkedHashSet<WorkspaceNode>();
     collectExpanded(items, open);
     return open;
   }
@@ -455,7 +456,16 @@ final class WorkspaceDock {
   }
 
   /**
-   * Expands a directory row as a click on its arrow would, for tests.
+   * Returns the expanded rows.
+   *
+   * @return the directories, parents first
+   */
+  List<WorkspaceNode> expanded() {
+    return new ArrayList<WorkspaceNode>(expandedNodes(tree.getItems()));
+  }
+
+  /**
+   * Expands a directory row as a click on its arrow would.
    *
    * @param directory the row
    */

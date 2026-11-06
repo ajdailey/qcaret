@@ -16,9 +16,13 @@ public interface MainView
         SearchView,
         BookmarksView,
         WorkspaceView,
-        CompareView {
+        CompareView,
+        SessionView {
   /** Hides the window while shutdown completes. */
   void hide();
+
+  /** Restores the window when minimized and brings it to the front. */
+  void toFront();
 
   /** Disposes the window, which ends the event loop. */
   void dispose();

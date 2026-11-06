@@ -53,6 +53,9 @@ final class PreferencesDialog {
   private Text maxHighlightLineChars;
   private Text pollSeconds;
   private Button autoReloadClean;
+  private Text recoveryIntervalSeconds;
+  private Text recoveryKeepDays;
+  private Button sessionSnapshot;
   private Text backupDays;
   private Text searchMaxLineChars;
   private Text excludedDirectories;
@@ -151,6 +154,9 @@ final class PreferencesDialog {
   private void files(Composite page) {
     pollSeconds = field(page, UiText.PREFERENCES_POLL_SECONDS);
     autoReloadClean = check(page, UiText.PREFERENCES_AUTO_RELOAD);
+    recoveryIntervalSeconds = field(page, UiText.PREFERENCES_RECOVERY_SECONDS);
+    recoveryKeepDays = field(page, UiText.PREFERENCES_RECOVERY_DAYS);
+    sessionSnapshot = check(page, UiText.PREFERENCES_SESSION_SNAPSHOT);
   }
 
   private void search(Composite page) {
@@ -299,6 +305,9 @@ final class PreferencesDialog {
     maxHighlightLineChars.setText(form.maxHighlightLineChars());
     pollSeconds.setText(form.pollSeconds());
     autoReloadClean.setSelection(form.autoReloadClean());
+    recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
+    recoveryKeepDays.setText(form.recoveryKeepDays());
+    sessionSnapshot.setSelection(form.sessionSnapshot());
     backupDays.setText(form.backupDays());
     searchMaxLineChars.setText(form.searchMaxLineChars());
     excludedDirectories.setText(form.excludedDirectories());
@@ -317,6 +326,9 @@ final class PreferencesDialog {
         maxHighlightLineChars.getText(),
         pollSeconds.getText(),
         autoReloadClean.getSelection(),
+        recoveryIntervalSeconds.getText(),
+        recoveryKeepDays.getText(),
+        sessionSnapshot.getSelection(),
         backupDays.getText(),
         searchMaxLineChars.getText(),
         excludedDirectories.getText(),

@@ -20,7 +20,17 @@ tab's control is a
 tab's focused view; a pane's `FocusIn` reports it to the controller, and a
 view the controller focuses becomes it without waiting for the event. `attach` connects the
 controller: menu items run `ApplicationController.execute`, and a
-window-system close request runs Exit.
+window-system close request runs `closeWindow`.
+
+Tab move: a tab drag uses the strip's `MouseDown` and `MouseUp`, no
+`DragSource`. A release on another tab reorders. A release off the tabs asks
+`Display.getCursorControl` (through a `PointerProbe` tests replace) for the
+control under the point: another main window's control moves the tab there,
+before the tab under the point or last; no QCaret control and a point outside
+the source shell opens a new window with its corner at the point, which GTK 4
+and Wayland place themselves. The shell's data names its `MainWindow`. A moved
+tab is a new `Tab` with new `EditorPane`s over the same projection and
+selections; widgets do not cross shells. Public SWT API only.
 
 `MainMenuBar` builds one menu per `CommandGroup` from `MenuTable` and applies
 `CommandStates`; it reads no controller getter for item state. Each item shows
@@ -34,7 +44,8 @@ Encoding menu holds Reopen with Encoding and Save with Encoding cascades: the
 common charsets from the start, and an Other cascade disabled until
 `EncodingChoices` arrives from a worker, filled again when a keymap change
 rebuilds the menus. The
-Window menu lists the open documents, and File > Recent Files the recent
+Window menu lists the windows, when there are several, and the open documents,
+and File > Recent Files the recent
 files above Clear Recent Files, each rebuilt when its menu shows; a path's
 `&` is doubled (QLogg SWT-22). A Display key
 filter runs window bindings that are not accelerators (Ctrl plus keypad +),
@@ -58,6 +69,13 @@ refuses a stroke that types or that another command holds and names that
 command, Remove and Default Keys edit the selected command. `setKeymap`
 rebuilds the menu bar and hands the keymap to every `EditorPane` and an open
 `ShortcutsWindow`.
+
+`RecoveryDialog` lists a dead instance's buffers over `RecoveryInput`: file, write
+time and how the original stands, all rows selected. Restore and Discard act on
+the selected rows; Later and closing the dialog keep the rest for the next
+start. It is modeless and closes when no row is left. `EditorPane.scrollToRow`
+waits for the first resize when the view has no size yet, which is every hidden
+tab of a restored session.
 
 `MainWindow.rememberSize` gives the resizable windows (`preferences`,
 `shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`) their last
@@ -364,10 +382,12 @@ can differ from the palette on cocoa and on win32 before a restart.
 ## macOS application menu
 
 `AppMenu.hook` wires the system's application menu on cocoa: About, Quit
-and Preferences run `ABOUT`, `QUIT` and `PREFERENCES` in the controller and
-are left out of the menu bar; Hide, Hide Others and Show All stay native. A system quit request (Cmd-Q, logout) arrives as a
-Display `SWT.Close`, which is vetoed and runs `QUIT`, so the unsaved-changes
-prompts and the ordered quit always run (unverified on cocoa). Elsewhere there is no application menu and `hook` does nothing.
+and Preferences run `ABOUT`, `QUIT` and `PREFERENCES` in the window activated
+last and are left out of the menu bar; Hide, Hide Others and Show All stay native. A system quit request (Cmd-Q, logout) arrives as a
+Display `SWT.Close`, which is vetoed and runs `WindowSet.requestQuit`, so the
+unsaved-changes prompts of every window and the ordered quit always run. A file
+opened with QCaret (Open With, a Dock drop) arrives as `SWT.OpenDocument` and
+goes to `WindowSet.openFile`. All of it is unverified on cocoa. Elsewhere there is no application menu and `hook` does nothing.
 
 ## Icons
 
@@ -379,12 +399,20 @@ with jsvg, which is a build-only dependency.
 
 ## Tests
 
+`TabMoveGuiTest` drives the menu items and tab drags over real shells, with a
+`PointerProbe` naming the control under the release; `-Dqcaret.shots=<dir>`
+writes its screenshots.
+
 Every test class runs under `HangWatchdog`, registered through
 `META-INF/services`: a test still running after 120 s
 (`qcaret.test.hangSeconds`) prints every thread's stack and halts the test JVM
 5 s later, so a native call that blocks the main thread ends the CI job with a
 stack. `EventLoop.runUntil` dispatches events until a condition holds, with no
 fixed sleep.
+
+`RecoverySurfaceTest` drives the recovery dialog and a restored split on a real
+window, with the top line of a tab shown later and a fold in one view. With
+`-Dqcaret.screenshots=<dir>` it captures both.
 
 `PreferencesSurfaceTest` drives the dialog on a real window: a refused field
 keeps it open on its tab, Restore Defaults applies nothing, the Keys tab refuses

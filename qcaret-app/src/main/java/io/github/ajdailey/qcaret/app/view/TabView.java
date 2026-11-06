@@ -54,6 +54,20 @@ public interface TabView {
   void setSideBySide(boolean sideBySide);
 
   /**
+   * Returns a split tab's sash weights.
+   *
+   * @return two weights
+   */
+  int[] splitWeights();
+
+  /**
+   * Sets a split tab's sash weights.
+   *
+   * @param weights two positive weights
+   */
+  void setSplitWeights(int[] weights);
+
+  /**
    * Disposes every view but one.
    *
    * @param kept the view that stays

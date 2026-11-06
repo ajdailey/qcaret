@@ -19,7 +19,8 @@ jars under `META-INF/qcaret/lib/`, the six SWT fragments unmodified under
 plugin cannot merge the fragments, which share class names.
 
 `qcaret-<version>.zip` holds `qcaret/lib/qcaret.jar`, `qcaret/bin/qcaret`,
-`qcaret/qcaret.exe`, `LICENSE`, `NOTICE` and `THIRD-PARTY.txt`.
+`qcaret/qcaret.exe`, both file-association sets below, `LICENSE`, `NOTICE` and
+`THIRD-PARTY.txt`.
 
 ## Bundles
 
@@ -28,8 +29,8 @@ every target runs the jar that was tested.
 
 | Target | Archive | Layout |
 |---|---|---|
-| Linux | `.tar.gz` | `qcaret/bin/qcaret`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
-| Windows | `.zip` | `qcaret/qcaret.exe`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
+| Linux | `.tar.gz` | `qcaret/bin/{qcaret, install-desktop-entry}`, `qcaret/share/{qcaret.desktop, qcaret.svg}`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
+| Windows | `.zip` | `qcaret/qcaret.exe`, `qcaret/register-associations.cmd`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
 | macOS | `.zip` | `QCaret.app/Contents/{Info.plist, MacOS/QCaret, app/QCaret.cfg, app/lib/qcaret.jar, runtime/, Resources/QCaret.icns, Resources/swt/}` |
 
 `lib/swt/` holds the target's natives, `about.html` and `about_files/`,
@@ -50,6 +51,18 @@ Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
 macOS. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so it is
 left out. `--strip-debug` is not used: it runs the host `objcopy` on target
 binaries and fails across targets.
+
+## File associations
+
+| Target | File | Effect |
+|---|---|---|
+| macOS | `src/macos/Info.plist` `CFBundleDocumentTypes` | QCaret is an Alternate editor for text, source, XML, JSON, YAML and Markdown; files arrive as `SWT.OpenDocument` |
+| Linux | `src/linux/install-desktop-entry`, `src/linux/qcaret.desktop` | Per user: writes the entry, with this tree's `bin/qcaret` in `Exec`, and the icon under `XDG_DATA_HOME`; `--uninstall` removes them |
+| Windows | `src/windows/register-associations.cmd` | Per user, `HKCU` only: adds `QCaret.File` to each listed extension's `OpenWithProgids`; `/u` removes it |
+
+None takes a default away from the user's current program. Each opens the file
+through the normal launch, so a running instance receives it through the
+handoff.
 
 ## Reproducible output
 

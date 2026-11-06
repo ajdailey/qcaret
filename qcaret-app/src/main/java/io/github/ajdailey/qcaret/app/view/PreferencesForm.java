@@ -12,6 +12,9 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param maxHighlightLineChars the longest line colored
  * @param pollSeconds seconds between file checks
  * @param autoReloadClean the Reload box
+ * @param recoveryIntervalSeconds seconds between recovery file writes
+ * @param recoveryKeepDays days a dead instance's recovery files are kept
+ * @param sessionSnapshot the snapshot box
  * @param backupDays days a replace run's backups are kept
  * @param searchMaxLineChars the longest line searched
  * @param excludedDirectories directory names, {@code ;}-separated
@@ -25,6 +28,9 @@ public record PreferencesForm(
     String maxHighlightLineChars,
     String pollSeconds,
     boolean autoReloadClean,
+    String recoveryIntervalSeconds,
+    String recoveryKeepDays,
+    boolean sessionSnapshot,
     String backupDays,
     String searchMaxLineChars,
     String excludedDirectories,

@@ -73,7 +73,10 @@ class SearchControllerTest {
                     o.autoReloadClean(),
                     o.backupDays(),
                     Options.MIN_SEARCH_LINE_CHARS,
-                    o.excludedDirectories())));
+                    o.excludedDirectories(),
+                    o.recoveryIntervalSeconds(),
+                    o.recoveryKeepDays(),
+                    o.sessionSnapshot())));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();
     assertEquals(1, search.sets().get(0).matches());

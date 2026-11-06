@@ -27,34 +27,51 @@ every mode, it sets `org.eclipse.swt.browser.EdgeDataDir` to
 `<settings>/cache/webview2`, so an embedded WebView2 browser keeps its data in
 the settings directory. With `-l` it attaches the debug log file.
 
-`Gui` runs on the calling thread, which becomes the UI thread:
+`Gui` reads `qcaret_session.conf` before the Display. Without `-m`, a start
+`StartupRequest.restoresSession` accepts (no file or `--diff`, or `--session`)
+restores the session and owns it; otherwise only Recent Files and per-file state
+apply. It runs on the calling thread, which becomes the
+UI thread:
 
 1. `Display.setAppName("QCaret")`, then the Display.
 2. `Workers`, then `SwtThemeService.open`, before the first Shell: for light
    and dark it sets the native controls' theme (system leaves them to the OS);
    on macOS native controls always follow the OS.
-3. The `MainWindow` with the resolved palette and its
-   `ApplicationController`, whose documents draw on `MemoryBudget.fromRuntime()`; `AppMenu.hook` connects the macOS application menu
-   (a no-op elsewhere).
-4. The window is placed from the `--window-*` options, else the remembered
-   `window.*` bounds, and maximized when it was maximized and no `--window-*`
-   option is given. It opens and logs
-   `Main window open: client area <w>x<h>, location <x>,<y>` at INFO.
-5. File arguments open in tabs through `DocumentController.open`; without
-   any, an untitled document opens.
+3. The `WindowSet`, whose documents draw on `MemoryBudget.fromRuntime()`, and
+   its factory for later windows; `AppMenu.hook` connects the macOS application
+   menu (a no-op elsewhere). Then the first `MainWindow` with the resolved
+   palette and its `ApplicationController`.
+4. The window is placed from the `--window-*` options, else the session's first
+   window on a restoring start, else the `window.*` bounds of `qcaret.conf`, and
+   maximized when it was maximized and no `--window-*` option is given. It opens
+   and logs `Main window open: client area <w>x<h>, location <x>,<y>` at INFO.
+5. `ApplicationController.startSession` restores every saved window, then file
+   arguments and `--diff` open through `ApplicationController.open`; without a
+   file, a window left empty opens an untitled document.
 6. At `-d 2` and above an `EventLoopWatchdog` logs UI-thread stalls.
+7. On the primary instance the `InstanceServer` starts delivering handed
+   launches to `WindowSet.openHandoff` on the UI thread, and quit closes it
+   first.
 
 The controller saves the placement at quit only when neither `-m` nor a
 `--window-*` option was given, so a command-line placement applies to that run
-only. The loop ends when the window is disposed; then the Display is disposed
-and `run` returns 0.
+only. The loop ends when every main window is disposed; then the Display is
+disposed and `run` returns 0.
+
+Before the Display, without `-m`, `Launcher` claims the instance lock (see the
+`qcaret-app` README). A held lock hands the launch over and exits 0, before
+`-l` attaches a log file; any failure, or a settings directory another user owns
+or can write, logs one WARN and runs on alone, as with `-m`. `-d` and `-l` of a
+launch that hands off apply to that process only, and so does `--session`:
+the running instance restored its session at its own start.
 
 A JVM shutdown hook covers an exit that skips the ordered quit (SIGTERM,
 logoff, a parent ending the process). `ShutdownHook` posts
-`ApplicationController.quit` through the dispatcher, waits up to 3 s for it to
+`WindowSet.quit` through the dispatcher, waits up to 3 s for it to
 save and close the workers, logs the threads still running past that bound,
-and touches no widget; that quit asks nothing about unsaved documents. After
-an ordered quit `Gui` removes the hook.
+and touches no widget; that quit asks nothing about unsaved documents. It then
+closes the `InstanceServer`, removing the endpoint. After an ordered quit `Gui`
+removes the hook.
 
 ## Logging
 
@@ -69,7 +86,7 @@ property, and attaches the root handlers:
 |---|---|---|
 | `StderrHandler` | `-d`, WARN when absent | Standard error |
 | `RecentHandler` | INFO, or `-d` when finer | `LogConfigurator.RECENT` (`RecentLog`); WARN and ERROR lines count as warnings |
-| `LogFileHandler` | DEBUG, or `-d` when finer | `<settings>/logs/qcaret-<pid>.log` through `FileLog`, while attached |
+| `LogFileHandler` | DEBUG, or `-d` when finer | `<settings>/logs/qcaret.log` on the primary, else `qcaret-<pid>.log`, through `FileLog`, while attached |
 
 `-d` maps to JUL as slf4j-jdk14 maps the SLF4J levels: `error` SEVERE, `warn`
 WARNING, `info` INFO, `debug` FINE, `trace` FINEST. The
@@ -95,9 +112,9 @@ move logs a WARN. A failed write or open detaches the file and logs an ERROR.
 shutdown hook calls `reset()`, which would remove the handlers while
 `ShutdownHook` still logs.
 
-Every process names its file `qcaret-<pid>.log`; `FileLog.fileName` gives
-`qcaret.log` only to the holder of the single-instance lock, which does not
-exist yet. A process started with the file attached runs `FileLog.prune` on a
+`FileLog.fileName` gives `qcaret.log` to the holder of the single-instance
+lock and `qcaret-<pid>.log` to any other process, so no two processes roll one
+file. The primary, started with the file attached, runs `FileLog.prune` on a
 `qcaret-lifecycle-` worker: it deletes each `qcaret-<pid>.log` or `.log.1`
 modified more than 7 days ago whose process is not running
 (`ProcessHandle.of`).
@@ -158,9 +175,22 @@ starts `Main` with `-l` as a child process, waits for the window line in its
 log, sends SIGTERM (`Process.destroy`) and checks that the process ends within
 the hook's bound, saved the placement, and logged the hook's INFO line to the
 file. Windows has no SIGTERM; `destroy` there terminates without hooks.
+`WindowsGuiTest` (tag `swt`) opens a second window through the composed
+application, hands a file over a real loopback exchange, quits and checks that
+the endpoint is gone. It does not assert which window takes the file: a late
+`SWT.Activate` moves the target under load without a window manager.
+`WindowSetTest` in `qcaret-app` pins the target.
+It also starts over a two-window session: `--no-session` opens one window with
+an untitled document, a plain start opens both saved windows.
 `ScreenshotsTest` (tag `swt`) runs only with `-Dqcaret.screenshots=<dir>`
 (`tools/screenshots.sh`): it opens generated mock files and writes the README
 screenshots in the light and the dark theme.
+
+`AbnormalShutdownTest` (tag `swt`) starts `CrashChild`, which types into the
+untitled document, waits for its recovery file, kills it with `destroyForcibly`
+and starts `Gui` again: the buffer is offered and restores dirty. `StoreFaultsTest`
+(tag `swt`) starts over a malformed, oversized and unknown-version session file
+and a remembered charset the runtime lacks.
 
 `ShutdownHookTest` runs the hook's task directly. Surefire plants
 `java.util.logging.config.file` (`planted-logging.properties`);
