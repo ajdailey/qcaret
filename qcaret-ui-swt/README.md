@@ -78,7 +78,7 @@ waits for the first resize when the view has no size yet, which is every hidden
 tab of a restored session.
 
 `MainWindow.rememberSize` gives the resizable windows (`preferences`,
-`shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`) their last
+`shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`, `guide`) their last
 size, within the monitor's client area, after they open, and keeps a size that
 changed when the window closes.
 
@@ -218,6 +218,25 @@ shell; Licenses opened from About therefore stays usable. Three calls do run a
 nested event loop, so code around them must tolerate re-entrant events:
 `FileDialog.open`, `ColorDialog.open`, and `Clipboard.getContents` on GTK,
 which `MainWindow.clipboardText` uses.
+
+### User guide
+
+`GuideWindow` is a modeless window, one per main window, over an SWT `Browser`
+with JavaScript off. A `LocationListener` refuses every location but the guide's
+file, with or without an anchor, and `about:blank`.
+
+| Platform | Behavior |
+|---|---|
+| GTK 3 | WebKitGTK; without it `Browser` creation fails and the fallback runs |
+| GTK 4 (`SWT_GTK4=1`) | `MainWindow.showGuide` shows a notice naming the file and creates no `Browser`: WebKitGTK 6.0 aborts the JVM ("Failed to fully launch dbus-proxy"). DO NOT CREATE ONE THERE |
+| cocoa | WebKit opens a modal "Page Load Failed" alert for a missing page, so the page is written before the load. An SWT timer runs inside any nested run loop a native call spins, so a bound that expires during this window's own `setUrl` or `Shell.open` closes the window after the call returns (`calls`, `deferredFailure`) |
+| win32 | WebView2 creation can stall; its data folder is `<settings>/cache/webview2` (`PlatformSetup`), inside the settings directory in every mode |
+
+An `SWTException` or `SWTError` from any browser call, or a page not loaded
+within `LOAD_BOUND_MILLIS` (15 s, `LoadBound` on `UiDispatcher.timerExec`), closes
+the window and calls `ApplicationController.showGuideElsewhere`; during `create`
+it returns null and `showGuide` returns false. The location comes from the
+`changed` event: `Browser.getUrl` can throw on win32.
 
 ## Editor (`ui.swt.editor`)
 
@@ -409,6 +428,14 @@ Every test class runs under `HangWatchdog`, registered through
 5 s later, so a native call that blocks the main thread ends the CI job with a
 stack. `EventLoop.runUntil` dispatches events until a condition holds, with no
 fixed sleep.
+
+`GuideWindowTest` runs User Guide to its window or fallback, GTK 4's notice, the
+locations `allowed` takes, a result arriving after the window closed, a throwing
+browser factory and `LoadBound`. A real
+browser's outcome is never raced against a short timer: Cocoa and GTK resolve
+that race opposite ways. `GuideScreenshotsTest` runs only with
+`-Dqcaret.guide.shots=<dir>` (`tools/screenshots.sh`) and writes the user guide's
+images from generated mock files.
 
 `RecoverySurfaceTest` drives the recovery dialog and a restored split on a real
 window, with the top line of a tab shown later and a fold in one view. With

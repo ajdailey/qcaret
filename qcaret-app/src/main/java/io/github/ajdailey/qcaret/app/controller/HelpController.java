@@ -237,8 +237,8 @@ final class HelpController {
   }
 
   /**
-   * Writes the user guide to the settings cache folder on a worker, then opens it in the
-   * application the system opens HTML with, else names the file in a notice.
+   * Writes the user guide to the settings cache folder on a worker, then shows it in a browser
+   * window, else as {@link #showGuideElsewhere}.
    */
   void showGuide() {
     final Path settings = location.directory();
@@ -263,14 +263,29 @@ final class HelpController {
                   public void run() {
                     if (guide == null) {
                       view.showNotice(notice);
-                    } else if (!view.launch(guide)) {
-                      LOG.warn("No application opened {}", LogText.oneLine(guide));
-                      view.showNotice(UiText.NOTICE_GUIDE_AT.format(guide));
+                    } else if (!view.showGuide(guide)) {
+                      showGuideElsewhere(guide);
                     }
                   }
                 });
           }
         });
+  }
+
+  /**
+   * Opens the user guide's copy in the application the system opens HTML with, else names the file
+   * in a notice. Does nothing once the window is closing.
+   *
+   * @param guide the guide's copy
+   */
+  void showGuideElsewhere(Path guide) {
+    if (closing.getAsBoolean()) {
+      return;
+    }
+    if (!view.launch(guide)) {
+      LOG.warn("No application opened {}", LogText.oneLine(guide));
+      view.showNotice(UiText.NOTICE_GUIDE_AT.format(guide));
+    }
   }
 
   /** Collects the About facts on a worker, then shows the dialog. */

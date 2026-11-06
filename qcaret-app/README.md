@@ -229,8 +229,9 @@ command.
 `HelpController` runs the Help commands. Keyboard Shortcuts opens the view's
 filtered table of the `Keymap`; Command-Line Options shows the usage text. User Guide
 copies the guide page from the jar to `<settings>/cache/guide.html` on a
-worker and opens it with the system's HTML application, else names the file
-in a notice; the page in this build is a placeholder. Show Log shows the
+worker and calls `MainView.showGuide`. When the view has no browser, or closes
+its window after a browser failure (`showGuideElsewhere`), the system's HTML
+application opens the copy, else a notice names the file. Show Log shows the
 `RecentLog` lines and clears the status-bar marker, which a WARN or ERROR line
 on any thread shows through one posted task at a time. Debug Log File attaches
 or detaches the log file on a worker, saves `log.debugFile`, and its check
@@ -1129,7 +1130,18 @@ background, the current line and a find match (`PaletteTest`).
 `UiText` names every string the UI shows; the English bundle
 `messages.properties` holds them, and `ArchitectureTest.everyUiTextIsUsed`
 fails on a constant nothing reads. `AboutInfo` collects the version, Java, OS,
-toolkit and settings directory for About and Copy Details. `RecentLog` keeps
+toolkit and settings directory for About and Copy Details.
+
+The build converts `docs/user-guide.md` to `app/guide/guide.html` in this
+module's jar. `src/build/GuideRenderer.java` runs at `generate-resources` with
+commonmark and its tables extension, which `maven-dependency-plugin` copies to
+`target/guide-tools` and so stay off every class path. It embeds each PNG as a
+`data:` URI and gives each heading a plain `HtmlInline` `<a id>` with its GitHub
+anchor; a subclass of `HtmlInline` renders as nothing. A link leaving the page,
+a `#link` naming no heading and an image that is not a PNG beside the guide fail
+the build.
+
+`RecentLog` keeps
 the last log lines for the launcher's `RecentHandler`, `LogFiles` is the
 debug log file's contract, and `EventLoopWatchdog` reports UI-thread stalls at
 `-d 2` and above.
@@ -1194,8 +1206,12 @@ every command but the open and close ones on a binary view and checks that the
 file's bytes and its folder's listing are unchanged; it also covers a declined
 binary prompt, Reopen and Save with Encoding, the line-ending conversion and
 its undo, a conversion dropped after an edit, the tab commands, the warning
-marker, Debug Log File with a failing attach, the user guide copy, Report an
-Issue and the zoom bounds. `KeymapTest` checks that no stroke is bound twice on
+marker, Debug Log File with a failing attach, the user guide copy and its
+fallback, Report an Issue and the zoom bounds. `UserGuidePageTest` reads the
+shipped page (every `#` link names a heading anchor, tables converted, images
+embedded, no other reference, no script) and runs the converter on a link it
+must refuse. `LicenseNoticesTest` checks that the Licenses text names every
+bundled component at the versions the parent POM pins. `KeymapTest` checks that no stroke is bound twice on
 any platform, the platform key choices (Add Caret, F6, Go Back and Go
 Forward), the Quick Open keys, the reference filter
 and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`

@@ -8,9 +8,9 @@ import java.io.InputStream;
 import java.nio.file.Path;
 
 /**
- * The user guide shipped in the jar: one self-contained HTML page. A browser shows the copy {@link
- * #writeCopy} puts in the settings directory's {@code cache} folder; the page loads nothing from
- * elsewhere. The page in this build is a placeholder.
+ * The user guide shipped in the jar: one self-contained HTML page the build generates from {@code
+ * docs/user-guide.md}, with its images inlined. A browser shows the copy {@link #writeCopy} puts in
+ * the settings directory's {@code cache} folder; the page loads nothing from elsewhere.
  */
 public final class UserGuide {
   /** The page's resource name. */
@@ -23,15 +23,6 @@ public final class UserGuide {
   public static final String FILE = "guide.html";
 
   private UserGuide() {}
-
-  /**
-   * Reports whether the build includes the page.
-   *
-   * @return false for a build that skipped the guide
-   */
-  public static boolean included() {
-    return UserGuide.class.getResource(RESOURCE) != null;
-  }
 
   /**
    * Copies the page to {@code <settings>/cache/guide.html}, creating the folder owner-only and

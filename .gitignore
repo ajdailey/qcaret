@@ -30,6 +30,7 @@ desktop.ini
 # Markdown is local working material unless listed below.
 *.md
 !/README.md
+!/docs/user-guide.md
 !/qcaret-app/README.md
 !/qcaret-bench/README.md
 !/qcaret-bootstrap/README.md

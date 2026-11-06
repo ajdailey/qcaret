@@ -377,6 +377,24 @@ class ShellCommandsTest {
   }
 
   @Test
+  void aGuideWindowShowsTheCopyAndOpensNothingElseUntilItsBrowserFails() throws Exception {
+    harness.view.guideWindow = true;
+    harness.application.execute(CommandId.USER_GUIDE);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.guides.size() == 1;
+          }
+        },
+        "guide window");
+    assertTrue(harness.view.launched.isEmpty(), harness.view.launched.toString());
+    Path guide = harness.view.guides.get(0);
+    harness.application.showGuideElsewhere(guide);
+    assertEquals(List.of(guide.toString()), harness.view.launched);
+  }
+
+  @Test
   void zoomIsBounded() {
     for (int i = 0; i < 80; i++) {
       harness.application.execute(CommandId.ZOOM_IN);

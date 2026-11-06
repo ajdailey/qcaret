@@ -109,6 +109,16 @@ public interface MainView
   boolean launchUrl(String url);
 
   /**
+   * Shows the user guide in a window with an embedded browser, or brings that window to the front.
+   * When the browser fails or the page does not load in time after this returned true, the view
+   * closes the window and calls {@code ApplicationController.showGuideElsewhere}.
+   *
+   * @param file the guide's HTML file
+   * @return false when the browser fails before the window opens
+   */
+  boolean showGuide(Path file);
+
+  /**
    * Sets the editor font size.
    *
    * @param points the size, 0 for the platform's default

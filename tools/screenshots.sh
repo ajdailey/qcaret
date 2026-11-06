@@ -1,9 +1,11 @@
 #!/bin/sh
 # Writes docs/images/qcaret-light.png and qcaret-dark.png (the main window,
-# 1100x700) from generated mock files under Xvfb. Linux (GTK) only. Needs
-# xvfb-run and a JDK 21 in JAVA_HOME; the test JVM uses target/test-home as
-# user.home, so nothing is written to the real home directory. The files are
-# written to /tmp/qcaret-demo and removed afterwards.
+# 1100x700) and the user guide's docs/images/guide/*.png from generated mock
+# files under Xvfb. Linux (GTK) only. Needs xvfb-run and a JDK 21 in JAVA_HOME;
+# the test JVMs use target/test-home as user.home, so nothing is written to the
+# real home directory. The files are written to /tmp/qcaret-demo and removed
+# afterwards. Every image the guide names must exist before this runs, because
+# the build embeds them; the next build embeds the new ones.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -11,6 +13,7 @@ files=/tmp/qcaret-demo
 cd "$root"
 trap 'rm -rf "$files"' EXIT
 xvfb-run -a -s "-screen 0 1280x800x24" ./mvnw -q package -pl qcaret-launcher -am \
-    -Dtest=ScreenshotsTest -Dsurefire.failIfNoSpecifiedTests=false \
-    -Dqcaret.screenshots="$root/docs/images" -Dqcaret.screenshots.files="$files"
-ls -l "$root/docs/images"
+    -Dtest='ScreenshotsTest,GuideScreenshotsTest' -Dsurefire.failIfNoSpecifiedTests=false \
+    -Dqcaret.screenshots="$root/docs/images" -Dqcaret.guide.shots="$root/docs/images/guide" \
+    -Dqcaret.screenshots.files="$files"
+ls -l "$root/docs/images" "$root/docs/images/guide"

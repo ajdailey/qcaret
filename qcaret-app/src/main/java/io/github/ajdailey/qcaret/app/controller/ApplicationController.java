@@ -33,6 +33,7 @@ import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -838,6 +839,15 @@ public final class ApplicationController {
   /** Reads the license notices from the jar on a worker, then shows them; About's Licenses. */
   public void showLicenses() {
     help.showLicenses();
+  }
+
+  /**
+   * Opens the user guide outside the window after its browser failed.
+   *
+   * @param guide the guide's copy
+   */
+  public void showGuideElsewhere(Path guide) {
+    help.showGuideElsewhere(guide);
   }
 
   /**

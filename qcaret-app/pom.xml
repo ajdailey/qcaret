@@ -65,6 +65,81 @@
             </resource>
         </resources>
         <plugins>
+            <!-- docs/user-guide.md converts to one self-contained HTML page under
+                 target/generated-resources/guide, which the jar includes. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>guide-renderer</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.commonmark</groupId>
+                                    <artifactId>commonmark</artifactId>
+                                    <version>${commonmark.version}</version>
+                                    <destFileName>commonmark.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.commonmark</groupId>
+                                    <artifactId>commonmark-ext-gfm-tables</artifactId>
+                                    <version>${commonmark.version}</version>
+                                    <destFileName>commonmark-tables.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/guide-tools</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>render-guide</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${java.home}/bin/java</executable>
+                            <arguments>
+                                <argument>-cp</argument>
+                                <argument>${project.build.directory}/guide-tools/commonmark.jar${path.separator}${project.build.directory}/guide-tools/commonmark-tables.jar</argument>
+                                <argument>${project.basedir}/src/build/GuideRenderer.java</argument>
+                                <argument>${project.basedir}/../docs/user-guide.md</argument>
+                                <argument>${project.build.directory}/generated-resources/guide/io/github/ajdailey/qcaret/app/guide/guide.html</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>guide-resources</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>add-resource</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.directory}/generated-resources/guide</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- ManualUiDispatcher is shared with the UI and launcher tests. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

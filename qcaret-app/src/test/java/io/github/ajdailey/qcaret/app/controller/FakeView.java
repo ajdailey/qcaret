@@ -445,6 +445,8 @@ final class FakeView implements MainView {
   final AtomicInteger active = new AtomicInteger();
   final List<String> notices = new ArrayList<String>();
   final List<String> launched = new ArrayList<String>();
+  final List<Path> guides = new ArrayList<Path>();
+  boolean guideWindow;
   String log;
   boolean warningMarker;
   int fontSize;
@@ -605,6 +607,12 @@ final class FakeView implements MainView {
   public void showWarningMarker(boolean shown) {
     ui.checkUiThread();
     warningMarker = shown;
+  }
+
+  @Override
+  public boolean showGuide(Path file) {
+    guides.add(file);
+    return guideWindow;
   }
 
   @Override

@@ -8,23 +8,37 @@
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
 SWT. It runs no macros, scripts or plugins.
 
-Version 0.1.0 is in development. The current build opens, edits and saves
-files in tabs, with undo and redo, word wrap, line numbers and multiple carets
-(painted; created by Alt+click), encoding and line-ending conversion, a
-read-only view of binary files, a status bar, the Help menu, its remembered
-window placement, syntax highlighting for 35 languages and 12 file formats
-with user grammars and comment commands, multiple carets, column selection
-and folding, HyperSearch across files and folders with replace, a workspace
-browser with Quick Open, and Go Back and Go Forward. Planned for 0.1.0:
-sessions and crash recovery.
+Version 0.1.0 is in development. It has:
+
+- Tabs with undo and redo, word wrap, split views, zoom, light and dark themes,
+  a command palette and key bindings the Preferences dialog changes.
+- Multiple carets (Mod+click, or a key per row), column selection, line
+  commands, word completion, bracket matching, auto-close and smart indent.
+- Encoding detection and conversion, line-ending conversion, and a read-only
+  view of binary files.
+- Syntax highlighting for 35 languages and 12 file formats, with user grammars,
+  comment commands and folding.
+- Find and replace, HyperSearch over documents, folders and a workspace with
+  retained results, and replace across files with a preview, a report and a
+  restore.
+- Bookmarks with comments, Go Back and Go Forward, a workspace browser, Quick
+  Open and side-by-side comparison.
+- External change detection, sessions, crash recovery, several windows with
+  tab moves, a single running instance and file associations.
+- An in-app user guide, written in `docs/user-guide.md`.
+
+Limits: a file must fit the heap and no file over 2 GiB opens
+([Large files](#large-files)); a change to the theme, the font size or a whole
+document's text blocks the window for about a second per million lines; GTK 4 is
+experimental and shows no in-app guide; the macOS bundles are not notarized.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/qcaret-dark.png">
   <img src="docs/images/qcaret-light.png" alt="QCaret main window with a highlighted Java file" width="880">
 </picture>
 
-`tools/screenshots.sh` regenerates the screenshots under Xvfb from generated
-mock files.
+`tools/screenshots.sh` regenerates these and the user guide's images under Xvfb
+from generated mock files.
 
 ## Syntax highlighting
 
@@ -207,7 +221,7 @@ buffer per file.
 
 ## Windows
 
-File > Quit asks about unsaved documents in every window before it closes or
+File > Exit asks about unsaved documents in every window before it closes or
 saves anything; Cancel leaves every window as it was, and a save that fails
 stops the quit. Closing a window asks about its own and leaves the others open;
 closing the last one quits. Window >
@@ -262,11 +276,18 @@ they apply (measured on Linux under Xvfb, one million lines):
 
 ## Network access
 
-QCaret makes no outbound network connections. Its only socket is a loopback
-endpoint that passes files from a second launch to the running instance. Help >
-Report an Issue is the one command that opens a web address, the project's issue page in the system browser, and
-only when the user picks it. Help > User Guide opens a copy of the guide page
-written to the settings directory, which loads nothing from elsewhere.
+QCaret makes no outbound network connections: no update check, telemetry or
+crash upload. Its only socket is the single-instance handoff, a TCP endpoint on
+the loopback address, authenticated with a token in the owner-only
+`instance.endpoint`, that passes a second launch's files to the running
+instance. A `-m` instance opens none.
+
+Help > Report an Issue and the project link in Help > About open a web address,
+in the system browser, only when the user picks them. Help > User Guide shows a
+copy of the guide page written to the settings directory, in an embedded browser
+with JavaScript off that loads only that page; the page holds its images and
+loads nothing from elsewhere. Where the embedded browser fails, the system's
+HTML application opens the same copy.
 
 ## Settings directory
 
@@ -352,7 +373,8 @@ is reported and kept.
 | `docker/`, `compose.yaml`, `scripts/` | Container build |
 | `.github/` | CI workflows, Dependabot and the scripts the CI steps run |
 | `tools/icons.sh` | Renders the application icon from `qcaret-dist/src/icons/*.svg` |
-| `tools/screenshots.sh`, `docs/images/` | README screenshots and the script that writes them |
+| `docs/user-guide.md` | The user guide; the build converts it to the page Help > User Guide shows |
+| `tools/screenshots.sh`, `docs/images/` | README and user guide screenshots and the script that writes them |
 
 Each module's `README.md` describes its design and contracts. `NOTICE` and
 `qcaret-dist/src/dist/THIRD-PARTY.txt` list the licenses of shipped components.

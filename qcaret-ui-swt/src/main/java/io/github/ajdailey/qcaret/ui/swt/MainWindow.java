@@ -164,6 +164,7 @@ public final class MainWindow implements MainView {
   private PreferencesDialog preferencesDialog;
   private Menu tabMenu;
   private TextWindow logWindow;
+  private GuideWindow guide;
   private ShortcutsWindow shortcuts;
   private CommandPaletteWindow commandPalette;
   private boolean statusPending;
@@ -1134,6 +1135,55 @@ public final class MainWindow implements MainView {
     return Program.launch(url);
   }
 
+  /**
+   * Shows the user guide in a {@link GuideWindow}. Under GTK 4 ({@code SWT_GTK4=1}) it shows a
+   * notice naming the file instead and never creates a {@code Browser}: WebKitGTK 6.0 aborts the
+   * JVM when the browser starts ("Failed to fully launch dbus-proxy").
+   */
+  @Override
+  public boolean showGuide(Path file) {
+    if (shell.isDisposed()) {
+      return true;
+    }
+    if (gtk4()) {
+      showNotice(UiText.NOTICE_GUIDE_AT.format(file));
+      return true;
+    }
+    if (guide != null && !guide.shell().isDisposed()) {
+      guide.show(file);
+      return true;
+    }
+    GuideWindow created = GuideWindow.create(shell, file, this::guideFailed);
+    if (created == null) {
+      return false;
+    }
+    guide = created;
+    created.open();
+    if (!created.shell().isDisposed()) {
+      rememberSize(created.shell(), "guide");
+    }
+    return true;
+  }
+
+  private static boolean gtk4() {
+    return "gtk".equals(SWT.getPlatform()) && "1".equals(System.getenv("SWT_GTK4"));
+  }
+
+  private void guideFailed(Path file) {
+    if (controller != null && !shell.isDisposed()) {
+      controller.showGuideElsewhere(file);
+    }
+  }
+
+  /**
+   * Returns the user guide window.
+   *
+   * @return the window, or null before the guide was shown in one
+   */
+  GuideWindow guideWindow() {
+    return guide;
+  }
+
   @Override
   public int defaultFontSize() {
     return baseFontSize;
@@ -1314,9 +1364,7 @@ public final class MainWindow implements MainView {
     }
     WindowGeometry.Screen primary = screen(display.getPrimaryMonitor());
     Rectangle trim = shell.computeTrim(0, 0, 100, 100);
-    boolean positionSupported =
-        !"wayland".equals(System.getProperty(GDK_BACKEND))
-            && !"1".equals(System.getenv("SWT_GTK4"));
+    boolean positionSupported = !"wayland".equals(System.getProperty(GDK_BACKEND)) && !gtk4();
     WindowGeometry.Placement placement =
         WindowGeometry.place(
             request,

@@ -416,6 +416,8 @@ public enum UiText {
   NOTICE_LAUNCH_FAILED,
   /** Notice after Report an Issue. */
   NOTICE_ISSUE_DETAILS,
+  /** User guide window title. */
+  GUIDE_TITLE,
   /** Notice when the user guide cannot be written. */
   NOTICE_GUIDE_FAILED,
   /** Notice naming the user guide when no application opened it. */
