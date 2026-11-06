@@ -246,4 +246,34 @@ class TextStorageTest {
       }
     }
   }
+
+  /** Pieces of any size give the text and line index of one copy, CR LF across a leaf included. */
+  @Test
+  void theBuilderMatchesOneCopy() {
+    StringBuilder text = new StringBuilder("x".repeat(RopeStorage.LEAF_MAX - 1)).append("\r\nab\n");
+    text.append("\u4e2d".repeat(RopeStorage.LEAF_MAX)).append("\r");
+    char[] chars = text.toString().toCharArray();
+    for (int piece : new int[] {1, 7, RopeStorage.LEAF_MAX, chars.length}) {
+      RopeStorage.Builder builder = new RopeStorage.Builder();
+      for (int at = 0; at < chars.length; at += piece) {
+        builder.append(chars, at, Math.min(chars.length, at + piece));
+      }
+      assertEquals(chars.length, builder.length());
+      RopeStorage built = builder.build();
+      RopeStorage copy = RopeStorage.of(text);
+      assertEquals(copy.toString(), built.toString());
+      assertEquals(copy.lineCount(), built.lineCount());
+      for (int line = 0; line < copy.lineCount(); line++) {
+        assertEquals(copy.offsetOfLine(line), built.offsetOfLine(line));
+      }
+      assertEquals(RopeStorage.LEAF_MAX + 2 * RopeStorage.LEAF_MAX + 2L * 5, builder.heapBytes());
+    }
+  }
+
+  @Test
+  void anEmptyBuilderIsAnEmptyStorage() {
+    RopeStorage built = new RopeStorage.Builder().build();
+    assertEquals(0, built.length());
+    assertEquals(1, built.lineCount());
+  }
 }

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class EncodingDetectorTest {
@@ -125,5 +126,21 @@ class EncodingDetectorTest {
     assertEquals(LineEnding.CR, tie.dominant(LineEnding.LF));
     assertEquals(LineEnding.LF, LineEndingStats.NONE.dominant(LineEnding.LF));
     assertEquals(new LineEndingStats(0, 0, 1, LineEnding.CR), LineEndingStats.count("a\r\n", 0, 2));
+  }
+
+  /** Each charset once, in rule order; a BOM or the UTF-16 pattern stands alone. */
+  @Test
+  void theCandidatesFollowTheRules() {
+    byte[] declared =
+        "<?xml version=\"1.0\" encoding=\"ISO-8859-2\"?>".getBytes(StandardCharsets.US_ASCII);
+    List<EncodingDetection> chain =
+        EncodingDetector.candidates(declared, declared.length, StandardCharsets.ISO_8859_1);
+    assertEquals(3, chain.size());
+    assertEquals(DetectionReason.DECLARED, chain.get(0).reason());
+    assertEquals(DetectionReason.UTF8_VALID, chain.get(1).reason());
+    assertEquals(StandardCharsets.ISO_8859_1, chain.get(2).encoding().charset());
+    assertEquals(DetectionReason.FALLBACK, chain.get(2).reason());
+    byte[] bom = {(byte) 0xef, (byte) 0xbb, (byte) 0xbf, 'a'};
+    assertEquals(1, EncodingDetector.candidates(bom, 4, StandardCharsets.UTF_8).size());
   }
 }

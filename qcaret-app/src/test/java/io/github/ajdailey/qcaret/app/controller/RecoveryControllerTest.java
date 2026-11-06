@@ -15,10 +15,12 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
+import io.github.ajdailey.qcaret.app.recovery.RecoveryTexts;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.RecoveryRow;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -142,8 +144,9 @@ class RecoveryControllerTest {
     edit(harness, "mock ");
     harness.ui.runLongTimers();
     awaitFiles(harness, 1);
-    RecoveryFile.Loaded loaded = RecoveryFile.load(recoveryFiles().get(0));
-    assertEquals("mock alpha\n", loaded.text().toString());
+    RecoveryFile.Loaded loaded =
+        RecoveryFile.load(recoveryFiles().get(0), LoadReservation.UNMETERED);
+    assertEquals("mock alpha\n", RecoveryTexts.of(loaded));
     assertEquals(a.toString(), loaded.header().path());
     harness.application.documents().save();
     awaitFiles(harness, 0);
@@ -434,7 +437,7 @@ class RecoveryControllerTest {
     unblock(blocked);
     harness.ui.runLongTimers();
     awaitFiles(harness, 1);
-    assertEquals("mock", RecoveryFile.load(recoveryFiles().get(0)).text().toString());
+    assertEquals("mock", RecoveryTexts.read(recoveryFiles().get(0)));
   }
 
   @Test

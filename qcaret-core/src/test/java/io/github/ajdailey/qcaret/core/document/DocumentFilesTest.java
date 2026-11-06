@@ -175,18 +175,23 @@ class DocumentFilesTest {
     UndoLimits limits = new UndoLimits(10, 100);
     Path ascii = temp.resolve("ascii.txt");
     Files.writeString(ascii, "a".repeat(80));
-    assertEquals(new LoadCost(80, 80 + 2 * 80, 80 + 80), DocumentFiles.estimate(ascii, limits));
+    assertEquals(new LoadCost(80, 80, 80 + 80, 80 + 80), DocumentFiles.estimate(ascii, limits));
     Path latin = temp.resolve("latin.txt");
     Files.write(latin, new byte[] {'a', (byte) 0xe9, 'b', 'c'});
-    assertEquals(new LoadCost(4, 4 + 2 * 8, 8 + 8), DocumentFiles.estimate(latin, limits));
+    assertEquals(new LoadCost(4, 8, 8 + 4, 8 + 8), DocumentFiles.estimate(latin, limits));
     Path utf16 = temp.resolve("utf16.txt");
     Files.write(utf16, new byte[] {(byte) 0xff, (byte) 0xfe, 'a', 0, 'b', 0});
-    assertEquals(new LoadCost(6, 6 + 2 * 6, 6 + 6), DocumentFiles.estimate(utf16, limits));
+    assertEquals(new LoadCost(6, 6, 6 + 6, 6 + 6), DocumentFiles.estimate(utf16, limits));
     Path big = temp.resolve("big.txt");
     Files.writeString(big, "b".repeat(300));
     LoadCost capped = DocumentFiles.estimate(big, limits);
     assertEquals(300 + 100, capped.retainedBytes());
-    assertEquals(900, capped.reserveBytes());
+    Path large = temp.resolve("large.txt");
+    Files.write(large, new byte[(int) DocumentFiles.BUFFER_BYTES + 10]);
+    LoadCost buffered = DocumentFiles.estimate(large, limits);
+    assertEquals(2 * DocumentFiles.BUFFER_BYTES + 10, buffered.peakBytes());
+    assertEquals(600, capped.reserveBytes());
+    assertEquals(1200, capped.reloadBytes());
   }
 
   /** Regression: the read stopped after its first 1 MiB block. */

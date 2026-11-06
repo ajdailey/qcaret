@@ -32,6 +32,8 @@ import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
+import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
@@ -2402,13 +2404,13 @@ public final class DocumentController {
               public void run() {
                 Reloaded result = null;
                 IOException error = null;
-                long reserved = 0;
+                LoadReservation reservation = null;
                 try {
                   LoadCost cost = DocumentFiles.estimate(file, options.limits());
-                  if (budget.reserve(cost.reserveBytes())) {
-                    reserved = cost.reserveBytes();
+                  reservation = LoadReservation.reserve(budget, cost, cost.reloadBytes());
+                  if (reservation != null) {
                     LoadedFile loaded =
-                        CompareController.load(file, options, charset, binary, token);
+                        CompareController.load(file, options, charset, binary, reservation, token);
                     Document read = loaded.document();
                     result =
                         new Reloaded(
@@ -2418,12 +2420,16 @@ public final class DocumentController {
                             loaded.baseline(),
                             realFile(file));
                   }
+                } catch (LoadTooLargeException e) {
+                  // Reported as a reload without room: no result and no error.
                 } catch (IOException e) {
                   error = e;
                 } catch (CancellationException e) {
                   // Closed.
                 } finally {
-                  budget.release(reserved);
+                  if (reservation != null) {
+                    reservation.close();
+                  }
                   final Reloaded reloaded = result;
                   final IOException failure = error;
                   ui.asyncExec(

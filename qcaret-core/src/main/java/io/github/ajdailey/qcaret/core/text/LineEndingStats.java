@@ -12,6 +12,62 @@ public record LineEndingStats(long lf, long crLf, long cr, LineEnding first) {
   /** No breaks. */
   public static final LineEndingStats NONE = new LineEndingStats(0, 0, 0, null);
 
+  /** Counts the breaks of a text read in pieces; a CR ending a piece waits for the next char. */
+  public static final class Counter {
+    private long lf;
+    private long crLf;
+    private long cr;
+    private LineEnding first;
+    private boolean afterCr;
+
+    /**
+     * Counts {@code chars[from, to)} as the continuation of the text so far.
+     *
+     * @param chars the chars
+     * @param from the first index
+     * @param to the index after the last char
+     */
+    public void add(char[] chars, int from, int to) {
+      for (int i = from; i < to; i++) {
+        char c = chars[i];
+        if (afterCr) {
+          afterCr = false;
+          if (c == '\n') {
+            crLf++;
+            note(LineEnding.CRLF);
+            continue;
+          }
+          cr++;
+          note(LineEnding.CR);
+        }
+        if (c == '\n') {
+          lf++;
+          note(LineEnding.LF);
+        } else if (c == '\r') {
+          afterCr = true;
+        }
+      }
+    }
+
+    private void note(LineEnding kind) {
+      if (first == null) {
+        first = kind;
+      }
+    }
+
+    /**
+     * Returns the counts of the text so far; a CR at its end is a CR break.
+     *
+     * @return the counts
+     */
+    public LineEndingStats stats() {
+      if (afterCr) {
+        return new LineEndingStats(lf, crLf, cr + 1, first != null ? first : LineEnding.CR);
+      }
+      return new LineEndingStats(lf, crLf, cr, first);
+    }
+  }
+
   /**
    * Counts the breaks of a range taken on its own: a CR at the end of the range is a CR break.
    *

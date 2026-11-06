@@ -9,6 +9,8 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
+import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import java.io.IOException;
@@ -22,13 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * UI thread offers it to {@link Listener#resolved} (an open document ends the open there), and a
  * second worker reads the file; every result reaches the {@link Listener} on the UI thread. Before
  * reading, the worker estimates the load's heap cost ({@link DocumentFiles#estimate}) and reserves
- * it from the {@link MemoryBudget}; a load the budget cannot hold is refused unread. A loaded
- * document arrives with its rows ({@link DisplayProjection#layout}) and its reservation lowered to
- * the retained cost, which the listener owns from then on. {@link #close} cancels the running
- * loads; a load that finishes after it, on the worker or in a task already posted, drops its
- * document and releases its reservation, so no document reaches a closed window. Each open counts
- * as one {@link ActivityIndicator} operation until it ends: unread after {@link Listener#resolved},
- * refused, failed, loaded or closed.
+ * it from the {@link MemoryBudget}; a load the budget cannot hold is refused unread, and a load
+ * whose text outgrows the estimate past the budget is refused when it gets there. A loaded document
+ * arrives with its rows ({@link DisplayProjection#layout}) and its reservation lowered to the
+ * retained cost, which the listener owns from then on. {@link #close} cancels the running loads; a
+ * load that finishes after it, on the worker or in a task already posted, drops its document and
+ * releases its reservation, so no document reaches a closed window. Each open counts as one {@link
+ * ActivityIndicator} operation until it ends: unread after {@link Listener#resolved}, refused,
+ * failed, loaded or closed.
  */
 public final class DocumentOpener {
   /** Receives load results on the UI thread. */
@@ -62,10 +65,10 @@ public final class DocumentOpener {
     void opened(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved);
 
     /**
-     * A load was refused before reading: the budget cannot hold it.
+     * A load was refused, before or during reading: the budget cannot hold it.
      *
      * @param path the validated path
-     * @param cost the estimate
+     * @param cost the estimate, or the projection of a load refused while reading
      * @param available bytes the budget could still reserve
      * @param maxHeap the maximum heap size
      */
@@ -191,30 +194,29 @@ public final class DocumentOpener {
         new Runnable() {
           @Override
           public void run() {
-            long reserved = 0;
             try {
               if (closed) {
                 return;
               }
               LoadCost cost = DocumentFiles.estimate(file, options.limits());
-              if (!budget.reserve(cost.reserveBytes())) {
-                postTooLarge(file, cost, budget.available());
-                return;
+              try (LoadReservation reservation = LoadReservation.reserve(budget, cost)) {
+                if (reservation == null) {
+                  postTooLarge(file, cost, budget.available());
+                  return;
+                }
+                LoadedFile loaded = DocumentFiles.load(file, options, reservation, token);
+                DisplayProjection.Layout layout =
+                    DisplayProjection.layout(loaded.document().text(), 0, token);
+                long reserved = reservation.keep(loaded.retainedBytes());
+                post(file, new Loaded(loaded, layout, reserved), null);
               }
-              reserved = cost.reserveBytes();
-              LoadedFile loaded = DocumentFiles.load(file, options, token);
-              DisplayProjection.Layout layout =
-                  DisplayProjection.layout(loaded.document().text(), 0, token);
-              budget.release(reserved - cost.retainedBytes());
-              reserved = cost.retainedBytes();
-              post(file, new Loaded(loaded, layout, reserved), null);
-              reserved = 0;
+            } catch (LoadTooLargeException e) {
+              postTooLarge(file, e.cost(), budget.available());
             } catch (IOException e) {
               post(file, null, e);
             } catch (CancellationException e) {
               // Closed: nothing to report.
             } finally {
-              budget.release(reserved);
               end(token);
             }
           }

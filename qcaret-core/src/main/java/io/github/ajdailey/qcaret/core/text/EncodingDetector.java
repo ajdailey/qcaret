@@ -8,6 +8,8 @@ import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,24 +62,57 @@ public final class EncodingDetector {
    * @return the encoding and the rule that chose it
    */
   public static EncodingDetection detect(byte[] bytes, int length, Charset fallback) {
-    TextEncoding bom = bom(bytes, length);
+    List<EncodingDetection> candidates = candidates(bytes, length, fallback);
+    int last = candidates.size() - 1;
+    for (int i = 0; i < last; i++) {
+      EncodingDetection candidate = candidates.get(i);
+      if (decodes(candidate.encoding().charset(), bytes, 0, length)) {
+        return candidate;
+      }
+    }
+    return candidates.get(last);
+  }
+
+  /**
+   * Lists the encodings {@link #detect} chooses among, from the head of a file alone. The result is
+   * the first one, in order, that decodes the whole file strictly; the last one needs no check, as
+   * a BOM or the UTF-16 pattern is the only candidate and ISO-8859-1 maps every byte.
+   *
+   * @param head the file's first bytes in {@code [0, length)}, at least {@value #SAMPLE_BYTES} of
+   *     them when the file has that many
+   * @param length the head's length
+   * @param fallback used when no other rule matches
+   * @return the candidates, each charset once, never empty
+   */
+  public static List<EncodingDetection> candidates(byte[] head, int length, Charset fallback) {
+    TextEncoding bom = bom(head, length);
     if (bom != null) {
-      return new EncodingDetection(bom, DetectionReason.BOM);
+      return List.of(new EncodingDetection(bom, DetectionReason.BOM));
     }
-    TextEncoding utf16 = utf16Pattern(bytes, Math.min(length, SAMPLE_BYTES));
+    TextEncoding utf16 = utf16Pattern(head, Math.min(length, SAMPLE_BYTES));
     if (utf16 != null) {
-      return new EncodingDetection(utf16, DetectionReason.UTF16_PATTERN);
+      return List.of(new EncodingDetection(utf16, DetectionReason.UTF16_PATTERN));
     }
-    Charset declared = declared(bytes, length);
-    if (declared != null && decodes(declared, bytes, 0, length)) {
-      return new EncodingDetection(TextEncoding.of(declared, false), DetectionReason.DECLARED);
+    List<EncodingDetection> candidates = new ArrayList<EncodingDetection>(4);
+    Charset declared = declared(head, length);
+    if (declared != null) {
+      add(candidates, declared, DetectionReason.DECLARED);
     }
-    if (decodes(StandardCharsets.UTF_8, bytes, 0, length)) {
-      return new EncodingDetection(
-          TextEncoding.of(StandardCharsets.UTF_8, false), DetectionReason.UTF8_VALID);
+    add(candidates, StandardCharsets.UTF_8, DetectionReason.UTF8_VALID);
+    add(candidates, fallback, DetectionReason.FALLBACK);
+    add(candidates, StandardCharsets.ISO_8859_1, DetectionReason.FALLBACK);
+    return candidates;
+  }
+
+  private static void add(
+      List<EncodingDetection> candidates, Charset charset, DetectionReason reason) {
+    TextEncoding encoding = TextEncoding.of(charset, false);
+    for (EncodingDetection candidate : candidates) {
+      if (candidate.encoding().equals(encoding)) {
+        return;
+      }
     }
-    Charset chosen = decodes(fallback, bytes, 0, length) ? fallback : StandardCharsets.ISO_8859_1;
-    return new EncodingDetection(TextEncoding.of(chosen, false), DetectionReason.FALLBACK);
+    candidates.add(new EncodingDetection(encoding, reason));
   }
 
   /**

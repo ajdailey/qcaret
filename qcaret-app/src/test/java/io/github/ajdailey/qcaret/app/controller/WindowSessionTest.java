@@ -13,8 +13,8 @@ import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.WindowState;
-import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
+import io.github.ajdailey.qcaret.app.recovery.RecoveryTexts;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
@@ -603,7 +603,7 @@ class WindowSessionTest {
     assertEquals(List.of(a.toString()), tabs(saved.windows().get(0)));
     assertEquals(List.of(b.toString()), tabs(saved.windows().get(1)));
     assertEquals(1, recoveryFiles().size());
-    assertEquals("mine b\n", RecoveryFile.load(recoveryFiles().get(0)).text().toString());
+    assertEquals("mine b\n", RecoveryTexts.read(recoveryFiles().get(0)));
 
     Windows after = start(true);
     final FakeView view = after.view(after.set.target());
@@ -644,7 +644,7 @@ class WindowSessionTest {
 
     edit(second, "more");
     tick(windows);
-    assertEquals("onemore", RecoveryFile.load(own).text().toString());
+    assertEquals("onemore", RecoveryTexts.read(own));
 
     Path saved = temp.resolve("saved.txt");
     second.documents().saveAs();

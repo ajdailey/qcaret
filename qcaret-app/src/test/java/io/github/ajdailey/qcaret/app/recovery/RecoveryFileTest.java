@@ -2,9 +2,9 @@ package io.github.ajdailey.qcaret.app.recovery;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -53,9 +53,8 @@ class RecoveryFileTest {
 
   private void assertRoundTrips(String text, String bodyEncoding) throws IOException {
     Path file = write(text);
-    RecoveryFile.Loaded loaded = RecoveryFile.load(file);
-    assertEquals(text.length(), loaded.text().length());
-    assertTrue(text.contentEquals(loaded.text()));
+    RecoveryFile.Loaded loaded = RecoveryFile.load(file, LoadReservation.UNMETERED);
+    assertEquals(text, RecoveryTexts.of(loaded));
     assertEquals(bodyEncoding, loaded.header().bodyEncoding());
     assertEquals(header().path(), loaded.header().path());
     assertEquals(header().selection(), loaded.header().selection());
@@ -112,7 +111,7 @@ class RecoveryFileTest {
         new Executable() {
           @Override
           public void execute() throws IOException {
-            RecoveryFile.load(file);
+            RecoveryFile.load(file, LoadReservation.UNMETERED);
           }
         });
   }

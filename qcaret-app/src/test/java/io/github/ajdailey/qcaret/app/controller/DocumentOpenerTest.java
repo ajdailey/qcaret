@@ -9,9 +9,11 @@ import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
+import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -171,11 +173,27 @@ class DocumentOpenerTest {
     workers.close();
     budget = new MemoryBudget(1000, 100);
     create();
-    opener.open(file("x".repeat(400)), LoadOptions.DEFAULTS);
+    opener.open(file("x".repeat(600)), LoadOptions.DEFAULTS);
     assertTrue(ui.runUntil(results(1), BOUND));
     LoadCost cost = (LoadCost) results.get(0);
-    assertEquals(400, cost.fileBytes());
+    assertEquals(600, cost.fileBytes());
     assertEquals(1200, cost.peakBytes());
+    assertEquals(0, budget.reserved());
+  }
+
+  /** The estimate samples an ASCII head; the text after it costs twice that. */
+  @Test
+  void aLoadOutgrowingTheBudgetIsRefusedWhileReading() throws Exception {
+    Path file = file("x".repeat(70_000) + ("\u4e2d" + "y".repeat(1000)).repeat(3000));
+    long estimate = DocumentFiles.estimate(file, UndoLimits.DEFAULTS).reserveBytes();
+    workers.close();
+    budget = new MemoryBudget(estimate + 100, 100);
+    create();
+    opener.open(file, LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(results(1), BOUND));
+    LoadCost cost = (LoadCost) results.get(0);
+    assertTrue(cost.reserveBytes() > estimate);
+    assertTrue(ui.runUntil(idle(), BOUND));
     assertEquals(0, budget.reserved());
   }
 

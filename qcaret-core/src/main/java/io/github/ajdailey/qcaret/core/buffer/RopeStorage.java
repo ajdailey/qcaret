@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.buffer;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -25,6 +26,84 @@ public final class RopeStorage implements TextStorage {
    */
   public static RopeStorage of(CharSequence text) {
     return new RopeStorage(leaves(text));
+  }
+
+  /**
+   * Builds a storage from text appended in pieces. It holds the finished leaves and one leaf's
+   * chars, never a second copy of the text. A leaf is {@value #LEAF_MAX} chars, the last one fewer.
+   */
+  public static final class Builder {
+    private final char[] leaf = new char[LEAF_MAX];
+    private int filled;
+    private Node[] leaves = new Node[64];
+    private int count;
+    private long length;
+    private long heapBytes;
+
+    /**
+     * Appends {@code chars[from, to)}.
+     *
+     * @param chars the chars, copied
+     * @param from the first index
+     * @param to the index after the last char
+     */
+    public void append(char[] chars, int from, int to) {
+      int at = from;
+      while (at < to) {
+        int n = Math.min(to - at, LEAF_MAX - filled);
+        System.arraycopy(chars, at, leaf, filled, n);
+        filled += n;
+        at += n;
+        if (filled == LEAF_MAX) {
+          finishLeaf();
+        }
+      }
+    }
+
+    private void finishLeaf() {
+      int bits = 0;
+      for (int i = 0; i < filled; i++) {
+        bits |= leaf[i];
+      }
+      heapBytes += (long) filled * (bits > 0xff ? 2 : 1);
+      length += filled;
+      if (count == leaves.length) {
+        leaves = Arrays.copyOf(leaves, count + (count >> 1));
+      }
+      leaves[count++] = Node.leaf(new String(leaf, 0, filled));
+      filled = 0;
+    }
+
+    /**
+     * Returns the chars appended.
+     *
+     * @return the count
+     */
+    public long length() {
+      return length + filled;
+    }
+
+    /**
+     * Returns the heap the finished leaves' chars take: 1 byte per char in a leaf with only Latin-1
+     * chars (a compact {@code String}), else 2. The unfinished leaf counts at 2.
+     *
+     * @return bytes
+     */
+    public long heapBytes() {
+      return heapBytes + 2L * filled;
+    }
+
+    /**
+     * Builds the storage; this builder is not used afterwards.
+     *
+     * @return the storage
+     */
+    public RopeStorage build() {
+      if (filled > 0) {
+        finishLeaf();
+      }
+      return new RopeStorage(RopeStorage.build(leaves, 0, count));
+    }
   }
 
   @Override
@@ -140,12 +219,15 @@ public final class RopeStorage implements TextStorage {
     return build(leaves, 0, count);
   }
 
+  /** Builds a balanced tree of {@code leaves[from, to)}, clearing the array as it goes. */
   private static Node build(Node[] leaves, int from, int to) {
     if (from >= to) {
       return null;
     }
     int mid = (from + to) >>> 1;
-    return leaves[mid].with(build(leaves, from, mid), build(leaves, mid + 1, to));
+    Node leaf = leaves[mid];
+    leaves[mid] = null;
+    return leaf.with(build(leaves, from, mid), build(leaves, mid + 1, to));
   }
 
   /** Copies the path to the leaf holding the char at {@code index} and replaces that leaf. */

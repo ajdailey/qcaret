@@ -14,13 +14,16 @@ import io.github.ajdailey.qcaret.core.text.EncodingDetection;
  * @param detection the encoding and the rule that chose it
  * @param binary true when the file is binary and was opened as such
  * @param roundTrips true when the text encodes back to the file's bytes
+ * @param retainedBytes the heap the document holds while open: its text as loaded and the undo
+ *     headroom
  */
 public record LoadedFile(
     Document document,
     FileBaseline baseline,
     EncodingDetection detection,
     boolean binary,
-    boolean roundTrips) {
+    boolean roundTrips,
+    long retainedBytes) {
   /**
    * Returns the file's stamp before it was read, the first save's baseline.
    *

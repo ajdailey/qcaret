@@ -18,7 +18,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
@@ -27,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -41,6 +41,9 @@ public final class DocumentFiles {
   private static final int BLOCK_BYTES = 1 << 20;
   private static final int BLOCK_CHARS = 1 << 16;
 
+  /** Heap a load's buffers take beyond the text: four read blocks and the char buffers. */
+  static final long BUFFER_BYTES = 5L * BLOCK_BYTES;
+
   /** Bytes {@link #estimate} reads from the start of a file. */
   static final int SAMPLE_BYTES = 64 * 1024;
 
@@ -50,8 +53,10 @@ public final class DocumentFiles {
    * Estimates the heap a load of a file needs, from its size and its first {@value #SAMPLE_BYTES}
    * bytes. A char costs 1 byte when the sample is ASCII (a Latin-1 {@code String} leaf) and 2
    * otherwise; a UTF-16 or UTF-32 byte order mark divides the char count by 2 or 4. The peak is the
-   * bytes read plus the decoded text plus the document's text; the retained cost is the document's
-   * text plus undo headroom of the same size, at most {@code limits.maxBytes()}.
+   * document's text plus the load's block buffers, at most {@value #BUFFER_BYTES} bytes; the
+   * retained cost is the text plus undo headroom of the same size, at most {@code
+   * limits.maxBytes()}. A file costing more past its sample raises its {@link LoadReservation}
+   * during the load.
    *
    * @param file the file, validated by the caller
    * @param limits the undo bounds the document will have
@@ -93,47 +98,125 @@ public final class DocumentFiles {
     }
     long text = size / unit * (ascii ? 1 : 2);
     long retained = text + Math.min(limits.maxBytes(), text);
-    return new LoadCost(size, size + 2 * text, retained);
+    return new LoadCost(size, text, text + Math.min(size, BUFFER_BYTES), retained);
   }
 
   /**
-   * Loads a file: reads it whole, digests it, chooses the encoding ({@link EncodingDetector}, or
-   * the forced charset), rejects a binary file unless allowed, decodes it and checks that the text
-   * encodes back to the same bytes.
+   * Loads a file outside the budget, as {@link #load(Path, LoadOptions, LoadReservation,
+   * CancellationToken)} with {@link LoadReservation#UNMETERED}.
    *
    * @param file the file, validated by the caller
    * @param options the forced charset, fallback and undo bounds
    * @param token canceled by a close of the document or the window
    * @return the document and what the load found
-   * @throws BinaryFileException for a binary file when {@code options.allowBinary()} is false
-   * @throws TextCodingException when the bytes do not decode in the chosen charset
-   * @throws IOException when the file cannot be read or exceeds {@link #MAX_BYTES}
-   * @throws java.util.concurrent.CancellationException when canceled
+   * @throws IOException as the full form does
    */
   @WorkerThread
   public static LoadedFile load(Path file, LoadOptions options, CancellationToken token)
       throws IOException {
+    return load(file, options, LoadReservation.UNMETERED, token);
+  }
+
+  /**
+   * Loads a file without holding its bytes. The first {@value EncodingDetector#SAMPLE_BYTES} bytes
+   * give the encoding candidates ({@link EncodingDetector#candidates}, or the forced charset) and
+   * the binary check; a binary file is rejected unless allowed. Then each candidate in turn takes
+   * one {@link LoadPass} over the file, which ends at the first byte the candidate cannot decode,
+   * so a file in its first candidate costs one read. One channel serves every pass and reads at
+   * most the size it had on opening; a file replaced by a rename during the load stays the file
+   * opened. A file written in place between passes yields the text of the pass that finished, with
+   * that pass's digest.
+   *
+   * @param file the file, validated by the caller
+   * @param options the forced charset, fallback and undo bounds
+   * @param reservation charged as the text arrives
+   * @param token canceled by a close of the document or the window
+   * @return the document and what the load found
+   * @throws BinaryFileException for a binary file when {@code options.allowBinary()} is false
+   * @throws TextCodingException when the bytes do not decode in the chosen charset
+   * @throws LoadTooLargeException when the text costs more than the budget can hold
+   * @throws IOException when the file cannot be read or exceeds {@link #MAX_BYTES}
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public static LoadedFile load(
+      Path file, LoadOptions options, LoadReservation reservation, CancellationToken token)
+      throws IOException {
+    return load(file, options, reservation, token, BLOCK_BYTES, BLOCK_CHARS);
+  }
+
+  static LoadedFile load(
+      Path file,
+      LoadOptions options,
+      LoadReservation reservation,
+      CancellationToken token,
+      int blockBytes,
+      int blockChars)
+      throws IOException {
     long recorded = System.currentTimeMillis();
     FileStamp stamp = FileStamp.read(file);
-    byte[] bytes = read(file, token);
-    if (stamp == null) {
-      throw new NoSuchFileException(String.valueOf(file));
+    try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+      long size = channel.size();
+      if (size > MAX_BYTES) {
+        throw new IOException("File too large: " + size + " bytes");
+      }
+      if (stamp == null) {
+        throw new NoSuchFileException(String.valueOf(file));
+      }
+      token.check();
+      ByteBuffer head = ByteBuffer.allocate((int) Math.min(EncodingDetector.SAMPLE_BYTES, size));
+      while (head.hasRemaining() && channel.read(head) >= 0) {
+        // Fill the head.
+      }
+      int length = head.position();
+      List<EncodingDetection> candidates =
+          options.forced() != null
+              ? List.of(EncodingDetector.forced(options.forced(), head.array(), length))
+              : EncodingDetector.candidates(head.array(), length, options.fallback());
+      if (!options.allowBinary() && everyBinary(candidates, head.array(), length)) {
+        throw new BinaryFileException(String.valueOf(file.getFileName()));
+      }
+      for (int i = 0; ; i++) {
+        EncodingDetection detection = candidates.get(i);
+        TextEncoding encoding = detection.encoding();
+        LoadPass pass =
+            new LoadPass(channel, size, encoding, reservation, token, blockBytes, blockChars);
+        try {
+          pass.run();
+        } catch (TextCodingException e) {
+          if (i == candidates.size() - 1) {
+            throw e;
+          }
+          continue;
+        }
+        boolean binary = binary(head.array(), length, encoding);
+        if (binary && !options.allowBinary()) {
+          throw new BinaryFileException(String.valueOf(file.getFileName()));
+        }
+        FileBaseline baseline = new FileBaseline(stamp, pass.digest(), recorded);
+        return new LoadedFile(
+            pass.text().build(encoding, options.empty(), options.limits()),
+            baseline,
+            detection,
+            binary,
+            pass.roundTrips(),
+            pass.text().retainedBytes(options.limits()));
+      }
     }
-    FileBaseline baseline = new FileBaseline(stamp, Digests.of(bytes, bytes.length), recorded);
-    EncodingDetection detection =
-        options.forced() != null
-            ? EncodingDetector.forced(options.forced(), bytes, bytes.length)
-            : EncodingDetector.detect(bytes, bytes.length, options.fallback());
-    TextEncoding encoding = detection.encoding();
-    boolean binary = BinaryDetector.isBinary(bytes, bytes.length, encoding.unitWidth() > 1);
-    if (binary && !options.allowBinary()) {
-      throw new BinaryFileException(String.valueOf(file.getFileName()));
+  }
+
+  private static boolean binary(byte[] head, int length, TextEncoding encoding) {
+    return BinaryDetector.isBinary(head, length, encoding.unitWidth() > 1);
+  }
+
+  /** Reports whether the file is binary whichever candidate wins, so no pass is needed. */
+  private static boolean everyBinary(List<EncodingDetection> candidates, byte[] head, int length) {
+    for (EncodingDetection candidate : candidates) {
+      if (!binary(head, length, candidate.encoding())) {
+        return false;
+      }
     }
-    int bom = encoding.bomBytes().length;
-    StringBuilder text = decode(bytes, bom, encoding, token);
-    boolean roundTrips = encodesTo(text, encoding, bytes, bom, token);
-    Document document = Document.of(text, encoding, options.empty(), options.limits());
-    return new LoadedFile(document, baseline, detection, binary, roundTrips);
+    return true;
   }
 
   /**
@@ -176,97 +259,6 @@ public final class DocumentFiles {
             },
             token);
     return new FileBaseline(stamp, digest.get(), recorded);
-  }
-
-  private static byte[] read(Path file, CancellationToken token) throws IOException {
-    try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
-      long size = channel.size();
-      if (size > MAX_BYTES) {
-        throw new IOException("File too large: " + size + " bytes");
-      }
-      ByteBuffer buffer = ByteBuffer.allocate((int) size);
-      // Each read is capped at one block, so the loop tests the capacity, not the limit.
-      while (buffer.position() < buffer.capacity()) {
-        token.check();
-        int limit = Math.min(buffer.capacity(), buffer.position() + BLOCK_BYTES);
-        buffer.limit(limit);
-        if (channel.read(buffer) < 0) {
-          break;
-        }
-      }
-      if (buffer.position() < buffer.capacity()) {
-        byte[] shorter = new byte[buffer.position()];
-        System.arraycopy(buffer.array(), 0, shorter, 0, shorter.length);
-        return shorter;
-      }
-      return buffer.array();
-    }
-  }
-
-  private static StringBuilder decode(
-      byte[] bytes, int from, TextEncoding encoding, CancellationToken token)
-      throws TextCodingException {
-    CharsetDecoder decoder =
-        encoding
-            .charset()
-            .newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
-    ByteBuffer in = ByteBuffer.wrap(bytes, from, bytes.length - from);
-    CharBuffer out = CharBuffer.allocate(BLOCK_CHARS);
-    StringBuilder text = new StringBuilder((int) Math.min(MAX_BYTES, (long) bytes.length));
-    boolean flushing = false;
-    while (true) {
-      token.check();
-      CoderResult result = flushing ? decoder.flush(out) : decoder.decode(in, out, true);
-      if (result.isError()) {
-        throw new TextCodingException("Not valid text", in.position(), encoding.charset().name());
-      }
-      out.flip();
-      text.append(out);
-      out.clear();
-      if (result.isUnderflow()) {
-        if (flushing) {
-          return text;
-        }
-        flushing = true;
-      }
-    }
-  }
-
-  /** Reports whether {@code text} encodes to {@code bytes[from, length)}. */
-  private static boolean encodesTo(
-      CharSequence text, TextEncoding encoding, byte[] bytes, int from, CancellationToken token) {
-    CharsetEncoder encoder =
-        encoding
-            .charset()
-            .newEncoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
-    CharBuffer in = CharBuffer.wrap(text);
-    ByteBuffer out = ByteBuffer.allocate(BLOCK_BYTES);
-    int at = from;
-    boolean flushing = false;
-    while (true) {
-      token.check();
-      CoderResult result = flushing ? encoder.flush(out) : encoder.encode(in, out, true);
-      if (result.isError()) {
-        return false;
-      }
-      out.flip();
-      int n = out.remaining();
-      if (at + n > bytes.length || ByteBuffer.wrap(bytes, at, n).compareTo(out) != 0) {
-        return false;
-      }
-      at += n;
-      out.clear();
-      if (result.isUnderflow()) {
-        if (flushing) {
-          return at == bytes.length;
-        }
-        flushing = true;
-      }
-    }
   }
 
   /**

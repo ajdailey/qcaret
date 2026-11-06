@@ -2,6 +2,8 @@ package io.github.ajdailey.qcaret.app.recovery;
 
 import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
+import io.github.ajdailey.qcaret.core.document.DocumentBuilder;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
 import io.github.ajdailey.qcaret.core.io.Digests;
@@ -124,9 +126,9 @@ public final class RecoveryFile {
    * A read file.
    *
    * @param header the header
-   * @param text the buffer's text
+   * @param text the buffer's text, to build the document from
    */
-  public record Loaded(Header header, StringBuilder text) {}
+  public record Loaded(Header header, DocumentBuilder text) {}
 
   private RecoveryFile() {}
 
@@ -287,7 +289,7 @@ public final class RecoveryFile {
    * @throws IOException when the file cannot be read
    */
   public static Header check(Path file) throws IOException {
-    return read(file, null);
+    return read(file, null, LoadReservation.UNMETERED);
   }
 
   /**
@@ -305,20 +307,24 @@ public final class RecoveryFile {
   }
 
   /**
-   * Reads a file.
+   * Reads a file, its body straight into rope leaves.
    *
    * @param file the file
+   * @param reservation charged as the text arrives
    * @return the header and the text
    * @throws DamagedException when the file is not complete or the digest does not match
+   * @throws io.github.ajdailey.qcaret.core.document.LoadTooLargeException when the budget cannot
+   *     hold the text
    * @throws IOException when the file cannot be read
    */
-  public static Loaded load(Path file) throws IOException {
-    StringBuilder text = new StringBuilder();
-    Header header = read(file, text);
+  public static Loaded load(Path file, LoadReservation reservation) throws IOException {
+    DocumentBuilder text = new DocumentBuilder();
+    Header header = read(file, text, reservation);
     return new Loaded(header, text);
   }
 
-  private static Header read(Path file, StringBuilder text) throws IOException {
+  private static Header read(Path file, DocumentBuilder text, LoadReservation reservation)
+      throws IOException {
     long size = Files.size(file);
     try (InputStream in = new BufferedInputStream(Files.newInputStream(file))) {
       long[] consumed = new long[1];
@@ -329,9 +335,9 @@ public final class RecoveryFile {
       }
       MessageDigest sha = Digests.sha256();
       if (UTF_16BE.equals(header.bodyEncoding())) {
-        readWide(in, body, sha, text);
+        readWide(in, body, sha, text, reservation);
       } else {
-        readUtf8(in, body, sha, text);
+        readUtf8(in, body, sha, text, reservation);
       }
       String trailer = new String(in.readNBytes(TRAILER_BYTES), StandardCharsets.US_ASCII);
       if (!trailer.equals("\n" + END + Digests.hex(sha) + "\n")) {
@@ -405,7 +411,12 @@ public final class RecoveryFile {
     return null;
   }
 
-  private static void readUtf8(InputStream in, long length, MessageDigest sha, StringBuilder text)
+  private static void readUtf8(
+      InputStream in,
+      long length,
+      MessageDigest sha,
+      DocumentBuilder text,
+      LoadReservation reservation)
       throws IOException {
     CharsetDecoder decoder =
         StandardCharsets.UTF_8
@@ -427,6 +438,7 @@ public final class RecoveryFile {
       bytes.flip();
       decode(decoder, bytes, chars, left == 0, text);
       bytes.compact();
+      charge(text, reservation, length - left);
     }
     if (length == 0) {
       bytes.flip();
@@ -438,9 +450,20 @@ public final class RecoveryFile {
     drain(chars, text);
   }
 
+  private static void charge(DocumentBuilder text, LoadReservation reservation, long read)
+      throws IOException {
+    if (text != null) {
+      reservation.charge(text.heapBytes(), read);
+    }
+  }
+
   private static void decode(
-      CharsetDecoder decoder, ByteBuffer bytes, CharBuffer chars, boolean last, StringBuilder text)
-      throws DamagedException {
+      CharsetDecoder decoder,
+      ByteBuffer bytes,
+      CharBuffer chars,
+      boolean last,
+      DocumentBuilder text)
+      throws IOException {
     while (true) {
       CoderResult result = decoder.decode(bytes, chars, last);
       if (result.isError()) {
@@ -453,20 +476,26 @@ public final class RecoveryFile {
     }
   }
 
-  private static void drain(CharBuffer chars, StringBuilder text) {
+  private static void drain(CharBuffer chars, DocumentBuilder text) throws IOException {
     chars.flip();
     if (text != null) {
-      text.append(chars);
+      text.append(chars.array(), 0, chars.limit());
     }
     chars.clear();
   }
 
-  private static void readWide(InputStream in, long length, MessageDigest sha, StringBuilder text)
+  private static void readWide(
+      InputStream in,
+      long length,
+      MessageDigest sha,
+      DocumentBuilder text,
+      LoadReservation reservation)
       throws IOException {
     if (length % 2 != 0) {
       throw new DamagedException("Odd body length");
     }
     byte[] block = new byte[BLOCK_BYTES];
+    char[] chars = new char[BLOCK_BYTES / 2];
     long left = length;
     while (left > 0) {
       int want = (int) Math.min(left, block.length);
@@ -477,9 +506,11 @@ public final class RecoveryFile {
       left -= want;
       if (text != null) {
         for (int i = 0; i < want; i += 2) {
-          text.append((char) ((block[i] & 0xff) << 8 | block[i + 1] & 0xff));
+          chars[i / 2] = (char) ((block[i] & 0xff) << 8 | block[i + 1] & 0xff);
         }
+        text.append(chars, 0, want / 2);
       }
+      charge(text, reservation, length - left);
     }
   }
 }

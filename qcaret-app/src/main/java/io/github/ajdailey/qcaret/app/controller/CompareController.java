@@ -13,6 +13,8 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
+import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.document.TextCodingException;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -228,13 +230,13 @@ public final class CompareController {
       Path file, LoadOptions base, Charset charset, boolean binary, CancellationToken token)
       throws IOException {
     LoadCost cost = DocumentFiles.estimate(file, base.limits());
-    if (!budget.reserve(cost.reserveBytes())) {
+    try (LoadReservation reservation = LoadReservation.reserve(budget, cost)) {
+      if (reservation == null) {
+        return null;
+      }
+      return load(file, base, charset, binary, reservation, token).document();
+    } catch (LoadTooLargeException e) {
       return null;
-    }
-    try {
-      return load(file, base, charset, binary, token).document();
-    } finally {
-      budget.release(cost.reserveBytes());
     }
   }
 
@@ -246,21 +248,27 @@ public final class CompareController {
    * @param base the window's load options
    * @param charset the document's charset
    * @param binary true for a binary file's view
+   * @param reservation charged as the text arrives
    * @param token canceled by a close
    * @return the loaded file
    * @throws IOException when the file cannot be read or decoded
    */
   @WorkerThread
   static LoadedFile load(
-      Path file, LoadOptions base, Charset charset, boolean binary, CancellationToken token)
+      Path file,
+      LoadOptions base,
+      Charset charset,
+      boolean binary,
+      LoadReservation reservation,
+      CancellationToken token)
       throws IOException {
     if (binary) {
-      return DocumentFiles.load(file, base.asBinary(), token);
+      return DocumentFiles.load(file, base.asBinary(), reservation, token);
     }
     try {
-      return DocumentFiles.load(file, base.withForced(charset), token);
+      return DocumentFiles.load(file, base.withForced(charset), reservation, token);
     } catch (TextCodingException e) {
-      return DocumentFiles.load(file, base.withForced(null), token);
+      return DocumentFiles.load(file, base.withForced(null), reservation, token);
     }
   }
 

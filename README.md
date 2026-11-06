@@ -245,26 +245,28 @@ document types itself. Details are in `qcaret-dist/README.md`.
 A file opens only when its estimated memory cost fits the 60% of the maximum
 Java heap that documents share; otherwise QCaret refuses it unread and names
 the file's size, the memory it needs and the `-Xmx` value to start with. The
-estimate is 3 bytes of heap per file byte for a file whose first 64 KiB are
-ASCII and 5 bytes otherwise, held during the load; an open document keeps
-about twice its text. The launchers set the maximum heap to half of the
+estimate is the file's text plus 64 MiB of undo headroom (less for a file under
+64 MiB of text). Text costs 1 byte per file byte when the first 64 KiB are ASCII
+and 2 otherwise; a load holds no copy of the file. A file that costs more past
+its first 64 KiB raises its charge as it loads and is refused then if the
+memory is not there. The launchers set the maximum heap to half of the
 physical memory (`-XX:MaxRAMPercentage=50`). To raise it, run the jar with
 the bundle's runtime and `-Xmx`, for example
 `runtime/bin/java -Xmx8g -jar lib/qcaret.jar` (on Windows, add `-Xmx8g` as a
 line in `qcaret.l4j.ini` next to `qcaret.exe`).
 
 Largest single file that opens, measured on Linux x86_64 with nothing else
-open (loads at the budget limit completed without an out-of-memory error):
+open (loads at the budget limit completed without an out-of-memory error, each
+in its own JVM; the non-ASCII text has a CJK char in every line):
 
 | Maximum heap | ASCII text | UTF-8 text with non-ASCII chars |
 |---|---|---|
-| 512 MiB | 102 MiB | 61 MiB |
-| 1 GiB | 204 MiB | 122 MiB |
-| 2 GiB | 409 MiB | 245 MiB |
-| 8 GiB | 1.6 GiB | 983 MiB |
+| 512 MiB | 243 MiB | 121 MiB |
+| 1 GiB | 550 MiB | 275 MiB |
+| 2 GiB | 1.1 GiB | 582 MiB |
+| 8 GiB | 2 GiB | 2 GiB |
 
-The 8 GiB row is the same 20% and 12% of the heap, computed, not measured. No
-file over 2 GiB opens.
+No file over 2 GiB opens.
 
 These operations run on the UI thread, and the window does not respond while
 they apply (measured on Linux under Xvfb, one million lines):

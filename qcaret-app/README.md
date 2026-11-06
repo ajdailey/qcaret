@@ -615,8 +615,9 @@ write is never reported.
 
 - Reload reads the file on a `qcaret-io-` worker in the document's charset
   (detection when that does not decode; ISO-8859-1 for a binary file's view),
-  reserving the load's cost from the budget while it reads, and replaces the
-  span between the common prefix and suffix as one undo step. Each view's
+  reserving `LoadCost.reloadBytes` from the budget while it reads and compares,
+  and replaces the span between the common prefix and suffix as one undo step.
+  The old and new text are both in the heap until the comparison ends. Each view's
   caret keeps its line and column; the views keep their top line. The
   document is clean afterwards and undo returns to the text before, dirty. A
   document edited during the read reloads again, at most three times.
@@ -675,8 +676,9 @@ resolves the path (`SafePaths.userFile`) and posts it to the UI thread, where
 second worker reads it. An open waiting for the UI thread is ended by `close`
 too, so a task the dispatcher drops still ends its activity. Before reading,
 it estimates the load (`DocumentFiles.estimate`) and reserves it from
-the `MemoryBudget`; a load the budget cannot hold is refused unread, and the
-notice names the size, the memory needed and a `-Xmx` value. A loaded
+the `MemoryBudget`; a load the budget cannot hold is refused unread, a load
+whose text outgrows the estimate past the budget is refused while reading, and
+the notice names the size, the memory needed and a `-Xmx` value. A loaded
 document arrives with its rows (`DisplayProjection.layout`) and its
 reservation lowered to the retained cost. `close` sets a flag and cancels the
 running loads; a load that finishes after it drops its document and releases
@@ -1218,7 +1220,8 @@ Forward), the Quick Open keys, the reference filter
 and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`
 holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
-both release their reservation; a load over the budget is refused unread; an
+both release their reservation; a load over the budget is refused unread, and
+one that outgrows it is refused while reading; an
 open document ends the open unread; a close ends an open waiting for the UI
 thread.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled

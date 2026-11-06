@@ -73,12 +73,28 @@ public final class Document {
       LineEnding empty,
       UndoLimits limits,
       LongSupplier clock) {
-    this.storage = RopeStorage.of(text);
+    this(
+        RopeStorage.of(text),
+        LineEndingStats.count(text, 0, text.length()),
+        encoding,
+        empty,
+        limits,
+        clock);
+  }
+
+  Document(
+      RopeStorage storage,
+      LineEndingStats lineEndings,
+      TextEncoding encoding,
+      LineEnding empty,
+      UndoLimits limits,
+      LongSupplier clock) {
+    this.storage = storage;
     this.history = new UndoHistory(limits);
     this.clock = clock;
     this.encoding = encoding;
     this.savedEncoding = encoding;
-    this.lineEndings = LineEndingStats.count(text, 0, text.length());
+    this.lineEndings = lineEndings;
     this.lineEnding = lineEndings.dominant(empty);
   }
 

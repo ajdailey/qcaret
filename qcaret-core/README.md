@@ -136,7 +136,9 @@ name this Java lacks, so a remembered encoding the runtime does not have reads
 as none. `TextEncoding.MENU` lists the Encoding menu's charsets; the
 distribution smoke test checks that every bundle runtime has them.
 
-`EncodingDetector.detect` examines the whole file, in this order:
+`EncodingDetector.detect` examines the whole file, in this order;
+`candidates` lists the same choices from the file's first 64 KiB alone, for a
+caller that tries each over the file (`DocumentFiles.load`):
 
 1. BOM: UTF-8, UTF-32 LE/BE, UTF-16 LE/BE. `FF FE 00 00` is UTF-32LE, so a
    UTF-16LE file whose first char is U+0000 reads as UTF-32LE.
@@ -153,7 +155,8 @@ distribution smoke test checks that every bundle runtime has them.
 `forced` applies a user's charset, keeping a matching BOM as the file's BOM.
 
 `LineEndingStats` counts LF, CR LF and CR breaks and reports the dominant and
-mixed state; `LineEnding` names the three kinds.
+mixed state; `LineEndingStats.Counter` counts a text read in pieces, a CR at a
+piece's end waiting for the next char. `LineEnding` names the three kinds.
 
 ## Text storage (`core.buffer`)
 
@@ -277,21 +280,39 @@ their `CancellationToken` per block.
 
 - `estimate` reads the size and the first 64 KiB and returns a `LoadCost`. A
   char costs 1 byte when the sample is ASCII and 2 otherwise; a UTF-16 or
-  UTF-32 BOM divides the char count by 2 or 4. The peak is the bytes read plus
-  the decoded text plus the document's text; the retained cost is the
-  document's text plus undo headroom of the same size, at most
-  `UndoLimits.maxBytes`. A caller reserves `reserveBytes()`, the larger of the
-  two, before `load`, and keeps the retained cost while the document is open.
-  An ASCII-sampled file whose later text is not Latin-1 is underestimated by
-  up to half its text.
-- Load reads the file whole (at most `Integer.MAX_VALUE - 8` bytes), takes the
-  forced charset or `EncodingDetector`'s choice, throws `BinaryFileException`
-  for a binary file unless `LoadOptions.asBinary()` (ISO-8859-1, which maps
-  every byte), decodes strictly (`TextCodingException` with the byte offset)
-  and encodes the text back. `LoadedFile.roundTrips` false means the bytes
+  UTF-32 BOM divides the char count by 2 or 4. The peak is the text plus the
+  load's buffers (at most 5 MiB); the retained cost is the text plus undo
+  headroom of the same size, at most `UndoLimits.maxBytes` (64 MiB by default).
+  `reserveBytes()` is the larger of the two; `reloadBytes()` is the peak plus
+  twice the text, for the changed span a reload builds.
+- `LoadReservation.reserve` holds `reserveBytes()` from the `MemoryBudget`.
+  During the load, `charge` raises it by what the text read so far costs over
+  the estimate at that point in the file, since an ASCII sample can hide 2
+  bytes per char later. A raise the budget refuses ends the load with
+  `LoadTooLargeException`, whose cost is projected from the text read. `keep`
+  lowers the hold to `LoadedFile.retainedBytes`, measured from the leaves, and
+  hands it to the caller until the document closes; `close` releases the rest
+  and belongs in a `finally` block.
+- Load holds no copy of the file (at most `Integer.MAX_VALUE - 8` bytes). The
+  first 64 KiB give the forced charset or `EncodingDetector.candidates` and the
+  binary check; `BinaryFileException` for a binary file unless
+  `LoadOptions.asBinary()` (ISO-8859-1, which maps every byte). Each candidate
+  takes one `LoadPass`: 1 MiB blocks are digested, decoded strictly into a
+  `DocumentBuilder` (rope leaves and line-ending counts) and the chars encoded
+  back against the same bytes. A candidate that fails ends its pass at the
+  failing byte and the next starts over, so a file in its first candidate is
+  read once and a windows-1252 file twice. The last candidate's failure is
+  `TextCodingException` with the byte offset. One channel serves every pass, so
+  a file replaced by a rename during the load stays the file opened; the
+  digest and text come from the same pass, and a write in place between passes
+  is not noticed by the load. `LoadedFile.roundTrips` false means the bytes
   would change on save; the caller opens the document read-only and names the
-  encoding. `LoadedFile.baseline` holds the stamp read before the bytes and
-  the SHA-256 of the bytes read.
+  encoding. A charset with no encoder never round-trips. `LoadedFile.baseline`
+  holds the stamp read before the bytes and the SHA-256 of the bytes read.
+- `x-JISAutoDetect` reads the file as one block, charged to the reservation:
+  it gives another result on split input. Measured over the 173 charsets of
+  JDK 21.0.12 at blocks of 1 to 16 bytes, on encoded text and random bytes, it
+  is the only one.
 - Save encodes the snapshot once to find an unmappable char
   (`TextCodingException` with the char offset, no file touched), then writes
   the BOM and the text through `SafeSave` and returns a `FileBaseline`: the
@@ -641,7 +662,15 @@ every BOM and mixed line endings byte for byte, and covers the fallback,
 binary files, an unmappable save, a malformed forced decode, text that does
 not encode back, a canceled load, a file larger than one 1 MiB read block
 (regression: the read stopped after the first block), the load estimate, and
-the digests of a load and a save. `SafeSaveTest` covers permissions, a new
+the digests of a load and a save. `StreamingLoadTest` compares a load with a
+whole-array decode of the same bytes: every menu charset, BOM form and two
+ISO-2022 charsets with a block boundary at each offset of each sequence and CR
+LF, at blocks of 1 to 9 bytes and at the real first boundary; a detection corpus
+including a candidate that fails past the first block. It also covers a cancel
+in mid-file, a reservation raised by text behind an ASCII sample and a raise the
+budget refuses. `LoadHeapTest` loads at the budget's limit in a 128 MiB child
+JVM: ASCII and wide text load, and wide text behind an ASCII head is refused
+instead of running out of memory. `SafeSaveTest` covers permissions, a new
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.

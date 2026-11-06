@@ -18,6 +18,8 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.document.LoadReservation;
+import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -628,38 +630,36 @@ final class RecoveryController implements RecoveryInput {
   /** Reserves the buffer's heap and reads its file; nothing stays reserved on a failure. */
   @WorkerThread
   private Result load(Path file) {
-    long reserved = 0;
-    boolean kept = false;
+    LoadReservation reservation = null;
     Path name = file.getFileName();
     try {
       LoadCost cost = DocumentFiles.estimate(file, options.limits());
-      if (!budget.reserve(cost.reserveBytes())) {
+      reservation = LoadReservation.reserve(budget, cost);
+      if (reservation == null) {
         return new Result(null, UiText.RECOVERY_TOO_LARGE.format(name));
       }
-      reserved = cost.reserveBytes();
-      RecoveryFile.Loaded loaded = RecoveryFile.load(file);
+      RecoveryFile.Loaded loaded = RecoveryFile.load(file, reservation);
       RecoveryFile.Header header = loaded.header();
-      Document document =
-          Document.of(loaded.text(), encoding(header), options.empty(), options.limits());
+      Document document = loaded.text().build(encoding(header), options.empty(), options.limits());
       DisplayProjection.Layout layout =
           DisplayProjection.layout(document.text(), 0, new CancellationToken());
       Path given = header.path().isEmpty() ? null : Path.of(header.path());
       Path real = given == null ? null : DocumentController.realFile(given);
       FileBaseline base = given == null ? null : baseline(header, real);
-      budget.release(reserved - cost.retainedBytes());
-      reserved = cost.retainedBytes();
-      kept = true;
+      long reserved = reservation.keep(loaded.text().retainedBytes(options.limits()));
       return new Result(
           new DocumentController.Recovered(header, document, layout, real, given, base, reserved),
           null);
     } catch (RecoveryFile.DamagedException e) {
       return new Result(null, UiText.RECOVERY_DAMAGED_KEPT.text());
+    } catch (LoadTooLargeException e) {
+      return new Result(null, UiText.RECOVERY_TOO_LARGE.format(name));
     } catch (IOException | InvalidPathException e) {
       LOG.warn("Cannot read a recovery file: {}", LogText.oneLine(e.getMessage()));
       return new Result(null, UiText.RECOVERY_READ_FAILED.format(name));
     } finally {
-      if (!kept) {
-        budget.release(reserved);
+      if (reservation != null) {
+        reservation.close();
       }
     }
   }

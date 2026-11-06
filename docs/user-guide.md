@@ -46,9 +46,9 @@ A file that cannot be written back byte for byte in its encoding opens
 read-only with a notice. A binary file asks first: Open Read-Only shows it as
 ISO-8859-1 text, with editing and saving off.
 
-A file needs heap to open: about 3 bytes per file byte for ASCII text and 5
-otherwise while it loads. A file that does not fit is refused unread, and the
-notice names the `-Xmx` value to start with. No file over 2 GiB opens.
+A file needs heap to open: 1 byte per file byte for ASCII text and 2 otherwise,
+plus up to 64 MiB for undo. A file that does not fit is refused, and the notice
+names the `-Xmx` value to start with. No file over 2 GiB opens.
 
 Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Ctrl+Alt+S`) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
