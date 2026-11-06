@@ -127,7 +127,9 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Becomes the primary instance for a settings directory when no live instance is.
+   * Becomes the primary instance for a settings directory when no live instance is. Call it from
+   * one thread per process: concurrent claims in one JVM can each succeed, because {@code
+   * sun.nio.ch.FileLockTable} loses a live lock when channels on the file close concurrently.
    *
    * @param directory the settings directory
    * @return the server, bound, its endpoint written; null when a live instance holds the lock

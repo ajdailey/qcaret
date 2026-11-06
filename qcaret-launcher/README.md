@@ -226,3 +226,5 @@ reopen (a read-only file) detaches the file and its ERROR reaches the recent
 lines, and which files prune deletes. `LauncherTest`
 checks help, version, exit 1 for a bad option or settings path, `user.home`
 per settings mode on Linux and the WebView2 data folder on Windows.
+`LauncherProcessTest` runs 16 `LaunchMain` child JVMs against a closing primary:
+one `PRIMARY`, 15 `HANDED`, 15 launches received.

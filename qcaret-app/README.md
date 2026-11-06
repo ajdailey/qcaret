@@ -42,6 +42,13 @@ any stale endpoint, binds an ephemeral loopback port and writes a new token.
 other order a new primary can lose its own endpoint. Close it before
 `Workers.close`, which waits for the accept thread.
 
+The lock arbitrates between processes only. Within one JVM on Linux and macOS
+`sun.nio.ch.FileLockTable` arbitrates, and concurrent channel closes on the file
+drop a live entry from it (JDK 21), so two threads can both claim. `Launcher`
+claims from one thread; a test of concurrent launches uses real processes.
+Closing any channel on the file releases the process's lock on Linux, so a
+primary that reads `instance.lock` as a document loses it.
+
 `InstanceClient.handOff` runs in the launcher before the Display exists. It
 waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
 channels against one 35 s deadline (`LineChannel`), because the ArchUnit rules
