@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
@@ -12,6 +13,8 @@ import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.DocumentFiles;
+import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.IOException;
@@ -346,6 +349,59 @@ class ExternalChangeTest {
     assertTrue(view.changePrompts.isEmpty(), view.changePrompts.toString());
     assertEquals("xxxxxone\n", document.text().toString());
     assertEquals("xxxxxone\n", Files.readString(file));
+  }
+
+  @Test
+  void aSpanTheBudgetCannotHoldLeavesTheTextAndReportsIt() throws Exception {
+    Path file = write("a.txt", "x");
+    Document document = open(file);
+    long rest = budget.available();
+    assertTrue(budget.reserve(rest));
+    try {
+      write("a.txt", "y".repeat(1 << 20));
+      checkAndSettle();
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return view.notices.contains(UiText.RELOAD_TOO_LARGE.format("a.txt"));
+            }
+          },
+          "notice");
+      assertEquals("x", document.text().toString());
+      assertFalse(document.isDirty());
+    } finally {
+      budget.release(rest);
+    }
+  }
+
+  /** An ASCII head admits the file; a wide char per leaf past it costs 2 bytes per char. */
+  @Test
+  void compareRefusesAFileWhoseTextOutgrowsTheBudget() throws Exception {
+    Path file = write("a.txt", "one\n");
+    open(file);
+    documents.activeEditor().type("mine ");
+    write("a.txt", "a".repeat(1 << 17) + "\n" + (("a".repeat(1000) + "中\n").repeat(4000)));
+    LoadCost cost = DocumentFiles.estimate(file, LoadOptions.DEFAULTS.limits());
+    long rest = budget.available() - cost.reserveBytes() - 100;
+    assertTrue(budget.reserve(rest));
+    try {
+      checkUntilPrompts(1);
+      view.changeAnswer.accept(ChangeChoice.COMPARE);
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return view.notices.contains(UiText.COMPARE_TOO_LARGE.format("a.txt"));
+            }
+          },
+          "notice");
+      assertTrue(view.comparisons.isEmpty());
+      checkAndSettle();
+      view.changeAnswer.accept(ChangeChoice.KEEP);
+    } finally {
+      budget.release(rest);
+    }
   }
 
   @Test

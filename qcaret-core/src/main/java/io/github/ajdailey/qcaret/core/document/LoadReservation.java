@@ -8,22 +8,24 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
  * DocumentFiles#estimate} samples only the head, so an ASCII head can hide 2 bytes per char later.
  * A rise the budget refuses ends the load with a {@link LoadTooLargeException}. The owner calls
  * {@link #close} in a {@code finally} block, which releases whatever {@link #keep} did not take.
- * Used by one thread.
+ * Used by one thread at a time.
  */
 public final class LoadReservation implements AutoCloseable {
   /** Charges nothing and refuses nothing, for a load outside the budget. */
-  public static final LoadReservation UNMETERED = new LoadReservation(null, null, 0);
+  public static final LoadReservation UNMETERED = new LoadReservation(null, null, 0, 0);
+
+  private static final LoadCost NO_COST = new LoadCost(0, 0, 0, 0);
 
   private final MemoryBudget budget;
   private final LoadCost cost;
-  private final long base;
+  private long base;
   private long held;
 
-  private LoadReservation(MemoryBudget budget, LoadCost cost, long bytes) {
+  private LoadReservation(MemoryBudget budget, LoadCost cost, long base, long held) {
     this.budget = budget;
     this.cost = cost;
-    this.base = bytes;
-    this.held = bytes;
+    this.base = base;
+    this.held = held;
   }
 
   /**
@@ -46,7 +48,23 @@ public final class LoadReservation implements AutoCloseable {
    * @return the reservation, or null, reserving nothing, when the budget cannot hold it
    */
   public static LoadReservation reserve(MemoryBudget budget, LoadCost cost, long bytes) {
-    return budget.reserve(bytes) ? new LoadReservation(budget, cost, bytes) : null;
+    return budget.reserve(bytes) ? new LoadReservation(budget, cost, bytes, bytes) : null;
+  }
+
+  /**
+   * Starts a reload of an open document's file. It holds nothing at first; {@link #charge} draws on
+   * the budget only past the document's undo headroom, which its own reservation already covers and
+   * which a reload's undo step fills. A document at the budget limit therefore reloads a change
+   * that fits its headroom.
+   *
+   * @param budget the budget
+   * @param retainedBytes what the document holds: its text and the headroom, at most the text
+   * @param limits the document's undo bounds
+   * @return the reservation
+   */
+  public static LoadReservation reload(MemoryBudget budget, long retainedBytes, UndoLimits limits) {
+    long headroom = Math.min(limits.maxBytes(), retainedBytes / 2);
+    return new LoadReservation(budget, NO_COST, -headroom, 0);
   }
 
   /**
@@ -84,6 +102,7 @@ public final class LoadReservation implements AutoCloseable {
     if (!budget.reserve(bytes)) {
       throw new LoadTooLargeException(cost);
     }
+    base += bytes;
     held += bytes;
   }
 

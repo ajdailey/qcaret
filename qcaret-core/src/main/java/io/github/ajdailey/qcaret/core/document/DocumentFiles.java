@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.document;
 
+import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.buffer.TextCursor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
@@ -21,6 +22,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -46,6 +48,14 @@ public final class DocumentFiles {
 
   /** Bytes {@link #estimate} reads from the start of a file. */
   static final int SAMPLE_BYTES = 64 * 1024;
+
+  private static final Runnable NOTHING =
+      new Runnable() {
+        @Override
+        public void run() {
+          // No test between the passes.
+        }
+      };
 
   private DocumentFiles() {}
 
@@ -147,11 +157,156 @@ public final class DocumentFiles {
 
   static LoadedFile load(
       Path file,
-      LoadOptions options,
+      final LoadOptions options,
       LoadReservation reservation,
       CancellationToken token,
       int blockBytes,
       int blockChars)
+      throws IOException {
+    return read(
+        file,
+        options,
+        reservation,
+        token,
+        blockBytes,
+        blockChars,
+        new Reading<DocumentBuilder, LoadedFile>() {
+          @Override
+          public DocumentBuilder sink() {
+            return new DocumentBuilder();
+          }
+
+          @Override
+          public LoadedFile finish(Finished read, DocumentBuilder text) {
+            return new LoadedFile(
+                text.build(read.detection().encoding(), options.empty(), options.limits()),
+                read.baseline(),
+                read.detection(),
+                read.binary(),
+                read.pass().roundTrips(),
+                text.retainedBytes(options.limits()));
+          }
+        });
+  }
+
+  /**
+   * Compares a file with an open document's text without holding the file's text. It reads the file
+   * as {@link #load(Path, LoadOptions, LoadReservation, CancellationToken)} does, up to two passes:
+   * the first finds the common prefix and the char count, the second, when the texts differ,
+   * compares the rest aligned at the end and collects the replacement's text. {@code reservation}
+   * is charged for the load's buffers and the changed span: the inserted text twice and the removed
+   * text once, which {@link Document#apply} holds at its peak.
+   *
+   * @param file the file, validated by the caller
+   * @param options the forced charset, fallback and undo bounds
+   * @param current the document's text
+   * @param reservation charged as the span grows; the caller holds it until the span is applied
+   * @param token canceled by a close of the document or the window
+   * @return the replacement and what the read found
+   * @throws BinaryFileException for a binary file when {@code options.allowBinary()} is false
+   * @throws TextCodingException when the bytes do not decode in the chosen charset
+   * @throws LoadTooLargeException when the span costs more than the budget can hold
+   * @throws IOException when the file cannot be read, exceeds {@link #MAX_BYTES} or differs between
+   *     the passes
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public static ReloadedFile reload(
+      Path file,
+      LoadOptions options,
+      TextContent current,
+      LoadReservation reservation,
+      CancellationToken token)
+      throws IOException {
+    return reload(file, options, current, reservation, token, BLOCK_BYTES, BLOCK_CHARS, NOTHING);
+  }
+
+  static ReloadedFile reload(
+      Path file,
+      final LoadOptions options,
+      final TextContent current,
+      final LoadReservation reservation,
+      final CancellationToken token,
+      final int blockBytes,
+      final int blockChars,
+      final Runnable betweenPasses)
+      throws IOException {
+    final long buffers = Math.min(Files.size(file), BUFFER_BYTES);
+    return read(
+        file,
+        options,
+        reservation,
+        token,
+        blockBytes,
+        blockChars,
+        new Reading<TextDifference.Prefix, ReloadedFile>() {
+          @Override
+          public TextDifference.Prefix sink() {
+            return new TextDifference.Prefix(current, buffers);
+          }
+
+          @Override
+          public ReloadedFile finish(Finished read, TextDifference.Prefix prefix)
+              throws IOException {
+            TextEncoding encoding = read.detection().encoding();
+            Replacement replacement = null;
+            if (!prefix.equalsCurrent()) {
+              betweenPasses.run();
+              TextDifference.Span span = new TextDifference.Span(current, prefix, buffers);
+              LoadPass pass =
+                  new LoadPass(
+                      read.channel(),
+                      read.size(),
+                      encoding,
+                      reservation,
+                      token,
+                      blockBytes,
+                      blockChars,
+                      span);
+              try {
+                pass.run();
+              } catch (TextCodingException e) {
+                throw new IOException("The file changed during the read", e);
+              }
+              if (!pass.digest().equals(read.baseline().digest())
+                  || span.length() != prefix.length()) {
+                throw new IOException("The file changed during the read");
+              }
+              reservation.charge(span.finishedBytes(), 0);
+              replacement = span.replacement();
+            }
+            return new ReloadedFile(
+                replacement, encoding, prefix.endings().dominant(options.empty()), read.baseline());
+          }
+        });
+  }
+
+  /** What one file read makes of its candidates' passes. */
+  private interface Reading<S extends TextSink, R> {
+    /** Returns the sink of the next candidate's pass. */
+    S sink();
+
+    /** Makes the result from the pass that finished and its sink. */
+    R finish(Finished read, S sink) throws IOException;
+  }
+
+  /** The pass that finished, on the channel still open. */
+  private record Finished(
+      FileChannel channel,
+      long size,
+      LoadPass pass,
+      EncodingDetection detection,
+      boolean binary,
+      FileBaseline baseline) {}
+
+  private static <S extends TextSink, R> R read(
+      Path file,
+      LoadOptions options,
+      LoadReservation reservation,
+      CancellationToken token,
+      int blockBytes,
+      int blockChars,
+      Reading<S, R> reading)
       throws IOException {
     long recorded = System.currentTimeMillis();
     FileStamp stamp = FileStamp.read(file);
@@ -179,8 +334,9 @@ public final class DocumentFiles {
       for (int i = 0; ; i++) {
         EncodingDetection detection = candidates.get(i);
         TextEncoding encoding = detection.encoding();
+        S sink = reading.sink();
         LoadPass pass =
-            new LoadPass(channel, size, encoding, reservation, token, blockBytes, blockChars);
+            new LoadPass(channel, size, encoding, reservation, token, blockBytes, blockChars, sink);
         try {
           pass.run();
         } catch (TextCodingException e) {
@@ -194,13 +350,7 @@ public final class DocumentFiles {
           throw new BinaryFileException(String.valueOf(file.getFileName()));
         }
         FileBaseline baseline = new FileBaseline(stamp, pass.digest(), recorded);
-        return new LoadedFile(
-            pass.text().build(encoding, options.empty(), options.limits()),
-            baseline,
-            detection,
-            binary,
-            pass.roundTrips(),
-            pass.text().retainedBytes(options.limits()));
+        return reading.finish(new Finished(channel, size, pass, detection, binary, baseline), sink);
       }
     }
   }

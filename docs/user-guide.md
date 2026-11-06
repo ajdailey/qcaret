@@ -247,8 +247,9 @@ QCaret checks each open file every 5 seconds and when a window activates.
 | Deleted | Stays open, unsaved, marked missing | Same |
 | Back with the same bytes | The mark clears | The mark clears |
 
-A reload is one undo step and keeps each view's caret line and column. Keep Mine
-makes the next save ask. A save that finds the file changed asks: Overwrite,
+A reload is one undo step and keeps each view's caret line and column. When the
+change does not fit in memory, the tab keeps its text and a notice says so. Keep
+Mine makes the next save ask. A save that finds the file changed asks: Overwrite,
 Reload, Compare or Cancel. Preferences, Files sets the interval and can make a
 clean document ask too.
 

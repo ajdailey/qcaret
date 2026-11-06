@@ -5,19 +5,33 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
 
 /**
  * Child JVM of {@link LoadHeapTest}: writes a file as large as this heap's budget admits, loads it
- * and prints the outcome. Arguments: the file and {@code ascii}, {@code wide} or {@code late}.
+ * and prints the outcome. Arguments: the file and {@code ascii}, {@code wide} or {@code late}, and
+ * optionally a reload to run after the load: {@code edit} changes the middle, {@code append} adds a
+ * line, {@code rewrite} changes every line.
  */
 public final class LoadHeapProbe {
   private static final byte[] ASCII_LINE =
       "0123456789 mock text 0123456789 mock text 0123456789\n".getBytes(StandardCharsets.UTF_8);
   private static final byte[] WIDE_LINE =
       "0123456789 mock 中 text 0123456789 mock text 0123\n".getBytes(StandardCharsets.UTF_8);
+
+  private static final byte[] REWRITTEN_LINE =
+      "rewritten line of mock text, other bytes at every offset\n".getBytes(StandardCharsets.UTF_8);
+
+  /** Chars an {@code edit} adds to the text. */
+  static final int ADDED_CHARS = ASCII_LINE.length;
+
+  private static final LoadOptions UTF8 = LoadOptions.DEFAULTS.withForced(StandardCharsets.UTF_8);
 
   private LoadHeapProbe() {}
 
@@ -34,6 +48,54 @@ public final class LoadHeapProbe {
   }
 
   /**
+   * Returns the largest size the budget admits: text plus 64 MiB of headroom, or twice the text.
+   */
+  private static long sizeAtTheLimit(MemoryBudget budget, boolean wide) {
+    long limit = budget.limit();
+    long text =
+        limit > 2 * UndoLimits.DEFAULTS.maxBytes()
+            ? limit - UndoLimits.DEFAULTS.maxBytes()
+            : limit / 2;
+    return text / (wide ? 2 : 1) - 4096;
+  }
+
+  /** Changes the file, reloads it into the document and prints the outcome. */
+  private static void reload(
+      Path file, String change, boolean wide, Document document, MemoryBudget budget, long retained)
+      throws IOException {
+    if (change.equals("edit")) {
+      try (FileChannel channel = FileChannel.open(file, StandardOpenOption.WRITE)) {
+        long line = wide ? WIDE_LINE.length : ASCII_LINE.length;
+        channel.write(
+            ByteBuffer.wrap("edited".getBytes(StandardCharsets.UTF_8)),
+            channel.size() / 2 / line * line);
+      }
+    } else if (change.equals("append")) {
+      try (FileChannel channel = FileChannel.open(file, StandardOpenOption.WRITE)) {
+        channel.write(ByteBuffer.wrap(ASCII_LINE), channel.size());
+      }
+    } else {
+      long size = Files.size(file);
+      try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(file), 1 << 16)) {
+        for (long written = 0; written < size; written += REWRITTEN_LINE.length) {
+          out.write(REWRITTEN_LINE);
+        }
+      }
+    }
+    int before = document.text().length();
+    try (LoadReservation reservation =
+        LoadReservation.reload(budget, retained, UndoLimits.DEFAULTS)) {
+      ReloadedFile read =
+          DocumentFiles.reload(file, UTF8, document.text(), reservation, new CancellationToken());
+      document.apply(EditBatch.of(EditBatch.Kind.COMMAND, List.of(read.replacement())));
+      System.out.println(
+          "RELOADED " + document.undoSteps() + " " + (document.text().length() - before));
+    } catch (LoadTooLargeException e) {
+      System.out.println("RELOAD REFUSED");
+    }
+  }
+
+  /**
    * Runs the probe.
    *
    * @param args the file and the kind of text
@@ -44,9 +106,7 @@ public final class LoadHeapProbe {
     String kind = args[1];
     MemoryBudget budget = MemoryBudget.fromRuntime();
     boolean wide = kind.equals("wide");
-    // Retained is text plus as much undo headroom below 64 MiB: twice the text in this range.
-    long size = budget.limit() / (wide ? 4 : 2) - 4096;
-    write(file, size, kind.equals("late"), wide);
+    write(file, sizeAtTheLimit(budget, wide), kind.equals("late"), wide);
     LoadCost cost = DocumentFiles.estimate(file, UndoLimits.DEFAULTS);
     try (LoadReservation reservation = LoadReservation.reserve(budget, cost)) {
       if (reservation == null) {
@@ -55,7 +115,11 @@ public final class LoadHeapProbe {
       }
       LoadedFile loaded =
           DocumentFiles.load(file, LoadOptions.DEFAULTS, reservation, new CancellationToken());
+      long kept = reservation.keep(loaded.retainedBytes());
       System.out.println("LOADED " + loaded.document().text().length());
+      if (args.length > 2) {
+        reload(file, args[2], wide, loaded.document(), budget, kept);
+      }
     } catch (LoadTooLargeException e) {
       System.out.println("REFUSED");
     } catch (OutOfMemoryError e) {

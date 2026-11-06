@@ -18,19 +18,20 @@ import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.io.Digests;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.FileSearch;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.search.TextSearch;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -39,6 +40,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import java.util.regex.PatternSyntaxException;
 
@@ -88,6 +90,7 @@ public final class SearchController implements ResultsInput {
   private int resolving;
   private long nextId = 1;
   private boolean shown;
+  private final CancellationToken checks = new CancellationToken();
   private boolean disposed;
   private long cursorSet = -1;
   private int cursorFile;
@@ -567,6 +570,7 @@ public final class SearchController implements ResultsInput {
   /** Stops every search and returns every set's heap. */
   public void dispose() {
     disposed = true;
+    checks.cancel();
     for (Entry e : entries) {
       drop(e);
     }
@@ -1112,7 +1116,7 @@ public final class SearchController implements ResultsInput {
             new Runnable() {
               @Override
               public void run() {
-                final boolean changed = changed(path, stamp, digest);
+                final boolean changed = changed(path, stamp, digest, checks);
                 ui.asyncExec(
                     new Runnable() {
                       @Override
@@ -1142,7 +1146,7 @@ public final class SearchController implements ResultsInput {
 
   /** Reports whether a file differs from the bytes searched. */
   @WorkerThread
-  static boolean changed(Path path, FileStamp stamp, byte[] digest) {
+  static boolean changed(Path path, FileStamp stamp, byte[] digest, CancellationToken token) {
     try {
       FileStamp now = FileStamp.read(path);
       if (stamp.equals(now)) {
@@ -1151,9 +1155,11 @@ public final class SearchController implements ResultsInput {
       if (now == null || digest == null) {
         return true;
       }
-      return !MessageDigest.isEqual(digest, FileSearch.digest(Files.readAllBytes(path)));
+      return !MessageDigest.isEqual(digest, Digests.bytesOf(path, token));
     } catch (IOException e) {
       return true;
+    } catch (CancellationException e) {
+      return false;
     }
   }
 

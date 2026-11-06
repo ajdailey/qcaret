@@ -191,7 +191,6 @@ class DocumentFilesTest {
     LoadCost buffered = DocumentFiles.estimate(large, limits);
     assertEquals(2 * DocumentFiles.BUFFER_BYTES + 10, buffered.peakBytes());
     assertEquals(600, capped.reserveBytes());
-    assertEquals(1200, capped.reloadBytes());
   }
 
   /** Regression: the read stopped after its first 1 MiB block. */

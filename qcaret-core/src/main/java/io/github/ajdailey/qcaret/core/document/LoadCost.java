@@ -17,14 +17,4 @@ public record LoadCost(long fileBytes, long textBytes, long peakBytes, long reta
   public long reserveBytes() {
     return Math.max(peakBytes, retainedBytes);
   }
-
-  /**
-   * Returns what a reload that compares the file with the open text reserves: the load's peak plus
-   * the changed span as a {@code StringBuilder} and its {@code String}, at most the text twice.
-   *
-   * @return bytes
-   */
-  public long reloadBytes() {
-    return peakBytes + 2 * textBytes;
-  }
 }

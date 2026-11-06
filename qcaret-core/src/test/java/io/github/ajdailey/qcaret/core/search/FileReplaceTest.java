@@ -14,6 +14,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
@@ -212,6 +213,36 @@ class FileReplaceTest {
         });
     assertEquals("key\n", Files.readString(file));
     assertTrue(ReplaceBackups.entries(backups.directory()).isEmpty());
+  }
+
+  /** The header sits in the first block; the body runs past every block. */
+  @Test
+  void aFileLargerThanEveryBlockRestoresByteForByte() throws IOException {
+    String original = "key\n" + "0123456789 mock text\n".repeat(200_000);
+    Path file = Files.writeString(temp.resolve("large.txt"), original);
+    ReplaceBackups backups = backups();
+    assertTrue(replace(searched(file, "key", false, UTF8), "key", false, "x", backups).changed());
+    ReplaceBackups.Entry entry = ReplaceBackups.entries(backups.directory()).get(0);
+    assertEquals(
+        ReplaceBackups.Restore.RESTORED,
+        ReplaceBackups.restore(backups.directory(), entry, NONE).result());
+    assertEquals(original, Files.readString(file));
+  }
+
+  @Test
+  void aDamagedBackupFailsAndLeavesTheFile() throws IOException {
+    Path file = Files.writeString(temp.resolve("one.txt"), "key 1\n");
+    ReplaceBackups backups = backups();
+    assertTrue(replace(searched(file, "key", false, UTF8), "key", false, "x", backups).changed());
+    ReplaceBackups.Entry entry = ReplaceBackups.entries(backups.directory()).get(0);
+    Files.write(
+        backups.directory().resolve(entry.number() + ".bak"),
+        "damaged\n".getBytes(StandardCharsets.UTF_8),
+        StandardOpenOption.APPEND);
+    assertEquals(
+        ReplaceBackups.Restore.FAILED,
+        ReplaceBackups.restore(backups.directory(), entry, NONE).result());
+    assertEquals("x 1\n", Files.readString(file));
   }
 
   @Test

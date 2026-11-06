@@ -1,12 +1,9 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
-import io.github.ajdailey.qcaret.core.buffer.TextContent;
-import io.github.ajdailey.qcaret.core.buffer.TextCursor;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
@@ -221,37 +218,5 @@ final class ExternalChanges {
             });
       }
     }
-  }
-
-  /**
-   * Returns the one replacement that turns a text into another: the span between their common
-   * prefix and common suffix.
-   *
-   * @param before the current text
-   * @param after the new text
-   * @return the replacement, or null when the texts are equal
-   */
-  @WorkerThread
-  static Replacement difference(TextContent before, TextContent after) {
-    int b = before.length();
-    int a = after.length();
-    int limit = Math.min(a, b);
-    int prefix = 0;
-    TextCursor x = before.cursor(0);
-    TextCursor y = after.cursor(0);
-    while (prefix < limit && x.next() == y.next()) {
-      prefix++;
-    }
-    if (prefix == a && prefix == b) {
-      return null;
-    }
-    int suffix = 0;
-    x = before.cursor(b);
-    y = after.cursor(a);
-    while (suffix < limit - prefix && x.previous() == y.previous()) {
-      suffix++;
-    }
-    return new Replacement(
-        prefix, b - prefix - suffix, after.subSequence(prefix, a - suffix).toString());
   }
 }

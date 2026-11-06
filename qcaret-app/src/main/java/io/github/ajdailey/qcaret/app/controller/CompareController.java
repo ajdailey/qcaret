@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
+import io.github.ajdailey.qcaret.core.document.ReloadedFile;
 import io.github.ajdailey.qcaret.core.document.TextCodingException;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
@@ -269,6 +270,39 @@ public final class CompareController {
       return DocumentFiles.load(file, base.withForced(charset), reservation, token);
     } catch (TextCodingException e) {
       return DocumentFiles.load(file, base.withForced(null), reservation, token);
+    }
+  }
+
+  /**
+   * Compares a file with an open document's text, reading it as {@link #load} does.
+   *
+   * @param file the path the user opened
+   * @param base the window's load options
+   * @param charset the document's charset
+   * @param binary true for a binary file's view
+   * @param current the document's text
+   * @param reservation charged for the changed span
+   * @param token canceled by a close
+   * @return the file's difference from {@code current}
+   * @throws IOException when the file cannot be read or decoded, or changes during the read
+   */
+  @WorkerThread
+  static ReloadedFile reload(
+      Path file,
+      LoadOptions base,
+      Charset charset,
+      boolean binary,
+      TextContent current,
+      LoadReservation reservation,
+      CancellationToken token)
+      throws IOException {
+    if (binary) {
+      return DocumentFiles.reload(file, base.asBinary(), current, reservation, token);
+    }
+    try {
+      return DocumentFiles.reload(file, base.withForced(charset), current, reservation, token);
+    } catch (TextCodingException e) {
+      return DocumentFiles.reload(file, base.withForced(null), current, reservation, token);
     }
   }
 

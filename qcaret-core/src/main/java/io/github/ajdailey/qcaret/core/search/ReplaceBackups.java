@@ -3,11 +3,13 @@ package io.github.ajdailey.qcaret.core.search;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
+import io.github.ajdailey.qcaret.core.io.Digests;
 import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -19,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
@@ -56,6 +59,7 @@ public final class ReplaceBackups {
   private static final String SUFFIX = ".bak";
   private static final DateTimeFormatter NAME = DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss-SSS");
   private static final int NAME_LENGTH = 19;
+  private static final int BLOCK_BYTES = 1 << 20;
 
   private final String id;
   private final Path directory;
@@ -297,7 +301,7 @@ public final class ReplaceBackups {
    *
    * @param run the run's directory
    * @param entry the file
-   * @param token checked before the write
+   * @param token checked per block of the reads and before the write
    * @return what happened
    */
   @WorkerThread
@@ -308,21 +312,17 @@ public final class ReplaceBackups {
       if (stamp == null) {
         return new Restored(file, Restore.MISSING, null);
       }
-      byte[] digest = FileSearch.digest(Files.readAllBytes(file));
+      byte[] digest = Digests.bytesOf(file, token);
       if (MessageDigest.isEqual(digest, entry.before())) {
         return new Restored(file, Restore.UNCHANGED, null);
       }
       if (!MessageDigest.isEqual(digest, entry.after())) {
         return new Restored(file, Restore.CHANGED_SINCE, null);
       }
-      byte[] backup = Files.readAllBytes(run.resolve(entry.number() + SUFFIX));
-      int body = 0;
-      while (body < backup.length && backup[body] != '\n') {
-        body++;
-      }
-      final byte[] original =
-          Arrays.copyOfRange(backup, Math.min(backup.length, body + 1), backup.length);
-      if (!MessageDigest.isEqual(FileSearch.digest(original), entry.before())) {
+      final Path backup = run.resolve(entry.number() + SUFFIX);
+      MessageDigest original = Digests.sha256();
+      copyBody(backup, new DigestOutputStream(OutputStream.nullOutputStream(), original), token);
+      if (!MessageDigest.isEqual(original.digest(), entry.before())) {
         return new Restored(file, Restore.FAILED, new IOException("The backup is damaged"));
       }
       token.check();
@@ -332,7 +332,8 @@ public final class ReplaceBackups {
           new ContentWriter() {
             @Override
             public void write(OutputStream out) throws IOException {
-              out.write(original);
+              // Not canceled: SafeSave may be writing the target in place.
+              copyBody(backup, out, new CancellationToken());
             }
           },
           token);
@@ -341,6 +342,27 @@ public final class ReplaceBackups {
       return new Restored(file, Restore.CHANGED_SINCE, null);
     } catch (IOException e) {
       return new Restored(file, Restore.FAILED, e);
+    }
+  }
+
+  /** Writes a backup's bytes after its header line, block by block; none without a header. */
+  private static void copyBody(Path backup, OutputStream out, CancellationToken token)
+      throws IOException {
+    byte[] block = new byte[BLOCK_BYTES];
+    boolean body = false;
+    try (InputStream in = Files.newInputStream(backup)) {
+      while (true) {
+        token.check();
+        int n = in.read(block);
+        if (n < 0) {
+          return;
+        }
+        int from = 0;
+        while (!body && from < n) {
+          body = block[from++] == '\n';
+        }
+        out.write(block, from, n - from);
+      }
     }
   }
 

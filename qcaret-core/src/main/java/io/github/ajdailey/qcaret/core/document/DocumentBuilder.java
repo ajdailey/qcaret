@@ -10,7 +10,7 @@ import java.io.IOException;
  * Collects a document's text in pieces, straight into rope leaves, and counts its line endings. A
  * piece may end anywhere, between a CR and an LF or inside a surrogate pair.
  */
-public final class DocumentBuilder {
+public final class DocumentBuilder implements TextSink {
   private final RopeStorage.Builder text = new RopeStorage.Builder();
   private final LineEndingStats.Counter endings = new LineEndingStats.Counter();
 
@@ -22,6 +22,7 @@ public final class DocumentBuilder {
    * @param to the index after the last char
    * @throws IOException when the text passes {@link DocumentFiles#MAX_BYTES} chars
    */
+  @Override
   public void append(char[] chars, int from, int to) throws IOException {
     if (text.length() + (to - from) > DocumentFiles.MAX_BYTES) {
       throw new IOException("Text too large: over " + DocumentFiles.MAX_BYTES + " chars");
@@ -35,6 +36,7 @@ public final class DocumentBuilder {
    *
    * @return bytes
    */
+  @Override
   public long heapBytes() {
     return text.heapBytes();
   }

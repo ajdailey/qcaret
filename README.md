@@ -268,6 +268,10 @@ in its own JVM; the non-ASCII text has a CJK char in every line):
 
 No file over 2 GiB opens.
 
+A reload holds only the text between the first and last change. A file at these
+limits reloads a change of about 19 MiB of text at most; a larger one leaves the
+buffer as it is, with a notice.
+
 These operations run on the UI thread, and the window does not respond while
 they apply (measured on Linux under Xvfb, one million lines):
 

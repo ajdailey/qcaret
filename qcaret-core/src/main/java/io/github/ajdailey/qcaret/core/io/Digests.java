@@ -64,6 +64,20 @@ public final class Digests {
    */
   @WorkerThread
   public static String of(Path file, CancellationToken token) throws IOException {
+    return HexFormat.of().formatHex(bytesOf(file, token));
+  }
+
+  /**
+   * Digests a file, one block of 1 MiB at a time.
+   *
+   * @param file the file; a symbolic link is followed
+   * @param token checked before each block
+   * @return the 32 digest bytes
+   * @throws IOException when the file cannot be read
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public static byte[] bytesOf(Path file, CancellationToken token) throws IOException {
     MessageDigest digest = sha256();
     ByteBuffer buffer = ByteBuffer.allocate(BLOCK_BYTES);
     try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
@@ -77,6 +91,6 @@ public final class Digests {
         digest.update(buffer);
       }
     }
-    return hex(digest);
+    return digest.digest();
   }
 }

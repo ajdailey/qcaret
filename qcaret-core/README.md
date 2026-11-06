@@ -283,8 +283,7 @@ their `CancellationToken` per block.
   UTF-32 BOM divides the char count by 2 or 4. The peak is the text plus the
   load's buffers (at most 5 MiB); the retained cost is the text plus undo
   headroom of the same size, at most `UndoLimits.maxBytes` (64 MiB by default).
-  `reserveBytes()` is the larger of the two; `reloadBytes()` is the peak plus
-  twice the text, for the changed span a reload builds.
+  `reserveBytes()` is the larger of the two.
 - `LoadReservation.reserve` holds `reserveBytes()` from the `MemoryBudget`.
   During the load, `charge` raises it by what the text read so far costs over
   the estimate at that point in the file, since an ASCII sample can hide 2
@@ -313,6 +312,25 @@ their `CancellationToken` per block.
   it gives another result on split input. Measured over the 173 charsets of
   JDK 21.0.12 at blocks of 1 to 16 bytes, on encoded text and random bytes, it
   is the only one.
+- `reload` compares a file with an open document's text without holding the
+  file's text and returns a `ReloadedFile`. It reads as a load does, into a
+  `TextSink` instead of a `DocumentBuilder`. The first pass (`TextDifference.Prefix`)
+  finds the common prefix, the char count and the line endings; equal texts end
+  there. The second (`TextDifference.Span`) compares each later char with the
+  current text's char at the same distance from the end. A run of equal chars
+  is only counted and joins the span when a later char differs, so the run left
+  at the end is the common suffix, and the rope builder holds only the span.
+  A second-pass digest or char count that differs from the first is an
+  `IOException`: the two passes must describe one file.
+- `LoadReservation.reload` charges the buffers, the inserted text twice (a
+  `String` and the rope's leaves) and the removed text once (the undo step's
+  `String`), the heap `Document.apply` reaches, and the caller holds it until
+  the span is applied. Charges draw on the budget only past the document's
+  undo headroom, so a document at the budget limit reloads a span of up to about
+  a third of its headroom. The span runs from the first difference to the last,
+  so two edits far apart cost the text between them. A larger span fails with
+  `LoadTooLargeException`: two copies of a text at the limit do not fit the heap.
+  The undo step of a span past the headroom stays uncharged once applied.
 - Save encodes the snapshot once to find an unmappable char
   (`TextCodingException` with the char offset, no file touched), then writes
   the BOM and the text through `SafeSave` and returns a `FileBaseline`: the
@@ -530,7 +548,9 @@ before and after, then the original bytes, forced to disk before the file is
 replaced; a write that does not happen deletes it. `restore` writes a backup
 back through `SafeSave` only while the file holds the bytes the run wrote; a
 file changed since is refused, one already holding its original reports
-unchanged. `prune` deletes runs older than the days kept.
+unchanged. Its digests and the copy stream 1 MiB blocks through the backup's
+body. The digest of the body is checked before the write, since `SafeSave` can
+write in place; for the same reason a cancel does not stop the copy. `prune` deletes runs older than the days kept.
 
 ## Line diff (`core.diff`)
 
@@ -669,8 +689,14 @@ LF, at blocks of 1 to 9 bytes and at the real first boundary; a detection corpus
 including a candidate that fails past the first block. It also covers a cancel
 in mid-file, a reservation raised by text behind an ASCII sample and a raise the
 budget refuses. `LoadHeapTest` loads at the budget's limit in a 128 MiB child
-JVM: ASCII and wide text load, and wide text behind an ASCII head is refused
-instead of running out of memory. `SafeSaveTest` covers permissions, a new
+JVM: ASCII and wide text load, wide text behind an ASCII head is refused
+instead of running out of memory, an edit and an added line at the limit reload as one undo
+step, and a rewrite at the limit is refused. `ReloadTest` compares `reload` with a
+comparison of two whole texts on 400 seeded edits at small blocks, repeated
+text, and edits in a file past every block; it also covers a BOM, a file
+written or made undecodable between the passes, a cancel, the charge, a change
+inside the headroom with the budget full and a span the budget refuses.
+`DigestsTest` digests a file past the block size. `SafeSaveTest` covers permissions, a new
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.
@@ -692,7 +718,7 @@ ending, UTF-16 LE with its BOM, an unmappable replacement, a file changed
 after the search, a read-only file (skipped where the user writes read-only
 files), a dropped match, malformed and binary files, a 3 MiB file replaced at
 both ends, a cancel leaving no backup, a restore refusing a file changed
-since, and listing and pruning runs. `LineDiffTest` compares 400 seeded random
+since, a restore past every block, a damaged backup, and listing and pruning runs. `LineDiffTest` compares 400 seeded random
 edits with a dynamic-programming longest common subsequence: each script
 rebuilds both lists, keeps a longest common subsequence and lists removed
 lines first; hunks keep their context. It also covers the edit bound.

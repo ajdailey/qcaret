@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.core.buffer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -482,11 +484,20 @@ public final class RopeStorage implements TextStorage {
           });
     }
 
+    /** Returns the range as one {@code String}: joining leaves allocates only the result. */
     @Override
     public CharSequence subSequence(int start, int end) {
-      StringBuilder sb = new StringBuilder(end - start);
-      append(sb, start, end);
-      return sb.toString();
+      final List<String> parts = new ArrayList<String>();
+      readChunks(
+          start,
+          end,
+          new ChunkVisitor() {
+            @Override
+            public void chunk(CharSequence chunk, int s, int e) {
+              parts.add(chunk.subSequence(s, e).toString());
+            }
+          });
+      return parts.size() == 1 ? parts.get(0) : String.join("", parts);
     }
 
     @Override

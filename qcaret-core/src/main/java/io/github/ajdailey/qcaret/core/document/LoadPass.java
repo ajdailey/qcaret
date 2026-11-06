@@ -16,9 +16,9 @@ import java.util.Arrays;
 
 /**
  * One pass over a file in one encoding: each block is digested, decoded strictly into a {@link
- * DocumentBuilder} and the chars encoded back against the same bytes, so the text, the digest and
- * the round-trip result describe one read of the file. The decoder and encoder keep their state
- * across blocks; bytes of a sequence that a block splits stay in the buffer for the next one.
+ * TextSink} and the chars encoded back against the same bytes, so the text, the digest and the
+ * round-trip result describe one read of the file. The decoder and encoder keep their state across
+ * blocks; bytes of a sequence that a block splits stay in the buffer for the next one.
  *
  * <p>An auto-detecting decoder ({@code x-JISAutoDetect}) gives another result on split input, so it
  * reads the file as one block. A charset without an encoder never round-trips.
@@ -37,7 +37,7 @@ final class LoadPass {
   private final CancellationToken token;
   private final int blockBytes;
   private final CharBuffer chars;
-  private final DocumentBuilder text = new DocumentBuilder();
+  private final TextSink text;
   private final MessageDigest digest = Digests.sha256();
   private CharsetEncoder encoder;
   private ByteBuffer encoded;
@@ -52,12 +52,14 @@ final class LoadPass {
       LoadReservation reservation,
       CancellationToken token,
       int blockBytes,
-      int blockChars) {
+      int blockChars,
+      TextSink text) {
     this.channel = channel;
     this.size = size;
     this.encoding = encoding;
     this.reservation = reservation;
     this.token = token;
+    this.text = text;
     this.blockBytes = (int) Math.max(1, Math.min(blockBytes, size));
     this.chars = CharBuffer.allocate((int) Math.max(8, Math.min(blockChars, size)));
   }
@@ -135,15 +137,6 @@ final class LoadPass {
 
   private TextCodingException failure(long offset) {
     return new TextCodingException("Not valid text", offset, encoding.charset().name());
-  }
-
-  /**
-   * Returns the text read.
-   *
-   * @return the builder
-   */
-  DocumentBuilder text() {
-    return text;
   }
 
   /**

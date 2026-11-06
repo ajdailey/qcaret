@@ -495,7 +495,7 @@ overview read); a match whose text then differs in length or hash is stale,
 and past the position log the group is stale. A file group keeps the file's
 `FileStamp` and SHA-256; expanding it or opening one of its matches checks
 the stamp on a `qcaret-io-` worker, and a changed stamp whose bytes hash
-differently marks it stale. A closed document's groups keep their offsets
+differently, read in 1 MiB blocks, marks it stale. A closed document's groups keep their offsets
 and open the file from then on. Opening a match selects it only when the text
 there has the searched length and hash; otherwise the match is marked stale,
 the caret goes to its line and a notice says so. Next and Previous Result
@@ -620,14 +620,18 @@ write is never reported.
 | No file | Kept, marked missing in the tab and dirty | Same |
 | File back with the same bytes | Missing mark cleared; clean again when the text is unchanged since | Missing mark cleared |
 
-- Reload reads the file on a `qcaret-io-` worker in the document's charset
-  (detection when that does not decode; ISO-8859-1 for a binary file's view),
-  reserving `LoadCost.reloadBytes` from the budget while it reads and compares,
-  and replaces the span between the common prefix and suffix as one undo step.
-  The old and new text are both in the heap until the comparison ends. Each view's
-  caret keeps its line and column; the views keep their top line. The
-  document is clean afterwards and undo returns to the text before, dirty. A
-  document edited during the read reloads again, at most three times.
+- Reload compares the file with the text on a `qcaret-io-` worker in the
+  document's charset (detection when that does not decode; ISO-8859-1 for a
+  binary file's view), in two passes that hold only the changed span
+  (`DocumentFiles.reload`), and replaces the span between the common prefix and
+  suffix as one undo step. `LoadReservation.reload` charges the span past the
+  document's undo headroom until the UI thread has applied it; a span the budget
+  cannot hold leaves the text as it is, with a notice. A file written in place
+  between the passes fails the reload with a notice, and the next check
+  reloads again. Each view's caret keeps its line and column; the views keep
+  their top line. The document is clean afterwards and undo returns to the text
+  before, dirty. A document edited during the read reloads again, at most three
+  times.
 - One prompt per document at a time. A newer change while it is open becomes
   the change the answer acts on. Keep Mine takes the file's new baseline for
   the checks but keeps the save baseline, so the next save asks; closing the
@@ -1248,7 +1252,8 @@ the same bytes return, a missing file saved without a prompt, a touch with the
 same bytes neither prompting nor blocking the save, five saves never reported
 as external changes, Compare from the prompt, Compare Documents, a
 retargeted link reloading and saving its new target (skipped where links
-cannot be created), and a 3 MiB file reloaded. Each check runs on window
+cannot be created), a 3 MiB file reloaded, a span the budget refuses and a
+Compare refused when the file's text outgrows the budget. Each check runs on window
 activation; a case that asserts nothing was reported waits for two finished
 check passes requested after the change.
 `MultiCaretTest` covers every caret moving and selecting, vertical and page

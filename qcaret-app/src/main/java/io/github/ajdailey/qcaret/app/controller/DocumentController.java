@@ -35,6 +35,7 @@ import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
+import io.github.ajdailey.qcaret.core.document.ReloadedFile;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
@@ -2197,7 +2198,8 @@ public final class DocumentController {
       TextEncoding encoding,
       LineEnding lineEnding,
       FileBaseline baseline,
-      Path real) {}
+      Path real,
+      LoadReservation reservation) {}
 
   /** Sets the controller that shows the prompt's Compare. */
   void setCompare(CompareController value) {
@@ -2378,10 +2380,11 @@ public final class DocumentController {
   }
 
   /**
-   * Loads the file the user opened on a {@code qcaret-io-} worker and replaces the text between the
-   * common prefix and suffix as one undo step, keeping each view's caret by line and column. The
-   * document is clean afterwards; undo returns to the text before the reload, dirty. A document
-   * edited during the read reloads again, at most {@value #RELOAD_ATTEMPTS} times.
+   * Compares the file the user opened with the text on a {@code qcaret-io-} worker and replaces the
+   * text between the common prefix and suffix as one undo step, keeping each view's caret by line
+   * and column. The changed span stays reserved until it is applied. The document is clean
+   * afterwards; undo returns to the text before the reload, dirty. A document edited during the
+   * read reloads again, at most {@value #RELOAD_ATTEMPTS} times.
    */
   private void reload(final OpenDocument d) {
     if (d.closed || d.watch == null || d.reloading != null || d.saving != null) {
@@ -2395,6 +2398,8 @@ public final class DocumentController {
     final Path file = d.watch.path();
     final Charset charset = d.document.encoding().charset();
     final boolean binary = d.binary;
+    final LoadReservation reservation =
+        LoadReservation.reload(budget, d.reserved, options.limits());
     view.setActive();
     boolean started =
         workers.tryStart(
@@ -2404,22 +2409,18 @@ public final class DocumentController {
               public void run() {
                 Reloaded result = null;
                 IOException error = null;
-                LoadReservation reservation = null;
                 try {
-                  LoadCost cost = DocumentFiles.estimate(file, options.limits());
-                  reservation = LoadReservation.reserve(budget, cost, cost.reloadBytes());
-                  if (reservation != null) {
-                    LoadedFile loaded =
-                        CompareController.load(file, options, charset, binary, reservation, token);
-                    Document read = loaded.document();
-                    result =
-                        new Reloaded(
-                            ExternalChanges.difference(snapshot.text(), read.text()),
-                            read.encoding(),
-                            read.lineEnding(),
-                            loaded.baseline(),
-                            realFile(file));
-                  }
+                  ReloadedFile read =
+                      CompareController.reload(
+                          file, options, charset, binary, snapshot.text(), reservation, token);
+                  result =
+                      new Reloaded(
+                          read.replacement(),
+                          read.encoding(),
+                          read.lineEnding(),
+                          read.baseline(),
+                          realFile(file),
+                          reservation);
                 } catch (LoadTooLargeException e) {
                   // Reported as a reload without room: no result and no error.
                 } catch (IOException e) {
@@ -2427,7 +2428,7 @@ public final class DocumentController {
                 } catch (CancellationException e) {
                   // Closed.
                 } finally {
-                  if (reservation != null) {
+                  if (result == null) {
                     reservation.close();
                   }
                   final Reloaded reloaded = result;
@@ -2451,6 +2452,17 @@ public final class DocumentController {
   }
 
   private void reloaded(
+      OpenDocument d, CancellationToken token, long revision, Reloaded result, IOException error) {
+    try {
+      finishReload(d, token, revision, result, error);
+    } finally {
+      if (result != null) {
+        result.reservation().close();
+      }
+    }
+  }
+
+  private void finishReload(
       OpenDocument d, CancellationToken token, long revision, Reloaded result, IOException error) {
     if (d.reloading != token) {
       return;
