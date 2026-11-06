@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.session;
 
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -23,6 +24,28 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
   }
 
   /**
+   * Returns a copy whose windows hold no retained searches.
+   *
+   * @return the copy
+   */
+  public Session withoutSearches() {
+    List<Window> list = new ArrayList<Window>();
+    for (Window window : windows) {
+      list.add(window.withoutSearches());
+    }
+    return new Session(list, recent, files);
+  }
+
+  /**
+   * Returns a copy holding only Recent Files.
+   *
+   * @return the copy
+   */
+  public Session recentOnly() {
+    return new Session(List.of(), recent, List.of());
+  }
+
+  /**
    * One main window.
    *
    * @param bounds its normal bounds and maximized state
@@ -36,6 +59,7 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
    * @param dockWeights the editors and the docks, {@code a,b}; empty when unknown
    * @param searches the retained HyperSearch requests, newest first
    * @param closed Reopen Closed Tab's files, newest first
+   * @param display what the window's editors show
    */
   public record Window(
       WindowState bounds,
@@ -48,7 +72,8 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
       boolean results,
       String dockWeights,
       List<Search> searches,
-      List<String> closed) {
+      List<String> closed,
+      Display display) {
     /** Copies the lists. */
     public Window {
       tabs = List.copyOf(tabs);
@@ -56,6 +81,42 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
       searches = List.copyOf(searches);
       closed = List.copyOf(closed);
     }
+
+    /**
+     * Returns a copy without its retained searches.
+     *
+     * @return the copy
+     */
+    public Window withoutSearches() {
+      return new Window(
+          bounds,
+          tabs,
+          active,
+          workspace,
+          browser,
+          sideWeights,
+          expanded,
+          results,
+          dockWeights,
+          List.of(),
+          closed,
+          display);
+    }
+  }
+
+  /**
+   * What a window's editors show.
+   *
+   * @param wrap word wrap
+   * @param whitespace the whitespace marks
+   * @param lineEndings the line-ending marks
+   * @param overview the overview strip
+   * @param bookmarks the Bookmarks list
+   */
+  public record Display(
+      boolean wrap, boolean whitespace, boolean lineEndings, boolean overview, boolean bookmarks) {
+    /** A window that saved nothing. */
+    public static final Display DEFAULTS = new Display(false, false, false, true, false);
   }
 
   /**
@@ -75,6 +136,7 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
    * @param weights the two views' sash weights, {@code a,b}; empty for one view
    * @param bookmarks the bookmarked lines, zero-based, comma-separated
    * @param comments the bookmark comments
+   * @param readOnly true when the document refuses edits
    */
   public record Tab(
       String path,
@@ -90,7 +152,8 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
       boolean sideBySide,
       String weights,
       String bookmarks,
-      List<Comment> comments) {
+      List<Comment> comments,
+      boolean readOnly) {
     /** Copies the lists. */
     public Tab {
       views = List.copyOf(views);
@@ -118,7 +181,8 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
           sideBySide,
           weights,
           bookmarks,
-          comments);
+          comments,
+          readOnly);
     }
   }
 

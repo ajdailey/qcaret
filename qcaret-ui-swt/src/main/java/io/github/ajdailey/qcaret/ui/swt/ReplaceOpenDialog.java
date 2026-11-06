@@ -5,7 +5,9 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 
 /**
@@ -14,8 +16,9 @@ import org.eclipse.swt.widgets.Shell;
  */
 final class ReplaceOpenDialog {
   private final Shell shell;
+  private boolean accepted;
 
-  ReplaceOpenDialog(Shell parent, String name, final Runnable replace) {
+  ReplaceOpenDialog(Shell parent, String name, final Runnable replace, final Runnable declined) {
     shell = Dialogs.shell(parent, UiText.SAVE_AS_OPEN_TITLE.text(), true);
     Label label = Dialogs.label(shell, UiText.SAVE_AS_OPEN_MESSAGE.format(name.replace("&", "&&")));
     ((GridData) label.getLayoutData()).widthHint = 420;
@@ -26,12 +29,23 @@ final class ReplaceOpenDialog {
         new Runnable() {
           @Override
           public void run() {
+            accepted = true;
             shell.dispose();
             replace.run();
           }
         });
     Button cancel = Dialogs.button(row, UiText.BUTTON_CANCEL.text(), Dialogs.closer(shell));
     shell.setDefaultButton(cancel);
+    shell.addListener(
+        SWT.Dispose,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (!accepted) {
+              declined.run();
+            }
+          }
+        });
   }
 
   void open() {

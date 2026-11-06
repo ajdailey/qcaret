@@ -139,6 +139,12 @@ public final class BookmarkList implements BookmarksInput {
     }
     view.showBookmarks(this, shown);
     view.documentStateChanged();
+    documents.sessionChanged();
+  }
+
+  /** Shows the list when a session saved it shown. */
+  void restore(boolean show) {
+    setShown(show);
   }
 
   /** Stops following the documents and returns the rows' reservation. */

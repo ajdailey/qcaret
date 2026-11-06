@@ -24,11 +24,14 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,14 @@ class WindowSessionTest {
   private static final WindowSet.Placement NEW = new WindowSet.Placement(0, null, null);
 
   @TempDir Path temp;
+
+  private static final Consumer<Boolean> IGNORED =
+      new Consumer<Boolean>() {
+        @Override
+        public void accept(Boolean removed) {
+          assertTrue(removed);
+        }
+      };
 
   private Path settings;
   private final List<Windows> open = new ArrayList<Windows>();
@@ -303,7 +314,7 @@ class WindowSessionTest {
   }
 
   @Test
-  void aQuitCapturesEveryWindowBeforeTheFirstClose() throws Exception {
+  void aQuitClosesNothingBeforeTheLastAnswerAndCapturesEveryWindow() throws Exception {
     Path a = file("a.txt", "a\n");
     Path b = file("b.txt", "b\n");
     Windows windows = start(true);
@@ -317,7 +328,7 @@ class WindowSessionTest {
 
     first.execute(CommandId.QUIT);
 
-    assertEquals(0, first.documents().count());
+    assertEquals(1, first.documents().count());
     assertNotNull(windows.view(second).unsaved);
     windows.ui.runPending();
     assertEquals(List.of(a.toString()), tabs(captured(windows).windows().get(0)));
@@ -356,14 +367,17 @@ class WindowSessionTest {
     windows.view(second).unsaved.accept(UnsavedChoice.CANCEL);
 
     assertFalse(windows.set.isQuitting());
-    assertEquals(List.of(), tabs(captured(windows).windows().get(0)));
+    assertEquals(List.of(a.toString()), tabs(captured(windows).windows().get(0)));
+    final Path c = file("c.txt", "c\n");
+    windows.open(first, c);
     windows.await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
             windows.ui.runPending();
             Session saved = store().load();
-            return saved.windows().size() == 2 && saved.windows().get(0).tabs().isEmpty();
+            return saved.windows().size() == 2
+                && tabs(saved.windows().get(0)).equals(List.of(a.toString(), c.toString()));
           }
         },
         "the saved session follows the windows");
@@ -590,6 +604,149 @@ class WindowSessionTest {
     assertEquals("", windows.view(first).searchForm.include());
     second.execute(CommandId.HYPERSEARCH);
     assertEquals("", windows.view(second).searchForm.include());
+  }
+
+  @Test
+  void theDisplayStateAndReadOnlyComeBackPerWindow() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Windows before = start(true);
+    ApplicationController first = before.first();
+    first.documents().closeAll(null);
+    before.open(first, a);
+    first.execute(CommandId.WORD_WRAP);
+    first.execute(CommandId.SHOW_WHITESPACE);
+    first.execute(CommandId.SHOW_LINE_ENDINGS);
+    first.execute(CommandId.OVERVIEW_STRIP);
+    first.execute(CommandId.BOOKMARKS_LIST);
+    first.execute(CommandId.READ_ONLY);
+    quit(before);
+
+    Windows after = start(true);
+    DocumentController documents = after.first().documents();
+    assertTrue(documents.wrap());
+    assertTrue(documents.whitespaceShown());
+    assertTrue(documents.lineEndingsShown());
+    assertFalse(documents.overviewShown());
+    assertTrue(after.first().bookmarkList().shown());
+    assertTrue(documents.activeDocument().isReadOnly());
+  }
+
+  @Test
+  void aDisplayToggleSavesTheSession() throws Exception {
+    final Windows windows = start(true);
+    windows.first().execute(CommandId.OVERVIEW_STRIP);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            windows.ui.runPending();
+            List<Session.Window> saved = store().load().windows();
+            return !saved.isEmpty() && !saved.get(0).display().overview();
+          }
+        },
+        "the session follows the toggle");
+  }
+
+  private void awaitNoSearchInFile(final Windows windows) throws Exception {
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            windows.ui.runPending();
+            try {
+              return !Files.readString(settings.resolve(SessionStore.FILE)).contains(".search.");
+            } catch (IOException e) {
+              return false;
+            }
+          }
+        },
+        "the session file holds no search");
+  }
+
+  private void saveSessionWithSearch(Windows windows) throws Exception {
+    runSearch(windows.first());
+    windows.settle("search");
+    windows.ui.runPending();
+    assertEquals(1, captured(windows).windows().get(0).searches().size());
+    assertTrue(store().save(captured(windows)));
+    assertTrue(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
+  }
+
+  @Test
+  void clearHistoryRemovesRetainedSearchesFromTheFileAtOnce() throws Exception {
+    Windows windows = start(true);
+    saveSessionWithSearch(windows);
+    int sets = windows.first().search().setCount();
+
+    windows.set.forgetHistory(IGNORED);
+
+    awaitNoSearchInFile(windows);
+    assertEquals(sets, windows.first().search().setCount());
+    assertEquals(List.of(), captured(windows).windows().get(0).searches());
+  }
+
+  @Test
+  void clearHistoryInAnInstanceThatDoesNotSaveTheSessionStillRewritesTheFile() throws Exception {
+    Windows owner = start(true);
+    saveSessionWithSearch(owner);
+    quit(owner);
+    assertTrue(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
+
+    Windows windows = windows(true);
+    SessionStore store = store();
+    windows.first().startSession(store, store.load(), false);
+    windows.settle("start");
+    windows.set.forgetHistory(IGNORED);
+    awaitNoSearchInFile(windows);
+    assertEquals(1, store().load().windows().size());
+  }
+
+  /** A debounced save may land between the two steps; a directory stops every later one. */
+  private static void replaceWithDirectory(Path file) throws IOException {
+    for (int attempt = 0; attempt < 1000; attempt++) {
+      Files.deleteIfExists(file);
+      try {
+        Files.createDirectory(file);
+        return;
+      } catch (FileAlreadyExistsException e) {
+        Thread.onSpinWait();
+      }
+    }
+    throw new IOException("A save kept replacing the file");
+  }
+
+  @Test
+  void aFailedSessionWriteAtClearHistoryReportsItAndAPressAfterTheFaultWrites() throws Exception {
+    final Windows windows = start(true);
+    saveSessionWithSearch(windows);
+    Path session = settings.resolve(SessionStore.FILE);
+    replaceWithDirectory(session);
+    final AtomicReference<Boolean> removed = new AtomicReference<Boolean>();
+    Consumer<Boolean> done = removed::set;
+    windows.set.forgetHistory(done);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return removed.get() != null;
+          }
+        },
+        "the write ended");
+    assertFalse(removed.get());
+
+    Files.delete(session);
+    removed.set(null);
+    windows.set.forgetHistory(done);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return removed.get() != null;
+          }
+        },
+        "the second write ended");
+    assertTrue(removed.get());
+    awaitNoSearchInFile(windows);
   }
 
   private static void runSearch(ApplicationController window) {

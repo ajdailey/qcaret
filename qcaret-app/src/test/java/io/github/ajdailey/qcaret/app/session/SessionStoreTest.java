@@ -51,7 +51,8 @@ class SessionStoreTest {
         true,
         "30,70",
         "1,4",
-        List.of(new Session.Comment(4, "two\nlines = mock")));
+        List.of(new Session.Comment(4, "two\nlines = mock")),
+        false);
   }
 
   private static Session session() {
@@ -79,11 +80,75 @@ class SessionStoreTest {
             true,
             "3,1",
             List.of(new Session.Search(request, true)),
-            List.of("/mock/gone.txt"));
+            List.of("/mock/gone.txt"),
+            Session.Display.DEFAULTS);
     return new Session(
         List.of(window),
         List.of("/mock/a.txt"),
         List.of(new Session.FileState("/mock/c.txt", "UTF-16BE", "xml", 8, false, "7,7", 2)));
+  }
+
+  @Test
+  void theDisplayStateAndReadOnlyRoundTrip() {
+    Session.Display display = new Session.Display(true, true, true, false, true);
+    Session.Tab tab = tab("/mock/r.txt");
+    Session.Window window =
+        new Session.Window(
+            new WindowState(null, null, null, null, false),
+            List.of(
+                new Session.Tab(
+                    tab.path(),
+                    tab.title(),
+                    tab.buffer(),
+                    tab.encoding(),
+                    tab.language(),
+                    tab.binary(),
+                    tab.tabWidth(),
+                    tab.insertSpaces(),
+                    tab.views(),
+                    tab.focused(),
+                    tab.sideBySide(),
+                    tab.weights(),
+                    tab.bookmarks(),
+                    tab.comments(),
+                    true)),
+            0,
+            "",
+            false,
+            "",
+            List.of(),
+            false,
+            "",
+            List.of(),
+            List.of(),
+            display);
+    SessionStore store = store();
+    assertTrue(store.save(new Session(List.of(window), List.of(), List.of())));
+    Session.Window loaded = store().load().windows().get(0);
+    assertEquals(display, loaded.display());
+    assertTrue(loaded.tabs().get(0).readOnly());
+  }
+
+  @Test
+  void aFileWithoutTheDisplayKeysReadsAsTheDefaults() throws Exception {
+    Files.writeString(temp.resolve(SessionStore.FILE), "version=1\nwindow.0.active=-1\n");
+    assertEquals(Session.Display.DEFAULTS, store().load().windows().get(0).display());
+  }
+
+  @Test
+  void withoutSearchesKeepsEverythingElse() {
+    Session session = session();
+    Session cleared = session.withoutSearches();
+    assertEquals(List.of(), cleared.windows().get(0).searches());
+    assertEquals(session.windows().get(0).tabs(), cleared.windows().get(0).tabs());
+    assertEquals(session.recent(), cleared.recent());
+    assertEquals(session.files(), cleared.files());
+  }
+
+  @Test
+  void recentOnlyKeepsRecentFiles() {
+    Session session = session();
+    assertEquals(new Session(List.of(), session.recent(), List.of()), session.recentOnly());
   }
 
   @Test
@@ -192,7 +257,8 @@ class SessionStoreTest {
             false,
             "",
             "",
-            comments);
+            comments,
+            false);
     Session.Window window =
         new Session.Window(
             WindowState.UNKNOWN,
@@ -205,7 +271,8 @@ class SessionStoreTest {
             false,
             "",
             List.of(),
-            List.of());
+            List.of(),
+            Session.Display.DEFAULTS);
     assertFalse(store.save(new Session(List.of(window), List.of(), List.of())));
     assertEquals(session(), store.load());
   }

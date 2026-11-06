@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.nio.charset.StandardCharsets;
@@ -245,8 +246,11 @@ class WindowSetTest {
     windows.view(second).unsaved.accept(UnsavedChoice.CANCEL);
     assertFalse(set.isQuitting());
     assertEquals(2, set.windows().size());
+    assertEquals(1, first.documents().dirtyDocuments().size());
+    second.windowActivated();
     second.execute(CommandId.QUIT);
     windows.view(second).unsaved.accept(UnsavedChoice.DISCARD);
+    windows.view(first).unsaved.accept(UnsavedChoice.DISCARD);
     assertTrue(set.isQuitting());
   }
 
@@ -264,6 +268,123 @@ class WindowSetTest {
     assertNotNull(windows.view(second).unsaved);
     windows.view(second).unsaved.accept(UnsavedChoice.DISCARD);
     assertTrue(set.isQuitting());
+  }
+
+  private Path saveOver(final ApplicationController window, Path file) throws Exception {
+    window.documents().newDocument();
+    window.documents().activeEditor().type("mine");
+    window.documents().saveAs();
+    windows.view(window).saveChooser.accept(file);
+    return file;
+  }
+
+  @Test
+  void saveAsOntoACleanFileInAnotherWindowClosesItsTab() throws Exception {
+    Path file = Files.writeString(temp.resolve("held.txt"), "held\n");
+    windows.open(first, file);
+    final int tabs = first.documents().count();
+    ApplicationController second = windows.second();
+    saveOver(second, file);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return first.documents().count() == tabs - 1;
+          }
+        },
+        "the other window's tab closes");
+    windows.settle("save");
+    assertEquals("mine", Files.readString(file));
+    assertNull(windows.view(second).replaceOpen);
+    assertEquals(file.toRealPath(), second.documents().activePath());
+  }
+
+  @Test
+  void saveAsOntoADirtyFileInAnotherWindowAsksAndADeclineWritesNothing() throws Exception {
+    Path file = Files.writeString(temp.resolve("held.txt"), "held\n");
+    windows.open(first, file);
+    first.documents().activeEditor().type("unsaved ");
+    final int tabs = first.documents().count();
+    final ApplicationController second = windows.second();
+    saveOver(second, file);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return windows.view(second).replaceOpen != null;
+          }
+        },
+        "asked");
+    assertEquals("held.txt", windows.view(second).replaceOpenName);
+    windows.view(second).replaceDeclined.run();
+    windows.settle("declined");
+    assertEquals("held\n", Files.readString(file));
+    assertEquals(tabs, first.documents().count());
+
+    second.documents().saveAs();
+    windows.view(second).replaceOpen = null;
+    windows.view(second).saveChooser.accept(file);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return windows.view(second).replaceOpen != null;
+          }
+        },
+        "asked again");
+    windows.view(second).replaceOpen.run();
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return first.documents().count() == tabs - 1;
+          }
+        },
+        "the other window's tab closes");
+    windows.settle("save");
+    assertEquals("mine", Files.readString(file));
+  }
+
+  @Test
+  void folderSearchReadsTheBufferOfAFileOpenInAnotherWindow() throws Exception {
+    Path folder = Files.createDirectory(temp.resolve("tree"));
+    Path file = Files.writeString(folder.resolve("held.txt"), "disk\n");
+    ApplicationController second = windows.second();
+    windows.open(second, file);
+    second.documents().activeEditor().type("buffer ");
+    final SearchController search = first.search();
+
+    search.run(SearchControllerTest.form("buffer", SearchScope.TREE, folder.toString()));
+
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !search.running();
+          }
+        },
+        "search ends");
+    windows.ui.runPending();
+    assertEquals(1, search.fileCount(0));
+    assertEquals(1, search.matchCount(0, 0));
+
+    search.run(SearchControllerTest.form("disk", SearchScope.TREE, folder.toString()));
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !search.running();
+          }
+        },
+        "second search ends");
+    windows.ui.runPending();
+    assertEquals(1, search.fileCount(0), "the walk skips a file open in any window");
+
+    search.open(0, 0, 0);
+    assertTrue(windows.view(second).raised > 0);
+    second.documents().closeActive();
+    windows.view(second).unsaved.accept(UnsavedChoice.DISCARD);
+    assertEquals(0, second.documents().count());
   }
 
   @Test

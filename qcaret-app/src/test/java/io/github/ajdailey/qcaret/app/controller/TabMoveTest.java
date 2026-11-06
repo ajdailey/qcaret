@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -237,11 +238,27 @@ class TabMoveTest {
 
   @Test
   void aMoveIntoAWindowHoldingTheFileIsRefused() throws Exception {
-    Document left = open(first, "same.txt", "same\n");
+    final Path same = temp.resolve("same.txt");
+    first.documents().newDocument();
+    final Document left = first.documents().activeDocument();
+    GatedCharset gate = new GatedCharset();
+    left.setEncoding(TextEncoding.of(gate, false));
+    gate.armEncoder();
+    first.execute(CommandId.SAVE);
+    windows.view(first).saveChooser.accept(same);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !first.documents().canMove(left);
+          }
+        },
+        "the first save runs");
+    assertTrue(gate.awaitHeld());
     final ApplicationController second = windows.second();
     second.documents().newDocument();
     second.execute(CommandId.SAVE);
-    windows.view(second).saveChooser.accept(temp.resolve("same.txt"));
+    windows.view(second).saveChooser.accept(same);
     windows.await(
         new BooleanSupplier() {
           @Override
@@ -249,7 +266,16 @@ class TabMoveTest {
             return second.documents().activePath() != null;
           }
         },
-        "save as");
+        "the second save");
+    gate.release();
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return first.documents().activePath() != null;
+          }
+        },
+        "the first save");
     windows.settle("save as");
     assertEquals(first.documents().pathOf(left), second.documents().activePath());
     assertNull(set.moveDocument(first, left, second, new WindowSet.Placement(0, null, null)));
@@ -305,7 +331,7 @@ class TabMoveTest {
     assertNotNull(set.moveDocument(other, dirty, first, new WindowSet.Placement(0, null, null)));
     windows.view(first).unsaved.accept(UnsavedChoice.DISCARD);
     assertFalse(set.isQuitting());
-    assertEquals(List.of(dirty), first.documents().openDocuments());
+    assertEquals(2, first.documents().count());
     windows.view(first).unsaved.accept(UnsavedChoice.DISCARD);
     assertTrue(set.isQuitting());
   }

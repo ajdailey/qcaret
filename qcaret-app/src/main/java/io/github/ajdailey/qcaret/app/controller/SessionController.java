@@ -38,9 +38,10 @@ import org.slf4j.LoggerFactory;
  * #saveLock}, skipping a capture a later one has written, so the debounced save and the shutdown
  * save cannot land out of order. An unchanged session writes nothing.
  *
- * <p>A quit that closes documents captures the windows first ({@link #quitStarted}) and saves
- * nothing until it ends, so neither a debounced save nor the last one lists a half-closed window. A
- * Cancel ({@link #quitCanceled}) returns to the live state.
+ * <p>A quit that asks saves nothing from {@link #quitStarted} on, and captures the windows after
+ * the last answer and before the first close ({@link #quitAnswered}), so the last save lists every
+ * tab and a file an untitled document was saved to at a prompt. A Cancel ({@link #quitCanceled})
+ * returns to the live state.
  *
  * <p>The per-file LRU holds {@value SessionStore#MAX_FILES} entries keyed by the opened document's
  * real path. Confined to the UI thread apart from {@link #write}.
@@ -107,12 +108,16 @@ final class SessionController implements DocumentController.FileMemory {
   /** The session the file holds; guarded by {@link #saveLock}. */
   private Session lastWritten;
 
+  /** True when the newest capture did not reach the file; guarded by {@link #saveLock}. */
+  private boolean writeFailed;
+
   private SessionStore store;
   private boolean owner;
   private boolean restoring;
   private boolean armed;
   private boolean closed;
   private long captured;
+  private boolean held;
   private List<Session.Window> quitWindows;
   private ApplicationController first;
   private Runnable after =
@@ -205,6 +210,8 @@ final class SessionController implements DocumentController.FileMemory {
     setWeights(window.view(), saved);
     window.search().restore(saved.searches(), saved.results());
     window.documents().restoreClosed(saved.closed());
+    window.documents().restoreDisplay(saved.display());
+    window.bookmarkList().restore(saved.display().bookmarks());
     restoreTab(loaded, index, window, 0);
   }
 
@@ -363,7 +370,7 @@ final class SessionController implements DocumentController.FileMemory {
 
   /** Arms the timer unless it runs or this instance does not save. */
   void changed() {
-    if (owner && !restoring && !armed && !closed && quitWindows == null) {
+    if (owner && !restoring && !armed && !closed && !held) {
       armed = true;
       ui.timerExec(DELAY_MILLIS, timer);
     }
@@ -388,19 +395,72 @@ final class SessionController implements DocumentController.FileMemory {
     }
   }
 
-  /** Keeps the windows as they stand before a quit closes documents and holds further saves. */
+  /** Holds further saves while a quit asks about unsaved documents. */
   void quitStarted() {
-    if (owner && !restoring && !closed && quitWindows == null) {
-      quitWindows = windows(false);
+    if (owner && !restoring && !closed) {
+      held = true;
       ui.cancelTimer(timer);
       armed = false;
     }
   }
 
-  /** Returns to the live windows after a Cancel. */
+  /** Keeps the windows as they stand after the last answer, before the quit closes documents. */
+  void quitAnswered() {
+    if (held) {
+      quitWindows = windows(false);
+    }
+  }
+
+  /** Ends the hold after a Cancel or a failed save. */
   void quitCanceled() {
-    quitWindows = null;
+    held = false;
     changed();
+  }
+
+  /**
+   * Removes the retained searches from the session file now: an owner writes a new capture, which
+   * {@link SearchController#forgetHistory} left them out of; any other instance rewrites the file.
+   *
+   * @param done receives on the UI thread whether the file holds no retained search
+   */
+  void forgetSearches(final Consumer<Boolean> done) {
+    final Capture capture = owner && !restoring && !closed ? capture(false) : null;
+    boolean started =
+        workers.tryStart(
+            Workers.Kind.LIFECYCLE,
+            new Runnable() {
+              @Override
+              public void run() {
+                final boolean ok = capture == null ? removeSearches() : write(capture);
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        done.accept(ok);
+                      }
+                    });
+              }
+            });
+    if (!started) {
+      LOG.debug("Session searches not removed: workers are closed");
+      done.accept(false);
+    }
+  }
+
+  /** Rewrites the file without its searches; a file without any is left as it is. */
+  @WorkerThread
+  private boolean removeSearches() {
+    saveLock.lock();
+    try {
+      if (store == null) {
+        return true;
+      }
+      Session file = store.load();
+      Session cleared = file.withoutSearches();
+      return cleared.equals(file) || store.save(cleared);
+    } finally {
+      saveLock.unlock();
+    }
   }
 
   /**
@@ -456,21 +516,36 @@ final class SessionController implements DocumentController.FileMemory {
         search.resultsShown(),
         SessionText.numbers(view.dockWeights()),
         search.retained(),
-        documents.closedFiles());
+        documents.closedFiles(),
+        documents.sessionDisplay(window.bookmarkList().shown()));
   }
 
-  /** Writes a capture unless a later one was written or the file holds it already. */
+  /**
+   * Writes a capture unless a later one was written or the file holds it already.
+   *
+   * @param capture the capture
+   * @return false when this capture, or the later one in its place, did not reach the file
+   */
   @WorkerThread
-  void write(Capture capture) {
+  boolean write(Capture capture) {
     saveLock.lock();
     try {
-      if (store == null || capture.sequence() <= written) {
-        return;
+      if (store == null) {
+        return true;
+      }
+      if (capture.sequence() <= written) {
+        return !writeFailed;
       }
       written = capture.sequence();
-      if (!capture.session().equals(lastWritten) && store.save(capture.session())) {
-        lastWritten = capture.session();
+      writeFailed = false;
+      if (!capture.session().equals(lastWritten)) {
+        if (store.save(capture.session())) {
+          lastWritten = capture.session();
+        } else {
+          writeFailed = true;
+        }
       }
+      return !writeFailed;
     } finally {
       saveLock.unlock();
     }

@@ -98,6 +98,7 @@ public final class SearchController implements ResultsInput {
     ResultSet set;
     HyperSearch run;
     HyperSearch rerun;
+    boolean saved = true;
 
     Entry(ResultSet set) {
       this.set = set;
@@ -306,9 +307,15 @@ public final class SearchController implements ResultsInput {
                 state.texts(), UiState.remember(state.directories(), directory), state.masks())));
   }
 
-  /** Drops the last run's fields, so the dialog opens without its masks, text or scope. */
-  void forgetLastRun() {
+  /**
+   * Drops the last run's fields, so the dialog opens without its masks, text or scope, and keeps
+   * every result set out of the session; the sets stay in the dock for this run.
+   */
+  void forgetHistory() {
     last = null;
+    for (Entry e : entries) {
+      e.saved = false;
+    }
   }
 
   /**
@@ -353,8 +360,8 @@ public final class SearchController implements ResultsInput {
       return false;
     }
     Set<Path> open = new HashSet<Path>();
-    for (Document d : documents.openDocuments()) {
-      Path path = documents.pathOf(d);
+    for (Document d : documents.documentsAnywhere()) {
+      Path path = documents.holderOf(d).pathOf(d);
       if (path != null) {
         open.add(path);
       }
@@ -435,10 +442,11 @@ public final class SearchController implements ResultsInput {
         }
       }
       case WORKSPACE, DIRECTORY, TREE -> {
-        for (Document d : documents.openDocuments()) {
-          Path path = documents.pathOf(d);
+        for (Document d : documents.documentsAnywhere()) {
+          DocumentController holder = documents.holderOf(d);
+          Path path = holder.pathOf(d);
           if (path != null
-              && !documents.binary(d)
+              && !holder.binary(d)
               && inFolder(
                   path, request.folder(), request.scope() != SearchScope.DIRECTORY, filter)) {
             sources.add(source(d, null));
@@ -450,8 +458,9 @@ public final class SearchController implements ResultsInput {
   }
 
   private HyperSearch.Source source(Document document, int[] ranges) {
+    DocumentController holder = documents.holderOf(document);
     return new HyperSearch.Source(
-        document, documents.pathOf(document), documents.nameOf(document), ranges);
+        document, holder.pathOf(document), holder.nameOf(document), ranges);
   }
 
   /** The non-empty selections as ascending offset pairs. */
@@ -589,14 +598,14 @@ public final class SearchController implements ResultsInput {
 
   /**
    * Returns the retained requests for the session, newest first; a text over {@link
-   * UiState#MAX_ENTRY_CHARS} chars is left out.
+   * UiState#MAX_ENTRY_CHARS} chars and a set Clear History reached are left out.
    *
    * @return the requests
    */
   List<Session.Search> retained() {
     List<Session.Search> list = new ArrayList<Session.Search>();
     for (Entry e : entries) {
-      if (e.set.request().text().length() <= UiState.MAX_ENTRY_CHARS) {
+      if (e.saved && e.set.request().text().length() <= UiState.MAX_ENTRY_CHARS) {
         list.add(new Session.Search(e.set.request(), e.set.pinned()));
       }
     }

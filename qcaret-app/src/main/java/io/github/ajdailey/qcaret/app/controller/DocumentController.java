@@ -91,8 +91,8 @@ import org.slf4j.LoggerFactory;
  *       qcaret-io-} worker while editing goes on; the document is clean once the snapshot's state
  *       is current. A save while one runs for the same document shows a notice instead. Esc in the
  *       editor and closing the tab cancel a running save, which leaves the target unchanged when
- *       the cancel lands before the file is replaced. Save As onto a file another tab holds closes
- *       that tab once the write succeeds, asking first when it has unsaved changes.
+ *       the cancel lands before the file is replaced. Save As onto a file another tab holds, in any
+ *       window, closes that tab once the write succeeds, asking first when it has unsaved changes.
  *   <li>Each document with a file is checked through {@link ExternalChanges} on the path the user
  *       opened: a clean document reloads a changed file as one undo step, a dirty one asks Keep
  *       Mine, Reload or Compare, a deleted file leaves its buffer open, marked missing and dirty. A
@@ -127,6 +127,28 @@ import org.slf4j.LoggerFactory;
  */
 public final class DocumentController {
   private static final Logger LOG = LoggerFactory.getLogger(DocumentController.class);
+
+  /**
+   * How a save ends; a save runs exactly one of the two.
+   *
+   * @param saved runs once the file is written, or null
+   * @param stopped runs when no file was written, or null
+   */
+  private record SaveEnd(Runnable saved, Runnable stopped) {
+    static final SaveEnd NONE = new SaveEnd(null, null);
+
+    void finish() {
+      if (saved != null) {
+        saved.run();
+      }
+    }
+
+    void stop() {
+      if (stopped != null) {
+        stopped.run();
+      }
+    }
+  }
 
   /** Closed files Reopen Closed Tab remembers. */
   static final int REOPEN_LIMIT = 20;
@@ -422,6 +444,7 @@ public final class DocumentController {
         e.setWrap(wrap);
       }
     }
+    sessionChanged();
   }
 
   // Whitespace marks, word completion and bookmarks.
@@ -452,6 +475,7 @@ public final class DocumentController {
         e.setMarks(showWhitespace, showLineEndings);
       }
     }
+    sessionChanged();
   }
 
   /**
@@ -964,14 +988,14 @@ public final class DocumentController {
   /** Saves the selected document; an untitled one asks for a file. */
   public void save() {
     if (active != null) {
-      save(active, null);
+      save(active, SaveEnd.NONE);
     }
   }
 
   /** Saves the selected document to a file the user picks. */
   public void saveAs() {
     if (active != null) {
-      saveAs(active, null);
+      saveAs(active, SaveEnd.NONE);
     }
   }
 
@@ -982,20 +1006,22 @@ public final class DocumentController {
     }
   }
 
-  private void save(OpenDocument d, Runnable then) {
+  private void save(OpenDocument d, SaveEnd end) {
     if (binaryNotice(d)) {
+      end.stop();
       return;
     }
     if (d.path == null) {
-      saveAs(d, then);
+      saveAs(d, end);
     } else {
       Path file = d.given == null ? d.path : d.given;
-      write(d, file, file, d.baseline, then);
+      write(d, file, file, d.baseline, end);
     }
   }
 
-  private void saveAs(final OpenDocument d, final Runnable then) {
+  private void saveAs(final OpenDocument d, final SaveEnd end) {
     if (binaryNotice(d) || savingNotice(d)) {
+      end.stop();
       return;
     }
     Path directory = d.path == null ? null : d.path.getParent();
@@ -1005,15 +1031,17 @@ public final class DocumentController {
         new Consumer<Path>() {
           @Override
           public void accept(Path target) {
-            if (!d.closed) {
-              saveAsTarget(d, target, then);
+            if (target == null || d.closed) {
+              end.stop();
+            } else {
+              saveAsTarget(d, target, end);
             }
           }
         });
   }
 
   /** Resolves a Save As target's real path on a worker, then writes it. */
-  private void saveAsTarget(final OpenDocument d, final Path target, final Runnable then) {
+  private void saveAsTarget(final OpenDocument d, final Path target, final SaveEnd end) {
     boolean started =
         workers.tryStart(
             Workers.Kind.IO,
@@ -1025,50 +1053,50 @@ public final class DocumentController {
                     new Runnable() {
                       @Override
                       public void run() {
-                        targetResolved(d, target, real, then);
+                        targetResolved(d, target, real, end);
                       }
                     });
               }
             });
     if (!started) {
       LOG.debug("Save As stopped: the workers are closed");
+      end.stop();
     }
   }
 
   /**
-   * Writes a Save As target. When another tab holds the file, that tab closes once the write
-   * succeeds; with unsaved changes it asks first, and a decline writes nothing.
+   * Writes a Save As target. When another tab holds the file, in any window, that tab closes once
+   * the write succeeds; with unsaved changes it asks first, and a decline writes nothing.
    */
   private void targetResolved(
-      final OpenDocument d, final Path target, Path real, final Runnable then) {
+      final OpenDocument d, final Path target, Path real, final SaveEnd end) {
     if (d.closed) {
+      end.stop();
       return;
     }
-    OpenDocument holder = null;
-    for (OpenDocument o : documents) {
-      if (o != d && o.path != null && o.path.equals(real)) {
-        holder = o;
-      }
-    }
-    if (holder == null) {
-      write(d, target, d.path, d.baseline, then);
+    final OpenDocument other = holderOfFile(d, real);
+    if (other == null) {
+      write(d, target, d.path, d.baseline, end);
       return;
     }
-    final OpenDocument other = holder;
-    final Runnable closeOther =
-        new Runnable() {
-          @Override
-          public void run() {
-            discard(other);
-            if (!d.closed) {
-              d.tab.select();
-            }
-            if (then != null) {
-              then.run();
-            }
-          }
-        };
-    if (!other.document.isDirty()) {
+    final Document held = other.document;
+    final SaveEnd closeOther =
+        new SaveEnd(
+            new Runnable() {
+              @Override
+              public void run() {
+                DocumentController holder = holderOf(held);
+                if (holder != null) {
+                  holder.discard(holder.entry(held));
+                }
+                if (!d.closed) {
+                  d.tab.select();
+                }
+                end.finish();
+              }
+            },
+            end.stopped());
+    if (!held.isDirty()) {
       write(d, target, d.path, d.baseline, closeOther);
       return;
     }
@@ -1077,11 +1105,28 @@ public final class DocumentController {
         new Runnable() {
           @Override
           public void run() {
-            if (!d.closed) {
+            if (d.closed) {
+              end.stop();
+            } else {
               write(d, target, d.path, d.baseline, closeOther);
             }
           }
-        });
+        },
+        end::stop);
+  }
+
+  /** Returns the tab of a file other than {@code d}, this window first, or null. */
+  private OpenDocument holderOfFile(OpenDocument d, Path real) {
+    for (OpenDocument o : documents) {
+      if (o != d && o.path != null && o.path.equals(real)) {
+        return o;
+      }
+    }
+    Document document = elsewhere == null ? null : elsewhere.documentAt(real);
+    if (document == null || document == d.document) {
+      return null;
+    }
+    return holderOf(document).entry(document);
   }
 
   /** Returns a file's real path, or its absolute normalized path when it does not exist. */
@@ -1132,8 +1177,9 @@ public final class DocumentController {
       final Path target,
       final Path known,
       final FileStamp baseline,
-      final Runnable then) {
+      final SaveEnd end) {
     if (d.binary || savingNotice(d)) {
+      end.stop();
       return;
     }
     d.document.clearPreedit();
@@ -1173,7 +1219,7 @@ public final class DocumentController {
                       new Runnable() {
                         @Override
                         public void run() {
-                          saved(d, token, target, file, snapshot, saved, failure, then);
+                          saved(d, token, target, file, snapshot, saved, failure, end);
                         }
                       });
                   // After the post: an idle view has no result on its way.
@@ -1185,6 +1231,7 @@ public final class DocumentController {
       d.saving = null;
       resumeWatch(d);
       view.setIdle();
+      end.stop();
     }
   }
 
@@ -1212,11 +1259,12 @@ public final class DocumentController {
       DocumentSnapshot snapshot,
       FileBaseline stamp,
       IOException error,
-      Runnable then) {
+      SaveEnd end) {
     if (d.saving == token) {
       d.saving = null;
     }
     if (d.closed) {
+      end.stop();
       return;
     }
     if (stamp != null) {
@@ -1244,19 +1292,20 @@ public final class DocumentController {
       }
       d.updateTitle();
       view.documentStateChanged();
-      if (then != null) {
-        then.run();
-      }
+      end.finish();
       return;
     }
     resumeWatch(d);
     if (error instanceof ExternalModificationException) {
-      askConflict(d, then);
-    } else if (error != null) {
+      askConflict(d, end);
+      return;
+    }
+    if (error != null) {
       view.showInfo(
           UiText.SAVE_TITLE.text(),
           UiText.SAVE_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
     }
+    end.stop();
   }
 
   // Close.
@@ -1376,7 +1425,6 @@ public final class DocumentController {
           @Override
           public void accept(UnsavedChoice choice) {
             if (d.closed) {
-              quitStopped();
               return;
             }
             Runnable done =
@@ -1390,9 +1438,11 @@ public final class DocumentController {
                   }
                 };
             switch (choice) {
-              case SAVE -> save(d, done);
+              case SAVE -> save(d, new SaveEnd(done, null));
               case DISCARD -> done.run();
-              case CANCEL -> quitStopped();
+              case CANCEL -> {
+                // The tab stays open.
+              }
             }
           }
         });
@@ -1590,6 +1640,7 @@ public final class DocumentController {
         e.setOverviewShown(overviewShown);
       }
     }
+    sessionChanged();
   }
 
   // Split views.
@@ -1875,7 +1926,7 @@ public final class DocumentController {
   public void saveAll() {
     for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
       if (d.document.isDirty() && !d.binary && !d.closed) {
-        save(d, null);
+        save(d, SaveEnd.NONE);
       }
     }
   }
@@ -1915,6 +1966,7 @@ public final class DocumentController {
     document.setReadOnly(!document.isReadOnly());
     active.updateTitle();
     view.documentStateChanged();
+    sessionChanged();
   }
 
   /**
@@ -2287,7 +2339,7 @@ public final class DocumentController {
   }
 
   /** Asks what a save that found the file changed does next. */
-  private void askConflict(final OpenDocument d, final Runnable then) {
+  private void askConflict(final OpenDocument d, final SaveEnd end) {
     view.askExternalChange(
         d.name(),
         true,
@@ -2295,18 +2347,23 @@ public final class DocumentController {
           @Override
           public void accept(ChangeChoice choice) {
             if (d.closed) {
+              end.stop();
               return;
             }
             switch (choice) {
               case OVERWRITE -> {
                 Path file = d.given == null ? d.path : d.given;
-                write(d, file, file, null, then);
+                write(d, file, file, null, end);
               }
-              case RELOAD -> reload(d);
-              case COMPARE -> compareWithDisk(d);
-              default -> {
-                // Canceled: the document stays dirty.
+              case RELOAD -> {
+                reload(d);
+                end.stop();
               }
+              case COMPARE -> {
+                compareWithDisk(d);
+                end.stop();
+              }
+              default -> end.stop();
             }
           }
         });
@@ -2486,6 +2543,9 @@ public final class DocumentController {
     /** Returns the document of a file in any window, or null. */
     Document documentAt(Path path);
 
+    /** Returns the open documents of every window, {@code asking}'s first. */
+    List<Document> documents(DocumentController asking);
+
     /** Raises a window. */
     void raise(DocumentController holder);
 
@@ -2555,6 +2615,7 @@ public final class DocumentController {
       document.setReadOnly(true);
       holder.entry(document).updateTitle();
       holder.view.documentStateChanged();
+      holder.sessionChanged();
     }
   }
 
@@ -2590,6 +2651,11 @@ public final class DocumentController {
   Document documentAnywhere(Path path) {
     Document document = documentAt(path);
     return document != null || elsewhere == null ? document : elsewhere.documentAt(path);
+  }
+
+  /** Returns the open documents of every window, this window's first, each in tab order. */
+  List<Document> documentsAnywhere() {
+    return elsewhere == null ? openDocuments() : elsewhere.documents(this);
   }
 
   /** Selects a document's tab in the window holding it, raises that window, returns the editor. */
@@ -2783,7 +2849,6 @@ public final class DocumentController {
   private FileMemory memory;
   private Consumer<String> bufferCleaned;
   private Runnable sessionListener;
-  private Runnable quitCanceled;
   private final SelectionListener sessionSelections =
       new SelectionListener() {
         @Override
@@ -2953,6 +3018,11 @@ public final class DocumentController {
       d.editor = d.editors.get(Math.min(tab.focused(), d.editors.size() - 1));
       d.editor.view().focus();
     }
+    if (tab.readOnly() && !d.document.isReadOnly()) {
+      d.document.clearPreedit();
+      d.document.setReadOnly(true);
+      d.updateTitle();
+    }
     view.documentStateChanged();
   }
 
@@ -2984,7 +3054,8 @@ public final class DocumentController {
         d.sideBySide,
         d.editors.size() > 1 ? SessionText.numbers(d.tab.splitWeights()) : "",
         SessionText.numbers(d.bookmarks.lines()),
-        comments);
+        comments,
+        d.document.isReadOnly());
   }
 
   private void rememberClosed(OpenDocument d) {
@@ -3005,29 +3076,50 @@ public final class DocumentController {
     }
   }
 
-  /**
-   * Closes every document for a quit, as {@link #closeAll}.
-   *
-   * @param then runs once every document is closed
-   * @param canceled runs when the closing stops at a Cancel, or at a prompt whose tab moved away
-   */
-  void closeAllForQuit(final Runnable then, Runnable canceled) {
-    quitCanceled = canceled;
-    closeAll(
-        new Runnable() {
-          @Override
-          public void run() {
-            quitCanceled = null;
-            then.run();
-          }
-        });
+  /** Returns the documents with unsaved changes, in tab order. */
+  List<Document> dirtyDocuments() {
+    List<Document> list = new ArrayList<Document>();
+    for (OpenDocument d : documents) {
+      if (d.document.isDirty()) {
+        list.add(d.document);
+      }
+    }
+    return list;
   }
 
-  private void quitStopped() {
-    Runnable canceled = quitCanceled;
-    quitCanceled = null;
-    if (canceled != null) {
-      canceled.run();
+  /** Selects an open document's tab and asks about its unsaved changes; closes nothing. */
+  void askBeforeQuit(Document document, Consumer<UnsavedChoice> answer) {
+    OpenDocument d = entry(document);
+    d.tab.select();
+    view.askUnsaved(d.name(), answer);
+  }
+
+  /**
+   * Selects an open document's tab and saves it, in place of a save that runs.
+   *
+   * @param document the document
+   * @param saved runs once the file is written
+   * @param stopped runs when no file was written: a failure, or a canceled chooser or prompt
+   */
+  void saveForQuit(Document document, Runnable saved, Runnable stopped) {
+    OpenDocument d = entry(document);
+    cancelSave(d);
+    d.tab.select();
+    save(d, new SaveEnd(saved, stopped));
+  }
+
+  /** Selects an open document's tab; a closed document selects nothing. */
+  void reselect(Document document) {
+    OpenDocument d = entry(document);
+    if (d != null) {
+      d.tab.select();
+    }
+  }
+
+  /** Closes every document without asking; each file's state goes to the {@link FileMemory}. */
+  void closeForQuit() {
+    for (OpenDocument d : new ArrayList<OpenDocument>(documents)) {
+      discard(d);
     }
   }
 
@@ -3061,6 +3153,27 @@ public final class DocumentController {
       }
     }
     return -1;
+  }
+
+  /** Returns the window's display state; the Bookmarks list is {@link BookmarkList}'s. */
+  Session.Display sessionDisplay(boolean bookmarks) {
+    return new Session.Display(wrap, showWhitespace, showLineEndings, overviewShown, bookmarks);
+  }
+
+  /** Sets word wrap, the whitespace and line-ending marks and the overview strip. */
+  void restoreDisplay(Session.Display display) {
+    if (display.wrap() != wrap) {
+      toggleWrap();
+    }
+    if (display.whitespace() != showWhitespace) {
+      toggleMarks(false);
+    }
+    if (display.lineEndings() != showLineEndings) {
+      toggleMarks(true);
+    }
+    if (display.overview() != overviewShown) {
+      toggleOverview();
+    }
   }
 
   /** Returns Reopen Closed Tab's files, newest first. */

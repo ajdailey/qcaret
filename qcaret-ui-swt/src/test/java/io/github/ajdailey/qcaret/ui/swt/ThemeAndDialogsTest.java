@@ -23,6 +23,8 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -168,6 +170,29 @@ class ThemeAndDialogsTest {
     assertSame(Icons.Variant.LIGHT, MainWindow.logoVariant(new Color(240, 240, 240)));
     assertNotNull(Icons.logo(display, Icons.Variant.LIGHT, AboutDialog.LOGO_SIZE));
     assertEquals(7, Icons.load(display, Icons.Variant.DARK).size());
+  }
+
+  @Test
+  void theReplacePromptReportsEveryEndThatIsNotReplace() {
+    final List<String> ends = new ArrayList<String>();
+    Runnable replace =
+        new Runnable() {
+          @Override
+          public void run() {
+            ends.add("replace");
+          }
+        };
+    Runnable declined =
+        new Runnable() {
+          @Override
+          public void run() {
+            ends.add("declined");
+          }
+        };
+    ReplaceOpenDialog dialog = new ReplaceOpenDialog(window.shell(), "mock", replace, declined);
+    dialog.open();
+    dialog.shell().close();
+    assertEquals(List.of("declined"), ends);
   }
 
   @Test

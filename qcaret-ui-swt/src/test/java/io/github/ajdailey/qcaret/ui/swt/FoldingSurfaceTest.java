@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -38,6 +39,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.junit.jupiter.api.AfterEach;
@@ -203,6 +205,61 @@ class FoldingSurfaceTest {
     click(text, x, text.getLinePixel(p.rowOfLine(3)) + lineHeight / 2);
     assertFalse(p.collapsed(3));
     sameRows(text, p);
+  }
+
+  @Test
+  void theOverviewStripScalesByModelLinesAndAClickOnAHiddenLineShowsItsFold() throws Exception {
+    StringBuilder source = new StringBuilder("class Long {\n");
+    for (int i = 0; i < 200; i++) {
+      source.append("  void m").append(i).append("() {\n    int a;\n    int b;\n  }\n");
+    }
+    Path file = temp.resolve("Long.java");
+    Files.writeString(file, source.append("}\n").toString(), StandardCharsets.UTF_8);
+    controller.documents().open(List.of(file));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            EditorController editor = controller.documents().activeEditor();
+            return editor != null && editor.projection().foldRegionCount() > 1;
+          }
+        },
+        "fold regions");
+    drain();
+    final EditorPane pane = window.activeEditor();
+    StyledText text = window.activeText();
+    DisplayProjection p = editor().projection();
+    int header = 401;
+    final int hidden = header + 1;
+    editor().selections().set(SelectionSet.caret(p.lineStart(hidden)));
+    controller.execute(CommandId.TOGGLE_BOOKMARK);
+    editor().selections().set(SelectionSet.caret(0));
+    assertTrue(p.fold(header));
+    final int lines = p.lineCount();
+    final Canvas strip = pane.overviewStrip();
+    final int height = strip.getClientArea().height;
+    assertTrue(height > 0);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            byte[] rows = pane.overviewMarks().rows();
+            int row = OverviewMarks.rowOf(hidden, lines, height);
+            return row < rows.length && (rows[row] & OverviewMarks.BOOKMARK) != 0;
+          }
+        },
+        "the hidden line's mark");
+    Event click = new Event();
+    click.button = 1;
+    click.y = OverviewMarks.rowOf(hidden, lines, height);
+    strip.notifyListeners(SWT.MouseDown, click);
+    strip.notifyListeners(SWT.MouseUp, click);
+    drain();
+    int visible = text.getClientArea().height / text.getLineHeight();
+    int shown = p.rowOfLine(header);
+    assertTrue(
+        text.getTopIndex() <= shown && shown <= text.getTopIndex() + visible,
+        "top " + text.getTopIndex() + ", fold row " + shown);
   }
 
   @Test

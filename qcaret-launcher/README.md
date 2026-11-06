@@ -60,10 +60,13 @@ disposed and `run` returns 0.
 
 Before the Display, without `-m`, `Launcher` claims the instance lock (see the
 `qcaret-app` README). A held lock hands the launch over and exits 0, before
-`-l` attaches a log file; any failure, or a settings directory another user owns
-or can write, logs one WARN and runs on alone, as with `-m`. `-d` and `-l` of a
-launch that hands off apply to that process only, and so does `--session`:
-the running instance restored its session at its own start.
+`-l` attaches a log file. A settings directory another user owns or can write,
+or a failure to take the lock, logs one WARN and runs on alone, as with `-m`. A
+handoff that fails while the lock is held logs one WARN and runs beside the
+primary (`Handoff.BESIDE`): `Gui` reads Recent Files from the session, and
+restores and saves no session and no window placement. `-d` and `-l` of a launch
+that hands off apply to that process only, and so does `--session`: the running
+instance restored its session at its own start.
 
 A JVM shutdown hook covers an exit that skips the ordered quit (SIGTERM,
 logoff, a parent ending the process). `ShutdownHook` posts

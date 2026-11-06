@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -221,6 +222,10 @@ class RecoverySurfaceTest {
   }
 
   private void saveSession(Path split, Path plain, String folds) {
+    saveSession(split, plain, folds, Session.Display.DEFAULTS);
+  }
+
+  private void saveSession(Path split, Path plain, String folds, Session.Display display) {
     Session.Tab first =
         new Session.Tab(
             plain.toString(),
@@ -236,7 +241,8 @@ class RecoverySurfaceTest {
             false,
             "",
             "12",
-            List.of());
+            List.of(),
+            false);
     Session.Tab second =
         new Session.Tab(
             split.toString(),
@@ -252,7 +258,8 @@ class RecoverySurfaceTest {
             true,
             "30,70",
             "",
-            List.of());
+            List.of(),
+            false);
     Session.Window saved =
         new Session.Window(
             WindowState.UNKNOWN,
@@ -265,7 +272,8 @@ class RecoverySurfaceTest {
             false,
             "",
             List.of(),
-            List.of());
+            List.of(),
+            display);
     new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, settings))
         .save(new Session(List.of(saved), List.of(), List.of()));
   }
@@ -321,6 +329,42 @@ class RecoverySurfaceTest {
           }
         },
         "the hidden tab scrolled");
+  }
+
+  @Test
+  void aRestoredWindowWrapsShowsTheBookmarksListAndKeepsItsTopLines() throws Exception {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 200; i++) {
+      text.append("mock ".repeat(100)).append('\n');
+    }
+    Path wide = Files.writeString(temp.resolve("wide.txt"), text.toString()).toRealPath();
+    Path split = Files.writeString(temp.resolve("split.txt"), text.toString()).toRealPath();
+    saveSession(split, wide, "", new Session.Display(true, false, false, false, true));
+    start();
+    awaitTabs(2);
+    until(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            EditorController editor = controller.documents().activeEditor();
+            return visibleText(1).getLineCount() > 400
+                && editor.projection().lineOfRow(visibleText(1).getTopIndex()) == 50;
+          }
+        },
+        "the selected tab's wrapped rows with its saved top line");
+    controller.documents().select(0);
+    until(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            EditorController editor = controller.documents().activeEditor();
+            return visibleText(0).getLineCount() > 400
+                && editor.projection().lineOfRow(visibleText(0).getTopIndex()) == 40;
+          }
+        },
+        "wrapped rows with the saved top line");
+    assertTrue(controller.documents().wrap());
+    assertTrue(window.bookmarksDock().control().getVisible());
   }
 
   @Test

@@ -470,6 +470,7 @@ final class FakeView implements MainView {
   int[] revealed;
   String replaceOpenName;
   Runnable replaceOpen;
+  Runnable replaceDeclined;
   ReplaceInput replacePreview;
   int previewChanges;
   final List<ReportInput> reports = new ArrayList<ReportInput>();
@@ -664,10 +665,11 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public void askReplaceOpenFile(String name, Runnable replace) {
+  public void askReplaceOpenFile(String name, Runnable replace, Runnable declined) {
     ui.checkUiThread();
     replaceOpenName = name;
     replaceOpen = replace;
+    replaceDeclined = declined;
   }
 
   @Override

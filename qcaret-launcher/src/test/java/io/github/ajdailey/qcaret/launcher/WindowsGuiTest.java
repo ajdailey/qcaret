@@ -121,7 +121,8 @@ class WindowsGuiTest {
                 err,
                 observer,
                 server,
-                LogFiles.NONE)
+                LogFiles.NONE,
+                false)
             .run());
     assertTrue(owned[0].isClosed());
     assertTrue(observed.contains("windows 2"), observed.toString());
@@ -147,7 +148,8 @@ class WindowsGuiTest {
             false,
             "",
             "",
-            List.of());
+            List.of(),
+            false);
     return new Session.Window(
         new WindowState(40, 40, 500, 300, false),
         List.of(tab),
@@ -159,7 +161,8 @@ class WindowsGuiTest {
         false,
         "",
         List.of(),
-        List.of());
+        List.of(),
+        Session.Display.DEFAULTS);
   }
 
   /** Runs a start over the settings and returns the window and document counts it reached. */

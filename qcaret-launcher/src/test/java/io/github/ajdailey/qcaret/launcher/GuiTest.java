@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.launcher;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,6 +13,8 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
+import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
@@ -158,6 +161,76 @@ class GuiTest {
     Recorder recorder = new Recorder(700, 500);
     assertEquals(0, run(request(List.of(), null, null, null, null, true), remembered, recorder));
     assertEquals("700x500", recorder.observed.get(1));
+    assertEquals(WindowState.UNKNOWN, config().load().window());
+  }
+
+  @Test
+  void aLaunchBesideAPrimaryRestoresNoSessionAndSavesNoSessionOrPlacement() throws Exception {
+    Path file = Files.writeString(temp.resolve("saved.txt"), "saved\n");
+    Session saved =
+        new Session(
+            List.of(
+                new Session.Window(
+                    WindowState.UNKNOWN,
+                    List.of(
+                        new Session.Tab(
+                            file.toString(),
+                            "",
+                            "",
+                            "",
+                            "",
+                            false,
+                            4,
+                            false,
+                            List.of(new Session.View("0,0", 0, "")),
+                            0,
+                            false,
+                            "",
+                            "",
+                            List.of(),
+                            false)),
+                    0,
+                    "",
+                    false,
+                    "",
+                    List.of(),
+                    false,
+                    "",
+                    List.of(),
+                    List.of(),
+                    Session.Display.DEFAULTS)),
+            List.of(file.toString()),
+            List.of());
+    SessionStore sessions = new SessionStore(config().location());
+    assertTrue(sessions.save(saved));
+    Path session = config().location().directory().resolve(SessionStore.FILE);
+    byte[] before = Files.readAllBytes(session);
+    final List<Integer> tabs = new ArrayList<Integer>();
+    Gui.Observer observer =
+        new Gui.Observer() {
+          @Override
+          public void opened(
+              MainWindow window, final ApplicationController controller, Workers workers) {
+            tabs.add(controller.documents().count());
+            tabs.add(controller.windowSet().windows().size());
+            window
+                .shell()
+                .getDisplay()
+                .asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        controller.quit();
+                      }
+                    });
+          }
+        };
+    StartupRequest request = request(List.of(), null, null, null, null, false);
+    PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+    new Gui(request, config(), Preferences.DEFAULTS, err, observer, null, LogFiles.NONE, true)
+        .run();
+    assertEquals(List.of(1, 1), tabs);
+    assertArrayEquals(before, Files.readAllBytes(session));
     assertEquals(WindowState.UNKNOWN, config().load().window());
   }
 

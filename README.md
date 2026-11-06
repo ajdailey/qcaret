@@ -207,8 +207,10 @@ buffer per file.
 
 ## Windows
 
-File > Quit asks about unsaved documents in every window. Closing a window asks
-about its own and leaves the others open; closing the last one quits. Window >
+File > Quit asks about unsaved documents in every window before it closes or
+saves anything; Cancel leaves every window as it was, and a save that fails
+stops the quit. Closing a window asks about its own and leaves the others open;
+closing the last one quits. Window >
 New Window opens another window. Settings, the theme, the key bindings,
 grammars and Recent Files are shared; each window has its own tabs, find bar,
 workspace folder and search results.
@@ -319,9 +321,13 @@ next start, and macOS native controls follow the system appearance.
 
 A start without file arguments restores the last session from
 `qcaret_session.conf` in the settings directory: every window at its position,
-with its tabs, carets, scroll positions, splits, folds, bookmarks, workspace and
-search dock with its requests, and Recent Files. A file that does not open is named and skipped. A `-m` instance
-never replaces the session. A malformed or unreadable session file, or one over
+with its tabs, carets, scroll positions, splits, folds, bookmarks, read-only
+state, word wrap, whitespace and line-ending marks, overview strip, Bookmarks
+list, workspace and search dock with its requests, and Recent Files. A file that
+does not open is named and skipped. A `-m` instance never replaces the session,
+and neither does a launch that could not hand off to a running instance: it
+reads Recent Files only. Clear History also removes the retained searches from
+the session file at once. A malformed or unreadable session file, or one over
 4 MiB, is ignored with one warning and kept as `qcaret_session.conf.invalid`
 before the next save.
 

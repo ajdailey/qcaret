@@ -55,7 +55,7 @@ public interface DocumentsView {
    *
    * @param directory the directory the chooser starts in, or null
    * @param name the suggested file name
-   * @param chosen receives the chosen file; not called when the user cancels
+   * @param chosen receives the chosen file, or null when the user cancels
    */
   void chooseSaveTarget(Path directory, String name, Consumer<Path> chosen);
 
@@ -72,9 +72,10 @@ public interface DocumentsView {
    * then closes without saving.
    *
    * @param name the other tab's name
-   * @param replace runs when the user accepts; not run on a decline
+   * @param replace runs when the user accepts
+   * @param declined runs on any other end of the prompt
    */
-  void askReplaceOpenFile(String name, Runnable replace);
+  void askReplaceOpenFile(String name, Runnable replace, Runnable declined);
 
   /**
    * Asks for a line, or a line and a column, to move the caret to.

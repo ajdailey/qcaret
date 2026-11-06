@@ -190,6 +190,16 @@ class EditorSurfaceTest {
   }
 
   @Test
+  void aTabToolTipKeepsAnAmpersandOfThePath() throws Exception {
+    Path file = openFile("a&b.txt", "text\n");
+    String tip = file.toRealPath().toString().replace("&", "&&");
+    assertEquals(tip, window.tabs().getSelection().getToolTipText());
+    type(window.activeText(), "x");
+    assertEquals("*a&&b.txt", window.tabs().getSelection().getText());
+    assertEquals(tip, window.tabs().getSelection().getToolTipText());
+  }
+
+  @Test
   void wrapOnALargeFileKeepsTheUiThreadRunning() throws Exception {
     Path file = temp.resolve("large.txt");
     int lines = 200_000;

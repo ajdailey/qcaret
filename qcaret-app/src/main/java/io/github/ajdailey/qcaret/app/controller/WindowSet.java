@@ -42,16 +42,15 @@ import org.slf4j.LoggerFactory;
  * Factory}. {@link #moveDocument} moves a tab with its live document.
  *
  * <p>Closing a window that is not the last asks about its unsaved documents and closes them.
- * Closing the last one, or Quit from any window, asks window by window, most recently activated
- * first, until no document is left, so a tab moved or a file handed during a prompt is asked about
- * too; a Cancel stops there. The session captures the windows before the first close. With {@code
- * session.snapshot} on and this instance owning the session, Quit writes the dirty buffers as a
- * snapshot instead and asks nothing; a failed write falls back to asking. {@link #quit} then asks
- * nothing: capture the session, queue the last recovery writes (a dirty buffer it finds stays in a
- * recovery file for the next start), stop every window and record the placement of the window
- * activated last on the UI thread, hide the windows, on a {@code qcaret-lifecycle-} worker run the
- * quit listeners, save, finish recovery, close {@link Workers} and run the finish listeners, and
- * dispose the windows on the UI thread, which ends the event loop.
+ * Closing the last one, or Quit from any window, runs {@link QuitPrompts}: every dirty document of
+ * every window is asked about before anything closes or saves. With {@code session.snapshot} on and
+ * this instance owning the session, Quit writes the dirty buffers as a snapshot instead and asks
+ * nothing; a failed write falls back to asking. {@link #quit} then asks nothing: capture the
+ * session, queue the last recovery writes (a dirty buffer it finds stays in a recovery file for the
+ * next start), stop every window and record the placement of the window activated last on the UI
+ * thread, hide the windows, on a {@code qcaret-lifecycle-} worker run the quit listeners, save,
+ * finish recovery, close {@link Workers} and run the finish listeners, and dispose the windows on
+ * the UI thread, which ends the event loop.
  */
 public final class WindowSet {
   /** Creates and opens a main window. */
@@ -108,6 +107,7 @@ public final class WindowSet {
   private int nextBuffer = 1;
   private boolean snapshotting;
   private boolean snapshotWritten;
+  private QuitPrompts prompts;
   private volatile boolean quitting;
 
   private final DocumentController.Elsewhere elsewhere =
@@ -142,6 +142,17 @@ public final class WindowSet {
             }
           }
           return null;
+        }
+
+        @Override
+        public List<Document> documents(DocumentController asking) {
+          List<Document> list = new ArrayList<Document>(asking.openDocuments());
+          for (ApplicationController window : windows) {
+            if (window.documents() != asking) {
+              list.addAll(window.documents().openDocuments());
+            }
+          }
+          return list;
         }
 
         @Override
@@ -461,11 +472,17 @@ public final class WindowSet {
     return null;
   }
 
-  /** Drops HyperSearch's last run in every window; Clear History. */
-  void forgetLastRuns() {
+  /**
+   * Drops HyperSearch's last run and retained searches in every window and removes the searches
+   * from the session file now; Clear History.
+   *
+   * @param done receives on the UI thread whether the session file holds no retained search
+   */
+  void forgetHistory(Consumer<Boolean> done) {
     for (ApplicationController window : windows) {
-      window.search().forgetLastRun();
+      window.search().forgetHistory();
     }
+    session.forgetSearches(done);
   }
 
   /** Opens a saved window at its bounds; null when it cannot be created. */
@@ -492,6 +509,11 @@ public final class WindowSet {
       activations.remove(window);
       activations.add(window);
     }
+  }
+
+  /** Returns the open windows, activated last at the end. */
+  List<ApplicationController> activationOrder() {
+    return new ArrayList<ApplicationController>(activations);
   }
 
   /**
@@ -685,7 +707,7 @@ public final class WindowSet {
    * @param window the window
    */
   void requestClose(final ApplicationController window) {
-    if (quitting || !windows.contains(window)) {
+    if (quitting || prompts != null || !windows.contains(window)) {
       return;
     }
     if (windows.size() == 1) {
@@ -730,11 +752,12 @@ public final class WindowSet {
   }
 
   /**
-   * Closes the documents of every window, asking about unsaved changes, then quits unless the user
-   * canceled; with {@code session.snapshot} on, writes them as a snapshot and quits.
+   * Asks about the unsaved changes of every window, then closes the documents and quits unless the
+   * user canceled or a save failed; with {@code session.snapshot} on, writes them as a snapshot and
+   * quits. A request while a quit asks does nothing.
    */
   public void requestQuit() {
-    if (quitting || snapshotting) {
+    if (quitting || snapshotting || prompts != null) {
       return;
     }
     if (session.owner() && settings.current().options().sessionSnapshot()) {
@@ -744,32 +767,21 @@ public final class WindowSet {
     }
   }
 
-  /** Captures the session, then closes window by window until no document is left. */
   private void closeAndQuit() {
     if (quitting) {
       return;
     }
-    session.quitStarted();
-    for (int i = activations.size() - 1; i >= 0; i--) {
-      ApplicationController window = activations.get(i);
-      if (window.documents().count() > 0) {
-        if (windows.size() > 1 && window.documents().anyDirty()) {
-          window.toFront();
-        }
-        window
-            .documents()
-            .closeAllForQuit(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    closeAndQuit();
-                  }
-                },
-                session::quitCanceled);
-        return;
-      }
-    }
-    quit();
+    prompts =
+        new QuitPrompts(
+            this,
+            session,
+            new Runnable() {
+              @Override
+              public void run() {
+                prompts = null;
+              }
+            });
+    prompts.start();
   }
 
   /** Writes the dirty buffers, again when one changed meanwhile, then quits. */

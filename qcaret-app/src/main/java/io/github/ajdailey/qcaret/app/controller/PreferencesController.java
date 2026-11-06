@@ -19,17 +19,20 @@ final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
   private final Keymap defaults;
-  private final Runnable forgetLastRuns;
+  private final Consumer<Consumer<Boolean>> forgetHistory;
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
   private Preferences uncleared;
 
   PreferencesController(
-      Settings settings, MainView view, Keymap defaults, Runnable forgetLastRuns) {
+      Settings settings,
+      MainView view,
+      Keymap defaults,
+      Consumer<Consumer<Boolean>> forgetHistory) {
     this.settings = settings;
     this.view = view;
     this.defaults = defaults;
-    this.forgetLastRuns = forgetLastRuns;
+    this.forgetHistory = forgetHistory;
   }
 
   /** Shows the dialog once the file is read. */
@@ -186,7 +189,15 @@ final class PreferencesController implements PreferencesInput {
 
   @Override
   public void clearHistory() {
-    forgetLastRuns.run();
+    forgetHistory.accept(
+        new Consumer<Boolean>() {
+          @Override
+          public void accept(Boolean removed) {
+            if (!removed) {
+              view.showNotice(UiText.PREFERENCES_HISTORY_NOT_REMOVED.text());
+            }
+          }
+        });
     settings.refresh(
         new Runnable() {
           @Override

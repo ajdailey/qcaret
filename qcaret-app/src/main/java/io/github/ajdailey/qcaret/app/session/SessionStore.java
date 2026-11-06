@@ -260,6 +260,12 @@ public final class SessionStore {
       keys.put(key + "results", Boolean.toString(window.results()));
       put(keys, key + "dockWeights", window.dockWeights());
       list(keys, key + "closed.", window.closed(), MAX_CLOSED);
+      Session.Display display = window.display();
+      keys.put(key + "wrap", Boolean.toString(display.wrap()));
+      keys.put(key + "whitespace", Boolean.toString(display.whitespace()));
+      keys.put(key + "lineEndings", Boolean.toString(display.lineEndings()));
+      keys.put(key + "overview", Boolean.toString(display.overview()));
+      keys.put(key + "bookmarks", Boolean.toString(display.bookmarks()));
       for (int i = 0; i < Math.min(MAX_SEARCHES, window.searches().size()); i++) {
         search(keys, key + "search." + i + ".", window.searches().get(i));
       }
@@ -280,6 +286,7 @@ public final class SessionStore {
     put(keys, key + "encoding", tab.encoding());
     put(keys, key + "language", tab.language());
     keys.put(key + "binary", Boolean.toString(tab.binary()));
+    keys.put(key + "readOnly", Boolean.toString(tab.readOnly()));
     keys.put(key + "tabWidth", Integer.toString(tab.tabWidth()));
     keys.put(key + "spaces", Boolean.toString(tab.insertSpaces()));
     keys.put(key + "focused", Integer.toString(tab.focused()));
@@ -391,7 +398,13 @@ public final class SessionStore {
         flag(p, key + "results"),
         p.getProperty(key + "dockWeights", ""),
         searches,
-        list(p, key + "closed.", MAX_CLOSED));
+        list(p, key + "closed.", MAX_CLOSED),
+        new Session.Display(
+            flag(p, key + "wrap"),
+            flag(p, key + "whitespace"),
+            flag(p, key + "lineEndings"),
+            !"false".equals(p.getProperty(key + "overview", "true").strip()),
+            flag(p, key + "bookmarks")));
   }
 
   private static Session.Tab tab(Properties p, String key, int maxComments) {
@@ -435,7 +448,8 @@ public final class SessionStore {
         flag(p, key + "sideBySide"),
         p.getProperty(key + "weights", ""),
         p.getProperty(key + "bookmarks", ""),
-        comments);
+        comments,
+        flag(p, key + "readOnly"));
   }
 
   /** Returns a search, or null when its scope or folder does not parse. */

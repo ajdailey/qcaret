@@ -145,6 +145,7 @@ public final class EditorController implements EditorInput {
         public void textChanged(DocumentChange change) {
           restoredFolds = null;
           restoredTop = -1;
+          wrapTop = -1;
           ui.cancelTimer(foldTimer);
           ui.timerExec(FOLD_DELAY_MILLIS, foldTimer);
         }
@@ -319,6 +320,9 @@ public final class EditorController implements EditorInput {
   @Override
   public void viewportChanged(int start, int end) {
     restoredTop = -1;
+    if (rewrap == null) {
+      wrapTop = -1;
+    }
     int from = projection.toModel(start);
     int to = projection.toModel(end);
     if (from != visibleStart || to != visibleEnd) {
@@ -354,6 +358,9 @@ public final class EditorController implements EditorInput {
   /** The line {@link #restoreView} scrolled to, until the view reports its viewport. */
   private int restoredTop = -1;
 
+  /** The line a restored view scrolls back to after each rewrap, or -1. */
+  private int wrapTop = -1;
+
   /**
    * The lines {@link #restoreView} collapses as regions arrive, until an edit or a fold command.
    */
@@ -378,6 +385,7 @@ public final class EditorController implements EditorInput {
     foldsTop = line;
     applyRestoredFolds();
     restoredTop = line;
+    wrapTop = line;
     if (view != null) {
       view.scrollToRow(projection.rowOfLine(line));
     }
@@ -457,7 +465,13 @@ public final class EditorController implements EditorInput {
                     public void run() {
                       if (!disposed) {
                         projection.install(request, rows);
+                        if (rewrap == token) {
+                          rewrap = null;
+                        }
                         scheduleRewrap();
+                        if (wrapTop >= 0 && view != null) {
+                          view.scrollToRow(projection.rowOfLine(wrapTop));
+                        }
                       }
                     }
                   });

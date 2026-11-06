@@ -96,12 +96,14 @@ public final class Launcher {
     ConfigStore config = new ConfigStore(location);
     Preferences preferences = config.load();
     InstanceServer server = null;
+    boolean beside = false;
     if (!request.multi()) {
       Handoff handoff = handOff(location.directory(), request);
       if (handoff == Handoff.HANDED) {
         return 0;
       }
       server = handoff == Handoff.PRIMARY ? primary : null;
+      beside = handoff == Handoff.BESIDE;
     }
     try {
       FileLog logFile =
@@ -115,7 +117,7 @@ public final class Launcher {
           LOG.warn("Cannot open the debug log file: {}", LogText.oneLine(e.getMessage()));
         }
       }
-      return new Gui(request, config, preferences, err, null, server, logFile).run();
+      return new Gui(request, config, preferences, err, null, server, logFile, beside).run();
     } catch (IOException e) {
       err.println("qcaret: " + LogText.oneLine(e.getMessage()));
       return EXIT_USAGE;
@@ -127,19 +129,21 @@ public final class Launcher {
   }
 
   /** What the single-instance step decided. */
-  private enum Handoff {
+  enum Handoff {
     /** The files went to the running instance. */
     HANDED,
     /** This launch is the primary; {@link #primary} holds the listener. */
     PRIMARY,
-    /** This launch runs on its own, as with {@code -m}. */
-    ALONE
+    /** No handoff was possible; this launch runs on its own. */
+    ALONE,
+    /** A primary holds the lock and the handoff failed; this launch runs without the session. */
+    BESIDE
   }
 
   private InstanceServer primary;
 
   /** Becomes the primary instance, or hands the launch to it. */
-  private Handoff handOff(Path directory, StartupRequest request) {
+  Handoff handOff(Path directory, StartupRequest request) {
     try {
       SafePaths.settingsDirectory(directory);
     } catch (IOException e) {
@@ -153,9 +157,14 @@ public final class Launcher {
     }
     try {
       primary = InstanceServer.claim(directory);
-      if (primary != null) {
-        return Handoff.PRIMARY;
-      }
+    } catch (IOException e) {
+      LOG.warn("Single-instance handoff off: {}", LogText.oneLine(e.getMessage()));
+      return Handoff.ALONE;
+    }
+    if (primary != null) {
+      return Handoff.PRIMARY;
+    }
+    try {
       InstanceClient.handOff(directory, request);
       if (LOG.isInfoEnabled()) {
         LOG.info("Handed {} files to the running instance", request.files().size());
@@ -165,7 +174,7 @@ public final class Launcher {
       LOG.warn(
           "Handoff to the running instance failed; opening a window: {}",
           LogText.oneLine(e.getMessage()));
-      return Handoff.ALONE;
+      return Handoff.BESIDE;
     }
   }
 

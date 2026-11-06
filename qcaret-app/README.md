@@ -263,10 +263,10 @@ read on workers.
   Overwrite, Reload, Compare and Cancel (see External changes). Save As keeps
   that check when the target's
   real path, resolved on the save worker, is the document's file, so Save As
-  through a link to it is checked too. Save As onto a file another tab holds
-  (by real path, resolved on a `qcaret-io-` worker) closes that tab once the
-  write succeeds; when that tab has unsaved changes it asks first, and a
-  decline writes nothing.
+  through a link to it is checked too. Save As onto a file another tab holds,
+  in any window (by real path, resolved on a `qcaret-io-` worker), closes that
+  tab once the write succeeds; when that tab has unsaved changes it asks first,
+  and a decline writes nothing.
 - Close asks Save, Don't Save or Cancel for a dirty document; Save closes once
   the save succeeds. A closed document disposes its editor and releases its
   heap reservation.
@@ -342,19 +342,29 @@ read on workers.
   window holds, the open ends unread, that tab is selected and its window raised
   (`DocumentController.Elsewhere`). This covers every open, not only handed
   files. Two windows opening one file in the same moment can still read it
-  twice, and Save As onto a file another window holds asks nothing there; the
-  external-change check then applies to that tab.
+  twice, and two Save As runs onto one new file can both land; the
+  external-change check then applies to both tabs.
 - Exit (`QUIT`, the macOS Quit) runs `requestQuit`. With `session.snapshot` on
   and this instance owning the session it writes the snapshot of every window
-  (see Session and recovery). Otherwise `SessionController.quitStarted` captures
-  the windows, then the documents of the window activated last close through
-  `DocumentController.closeAllForQuit`, which asks about each dirty one, and the
-  set looks again for any window with a document. A tab moved or a file handed
-  during a prompt is therefore asked about too. Cancel stops there, the windows
-  stay open and the session returns to the live windows. A window's close button
-  runs `requestClose`, which does the same for that window and then closes it
-  alone; the last window quits instead, and a further window stays open while
-  the session restores.
+  (see Session and recovery). Otherwise `QuitPrompts` runs, in three steps:
+  - Asks about every dirty document, windows most recently activated first, tabs
+    in order; nothing closes or saves. An answer belongs to the `Document`, so a
+    tab moved during a prompt keeps it, and a file handed or a document edited
+    meanwhile is asked about. Don't Save holds for the revision it was given on.
+  - Runs the Save answers in the same order. A document edited during its save
+    is asked about again. A save that writes no file (a failure, a canceled
+    chooser, a declined replace prompt, any answer but Overwrite at the save
+    conflict prompt) stops the quit with that tab selected: the windows stay
+    open, documents already saved stay saved.
+  - Selects the tabs selected at the start, captures the session, closes every
+    document and calls `quit`.
+
+  Cancel at any prompt selects those tabs again, raises the window that was in
+  front and leaves every document as it was. Until a step closes it, a dirty
+  buffer keeps its recovery file. A second Quit or a window close during the run
+  does nothing. A window's close button runs `requestClose`, which asks about
+  that window's documents and closes it alone; the last window quits instead,
+  and a further window stays open while the session restores.
 - `quit` asks nothing and runs once: it captures the session, queues the last
   recovery writes, stops every window, records the normal bounds and maximized
   state of the window activated last, hides the windows, then on a worker runs
@@ -415,7 +425,8 @@ scope, or without a directory shows a message instead.
 | Workspace folder, Directory and subdirectories | The folder's tree through `FileSearch`; Directory reads its files only |
 
 Open documents are searched from their snapshots in every scope, so a folder
-search reads a dirty buffer as edited and not its file. The match is by real
+search reads a dirty buffer as edited and not its file, in any window; the Open
+documents scope reads the source window's tabs. The match is by real
 path: a document holds its file's real path (`SafePaths.userFile`, and Save
 As records the real path), and a search root is resolved to its real path on
 a `qcaret-io-` worker before the search starts, when the dialog submits a
@@ -629,7 +640,9 @@ and the bookmarks. A request waits 150 ms, so an edit burst computes once;
 edits, bookmark changes, the find query, the results and the strip's height
 request it. A result shows only while the document is at its revision and the
 strip at its height. A hidden strip (View > Overview Strip, window-wide)
-computes nothing.
+computes nothing. The strip scales by model lines, marks and click alike, so
+folds change neither: a mark on a hidden line stays, and a click there scrolls
+to the row of the fold's first line (`DisplayProjection.rowOfLine`).
 
 `DocumentOpener` opens files for one window on `qcaret-io-` workers. A worker
 resolves the path (`SafePaths.userFile`) and posts it to the UI thread, where
@@ -951,6 +964,8 @@ hands checked fields to `set`; a failed save shows a notice and the settings
 stay applied for the run. `clearHistory` empties every `search.history.*.N` list
 and `SearchController`'s last run at once, apart from `apply`, so Cancel does
 not restore them. It runs `refresh` first, so another process's entries go too.
+Retained searches leave `qcaret_session.conf` at the same press (see Session and
+recovery).
 An open find bar's list follows; its field texts stay. A failed save shows
 `PREFERENCES_HISTORY_NOT_REMOVED`: the lists stay empty for the run and the
 entries stay in the file. `PreferencesController` keeps the settings the file
@@ -986,9 +1001,9 @@ command line (`--session` with files) open after the restore. After a
 | What | Restored |
 |---|---|
 | Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
-| Per view | Selections, top line, collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
-| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments |
-| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, Reopen Closed Tab's files |
+| Per view | Selections, top line (kept through the rewraps of a wrapped window), collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
+| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments, read-only state |
+| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, Bookmarks list visibility |
 | Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
 
 A remembered charset the runtime lacks warns and detects; one that no longer
@@ -999,11 +1014,19 @@ numbers a capture on the UI thread and a lifecycle worker writes it under
 unchanged session writes nothing. New windows, closed windows and tab moves arm
 the same timer.
 
-A quit that closes documents keeps the windows as `quitStarted` found them and
-arms no save until it ends, so no save lists a half-closed window, a process end
-during a prompt included. The Recent Files and the LRU are read at the end and
-hold what the closes added. An untitled document saved at a quit prompt was not
-in the capture, so its file is not a tab of the next session.
+A quit that asks arms no save from `quitStarted` on. `quitAnswered` keeps the
+windows after the last answer and before the first close, so the last save lists
+every tab and the file an untitled document was saved to at a prompt; the Recent
+Files and the LRU are read at the end and hold what the closes added. A process
+end during a prompt captures the live windows.
+
+Clear History leaves the result sets in the dock for the run and keeps them out
+of every capture (`SearchController.forgetHistory`). `forgetSearches` removes
+them from the file at once: an owner writes a new capture, any other instance
+loads the file and rewrites it without searches. A failed write shows the Clear
+History notice. A launch that failed its handoff to a live primary gets Recent
+Files alone from `Session.recentOnly`, so it restores nothing and no file state
+applies.
 
 `DocumentController.FileMemory` is the LRU: 500 entries keyed by the opened
 document's real path (caret, top line, tab settings, forced charset, chosen
@@ -1093,10 +1116,12 @@ what the windows share, handoff targets, the one-buffer rule, close and quit.
 `TabMoveTest` (over `Windows`, a set of `FakeView`s) covers the state a move
 carries, refusals, close and quit around a move, and a line transform or replace
 run delivered after the move; the budget returning to its start shows each
-document released once. `WindowSessionTest` covers a two-window restore, the
-capture before a quit's first close, Cancel and a process end at a quit prompt, a
-moved buffer's recovery file, a snapshot over two windows and Clear History in
-every window.
+document released once. `QuitPromptsTest` covers answers before saves, Cancel,
+each way a save ends the quit, an edit during a save or after Don't Save, and an
+untitled document saved at a prompt. `WindowSessionTest` covers a two-window
+restore, the capture before a quit's first close, Cancel and a process end at a
+quit prompt, a moved buffer's recovery file, a snapshot over two windows, the
+display state and Clear History in every window and in the session file.
 
 `SessionStoreTest` covers the round trip, the limits and SET-5 and SET-8 faults.
 `RecoveryFileTest` round-trips a text over every buffer size, surrogates and

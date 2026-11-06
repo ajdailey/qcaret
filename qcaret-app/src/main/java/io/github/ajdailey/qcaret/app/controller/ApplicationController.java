@@ -198,7 +198,7 @@ public final class ApplicationController {
         });
     workspace.setExcludedDirectories(options.excludedDirectories());
     this.preferences =
-        new PreferencesController(settings, view, set.defaultKeymap(), set::forgetLastRuns);
+        new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory);
     settings.addListener(settingsListener);
     set.register(this);
     if (set.recent() != null) {

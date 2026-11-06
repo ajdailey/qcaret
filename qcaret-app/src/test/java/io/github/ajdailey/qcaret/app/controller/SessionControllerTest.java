@@ -339,7 +339,8 @@ class SessionControllerTest {
             false,
             "",
             "",
-            List.of());
+            List.of(),
+            false);
     Session.Window window =
         new Session.Window(
             io.github.ajdailey.qcaret.app.config.WindowState.UNKNOWN,
@@ -352,7 +353,8 @@ class SessionControllerTest {
             false,
             "",
             List.of(),
-            List.of());
+            List.of(),
+            Session.Display.DEFAULTS);
     assertTrue(store().save(new Session(List.of(window), List.of(), List.of())));
   }
 

@@ -361,7 +361,7 @@ public final class MainWindow implements MainView {
       toolTip = tip;
       if (!item.isDisposed()) {
         item.setText(value.replace("&", "&&"));
-        item.setToolTipText(tip);
+        item.setToolTipText(tip.replace("&", "&&"));
       }
     }
 
@@ -762,7 +762,7 @@ public final class MainWindow implements MainView {
     item.setControl(tab.sash);
     item.setData(tab);
     item.setText(tab.title.replace("&", "&&"));
-    item.setToolTipText(tab.toolTip);
+    item.setToolTipText(tab.toolTip.replace("&", "&&"));
     return item;
   }
 
@@ -1021,6 +1021,7 @@ public final class MainWindow implements MainView {
   @Override
   public void chooseSaveTarget(Path directory, String name, Consumer<Path> chosen) {
     if (shell.isDisposed()) {
+      chosen.accept(null);
       return;
     }
     FileDialog dialog = new FileDialog(shell, SWT.SAVE);
@@ -1030,9 +1031,7 @@ public final class MainWindow implements MainView {
       dialog.setFilterPath(directory.toString());
     }
     String chosenPath = dialog.open();
-    if (chosenPath != null) {
-      chosen.accept(Path.of(chosenPath));
-    }
+    chosen.accept(chosenPath == null ? null : Path.of(chosenPath));
   }
 
   @Override
@@ -1045,10 +1044,12 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public void askReplaceOpenFile(String name, Runnable replace) {
-    if (!shell.isDisposed()) {
-      new ReplaceOpenDialog(shell, name, replace).open();
+  public void askReplaceOpenFile(String name, Runnable replace, Runnable declined) {
+    if (shell.isDisposed()) {
+      declined.run();
+      return;
     }
+    new ReplaceOpenDialog(shell, name, replace, declined).open();
   }
 
   @Override
