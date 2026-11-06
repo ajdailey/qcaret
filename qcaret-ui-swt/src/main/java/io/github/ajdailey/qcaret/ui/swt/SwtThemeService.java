@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -31,6 +33,10 @@ import org.eclipse.swt.widgets.Shell;
  * and the service never calls it: cocoa SWT reads its widget colors once, under the system
  * appearance, and an application appearance that differs draws text in its own appearance over
  * those backgrounds, white on light gray or black on dark gray. Do not pin the cocoa appearance.
+ *
+ * <p>A GTK theme with no dark variant ignores {@code setDarkThemePreferred}, and so does a named
+ * theme that is not installed: GTK falls back to light Adwaita. Native controls then stay light
+ * under the dark palette.
  */
 public final class SwtThemeService implements ThemeService {
   private static final boolean GTK = "gtk".equals(SWT.getPlatform());
@@ -42,6 +48,15 @@ public final class SwtThemeService implements ThemeService {
 
   /** Milliseconds between reads of the system setting on cocoa. */
   private static final int POLL_MILLIS = 1000;
+
+  /** Lowest contrast of link text on its background: the WCAG AA ratio for normal text. */
+  private static final double LINK_CONTRAST = 4.5;
+
+  /** Percent of the way to white or black each step moves a link color. */
+  private static final int LINK_STEP_PERCENT = 5;
+
+  private static final RGB WHITE = new RGB(255, 255, 255);
+  private static final RGB BLACK = new RGB(0, 0, 0);
 
   private static final BooleanSupplier SYSTEM_SETTING =
       new BooleanSupplier() {
@@ -182,12 +197,74 @@ public final class SwtThemeService implements ThemeService {
    */
   private static void recolorLinks(Control control) {
     if (control instanceof Link link) {
-      link.setLinkForeground(link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND));
+      colorLink(link);
     } else if (control instanceof Composite composite) {
       for (Control child : composite.getChildren()) {
         recolorLinks(child);
       }
     }
+  }
+
+  /**
+   * Gives a link the theme's link color, made readable on its background; call when creating a
+   * link. GTK only: Adwaita's dark link color has 3.25 contrast on its own window background.
+   *
+   * @param link the link
+   */
+  static void colorLink(Link link) {
+    if (GTK) {
+      RGB theme = link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND).getRGB();
+      link.setLinkForeground(new Color(readable(theme, link.getBackground().getRGB())));
+    }
+  }
+
+  /**
+   * Moves a text color toward white or black, whichever contrasts more with the ground, until it
+   * reaches the link contrast.
+   *
+   * @param text the text color
+   * @param ground the background color
+   * @return the text color when already readable, otherwise the first readable step
+   */
+  static RGB readable(RGB text, RGB ground) {
+    RGB target = contrast(WHITE, ground) >= contrast(BLACK, ground) ? WHITE : BLACK;
+    RGB result = text;
+    for (int percent = LINK_STEP_PERCENT;
+        percent <= 100 && contrast(result, ground) < LINK_CONTRAST;
+        percent += LINK_STEP_PERCENT) {
+      result =
+          new RGB(
+              mix(text.red, target.red, percent),
+              mix(text.green, target.green, percent),
+              mix(text.blue, target.blue, percent));
+    }
+    return result;
+  }
+
+  private static int mix(int from, int to, int percent) {
+    return from + (to - from) * percent / 100;
+  }
+
+  /**
+   * Returns the WCAG contrast ratio of two colors.
+   *
+   * @param first a color
+   * @param second the other color
+   * @return the ratio, from 1 to 21
+   */
+  static double contrast(RGB first, RGB second) {
+    double a = luminance(first);
+    double b = luminance(second);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  private static double luminance(RGB rgb) {
+    return 0.2126 * linear(rgb.red) + 0.7152 * linear(rgb.green) + 0.0722 * linear(rgb.blue);
+  }
+
+  private static double linear(int channel) {
+    double value = channel / 255.0;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
   }
 
   @Override

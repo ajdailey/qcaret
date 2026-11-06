@@ -548,6 +548,7 @@ public final class MainWindow implements MainView {
     notice = new Label(statusBar, SWT.NONE);
     notice.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     warnings = new Link(statusBar, SWT.NONE);
+    SwtThemeService.colorLink(warnings);
     warnings.setText("<a>" + UiText.STATUS_WARNINGS.text() + "</a>");
     warnings.setToolTipText(UiText.STATUS_WARNINGS_TIP.text());
     GridData warningsData = new GridData(SWT.END, SWT.CENTER, false, false);
@@ -1916,7 +1917,8 @@ public final class MainWindow implements MainView {
 
   /**
    * Picks the About logo for a dialog background. Native chrome can differ from the palette (cocoa,
-   * win32 before a restart), so the background decides, not the theme setting.
+   * win32 before a restart, a GTK theme with no dark variant), so the background decides, not the
+   * theme setting.
    *
    * @param background the dialog's background
    * @return the navy-tile logo on a dark background, the light logo otherwise

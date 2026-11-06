@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.theme.FontFiles;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -35,7 +36,9 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Display;
 import org.junit.jupiter.api.AfterEach;
@@ -52,6 +55,8 @@ import org.junit.jupiter.api.io.TempDir;
 class FontFamilyTest {
   private static final Duration BOUND = Duration.ofSeconds(20);
   private static final String ROW = "public class Mock { public int value = 42; }";
+  private static final int NUMBER_DIGITS = ColumnMetrics.gutterDigits(1);
+  private static final int SIZES_SEARCHED = 48;
 
   @TempDir Path temp;
 
@@ -171,19 +176,60 @@ class FontFamilyTest {
     }
   }
 
+  private ColumnMetrics measured(EditorPane pane, String family, int points) {
+    Font font = new Font(display, family, points, SWT.NORMAL);
+    GC gc = new GC(pane.text());
+    try {
+      gc.setFont(font);
+      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x);
+    } finally {
+      gc.dispose();
+      font.dispose();
+    }
+  }
+
+  /**
+   * Searches for a size where two families' number columns round apart: only there does a gutter
+   * left over from the old family differ from a measured one. The macOS families all measure near
+   * 0.60 em, so most sizes give every family one gutter.
+   */
   @Test
   void aChangedFamilyMeasuresTheGutterAgain() throws Exception {
     List<String> families = families();
     assumeTrue(families.size() >= 2, "two monospace families installed");
     EditorPane pane = javaRow();
-    int[] gutters = new int[2];
-    double[] advances = new double[2];
-    for (int i = 0; i < 2; i++) {
-      window.setFontFamily(families.get(i));
-      advances[i] = pane.metrics().advance();
-      gutters[i] = pane.foldColumn();
+    String first = families.get(0);
+    int smallest = Dialogs.monospaceSize();
+    for (int points = smallest; points < smallest + SIZES_SEARCHED; points++) {
+      ColumnMetrics from = measured(pane, first, points);
+      for (String family : families.subList(1, families.size())) {
+        ColumnMetrics to = measured(pane, family, points);
+        if (from.x(NUMBER_DIGITS) != to.x(NUMBER_DIGITS)) {
+          assertGutterFollows(pane, points, first, from, family, to);
+          return;
+        }
+      }
     }
-    assertEquals(advances[0] == advances[1], gutters[0] == gutters[1]);
+    assumeTrue(false, "two families with different gutters");
+  }
+
+  private void assertGutterFollows(
+      EditorPane pane,
+      int points,
+      String first,
+      ColumnMetrics from,
+      String second,
+      ColumnMetrics to) {
+    String pair = first + " to " + second + " at " + points;
+    window.setFontSize(points);
+    window.setFontFamily(first);
+    assertEquals(from, pane.metrics(), pair);
+    int fold = pane.foldColumn();
+    int gap = pane.text().getLeftMargin() - pane.gutterWidth();
+    window.setFontFamily(second);
+    assertEquals(to, pane.metrics(), pair);
+    assertEquals(to.x(NUMBER_DIGITS) - from.x(NUMBER_DIGITS), pane.foldColumn() - fold, pair);
+    assertEquals(gap, pane.text().getLeftMargin() - pane.gutterWidth(), pair);
   }
 
   @Test

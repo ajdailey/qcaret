@@ -47,6 +47,7 @@ import org.junit.jupiter.api.io.TempDir;
 class GuiTest {
   private static final long BOUND_NANOS = TimeUnit.SECONDS.toNanos(10);
   private static final boolean POSITIONED = !"1".equals(System.getenv("SWT_GTK4"));
+  private static final String UNTITLED = "Untitled 1 - QCaret";
 
   @TempDir Path temp;
 
@@ -55,16 +56,21 @@ class GuiTest {
     Files.createDirectory(temp.resolve("settings"));
   }
 
-  /** Waits for the client area, records size and location, then quits. */
+  /**
+   * Waits for the client area and the title, records them and the location, then quits. The title
+   * follows a document on a later UI turn, which SWT runs only once the startup events drain.
+   */
   private static final class Recorder implements Gui.Observer {
     final int width;
     final int height;
+    final String title;
     final List<String> observed = new ArrayList<String>();
     Workers workers;
 
-    Recorder(int width, int height) {
+    Recorder(int width, int height, String title) {
       this.width = width;
       this.height = height;
+      this.title = title;
     }
 
     @Override
@@ -79,9 +85,10 @@ class GuiTest {
             @Override
             public void run() {
               Rectangle area = window.shell().getClientArea();
-              boolean ready = area.width == width && area.height == height;
+              String shown = window.shell().getText();
+              boolean ready = area.width == width && area.height == height && title.equals(shown);
               if (ready || System.nanoTime() > deadline) {
-                observed.add(window.shell().getText());
+                observed.add(shown);
                 observed.add(area.width + "x" + area.height);
                 if (POSITIONED) {
                   observed.add(window.shell().getLocation().toString());
@@ -112,10 +119,11 @@ class GuiTest {
   @Test
   void opensAtTheRequestedSizeThenShutsDownWithoutLeakingThreads() throws Exception {
     Path file = Files.createFile(temp.resolve("notes.txt"));
-    final Recorder recorder = new Recorder(900, 600);
+    String title = "notes.txt - " + file.toRealPath() + " - QCaret";
+    final Recorder recorder = new Recorder(900, 600, title);
     StartupRequest request = request(List.of(new FileRequest(file)), 900, 600, 50, 40, true);
     assertEquals(0, run(request, Preferences.DEFAULTS, recorder));
-    assertEquals(placed("900x600", "Point {50, 40}"), recorder.observed);
+    assertEquals(placed(title, "900x600", "Point {50, 40}"), recorder.observed);
     assertTrue(
         Poll.until(
             new BooleanSupplier() {
@@ -167,9 +175,9 @@ class GuiTest {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
     assertTrue(config().save(Preferences.DEFAULTS, remembered));
-    Recorder recorder = new Recorder(700, 500);
+    Recorder recorder = new Recorder(700, 500, UNTITLED);
     assertEquals(0, run(request(List.of(), null, null, null, null, false), remembered, recorder));
-    assertEquals(placed("700x500", "Point {60, 50}"), recorder.observed);
+    assertEquals(placed(UNTITLED, "700x500", "Point {60, 50}"), recorder.observed);
     WindowState saved = config().load().window();
     assertEquals(remembered.window().width(), saved.width());
     assertEquals(remembered.window().height(), saved.height());
@@ -183,7 +191,7 @@ class GuiTest {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
     assertTrue(config().save(Preferences.DEFAULTS, remembered));
-    Recorder recorder = new Recorder(900, 500);
+    Recorder recorder = new Recorder(900, 500, UNTITLED);
     assertEquals(0, run(request(List.of(), 900, null, null, null, false), remembered, recorder));
     assertEquals("900x500", recorder.observed.get(1));
     assertEquals(remembered.window(), config().load().window());
@@ -194,7 +202,7 @@ class GuiTest {
     // A size smaller than the CI runners' 1024 x 768 screens, so the window is not clamped.
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
-    Recorder recorder = new Recorder(700, 500);
+    Recorder recorder = new Recorder(700, 500, UNTITLED);
     assertEquals(0, run(request(List.of(), null, null, null, null, true), remembered, recorder));
     assertEquals("700x500", recorder.observed.get(1));
     assertEquals(WindowState.UNKNOWN, config().load().window());
@@ -272,7 +280,7 @@ class GuiTest {
   }
 
   /** The title, client size and, where positions apply, the location the recorder observes. */
-  private static List<String> placed(String size, String location) {
-    return POSITIONED ? List.of("QCaret", size, location) : List.of("QCaret", size);
+  private static List<String> placed(String title, String size, String location) {
+    return POSITIONED ? List.of(title, size, location) : List.of(title, size);
   }
 }

@@ -65,6 +65,7 @@ final class AboutDialog {
     heading.setFont(bold);
     line(text, UiText.ABOUT_TAGLINE.text());
     Link link = new Link(text, SWT.NONE);
+    SwtThemeService.colorLink(link);
     link.setText("<a>" + AboutInfo.PROJECT_URL + "</a>");
     link.addListener(
         SWT.Selection,

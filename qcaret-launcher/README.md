@@ -189,9 +189,11 @@ classes, so the rules over the main classes never see them.
 ## Tests
 
 `GuiTest` (tag `swt`) runs the composed application: a `-m` run with a file at
-900 x 600, location 50,40 shuts down without a surviving `qcaret-` thread; a
-remembered placement opens and is saved again; a `--window-width` run and a
-`-m` run leave the saved placement unchanged. `PortableRunTest` (tag `swt`)
+900 x 600, location 50,40 shows the file's title and shuts down without a
+surviving `qcaret-` thread; a remembered placement opens with the untitled
+document's title and is saved again; a `--window-width` run and a `-m` run
+leave the saved placement unchanged. The title arrives on a later UI turn, so
+the test waits for it within a bound. `PortableRunTest` (tag `swt`)
 runs `Gui` twice over a portable bundle with `user.home` set as
 `PlatformSetup` sets it: the first run switches to the dark theme and the
 second starts dark; afterwards every new or changed file lies inside the

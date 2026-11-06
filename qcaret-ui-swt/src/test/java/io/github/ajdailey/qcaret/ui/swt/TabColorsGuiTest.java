@@ -239,10 +239,13 @@ class TabColorsGuiTest {
         inspect(step + " warnings link", data, area(child, shellArea), dark);
       }
     }
+    assertTrue(faults.isEmpty(), faults.toString());
     assertEquals(
         dark ? Icons.Variant.DARK : Icons.Variant.LIGHT,
         MainWindow.logoVariant(window.shell().getBackground()),
         step);
+    assertEquals(dark, window.toolIcons().darkBackground(), step + " toolbar ink");
+    assertEquals(dark, window.menuIcons().icons().darkBackground(), step + " menu ink");
   }
 
   private static Rectangle area(Control control, Rectangle shellArea) {

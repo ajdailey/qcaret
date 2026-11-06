@@ -114,7 +114,8 @@ window runs one print job at a time; closing the window cancels it.
   Help > Show Log.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
   at the next start, and on macOS they follow the system appearance, also
-  while QCaret runs.
+  while QCaret runs. On Linux a GTK theme with no dark variant keeps native
+  controls light; the editor and tabs still change.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
   name.
 

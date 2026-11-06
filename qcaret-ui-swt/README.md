@@ -273,8 +273,9 @@ printer.
 Copies stay with the print system: the `PrinterData` passes unchanged to the
 `Printer` (GTK's CUPS backend sends `cups-copies`; Windows has them in the
 DEVMODE; macOS in the print info). QCaret does not loop, which would multiply
-them. GTK's Print to File writes one copy. The page range is applied by
-`PrintController`; GTK does not also pass it to CUPS for a `GtkPrintJob`.
+them. GTK's Print to File writes one copy; Microsoft Print to PDF writes every
+copy into the file, collated. The page range is applied by `PrintController`;
+GTK does not also pass it to CUPS for a `GtkPrintJob`.
 
 ### User guide
 
@@ -457,9 +458,24 @@ startup Display replacement failed this way.
 GTK SWT refreshes its system colors, repaints every shell and sends
 `SWT.Settings` on the first `Display.sleep` after a theme change, so a loop that
 never sleeps keeps the startup colors: status bar 250 with light text and a
-stale `getBackground` (measured under Xvfb, Adwaita). `Gui`'s loop sleeps when
+stale `getBackground` (measured under Xvfb, Yaru). `Gui`'s loop sleeps when
 idle. A `Link` keeps the color of its creation through that refresh, so
-`SwtThemeService` sets each link's color on `SWT.Settings`.
+`SwtThemeService` sets each link's color on `SWT.Settings`. `colorLink` also
+moves that color toward white or black until it reaches 4.5 contrast on the
+link's background: Adwaita's dark link color measures 3.25 on its own window
+background. Every new `Link` calls it.
+
+A GTK theme with no dark variant ignores `setDarkThemePreferred`. A named theme
+that is not installed behaves the same way: GTK falls back to light Adwaita, as
+on an Ubuntu system whose `/etc/gtk-3.0/settings.ini` names Yaru without Yaru
+installed (a CI runner, a container). `SWT.Settings` still fires. Native
+controls stay light under the dark palette, with dark ink and the light logo,
+because both read the native background.
+
+Tests take the theme from `XDG_CONFIG_HOME`, set in the module POM to
+`src/test/resources/gtk-config/adwaita`, so the dark switch runs on every Linux
+host. `LightOnlyThemeTest` runs in a second surefire execution against a missing
+theme and skips in the first.
 
 Under a dark startup setting win32 draws check box labels near-white while
 dialog pages stay light, so every check box comes from `SwtThemeService.check`,
@@ -486,10 +502,11 @@ when that changes; it also listens to `SWT.Settings`, from the Display or from
 and `MainWindow`'s `reink` runs on the turn before it, so `reink` reads a pixel of
 the visible owner through `Control.print`; a hidden toolbar re-inks when it
 shows. GTK's disabled effect brightens an icon on a dark
-background (measured 212 to 225 on Adwaita dark), so there `showState` gives a
+background (measured 212 to 225 on a dark bar), so there `showState` gives a
 disabled item a copy at 40% opacity. About picks its logo the
 same way from the dialog background (`MainWindow.logoVariant`): native chrome
-can differ from the palette on cocoa and on win32 before a restart.
+can differ from the palette on cocoa, on win32 before a restart and on a GTK
+theme with no dark variant.
 
 `MainWindow.colorTabs` sets all four `CTabFolder` colors, because the folder
 otherwise keeps the system list colors of its creation: a white selected tab in
@@ -619,11 +636,13 @@ switch leaves it working, and a new size is remembered. With
 `-Dqcaret.screenshots=<dir>` it captures each group.
 
 `FontFamilyTest` (tag `swt`) takes installed families from the scan: bold keyword
-rows keep every column in two families, the gutter follows the advance, a missing
-or proportional family falls back, the family and the zoom keep each other, an
-open log window follows, and the Appearance tab lists, applies and restores a
-theme file and a family. Its two-family cases skip on a host with fewer. Every
-family measured on the Linux host has equal regular and bold advances, so
+rows keep every column in two families, a family change measures the gutter again
+at a size it searches for, where two families' number columns round apart, a
+missing or proportional family falls back, the family and the zoom keep each
+other, an open log window follows, and the Appearance tab lists, applies and
+restores a theme file and a family. Its two-family cases skip on a host with
+fewer, and the gutter case on a host where no size separates them. Every family
+measured on the Linux host has equal regular and bold advances, so
 `EditorLayoutGridTest` forces a row off the grid to reach the measured path.
 
 `MainWindowTest` (tag `swt`) checks the requested client size and position

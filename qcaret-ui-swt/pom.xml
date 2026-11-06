@@ -120,6 +120,35 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- GTK takes its theme from settings.ini. Ubuntu's names Yaru, which a
+                 runner or container lacks, and a missing theme has no dark variant,
+                 so the tests name Adwaita. The second execution names a missing
+                 theme on purpose. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <XDG_CONFIG_HOME>${project.build.testOutputDirectory}/gtk-config/adwaita</XDG_CONFIG_HOME>
+                    </environmentVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>light-only-gtk-theme</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Not includes: -Dtest would replace them. -->
+                            <test>LightOnlyThemeTest</test>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                            <environmentVariables>
+                                <XDG_CONFIG_HOME>${project.build.testOutputDirectory}/gtk-config/light-only</XDG_CONFIG_HOME>
+                            </environmentVariables>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

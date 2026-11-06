@@ -181,6 +181,10 @@ class PrintOutputTest {
   private String pageText(int page) throws IOException {
     try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
       PDFTextStripper stripper = new PDFTextStripper();
+      // Both default to the platform's, and the assertions match on \n. A page's last row ends
+      // with the page end, not the line separator.
+      stripper.setLineSeparator("\n");
+      stripper.setPageEnd("\n");
       stripper.setStartPage(page);
       stripper.setEndPage(page);
       return stripper.getText(document);
@@ -254,7 +258,14 @@ class PrintOutputTest {
     data.copyCount = 2;
     print(data);
     awaitOutput();
-    assertEquals(1, pages());
+    // GTK's file backend ignores copies; Microsoft Print to PDF writes each one into the file.
+    int written = "win32".equals(SWT.getPlatform()) ? 2 : 1;
+    assertEquals(written, pages());
+    for (int page = 1; page <= written; page++) {
+      String text = pageText(page);
+      assertTrue(text.contains("one page"), text);
+      assertTrue(text.contains(UiText.PRINT_PAGE.format(1, 1)), text);
+    }
   }
 
   @Test
