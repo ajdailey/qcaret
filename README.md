@@ -8,7 +8,7 @@
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
 SWT. It runs no macros, scripts or plugins.
 
-Version 0.1.0 is in development. It has:
+Features:
 
 - Tabs with undo and redo, word wrap, split views, zoom, light and dark themes,
   a command palette and key bindings the Preferences dialog changes.

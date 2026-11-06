@@ -103,7 +103,7 @@ keeps the expansion of rows that remain. Enter or a double click opens a
 file, shows more entries on a "more" row and toggles a directory. One context
 menu, built on the first `MenuDetect`, serves every row (QLogg SWT-15,
 SWT-20). The tree is not virtual: GTK's virtual `Tree` is quadratic in a
-node's child count (measured in S5a), and a directory shows 500 rows at a
+node's child count (measured), and a directory shows 500 rows at a
 time.
 
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
