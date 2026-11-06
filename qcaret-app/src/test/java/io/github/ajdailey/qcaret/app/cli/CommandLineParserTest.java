@@ -9,6 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -195,11 +198,30 @@ class CommandLineParserTest {
   }
 
   @Test
+  @DisabledOnOs(OS.WINDOWS)
   void aNameWithAColonOrAMalformedPositionIsAFile() throws Exception {
     assertEquals(CWD.resolve(":x"), parse(":x").request().files().get(0).path());
     assertEquals(CWD.resolve("+1:"), parse("+1:").request().files().get(0).path());
     assertEquals(CWD.resolve("+:2"), parse("+:2").request().files().get(0).path());
     assertEquals(CWD.resolve("+"), parse("+").request().files().get(0).path());
+  }
+
+  @Test
+  void aPlusAloneIsAFile() throws Exception {
+    assertEquals(CWD.resolve("+"), parse("+").request().files().get(0).path());
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void aNameWithAColonIsAUsageErrorOnWindows() {
+    assertThrows(
+        CommandLineException.class,
+        new Executable() {
+          @Override
+          public void execute() throws Exception {
+            parse(":x");
+          }
+        });
   }
 
   @Test

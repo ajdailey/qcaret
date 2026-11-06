@@ -64,15 +64,21 @@ class AbnormalShutdownTest {
     String java = ProcessHandle.current().info().command().orElseThrow();
     Path home = Files.createDirectories(temp.resolve("home"));
     Files.writeString(settings.resolve("qcaret.conf"), "recovery.intervalSeconds=5\n");
+    List<String> command = new ArrayList<String>();
+    command.add(java);
+    if (System.getProperty("os.name").startsWith("Mac")) {
+      command.add("-XstartOnFirstThread");
+    }
+    command.addAll(
+        List.of(
+            "-Duser.home=" + home,
+            "-cp",
+            System.getProperty("java.class.path"),
+            CrashChild.class.getName(),
+            settings.toString(),
+            TEXT));
     Process child =
-        new ProcessBuilder(
-                java,
-                "-Duser.home=" + home,
-                "-cp",
-                System.getProperty("java.class.path"),
-                CrashChild.class.getName(),
-                settings.toString(),
-                TEXT)
+        new ProcessBuilder(command)
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start();

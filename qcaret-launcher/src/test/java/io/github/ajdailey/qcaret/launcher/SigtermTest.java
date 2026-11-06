@@ -34,7 +34,9 @@ class SigtermTest {
     if (java == null) {
       return;
     }
-    Path settings = Files.createDirectory(temp.resolve("settings"));
+    // The launcher creates the directory owner-only, so the child holds the handoff lock under any
+    // umask; a group-writable directory turns handoff off and changes the log's name.
+    Path settings = temp.resolve("settings");
     Path home = Files.createDirectories(temp.resolve("home"));
     Process child =
         new ProcessBuilder(
@@ -49,7 +51,7 @@ class SigtermTest {
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start();
-    Path log = settings.resolve("logs").resolve("qcaret-" + child.pid() + ".log");
+    Path log = settings.resolve("logs").resolve("qcaret.log");
     Path conf = settings.resolve("qcaret.conf");
     try {
       long deadline = System.nanoTime() + START_NANOS;
