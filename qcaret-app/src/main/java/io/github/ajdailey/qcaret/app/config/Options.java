@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.config;
 
+import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
@@ -24,6 +25,8 @@ import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
  * @param recoveryKeepDays {@code recovery.keepDays}: days a dead instance's recovery files are kept
  * @param sessionSnapshot {@code session.snapshot}: a quit asks nothing and the next start restores
  *     unsaved and untitled buffers
+ * @param tabWidth {@code editor.tabWidth}: columns per tab stop of a document without saved state
+ * @param insertSpaces {@code editor.insertSpaces}: such a document indents with spaces
  */
 public record Options(
     int completionChars,
@@ -37,7 +40,9 @@ public record Options(
     String excludedDirectories,
     int recoveryIntervalSeconds,
     int recoveryKeepDays,
-    boolean sessionSnapshot) {
+    boolean sessionSnapshot,
+    int tabWidth,
+    boolean insertSpaces) {
   /** Largest {@code completionChars}. */
   public static final int MAX_COMPLETION_CHARS = 20;
 
@@ -100,6 +105,8 @@ public record Options(
           FileFilter.DEFAULT_EXCLUDED_DIRECTORIES,
           30,
           30,
+          false,
+          Document.DEFAULT_TAB_WIDTH,
           false);
 
   /** Checks the components. */
@@ -114,6 +121,7 @@ public record Options(
     range(searchMaxLineChars, MIN_SEARCH_LINE_CHARS, MAX_SEARCH_LINE_CHARS);
     range(recoveryIntervalSeconds, MIN_RECOVERY_SECONDS, MAX_RECOVERY_SECONDS);
     range(recoveryKeepDays, MIN_RECOVERY_DAYS, MAX_RECOVERY_DAYS);
+    range(tabWidth, 1, Document.MAX_TAB_WIDTH);
     if (!validDirectories(excludedDirectories)) {
       throw new IllegalArgumentException("excludedDirectories");
     }
@@ -163,7 +171,9 @@ public record Options(
         excludedDirectories,
         recoveryIntervalSeconds,
         recoveryKeepDays,
-        sessionSnapshot);
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces);
   }
 
   /**
@@ -185,6 +195,8 @@ public record Options(
         excludedDirectories,
         recoveryIntervalSeconds,
         recoveryKeepDays,
-        sessionSnapshot);
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces);
   }
 }

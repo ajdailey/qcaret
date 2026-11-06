@@ -197,6 +197,22 @@ class EditorControllerTest {
   }
 
   @Test
+  void aMenuPointInASelectionKeepsThemAndOneOutsidePlacesACaret() {
+    open("one two three", LineEnding.LF);
+    SelectionSet two = SelectionSet.of(List.of(Selection.of(0, 3), Selection.of(4, 7)), 1);
+    editor.selectionsFromView(new int[] {0, 3, 4, 7}, 1);
+    assertEquals(two, sel());
+    editor.menuFromView(0);
+    assertEquals(two, sel());
+    editor.menuFromView(7);
+    assertEquals(two, sel());
+    editor.menuFromView(10);
+    assertEquals(SelectionSet.caret(10), sel());
+    editor.menuFromView(10);
+    assertEquals(SelectionSet.caret(10), sel());
+  }
+
+  @Test
   void selectAllSelectsTheWholeText() {
     open("abc\ndef", LineEnding.LF);
     editor.selectAll();

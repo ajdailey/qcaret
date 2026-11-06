@@ -85,14 +85,15 @@ import org.eclipse.swt.widgets.Slider;
  *       model change and every display change. A widget report of that primary, such as after a
  *       resize, keeps the other selections; a plain click leaves one.
  *   <li>Painting: the gutter is drawn in the widget's left margin by a paint listener, its digits
- *       placed by {@link ColumnMetrics}. Its right column shows a fold marker on each line that
- *       starts a fold region, a box with a minus sign, or a plus sign while collapsed; a click
- *       there goes to {@link EditorInput#toggleFoldFromView}. A collapsed region's first line ends
- *       in a box with an ellipsis. Secondary carets in hidden lines are not painted. Secondary
- *       carets sit at {@link StyledText#getLocationAtOffset} and secondary selections are line
- *       style backgrounds, so both follow the widget's measured glyph positions on any script. A
- *       block's part past a line's end and its carets there are painted from the line end's
- *       measured position at the font's fractional advance.
+ *       placed by {@link ColumnMetrics} and left out, with their width, after {@link
+ *       #setLineNumbersShown}. Its right column shows a fold marker on each line that starts a fold
+ *       region, a box with a minus sign, or a plus sign while collapsed; a click there goes to
+ *       {@link EditorInput#toggleFoldFromView}. A collapsed region's first line ends in a box with
+ *       an ellipsis. Secondary carets in hidden lines are not painted. Secondary carets sit at
+ *       {@link StyledText#getLocationAtOffset} and secondary selections are line style backgrounds,
+ *       so both follow the widget's measured glyph positions on any script. A block's part past a
+ *       line's end and its carets there are painted from the line end's measured position at the
+ *       font's fractional advance.
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
  *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
  *       a wrapped row's right edge selects the row's last word.
@@ -121,6 +122,12 @@ import org.eclipse.swt.widgets.Slider;
  * </ul>
  */
 public final class EditorPane implements EditorView {
+  /**
+   * Control data key: the owner colors this control from the palette, so an appearance change
+   * leaves it alone.
+   */
+  public static final String PALETTE_COLORED = "qcaret.paletteColored";
+
   /** Pixels left of the line numbers, holding the bookmark marks. */
   public static final int BOOKMARK_COLUMN = 14;
 
@@ -192,6 +199,7 @@ public final class EditorPane implements EditorView {
   private Bookmarks bookmarks;
   private boolean markWhitespace;
   private boolean markLineEndings;
+  private boolean lineNumbersShown;
 
   /**
    * Creates the editor.
@@ -204,6 +212,7 @@ public final class EditorPane implements EditorView {
    * @param font the editor font, owned by the caller
    * @param palette the colors
    * @param ui runs the block drag's timer
+   * @param lineNumbersShown true to show line numbers in the gutter
    */
   public EditorPane(
       Composite parent,
@@ -213,13 +222,15 @@ public final class EditorPane implements EditorView {
       Keymap keymap,
       Font font,
       Palette palette,
-      UiDispatcher ui) {
+      UiDispatcher ui,
+      boolean lineNumbersShown) {
     this.projection = projection;
     this.selections = selections;
     this.input = input;
     this.keymap = keymap;
     this.font = font;
     this.ui = ui;
+    this.lineNumbersShown = lineNumbersShown;
     frame = new Composite(parent, SWT.NONE);
     GridLayout frameLayout = new GridLayout(3, false);
     frameLayout.marginWidth = 0;
@@ -227,6 +238,7 @@ public final class EditorPane implements EditorView {
     frameLayout.horizontalSpacing = 0;
     frame.setLayout(frameLayout);
     text = new StyledText(frame, SWT.MULTI | SWT.H_SCROLL);
+    text.setData(PALETTE_COLORED, Boolean.TRUE);
     text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     strip =
         new OverviewStrip(
@@ -409,6 +421,41 @@ public final class EditorPane implements EditorView {
     text.setFont(next);
     measure();
     text.redraw();
+  }
+
+  /**
+   * Shows or hides the line numbers; the gutter keeps its bookmark and fold columns and resizes.
+   * Costs O(rows) in the widget.
+   *
+   * @param shown true to show them
+   */
+  public void setLineNumbersShown(boolean shown) {
+    if (!text.isDisposed() && shown != lineNumbersShown) {
+      lineNumbersShown = shown;
+      gutterDigits = 0;
+      updateGutter();
+    }
+  }
+
+  /**
+   * Prepares a context menu opened by the pointer; see {@link EditorInput#menuFromView}.
+   *
+   * @param x the point's x in display coordinates
+   * @param y its y
+   */
+  public void menuAt(int x, int y) {
+    Point point = text.toControl(x, y);
+    input.menuFromView(gestures.offsetAt(point.x, point.y));
+  }
+
+  /**
+   * Returns where a context menu opened from the keyboard shows.
+   *
+   * @return the point below the primary caret, in display coordinates
+   */
+  public Point menuLocation() {
+    Point caretAt = text.getLocationAtOffset(text.getCaretOffset());
+    return text.toDisplay(caretAt.x, caretAt.y + text.getLineHeight());
   }
 
   /** Scrolls so the primary caret shows. */
@@ -598,7 +645,8 @@ public final class EditorPane implements EditorView {
     int digits = ColumnMetrics.gutterDigits(projection.lineCount());
     if (digits != gutterDigits) {
       gutterDigits = digits;
-      gutterWidth = BOOKMARK_COLUMN + metrics.x(digits) + GUTTER_PADDING + metrics.x(FOLD_COLUMNS);
+      int numbers = lineNumbersShown ? metrics.x(digits) + GUTTER_PADDING : 0;
+      gutterWidth = BOOKMARK_COLUMN + numbers + metrics.x(FOLD_COLUMNS);
       if (gestures != null) {
         gestures.setFoldColumn(foldColumn(), gutterWidth);
       }
@@ -1039,9 +1087,11 @@ public final class EditorPane implements EditorView {
       }
       if (projection.subRow(row) == 0) {
         int line = projection.lineOfRow(row);
-        String number = Integer.toString(line + 1);
-        int x = foldColumn() - GUTTER_PADDING - metrics.x(number.length());
-        gc.drawString(number, x, top, true);
+        if (lineNumbersShown) {
+          String number = Integer.toString(line + 1);
+          int x = foldColumn() - GUTTER_PADDING - metrics.x(number.length());
+          gc.drawString(number, x, top, true);
+        }
         if (projection.foldEnd(line) >= 0) {
           paintFoldMarker(gc, top, projection.collapsed(line));
         }

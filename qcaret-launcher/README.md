@@ -27,7 +27,8 @@ every mode, it sets `org.eclipse.swt.browser.EdgeDataDir` to
 `<settings>/cache/webview2`, so an embedded WebView2 browser keeps its data in
 the settings directory. With `-l` it attaches the debug log file.
 
-`Gui` reads `qcaret_session.conf` before the Display. Without `-m`, a start
+`Gui` reads `qcaret_session.conf` and the theme file `ui.themeFile` names before
+the Display. Without `-m`, a start
 `StartupRequest.restoresSession` accepts (no file or `--diff`, or `--session`)
 restores the session and owns it; otherwise only Recent Files and per-file state
 apply. It runs on the calling thread, which becomes the
@@ -232,5 +233,7 @@ per settings mode on Linux and the WebView2 data folder on Windows.
 `LauncherProcessTest` runs 16 `LaunchMain` child JVMs against a closing primary
 and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A
 primary that reads every file in the settings directory keeps the lock and a
-second launch is `HANDED`. A child denied native access is `ALONE` with one
+second launch is `HANDED`; so does a primary refused a save over its lock. A
+primary refused a save over its `owner.lock` leaves a second start no buffers
+to claim. A child denied native access is `ALONE` with one
 WARN and no `instance.lock`.

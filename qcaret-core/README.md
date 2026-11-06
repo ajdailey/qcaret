@@ -39,6 +39,7 @@ The launcher creates one instance and closes it at shutdown.
 |---|---|---|
 | CPU-bound (`executeCpu`) | Fixed pool of platform threads, bounded queue of 4,096 | `qcaret-cpu-N` |
 | Blocking (`start(Kind, Runnable)`) | A virtual thread per task | `qcaret-io-`, `qcaret-search-`, `qcaret-watch-`, `qcaret-ipc-`, `qcaret-lifecycle-`, `qcaret-watchdog-` |
+| Print job (`Kind.PRINT`) | A daemon platform thread per job: native print calls keep per-thread state, and a virtual thread can change carrier between them | `qcaret-print-` |
 
 - Every task runs inside a wrapper that passes an exception it ends with to the
   failure handler given to the constructor, which is also each thread's
@@ -90,6 +91,7 @@ Every path from outside the process goes through `SafePaths`.
 | `userFile` | Rejects empty, NUL and, on Windows, device forms (`\\.\`, `\\?\`, `CON`, `NUL`, `COM1`...). Made absolute and normalized. An existing path resolves to its real path and must be a regular file: a FIFO blocks the reader and a device never ends. A missing path needs an existing parent directory |
 | `settingsDirectory` | Absolute, normalized, created with POSIX `rwx------` where supported, resolved to its real path, must be a directory |
 | `child` | A fixed name matching `[A-Za-z0-9._-]+`, resolved inside the directory |
+| `holdLock`, `releaseLock` | Name and forget a lock file the process holds, any number at once, compared by real path and file key, so a hard link matches. `userFile` and `SafeSave.save` then reject it under any name: a save replaces the file, the lock stays on the old one, and the next process to try the lock takes the new one |
 
 An editor opens whatever file its user names, so a user file path is
 canonicalized and type-checked, not contained.
@@ -120,8 +122,11 @@ directory (POSIX `rw-------`), then moves it over the target with
 `ATOMIC_MOVE`; on failure the target is unchanged and the temporary file
 deleted. Nothing goes to `java.io.tmpdir`. `write(Path, InputStream)` streams
 the content through a 64 KiB buffer. `writeOwnerOnly`, for a secret, also
-replaces the temporary file's ACL with one entry for its owner where there are
-ACLs but no POSIX permissions (Windows). `writeOwnerOnly(Path, ContentWriter)`
+replaces the temporary file's ACL with one entry for the current user where
+there are ACLs but no POSIX permissions (Windows): `USERDOMAIN\user.name`, then
+the bare name, then the file's owner when no name resolves. An elevated
+process's new file is owned by `BUILTIN\Administrators`, not the user.
+`writeOwnerOnly(Path, ContentWriter)`
 takes content too large for one array and forces it to disk before the move.
 On Windows a refused move is tried for up to 250 ms: a target open elsewhere
 without delete sharing refuses it for that moment.
@@ -306,6 +311,8 @@ their `CancellationToken` per block.
   headroom of the same size, at most `UndoLimits.maxBytes` (64 MiB by default).
   `reserveBytes()` is the larger of the two.
 - `LoadReservation.reserve` holds `reserveBytes()` from the `MemoryBudget`.
+  `setProgress` passes the file bytes read at each `charge`, on the loading
+  thread; a retry with another charset counts from the start.
   During the load, `charge` raises it by what the text read so far costs over
   the estimate at that point in the file, since an ASCII sample can hide 2
   bytes per char later. A raise the budget refuses ends the load with
@@ -628,7 +635,7 @@ repeats while the stamp changes during the read, at most three times.
 `FileMonitor` runs one `qcaret-watch-` thread while any file is watched. It
 calls its listener with every watched file every `pollMillis`, on `checkAll`
 (window activation), and with the files `check` names or a directory event
-names. Each directory holding a watched file is registered once with a
+names. `pause` holds that thread for a listener waiting on a changing file. Each directory holding a watched file is registered once with a
 `WatchService` and released with its last file; a directory that cannot be
 registered is polled only. The poll stays on: a `WatchService` misses network
 mounts, polls on macOS, and never sees a link's target change in another
@@ -719,7 +726,8 @@ inside the headroom with the budget full and a span the budget refuses.
 a killed holder, a read of the held file, a non-ASCII path, 16 racing threads
 and a link that fails on a missing, changed or refusing API.
 `DigestsTest` digests a file past the block size. `SafeSaveTest` covers permissions, a new
-file, an external change, a cancel, a symbolic link and a hard link.
+file, an external change, a cancel, a symbolic link, a hard link and the held
+lock file.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an
 unknown name.
 `TextMatcherTest` covers case folding, whole word (including a regex ending

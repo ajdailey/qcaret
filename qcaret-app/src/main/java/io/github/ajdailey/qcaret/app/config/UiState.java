@@ -17,6 +17,7 @@ import java.util.Map;
  * @param replacements {@code search.history.replace.N}: the find bar's replacements, newest first
  * @param recentGrammars {@code syntax.recent}: grammar ids chosen in the Syntax menu, newest first
  * @param dialogs {@code dialog.<name>.width} and {@code .height}: a dialog's last size
+ * @param toolbar {@code ui.toolbar}: the windows show the main toolbar
  */
 public record UiState(
     SearchToggles search,
@@ -25,7 +26,8 @@ public record UiState(
     List<String> masks,
     List<String> replacements,
     List<String> recentGrammars,
-    Map<String, Size> dialogs) {
+    Map<String, Size> dialogs,
+    boolean toolbar) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -41,7 +43,14 @@ public record UiState(
   /** Nothing remembered. */
   public static final UiState DEFAULTS =
       new UiState(
-          SearchToggles.DEFAULTS, List.of(), List.of(), List.of(), List.of(), List.of(), Map.of());
+          SearchToggles.DEFAULTS,
+          List.of(),
+          List.of(),
+          List.of(),
+          List.of(),
+          List.of(),
+          Map.of(),
+          true);
 
   /**
    * A dialog's size in pixels.
@@ -99,7 +108,8 @@ public record UiState(
    * @return the copy
    */
   public UiState withSearch(SearchToggles value) {
-    return new UiState(value, texts, directories, masks, replacements, recentGrammars, dialogs);
+    return new UiState(
+        value, texts, directories, masks, replacements, recentGrammars, dialogs, toolbar);
   }
 
   /**
@@ -113,7 +123,7 @@ public record UiState(
   public UiState withHistory(
       List<String> textList, List<String> directoryList, List<String> maskList) {
     return new UiState(
-        search, textList, directoryList, maskList, replacements, recentGrammars, dialogs);
+        search, textList, directoryList, maskList, replacements, recentGrammars, dialogs, toolbar);
   }
 
   /**
@@ -123,7 +133,7 @@ public record UiState(
    * @return the copy
    */
   public UiState withReplacements(List<String> value) {
-    return new UiState(search, texts, directories, masks, value, recentGrammars, dialogs);
+    return new UiState(search, texts, directories, masks, value, recentGrammars, dialogs, toolbar);
   }
 
   /**
@@ -142,7 +152,18 @@ public record UiState(
    * @return the copy
    */
   public UiState withRecentGrammars(List<String> value) {
-    return new UiState(search, texts, directories, masks, replacements, value, dialogs);
+    return new UiState(search, texts, directories, masks, replacements, value, dialogs, toolbar);
+  }
+
+  /**
+   * Returns a copy with the main toolbar shown or hidden.
+   *
+   * @param value true to show it
+   * @return the copy
+   */
+  public UiState withToolbar(boolean value) {
+    return new UiState(
+        search, texts, directories, masks, replacements, recentGrammars, dialogs, value);
   }
 
   /**
@@ -162,6 +183,7 @@ public record UiState(
     while (copy.size() > MAX_DIALOGS) {
       copy.remove(copy.keySet().iterator().next());
     }
-    return new UiState(search, texts, directories, masks, replacements, recentGrammars, copy);
+    return new UiState(
+        search, texts, directories, masks, replacements, recentGrammars, copy, toolbar);
   }
 }

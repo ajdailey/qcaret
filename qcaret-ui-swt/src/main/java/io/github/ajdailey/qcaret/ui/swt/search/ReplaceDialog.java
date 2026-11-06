@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
@@ -49,6 +50,8 @@ public final class ReplaceDialog {
   private final Color removed;
   private final Color added;
   private final Color note;
+  private final int fontSize;
+  private Font font;
   private int shownFile = -1;
   private boolean applied;
 
@@ -100,7 +103,8 @@ public final class ReplaceDialog {
     preview =
         new StyledText(lower, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
     preview.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-    final Font font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
+    this.fontSize = fontSize;
+    font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
     preview.setFont(font);
     sash.setWeights(new int[] {2, 3});
     summary = new Label(shell, SWT.WRAP);
@@ -246,6 +250,18 @@ public final class ReplaceDialog {
     }
   }
 
+  /**
+   * Shows the preview in another family.
+   *
+   * @param fontName the family
+   */
+  public void setFontName(String fontName) {
+    Font old = font;
+    font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
+    preview.setFont(font);
+    old.dispose();
+  }
+
   /** Opens the dialog over its parent, showing the first file. */
   public void open() {
     refresh();
@@ -284,11 +300,11 @@ public final class ReplaceDialog {
 
   private void showPreview(List<PreviewLine> lines) {
     if (lines == null) {
-      preview.setText(UiText.REPLACE_COMPUTING.text());
-      preview.setForeground(note);
+      String computing = UiText.REPLACE_COMPUTING.text();
+      preview.setText(computing);
+      preview.setStyleRange(new StyleRange(0, computing.length(), note, null));
       return;
     }
-    preview.setForeground(null);
     StringBuilder text = new StringBuilder();
     int width = 1;
     for (PreviewLine line : lines) {

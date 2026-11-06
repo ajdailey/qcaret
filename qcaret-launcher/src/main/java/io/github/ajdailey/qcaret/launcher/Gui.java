@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -150,6 +151,8 @@ final class Gui {
       }
       SessionStore sessions = new SessionStore(config.location());
       Session session = beside ? sessions.load().recentOnly() : sessions.load();
+      ThemeColors colors =
+          ThemeColors.read(config.location().directory(), preferences.appearance().themeFile());
       Display.setAppName("QCaret");
       try {
         display = new Display();
@@ -158,7 +161,7 @@ final class Gui {
         LOG.debug("SWT failed to start", e);
         return Launcher.EXIT_SWT;
       }
-      runWindows(display, workers, sessions, session);
+      runWindows(display, workers, sessions, session, colors);
       return 0;
     } finally {
       if (server != null) {
@@ -173,9 +176,14 @@ final class Gui {
 
   /** Composes the application on the Display and runs the event loop until every window closes. */
   private void runWindows(
-      final Display display, Workers workers, SessionStore sessions, Session session) {
+      final Display display,
+      Workers workers,
+      SessionStore sessions,
+      Session session,
+      ThemeColors colors) {
     final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
-    final Palette palette = ThemeController.resolve(preferences.theme(), system.systemDark());
+    final Palette palette =
+        colors.over(ThemeController.resolve(preferences.theme(), system.systemDark()));
     if (server != null && logFiles instanceof FileLog fileLog && fileLog.attached()) {
       pruneLogs(workers, fileLog);
     }
@@ -191,6 +199,7 @@ final class Gui {
             MemoryBudget.fromRuntime(),
             Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
             remember);
+    set.theme().setColors(colors);
     set.setLogging(LogConfigurator.RECENT, logFiles);
     set.setFactory(
         new WindowSet.Factory() {

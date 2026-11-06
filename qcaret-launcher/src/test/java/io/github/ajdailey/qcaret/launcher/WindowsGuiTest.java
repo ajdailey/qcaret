@@ -230,7 +230,8 @@ class WindowsGuiTest {
         "",
         List.of(),
         List.of(),
-        Session.Display.DEFAULTS);
+        Session.Display.DEFAULTS,
+        "");
   }
 
   /** Runs a start over the settings and returns the window and document counts it reached. */

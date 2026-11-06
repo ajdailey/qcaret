@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.search;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
@@ -25,6 +26,9 @@ import org.eclipse.swt.widgets.TableItem;
  * replace with backups ends, and Close. Modeless; closing it does not stop the run.
  */
 public final class ReportWindow {
+  /** Sum of red, green and blue below which a list is dark. */
+  private static final int DARK_GROUND = 384;
+
   private final Shell shell;
   private final ReportInput input;
   private final Label summary;
@@ -99,7 +103,14 @@ public final class ReportWindow {
   private void load(TableItem item, int index) {
     ReportInput.Row row = input.row(index);
     item.setText(new String[] {row.file(), row.folder(), row.result()});
-    item.setForeground(row.failed() ? table.getDisplay().getSystemColor(SWT.COLOR_DARK_RED) : null);
+    item.setForeground(row.failed() ? failedColor() : null);
+  }
+
+  /** Returns red readable on the table: dark red has too little contrast on a dark list. */
+  private Color failedColor() {
+    Color ground = table.getBackground();
+    boolean dark = ground.getRed() + ground.getGreen() + ground.getBlue() < DARK_GROUND;
+    return table.getDisplay().getSystemColor(dark ? SWT.COLOR_RED : SWT.COLOR_DARK_RED);
   }
 
   /** Opens the window over its parent. */

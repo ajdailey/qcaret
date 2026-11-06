@@ -701,7 +701,9 @@ class WindowSessionTest {
                     o.excludedDirectories(),
                     o.recoveryIntervalSeconds(),
                     o.recoveryKeepDays(),
-                    true)));
+                    true,
+                    o.tabWidth(),
+                    o.insertSpaces())));
     edit(first, "left");
     ApplicationController second = before.second();
     second.documents().newDocument();

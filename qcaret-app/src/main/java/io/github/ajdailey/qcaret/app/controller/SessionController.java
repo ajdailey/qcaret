@@ -224,6 +224,10 @@ final class SessionController implements DocumentController.FileMemory {
     if (validWeights(docks)) {
       view.setDockWeights(docks);
     }
+    int[] results = SessionText.numbers(window.resultsWeights());
+    if (validWeights(results)) {
+      view.setResultsWeights(results);
+    }
   }
 
   private static boolean validWeights(int[] weights) {
@@ -528,7 +532,8 @@ final class SessionController implements DocumentController.FileMemory {
         SessionText.numbers(view.dockWeights()),
         search.retained(),
         documents.closedFiles(),
-        documents.sessionDisplay(window.bookmarkList().shown()));
+        documents.sessionDisplay(window.bookmarkList().shown()),
+        SessionText.numbers(view.resultsWeights()));
   }
 
   /**

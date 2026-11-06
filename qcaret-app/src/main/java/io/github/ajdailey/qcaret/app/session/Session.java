@@ -74,6 +74,7 @@ public record Session(
    * @param searches the retained HyperSearch requests, newest first
    * @param closed Reopen Closed Tab's files, newest first
    * @param display what the window's editors show
+   * @param resultsWeights the results and Bookmarks docks, {@code a,b}; empty when unknown
    */
   public record Window(
       WindowState bounds,
@@ -87,7 +88,8 @@ public record Session(
       String dockWeights,
       List<Search> searches,
       List<String> closed,
-      Display display) {
+      Display display,
+      String resultsWeights) {
     /** Copies the lists. */
     public Window {
       tabs = List.copyOf(tabs);
@@ -114,7 +116,8 @@ public record Session(
           dockWeights,
           List.of(),
           closed,
-          display);
+          display,
+          resultsWeights);
     }
   }
 
@@ -126,11 +129,17 @@ public record Session(
    * @param lineEndings the line-ending marks
    * @param overview the overview strip
    * @param bookmarks the Bookmarks list
+   * @param lineNumbers the line numbers
    */
   public record Display(
-      boolean wrap, boolean whitespace, boolean lineEndings, boolean overview, boolean bookmarks) {
+      boolean wrap,
+      boolean whitespace,
+      boolean lineEndings,
+      boolean overview,
+      boolean bookmarks,
+      boolean lineNumbers) {
     /** A window that saved nothing. */
-    public static final Display DEFAULTS = new Display(false, false, false, true, false);
+    public static final Display DEFAULTS = new Display(false, false, false, true, false, true);
   }
 
   /**

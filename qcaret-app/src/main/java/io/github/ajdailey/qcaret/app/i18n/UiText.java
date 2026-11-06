@@ -11,6 +11,36 @@ import java.util.ResourceBundle;
 public enum UiText {
   /** Window title. */
   WINDOW_TITLE,
+  /** Window title with a document without a file: the name with its dirty mark. */
+  WINDOW_TITLE_DOCUMENT,
+  /** Window title with a file: the name with its dirty mark, the path. */
+  WINDOW_TITLE_FILE,
+  /** A running load: the file's name. */
+  LOAD_PROGRESS,
+  /** Several running loads: the count. */
+  LOAD_PROGRESS_FILES,
+  /** Command label. */
+  COMMAND_CLEAR_CLOSED_FILES,
+  /** File menu cascade of closed files. */
+  MENU_RECENTLY_CLOSED,
+  /** Command label. */
+  COMMAND_RELOAD,
+  /** Title of the Reload from Disk prompt. */
+  RELOAD_TITLE,
+  /** The Reload from Disk prompt on a dirty document: its name. */
+  RELOAD_MESSAGE,
+  /** Command label. */
+  COMMAND_TAB_WIDTH_OTHER,
+  /** Title of the tab width prompt. */
+  TAB_WIDTH_TITLE,
+  /** The tab width prompt: the largest width. */
+  TAB_WIDTH_MESSAGE,
+  /** Reopen with Encoding entry returning a file to detection. */
+  MENU_ENCODING_AUTO,
+  /** Preferences field. */
+  PREFERENCES_TAB_WIDTH,
+  /** Preferences field. */
+  PREFERENCES_INSERT_SPACES,
   /** Title of a document without a file: its number. */
   TAB_UNTITLED,
   /** File menu. */
@@ -183,6 +213,14 @@ public enum UiText {
   PREFERENCES_THEME_SYSTEM,
   /** Preferences field. */
   PREFERENCES_FONT_SIZE,
+  /** Preferences field. */
+  PREFERENCES_THEME_FILE,
+  /** Theme file choice: the built-in colors. */
+  PREFERENCES_THEME_FILE_NONE,
+  /** Preferences field. */
+  PREFERENCES_FONT_FAMILY,
+  /** Font family choice: the platform's monospace font. */
+  PREFERENCES_FONT_FAMILY_DEFAULT,
   /** Refused field: its label, the smallest and the largest value. */
   PREFERENCES_BAD_NUMBER,
   /** Refused field: its label. */
@@ -498,6 +536,10 @@ public enum UiText {
   OPEN_TITLE,
   /** Open failure: the file name and the reason. */
   OPEN_FAILED,
+  /** The file is the running instance's lock. */
+  INSTANCE_LOCK_REFUSED,
+  /** The file is a recovery directory's lock, held by this process. */
+  RECOVERY_LOCK_REFUSED,
   /** Opened read-only: the file name and the charset. */
   OPEN_READ_ONLY,
   /**
@@ -774,6 +816,18 @@ public enum UiText {
   COMMAND_SEARCH_RESULTS,
   /** Command label. */
   COMMAND_OVERVIEW_STRIP,
+  /** Command label. */
+  COMMAND_LINE_NUMBERS,
+  /** Command label. */
+  COMMAND_TOOLBAR,
+  /** Tab menu item. */
+  TAB_CLOSE_LEFT,
+  /** Tab menu item. */
+  TAB_CLOSE_RIGHT,
+  /** Tab menu item. */
+  TAB_OPEN_FOLDER,
+  /** Notice when a tab's folder does not exist; takes the folder. */
+  NOTICE_FOLDER_MISSING,
   /** HyperSearch scope. */
   SCOPE_CURRENT_DOCUMENT,
   /** HyperSearch scope. */
@@ -1053,7 +1107,27 @@ public enum UiText {
   /** Comparison position. */
   COMPARE_POSITION,
   /** Comparison position without differences. */
-  COMPARE_NONE;
+  COMPARE_NONE,
+  /** File > Print. */
+  COMMAND_PRINT,
+  /** Print row while the pages are counted; takes the document name. */
+  PRINT_PREPARING,
+  /** Print row; takes the document name, the page and the page count. */
+  PRINT_PROGRESS,
+  /** Page header; takes the page and the page count. */
+  PRINT_PAGE,
+  /** Notice after a job; takes the document name and the pages sent. */
+  PRINT_SENT,
+  /** Notice for a second job while one runs. */
+  PRINT_RUNNING,
+  /** Notice when the system has no printer. */
+  PRINT_NO_PRINTER,
+  /** Notice when the dialog's Selection choice meets no selection. */
+  PRINT_NO_SELECTION,
+  /** Notice for a page range past the end; takes the page count. */
+  PRINT_NO_PAGES,
+  /** Notice after a failed job; takes the document name. */
+  PRINT_FAILED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

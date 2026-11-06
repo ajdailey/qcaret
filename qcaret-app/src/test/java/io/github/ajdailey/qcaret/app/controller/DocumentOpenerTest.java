@@ -43,6 +43,9 @@ class DocumentOpenerTest {
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
   private final List<Object> results = new ArrayList<Object>();
   private final List<Path> resolved = new ArrayList<Path>();
+  private final List<Path> canceled = new ArrayList<Path>();
+  private final List<Integer> progress = new ArrayList<Integer>();
+  private int progressEnds;
   private boolean alreadyOpen;
   private DocumentOpener opener;
   private final AtomicInteger active = new AtomicInteger();
@@ -112,6 +115,24 @@ class DocumentOpenerTest {
               public void failed(Path path, IOException error) {
                 ui.checkUiThread();
                 results.add(error);
+              }
+
+              @Override
+              public void canceled(Path path) {
+                ui.checkUiThread();
+                canceled.add(path);
+              }
+
+              @Override
+              public void progress(Path path, int files, int percent) {
+                ui.checkUiThread();
+                progress.add(percent);
+              }
+
+              @Override
+              public void progressEnded() {
+                ui.checkUiThread();
+                progressEnds++;
               }
             });
   }
@@ -253,5 +274,85 @@ class DocumentOpenerTest {
     assertEquals(0, opener.running());
     ui.runPending();
     assertEquals(List.of(), resolved);
+  }
+
+  private BooleanSupplier shown() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return !progress.isEmpty();
+      }
+    };
+  }
+
+  private BooleanSupplier canceled() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return !canceled.isEmpty();
+      }
+    };
+  }
+
+  @Test
+  void aCanceledLoadReportsOnlyTheCancelAndReleasesItsReservation() throws Exception {
+    Path file = file("mock text\n");
+    GatedCharset gate = new GatedCharset();
+    gate.arm();
+    opener.open(file, LoadOptions.DEFAULTS.withForced(gate));
+    assertTrue(ui.runUntil(shown(), BOUND));
+    assertTrue(gate.awaitHeld());
+    assertTrue(budget.reserved() > 0);
+    opener.cancelLoads();
+    assertEquals(1, progressEnds);
+    gate.release();
+    assertTrue(ui.runUntil(canceled(), BOUND));
+    assertTrue(ui.runUntil(idle(), BOUND));
+    ui.runPending();
+    assertEquals(List.of(file.toRealPath()), canceled);
+    assertTrue(results.isEmpty());
+    assertEquals(0, budget.reserved());
+    assertEquals(1, progressEnds);
+  }
+
+  @Test
+  void aCancelAfterTheWorkerFinishedDropsTheDocument() throws Exception {
+    Path file = file("mock text\n");
+    opener.open(file, LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(resolved(), BOUND));
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return opener.running() == 0;
+              }
+            },
+            BOUND));
+    opener.cancelLoads();
+    ui.runPending();
+    assertTrue(results.isEmpty());
+    assertEquals(List.of(file.toRealPath()), canceled);
+    assertEquals(0, budget.reserved());
+  }
+
+  @Test
+  void aLoadOverSeveralBlocksReportsRisingProgressUntilItEnds() throws Exception {
+    Path file = temp.resolve("large.txt");
+    Files.writeString(file, "mock text line\n".repeat(600_000));
+    opener.open(file, LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(results(1), BOUND));
+    assertTrue(ui.runUntil(idle(), BOUND));
+    ui.runPending();
+    assertEquals(1, progressEnds);
+    int last = -1;
+    for (int percent : progress) {
+      assertTrue(percent >= last, "progress " + progress);
+      assertTrue(percent <= 100);
+      last = percent;
+    }
+    LoadedFile loaded = (LoadedFile) results.get(0);
+    budget.release(budget.reserved());
+    assertEquals(9_000_000, loaded.document().text().length());
   }
 }

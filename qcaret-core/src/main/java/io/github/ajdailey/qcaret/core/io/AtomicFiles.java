@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +18,8 @@ import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
+import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -79,8 +82,8 @@ public final class AtomicFiles {
 
   /**
    * Writes a secret atomically: as {@link #write}, and where the file system has ACLs but no POSIX
-   * permissions (Windows), the temporary file's ACL is replaced by one entry for its owner before
-   * the content is written.
+   * permissions (Windows), the temporary file's ACL is replaced by one entry for the current user
+   * before the content is written.
    *
    * @param file the target, in an existing directory
    * @param content the bytes
@@ -201,7 +204,7 @@ public final class AtomicFiles {
     }
   }
 
-  /** Leaves one ACL entry, full access for the owner, where POSIX permissions do not exist. */
+  /** Leaves one ACL entry, full access for the user, where POSIX permissions do not exist. */
   private static void ownerOnlyAcl(Path temp) throws IOException {
     if (temp.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       return;
@@ -210,12 +213,39 @@ public final class AtomicFiles {
     if (view == null) {
       return;
     }
-    AclEntry owner =
+    AclEntry entry =
         AclEntry.newBuilder()
             .setType(AclEntryType.ALLOW)
-            .setPrincipal(view.getOwner())
+            .setPrincipal(currentUser(temp.getFileSystem(), view))
             .setPermissions(EnumSet.allOf(AclEntryPermission.class))
             .build();
-    view.setAcl(List.of(owner));
+    view.setAcl(List.of(entry));
+  }
+
+  /**
+   * Returns the user running this process. A new file's owner is not that user in an elevated
+   * process, where Windows makes {@code BUILTIN\Administrators} the owner. The name is qualified
+   * first because a bare name resolves to a local account before a domain account of that name.
+   *
+   * @return the user; the file's owner when no name resolves, as under a service account or with a
+   *     domain controller out of reach
+   */
+  private static UserPrincipal currentUser(FileSystem system, AclFileAttributeView view)
+      throws IOException {
+    UserPrincipalLookupService lookup = system.getUserPrincipalLookupService();
+    String name = System.getProperty("user.name");
+    String domain = System.getenv("USERDOMAIN");
+    if (domain != null) {
+      try {
+        return lookup.lookupPrincipalByName(domain + "\\" + name);
+      } catch (IOException e) {
+        // The bare name below still applies.
+      }
+    }
+    try {
+      return lookup.lookupPrincipalByName(name);
+    } catch (IOException e) {
+      return view.getOwner();
+    }
   }
 }

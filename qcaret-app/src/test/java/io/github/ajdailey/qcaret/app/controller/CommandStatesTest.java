@@ -34,14 +34,17 @@ class CommandStatesTest {
           "CLOSE -- -e -e",
           "CLOSE_ALL -- -e -e",
           "REOPEN_CLOSED -- -- --",
+          "CLEAR_CLOSED_FILES -- -- --",
+          "RELOAD -- -e -e",
           "SET_WORKSPACE -e -e -e",
           "QUICK_OPEN -e -e -e",
+          "PRINT -- -e -e",
           "CLEAR_RECENT_FILES -- -e -e",
           "QUIT -e -e -e",
-          "UNDO -- -e --",
-          "REDO -- -e --",
-          "CUT -- -e --",
-          "COPY -- -e -e",
+          "UNDO -- -- --",
+          "REDO -- -- --",
+          "CUT -- -- --",
+          "COPY -- -- --",
           "PASTE -- -e --",
           "SELECT_ALL -- -e -e",
           "PREFERENCES -e -e -e",
@@ -59,6 +62,7 @@ class CommandStatesTest {
           "TAB_WIDTH_2 -- -e -e",
           "TAB_WIDTH_4 -- ce ce",
           "TAB_WIDTH_8 -- -e -e",
+          "TAB_WIDTH_OTHER -- -e -e",
           "INDENT_WITH_SPACES -- -e -e",
           "GO_TO_LINE -- -e -e",
           "READ_ONLY -- -e c-",
@@ -128,6 +132,8 @@ class CommandStatesTest {
           "SHOW_WHITESPACE -e -e -e",
           "SHOW_LINE_ENDINGS -e -e -e",
           "OVERVIEW_STRIP ce ce ce",
+          "LINE_NUMBERS ce ce ce",
+          "TOOLBAR ce ce ce",
           "COMMAND_PALETTE -e -e -e",
           "WORKSPACE_BROWSER -e -e -e",
           "GO_BACK -- -- -e",
@@ -240,6 +246,29 @@ class CommandStatesTest {
     }
     cells[commands.length][column] = states.reopenEnabled() ? "e" : "-";
     cells[commands.length + 1][column] = states.saveEncodingEnabled() ? "e" : "-";
+  }
+
+  @Test
+  void undoAndRedoFollowTheHistoryAndCutAndCopyTheSelection() throws Exception {
+    harness.open(Files.writeString(temp.resolve("edits.txt"), "one\n"));
+    EditorController editor = harness.application.documents().activeEditor();
+    editor.type("x");
+    assertEquals(true, states.enabled(CommandId.UNDO));
+    assertEquals(false, states.enabled(CommandId.REDO));
+    editor.undo();
+    assertEquals(false, states.enabled(CommandId.UNDO));
+    assertEquals(true, states.enabled(CommandId.REDO));
+    editor.selectFromView(0, 3);
+    assertEquals(true, states.enabled(CommandId.CUT));
+    assertEquals(true, states.enabled(CommandId.COPY));
+    harness.application.execute(CommandId.READ_ONLY);
+    assertEquals(false, states.enabled(CommandId.CUT));
+    assertEquals(false, states.enabled(CommandId.REDO));
+    assertEquals(true, states.enabled(CommandId.COPY));
+    harness.application.execute(CommandId.READ_ONLY);
+    editor.goTo(1, 1);
+    assertEquals(false, states.enabled(CommandId.CUT));
+    assertEquals(false, states.enabled(CommandId.COPY));
   }
 
   @Test

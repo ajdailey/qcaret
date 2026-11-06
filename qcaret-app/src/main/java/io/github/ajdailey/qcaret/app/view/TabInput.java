@@ -19,6 +19,13 @@ public interface TabInput {
   void closeOthersRequested();
 
   /**
+   * Closes the tabs on one side of this tab, asking for each dirty one.
+   *
+   * @param left true for the tabs to the left
+   */
+  void closeSideRequested(boolean left);
+
+  /**
    * The user asked to copy the tab's file path from its menu.
    *
    * @param nameOnly true for the file name without its folder

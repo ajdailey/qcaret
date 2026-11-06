@@ -3,6 +3,8 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
+import io.github.ajdailey.qcaret.core.text.LogText;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
@@ -10,6 +12,8 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The macOS application menu: About, Preferences and Quit run {@link CommandId#ABOUT}, {@link
@@ -18,10 +22,12 @@ import org.eclipse.swt.widgets.MenuItem;
  * Show All stay native. A quit request from the system (Cmd-Q, logout) runs {@link
  * WindowSet#requestQuit}, with its unsaved-changes prompts in every window, in place of SWT's own
  * disposal. A file the system opens with QCaret (Open With, a Dock drop) arrives as {@code
- * SWT.OpenDocument} and goes to {@link WindowSet#openFile}. Elsewhere {@link
- * Display#getSystemMenu()} is null and nothing is added.
+ * SWT.OpenDocument} and goes to {@link WindowSet#openFile}; a name that does not parse is logged.
+ * Elsewhere {@link Display#getSystemMenu()} is null and nothing is added.
  */
 public final class AppMenu {
+  private static final Logger LOG = LoggerFactory.getLogger(AppMenu.class);
+
   private AppMenu() {}
 
   /**
@@ -54,10 +60,7 @@ public final class AppMenu {
             new Listener() {
               @Override
               public void handleEvent(Event event) {
-                ApplicationController window = set.target();
-                if (window != null) {
-                  window.execute(command);
-                }
+                run(set, command);
               }
             });
       }
@@ -76,9 +79,7 @@ public final class AppMenu {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if (event.text != null) {
-              set.openFile(Path.of(event.text));
-            }
+            open(set, event.text);
           }
         });
     return true;
@@ -97,5 +98,39 @@ public final class AppMenu {
       case SWT.ID_QUIT -> CommandId.QUIT;
       default -> null;
     };
+  }
+
+  /**
+   * Runs an application-menu command in the window activated last. Without a window, Quit still
+   * quits.
+   *
+   * @param set the windows of the instance
+   * @param command the command
+   */
+  static void run(WindowSet set, CommandId command) {
+    ApplicationController window = set.target();
+    if (window != null) {
+      window.execute(command);
+    } else if (command == CommandId.QUIT) {
+      set.requestQuit();
+    }
+  }
+
+  /**
+   * Opens a file the system named; null, an empty name and a name that does not parse open nothing,
+   * since an exception here reaches the event loop.
+   *
+   * @param set the windows of the instance
+   * @param name the event's text
+   */
+  static void open(WindowSet set, String name) {
+    if (name == null || name.isEmpty()) {
+      return;
+    }
+    try {
+      set.openFile(Path.of(name));
+    } catch (InvalidPathException e) {
+      LOG.warn("Cannot open {}: {}", LogText.oneLine(name), LogText.oneLine(e.getMessage()));
+    }
   }
 }

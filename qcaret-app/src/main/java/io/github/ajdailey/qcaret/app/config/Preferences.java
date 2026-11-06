@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param options the Preferences dialog's settings
  * @param state remembered UI state
  * @param shortcuts {@code shortcut.*}: keys set in place of commands' defaults
+ * @param appearance the theme file and the font family
  */
 public record Preferences(
     ThemeMode theme,
@@ -19,7 +20,8 @@ public record Preferences(
     boolean debugLogFile,
     Options options,
     UiState state,
-    ShortcutOverrides shortcuts) {
+    ShortcutOverrides shortcuts,
+    Appearance appearance) {
   /** The settings when the file is missing or malformed. */
   public static final Preferences DEFAULTS =
       new Preferences(
@@ -28,11 +30,17 @@ public record Preferences(
           false,
           Options.DEFAULTS,
           UiState.DEFAULTS,
-          ShortcutOverrides.NONE);
+          ShortcutOverrides.NONE,
+          Appearance.DEFAULTS);
 
   /** Checks the components. */
   public Preferences {
-    if (theme == null || window == null || options == null || state == null || shortcuts == null) {
+    if (theme == null
+        || window == null
+        || options == null
+        || state == null
+        || shortcuts == null
+        || appearance == null) {
       throw new IllegalArgumentException("every component is required");
     }
   }
@@ -44,7 +52,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withTheme(ThemeMode mode) {
-    return new Preferences(mode, window, debugLogFile, options, state, shortcuts);
+    return new Preferences(mode, window, debugLogFile, options, state, shortcuts, appearance);
   }
 
   /**
@@ -54,7 +62,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withWindow(WindowState value) {
-    return new Preferences(theme, value, debugLogFile, options, state, shortcuts);
+    return new Preferences(theme, value, debugLogFile, options, state, shortcuts, appearance);
   }
 
   /**
@@ -64,7 +72,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withDebugLogFile(boolean on) {
-    return new Preferences(theme, window, on, options, state, shortcuts);
+    return new Preferences(theme, window, on, options, state, shortcuts, appearance);
   }
 
   /**
@@ -74,7 +82,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withOptions(Options value) {
-    return new Preferences(theme, window, debugLogFile, value, state, shortcuts);
+    return new Preferences(theme, window, debugLogFile, value, state, shortcuts, appearance);
   }
 
   /**
@@ -84,7 +92,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withState(UiState value) {
-    return new Preferences(theme, window, debugLogFile, options, value, shortcuts);
+    return new Preferences(theme, window, debugLogFile, options, value, shortcuts, appearance);
   }
 
   /**
@@ -94,6 +102,16 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withShortcuts(ShortcutOverrides value) {
-    return new Preferences(theme, window, debugLogFile, options, state, value);
+    return new Preferences(theme, window, debugLogFile, options, state, value, appearance);
+  }
+
+  /**
+   * Returns a copy with another theme file and font family.
+   *
+   * @param value the settings
+   * @return the copy
+   */
+  public Preferences withAppearance(Appearance value) {
+    return new Preferences(theme, window, debugLogFile, options, state, shortcuts, value);
   }
 }

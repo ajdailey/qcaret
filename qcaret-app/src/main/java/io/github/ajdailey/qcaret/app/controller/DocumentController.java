@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.print.PrintSource;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
@@ -37,6 +38,7 @@ import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.document.ReloadedFile;
 import io.github.ajdailey.qcaret.core.document.Replacement;
+import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
@@ -59,6 +61,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,31 +88,34 @@ import org.slf4j.LoggerFactory;
  *       its tab. A document whose text does not encode back to the file's bytes opens read-only
  *       with a notice. A binary file opens only after the user accepts a read-only ISO-8859-1 view;
  *       that document is never written: Save and Save As refuse it, whatever calls them.
- *   <li>Reopen with an encoding loads the file again with that charset and replaces the clean
- *       document in its tab once loaded; a failed load leaves the document open. Save with an
- *       encoding changes only what the next save writes. Converting the line endings computes the
- *       new text on a {@code qcaret-cpu-} worker and applies it as one undo step, dropped when the
- *       document changed meanwhile.
+ *   <li>Reopen with an encoding loads the file again with that charset, or with detection, and
+ *       replaces the clean document in its tab once loaded; a failed load leaves the document open.
+ *       Save with an encoding changes only what the next save writes. Converting the line endings
+ *       computes the new text on a {@code qcaret-cpu-} worker and applies it as one undo step,
+ *       dropped when the document changed meanwhile.
  *   <li>Save writes a {@link DocumentSnapshot} through {@link DocumentFiles#save} on a {@code
  *       qcaret-io-} worker while editing goes on; the document is clean once the snapshot's state
  *       is current. A save while one runs for the same document shows a notice instead. Esc in the
  *       editor and closing the tab cancel a running save, which leaves the target unchanged when
- *       the cancel lands before the file is replaced. Save As onto a file another tab holds, in any
- *       window, closes that tab once the write succeeds, asking first when it has unsaved changes.
+ *       the cancel lands before the file is replaced. Esc also cancels a running comparison. Save
+ *       As onto a file another tab holds, in any window, closes that tab once the write succeeds,
+ *       asking first when it has unsaved changes.
  *   <li>Each document with a file is checked through {@link ExternalChanges} on the path the user
  *       opened: a clean document reloads a changed file as one undo step, a dirty one asks Keep
  *       Mine, Reload or Compare, a deleted file leaves its buffer open, marked missing and dirty. A
- *       save that finds the file changed asks Overwrite, Reload, Compare or Cancel.
+ *       save that finds the file changed asks Overwrite, Reload, Compare or Cancel. Reload from
+ *       Disk reads the file on demand, asking first when the document is dirty.
  *   <li>Closing a dirty document asks Save, Don't Save or Cancel; Save closes once the save
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
  *   <li>A closed document releases its {@link MemoryBudget} reservation. The paths of the last
- *       {@value #REOPEN_LIMIT} closed files are kept for Reopen Closed Tab, newest first; each
- *       file's caret, top line, tab settings, forced charset and chosen grammar go to the {@link
- *       FileMemory} and apply when the file opens again.
+ *       {@value #REOPEN_LIMIT} closed files are kept for Reopen Closed Tab and File > Recently
+ *       Closed, newest first; each file's caret, top line, tab settings, forced charset and chosen
+ *       grammar go to the {@link FileMemory} and apply when the file opens again.
  *   <li>{@link #restore} opens a session's tab with its state; {@link #addRecovered} opens a
  *       recovered buffer dirty, and the original file is written only by a Save.
  *   <li>Tab width, indentation with spaces and read-only are per document; a binary file's view
- *       stays read-only.
+ *       stays read-only. A document without saved state takes the width and the indentation of
+ *       {@link #setTabDefaults}.
  *   <li>A tab shows its document in one view or two ({@link #split}); each view is an {@link
  *       EditorController} with its own selections and rows, and the focused one receives menu
  *       commands. Closing the tab disposes every view.
@@ -163,7 +169,7 @@ public final class DocumentController {
   private final LoadOptions options;
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
-  private final Map<Path, Charset> reopening = new HashMap<Path, Charset>();
+  private final Set<Path> reopening = new HashSet<Path>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
   private boolean disposing;
   private OpenDocument active;
@@ -183,11 +189,14 @@ public final class DocumentController {
   private final Map<Path, Consumer<EditorController>> afterOpen =
       new HashMap<Path, Consumer<EditorController>>();
   private boolean overviewShown = true;
+  private boolean lineNumbersShown = true;
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
   private final ExternalChanges changes;
   private CompareController compare;
   private final Map<Path, Path> requestedPaths = new HashMap<Path, Path>();
+  private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
+  private boolean defaultInsertSpaces;
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
@@ -282,7 +291,9 @@ public final class DocumentController {
 
     @Override
     public void textChanged(DocumentChange change) {
-      // The title follows the dirty state only.
+      if (this == active) {
+        view.editStateChanged();
+      }
     }
 
     @Override
@@ -365,6 +376,26 @@ public final class DocumentController {
               public void failed(Path path, IOException error) {
                 loadFailed(path, error);
               }
+
+              @Override
+              public void canceled(Path path) {
+                loadCanceled(path);
+              }
+
+              @Override
+              public void progress(Path path, int files, int percent) {
+                view.showLoadProgress(
+                    path == null
+                        ? UiText.LOAD_PROGRESS_FILES.format(files)
+                        : UiText.LOAD_PROGRESS.format(path.getFileName()),
+                    percent,
+                    opener::cancelLoads);
+              }
+
+              @Override
+              public void progressEnded() {
+                view.hideLoadProgress();
+              }
             });
   }
 
@@ -427,6 +458,12 @@ public final class DocumentController {
       }
     }
     return -1;
+  }
+
+  /** Returns the file of the document behind a tab's input, or null without one. */
+  Path pathOf(TabInput input) {
+    int index = indexOf(input);
+    return index < 0 ? null : documents.get(index).path;
   }
 
   /** Reports whether the document at a tab index has a file. */
@@ -674,8 +711,8 @@ public final class DocumentController {
     if (restored != null) {
       restoring.put(path, restored);
     }
-    OpenDocument d = reopening.containsKey(path) ? null : find(path);
-    if (d == null && elsewhere != null && !reopening.containsKey(path)) {
+    OpenDocument d = reopening.contains(path) ? null : find(path);
+    if (d == null && elsewhere != null && !reopening.contains(path)) {
       if (elsewhere.show(this, path, then)) {
         finishRestore(path);
         return true;
@@ -695,7 +732,7 @@ public final class DocumentController {
   }
 
   private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-    boolean reopen = reopening.remove(path) != null;
+    boolean reopen = reopening.remove(path);
     Path given = requestedPaths.remove(path);
     Charset forced = forcedLoads.remove(path);
     remembered.remove(path);
@@ -761,6 +798,17 @@ public final class DocumentController {
             suggested));
   }
 
+  /** Forgets what the open of a canceled load was to do; a session's tab counts as skipped. */
+  private void loadCanceled(Path path) {
+    reopening.remove(path);
+    requestedPaths.remove(path);
+    forcedLoads.remove(path);
+    remembered.remove(path);
+    detecting.remove(path);
+    afterOpen.remove(path);
+    finishRestore(path);
+  }
+
   private void loadFailed(final Path path, IOException error) {
     forcedLoads.remove(path);
     if (remembered.remove(path) && error instanceof TextCodingException) {
@@ -823,6 +871,8 @@ public final class DocumentController {
       DisplayProjection.Layout layout,
       int index,
       boolean binary) {
+    document.setTabWidth(defaultTabWidth);
+    document.setInsertSpaces(defaultInsertSpaces);
     final OpenDocument d = new OpenDocument(document, path, baseline, reserved);
     d.binary = binary;
     d.syntax = highlighter(d);
@@ -872,6 +922,9 @@ public final class DocumentController {
       @Override
       public void run() {
         cancelSave(d);
+        if (compare != null) {
+          compare.cancelRunning();
+        }
       }
     };
   }
@@ -967,6 +1020,11 @@ public final class DocumentController {
       @Override
       public void closeOthersRequested() {
         closeOthers(d);
+      }
+
+      @Override
+      public void closeSideRequested(boolean left) {
+        closeSide(d, left);
       }
 
       @Override
@@ -1377,6 +1435,37 @@ public final class DocumentController {
     closeNext(kept, null);
   }
 
+  /** Closes the tabs on one side of a tab in tab order, asking for each dirty one; Cancel stops. */
+  private void closeSide(OpenDocument from, boolean left) {
+    int at = documents.indexOf(from);
+    List<OpenDocument> side =
+        new ArrayList<OpenDocument>(
+            left ? documents.subList(0, at) : documents.subList(at + 1, documents.size()));
+    closeEach(side, 0, from, active);
+  }
+
+  /** Closes a list from an index on; {@code kept} is selected once {@code selected} has closed. */
+  private void closeEach(
+      final List<OpenDocument> list,
+      final int index,
+      final OpenDocument kept,
+      final OpenDocument selected) {
+    if (index == list.size()) {
+      if (selected.closed && !kept.closed) {
+        kept.tab.select();
+      }
+      return;
+    }
+    close(
+        list.get(index),
+        new Runnable() {
+          @Override
+          public void run() {
+            closeEach(list, index + 1, kept, selected);
+          }
+        });
+  }
+
   /**
    * Selects the tab after (or before) the selected one, wrapping around.
    *
@@ -1507,7 +1596,7 @@ public final class DocumentController {
 
   /**
    * Opens a file, or selects its tab, and then passes the tab's focused editor to {@code then}; a
-   * load that fails or is refused does not call it.
+   * load that fails, is refused or is canceled does not call it.
    *
    * @param path the file
    * @param then runs on the UI thread once the document shows
@@ -1647,6 +1736,18 @@ public final class DocumentController {
         e.setOverviewShown(overviewShown);
       }
     }
+    sessionChanged();
+  }
+
+  /** Reports whether the window's editors show line numbers. */
+  boolean lineNumbersShown() {
+    return lineNumbersShown;
+  }
+
+  /** Shows or hides the line numbers in every editor of the window. */
+  public void toggleLineNumbers() {
+    lineNumbersShown = !lineNumbersShown;
+    view.setLineNumbersShown(lineNumbersShown);
     sessionChanged();
   }
 
@@ -1801,11 +1902,27 @@ public final class DocumentController {
    * @param charset the charset
    */
   public void reopenWithEncoding(Charset charset) {
-    if (active == null || active.path == null || active.binary || active.document.isDirty()) {
-      return;
+    if (canReopen()) {
+      reopening.add(active.path);
+      opener.open(active.path, options.withForced(charset));
     }
-    reopening.put(active.path, charset);
-    opener.open(active.path, options.withForced(charset));
+  }
+
+  /**
+   * Loads the selected document's file again with encoding detection and replaces the document in
+   * its tab, past a charset forced or remembered for the file. Does nothing for an untitled, dirty
+   * or binary document.
+   */
+  public void reopenWithDetection() {
+    if (canReopen()) {
+      reopening.add(active.path);
+      detecting.add(active.path);
+      opener.open(active.path, options);
+    }
+  }
+
+  private boolean canReopen() {
+    return active != null && active.path != null && !active.binary && !active.document.isDirty();
   }
 
   /**
@@ -1956,6 +2073,26 @@ public final class DocumentController {
     }
   }
 
+  /**
+   * Opens a file of File > Recently Closed; a file still open selects its tab.
+   *
+   * @param index the entry, newest first; out of range does nothing
+   */
+  public void reopenClosed(int index) {
+    List<Path> paths = new ArrayList<Path>(closedPaths);
+    if (index >= 0 && index < paths.size()) {
+      closedPaths.remove(paths.get(index));
+      opener.open(paths.get(index), options);
+    }
+  }
+
+  /** Empties File > Recently Closed. */
+  public void clearClosed() {
+    closedPaths.clear();
+    view.documentStateChanged();
+    sessionChanged();
+  }
+
   /** Reports whether Reopen Closed Tab has a file; for {@link CommandStates}. */
   boolean canReopenClosed() {
     return !closedPaths.isEmpty();
@@ -1989,6 +2126,36 @@ public final class DocumentController {
       }
       view.documentStateChanged();
     }
+  }
+
+  /** Asks for the selected document's columns per tab stop, from 1 to the largest accepted. */
+  public void askTabWidth() {
+    final OpenDocument d = active;
+    if (d == null) {
+      return;
+    }
+    view.askTabWidth(
+        d.document.tabWidth(),
+        Document.MAX_TAB_WIDTH,
+        new IntConsumer() {
+          @Override
+          public void accept(int columns) {
+            if (active == d) {
+              setTabWidth(columns);
+            }
+          }
+        });
+  }
+
+  /**
+   * Sets what a document without saved state starts with; open documents keep theirs.
+   *
+   * @param columns the columns per tab stop, from 1 to {@link Document#MAX_TAB_WIDTH}
+   * @param insertSpaces true to indent with spaces
+   */
+  public void setTabDefaults(int columns, boolean insertSpaces) {
+    defaultTabWidth = columns;
+    defaultInsertSpaces = insertSpaces;
   }
 
   /** Switches the selected document between indenting with tabs and with spaces. */
@@ -2288,6 +2455,40 @@ public final class DocumentController {
           askChange(d);
         }
       }
+    }
+  }
+
+  /**
+   * Reads the selected document's file again, as an external change does; a dirty document asks
+   * first, and undo returns to the text before the reload. A file known to be deleted shows a
+   * notice.
+   */
+  public void reloadFromDisk() {
+    final OpenDocument d = active;
+    if (d == null || d.watch == null || d.changePrompt) {
+      return;
+    }
+    if (d.missing) {
+      view.showNotice(UiText.CHANGE_MISSING.format(d.name()));
+    } else if (d.document.isDirty()) {
+      d.changePrompt = true;
+      view.askReload(
+          d.name(),
+          new Runnable() {
+            @Override
+            public void run() {
+              d.changePrompt = false;
+              reload(d);
+            }
+          },
+          new Runnable() {
+            @Override
+            public void run() {
+              d.changePrompt = false;
+            }
+          });
+    } else {
+      reload(d);
     }
   }
 
@@ -2702,6 +2903,36 @@ public final class DocumentController {
     return holder.show(document);
   }
 
+  /**
+   * Captures what printing the selected document reads: a text snapshot, so later edits do not
+   * reach the job, and the selections of the active view. Word wrap and folds are view state and
+   * stay out of it. Line numbers follow the window's setting.
+   *
+   * @return the source, or null without a document
+   */
+  PrintSource printSource() {
+    if (active == null) {
+      return null;
+    }
+    List<Selection> selections = active.editor.selections().selections().selections();
+    int[] ranges = new int[selections.size() * 2];
+    int count = 0;
+    for (Selection selection : selections) {
+      if (!selection.isEmpty()) {
+        ranges[count++] = selection.start();
+        ranges[count++] = selection.end();
+      }
+    }
+    return new PrintSource(
+        active.name(),
+        active.document.text(),
+        Arrays.copyOf(ranges, count),
+        active.document.tabWidth(),
+        lineNumbersShown,
+        active.syntax == null ? null : active.syntax.syntax(),
+        maxHighlightLineChars);
+  }
+
   /** Returns the selected document's tab name, or null without a document. */
   String activeName() {
     return active == null ? null : active.name();
@@ -2724,7 +2955,7 @@ public final class DocumentController {
         && d.converting == null
         && d.reloading == null
         && !d.changePrompt
-        && (d.path == null || !reopening.containsKey(d.path));
+        && (d.path == null || !reopening.contains(d.path));
   }
 
   /**
@@ -3189,10 +3420,11 @@ public final class DocumentController {
 
   /** Returns the window's display state; the Bookmarks list is {@link BookmarkList}'s. */
   Session.Display sessionDisplay(boolean bookmarks) {
-    return new Session.Display(wrap, showWhitespace, showLineEndings, overviewShown, bookmarks);
+    return new Session.Display(
+        wrap, showWhitespace, showLineEndings, overviewShown, bookmarks, lineNumbersShown);
   }
 
-  /** Sets word wrap, the whitespace and line-ending marks and the overview strip. */
+  /** Sets word wrap, the whitespace and line-ending marks, the overview strip and line numbers. */
   void restoreDisplay(Session.Display display) {
     if (display.wrap() != wrap) {
       toggleWrap();
@@ -3205,6 +3437,9 @@ public final class DocumentController {
     }
     if (display.overview() != overviewShown) {
       toggleOverview();
+    }
+    if (display.lineNumbers() != lineNumbersShown) {
+      toggleLineNumbers();
     }
   }
 

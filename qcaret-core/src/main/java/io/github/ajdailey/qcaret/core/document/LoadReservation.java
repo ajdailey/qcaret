@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.document;
 
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import java.util.function.LongConsumer;
 
 /**
  * A load's hold on the {@link MemoryBudget}. It starts at the estimate and rises when the text read
@@ -20,6 +21,7 @@ public final class LoadReservation implements AutoCloseable {
   private final LoadCost cost;
   private long base;
   private long held;
+  private LongConsumer progress;
 
   private LoadReservation(MemoryBudget budget, LoadCost cost, long base, long held) {
     this.budget = budget;
@@ -68,6 +70,17 @@ public final class LoadReservation implements AutoCloseable {
   }
 
   /**
+   * Sets what receives the file bytes read so far at each {@link #charge}, on the loading thread. A
+   * load that retries with another charset starts counting again. Call before the load starts; not
+   * on {@link #UNMETERED}, which is shared.
+   *
+   * @param listener the receiver
+   */
+  public void setProgress(LongConsumer listener) {
+    progress = listener;
+  }
+
+  /**
    * Checks the text read so far against the estimate and raises the reservation by any excess.
    *
    * @param heapBytes the heap the text takes so far
@@ -75,6 +88,9 @@ public final class LoadReservation implements AutoCloseable {
    * @throws LoadTooLargeException when the budget cannot hold the raise
    */
   public void charge(long heapBytes, long fileBytes) throws LoadTooLargeException {
+    if (progress != null) {
+      progress.accept(fileBytes);
+    }
     if (budget == null) {
       return;
     }

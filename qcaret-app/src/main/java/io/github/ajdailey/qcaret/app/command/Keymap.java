@@ -261,6 +261,22 @@ public final class Keymap {
   }
 
   /**
+   * Returns a command's first key as the platform writes it, for a menu item: GTK parses the text
+   * after the tab as one accelerator, so a list of keys shows a key that is not bound.
+   *
+   * @param command the command
+   * @return the key, empty when the command has none
+   */
+  public String menuKeyText(CommandId command) {
+    for (Binding binding : bindings) {
+      if (binding.command() == command) {
+        return binding.text(mac);
+      }
+    }
+    return "";
+  }
+
+  /**
    * Returns a command's keys as the platform writes them, joined with {@code ", "}.
    *
    * @param command the command

@@ -52,6 +52,25 @@ class ConfigStoreTest {
   }
 
   @Test
+  void theThemeFileAndFontFamilyRoundTrip() {
+    ConfigStore store = store(temp);
+    Preferences loaded = store.load();
+    Preferences next = loaded.withAppearance(new Appearance("harbor", "Mock Mono"));
+    assertTrue(store.save(loaded, next));
+    assertEquals(new Appearance("harbor", "Mock Mono"), store(temp).load().appearance());
+  }
+
+  @Test
+  void anInvalidThemeFileOrFontFamilyFallsBackToEmpty() throws Exception {
+    Files.createDirectories(temp);
+    Files.writeString(
+        temp.resolve(SettingsLocation.MARKER),
+        "ui.themeFile=../up\neditor.fontFamily=" + "x".repeat(129) + "\n",
+        StandardCharsets.ISO_8859_1);
+    assertEquals(Appearance.DEFAULTS, store(temp).load().appearance());
+  }
+
+  @Test
   void aMissingFileLoadsDefaults() {
     assertEquals(Preferences.DEFAULTS, store(temp).load());
     assertEquals(ThemeMode.LIGHT, Preferences.DEFAULTS.theme());
@@ -287,9 +306,18 @@ class ConfigStoreTest {
   }
 
   @Test
+  void aTabWidthOutOfRangeFallsBackToTheDefault() throws IOException {
+    Files.createDirectories(temp);
+    Files.writeString(conf(), "editor.tabWidth=17\neditor.insertSpaces=true\n");
+    Options loaded = store(temp).load().options();
+    assertEquals(Options.DEFAULTS.tabWidth(), loaded.tabWidth());
+    assertTrue(loaded.insertSpaces());
+  }
+
+  @Test
   void everySettingRoundTrips() throws IOException {
     Options options =
-        new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist", 45, 12, true);
+        new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist", 45, 12, true, 6, true);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -298,7 +326,8 @@ class ConfigStoreTest {
                 List.of("*.java"),
                 List.of("swapped", " padded "),
                 List.of("java", "xml"),
-                Map.of())
+                Map.of(),
+                false)
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE

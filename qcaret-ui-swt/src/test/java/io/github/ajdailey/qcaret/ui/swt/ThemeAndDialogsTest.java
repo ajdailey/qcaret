@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -38,10 +39,15 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 import org.junit.jupiter.api.AfterEach;
@@ -246,6 +252,135 @@ class ThemeAndDialogsTest {
     assertNotSame(light, item.getImage());
     assertTrue(light.isDisposed());
     shell.dispose();
+  }
+
+  @Test
+  void checkBoxUnderTheDarkStartupSettingIsAnEnabledCheckBox() {
+    Shell shell = new Shell(display);
+    try {
+      SwtThemeService.open(display, ThemeMode.DARK);
+      Button check = SwtThemeService.check(shell);
+      assertTrue((check.getStyle() & SWT.CHECK) != 0);
+      assertTrue(check.getEnabled());
+    } finally {
+      SwtThemeService.open(display, ThemeMode.LIGHT);
+      shell.dispose();
+    }
+  }
+
+  @Test
+  void refreshReportsASystemChangeOnce() {
+    final boolean[] setting = {false};
+    SwtThemeService service =
+        new SwtThemeService(
+            display,
+            false,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return setting[0];
+              }
+            });
+    final List<Boolean> changes = new ArrayList<Boolean>();
+    service.addListener(
+        new ThemeListener() {
+          @Override
+          public void systemThemeChanged(boolean dark) {
+            changes.add(dark);
+          }
+        });
+    service.refresh();
+    assertEquals(List.of(), changes);
+    setting[0] = true;
+    service.refresh();
+    service.refresh();
+    assertEquals(List.of(true), changes);
+    assertTrue(service.systemDark());
+  }
+
+  @Test
+  void cocoaChromeFollowsAnAppearanceThatDiffersFromTheStartupOne() {
+    RGB windowColor = new RGB(0x32, 0x32, 0x32);
+    Shell shell = new Shell(display);
+    Composite row = new Composite(shell, SWT.NONE);
+    CTabFolder folder = new CTabFolder(shell, SWT.NONE);
+    Text field = new Text(shell, SWT.SINGLE);
+    RGB before = row.getBackground().getRGB();
+    RGB fieldBefore = field.getBackground().getRGB();
+    final int[] settings = {0};
+    row.addListener(
+        SWT.Settings,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            settings[0]++;
+          }
+        });
+    CocoaChrome chrome = new CocoaChrome(display, false);
+    try {
+      chrome.apply(true);
+      assertEquals(windowColor, row.getBackground().getRGB());
+      assertEquals(new RGB(0xff, 0xff, 0xff), folder.getForeground().getRGB());
+      assertEquals(new RGB(0x1e, 0x1e, 0x1e), field.getBackground().getRGB());
+      assertEquals(1, settings[0]);
+      Shell shown = new Shell(display);
+      Composite shownRow = new Composite(shown, SWT.NONE);
+      shown.open();
+      assertEquals(windowColor, shownRow.getBackground().getRGB());
+      shown.dispose();
+    } finally {
+      chrome.apply(false);
+    }
+    assertEquals(before, row.getBackground().getRGB());
+    assertEquals(fieldBefore, field.getBackground().getRGB());
+    assertEquals(2, settings[0]);
+    shell.dispose();
+  }
+
+  /** The editor, the tab strip and the palette's owners keep their colors; the tree recolors. */
+  @Test
+  void cocoaChromeLeavesPaletteColoredControlsAloneAndColorsTheWorkspaceTree() {
+    RGB list = new RGB(0x1e, 0x1e, 0x1e);
+    RGB editor = window.activeText().getBackground().getRGB();
+    RGB strip = window.tabs().getForeground().getRGB();
+    RGB selected = window.tabs().getSelectionBackground().getRGB();
+    CocoaChrome chrome = new CocoaChrome(display, false);
+    try {
+      chrome.apply(true);
+      assertEquals(editor, window.activeText().getBackground().getRGB());
+      assertEquals(strip, window.tabs().getForeground().getRGB());
+      assertEquals(selected, window.tabs().getSelectionBackground().getRGB());
+      assertEquals(list, window.workspaceDock().tree().getBackground().getRGB());
+      chrome.apply(false);
+      assertEquals(editor, window.activeText().getBackground().getRGB());
+      assertEquals(strip, window.tabs().getForeground().getRGB());
+    } finally {
+      chrome.apply(false);
+    }
+  }
+
+  /** The docks replace their tables while the window is open, with no {@code SWT.Show}. */
+  @Test
+  void cocoaChromeColorsAControlCreatedWhileTheAppearanceDiffers() {
+    CocoaChrome chrome = new CocoaChrome(display, false);
+    Shell shell = new Shell(display);
+    try {
+      chrome.apply(true);
+      final Table table = new Table(shell, SWT.NONE);
+      assertTrue(
+          EventLoop.runUntil(
+              display,
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return new RGB(0x1e, 0x1e, 0x1e).equals(table.getBackground().getRGB());
+                }
+              },
+              BOUND));
+    } finally {
+      chrome.apply(false);
+      shell.dispose();
+    }
   }
 
   @Test

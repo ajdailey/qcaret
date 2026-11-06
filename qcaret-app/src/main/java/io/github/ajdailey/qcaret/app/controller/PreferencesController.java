@@ -2,24 +2,29 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
+import io.github.ajdailey.qcaret.app.config.Appearance;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
+import io.github.ajdailey.qcaret.core.document.Document;
 import java.util.function.Consumer;
 
 /**
  * Edit > Preferences: {@link #open} reads {@code qcaret.conf} on a worker through {@link
  * Settings#refresh} and then shows the dialog; {@link #apply} checks its fields and hands them to
- * {@link Settings}, which saves on a worker. Confined to the UI thread.
+ * {@link Settings}, which saves on a worker. An apply that keeps the theme file reads the file
+ * again, so an edit to it shows without a restart. Confined to the UI thread.
  */
 final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
   private final Keymap defaults;
   private final Consumer<Consumer<Boolean>> forgetHistory;
+  private final WindowSet set;
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
   private Preferences uncleared;
@@ -28,11 +33,13 @@ final class PreferencesController implements PreferencesInput {
       Settings settings,
       MainView view,
       Keymap defaults,
-      Consumer<Consumer<Boolean>> forgetHistory) {
+      Consumer<Consumer<Boolean>> forgetHistory,
+      WindowSet set) {
     this.settings = settings;
     this.view = view;
     this.defaults = defaults;
     this.forgetHistory = forgetHistory;
+    this.set = set;
   }
 
   /** Shows the dialog once the file is read. */
@@ -62,6 +69,8 @@ final class PreferencesController implements PreferencesInput {
         Integer.toString(o.completionChars()),
         o.autoClose(),
         Integer.toString(o.maxHighlightLineChars()),
+        Integer.toString(o.tabWidth()),
+        o.insertSpaces(),
         Integer.toString(o.pollSeconds()),
         o.autoReloadClean(),
         Integer.toString(o.recoveryIntervalSeconds()),
@@ -72,7 +81,14 @@ final class PreferencesController implements PreferencesInput {
         o.excludedDirectories(),
         p.theme(),
         o.fontSize() == 0 ? "" : Integer.toString(o.fontSize()),
-        p.shortcuts());
+        p.shortcuts(),
+        p.appearance().themeFile(),
+        p.appearance().fontFamily());
+  }
+
+  @Override
+  public void loadChoices(Consumer<AppearanceChoices> done) {
+    set.loadChoices(done);
   }
 
   @Override
@@ -95,6 +111,13 @@ final class PreferencesController implements PreferencesInput {
             Options.MIN_HIGHLIGHT_CHARS,
             Options.MAX_HIGHLIGHT_CHARS,
             UiText.PREFERENCES_HIGHLIGHT_CHARS,
+            PreferencesForm.Group.EDITOR);
+    Checked tabWidth =
+        number(
+            form.tabWidth(),
+            1,
+            Document.MAX_TAB_WIDTH,
+            UiText.PREFERENCES_TAB_WIDTH,
             PreferencesForm.Group.EDITOR);
     Checked poll =
         number(
@@ -141,7 +164,7 @@ final class PreferencesController implements PreferencesInput {
                 UiText.PREFERENCES_FONT_SIZE,
                 PreferencesForm.Group.APPEARANCE);
     Checked[] fields = {
-      completion, highlight, poll, recoverySeconds, recoveryDays, days, lineChars, font
+      completion, highlight, tabWidth, poll, recoverySeconds, recoveryDays, days, lineChars, font
     };
     for (Checked checked : fields) {
       if (checked.problem() != null) {
@@ -160,6 +183,7 @@ final class PreferencesController implements PreferencesInput {
             .current()
             .withTheme(form.theme())
             .withShortcuts(form.shortcuts())
+            .withAppearance(new Appearance(form.themeFile(), form.fontFamily()))
             .withOptions(
                 new Options(
                     completion.value(),
@@ -173,7 +197,10 @@ final class PreferencesController implements PreferencesInput {
                     excluded,
                     recoverySeconds.value(),
                     recoveryDays.value(),
-                    form.sessionSnapshot()));
+                    form.sessionSnapshot(),
+                    tabWidth.value(),
+                    form.insertSpaces()));
+    boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,
         new Consumer<Boolean>() {
@@ -184,6 +211,9 @@ final class PreferencesController implements PreferencesInput {
             }
           }
         });
+    if (sameThemeFile) {
+      set.loadTheme();
+    }
     return null;
   }
 

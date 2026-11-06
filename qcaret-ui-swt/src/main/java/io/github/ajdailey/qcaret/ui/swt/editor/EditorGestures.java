@@ -19,16 +19,17 @@ import org.eclipse.swt.widgets.Listener;
  *   <li>Alt+drag, and Ctrl+Alt+drag where the window manager takes Alt+drag (Linux), select a
  *       block; Alt+Shift+click and drag extend the block from its anchor or the primary caret. In
  *       column selection mode a plain drag selects a block.
- *   <li>Mod+click adds a caret, or removes the one clicked when several exist.
+ *   <li>Mod+click adds a caret, or removes the one clicked when several exist. Mod+drag adds a
+ *       selection from the press to the pointer, beside the selections from before the press.
  *   <li>A click in the gutter's fold marker column toggles the fold region starting on that row's
  *       line; the widget's caret stays.
- *   <li>A block drag held above, below, left or right of the text area extends the block toward the
+ *   <li>A block or Mod+drag held above, below, left or right of the text area extends toward the
  *       pointer every {@link #AUTOSCROLL_MILLIS} on a {@link UiDispatcher} timer, and the
- *       controller scrolls to the block's caret. Release, focus loss and dispose cancel the timer.
+ *       controller scrolls to the caret. Release, focus loss and dispose cancel the timer.
  * </ul>
  */
 final class EditorGestures implements Listener {
-  /** Interval between extensions while a block drag holds the pointer outside the text area. */
+  /** Interval between extensions while a drag holds the pointer outside the text area. */
   static final int AUTOSCROLL_MILLIS = 50;
 
   private final StyledText text;
@@ -44,6 +45,9 @@ final class EditorGestures implements Listener {
       };
   private boolean columnMode;
   private boolean dragging;
+  private boolean adding;
+  private boolean addMoved;
+  private int addAnchor;
   private boolean autoscrolling;
   private int dragX;
   private int dragY;
@@ -145,10 +149,10 @@ final class EditorGestures implements Listener {
       // The anchor becomes a line and column here: a drag step can scroll the widget.
       input.blockFromView(event.x, event.y, event.x, event.y);
     } else if (primary && !shift) {
-      input.toggleCaretFromView(offsetAt(event.x, event.y));
-      text.setFocus();
-      consume(event);
-      return;
+      addAnchor = offsetAt(event.x, event.y);
+      input.toggleCaretFromView(addAnchor);
+      adding = true;
+      addMoved = false;
     } else {
       return;
     }
@@ -161,19 +165,32 @@ final class EditorGestures implements Listener {
     dragX = x;
     dragY = y;
     if (autoscrolling) {
-      input.extendBlockFromView(x, y);
+      extend(x, y);
     } else {
       autoscrollStep();
     }
   }
 
-  /** Extends the block to the pointer and rearms the timer while the pointer is outside. */
+  /** Extends the block or the added selection; a press that stays on its offset is a click. */
+  private void extend(int x, int y) {
+    if (!adding) {
+      input.extendBlockFromView(x, y);
+      return;
+    }
+    int at = offsetAt(x, y);
+    addMoved |= at != addAnchor;
+    if (addMoved) {
+      input.addSelectionFromView(addAnchor, at);
+    }
+  }
+
+  /** Extends to the pointer and rearms the timer while the pointer is outside. */
   private void autoscrollStep() {
     autoscrolling = false;
     if (!dragging || text.isDisposed()) {
       return;
     }
-    input.extendBlockFromView(dragX, dragY);
+    extend(dragX, dragY);
     Rectangle area = text.getClientArea();
     if (dragY < 0
         || dragY >= area.height
@@ -186,6 +203,7 @@ final class EditorGestures implements Listener {
 
   private void endDrag() {
     dragging = false;
+    adding = false;
     if (autoscrolling) {
       autoscrolling = false;
       timers.cancelTimer(autoscroll);
@@ -195,14 +213,14 @@ final class EditorGestures implements Listener {
   /**
    * Reports whether the drag timer is armed.
    *
-   * @return true while a block drag holds the pointer outside the text area
+   * @return true while a drag holds the pointer outside the text area
    */
   boolean autoscrolling() {
     return autoscrolling;
   }
 
   /** Returns the display offset nearest a point, the row's end past it. */
-  private int offsetAt(int x, int y) {
+  int offsetAt(int x, int y) {
     int at = text.getOffsetAtPoint(new Point(x, y));
     if (at >= 0) {
       return at;

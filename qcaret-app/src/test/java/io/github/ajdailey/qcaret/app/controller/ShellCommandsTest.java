@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
@@ -290,6 +291,102 @@ class ShellCommandsTest {
         new CommandStates(harness.application).tabItems(harness.view.tabs.get(0).input);
     assertFalse(items.closeOthers());
     assertTrue(items.file());
+  }
+
+  @Test
+  void closeSideClosesInTabOrderAndCancelStops() throws Exception {
+    harness.open(Files.writeString(temp.resolve("a.txt"), "a"));
+    harness.open(Files.writeString(temp.resolve("b.txt"), "b"));
+    harness.open(Files.writeString(temp.resolve("c.txt"), "c"));
+    harness.open(Files.writeString(temp.resolve("d.txt"), "d"));
+    documents().select(1);
+    documents().activeEditor().type("dirty");
+    documents().select(3);
+    CommandStates states = new CommandStates(harness.application);
+    CommandStates.TabItems middle = states.tabItems(harness.view.tabs.get(2).input);
+    assertTrue(middle.closeLeft());
+    assertTrue(middle.closeRight());
+    harness.view.tabs.get(2).input.closeSideRequested(true);
+    assertEquals(3, documents().count());
+    assertEquals("dirtyb", active().text().toString());
+    assertNotNull(harness.view.unsaved);
+    harness.view.unsaved.accept(UnsavedChoice.CANCEL);
+    assertEquals(3, documents().count());
+    harness.view.tabs.get(1).input.closeSideRequested(true);
+    harness.view.unsaved.accept(UnsavedChoice.DISCARD);
+    assertEquals(2, documents().count());
+    assertEquals("c", active().text().toString());
+    CommandStates.TabItems first = states.tabItems(harness.view.tabs.get(0).input);
+    assertFalse(first.closeLeft());
+    assertTrue(first.closeRight());
+    assertFalse(states.tabItems(harness.view.tabs.get(1).input).closeRight());
+  }
+
+  @Test
+  void closeSideKeepsASelectionThatStaysOpen() throws Exception {
+    harness.open(Files.writeString(temp.resolve("a.txt"), "a"));
+    harness.open(Files.writeString(temp.resolve("b.txt"), "b"));
+    harness.open(Files.writeString(temp.resolve("c.txt"), "c"));
+    harness.view.tabs.get(1).input.closeSideRequested(true);
+    assertEquals(2, documents().count());
+    assertEquals("c", active().text().toString());
+  }
+
+  @Test
+  void openContainingFolderLaunchesTheFoldersThatExist() throws Exception {
+    Path folder = Files.createDirectory(temp.resolve("held"));
+    Path file = Files.writeString(folder.resolve("a.txt"), "a");
+    harness.open(file);
+    harness.application.openContainingFolder(harness.view.tabs.get(0).input);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.launched.size() == 1;
+          }
+        },
+        "launched");
+    assertEquals(folder.toRealPath(), Path.of(harness.view.launched.get(0)).toRealPath());
+    Files.delete(file);
+    Files.delete(folder);
+    harness.application.openContainingFolder(harness.view.tabs.get(0).input);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !harness.view.notices.isEmpty();
+          }
+        },
+        "notice");
+    assertEquals(1, harness.view.launched.size());
+    assertFalse(Files.exists(folder));
+  }
+
+  @Test
+  void theToolbarChoiceIsASettingEveryWindowApplies() throws Exception {
+    CommandStates states = new CommandStates(harness.application);
+    assertTrue(states.checked(CommandId.TOOLBAR));
+    assertTrue(states.enabled(CommandId.TOOLBAR));
+    harness.application.execute(CommandId.TOOLBAR);
+    assertFalse(states.checked(CommandId.TOOLBAR));
+    assertEquals(Boolean.FALSE, harness.view.toolbarShown);
+    assertFalse(harness.application.preferences().state().toolbar());
+    harness.application.execute(CommandId.TOOLBAR);
+    assertEquals(Boolean.TRUE, harness.view.toolbarShown);
+  }
+
+  @Test
+  void lineNumbersToggleAndRestoreWithTheDisplayState() throws Exception {
+    CommandStates states = new CommandStates(harness.application);
+    assertTrue(states.checked(CommandId.LINE_NUMBERS));
+    assertTrue(states.enabled(CommandId.LINE_NUMBERS));
+    harness.application.execute(CommandId.LINE_NUMBERS);
+    assertFalse(states.checked(CommandId.LINE_NUMBERS));
+    assertEquals(Boolean.FALSE, harness.view.lineNumbersShown);
+    assertFalse(documents().sessionDisplay(false).lineNumbers());
+    documents().restoreDisplay(Session.Display.DEFAULTS);
+    assertTrue(states.checked(CommandId.LINE_NUMBERS));
+    assertEquals(Boolean.TRUE, harness.view.lineNumbersShown);
   }
 
   @Test

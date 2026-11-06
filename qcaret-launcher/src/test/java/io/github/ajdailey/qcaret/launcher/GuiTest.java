@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.app.config.Appearance;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -15,6 +16,9 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
@@ -127,6 +131,38 @@ class GuiTest {
   }
 
   @Test
+  void aSavedThemeFileColorsTheWindowBeforeItOpens() throws Exception {
+    Path themes = Files.createDirectory(temp.resolve("settings").resolve("themes"));
+    Files.writeString(themes.resolve("mock.theme"), "light.background = #123456\n");
+    final List<Palette> palettes = new ArrayList<Palette>();
+    Gui.Observer observer =
+        new Gui.Observer() {
+          @Override
+          public void opened(
+              MainWindow window, final ApplicationController controller, Workers workers) {
+            palettes.add(window.palette());
+            window
+                .shell()
+                .getDisplay()
+                .timerExec(
+                    20,
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        controller.quit();
+                      }
+                    });
+          }
+        };
+    Preferences preferences =
+        Preferences.DEFAULTS.withTheme(ThemeMode.LIGHT).withAppearance(new Appearance("mock", ""));
+    PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+    StartupRequest request = request(List.of(), null, null, null, null, true);
+    assertEquals(0, new Gui(request, config(), preferences, err, observer, LogFiles.NONE).run());
+    assertEquals(new Rgb(0x12, 0x34, 0x56), palettes.get(0).background());
+  }
+
+  @Test
   void theRememberedPlacementOpensAndIsSavedAgain() {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
@@ -198,7 +234,8 @@ class GuiTest {
                     "",
                     List.of(),
                     List.of(),
-                    Session.Display.DEFAULTS)),
+                    Session.Display.DEFAULTS,
+                    "")),
             List.of(file.toString()),
             List.of());
     SessionStore sessions = new SessionStore(config().location());

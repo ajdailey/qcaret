@@ -78,6 +78,7 @@ public final class ApplicationController {
   private final NavigationHistory history;
   private final RecentFiles recentFiles;
   private final CompareController compare;
+  private final PrintController print;
   private final GrammarLibrary grammars;
   private final PreferencesController preferences;
   private final Settings.Listener settingsListener =
@@ -170,6 +171,7 @@ public final class ApplicationController {
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
     this.compare = new CompareController(documents, workers, ui, view, budget);
+    this.print = new PrintController(documents, workers, ui, view);
     documents.setCompare(compare);
     documents.setOverviewSources(
         new OverviewSources() {
@@ -187,6 +189,7 @@ public final class ApplicationController {
     documents.setGrammars(grammars);
     documents.setCompletionChars(options.completionChars());
     documents.setAutoClose(options.autoClose());
+    documents.setTabDefaults(options.tabWidth(), options.insertSpaces());
     documents.setMaxHighlightLineChars(options.maxHighlightLineChars());
     documents.setPollSeconds(options.pollSeconds());
     documents.setAutoReloadClean(options.autoReloadClean());
@@ -199,7 +202,7 @@ public final class ApplicationController {
         });
     workspace.setExcludedDirectories(options.excludedDirectories());
     this.preferences =
-        new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory);
+        new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory, set);
     settings.addListener(settingsListener);
     set.register(this);
     if (set.recent() != null) {
@@ -223,6 +226,10 @@ public final class ApplicationController {
     if (now.fontSize() != old.fontSize()) {
       view.setFontSize(now.fontSize());
     }
+    if (!after.appearance().fontFamily().equals(before.appearance().fontFamily())) {
+      view.setFontFamily(after.appearance().fontFamily());
+    }
+    documents.setTabDefaults(now.tabWidth(), now.insertSpaces());
     if (now.pollSeconds() != old.pollSeconds()) {
       documents.setPollSeconds(now.pollSeconds());
     }
@@ -245,6 +252,9 @@ public final class ApplicationController {
     if (!after.state().texts().equals(before.state().texts())
         || !after.state().replacements().equals(before.state().replacements())) {
       find.historyChanged();
+    }
+    if (after.state().toolbar() != before.state().toolbar()) {
+      view.setToolbarShown(after.state().toolbar());
     }
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
@@ -306,6 +316,15 @@ public final class ApplicationController {
    */
   public int fontSize() {
     return settings.current().options().fontSize();
+  }
+
+  /**
+   * Returns {@code editor.fontFamily}.
+   *
+   * @return the family, empty for the platform's monospace font
+   */
+  public String fontFamily() {
+    return settings.current().appearance().fontFamily();
   }
 
   /**
@@ -388,6 +407,28 @@ public final class ApplicationController {
   public void openRecent(int index) {
     if (!quitting) {
       recentFiles.open(index);
+    }
+  }
+
+  /**
+   * Opens a file of File > Recently Closed, or selects its tab.
+   *
+   * @param index the entry, newest first
+   */
+  public void openClosed(int index) {
+    if (!quitting) {
+      documents.reopenClosed(index);
+    }
+  }
+
+  /**
+   * Opens files dropped on the window on workers, a tab each.
+   *
+   * @param paths the dropped paths, not yet validated
+   */
+  public void openDropped(List<Path> paths) {
+    if (!quitting) {
+      documents.open(paths);
     }
   }
 
@@ -572,6 +613,9 @@ public final class ApplicationController {
       case SAVE_AS -> documents.saveAs();
       case SAVE_ALL -> documents.saveAll();
       case REOPEN_CLOSED -> documents.reopenClosed();
+      case CLEAR_CLOSED_FILES -> documents.clearClosed();
+      case RELOAD -> documents.reloadFromDisk();
+      case PRINT -> print.print();
       case CLOSE -> documents.closeActive();
       case CLOSE_ALL -> documents.closeAll(null);
       case QUIT -> requestQuit();
@@ -670,6 +714,7 @@ public final class ApplicationController {
       case TAB_WIDTH_2 -> documents.setTabWidth(2);
       case TAB_WIDTH_4 -> documents.setTabWidth(4);
       case TAB_WIDTH_8 -> documents.setTabWidth(8);
+      case TAB_WIDTH_OTHER -> documents.askTabWidth();
       case INDENT_WITH_SPACES -> documents.toggleInsertSpaces();
       case GO_TO_LINE -> documents.goToLine();
       case READ_ONLY -> documents.toggleReadOnly();
@@ -698,6 +743,8 @@ public final class ApplicationController {
       case REPLACE_IN_RESULTS -> search.replaceInResults();
       case RESTORE_REPLACE_RUN -> replace.chooseRun();
       case OVERVIEW_STRIP -> documents.toggleOverview();
+      case LINE_NUMBERS -> documents.toggleLineNumbers();
+      case TOOLBAR -> toggleToolbar();
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
       case LINE_ENDING_CR -> documents.convertLineEndings(LineEnding.CR);
@@ -728,6 +775,13 @@ public final class ApplicationController {
     }
   }
 
+  /** Reloads the selected document's file with detection; see {@link DocumentController}. */
+  public void reopenWithDetection() {
+    if (!quitting) {
+      documents.reopenWithDetection();
+    }
+  }
+
   /**
    * Sets the charset the selected document's next save writes; see {@link
    * DocumentController#saveWithEncoding}.
@@ -737,6 +791,33 @@ public final class ApplicationController {
   public void saveWithEncoding(Charset charset) {
     if (!quitting) {
       documents.saveWithEncoding(charset);
+    }
+  }
+
+  /**
+   * Reports whether the windows show the main toolbar.
+   *
+   * @return {@code ui.toolbar}
+   */
+  public boolean toolbarShown() {
+    return settings.current().state().toolbar();
+  }
+
+  private void toggleToolbar() {
+    Preferences current = settings.current();
+    settings.set(current.withState(current.state().withToolbar(!toolbarShown())));
+  }
+
+  /**
+   * Opens the folder of a tab's file.
+   *
+   * @param tab the tab's input; a tab without a file does nothing
+   */
+  public void openContainingFolder(TabInput tab) {
+    Path path = documents.pathOf(tab);
+    Path folder = path == null ? null : path.toAbsolutePath().getParent();
+    if (!quitting && folder != null) {
+      help.openContainingFolder(folder);
     }
   }
 
@@ -1006,6 +1087,7 @@ public final class ApplicationController {
     workspace.dispose();
     history.dispose();
     compare.dispose();
+    print.dispose();
     documents.dispose();
   }
 

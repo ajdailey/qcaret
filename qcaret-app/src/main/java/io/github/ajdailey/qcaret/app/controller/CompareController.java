@@ -155,7 +155,7 @@ public final class CompareController {
                 } catch (IOException e) {
                   post(UiText.COMPARE_FAILED.format(name, LogText.oneLine(e.getMessage())));
                 } catch (CancellationException e) {
-                  // Disposed.
+                  // Canceled or disposed.
                 } finally {
                   if (!handedOn) {
                     end(token);
@@ -340,7 +340,7 @@ public final class CompareController {
                   built = Comparisons.build(leftTitle, left, rightTitle, right, token);
                 }
               } catch (CancellationException e) {
-                // Disposed.
+                // Canceled or disposed.
               } finally {
                 final Comparison comparison = built;
                 final String message = notice;
@@ -392,6 +392,13 @@ public final class CompareController {
    */
   int running() {
     return running.size();
+  }
+
+  /** Cancels the running comparisons, which show nothing; later ones run. */
+  void cancelRunning() {
+    for (CancellationToken token : running) {
+      token.cancel();
+    }
   }
 
   /** Cancels the running comparisons; none shows afterwards. */

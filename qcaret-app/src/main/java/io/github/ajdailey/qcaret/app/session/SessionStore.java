@@ -259,6 +259,7 @@ public final class SessionStore {
       list(keys, key + "expanded.", window.expanded(), MAX_EXPANDED);
       keys.put(key + "results", Boolean.toString(window.results()));
       put(keys, key + "dockWeights", window.dockWeights());
+      put(keys, key + "resultsWeights", window.resultsWeights());
       list(keys, key + "closed.", window.closed(), MAX_CLOSED);
       Session.Display display = window.display();
       keys.put(key + "wrap", Boolean.toString(display.wrap()));
@@ -266,6 +267,7 @@ public final class SessionStore {
       keys.put(key + "lineEndings", Boolean.toString(display.lineEndings()));
       keys.put(key + "overview", Boolean.toString(display.overview()));
       keys.put(key + "bookmarks", Boolean.toString(display.bookmarks()));
+      keys.put(key + "lineNumbers", Boolean.toString(display.lineNumbers()));
       for (int i = 0; i < Math.min(MAX_SEARCHES, window.searches().size()); i++) {
         search(keys, key + "search." + i + ".", window.searches().get(i));
       }
@@ -422,7 +424,9 @@ public final class SessionStore {
             flag(p, key + "whitespace"),
             flag(p, key + "lineEndings"),
             !"false".equals(p.getProperty(key + "overview", "true").strip()),
-            flag(p, key + "bookmarks")));
+            flag(p, key + "bookmarks"),
+            !"false".equals(p.getProperty(key + "lineNumbers", "true").strip())),
+        p.getProperty(key + "resultsWeights", ""));
   }
 
   private static Session.Tab tab(Properties p, String key, int maxComments) {

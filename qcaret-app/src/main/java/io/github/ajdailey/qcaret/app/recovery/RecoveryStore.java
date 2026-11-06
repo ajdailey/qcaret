@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.recovery;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
@@ -24,9 +25,11 @@ import org.slf4j.LoggerFactory;
 /**
  * The directories under {@code <settings>/recovery/}, one per instance, owner-only, each with an
  * {@code owner.lock} its instance holds through an OS lock for its life. The lock decides whether
- * an instance is alive; the presence of a directory says nothing. {@code <settings>/snapshot/}
- * holds the buffers of a quit with {@code session.snapshot} on. Every method blocks and runs on a
- * worker; the caller serializes them.
+ * an instance is alive; the presence of a directory says nothing. {@link SafePaths#holdLock} keeps
+ * a held {@code owner.lock} out of every open and save: a save replaces the file, the lock stays on
+ * the old one, and the next start lists a live instance's buffers as a crash's. {@code
+ * <settings>/snapshot/} holds the buffers of a quit with {@code session.snapshot} on. Every method
+ * blocks and runs on a worker; the caller serializes them.
  */
 public final class RecoveryStore {
   /** The recovery directory's name in the settings directory. */
@@ -86,7 +89,7 @@ public final class RecoveryStore {
     /** Releases the lock, then deletes the directory when no recovery file is left. */
     @Override
     public void close() {
-      release(lock);
+      release(directory, lock);
       try {
         if (recoveryFiles(directory).isEmpty()) {
           deleteDirectory(directory);
@@ -122,10 +125,17 @@ public final class RecoveryStore {
    */
   public void open() throws IOException {
     SafePaths.settingsDirectory(own);
-    lock = ProcessLock.tryAcquire(own.resolve(LOCK));
-    if (lock == null) {
+    ProcessLock taken = ProcessLock.tryAcquire(own.resolve(LOCK));
+    if (taken == null) {
       throw new IOException("Recovery directory is locked");
     }
+    try {
+      hold(own);
+    } catch (IOException e) {
+      release(own, taken);
+      throw e;
+    }
+    lock = taken;
   }
 
   /**
@@ -167,7 +177,7 @@ public final class RecoveryStore {
     if (lock == null) {
       return;
     }
-    release(lock);
+    release(own, lock);
     lock = null;
     if (!keep) {
       try {
@@ -218,6 +228,7 @@ public final class RecoveryStore {
       if (taken == null) {
         return null;
       }
+      hold(directory);
       List<Entry> entries = new ArrayList<Entry>();
       for (Path file : recoveryFiles(directory)) {
         if (Files.getLastModifiedTime(file).toMillis() < oldest) {
@@ -234,7 +245,7 @@ public final class RecoveryStore {
       return claim;
     } catch (IOException e) {
       LOG.warn("Cannot read a recovery directory: {}", LogText.oneLine(e.getMessage()));
-      release(taken);
+      release(directory, taken);
       return null;
     }
   }
@@ -286,7 +297,13 @@ public final class RecoveryStore {
     }
   }
 
-  private static void release(ProcessLock held) {
+  /** Keeps a directory's lock file out of every open and save while this process holds it. */
+  private static void hold(Path directory) throws IOException {
+    SafePaths.holdLock(directory.resolve(LOCK), UiText.RECOVERY_LOCK_REFUSED.text());
+  }
+
+  private static void release(Path directory, ProcessLock held) {
+    SafePaths.releaseLock(directory.resolve(LOCK));
     try {
       if (held != null) {
         held.close();

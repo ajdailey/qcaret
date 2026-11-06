@@ -12,7 +12,7 @@ Features:
 
 - Tabs with undo and redo, word wrap, split views, zoom, light and dark themes,
   a command palette and key bindings the Preferences dialog changes.
-- Multiple carets (Mod+click, or a key per row), column selection, line
+- Multiple carets and selections (Mod+click, Mod+drag, or a key per row), column selection, line
   commands, word completion, bracket matching, auto-close and smart indent.
 - Encoding detection and conversion, line-ending conversion, and a read-only
   view of binary files.
@@ -23,12 +23,15 @@ Features:
   restore.
 - Bookmarks with comments, Go Back and Go Forward, a workspace browser, Quick
   Open and side-by-side comparison.
+- Drag-and-drop opening, load progress with a cancel, Recently Closed, Reload
+  from Disk.
+- Printing with page ranges, copies, line numbers and syntax colors.
 - External change detection, sessions, crash recovery, several windows with
   tab moves, a single running instance and file associations.
 - An in-app user guide, written in `docs/user-guide.md`.
 
 Limits: a file must fit the heap and no file over 2 GiB opens
-([Large files](#large-files)); a change to the theme, the font size or a whole
+([Large files](#large-files)); a change to the theme, the font or a whole
 document's text blocks the window for about a second per million lines; GTK 4 is
 experimental and shows no in-app guide; the macOS bundles are not notarized.
 
@@ -277,7 +280,7 @@ they apply (measured on Linux under Xvfb, one million lines):
 
 | Operation | Time |
 |---|---|
-| Theme switch or font size change (View > Zoom): every open view's per-line state is reset | About 1 s per view; a split document has two |
+| Theme switch or font change (View > Zoom, Preferences): every open view's per-line state is reset | About 1 s per view; a split document has two |
 | Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the computed text replaces the document's (busy cursor) | Sort: 1.2-2.0 s for the apply, after the edit is computed on a worker; the others not measured |
 
 ## Network access
@@ -316,11 +319,16 @@ before the next save.
 | Key | Values | Default | Set from |
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
+| `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
 | `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Edit > Preferences, Editor |
 | `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
+| `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Edit > Preferences, Editor |
+| `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
+| `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
+| `ui.themeFile` | A file in `themes/` in the settings directory, without `.theme`; empty for the built-in colors | empty | Edit > Preferences, Appearance |
 | `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
 | `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
 | `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |
@@ -340,7 +348,8 @@ Every Preferences setting applies to the running window; none needs a restart.
 Saving writes only the keys that changed, over a fresh read of the file, so
 a second instance's newer values and hand-added keys stay. Keys another command
 holds are refused in the dialog; a conflict written by hand is logged and
-listed at the end of Help > Keyboard Shortcuts. Light and dark also set the
+listed at the end of Help > Keyboard Shortcuts. The user guide documents the
+theme file format. Light and dark also set the
 native controls' theme; Windows applies a change to native controls at the
 next start, and macOS native controls follow the system appearance.
 
@@ -349,7 +358,7 @@ next start, and macOS native controls follow the system appearance.
 A start without file arguments restores the last session from
 `qcaret_session.conf` in the settings directory: every window at its position,
 with its tabs, carets, scroll positions, splits, folds, bookmarks, read-only
-state, word wrap, whitespace and line-ending marks, overview strip, Bookmarks
+state, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks
 list, workspace and search dock with its requests, and Recent Files. A file that
 does not open is named and skipped. A `-m` instance never replaces the session,
 and neither does a launch that could not hand off to a running instance: it
@@ -371,7 +380,7 @@ is reported and kept.
 | `qcaret-bootstrap/` | Entry point of `qcaret.jar`: Java version check, target selection, SWT natives, nested-jar class loader |
 | `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer; no SWT, no logging dependency |
 | `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
-| `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the toolbar icon set (`src/icons/*.svg`), rendered to PNG at build time |
+| `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the main toolbar and its icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
 | `qcaret-dist/` | Universal jar, launchers, runtimes and archives; icons |
 | `qcaret-bench/` | Benchmarks; not shipped |

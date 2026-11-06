@@ -208,6 +208,23 @@ public final class FileMonitor implements AutoCloseable {
     }
   }
 
+  /**
+   * Holds the monitor's thread; a listener calls this while it waits for a file to go quiet.
+   *
+   * @param millis how long
+   * @return false when the thread was interrupted, with the flag kept
+   */
+  @WorkerThread
+  public boolean pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
+    return true;
+  }
+
   /** Stops the thread within one slice; later calls to {@link #watch} do nothing. */
   @Override
   public void close() {

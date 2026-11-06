@@ -225,8 +225,8 @@ class LauncherProcessTest {
         primary.send();
         assertEquals(Launcher.Handoff.PRIMARY.name(), primary.await(LaunchMain.OUTCOME));
         primary.send(LaunchMain.READ.strip());
-        // instance.lock, instance.endpoint and recovery/live/owner.lock.
-        assertEquals("3", primary.await(LaunchMain.READ));
+        // instance.lock, instance.endpoint, and owner.lock and a mock buffer in recovery/live.
+        assertEquals("4", primary.await(LaunchMain.READ));
         assertEquals("", second.await(LaunchMain.READY));
         second.send();
         assertEquals(Launcher.Handoff.HANDED.name(), second.await(LaunchMain.OUTCOME));
@@ -234,6 +234,55 @@ class LauncherProcessTest {
         assertEquals("1", primary.await(LaunchMain.RECEIVED));
       } finally {
         second.end();
+        primary.end();
+      }
+    }
+  }
+
+  /** A save over the lock file would move the name to a new file the next launch can lock. */
+  @Test
+  void aPrimaryRefusesToSaveOverItsLockAndASecondLaunchIsHanded() throws Exception {
+    try (Workers workers = new Workers(1, new Launcher.FailureLogger())) {
+      Child primary = new Child(temp, workers);
+      Child second = new Child(temp, workers);
+      try {
+        assertEquals("", primary.await(LaunchMain.READY));
+        primary.send();
+        assertEquals(Launcher.Handoff.PRIMARY.name(), primary.await(LaunchMain.OUTCOME));
+        primary.send(LaunchMain.SAVE.strip());
+        assertEquals(LaunchMain.REFUSED, primary.await(LaunchMain.SAVE));
+        assertEquals("", second.await(LaunchMain.READY));
+        second.send();
+        assertEquals(Launcher.Handoff.HANDED.name(), second.await(LaunchMain.OUTCOME));
+        primary.send();
+        assertEquals("1", primary.await(LaunchMain.RECEIVED));
+      } finally {
+        second.end();
+        primary.end();
+      }
+    }
+  }
+
+  /** A save over {@code owner.lock} would free it, and a second start claims live buffers. */
+  @Test
+  void aPrimaryRefusesToSaveOverItsRecoveryLockAndASecondStartClaimsNothing() throws Exception {
+    try (Workers workers = new Workers(1, new Launcher.FailureLogger())) {
+      Child primary = new Child(temp, workers);
+      try {
+        assertEquals("", primary.await(LaunchMain.READY));
+        primary.send();
+        assertEquals(Launcher.Handoff.PRIMARY.name(), primary.await(LaunchMain.OUTCOME));
+        primary.send(LaunchMain.SAVE_OWNER.strip());
+        assertEquals(LaunchMain.REFUSED, primary.await(LaunchMain.SAVE_OWNER));
+        Child second = new Child(temp, workers, LaunchMain.CLAIM.strip());
+        try {
+          assertEquals("0", second.await(LaunchMain.CLAIM));
+        } finally {
+          second.end();
+        }
+        primary.send();
+        assertEquals("0", primary.await(LaunchMain.RECEIVED));
+      } finally {
         primary.end();
       }
     }

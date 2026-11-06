@@ -25,6 +25,7 @@ import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -224,6 +225,44 @@ class ExternalChangeTest {
     idle();
     assertEquals("mine one\n", Files.readString(file));
     assertFalse(document.isDirty());
+  }
+
+  /** A file that never holds still is reported anyway, once the waits run out. */
+  @Test
+  void aFileThatKeepsChangingIsStillReported() throws Exception {
+    final Path file = write("a.txt", "one\n");
+    final Document document = open(file);
+    final AtomicBoolean writing = new AtomicBoolean(true);
+    workers.start(
+        Workers.Kind.IO,
+        new Runnable() {
+          @Override
+          public void run() {
+            int line = 0;
+            while (writing.get()) {
+              try {
+                Files.writeString(file, "line " + line++ + "\n", StandardCharsets.UTF_8);
+                Thread.sleep(ExternalChanges.QUIET_MILLIS / 4);
+              } catch (IOException | InterruptedException e) {
+                return;
+              }
+            }
+          }
+        });
+    try {
+      documents.checkFiles();
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return document.text().toString().startsWith("line ");
+            }
+          },
+          "reloaded while the file changes");
+    } finally {
+      writing.set(false);
+    }
+    idle();
   }
 
   @Test

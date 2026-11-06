@@ -11,7 +11,8 @@ results dock and the replace windows.
 `MainWindow` holds the menu bar, a horizontal `SashForm` with the workspace
 browser left of a vertical `SashForm`, which holds a `CTabFolder` (one
 tab per document) over a horizontal `SashForm` holding the HyperSearch results
-dock and the Bookmarks list dock side by side, the find bar and a status bar.
+dock and the Bookmarks list dock side by side, the find bar, the `ProgressRow` rows
+and a status bar.
 A hidden dock is an invisible control the sash leaves out; with both hidden
 the folder is maximized, and with the browser hidden the vertical sash is. A
 tab's control is a
@@ -45,9 +46,11 @@ common charsets from the start, and an Other cascade disabled until
 `EncodingChoices` arrives from a worker, filled again when a keymap change
 rebuilds the menus. The
 Window menu lists the windows, when there are several, and the open documents,
-and File > Recent Files the recent
-files above Clear Recent Files, each rebuilt when its menu shows; a path's
-`&` is doubled. A Display key
+File > Recent Files the recent
+files above Clear Recent Files and File > Recently Closed the closed files above
+Clear Recently Closed, each rebuilt when its menu shows; a path's
+`&` is doubled. Reopen with Encoding starts with Automatic Detection, which
+calls `ApplicationController.reopenWithDetection`. A Display key
 filter runs window bindings that are not accelerators (Ctrl plus keypad +),
 when enabled.
 
@@ -114,11 +117,36 @@ UI turn; further changes before it share that read. `BusyCounter` shows
 
 `setFontSize` creates the new editor font, calls `EditorPane.setFont` on every
 editor and disposes the old font. The widgets, the menu bar and the focus stay;
-nothing is rebuilt.
+nothing is rebuilt. `setFontFamily` does the same and also moves open comparison
+windows, text windows and the replace preview to the family; text windows and
+the preview keep the default size. `EditorFonts.family` resolves the saved
+family on the UI thread: one that `Display.getFontList` does not hold, or whose
+`i` and `W` measure differently, gives way to `Dialogs.monospaceName` with one
+WARN per window, and the saved value stays. The Appearance tab adds a saved
+family the scan lacks to its list, so OK does not drop it.
 
+- `MainToolBar` is a fixed row under the menu bar, shown unless `ui.toolbar`
+  is false: New, Open, Save, Save All, Undo, Redo, Cut, Copy, Paste, Find,
+  Replace, HyperSearch, Zoom In, Zoom Out. Each button runs its command through
+  `ApplicationController.execute`, syncs enablement from `CommandStates` with
+  the menu bar, `EDIT_STATE` on each status read, coalesced with the status
+  bar, and shows the command and its keys as the tool tip. A click that
+  left the focus on the bar returns it to the editor. The GTK window's minimum
+  width is the menu bar's (437 px measured); the toolbar prefers 441 px there,
+  and below its width GTK moves the last buttons behind an overflow arrow. Every
+  button's command is also in a menu.
+- `EditorMenu` is the context menu of the text views: one popup per window, built
+  on its first show (building one per view stalled a file open under GTK 4 in
+  QLogg) and again after a key change. `SWT.MenuDetect` on each view's
+  `StyledText` makes that view the tab's focused view; a pointer request calls
+  `EditorInput.menuFromView`, a keyboard request opens below the caret and moves
+  nothing. An item runs through that view's `EditorInput.execute`, so in a split
+  it acts on the view clicked. The popup holds the view weakly, so it does not
+  keep a closed document.
 - One context menu serves every tab: each right click disposes its items and
-  adds Close, Close Others, Close All, Copy Path and Copy File Name for that
-  tab, enabled from `CommandStates.tabItems`. A tab's close button and a
+  adds Close, Close Others, Close to the Left, Close to the Right, Close All,
+  Move to New Window, Copy Path, Copy File Name and Open Containing Folder for
+  that tab, enabled from `CommandStates.tabItems`. A tab's close button and a
   middle click ask the `DocumentController` to close it. Dragging a tab within the strip moves it: an item cannot change
   position, so the move disposes and recreates it, and the `Selection` that
   `CTabFolder` sends for a neighbor while the selected item is disposed is
@@ -213,10 +241,40 @@ Dialogs (`Dialogs`, `ErrorDialog`, `AboutDialog`, `TextWindow`) open without a
 nested event loop: `open` returns at once and buttons act through listeners.
 `showText` and `showLog` open their window modal and owned by the innermost
 visible modal dialog when one is open, because GTK gives input only to the newest modal
-shell; Licenses opened from About therefore stays usable. Three calls do run a
+shell; Licenses opened from About therefore stays usable. Four calls do run a
 nested event loop, so code around them must tolerate re-entrant events:
-`FileDialog.open`, `ColorDialog.open`, and `Clipboard.getContents` on GTK,
-which `MainWindow.clipboardText` uses.
+`FileDialog.open`, `ColorDialog.open`, `PrintDialog.open`, and
+`Clipboard.getContents` on GTK, which `MainWindow.clipboardText` uses.
+
+### Printing
+
+`MainWindow.choosePrinter` opens `PrintDialog` and creates the `Printer` on the
+UI thread; `PrintJob` does the rest on the job's worker. A `ProgressRow` shows the
+progress and Cancel above the status bar. It takes no Esc, since the window
+stays usable.
+
+| Call | Thread | Reason |
+|---|---|---|
+| `PrintDialog.open`, `new Printer` | UI | GTK's constructor runs `gtk_enumerate_printers` with a main loop on the default context and uses static fields; macOS's creates an `NSWindow` |
+| `startJob`, `GC`, fonts, drawing, `endJob`, `cancelJob` | One platform worker | SWT checks the thread on widgets, not on a `Device` or its `GC`. macOS sets the graphics context per thread in `startJob`, and Pango's font map is per thread, so a virtual thread would be wrong |
+| `Printer.dispose` | UI, or the worker when the Display is gone | The object was created there |
+
+On GTK, `endJob` queues the spool file; the event loop delivers it, so a quit
+straight after a job can lose it, and a delivery error reaches no notice.
+
+`PrintJob` draws from the `PrintTarget.Page` rows at 10 points in the editor
+font's family, placing each span at its column times the measured advance, with
+0.75 inch margins from the paper's edge (`computeTrim`). Colors are
+`Palette.LIGHT` on white whatever the window's theme; plain text and the header
+are black. A device depth of 1 prints all black. GTK reports depth 0 and macOS
+the screen's depth, so there the print system converts color for a monochrome
+printer.
+
+Copies stay with the print system: the `PrinterData` passes unchanged to the
+`Printer` (GTK's CUPS backend sends `cups-copies`; Windows has them in the
+DEVMODE; macOS in the print info). QCaret does not loop, which would multiply
+them. GTK's Print to File writes one copy. The page range is applied by
+`PrintController`; GTK does not also pass it to CUPS for a `GtkPrintJob`.
 
 ### User guide
 
@@ -271,19 +329,26 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   Alt+drag, and Ctrl+Alt+drag where the window manager takes Alt+drag, select
   a block; Alt+Shift+click and drag extend it; in column selection mode a
   plain drag selects a block; Mod+click adds a caret or removes the one
-  clicked. The press fixes the block's anchor as a line and column, and each
+  clicked, and a drag from that press adds a selection to the ones from before
+  it (`addSelectionFromView`), once the pointer leaves the pressed offset. The
+  press fixes the block's anchor as a line and column, and each
   drag step extends from it, so a horizontal scroll during the drag keeps the
-  anchor. A block drag held above, below, left or right of the text area
-  extends the block toward the pointer every 50 ms from a
-  `UiDispatcher.timerExec` timer, and the controller scrolls to the block's
-  caret. Release, focus loss and dispose cancel the timer (`cancelTimer`).
+  anchor. A block or Mod+drag held above, below, left or right of the text
+  area extends toward the pointer every 50 ms from a
+  `UiDispatcher.timerExec` timer, and the controller scrolls to the caret. Release, focus loss and dispose cancel the timer (`cancelTimer`).
 - `EditorLayout` is the pane's `ViewLayout`. A printable ASCII row without
   tabs maps x to a column at the font's fractional advance from the row's
-  left edge; any other row uses the widget's measured glyph positions.
-  Past a row's end columns continue at the fractional advance.
+  left edge, while the row's measured width stays within half a column of
+  that advance; any other row uses the widget's measured glyph positions. A
+  family's bold or italic face can be wider than its regular face, which is
+  the advance `ColumnMetrics` measures. Past a row's end columns continue at
+  the fractional advance.
 - The gutter is painted in the widget's left margin by a paint listener, with
   the line number on each line's first row; `ColumnMetrics` places the digits
-  and sizes the margin. A two-column fold marker column right of the numbers
+  and sizes the margin. `MainWindow.setLineNumbersShown` reaches every pane and
+  the constructor of later ones, since a margin change on a loaded document
+  costs O(rows); hidden numbers take their width with them, and the bookmark and
+  fold columns stay. A two-column fold marker column right of the numbers
   shows a box with a minus on each line that starts a fold region, a plus
   while it is collapsed; `EditorGestures` takes a click there from the
   Display filter and sends `toggleFoldFromView`, so the widget's caret stays.
@@ -375,13 +440,13 @@ have one strip each.
 ## Themes
 
 `SwtThemeService` reports `Display.isSystemDarkTheme` with a change event from
-`SWT.Settings`, and sets native controls' theme:
+`SWT.Settings`, polled every second on cocoa, and sets native controls' theme:
 
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
 | GTK | `setDarkThemePreferred` before the first Shell for light and dark, and at every switch | Applies at once. The system setting is read once at Display creation, so a desktop change applies at the next start |
 | win32 | `setDarkThemePreferred` before the first Shell; controls read it only when created | Native controls change at the next start; `showsNow` is false and the controller shows a notice. Buttons, combo lists and checkboxes stay light |
-| cocoa | Never set: always the system appearance | Only the text view recolors |
+| cocoa | Never set: always the system appearance | Only the text view and tab strip recolor; a system appearance change recolors the rest through `CocoaChrome` |
 
 DO NOT PIN THE COCOA APPEARANCE, live or at startup. Cocoa SWT reads its
 widget colors once, under the system appearance; an application appearance
@@ -389,11 +454,40 @@ that differs draws text in its own appearance over those backgrounds, white on
 light gray or black on dark gray. Both a live `setDarkThemePreferred` and a
 startup Display replacement failed this way.
 
+GTK SWT refreshes its system colors, repaints every shell and sends
+`SWT.Settings` on the first `Display.sleep` after a theme change, so a loop that
+never sleeps keeps the startup colors: status bar 250 with light text and a
+stale `getBackground` (measured under Xvfb, Adwaita). `Gui`'s loop sleeps when
+idle. A `Link` keeps the color of its creation through that refresh, so
+`SwtThemeService` sets each link's color on `SWT.Settings`.
+
+Under a dark startup setting win32 draws check box labels near-white while
+dialog pages stay light, so every check box comes from `SwtThemeService.check`,
+which creates it with the theme off. A `MenuItem` or `Table` with `SWT.CHECK`
+has no such label and does not use it.
+
+cocoa SWT sends no `SWT.Settings` for an appearance change and keeps its startup
+colors (measured on macOS 15 in QLogg). While the appearance differs from the
+startup one, `CocoaChrome` sets each shell's, table's, tree's, list's and
+field's colors to the current appearance, at the change, at `SWT.Show` of a
+shell and at `SWT.Skin` of a new control, since the docks replace their tables
+while open. It follows the system appearance, not `ui.theme`. A control with
+`EditorPane.PALETTE_COLORED` keeps its colors: the editor and compare
+`StyledText` and the tab strip, which the palette owns and nothing would restore.
+`ReplaceDialog` marks its computing note with a style range, because
+`setForeground(null)` returns a field to the startup color.
+
 `MainWindow` applies a palette to the `StyledText` colors and the tab strip, then
 re-inks its `ToolIcons` on the next UI turn, after native controls have restyled.
 `ToolIcons` picks dark or light ink from the owner control's background
 luminance, not from the palette, and `reink` swaps every applied item's image
-when that changes; it also listens to `SWT.Settings`. About picks its logo the
+when that changes; it also listens to `SWT.Settings`, from the Display or from
+`CocoaChrome` on the owner. On GTK `getBackground` is stale until that event,
+and `MainWindow`'s `reink` runs on the turn before it, so `reink` reads a pixel of
+the visible owner through `Control.print`; a hidden toolbar re-inks when it
+shows. GTK's disabled effect brightens an icon on a dark
+background (measured 212 to 225 on Adwaita dark), so there `showState` gives a
+disabled item a copy at 40% opacity. About picks its logo the
 same way from the dialog background (`MainWindow.logoVariant`): native chrome
 can differ from the palette on cocoa and on win32 before a restart.
 
@@ -420,7 +514,29 @@ last and are left out of the menu bar; Hide, Hide Others and Show All stay nativ
 Display `SWT.Close`, which is vetoed and runs `WindowSet.requestQuit`, so the
 unsaved-changes prompts of every window and the ordered quit always run. A file
 opened with QCaret (Open With, a Dock drop) arrives as `SWT.OpenDocument` and
-goes to `WindowSet.openFile`. All of it is unverified on cocoa. Elsewhere there is no application menu and `hook` does nothing.
+goes to `WindowSet.openFile`; a null or empty name opens nothing, and a name that does not parse logs a warning, since an exception there reaches the event loop. Quit with no target window runs `requestQuit`. All of it is unverified on cocoa. Elsewhere there is no application menu and `hook` does nothing.
+
+## File drop and the load row
+
+`MainWindow.acceptDroppedFiles` makes the shell a `DropTarget` for
+`FileTransfer` only, so a drag offering no file is never accepted; the
+platforms pass a drop over a child to the nearest target above it. Every drop
+is a copy, also after the user changes the operation mid-drag: accepting a move
+has the source delete the file. `dropped` parses the names and calls
+`ApplicationController.openDropped`; a name that does not parse shows the open
+failure and the rest open. The editor has no `DragSource`: a drag in the text
+selects. Measured on GTK 3 with a real XDND source in another process: a drop
+over an empty window and over the `StyledText` opens a tab with a copy, and a
+text drag is refused. Under `SWT_GTK4=1` a drop reaches no target. Unverified on
+win32 and cocoa.
+
+A `ProgressRow` shows what `DocumentsView.showLoadProgress` passes, above the status
+bar, and takes no room while hidden. While it shows, a Display `KeyDown` filter
+sends Esc from any control of the shell to the cancel and consumes it, which
+covers a window with no tab and keeps Esc from also dropping carets.
+
+The window title is `CommandStates.windowTitle`, set with the status fields on
+the UI turn after a state change.
 
 ## Icons
 
@@ -428,9 +544,40 @@ The application icon PNGs under `src/main/resources/.../icons/` are rendered
 from `qcaret-dist/src/icons/*.svg` by `tools/icons.sh` and committed. The tool
 icons are SVG in `src/icons/` (`currentColor` strokes); `src/build/IconRenderer`
 renders each at 16 and 32 px in dark and light ink at `generate-resources`,
-with jsvg, which is a build-only dependency.
+with jsvg, which is a build-only dependency. Every icon carries the same root
+element (16 px grid, 1.4 stroke, round caps and joins, no fill) and no child
+overrides it; `MenuIconsTest` fails on a difference.
+
+`MenuIcons.icon` maps a command to its icon, for the toolbar and the menus.
+`MenuIcons.decorate` shows the icons on the push items of the menu bar and the
+editor menu, through a `ToolIcons` of the window's own.
+
+| Platform | Item image | Ink | Items without an icon |
+|---|---|---|---|
+| GTK 3 | `MenuItem.setImage` | Same reading as the toolbar, live switch included | Hold `ToolIcons.blank` in a menu with an icon, because GTK 3 SWT reserves no image column and the label would move 22 px |
+| GTK 4 | SWT ignores `setImage` | - | - |
+| win32 | `MenuItem.setImage` | Fixed from `SwtThemeService.nativeDark`: menus take the startup setting, and the toolbar stays light under a dark one | Bare; the system reserves the column |
+| cocoa | None; the application menu stays native | - | - |
+
+A disabled GTK menu item shows SWT's disabled copy of its image, which keeps the
+alpha and raises ink 212 to 225. On a dark background `ToolIcons.showState` gives
+it the faded image, so it draws at 107 on the menu's 29; `MainMenuBar` and
+`EditorMenu` call it after changing an item. Check, radio, cascade and listing
+items show no icon: GTK draws a check item's image beside the indicator, and on
+Windows 11 SWT draws it in the indicator's place. The tab menu is rebuilt on each show and carries none.
 
 ## Tests
+
+`DocumentBehaviorSurfaceTest` checks the drop target's one transfer, `dropped`
+over an open editor and with a name that does not parse, the load row with Esc
+and Cancel, the title, Mod+drag and the small move of a Mod+click, the docks'
+weights, Recently Closed, Automatic Detection, the tab width and reload prompts
+and `AppMenu.open`'s guards. A real drag is not simulated there.
+`PrintOutputTest` prints through a real window and `Printer` to a PDF and reads
+it back with PDFBox: page count, header, every line, wrap, a range, a selection,
+copies, Cancel. It supplies the dialog's answer through
+`MainWindow.setPrinterChooser` and uses only GTK's Print to File or a Windows
+printer named PDF, never a physical printer; it skips when neither exists.
 
 `TabMoveGuiTest` drives the menu items and tab drags over real shells, with a
 `PointerProbe` naming the control under the release; `-Dqcaret.shots=<dir>`
@@ -455,12 +602,29 @@ images from generated mock files.
 window, with the top line of a tab shown later and a fold in one view. With
 `-Dqcaret.screenshots=<dir>` it captures both.
 
+`TabColorsGuiTest` reads the tab strip's screen pixels through `GC.copyArea` in
+light, dark, light and dark, light, dark order, with focus outside and inside
+the folder, and requires contrast of at least 4.5 and a strip of the theme's
+lightness. On GTK the status bar and its Warnings link take the same check and
+the About logo must match the theme. A probe child of a known color checks that a screen read shows the
+window: the `windows-11-arm` runner's desktop lies under a first-run page. When
+it does not, win32 reads through `Control.print` and other platforms fail. It
+skips on GTK 4, where `GC.copyArea` from the Display reads white.
+
 `PreferencesSurfaceTest` drives the dialog on a real window: a refused field
 keeps it open on its tab, Restore Defaults applies nothing, the Keys tab refuses
 a typing or taken key and a free one reaches the menu item's accelerator, Clear
 History's prompt declines and clears with an open find bar following, a theme
 switch leaves it working, and a new size is remembered. With
 `-Dqcaret.screenshots=<dir>` it captures each group.
+
+`FontFamilyTest` (tag `swt`) takes installed families from the scan: bold keyword
+rows keep every column in two families, the gutter follows the advance, a missing
+or proportional family falls back, the family and the zoom keep each other, an
+open log window follows, and the Appearance tab lists, applies and restores a
+theme file and a family. Its two-family cases skip on a host with fewer. Every
+family measured on the Linux host has equal regular and bold advances, so
+`EditorLayoutGridTest` forces a row off the grid to reach the measured path.
 
 `MainWindowTest` (tag `swt`) checks the requested client size and position
 under X11, clamping to the work area, close requests and the dispatcher after
@@ -475,9 +639,21 @@ measured position and of gutter ink. The pixel check skips when
 `Control.print` returns false. `ThemeAndDialogsTest` (tag `swt`) switches the theme from the View
 menu, re-inks tool icons on a dark background, checks `showsNow` per
 platform, the About logo by background, a text window over a modal dialog,
-Licenses over About, and the menu bar without an application menu.
-`ShellWindowTest` (tag `swt`) checks that opening and closing documents
-enable and disable Save, Undo and Next Tab with no menu shown; the Other
+Licenses over About, and the menu bar without an application menu. It also
+drives `CocoaChrome` on any platform: control colors follow an appearance
+change, palette-colored controls keep theirs, a control created during a change
+is colored, and `refresh` reports one change once.
+`ToolbarAndMenusTest` (tag `swt`) checks the toolbar's order, icons and tool
+tips, its buttons against `CommandStates`, View > Toolbar with the choice in the
+settings file, a live theme switch's ink and faded buttons, a narrow window;
+posted Ctrl+X, Ctrl+V, Ctrl+C and Ctrl+Z in the find field with the items
+disabled and Ctrl+C in a read-only view, on GTK 3; the editor menu's selection rule, keyboard request, commands, split-view target and
+key change; the tab menu's side closes; and View > Line Numbers in existing and
+later views, and the menu items' icons with a theme switch both ways. No test
+opens a popup under a pump: a win32 popup would block. `MenuIconsTest` (tag `swt`)
+checks the command-to-icon table, both inks at both sizes, the shared root
+element, and `MenuIcons` per platform. `ShellWindowTest` (tag `swt`) checks that opening and closing documents
+enable and disable Save, Paste and Next Tab with no menu shown; the Other
 encoding cascades filled once; one tab menu reused across tabs and after a
 drag, with the dragged document still shown; a font change that keeps the
 `StyledText`, the menu bar and the focus; the status fields; the warning
@@ -566,7 +742,8 @@ cancel after dispose does nothing. `CaretInkTest` checks the caret image color
 under each operator for both palettes. `ResourceLeakTest` (tag `swt`) runs
 `DeviceData.tracking` over two
 warm-up rounds (the second adds one cached `StyledText` line layout) and four
-rounds of tab open and close, the tab menu, both
+rounds of tab open and close, the tab menu, the editor menu, the toolbar and
+the line numbers hidden and shown, both
 themes, zoom, Preferences through a theme switch, split with Fold All and Unfold All in both views and the find
 bar searching and closed, unsplit, the command palette, the completion list
 with the whitespace and line-ending marks on, a HyperSearch from its dialog

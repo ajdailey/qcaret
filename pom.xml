@@ -77,6 +77,8 @@
         <!-- Build only: renders the qcaret-ui-swt SVG icons to PNG; not shipped. -->
         <jsvg.version>2.2.0</jsvg.version>
         <junit-bom.version>6.1.3</junit-bom.version>
+        <!-- Tests only: reads the PDF a print test writes; not shipped. -->
+        <pdfbox.version>3.0.8</pdfbox.version>
         <!-- slf4j-api and slf4j-jdk14; 2.1.0-alpha1 is a pre-release. -->
         <slf4j.version>2.0.20</slf4j.version>
         <swt.version>3.135.0</swt.version>
@@ -144,6 +146,11 @@
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit</artifactId>
                 <version>${archunit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>${pdfbox.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.openjdk.jmh</groupId>

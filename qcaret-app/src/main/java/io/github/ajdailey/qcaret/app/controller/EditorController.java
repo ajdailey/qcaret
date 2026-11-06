@@ -164,7 +164,8 @@ public final class EditorController implements EditorInput {
    * @param clipboard the system clipboard
    * @param workers runs rewraps
    * @param ui receives rewrap results
-   * @param cancelSave cancels a running save of the document, for {@link #cancel}
+   * @param cancelSave cancels a running save of the document and a running comparison, for {@link
+   *     #cancel}
    */
   public EditorController(
       DisplayProjection projection,
@@ -832,6 +833,25 @@ public final class EditorController implements EditorInput {
     copySelections();
   }
 
+  /**
+   * Reports whether a selection holds text for Copy and Cut. Walks the carets, never the text, so a
+   * block wider than a short line counts.
+   *
+   * @return true when a selection is not empty
+   */
+  public boolean hasSelection() {
+    BlockSelection block = selections.block();
+    if (block != null) {
+      return block.anchorColumn() != block.caretColumn();
+    }
+    for (Selection s : selections.selections().selections()) {
+      if (!s.isEmpty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Override
   public void paste() {
     String text = clipboard.clipboardText();
@@ -878,6 +898,9 @@ public final class EditorController implements EditorInput {
   @Override
   public void cancel() {
     cancelSave.run();
+    if (lineWork != null) {
+      lineWork.cancel();
+    }
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
       selections.set(SelectionSet.of(List.of(set.primary()), 0));
@@ -915,6 +938,17 @@ public final class EditorController implements EditorInput {
     if (!set.equals(selections.selections()) || selections.block() != null) {
       selections.set(set);
     }
+  }
+
+  @Override
+  public void menuFromView(int offset) {
+    int at = projection.toModel(offset);
+    for (Selection s : selections.selections().selections()) {
+      if (!s.isEmpty() && s.start() <= at && at <= s.end()) {
+        return;
+      }
+    }
+    selectFromView(offset, offset);
   }
 
   @Override
@@ -973,6 +1007,7 @@ public final class EditorController implements EditorInput {
   public void toggleCaretFromView(int offset) {
     int at = projection.toModel(offset);
     SelectionSet set = selections.selections();
+    beforeToggle = set;
     List<Selection> list = new ArrayList<Selection>(set.selections());
     for (int i = 0; i < list.size(); i++) {
       Selection s = list.get(i);
@@ -986,6 +1021,17 @@ public final class EditorController implements EditorInput {
     }
     list.add(Selection.caret(at));
     selections.set(SelectionSet.of(list, list.size() - 1));
+  }
+
+  @Override
+  public void addSelectionFromView(int anchor, int caret) {
+    if (beforeToggle == null) {
+      return;
+    }
+    List<Selection> list = new ArrayList<Selection>(beforeToggle.selections());
+    list.add(Selection.of(projection.toModel(anchor), projection.toModel(caret)));
+    selections.set(SelectionSet.of(list, list.size() - 1));
+    showCaret();
   }
 
   // Input method composition.
@@ -1632,6 +1678,10 @@ public final class EditorController implements EditorInput {
   private boolean marksLineEndings;
   private boolean highlightPending;
   private CancellationToken lineWork;
+
+  /** The selections before the last Mod+press, which a drag from there adds to. */
+  private SelectionSet beforeToggle;
+
   private CancellationToken bracketSearch;
   private CancellationToken occurrenceSearch;
   private String occurrenceKey;
@@ -1840,7 +1890,7 @@ public final class EditorController implements EditorInput {
               try {
                 edit = lineEdit(command, text, set, token);
               } catch (CancellationException e) {
-                // Replaced by a newer transform, or the view closed.
+                // Esc, a newer transform, or the view closed.
               } finally {
                 final Edit result = edit;
                 ui.asyncExec(
@@ -1883,7 +1933,7 @@ public final class EditorController implements EditorInput {
     }
     lineWork = null;
     try {
-      applyLines(revision, set, edit);
+      applyLines(revision, set, edit, token.isCanceled());
     } finally {
       if (view != null) {
         view.setBusy(false);
@@ -1891,8 +1941,8 @@ public final class EditorController implements EditorInput {
     }
   }
 
-  private void applyLines(long revision, SelectionSet set, Edit edit) {
-    if (disposed || edit == null || document.isReadOnly()) {
+  private void applyLines(long revision, SelectionSet set, Edit edit, boolean canceled) {
+    if (disposed || edit == null || document.isReadOnly() || canceled) {
       return;
     }
     if (document.revision() != revision) {

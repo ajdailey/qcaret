@@ -33,6 +33,20 @@ public interface SessionView {
   void setDockWeights(int[] weights);
 
   /**
+   * Returns the weights of the results and Bookmarks docks.
+   *
+   * @return two positive weights
+   */
+  int[] resultsWeights();
+
+  /**
+   * Sets the weights of the results and Bookmarks docks.
+   *
+   * @param weights two positive weights
+   */
+  void setResultsWeights(int[] weights);
+
+  /**
    * Returns the workspace browser's expanded rows.
    *
    * @return the directories, parents first

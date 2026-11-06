@@ -10,6 +10,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param completionChars word chars typed before completion opens
  * @param autoClose the Auto-Close box
  * @param maxHighlightLineChars the longest line colored
+ * @param tabWidth columns per tab stop of a document without saved state
+ * @param insertSpaces the box making such a document indent with spaces
  * @param pollSeconds seconds between file checks
  * @param autoReloadClean the Reload box
  * @param recoveryIntervalSeconds seconds between recovery file writes
@@ -21,11 +23,15 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param theme the theme
  * @param fontSize the editor font size in points; blank for the platform's default
  * @param shortcuts the keys set in place of the defaults
+ * @param themeFile the theme file's name; empty for the built-in colors
+ * @param fontFamily the editor font family; empty for the platform's monospace font
  */
 public record PreferencesForm(
     String completionChars,
     boolean autoClose,
     String maxHighlightLineChars,
+    String tabWidth,
+    boolean insertSpaces,
     String pollSeconds,
     boolean autoReloadClean,
     String recoveryIntervalSeconds,
@@ -36,7 +42,9 @@ public record PreferencesForm(
     String excludedDirectories,
     ThemeMode theme,
     String fontSize,
-    ShortcutOverrides shortcuts) {
+    ShortcutOverrides shortcuts,
+    String themeFile,
+    String fontFamily) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

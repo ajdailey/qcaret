@@ -18,7 +18,10 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
@@ -29,7 +32,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +99,8 @@ class PreferencesControllerTest {
         field.equals("completion") ? value : f.completionChars(),
         f.autoClose(),
         field.equals("highlight") ? value : f.maxHighlightLineChars(),
+        f.tabWidth(),
+        f.insertSpaces(),
         field.equals("poll") ? value : f.pollSeconds(),
         f.autoReloadClean(),
         field.equals("recoverySeconds") ? value : f.recoveryIntervalSeconds(),
@@ -104,7 +111,61 @@ class PreferencesControllerTest {
         field.equals("excluded") ? value : f.excludedDirectories(),
         f.theme(),
         field.equals("font") ? value : f.fontSize(),
-        f.shortcuts());
+        f.shortcuts(),
+        field.equals("themeFile") ? value : f.themeFile(),
+        field.equals("fontFamily") ? value : f.fontFamily());
+  }
+
+  @Test
+  void theTabWidthDefaultIsCheckedAndApplied() throws Exception {
+    PreferencesInput input = input();
+    PreferencesForm f = input.form();
+    assertEquals("4", f.tabWidth());
+    PreferencesForm.Problem refused =
+        input.apply(
+            new PreferencesForm(
+                f.completionChars(),
+                f.autoClose(),
+                f.maxHighlightLineChars(),
+                "17",
+                f.insertSpaces(),
+                f.pollSeconds(),
+                f.autoReloadClean(),
+                f.recoveryIntervalSeconds(),
+                f.recoveryKeepDays(),
+                f.sessionSnapshot(),
+                f.backupDays(),
+                f.searchMaxLineChars(),
+                f.excludedDirectories(),
+                f.theme(),
+                f.fontSize(),
+                f.shortcuts(),
+                f.themeFile(),
+                f.fontFamily()));
+    assertEquals(PreferencesForm.Group.EDITOR, refused.group());
+    assertNull(
+        input.apply(
+            new PreferencesForm(
+                f.completionChars(),
+                f.autoClose(),
+                f.maxHighlightLineChars(),
+                "2",
+                true,
+                f.pollSeconds(),
+                f.autoReloadClean(),
+                f.recoveryIntervalSeconds(),
+                f.recoveryKeepDays(),
+                f.sessionSnapshot(),
+                f.backupDays(),
+                f.searchMaxLineChars(),
+                f.excludedDirectories(),
+                f.theme(),
+                f.fontSize(),
+                f.shortcuts(),
+                f.themeFile(),
+                f.fontFamily())));
+    assertEquals(2, harness.application.preferences().options().tabWidth());
+    assertTrue(harness.application.preferences().options().insertSpaces());
   }
 
   @Test
@@ -182,6 +243,8 @@ class PreferencesControllerTest {
                 f.completionChars(),
                 f.autoClose(),
                 f.maxHighlightLineChars(),
+                f.tabWidth(),
+                f.insertSpaces(),
                 f.pollSeconds(),
                 f.autoReloadClean(),
                 f.recoveryIntervalSeconds(),
@@ -192,7 +255,9 @@ class PreferencesControllerTest {
                 f.excludedDirectories(),
                 ThemeMode.DARK,
                 f.fontSize(),
-                f.shortcuts())));
+                f.shortcuts(),
+                f.themeFile(),
+                f.fontFamily())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -211,6 +276,67 @@ class PreferencesControllerTest {
   }
 
   @Test
+  void aThemeFileAppliesAtOnceAndAnApplyReadsItsEdits() throws Exception {
+    Path themes = Files.createDirectories(temp.resolve("settings").resolve(ThemeColors.DIRECTORY));
+    final Path file = themes.resolve("harbor.theme");
+    Files.writeString(file, "light.background = #102030\n");
+    final PreferencesInput input = input();
+    assertNull(input.apply(with(input.form(), "themeFile", "harbor")));
+    harness.await(background(0x102030), "theme file applied");
+    assertEquals("harbor", file(fileHas("ui.themeFile=harbor")).appearance().themeFile());
+    Files.writeString(file, "light.background = #203040\n");
+    assertNull(input.apply(input.form()));
+    harness.await(background(0x203040), "edit applied");
+    assertNull(input.apply(with(input.form(), "themeFile", "")));
+    harness.await(background(0xffffff), "built-in colors back");
+  }
+
+  private BooleanSupplier background(final int rgb) {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return harness.application.theme().palette().background().equals(Rgb.of(rgb));
+      }
+    };
+  }
+
+  @Test
+  void theChoicesListTheThemeFiles() throws Exception {
+    Path themes = Files.createDirectories(temp.resolve("settings").resolve(ThemeColors.DIRECTORY));
+    Files.writeString(themes.resolve("b.theme"), "");
+    Files.writeString(themes.resolve("a.theme"), "");
+    Files.writeString(themes.resolve("skipped.txt"), "");
+    final AtomicReference<AppearanceChoices> seen = new AtomicReference<AppearanceChoices>();
+    input()
+        .loadChoices(
+            new Consumer<AppearanceChoices>() {
+              @Override
+              public void accept(AppearanceChoices choices) {
+                seen.set(choices);
+              }
+            });
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return seen.get() != null;
+          }
+        },
+        "choices");
+    assertEquals(List.of("a", "b"), seen.get().themeFiles());
+  }
+
+  @Test
+  void theFontFamilyReachesTheViewAndIsSaved() throws Exception {
+    PreferencesInput input = input();
+    assertNull(input.apply(with(input.form(), "fontFamily", "Mock Mono")));
+    assertEquals("Mock Mono", harness.view.fontFamily);
+    assertEquals("Mock Mono", harness.application.fontFamily());
+    assertEquals(
+        "Mock Mono", file(fileHas("editor.fontFamily=Mock Mono")).appearance().fontFamily());
+  }
+
+  @Test
   void keysApplyToTheKeymapTheViewAndTheReference() throws Exception {
     PreferencesInput input = input();
     PreferencesForm f = input.form();
@@ -225,6 +351,8 @@ class PreferencesControllerTest {
                 f.completionChars(),
                 f.autoClose(),
                 f.maxHighlightLineChars(),
+                f.tabWidth(),
+                f.insertSpaces(),
                 f.pollSeconds(),
                 f.autoReloadClean(),
                 f.recoveryIntervalSeconds(),
@@ -235,7 +363,9 @@ class PreferencesControllerTest {
                 f.excludedDirectories(),
                 f.theme(),
                 f.fontSize(),
-                overrides)));
+                overrides,
+                f.themeFile(),
+                f.fontFamily())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -268,7 +398,9 @@ class PreferencesControllerTest {
         o.excludedDirectories(),
         o.recoveryIntervalSeconds(),
         o.recoveryKeepDays(),
-        o.sessionSnapshot());
+        o.sessionSnapshot(),
+        o.tabWidth(),
+        o.insertSpaces());
   }
 
   @Test

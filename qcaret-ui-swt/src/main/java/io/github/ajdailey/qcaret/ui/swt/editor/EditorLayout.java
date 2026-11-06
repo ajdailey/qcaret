@@ -10,9 +10,10 @@ import org.eclipse.swt.graphics.Point;
 
 /**
  * The {@link ViewLayout} of one editor's {@link StyledText}. A row of printable ASCII without tabs
- * maps x to a column by the font's fractional advance from the row's left edge (QLogg UI-1); any
- * other row by the widget's measured glyph positions. Past a row's end, columns continue at the
- * fractional advance into virtual space.
+ * maps x to a column by the font's fractional advance from the row's left edge (QLogg UI-1), as
+ * long as the row's measured width agrees with that advance; a family's bold or italic face can be
+ * wider than its regular face. Any other row maps by the widget's measured glyph positions. Past a
+ * row's end, columns continue at the fractional advance into virtual space.
  */
 final class EditorLayout implements ViewLayout {
   private final StyledText text;
@@ -53,7 +54,7 @@ final class EditorLayout implements ViewLayout {
     if (x >= endX) {
       int past = (int) Math.round((x - endX) / advance);
       return lineColumn(rowEnd) + Math.max(0, past);
-    } else if (gridRow(rowText)) {
+    } else if (gridRow(rowText) && onGrid(endX - startX, rowText.length(), advance)) {
       index = (int) Math.round((x - startX) / advance);
     } else {
       int y = text.getLinePixel(row) + Math.max(0, text.getLineHeight() / 2);
@@ -61,6 +62,11 @@ final class EditorLayout implements ViewLayout {
       index = at < 0 ? 0 : at - rowStart;
     }
     return lineColumn(rowStart + Math.max(0, Math.min(index, rowText.length())));
+  }
+
+  /** Reports whether a row's width stays within half a column of its chars at the advance. */
+  static boolean onGrid(int width, int chars, double advance) {
+    return Math.abs(width - chars * advance) < advance / 2;
   }
 
   /** Returns the visual column of a display offset in its model line. */

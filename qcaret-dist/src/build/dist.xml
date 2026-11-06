@@ -4,7 +4,8 @@
      jars and every property used here. The archives need a Linux x86_64 build
      host (tar, jlink, jmod, rcodesign); with qcaret.archives false only
      qcaret.jar is built. -->
-<project name="qcaret-dist" default="all" xmlns:if="ant:if" xmlns:unless="ant:unless">
+<project name="qcaret-dist" default="all" xmlns:if="ant:if" xmlns:unless="ant:unless"
+    xmlns:rcmp="antlib:org.apache.tools.ant.types.resources.comparators">
 
   <property name="build" location="${project.build.directory}"/>
   <property name="stage" location="${build}/stage"/>
@@ -150,7 +151,9 @@ natives.macos-aarch64=${natives.macos-aarch64}
   <fileset id="notices" dir="${qcaret.root}" includes="LICENSE,NOTICE"/>
 
   <!-- Extracts one target's natives from its fragment and writes their
-       digests; sets natives.<target> to the comma-separated names. -->
+       digests; sets natives.<target> to the comma-separated names. checksum
+       writes the host's line separator and a file sorts by the host's path
+       order (case-insensitive on Windows), so both are fixed here. -->
   <macrodef name="natives">
     <attribute name="target"/>
     <sequential>
@@ -162,8 +165,12 @@ natives.macos-aarch64=${natives.macos-aarch64}
           todir="${jar.root}/META-INF/qcaret/natives/@{target}">
         <fileset dir="${build}/natives/@{target}"/>
       </checksum>
+      <fixcrlf srcdir="${jar.root}/META-INF/qcaret/natives/@{target}" includes="*.sha256" eol="lf"/>
       <pathconvert property="natives.@{target}" pathsep=",">
-        <sort><fileset dir="${build}/natives/@{target}"/></sort>
+        <sort>
+          <rcmp:name/>
+          <fileset dir="${build}/natives/@{target}"/>
+        </sort>
         <flattenmapper/>
       </pathconvert>
     </sequential>

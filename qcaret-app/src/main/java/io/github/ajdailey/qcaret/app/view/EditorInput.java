@@ -82,6 +82,14 @@ public interface EditorInput {
   void selectionsFromView(int[] ranges, int primary);
 
   /**
+   * Prepares a context menu opened by the pointer: the selections stay when the point lies in a
+   * non-empty one; otherwise one caret goes there.
+   *
+   * @param offset the point's display offset
+   */
+  void menuFromView(int offset);
+
+  /**
    * Reports the columns that fit the view, the wrap width.
    *
    * @param columns at least 1
@@ -113,6 +121,15 @@ public interface EditorInput {
    * @param offset the clicked display offset
    */
   void toggleCaretFromView(int offset);
+
+  /**
+   * A drag from a {@link #toggleCaretFromView} press: the selections from before the press plus one
+   * selection, which becomes the primary. Selections it touches merge into it.
+   *
+   * @param anchor the display offset of the press
+   * @param caret the display offset under the pointer
+   */
+  void addSelectionFromView(int anchor, int caret);
 
   /**
    * Replaces the input method's composition text, outside undo.

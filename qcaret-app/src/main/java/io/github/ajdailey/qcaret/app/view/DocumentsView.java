@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * The window's document tabs and file prompts. Every method is called on the UI thread; a prompt
@@ -33,6 +34,9 @@ public interface DocumentsView {
    * ending state, or the document count changed. The view reads menu and status state again.
    */
   void documentStateChanged();
+
+  /** The selected document's text changed: Undo, Redo, Cut and Copy may need their state read. */
+  void editStateChanged();
 
   /**
    * Asks whether to open a binary file as read-only ISO-8859-1 text.
@@ -84,4 +88,35 @@ public interface DocumentsView {
    * @param answer receives the text entered; not called when the user cancels
    */
   void askGoToLine(int lines, Consumer<String> answer);
+
+  /**
+   * Asks for a tab width.
+   *
+   * @param current the width the prompt starts at
+   * @param max the largest width accepted
+   * @param answer receives the width; not called when the user cancels
+   */
+  void askTabWidth(int current, int max, IntConsumer answer);
+
+  /**
+   * Asks whether Reload from Disk may replace a document's unsaved changes.
+   *
+   * @param name the document's name
+   * @param reload runs when the user accepts
+   * @param declined runs on any other end of the prompt
+   */
+  void askReload(String name, Runnable reload, Runnable declined);
+
+  /**
+   * Shows running loads with a Cancel control and Esc, or updates what shows. The window stays
+   * usable.
+   *
+   * @param text what is loading
+   * @param percent how much was read, from 0 to 100
+   * @param cancel runs when the user cancels
+   */
+  void showLoadProgress(String text, int percent, Runnable cancel);
+
+  /** Stops showing loads. */
+  void hideLoadProgress();
 }

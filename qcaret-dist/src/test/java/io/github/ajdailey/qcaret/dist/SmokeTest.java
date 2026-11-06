@@ -18,13 +18,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -151,6 +156,41 @@ class SmokeTest {
       assertTrue(run.process.waitFor(BOUND_SECONDS, TimeUnit.SECONDS));
       assertEquals(0, run.process.exitValue());
     }
+  }
+
+  /** A Windows build wrote CRLF digests and listed natives in case-insensitive order. */
+  @Test
+  void jarContentDoesNotDependOnTheBuildHost() throws Exception {
+    int digests = 0;
+    int lists = 0;
+    try (ZipFile zip = new ZipFile(jar().toFile())) {
+      Enumeration<? extends ZipEntry> entries = zip.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry.getName().endsWith(".sha256")) {
+          digests++;
+          try (InputStream in = zip.getInputStream(entry)) {
+            String text = new String(in.readAllBytes(), StandardCharsets.US_ASCII);
+            assertFalse(text.contains("\r"), entry.getName());
+          }
+        }
+      }
+      Properties index = new Properties();
+      try (InputStream in = zip.getInputStream(zip.getEntry("META-INF/qcaret/index.properties"))) {
+        index.load(in);
+      }
+      for (String key : index.stringPropertyNames()) {
+        if (key.startsWith("natives.")) {
+          lists++;
+          List<String> names = List.of(index.getProperty(key).split(","));
+          List<String> sorted = new ArrayList<String>(names);
+          Collections.sort(sorted);
+          assertEquals(sorted, names, key);
+        }
+      }
+    }
+    assertTrue(digests > 0);
+    assertEquals(6, lists);
   }
 
   @Test

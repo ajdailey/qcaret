@@ -78,7 +78,7 @@ class PaletteTest {
         new Executable() {
           @Override
           public void execute() {
-            new Palette(false, c, c, c, c, c, c, c, c, c, c, c, c, tokens);
+            new Palette(false, c, c, c, c, c, c, c, c, c, c, c, c, tokens, Palette.LIGHT.accents());
           }
         });
   }

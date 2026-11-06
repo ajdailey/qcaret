@@ -12,8 +12,11 @@ import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.theme.FontFiles;
+import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
+import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -106,6 +109,7 @@ public final class WindowSet {
   private RecentLog recent;
   private LogFiles logFiles = LogFiles.NONE;
   private long seenWarnings;
+  private long themeGeneration;
   private int nextUntitled = 1;
   private int nextBuffer = 1;
   private boolean snapshotting;
@@ -273,6 +277,63 @@ public final class WindowSet {
       if (window != null) {
         window.showThemeRestart();
       }
+    }
+    if (!after.appearance().themeFile().equals(before.appearance().themeFile())) {
+      loadTheme();
+    }
+  }
+
+  /** Reads the chosen theme file on a worker and pushes its colors; a newer read drops this one. */
+  void loadTheme() {
+    final long started = ++themeGeneration;
+    final String name = settings.current().appearance().themeFile();
+    final Path directory = config.location().directory();
+    boolean running =
+        workers.tryStart(
+            Workers.Kind.IO,
+            new Runnable() {
+              @Override
+              public void run() {
+                final ThemeColors colors = ThemeColors.read(directory, name);
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        if (started == themeGeneration) {
+                          theme.setColors(colors);
+                        }
+                      }
+                    });
+              }
+            });
+    if (!running) {
+      LOG.debug("Theme file not read: workers are closed");
+    }
+  }
+
+  /** Lists the theme files and the monospace font families on a worker. */
+  void loadChoices(final Consumer<AppearanceChoices> done) {
+    final Path directory = config.location().directory();
+    boolean running =
+        workers.tryStart(
+            Workers.Kind.IO,
+            new Runnable() {
+              @Override
+              public void run() {
+                final AppearanceChoices choices =
+                    new AppearanceChoices(
+                        ThemeColors.list(directory), FontFiles.installedFamilies());
+                ui.asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        done.accept(choices);
+                      }
+                    });
+              }
+            });
+    if (!running) {
+      LOG.debug("Appearance choices not listed: workers are closed");
     }
   }
 

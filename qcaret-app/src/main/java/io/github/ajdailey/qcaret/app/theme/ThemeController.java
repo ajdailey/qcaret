@@ -8,7 +8,8 @@ import java.util.List;
  * ThemeMode#SYSTEM} follows {@link ThemeService#systemDark} and its change events. Each mode
  * change, and each system change in {@link ThemeMode#SYSTEM}, also sets {@link
  * ThemeService#preferDark}, so native controls match the palette; the startup setting is the
- * launcher's. Confined to the UI thread.
+ * launcher's. {@link #setColors} lays a theme file's colors over the palette of every mode.
+ * Confined to the UI thread.
  */
 public final class ThemeController {
   private final List<PaletteListener> listeners = new ArrayList<PaletteListener>();
@@ -16,6 +17,7 @@ public final class ThemeController {
   private ThemeMode mode;
   private boolean systemDark;
   private Palette palette;
+  private ThemeColors colors = ThemeColors.NONE;
 
   /**
    * Creates the controller.
@@ -36,7 +38,7 @@ public final class ThemeController {
             if (ThemeController.this.mode == ThemeMode.SYSTEM) {
               ThemeController.this.service.preferDark(dark);
             }
-            apply(resolve(ThemeController.this.mode, dark));
+            apply(colors.over(resolve(ThemeController.this.mode, dark)));
           }
         });
   }
@@ -84,10 +86,20 @@ public final class ThemeController {
    */
   public boolean setMode(ThemeMode next) {
     mode = next;
-    Palette resolved = resolve(next, systemDark);
+    Palette resolved = colors.over(resolve(next, systemDark));
     service.preferDark(resolved.dark());
     apply(resolved);
     return service.showsNow(resolved.dark());
+  }
+
+  /**
+   * Replaces the theme file's colors and pushes the palette when it changes.
+   *
+   * @param next the colors
+   */
+  public void setColors(ThemeColors next) {
+    colors = next;
+    apply(next.over(resolve(mode, systemDark)));
   }
 
   /**
@@ -109,7 +121,7 @@ public final class ThemeController {
   }
 
   private void apply(Palette next) {
-    if (next == palette) {
+    if (next.equals(palette)) {
       return;
     }
     palette = next;

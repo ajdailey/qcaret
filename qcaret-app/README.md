@@ -42,9 +42,13 @@ any stale endpoint, binds an ephemeral loopback port and writes a new token.
 other order a new primary can lose its own endpoint. Close it before
 `Workers.close`, which waits for the accept thread.
 
-`ProcessLock` is described in the `qcaret-core` README. A primary that reads
-`instance.lock` as a document keeps the lock, and a second claim in one JVM
-gets null. On a JDK without `flock`, `claim` throws and the launch runs alone.
+`ProcessLock` is described in the `qcaret-core` README. A second claim in one
+JVM gets null. On a JDK without `flock`, `claim` throws and the launch runs
+alone. Until `close`, `SafePaths.holdLock` makes every open and save of
+`instance.lock` fail with `INSTANCE_LOCK_REFUSED`, shown as the usual open or
+save failure: a save replaces the file and leaves the lock on the old one, so
+the next launch becomes a second primary (measured on Linux). A `-m` process
+holds no lock and does not refuse the file.
 
 `InstanceClient.handOff` runs in the launcher before the Display exists. It
 waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
@@ -146,7 +150,8 @@ where it ignores a position (Wayland) only the size applies.
 
 `CommandId` lists every command with its group (`CommandGroup`), label, check
 state and cascade. The menus are File, Edit (also the line commands, case,
-indent, tab width, indent with spaces, Go to Line and Read-Only), Selection
+indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with
+spaces, Go to Line and Read-Only), Selection
 (add caret above and below, add next occurrence, split into lines, column
 selection mode), Search (Find, Find Next, Find Previous, Replace, HyperSearch,
 Next and Previous Result, Search Results), View (word wrap, zoom, theme, the
@@ -216,10 +221,24 @@ there and never from controller getters (ArchUnit
 `viewsTakeCheckStateFromCommandStates`). Without a document only the window
 commands, zoom, theme and Help are enabled; a read-only document disables the
 edits and the line-ending conversions; a binary file's view also disables Save,
-Save As and both encoding cascades. HyperSearch runs without a document;
+Save As and both encoding cascades. Undo and Redo need a step in the document's
+history, Cut and Copy a selection (`EditorController.hasSelection` walks the
+carets, never the text), and a read-only document keeps Copy. These four are
+`EDIT_STATE`: their keys are editor bindings, not accelerators, so a disabled
+item leaves them live in the editor and in native text fields. HyperSearch runs without a document;
 Next and Previous Result need a match in a retained set; Go Back and Go
-Forward a position that way, Clear Recent Files a file. A disabled menu
+Forward a position that way, Clear Recent Files a file, Clear Recently Closed
+a closed file, Reload from Disk a file on the document. A disabled menu
 item's accelerator does not fire, so the view syncs enablement on every `documentStateChanged`.
+The main toolbar's buttons take their enabled state from the same call.
+
+Close to the Left and Close to the Right (`TabInput.closeSideRequested`) close
+that side's tabs in tab order, asking for each dirty one; Cancel stops there, and
+the clicked tab is selected only when the selected tab closed. Open Containing
+Folder checks the folder on a worker and shows a notice when it is gone; unlike
+Open Settings Folder it creates nothing. `EditorInput.menuFromView` keeps the
+selections when a right click lands in a non-empty one, ends included, and
+otherwise leaves one caret at the click.
 `EncodingChoices` lists `TextEncoding.MENU` first, then every other charset;
 `Charset.availableCharsets` costs 130 to 229 ms cold (measured in QLogg), so
 `ApplicationController.loadEncodings` computes the list once per run on a
@@ -252,9 +271,17 @@ read on workers.
   on a worker and shows them through `MainView.showText`.
 - Zoom In and Zoom Out step `editor.fontSize` one point, from 4 to 72; Reset
   Zoom sets it to 0, the platform's default. The view changes the font in
-  place.
+  place. A change of `editor.fontFamily` reaches the view through
+  `MainView.setFontFamily`.
+- `PreferencesInput.loadChoices` lists the theme files and the monospace
+  families on a `qcaret-io-` worker; the dialog fills its lists when they
+  arrive.
 
-`DocumentController` holds the window's documents, one tab each:
+`DocumentController` holds the window's documents, one tab each. `add` gives
+every document `editor.tabWidth` and `editor.insertSpaces`; a remembered file
+state or a session tab then replaces them, and a settings change leaves open
+documents alone.
+
 
 - New opens an untitled UTF-8 document ("Untitled N"). Open goes through
   `DocumentOpener`; a missing file opens an empty document for its path, a
@@ -263,13 +290,27 @@ read on workers.
   path, resolved on the opener's worker and looked up (`find`) on the UI thread
   before the file is read, so a file reached again through a link or a short
   name selects its tab unread.
+- A load still reading after `DocumentOpener.PROGRESS_DELAY_MILLIS` (300 ms)
+  shows through `DocumentsView.showLoadProgress`: the file's name, or the count
+  when several run, and the percent of their bytes read. The delay is one
+  `timerExec`; after it, each `LoadReservation` progress call posts one update
+  at a time, and only a changed percent reaches the view. `cancelLoads` cancels
+  every load past `resolved`, hides the row at once and clears the list, so a
+  load started next gets its own delay. A canceled load ends in
+  `Listener.canceled` on the UI thread, whichever it reached: the worker's check,
+  or a finished read still in the queue, which drops the document and releases
+  the reservation. `loadCanceled` forgets the open's reopen, charset, callback
+  and restore state; a session tab counts as done and reports no failure, so it
+  leaves the next saved session. An open still resolving its path is not canceled.
 - A binary file opens only after the user accepts the prompt, as a read-only
   ISO-8859-1 view whose tab and status bar say so. Save and Save As refuse it
   in the controller, whichever command path calls them, and the editor
   refuses its edits.
 - Reopen with Encoding loads a clean document's file again with the chosen
   charset and replaces the document in its tab once loaded; a failed load
-  leaves it open. Save with Encoding changes only what the next save writes
+  leaves it open. `reopenWithDetection` does the same with detection, past a
+  remembered charset, and leaves the document's `forced` charset null, so the
+  file state and the session hold none. Save with Encoding changes only what the next save writes
   and makes the document dirty; the byte order mark is dropped for another
   charset.
 - A line-ending conversion builds the new text on a `qcaret-cpu-` worker
@@ -597,6 +638,29 @@ newest set with matches). Every scope goes through the same preview and run.
   changed since the run. An open document whose file a restore wrote is
   checked at once: a clean one reloads, a dirty one asks.
 
+### Printing
+
+`PrintController` runs File > Print, one job per window; a second request shows
+a notice. The command captures a `PrintSource`: a text snapshot, the active
+view's selections, the tab width, the grammar and the line-number setting. Edits
+made afterward do not reach the job, and word wrap and folds, which are view
+state, do not affect it. `MainView.choosePrinter` returns a `PrintTarget`, or
+nothing for a canceled dialog; `PrintTarget` is the toolkit seam.
+
+The job runs on a `qcaret-print-` platform thread: `start` measures a page as
+columns and rows, `PrintLayout.of` paginates, `page` prints each page in the
+chosen range, `finish` hands the job over, and `close` always runs and discards
+an unfinished job. Cancel, or closing the window, stops the job at the next
+line or page and shows no notice. A `PrintFailure` shows a notice; so do an
+empty selection and a range past the last page, which print nothing.
+
+`PrintLayout` (`app.print`, no toolkit) walks the snapshot once and keeps each
+page's start, so memory follows the page count; `page` builds rows on demand.
+Rules are in its Javadoc. It tokenizes forward from the first line on its own
+`Tokenizer`, because a page's first line needs the state before it, so pages
+are built in ascending order. `total` in a page is the count of the whole
+layout, so a range prints Page 3 of 10.
+
 ### External changes
 
 `ExternalChanges` checks each open document's file through `FileCheck` (see
@@ -607,7 +671,11 @@ path the user opened, kept per document beside the real path that names the
 tab and deduplicates opens. A result reaches `DocumentController` on the UI
 thread only when the document's watch generation is unchanged: a save or a
 reload pauses the watch and raises the generation, so the document's own
-write is never reported.
+write is never reported. A directory event wakes a check during another
+program's write, so a `CHANGED` result waits until the file's stamp holds for
+100 ms, up to five waits, and is then reported once with the last bytes read.
+The wait runs on the watch thread, once per pass for all changed files.
+A file that never holds still is reported after the fifth wait.
 
 | Check result | Clean document | Dirty document |
 |---|---|---|
@@ -722,7 +790,8 @@ document ignores edits. The controller also runs the projection's rewraps on
 - Composition text from the input method goes to `Document.preedit`, outside
   undo; a commit the view reports with the composition becomes one undo step.
   Every edit removes a composition first.
-- Esc cancels a running save and drops the secondary selections and the
+- Esc cancels a running line transform, save and comparison through one
+  `Runnable` and the `lineWork` token, and drops the secondary selections and the
   block; with neither, it closes the find bar.
 - Toggle Line Comment and Toggle Block Comment apply `CommentEdits` with the
   document grammar's delimiters at every selection, as one undo step; a
@@ -951,8 +1020,9 @@ bootstrap applies the same order to the SWT native cache.
 
 `Preferences` holds `ui.theme`, `window.*`, `log.debugFile` (attaches the debug
 log file at the next start), `Options` (the Preferences dialog's settings),
-`UiState` (search toggles, histories, recent grammars, dialog sizes) and
-`ShortcutOverrides`. The root README lists every key. `PreferenceKeys` maps
+`UiState` (search toggles, histories, recent grammars, dialog sizes, the
+toolbar choice), `ShortcutOverrides` and `Appearance` (`ui.themeFile`,
+`editor.fontFamily`). The root README lists every key. `PreferenceKeys` maps
 them to and from `qcaret.conf`: a new setting is a record component and its
 lines there, plus a `PreferencesForm` field when the dialog shows it.
 
@@ -1049,7 +1119,7 @@ command line (`--session` with files) open after the restore. After a
 | Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
 | Per view | Selections, top line (kept through the rewraps of a wrapped window), collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
 | Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments, read-only state |
-| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, Bookmarks list visibility |
+| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, the sash between the results and Bookmarks docks, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks list visibility |
 | Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
 
 A remembered charset the runtime lacks warns and detects; one that no longer
@@ -1087,7 +1157,11 @@ UTF-16BE, one char at a time, because the JDK's coders replace such a char.
 through a `ProcessLock`, decides liveness; `claimDead` gets null for this
 process's own directory. `claimDead` locks each dead directory until its claim
 closes, so two starts cannot list one buffer. On a JDK without `flock`, `open`
-fails and recovery files are off.
+fails and recovery files are off. While the lock is held, `SafePaths.holdLock`
+makes every open and save of that `owner.lock` fail with
+`RECOVERY_LOCK_REFUSED`: a save replaces the file, the lock stays on the old
+one, and a second start lists the live instance's buffers as a crash's
+(measured on Linux).
 
 `RecoveryController` runs one queue on `qcaret-io-` workers under `runLock`, so
 a write cannot land after the delete that follows it. One controller and one
@@ -1136,6 +1210,37 @@ role of the same name. The
 light and dark defaults derive from the brand navy `#1B2E44`, cyan `#56C1F0`
 and amber `#F3B65B`; every token color reaches a contrast ratio of 4.5 on the
 background, the current line and a find match (`PaletteTest`).
+
+`ThemeColors` is a theme file, `<settings>/themes/<name>.theme`, of `light.<color>
+= #RRGGBB` and `dark.<color> = #RRGGBB` lines; `docs/user-guide.md` lists the
+colors. A known key with a bad value logs one WARN and keeps the built-in color;
+any other line is ignored; a file over 64 KiB, missing or unreadable logs one
+WARN and sets nothing. A token color keeps its role's font style. `over` lays
+the colors on a built-in palette and returns that palette itself for a side with
+no colors, so `Palette.LIGHT` and `Palette.DARK` stay the values in use without a
+file. `Gui` reads the chosen file before the Display, so the first paint has its
+colors. After that `WindowSet.loadTheme` reads it on a `qcaret-io-` worker when
+`ui.themeFile` changes and on each Preferences apply that keeps it, and
+`ThemeController.setColors` pushes the palette if it differs; a read that a newer
+one replaced is dropped.
+
+`FontFiles` lists the monospace families for Preferences. `Display.getFontList`
+and any measuring GC run only on the UI thread (`Device.checkDevice`), so a worker
+reads font files instead, with no toolkit. It opens `.ttf`, `.otf`, `.ttc` and
+`.otc` files and reads the `cmap`, `hhea`, `hmtx` and `name` tables. The check is
+the same on every platform; only the folders differ:
+
+| Platform | Folders |
+|---|---|
+| Linux | `~/.fonts`, `$XDG_DATA_HOME/fonts`, `fonts` under each `$XDG_DATA_DIRS` |
+| Windows | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` |
+| macOS | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` |
+
+A face is monospace when `i`, `W` and `0` have glyphs with one nonzero advance.
+`post.isFixedPitch` is not read: Noto Color Emoji sets it with no letters, and
+FreeMono and Noto Sans Mono CJK leave it clear. A face whose family differs from
+its typographic family (name IDs 1 and 16) is one weight of that family and is
+left out. Bitmap and Type 1 fonts are not listed.
 
 ## UI text, About and logs
 
@@ -1227,13 +1332,17 @@ must refuse. `LicenseNoticesTest` checks that the Licenses text names every
 bundled component at the versions the parent POM pins. `KeymapTest` checks that no stroke is bound twice on
 any platform, the platform key choices (Add Caret, F6, Go Back and Go
 Forward), the Quick Open keys, the reference filter
-and the accelerator, editor and window-filter lookups. `DocumentOpenerTest`
+and the accelerator, editor and window-filter lookups. `FileCommandsTest` runs Reload from Disk (clean, dirty with both answers,
+deleted), Recently Closed, Automatic Detection past a forced and a remembered
+charset, Tab Width > Other, the tab defaults against saved state, the title, a
+drop, and Esc on a sort and a comparison. `DocumentOpenerTest`
 holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
 both release their reservation; a load over the budget is refused unread, and
 one that outgrows it is refused while reading; an
 open document ends the open unread; a close ends an open waiting for the UI
-thread.
+thread. A cancel, while the worker holds in the decoder or after it finished,
+reports only `canceled` and releases the reservation.
 `DocumentControllerTest` covers open, edit and save, Save As for an untitled
 document, a missing file, a second open of one file, a file opened again
 through a symbolic link selecting its tab and running the HyperSearch
@@ -1243,9 +1352,10 @@ three answers, `closeAll` stopping at Cancel, word wrap across editors and the
 heap refusal. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
 second save while the first is held shows the notice.
+`ExternalChangesTest` pins a truncate and a later write to one report.
 `ExternalChangeTest` covers a clean document reloaded as one undo step with
 its caret line kept, a dirty document's prompt with Keep Mine making the next
-save ask and Overwrite writing, Reload keeping the edits in undo, a newer
+save ask and Overwrite writing, a file that never holds still reloading anyway, Reload keeping the edits in undo, a newer
 change updating the open prompt, a deleted file kept missing and dirty until
 the same bytes return, a missing file saved without a prompt, a touch with the
 same bytes neither prompting nor blocking the save, five saves never reported
@@ -1376,6 +1486,6 @@ refused), the 20-file limit and Clear.
 other-version files, the `.invalid` copy, the 1 MiB cap, four full histories of
 escaped text staying under half of it, a read-only directory and owner-only
 creation. `CommandLineParserTest`, `SettingsLocationTest`,
-`WindowGeometryTest`, `ThemeControllerTest`, `PaletteTest`, `MenuTableTest` (mnemonics unique
+`WindowGeometryTest`, `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest` (generated sfnt files), `MenuTableTest` (mnemonics unique
 per menu), `UiTextTest`, `RecentLogTest`, `EventLoopWatchdogTest`,
 `EncodingChoicesTest` and `LineConversionTest` cover the rest.

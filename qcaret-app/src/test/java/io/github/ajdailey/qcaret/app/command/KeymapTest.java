@@ -42,6 +42,14 @@ class KeymapTest {
   }
 
   @Test
+  void aMenuShowsACommandsFirstKeyOnly() {
+    Keymap keymap = Keymap.defaults(false);
+    assertEquals("Ctrl+X", keymap.menuKeyText(CommandId.CUT));
+    assertEquals("Ctrl+Shift+Z", keymap.menuKeyText(CommandId.REDO));
+    assertEquals("", keymap.menuKeyText(CommandId.RELOAD));
+  }
+
+  @Test
   void keyNamesFollowThePlatform() {
     assertEquals("Ctrl+Shift+Z, Ctrl+Y", Keymap.defaults(false).keysText(CommandId.REDO));
     assertEquals("Cmd+Shift+Z", Keymap.defaults(true).keysText(CommandId.REDO));
@@ -60,7 +68,7 @@ class KeymapTest {
             "  New Line\tEnter, Shift+Enter\n"
                 + "  Delete Previous Char\tBackspace, Shift+Backspace\n"
                 + "  Delete Next Char\tDelete\n"
-                + "  Cancel Save, Extra Carets or Find Bar\tEsc\n"),
+                + "  Cancel Running Work, Extra Carets or Find Bar\tEsc\n"),
         reference);
   }
 

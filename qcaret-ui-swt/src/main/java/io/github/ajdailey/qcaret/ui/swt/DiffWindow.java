@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.Comparison;
+import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
 import org.eclipse.swt.custom.CaretListener;
@@ -40,7 +41,7 @@ final class DiffWindow {
   private final StyledText left;
   private final StyledText right;
   private final Label position;
-  private final Font font;
+  private Font font;
   private Palette palette;
   private int current = -1;
   private int syncedTop;
@@ -103,6 +104,19 @@ final class DiffWindow {
     showPosition();
   }
 
+  /**
+   * Shows both sides in another font.
+   *
+   * @param fontData the font
+   */
+  void setFontData(FontData[] fontData) {
+    Font old = font;
+    font = new Font(shell.getDisplay(), fontData);
+    left.setFont(font);
+    right.setFont(font);
+    old.dispose();
+  }
+
   private StyledText side(Composite parent, String title, String text, final boolean isLeft) {
     Composite box = new Composite(parent, SWT.NONE);
     GridLayout layout = new GridLayout(1, false);
@@ -114,6 +128,7 @@ final class DiffWindow {
     label.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     final StyledText view =
         new StyledText(box, SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+    view.setData(EditorPane.PALETTE_COLORED, Boolean.TRUE);
     view.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     view.setFont(font);
     view.setText(text);

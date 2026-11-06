@@ -175,7 +175,7 @@ final class FindBar {
   }
 
   private static Button check(Composite row, UiText label) {
-    Button button = new Button(row, SWT.CHECK);
+    Button button = SwtThemeService.check(row);
     button.setText(label.text());
     return button;
   }

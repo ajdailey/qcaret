@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
+import io.github.ajdailey.qcaret.app.theme.FontFiles;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -41,10 +42,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.DeviceData;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.ToolBar;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -481,9 +487,28 @@ class ResourceLeakTest {
   }
 
   /** One round of every operation; the first rounds create lazily cached resources. */
+  /** Moves the editor and an open log window to another family and back. */
+  private void fontFamilies() {
+    window.showLog("mock log");
+    List<Path> folders =
+        FontFiles.directories(
+            System.getProperty("os.name"), System.getenv(), System.getProperty("user.home"));
+    for (String family : FontFiles.monospaceFamilies(folders)) {
+      window.setFontFamily(family);
+      break;
+    }
+    window.setFontFamily("");
+    window.logWindow().shell().dispose();
+  }
+
   private void cycle() throws IOException {
     openTab("second.txt");
     window.showTabMenu(1).setVisible(false);
+    window.editorMenu().show(controller.documents().activeEditor(), 0, 0).setVisible(false);
+    controller.execute(CommandId.TOOLBAR);
+    controller.execute(CommandId.TOOLBAR);
+    controller.execute(CommandId.LINE_NUMBERS);
+    controller.execute(CommandId.LINE_NUMBERS);
     closeTab();
     Image caret = window.activeEditor().caretImage();
     theme(CommandId.THEME_DARK, Palette.DARK);
@@ -491,6 +516,7 @@ class ResourceLeakTest {
     controller.execute(CommandId.ZOOM_IN);
     controller.execute(CommandId.ZOOM_OUT);
     assertTrue(caret.isDisposed());
+    fontFamilies();
     assertFalse(window.activeEditor().caretImage().isDisposed());
     splitAndFind();
     paletteAndCompletion();
@@ -514,14 +540,61 @@ class ResourceLeakTest {
     // of later rounds (measured over 4 and 9), so the baseline follows two.
     cycle();
     cycle();
-    Map<Object, Error> baseline = tracked();
+    Map<Object, Error> baseline = withoutDisabledCopies(tracked());
     Map<String, Integer> types = counts(baseline.keySet());
     assertTrue(types.containsKey("Font") && types.containsKey("Image"), "tracked " + types);
     for (int i = 0; i < CYCLES; i++) {
       cycle();
     }
-    Map<Object, Error> after = tracked();
+    Map<Object, Error> after = withoutDisabledCopies(tracked());
     assertEquals(counts(baseline.keySet()), counts(after.keySet()), leaks(baseline, after));
+  }
+
+  /**
+   * Leaves out SWT's disabled copy of a menu item's image. Each item keeps at most one, disposed
+   * with it, and how many exist at a given moment follows whether a re-ink ran after the item's
+   * last change, which is a matter of timing on a loaded host.
+   */
+  private static Map<Object, Error> withoutDisabledCopies(Map<Object, Error> live) {
+    Map<Object, Error> kept = new IdentityHashMap<Object, Error>();
+    for (Map.Entry<Object, Error> entry : live.entrySet()) {
+      if (!disabledCopy(entry.getValue())) {
+        kept.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return kept;
+  }
+
+  private static boolean disabledCopy(Error allocation) {
+    for (StackTraceElement frame : allocation.getStackTrace()) {
+      if ("_setEnabledOrDisabledImage".equals(frame.getMethodName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Test
+  void aWindowsMenuIconsDisposeWithItAfterAThemeChange() {
+    Map<String, Integer> before = counts(tracked().keySet());
+    Shell shell = new Shell(display);
+    ToolBar bar = new ToolBar(shell, SWT.FLAT);
+    Menu menu = new Menu(shell, SWT.DROP_DOWN);
+    MenuItem save = new MenuItem(menu, SWT.PUSH);
+    save.setData(CommandId.SAVE);
+    new MenuItem(menu, SWT.PUSH).setData(CommandId.TOGGLE_BOOKMARK);
+    MenuIcons icons = new MenuIcons(bar);
+    icons.decorate(menu);
+    save.setEnabled(false);
+    icons.showState(save);
+    bar.setBackground(new Color(30, 30, 30));
+    icons.reink();
+    save.setEnabled(true);
+    icons.showState(save);
+    bar.setBackground(new Color(240, 240, 240));
+    icons.reink();
+    shell.dispose();
+    assertEquals(before, counts(tracked().keySet()));
   }
 
   /** The live tracked resources with their allocation stacks, system cursors left out. */

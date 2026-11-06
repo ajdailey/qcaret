@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -17,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -343,5 +346,141 @@ class DocumentControllerTest {
     assertTrue(documents.activeEditor().projection().wrap());
     assertNotNull(view.tabs.get(0).projection);
     assertTrue(view.tabs.get(0).projection.wrap());
+  }
+
+  private GatedCharset gated() {
+    GatedCharset gate = new GatedCharset();
+    gate.arm();
+    documents.dispose();
+    options = LoadOptions.DEFAULTS.withForced(gate);
+    create();
+    return gate;
+  }
+
+  private BooleanSupplier loadShown() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return view.loadCancel != null;
+      }
+    };
+  }
+
+  private BooleanSupplier noLoad() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return documents.loading() == 0;
+      }
+    };
+  }
+
+  @Test
+  void aCanceledLoadLeavesNoTabAndFreesItsReservation() throws Exception {
+    Path file = file("a.txt", "mock\n");
+    GatedCharset gate = gated();
+    documents.open(List.of(file));
+    await(loadShown());
+    assertEquals(UiText.LOAD_PROGRESS.format("a.txt"), view.loadText);
+    assertTrue(gate.awaitHeld());
+    assertTrue(budget.reserved() > 0);
+    view.loadCancel.run();
+    assertNull(view.loadText);
+    gate.release();
+    await(noLoad());
+    settle();
+    assertTrue(view.tabs.isEmpty());
+    assertEquals(0, budget.reserved());
+    documents.open(List.of(file));
+    await(tabs(1));
+  }
+
+  @Test
+  void aCanceledRestoreEndsThatTabWithoutReportingAFailure() throws Exception {
+    Path file = file("a.txt", "mock\n");
+    GatedCharset gate = gated();
+    final List<String> failed = new ArrayList<String>();
+    final int[] done = new int[1];
+    documents.restore(
+        new Session.Tab(
+            file.toString(),
+            "",
+            "",
+            "",
+            "",
+            false,
+            4,
+            false,
+            List.of(),
+            0,
+            false,
+            "",
+            "",
+            List.of(),
+            false),
+        new Consumer<String>() {
+          @Override
+          public void accept(String name) {
+            failed.add(name);
+          }
+        },
+        new Runnable() {
+          @Override
+          public void run() {
+            done[0]++;
+          }
+        });
+    await(loadShown());
+    assertTrue(gate.awaitHeld());
+    view.loadCancel.run();
+    gate.release();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return done[0] == 1;
+          }
+        });
+    assertTrue(failed.isEmpty());
+    assertTrue(view.tabs.isEmpty());
+  }
+
+  @Test
+  void aCanceledReopenKeepsTheDocumentAndItsTabCanMove() throws Exception {
+    Path file = openOne("a.txt", "mock\n");
+    GatedCharset gate = new GatedCharset();
+    gate.arm();
+    documents.reopenWithEncoding(gate);
+    await(loadShown());
+    assertTrue(gate.awaitHeld());
+    assertFalse(documents.canMove(documents.activeDocument()));
+    view.loadCancel.run();
+    gate.release();
+    await(noLoad());
+    settle();
+    assertEquals(1, view.tabs.size());
+    assertEquals(file.toRealPath(), documents.activePath());
+    assertTrue(documents.canMove(documents.activeDocument()));
+  }
+
+  @Test
+  void loadsRunningTogetherShowAsOneAndCancelTogether() throws Exception {
+    Path a = file("a.txt", "mock\n");
+    Path b = file("b.txt", "mock\n");
+    GatedCharset gate = gated();
+    documents.open(List.of(a, b));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return UiText.LOAD_PROGRESS_FILES.format(2).equals(view.loadText);
+          }
+        });
+    view.loadCancel.run();
+    gate.release();
+    await(noLoad());
+    settle();
+    assertTrue(view.tabs.isEmpty());
+    assertEquals(0, budget.reserved());
   }
 }

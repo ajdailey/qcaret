@@ -7,12 +7,14 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -37,8 +39,8 @@ import org.eclipse.swt.widgets.Text;
  * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at
  * once, whatever OK, Apply or Cancel do afterwards. The Keys tab edits overrides on top of the
  * default keymap: the key field records one stroke, Add refuses a stroke that types or that another
- * command holds, Default Keys returns the selected command to its defaults. Modeless; it returns at
- * once.
+ * command holds, Default Keys returns the selected command to its defaults. The theme file and font
+ * family lists fill when a worker has listed them. Modeless; it returns at once.
  */
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
@@ -50,6 +52,8 @@ final class PreferencesDialog {
   private final Label message;
   private Text completionChars;
   private Button autoClose;
+  private Text tabWidth;
+  private Button insertSpaces;
   private Text maxHighlightLineChars;
   private Text pollSeconds;
   private Button autoReloadClean;
@@ -61,6 +65,8 @@ final class PreferencesDialog {
   private Text excludedDirectories;
   private Combo theme;
   private Text fontSize;
+  private Combo themeFile;
+  private Combo fontFamily;
   private Text filter;
   private Table commands;
   private org.eclipse.swt.widgets.List keys;
@@ -115,6 +121,16 @@ final class PreferencesDialog {
         });
     shell.setDefaultButton(ok);
     show(input.form());
+    input.loadChoices(
+        new Consumer<AppearanceChoices>() {
+          @Override
+          public void accept(AppearanceChoices choices) {
+            if (!shell.isDisposed()) {
+              fillChoices(themeFile, choices.themeFiles());
+              fillChoices(fontFamily, choices.fontFamilies());
+            }
+          }
+        });
   }
 
   private Composite tab(UiText title) {
@@ -139,7 +155,7 @@ final class PreferencesDialog {
   }
 
   private static Button check(Composite page, UiText label) {
-    Button button = new Button(page, SWT.CHECK);
+    Button button = SwtThemeService.check(page);
     button.setText(label.text());
     button.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
     return button;
@@ -149,6 +165,8 @@ final class PreferencesDialog {
     completionChars = field(page, UiText.PREFERENCES_COMPLETION_CHARS);
     autoClose = check(page, UiText.PREFERENCES_AUTO_CLOSE);
     maxHighlightLineChars = field(page, UiText.PREFERENCES_HIGHLIGHT_CHARS);
+    tabWidth = field(page, UiText.PREFERENCES_TAB_WIDTH);
+    insertSpaces = check(page, UiText.PREFERENCES_INSERT_SPACES);
   }
 
   private void files(Composite page) {
@@ -197,6 +215,46 @@ final class PreferencesDialog {
     theme.add(UiText.PREFERENCES_THEME_DARK.text());
     theme.add(UiText.PREFERENCES_THEME_SYSTEM.text());
     fontSize = field(page, UiText.PREFERENCES_FONT_SIZE);
+    themeFile = choice(page, UiText.PREFERENCES_THEME_FILE, UiText.PREFERENCES_THEME_FILE_NONE);
+    fontFamily =
+        choice(page, UiText.PREFERENCES_FONT_FAMILY, UiText.PREFERENCES_FONT_FAMILY_DEFAULT);
+  }
+
+  /** Adds a list whose first entry stands for an empty value; a worker's list fills the rest. */
+  private static Combo choice(Composite page, UiText label, UiText first) {
+    new Label(page, SWT.NONE).setText(label.text());
+    Combo combo = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    combo.add(first.text());
+    combo.select(0);
+    combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    return combo;
+  }
+
+  /** Selects a value, adding it when the list lacks it, so an uninstalled family stays saved. */
+  private static void selectChoice(Combo combo, String value) {
+    if (value.isEmpty()) {
+      combo.select(0);
+      return;
+    }
+    if (combo.indexOf(value) < 0) {
+      combo.add(value);
+    }
+    combo.select(combo.indexOf(value));
+  }
+
+  private static String chosen(Combo combo) {
+    int index = combo.getSelectionIndex();
+    return index <= 0 ? "" : combo.getItem(index);
+  }
+
+  /** Replaces a list's entries after the first and keeps the selected value. */
+  private static void fillChoices(Combo combo, List<String> values) {
+    String keep = chosen(combo);
+    combo.remove(1, combo.getItemCount() - 1);
+    for (String value : values) {
+      combo.add(value);
+    }
+    selectChoice(combo, keep);
   }
 
   private void keys(Composite page) {
@@ -303,6 +361,8 @@ final class PreferencesDialog {
     completionChars.setText(form.completionChars());
     autoClose.setSelection(form.autoClose());
     maxHighlightLineChars.setText(form.maxHighlightLineChars());
+    tabWidth.setText(form.tabWidth());
+    insertSpaces.setSelection(form.insertSpaces());
     pollSeconds.setText(form.pollSeconds());
     autoReloadClean.setSelection(form.autoReloadClean());
     recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
@@ -313,6 +373,8 @@ final class PreferencesDialog {
     excludedDirectories.setText(form.excludedDirectories());
     theme.select(form.theme().ordinal());
     fontSize.setText(form.fontSize());
+    selectChoice(themeFile, form.themeFile());
+    selectChoice(fontFamily, form.fontFamily());
     setOverrides(form.shortcuts());
     for (TableColumn column : commands.getColumns()) {
       column.pack();
@@ -324,6 +386,8 @@ final class PreferencesDialog {
         completionChars.getText(),
         autoClose.getSelection(),
         maxHighlightLineChars.getText(),
+        tabWidth.getText(),
+        insertSpaces.getSelection(),
         pollSeconds.getText(),
         autoReloadClean.getSelection(),
         recoveryIntervalSeconds.getText(),
@@ -334,7 +398,9 @@ final class PreferencesDialog {
         excludedDirectories.getText(),
         THEMES[theme.getSelectionIndex()],
         fontSize.getText(),
-        overrides);
+        overrides,
+        chosen(themeFile),
+        chosen(fontFamily));
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -496,5 +562,13 @@ final class PreferencesDialog {
 
   Combo theme() {
     return theme;
+  }
+
+  Combo themeFile() {
+    return themeFile;
+  }
+
+  Combo fontFamily() {
+    return fontFamily;
   }
 }

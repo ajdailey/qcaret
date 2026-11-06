@@ -356,7 +356,8 @@ class SessionControllerTest {
             "",
             List.of(),
             List.of(),
-            Session.Display.DEFAULTS);
+            Session.Display.DEFAULTS,
+            "");
     assertTrue(store().save(new Session(List.of(window), List.of(), List.of())));
   }
 
@@ -439,6 +440,7 @@ class SessionControllerTest {
         "the folder");
     first.application.execute(CommandId.WORKSPACE_BROWSER);
     first.view.sideWeights = new int[] {2, 5};
+    first.view.resultsWeights = new int[] {1, 4};
     first.view.expanded.add(
         new io.github.ajdailey.qcaret.app.view.WorkspaceNode(
             root.resolve("sub"),
@@ -459,6 +461,7 @@ class SessionControllerTest {
     assertEquals(root, second.application.workspace().root());
     assertTrue(second.application.workspace().shown());
     assertEquals(2, second.view.sideWeights[0]);
+    assertEquals(4, second.view.resultsWeights[1]);
     assertEquals(root.resolve("sub"), second.view.expanded.get(0).path());
   }
 

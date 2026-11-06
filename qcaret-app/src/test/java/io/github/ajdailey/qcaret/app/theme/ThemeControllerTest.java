@@ -110,6 +110,35 @@ class ThemeControllerTest {
   }
 
   @Test
+  void themeColorsApplyToEachModeAndPushOnlyAChange() {
+    FakeSystem system = new FakeSystem();
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT);
+    final List<Palette> seen = new ArrayList<Palette>();
+    theme.addListener(
+        new PaletteListener() {
+          @Override
+          public void paletteChanged(Palette palette) {
+            seen.add(palette);
+          }
+        });
+    ThemeColors colors = ThemeColors.parse("light.text=#000001\ndark.text=#000002", "mock");
+    theme.setColors(colors);
+    assertEquals(Rgb.of(1), theme.palette().text());
+    theme.setColors(ThemeColors.parse("light.text=#000001", "mock"));
+    assertEquals(1, seen.size());
+    theme.setColors(colors);
+    theme.setMode(ThemeMode.DARK);
+    assertEquals(Rgb.of(2), theme.palette().text());
+    assertEquals(2, seen.size());
+    theme.setMode(ThemeMode.SYSTEM);
+    assertEquals(Rgb.of(1), theme.palette().text());
+    system.flip(true);
+    assertEquals(Rgb.of(2), theme.palette().text());
+    theme.setColors(ThemeColors.NONE);
+    assertSame(Palette.DARK, theme.palette());
+  }
+
+  @Test
   void themeRoundTripsInPortableMode() throws Exception {
     Files.writeString(temp.resolve(SettingsLocation.MARKER), "", StandardCharsets.ISO_8859_1);
     SettingsLocation location =

@@ -157,7 +157,7 @@ class ShellWindowTest {
     openFile("a.txt", "alpha\n");
     // No menu was shown: the document event alone enables the items, so their keys fire.
     assertTrue(item(CommandId.SAVE).getEnabled());
-    assertTrue(item(CommandId.UNDO).getEnabled());
+    assertTrue(item(CommandId.PASTE).getEnabled());
     assertFalse(item(CommandId.NEXT_TAB).getEnabled());
     openFile("b.txt", "beta\n");
     assertTrue(item(CommandId.NEXT_TAB).getEnabled());
@@ -195,7 +195,7 @@ class ShellWindowTest {
     Menu second = window.showTabMenu(1);
     second.setVisible(false);
     assertSame(first, second);
-    assertEquals(8, second.getItemCount());
+    assertEquals(11, second.getItemCount());
     assertTrue(second.getItem(1).getEnabled());
     EditorPane shown = window.activeEditor();
     window.moveTab(window.tabs().getSelection(), 0);
@@ -205,7 +205,7 @@ class ShellWindowTest {
     assertSame(shown, window.activeEditor());
     assertEquals("two.txt", window.tabs().getItem(0).getText());
     // Copy File Name on the dragged tab.
-    again.getItem(7).notifyListeners(SWT.Selection, new Event());
+    again.getItem(9).notifyListeners(SWT.Selection, new Event());
     assertEquals("two.txt", window.clipboardText());
   }
 

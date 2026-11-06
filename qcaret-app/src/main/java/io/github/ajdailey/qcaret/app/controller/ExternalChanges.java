@@ -5,11 +5,13 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
+import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import io.github.ajdailey.qcaret.core.watch.FileMonitor;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -27,9 +29,20 @@ import org.slf4j.LoggerFactory;
  * the UI thread, and a result checked against an older generation is dropped, so a check that
  * overlaps a save or a reload never reports the document's own write. A paused watch is not
  * checked. A file that cannot be read is logged at DEBUG and checked again at the next poll.
+ *
+ * <p>A directory event wakes a check while another program is still writing, and a truncate and a
+ * write are separate events, so a changed file is reported once its stamp holds for {@value
+ * #QUIET_MILLIS} ms. One write then asks or reloads once. A file still changing after {@value
+ * #QUIET_ATTEMPTS} waits is reported as it stands, so a log that never stops growing still shows.
  */
 final class ExternalChanges {
   private static final Logger LOG = LoggerFactory.getLogger(ExternalChanges.class);
+
+  /** Milliseconds a changed file's stamp must hold before the change is reported. */
+  static final long QUIET_MILLIS = 100;
+
+  /** Waits for a changed file to go quiet before it is reported anyway. */
+  static final int QUIET_ATTEMPTS = 5;
 
   /** Receives the results of the current generation on the UI thread. */
   interface Listener {
@@ -72,6 +85,7 @@ final class ExternalChanges {
   }
 
   private final UiDispatcher ui;
+  private final long quietMillis;
   private final Listener listener;
   private final FileMonitor monitor;
   private final List<Watch> watches = new CopyOnWriteArrayList<Watch>();
@@ -79,7 +93,22 @@ final class ExternalChanges {
   private final AtomicLong passes = new AtomicLong();
 
   ExternalChanges(Workers workers, UiDispatcher ui, long pollMillis, Listener listener) {
+    this(workers, ui, pollMillis, QUIET_MILLIS, listener);
+  }
+
+  /**
+   * Creates the checks.
+   *
+   * @param workers starts the monitor's thread
+   * @param ui receives the results
+   * @param pollMillis interval between checks of every open file
+   * @param quietMillis how long a changed file's stamp must hold
+   * @param listener receives the results
+   */
+  ExternalChanges(
+      Workers workers, UiDispatcher ui, long pollMillis, long quietMillis, Listener listener) {
     this.ui = ui;
+    this.quietMillis = quietMillis;
     this.listener = listener;
     this.monitor =
         new FileMonitor(
@@ -178,45 +207,118 @@ final class ExternalChanges {
 
   @WorkerThread
   private void checkEach(List<Path> files) {
+    List<Found> changed = new ArrayList<Found>();
     for (Path file : files) {
-      for (final Watch watch : watches) {
+      for (Watch watch : watches) {
         if (watch.paused || !file.equals(watch.path)) {
           continue;
         }
-        final long generation = watch.generation.get();
-        FileBaseline baseline = watch.baseline;
-        final FileCheck.Result result;
-        try {
-          result = FileCheck.check(file, baseline, token);
-        } catch (IOException e) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(
-                "Cannot check {}: {}",
-                LogText.oneLine(String.valueOf(file)),
-                LogText.oneLine(e.getMessage()));
-          }
-          continue;
-        } catch (CancellationException e) {
+        long generation = watch.generation.get();
+        Found found = check(new Found(watch, generation, watch.baseline, null));
+        if (found == null) {
           return;
         }
-        boolean nothing =
-            result.state() == FileCheck.State.UNCHANGED && result.current() == baseline;
-        boolean stillMissing = result.state() == FileCheck.State.MISSING && watch.missing;
-        if (nothing || stillMissing) {
+        if (found.result() == null) {
           continue;
         }
-        ui.asyncExec(
-            new Runnable() {
-              @Override
-              public void run() {
-                if (watch.generation.get() == generation
-                    && !watch.paused
-                    && watches.contains(watch)) {
-                  listener.found(watch, result);
-                }
-              }
-            });
+        if (found.result().state() == FileCheck.State.CHANGED) {
+          changed.add(found);
+        } else {
+          post(found);
+        }
       }
     }
+    settle(changed);
   }
+
+  /** Waits for changed files to go quiet, then reports each one. */
+  @WorkerThread
+  private void settle(List<Found> changed) {
+    List<Found> waiting = changed;
+    for (int attempt = 0; attempt < QUIET_ATTEMPTS && !waiting.isEmpty(); attempt++) {
+      if (!monitor.pause(quietMillis) || token.isCanceled()) {
+        return;
+      }
+      List<Found> moving = new ArrayList<Found>();
+      for (Found found : waiting) {
+        Found again = quiet(found) ? found : check(found);
+        if (again == null) {
+          return;
+        }
+        if (again == found) {
+          post(found);
+        } else if (again.result() != null) {
+          if (again.result().state() == FileCheck.State.CHANGED) {
+            moving.add(again);
+          } else {
+            post(again);
+          }
+        }
+      }
+      waiting = moving;
+    }
+    for (Found found : waiting) {
+      post(found);
+    }
+  }
+
+  /** Reports whether a changed file still has the stamp the check read; unreadable means no. */
+  @WorkerThread
+  private static boolean quiet(Found found) {
+    try {
+      FileStamp now = FileStamp.read(found.watch().path);
+      return found.result().current().stamp().equals(now);
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
+  /**
+   * Checks a watch's file.
+   *
+   * @return the check's outcome, with a null result when there is nothing to report; null when
+   *     canceled
+   */
+  @WorkerThread
+  private Found check(Found found) {
+    Watch watch = found.watch();
+    FileBaseline baseline = found.baseline();
+    FileCheck.Result result;
+    try {
+      result = FileCheck.check(watch.path, baseline, token);
+    } catch (IOException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(
+            "Cannot check {}: {}",
+            LogText.oneLine(String.valueOf(watch.path)),
+            LogText.oneLine(e.getMessage()));
+      }
+      return new Found(watch, found.generation(), baseline, null);
+    } catch (CancellationException e) {
+      return null;
+    }
+    boolean nothing = result.state() == FileCheck.State.UNCHANGED && result.current() == baseline;
+    boolean stillMissing = result.state() == FileCheck.State.MISSING && watch.missing;
+    return new Found(watch, found.generation(), baseline, nothing || stillMissing ? null : result);
+  }
+
+  /** Posts a result to the listener, which sees it only if its generation is still current. */
+  private void post(final Found found) {
+    final Watch watch = found.watch();
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (watch.generation.get() == found.generation()
+                && !watch.paused
+                && watches.contains(watch)) {
+              listener.found(watch, found.result());
+            }
+          }
+        });
+  }
+
+  /** One check of a watch's file, against the generation and baseline it read. */
+  private record Found(
+      Watch watch, long generation, FileBaseline baseline, FileCheck.Result result) {}
 }

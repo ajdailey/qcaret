@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
+import io.github.ajdailey.qcaret.app.view.PrintTarget;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 
 /**
@@ -41,6 +43,15 @@ import java.util.function.Predicate;
  * call fails off the dispatcher's UI thread.
  */
 final class FakeView implements MainView {
+  /** What the print dialog returns; null is a canceled dialog. */
+  PrintTarget printTarget;
+
+  /** The print row's text, null while hidden. */
+  String printRow;
+
+  /** What the print row's Cancel runs. */
+  Runnable printCancel;
+
   /** The highlights, bookmarks, marks and completion list a view was given. */
   static final class Shown {
     int[] brackets = new int[0];
@@ -445,11 +456,14 @@ final class FakeView implements MainView {
   final AtomicInteger active = new AtomicInteger();
   final List<String> notices = new ArrayList<String>();
   final List<String> launched = new ArrayList<String>();
+  Boolean toolbarShown;
+  Boolean lineNumbersShown;
   final List<Path> guides = new ArrayList<Path>();
   boolean guideWindow;
   String log;
   boolean warningMarker;
   int fontSize;
+  String fontFamily = "";
   Keymap keymap;
   PreferencesInput preferences;
   int goToLines;
@@ -569,6 +583,9 @@ final class FakeView implements MainView {
   }
 
   @Override
+  public void editStateChanged() {}
+
+  @Override
   public void documentStateChanged() {
     ui.checkUiThread();
     stateChanges++;
@@ -636,6 +653,24 @@ final class FakeView implements MainView {
   }
 
   @Override
+  public void setFontFamily(String family) {
+    ui.checkUiThread();
+    fontFamily = family;
+  }
+
+  @Override
+  public void setToolbarShown(boolean shown) {
+    ui.checkUiThread();
+    toolbarShown = shown;
+  }
+
+  @Override
+  public void setLineNumbersShown(boolean shown) {
+    ui.checkUiThread();
+    lineNumbersShown = shown;
+  }
+
+  @Override
   public int defaultFontSize() {
     return 10;
   }
@@ -678,6 +713,47 @@ final class FakeView implements MainView {
     replaceOpenName = name;
     replaceOpen = replace;
     replaceDeclined = declined;
+  }
+
+  int tabWidthAsked;
+  IntConsumer tabWidthAnswer;
+  String reloadName;
+  Runnable reloadAccept;
+  Runnable reloadDecline;
+  String loadText;
+  int loadPercent = -1;
+  Runnable loadCancel;
+  int loadHides;
+
+  @Override
+  public void askTabWidth(int current, int max, IntConsumer answer) {
+    ui.checkUiThread();
+    tabWidthAsked = current;
+    tabWidthAnswer = answer;
+  }
+
+  @Override
+  public void askReload(String name, Runnable reload, Runnable declined) {
+    ui.checkUiThread();
+    reloadName = name;
+    reloadAccept = reload;
+    reloadDecline = declined;
+  }
+
+  @Override
+  public void showLoadProgress(String text, int percent, Runnable cancel) {
+    ui.checkUiThread();
+    loadText = text;
+    loadPercent = percent;
+    loadCancel = cancel;
+  }
+
+  @Override
+  public void hideLoadProgress() {
+    ui.checkUiThread();
+    loadText = null;
+    loadCancel = null;
+    loadHides++;
   }
 
   @Override
@@ -854,6 +930,7 @@ final class FakeView implements MainView {
 
   int[] sideWeights = {1, 3};
   int[] dockWeights = {3, 1};
+  int[] resultsWeights = {3, 2};
   final List<WorkspaceNode> expanded = new ArrayList<WorkspaceNode>();
   RecoveryInput recovery;
   int recoveryChanges;
@@ -868,6 +945,18 @@ final class FakeView implements MainView {
   public void setSideWeights(int[] weights) {
     ui.checkUiThread();
     sideWeights = weights.clone();
+  }
+
+  @Override
+  public int[] resultsWeights() {
+    ui.checkUiThread();
+    return resultsWeights.clone();
+  }
+
+  @Override
+  public void setResultsWeights(int[] weights) {
+    ui.checkUiThread();
+    resultsWeights = weights.clone();
   }
 
   @Override
@@ -904,5 +993,26 @@ final class FakeView implements MainView {
   public void recoveryChanged() {
     ui.checkUiThread();
     recoveryChanges++;
+  }
+
+  @Override
+  public void choosePrinter(Consumer<PrintTarget> chosen) {
+    ui.checkUiThread();
+    if (printTarget != null) {
+      chosen.accept(printTarget);
+    }
+  }
+
+  @Override
+  public void showPrintProgress(String text, int percent, Runnable cancel) {
+    ui.checkUiThread();
+    printRow = text;
+    printCancel = cancel;
+  }
+
+  @Override
+  public void hidePrintProgress() {
+    ui.checkUiThread();
+    printRow = null;
   }
 }

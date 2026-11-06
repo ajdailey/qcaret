@@ -25,10 +25,21 @@ public enum CommandId {
   CLOSE_ALL(CommandGroup.FILE, UiText.COMMAND_CLOSE_ALL, false, false, null),
   /** Open the file of the tab closed last again. */
   REOPEN_CLOSED(CommandGroup.FILE, UiText.COMMAND_REOPEN_CLOSED, false, false, null),
+  /** Empty File > Recently Closed; the menu lists the files above it. */
+  CLEAR_CLOSED_FILES(
+      CommandGroup.FILE,
+      UiText.COMMAND_CLEAR_CLOSED_FILES,
+      false,
+      false,
+      UiText.MENU_RECENTLY_CLOSED),
+  /** Read the selected document's file again, asking first when it has unsaved changes. */
+  RELOAD(CommandGroup.FILE, UiText.COMMAND_RELOAD, false, false, null),
   /** Choose the window's workspace folder, the HyperSearch workspace scope. */
   SET_WORKSPACE(CommandGroup.FILE, UiText.COMMAND_SET_WORKSPACE, true, false, null),
   /** Open a document or workspace file chosen by a fuzzy match on its name or path. */
   QUICK_OPEN(CommandGroup.FILE, UiText.COMMAND_QUICK_OPEN, false, false, null),
+  /** Print the selected document, or its selection, on a printer chosen in a dialog. */
+  PRINT(CommandGroup.FILE, UiText.COMMAND_PRINT, true, false, null),
   /** Empty File > Recent Files; the menu lists the files above it. */
   CLEAR_RECENT_FILES(
       CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, true, false, UiText.MENU_RECENT_FILES),
@@ -76,6 +87,9 @@ public enum CommandId {
   TAB_WIDTH_4(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_4, false, true, UiText.MENU_TAB_WIDTH),
   /** Eight columns per tab stop. */
   TAB_WIDTH_8(CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_8, false, true, UiText.MENU_TAB_WIDTH),
+  /** Ask for any tab width; checked for a width the cascade does not list. */
+  TAB_WIDTH_OTHER(
+      CommandGroup.EDIT, UiText.COMMAND_TAB_WIDTH_OTHER, false, true, UiText.MENU_TAB_WIDTH),
   /** Indent the selected document with spaces instead of tabs. */
   INDENT_WITH_SPACES(CommandGroup.EDIT, UiText.COMMAND_INDENT_WITH_SPACES, false, true, null),
   /** Move the caret to a line and column. */
@@ -241,6 +255,10 @@ public enum CommandId {
   SHOW_LINE_ENDINGS(CommandGroup.VIEW, UiText.COMMAND_SHOW_LINE_ENDINGS, false, true, null),
   /** Show the overview strip beside each editor's text; checked while shown. */
   OVERVIEW_STRIP(CommandGroup.VIEW, UiText.COMMAND_OVERVIEW_STRIP, false, true, null),
+  /** Show the line numbers in the window's editors; checked while shown. */
+  LINE_NUMBERS(CommandGroup.VIEW, UiText.COMMAND_LINE_NUMBERS, false, true, null),
+  /** Show the main toolbar in every window; checked while shown. */
+  TOOLBAR(CommandGroup.VIEW, UiText.COMMAND_TOOLBAR, false, true, null),
   /** Find and run a command by name. */
   COMMAND_PALETTE(CommandGroup.VIEW, UiText.COMMAND_COMMAND_PALETTE, true, false, null),
   /** Show or hide the workspace folder's tree. */

@@ -31,13 +31,16 @@ import java.util.Set;
  *
  * <p>A command that acts on the selected document is disabled without one. A binary file's view
  * disables every command that would write or edit it; a read-only document disables the edits and
- * the line-ending conversions. Reopen Closed Tab needs a closed file, not a document. The fold
- * commands need fold regions in the focused view, the unfold commands a collapsed one. Next,
- * Previous and Clear Bookmarks need a bookmark; the Bookmarks list shows without a document.
- * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
- * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
- * Compare Documents needs a second document, Compare with File on Disk a file. A disabled menu
- * item's accelerator does not fire.
+ * the line-ending conversions. Undo and Redo need a step in the document's history, Cut and Copy a
+ * selection, which a read-only document keeps for Copy. Reopen Closed Tab and Clear Recently Closed
+ * need a closed file, not a document. The fold commands need fold regions in the focused view, the
+ * unfold commands a collapsed one. Next, Previous and Clear Bookmarks need a bookmark; the
+ * Bookmarks list shows without a document. HyperSearch runs without a document; Next and Previous
+ * Result and Replace in Results need a match in a retained set. Go Back and Go Forward need a
+ * position that way, Clear Recent Files a file. Compare Documents needs a second document, Compare
+ * with File on Disk and Reload from Disk a file. A disabled menu item's accelerator does not fire;
+ * the keys of Undo, Redo, Cut and Copy are editor bindings, not accelerators, so they stay live in
+ * the editor and in text fields whatever the items show.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -65,6 +68,8 @@ public final class CommandStates {
           CommandId.REPLACE_IN_RESULTS,
           CommandId.RESTORE_REPLACE_RUN,
           CommandId.OVERVIEW_STRIP,
+          CommandId.LINE_NUMBERS,
+          CommandId.TOOLBAR,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
           CommandId.CLEAR_RECENT_FILES,
@@ -108,6 +113,13 @@ public final class CommandStates {
           CommandId.COMPLETE_WORD);
 
   /**
+   * Commands whose state follows the text and the selection. A view reads them on every status
+   * turn: {@link #enabled} costs each one a look at the history or the carets, never at the text.
+   */
+  public static final Set<CommandId> EDIT_STATE =
+      EnumSet.of(CommandId.UNDO, CommandId.REDO, CommandId.CUT, CommandId.COPY);
+
+  /**
    * A grammar as the Syntax menu lists it.
    *
    * @param id the grammar's id
@@ -128,11 +140,19 @@ public final class CommandStates {
    * The enabled items of a tab's context menu; Close and Close All are always enabled.
    *
    * @param closeOthers another tab is open
+   * @param closeLeft a tab is open to the left
+   * @param closeRight a tab is open to the right
    * @param file the tab has a file: the path items
    */
-  public record TabItems(boolean closeOthers, boolean file) {}
+  public record TabItems(
+      boolean closeOthers, boolean closeLeft, boolean closeRight, boolean file) {}
 
   private final ApplicationController application;
+
+  private static boolean selected(DocumentController documents) {
+    EditorController editor = documents.activeEditor();
+    return editor != null && editor.hasSelection();
+  }
 
   /**
    * Reads state from a controller.
@@ -164,7 +184,7 @@ public final class CommandStates {
       case LINE_ENDING_CRLF -> uniformEnding() == LineEnding.CRLF;
       case LINE_ENDING_LF -> uniformEnding() == LineEnding.LF;
       case LINE_ENDING_CR -> uniformEnding() == LineEnding.CR;
-      case TAB_WIDTH_2, TAB_WIDTH_4, TAB_WIDTH_8 -> tabWidthChecked(command);
+      case TAB_WIDTH_2, TAB_WIDTH_4, TAB_WIDTH_8, TAB_WIDTH_OTHER -> tabWidthChecked(command);
       case INDENT_WITH_SPACES -> document() != null && document().insertSpaces();
       case READ_ONLY -> document() != null && document().isReadOnly();
       case COLUMN_MODE ->
@@ -174,6 +194,8 @@ public final class CommandStates {
       case SHOW_LINE_ENDINGS -> application.documents().lineEndingsShown();
       case SEARCH_RESULTS -> application.search().resultsShown();
       case OVERVIEW_STRIP -> application.documents().overviewShown();
+      case LINE_NUMBERS -> application.documents().lineNumbersShown();
+      case TOOLBAR -> application.toolbarShown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();
       default -> false;
@@ -187,7 +209,7 @@ public final class CommandStates {
    * @return true unless the command needs a document, a file or a state the document lacks
    */
   public boolean enabled(CommandId command) {
-    if (command == CommandId.REOPEN_CLOSED) {
+    if (command == CommandId.REOPEN_CLOSED || command == CommandId.CLEAR_CLOSED_FILES) {
       return application.documents().canReopenClosed();
     }
     if (WINDOW_COMMANDS.contains(command) || command.group() == CommandGroup.HELP) {
@@ -214,9 +236,16 @@ public final class CommandStates {
           && (command == CommandId.TOGGLE_BLOCK_COMMENT ? block : block || comments.line() != null);
     }
     if (EDITS.contains(command)) {
-      return !document.isReadOnly();
+      return !document.isReadOnly()
+          && switch (command) {
+            case UNDO -> document.canUndo();
+            case REDO -> document.canRedo();
+            case CUT -> selected(documents);
+            default -> true;
+          };
     }
     return switch (command) {
+      case COPY -> selected(documents);
       case SAVE, SAVE_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS, COMPARE_DOCUMENTS -> documents.count() > 1;
@@ -229,7 +258,7 @@ public final class CommandStates {
               && documents.activeEditor().projection().collapsedCount() > 0;
       case NEXT_BOOKMARK, PREVIOUS_BOOKMARK, CLEAR_BOOKMARKS ->
           documents.activeBookmarks().length > 0;
-      case COMPARE_WITH_DISK -> documents.activeOpenedPath() != null;
+      case COMPARE_WITH_DISK, RELOAD -> documents.activeOpenedPath() != null;
       default -> true;
     };
   }
@@ -329,6 +358,33 @@ public final class CommandStates {
   }
 
   /**
+   * Lists File > Recently Closed.
+   *
+   * @return each file's path, newest first
+   */
+  public List<String> closedFiles() {
+    return application.documents().closedFiles();
+  }
+
+  /**
+   * Returns the window's title: the selected document's name with its dirty mark and its path.
+   *
+   * @return the title, the application's name alone without a document
+   */
+  public String windowTitle() {
+    DocumentController documents = application.documents();
+    Document document = documents.activeDocument();
+    if (document == null) {
+      return UiText.WINDOW_TITLE.text();
+    }
+    String name = (document.isDirty() ? "*" : "") + documents.activeName();
+    Path path = documents.activePath();
+    return path == null
+        ? UiText.WINDOW_TITLE_DOCUMENT.format(name)
+        : UiText.WINDOW_TITLE_FILE.format(name, path);
+  }
+
+  /**
    * Returns the enabled items of a tab's context menu.
    *
    * @param tab the tab's input
@@ -336,7 +392,12 @@ public final class CommandStates {
    */
   public TabItems tabItems(TabInput tab) {
     DocumentController documents = application.documents();
-    return new TabItems(documents.count() > 1, documents.hasFile(documents.indexOf(tab)));
+    int index = documents.indexOf(tab);
+    return new TabItems(
+        documents.count() > 1,
+        index > 0,
+        index >= 0 && index < documents.count() - 1,
+        documents.hasFile(index));
   }
 
   /**
@@ -404,13 +465,16 @@ public final class CommandStates {
   }
 
   private boolean tabWidthChecked(CommandId command) {
-    int width =
-        switch (command) {
-          case TAB_WIDTH_2 -> 2;
-          case TAB_WIDTH_4 -> 4;
-          default -> 8;
-        };
-    return document() != null && document().tabWidth() == width;
+    if (document() == null) {
+      return false;
+    }
+    int width = document().tabWidth();
+    return switch (command) {
+      case TAB_WIDTH_2 -> width == 2;
+      case TAB_WIDTH_4 -> width == 4;
+      case TAB_WIDTH_8 -> width == 8;
+      default -> width != 2 && width != 4 && width != 8;
+    };
   }
 
   /** Returns the ending every break has, the inserted one without breaks, or null when mixed. */

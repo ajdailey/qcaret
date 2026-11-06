@@ -76,6 +76,9 @@ the version changes):
 - The `.tar.gz` bundles are written by GNU `tar` with entries sorted by name,
   one mtime, owner and group 0, and modes set by `chmod` beforehand, then
   compressed by Ant's `gzip`. Ant's `tar` has no `modificationtime`.
+- `qcaret.jar` is byte-identical across build hosts under one JDK: `dist.xml`
+  rewrites the native digests to LF and sorts the `index.properties` lists by
+  name, case-sensitive.
 - launch4j's `ld` stamps `qcaret.exe` with the link time. `PeTimestamp.java`
   rewrites the COFF time stamp and the PE checksum to the values `ld` writes
   with `SOURCE_DATE_EPOCH` set, which cannot reach `ld` inside the Maven JVM.
@@ -135,7 +138,8 @@ logs `First paint of file text` (the line `qcaret-bench` times), and after
 SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no
 other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`,
 and its `java` runs `CharsetProbe`, which fails unless every encoding in
-`SmokeTest.ENCODINGS` is supported.
+`SmokeTest.ENCODINGS` is supported. The jar's digests hold no CR and each
+`natives.` list is in name order.
 
 The CI `bundle` job runs each archive on its own runner through
 `.github/scripts/check-bundle.sh` (Linux, macOS) or `check-bundle.ps1`

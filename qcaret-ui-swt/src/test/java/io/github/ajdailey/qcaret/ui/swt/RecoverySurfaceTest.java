@@ -273,7 +273,8 @@ class RecoverySurfaceTest {
             "",
             List.of(),
             List.of(),
-            display);
+            display,
+            "");
     new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, settings))
         .save(new Session(List.of(saved), List.of(), List.of()));
   }
@@ -339,7 +340,7 @@ class RecoverySurfaceTest {
     }
     Path wide = Files.writeString(temp.resolve("wide.txt"), text.toString()).toRealPath();
     Path split = Files.writeString(temp.resolve("split.txt"), text.toString()).toRealPath();
-    saveSession(split, wide, "", new Session.Display(true, false, false, false, true));
+    saveSession(split, wide, "", new Session.Display(true, false, false, false, true, true));
     start();
     awaitTabs(2);
     until(

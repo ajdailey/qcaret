@@ -25,6 +25,7 @@ import java.util.Map;
  * @param occurrence background of the occurrences of the word at the caret
  * @param bracket background of the bracket at the caret and its partner
  * @param tokens the style of each role; every role has one
+ * @param accents the colors of the tabs, the overview strip, bookmarks and the comparison window
  */
 public record Palette(
     boolean dark,
@@ -40,7 +41,28 @@ public record Palette(
     Rgb findMatch,
     Rgb occurrence,
     Rgb bracket,
-    Map<TokenRole, TokenStyle> tokens) {
+    Map<TokenRole, TokenStyle> tokens,
+    Palette.Accents accents) {
+  /**
+   * The colors outside the text views' own.
+   *
+   * @param tabText the label of an unselected tab
+   * @param overviewFind the overview strip's mark of a find-bar match
+   * @param overviewSearch the overview strip's mark of a HyperSearch match
+   * @param bookmarkComment the gutter mark of a bookmark with a comment
+   * @param diffRemoved the comparison window's background of a line on the left only
+   * @param diffAdded the comparison window's background of a line on the right only
+   * @param diffChanged the comparison window's background of a line that differs
+   */
+  public record Accents(
+      Rgb tabText,
+      Rgb overviewFind,
+      Rgb overviewSearch,
+      Rgb bookmarkComment,
+      Rgb diffRemoved,
+      Rgb diffAdded,
+      Rgb diffChanged) {}
+
   /** The default palette. */
   public static final Palette LIGHT =
       new Palette(
@@ -75,7 +97,15 @@ public record Palette(
               TokenStyle.bold(0x1b2e44),
               TokenStyle.italic(0x1b2e44),
               TokenStyle.underline(0x0a6a96),
-              TokenStyle.underline(0xc0281f)));
+              TokenStyle.underline(0xc0281f)),
+          new Accents(
+              Rgb.of(0x5a6a7b),
+              Rgb.of(0xc0281f),
+              Rgb.of(0x0a6a96),
+              Rgb.of(0x18736a),
+              Rgb.of(0xfde2e1),
+              Rgb.of(0xdcf5e3),
+              Rgb.of(0xfdf0cc)));
 
   /** The dark palette. */
   public static final Palette DARK =
@@ -111,10 +141,21 @@ public record Palette(
               TokenStyle.bold(0x56c1f0),
               TokenStyle.italic(0xdce6f0),
               TokenStyle.underline(0x56c1f0),
-              TokenStyle.underline(0xff8a80)));
+              TokenStyle.underline(0xff8a80)),
+          new Accents(
+              Rgb.of(0x98abbf),
+              Rgb.of(0xff8a80),
+              Rgb.of(0x56c1f0),
+              Rgb.of(0x5fd3b0),
+              Rgb.of(0x4a2a30),
+              Rgb.of(0x1f4232),
+              Rgb.of(0x4a3d1f)));
 
   /** Checks that every role has a style and keeps an unmodifiable copy. */
   public Palette {
+    if (accents == null) {
+      throw new IllegalArgumentException("null accents");
+    }
     for (TokenRole role : TokenRole.values()) {
       if (tokens.get(role) == null) {
         throw new IllegalArgumentException("no style for " + role);
@@ -137,65 +178,65 @@ public record Palette(
    * Returns the label of an unselected tab on the {@link #gutter} strip, dimmer than {@link
    * #selectionText} so the selected tab stays apparent while it has the strip's background.
    *
-   * @return slate on light, pale slate on dark
+   * @return the color
    */
   public Rgb tabText() {
-    return dark ? Rgb.of(0x98abbf) : Rgb.of(0x5a6a7b);
+    return accents.tabText();
   }
 
   /**
    * Returns the overview strip's mark of a find-bar match.
    *
-   * @return red on light, salmon on dark
+   * @return the color
    */
   public Rgb overviewFind() {
-    return dark ? Rgb.of(0xff8a80) : Rgb.of(0xc0281f);
+    return accents.overviewFind();
   }
 
   /**
    * Returns the overview strip's mark of a HyperSearch match.
    *
-   * @return blue on light, brand cyan on dark
+   * @return the color
    */
   public Rgb overviewSearch() {
-    return dark ? Rgb.of(0x56c1f0) : Rgb.of(0x0a6a96);
+    return accents.overviewSearch();
   }
 
   /**
    * Returns the gutter mark of a bookmark with a comment; a bookmark without one is marked in the
    * caret color.
    *
-   * @return teal on light, mint on dark
+   * @return the color
    */
   public Rgb bookmarkComment() {
-    return dark ? Rgb.of(0x5fd3b0) : Rgb.of(0x18736a);
+    return accents.bookmarkComment();
   }
 
   /**
    * Returns the comparison window's background of a line on the left only.
    *
-   * @return pale red on light, dark red on dark
+   * @return the color
    */
   public Rgb diffRemoved() {
-    return dark ? Rgb.of(0x4a2a30) : Rgb.of(0xfde2e1);
+    return accents.diffRemoved();
   }
 
   /**
    * Returns the comparison window's background of a line on the right only.
    *
-   * @return pale green on light, dark green on dark
+   * @return the color
    */
   public Rgb diffAdded() {
-    return dark ? Rgb.of(0x1f4232) : Rgb.of(0xdcf5e3);
+    return accents.diffAdded();
   }
 
   /**
    * Returns the comparison window's background of a line that differs between the sides.
    *
-   * @return pale amber on light, dark amber on dark
+   * @return the color
    */
   public Rgb diffChanged() {
-    return dark ? Rgb.of(0x4a3d1f) : Rgb.of(0xfdf0cc);
+    return accents.diffChanged();
   }
 
   /** Maps the styles, given in {@link TokenRole} declaration order. */

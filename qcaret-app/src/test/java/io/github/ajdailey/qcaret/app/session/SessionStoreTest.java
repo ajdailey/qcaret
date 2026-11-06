@@ -81,7 +81,8 @@ class SessionStoreTest {
             "3,1",
             List.of(new Session.Search(request, true)),
             List.of("/mock/gone.txt"),
-            Session.Display.DEFAULTS);
+            Session.Display.DEFAULTS,
+            "5,2");
     return new Session(
         List.of(window),
         List.of("/mock/a.txt"),
@@ -90,7 +91,7 @@ class SessionStoreTest {
 
   @Test
   void theDisplayStateAndReadOnlyRoundTrip() {
-    Session.Display display = new Session.Display(true, true, true, false, true);
+    Session.Display display = new Session.Display(true, true, true, false, true, false);
     Session.Tab tab = tab("/mock/r.txt");
     Session.Window window =
         new Session.Window(
@@ -121,7 +122,8 @@ class SessionStoreTest {
             "",
             List.of(),
             List.of(),
-            display);
+            display,
+            "");
     SessionStore store = store();
     assertTrue(store.save(new Session(List.of(window), List.of(), List.of())));
     Session.Window loaded = store().load().windows().get(0);
@@ -264,7 +266,8 @@ class SessionStoreTest {
         "",
         List.of(),
         List.of(),
-        Session.Display.DEFAULTS);
+        Session.Display.DEFAULTS,
+        "");
   }
 
   @Test
@@ -342,7 +345,8 @@ class SessionStoreTest {
             "",
             List.of(),
             List.of(),
-            Session.Display.DEFAULTS);
+            Session.Display.DEFAULTS,
+            "");
     assertFalse(store.save(new Session(List.of(window), List.of(), List.of())));
     assertEquals(session(), store.load());
   }

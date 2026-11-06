@@ -74,6 +74,30 @@ class SafeSaveTest {
     assertEquals("x", Files.readString(file));
   }
 
+  /** A replace of the lock file leaves the lock on the old file: the next launch takes the new. */
+  @Test
+  void theHeldLockFileIsNeverWritten() throws Exception {
+    final Path lock = Files.createFile(temp.resolve("instance.lock"));
+    final FileStamp baseline = FileStamp.read(lock);
+    SafePaths.holdLock(lock, "mock refusal");
+    try {
+      IOException refused =
+          assertThrows(
+              IOException.class,
+              new Executable() {
+                @Override
+                public void execute() throws IOException {
+                  SafeSave.save(lock, baseline, text("mock"), new CancellationToken());
+                }
+              });
+      assertEquals("mock refusal", refused.getMessage());
+      assertEquals(0, Files.size(lock));
+      assertEquals(List.of("instance.lock"), names());
+    } finally {
+      SafePaths.releaseLock(lock);
+    }
+  }
+
   @Test
   void anExternalChangeStopsTheSaveBeforeAnyWrite() throws Exception {
     final Path file = temp.resolve("a.txt");

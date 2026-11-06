@@ -54,7 +54,8 @@ public final class SafeSave {
    * @throws ExternalModificationException when the target changed since {@code baseline}; nothing
    *     is written
    * @throws CancellationException when canceled before the target is replaced
-   * @throws IOException when the write fails; an atomic save leaves the target unchanged
+   * @throws IOException when the target is the file named to {@link SafePaths#holdLock}, or the
+   *     write fails; an atomic save leaves the target unchanged
    */
   @WorkerThread
   public static FileStamp save(
@@ -65,6 +66,9 @@ public final class SafeSave {
       throw new ExternalModificationException(String.valueOf(target.getFileName()), current);
     }
     Path real = current != null ? target.toRealPath() : target.toAbsolutePath();
+    if (current != null) {
+      SafePaths.checkNotHeld(real);
+    }
     Path dir = real.getParent();
     if (dir == null) {
       throw new IOException("No parent directory");

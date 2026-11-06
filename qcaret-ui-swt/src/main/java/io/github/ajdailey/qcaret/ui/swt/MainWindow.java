@@ -26,6 +26,7 @@ import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
+import io.github.ajdailey.qcaret.app.view.PrintTarget;
 import io.github.ajdailey.qcaret.app.view.QuickOpenInput;
 import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
@@ -48,11 +49,16 @@ import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import io.github.ajdailey.qcaret.ui.swt.search.RunChooser;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.SWTError;
+import org.eclipse.swt.SWTException;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabFolder2Adapter;
 import org.eclipse.swt.custom.CTabFolderEvent;
@@ -60,6 +66,11 @@ import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.DND;
+import org.eclipse.swt.dnd.DropTarget;
+import org.eclipse.swt.dnd.DropTargetAdapter;
+import org.eclipse.swt.dnd.DropTargetEvent;
+import org.eclipse.swt.dnd.FileTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.Color;
@@ -69,6 +80,9 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.printing.PrintDialog;
+import org.eclipse.swt.printing.Printer;
+import org.eclipse.swt.printing.PrinterData;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -83,16 +97,19 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.ToolBar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
  * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it, beside the {@link
  * BookmarksDock}, hidden until Bookmarks List shows it, with the {@link WorkspaceDock} on the left,
  * hidden until View > Workspace Browser shows it; the {@link MainMenuBar} built from {@link
- * MenuTable} and the {@link Keymap}, the {@link FindBar} and a status bar. The editors take their
- * colors from the {@link Palette}; native controls follow {@link SwtThemeService}. {@link
- * ToolIcons} owned by the window re-ink on the UI turn after a palette change, once native controls
- * have restyled.
+ * MenuTable} and the {@link Keymap}, the {@link MainToolBar} above the rest, the {@link FindBar}
+ * and a status bar. Every editor shares the {@link EditorMenu}. The editors take their colors from
+ * the {@link Palette}; native controls follow {@link SwtThemeService}. {@link ToolIcons} owned by
+ * the window re-ink on the UI turn after a palette change, once native controls have restyled.
  *
  * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
  * strip moves it, and a release off the strip moves it to another window ({@link #dropTab}). A
@@ -103,15 +120,21 @@ import org.eclipse.swt.widgets.Shell;
  * prompts do not.
  *
  * <p>Menu enablement syncs on {@link #documentStateChanged} and when the shell is activated, so an
- * accelerator works without a menu having been shown. The status bar shows the selected document's
- * {@link StatusFields}, read once per UI turn however many caret moves or state changes arrive in
- * it; a notice; and a Warnings link to Show Log while a warning is unseen. A Display key filter
- * runs window bindings that are not accelerators. {@link #setFontSize} replaces the editor font in
- * every editor in place, without rebuilding the menus or the window, and keeps the focus.
+ * accelerator works without a menu having been shown; {@link CommandStates#EDIT_STATE} also syncs
+ * on each status read. The status bar shows the selected document's {@link StatusFields}, read once
+ * per UI turn however many caret moves or state changes arrive in it; a notice; and a Warnings link
+ * to Show Log while a warning is unseen. A Display key filter runs window bindings that are not
+ * accelerators. {@link #setFontSize} replaces the editor font in every editor in place, without
+ * rebuilding the menus or the window, and keeps the focus.
  *
  * <p>{@link #setActive} and {@link #setIdle} count overlapping operations through a {@link
  * BusyCounter}: while any is active the shell shows {@code SWT.CURSOR_APPSTARTING}, which keeps the
  * window usable.
+ *
+ * <p>Files dropped on the window open a tab each ({@link #dropped}); the shell is the only drop
+ * target, and a drag offering no file never reaches it. The title follows the selected document
+ * with the status fields. A {@link ProgressRow} above the status bar shows loads past a short
+ * delay.
  *
  * <p>{@link #place} sizes and positions the shell before {@link #open}; the normal bounds are kept
  * on every unmaximized move and resize for {@link #windowBounds}. Dialogs open without a nested
@@ -119,6 +142,8 @@ import org.eclipse.swt.widgets.Shell;
  * input only to the newest modal shell.
  */
 public final class MainWindow implements MainView {
+  private static final Logger LOG = LoggerFactory.getLogger(MainWindow.class);
+
   /** System property SWT sets on GTK to {@code x11}, {@code wayland} or {@code unknown}. */
   static final String GDK_BACKEND = "org.eclipse.swt.internal.gdk.backend";
 
@@ -146,8 +171,11 @@ public final class MainWindow implements MainView {
   private final CTabFolder tabs;
   private final List<Image> icons;
   private final ToolIcons toolIcons;
+  private final MenuIcons menuIcons;
   private final SwtUiDispatcher dispatcher;
   private final Composite statusBar;
+  private ProgressRow printBar;
+  private Supplier<PrinterData> printerChooser;
   private final Label position;
   private final Label selection;
   private final Label encoding;
@@ -158,9 +186,16 @@ public final class MainWindow implements MainView {
   private final Link warnings;
   private final BusyCounter busy;
   private final int baseFontSize;
+  private final List<TextWindow> textWindows = new ArrayList<TextWindow>();
+  private int fontPoints;
+  private String fontName;
   private Font font;
   private ApplicationController controller;
   private MainMenuBar menuBar;
+  private MainToolBar mainToolBar;
+  private EditorMenu editorMenu;
+  private final ToolBar toolBar;
+  private boolean lineNumbersShown = true;
   private Keymap keymap;
   private PreferencesDialog preferencesDialog;
   private Menu tabMenu;
@@ -184,6 +219,7 @@ public final class MainWindow implements MainView {
         }
       };
   private FindBar findBar;
+  private ProgressRow loadBar;
   private final SashForm body;
   private final SashForm side;
   private WorkspaceDock workspaceDock;
@@ -326,7 +362,27 @@ public final class MainWindow implements MainView {
     EditorPane add(
         DisplayProjection projection, SelectionModel selections, final EditorInput editor) {
       final EditorPane added =
-          new EditorPane(sash, projection, selections, editor, keymap, font, palette, dispatcher);
+          new EditorPane(
+              sash,
+              projection,
+              selections,
+              editor,
+              keymap,
+              font,
+              palette,
+              dispatcher,
+              lineNumbersShown);
+      added
+          .text()
+          .addListener(
+              SWT.MenuDetect,
+              new Listener() {
+                @Override
+                public void handleEvent(Event event) {
+                  event.doit = false;
+                  showEditorMenu(Tab.this, added, editor, event);
+                }
+              });
       added
           .text()
           .addListener(
@@ -471,12 +527,17 @@ public final class MainWindow implements MainView {
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     shell.setLayout(layout);
+    toolBar = new ToolBar(shell, SWT.FLAT | SWT.HORIZONTAL);
+    toolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     side = new SashForm(shell, SWT.HORIZONTAL);
     side.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     body = new SashForm(side, SWT.VERTICAL);
     tabs = new CTabFolder(body, SWT.TOP | SWT.FLAT);
+    tabs.setData(EditorPane.PALETTE_COLORED, Boolean.TRUE);
     baseFontSize = Dialogs.monospaceSize();
-    font = new Font(display, Dialogs.monospaceName(), baseFontSize, SWT.NORMAL);
+    fontPoints = baseFontSize;
+    fontName = Dialogs.monospaceName();
+    font = new Font(display, fontName, fontPoints, SWT.NORMAL);
     statusBar = new Composite(shell, SWT.NONE);
     statusBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     GridLayout statusLayout = new GridLayout(8, false);
@@ -532,9 +593,11 @@ public final class MainWindow implements MainView {
                 }
               }
             });
-    toolIcons = new ToolIcons(shell);
+    toolIcons = new ToolIcons(toolBar);
+    menuIcons = new MenuIcons(toolBar);
     applyPalette(palette);
     trackWindowState();
+    acceptDroppedFiles();
     shell.addListener(
         SWT.Dispose,
         new Listener() {
@@ -567,12 +630,17 @@ public final class MainWindow implements MainView {
   public void attach(ApplicationController owner) {
     controller = owner;
     keymap = owner.keymap();
-    menuBar = new MainMenuBar(shell, owner);
+    menuBar = new MainMenuBar(shell, owner, menuIcons);
     menuBar.build(keymap);
+    mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusEditor);
+    mainToolBar.setKeymap(keymap);
+    setToolbarShown(owner.toolbarShown());
+    editorMenu = new EditorMenu(shell, menuBar.states(), menuIcons, keymap);
     int fontSize = owner.fontSize();
     if (fontSize != 0) {
       setFontSize(fontSize);
     }
+    setFontFamily(owner.fontFamily());
     owner.loadEncodings(
         new EncodingChoices.Listener() {
           @Override
@@ -586,6 +654,10 @@ public final class MainWindow implements MainView {
     dispatchWindowKeys();
     findBar = new FindBar(shell, owner.find());
     findBar.control().moveAbove(statusBar);
+    loadBar = new ProgressRow(shell, true);
+    loadBar.control().moveAbove(statusBar);
+    printBar = new ProgressRow(shell, false);
+    printBar.control().moveAbove(statusBar);
     docks = new SashForm(body, SWT.HORIZONTAL);
     resultsDock = new ResultsDock(docks, palette);
     bookmarksDock = new BookmarksDock(docks);
@@ -603,7 +675,7 @@ public final class MainWindow implements MainView {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            menuBar.syncEnablement();
+            syncCommands();
             controller.windowActivated();
           }
         });
@@ -623,6 +695,86 @@ public final class MainWindow implements MainView {
         };
     controller.theme().addListener(paletteListener);
     applyPalette(controller.theme().palette());
+  }
+
+  /**
+   * Opens files dropped on the window. A drop always copies: accepting a move would have the source
+   * delete the file.
+   */
+  private void acceptDroppedFiles() {
+    DropTarget target = new DropTarget(shell, DND.DROP_COPY | DND.DROP_MOVE | DND.DROP_DEFAULT);
+    target.setTransfer(FileTransfer.getInstance());
+    target.addDropListener(
+        new DropTargetAdapter() {
+          @Override
+          public void dragEnter(DropTargetEvent event) {
+            event.detail = DND.DROP_COPY;
+          }
+
+          @Override
+          public void dragOperationChanged(DropTargetEvent event) {
+            event.detail = DND.DROP_COPY;
+          }
+
+          @Override
+          public void drop(DropTargetEvent event) {
+            if (event.data instanceof String[] names) {
+              dropped(names);
+            }
+          }
+        });
+  }
+
+  /**
+   * Opens dropped files, as a drop does; a path that does not parse shows why.
+   *
+   * @param names the dropped paths as the platform gives them
+   */
+  void dropped(String[] names) {
+    if (controller == null) {
+      return;
+    }
+    List<Path> paths = new ArrayList<Path>();
+    for (String name : names) {
+      try {
+        paths.add(Path.of(name));
+      } catch (InvalidPathException e) {
+        showInfo(UiText.OPEN_TITLE.text(), UiText.OPEN_FAILED.format(name, e.getReason()));
+      }
+    }
+    controller.openDropped(paths);
+  }
+
+  @Override
+  public void showLoadProgress(String text, int percent, Runnable cancel) {
+    if (!shell.isDisposed()) {
+      loadBar.show(text, percent, cancel);
+    }
+  }
+
+  @Override
+  public void hideLoadProgress() {
+    if (!shell.isDisposed()) {
+      loadBar.hide();
+    }
+  }
+
+  /**
+   * Returns the row showing running loads.
+   *
+   * @return the row
+   */
+  ProgressRow loadBar() {
+    return loadBar;
+  }
+
+  /**
+   * Returns the status bar.
+   *
+   * @return the bar
+   */
+  Composite statusBar() {
+    return statusBar;
   }
 
   private Label statusLabel() {
@@ -654,6 +806,7 @@ public final class MainWindow implements MainView {
           public void run() {
             if (!shell.isDisposed()) {
               toolIcons.reink();
+              menuIcons.reink();
             }
           }
         });
@@ -732,9 +885,85 @@ public final class MainWindow implements MainView {
   @Override
   public void documentStateChanged() {
     if (menuBar != null && !shell.isDisposed()) {
-      menuBar.syncEnablement();
+      syncCommands();
     }
     scheduleStatus();
+  }
+
+  @Override
+  public void editStateChanged() {
+    scheduleStatus();
+  }
+
+  /** Enables the menu items and the toolbar's buttons from the command states. */
+  private void syncCommands() {
+    menuBar.syncEnablement();
+    mainToolBar.sync();
+  }
+
+  private void focusEditor() {
+    EditorPane pane = activeEditor();
+    if (pane != null) {
+      pane.focus();
+    }
+  }
+
+  /**
+   * Opens the editor menu over a view. The pointer's point first places the caret, unless it lies
+   * in a selection; a menu opened from the keyboard shows below the caret and moves nothing.
+   */
+  private void showEditorMenu(Tab tab, EditorPane pane, EditorInput input, Event event) {
+    tab.pane = pane;
+    pane.focus();
+    Point at = new Point(event.x, event.y);
+    if (event.detail == SWT.MENU_KEYBOARD) {
+      at = pane.menuLocation();
+    } else {
+      pane.menuAt(event.x, event.y);
+    }
+    editorMenu.show(input, at.x, at.y);
+  }
+
+  /**
+   * Returns the editor menu.
+   *
+   * @return the menu's owner, or null before {@link #attach}
+   */
+  EditorMenu editorMenu() {
+    return editorMenu;
+  }
+
+  /**
+   * Returns the main toolbar.
+   *
+   * @return the toolbar's owner, or null before {@link #attach}
+   */
+  MainToolBar mainToolBar() {
+    return mainToolBar;
+  }
+
+  @Override
+  public void setToolbarShown(boolean shown) {
+    if (shell.isDisposed() || toolBar.getVisible() == shown) {
+      return;
+    }
+    toolBar.setVisible(shown);
+    ((GridData) toolBar.getLayoutData()).exclude = !shown;
+    shell.layout(true);
+    toolIcons.reink();
+    menuIcons.reink();
+  }
+
+  @Override
+  public void setLineNumbersShown(boolean shown) {
+    lineNumbersShown = shown;
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        for (EditorPane pane : tab.panes) {
+          pane.setLineNumbersShown(shown);
+        }
+      }
+    }
   }
 
   /** Shows the status fields on a later UI turn; calls before then share that one read. */
@@ -756,6 +985,12 @@ public final class MainWindow implements MainView {
   private void showStatus() {
     if (shell.isDisposed() || menuBar == null) {
       return;
+    }
+    menuBar.syncEditState();
+    mainToolBar.syncEditState();
+    String title = menuBar.states().windowTitle();
+    if (!title.equals(shell.getText())) {
+      shell.setText(title);
     }
     StatusFields fields = menuBar.states().status();
     boolean changed = set(position, fields.position());
@@ -894,7 +1129,7 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Opens a tab's context menu: Close, Close Others, Close All, then the path items. One menu
+   * Opens a tab's context menu: the close items, Move to New Window, then the path items. One menu
    * serves every tab; each call replaces its items.
    *
    * @param tab the tab
@@ -926,6 +1161,24 @@ public final class MainWindow implements MainView {
           @Override
           public void run() {
             tab.input.closeOthersRequested();
+          }
+        });
+    tabMenuItem(
+        UiText.TAB_CLOSE_LEFT,
+        state.closeLeft(),
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.closeSideRequested(true);
+          }
+        });
+    tabMenuItem(
+        UiText.TAB_CLOSE_RIGHT,
+        state.closeRight(),
+        new Runnable() {
+          @Override
+          public void run() {
+            tab.input.closeSideRequested(false);
           }
         });
     tabMenuItem(
@@ -964,6 +1217,15 @@ public final class MainWindow implements MainView {
           @Override
           public void run() {
             tab.input.copyPathRequested(true);
+          }
+        });
+    tabMenuItem(
+        UiText.TAB_OPEN_FOLDER,
+        state.file(),
+        new Runnable() {
+          @Override
+          public void run() {
+            controller.openContainingFolder(tab.input);
           }
         });
     tabMenu.setLocation(x, y);
@@ -1055,6 +1317,57 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public void choosePrinter(Consumer<PrintTarget> chosen) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    PrinterData data;
+    Printer printer;
+    try {
+      // On GTK the list waits for every print backend, and Print to File is always there.
+      if (!"gtk".equals(SWT.getPlatform()) && Printer.getPrinterList().length == 0) {
+        showNotice(UiText.PRINT_NO_PRINTER.text());
+        return;
+      }
+      data = printerChooser != null ? printerChooser.get() : new PrintDialog(shell).open();
+      if (data == null) {
+        return;
+      }
+      printer = new Printer(data);
+    } catch (SWTError | SWTException | IllegalArgumentException e) {
+      LOG.warn("The printer did not open", e);
+      showNotice(UiText.PRINT_NO_PRINTER.text());
+      return;
+    }
+    String family = font.getFontData()[0].getName();
+    chosen.accept(new PrintJob(printer, data, family, shell.getDisplay()));
+  }
+
+  /** Replaces the print dialog; the supplier returns what the dialog would. */
+  void setPrinterChooser(Supplier<PrinterData> chooser) {
+    printerChooser = chooser;
+  }
+
+  @Override
+  public void showPrintProgress(String text, int percent, Runnable cancel) {
+    if (!shell.isDisposed()) {
+      printBar.show(text, percent, cancel);
+    }
+  }
+
+  @Override
+  public void hidePrintProgress() {
+    if (!shell.isDisposed()) {
+      printBar.hide();
+    }
+  }
+
+  /** Returns the print row. */
+  ProgressRow printBar() {
+    return printBar;
+  }
+
+  @Override
   public void askUnsaved(String name, Consumer<UnsavedChoice> answer) {
     if (shell.isDisposed()) {
       answer.accept(UnsavedChoice.CANCEL);
@@ -1125,7 +1438,7 @@ public final class MainWindow implements MainView {
     }
     if (logWindow == null || logWindow.shell().isDisposed()) {
       Shell owner = modalOwner();
-      logWindow = new TextWindow(owner, UiText.SHOW_LOG_TITLE.text(), text, this, owner != shell);
+      logWindow = textWindow(owner, UiText.SHOW_LOG_TITLE.text(), text);
       logWindow.open();
       logWindow.showStart();
     } else {
@@ -1213,13 +1526,35 @@ public final class MainWindow implements MainView {
     if (shell.isDisposed()) {
       return;
     }
+    fontPoints = points == 0 ? baseFontSize : points;
+    replaceFont();
+  }
+
+  @Override
+  public void setFontFamily(String family) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    String next = EditorFonts.family(shell.getDisplay(), family);
+    if (next.equals(fontName)) {
+      return;
+    }
+    fontName = next;
+    replaceFont();
+    for (DiffWindow window : diffWindows) {
+      window.setFontData(font.getFontData());
+    }
+    for (TextWindow window : textWindows) {
+      window.setFontName(next);
+    }
+    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
+      replaceDialog.setFontName(next);
+    }
+  }
+
+  private void replaceFont() {
     Font old = font;
-    font =
-        new Font(
-            shell.getDisplay(),
-            Dialogs.monospaceName(),
-            points == 0 ? baseFontSize : points,
-            SWT.NORMAL);
+    font = new Font(shell.getDisplay(), fontName, fontPoints, SWT.NORMAL);
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
         for (EditorPane pane : tab.panes) {
@@ -1229,7 +1564,7 @@ public final class MainWindow implements MainView {
     }
     old.dispose();
     if (menuBar != null) {
-      menuBar.syncEnablement();
+      syncCommands();
     }
   }
 
@@ -1363,6 +1698,15 @@ public final class MainWindow implements MainView {
    */
   ToolIcons toolIcons() {
     return toolIcons;
+  }
+
+  /**
+   * Returns the menu icons.
+   *
+   * @return the icons
+   */
+  MenuIcons menuIcons() {
+    return menuIcons;
   }
 
   /**
@@ -1518,7 +1862,24 @@ public final class MainWindow implements MainView {
       return;
     }
     Shell owner = modalOwner();
-    new TextWindow(owner, title, value, this, owner != shell).open();
+    textWindow(owner, title, value).open();
+  }
+
+  /** Creates a text window that follows the font family while it is open. */
+  private TextWindow textWindow(Shell owner, String title, String value) {
+    final TextWindow window = new TextWindow(owner, title, value, this, owner != shell, fontName);
+    textWindows.add(window);
+    window
+        .shell()
+        .addListener(
+            SWT.Dispose,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                textWindows.remove(window);
+              }
+            });
+    return window;
   }
 
   /** Returns the innermost visible modal dialog over the main window, or the main window. */
@@ -1617,6 +1978,22 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public void askTabWidth(int current, int max, IntConsumer answer) {
+    if (!shell.isDisposed()) {
+      new TabWidthDialog(shell, current, max, answer).open();
+    }
+  }
+
+  @Override
+  public void askReload(String name, Runnable reload, Runnable declined) {
+    if (shell.isDisposed()) {
+      declined.run();
+      return;
+    }
+    new ReloadDialog(shell, name, reload, declined).open();
+  }
+
+  @Override
   public void showKeyboardShortcuts(Keymap bindings) {
     if (shell.isDisposed()) {
       return;
@@ -1671,6 +2048,8 @@ public final class MainWindow implements MainView {
     }
     keymap = bindings;
     menuBar.build(bindings);
+    mainToolBar.setKeymap(bindings);
+    editorMenu.setKeymap(bindings);
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {
         for (EditorPane pane : tab.panes) {
@@ -1765,6 +2144,16 @@ public final class MainWindow implements MainView {
   @Override
   public void setDockWeights(int[] weights) {
     body.setWeights(weights);
+  }
+
+  @Override
+  public int[] resultsWeights() {
+    return docks.getWeights();
+  }
+
+  @Override
+  public void setResultsWeights(int[] weights) {
+    docks.setWeights(weights);
   }
 
   @Override
@@ -1965,8 +2354,7 @@ public final class MainWindow implements MainView {
     if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
       replaceDialog.shell().dispose();
     }
-    replaceDialog =
-        new ReplaceDialog(shell, input, palette, Dialogs.monospaceName(), Dialogs.monospaceSize());
+    replaceDialog = new ReplaceDialog(shell, input, palette, fontName, Dialogs.monospaceSize());
     replaceDialog.open();
     rememberSize(replaceDialog.shell(), "replace");
   }

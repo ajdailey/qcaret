@@ -16,8 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Owns every thread QCaret starts: a fixed pool of platform threads for CPU-bound work ({@code
- * qcaret-cpu-N}) and virtual threads for blocking work, named by {@link Kind}. Nothing else creates
- * a thread or an executor. The launcher creates one instance and closes it at shutdown.
+ * qcaret-cpu-N}) and a thread per blocking task, named by {@link Kind}, virtual except {@link
+ * Kind#PRINT}. Nothing else creates a thread or an executor. The launcher creates one instance and
+ * closes it at shutdown.
  *
  * <p>Every task runs inside a wrapper that passes an exception it ends with to the failure handler;
  * the same handler is each thread's uncaught exception handler. No task returns a {@code Future},
@@ -32,7 +33,7 @@ public final class Workers implements AutoCloseable {
 
   private static final int CPU_QUEUE = 4096;
 
-  /** Virtual thread kinds, each with its own name prefix. */
+  /** Blocking thread kinds, each with its own name prefix. */
   public enum Kind {
     /** File open, decode, save, reload and recovery writes. */
     IO("qcaret-io-"),
@@ -45,7 +46,12 @@ public final class Workers implements AutoCloseable {
     /** Configuration saves and shutdown. */
     LIFECYCLE("qcaret-lifecycle-"),
     /** The event-loop watchdog. */
-    WATCHDOG("qcaret-watchdog-");
+    WATCHDOG("qcaret-watchdog-"),
+    /**
+     * A print job, on a platform thread: native print calls keep per-thread state (the macOS
+     * graphics context, the Pango font map), and a virtual thread can change carrier between them.
+     */
+    PRINT("qcaret-print-");
 
     private final String prefix;
 
@@ -96,7 +102,16 @@ public final class Workers implements AutoCloseable {
     this.factories = new ThreadFactory[kinds.length];
     for (Kind kind : kinds) {
       factories[kind.ordinal()] =
-          Thread.ofVirtual().name(kind.prefix(), 1).uncaughtExceptionHandler(failures).factory();
+          kind == Kind.PRINT
+              ? Thread.ofPlatform()
+                  .name(kind.prefix(), 1)
+                  .daemon(true)
+                  .uncaughtExceptionHandler(failures)
+                  .factory()
+              : Thread.ofVirtual()
+                  .name(kind.prefix(), 1)
+                  .uncaughtExceptionHandler(failures)
+                  .factory();
     }
   }
 
@@ -114,7 +129,7 @@ public final class Workers implements AutoCloseable {
   }
 
   /**
-   * Starts a blocking task on a new virtual thread. The thread joins the live set before {@code
+   * Starts a blocking task on a new thread of its kind. The thread joins the live set before {@code
    * closed} is checked a second time, so {@link #close} either waits for it or the start is
    * rejected.
    *
@@ -186,7 +201,7 @@ public final class Workers implements AutoCloseable {
   }
 
   /**
-   * Counts threads that have not ended: started virtual threads plus pool threads.
+   * Counts threads that have not ended: started blocking threads plus pool threads.
    *
    * @return the count; 0 after a successful close
    */

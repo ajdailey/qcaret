@@ -51,6 +51,32 @@ class WorkersTest {
   }
 
   @Test
+  void aPrintTaskRunsOnANamedPlatformThreadThatCloseWaitsFor() throws Exception {
+    final CountDownLatch release = new CountDownLatch(1);
+    Workers workers = new Workers(1, handler);
+    Thread thread =
+        workers.start(
+            Workers.Kind.PRINT,
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  release.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              }
+            });
+    assertFalse(thread.isVirtual());
+    assertTrue(thread.isDaemon());
+    assertTrue(thread.getName().startsWith("qcaret-print-"));
+    assertEquals(1, workers.liveThreads());
+    release.countDown();
+    assertTrue(workers.close(Duration.ofSeconds(10)));
+    assertEquals(0, workers.liveThreads());
+  }
+
+  @Test
   void taskFailureReachesHandler() throws Exception {
     final IllegalStateException boom = new IllegalStateException("mock failure");
     Workers workers = new Workers(1, handler);

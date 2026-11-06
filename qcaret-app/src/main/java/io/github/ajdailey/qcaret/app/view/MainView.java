@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.view;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 /**
  * The main window as the controllers see it. Every method but the {@link ActivityIndicator} ones is
@@ -126,6 +127,27 @@ public interface MainView
   void setFontSize(int points);
 
   /**
+   * Sets the editor font family in every view that shows it.
+   *
+   * @param family the family; empty for the platform's monospace font
+   */
+  void setFontFamily(String family);
+
+  /**
+   * Shows or hides the main toolbar.
+   *
+   * @param shown true to show it
+   */
+  void setToolbarShown(boolean shown);
+
+  /**
+   * Shows or hides the line numbers in every editor of the window, later ones included.
+   *
+   * @param shown true to show them
+   */
+  void setLineNumbersShown(boolean shown);
+
+  /**
    * Returns the editor font's platform default size.
    *
    * @return the size in points
@@ -160,4 +182,24 @@ public interface MainView
    * @param keymap the bindings
    */
   void setKeymap(Keymap keymap);
+
+  /**
+   * Shows the print dialog. A canceled dialog calls nothing; a system without a printer, or a
+   * printer that fails to open, shows a notice and calls nothing.
+   *
+   * @param chosen receives the job, which it must close
+   */
+  void choosePrinter(Consumer<PrintTarget> chosen);
+
+  /**
+   * Shows the window's print row, or updates it.
+   *
+   * @param text what is printing
+   * @param percent the progress, 0 to 100
+   * @param cancel what the row's Cancel runs
+   */
+  void showPrintProgress(String text, int percent, Runnable cancel);
+
+  /** Hides the print row. */
+  void hidePrintProgress();
 }

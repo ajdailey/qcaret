@@ -28,16 +28,25 @@ Preferences, Keys changes them.
 ## Opening files
 
 Open files with File > Open (`Ctrl+O`), File > Recent Files (the last 20),
-[Quick Open](#quick-open), the workspace browser, or the
-[command line](#command-line). Each file opens in its own tab; a file already
-open selects its tab, in any window. File > New (`Ctrl+N`) opens an untitled
-document. File > Reopen Closed Tab (`Ctrl+Shift+T`) opens the last closed tab's
-file again, up to 20 back, where the caret was.
+[Quick Open](#quick-open), the workspace browser, the
+[command line](#command-line), or by dropping them on the window. Each file
+opens in its own tab; a file already open selects its tab, in any window. File >
+New (`Ctrl+N`) opens an untitled document. File > Reopen Closed Tab
+(`Ctrl+Shift+T`) opens the last closed tab's file again, up to 20 back, where
+the caret was; File > Recently Closed lists those files to choose from.
+
+A load still running after 0.3 seconds shows a row above the status bar with its
+progress and Cancel. The window stays usable. Cancel or `Esc` stops every
+running load, and no tab opens.
+
+File > Reload from Disk reads the selected document's file again. With unsaved
+changes it asks first, and Undo brings them back.
 
 The file's encoding comes from its byte order mark, an XML, HTML or Python
 declaration, or the content; UTF-8 is tried before windows-1252. Encoding >
 Reopen with Encoding reads the file again with another charset, and QCaret
-remembers it for that file. Encoding > Save with Encoding changes what the next
+remembers it for that file; its Automatic Detection entry returns the file to
+detection. Encoding > Save with Encoding changes what the next
 save writes. Encoding > Line Endings converts every line break in one undo step;
 a file with mixed endings keeps them until then, and Enter inserts the ending
 last converted to.
@@ -56,17 +65,42 @@ as it was. A save writes a temporary file and moves it over the target, keeps
 the file's permissions, and follows a symbolic link. Save As onto a file open
 in another tab closes that tab, after asking when the tab has unsaved changes.
 
+File > Print opens the system print dialog; it has no default key, because
+`Ctrl+P` is Quick Open, and Preferences can assign one. The dialog chooses the
+printer, the copies, and all pages, a page range or the selection. A job prints
+the document as it stood when you chose the command, folded text included and
+word wrap ignored: a line wider than the page wraps at the column. Each page
+has the file name and Page N of M at the top, line numbers, and the light
+theme's syntax colors on white in the editor's font at 10 points. A row above
+the status bar shows the progress with Cancel, and you can keep editing. One
+window runs one print job at a time; closing the window cancels it.
+
 ## The main window
 
 ![Main window with the workspace browser, a highlighted file, the find bar and search results](images/guide/main.png)
 
+- The toolbar under the menu bar holds New, Open, Save, Save All, Undo, Redo,
+  Cut, Copy, Paste, Find, Replace, HyperSearch, Zoom In and Zoom Out. Each button
+  runs its menu command, and its tool tip names the keys. Undo and Redo are
+  available when the document has a step to take, Cut and Copy with a selection;
+  the keys work the same in the find bar and in dialogs. View > Toolbar hides it
+  in every window, and the choice is saved. In a narrow window the last buttons
+  leave the row; the menus hold the same commands.
+- Common menu items show an icon on Linux and Windows, the same one as their
+  toolbar button. macOS menus show none.
+- The title bar shows the selected document's name, a `*` while it has unsaved
+  changes, and its path.
 - The tab row holds one tab per document. A dirty document's tab is marked, and
   so is a file missing on disk. A middle click or the close button closes a tab;
-  dragging moves it. A tab's menu offers Close, Close Others, Close All, Copy
-  Path and Copy File Name.
+  dragging moves it. A tab's menu offers Close, Close Others, Close to the Left,
+  Close to the Right, Close All, Move to New Window, Copy Path, Copy File Name
+  and Open Containing Folder.
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
-  Word Wrap, Show Whitespace, Show Line Endings and Overview Strip apply to the
-  window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+  Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
+  apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+- A right click in the text opens Cut, Copy, Paste, Select All, Toggle Bookmark,
+  Edit Bookmark Comment and Toggle Fold for that view. A click in a selection
+  keeps it; a click elsewhere moves the caret there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
   matches and bookmarks across the whole document; a click or drag scrolls
   there.
@@ -79,7 +113,8 @@ in another tab closes that tab, after asking when the tab has unsaved changes.
   chooses a grammar. A Warnings link appears when QCaret logs a warning and opens
   Help > Show Log.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
-  at the next start, and on macOS they follow the system appearance.
+  at the next start, and on macOS they follow the system appearance, also
+  while QCaret runs.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
   name.
 
@@ -105,8 +140,11 @@ the grammar's rules.
 | `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
 Edit > Sort Lines, Remove Duplicate Lines and Trim Trailing Whitespace act on
-the selected lines, or every line. Each is one undo step. Edit > Tab Width,
-Indent with Spaces and Read-Only apply to the selected document. The bracket
+the selected lines, or every line. Each is one undo step, and `Esc` stops one
+still computing, as it stops a running comparison. Edit > Tab Width (any width
+from 1 to 16 through Other), Indent with Spaces and Read-Only apply to the
+selected document. Preferences, Editor sets the width and the indentation a
+document without saved settings starts with. The bracket
 beside the caret and the other occurrences of the word at the caret are
 highlighted.
 
@@ -119,7 +157,8 @@ Preferences. Up, Down, Enter, Tab and `Esc` work in the list; typing narrows it.
 
 | Keys | Action |
 |---|---|
-| `Ctrl`+click | Add a caret, or remove the one clicked |
+| `Ctrl`+click (`Cmd` on macOS) | Add a caret, or remove the one clicked |
+| `Ctrl`+drag (`Cmd` on macOS) | Add a selection |
 | `Ctrl+Shift+Up`, `Ctrl+Shift+Down` (`Control+Shift` on macOS) | Add a caret above or below |
 | `Ctrl+E` | Select the word, then add its next occurrence |
 | Selection > Split into Lines | One selection per line of each selection |
@@ -247,9 +286,10 @@ QCaret checks each open file every 5 seconds and when a window activates.
 | Deleted | Stays open, unsaved, marked missing | Same |
 | Back with the same bytes | The mark clears | The mark clears |
 
-A reload is one undo step and keeps each view's caret line and column. When the
-change does not fit in memory, the tab keeps its text and a notice says so. Keep
-Mine makes the next save ask. A save that finds the file changed asks: Overwrite,
+QCaret waits until the file stops changing, for up to half a second, so one
+write by another program asks once. A reload is one undo step and keeps each
+view's caret line and column. When the change does not fit in memory, the tab
+keeps its text and a notice says so. Keep Mine makes the next save ask. A save that finds the file changed asks: Overwrite,
 Reload, Compare or Cancel. Preferences, Files sets the interval and can make a
 clean document ask too.
 
@@ -331,7 +371,9 @@ A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
 Launches at the same moment queue, and each file becomes a tab in the one
 instance. `-m` runs an independent instance that saves no window placement or
-session.
+session. QCaret refuses to open or replace `instance.lock` in the settings
+folder, the file that identifies the running instance, and each `owner.lock` it
+holds under `recovery`.
 
 File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 `register-associations.cmd`; the macOS bundle declares its document types itself.
@@ -345,15 +387,63 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
-| Appearance | Theme, editor font size |
+| Appearance | Theme, editor font size, theme file, editor font |
 | Keys | Every command's keys: Add, Remove, Default Keys |
 
 Add refuses a key that types text or that another command holds, and names that
 command. Clear History removes the saved search texts, replacements, directories
 and masks, and the searches kept in the session.
+
+### Editor font
+
+Editor font lists the installed monospace families, filled in a moment after the
+dialog opens; columns need letters of equal width, so proportional fonts are not
+offered. Only TrueType and OpenType files in the system and user font folders
+are listed. If the chosen family is uninstalled, QCaret logs a warning and uses
+the platform's font until it returns. The font applies to every editor, the
+comparison windows, the replace preview and the log and license windows.
+
+### Theme files
+
+A theme file changes colors of the light and dark themes. Put a file named
+`<name>.theme` in the `themes` folder of the settings directory, then choose it
+under Theme file. View > Theme still picks light or dark. To see an edit to the
+chosen file, press Apply. A name holds letters, digits, `.`, `_` and `-`, and a
+file is at most 64 KiB.
+
+```text
+# Harbor. A line starting with # is a comment.
+light.background = #FDFBF5
+light.currentLine = #F3EFE3
+light.token.keyword = #7A3E9D
+light.token.comment = #6B7B5E
+dark.background = #10202E
+dark.gutter = #0C1924
+dark.token.string = #E6C07B
+```
+
+Each line is `light.<color> = #RRGGBB` or `dark.<color> = #RRGGBB`. A color left
+out keeps its built-in value. A value that is not `#RRGGBB` logs one warning and
+keeps the built-in value; a key QCaret does not know is ignored.
+
+| Color | Paints |
+|---|---|
+| `text`, `background` | Plain text and the view behind it |
+| `selection`, `selectionText` | Selected text's background and text |
+| `currentLine` | The caret line's background |
+| `lineNumbers`, `gutter` | Line numbers and the gutter; `gutter` also colors the tab strip |
+| `caret`, `whitespace` | Carets and whitespace marks |
+| `findMatch`, `occurrence`, `bracket` | Backgrounds of a find match, the word at the caret, a matching bracket |
+| `tabText` | An unselected tab's label |
+| `overviewFind`, `overviewSearch` | Overview strip marks of a find match and a HyperSearch match |
+| `bookmarkComment` | The gutter mark of a bookmark with a comment |
+| `diffRemoved`, `diffAdded`, `diffChanged` | Comparison window line backgrounds |
+| `token.<role>` | Syntax colors; the role is `comment`, `string`, `escape`, `keyword`, `keyword2`, `type`, `number`, `constant`, `operator`, `delimiter`, `function`, `preprocessor`, `tag`, `attribute`, `heading`, `emphasis`, `link` or `invalid` |
+
+A theme file sets colors only: bold, italic and underline stay as built in.
 
 Settings are in `qcaret.conf`, in the first of these that applies:
 

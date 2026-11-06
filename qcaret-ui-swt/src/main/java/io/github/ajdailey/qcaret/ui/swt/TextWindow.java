@@ -14,28 +14,30 @@ import org.eclipse.swt.widgets.Text;
 
 /**
  * A resizable window of read-only monospace text with Copy and Close: usage text, licenses, the
- * log. Modeless, or modal when opened over a modal dialog: GTK gives input only to the newest modal
- * shell, so a modeless window opened from one shows behind it and takes no input.
+ * log, in the editor's font family at the default size. Modeless, or modal when opened over a modal
+ * dialog: GTK gives input only to the newest modal shell, so a modeless window opened from one
+ * shows behind it and takes no input.
  */
 final class TextWindow {
   private final Shell shell;
   private final Text text;
   private final Button close;
+  private Font font;
   private String content;
 
-  TextWindow(Shell parent, String title, String initial, final ClipboardService clipboard) {
-    this(parent, title, initial, clipboard, false);
-  }
-
   TextWindow(
-      Shell parent, String title, String initial, final ClipboardService clipboard, boolean modal) {
+      Shell parent,
+      String title,
+      String initial,
+      final ClipboardService clipboard,
+      boolean modal,
+      String fontName) {
     shell =
         Dialogs.shell(
             parent, title, modal ? SWT.SHELL_TRIM | SWT.APPLICATION_MODAL : SWT.SHELL_TRIM);
     content = initial;
     text = new Text(shell, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
-    final Font font =
-        new Font(shell.getDisplay(), Dialogs.monospaceName(), Dialogs.monospaceSize(), SWT.NORMAL);
+    font = new Font(shell.getDisplay(), fontName, Dialogs.monospaceSize(), SWT.NORMAL);
     text.setFont(font);
     text.setText(content);
     text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -67,6 +69,27 @@ final class TextWindow {
 
   Shell shell() {
     return shell;
+  }
+
+  /**
+   * Shows the text in another family.
+   *
+   * @param fontName the family
+   */
+  void setFontName(String fontName) {
+    Font old = font;
+    font = new Font(shell.getDisplay(), fontName, Dialogs.monospaceSize(), SWT.NORMAL);
+    text.setFont(font);
+    old.dispose();
+  }
+
+  /**
+   * Returns the text's font.
+   *
+   * @return the font
+   */
+  Font font() {
+    return font;
   }
 
   /**

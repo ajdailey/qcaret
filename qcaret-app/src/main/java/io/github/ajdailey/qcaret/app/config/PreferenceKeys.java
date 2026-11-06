@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.config;
 
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,6 +21,9 @@ import org.slf4j.LoggerFactory;
  */
 final class PreferenceKeys {
   static final String THEME = "ui.theme";
+  static final String THEME_FILE = "ui.themeFile";
+  static final String FONT_FAMILY = "editor.fontFamily";
+  static final String TOOLBAR = "ui.toolbar";
   static final String WINDOW_X = "window.x";
   static final String WINDOW_Y = "window.y";
   static final String WINDOW_WIDTH = "window.width";
@@ -29,6 +33,8 @@ final class PreferenceKeys {
   static final String COMPLETION_CHARS = "editor.completionChars";
   static final String AUTO_CLOSE = "editor.autoClose";
   static final String HIGHLIGHT_CHARS = "editor.maxHighlightLineChars";
+  static final String TAB_WIDTH = "editor.tabWidth";
+  static final String INSERT_SPACES = "editor.insertSpaces";
   static final String FONT_SIZE = "editor.fontSize";
   static final String POLL_SECONDS = "file.pollSeconds";
   static final String AUTO_RELOAD = "file.autoReloadClean";
@@ -68,6 +74,8 @@ final class PreferenceKeys {
   static Map<String, String> write(Preferences p) {
     Map<String, String> keys = new TreeMap<String, String>();
     keys.put(THEME, p.theme().key());
+    keys.put(THEME_FILE, p.appearance().themeFile());
+    keys.put(FONT_FAMILY, p.appearance().fontFamily());
     WindowState window = p.window();
     putOptional(keys, WINDOW_X, window.x());
     putOptional(keys, WINDOW_Y, window.y());
@@ -88,11 +96,14 @@ final class PreferenceKeys {
     keys.put(RECOVERY_SECONDS, Integer.toString(o.recoveryIntervalSeconds()));
     keys.put(RECOVERY_DAYS, Integer.toString(o.recoveryKeepDays()));
     keys.put(SESSION_SNAPSHOT, Boolean.toString(o.sessionSnapshot()));
+    keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
+    keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
     keys.put(SEARCH_WORD, Boolean.toString(s.search().wholeWord()));
     keys.put(SEARCH_HIDDEN, Boolean.toString(s.search().hiddenFiles()));
+    keys.put(TOOLBAR, Boolean.toString(s.toolbar()));
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
@@ -150,7 +161,22 @@ final class PreferenceKeys {
                 flag(p, WINDOW_MAXIMIZED, false, file)))
         .withOptions(options(p, file))
         .withState(state(p, file))
-        .withShortcuts(shortcuts(p, file));
+        .withShortcuts(shortcuts(p, file))
+        .withAppearance(appearance(p, file));
+  }
+
+  private static Appearance appearance(Properties p, Path file) {
+    String themeFile = p.getProperty(THEME_FILE, "").strip();
+    if (!Appearance.validThemeFile(themeFile)) {
+      invalid(THEME_FILE, file);
+      themeFile = "";
+    }
+    String family = p.getProperty(FONT_FAMILY, "").strip();
+    if (!Appearance.validFamily(family)) {
+      invalid(FONT_FAMILY, file);
+      family = "";
+    }
+    return new Appearance(themeFile, family);
   }
 
   private static Options options(Properties p, Path file) {
@@ -208,7 +234,9 @@ final class PreferenceKeys {
             Options.MAX_RECOVERY_DAYS,
             d.recoveryKeepDays(),
             file),
-        flag(p, SESSION_SNAPSHOT, d.sessionSnapshot(), file));
+        flag(p, SESSION_SNAPSHOT, d.sessionSnapshot(), file),
+        number(p, TAB_WIDTH, 1, Document.MAX_TAB_WIDTH, d.tabWidth(), file),
+        flag(p, INSERT_SPACES, d.insertSpaces(), file));
   }
 
   private static UiState state(Properties p, Path file) {
@@ -232,7 +260,8 @@ final class PreferenceKeys {
         list(p, HISTORY_MASK),
         list(p, HISTORY_REPLACE),
         grammars,
-        dialogs(p, file));
+        dialogs(p, file),
+        flag(p, TOOLBAR, true, file));
   }
 
   /** Returns a history from index 0 up to the first gap, without duplicates or long entries. */

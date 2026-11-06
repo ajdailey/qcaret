@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -173,6 +174,29 @@ final class HelpController {
   /** Opens the settings folder, creating it owner-only when missing. */
   void openSettingsFolder() {
     openFolder(location.directory());
+  }
+
+  /** Opens a document's folder; a missing one shows a notice and is not created. */
+  void openContainingFolder(final Path folder) {
+    start(
+        "Folder not opened",
+        new Runnable() {
+          @Override
+          public void run() {
+            final boolean exists = Files.isDirectory(folder);
+            post(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (exists) {
+                      launch(folder);
+                    } else {
+                      view.showNotice(UiText.NOTICE_FOLDER_MISSING.format(folder));
+                    }
+                  }
+                });
+          }
+        });
   }
 
   private void openFolder(final Path folder) {

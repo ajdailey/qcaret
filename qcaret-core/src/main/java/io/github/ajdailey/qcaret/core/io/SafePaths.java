@@ -6,9 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
 
 /**
@@ -25,13 +28,63 @@ public final class SafePaths {
   private static final Set<PosixFilePermission> OWNER_DIR =
       PosixFilePermissions.fromString("rwx------");
 
+  private static final List<HeldLock> HELD = new CopyOnWriteArrayList<HeldLock>();
+
   private SafePaths() {}
+
+  /** A lock file this process holds. */
+  private record HeldLock(Path file, Path real, Object fileKey, String refusal) {}
+
+  /**
+   * Names a lock file this process holds. {@link #userFile(Path)} and {@link SafeSave#save} then
+   * reject it under any name, hard links included: a save replaces the file, the lock stays on the
+   * old one, and the next process to try the lock takes the new one.
+   *
+   * @param file the lock file
+   * @param refusal the message of the rejection, shown to the user
+   * @throws IOException when the file cannot be read
+   */
+  public static void holdLock(Path file, String refusal) throws IOException {
+    Object key = Files.readAttributes(file, BasicFileAttributes.class).fileKey();
+    HELD.add(new HeldLock(file.toAbsolutePath().normalize(), file.toRealPath(), key, refusal));
+  }
+
+  /**
+   * Forgets a file named to {@link #holdLock}; call before the lock closes.
+   *
+   * @param file the path given to {@link #holdLock}
+   */
+  public static void releaseLock(Path file) {
+    Path named = file.toAbsolutePath().normalize();
+    for (HeldLock held : HELD) {
+      if (held.file().equals(named)) {
+        HELD.remove(held);
+      }
+    }
+  }
+
+  /**
+   * Rejects a file named to {@link #holdLock}.
+   *
+   * @param real the real path of an existing file
+   * @throws IOException with the refusal when it is such a file, or when it cannot be read
+   */
+  static void checkNotHeld(Path real) throws IOException {
+    for (HeldLock held : HELD) {
+      Object key = held.fileKey();
+      if (real.equals(held.real())
+          || (key != null
+              && key.equals(Files.readAttributes(real, BasicFileAttributes.class).fileKey()))) {
+        throw new IOException(held.refusal());
+      }
+    }
+  }
 
   /**
    * Validates a user file path from the command line, a handoff, the recent list or a session. The
    * path is made absolute and normalized; an existing path resolves to its real path and must be a
-   * regular file (a FIFO blocks the reader and a device never ends); a missing path needs an
-   * existing parent directory, where a save creates the file.
+   * regular file (a FIFO blocks the reader and a device never ends) and not a file named to {@link
+   * #holdLock}; a missing path needs an existing parent directory, where a save creates the file.
    *
    * @param path the path as given; a relative path resolves against the working directory
    * @return the real path of an existing file, or the absolute path of a missing one under its
@@ -46,6 +99,7 @@ public final class SafePaths {
       if (!Files.isRegularFile(real, LinkOption.NOFOLLOW_LINKS)) {
         throw new IOException(real + " is not a regular file");
       }
+      checkNotHeld(real);
       return real;
     }
     Path parent = absolute.getParent();

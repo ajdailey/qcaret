@@ -6,15 +6,23 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Shell;
 
 /**
  * The system's light or dark setting from {@link Display#isSystemDarkTheme}, with a change event
  * from {@code SWT.Settings}. On GTK the setting is read once when the Display is created, so a
- * change made while QCaret runs applies at the next start; win32 and cocoa read it per call.
+ * change made while QCaret runs applies at the next start; win32 and cocoa read it per call. cocoa
+ * SWT sends no {@code SWT.Settings} for an appearance change, so the service polls there and {@link
+ * CocoaChrome} recolors the shells.
  *
  * <p>Native controls take the theme from {@link Display#setDarkThemePreferred}. GTK applies a
  * change at once, so {@link #preferDark} calls it there. win32 controls read it only when created,
@@ -27,11 +35,28 @@ import org.eclipse.swt.widgets.Listener;
 public final class SwtThemeService implements ThemeService {
   private static final boolean GTK = "gtk".equals(SWT.getPlatform());
   private static final boolean COCOA = "cocoa".equals(SWT.getPlatform());
+  private static final boolean WIN32 = "win32".equals(SWT.getPlatform());
+
+  /** Display data key: true when controls start with the dark native theme. */
+  private static final String NATIVE_DARK = SwtThemeService.class.getName() + ".nativeDark";
+
+  /** Milliseconds between reads of the system setting on cocoa. */
+  private static final int POLL_MILLIS = 1000;
+
+  private static final BooleanSupplier SYSTEM_SETTING =
+      new BooleanSupplier() {
+        @Override
+        public boolean getAsBoolean() {
+          return Display.isSystemDarkTheme();
+        }
+      };
 
   private final List<ThemeListener> listeners = new ArrayList<ThemeListener>();
   private final Display display;
+  private final BooleanSupplier system;
   private boolean dark;
   private final boolean nativeDark;
+  private CocoaChrome chrome;
 
   /**
    * Creates the service with native controls following the system; call on the UI thread.
@@ -39,27 +64,63 @@ public final class SwtThemeService implements ThemeService {
    * @param display the Display
    */
   public SwtThemeService(Display display) {
-    this(display, false);
+    this(display, false, SYSTEM_SETTING);
   }
 
-  private SwtThemeService(Display display, boolean nativeDark) {
+  /**
+   * Creates the service over a given setting.
+   *
+   * @param display the Display
+   * @param nativeDark the startup setting of native controls
+   * @param system reads the system setting
+   */
+  SwtThemeService(Display display, boolean nativeDark, BooleanSupplier system) {
     this.display = display;
     this.nativeDark = nativeDark;
-    dark = Display.isSystemDarkTheme();
+    this.system = system;
+    dark = system.getAsBoolean();
     display.addListener(
         SWT.Settings,
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            boolean now = Display.isSystemDarkTheme();
-            if (now != dark) {
-              dark = now;
-              for (ThemeListener listener : new ArrayList<ThemeListener>(listeners)) {
-                listener.systemThemeChanged(now);
+            refresh();
+            if (GTK) {
+              for (Shell shell : display.getShells()) {
+                recolorLinks(shell);
               }
             }
           }
         });
+    if (COCOA) {
+      chrome = new CocoaChrome(display, dark);
+      final SwtUiDispatcher timers = new SwtUiDispatcher(display);
+      timers.timerExec(
+          POLL_MILLIS,
+          new Runnable() {
+            @Override
+            public void run() {
+              if (!display.isDisposed()) {
+                refresh();
+                timers.timerExec(POLL_MILLIS, this);
+              }
+            }
+          });
+    }
+  }
+
+  /** Reads the system setting and reports a change. */
+  void refresh() {
+    boolean now = system.getAsBoolean();
+    if (now != dark) {
+      dark = now;
+      if (chrome != null) {
+        chrome.apply(now);
+      }
+      for (ThemeListener listener : new ArrayList<ThemeListener>(listeners)) {
+        listener.systemThemeChanged(now);
+      }
+    }
   }
 
   /**
@@ -76,7 +137,57 @@ public final class SwtThemeService implements ThemeService {
     }
     boolean value = ThemeController.resolve(mode, Display.isSystemDarkTheme()).dark();
     display.setDarkThemePreferred(value);
-    return new SwtThemeService(display, value);
+    display.setData(NATIVE_DARK, value);
+    return new SwtThemeService(display, value, SYSTEM_SETTING);
+  }
+
+  /**
+   * Reports the startup setting of native controls.
+   *
+   * @param display the Display
+   * @return true when {@link #open} turned the dark native theme on
+   */
+  static boolean nativeDark(Display display) {
+    return Boolean.TRUE.equals(display.getData(NATIVE_DARK));
+  }
+
+  /**
+   * Creates a check box readable on a light page. win32's dark native theme draws a check box label
+   * near-white, or light gray when disabled, and dialog pages stay light; {@code setForeground}
+   * reaches only an enabled box. The theme applies to a control when it is created, so under a dark
+   * startup setting the box is created with the theme off.
+   *
+   * @param parent the parent
+   * @return the check box
+   */
+  static Button check(Composite parent) {
+    Display display = parent.getDisplay();
+    boolean light = WIN32 && Boolean.TRUE.equals(display.getData(NATIVE_DARK));
+    if (light) {
+      display.setDarkThemePreferred(false);
+    }
+    try {
+      return new Button(parent, SWT.CHECK);
+    } finally {
+      if (light) {
+        display.setDarkThemePreferred(true);
+      }
+    }
+  }
+
+  /**
+   * Gives each link the current link color. GTK SWT refreshes its system colors and repaints on the
+   * first {@link Display#sleep} after a theme change, before {@code SWT.Settings}, but a {@link
+   * Link} keeps the color of its creation: 2.2 contrast on dark.
+   */
+  private static void recolorLinks(Control control) {
+    if (control instanceof Link link) {
+      link.setLinkForeground(link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND));
+    } else if (control instanceof Composite composite) {
+      for (Control child : composite.getChildren()) {
+        recolorLinks(child);
+      }
+    }
   }
 
   @Override

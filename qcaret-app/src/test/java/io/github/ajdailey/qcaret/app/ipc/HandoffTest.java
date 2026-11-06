@@ -10,7 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -506,6 +508,27 @@ class HandoffTest {
     Files.setPosixFilePermissions(shared, PosixFilePermissions.fromString("rwx------"));
     assertNull(InstanceClient.refusal(shared, System.getProperty("user.name")));
     assertNotNull(InstanceClient.refusal(shared, "qcaret-mock-nobody"));
+  }
+
+  @Test
+  void thePrimaryRefusesItsOwnLockFileUntilItCloses() throws Exception {
+    final Path lock = temp.resolve(Endpoint.LOCK);
+    InstanceServer server = InstanceServer.claim(temp);
+    try {
+      IOException refused =
+          assertThrows(
+              IOException.class,
+              new Executable() {
+                @Override
+                public void execute() throws IOException {
+                  SafePaths.userFile(lock);
+                }
+              });
+      assertEquals(UiText.INSTANCE_LOCK_REFUSED.text(), refused.getMessage());
+    } finally {
+      server.close();
+    }
+    assertEquals(lock.toRealPath(), SafePaths.userFile(lock));
   }
 
   /**
