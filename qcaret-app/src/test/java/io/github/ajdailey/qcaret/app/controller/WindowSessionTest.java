@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -281,6 +282,204 @@ class WindowSessionTest {
 
     assertEquals(
         new WindowState(10, 20, 800, 600, false), captured(placed).windows().get(0).bounds());
+  }
+
+  /** Saves a session of one window with these tabs. */
+  private void saveSession(Path... tabs) throws InterruptedException {
+    Windows before = start(true);
+    before.first().documents().closeAll(null);
+    for (Path tab : tabs) {
+      before.open(before.first(), tab);
+    }
+    quit(before);
+  }
+
+  private static StartupRequest handed(Path file) {
+    return StartupRequest.handoff(
+        List.of(new FileRequest(file)), false, null, null, null, null, null, null);
+  }
+
+  private static void awaitTabs(final Windows windows, final int count)
+      throws InterruptedException {
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return windows.first().documents().count() == count;
+          }
+        },
+        count + " tabs");
+    windows.settle("open");
+  }
+
+  @Test
+  void launchesHandedDuringARestoreOpenAfterItAndTheSessionKeepsEveryTab() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path b = file("b.txt", "b\n");
+    Path own = file("own.txt", "own\n");
+    Path c = file("c.txt", "c\n");
+    Path d = file("d.txt", "d\n");
+    saveSession(a, b);
+
+    Windows after = windows(true);
+    SessionStore store = store();
+    after.first().startSession(store, store.load(), true, handed(own));
+    after.set.openHandoff(handed(c));
+    after.set.openHandoff(handed(d));
+    assertEquals(0, after.first().documents().count());
+    awaitRestore(after);
+    awaitTabs(after, 5);
+
+    List<String> labels = after.first().documents().labels();
+    assertEquals(List.of(a.toString(), b.toString()), labels.subList(0, 2));
+    assertTrue(
+        labels.containsAll(List.of(own.toString(), c.toString(), d.toString())), "" + labels);
+    assertEquals(1, after.set.windows().size());
+    quit(after);
+    assertEquals(labels, tabs(store().load().windows().get(0)));
+  }
+
+  @Test
+  void aFileHandedDuringARestoreThatTheSessionHoldsEndsWithOneTab() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path b = file("b.txt", "b\n");
+    saveSession(a, b);
+
+    Windows after = windows(true);
+    SessionStore store = store();
+    after.first().startSession(store, store.load(), true);
+    after.set.openHandoff(handed(b));
+    awaitRestore(after);
+
+    assertEquals(List.of(a.toString(), b.toString()), after.first().documents().labels());
+  }
+
+  @Test
+  void newWindowsHandedDuringARestoreOpenAfterItInArrivalOrder() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path c = file("c.txt", "c\n");
+    Path d = file("d.txt", "d\n");
+    saveSession(a);
+
+    Windows after = windows(true);
+    SessionStore store = store();
+    after.first().startSession(store, store.load(), true);
+    after.set.openHandoff(
+        StartupRequest.handoff(List.of(new FileRequest(c)), true, 10, 0, 300, 200, null, null));
+    after.set.openHandoff(
+        StartupRequest.handoff(List.of(new FileRequest(d)), true, 20, 0, 300, 200, null, null));
+    assertEquals(1, after.set.windows().size());
+    awaitRestore(after);
+
+    assertEquals(3, after.set.windows().size());
+    assertEquals(List.of(a.toString()), after.first().documents().labels());
+    assertEquals(List.of(c.toString()), after.controllers.get(1).documents().labels());
+    assertEquals(List.of(d.toString()), after.controllers.get(2).documents().labels());
+  }
+
+  @Test
+  void aComparisonHandedDuringARestoreOpensAfterIt() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path left = file("left.txt", "one\n");
+    Path right = file("right.txt", "two\n");
+    saveSession(a);
+
+    final Windows after = windows(true);
+    SessionStore store = store();
+    after.first().startSession(store, store.load(), true);
+    after.set.openHandoff(
+        StartupRequest.handoff(List.of(), false, null, null, null, null, left, right));
+    final FakeView view = after.view(after.first());
+    assertTrue(view.comparisons.isEmpty());
+    after.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !view.comparisons.isEmpty();
+          }
+        },
+        "the comparison");
+    assertFalse(after.set.session().restoring());
+    assertEquals(List.of(a.toString()), after.first().documents().labels());
+  }
+
+  @Test
+  void aQuitDuringARestoreDropsHandedLaunchesAndLeavesTheSessionFile() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path b = file("b.txt", "b\n");
+    Path c = file("c.txt", "c\n");
+    saveSession(a, b);
+    Session saved = store().load();
+
+    Windows after = windows(true);
+    SessionStore store = store();
+    after.first().startSession(store, store.load(), true);
+    after.set.openHandoff(handed(c));
+    quit(after);
+
+    assertEquals(saved, store().load());
+    assertEquals(0, after.first().documents().count());
+  }
+
+  @Test
+  void quitListenersRunAfterTheSessionIsWritten() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Path b = file("b.txt", "b\n");
+    Windows windows = start(true);
+    windows.first().documents().closeAll(null);
+    windows.open(windows.first(), a);
+    windows.open(windows.first(), b);
+    final List<Session> seen = new CopyOnWriteArrayList<Session>();
+    windows.set.addQuitListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            seen.add(store().load());
+          }
+        });
+    windows.first().documents().select(0);
+    quit(windows);
+
+    assertEquals(0, seen.get(0).windows().get(0).active());
+  }
+
+  @Test
+  void aFileHandedWhileTheRecoveryDialogShowsOpensAndARestoreFillsItsTab() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Windows dead = start(true);
+    dead.first().documents().closeAll(null);
+    dead.open(dead.first(), a);
+    edit(dead.first(), "mine ");
+    quit(dead);
+
+    final Windows windows = windows(true);
+    final ApplicationController first = windows.first();
+    SessionStore store = store();
+    first.startSession(store, store.load(), false);
+    final FakeView view = windows.view(first);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.recovery != null;
+          }
+        },
+        "the dialog");
+
+    windows.set.openHandoff(handed(a));
+    awaitTabs(windows, 1);
+    view.recovery.restore(new int[] {0});
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return first.documents().anyDirty();
+          }
+        },
+        "the buffer");
+
+    assertEquals(1, first.documents().count());
+    assertEquals("mine a\n", first.documents().activeDocument().text().toString());
   }
 
   @Test

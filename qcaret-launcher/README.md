@@ -49,9 +49,10 @@ UI thread:
    arguments and `--diff` open through `ApplicationController.open`; without a
    file, a window left empty opens an untitled document.
 6. At `-d 2` and above an `EventLoopWatchdog` logs UI-thread stalls.
-7. On the primary instance the `InstanceServer` starts delivering handed
-   launches to `WindowSet.openHandoff` on the UI thread, and quit closes it
-   first.
+7. On the primary instance `InstanceServer.deliverTo` releases the held
+   launches and every later one to `WindowSet.openHandoff` on the UI thread.
+   Quit closes the server after the session is written, so a new primary reads
+   the final file, and before the workers.
 
 The controller saves the placement at quit only when neither `-m` nor a
 `--window-*` option was given, so a command-line placement applies to that run
@@ -61,10 +62,27 @@ disposed and `run` returns 0.
 Before the Display, without `-m`, `Launcher` claims the instance lock (see the
 `qcaret-app` README). A held lock hands the launch over and exits 0, before
 `-l` attaches a log file. A settings directory another user owns or can write,
-or a failure to take the lock, logs one WARN and runs on alone, as with `-m`. A
-handoff that fails while the lock is held logs one WARN and runs beside the
-primary (`Handoff.BESIDE`): `Gui` reads Recent Files from the session, and
-restores and saves no session and no window placement. `-d` and `-l` of a launch
+or a failure to take the lock, logs one WARN and runs on alone, as with `-m`.
+
+`Gui.run` creates `Workers` and calls `InstanceServer.start` as its first steps,
+before the session load and the Display; only the `FileLog` setup runs between
+`claim` and `start`, and connections made in that gap wait in the socket backlog.
+A run that ends before the first window closes the server, which answers held
+launches `ERR`.
+
+After a failed handoff `Launcher.awaitSuccessor` polls for up to 2 s, so when a
+primary quits or dies one launch becomes the primary and the others hand over to
+it:
+
+| Poll result | Launch |
+|---|---|
+| `InstanceServer.claim` succeeds | Primary: restores and saves as any primary |
+| A different endpoint appears | Hands off again, at most 3 attempts in all |
+| Neither within the 2 s | One WARN, then `Handoff.BESIDE` |
+
+`BESIDE` runs next to the primary: `Gui` reads Recent Files from the session, and
+restores and saves no session and no window placement. A primary that never
+answers costs a launch 37 s before its window. `-d` and `-l` of a launch
 that hands off apply to that process only, and so does `--session`: the running
 instance restored its session at its own start.
 

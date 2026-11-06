@@ -27,8 +27,8 @@ option was given; `restoresSession` applies the session default.
 ## Single-instance handoff (`app.ipc`)
 
 Without `-m`, a launch hands itself to the primary instance of its settings
-directory over TCP on the loopback address. Any failure opens the launch's own
-window, as `-m` would, and logs one WARN.
+directory over TCP on the loopback address. A failure that no new primary
+follows opens the launch's own window and logs one WARN.
 
 | File | Contents | Owner |
 |---|---|---|
@@ -44,10 +44,9 @@ other order a new primary can lose its own endpoint. Close it before
 
 `InstanceClient.handOff` runs in the launcher before the Display exists. It
 waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
-channels against one 5 s deadline (`LineChannel`), because the ArchUnit rules
+channels against one 35 s deadline (`LineChannel`), because the ArchUnit rules
 ban `java.net.Socket` and its timeouts. Lines are printable ASCII, at most 16
-KiB, 256 `OPEN` lines and 1 MiB per connection; the server serves 4 connections
-at once.
+KiB, 256 `OPEN` lines and 1 MiB per connection.
 
 ```text
 C: QCARET 1 HELLO nonceC
@@ -68,6 +67,26 @@ first, so a client sends no file to a process without it; a peer that fails
 runtime, else the request gets `ERR`. `InstanceClient.refusal` turns the handoff
 off for a settings directory another user owns or can write (POSIX). A lost
 `OK` after the primary acted opens the files twice: the launch cannot tell.
+
+Simultaneous launches queue. `InstanceServer` serves `MAX_CONNECTIONS` (4)
+connections at once; further launches wait in the socket backlog (`BACKLOG`,
+128). A connection reads authentication and the request within 5 s. `start` runs
+before the first window and `deliverTo` names the `Receiver` after it, so until
+then each authenticated request stays on its connection, at most 4 requests of
+256 files. `deliverTo` does not block; the first released thread delivers the
+queue in arrival order under a lock the UI thread never takes.
+
+| Event | Held request | Client |
+|---|---|---|
+| `deliverTo` | Delivered in arrival order | `OK` once the `Receiver` took it |
+| `close` | Refused | `ERR` |
+| `WINDOW_BOUND` (30 s from `claim`) with no `deliverTo` | Refused; a later `deliverTo` takes later handoffs | `ERR` |
+| Primary process dies | Lost with the connection | Connection error |
+| Primary accepts and never answers | None | Time-out at `EXCHANGE_BOUND` (35 s) |
+
+`InstanceClient.EXCHANGE_BOUND` must exceed `WINDOW_BOUND`, so a client reads the
+`ERR` instead of timing out. `OK` means the running instance holds the launch:
+a request `WindowSet` keeps during a restore has its `OK` already.
 
 ## Views and the UI thread (`app.view`)
 
@@ -337,7 +356,12 @@ read on workers.
 - `openHandoff` opens a handed launch in the window activated last, or a new one
   with `-n`, and raises it. `DocumentController.open(FileRequest)` applies the
   options; `+<line>` and `-r` also apply to a file already open, `-e` only to a
-  file read now.
+  file read now. While the session restores, a launch (`-n` and `--diff`
+  included) or a macOS open waits in `WindowSet`, unbounded, and opens in arrival
+  order after the restore and the command line's files. Each file then reads on
+  its own worker, so tab order across launches follows open completion. A quit
+  before that drops the waiting launches with one WARN each, though each client
+  got `OK`; so does a launch reaching the UI thread after the quit began.
 - One buffer per file: when `DocumentOpener` resolves a real path that another
   window holds, the open ends unread, that tab is selected and its window raised
   (`DocumentController.Elsewhere`). This covers every open, not only handed
@@ -1111,7 +1135,11 @@ modules.
 `HandoffTest` runs client and server over loopback in one JVM: options, `-n`,
 geometry and `--diff` carried; a wrong token, a peer without the token and a
 listener without the token; a stale endpoint with and without a live lock; a
-child JVM killed by `destroyForcibly` releases the lock. `WindowSetTest` covers
+child JVM killed by `destroyForcibly` releases the lock; 16 launches against a
+primary before and after its first window; arrival order; `ERR` at `close` and
+at `WINDOW_BOUND`; a listener that never answers. `WindowSessionTest` covers
+launches handed during a restore (tabs, `-n`, `--diff`, a quit) and while the
+recovery dialog shows. `WindowSetTest` covers
 what the windows share, handoff targets, the one-buffer rule, close and quit.
 `TabMoveTest` (over `Windows`, a set of `FakeView`s) covers the state a move
 carries, refusals, close and quit around a move, and a line transform or replace

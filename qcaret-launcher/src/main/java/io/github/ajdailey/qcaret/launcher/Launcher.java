@@ -25,13 +25,20 @@ import org.slf4j.LoggerFactory;
  * statuses: 0 normal, 1 bad command line or settings directory, 3 SWT failed to load.
  *
  * <p>Without {@code -m} the launch becomes the primary instance of its settings directory, or hands
- * its files to the running primary and exits 0. Any failure, or a settings directory another user
- * owns or can write, logs one WARN and the launch opens its own window, as with {@code -m}. The
- * primary writes {@code qcaret.log}, any other process {@code qcaret-<pid>.log}.
+ * its files to the running primary and exits 0. After a failed handoff it claims the lock a primary
+ * that quit or died released, or hands over to the launch that claimed it first. Any other failure,
+ * or a settings directory another user owns or can write, logs one WARN and the launch opens its
+ * own window, as with {@code -m}. The primary writes {@code qcaret.log}, any other process {@code
+ * qcaret-<pid>.log}.
  */
 public final class Launcher {
   static final int EXIT_USAGE = 1;
   static final int EXIT_SWT = 3;
+
+  /** Handoffs one launch tries; each one after the first needs a new primary. */
+  private static final int HANDOFF_ATTEMPTS = 3;
+
+  private static final long SUCCESSOR_POLL_MILLIS = 50;
 
   private static final Logger LOG = LoggerFactory.getLogger(Launcher.class);
 
@@ -142,6 +149,11 @@ public final class Launcher {
 
   private InstanceServer primary;
 
+  /** Returns the listener after {@link #handOff} answered {@link Handoff#PRIMARY}. */
+  InstanceServer primary() {
+    return primary;
+  }
+
   /** Becomes the primary instance, or hands the launch to it. */
   Handoff handOff(Path directory, StartupRequest request) {
     try {
@@ -164,17 +176,60 @@ public final class Launcher {
     if (primary != null) {
       return Handoff.PRIMARY;
     }
-    try {
-      InstanceClient.handOff(directory, request);
-      if (LOG.isInfoEnabled()) {
-        LOG.info("Handed {} files to the running instance", request.files().size());
+    for (int attempt = 1; ; attempt++) {
+      String tried = InstanceClient.endpointId(directory);
+      try {
+        InstanceClient.handOff(directory, request);
+        if (LOG.isInfoEnabled()) {
+          LOG.info("Handed {} files to the running instance", request.files().size());
+        }
+        return Handoff.HANDED;
+      } catch (IOException e) {
+        boolean next = attempt < HANDOFF_ATTEMPTS && awaitSuccessor(directory, tried);
+        if (primary != null) {
+          return Handoff.PRIMARY;
+        }
+        if (!next) {
+          LOG.warn(
+              "Handoff to the running instance failed; opening a window: {}",
+              LogText.oneLine(e.getMessage()));
+          return Handoff.BESIDE;
+        }
       }
-      return Handoff.HANDED;
+    }
+  }
+
+  /**
+   * Polls for what follows a failed handoff: this launch claims the lock, leaving {@link #primary}
+   * set, or another launch claims it and writes a new endpoint. Launches fail together when a
+   * primary ends, some before it releases the lock, so one claim attempt is not enough.
+   *
+   * @return false when neither happened within {@link InstanceClient#ENDPOINT_WAIT}, so the primary
+   *     that failed the handoff still holds the lock
+   */
+  private boolean awaitSuccessor(Path directory, String tried) {
+    long deadline = System.nanoTime() + InstanceClient.ENDPOINT_WAIT.toNanos();
+    try {
+      while (true) {
+        primary = InstanceServer.claim(directory);
+        if (primary != null) {
+          return true;
+        }
+        String now = InstanceClient.endpointId(directory);
+        if (now != null && !now.equals(tried)) {
+          return true;
+        }
+        if (System.nanoTime() >= deadline) {
+          return false;
+        }
+        Thread.sleep(SUCCESSOR_POLL_MILLIS);
+      }
     } catch (IOException e) {
-      LOG.warn(
-          "Handoff to the running instance failed; opening a window: {}",
-          LogText.oneLine(e.getMessage()));
-      return Handoff.BESIDE;
+      LOG.debug("No claim after the failed handoff: {}", LogText.oneLine(e.getMessage()));
+      return false;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
     }
   }
 

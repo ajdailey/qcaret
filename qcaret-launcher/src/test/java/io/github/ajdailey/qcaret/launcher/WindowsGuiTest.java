@@ -131,6 +131,74 @@ class WindowsGuiTest {
     assertFalse(Files.exists(settings.resolve("instance.endpoint")));
   }
 
+  /** A launch that connects before the primary's composition starts waits, then shows as a tab. */
+  @Test
+  void aHandoffSentBeforeTheFirstWindowOpensAsATab() throws Exception {
+    final Path settings = Files.createDirectory(temp.resolve("settings"));
+    Path first = Files.writeString(temp.resolve("first.txt"), "one\n");
+    Path handed = Files.writeString(temp.resolve("handed.txt"), "two\n");
+    InstanceServer server = InstanceServer.claim(settings);
+    assertNotNull(server);
+    final StartupRequest launch =
+        StartupRequest.handoff(
+            List.of(new FileRequest(handed)), false, null, null, null, null, null, null);
+    final List<String> observed = new CopyOnWriteArrayList<String>();
+    try (Workers client = new Workers(1, new Launcher.FailureLogger())) {
+      client.start(
+          Workers.Kind.IPC,
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                InstanceClient.handOff(settings, launch);
+                observed.add("handed");
+              } catch (IOException e) {
+                observed.add("handoff failed: " + e.getMessage());
+              }
+            }
+          });
+      Gui.Observer observer =
+          new Gui.Observer() {
+            @Override
+            public void opened(
+                MainWindow window, final ApplicationController controller, Workers workers) {
+              final Display display = window.shell().getDisplay();
+              final long deadline = System.nanoTime() + BOUND_NANOS;
+              display.timerExec(
+                  20,
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (controller.documents().count() == 2 || System.nanoTime() > deadline) {
+                        observed.add("tabs " + controller.documents().count());
+                        controller.quit();
+                      } else {
+                        display.timerExec(20, this);
+                      }
+                    }
+                  });
+            }
+          };
+      PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+      StartupRequest request =
+          new StartupRequest(List.of(new FileRequest(first)), 800, 500, null, null, null, false);
+      assertEquals(
+          0,
+          new Gui(
+                  request,
+                  new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, settings)),
+                  Preferences.DEFAULTS,
+                  err,
+                  observer,
+                  server,
+                  LogFiles.NONE,
+                  false)
+              .run());
+    }
+    assertTrue(observed.contains("tabs 2"), observed.toString());
+    assertTrue(observed.contains("handed"), observed.toString());
+  }
+
   private static Session.Window savedWindow(Path file) {
     Session.View view = new Session.View("", 0, "");
     Session.Tab tab =

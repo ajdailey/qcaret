@@ -12,7 +12,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A non-blocking loopback socket read and written as ASCII lines, every operation bounded by one
+ * A non-blocking loopback socket read and written as ASCII lines, every operation bounded by a
  * deadline. A line longer than {@link Protocol#MAX_LINE} bytes, a byte outside printable ASCII,
  * more than {@code maxBytes} read in all, end of stream or the deadline ends the exchange with an
  * {@link IOException}. Used by one thread.
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 final class LineChannel implements AutoCloseable {
   private final SocketChannel channel;
   private final Selector selector;
-  private final long deadline;
+  private long deadline;
   private final long maxBytes;
   private final ByteBuffer in = ByteBuffer.allocate(4096);
   private long read;
@@ -81,6 +81,15 @@ final class LineChannel implements AutoCloseable {
    */
   static LineChannel accepted(SocketChannel channel, long deadline) throws IOException {
     return new LineChannel(channel, deadline, Protocol.MAX_REQUEST);
+  }
+
+  /**
+   * Replaces the deadline, for a reply sent after a wait the deadline does not cover.
+   *
+   * @param by {@link System#nanoTime} at which every later operation fails
+   */
+  void extendDeadline(long by) {
+    deadline = by;
   }
 
   /**

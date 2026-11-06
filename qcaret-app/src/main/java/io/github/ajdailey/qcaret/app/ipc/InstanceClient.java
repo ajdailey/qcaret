@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.ipc;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +14,8 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.UserPrincipal;
 import java.time.Duration;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A launch's side of the single-instance handoff: reads {@code instance.endpoint}, connects to the
@@ -28,10 +31,15 @@ public final class InstanceClient {
   /** Longest connect. */
   public static final Duration CONNECT_BOUND = Duration.ofSeconds(1);
 
-  /** Longest whole exchange. */
-  public static final Duration EXCHANGE_BOUND = Duration.ofSeconds(5);
+  /**
+   * Longest whole exchange. It covers a primary still starting, which holds the request up to
+   * {@link InstanceServer#WINDOW_BOUND}, and the wait in its socket backlog.
+   */
+  public static final Duration EXCHANGE_BOUND = Duration.ofSeconds(35);
 
   private static final long ENDPOINT_POLL_MILLIS = 50;
+
+  private static final Logger LOG = LoggerFactory.getLogger(InstanceClient.class);
 
   private InstanceClient() {}
 
@@ -45,11 +53,24 @@ public final class InstanceClient {
    *     known to have reached it
    */
   public static void handOff(Path directory, StartupRequest request) throws IOException {
+    handOff(directory, request, EXCHANGE_BOUND);
+  }
+
+  /**
+   * Hands a launch to the primary instance.
+   *
+   * @param directory the settings directory
+   * @param request the command line; absolute paths, at most {@link Protocol#MAX_OPEN} files
+   * @param bound the longest exchange
+   * @throws IOException when any step fails or the primary answers ERR; the files are then not
+   *     known to have reached it
+   */
+  static void handOff(Path directory, StartupRequest request, Duration bound) throws IOException {
     if (request.files().size() > Protocol.MAX_OPEN) {
       throw new IOException("More than " + Protocol.MAX_OPEN + " files");
     }
     Endpoint endpoint = awaitEndpoint(directory);
-    long deadline = System.nanoTime() + EXCHANGE_BOUND.toNanos();
+    long deadline = System.nanoTime() + bound.toNanos();
     try (LineChannel line = LineChannel.connect(endpoint.port(), CONNECT_BOUND, deadline)) {
       byte[] nonceC = Protocol.secret();
       line.writeLine(Protocol.HELLO + Protocol.encode(nonceC));
@@ -83,6 +104,23 @@ public final class InstanceClient {
       if (!Protocol.OK.equals(reply)) {
         throw new IOException("The primary instance refused the files");
       }
+    }
+  }
+
+  /**
+   * Identifies the primary {@code instance.endpoint} names now, so a launch whose handoff failed
+   * can tell a new primary from the one that failed it.
+   *
+   * @param directory the settings directory
+   * @return a value each claim changes; null when no endpoint can be read
+   */
+  public static String endpointId(Path directory) {
+    try {
+      Endpoint endpoint = Endpoint.read(directory);
+      return endpoint.port() + " " + Protocol.encode(endpoint.token());
+    } catch (IOException e) {
+      LOG.debug("No endpoint to read: {}", LogText.oneLine(e.getMessage()));
+      return null;
     }
   }
 

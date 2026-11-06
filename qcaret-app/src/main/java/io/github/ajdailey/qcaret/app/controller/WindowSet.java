@@ -37,9 +37,11 @@ import org.slf4j.LoggerFactory;
  * and {@link #addFinishListener}.
  *
  * <p>Handed launches ({@link #openHandoff}) go to the window activated last, or a new one with
- * {@code -n}. An open that resolves to a file another window holds selects that tab and raises the
- * window, so an instance holds one buffer per file. New Window opens a window through the {@link
- * Factory}. {@link #moveDocument} moves a tab with its live document.
+ * {@code -n}. Those that arrive while the session restores wait and open in arrival order after the
+ * restore and the command line's files; a quit first drops them with a WARN. An open that resolves
+ * to a file another window holds selects that tab and raises the window, so an instance holds one
+ * buffer per file. New Window opens a window through the {@link Factory}. {@link #moveDocument}
+ * moves a tab with its live document.
  *
  * <p>Closing a window that is not the last asks about its unsaved documents and closes them.
  * Closing the last one, or Quit from any window, runs {@link QuitPrompts}: every dirty document of
@@ -48,8 +50,8 @@ import org.slf4j.LoggerFactory;
  * nothing; a failed write falls back to asking. {@link #quit} then asks nothing: capture the
  * session, queue the last recovery writes (a dirty buffer it finds stays in a recovery file for the
  * next start), stop every window and record the placement of the window activated last on the UI
- * thread, hide the windows, on a {@code qcaret-lifecycle-} worker run the quit listeners, save,
- * finish recovery, close {@link Workers} and run the finish listeners, and dispose the windows on
+ * thread, hide the windows, on a {@code qcaret-lifecycle-} worker save, finish recovery, run the
+ * quit listeners, close {@link Workers} and run the finish listeners, and dispose the windows on
  * the UI thread, which ends the event loop.
  */
 public final class WindowSet {
@@ -96,6 +98,7 @@ public final class WindowSet {
   private final List<Runnable> quitListeners = new CopyOnWriteArrayList<Runnable>();
   private final List<Runnable> finishListeners = new CopyOnWriteArrayList<Runnable>();
   private final List<Runnable> moveListeners = new ArrayList<Runnable>();
+  private final List<StartupRequest> handed = new ArrayList<StartupRequest>();
   private final AtomicBoolean finished = new AtomicBoolean();
   private final AtomicBoolean warningPosted = new AtomicBoolean();
   private Keymap keymap;
@@ -550,11 +553,20 @@ public final class WindowSet {
 
   /**
    * Opens a launch another process handed over and brings its window to the front. A file another
-   * window holds shows there instead.
+   * window holds shows there instead. While the session restores the launch waits for {@link
+   * #openHandedLaunches}: its tabs would otherwise land among the saved tabs.
    *
    * @param request the files and their options, {@code -n}, the geometry and {@code --diff}
    */
   public void openHandoff(StartupRequest request) {
+    if (quitting) {
+      logDropped(request);
+      return;
+    }
+    if (session.restoring()) {
+      handed.add(request);
+      return;
+    }
     ApplicationController window =
         request.newWindow()
             ? openWindow(
@@ -562,11 +574,24 @@ public final class WindowSet {
                     request.x(), request.y(), request.width(), request.height()),
                 false)
             : target();
-    if (quitting || window == null) {
+    if (window == null) {
       return;
     }
     window.toFront();
     window.open(request, request.newWindow());
+  }
+
+  /** Opens the launches handed during the restore, in arrival order; the restore has ended. */
+  void openHandedLaunches() {
+    List<StartupRequest> waiting = new ArrayList<StartupRequest>(handed);
+    handed.clear();
+    for (StartupRequest request : waiting) {
+      openHandoff(request);
+    }
+  }
+
+  private static void logDropped(StartupRequest request) {
+    LOG.warn("Handed launch of {} files not opened: quitting", request.files().size());
   }
 
   /**
@@ -659,9 +684,10 @@ public final class WindowSet {
   }
 
   /**
-   * Adds code to run first when quit reaches its lifecycle worker, before the save, such as closing
-   * a listener whose thread {@link Workers#close} would otherwise wait for. Runs on the UI thread
-   * when the workers were closed already.
+   * Adds code to run after quit has saved and before it closes {@link Workers}, such as closing a
+   * listener whose thread {@link Workers#close} would otherwise wait for and whose lock a new
+   * primary must not take before the session file is written. Runs on the UI thread when the
+   * workers were closed already.
    *
    * @param listener the code; must not block for long
    */
@@ -836,6 +862,10 @@ public final class WindowSet {
       return;
     }
     quitting = true;
+    for (StartupRequest request : handed) {
+      logDropped(request);
+    }
+    handed.clear();
     if (recent != null) {
       recent.setWarningListener(null);
     }
@@ -858,12 +888,12 @@ public final class WindowSet {
         new Runnable() {
           @Override
           public void run() {
-            runQuitListeners();
             settings.flush();
             if (capture != null) {
               session.write(capture);
             }
             recovery.finish();
+            runQuitListeners();
             if (!workers.close(Workers.CLOSE_BOUND)) {
               LOG.warn(
                   "Worker threads still running after {}: {}",

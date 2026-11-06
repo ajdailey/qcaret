@@ -322,6 +322,7 @@ final class SessionController implements DocumentController.FileMemory {
     }
     after.run();
     restoreRecent(loaded);
+    set.openHandedLaunches();
     if (!skipped.isEmpty()) {
       reportSkipped();
     }

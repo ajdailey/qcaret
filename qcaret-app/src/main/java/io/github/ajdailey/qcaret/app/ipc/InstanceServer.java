@@ -27,8 +27,13 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +44,20 @@ import org.slf4j.LoggerFactory;
  * ephemeral port on the loopback address and writes the new endpoint with a fresh token.
  *
  * <p>{@link #start} accepts on a {@code qcaret-ipc-} thread and serves each connection on its own,
- * at most {@link #MAX_CONNECTIONS} at once (more are closed on accept), each within {@link
- * #EXCHANGE_BOUND}. A peer that fails authentication gets no reply and no file is opened. Each path
- * must be absolute; the {@link Receiver} opens it like a command-line path. {@link #close} stops
- * accepting, deletes the endpoint, then releases the lock, in that order, so a new primary never
- * loses its own endpoint file. Close it before {@link Workers#close}, which waits for the accept
- * thread.
+ * at most {@link #MAX_CONNECTIONS} at once; further launches wait in the socket backlog of {@link
+ * #BACKLOG}. Authentication and the request run within {@link #EXCHANGE_BOUND}. A peer that fails
+ * authentication gets no reply and no file is opened. Each path must be absolute; the {@link
+ * Receiver} opens it like a command-line path.
+ *
+ * <p>Until {@link #deliverTo} names the {@link Receiver}, each authenticated request stays on its
+ * open connection, so at most {@link #MAX_CONNECTIONS} requests of {@link Protocol#MAX_OPEN} files
+ * are held. {@code deliverTo} releases them in arrival order and each client then gets {@code OK}.
+ * A request still held at {@link #close}, or {@link #WINDOW_BOUND} after {@link #claim}, gets
+ * {@code ERR}.
+ *
+ * <p>{@link #close} stops accepting, deletes the endpoint, then releases the lock, in that order,
+ * so a new primary never loses its own endpoint file. Close it before {@link Workers#close}, which
+ * waits for the accept thread.
  */
 public final class InstanceServer implements AutoCloseable {
   /** Receives a handoff. */
@@ -62,30 +75,55 @@ public final class InstanceServer implements AutoCloseable {
   /** Most connections served at once. */
   public static final int MAX_CONNECTIONS = 4;
 
-  /** Longest exchange with one client. */
+  /** Connections the socket backlog keeps waiting for a slot. */
+  public static final int BACKLOG = 128;
+
+  /** Longest read of one client's authentication and request. */
   public static final Duration EXCHANGE_BOUND = Duration.ofSeconds(5);
 
+  /**
+   * How long after {@link #claim} requests are held for {@link #deliverTo}; shorter than {@link
+   * InstanceClient#EXCHANGE_BOUND}, so a client reads the {@code ERR} rather than timing out.
+   */
+  public static final Duration WINDOW_BOUND = Duration.ofSeconds(30);
+
   private static final Logger LOG = LoggerFactory.getLogger(InstanceServer.class);
+
+  /** The receiver before {@link #deliverTo}. */
+  private static final Receiver REFUSE =
+      new Receiver() {
+        @Override
+        public boolean deliver(StartupRequest request) {
+          return false;
+        }
+      };
 
   private final Path directory;
   private final FileChannel lockChannel;
   private final FileLock lock;
   private final ServerSocketChannel server;
   private final byte[] token;
+  private final long windowDeadline;
   private final AtomicBoolean closed = new AtomicBoolean();
-  private final AtomicInteger connections = new AtomicInteger();
+  private final Semaphore slots = new Semaphore(MAX_CONNECTIONS);
+  private final CountDownLatch released = new CountDownLatch(1);
+  private final Queue<Held> held = new ConcurrentLinkedQueue<Held>();
+  private final ReentrantLock delivering = new ReentrantLock();
+  private volatile Receiver receiver = REFUSE;
 
   private InstanceServer(
       Path directory,
       FileChannel lockChannel,
       FileLock lock,
       ServerSocketChannel server,
-      byte[] token) {
+      byte[] token,
+      long windowDeadline) {
     this.directory = directory;
     this.lockChannel = lockChannel;
     this.lock = lock;
     this.server = server;
     this.token = token;
+    this.windowDeadline = windowDeadline;
   }
 
   /**
@@ -96,6 +134,18 @@ public final class InstanceServer implements AutoCloseable {
    * @throws IOException when the lock file, the port or the endpoint file fails
    */
   public static InstanceServer claim(Path directory) throws IOException {
+    return claim(directory, WINDOW_BOUND);
+  }
+
+  /**
+   * Becomes the primary instance for a settings directory when no live instance is.
+   *
+   * @param directory the settings directory
+   * @param windowBound how long requests are held for {@link #deliverTo}
+   * @return the server, bound, its endpoint written; null when a live instance holds the lock
+   * @throws IOException when the lock file, the port or the endpoint file fails
+   */
+  static InstanceServer claim(Path directory, Duration windowBound) throws IOException {
     FileChannel channel =
         FileChannel.open(
             SafePaths.child(directory, Endpoint.LOCK),
@@ -116,11 +166,12 @@ public final class InstanceServer implements AutoCloseable {
       try {
         Endpoint.delete(directory);
         server = ServerSocketChannel.open();
-        server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), MAX_CONNECTIONS);
+        server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), BACKLOG);
         int port = ((InetSocketAddress) server.getLocalAddress()).getPort();
         byte[] token = Protocol.secret();
         new Endpoint(port, token).write(directory);
-        claimed = new InstanceServer(directory, channel, lock, server, token);
+        long windowDeadline = System.nanoTime() + windowBound.toNanos();
+        claimed = new InstanceServer(directory, channel, lock, server, token, windowDeadline);
         return claimed;
       } finally {
         if (claimed == null && server != null) {
@@ -135,25 +186,53 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Starts accepting handoffs.
+   * Starts accepting handoffs; requests wait for {@link #deliverTo}.
    *
    * @param workers starts the {@code qcaret-ipc-} threads
-   * @param receiver takes the files
    * @return false when the workers are closed
    */
-  public boolean start(final Workers workers, final Receiver receiver) {
+  public boolean start(final Workers workers) {
     return workers.tryStart(
         Workers.Kind.IPC,
         new Runnable() {
           @Override
           public void run() {
-            accept(workers, receiver);
+            accept(workers);
           }
         });
   }
 
-  private void accept(Workers workers, final Receiver receiver) {
-    while (!closed.get()) {
+  /**
+   * Names the receiver and releases the held requests to it. Does not block, so the UI thread may
+   * call it.
+   *
+   * @param target takes the launches, from now on
+   */
+  public void deliverTo(Receiver target) {
+    receiver = target;
+    released.countDown();
+  }
+
+  /**
+   * Counts the requests waiting for {@link #deliverTo}.
+   *
+   * @return the count
+   */
+  int heldRequests() {
+    return held.size();
+  }
+
+  private void accept(Workers workers) {
+    while (true) {
+      try {
+        slots.acquire();
+      } catch (InterruptedException e) {
+        LOG.debug("Handoff listener interrupted");
+        return;
+      }
+      if (closed.get()) {
+        return;
+      }
       final SocketChannel connection;
       try {
         connection = server.accept();
@@ -163,26 +242,27 @@ public final class InstanceServer implements AutoCloseable {
         LOG.warn("Handoff listener stopped: {}", LogText.oneLine(e.getMessage()));
         return;
       }
-      if (connections.incrementAndGet() > MAX_CONNECTIONS
-          || !workers.tryStart(
+      boolean started =
+          workers.tryStart(
               Workers.Kind.IPC,
               new Runnable() {
                 @Override
                 public void run() {
                   try {
-                    serve(connection, receiver);
+                    serve(connection);
                   } finally {
-                    connections.decrementAndGet();
+                    slots.release();
                   }
                 }
-              })) {
-        connections.decrementAndGet();
+              });
+      if (!started) {
+        slots.release();
         closeQuietly(connection);
       }
     }
   }
 
-  private void serve(SocketChannel connection, Receiver receiver) {
+  private void serve(SocketChannel connection) {
     long deadline = System.nanoTime() + EXCHANGE_BOUND.toNanos();
     try (LineChannel line = LineChannel.accepted(connection, deadline)) {
       if (!authenticate(line)) {
@@ -190,7 +270,8 @@ public final class InstanceServer implements AutoCloseable {
         return;
       }
       StartupRequest request = readRequest(line);
-      boolean taken = request != null && receiver.deliver(request);
+      boolean taken = request != null && hand(request);
+      line.extendDeadline(System.nanoTime() + EXCHANGE_BOUND.toNanos());
       line.writeLine(taken ? Protocol.OK : Protocol.ERR);
       if (request == null) {
         LOG.warn("Handoff refused: malformed request");
@@ -199,6 +280,51 @@ public final class InstanceServer implements AutoCloseable {
       }
     } catch (IOException e) {
       LOG.debug("Handoff connection ended: {}", LogText.oneLine(e.getMessage()));
+    }
+  }
+
+  /** A request in arrival order; {@link #taken} is guarded by {@link #delivering}. */
+  private static final class Held {
+    private final StartupRequest request;
+    private boolean taken;
+
+    private Held(StartupRequest request) {
+      this.request = request;
+    }
+  }
+
+  /**
+   * Queues a request, waits for {@link #deliverTo}, then delivers everything queued, in order.
+   *
+   * @return true when the receiver took the launch
+   */
+  private boolean hand(StartupRequest request) {
+    Held entry = new Held(request);
+    held.add(entry);
+    boolean open = false;
+    try {
+      open = released.await(windowDeadline - System.nanoTime(), TimeUnit.NANOSECONDS);
+    } catch (InterruptedException e) {
+      LOG.debug("Held handoff interrupted");
+    }
+    // A request already polled is in a delivery; the lock in deliverHeld waits for its outcome.
+    if ((!open || closed.get()) && held.remove(entry)) {
+      return false;
+    }
+    deliverHeld();
+    return entry.taken;
+  }
+
+  private void deliverHeld() {
+    delivering.lock();
+    try {
+      Held next = held.poll();
+      while (next != null) {
+        next.taken = !closed.get() && receiver.deliver(next.request);
+        next = held.poll();
+      }
+    } finally {
+      delivering.unlock();
     }
   }
 
@@ -344,14 +470,16 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Stops accepting, deletes the endpoint file and releases the lock; a second call does nothing.
-   * Callable from any thread.
+   * Stops accepting, refuses the held requests, deletes the endpoint file and releases the lock; a
+   * second call does nothing. Callable from any thread.
    */
   @Override
   public void close() {
     if (!closed.compareAndSet(false, true)) {
       return;
     }
+    released.countDown();
+    slots.release();
     closeQuietly(server);
     try {
       Endpoint.delete(directory);
