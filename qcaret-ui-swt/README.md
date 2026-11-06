@@ -47,7 +47,7 @@ rebuilds the menus. The
 Window menu lists the windows, when there are several, and the open documents,
 and File > Recent Files the recent
 files above Clear Recent Files, each rebuilt when its menu shows; a path's
-`&` is doubled (QLogg SWT-22). A Display key
+`&` is doubled. A Display key
 filter runs window bindings that are not accelerators (Ctrl plus keypad +),
 when enabled.
 
@@ -101,8 +101,7 @@ child until it first expands, which asks `WorkspaceInput.expand` to list it;
 the listed rows replace the placeholder on `workspaceChanged`, and a refill
 keeps the expansion of rows that remain. Enter or a double click opens a
 file, shows more entries on a "more" row and toggles a directory. One context
-menu, built on the first `MenuDetect`, serves every row (QLogg SWT-15,
-SWT-20). The tree is not virtual: GTK's virtual `Tree` is quadratic in a
+menu, built on the first `MenuDetect`, serves every row. The tree is not virtual: GTK's virtual `Tree` is quadratic in a
 node's child count (measured), and a directory shows 500 rows at a
 time.
 
@@ -280,7 +279,7 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   caret. Release, focus loss and dispose cancel the timer (`cancelTimer`).
 - `EditorLayout` is the pane's `ViewLayout`. A printable ASCII row without
   tabs maps x to a column at the font's fractional advance from the row's
-  left edge (UI-1); any other row uses the widget's measured glyph positions.
+  left edge; any other row uses the widget's measured glyph positions.
   Past a row's end columns continue at the fractional advance.
 - The gutter is painted in the widget's left margin by a paint listener, with
   the line number on each line's first row; `ColumnMetrics` places the digits
@@ -492,11 +491,11 @@ extends every caret by key, adds one with Mod+click and drops them with Esc;
 drags with Alt from column 150 across long and short lines, scrolling the
 widget between press and drag, and checks the block, its copy, and in a print of the widget the block's left edge on a short
 line within 1 px of the measured column 150 on a long line, with the virtual
-part painted after a resize and a horizontal scroll (TEST-10); sends
+part painted after a resize and a horizontal scroll; sends
 composition text through the content and checks it stays out of undo; runs Go
 to Line through its dialog; filters and copies Keyboard Shortcuts; holds a
 block drag below, right, left and above the view and checks that it scrolls
-until release, focus loss and tab close (QLogg `f380b90`); and checks the
+until release, focus loss and tab close; and checks the
 primary caret's image color and size and, polled while the caret blinks, its
 screen pixel in both themes. With `-Dqcaret.screenshots=<dir>` it saves the
 multi-caret, block and dark-caret windows as PNG. Under GTK 4 the caret's

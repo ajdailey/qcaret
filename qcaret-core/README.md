@@ -508,13 +508,12 @@ matched text and a snippet of the first line, control chars as spaces,
 trimmed, and cut to 500 chars around the match on a longer line. Optional
 ranges limit it to the selections; a match then lies inside one.
 
-- A line over `maxLineChars` is not searched and is counted in `skippedLines`
-  (QLogg CORE-4). One chunked pass finds those lines; each searched stretch
+- A line over `maxLineChars` is not searched and is counted in `skippedLines`. One chunked pass finds those lines; each searched stretch
   ends before a skipped line, so no match runs into one.
 - A `PatternTooComplexException` ends the search: the stretch is searched
   again line by line, each line read through a view that ends at the line,
   and `tooComplexLine` names the line that overflowed. The hits before it are
-  kept (QLogg CORE-2).
+  kept.
 - `limit` bounds the hits; `limited` reports that more existed.
 
 `FileSearch.run` walks a directory on the calling `qcaret-search-` worker
@@ -634,8 +633,7 @@ names. Each directory holding a watched file is registered once with a
 registered is polled only. The poll stays on: a `WatchService` misses network
 mounts, polls on macOS, and never sees a link's target change in another
 directory. An exception from the listener goes to the thread's
-uncaught-exception handler once per run of failures, and checking goes on
-(QLogg THR-17). The thread ends within 100 ms of the last `unwatch` or of
+uncaught-exception handler once per run of failures, and checking goes on. The thread ends within 100 ms of the last `unwatch` or of
 `close`. `setPollMillis` takes effect at once: the next check is one new interval away.
 
 ## Bounded reads (`core.text`)
@@ -753,16 +751,13 @@ limit, a refused reservation, a canceled build returning its charge, and an
 unreadable root.
 
 `FileCheckTest` covers an untouched file read by its stamp only, a touch with
-the same bytes, other bytes, a truncate and regrow to the same size and time
-(QLogg CORE-1), a racy baseline settling, a file renamed over the name with
+the same bytes, other bytes, a truncate and regrow to the same size and time, a racy baseline settling, a file renamed over the name with
 other and with the same bytes (the first skipped without a file key: NTFS
-tunneling, QLogg TEST-17), a delete and the return of the same and of other
-bytes, a file where none was, a directory at the path, a retargeted link
-(QLogg CORE-6) and a 3 MiB file changed in its last byte. `FileMonitorTest`
+tunneling), a delete and the return of the same and of other
+bytes, a file where none was, a directory at the path, a retargeted link and a 3 MiB file changed in its last byte. `FileMonitorTest`
 covers the poll, requested checks, one registration per directory released
 with its last file, a throwing listener reported once while checks go on, a
-directory event naming its file (skipped on macOS, whose `WatchService` polls:
-QLogg TEST-14), and `close`.
+directory event naming its file (skipped on macOS, whose `WatchService` polls), and `close`.
 `BuiltInGrammarsTest` tokenizes one sample per built-in grammar and checks
 its tokens, HTML's embedded JavaScript and CSS, a CSV quoted line break, a
 diff hunk's `---` line and here documents' opening lines and bodies included,

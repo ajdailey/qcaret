@@ -477,12 +477,11 @@ resolve keeps its absolute path and reports as unreadable. Each run is an
   per match plus its snippet) the `MemoryBudget` refuses. A dropped set
   returns its reservation, groups that arrived after the drop included.
 - Files over 64 MiB, binary files and unreadable files are skipped and
-  counted; a line over 1,000,000 chars is skipped and counted (QLogg
-  CORE-4); a regex stack overflow ends that source and names its line in its
-  group row (QLogg CORE-2).
+  counted; a line over 1,000,000 chars is skipped and counted; a regex stack overflow ends that source and names its line in its
+  group row.
 - Stop ends a set canceled with what arrived. Rerun runs the request again
   while the set shows its results; they are replaced when the rerun ends done
-  or truncated and kept, with a notice, when it is stopped (QLogg APP-2).
+  or truncated and kept, with a notice, when it is stopped.
 - Sets are listed newest first; past ten unpinned sets the oldest unpinned
   one is dropped. Pin keeps a set; Clear and Clear All stop and drop sets.
 
@@ -521,7 +520,7 @@ indexes the folder again.
   A file row opens on activation; the row menu offers Open in Default
   Application, Set as Workspace Folder and Copy Path.
 - Open in Default Application refuses a file the system would run: on
-  Windows by extension (QLogg SWT-8: `Files.isExecutable` is true for every
+  Windows by extension (`Files.isExecutable` is true for every
   readable file there), elsewhere by the executable bit, read on a worker.
 - The file index (`FileIndex`, at most 200,000 files, charged to the
   `MemoryBudget`) is built on a `qcaret-search-` worker when the folder is
@@ -1057,7 +1056,7 @@ A remembered charset the runtime lacks warns and detects; one that no longer
 decodes the file warns and detects too. A change arms one 2 s timer, and changes
 before it fires share it, so a burst of edits cannot put a save off. The timer
 numbers a capture on the UI thread and a lifecycle worker writes it under
-`saveLock`, skipping any capture a later one has written (QLogg THR-5). An
+`saveLock`, skipping any capture a later one has written. An
 unchanged session writes nothing. New windows, closed windows and tab moves arm
 the same timer.
 
@@ -1187,7 +1186,7 @@ quit prompt, a moved buffer's recovery file, a snapshot over two windows, the
 display state and Clear History in every window and in the session file.
 
 `SessionStoreTest` covers the round trip, the limits, the `droppedComments`
-count and SET-5 and SET-8 faults. `RecoveryFileTest` round-trips a text over
+count, and malformed, oversized and unknown-version files. `RecoveryFileTest` round-trips a text over
 every buffer size, surrogates and damage. `RecoveryStoreTest` covers liveness by
 lock, a live child process that read its `owner.lock`, age limits and the
 original file's state. `SessionControllerTest` restores
@@ -1297,7 +1296,7 @@ refused Replace saving nothing, and the text list shared with HyperSearch.
 inside a tree search, the dock's rows, opening a match in an open document
 and in a closed file, an edit moving a match and one marking it stale, a file
 changed on disk, Next and Previous Result wrapping, a stopped rerun keeping
-the finished set and a done one replacing it (QLogg APP-2), the retained
+the finished set and a done one replacing it, the retained
 limit with a pin, the dialog's seed and history, the refused requests,
 the workspace folder, and a tree searched through a symbolic link reading the
 open buffer once (skipped where links cannot be created). `HyperSearchTest` covers documents and a folder in one
