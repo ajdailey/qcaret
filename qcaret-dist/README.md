@@ -103,9 +103,9 @@ recovery are in the root `README.md` under "Continuous integration".
 
 | Launcher | Behavior |
 |---|---|
-| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `-XX:MaxRAMPercentage=50`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. Runs only `uname` and `readlink` besides Java |
+| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. Runs only `uname` and `readlink` besides Java |
 | `qcaret.exe` (launch4j 3.50, `gui`) | Runs `lib\qcaret.jar` with a Java 21+ found in `runtime`, `%JAVA_HOME%`, then `%PATH%`; 64-bit only; `-XX:MaxRAMPercentage=50`. The launch4j header is a 32-bit x86 program that starts `javaw.exe` as a child process; on Windows arm64 it runs under x86 emulation and starting the arm64 runtime is unverified |
-| `QCaret.app/Contents/MacOS/QCaret` | The `jpackageapplauncher` binary from the target JDK's `jdk.jpackage` module. It reads `Contents/app/QCaret.cfg` and starts `Contents/runtime` with `-XstartOnFirstThread` and `-XX:MaxRAMPercentage=50`; the layout copies jpackage's and is unverified on macOS |
+| `QCaret.app/Contents/MacOS/QCaret` | The `jpackageapplauncher` binary from the target JDK's `jdk.jpackage` module. It reads `Contents/app/QCaret.cfg` and starts `Contents/runtime` with `-XstartOnFirstThread`, `--enable-native-access=ALL-UNNAMED` and `-XX:MaxRAMPercentage=50`; the layout copies jpackage's and is unverified on macOS |
 
 `rcodesign` 0.29.0 ad-hoc signs each `QCaret.app` on Linux with
 `src/macos/qcaret.entitlements` (`allow-jit`,
@@ -147,6 +147,7 @@ The CI `bundle` job runs each archive on its own runner through
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
 | Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` does not report the child's status (assumed from launch4j's `gui` header, checked at G1) |
+| Native access | No `WARNING: A restricted` in either launch's output | None: no `java.lang.foreign` class loads |
 
 A failed handoff opens its own window and does not exit, so each script bounds
 the second launch at 60 s.

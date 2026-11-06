@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -373,6 +374,75 @@ class ExternalChangeTest {
     } finally {
       budget.release(rest);
     }
+  }
+
+  @Test
+  void aRefusedReloadRetriesOnlyOnANewChange() throws Exception {
+    Path file = write("a.txt", "x");
+    Document document = open(file);
+    String refused = UiText.RELOAD_TOO_LARGE.format("a.txt");
+    long rest = budget.available();
+    assertTrue(budget.reserve(rest));
+    boolean reserved = true;
+    try {
+      write("a.txt", "y".repeat(1 << 20));
+      checkAndSettle();
+      checkAndSettle();
+      checkAndSettle();
+      assertEquals(1, Collections.frequency(view.notices, refused), view.notices.toString());
+
+      write("a.txt", "z".repeat(1 << 20));
+      checkAndSettle();
+      checkAndSettle();
+      assertEquals(2, Collections.frequency(view.notices, refused), view.notices.toString());
+
+      budget.release(rest);
+      reserved = false;
+      checkAndSettle();
+      assertEquals("x", document.text().toString());
+
+      write("a.txt", "new\n");
+      checkAndSettle();
+      assertEquals("new\n", document.text().toString());
+      assertEquals(2, Collections.frequency(view.notices, refused), view.notices.toString());
+    } finally {
+      if (reserved) {
+        budget.release(rest);
+      }
+    }
+  }
+
+  @Test
+  void aSaveAfterARefusedReloadStillAsks() throws Exception {
+    Path file = write("a.txt", "x");
+    open(file);
+    long rest = budget.available();
+    assertTrue(budget.reserve(rest));
+    try {
+      write("a.txt", "y".repeat(1 << 20));
+      checkAndSettle();
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return view.notices.contains(UiText.RELOAD_TOO_LARGE.format("a.txt"));
+            }
+          },
+          "notice");
+    } finally {
+      budget.release(rest);
+    }
+    documents.activeEditor().type("m");
+    documents.save();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.changePrompts.contains("save a.txt");
+          }
+        },
+        "save conflict");
+    assertEquals("y".repeat(1 << 20), Files.readString(file));
   }
 
   /** An ASCII head admits the file; a wide char per leaf past it costs 2 bytes per char. */

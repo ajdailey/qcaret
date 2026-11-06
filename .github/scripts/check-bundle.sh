@@ -3,7 +3,8 @@
 # checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets
 # and java.xml, and starts the bundle's launcher until the main window opens
 # and the grammars are read, with no unhandled failure. A second launch then
-# hands a file to the running bundle and exits 0. The same run follows with the
+# hands a file to the running bundle and exits 0. Neither launch prints the
+# JDK's native-access warning. The same run follows with the
 # universal zip's bin/qcaret, which has no runtime, on $JAVA_HOME. Linux uses a
 # private Xvfb display.
 set -euo pipefail
@@ -104,6 +105,10 @@ check_launcher() {
     || { echo "FAIL: $3 second launch ended with status $second_status" >&2; exit 1; }
   grep -q 'Handoff of 1 files taken' "$out" \
     || { echo "FAIL: $3 primary took no handoff" >&2; exit 1; }
+  if grep -q 'WARNING: A restricted' "$out" "$second_out"; then
+    echo "FAIL: $3 printed the native-access warning" >&2
+    exit 1
+  fi
   if grep -q 'Unhandled failure' "$out"; then
     echo "FAIL: $3 logged an unhandled failure" >&2
     exit 1

@@ -32,7 +32,7 @@ follows opens the launch's own window and logs one WARN.
 
 | File | Contents | Owner |
 |---|---|---|
-| `instance.lock` | empty; an OS file lock (`FileChannel.tryLock`) held for the primary's life | primary |
+| `instance.lock` | empty; a `ProcessLock` held for the primary's life | primary |
 | `instance.endpoint` | `version=1`, `port=<n>`, `token=<64 hex>`; owner-only, through `AtomicFiles.writeOwnerOnly` | primary |
 
 `InstanceServer.claim` takes the lock. The lock decides liveness, never the
@@ -42,12 +42,9 @@ any stale endpoint, binds an ephemeral loopback port and writes a new token.
 other order a new primary can lose its own endpoint. Close it before
 `Workers.close`, which waits for the accept thread.
 
-The lock arbitrates between processes only. Within one JVM on Linux and macOS
-`sun.nio.ch.FileLockTable` arbitrates, and concurrent channel closes on the file
-drop a live entry from it (JDK 21), so two threads can both claim. `Launcher`
-claims from one thread; a test of concurrent launches uses real processes.
-Closing any channel on the file releases the process's lock on Linux, so a
-primary that reads `instance.lock` as a document loses it.
+`ProcessLock` is described in the `qcaret-core` README. A primary that reads
+`instance.lock` as a document keeps the lock, and a second claim in one JVM
+gets null. On a JDK without `flock`, `claim` throws and the launch runs alone.
 
 `InstanceClient.handOff` runs in the launcher before the Display exists. It
 waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
@@ -626,7 +623,9 @@ write is never reported.
   (`DocumentFiles.reload`), and replaces the span between the common prefix and
   suffix as one undo step. `LoadReservation.reload` charges the span past the
   document's undo headroom until the UI thread has applied it; a span the budget
-  cannot hold leaves the text as it is, with a notice. A file written in place
+  cannot hold leaves the text as it is, with a notice. The watch takes the
+  checked baseline, so the file is read again, and the notice repeats, only on a
+  new change; the save baseline stays, so the next save asks. A file written in place
   between the passes fails the reload with a notice, and the next check
   reloads again. Each view's caret keeps its line and column; the views keep
   their top line. The document is clean afterwards and undo returns to the text
@@ -1086,10 +1085,10 @@ rest. Reopen Closed Tab therefore lands where the file was.
 streamed in chunks. A text with an unpaired surrogate goes as
 UTF-16BE, one char at a time, because the JDK's coders replace such a char.
 `RecoveryStore` holds `<settings>/recovery/<instance>/`. `owner.lock`, held
-through an OS lock, decides liveness. Closing any channel on a locked file drops
-the process's POSIX lock, so `HELD` keeps a process from opening its own lock
-file. `claimDead` locks each dead directory until its claim closes, so two
-starts cannot list one buffer.
+through a `ProcessLock`, decides liveness; `claimDead` gets null for this
+process's own directory. `claimDead` locks each dead directory until its claim
+closes, so two starts cannot list one buffer. On a JDK without `flock`, `open`
+fails and recovery files are off.
 
 `RecoveryController` runs one queue on `qcaret-io-` workers under `runLock`, so
 a write cannot land after the delete that follows it. One controller and one
@@ -1190,7 +1189,8 @@ display state and Clear History in every window and in the session file.
 `SessionStoreTest` covers the round trip, the limits, the `droppedComments`
 count and SET-5 and SET-8 faults. `RecoveryFileTest` round-trips a text over
 every buffer size, surrogates and damage. `RecoveryStoreTest` covers liveness by
-lock, age limits and the original file's state. `SessionControllerTest` restores
+lock, a live child process that read its `owner.lock`, age limits and the
+original file's state. `SessionControllerTest` restores
 through real files, shows and clears the comment count and runs debounced and
 shutdown saves on racing workers. `RecoveryControllerTest` covers each lifecycle
 step, the dialog's choices, failed writes (a non-empty directory in the file's
@@ -1252,7 +1252,8 @@ the same bytes return, a missing file saved without a prompt, a touch with the
 same bytes neither prompting nor blocking the save, five saves never reported
 as external changes, Compare from the prompt, Compare Documents, a
 retargeted link reloading and saving its new target (skipped where links
-cannot be created), a 3 MiB file reloaded, a span the budget refuses and a
+cannot be created), a 3 MiB file reloaded, a span the budget refuses, read
+again only on a new change and asked about at the next save, and a
 Compare refused when the file's text outgrows the budget. Each check runs on window
 activation; a case that asserts nothing was reported waits for two finished
 check passes requested after the change.

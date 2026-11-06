@@ -63,6 +63,8 @@ Before the Display, without `-m`, `Launcher` claims the instance lock (see the
 `qcaret-app` README). A held lock hands the launch over and exits 0, before
 `-l` attaches a log file. A settings directory another user owns or can write,
 or a failure to take the lock, logs one WARN and runs on alone, as with `-m`.
+A JDK where `flock` cannot be linked (`ProcessLock`, `qcaret-core` README) is
+such a failure; `RecoveryController` then also logs `Recovery files are off`.
 
 `Gui.run` creates `Workers` and calls `InstanceServer.start` as its first steps,
 before the session load and the Display; only the `FileLog` setup runs between
@@ -176,6 +178,7 @@ classes, so the rules over the main classes never see them.
 | No `System.getProperty` in `app.controller` | Platform facts come from the caller |
 | In `app.controller`, the blocking calls (`BLOCKING` in `ArchitectureTest`: `DocumentFiles` loads and saves, `SafeSave`, `Files`, `FileChannel`, `Path.toRealPath`, `Charset.availableCharsets`, `AtomicFiles`, `SafePaths`, `ConfigStore.load` and `save`, `AboutInfo.collect` and `licenseText`, `UserGuide.writeCopy`, `LogFiles.attach` and `detach`, `Workers.close`) are made only from a `@WorkerThread` method or from `run` of an anonymous `Runnable` its creating method submits to `Workers`, directly or through a helper of its class that takes a `Runnable`; a creating method that makes another anonymous `Runnable` or takes a method reference does not qualify. `@WorkerThread` methods are called only from such code | The UI thread never waits; annotating a UI-thread method fails at its caller |
 | No `new Thread`, `Thread.ofVirtual`, `ofPlatform`, `startVirtualThread`, `Executors`, pool or `AbstractExecutorService` types, `java.util.Timer` or `ThreadFactory` implementations outside `Workers` | One owner for every thread |
+| `FileChannel.lock` and `tryLock` only in `core.io.ProcessLock` | A POSIX record lock drops when any channel on the file closes |
 | No `synchronized` methods in `core.concurrent`, `core.io` and `app.ipc` | A monitor pins a virtual thread; blocking code uses `ReentrantLock`. Synchronized blocks are not visible to ArchUnit |
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
@@ -226,5 +229,8 @@ reopen (a read-only file) detaches the file and its ERROR reaches the recent
 lines, and which files prune deletes. `LauncherTest`
 checks help, version, exit 1 for a bad option or settings path, `user.home`
 per settings mode on Linux and the WebView2 data folder on Windows.
-`LauncherProcessTest` runs 16 `LaunchMain` child JVMs against a closing primary:
-one `PRIMARY`, 15 `HANDED`, 15 launches received.
+`LauncherProcessTest` runs 16 `LaunchMain` child JVMs against a closing primary
+and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A
+primary that reads every file in the settings directory keeps the lock and a
+second launch is `HANDED`. A child denied native access is `ALONE` with one
+WARN and no `instance.lock`.

@@ -19,7 +19,7 @@ delete-pending for a moment.
 |---|---|---|
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package |
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread`, `MemoryBudget` |
-| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles` |
+| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `ProcessLock`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles` |
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles` |
@@ -93,6 +93,27 @@ Every path from outside the process goes through `SafePaths`.
 
 An editor opens whatever file its user names, so a user file path is
 canonicalized and type-checked, not contained.
+
+`ProcessLock.tryAcquire` takes an exclusive lock on a file, which the OS
+releases at process death. It returns null when the lock is held, by another
+process or this JVM. Reading the file or closing another channel on it leaves
+the lock held.
+
+| System | Call | Detail |
+|---|---|---|
+| Linux, macOS | `flock(2)` through `Flock` | `open` with `O_RDWR`, `O_CREAT`, `O_CLOEXEC`, mode 0600. `java.lang.foreign` by reflection, linked once per process; the API is a preview in Java 21 |
+| Windows | `FileChannel.tryLock` | A lock belongs to its handle; no `java.lang.foreign` class loads |
+
+The launchers pass `--enable-native-access=ALL-UNNAMED`. Plain `java -jar` on
+Linux and macOS prints the JDK's three `WARNING:` lines on stderr; an
+`Enable-Native-Access` manifest entry does not remove them on Java 21.
+
+A JDK that lacks a name, has a different signature or denies native access
+fails the link, and `tryAcquire` throws `IOException`. Do not fall back to
+`FileChannel.tryLock` on Linux or macOS: it takes a POSIX record lock, which any
+closing channel drops and which does not conflict with `flock` on local Linux,
+so two launches could both hold the file. The bundles run Java 21; the universal
+jar on JDK 22 or later has not been run, and a difference there takes this path.
 
 `AtomicFiles.write` puts the content in a temporary file in the target's
 directory (POSIX `rw-------`), then moves it over the target with
@@ -696,6 +717,9 @@ comparison of two whole texts on 400 seeded edits at small blocks, repeated
 text, and edits in a file past every block; it also covers a BOM, a file
 written or made undecodable between the passes, a cancel, the charge, a change
 inside the headroom with the budget full and a span the budget refuses.
+`ProcessLockTest` covers a second acquire in the JVM and in a child JVM, close,
+a killed holder, a read of the held file, a non-ASCII path, 16 racing threads
+and a link that fails on a missing, changed or refusing API.
 `DigestsTest` digests a file past the block size. `SafeSaveTest` covers permissions, a new
 file, an external change, a cancel, a symbolic link and a hard link.
 `EncodingDetectorTest` covers every detection step, the menu charsets and an

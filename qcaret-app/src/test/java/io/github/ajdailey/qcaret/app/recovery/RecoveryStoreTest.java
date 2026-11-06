@@ -11,13 +11,16 @@ import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.io.Digests;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -80,6 +83,33 @@ class RecoveryStoreTest {
     claims.get(0).close();
     assertTrue(Files.exists(entry.file()), "a claim keeps what no one decided");
     own.close(false);
+  }
+
+  /** Reading a POSIX-locked file and closing it drops the lock; {@code owner.lock} must survive. */
+  @Test
+  void aLiveInstanceWhoseLockFileWasReadIsNotClaimed() throws Exception {
+    Process child =
+        new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "--enable-native-access=ALL-UNNAMED",
+                "-cp",
+                System.getProperty("java.class.path"),
+                OwnerMain.class.getName(),
+                temp.toString())
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start();
+    try (BufferedReader out =
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+      assertEquals(OwnerMain.READY, out.readLine());
+      RecoveryStore other = new RecoveryStore(temp, "other");
+      other.open();
+      assertTrue(other.claimDead(0).isEmpty());
+      other.close(false);
+      assertTrue(Files.exists(temp.resolve(RecoveryStore.DIRECTORY).resolve(OwnerMain.INSTANCE)));
+    } finally {
+      child.destroyForcibly();
+      assertTrue(child.waitFor(60, TimeUnit.SECONDS));
+    }
   }
 
   @Test

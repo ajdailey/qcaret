@@ -412,5 +412,6 @@ qcaret +120:8 src/Mock.java -r notes.txt
 ```
 
 To give QCaret more heap for large files, run the jar with the bundle's runtime:
-`runtime/bin/java -Xmx8g -jar lib/qcaret.jar`. On Windows add `-Xmx8g` as a line in
+`runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`.
+On Windows add `-Xmx8g` as a line in
 `qcaret.l4j.ini` next to `qcaret.exe`.

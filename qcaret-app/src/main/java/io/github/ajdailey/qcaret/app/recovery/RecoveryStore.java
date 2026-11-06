@@ -5,23 +5,19 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.Digests;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
+import io.github.ajdailey.qcaret.core.io.ProcessLock;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,12 +39,6 @@ public final class RecoveryStore {
   public static final String LOCK = "owner.lock";
 
   private static final Logger LOG = LoggerFactory.getLogger(RecoveryStore.class);
-
-  /**
-   * Directories this process has locked. Closing any channel on a locked file drops the process's
-   * POSIX lock, so a directory listed here is passed over without opening its lock file.
-   */
-  private static final Set<Path> HELD = ConcurrentHashMap.newKeySet();
 
   /** How a recovered buffer's original file stands. */
   public enum Original {
@@ -75,13 +65,11 @@ public final class RecoveryStore {
   /** A dead instance's directory, locked until {@link #close}, with the files it holds. */
   public static final class Claim implements AutoCloseable {
     private final Path directory;
-    private final FileChannel channel;
-    private final FileLock lock;
+    private final ProcessLock lock;
     private final List<Entry> entries;
 
-    Claim(Path directory, FileChannel channel, FileLock lock, List<Entry> entries) {
+    Claim(Path directory, ProcessLock lock, List<Entry> entries) {
       this.directory = directory;
-      this.channel = channel;
       this.lock = lock;
       this.entries = List.copyOf(entries);
     }
@@ -98,7 +86,7 @@ public final class RecoveryStore {
     /** Releases the lock, then deletes the directory when no recovery file is left. */
     @Override
     public void close() {
-      release(lock, channel);
+      release(lock);
       try {
         if (recoveryFiles(directory).isEmpty()) {
           deleteDirectory(directory);
@@ -112,8 +100,7 @@ public final class RecoveryStore {
   private final Path root;
   private final Path snapshots;
   private final Path own;
-  private FileChannel channel;
-  private FileLock lock;
+  private ProcessLock lock;
 
   /**
    * Creates the store; nothing is touched until {@link #open}.
@@ -135,15 +122,10 @@ public final class RecoveryStore {
    */
   public void open() throws IOException {
     SafePaths.settingsDirectory(own);
-    channel =
-        FileChannel.open(own.resolve(LOCK), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-    lock = channel.tryLock();
+    lock = ProcessLock.tryAcquire(own.resolve(LOCK));
     if (lock == null) {
-      channel.close();
-      channel = null;
       throw new IOException("Recovery directory is locked");
     }
-    HELD.add(own);
   }
 
   /**
@@ -185,10 +167,8 @@ public final class RecoveryStore {
     if (lock == null) {
       return;
     }
-    HELD.remove(own);
-    release(lock, channel);
+    release(lock);
     lock = null;
-    channel = null;
     if (!keep) {
       try {
         deleteDirectory(own);
@@ -216,7 +196,7 @@ public final class RecoveryStore {
     List<Path> directories = new ArrayList<Path>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(root)) {
       for (Path entry : stream) {
-        if (Files.isDirectory(entry) && !HELD.contains(entry)) {
+        if (Files.isDirectory(entry)) {
           directories.add(entry);
         }
       }
@@ -232,15 +212,10 @@ public final class RecoveryStore {
 
   @WorkerThread
   private static Claim claim(Path directory, long oldest) {
-    FileChannel opened = null;
-    FileLock taken = null;
+    ProcessLock taken = null;
     try {
-      opened =
-          FileChannel.open(
-              directory.resolve(LOCK), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-      taken = opened.tryLock();
+      taken = ProcessLock.tryAcquire(directory.resolve(LOCK));
       if (taken == null) {
-        opened.close();
         return null;
       }
       List<Entry> entries = new ArrayList<Entry>();
@@ -251,17 +226,15 @@ public final class RecoveryStore {
           entries.add(entry(file));
         }
       }
-      Claim claim = new Claim(directory, opened, taken, entries);
+      Claim claim = new Claim(directory, taken, entries);
       if (entries.isEmpty()) {
         claim.close();
         return null;
       }
       return claim;
-    } catch (OverlappingFileLockException e) {
-      return null;
     } catch (IOException e) {
       LOG.warn("Cannot read a recovery directory: {}", LogText.oneLine(e.getMessage()));
-      release(taken, opened);
+      release(taken);
       return null;
     }
   }
@@ -313,13 +286,10 @@ public final class RecoveryStore {
     }
   }
 
-  private static void release(FileLock held, FileChannel opened) {
+  private static void release(ProcessLock held) {
     try {
       if (held != null) {
-        held.release();
-      }
-      if (opened != null) {
-        opened.close();
+        held.close();
       }
     } catch (IOException e) {
       LOG.warn("Cannot release {}: {}", LOCK, LogText.oneLine(e.getMessage()));

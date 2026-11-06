@@ -252,8 +252,8 @@ its first 64 KiB raises its charge as it loads and is refused then if the
 memory is not there. The launchers set the maximum heap to half of the
 physical memory (`-XX:MaxRAMPercentage=50`). To raise it, run the jar with
 the bundle's runtime and `-Xmx`, for example
-`runtime/bin/java -Xmx8g -jar lib/qcaret.jar` (on Windows, add `-Xmx8g` as a
-line in `qcaret.l4j.ini` next to `qcaret.exe`).
+`runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`
+(on Windows, add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`).
 
 Largest single file that opens, measured on Linux x86_64 with nothing else
 open (loads at the budget limit completed without an out-of-memory error, each

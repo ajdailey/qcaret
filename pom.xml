@@ -387,7 +387,7 @@
                         <excludedGroups>${qcaret.excludedGroups}</excludedGroups>
                         <!-- SWT writes ~/.swt/trims.prefs; keep it out of the
                              user's home. -->
-                        <argLine>-Duser.home=${project.build.directory}/test-home ${qcaret.test.jvmArgs}</argLine>
+                        <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs}</argLine>
                         <!-- GTK prefers Wayland when WAYLAND_DISPLAY is set, which
                              puts test windows on the desktop session instead of
                              the X server DISPLAY names (Xvfb). -->

@@ -65,7 +65,7 @@
                 <configuration>
                     <!-- LogConfiguratorTest checks that the planted configuration
                          is discarded. -->
-                    <argLine>-Duser.home=${project.build.directory}/test-home ${qcaret.test.jvmArgs} -Djava.util.logging.config.file=${project.basedir}/src/test/resources/planted-logging.properties</argLine>
+                    <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs} -Djava.util.logging.config.file=${project.basedir}/src/test/resources/planted-logging.properties</argLine>
                 </configuration>
             </plugin>
         </plugins>

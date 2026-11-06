@@ -218,6 +218,10 @@ public final class DocumentController {
     boolean changePrompt;
     CancellationToken reloading;
     int reloadAttempts;
+
+    /** What the check that started a reload found; a refused reload takes it as the baseline. */
+    FileBaseline reloadCheck;
+
     int detecting;
 
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
@@ -2277,6 +2281,7 @@ public final class DocumentController {
           clearMissing(d);
         }
         if (autoReloadClean && !d.document.isDirty()) {
+          d.reloadCheck = result.current();
           reload(d);
         } else {
           changes.accept(d.watch, result.current());
@@ -2384,7 +2389,9 @@ public final class DocumentController {
    * text between the common prefix and suffix as one undo step, keeping each view's caret by line
    * and column. The changed span stays reserved until it is applied. The document is clean
    * afterwards; undo returns to the text before the reload, dirty. A document edited during the
-   * read reloads again, at most {@value #RELOAD_ATTEMPTS} times.
+   * read reloads again, at most {@value #RELOAD_ATTEMPTS} times. A span the budget refuses leaves
+   * the text; the watch takes the checked baseline, so the file is read again on a new change,
+   * while the document's stamp stays and a save still finds the conflict.
    */
   private void reload(final OpenDocument d) {
     if (d.closed || d.watch == null || d.reloading != null || d.saving != null) {
@@ -2446,6 +2453,7 @@ public final class DocumentController {
             });
     if (!started) {
       d.reloading = null;
+      d.reloadCheck = null;
       resumeWatch(d);
       view.setIdle();
     }
@@ -2468,6 +2476,8 @@ public final class DocumentController {
       return;
     }
     d.reloading = null;
+    FileBaseline checked = d.reloadCheck;
+    d.reloadCheck = null;
     if (d.closed) {
       return;
     }
@@ -2479,12 +2489,16 @@ public final class DocumentController {
       } else if (error != null) {
         view.showNotice(UiText.RELOAD_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
       } else if (!token.isCanceled()) {
+        if (checked != null) {
+          changes.accept(d.watch, checked);
+        }
         view.showNotice(UiText.RELOAD_TOO_LARGE.format(d.name()));
       }
       return;
     }
     if (d.document.revision() != revision) {
       if (++d.reloadAttempts < RELOAD_ATTEMPTS) {
+        d.reloadCheck = checked;
         reload(d);
         return;
       }

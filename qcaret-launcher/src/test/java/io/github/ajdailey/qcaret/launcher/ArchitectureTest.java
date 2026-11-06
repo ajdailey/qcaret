@@ -277,6 +277,25 @@ class ArchitectureTest {
   }
 
   @Test
+  void fileLocksOnlyInProcessLock() {
+    fileLocksOnlyInProcessLockRule().check(classes);
+  }
+
+  private static ArchRule fileLocksOnlyInProcessLockRule() {
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(ROOT + ".core.io.ProcessLock")
+        .should()
+        .callMethod(FileChannel.class, "tryLock")
+        .orShould()
+        .callMethod(FileChannel.class, "tryLock", long.class, long.class, boolean.class)
+        .orShould()
+        .callMethod(FileChannel.class, "lock")
+        .orShould()
+        .callMethod(FileChannel.class, "lock", long.class, long.class, boolean.class);
+  }
+
+  @Test
   void utilitiesDependOnNoOtherPackage() {
     utilitiesDependOnNoOtherPackageRule().check(classes);
   }
@@ -871,6 +890,11 @@ class ArchitectureTest {
         "CountDownLatch.await",
         "OperationHandle.await",
         "java.nio.channels");
+    assertViolations(
+        fileLocksOnlyInProcessLockRule(),
+        ROOT + ".core.io.archfixture.IoViolations$Locks",
+        "FileChannel.tryLock",
+        "FileChannel.lock");
     assertViolations(
         controllersNeverWaitRule(),
         CONTROLLER_FIXTURES + "Waits",

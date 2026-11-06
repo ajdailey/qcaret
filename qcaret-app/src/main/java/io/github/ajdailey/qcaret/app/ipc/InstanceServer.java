@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.ipc;
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.io.ProcessLock;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
@@ -11,9 +12,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.CharacterCodingException;
@@ -23,7 +21,6 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,8 +96,7 @@ public final class InstanceServer implements AutoCloseable {
       };
 
   private final Path directory;
-  private final FileChannel lockChannel;
-  private final FileLock lock;
+  private final ProcessLock lock;
   private final ServerSocketChannel server;
   private final byte[] token;
   private final long windowDeadline;
@@ -113,13 +109,11 @@ public final class InstanceServer implements AutoCloseable {
 
   private InstanceServer(
       Path directory,
-      FileChannel lockChannel,
-      FileLock lock,
+      ProcessLock lock,
       ServerSocketChannel server,
       byte[] token,
       long windowDeadline) {
     this.directory = directory;
-    this.lockChannel = lockChannel;
     this.lock = lock;
     this.server = server;
     this.token = token;
@@ -127,9 +121,7 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Becomes the primary instance for a settings directory when no live instance is. Call it from
-   * one thread per process: concurrent claims in one JVM can each succeed, because {@code
-   * sun.nio.ch.FileLockTable} loses a live lock when channels on the file close concurrently.
+   * Becomes the primary instance for a settings directory when no live instance is.
    *
    * @param directory the settings directory
    * @return the server, bound, its endpoint written; null when a live instance holds the lock
@@ -148,41 +140,28 @@ public final class InstanceServer implements AutoCloseable {
    * @throws IOException when the lock file, the port or the endpoint file fails
    */
   static InstanceServer claim(Path directory, Duration windowBound) throws IOException {
-    FileChannel channel =
-        FileChannel.open(
-            SafePaths.child(directory, Endpoint.LOCK),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.WRITE);
+    ProcessLock lock = ProcessLock.tryAcquire(SafePaths.child(directory, Endpoint.LOCK));
+    if (lock == null) {
+      return null;
+    }
     InstanceServer claimed = null;
+    ServerSocketChannel server = null;
     try {
-      FileLock lock;
-      try {
-        lock = channel.tryLock();
-      } catch (OverlappingFileLockException e) {
-        lock = null;
-      }
-      if (lock == null) {
-        return null;
-      }
-      ServerSocketChannel server = null;
-      try {
-        Endpoint.delete(directory);
-        server = ServerSocketChannel.open();
-        server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), BACKLOG);
-        int port = ((InetSocketAddress) server.getLocalAddress()).getPort();
-        byte[] token = Protocol.secret();
-        new Endpoint(port, token).write(directory);
-        long windowDeadline = System.nanoTime() + windowBound.toNanos();
-        claimed = new InstanceServer(directory, channel, lock, server, token, windowDeadline);
-        return claimed;
-      } finally {
-        if (claimed == null && server != null) {
-          server.close();
-        }
-      }
+      Endpoint.delete(directory);
+      server = ServerSocketChannel.open();
+      server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), BACKLOG);
+      int port = ((InetSocketAddress) server.getLocalAddress()).getPort();
+      byte[] token = Protocol.secret();
+      new Endpoint(port, token).write(directory);
+      long windowDeadline = System.nanoTime() + windowBound.toNanos();
+      claimed = new InstanceServer(directory, lock, server, token, windowDeadline);
+      return claimed;
     } finally {
       if (claimed == null) {
-        channel.close();
+        if (server != null) {
+          server.close();
+        }
+        lock.close();
       }
     }
   }
@@ -489,11 +468,10 @@ public final class InstanceServer implements AutoCloseable {
       LOG.warn("Cannot delete the handoff endpoint: {}", LogText.oneLine(e.getMessage()));
     }
     try {
-      lock.release();
+      lock.close();
     } catch (IOException e) {
       LOG.debug("Cannot release the instance lock: {}", LogText.oneLine(e.getMessage()));
     }
-    closeQuietly(lockChannel);
   }
 
   private static void closeQuietly(Channel channel) {
