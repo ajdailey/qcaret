@@ -867,16 +867,20 @@ class WindowSessionTest {
     windows.settle("search");
     windows.ui.runPending();
     assertEquals(1, captured(windows).windows().get(0).searches().size());
-    // On Windows this save fails now and then for a reason not yet known; the WARN names it.
+    // The window's own timer save can land after this one with a capture from before the search.
     windows.await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return store().save(captured(windows));
+            try {
+              return store().save(captured(windows))
+                  && Files.readString(settings.resolve(SessionStore.FILE)).contains(".search.");
+            } catch (IOException e) {
+              return false;
+            }
           }
         },
-        "the session file is written");
-    assertTrue(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
+        "the session file holds the search");
   }
 
   @Test
