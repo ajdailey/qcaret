@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -72,7 +73,8 @@ class SessionControllerTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return harness.application.documents().count() > 0 || !restore;
+            return (harness.application.documents().count() > 0 || !restore)
+                && !harness.application.sessionController().restoring();
           }
         },
         "the restore ended");
@@ -505,6 +507,72 @@ class SessionControllerTest {
     session.write(new SessionController.Capture(100, sessionNamed("later")));
     session.write(new SessionController.Capture(99, sessionNamed("stale")));
     assertEquals(List.of("later"), store().load().recent());
+  }
+
+  /** Opens three files of 800 commented lines each and quits, which leaves 1,400 out. */
+  private void quitWithTooManyComments() throws Exception {
+    Harness harness = start(true);
+    harness.application.documents().closeAll(null);
+    for (String name : List.of("a.txt", "b.txt", "c.txt")) {
+      harness.open(file(name, "line\n".repeat(800)));
+      DocumentController documents = harness.application.documents();
+      Bookmarks bookmarks = documents.bookmarksOf(documents.activeDocument());
+      for (int line = 0; line < 800; line++) {
+        bookmarks.setComment(line, "mock");
+      }
+    }
+    quit(harness);
+  }
+
+  private static int count(List<String> list, String value) {
+    int count = 0;
+    for (String item : list) {
+      if (item.equals(value)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  @Test
+  void commentsPastTheCapShowOneNoticeAndTheSaveAfterItClearsTheCount() throws Exception {
+    quitWithTooManyComments();
+    assertEquals(1400, store().load().droppedComments());
+
+    String notice = UiText.SESSION_COMMENTS_DROPPED.format(1400, SessionStore.MAX_COMMENTS);
+    Harness second = start(true);
+    assertEquals(1, count(second.view.notices, notice), second.view.notices.toString());
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return store().load().droppedComments() == 0;
+          }
+        },
+        "the save after the notice");
+    assertEquals(1, count(second.view.notices, notice), second.view.notices.toString());
+    assertFalse(Files.readString(settings.resolve(SessionStore.FILE)).contains("droppedComments"));
+    quit(second);
+
+    Harness third = start(true);
+    assertEquals(0, count(third.view.notices, notice), third.view.notices.toString());
+  }
+
+  @Test
+  void aQuitBeforeTheSaveClearsTheCountToo() throws Exception {
+    quitWithTooManyComments();
+    quit(start(true));
+    assertEquals(0, store().load().droppedComments());
+  }
+
+  @Test
+  void anInstanceThatDoesNotRestoreLeavesTheCountForTheNextRestore() throws Exception {
+    quitWithTooManyComments();
+    Harness other = start(false);
+    String notice = UiText.SESSION_COMMENTS_DROPPED.format(1400, SessionStore.MAX_COMMENTS);
+    assertEquals(0, count(other.view.notices, notice), other.view.notices.toString());
+    quit(other);
+    assertEquals(1400, store().load().droppedComments());
   }
 
   @Test

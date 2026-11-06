@@ -327,7 +327,17 @@ final class SessionController implements DocumentController.FileMemory {
       reportSkipped();
     }
     recovery.start();
+    reportDroppedComments(loaded.droppedComments());
     changed();
+  }
+
+  /** Shows the count once; the save {@link #finish} arms clears the key. */
+  private void reportDroppedComments(int dropped) {
+    ApplicationController window = set.target();
+    if (dropped > 0 && window != null) {
+      LOG.warn("The last save left out {} bookmark comments", dropped);
+      window.showNotice(UiText.SESSION_COMMENTS_DROPPED.format(dropped, SessionStore.MAX_COMMENTS));
+    }
   }
 
   private void reportSkipped() {

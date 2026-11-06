@@ -40,8 +40,9 @@ import org.slf4j.LoggerFactory;
  * qcaret_session.conf.invalid} before replacing it. A value that does not parse falls back to its
  * default; a tab without a path or buffer is skipped. A session keeps at most {@link #MAX_WINDOWS}
  * windows, {@link #MAX_TABS} tabs over all windows, {@link #MAX_FILES} file entries and {@link
- * #MAX_COMMENTS} comments over all tabs. A read-only settings directory disables saving with one
- * WARN. Paths and comments are never logged.
+ * #MAX_COMMENTS} comments over all tabs. {@code droppedComments}, written when not 0, counts the
+ * comments a save left out; a missing or malformed value reads as 0. A read-only settings directory
+ * disables saving with one WARN. Paths and comments are never logged.
  */
 public final class SessionStore {
   /** The file name in the settings directory. */
@@ -84,6 +85,7 @@ public final class SessionStore {
   private static final String RECENT = "recent.";
   private static final String FILE_KEY = "file.";
   private static final String WINDOW = "window.";
+  private static final String DROPPED_COMMENTS = "droppedComments";
 
   private final SettingsLocation location;
   private final ReentrantLock lock = new ReentrantLock();
@@ -273,7 +275,21 @@ public final class SessionStore {
       }
       tabs += count;
     }
+    int dropped = session.droppedComments() + commentCount(session) - comments;
+    if (dropped > 0) {
+      keys.put(DROPPED_COMMENTS, Integer.toString(dropped));
+    }
     return keys;
+  }
+
+  private static int commentCount(Session session) {
+    int count = 0;
+    for (Session.Window window : session.windows()) {
+      for (Session.Tab tab : window.tabs()) {
+        count += tab.comments().size();
+      }
+    }
+    return count;
   }
 
   /** Writes a tab and returns the comments written. */
@@ -365,7 +381,11 @@ public final class SessionStore {
       }
       windows.add(window(p, key, list));
     }
-    return new Session(windows, list(p, RECENT, MAX_RECENT), files(p));
+    return new Session(
+        windows,
+        list(p, RECENT, MAX_RECENT),
+        files(p),
+        number(p, DROPPED_COMMENTS, 0, Integer.MAX_VALUE, 0));
   }
 
   private static Session.Window window(Properties p, String key, List<Session.Tab> tabs) {

@@ -125,6 +125,8 @@ public enum UiText {
   SESSION_SKIPPED,
   /** The names a session report lists and how many more it left out. */
   SESSION_SKIPPED_MORE,
+  /** Comments the last save left out and how many a session holds. */
+  SESSION_COMMENTS_DROPPED,
   /** Snapshot write failed; the quit asks about each buffer. */
   SESSION_SNAPSHOT_FAILED,
   /** Note on a restored search set. */

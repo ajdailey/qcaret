@@ -1013,6 +1013,16 @@ before the next save; a missing `version` reads as 1, a bad value falls back and
 a tab without a path or buffer is skipped. `Gui` reads the file before the
 Display.
 
+A session keeps 1,000 bookmark comments over all tabs, while one document may
+hold 1,000; the first tabs in saved order keep theirs. `SessionStore` writes the
+count a save leaves out as `droppedComments`, because a quit save has no window
+for a notice. The next restore shows one notice in the window activated last,
+and the save `finish` arms clears the key: `Session.droppedComments` is part of
+the record's equality, so the capture differs from the file even with no other
+change. An instance that does not restore leaves the key. Clear History from
+such an instance rewrites the file and keeps the count. A missing or malformed
+key reads as 0. The per-file LRU holds no comments.
+
 `SessionController` owns restore and save, one per `WindowSet`. Only an instance
 started with `restore` true saves, so `-m` never replaces the session. The first
 saved window restores into the window open at start and each further one into a
@@ -1151,14 +1161,15 @@ restore, the capture before a quit's first close, Cancel and a process end at a
 quit prompt, a moved buffer's recovery file, a snapshot over two windows, the
 display state and Clear History in every window and in the session file.
 
-`SessionStoreTest` covers the round trip, the limits and SET-5 and SET-8 faults.
-`RecoveryFileTest` round-trips a text over every buffer size, surrogates and
-damage. `RecoveryStoreTest` covers liveness by lock, age limits and the original
-file's state. `SessionControllerTest` restores through real files and runs
-debounced and shutdown saves on racing workers. `RecoveryControllerTest` covers
-each lifecycle step, the dialog's choices, failed writes (a non-empty directory
-in the file's place makes the move throw) and the snapshot quit, with `quit`
-standing in for a process end. `ManualUiDispatcher` holds timers of 5 s and over
+`SessionStoreTest` covers the round trip, the limits, the `droppedComments`
+count and SET-5 and SET-8 faults. `RecoveryFileTest` round-trips a text over
+every buffer size, surrogates and damage. `RecoveryStoreTest` covers liveness by
+lock, age limits and the original file's state. `SessionControllerTest` restores
+through real files, shows and clears the comment count and runs debounced and
+shutdown saves on racing workers. `RecoveryControllerTest` covers each lifecycle
+step, the dialog's choices, failed writes (a non-empty directory in the file's
+place makes the move throw) and the snapshot quit, with `quit` standing in for a
+process end. `ManualUiDispatcher` holds timers of 5 s and over
 until `runLongTimers`, because the recovery timer rearms itself.
 
 `ConfigStoreTest` covers two stores merging on one directory, a save that

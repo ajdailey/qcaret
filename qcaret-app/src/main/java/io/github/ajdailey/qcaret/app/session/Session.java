@@ -11,8 +11,11 @@ import java.util.List;
  * @param windows the main windows, in order
  * @param recent File > Recent Files, newest first
  * @param files per-file state, most recently used first
+ * @param droppedComments the comments the save of this file left out, not yet reported; {@link
+ *     SessionStore#save} writes this count plus those it leaves out itself
  */
-public record Session(List<Window> windows, List<String> recent, List<FileState> files) {
+public record Session(
+    List<Window> windows, List<String> recent, List<FileState> files, int droppedComments) {
   /** Nothing remembered. */
   public static final Session EMPTY = new Session(List.of(), List.of(), List.of());
 
@@ -21,6 +24,17 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
     windows = List.copyOf(windows);
     recent = List.copyOf(recent);
     files = List.copyOf(files);
+  }
+
+  /**
+   * Creates a session with no comments to report.
+   *
+   * @param windows the main windows, in order
+   * @param recent File > Recent Files, newest first
+   * @param files per-file state, most recently used first
+   */
+  public Session(List<Window> windows, List<String> recent, List<FileState> files) {
+    this(windows, recent, files, 0);
   }
 
   /**
@@ -33,7 +47,7 @@ public record Session(List<Window> windows, List<String> recent, List<FileState>
     for (Window window : windows) {
       list.add(window.withoutSearches());
     }
-    return new Session(list, recent, files);
+    return new Session(list, recent, files, droppedComments);
   }
 
   /**

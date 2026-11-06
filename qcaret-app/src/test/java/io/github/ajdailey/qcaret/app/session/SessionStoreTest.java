@@ -143,6 +143,8 @@ class SessionStoreTest {
     assertEquals(session.windows().get(0).tabs(), cleared.windows().get(0).tabs());
     assertEquals(session.recent(), cleared.recent());
     assertEquals(session.files(), cleared.files());
+    Session reported = new Session(List.of(), List.of(), List.of(), 7);
+    assertEquals(7, reported.withoutSearches().droppedComments());
   }
 
   @Test
@@ -219,6 +221,74 @@ class SessionStoreTest {
     assertEquals(0, tab.views().get(0).top());
     assertNull(SessionText.selections(tab.views().get(0).selections(), 10));
     assertEquals(List.of(), window.searches());
+  }
+
+  private void assertDroppedCommentsRead(String value, int expected) throws Exception {
+    Files.writeString(temp.resolve(SessionStore.FILE), "droppedComments=" + value + "\n");
+    assertEquals(expected, store().load().droppedComments());
+  }
+
+  @Test
+  void theDroppedCommentCountRoundTripsAndABadValueReadsAsZero() throws Exception {
+    Session session = session();
+    Session reported = new Session(session.windows(), session.recent(), session.files(), 7);
+    assertTrue(store().save(reported));
+    assertEquals(reported, store().load());
+    assertTrue(store().save(session));
+    assertFalse(Files.readString(temp.resolve(SessionStore.FILE)).contains("droppedComments"));
+    assertDroppedCommentsRead("12", 12);
+    assertDroppedCommentsRead("mock", 0);
+    assertDroppedCommentsRead("-3", 0);
+    assertDroppedCommentsRead("99999999999", 0);
+  }
+
+  private static Session.Tab commentedTab(String path, int comments) {
+    List<Session.Comment> list = new ArrayList<Session.Comment>();
+    for (int i = 0; i < comments; i++) {
+      list.add(new Session.Comment(i, "mock"));
+    }
+    return new Session.Tab(
+        path, "", "", "", "", false, 4, false, List.of(), 0, false, "", "", list, false);
+  }
+
+  private static Session.Window windowOf(List<Session.Tab> tabs) {
+    return new Session.Window(
+        WindowState.UNKNOWN,
+        tabs,
+        0,
+        "",
+        false,
+        "",
+        List.of(),
+        false,
+        "",
+        List.of(),
+        List.of(),
+        Session.Display.DEFAULTS);
+  }
+
+  @Test
+  void aSaveCountsTheCommentsItLeavesOut() {
+    Session.Window window =
+        windowOf(List.of(commentedTab("/mock/a", 800), commentedTab("/mock/b", 600)));
+    SessionStore store = store();
+    assertTrue(store.save(new Session(List.of(window), List.of(), List.of())));
+    Session read = store.load();
+    assertEquals(400, read.droppedComments());
+    assertEquals(800, read.windows().get(0).tabs().get(0).comments().size());
+    assertEquals(200, read.windows().get(0).tabs().get(1).comments().size());
+  }
+
+  @Test
+  void theCommentsOfATabPastTheLimitCount() {
+    List<Session.Tab> tabs = new ArrayList<Session.Tab>();
+    for (int i = 0; i < SessionStore.MAX_TABS; i++) {
+      tabs.add(commentedTab("/mock/" + i, 0));
+    }
+    tabs.add(commentedTab("/mock/past", 3));
+    SessionStore store = store();
+    assertTrue(store.save(new Session(List.of(windowOf(tabs)), List.of(), List.of())));
+    assertEquals(3, store.load().droppedComments());
   }
 
   @Test
