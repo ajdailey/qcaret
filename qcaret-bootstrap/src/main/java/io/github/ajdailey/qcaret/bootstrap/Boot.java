@@ -145,7 +145,8 @@ public final class Boot {
 
   /**
    * Validates a {@code --settings} value: made absolute and normalized, created owner-only when
-   * missing, then resolved to its real path, which must be a directory.
+   * missing, then resolved to its real path, which must be a directory. An existing directory keeps
+   * its permissions.
    *
    * @param value the option value, or null
    * @return the directory, or null when value is null
@@ -159,7 +160,9 @@ public final class Boot {
       throw new IOException("--settings needs a directory");
     }
     Path dir = Path.of(value).toAbsolutePath().normalize();
-    Natives.createOwnerOnly(dir);
+    if (!Files.exists(dir)) {
+      Natives.createOwnerOnly(dir);
+    }
     Path real = dir.toRealPath();
     if (!Files.isDirectory(real)) {
       throw new IOException(real + " is not a directory");

@@ -115,7 +115,7 @@ the main executable, which is why the macOS launcher is the jpackage binary.
 Before signing, every symlink jlink wrote under `legal/` is replaced by a copy
 of its target: `<zip>` stores the target's content, so a signed symlink would
 not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
---deep --strict` on the unzipped `QCaret.app`. The bundles are not notarized. `Info.plist` declares no document types yet.
+--deep --strict` on the unzipped `QCaret.app`. The bundles are not notarized.
 
 ## Icons
 
@@ -131,7 +131,22 @@ prints the manifest version as its first line; `java -jar qcaret.jar` opens a
 900 x 600 window at 50,40 and writes no `logs` folder; and on linux-x86_64 the
 extracted bundle runs with `-l` and `PATH` holding only `uname` and
 `readlink`, reports its own `runtime/` as `java.home`, opens the same window,
-and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's
-line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, and
-its `java` runs `CharsetProbe`, which fails unless every encoding in
+logs `First paint of file text` (the line `qcaret-bench` times), and after
+SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no
+other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`,
+and its `java` runs `CharsetProbe`, which fails unless every encoding in
 `SmokeTest.ENCODINGS` is supported.
+
+The CI `bundle` job runs each archive on its own runner through
+`.github/scripts/check-bundle.sh` (Linux, macOS) or `check-bundle.ps1`
+(Windows). For the target's bundle and then the universal zip:
+
+| Check | Linux, macOS | Windows |
+|---|---|---|
+| Runtime | `os.arch`, `jdk.charsets`, `java.xml` | The same, plus the `javaw.exe` child's image and PE machine |
+| Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
+| Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` | The same |
+| Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` does not report the child's status (assumed from launch4j's `gui` header, checked at G1) |
+
+A failed handoff opens its own window and does not exit, so each script bounds
+the second launch at 60 s.

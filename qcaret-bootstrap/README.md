@@ -71,6 +71,10 @@ itself (its own extraction runs `chmod` through `Runtime.exec`).
 | macOS | `~/Library/Caches/io.github.ajdailey.qcaret/swt/<swt version>-<target>/` | Verify; extract |
 
 Every start checks the SHA-256 of every library against the jar's digest.
+
+A `--settings` directory the launch creates is owner-only (POSIX `rwx------`); an
+existing one keeps its permissions.
+
 Extraction creates the directory owner-only (POSIX `rwx------`), writes to a
 temp file in it, checks the digest, then moves it into place with
 `ATOMIC_MOVE`. When the move fails and the name already holds a matching

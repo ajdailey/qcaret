@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,19 @@ class BootTest {
   void settingsDirectoryIsCreated() throws Exception {
     Path dir = Boot.settingsDirectory(temp.resolve("s").resolve("t").toString());
     assertTrue(Files.isDirectory(dir));
+  }
+
+  @Test
+  void aCreatedSettingsDirectoryIsOwnerOnlyAndAnExistingOneKeepsItsPermissions() throws Exception {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Path created = Boot.settingsDirectory(temp.resolve("created").toString());
+    assertEquals(
+        "rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(created)));
+
+    Path shared = Files.createDirectory(temp.resolve("shared"));
+    Files.setPosixFilePermissions(shared, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Boot.settingsDirectory(shared.toString());
+    assertEquals("rwxrwxr-x", PosixFilePermissions.toString(Files.getPosixFilePermissions(shared)));
   }
 
   @Test

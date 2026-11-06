@@ -836,6 +836,9 @@ public final class EditorPane implements EditorView {
             }
             reportViewport();
             syncScrollBar();
+            if (text.getCharCount() > 0) {
+              FirstTextPaint.painted();
+            }
           }
         });
   }

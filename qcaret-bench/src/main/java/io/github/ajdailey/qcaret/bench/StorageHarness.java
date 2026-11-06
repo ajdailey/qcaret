@@ -3,16 +3,31 @@ package io.github.ajdailey.qcaret.bench;
 import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.buffer.TextStorage;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 /**
  * Latency percentiles (W2, W4) and live heap (W1, after W3) for the rope. Arguments: any of {@code
  * w1heap}, {@code w2}, {@code w3heap}, {@code w4}; none runs all four.
+ *
+ * <p>Runs at the shipped launchers' heap, {@value #LAUNCHER_HEAP}: a JVM started without a heap
+ * option relaunches the harness with it. A heap option on the command line runs in place; {@code
+ * -Dqcaret.bench.heap=jvm} runs in place at the JVM default.
  */
 public final class StorageHarness {
+  /** The heap option of {@code qcaret-dist/src/bin/qcaret} and the other launchers. */
+  static final String LAUNCHER_HEAP = "-XX:MaxRAMPercentage=50";
+
+  private static final String[] HEAP_OPTIONS = {
+    "-Xmx", "-XX:MaxRAMPercentage=", "-XX:MaxRAM=", "-XX:MaxHeapSize="
+  };
+
   /** W2 keystrokes measured per size. */
   private static final int W2_KEYS = 10_000;
 
@@ -27,8 +42,14 @@ public final class StorageHarness {
    * Runs the harness.
    *
    * @param args the workloads
+   * @throws IOException when the relaunch cannot start
+   * @throws InterruptedException when interrupted waiting for the relaunched JVM
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException, InterruptedException {
+    List<String> options = ManagementFactory.getRuntimeMXBean().getInputArguments();
+    if (heapOption(options) == null && !"jvm".equals(System.getProperty("qcaret.bench.heap"))) {
+      System.exit(relaunch(options, args));
+    }
     String[] workloads = args.length > 0 ? args : new String[] {"w1heap", "w2", "w3heap", "w4"};
     System.out.printf(
         "max heap %d MiB, args %s%n",
@@ -43,6 +64,46 @@ public final class StorageHarness {
         default -> throw new IllegalArgumentException("unknown workload " + w);
       }
     }
+  }
+
+  /**
+   * Returns the heap option among JVM options.
+   *
+   * @param options the JVM's input arguments
+   * @return the first heap option, or null
+   */
+  static String heapOption(List<String> options) {
+    for (String argument : options) {
+      for (String option : HEAP_OPTIONS) {
+        if (argument.startsWith(option)) {
+          return argument;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Runs the same workloads in a new JVM with {@link #LAUNCHER_HEAP} and this JVM's options. */
+  private static int relaunch(List<String> options, String[] args)
+      throws IOException, InterruptedException {
+    List<String> command = new ArrayList<String>();
+    command.add(javaCommand());
+    command.add(LAUNCHER_HEAP);
+    command.addAll(options);
+    command.add("-cp");
+    command.add(System.getProperty("java.class.path"));
+    command.add(StorageHarness.class.getName());
+    command.addAll(Arrays.asList(args));
+    return new ProcessBuilder(command).inheritIO().start().waitFor();
+  }
+
+  /**
+   * Returns this JVM's {@code java} binary.
+   *
+   * @return the path
+   */
+  static String javaCommand() {
+    return Path.of(System.getProperty("java.home"), "bin", "java").toString();
   }
 
   private static void w1Heap() {

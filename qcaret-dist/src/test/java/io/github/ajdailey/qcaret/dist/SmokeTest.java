@@ -113,11 +113,11 @@ class SmokeTest {
     }
   }
 
-  private static List<String> windowArgs(Path settings, Path log) {
+  private static List<String> windowArgs(String level, Path settings, Path log) {
     List<String> args = new ArrayList<String>();
     args.add("-m");
     args.add("-d");
-    args.add("1");
+    args.add(level);
     args.add("--settings");
     args.add(settings.toString());
     args.add("--window-width");
@@ -160,7 +160,7 @@ class SmokeTest {
     command.add(java());
     command.add("-jar");
     command.add(jar().toString());
-    command.addAll(windowArgs(temp.resolve("settings"), log));
+    command.addAll(windowArgs("1", temp.resolve("settings"), log));
     try (Run run = new Run(command, Map.of(), false)) {
       assertOpened(run);
     }
@@ -227,7 +227,7 @@ class SmokeTest {
     command.add(home.resolve("bin").resolve("qcaret").toString());
     Path log = Files.writeString(temp.resolve("bundle.txt"), "mock line\n");
     command.add("-l");
-    command.addAll(windowArgs(temp.resolve("bundle-settings"), log));
+    command.addAll(windowArgs("debug", temp.resolve("bundle-settings"), log));
     Map<String, String> env = new HashMap<String, String>();
     env.put("PATH", bin.toString());
     env.put("GDK_BACKEND", "x11");
@@ -243,6 +243,8 @@ class SmokeTest {
       assertNotNull(java, run.seen.toString());
       assertEquals(home.resolve("runtime").toRealPath().toString(), java.group(2));
       assertOpened(run);
+      // The line the benchmark harness times startup by.
+      assertNotNull(run.await(Pattern.compile("First paint of file text")), run.seen.toString());
     }
     assertOnlyTheLogFile(temp.resolve("bundle-settings").resolve("logs"));
 

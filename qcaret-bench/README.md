@@ -1,8 +1,8 @@
 # qcaret-bench
 
-JMH benchmarks and a latency and heap harness for `RopeStorage` in
-`core.buffer`. Not shipped and not scanned by SpotBugs. Input is generated in
-memory, never read from the repository.
+JMH benchmarks, a latency and heap harness for `RopeStorage` in `core.buffer`,
+and a startup harness for the shipped application. Not shipped and not scanned
+by SpotBugs. Input is generated, never read from the repository.
 
 ## Map
 
@@ -14,6 +14,7 @@ memory, never read from the repository.
 | `EditBenchmark` | W3 random edits, W5 replace-all, W8 undo and redo; one run per iteration |
 | `ReadBenchmark` | W6 `lineAt`, `offsetOfLine`, `line` and a reused `LineView` on 10 MiB; W7 `TextCursor`, `charAt` and chunk reads of 100 MiB; both after W3 |
 | `StorageHarness` | W2 and W4 latency percentiles; live heap after W1 and after W3 |
+| `StartupHarness` | Process start to the first paint of file text, for `qcaret.jar` or a bundle launcher |
 
 ## Running
 
@@ -22,8 +23,10 @@ memory, never read from the repository.
 java -jar qcaret-bench/target/benchmarks.jar BuildBenchmark
 java -jar qcaret-bench/target/benchmarks.jar ReadBenchmark
 java -jar qcaret-bench/target/benchmarks.jar EditBenchmark
-java -XX:MaxRAMPercentage=50 -cp qcaret-bench/target/benchmarks.jar \
-  io.github.ajdailey.qcaret.bench.StorageHarness
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.StorageHarness [w1heap w2 w3heap w4]
+xvfb-run -a env GDK_BACKEND=x11 java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.StartupHarness TARGET FILE SETTINGS [RUNS]
 ```
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
@@ -31,6 +34,40 @@ run for the 4 MiB single line. Every JMH benchmark runs 2 forks of 5 warm-up
 and 10 measured iterations at `-XX:MaxRAMPercentage=50`. Run on an idle host
 and record `uptime` before and after: timings taken under load do not
 reproduce.
+
+### Heap
+
+`StorageHarness` runs at the shipped launchers' `-XX:MaxRAMPercentage=50`: a JVM
+started without a heap option relaunches the harness with it, and the first
+output line prints the options in force. A heap option on the command line
+(`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;
+`-Dqcaret.bench.heap=jvm` runs in place at the JVM default (25% of RAM). Give a
+run with JFR or native memory tracking a heap option: without one, both JVMs
+apply them.
+
+### Startup
+
+`StartupHarness` launches QCaret `RUNS` times (6 by default), one at a time, with
+`--settings SETTINGS -m -d debug FILE`, and times each from process start to the
+DEBUG line `First paint of file text`, which `FirstTextPaint` logs on the first
+paint with text. The first run also fills the settings directory and, for `qcaret.jar`,
+extracts the SWT natives, so it is reported apart from the median of the rest.
+
+`TARGET` is `qcaret.jar`, run with the harness JVM's `java` and
+`-XX:MaxRAMPercentage=50`, or an executable launcher: extract the bundle archive
+from `dist/` first, because the staging tree under `qcaret-dist/target` has no
+execute bits. On Linux `--settings` also moves `user.home`, so QCaret writes only
+inside `SETTINGS`, which holds each run's output as `startup-<n>.out`. Linux only:
+on macOS the bootstrap relaunch of a `.jar` target drops the heap option.
+
+### Scripts
+
+| Script | Does |
+|---|---|
+| `scripts/heap-run.sh PREFIX [WORKLOAD...]` | `StorageHarness` at `$HEAP` (default `-Xmx1g`) with JFR, a GC log and native memory tracking; writes `<prefix>.out`, `.jfr`, `.gc.log`, `.nmt` (`VM.native_memory summary` every 2 s) and `.heap` (`jdk.GCHeapSummary`) |
+| `scripts/cold.sh TARGET FILE SETTINGS [RUNS]` | `RUNS` rounds (5 by default) of one `StartupHarness` launch, each after `posix_fadvise` evicts `FILE` and `TARGET`'s tree from the page cache. Needs no root; system libraries stay cached. Run it under `xvfb-run -a` with `GDK_BACKEND=x11` |
+
+The scripts use `$JAVA_HOME/bin/java` when set; build `qcaret-bench` first.
 
 ## Workload notes
 
