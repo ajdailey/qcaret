@@ -102,6 +102,8 @@ the content through a 64 KiB buffer. `writeOwnerOnly`, for a secret, also
 replaces the temporary file's ACL with one entry for its owner where there are
 ACLs but no POSIX permissions (Windows). `writeOwnerOnly(Path, ContentWriter)`
 takes content too large for one array and forces it to disk before the move.
+On Windows a refused move is tried for up to 250 ms: a target open elsewhere
+without delete sharing refuses it for that moment.
 
 `SafeSave.save(target, baseline, content, token)` saves a user file. It runs
 on a worker.

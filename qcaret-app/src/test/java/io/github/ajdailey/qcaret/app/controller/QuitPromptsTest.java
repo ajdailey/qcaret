@@ -178,7 +178,7 @@ class QuitPromptsTest {
 
     Session session = store().load();
     assertEquals(List.of(a.toString()), tabs(session.windows().get(0)));
-    assertEquals(List.of(saved.toRealPath().toString()), tabs(session.windows().get(1)));
+    assertEquals(List.of(saved.toString()), tabs(session.windows().get(1)));
   }
 
   @Test
