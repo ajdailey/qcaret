@@ -1117,7 +1117,8 @@ a changed palette to its `PaletteListener`s.
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection, current line, gutter and line numbers, caret,
 whitespace marks, the find-match background, the comparison window's row
-backgrounds (`diffRemoved`, `diffAdded`, `diffChanged`), and a `TokenStyle`
+backgrounds (`diffRemoved`, `diffAdded`, `diffChanged`), the unselected tab label
+(`tabText`), and a `TokenStyle`
 (color, bold,
 italic, underline) for every `TokenRole`; a grammar token type paints with the
 role of the same name. The

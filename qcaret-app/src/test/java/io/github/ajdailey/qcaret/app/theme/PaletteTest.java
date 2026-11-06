@@ -50,6 +50,8 @@ class PaletteTest {
       assertTrue(contrast(palette.caret(), palette.background()) >= 3);
       assertTrue(contrast(palette.lineNumbers(), palette.gutter()) >= 3);
       assertTrue(contrast(palette.bookmarkComment(), palette.gutter()) >= 3);
+      assertTrue(contrast(palette.tabText(), palette.gutter()) >= 4.5);
+      assertTrue(contrast(palette.selectionText(), palette.gutter()) >= 4.5);
       for (Rgb row :
           new Rgb[] {palette.diffRemoved(), palette.diffAdded(), palette.diffChanged()}) {
         assertTrue(contrast(palette.text(), row) >= 4.5, "text on " + row);

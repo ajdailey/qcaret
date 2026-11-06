@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
@@ -17,6 +18,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -28,9 +30,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
@@ -135,6 +144,88 @@ class ThemeAndDialogsTest {
         window.activeText().getBackground().getRGB());
     assertTrue(dark.getSelection());
     assertFalse(item(CommandId.THEME_LIGHT).getSelection());
+  }
+
+  @Test
+  void theTabStripTakesThePaletteAndFollowsASwitch() {
+    controller.documents().newDocument();
+    assertEquals(2, window.tabs().getItemCount());
+    assertTabColors(Palette.LIGHT);
+    pick(CommandId.THEME_DARK);
+    assertTabColors(Palette.DARK);
+    pick(CommandId.THEME_LIGHT);
+    assertTabColors(Palette.LIGHT);
+  }
+
+  private void pick(CommandId theme) {
+    MenuItem item = item(theme);
+    item.setSelection(true);
+    item.notifyListeners(SWT.Selection, null);
+  }
+
+  /** Reads the selected tab with focus inside the folder and outside it, and the unselected tab. */
+  private void assertTabColors(Palette palette) {
+    CTabFolder tabs = window.tabs();
+    CTabItem selected = tabs.getSelection();
+    CTabItem other = tabs.getItem(tabs.getSelectionIndex() == 0 ? 1 : 0);
+    tabs.notifyListeners(SWT.Activate, new Event());
+    ImageData focused = printed(tabs);
+    assertTab(focused, selected, palette.selection(), true);
+    assertTab(focused, other, palette.gutter(), false);
+    tabs.notifyListeners(SWT.Deactivate, new Event());
+    assertTab(printed(tabs), selected, palette.gutter(), true);
+  }
+
+  private static ImageData printed(CTabFolder tabs) {
+    Image image = new Image(tabs.getDisplay(), tabs.getSize().x, tabs.getSize().y);
+    GC gc = new GC(image);
+    try {
+      assumeTrue(tabs.print(gc), "Control.print not supported here");
+      return image.getImageData();
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
+  }
+
+  /** Checks a tab's background, its label's contrast and, on the selected tab, the close button. */
+  private static void assertTab(ImageData data, CTabItem item, Rgb back, boolean close) {
+    Rectangle bounds = item.getBounds();
+    RGB seen = data.palette.getRGB(data.getPixel(bounds.x + 2, bounds.y + bounds.height / 2));
+    assertTrue(
+        Math.abs(seen.red - back.red()) <= 8
+            && Math.abs(seen.green - back.green()) <= 8
+            && Math.abs(seen.blue - back.blue()) <= 8,
+        item.getText() + " background " + seen + ", wanted " + back);
+    int closeLeft = bounds.x + bounds.width - 16;
+    double label = contrast(data, bounds, bounds.x + 2, closeLeft, seen);
+    assertTrue(label >= 4.5, item.getText() + " label contrast " + label);
+    if (close) {
+      double button = contrast(data, bounds, closeLeft, bounds.x + bounds.width - 2, seen);
+      assertTrue(button >= 3, item.getText() + " close button contrast " + button);
+    }
+  }
+
+  /** Returns the highest WCAG 2 contrast ratio against a background in a column range of a tab. */
+  private static double contrast(ImageData data, Rectangle tab, int left, int right, RGB back) {
+    double best = 1;
+    double base = luminance(back);
+    for (int y = tab.y + 3; y < tab.y + tab.height - 1; y++) {
+      for (int x = left; x < right; x++) {
+        double ink = luminance(data.palette.getRGB(data.getPixel(x, y)));
+        best = Math.max(best, (Math.max(ink, base) + 0.05) / (Math.min(ink, base) + 0.05));
+      }
+    }
+    return best;
+  }
+
+  private static double luminance(RGB rgb) {
+    return 0.2126 * channel(rgb.red) + 0.7152 * channel(rgb.green) + 0.0722 * channel(rgb.blue);
+  }
+
+  private static double channel(int value) {
+    double c = value / 255.0;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   }
 
   @Test

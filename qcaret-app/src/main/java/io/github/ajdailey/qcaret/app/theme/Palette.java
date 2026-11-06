@@ -134,6 +134,16 @@ public record Palette(
   }
 
   /**
+   * Returns the label of an unselected tab on the {@link #gutter} strip, dimmer than {@link
+   * #selectionText} so the selected tab stays apparent while it has the strip's background.
+   *
+   * @return slate on light, pale slate on dark
+   */
+  public Rgb tabText() {
+    return dark ? Rgb.of(0x98abbf) : Rgb.of(0x5a6a7b);
+  }
+
+  /**
    * Returns the overview strip's mark of a find-bar match.
    *
    * @return red on light, salmon on dark

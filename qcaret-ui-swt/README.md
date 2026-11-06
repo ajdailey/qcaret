@@ -390,13 +390,28 @@ that differs draws text in its own appearance over those backgrounds, white on
 light gray or black on dark gray. Both a live `setDarkThemePreferred` and a
 startup Display replacement failed this way.
 
-`MainWindow` applies a palette to the `StyledText` colors, then re-inks its
-`ToolIcons` on the next UI turn, after native controls have restyled.
+`MainWindow` applies a palette to the `StyledText` colors and the tab strip, then
+re-inks its `ToolIcons` on the next UI turn, after native controls have restyled.
 `ToolIcons` picks dark or light ink from the owner control's background
 luminance, not from the palette, and `reink` swaps every applied item's image
 when that changes; it also listens to `SWT.Settings`. About picks its logo the
 same way from the dialog background (`MainWindow.logoVariant`): native chrome
 can differ from the palette on cocoa and on win32 before a restart.
+
+`MainWindow.colorTabs` sets all four `CTabFolder` colors, because the folder
+otherwise keeps the system list colors of its creation: a white selected tab in
+the dark theme, and a white label on a Display created under a dark system
+setting.
+
+| Tab | Background | Label and close button |
+|---|---|---|
+| Selected, focus inside the folder | `selection` | `selectionText` |
+| Selected, focus in a dock or another shell | `gutter` | `selectionText` |
+| Unselected | `gutter` | `Palette.tabText` |
+
+The 2 px bar on the selected tab is the `CTabFolder` default: the system's list
+selection color, gray with focus outside the folder. SWT has no setter for its
+color. A hovered close button is SWT's fixed red.
 
 ## macOS application menu
 

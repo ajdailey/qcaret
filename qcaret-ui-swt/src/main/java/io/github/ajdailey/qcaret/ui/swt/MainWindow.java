@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -632,6 +633,7 @@ public final class MainWindow implements MainView {
 
   private void applyPalette(Palette next) {
     palette = next;
+    colorTabs(next);
     if (resultsDock != null) {
       resultsDock.setPalette(next);
     }
@@ -655,6 +657,23 @@ public final class MainWindow implements MainView {
             }
           }
         });
+  }
+
+  /**
+   * Colors the tab strip. {@code CTabFolder} otherwise keeps the system list colors of its creation
+   * for the selected tab, whatever the theme. It draws the selection background only while focus is
+   * inside the folder; elsewhere the selected tab has the strip's background, and the label and
+   * close button keep the selection foreground.
+   */
+  private void colorTabs(Palette next) {
+    tabs.setBackground(color(next.gutter()));
+    tabs.setForeground(color(next.tabText()));
+    tabs.setSelectionBackground(color(next.selection()));
+    tabs.setSelectionForeground(color(next.selectionText()));
+  }
+
+  private static Color color(Rgb rgb) {
+    return new Color(rgb.red(), rgb.green(), rgb.blue());
   }
 
   /**
