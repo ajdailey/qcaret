@@ -63,15 +63,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -171,7 +166,6 @@ public final class DocumentController {
   private final LoadOptions options;
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
-  private final Map<Path, Reopen> reopening = new HashMap<Path, Reopen>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
   private boolean disposing;
   private OpenDocument active;
@@ -188,80 +182,49 @@ public final class DocumentController {
   private int maxHighlightLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
   private boolean autoReloadClean = true;
   private Consumer<String> grammarChosen;
-  private final Map<Path, Consumer<EditorController>> afterOpen =
-      new HashMap<Path, Consumer<EditorController>>();
   private boolean overviewShown = true;
   private boolean lineNumbersShown = true;
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
   private final ExternalChanges changes;
   private CompareController compare;
-  private final Map<Path, Path> requestedPaths = new HashMap<Path, Path>();
   private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
   private boolean defaultInsertSpaces;
-
-  /**
-   * A reopen on its way through the opener.
-   *
-   * @param document the document it replaces
-   * @param revision the revision it replaces; an edit since then keeps the document
-   * @param load cancels the load
-   */
-  private record Reopen(OpenDocument document, long revision, CancellationToken load) {}
+  private long opens;
 
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
     final Document document;
     final String bufferId;
     String untitled;
-    Charset forced;
     TabInput input;
-    Path path;
-    FileStamp baseline;
+
+    /** The file link; a tab move shares it with the entry that takes over. */
+    final OpenFile file;
+
     long reserved;
     EditorController editor;
     final List<EditorController> editors;
     boolean sideBySide;
     TabView tab;
     Bookmarks bookmarks;
-    CancellationToken saving;
     CancellationToken converting;
     boolean binary;
-
-    /** The file's bytes do not encode back from the text: Save refuses while read-only. */
-    boolean bytesGuarded;
-
-    /** Held on a worker while a save writes this document's file. */
-    final ReentrantLock writing;
-
     boolean closed;
     SyntaxHighlighter syntax;
     String grammar = GrammarSet.PLAIN;
     boolean manualGrammar;
-    Path given;
-    ExternalChanges.Watch watch;
-    boolean missing;
-    DocumentSnapshot cleanAtMissing;
-    boolean changePrompt;
-    CancellationToken reloading;
-    int reloadAttempts;
-
-    /** What the check that started a reload found; a refused reload takes it as the baseline. */
-    FileBaseline reloadCheck;
-
-    /** The document was clean when the running reload took its snapshot. */
-    boolean reloadOfClean;
-
-    /** The guard alone made the document read-only, so a reload that ends the guard clears it. */
-    boolean readOnlyByGuard;
-
     int detecting;
 
+    /** The running reopen of this document, or null. */
+    Open reopen;
+
+    /** The number of the newest open whose callback reached this tab. */
+    long landed;
+
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
-      this.writing = new ReentrantLock();
       this.document = document;
-      this.path = path;
-      this.baseline = baseline;
+      this.file = new OpenFile(path, baseline);
       this.reserved = reserved;
       this.editors = new ArrayList<EditorController>(2);
       this.untitled = path == null ? UiText.TAB_UNTITLED.format(untitledNumber()) : null;
@@ -275,11 +238,7 @@ public final class DocumentController {
     OpenDocument(OpenDocument from) {
       this.document = from.document;
       this.bufferId = from.bufferId;
-      this.writing = from.writing;
-      this.forced = from.forced;
-      this.readOnlyByGuard = from.readOnlyByGuard;
-      this.path = from.path;
-      this.baseline = from.baseline;
+      this.file = from.file;
       this.reserved = from.reserved;
       this.editors = from.editors;
       this.untitled = from.untitled;
@@ -287,18 +246,14 @@ public final class DocumentController {
       this.sideBySide = from.sideBySide;
       this.bookmarks = from.bookmarks;
       this.binary = from.binary;
-      this.bytesGuarded = from.bytesGuarded;
       this.syntax = from.syntax;
       this.grammar = from.grammar;
       this.manualGrammar = from.manualGrammar;
-      this.given = from.given;
-      this.missing = from.missing;
-      this.cleanAtMissing = from.cleanAtMissing;
     }
 
     String name() {
-      Path file = path == null ? null : path.getFileName();
-      return file == null ? untitled : file.toString();
+      Path name = file.path == null ? null : file.path.getFileName();
+      return name == null ? untitled : name.toString();
     }
 
     void updateTitle() {
@@ -310,10 +265,10 @@ public final class DocumentController {
         } else if (document.isReadOnly()) {
           title = UiText.TAB_READ_ONLY.format(title);
         }
-        if (missing) {
+        if (file.missing) {
           title = UiText.TAB_MISSING.format(title);
         }
-        tab.setTitle(title, path == null ? name : path.toString());
+        tab.setTitle(title, file.path == null ? name : file.path.toString());
       }
     }
 
@@ -328,6 +283,281 @@ public final class DocumentController {
     public void dirtyChanged(boolean dirty) {
       updateTitle();
       view.documentStateChanged();
+    }
+  }
+
+  /**
+   * One open on its way through the opener, created per {@link DocumentOpener#open} and holding
+   * what that open is to do once it ends. It receives one terminal call, or none once the opener is
+   * closed or the workers refuse the task; a session restore ends in each of those calls, and a
+   * window does not close during a restore. A retry without the remembered encoding reuses the
+   * object, so its callback, restore and given path survive.
+   */
+  private final class Open implements DocumentOpener.Listener {
+    private final long number = ++opens;
+
+    /** Receives the tab's focused editor once the document shows, or null. */
+    Consumer<EditorController> then;
+
+    /** The session tab this open restores, or null; emptied as the restore ends. */
+    Restoring restoring;
+
+    /** The document a reopen replaces, or null for an open of a file. */
+    OpenDocument reopened;
+
+    /** The revision a reopen replaces; an edit since then keeps the document. */
+    long revision;
+
+    /** Cancels a reopen's load. */
+    CancellationToken load;
+
+    /** Skips the charset remembered for the file. */
+    boolean detect;
+
+    private Path given;
+    private Charset forced;
+    private boolean remembered;
+
+    /**
+     * Selects the document already open at the real path, in this window or another, which ends the
+     * open unread; a reopen always reads.
+     */
+    @Override
+    public boolean resolved(Path requested, Path path) {
+      OpenDocument d = reopened == null ? find(path) : null;
+      if (d != null) {
+        d.tab.select();
+        landed(path, d);
+        finishRestore();
+        return true;
+      }
+      if (reopened == null && elsewhere != null) {
+        if (elsewhere.show(DocumentController.this, path, then)) {
+          finishRestore();
+          return true;
+        }
+      }
+      if (given == null) {
+        given = requested.toAbsolutePath().normalize();
+      }
+      return false;
+    }
+
+    /** Chooses the charset: the open's, the session's or the remembered one. */
+    @Override
+    public LoadOptions options(Path path, LoadOptions requested) {
+      if (requested.allowBinary()) {
+        return requested;
+      }
+      if (requested.forced() != null) {
+        forced = requested.forced();
+        return requested;
+      }
+      if (detect) {
+        return requested;
+      }
+      Session.FileState state = memory == null ? null : memory.state(path);
+      String name =
+          restoring != null ? restoring.tab().encoding() : state == null ? "" : state.encoding();
+      if (name.isEmpty()) {
+        return requested;
+      }
+      Charset charset = SessionText.charset(name);
+      if (charset == null) {
+        LOG.warn("The remembered encoding {} is not available; detecting", LogText.oneLine(name));
+        return requested;
+      }
+      forced = charset;
+      remembered = true;
+      return requested.withForced(charset);
+    }
+
+    @Override
+    public void opened(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
+      endReopen();
+      try {
+        loaded(path, file, layout, reserved);
+      } finally {
+        finishRestore();
+      }
+    }
+
+    private void loaded(
+        Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
+      if (reopened != null && !path.equals(reopened.file.path)) {
+        budget.release(reserved);
+        return;
+      }
+      int index = documents.size();
+      for (OpenDocument d : documents) {
+        if (path.equals(d.file.path)) {
+          if (reopened == null || d.document.revision() != revision || d.document.isDirty()) {
+            budget.release(reserved);
+            d.tab.select();
+            landed(path, d);
+            if (restoring != null) {
+              applyTab(d, restoring.tab());
+            }
+            return;
+          }
+          index = documents.indexOf(d);
+          discard(d);
+          break;
+        }
+      }
+      Document document = file.document();
+      OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
+      d.file.forced = forced;
+      watch(d, given == null ? path : given, file.baseline());
+      if (reopened == null && memory != null && restoring == null) {
+        applyFile(d, memory.state(path));
+      }
+      landed(path, d);
+      if (file.binary()) {
+        document.setReadOnly(true);
+        d.updateTitle();
+        view.documentStateChanged();
+      } else if (!file.roundTrips()) {
+        guardBytes(d);
+        view.showInfo(
+            UiText.OPEN_TITLE.text(),
+            UiText.OPEN_READ_ONLY.format(
+                d.name(), file.detection().encoding().charset().displayName()));
+        d.updateTitle();
+        view.documentStateChanged();
+      }
+      if (restoring != null) {
+        applyTab(d, restoring.tab());
+      }
+    }
+
+    /**
+     * The file shows in a tab. The callback runs unless a later open's already reached the tab, so
+     * an older open ending last does not move the caret back.
+     */
+    private void landed(Path path, OpenDocument d) {
+      fileOpened(path);
+      if (then != null && number > d.landed) {
+        d.landed = number;
+        then.accept(d.editor);
+      }
+    }
+
+    @Override
+    public void tooLarge(Path path, LoadCost cost, long available, long maxHeap) {
+      endReopen();
+      try {
+        if (!skipRestore(path)) {
+          long needed = cost.reserveBytes();
+          long suggested = Math.max(1, (maxHeap + (needed - available)) / (1L << 30) + 1);
+          view.showInfo(
+              UiText.OPEN_TITLE.text(),
+              UiText.OPEN_TOO_LARGE.format(
+                  String.valueOf(path.getFileName()),
+                  mebibytes(cost.fileBytes()),
+                  mebibytes(needed),
+                  mebibytes(available),
+                  mebibytes(maxHeap),
+                  suggested));
+        }
+      } finally {
+        finishRestore();
+      }
+    }
+
+    /** A session's tab counts as skipped. */
+    @Override
+    public void canceled(Path path) {
+      endReopen();
+      finishRestore();
+    }
+
+    @Override
+    public void failed(Path path, IOException error) {
+      forced = null;
+      if (remembered && error instanceof TextCodingException) {
+        LOG.warn("A remembered encoding does not decode a file; detecting");
+        remembered = false;
+        detect = true;
+        opener.open(path, options, this);
+        return;
+      }
+      endReopen();
+      try {
+        if (!skipRestore(path)) {
+          report(path, error);
+        }
+      } finally {
+        finishRestore();
+      }
+    }
+
+    private void report(final Path path, IOException error) {
+      if (reopened == null && error instanceof BinaryFileException) {
+        view.askOpenBinary(
+            String.valueOf(path.getFileName()),
+            new Runnable() {
+              @Override
+              public void run() {
+                open(path, options.asBinary());
+              }
+            });
+        return;
+      }
+      if (reopened == null
+          && error instanceof NoSuchFileException
+          && path.isAbsolute()
+          && path.getParent() != null) {
+        Document document =
+            Document.of(
+                "",
+                TextEncoding.of(StandardCharsets.UTF_8, false),
+                options.empty(),
+                options.limits());
+        OpenDocument d =
+            add(
+                document,
+                path,
+                null,
+                0,
+                DisplayProjection.Layout.empty(document.text()),
+                documents.size(),
+                false);
+        watch(d, path.normalize(), null);
+        if (then != null) {
+          then.accept(d.editor);
+        }
+        return;
+      }
+      String reason = LogText.oneLine(error.getMessage());
+      LOG.debug("Open failed: {}", LogText.oneLine(String.valueOf(path)));
+      view.showInfo(
+          UiText.OPEN_TITLE.text(),
+          UiText.OPEN_FAILED.format(String.valueOf(path.getFileName()), reason));
+    }
+
+    private void endReopen() {
+      if (reopened != null && reopened.reopen == this) {
+        reopened.reopen = null;
+      }
+    }
+
+    private void finishRestore() {
+      Restoring restored = restoring;
+      restoring = null;
+      if (restored != null) {
+        restored.done().run();
+      }
+    }
+
+    /** Reports a restored file that did not open; false for any other open. */
+    private boolean skipRestore(Path path) {
+      if (restoring == null) {
+        return false;
+      }
+      Path name = path.getFileName();
+      restoring.failed().accept(name == null ? path.toString() : name.toString());
+      return true;
     }
   }
 
@@ -356,7 +586,7 @@ public final class DocumentController {
               @Override
               public void found(ExternalChanges.Watch watch, FileCheck.Result result) {
                 for (OpenDocument d : documents) {
-                  if (d.watch == watch) {
+                  if (d.file.watch == watch) {
                     externalChange(d, result);
                   }
                 }
@@ -378,42 +608,7 @@ public final class DocumentController {
             ui,
             budget,
             view,
-            new DocumentOpener.Listener() {
-              @Override
-              public boolean resolved(Path requested, Path path) {
-                return selectOpen(requested, path);
-              }
-
-              @Override
-              public LoadOptions options(Path path, LoadOptions requested) {
-                return loadOptions(path, requested);
-              }
-
-              @Override
-              public void opened(
-                  Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-                try {
-                  loaded(path, file, layout, reserved);
-                } finally {
-                  finishRestore(path);
-                }
-              }
-
-              @Override
-              public void tooLarge(Path path, LoadCost cost, long available, long maxHeap) {
-                refuse(path, cost, available, maxHeap);
-              }
-
-              @Override
-              public void failed(Path path, IOException error) {
-                loadFailed(path, error);
-              }
-
-              @Override
-              public void canceled(Path path) {
-                loadCanceled(path);
-              }
-
+            new DocumentOpener.Progress() {
               @Override
               public void progress(Path path, int files, int percent) {
                 view.showLoadProgress(
@@ -455,7 +650,7 @@ public final class DocumentController {
    * @return the path, or null for an untitled document or no document
    */
   public Path activePath() {
-    return active == null ? null : active.path;
+    return active == null ? null : active.file.path;
   }
 
   /** Returns the selected document's state, or null without a document. */
@@ -470,14 +665,14 @@ public final class DocumentController {
 
   /** Returns the charset the user chose for the selected document, or null when it is detected. */
   Charset activeForced() {
-    return active == null ? null : active.forced;
+    return active == null ? null : active.file.forced;
   }
 
   /** Returns the tab labels in tab order: each path, or the title of an untitled document. */
   List<String> labels() {
     List<String> labels = new ArrayList<String>();
     for (OpenDocument d : documents) {
-      labels.add(d.path == null ? d.untitled : d.path.toString());
+      labels.add(d.file.path == null ? d.untitled : d.file.path.toString());
     }
     return labels;
   }
@@ -500,12 +695,12 @@ public final class DocumentController {
   /** Returns the file of the document behind a tab's input, or null without one. */
   Path pathOf(TabInput input) {
     int index = indexOf(input);
-    return index < 0 ? null : documents.get(index).path;
+    return index < 0 ? null : documents.get(index).file.path;
   }
 
   /** Reports whether the document at a tab index has a file. */
   boolean hasFile(int index) {
-    return index >= 0 && index < documents.size() && documents.get(index).path != null;
+    return index >= 0 && index < documents.size() && documents.get(index).file.path != null;
   }
 
   /**
@@ -706,7 +901,8 @@ public final class DocumentController {
 
   /** Asks for files and opens them. */
   public void open() {
-    Path directory = active == null || active.path == null ? null : active.path.getParent();
+    Path directory =
+        active == null || active.file.path == null ? null : active.file.path.getParent();
     view.chooseFilesToOpen(
         directory,
         new Consumer<List<Path>>() {
@@ -724,8 +920,12 @@ public final class DocumentController {
    */
   public void open(List<Path> paths) {
     for (Path path : paths) {
-      opener.open(path, options);
+      open(path, options);
     }
+  }
+
+  private void open(Path path, LoadOptions with) {
+    opener.open(path, with, new Open());
   }
 
   /**
@@ -735,179 +935,6 @@ public final class DocumentController {
    */
   public int loading() {
     return opener.running();
-  }
-
-  /**
-   * Moves the callback of {@link #open(Path, Consumer)} to the real path and selects the document
-   * already open there, in this window or another, which ends the open unread; a reload by charset
-   * always reads.
-   */
-  private boolean selectOpen(Path requested, Path path) {
-    Consumer<EditorController> then = afterOpen.remove(requested);
-    Restoring restored = restoring.remove(requested);
-    if (restored != null) {
-      restoring.put(path, restored);
-    }
-    OpenDocument d = reopening.containsKey(path) ? null : find(path);
-    if (d == null && elsewhere != null && !reopening.containsKey(path)) {
-      if (elsewhere.show(this, path, then)) {
-        finishRestore(path);
-        return true;
-      }
-    }
-    if (then != null) {
-      afterOpen.put(path, then);
-    }
-    if (d == null) {
-      requestedPaths.putIfAbsent(path, requested.toAbsolutePath().normalize());
-      return false;
-    }
-    d.tab.select();
-    opened(path, d);
-    finishRestore(path);
-    return true;
-  }
-
-  private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-    Reopen reopen = reopening.remove(path);
-    Path given = requestedPaths.remove(path);
-    Charset forced = forcedLoads.remove(path);
-    remembered.remove(path);
-    if (reopen != null && !path.equals(reopen.document().path)) {
-      budget.release(reserved);
-      return;
-    }
-    int index = documents.size();
-    for (OpenDocument d : documents) {
-      if (path.equals(d.path)) {
-        if (reopen == null || d.document.revision() != reopen.revision() || d.document.isDirty()) {
-          budget.release(reserved);
-          d.tab.select();
-          opened(path, d);
-          finishRestore(path);
-          return;
-        }
-        index = documents.indexOf(d);
-        discard(d);
-        break;
-      }
-    }
-    Document document = file.document();
-    OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
-    d.forced = forced;
-    watch(d, given == null ? path : given, file.baseline());
-    if (reopen == null && memory != null && !restoring.containsKey(path)) {
-      applyFile(d, memory.state(path));
-    }
-    opened(path, d);
-    if (file.binary()) {
-      document.setReadOnly(true);
-      d.updateTitle();
-      view.documentStateChanged();
-    } else if (!file.roundTrips()) {
-      guardBytes(d);
-      view.showInfo(
-          UiText.OPEN_TITLE.text(),
-          UiText.OPEN_READ_ONLY.format(
-              d.name(), file.detection().encoding().charset().displayName()));
-      d.updateTitle();
-      view.documentStateChanged();
-    }
-    Restoring restored = restoring.remove(path);
-    if (restored != null) {
-      applyTab(d, restored.tab());
-      restored.done().run();
-    }
-  }
-
-  private void refuse(Path path, LoadCost cost, long available, long maxHeap) {
-    reopening.remove(path);
-    requestedPaths.remove(path);
-    afterOpen.remove(path);
-    forcedLoads.remove(path);
-    remembered.remove(path);
-    if (skipRestore(path)) {
-      return;
-    }
-    long needed = cost.reserveBytes();
-    long suggested = Math.max(1, (maxHeap + (needed - available)) / (1L << 30) + 1);
-    view.showInfo(
-        UiText.OPEN_TITLE.text(),
-        UiText.OPEN_TOO_LARGE.format(
-            String.valueOf(path.getFileName()),
-            mebibytes(cost.fileBytes()),
-            mebibytes(needed),
-            mebibytes(available),
-            mebibytes(maxHeap),
-            suggested));
-  }
-
-  /** Forgets what the open of a canceled load was to do; a session's tab counts as skipped. */
-  private void loadCanceled(Path path) {
-    reopening.remove(path);
-    requestedPaths.remove(path);
-    forcedLoads.remove(path);
-    remembered.remove(path);
-    detecting.remove(path);
-    afterOpen.remove(path);
-    finishRestore(path);
-  }
-
-  private void loadFailed(final Path path, IOException error) {
-    forcedLoads.remove(path);
-    if (remembered.remove(path) && error instanceof TextCodingException) {
-      LOG.warn("A remembered encoding does not decode a file; detecting");
-      detecting.add(path);
-      opener.open(path, options);
-      return;
-    }
-    boolean reopen = reopening.remove(path) != null;
-    requestedPaths.remove(path);
-    if (skipRestore(path)) {
-      return;
-    }
-    Consumer<EditorController> then = afterOpen.remove(path);
-    if (!reopen && error instanceof BinaryFileException) {
-      view.askOpenBinary(
-          String.valueOf(path.getFileName()),
-          new Runnable() {
-            @Override
-            public void run() {
-              opener.open(path, options.asBinary());
-            }
-          });
-      return;
-    }
-    if (!reopen
-        && error instanceof NoSuchFileException
-        && path.isAbsolute()
-        && path.getParent() != null) {
-      Document document =
-          Document.of(
-              "",
-              TextEncoding.of(StandardCharsets.UTF_8, false),
-              options.empty(),
-              options.limits());
-      OpenDocument d =
-          add(
-              document,
-              path,
-              null,
-              0,
-              DisplayProjection.Layout.empty(document.text()),
-              documents.size(),
-              false);
-      watch(d, path.normalize(), null);
-      if (then != null) {
-        then.accept(d.editor);
-      }
-      return;
-    }
-    String reason = LogText.oneLine(error.getMessage());
-    LOG.debug("Open failed: {}", LogText.oneLine(String.valueOf(path)));
-    view.showInfo(
-        UiText.OPEN_TITLE.text(),
-        UiText.OPEN_FAILED.format(String.valueOf(path.getFileName()), reason));
   }
 
   private OpenDocument add(
@@ -1076,9 +1103,9 @@ public final class DocumentController {
 
       @Override
       public void copyPathRequested(boolean nameOnly) {
-        if (d.path != null) {
-          Path name = d.path.getFileName();
-          view.setText(nameOnly && name != null ? name.toString() : d.path.toString());
+        if (d.file.path != null) {
+          Path name = d.file.path.getFileName();
+          view.setText(nameOnly && name != null ? name.toString() : d.file.path.toString());
         }
       }
 
@@ -1123,11 +1150,11 @@ public final class DocumentController {
       end.stop();
       return;
     }
-    if (d.path == null) {
+    if (d.file.path == null) {
       saveAs(d, end);
     } else {
-      Path file = d.given == null ? d.path : d.given;
-      write(d, file, file, d.baseline, end);
+      Path file = d.file.target();
+      write(d, file, file, d.file.baseline, end);
     }
   }
 
@@ -1136,7 +1163,7 @@ public final class DocumentController {
       end.stop();
       return;
     }
-    Path directory = d.path == null ? null : d.path.getParent();
+    Path directory = d.file.path == null ? null : d.file.path.getParent();
     view.chooseSaveTarget(
         directory,
         d.name(),
@@ -1190,7 +1217,7 @@ public final class DocumentController {
     }
     final OpenDocument other = holderOfFile(d, real);
     if (other == null) {
-      write(d, target, d.path, d.baseline, end);
+      write(d, target, d.file.path, d.file.baseline, end);
       return;
     }
     final Document held = other.document;
@@ -1223,7 +1250,7 @@ public final class DocumentController {
             },
             end.stopped());
     if (!held.isDirty()) {
-      write(d, target, d.path, d.baseline, closeOther);
+      write(d, target, d.file.path, d.file.baseline, closeOther);
       return;
     }
     view.askReplaceOpenFile(
@@ -1234,7 +1261,7 @@ public final class DocumentController {
             if (d.closed) {
               end.stop();
             } else {
-              write(d, target, d.path, d.baseline, closeOther);
+              write(d, target, d.file.path, d.file.baseline, closeOther);
             }
           }
         },
@@ -1244,7 +1271,7 @@ public final class DocumentController {
   /** Returns the tab of a file other than {@code d}, this window first, or null. */
   private OpenDocument holderOfFile(OpenDocument d, Path real) {
     for (OpenDocument o : documents) {
-      if (o != d && o.path != null && o.path.equals(real)) {
+      if (o != d && o.file.path != null && o.file.path.equals(real)) {
         return o;
       }
     }
@@ -1286,16 +1313,16 @@ public final class DocumentController {
   }
 
   private static boolean refusesSave(OpenDocument d) {
-    return d.bytesGuarded && d.document.isReadOnly();
+    return d.file.bytesGuarded && d.document.isReadOnly();
   }
 
   /** Shows the notice and returns true when a save or a reload of the document is running. */
   private boolean savingNotice(OpenDocument d) {
-    if (d.reloading != null) {
+    if (d.file.reloading != null) {
       view.showInfo(UiText.SAVE_TITLE.text(), UiText.SAVE_RELOADING.format(d.name()));
       return true;
     }
-    if (d.saving == null) {
+    if (d.file.saving == null) {
       return false;
     }
     view.showInfo(UiText.SAVE_TITLE.text(), UiText.SAVE_RUNNING.format(d.name()));
@@ -1303,9 +1330,9 @@ public final class DocumentController {
   }
 
   private void cancelSave(OpenDocument d) {
-    if (d.saving != null) {
-      d.saving.cancel();
-      d.saving = null;
+    if (d.file.saving != null) {
+      d.file.saving.cancel();
+      d.file.saving = null;
     }
   }
 
@@ -1326,9 +1353,9 @@ public final class DocumentController {
     d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
     final CancellationToken token = new CancellationToken();
-    d.saving = token;
-    if (d.watch != null) {
-      changes.pause(d.watch);
+    d.file.saving = token;
+    if (d.file.watch != null) {
+      changes.pause(d.file.watch);
     }
     view.setActive();
     boolean started =
@@ -1343,11 +1370,11 @@ public final class DocumentController {
                 try {
                   FileStamp expected = sameFile(target, known) ? baseline : null;
                   // A canceled in-place write runs to its end; the next save must not interleave.
-                  d.writing.lock();
+                  d.file.writing.lock();
                   try {
                     stamp = DocumentFiles.save(target, snapshot, expected, token);
                   } finally {
-                    d.writing.unlock();
+                    d.file.writing.unlock();
                   }
                   try {
                     written = target.toRealPath();
@@ -1375,7 +1402,7 @@ public final class DocumentController {
               }
             });
     if (!started) {
-      d.saving = null;
+      d.file.saving = null;
       resumeWatch(d);
       view.setIdle();
       end.stop();
@@ -1407,33 +1434,30 @@ public final class DocumentController {
       FileBaseline stamp,
       IOException error,
       SaveEnd end) {
-    if (d.saving == token) {
-      d.saving = null;
+    if (d.file.saving == token) {
+      d.file.saving = null;
     }
     if (d.closed) {
       end.stop();
       return;
     }
     if (stamp != null) {
-      boolean renamed = !target.equals(d.path);
-      d.path = target;
-      d.baseline = stamp.stamp();
-      d.bytesGuarded = false;
-      d.missing = false;
-      d.cleanAtMissing = null;
+      boolean renamed = !target.equals(d.file.path);
+      d.file.current(target, stamp.stamp());
+      d.file.bytesGuarded = false;
       Path file = named.toAbsolutePath().normalize();
-      d.given = file;
-      if (d.watch == null) {
+      d.file.given = file;
+      if (d.file.watch == null) {
         watch(d, file, stamp);
       } else {
-        changes.resume(d.watch, file, stamp);
+        changes.resume(d.file.watch, file, stamp);
       }
       if (renamed) {
         detect(d);
       }
       d.document.markSaved(snapshot);
-      if (d.forced != null) {
-        d.forced = snapshot.encoding().charset();
+      if (d.file.forced != null) {
+        d.file.forced = snapshot.encoding().charset();
       }
       if (bufferCleaned != null && !d.document.isDirty()) {
         bufferCleaned.accept(d.bufferId);
@@ -1655,7 +1679,7 @@ public final class DocumentController {
         });
   }
 
-  private void discard(OpenDocument d) {
+  private void discard(final OpenDocument d) {
     if (d.closed) {
       return;
     }
@@ -1668,38 +1692,55 @@ public final class DocumentController {
       elsewhere.closed(this, d.document);
     }
     cancelSave(d);
-    Path reopened = reopenedFile(d);
-    if (reopened != null) {
-      reopening.remove(reopened).load().cancel();
+    if (d.reopen != null) {
+      d.reopen.load.cancel();
+      d.reopen = null;
     }
-    completion.documentClosed(d.document);
-    if (d.watch != null) {
-      changes.unwatch(d.watch);
-    }
-    if (d.reloading != null) {
-      d.reloading.cancel();
+    if (d.file.reloading != null) {
+      d.file.reloading.cancel();
     }
     if (d.converting != null) {
       d.converting.cancel();
     }
+    detach(
+        d,
+        new Runnable() {
+          @Override
+          public void run() {
+            if (d.file.path != null && !d.binary && !disposing) {
+              closedPaths.remove(d.file.path);
+              closedPaths.addFirst(d.file.path);
+              if (closedPaths.size() > REOPEN_LIMIT) {
+                closedPaths.removeLast();
+              }
+            }
+            for (EditorController e : d.editors) {
+              e.dispose();
+            }
+            d.syntax.dispose();
+            d.bookmarks.dispose();
+            budget.release(d.reserved);
+            if (bufferCleaned != null && !disposing) {
+              bufferCleaned.accept(d.bufferId);
+            }
+          }
+        });
+  }
+
+  /**
+   * Takes a closed entry out of this window, for {@link #discard} and {@link #moveTo}.
+   *
+   * @param d the entry
+   * @param release ends the document or hands it on, after the entry stops listening to it
+   */
+  private void detach(OpenDocument d, Runnable release) {
+    completion.documentClosed(d.document);
+    if (d.file.watch != null) {
+      changes.unwatch(d.file.watch);
+    }
     d.document.removeListener(d);
-    if (d.path != null && !d.binary && !disposing) {
-      closedPaths.remove(d.path);
-      closedPaths.addFirst(d.path);
-      if (closedPaths.size() > REOPEN_LIMIT) {
-        closedPaths.removeLast();
-      }
-    }
-    for (EditorController e : d.editors) {
-      e.dispose();
-    }
-    d.syntax.dispose();
-    d.bookmarks.dispose();
-    budget.release(d.reserved);
+    release.run();
     documents.remove(d);
-    if (bufferCleaned != null && !disposing) {
-      bufferCleaned.accept(d.bufferId);
-    }
     if (active == d) {
       active = documents.isEmpty() ? null : documents.get(documents.size() - 1);
     }
@@ -1724,8 +1765,9 @@ public final class DocumentController {
       then.accept(d.editor);
       return;
     }
-    afterOpen.put(path, then);
-    opener.open(path, options);
+    Open open = new Open();
+    open.then = then;
+    opener.open(path, options, open);
   }
 
   // Navigation history and Recent Files.
@@ -1745,13 +1787,9 @@ public final class DocumentController {
     openListener = listener;
   }
 
-  private void opened(Path path, OpenDocument d) {
+  private void fileOpened(Path path) {
     if (openListener != null) {
       openListener.accept(path);
-    }
-    Consumer<EditorController> then = afterOpen.remove(path);
-    if (then != null) {
-      then.accept(d.editor);
     }
   }
 
@@ -1759,7 +1797,7 @@ public final class DocumentController {
   private OpenDocument find(Path path) {
     Path wanted = path.toAbsolutePath().normalize();
     for (OpenDocument d : documents) {
-      if (d.path != null && d.path.toAbsolutePath().normalize().equals(wanted)) {
+      if (d.file.path != null && d.file.path.toAbsolutePath().normalize().equals(wanted)) {
         return d;
       }
     }
@@ -1789,7 +1827,7 @@ public final class DocumentController {
   /** Returns an open document's real path, or null when untitled or closed. */
   Path pathOf(Document document) {
     OpenDocument d = entry(document);
-    return d == null ? null : d.path;
+    return d == null ? null : d.file.path;
   }
 
   /** Returns an open document's tab name, or null when closed. */
@@ -2021,7 +2059,7 @@ public final class DocumentController {
    */
   public void reopenWithEncoding(Charset charset) {
     if (canReopen()) {
-      reopen(options.withForced(charset));
+      reopen(options.withForced(charset), false);
     }
   }
 
@@ -2032,33 +2070,25 @@ public final class DocumentController {
    */
   public void reopenWithDetection() {
     if (canReopen()) {
-      detecting.add(active.path);
-      reopen(options);
+      reopen(options, true);
     }
   }
 
-  private void reopen(LoadOptions with) {
-    reopening.put(
-        active.path,
-        new Reopen(active, active.document.revision(), opener.open(active.path, with)));
+  private void reopen(LoadOptions with, boolean detect) {
+    Open open = new Open();
+    open.reopened = active;
+    open.revision = active.document.revision();
+    open.detect = detect;
+    active.reopen = open;
+    open.load = opener.open(active.file.path, with, open);
   }
 
   private boolean canReopen() {
     return active != null
-        && active.path != null
+        && active.file.path != null
         && !active.binary
         && !active.document.isDirty()
-        && reopenedFile(active) == null;
-  }
-
-  /** Returns the file a running reopen of a document reads, or null. */
-  private Path reopenedFile(OpenDocument d) {
-    for (Map.Entry<Path, Reopen> running : reopening.entrySet()) {
-      if (running.getValue().document() == d) {
-        return running.getKey();
-      }
-    }
-    return null;
+        && active.reopen == null;
   }
 
   /**
@@ -2072,7 +2102,7 @@ public final class DocumentController {
     if (active == null || active.binary) {
       return;
     }
-    active.forced = charset;
+    active.file.forced = charset;
     TextEncoding current = active.document.encoding();
     if (!current.charset().equals(charset)) {
       active.document.setEncoding(TextEncoding.of(charset, false));
@@ -2211,7 +2241,7 @@ public final class DocumentController {
   public void reopenClosed() {
     Path path = closedPaths.pollFirst();
     if (path != null) {
-      opener.open(path, options);
+      open(path, options);
     }
   }
 
@@ -2224,7 +2254,7 @@ public final class DocumentController {
     List<Path> paths = new ArrayList<Path>(closedPaths);
     if (index >= 0 && index < paths.size()) {
       closedPaths.remove(paths.get(index));
-      opener.open(paths.get(index), options);
+      open(paths.get(index), options);
     }
   }
 
@@ -2250,7 +2280,7 @@ public final class DocumentController {
       document.clearPreedit();
     }
     document.setReadOnly(!document.isReadOnly());
-    active.readOnlyByGuard = false;
+    active.file.readOnlyByGuard = false;
     active.updateTitle();
     view.documentStateChanged();
     sessionChanged();
@@ -2448,7 +2478,7 @@ public final class DocumentController {
     if (set == null || d.manualGrammar || d.closed) {
       return;
     }
-    Path file = d.path == null ? null : d.path.getFileName();
+    Path file = d.file.path == null ? null : d.file.path.getFileName();
     final String name = file == null ? null : file.toString();
     final TextSnapshot text = d.document.text();
     final CancellationToken token = new CancellationToken();
@@ -2528,7 +2558,7 @@ public final class DocumentController {
 
   /** Returns the path the user opened the selected document by, or null without a file. */
   Path activeOpenedPath() {
-    return active == null || active.path == null ? null : active.given;
+    return active == null || active.file.path == null ? null : active.file.given;
   }
 
   /** Checks every open file for changes by other programs now, as on window activation. */
@@ -2543,8 +2573,8 @@ public final class DocumentController {
    */
   void checkFile(Path path) {
     OpenDocument d = find(path);
-    if (d != null && d.watch != null) {
-      changes.check(d.watch);
+    if (d != null && d.file.watch != null) {
+      changes.check(d.file.watch);
     }
   }
 
@@ -2559,43 +2589,43 @@ public final class DocumentController {
   }
 
   private void watch(OpenDocument d, Path given, FileBaseline baseline) {
-    d.given = given;
-    d.watch = changes.watch(given, baseline);
+    d.file.given = given;
+    d.file.watch = changes.watch(given, baseline);
   }
 
   /** Checks again after a save or a reload that did not change the baseline. */
   private void resumeWatch(OpenDocument d) {
-    if (d.watch != null) {
-      changes.resume(d.watch, d.watch.path(), d.watch.baseline());
-      d.watch.setMissing(d.missing);
+    if (d.file.watch != null) {
+      changes.resume(d.file.watch, d.file.watch.path(), d.file.watch.baseline());
+      d.file.watch.setMissing(d.file.missing);
     }
   }
 
   private void externalChange(OpenDocument d, FileCheck.Result result) {
-    if (d.closed || d.saving != null || d.reloading != null) {
+    if (d.closed || d.file.saving != null || d.file.reloading != null) {
       return;
     }
     switch (result.state()) {
       case UNCHANGED -> {
-        FileBaseline old = d.watch.baseline();
-        if (old != null && old.stamp().equals(d.baseline)) {
-          d.baseline = result.current().stamp();
+        FileBaseline old = d.file.watch.baseline();
+        if (old != null && old.stamp().equals(d.file.baseline)) {
+          d.file.baseline = result.current().stamp();
         }
-        changes.accept(d.watch, result.current());
-        if (d.missing) {
+        changes.accept(d.file.watch, result.current());
+        if (d.file.missing) {
           clearMissing(d);
         }
       }
       case MISSING -> markMissing(d);
       case CHANGED -> {
-        if (d.missing) {
+        if (d.file.missing) {
           clearMissing(d);
         }
         if (autoReloadClean && !d.document.isDirty()) {
-          d.reloadCheck = result.current();
+          d.file.reloadCheck = result.current();
           reload(d);
         } else {
-          changes.accept(d.watch, result.current());
+          changes.accept(d.file.watch, result.current());
           askChange(d);
         }
       }
@@ -2609,10 +2639,10 @@ public final class DocumentController {
    */
   public void reloadFromDisk() {
     final OpenDocument d = active;
-    if (d == null || d.watch == null || d.changePrompt) {
+    if (d == null || d.file.watch == null || d.file.changePrompt) {
       return;
     }
-    if (d.missing) {
+    if (d.file.missing) {
       view.showNotice(UiText.CHANGE_MISSING.format(d.name()));
     } else if (d.document.isDirty()) {
       askReload(d);
@@ -2623,35 +2653,33 @@ public final class DocumentController {
 
   /** Asks before Reload from Disk replaces edits; one prompt per document at a time. */
   private void askReload(final OpenDocument d) {
-    if (d.changePrompt) {
+    if (d.file.changePrompt) {
       return;
     }
-    d.changePrompt = true;
+    d.file.changePrompt = true;
     view.askReload(
         d.name(),
         new Runnable() {
           @Override
           public void run() {
-            d.changePrompt = false;
+            d.file.changePrompt = false;
             reload(d);
           }
         },
         new Runnable() {
           @Override
           public void run() {
-            d.changePrompt = false;
+            d.file.changePrompt = false;
           }
         });
   }
 
   /** Keeps the buffer of a deleted file, dirty, and remembers whether it matched the file. */
   private void markMissing(OpenDocument d) {
-    if (d.missing) {
+    if (d.file.missing) {
       return;
     }
-    d.missing = true;
-    d.watch.setMissing(true);
-    d.cleanAtMissing = d.document.isDirty() ? null : d.document.snapshot();
+    d.file.markMissing(d.document.isDirty() ? null : d.document.snapshot());
     d.document.markUnsaved();
     d.updateTitle();
     view.documentStateChanged();
@@ -2660,10 +2688,7 @@ public final class DocumentController {
 
   /** Clears the missing mark; the document is clean again when it still holds the file's text. */
   private void clearMissing(OpenDocument d) {
-    d.missing = false;
-    d.watch.setMissing(false);
-    DocumentSnapshot clean = d.cleanAtMissing;
-    d.cleanAtMissing = null;
+    DocumentSnapshot clean = d.file.clearMissing();
     if (clean != null && d.document.snapshot().state() == clean.state()) {
       d.document.markSaved(clean);
     }
@@ -2673,10 +2698,10 @@ public final class DocumentController {
 
   /** Asks about a change of a dirty document's file; one prompt per document at a time. */
   private void askChange(final OpenDocument d) {
-    if (d.changePrompt) {
+    if (d.file.changePrompt) {
       return;
     }
-    d.changePrompt = true;
+    d.file.changePrompt = true;
     view.askExternalChange(
         d.name(),
         false,
@@ -2684,7 +2709,7 @@ public final class DocumentController {
           @Override
           public void accept(ChangeChoice choice) {
             if (choice != ChangeChoice.COMPARE) {
-              d.changePrompt = false;
+              d.file.changePrompt = false;
             }
             if (d.closed) {
               return;
@@ -2716,7 +2741,7 @@ public final class DocumentController {
             }
             switch (choice) {
               case OVERWRITE -> {
-                Path file = d.given == null ? d.path : d.given;
+                Path file = d.file.target();
                 write(d, file, file, null, end);
               }
               case RELOAD -> {
@@ -2731,8 +2756,8 @@ public final class DocumentController {
   }
 
   private void compareWithDisk(OpenDocument d) {
-    if (compare != null && d.watch != null) {
-      compare.compareWithDisk(d.document, d.watch.path(), d.forced, d.binary);
+    if (compare != null && d.file.watch != null) {
+      compare.compareWithDisk(d.document, d.file.watch.path(), d.file.forced, d.binary);
     }
   }
 
@@ -2748,17 +2773,17 @@ public final class DocumentController {
    * user chose is forced; any other is detected, as an open does.
    */
   private void reload(final OpenDocument d) {
-    if (d.closed || d.watch == null || d.reloading != null || d.saving != null) {
+    if (d.closed || d.file.watch == null || d.file.reloading != null || d.file.saving != null) {
       return;
     }
     final CancellationToken token = new CancellationToken();
-    d.reloading = token;
-    d.reloadOfClean = !d.document.isDirty();
-    changes.pause(d.watch);
+    d.file.reloading = token;
+    d.file.reloadOfClean = !d.document.isDirty();
+    changes.pause(d.file.watch);
     d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
-    final Path file = d.watch.path();
-    final Charset charset = d.forced;
+    final Path file = d.file.watch.path();
+    final Charset charset = d.file.forced;
     final boolean binary = d.binary;
     final LoadReservation reservation =
         LoadReservation.reload(budget, d.reserved, options.limits());
@@ -2808,8 +2833,8 @@ public final class DocumentController {
               }
             });
     if (!started) {
-      d.reloading = null;
-      d.reloadCheck = null;
+      d.file.reloading = null;
+      d.file.reloadCheck = null;
       resumeWatch(d);
       view.setIdle();
     }
@@ -2828,56 +2853,56 @@ public final class DocumentController {
 
   private void finishReload(
       OpenDocument d, CancellationToken token, long revision, Reloaded result, IOException error) {
-    if (d.reloading != token) {
+    if (d.file.reloading != token) {
       return;
     }
-    d.reloading = null;
-    FileBaseline checked = d.reloadCheck;
-    d.reloadCheck = null;
+    d.file.reloading = null;
+    FileBaseline checked = d.file.reloadCheck;
+    d.file.reloadCheck = null;
     if (d.closed) {
       return;
     }
     if (result == null) {
-      d.reloadAttempts = 0;
+      d.file.reloadAttempts = 0;
       resumeWatch(d);
       if (error instanceof NoSuchFileException) {
         markMissing(d);
       } else if (error != null) {
         if (checked != null) {
-          changes.accept(d.watch, checked);
+          changes.accept(d.file.watch, checked);
         }
         view.showNotice(UiText.RELOAD_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
       } else if (!token.isCanceled()) {
         if (checked != null) {
-          changes.accept(d.watch, checked);
+          changes.accept(d.file.watch, checked);
         }
         view.showNotice(UiText.RELOAD_TOO_LARGE.format(d.name()));
       }
       return;
     }
     if (d.document.revision() != revision) {
-      if (d.reloadOfClean && d.document.isDirty()) {
-        d.reloadAttempts = 0;
+      if (d.file.reloadOfClean && d.document.isDirty()) {
+        d.file.reloadAttempts = 0;
         resumeWatch(d);
         if (checked == null) {
           askReload(d);
         } else {
-          changes.accept(d.watch, checked);
+          changes.accept(d.file.watch, checked);
           askChange(d);
         }
         return;
       }
-      if (++d.reloadAttempts < RELOAD_ATTEMPTS) {
-        d.reloadCheck = checked;
+      if (++d.file.reloadAttempts < RELOAD_ATTEMPTS) {
+        d.file.reloadCheck = checked;
         reload(d);
         return;
       }
-      d.reloadAttempts = 0;
+      d.file.reloadAttempts = 0;
       resumeWatch(d);
       view.showNotice(UiText.RELOAD_EDITED.format(d.name()));
       return;
     }
-    d.reloadAttempts = 0;
+    d.file.reloadAttempts = 0;
     applyReload(d, result);
   }
 
@@ -2916,18 +2941,13 @@ public final class DocumentController {
     }
     document.setLineEnding(r.lineEnding());
     document.markSaved(document.snapshot());
-    d.path = r.real();
-    d.baseline = r.baseline().stamp();
-    d.missing = false;
-    d.cleanAtMissing = null;
-    changes.resume(d.watch, d.watch.path(), r.baseline());
+    d.file.current(r.real(), r.baseline().stamp());
+    changes.resume(d.file.watch, d.file.watch.path(), r.baseline());
     if (r.roundTrips() || d.binary) {
-      d.bytesGuarded = false;
-      if (d.readOnlyByGuard) {
-        d.readOnlyByGuard = false;
+      if (d.file.endGuard()) {
         document.setReadOnly(false);
       }
-    } else if (!d.bytesGuarded || !document.isReadOnly()) {
+    } else if (!d.file.bytesGuarded || !document.isReadOnly()) {
       guardBytes(d);
       view.showNotice(UiText.OPEN_READ_ONLY.format(d.name(), r.encoding().charset().displayName()));
     }
@@ -2937,8 +2957,7 @@ public final class DocumentController {
 
   /** Makes a document read-only because a save would change its file's bytes. */
   private void guardBytes(OpenDocument d) {
-    d.readOnlyByGuard |= !d.document.isReadOnly();
-    d.bytesGuarded = true;
+    d.file.guard(d.document.isReadOnly());
     d.document.clearPreedit();
     d.document.setReadOnly(true);
   }
@@ -3012,10 +3031,12 @@ public final class DocumentController {
       then.accept(d.editor);
       return;
     }
-    afterOpen.put(file.path(), then);
+    Open open = new Open();
+    open.then = then;
     opener.open(
         file.path(),
-        file.encoding() == null ? options : options.withForced(Charset.forName(file.encoding())));
+        file.encoding() == null ? options : options.withForced(Charset.forName(file.encoding())),
+        open);
   }
 
   private void placed(EditorController editor, FileRequest file) {
@@ -3052,7 +3073,7 @@ public final class DocumentController {
       return false;
     }
     d.tab.select();
-    opened(path, d);
+    fileOpened(path);
     if (then != null) {
       then.accept(d.editor);
     }
@@ -3137,12 +3158,7 @@ public final class DocumentController {
    */
   boolean canMove(Document document) {
     OpenDocument d = entry(document);
-    return d != null
-        && d.saving == null
-        && d.converting == null
-        && d.reloading == null
-        && !d.changePrompt
-        && reopenedFile(d) == null;
+    return d != null && !d.file.running() && d.converting == null && d.reopen == null;
   }
 
   /**
@@ -3155,30 +3171,25 @@ public final class DocumentController {
    * @param index the tab position there, clamped to the tabs
    */
   void moveTo(Document document, DocumentController target, int index) {
-    OpenDocument from = entry(document);
+    final OpenDocument from = entry(document);
     int[] rows = new int[from.editors.size()];
     for (int i = 0; i < rows.length; i++) {
       EditorController e = from.editors.get(i);
       rows[i] = e.view() == null ? 0 : e.view().topRow();
     }
-    FileBaseline baseline = from.watch == null ? null : from.watch.baseline();
+    FileBaseline baseline = from.file.watch == null ? null : from.file.watch.baseline();
     from.closed = true;
-    completion.documentClosed(document);
-    if (from.watch != null) {
-      changes.unwatch(from.watch);
-    }
-    document.removeListener(from);
-    for (EditorController e : from.editors) {
-      e.selections().removeListener(sessionSelections);
-      e.releaseView();
-    }
-    documents.remove(from);
-    if (active == from) {
-      active = documents.isEmpty() ? null : documents.get(documents.size() - 1);
-    }
-    from.tab.close();
-    view.documentStateChanged();
-    viewsChanged();
+    detach(
+        from,
+        new Runnable() {
+          @Override
+          public void run() {
+            for (EditorController e : from.editors) {
+              e.selections().removeListener(sessionSelections);
+              e.releaseView();
+            }
+          }
+        });
     target.adopt(from, baseline, rows, Math.max(0, Math.min(index, target.documents.size())));
   }
 
@@ -3205,9 +3216,9 @@ public final class DocumentController {
     d.document.addListener(d);
     documents.add(index, d);
     active = d;
-    if (d.given != null) {
-      d.watch = changes.watch(d.given, baseline);
-      d.watch.setMissing(d.missing);
+    if (d.file.given != null) {
+      d.file.watch = changes.watch(d.file.given, baseline);
+      d.file.watch.setMissing(d.file.missing);
     }
     d.updateTitle();
     focused.view().focus();
@@ -3292,10 +3303,6 @@ public final class DocumentController {
   /** A session's tab on its way through the opener. */
   private record Restoring(Session.Tab tab, Consumer<String> failed, Runnable done) {}
 
-  private final Map<Path, Restoring> restoring = new HashMap<Path, Restoring>();
-  private final Map<Path, Charset> forcedLoads = new HashMap<Path, Charset>();
-  private final Set<Path> remembered = new HashSet<Path>();
-  private final Set<Path> detecting = new HashSet<Path>();
   private int nextBuffer = 1;
   private FileMemory memory;
   private Consumer<String> bufferCleaned;
@@ -3330,54 +3337,6 @@ public final class DocumentController {
     }
   }
 
-  /** Chooses the charset of a resolved file: the open's, the session's or the remembered one. */
-  private LoadOptions loadOptions(Path path, LoadOptions requested) {
-    if (requested.allowBinary()) {
-      return requested;
-    }
-    if (requested.forced() != null) {
-      forcedLoads.put(path, requested.forced());
-      return requested;
-    }
-    if (detecting.remove(path)) {
-      return requested;
-    }
-    Restoring restored = restoring.get(path);
-    Session.FileState state = memory == null ? null : memory.state(path);
-    String name =
-        restored != null ? restored.tab().encoding() : state == null ? "" : state.encoding();
-    if (name.isEmpty()) {
-      return requested;
-    }
-    Charset charset = SessionText.charset(name);
-    if (charset == null) {
-      LOG.warn("The remembered encoding {} is not available; detecting", LogText.oneLine(name));
-      return requested;
-    }
-    forcedLoads.put(path, charset);
-    remembered.add(path);
-    return requested.withForced(charset);
-  }
-
-  private void finishRestore(Path path) {
-    Restoring restored = restoring.remove(path);
-    if (restored != null) {
-      restored.done().run();
-    }
-  }
-
-  /** Reports a restored file that did not open and ends its restore; false for any other file. */
-  private boolean skipRestore(Path path) {
-    Restoring restored = restoring.remove(path);
-    if (restored == null) {
-      return false;
-    }
-    Path name = path.getFileName();
-    restored.failed().accept(name == null ? path.toString() : name.toString());
-    restored.done().run();
-    return true;
-  }
-
   /**
    * Opens a session's tab after the tabs open now, with its state.
    *
@@ -3394,8 +3353,9 @@ public final class DocumentController {
       done.run();
       return;
     }
-    restoring.put(path, new Restoring(tab, failed, done));
-    opener.open(path, tab.binary() ? options.asBinary() : options);
+    Open open = new Open();
+    open.restoring = new Restoring(tab, failed, done);
+    opener.open(path, tab.binary() ? options.asBinary() : options, open);
   }
 
   private void setTabSettings(OpenDocument d, int tabWidth, boolean insertSpaces) {
@@ -3490,12 +3450,12 @@ public final class DocumentController {
     for (int line : d.bookmarks.commentedLines()) {
       comments.add(new Session.Comment(line, d.bookmarks.comment(line)));
     }
-    Path file = d.given == null ? d.path : d.given;
+    Path file = d.file.target();
     return new Session.Tab(
         file == null ? "" : file.toString(),
         d.untitled == null ? "" : d.untitled,
         buffer,
-        d.forced == null ? "" : d.forced.name(),
+        d.file.forced == null ? "" : d.file.forced.name(),
         d.manualGrammar ? d.grammar : "",
         d.binary,
         d.document.tabWidth(),
@@ -3510,15 +3470,15 @@ public final class DocumentController {
   }
 
   private void rememberClosed(OpenDocument d) {
-    if (d.path == null) {
+    if (d.file.path == null) {
       return;
     }
     if (memory != null && !d.binary && !disposing) {
       EditorController e = d.editor;
       memory.remember(
           new Session.FileState(
-              d.path.toString(),
-              d.forced == null ? "" : d.forced.name(),
+              d.file.path.toString(),
+              d.file.forced == null ? "" : d.file.forced.name(),
               d.manualGrammar ? d.grammar : "",
               d.document.tabWidth(),
               d.document.insertSpaces(),
@@ -3585,7 +3545,7 @@ public final class DocumentController {
     List<Session.Tab> tabs = new ArrayList<Session.Tab>();
     for (OpenDocument d : documents) {
       boolean snapshot = buffers && d.document.isDirty() && !d.binary;
-      if (d.path != null || snapshot) {
+      if (d.file.path != null || snapshot) {
         tabs.add(tab(d, snapshot ? d.bufferId : ""));
       }
     }
@@ -3597,9 +3557,9 @@ public final class DocumentController {
     int index = 0;
     for (OpenDocument d : documents) {
       if (d == active) {
-        return d.path != null || (buffers && d.document.isDirty()) ? index : -1;
+        return d.file.path != null || (buffers && d.document.isDirty()) ? index : -1;
       }
-      if (d.path != null || (buffers && d.document.isDirty() && !d.binary)) {
+      if (d.file.path != null || (buffers && d.document.isDirty() && !d.binary)) {
         index++;
       }
     }
@@ -3662,14 +3622,14 @@ public final class DocumentController {
     List<Buffer> buffers = new ArrayList<Buffer>();
     for (OpenDocument d : documents) {
       if (d.document.isDirty() && !d.binary) {
-        Path file = d.given == null ? d.path : d.given;
+        Path file = d.file.target();
         buffers.add(
             new Buffer(
                 d.bufferId,
                 d.document.snapshot(),
                 file,
                 d.untitled,
-                d.watch == null ? null : d.watch.baseline(),
+                d.file.watch == null ? null : d.file.watch.baseline(),
                 d.manualGrammar ? d.grammar : "",
                 SessionText.selections(d.editor.selections().selections())));
       }
@@ -3717,7 +3677,7 @@ public final class DocumentController {
     d.updateTitle();
     if (tab != null) {
       applyTab(d, tab);
-      d.forced = tab.encoding().isEmpty() ? null : document.encoding().charset();
+      d.file.forced = tab.encoding().isEmpty() ? null : document.encoding().charset();
     } else {
       restoreGrammar(d, header.language());
       SelectionSet set = SessionText.selections(header.selection(), document.text().length());

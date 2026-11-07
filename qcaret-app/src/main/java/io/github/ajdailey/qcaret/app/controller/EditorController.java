@@ -83,11 +83,8 @@ import java.util.function.IntConsumer;
  *   <li>Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their edit on a {@code
  *       qcaret-cpu-} worker and apply it on the UI thread, with the view busy from the command to
  *       the apply; a result for an older revision is dropped with a notice.
- *   <li>The view shows the bracket beside the primary caret with its partner, searched on the UI
- *       thread within the visible range and {@value #BRACKET_SCAN} chars on each side, and on a
- *       worker beyond that; and the whole-word occurrences of the word at the primary caret in the
- *       visible range, found on a worker. Both are recomputed one UI turn after a caret move, an
- *       edit or a scroll, and a result for an older revision is dropped.
+ *   <li>{@link EditorHighlights} recomputes the view's bracket and occurrence highlights after a
+ *       caret move, an edit or a scroll.
  *   <li>Word completion ({@link WordCompletion}) shows its list in the view; while it shows, Up,
  *       Down, Page Up and Page Down move in the list, Enter and Tab insert the selected word at
  *       every caret, Esc closes it, and typing narrows it.
@@ -116,6 +113,7 @@ public final class EditorController implements EditorInput {
   private EditorView view;
   private CancellationToken rewrap;
   private CancellationToken occurrence;
+  private final EditorHighlights highlights;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
@@ -192,8 +190,8 @@ public final class EditorController implements EditorInput {
     selections.addListener(revealer);
     document.addListener(foldFollower);
     scheduleFolds();
+    highlights = new EditorHighlights(this, workers, ui);
     selections.addListener(selectionListener);
-    document.addListener(documentListener);
   }
 
   /**
@@ -211,6 +209,7 @@ public final class EditorController implements EditorInput {
     if (columnMode) {
       view.setColumnMode(true);
     }
+    highlights.viewAttached();
   }
 
   /** Lets go of the view before its tab moves to another window; closes the completion list. */
@@ -333,7 +332,7 @@ public final class EditorController implements EditorInput {
       if (viewportListener != null) {
         viewportListener.run();
       }
-      scheduleHighlights();
+      highlights.schedule();
     }
   }
 
@@ -437,7 +436,7 @@ public final class EditorController implements EditorInput {
   }
 
   /** Starts the rewrap the projection needs, canceling the running one. */
-  void scheduleRewrap() {
+  private void scheduleRewrap() {
     if (disposed) {
       return;
     }
@@ -1185,7 +1184,7 @@ public final class EditorController implements EditorInput {
    *
    * @param source the source, or null for indentation folding at the document's tab width
    */
-  public void setFoldSource(FoldRegionSource source) {
+  private void setFoldSource(FoldRegionSource source) {
     foldSource = source;
     ui.cancelTimer(foldTimer);
     ui.timerExec(0, foldTimer);
@@ -1614,13 +1613,10 @@ public final class EditorController implements EditorInput {
     showCaret();
   }
 
-  // Productivity: auto-close, line transforms, bookmarks, brackets, occurrences, completion.
+  // Productivity: auto-close, line transforms, bookmarks, bracket matching, completion.
 
   /** Chars scanned on each side of the visible range for a bracket's partner on the UI thread. */
   static final int BRACKET_SCAN = 1 << 14;
-
-  /** Occurrences of the word at the caret highlighted in one view at most. */
-  static final int VIEW_OCCURRENCES = 2000;
 
   /** Rows Page Up and Page Down move in the completion list. */
   static final int COMPLETION_PAGE = 8;
@@ -1635,26 +1631,7 @@ public final class EditorController implements EditorInput {
           if (completionShown != null) {
             refilterCompletion();
           }
-          scheduleHighlights();
-        }
-      };
-
-  private final DocumentListener documentListener =
-      new DocumentListener() {
-        @Override
-        public void textChanged(DocumentChange change) {
-          if (view != null && (occurrences.length > 0 || brackets.length > 0)) {
-            occurrences = FindController.shifted(occurrences, change.edits());
-            brackets = FindController.shifted(brackets, change.edits());
-            view.showOccurrences(occurrences);
-            view.showBrackets(brackets);
-          }
-          scheduleHighlights();
-        }
-
-        @Override
-        public void dirtyChanged(boolean dirty) {
-          // Highlights follow the text only.
+          highlights.schedule();
         }
       };
 
@@ -1673,17 +1650,12 @@ public final class EditorController implements EditorInput {
   private int completionSelected;
   private boolean marksWhitespace;
   private boolean marksLineEndings;
-  private boolean highlightPending;
   private CancellationToken lineWork;
 
   /** The selections before the last Mod+press, which a drag from there adds to. */
   private SelectionSet beforeToggle;
 
-  private CancellationToken bracketSearch;
-  private CancellationToken occurrenceSearch;
-  private String occurrenceKey;
-  private int[] occurrences = new int[0];
-  private int[] brackets = new int[0];
+  private CancellationToken partnerSearch;
 
   /**
    * Returns the pairs auto-close inserts: the grammar's {@code autoClose}.
@@ -1704,12 +1676,12 @@ public final class EditorController implements EditorInput {
   }
 
   /** Returns what leaves brackets in strings and comments out of matching on the UI thread. */
-  private Brackets.Filter bracketFilter(TextSnapshot text) {
+  Brackets.Filter bracketFilter(TextSnapshot text) {
     return syntax == null ? Brackets.Filter.ALL : new TokenBracketFilter(text, syntax);
   }
 
   /** Returns the same filter over a copy of the tokens, for a worker. */
-  private Brackets.Filter workerBracketFilter(TextSnapshot text) {
+  Brackets.Filter workerBracketFilter(TextSnapshot text) {
     return syntax == null ? Brackets.Filter.ALL : new TokenBracketFilter(text, syntax.tokensCopy());
   }
 
@@ -1809,38 +1781,10 @@ public final class EditorController implements EditorInput {
     }
   }
 
-  /**
-   * Returns the bracket highlight.
-   *
-   * @return model offset pairs
-   */
-  int[] brackets() {
-    return brackets.clone();
-  }
-
-  /**
-   * Returns the occurrence highlight.
-   *
-   * @return model offset pairs
-   */
-  int[] occurrences() {
-    return occurrences.clone();
-  }
-
-  /**
-   * Returns the completion list shown.
-   *
-   * @return the words, or null when no list shows
-   */
-  List<String> completions() {
-    return completionShown;
-  }
-
   private void disposeProductivity() {
     selections.removeListener(selectionListener);
-    document.removeListener(documentListener);
-    for (CancellationToken token :
-        new CancellationToken[] {lineWork, bracketSearch, occurrenceSearch}) {
+    highlights.dispose();
+    for (CancellationToken token : new CancellationToken[] {lineWork, partnerSearch}) {
       if (token != null) {
         token.cancel();
       }
@@ -2002,12 +1946,12 @@ public final class EditorController implements EditorInput {
       return;
     }
     final long revision = document.revision();
-    if (bracketSearch != null) {
-      bracketSearch.cancel();
+    if (partnerSearch != null) {
+      partnerSearch.cancel();
     }
     final CancellationToken token = new CancellationToken();
     final Brackets.Filter filter = workerBracketFilter(text);
-    bracketSearch = token;
+    partnerSearch = token;
     try {
       workers.executeCpu(
           new Runnable() {
@@ -2023,10 +1967,10 @@ public final class EditorController implements EditorInput {
                   new Runnable() {
                     @Override
                     public void run() {
-                      if (token != bracketSearch) {
+                      if (token != partnerSearch) {
                         return;
                       }
-                      bracketSearch = null;
+                      partnerSearch = null;
                       if (!disposed
                           && document.revision() == revision
                           && set.equals(selections.selections())) {
@@ -2037,7 +1981,7 @@ public final class EditorController implements EditorInput {
             }
           });
     } catch (RejectedExecutionException e) {
-      bracketSearch = null;
+      partnerSearch = null;
     }
   }
 
@@ -2045,7 +1989,7 @@ public final class EditorController implements EditorInput {
    * Returns each selection's bracket and partner as pairs, -1 where none, or an empty array when a
    * partner lies more than {@code scan} chars from its bracket.
    */
-  static int[] partners(
+  private static int[] partners(
       TextSnapshot text,
       SelectionSet set,
       Pairs pairs,
@@ -2101,174 +2045,6 @@ public final class EditorController implements EditorInput {
     if (moved) {
       selections.set(SelectionSet.of(out, set.primaryIndex()));
       showCaret();
-    }
-  }
-
-  // Highlights.
-
-  /** Recomputes the bracket and occurrence highlights on the next UI turn, once. */
-  private void scheduleHighlights() {
-    if (highlightPending || disposed) {
-      return;
-    }
-    highlightPending = true;
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            highlightPending = false;
-            if (!disposed && view != null) {
-              highlightBrackets();
-              highlightOccurrences();
-            }
-          }
-        });
-  }
-
-  private void showBrackets(int[] ranges) {
-    if (view != null && (ranges.length != 0 || brackets.length != 0)) {
-      brackets = ranges;
-      view.showBrackets(ranges);
-    }
-  }
-
-  private void showOccurrences(int[] ranges) {
-    if (view != null && (ranges.length != 0 || occurrences.length != 0)) {
-      occurrences = ranges;
-      view.showOccurrences(ranges);
-    }
-  }
-
-  private void highlightBrackets() {
-    if (bracketSearch != null) {
-      bracketSearch.cancel();
-      bracketSearch = null;
-    }
-    Selection primary = current().primary();
-    final TextSnapshot text = document.text();
-    final Pairs pairs = bracketPairs();
-    Brackets.Filter filter = bracketFilter(text);
-    final int at =
-        primary.isEmpty() && selections.block() == null
-            ? Brackets.at(text, primary.caret(), pairs, filter)
-            : -1;
-    if (at < 0) {
-      showBrackets(new int[0]);
-      return;
-    }
-    int from = Math.max(0, Math.min(visibleStart, at) - BRACKET_SCAN);
-    int to = (int) Math.min(text.length(), (long) Math.max(visibleEnd, at + 1) + BRACKET_SCAN);
-    int partner = Brackets.match(text, at, pairs, from, to, new CancellationToken(), filter);
-    if (partner != Brackets.BEYOND) {
-      showBrackets(bracketRanges(at, partner));
-      return;
-    }
-    final long revision = document.revision();
-    final int caret = primary.caret();
-    final CancellationToken token = new CancellationToken();
-    final Brackets.Filter workerFilter = workerBracketFilter(text);
-    bracketSearch = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              final int found;
-              try {
-                found = Brackets.match(text, at, pairs, 0, text.length(), token, workerFilter);
-              } catch (CancellationException e) {
-                return;
-              }
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (token != bracketSearch) {
-                        return;
-                      }
-                      bracketSearch = null;
-                      if (!disposed
-                          && document.revision() == revision
-                          && current().primary().caret() == caret) {
-                        showBrackets(bracketRanges(at, found));
-                      }
-                    }
-                  });
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      bracketSearch = null;
-    }
-  }
-
-  private static int[] bracketRanges(int at, int partner) {
-    if (partner < 0) {
-      return new int[0];
-    }
-    int a = Math.min(at, partner);
-    int b = Math.max(at, partner);
-    return new int[] {a, a + 1, b, b + 1};
-  }
-
-  private void highlightOccurrences() {
-    Selection primary = current().primary();
-    final TextSnapshot text = document.text();
-    int[] word =
-        primary.isEmpty() && selections.block() == null
-            ? Words.at(text, primary.caret())
-            : new int[0];
-    if (word.length == 0) {
-      occurrenceKey = null;
-      if (occurrenceSearch != null) {
-        occurrenceSearch.cancel();
-        occurrenceSearch = null;
-      }
-      showOccurrences(new int[0]);
-      return;
-    }
-    final String needle = text.subSequence(word[0], word[1]).toString();
-    final long revision = document.revision();
-    final int from = visibleStart - needle.length();
-    final int to = visibleEnd + needle.length();
-    String key = needle + '\n' + revision + '\n' + from + '\n' + to;
-    if (key.equals(occurrenceKey)) {
-      return;
-    }
-    occurrenceKey = key;
-    if (occurrenceSearch != null) {
-      occurrenceSearch.cancel();
-    }
-    final CancellationToken token = new CancellationToken();
-    occurrenceSearch = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              final int[] found;
-              try {
-                found = Occurrences.words(text, needle, from, to, VIEW_OCCURRENCES, token);
-              } catch (CancellationException e) {
-                return;
-              }
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (token != occurrenceSearch) {
-                        return;
-                      }
-                      occurrenceSearch = null;
-                      if (!disposed && document.revision() == revision) {
-                        showOccurrences(found.length >= 4 ? found : new int[0]);
-                      }
-                    }
-                  });
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      occurrenceSearch = null;
-      occurrenceKey = null;
     }
   }
 

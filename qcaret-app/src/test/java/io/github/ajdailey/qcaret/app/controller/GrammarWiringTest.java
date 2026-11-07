@@ -84,6 +84,10 @@ class GrammarWiringTest {
     return harness.application.documents().activeEditor();
   }
 
+  private static int[] shownBrackets(EditorController editor) {
+    return ((FakeView.FakeTab) editor.view()).shown.brackets;
+  }
+
   private static int caret(EditorController editor) {
     return editor.selections().selections().primary().caret();
   }
@@ -168,7 +172,7 @@ class GrammarWiringTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return Arrays.equals(new int[] {1, 2, 5, 6}, editor.brackets());
+            return Arrays.equals(new int[] {1, 2, 5, 6}, shownBrackets(editor));
           }
         },
         "bracket highlight past the string");
@@ -178,7 +182,7 @@ class GrammarWiringTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return editor.brackets().length == 0;
+            return shownBrackets(editor).length == 0;
           }
         },
         "no bracket highlight");

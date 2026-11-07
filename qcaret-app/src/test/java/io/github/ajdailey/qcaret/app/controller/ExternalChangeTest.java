@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
+import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -1062,5 +1063,21 @@ class ExternalChangeTest {
     awaitPrompts(1);
     assertEquals("save a.txt", view.changePrompts.get(0));
     assertArrayEquals(changed, Files.readAllBytes(file));
+  }
+
+  /** A buffer's recorded base is the watch's: after Keep Mine, the file the user declined. */
+  @Test
+  void keepMineRecordsTheDeclinedFileAsTheBuffersBase() throws Exception {
+    write("a.txt", "one\n");
+    open(temp.resolve("a.txt"));
+    documents.activeEditor().type("mine ");
+    FileBaseline opened = documents.dirtyBuffers().get(0).base();
+    write("a.txt", "theirs, longer\n");
+    checkUntilPrompts(1);
+    view.changeAnswer.accept(ChangeChoice.KEEP);
+    checkAndSettle();
+    FileBaseline kept = documents.dirtyBuffers().get(0).base();
+    assertFalse(opened.stamp().equals(kept.stamp()));
+    assertEquals(Files.size(temp.resolve("a.txt")), kept.stamp().size());
   }
 }

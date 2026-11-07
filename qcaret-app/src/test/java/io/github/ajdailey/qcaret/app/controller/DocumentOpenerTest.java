@@ -70,6 +70,48 @@ class DocumentOpenerTest {
         }
       };
   private MemoryBudget budget = new MemoryBudget(1L << 30, 50);
+  private final DocumentOpener.Listener listener =
+      new DocumentOpener.Listener() {
+        @Override
+        public boolean resolved(Path requested, Path path) {
+          ui.checkUiThread();
+          resolved.add(path);
+          if (resolveFails) {
+            throw new IllegalStateException("mock unchecked failure");
+          }
+          return alreadyOpen;
+        }
+
+        @Override
+        public LoadOptions options(Path path, LoadOptions requested) {
+          return requested;
+        }
+
+        @Override
+        public void opened(
+            Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
+          ui.checkUiThread();
+          results.add(file);
+        }
+
+        @Override
+        public void tooLarge(Path path, LoadCost cost, long available, long maxHeap) {
+          ui.checkUiThread();
+          results.add(cost);
+        }
+
+        @Override
+        public void failed(Path path, IOException error) {
+          ui.checkUiThread();
+          results.add(error);
+        }
+
+        @Override
+        public void canceled(Path path) {
+          ui.checkUiThread();
+          canceled.add(path);
+        }
+      };
 
   @BeforeEach
   void setUp() {
@@ -93,47 +135,7 @@ class DocumentOpenerTest {
             ui,
             budget,
             activity,
-            new DocumentOpener.Listener() {
-              @Override
-              public boolean resolved(Path requested, Path path) {
-                ui.checkUiThread();
-                resolved.add(path);
-                if (resolveFails) {
-                  throw new IllegalStateException("mock unchecked failure");
-                }
-                return alreadyOpen;
-              }
-
-              @Override
-              public LoadOptions options(Path path, LoadOptions requested) {
-                return requested;
-              }
-
-              @Override
-              public void opened(
-                  Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-                ui.checkUiThread();
-                results.add(file);
-              }
-
-              @Override
-              public void tooLarge(Path path, LoadCost cost, long available, long maxHeap) {
-                ui.checkUiThread();
-                results.add(cost);
-              }
-
-              @Override
-              public void failed(Path path, IOException error) {
-                ui.checkUiThread();
-                results.add(error);
-              }
-
-              @Override
-              public void canceled(Path path) {
-                ui.checkUiThread();
-                canceled.add(path);
-              }
-
+            new DocumentOpener.Progress() {
               @Override
               public void progress(Path path, int files, int percent) {
                 ui.checkUiThread();
@@ -190,8 +192,8 @@ class DocumentOpenerTest {
 
   @Test
   void aLoadReachesTheListenerOnTheUiThread() throws Exception {
-    opener.open(file("text\r\n"), LoadOptions.DEFAULTS);
-    opener.open(temp.resolve("missing").resolve("b.txt"), LoadOptions.DEFAULTS);
+    opener.open(file("text\r\n"), LoadOptions.DEFAULTS, listener);
+    opener.open(temp.resolve("missing").resolve("b.txt"), LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(results(2), BOUND));
     int loaded = results.get(0) instanceof LoadedFile ? 0 : 1;
     assertEquals("text\r\n", ((LoadedFile) results.get(loaded)).document().text().toString());
@@ -219,7 +221,7 @@ class DocumentOpenerTest {
                     throw new IllegalStateException("mock unchecked failure");
                   }
                 });
-    opener.open(broken, LoadOptions.DEFAULTS);
+    opener.open(broken, LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(results(1), BOUND));
     assertTrue(ui.runUntil(idle(), BOUND));
     assertStopped();
@@ -239,7 +241,7 @@ class DocumentOpenerTest {
   @Test
   void anUncheckedFailureOnTheUiThreadReportsAFailedOpen() throws Exception {
     resolveFails = true;
-    opener.open(file("mock\n"), LoadOptions.DEFAULTS);
+    opener.open(file("mock\n"), LoadOptions.DEFAULTS, listener);
     assertThrows(
         IllegalStateException.class,
         new Executable() {
@@ -255,7 +257,7 @@ class DocumentOpenerTest {
   @Test
   void aCanceledOpenEndsWithTheCancelBeforeItsRead() throws Exception {
     Path file = file("mock\n");
-    CancellationToken token = opener.open(file, LoadOptions.DEFAULTS);
+    CancellationToken token = opener.open(file, LoadOptions.DEFAULTS, listener);
     token.cancel();
     assertTrue(ui.runUntil(idle(), BOUND));
     ui.runPending();
@@ -266,7 +268,7 @@ class DocumentOpenerTest {
 
   @Test
   void aCanceledOpenThatFailsToResolveReportsTheCancel() throws Exception {
-    opener.open(temp, LoadOptions.DEFAULTS).cancel();
+    opener.open(temp, LoadOptions.DEFAULTS, listener).cancel();
     assertTrue(
         ui.runUntil(
             new BooleanSupplier() {
@@ -284,7 +286,7 @@ class DocumentOpenerTest {
     workers.close();
     budget = new MemoryBudget(1000, 100);
     create();
-    opener.open(file("x".repeat(600)), LoadOptions.DEFAULTS);
+    opener.open(file("x".repeat(600)), LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(results(1), BOUND));
     LoadCost cost = (LoadCost) results.get(0);
     assertEquals(600, cost.fileBytes());
@@ -300,7 +302,7 @@ class DocumentOpenerTest {
     workers.close();
     budget = new MemoryBudget(estimate + 100, 100);
     create();
-    opener.open(file, LoadOptions.DEFAULTS);
+    opener.open(file, LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(results(1), BOUND));
     LoadCost cost = (LoadCost) results.get(0);
     assertTrue(cost.reserveBytes() > estimate);
@@ -312,7 +314,7 @@ class DocumentOpenerTest {
   void aLoadHeldPastTheCloseDropsItsDocument() throws Exception {
     GatedCharset gate = new GatedCharset();
     gate.arm();
-    opener.open(file("held"), LoadOptions.DEFAULTS.withForced(gate));
+    opener.open(file("held"), LoadOptions.DEFAULTS.withForced(gate), listener);
     assertTrue(ui.runUntil(resolved(), BOUND));
     assertTrue(gate.awaitHeld());
     opener.close();
@@ -325,14 +327,14 @@ class DocumentOpenerTest {
 
   @Test
   void aResultPostedBeforeTheCloseIsDropped() throws Exception {
-    opener.open(file("posted"), LoadOptions.DEFAULTS);
+    opener.open(file("posted"), LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(resolved(), BOUND));
     assertTrue(Poll.until(idle(), BOUND));
     opener.close();
     ui.runPending();
     assertEquals(List.of(), results);
     assertEquals(0, budget.reserved());
-    opener.open(file("after"), LoadOptions.DEFAULTS);
+    opener.open(file("after"), LoadOptions.DEFAULTS, listener);
     assertEquals(0, opener.running());
   }
 
@@ -340,7 +342,7 @@ class DocumentOpenerTest {
   void anOpenDocumentEndsTheOpenUnread() throws Exception {
     alreadyOpen = true;
     Path file = file("open");
-    opener.open(file, LoadOptions.DEFAULTS);
+    opener.open(file, LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(idle(), BOUND));
     assertEquals(List.of(file.toRealPath()), resolved);
     assertEquals(List.of(), results);
@@ -349,7 +351,7 @@ class DocumentOpenerTest {
 
   @Test
   void aCloseEndsAnOpenWaitingForTheUiThread() throws Exception {
-    opener.open(file("waiting"), LoadOptions.DEFAULTS);
+    opener.open(file("waiting"), LoadOptions.DEFAULTS, listener);
     assertTrue(
         Poll.until(
             new BooleanSupplier() {
@@ -389,7 +391,7 @@ class DocumentOpenerTest {
     Path file = file("mock text\n");
     GatedCharset gate = new GatedCharset();
     gate.arm();
-    opener.open(file, LoadOptions.DEFAULTS.withForced(gate));
+    opener.open(file, LoadOptions.DEFAULTS.withForced(gate), listener);
     assertTrue(ui.runUntil(shown(), BOUND));
     assertTrue(gate.awaitHeld());
     assertTrue(budget.reserved() > 0);
@@ -408,7 +410,7 @@ class DocumentOpenerTest {
   @Test
   void aCancelAfterTheWorkerFinishedDropsTheDocument() throws Exception {
     Path file = file("mock text\n");
-    opener.open(file, LoadOptions.DEFAULTS);
+    opener.open(file, LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(resolved(), BOUND));
     assertTrue(
         Poll.until(
@@ -430,7 +432,7 @@ class DocumentOpenerTest {
   void aLoadOverSeveralBlocksReportsRisingProgressUntilItEnds() throws Exception {
     Path file = temp.resolve("large.txt");
     Files.writeString(file, "mock text line\n".repeat(600_000));
-    opener.open(file, LoadOptions.DEFAULTS);
+    opener.open(file, LoadOptions.DEFAULTS, listener);
     assertTrue(ui.runUntil(results(1), BOUND));
     assertTrue(ui.runUntil(idle(), BOUND));
     ui.runPending();

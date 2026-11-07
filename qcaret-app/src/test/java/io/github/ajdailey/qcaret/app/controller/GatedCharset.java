@@ -21,7 +21,12 @@ final class GatedCharset extends Charset {
   private final CountDownLatch released = new CountDownLatch(1);
 
   GatedCharset() {
-    super("X-QCARET-TEST-GATE", null);
+    this("X-QCARET-TEST-GATE");
+  }
+
+  /** A second gate on one document needs its own name: charsets compare by name. */
+  GatedCharset(String name) {
+    super(name, null);
   }
 
   void arm() {

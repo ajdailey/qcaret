@@ -25,6 +25,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -171,6 +173,61 @@ class ProductivityTest {
     ui.runPending();
   }
 
+  /**
+   * Opens a bracket pair further apart than the UI-thread scan, in a short view, with the caret
+   * beside neither bracket.
+   *
+   * @return the closing bracket's offset
+   */
+  private int openFarPair() {
+    open("( |" + " ".repeat(EditorController.BRACKET_SCAN + 8) + ")");
+    editor.viewportChanged(0, 4);
+    ui.runPending();
+    return document.text().length() - 1;
+  }
+
+  /**
+   * Puts the caret beside the far pair's open bracket and leaves the highlight's result queued for
+   * the UI. The worker is held through the UI turn, so the result cannot land inside it.
+   */
+  private void searchFarBracket() throws InterruptedException {
+    CountDownLatch gate = holdWorker();
+    selections.set(SelectionSet.caret(0));
+    ui.runPending();
+    gate.countDown();
+    drainWorker();
+  }
+
+  /** Puts the caret beside the far pair's open bracket and lets its highlight finish. */
+  private void caretAtFarBracket() throws InterruptedException {
+    searchFarBracket();
+    ui.runPending();
+  }
+
+  /** Occupies the one worker until the returned latch counts down. */
+  private CountDownLatch holdWorker() {
+    final CountDownLatch gate = new CountDownLatch(1);
+    workers.executeCpu(
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              gate.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        });
+    return gate;
+  }
+
+  /** Waits until the one worker has run everything queued, leaving its results for the UI. */
+  private void drainWorker() throws InterruptedException {
+    CountDownLatch done = new CountDownLatch(1);
+    workers.executeCpu(done::countDown);
+    assertTrue(done.await(BOUND.toSeconds(), TimeUnit.SECONDS), "worker drained");
+  }
+
   private void typeEach(String chars) {
     for (char c : chars.toCharArray()) {
       editor.type(String.valueOf(c));
@@ -279,6 +336,131 @@ class ProductivityTest {
           }
         },
         "moved past the partner");
+  }
+
+  @Test
+  void aScrollDuringASearchBeyondTheScanLeavesTheCommandRunning() throws InterruptedException {
+    final int close = openFarPair();
+    caretAtFarBracket();
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.GO_TO_MATCHING_BRACKET);
+    editor.viewportChanged(1, 5);
+    ui.runPending();
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertEquals(close + 1, selections.selections().primary().caret());
+  }
+
+  @Test
+  void aCaretMovedDuringASearchBeyondTheScanDropsTheCommand() throws InterruptedException {
+    openFarPair();
+    caretAtFarBracket();
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.GO_TO_MATCHING_BRACKET);
+    selections.set(SelectionSet.caret(3));
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertEquals(3, selections.selections().primary().caret());
+  }
+
+  @Test
+  void aSecondBracketCommandReplacesTheRunningSearch() throws InterruptedException {
+    final int close = openFarPair();
+    caretAtFarBracket();
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.SELECT_TO_MATCHING_BRACKET);
+    editor.execute(CommandId.GO_TO_MATCHING_BRACKET);
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertTrue(selections.selections().primary().isEmpty());
+    assertEquals(close + 1, selections.selections().primary().caret());
+  }
+
+  @Test
+  void aBracketHighlightBeyondTheScanIsFoundOnAWorker() throws InterruptedException {
+    final int close = openFarPair();
+    searchFarBracket();
+    assertArrayEquals(new int[0], tab.shown.brackets);
+    ui.runPending();
+    assertArrayEquals(new int[] {0, 1, close, close + 1}, tab.shown.brackets);
+  }
+
+  @Test
+  void aBracketHighlightFromAnOlderRevisionIsDropped() throws InterruptedException {
+    final int close = openFarPair();
+    searchFarBracket();
+    document.apply(EditBatch.replace(close + 1, 0, "y"));
+    int[] untouched = {-1, -1};
+    tab.shown.brackets = untouched;
+    CountDownLatch gate = holdWorker();
+    ui.runPending();
+    assertTrue(tab.shown.brackets == untouched);
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertArrayEquals(new int[] {0, 1, close, close + 1}, tab.shown.brackets);
+  }
+
+  @Test
+  void aBracketHighlightForAnEarlierCaretIsDropped() throws InterruptedException {
+    openFarPair();
+    searchFarBracket();
+    selections.set(SelectionSet.caret(3));
+    int[] untouched = {-1, -1};
+    tab.shown.brackets = untouched;
+    ui.runPending();
+    assertTrue(tab.shown.brackets == untouched);
+  }
+
+  @Test
+  void anOccurrenceHighlightFromAnOlderRevisionIsDropped() throws InterruptedException {
+    CountDownLatch opening = holdWorker();
+    open("fo|o foo");
+    opening.countDown();
+    drainWorker();
+    document.apply(EditBatch.replace(7, 0, " foo"));
+    int[] untouched = {-1, -1};
+    tab.shown.occurrences = untouched;
+    CountDownLatch gate = holdWorker();
+    ui.runPending();
+    assertTrue(tab.shown.occurrences == untouched);
+    editor.viewportChanged(0, document.text().length());
+    ui.runPending();
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertArrayEquals(new int[] {0, 3, 4, 7, 8, 11}, tab.shown.occurrences);
+  }
+
+  @Test
+  void anEditShiftsTheHighlightsBeforeTheNextTurn() throws InterruptedException {
+    open("ab|(c) ab");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return tab.shown.occurrences.length == 4;
+          }
+        },
+        "occurrences");
+    assertArrayEquals(new int[] {2, 3, 4, 5}, tab.shown.brackets);
+    document.apply(EditBatch.replace(0, 0, "x"));
+    assertArrayEquals(new int[] {3, 4, 5, 6}, tab.shown.brackets);
+    assertArrayEquals(new int[] {1, 3, 7, 9}, tab.shown.occurrences);
+  }
+
+  @Test
+  void aHighlightEndingAfterTheEditorIsDisposedIsDropped() throws InterruptedException {
+    openFarPair();
+    searchFarBracket();
+    int[] untouched = {-1, -1};
+    tab.shown.brackets = untouched;
+    editor.dispose();
+    ui.runPending();
+    assertTrue(tab.shown.brackets == untouched);
   }
 
   @Test

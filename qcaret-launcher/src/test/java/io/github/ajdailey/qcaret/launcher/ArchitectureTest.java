@@ -37,7 +37,6 @@ import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
-import io.github.ajdailey.qcaret.core.concurrent.OperationHandle;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
@@ -487,8 +486,6 @@ class ArchitectureTest {
         .orShould()
         .callMethodWhere(call(CountDownLatch.class, "await"))
         .orShould()
-        .callMethodWhere(call(OperationHandle.class, "await"))
-        .orShould()
         .dependOnClassesThat()
         .resideInAPackage("java.nio.channels..");
   }
@@ -506,8 +503,6 @@ class ArchitectureTest {
         .callMethodWhere(call(Future.class, "get"))
         .orShould()
         .callMethodWhere(call(Thread.class, "join|sleep"))
-        .orShould()
-        .callMethodWhere(call(OperationHandle.class, "await"))
         .orShould()
         .callMethodWhere(call(CountDownLatch.class, "await"));
   }
@@ -888,7 +883,6 @@ class ArchitectureTest {
         "Semaphore.acquire",
         "BlockingQueue.put",
         "CountDownLatch.await",
-        "OperationHandle.await",
         "java.nio.channels");
     assertViolations(
         fileLocksOnlyInProcessLockRule(),
@@ -900,8 +894,7 @@ class ArchitectureTest {
         CONTROLLER_FIXTURES + "Waits",
         "Future.get",
         "Thread.sleep",
-        "CountDownLatch.await",
-        "OperationHandle.await");
+        "CountDownLatch.await");
     assertViolations(
         controllersReadNoSystemPropertiesRule(),
         CONTROLLER_FIXTURES + "ReadsPlatform",

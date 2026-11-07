@@ -18,7 +18,7 @@ delete-pending for a moment.
 | Package | Layer | Contents |
 |---|---|---|
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package |
-| `core.concurrent` | 2 | `Workers`, `CancellationToken`, `OperationGate`, `OperationHandle`, `OperationOutcome`, `WorkerThread`, `MemoryBudget` |
+| `core.concurrent` | 2 | `Workers`, `CancellationToken`, `WorkerThread`, `MemoryBudget` |
 | `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `ProcessLock`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles` |
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars` |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` |
@@ -62,15 +62,7 @@ The launcher creates one instance and closes it at shutdown.
 - Code that catches `InterruptedException` restores the interrupt flag and
   returns.
 
-A background operation returns an `OperationHandle` (`cancel`, `isDone`,
-`await`) and ends `COMPLETED`, `CANCELED` or `FAILED`. Its listener's final
-call comes before `isDone()` turns true. `CancellationToken.check()` throws
-`CancellationException` once canceled.
-
-`OperationGate` counts the operations using a resource: `enter()` admits one
-until `close()`, `exit()` ends it, and `awaitIdle` returns once the gate is
-closed and the count is zero. `enter` and `exit` are lock-free, so the UI
-thread may call them.
+`CancellationToken.check()` throws `CancellationException` once canceled.
 
 `MemoryBudget` is the share of `Runtime.maxMemory()` that open documents
 hold, `DOCUMENT_PERCENT` (60%). `reserve` is lock-free and refuses, reserving
@@ -821,6 +813,6 @@ language's extensions, file names and shebangs, every format grammar's file
 names and extensions, one grammar per extension, user grammars and a runaway
 first-line regex. `CommentEditsTest` and `BoundedCharsTest`
 cover the rest of the area.
-`OperationGateTest`, `SafePathsTest` (including the Windows device forms on
+`SafePathsTest` (including the Windows device forms on
 every OS), `AtomicFilesTest`, `LogTextTest`, `UtilTest` and `TestkitTest`
 cover the other classes.

@@ -20,12 +20,14 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.io.ByteArrayOutputStream;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -381,6 +383,84 @@ class TabMoveTest {
   }
 
   @Test
+  void aBracketHighlightRunningDuringAMoveShowsInTheMovedTab() throws Exception {
+    final int close = EditorController.BRACKET_SCAN + 11;
+    Document document =
+        open(first, "far.txt", "(" + " ".repeat(EditorController.BRACKET_SCAN + 10) + ")");
+    EditorController editor = first.documents().activeEditor();
+    editor.selections().set(SelectionSet.caret(2));
+    editor.viewportChanged(0, 4);
+    windows.ui.runPending();
+    FakeView.FakeTab source = windows.view(first).selected;
+    final CountDownLatch gate = new CountDownLatch(1);
+    for (int i = 0; i < 2; i++) {
+      windows.workers.executeCpu(
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                gate.await();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+            }
+          });
+    }
+    editor.selections().set(SelectionSet.caret(0));
+    windows.ui.runPending();
+
+    ApplicationController target = set.moveDocument(first, document, null, END);
+
+    assertNotNull(target);
+    gate.countDown();
+    final FakeView.FakeTab moved = windows.view(target).selected;
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return moved.shown.brackets.length == 4;
+          }
+        },
+        "the highlight reached the moved tab");
+    assertArrayEquals(new int[] {0, 1, close, close + 1}, moved.shown.brackets);
+    assertEquals(0, source.shown.brackets.length);
+  }
+
+  @Test
+  void aMovedTabShowsItsHighlightsAndRecomputesThem() throws Exception {
+    Document document = open(first, "marks.txt", "foo(a) foo");
+    EditorController editor = first.documents().activeEditor();
+    editor.viewportChanged(0, 10);
+    editor.selections().set(SelectionSet.caret(3));
+    final FakeView.FakeTab source = windows.view(first).selected;
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return source.shown.brackets.length == 4 && source.shown.occurrences.length == 4;
+          }
+        },
+        "the highlights");
+
+    ApplicationController target = set.moveDocument(first, document, null, END);
+
+    assertNotNull(target);
+    final FakeView.FakeTab moved = windows.view(target).selected;
+    assertArrayEquals(new int[] {3, 4, 5, 6}, moved.shown.brackets);
+    assertArrayEquals(new int[] {0, 3, 7, 10}, moved.shown.occurrences);
+    moved.shown.brackets = new int[0];
+    moved.shown.occurrences = new int[0];
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return moved.shown.brackets.length == 4 && moved.shown.occurrences.length == 4;
+          }
+        },
+        "the highlights computed again");
+  }
+
+  @Test
   void aTrimRunningDuringAMoveToAnExistingWindowDeliversThere() throws Exception {
     Document document = open(first, "trim.txt", "one  \ntwo\t\n");
     ApplicationController second = windows.second();
@@ -602,5 +682,130 @@ class TabMoveTest {
             },
             Duration.ofSeconds(5)),
         "the closed document is still reachable");
+  }
+
+  private static byte[] windows31j(byte... body) throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    out.write(
+        "<?xml version=\"1.0\" encoding=\"windows-31j\"?>\n".getBytes(StandardCharsets.US_ASCII));
+    out.write(body);
+    return out.toByteArray();
+  }
+
+  /** ED 40 decodes to a char that encodes as FA 5C, so a save would change the bytes. */
+  @Test
+  void theRoundTripGuardMovesWithTheTab() throws Exception {
+    Path file = temp.resolve("guarded.xml");
+    Files.write(file, windows31j((byte) 0xed, (byte) 0x40, (byte) '\n'));
+    windows.open(first, file);
+    final Document document = first.documents().activeDocument();
+    assertTrue(document.isReadOnly());
+    ApplicationController target = set.moveDocument(first, document, null, END);
+    assertTrue(target.documents().activeRefusesSave(), "the guard stayed behind");
+    Files.write(file, windows31j((byte) 'a', (byte) 'b', (byte) 'c', (byte) '\n'));
+    target.documents().checkFiles();
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return document.text().toString().endsWith("abc\n");
+          }
+        },
+        "reloaded");
+    windows.settle("reload");
+    assertFalse(document.isReadOnly(), "the read-only state the guard set stayed");
+    assertFalse(target.documents().activeRefusesSave());
+  }
+
+  @Test
+  void aMissingFileMovesWithTheTabAndItsCleanStateReturns() throws Exception {
+    final Document document = open(first, "missing.txt", "text\n");
+    Path file = temp.resolve("missing.txt");
+    Files.delete(file);
+    first.documents().checkFiles();
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return document.isDirty();
+          }
+        },
+        "marked missing");
+    windows.settle("check");
+    ApplicationController target = set.moveDocument(first, document, null, END);
+    assertEquals(UiText.TAB_MISSING.format("*missing.txt"), windows.view(target).selected.title);
+    Files.writeString(file, "text\n", StandardCharsets.UTF_8);
+    target.documents().checkFiles();
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !document.isDirty();
+          }
+        },
+        "the file is back");
+    windows.settle("check");
+    assertEquals("missing.txt", windows.view(target).selected.title);
+  }
+
+  /** Starts a save held in its encoder, cancels it and moves the tab while its writer runs. */
+  private ApplicationController moveDuringACanceledSave(Document document, GatedCharset gate)
+      throws Exception {
+    first.documents().saveWithEncoding(gate);
+    first.documents().activeEditor().type("x");
+    gate.armEncoder();
+    first.documents().save();
+    assertTrue(gate.awaitHeld());
+    first.documents().cancelSave();
+    ApplicationController target = set.moveDocument(first, document, null, END);
+    assertNotNull(target);
+    return target;
+  }
+
+  @Test
+  void aCanceledSavesWriterEndingAfterTheMoveLeavesTheTargetsState() throws Exception {
+    Document document = open(first, "late.txt", "text\n");
+    Path real = first.documents().activePath();
+    GatedCharset gate = new GatedCharset();
+    ApplicationController target = moveDuringACanceledSave(document, gate);
+    gate.release();
+    windows.settle("the writer");
+    assertTrue(document.isDirty());
+    assertEquals(real, target.documents().activePath());
+    assertEquals("*late.txt", windows.view(target).selected.title);
+    assertEquals("text\n", Files.readString(temp.resolve("late.txt")));
+    target.execute(CommandId.SAVE);
+    windows.settle("save");
+    assertFalse(document.isDirty());
+    assertEquals("xtext\n", Files.readString(temp.resolve("late.txt")));
+    assertTrue(windows.view(target).changePrompts.isEmpty(), "the save found a conflict");
+  }
+
+  @Test
+  void aCanceledSavesLateResultLeavesTheTargetsRunningSave() throws Exception {
+    Document document = open(first, "both.txt", "text\n");
+    GatedCharset canceled = new GatedCharset();
+    ApplicationController target = moveDuringACanceledSave(document, canceled);
+    GatedCharset running = new GatedCharset("X-QCARET-TEST-GATE-2");
+    target.documents().saveWithEncoding(running);
+    running.armEncoder();
+    target.documents().save();
+    canceled.release();
+    assertTrue(running.awaitHeld());
+    final FakeView source = windows.view(first);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return source.active.get() == 0;
+          }
+        },
+        "the canceled writer ended");
+    windows.ui.runPending();
+    assertFalse(target.documents().canMove(document), "the late result ended the target's save");
+    running.release();
+    windows.settle("save");
+    assertFalse(document.isDirty());
+    assertEquals("xtext\n", Files.readString(temp.resolve("both.txt")));
   }
 }

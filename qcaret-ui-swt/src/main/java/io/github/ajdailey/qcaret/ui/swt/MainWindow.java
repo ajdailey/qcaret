@@ -231,7 +231,6 @@ public final class MainWindow implements MainView {
   private SearchDialog searchDialog;
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
-  private RunChooser runChooser;
   private ChangeDialog changeDialog;
   private RecoveryDialog recoveryDialog;
   private DocumentChooser documentChooser;
@@ -2423,18 +2422,8 @@ public final class MainWindow implements MainView {
   @Override
   public void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen) {
     if (!shell.isDisposed()) {
-      runChooser = new RunChooser(shell, runs, chosen);
-      runChooser.open();
+      new RunChooser(shell, runs, chosen).open();
     }
-  }
-
-  /**
-   * Returns the Restore Replace Run chooser.
-   *
-   * @return the dialog, or null before it opened
-   */
-  RunChooser runChooser() {
-    return runChooser;
   }
 
   /**

@@ -27,7 +27,8 @@ import java.util.function.LongConsumer;
 /**
  * Opens files for one window. A {@code qcaret-io-} worker resolves the path to its real path, the
  * UI thread offers it to {@link Listener#resolved} (an open document ends the open there), and a
- * second worker reads the file; every result reaches the {@link Listener} on the UI thread. Before
+ * second worker reads the file; every result reaches the open's {@link Listener} on the UI thread,
+ * one call ending it, or none once the opener is closed or the workers refuse the task. Before
  * reading, the worker estimates the load's heap cost ({@link DocumentFiles#estimate}) and reserves
  * it from the {@link MemoryBudget}; a load the budget cannot hold is refused unread, and a load
  * whose text outgrows the estimate past the budget is refused when it gets there. A loaded document
@@ -40,12 +41,12 @@ import java.util.function.LongConsumer;
  * Listener#failed}, and goes on to the worker's handler.
  *
  * <p>A load still reading {@value #PROGRESS_DELAY_MILLIS} ms after it started shows through {@link
- * Listener#progress}, with every other running load, until the last ends or {@link #cancelLoads}
+ * Progress#progress}, with every other running load, until the last ends or {@link #cancelLoads}
  * stops them. A canceled load drops whatever it read and releases its reservation; {@link
  * Listener#canceled} replaces its result, also when the worker had already finished.
  */
 public final class DocumentOpener {
-  /** Receives load results on the UI thread. */
+  /** Receives one open's results on the UI thread. */
   public interface Listener {
     /**
      * A path resolved, before the file is read.
@@ -99,7 +100,10 @@ public final class DocumentOpener {
      * @param path the validated path
      */
     void canceled(Path path);
+  }
 
+  /** Receives the progress of the window's running loads on the UI thread. */
+  public interface Progress {
     /**
      * The running loads' progress changed, or they ran past the delay and show from now on.
      *
@@ -120,12 +124,14 @@ public final class DocumentOpener {
   private static final class Load {
     final Path path;
     final CancellationToken token;
+    final Listener listener;
     volatile long total;
     volatile long read;
 
-    Load(Path path, CancellationToken token) {
+    Load(Path path, CancellationToken token, Listener listener) {
       this.path = path;
       this.token = token;
+      this.listener = listener;
     }
   }
 
@@ -133,7 +139,7 @@ public final class DocumentOpener {
   private final UiDispatcher ui;
   private final MemoryBudget budget;
   private final ActivityIndicator activity;
-  private final Listener listener;
+  private final Progress progress;
   private final Set<CancellationToken> running = ConcurrentHashMap.newKeySet();
   private final Set<CancellationToken> waiting = ConcurrentHashMap.newKeySet();
   private final List<Load> loads = new ArrayList<Load>();
@@ -169,19 +175,19 @@ public final class DocumentOpener {
    * @param ui runs the results on the UI thread
    * @param budget the documents' heap share
    * @param activity counts the running loads
-   * @param listener receives the results
+   * @param progress receives the running loads' progress
    */
   public DocumentOpener(
       Workers workers,
       UiDispatcher ui,
       MemoryBudget budget,
       ActivityIndicator activity,
-      Listener listener) {
+      Progress progress) {
     this.workers = workers;
     this.ui = ui;
     this.budget = budget;
     this.activity = activity;
-    this.listener = listener;
+    this.progress = progress;
   }
 
   /**
@@ -191,9 +197,11 @@ public final class DocumentOpener {
    *
    * @param path the file as the user named it
    * @param options the forced charset, fallback and undo bounds
+   * @param listener receives this open's results
    * @return cancels this open alone; {@link Listener#canceled} ends it
    */
-  public CancellationToken open(final Path path, final LoadOptions options) {
+  public CancellationToken open(
+      final Path path, final LoadOptions options, final Listener listener) {
     final CancellationToken token = new CancellationToken();
     if (closed) {
       return token;
@@ -213,14 +221,14 @@ public final class DocumentOpener {
                     return;
                   }
                   Path file = SafePaths.userFile(path);
-                  handedOn = postResolved(path, file, options, token);
+                  handedOn = postResolved(path, file, options, token, listener);
                 } catch (IOException e) {
                   reported = true;
-                  postFailed(path, e, token);
+                  postFailed(path, e, token, listener);
                 } finally {
                   if (!handedOn) {
                     if (!reported) {
-                      postFailed(path, stopped(), token);
+                      postFailed(path, stopped(), token, listener);
                     }
                     end(token);
                   }
@@ -247,7 +255,8 @@ public final class DocumentOpener {
       final Path requested,
       final Path file,
       final LoadOptions options,
-      final CancellationToken token) {
+      final CancellationToken token,
+      final Listener listener) {
     waiting.add(token);
     if (closed) {
       return !waiting.remove(token);
@@ -270,7 +279,7 @@ public final class DocumentOpener {
               reading =
                   !closed
                       && !listener.resolved(requested, file)
-                      && load(file, listener.options(file, options), token);
+                      && load(file, listener.options(file, options), token, listener);
               answered = true;
             } finally {
               if (!reading) {
@@ -286,8 +295,8 @@ public final class DocumentOpener {
   }
 
   /** Starts reading a resolved file on a worker, which ends the open; false when not started. */
-  private boolean load(Path file, LoadOptions options, CancellationToken token) {
-    Load load = new Load(file, token);
+  private boolean load(Path file, LoadOptions options, CancellationToken token, Listener listener) {
+    Load load = new Load(file, token, listener);
     track(load);
     boolean started = read(load, options);
     if (!started) {
@@ -383,7 +392,7 @@ public final class DocumentOpener {
     ui.cancelTimer(showLoads);
     if (shown) {
       shown = false;
-      listener.progressEnded();
+      progress.progressEnded();
     }
   }
 
@@ -402,7 +411,7 @@ public final class DocumentOpener {
     if (percent != shownPercent || loads.size() != shownFiles) {
       shownPercent = percent;
       shownFiles = loads.size();
-      listener.progress(shownFiles == 1 ? loads.get(0).path : null, shownFiles, percent);
+      progress.progress(shownFiles == 1 ? loads.get(0).path : null, shownFiles, percent);
     }
   }
 
@@ -447,7 +456,11 @@ public final class DocumentOpener {
   private record Loaded(LoadedFile file, DisplayProjection.Layout layout, long reserved) {}
 
   /** Posts the failure of an open that never reached a read; a canceled open reports the cancel. */
-  private void postFailed(final Path path, final IOException error, final CancellationToken token) {
+  private void postFailed(
+      final Path path,
+      final IOException error,
+      final CancellationToken token,
+      final Listener listener) {
     ui.asyncExec(
         new Runnable() {
           @Override
@@ -490,11 +503,11 @@ public final class DocumentOpener {
               if (loaded != null) {
                 budget.release(loaded.reserved());
               }
-              listener.canceled(load.path);
+              load.listener.canceled(load.path);
             } else if (error != null) {
-              listener.failed(load.path, error);
+              load.listener.failed(load.path, error);
             } else {
-              listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
+              load.listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
             }
           }
         });
@@ -510,9 +523,9 @@ public final class DocumentOpener {
             }
             finished(load);
             if (load.token.isCanceled()) {
-              listener.canceled(load.path);
+              load.listener.canceled(load.path);
             } else {
-              listener.tooLarge(load.path, cost, available, budget.maxHeap());
+              load.listener.tooLarge(load.path, cost, available, budget.maxHeap());
             }
           }
         });

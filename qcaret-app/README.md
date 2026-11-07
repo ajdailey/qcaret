@@ -302,9 +302,19 @@ documents alone.
   load started next gets its own delay. A canceled load ends in
   `Listener.canceled` on the UI thread, whichever it reached: the worker's check,
   or a finished read still in the queue, which drops the document and releases
-  the reservation. `loadCanceled` forgets the open's reopen, charset, callback
-  and restore state; a session tab counts as done and reports no failure, so it
+  the reservation. A session tab counts as done and reports no failure, so it
   leaves the next saved session. An open still resolving its path is not canceled.
+- Each open is one `DocumentController.Open`, the listener of that open alone. It
+  holds the open's callback, restore, forced charset, the path the user gave and
+  what a reopen replaces, so two loads of one file share nothing and each load
+  end drops what its open held. Every end runs `finishRestore`, because a restore
+  whose `done` never runs holds back `recovery.start` and the session save; an
+  opener closed with a restore running ends in no call, which happens only at
+  quit, since `WindowSet.requestClose` refuses a window's close during a restore.
+  The retry without a remembered encoding reuses the object. Two opens of one
+  file with callbacks each run theirs at their load's end, except that an older
+  open ending after a newer one reached the tab drops its callback
+  (`OpenDocument.landed`), so the caret stays at the last place asked for.
 - A binary file opens only after the user accepts the prompt, as a read-only
   ISO-8859-1 view whose tab and status bar say so. Save and Save As refuse it
   in the controller, whichever command path calls them, and the editor
@@ -312,10 +322,11 @@ documents alone.
 - Reopen with Encoding loads a clean document's file again with the chosen
   charset and replaces the document in its tab once loaded. A failed or refused
   load shows a notice and leaves it open, and so does a missing file: a reopen
-  adds no tab. `reopening` holds the document, its revision and the load's
-  token: closing the tab cancels the load, and an edit or a Save As during the
-  load keeps the document and drops the load. One reopen of a document runs at a
-  time. `reopenWithDetection` does the same with detection, past a
+  adds no tab. `OpenDocument.reopen` holds the running `Open`, with the document,
+  its revision and the load's token: closing the tab cancels the load, and an
+  edit or a Save As during the load keeps the document and drops the load. A
+  plain open of the file meanwhile selects the tab unread. One reopen of a
+  document runs at a time. `reopenWithDetection` does the same with detection, past a
   remembered charset, and leaves the document's `forced` charset null, so the
   file state and the session hold none. Save with Encoding changes only what the next save writes
   and makes the document dirty; the byte order mark is dropped for another
@@ -464,12 +475,16 @@ undo history, dirty state, carets, folds, bookmarks, grammar, encoding, line
 endings and the read-only flag go with them; scroll is read from the old view
 (`EditorView.topRow`) and set on the new one on the next UI turn
 (`scrollToRow`). The buffer id goes with the document, so its recovery file and
-written revision stand, and the forced charset goes with the entry. The source's
-`OpenDocument` ends as
-closed, so a prompt or a late grammar detection holding it drops out, and the
-target builds its own around the same objects: the editors' callbacks, clipboard
-and overview are connected again, and the file watch moves to the target's
-`ExternalChanges`. A window left without a tab stays open, empty.
+written revision stand. The source's `OpenDocument` ends as closed, so a prompt
+or a late grammar detection holding it drops out, and the target builds its own
+around the same objects: the editors' callbacks, clipboard and overview are
+connected again, and the file watch moves to the target's `ExternalChanges`. The
+two entries share one `OpenFile`, the document's file link: paths, the save
+baseline, the forced charset, the watch, the missing and round-trip state and
+the running save and reload. A late result of the source's entry compares its
+token and `closed` before it writes there, so a canceled save's writer ending
+after the move leaves the target's state alone. `discard` and `moveTo` take the
+entry out through one `detach`. A window left without a tab stays open, empty.
 
 The move is refused with a notice while the tab's save, conversion or reload
 runs, or its change prompt shows, because each delivers to the source's entry;
@@ -726,8 +741,9 @@ A file that never holds still is reported after the fifth wait.
   (`readOnlyByGuard`); Toggle Read-Only makes the state the user's.
 - One prompt per document at a time. A newer change while it is open becomes
   the change the answer acts on. Keep Mine takes the file's new baseline for
-  the checks but keeps the save baseline, so the next save asks; closing the
-  prompt keeps.
+  the checks (`watch.baseline()`, which recovery records as a buffer's base) but
+  keeps the save baseline (`OpenFile.baseline`), so the next save asks; closing
+  the prompt keeps.
 - The save conflict prompt replaces the save's notice: Overwrite writes
   without the baseline check, Reload and Compare act as in the change prompt,
   Cancel leaves the document dirty.
@@ -773,9 +789,11 @@ computes nothing. The strip scales by model lines, marks and click alike, so
 folds change neither: a mark on a hidden line stays, and a click there scrolls
 to the row of the fold's first line (`DisplayProjection.rowOfLine`).
 
-`DocumentOpener` opens files for one window on `qcaret-io-` workers. A worker
-resolves the path (`SafePaths.userFile`) and posts it to the UI thread, where
-`Listener.resolved` ends the open unread for an open document; otherwise a
+`DocumentOpener` opens files for one window on `qcaret-io-` workers. Each `open`
+takes its own `Listener`, which gets one call ending the open, or none once the
+opener is closed or the workers refuse the task; `Progress` is the window's. A
+worker resolves the path (`SafePaths.userFile`) and posts it to the UI thread,
+where `Listener.resolved` ends the open unread for an open document; otherwise a
 second worker reads it. An open waiting for the UI thread is ended by `close`
 too, so a task the dispatcher drops still ends its activity. Before reading,
 it estimates the load (`DocumentFiles.estimate`) and reserves it from
@@ -879,13 +897,14 @@ document ignores edits. The controller also runs the projection's rewraps on
   Select to Matching Bracket selects from the bracket to the partner. Each
   partner is sought on the UI thread within 16 Ki chars of its bracket; one
   further away sends every search to a worker, applied only at the same
-  revision and selections.
-- One UI turn after a caret move, an edit or a scroll, the view gets the
-  bracket beside the primary caret with its partner (sought on the UI thread
-  within the visible range and 16 Ki chars on each side, else on a worker) and
-  the whole-word occurrences of the word at the primary caret in the visible
-  range (on a worker, at most 2,000, shown when there are two or more). An
-  edit shifts both at once; a result for an older revision is dropped.
+  revision and selections. A scroll does not end that search.
+- One UI turn after a caret move, an edit or a scroll, `EditorHighlights` gives
+  the view the bracket beside the primary caret with its partner (sought on the
+  UI thread within the visible range and 16 Ki chars on each side, else on a
+  worker) and the whole-word occurrences of the word at the primary caret in
+  the visible range (on a worker, at most 2,000, shown when there are two or
+  more). An edit shifts both at once; a result for an older revision is
+  dropped. A moved tab's new view shows both at once and computes them again.
 - Complete Word looks up the word chars before the primary caret in every open
   document (`WordCompletion`); one match is inserted at once, more show the
   view's list. With `editor.completionChars` above 0 the list also opens after
@@ -1322,7 +1341,9 @@ at `WINDOW_BOUND`; a listener that never answers. `WindowSessionTest` covers
 launches handed during a restore (tabs, `-n`, `--diff`, a quit) and while the
 recovery dialog shows. `WindowSetTest` covers
 what the windows share, handoff targets, the one-buffer rule, close and quit.
-`TabMoveTest` (over `Windows`, a set of `FakeView`s) covers the state a move
+`TabMoveTest` (over `Windows`, a set of `FakeView`s) covers the round-trip guard
+and a missing file moving with the tab, a canceled save's writer ending after
+the move with the target's state and its running save untouched, the state a move
 carries, refusals, close and quit around a move, and a line transform or replace
 run delivered after the move; the budget returning to its start shows each
 document released once. `QuitPromptsTest` covers answers before saves, Cancel,
@@ -1397,7 +1418,14 @@ three answers, `closeAll` stopping at Cancel, word wrap across editors and the
 heap refusal. It holds a close's save and a Save As in the encoder and edits
 meanwhile, holds a reopen in the decoder and closes, saves or renames meanwhile,
 and refuses a reopen and an open: each leaves the tabs, the text, the
-reservation and `canMove` as they were. An unchecked decoder failure ends a
+reservation and `canMove` as they were. Each way an open ends (loaded, unread,
+refused, canceled, failed) ends its restore and leaves nothing for the next
+open of the file. Two loads of one file keep apart: the last callback decides
+where the caret lands, a close and an open inside one reopen's load keep the
+open's callback, a plain open during a reopen or a restore leaves the reopen's
+charset and the session tab's state, and a reopen that fails to resolve leaves
+the remembered encoding. The retry after a remembered encoding keeps the
+callback and the link, and canceling it ends the restore. An unchecked decoder failure ends a
 tab's restore and shows a failed open, and a closed document a completion read
 is collected. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
@@ -1408,7 +1436,8 @@ and Save As converting, a file without write permission (skipped where the user
 writes every file) and a charset without an encoder, which reports the failure
 and keeps the document dirty.
 `ExternalChangesTest` pins a truncate and a later write to one report.
-`ExternalChangeTest` covers a clean document reloaded as one undo step with
+`ExternalChangeTest` covers Keep Mine recording the declined file as a buffer's
+base, a clean document reloaded as one undo step with
 its caret line kept, a dirty document's prompt with Keep Mine making the next
 save ask and Overwrite writing, a file that never holds still reloading anyway, Reload keeping the edits in undo, a newer
 change updating the open prompt, a deleted file kept missing and dirty until
@@ -1517,8 +1546,9 @@ carets, a block typing plainly, a sort on a worker as one undo step with the
 view busy until it applies, a line transform dropped with a notice after an
 edit, bookmarks following an
 inserted break with wrap-around navigation, Go to and Select to Matching
-Bracket at every caret and past the UI-thread bound, the bracket and
-occurrence highlights, and completion: words of another open document, the
+Bracket at every caret and past the UI-thread bound, through a scroll, the
+bracket and occurrence highlights with their stale results dropped, and
+completion: words of another open document, the
 list narrowing, arrows, Esc, Enter, the single-word insert and the automatic
 trigger. `CommandPaletteTest` covers `Fuzzy`, every menu command listed in
 menu order, cascade titles, keys and enabled state, and running only an

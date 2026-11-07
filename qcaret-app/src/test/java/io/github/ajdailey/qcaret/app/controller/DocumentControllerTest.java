@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -924,5 +925,350 @@ class DocumentControllerTest {
     settle();
     assertTrue(view.tabs.isEmpty());
     assertEquals(0, budget.reserved());
+  }
+
+  // Per-load open state: each open keeps its own callback, charset and restore.
+
+  private static final String LATIN = "ISO-8859-1";
+
+  /** How a session tab's restore ended. */
+  private static final class RestoreEnd implements Runnable, Consumer<String> {
+    final List<String> failed = new ArrayList<String>();
+    int done;
+
+    @Override
+    public void run() {
+      done++;
+    }
+
+    @Override
+    public void accept(String name) {
+      failed.add(name);
+    }
+  }
+
+  /** Restores a tab of seven columns per tab stop. */
+  private RestoreEnd restore(Path file, String encoding) {
+    RestoreEnd end = new RestoreEnd();
+    documents.restore(
+        new Session.Tab(
+            file.toString(),
+            "",
+            "",
+            encoding,
+            "",
+            false,
+            7,
+            false,
+            List.of(),
+            0,
+            false,
+            "",
+            "",
+            List.of(),
+            false),
+        end,
+        end);
+    return end;
+  }
+
+  private BooleanSupplier ended(final RestoreEnd end) {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return end.done > 0;
+      }
+    };
+  }
+
+  /** Opens a file at its second line with a forced charset. */
+  private void openAtLineTwo(Path file) {
+    documents.open(new FileRequest(file, 2, 1, false, LATIN));
+  }
+
+  private int caret() {
+    return documents.activeEditor().selections().selections().primary().caret();
+  }
+
+  /** Opens a file plainly and checks that nothing an earlier open asked for reaches it. */
+  private void assertAFirstOpen(Path file) throws Exception {
+    documents.open(List.of(file));
+    await(tabs(1));
+    settle();
+    assertNull(documents.activeForced(), "an earlier open's charset applied");
+    assertEquals(Document.DEFAULT_TAB_WIDTH, documents.activeDocument().tabWidth());
+    assertEquals(0, caret(), "an earlier open's callback ran");
+  }
+
+  @Test
+  void anOpenThatLoadedLeavesNothingForTheNextOpen() throws Exception {
+    Path file = file("a.txt", "one\ntwo\n");
+    RestoreEnd end = restore(file, LATIN);
+    await(ended(end));
+    assertEquals(7, documents.activeDocument().tabWidth());
+    assertEquals(StandardCharsets.ISO_8859_1, documents.activeForced());
+    documents.closeActive();
+    openAtLineTwo(file);
+    await(tabs(1));
+    assertEquals(4, caret());
+    documents.closeActive();
+    assertAFirstOpen(file);
+    assertEquals(1, end.done);
+    assertTrue(end.failed.isEmpty());
+  }
+
+  @Test
+  void anOpenEndedUnreadEndsItsRestoreAndLeavesTheTab() throws Exception {
+    Path file = openOne("a.txt", "one\ntwo\n");
+    Document before = documents.activeDocument();
+    RestoreEnd end = restore(file, LATIN);
+    await(ended(end));
+    settle();
+    assertSame(before, documents.activeDocument());
+    assertEquals(Document.DEFAULT_TAB_WIDTH, before.tabWidth());
+    assertEquals(1, end.done);
+    assertTrue(end.failed.isEmpty());
+  }
+
+  @Test
+  void aRefusedOpenLeavesNothingForTheNextOpen() throws Exception {
+    Path file = file("a.txt", "one\ntwo\n");
+    long free = budget.available();
+    assertTrue(budget.reserve(free));
+    RestoreEnd end;
+    try {
+      end = restore(file, LATIN);
+      await(ended(end));
+      assertTrue(view.infos.isEmpty(), "a refused restore shows no prompt");
+      openAtLineTwo(file);
+      await(refused());
+      settle();
+    } finally {
+      budget.release(free);
+    }
+    assertEquals(List.of("a.txt"), end.failed);
+    assertAFirstOpen(file);
+    assertEquals(1, end.done);
+  }
+
+  @Test
+  void aCanceledOpenLeavesNothingForTheNextOpen() throws Exception {
+    Path file = file("a.txt", "one\ntwo\n");
+    RestoreEnd end = restore(file, LATIN);
+    await(loadShown());
+    view.loadCancel.run();
+    await(ended(end));
+    openAtLineTwo(file);
+    await(loadShown());
+    view.loadCancel.run();
+    await(noLoad());
+    settle();
+    assertTrue(view.tabs.isEmpty());
+    assertTrue(end.failed.isEmpty());
+    assertAFirstOpen(file);
+    assertEquals(1, end.done);
+  }
+
+  @Test
+  void aFailedOpenLeavesNothingForTheNextOpen() throws Exception {
+    Path directory = temp.resolve("gone");
+    Path file = directory.resolve("a.txt");
+    RestoreEnd end = restore(file, LATIN);
+    await(ended(end));
+    assertEquals(List.of("a.txt"), end.failed);
+    openAtLineTwo(file);
+    await(refused());
+    settle();
+    Files.createDirectory(directory);
+    Files.writeString(file, "one\ntwo\n");
+    assertAFirstOpen(file);
+    assertEquals(1, end.done);
+  }
+
+  private Consumer<EditorController> recording(final List<String> ran, final String name) {
+    return new Consumer<EditorController>() {
+      @Override
+      public void accept(EditorController editor) {
+        ran.add(name);
+      }
+    };
+  }
+
+  @Test
+  void theLastOfTwoOpensOfAFileDecidesWhereItLands() throws Exception {
+    Path file = file("a.txt", "mock\n");
+    List<String> ran = new ArrayList<String>();
+    documents.open(file, recording(ran, "first"));
+    documents.open(file, recording(ran, "second"));
+    await(tabs(1));
+    settle();
+    assertEquals(1, view.tabs.size());
+    assertEquals("second", ran.get(ran.size() - 1));
+    assertEquals(ran.indexOf("second"), ran.lastIndexOf("second"));
+  }
+
+  @Test
+  void anOlderOpenEndingLastDoesNotMoveTheCaretBack() throws Exception {
+    Path file = file("a.txt", "mock\n");
+    GatedCharset gate = gated();
+    final List<String> ran = new ArrayList<String>();
+    documents.open(file, recording(ran, "first"));
+    await(held(gate));
+    documents.open(file, recording(ran, "second"));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !ran.isEmpty();
+          }
+        });
+    gate.release();
+    await(noLoad());
+    settle();
+    assertEquals(List.of("second"), ran);
+  }
+
+  private DocumentController.FileMemory remembering(final String encoding) {
+    return new DocumentController.FileMemory() {
+      @Override
+      public Session.FileState state(Path path) {
+        return new Session.FileState(path.toString(), encoding, "", 4, false, "", 0);
+      }
+
+      @Override
+      public void remember(Session.FileState state) {
+        // Nothing to keep.
+      }
+    };
+  }
+
+  private Path notUtf8(String name) throws Exception {
+    Path file = temp.resolve(name);
+    Files.write(file, new byte[] {'a', (byte) 0xe9, '\n'});
+    return file;
+  }
+
+  @Test
+  void aRetryAfterARememberedEncodingKeepsTheCallbackAndTheLink() throws Exception {
+    Path link = link("link.txt", notUtf8("a.txt"));
+    documents.setFileMemory(remembering("UTF-8"));
+    List<String> ran = new ArrayList<String>();
+    documents.open(link, recording(ran, "placed"));
+    await(tabs(1));
+    settle();
+    assertEquals(List.of("placed"), ran);
+    assertEquals(link.toAbsolutePath().normalize(), documents.activeOpenedPath());
+    assertNull(documents.activeForced());
+  }
+
+  @Test
+  void aCanceledRetryEndsTheRestore() throws Exception {
+    Path file = notUtf8("a.txt");
+    RestoreEnd end = restore(file, "UTF-8");
+    await(loadShown());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.loadCancel == null;
+          }
+        });
+    await(loadShown());
+    view.loadCancel.run();
+    await(ended(end));
+    await(noLoad());
+    settle();
+    assertEquals(1, end.done);
+    assertTrue(end.failed.isEmpty());
+    assertTrue(view.tabs.isEmpty());
+  }
+
+  @Test
+  void aReopenCanceledByItsCloseLeavesALaterOpensCallback() throws Exception {
+    Path file = openOne("a.txt", "mock\n").toRealPath();
+    GatedCharset gate = holdAReopen();
+    documents.closeActive();
+    List<String> ran = new ArrayList<String>();
+    documents.open(file, recording(ran, "placed"));
+    gate.release();
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return documents.loading() == 1;
+              }
+            },
+            BOUND));
+    await(tabs(1));
+    settle();
+    assertEquals(List.of("placed"), ran);
+  }
+
+  @Test
+  void aPlainOpenDuringAReopenSelectsTheTabUnread() throws Exception {
+    Path file = openOne("a.txt", "mock\n");
+    GatedCharset gate = holdAReopen();
+    documents.open(List.of(file));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents.loading() == 1;
+          }
+        });
+    gate.release();
+    await(noLoad());
+    settle();
+    assertEquals(1, view.tabs.size());
+    assertEquals(gate, documents.activeForced());
+    assertEquals(gate, documents.activeDocument().encoding().charset());
+  }
+
+  @Test
+  void aReopenThatFailsToResolveLeavesTheNextOpensRememberedEncoding() throws Exception {
+    Path directory = Files.createDirectory(temp.resolve("dir"));
+    Path file = directory.resolve("a.txt");
+    Files.writeString(file, "mock\n");
+    documents.setFileMemory(remembering(LATIN));
+    documents.open(List.of(file));
+    await(tabs(1));
+    settle();
+    Files.delete(file);
+    Files.delete(directory);
+    documents.reopenWithDetection();
+    await(refused());
+    settle();
+    documents.closeActive();
+    Files.createDirectory(directory);
+    Files.writeString(file, "mock\n");
+    documents.open(List.of(file));
+    await(tabs(1));
+    settle();
+    assertEquals(StandardCharsets.ISO_8859_1, documents.activeForced());
+  }
+
+  @Test
+  void aPlainOpenDuringARestoreKeepsTheTabsSessionState() throws Exception {
+    Path file = file("a.txt", "mock\n");
+    GatedCharset gate = gated();
+    RestoreEnd end = restore(file, "");
+    await(held(gate));
+    documents.open(List.of(file));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.tabs.size() == 1;
+          }
+        });
+    gate.release();
+    await(ended(end));
+    await(noLoad());
+    settle();
+    assertEquals(1, view.tabs.size());
+    assertEquals(7, documents.activeDocument().tabWidth());
+    assertEquals(1, end.done);
+    assertTrue(end.failed.isEmpty());
   }
 }

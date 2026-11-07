@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.ui.swt.archfixture;
 
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
-import io.github.ajdailey.qcaret.core.concurrent.OperationHandle;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -49,7 +48,6 @@ final class ViewViolations {
         Semaphore semaphore,
         BlockingQueue<String> queue,
         CountDownLatch latch,
-        OperationHandle handle,
         FileChannel channel)
         throws InterruptedException, ExecutionException, IOException {
       future.get();
@@ -60,7 +58,6 @@ final class ViewViolations {
       semaphore.acquire();
       queue.put("x");
       latch.await();
-      handle.await(1);
       channel.close();
     }
   }

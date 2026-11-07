@@ -1,7 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller.archfixture;
 
 import io.github.ajdailey.qcaret.app.about.UserGuide;
-import io.github.ajdailey.qcaret.core.concurrent.OperationHandle;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
@@ -83,12 +82,11 @@ final class ControllerViolations {
 
   /** Waits for other threads. */
   static final class Waits {
-    void await(Future<String> future, CountDownLatch latch, OperationHandle handle)
+    void await(Future<String> future, CountDownLatch latch)
         throws InterruptedException, ExecutionException {
       future.get();
       Thread.sleep(1);
       latch.await();
-      handle.await(1);
     }
   }
 
