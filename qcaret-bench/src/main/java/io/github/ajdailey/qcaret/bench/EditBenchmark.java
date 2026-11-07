@@ -19,9 +19,7 @@ import org.openjdk.jmh.annotations.Warmup;
 /** W3 random edits, W5 replace-all and W8 undo and redo, on 10 MiB; one run per iteration. */
 @BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(
-    value = 2,
-    jvmArgsAppend = {StorageHarness.LAUNCHER_HEAP, StorageHarness.LAUNCHER_GC})
+@Fork(value = 2, jvmArgsAppend = "-XX:MaxRAMPercentage=50")
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
 public class EditBenchmark {

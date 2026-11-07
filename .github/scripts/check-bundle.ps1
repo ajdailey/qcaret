@@ -83,7 +83,7 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
     Wait-LogLine $logFile 'Main window open'
     Wait-LogLine $logFile 'Grammars read'
 
-    $second = Start-Process -FilePath $Javaw -ArgumentList @('-XX:MaxRAMPercentage=50', '-XX:GCTimeRatio=1', '-jar', "`"$jar`"", '--settings', "`"$settings`"", "`"$handed`"") -PassThru
+    $second = Start-Process -FilePath $Javaw -ArgumentList @('-XX:MaxRAMPercentage=50', '-jar', "`"$jar`"", '--settings', "`"$settings`"", "`"$handed`"") -PassThru
     # ExitCode reads null unless the handle was taken while the process ran.
     $null = $second.Handle
     # A failed handoff opens its own window and never exits, so the wait is bounded.

@@ -44,9 +44,9 @@ public final class StartupHarness {
    * first run is reported apart: it also fills the settings directory and, for {@code qcaret.jar},
    * extracts the SWT natives.
    *
-   * @param target {@code qcaret.jar}, run with this JVM's {@code java}, {@link
-   *     StorageHarness#LAUNCHER_HEAP} and {@link StorageHarness#LAUNCHER_GC}; anything else is an
-   *     executable launcher such as a bundle's {@code bin/qcaret}
+   * @param target {@code qcaret.jar}, run with this JVM's {@code java} and {@link
+   *     StorageHarness#LAUNCHER_HEAP}; anything else is an executable launcher such as a bundle's
+   *     {@code bin/qcaret}
    * @param file the file opened
    * @param settings the {@code --settings} directory, created when missing; holds each run's output
    * @param runs launches, at least 1
@@ -62,7 +62,6 @@ public final class StartupHarness {
       if (target.endsWith(".jar")) {
         command.add(StorageHarness.javaCommand());
         command.add(StorageHarness.LAUNCHER_HEAP);
-        command.add(StorageHarness.LAUNCHER_GC);
         command.add("-jar");
       }
       command.add(target);

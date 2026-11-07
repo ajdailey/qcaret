@@ -17,15 +17,12 @@ import java.util.Locale;
  * w1heap}, {@code w2}, {@code w3heap}, {@code w4}; none runs all four.
  *
  * <p>Runs at the shipped launchers' heap, {@value #LAUNCHER_HEAP}: a JVM started without a heap
- * option relaunches the harness with it and the launchers' {@value #LAUNCHER_GC}. A heap option on
- * the command line runs in place; {@code -Dqcaret.bench.heap=jvm} runs in place at the JVM default.
+ * option relaunches the harness with it. A heap option on the command line runs in place; {@code
+ * -Dqcaret.bench.heap=jvm} runs in place at the JVM default.
  */
 public final class StorageHarness {
   /** The heap option of {@code qcaret-dist/src/bin/qcaret} and the other launchers. */
   static final String LAUNCHER_HEAP = "-XX:MaxRAMPercentage=50";
-
-  /** The garbage collector option of the same launchers. */
-  static final String LAUNCHER_GC = "-XX:GCTimeRatio=1";
 
   private static final String[] HEAP_OPTIONS = {
     "-Xmx", "-XX:MaxRAMPercentage=", "-XX:MaxRAM=", "-XX:MaxHeapSize="
@@ -86,16 +83,12 @@ public final class StorageHarness {
     return null;
   }
 
-  /**
-   * Runs a harness in a new JVM with {@link #LAUNCHER_HEAP}, {@link #LAUNCHER_GC} and this JVM's
-   * options.
-   */
+  /** Runs a harness in a new JVM with {@link #LAUNCHER_HEAP} and this JVM's options. */
   static int relaunch(Class<?> harness, List<String> options, String[] args)
       throws IOException, InterruptedException {
     List<String> command = new ArrayList<String>();
     command.add(javaCommand());
     command.add(LAUNCHER_HEAP);
-    command.add(LAUNCHER_GC);
     command.addAll(options);
     command.add("-cp");
     command.add(System.getProperty("java.class.path"));

@@ -183,7 +183,6 @@
                                 <requires64Bit>true</requires64Bit>
                                 <opts>
                                     <opt>-XX:MaxRAMPercentage=50</opt>
-                                    <opt>-XX:GCTimeRatio=1</opt>
                                 </opts>
                             </jre>
                             <!-- Explicit file properties; the defaults would

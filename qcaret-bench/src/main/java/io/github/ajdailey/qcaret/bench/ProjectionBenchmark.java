@@ -34,9 +34,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * includes the rope and the undo step.
  */
 @BenchmarkMode(Mode.AverageTime)
-@Fork(
-    value = 2,
-    jvmArgsAppend = {StorageHarness.LAUNCHER_HEAP, StorageHarness.LAUNCHER_GC})
+@Fork(value = 2, jvmArgsAppend = "-XX:MaxRAMPercentage=50")
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class ProjectionBenchmark {
