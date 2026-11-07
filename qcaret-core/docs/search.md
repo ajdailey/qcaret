@@ -57,6 +57,10 @@ it to the selections; a match then lies inside one.
 - A line over `maxLineChars` is not searched and is counted in `skippedLines`.
   One chunked pass finds those lines; each searched stretch ends before a
   skipped line, so no match runs into one.
+- The line-start scan and the long-line pass find CR and LF with
+  `String.indexOf` in 4,096-char windows on a `String`, also behind a `Prefix`,
+  and read other text char by char in 64 Ki-char chunks (`SCAN_CHARS`). Each
+  window or chunk checks the `CancellationToken` once.
 - A `PatternTooComplexException` ends the search: the stretch is searched again
   line by line, each line read through a view that ends at the line, and
   `tooComplexLine` names the line that overflowed. The hits before it are kept.
@@ -78,20 +82,22 @@ thread, at most four at a time, and matched on the CPU pool.
 | `BinaryDetector` says binary | `Skip.BINARY` |
 | Read fails, or its directory cannot be listed | `Skip.UNREADABLE` |
 | `MemoryBudget` refuses five bytes per file byte for the read | `Skip.NO_MEMORY` |
-| Otherwise | Decoded with `EncodingDetector` (malformed input as U+FFFD), matched; `FileHits` with encoding, `FileStamp` and SHA-256 when it has hits, skipped lines or a regex failure |
+| Otherwise | Decoded with `EncodingDetector` (malformed input as U+FFFD), matched; `FileHits` with encoding, `FileStamp` and SHA-256 of the bytes read when it has hits, skipped lines or a regex failure |
 
-The `Sink` receives results on worker threads in no fixed order; its `room()`
-bounds the hits, and 0 ends the walk.
+The SHA-256 is computed on the CPU pool after the match, and only for a file
+`FileHits` reports; the file's bytes are held until the match ends, within the
+five-byte reservation. The `Sink` receives results on worker threads in no
+fixed order; its `room()` bounds the hits, and 0 ends the walk.
 
-Cancel stops the walk; `run` returns once the reads in flight end. A read
-checks the `CancellationToken` before each 64 KiB block (`BLOCK_BYTES`) of the
+Cancel stops the walk; `run` returns once the reads in flight end. The
+`CancellationToken` is checked before each 64 KiB block (`BLOCK_BYTES`) of the
 file read, each strict decode that picks the encoding, the decode and the
-SHA-256; the binary check reads only the head. `TextSearch` checks it every 64
-Ki chars while it finds line starts. A file canceled mid-read counts as done
-with no skip, and its reservation is released.
+SHA-256; the binary check reads only the head. A file canceled mid-read counts
+as done with no skip, and its reservation is released.
 
 `FileSearch.searchFile` reads, decodes and matches one file on the calling
-thread, as the walk does each file, for a per-file rerun.
+thread, as the walk does each file, for a per-file rerun. Its `FileHits` has a
+null digest when the outcome has no hits, skipped lines or regex failure.
 
 ## File replace
 

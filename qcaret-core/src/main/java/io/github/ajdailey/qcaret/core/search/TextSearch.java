@@ -185,22 +185,68 @@ public final class TextSearch {
       CharSequence text, int from, int to, int max, CancellationToken token) {
     LongLines scan = new LongLines(from, max);
     int length = text.length();
+    String string = string(text);
     int at = from;
     while (at < length && !scan.past(to)) {
-      token.check();
       int end = (int) Math.min(length, (long) at + SCAN_CHARS);
-      if (text instanceof TextContent content) {
-        content.readChunks(at, end, scan);
+      if (string != null) {
+        for (int window = at; window < end; window += TextMatcher.CHECK_CHARS) {
+          probe(Scan.LONG_LINES, window);
+          token.check();
+          scan.chunk(string, window, Math.min(end, window + TextMatcher.CHECK_CHARS));
+        }
       } else {
-        scan.chunk(text, at, end);
+        probe(Scan.LONG_LINES, at);
+        token.check();
+        if (text instanceof TextContent content) {
+          content.readChunks(at, end, scan);
+        } else {
+          scan.chunk(text, at, end);
+        }
       }
       at = end;
     }
     return scan.finish(at);
   }
 
-  /** Chars read between cancellation checks while finding line starts and long lines. */
+  /**
+   * Chars read between cancellation checks while finding line starts and long lines in text other
+   * than a {@link String}, and the chunk the long-line scan reads before it checks whether it is
+   * done; a {@code String} is checked every {@link TextMatcher#CHECK_CHARS} chars.
+   */
   static final int SCAN_CHARS = 1 << 16;
+
+  /** Returns the text as a {@link String}, also behind a {@link Prefix}, or null. */
+  private static String string(CharSequence text) {
+    CharSequence flat = text instanceof Prefix prefix ? prefix.text() : text;
+    return flat instanceof String string ? string : null;
+  }
+
+  /** A scan for line breaks. */
+  enum Scan {
+    LINE_STARTS,
+    LONG_LINES
+  }
+
+  /** Called at the start of each window of a {@link Scan}, before its cancellation check. */
+  interface Probe {
+    void window(Scan scan, int start);
+  }
+
+  /** Null outside tests. */
+  private static volatile Probe probe;
+
+  /** Sets the probe each {@link Scan} calls, or null for none. */
+  static void setProbe(Probe p) {
+    probe = p;
+  }
+
+  private static void probe(Scan scan, int start) {
+    Probe p = probe;
+    if (p != null) {
+      p.window(scan, start);
+    }
+  }
 
   /** Measures lines as their chars arrive; CR, LF and CR LF each end a line. */
   private static final class LongLines implements ChunkVisitor {
@@ -220,6 +266,33 @@ public final class TextSearch {
     /** Reports whether every line starting before {@code to} is measured. */
     boolean past(int to) {
       return offset >= to && (lineStart >= to || offset - lineStart > max);
+    }
+
+    /** Reads the chars of {@code text} in {@code [start, end)}, at offset {@code start}. */
+    void chunk(String text, int start, int end) {
+      int i = start;
+      int lf = -1;
+      int cr = -1;
+      while (i < end) {
+        if (this.cr) {
+          chunk((CharSequence) text, i, i + 1);
+          i++;
+          continue;
+        }
+        if (lf < i) {
+          lf = next(text, '\n', i, end);
+        }
+        if (cr < i) {
+          cr = next(text, '\r', i, end);
+        }
+        int at = Math.min(lf, cr);
+        offset += at - i;
+        if (at == end) {
+          return;
+        }
+        chunk((CharSequence) text, at, at + 1);
+        i = at + 1;
+      }
     }
 
     @Override
@@ -415,11 +488,21 @@ public final class TextSearch {
     }
   }
 
+  /** Returns the offset of {@code c} in {@code [from, end)}, or {@code end}. */
+  private static int next(String text, char c, int from, int end) {
+    int at = text.indexOf(c, from, end);
+    return at < 0 ? end : at;
+  }
+
   /**
-   * Scans a text for its line starts, checking the token every {@link #SCAN_CHARS} chars; CR, LF
-   * and CR LF each end a line.
+   * Scans a text for its line starts, checking the token every {@link #SCAN_CHARS} chars, or every
+   * {@link TextMatcher#CHECK_CHARS} in a {@link String}; CR, LF and CR LF each end a line.
    */
   private static Lines scan(CharSequence text, CancellationToken token) {
+    String string = string(text);
+    if (string != null) {
+      return scan(string, token);
+    }
     int[] starts = new int[16];
     int count = 1;
     int length = text.length();
@@ -438,6 +521,42 @@ public final class TextSearch {
           starts = Arrays.copyOf(starts, count * 2);
         }
         starts[count++] = i + 1;
+      }
+    }
+    return new StartLines(text, Arrays.copyOf(starts, count));
+  }
+
+  /** Finds the line breaks of a {@link String} with {@link String#indexOf(int, int, int)}. */
+  private static Lines scan(String text, CancellationToken token) {
+    int[] starts = new int[16];
+    int count = 1;
+    int length = text.length();
+    int i = 0;
+    for (int window = 0; window < length; window += TextMatcher.CHECK_CHARS) {
+      probe(Scan.LINE_STARTS, window);
+      token.check();
+      int end = (int) Math.min(length, (long) window + TextMatcher.CHECK_CHARS);
+      int lf = -1;
+      int cr = -1;
+      while (i < end) {
+        if (lf < i) {
+          lf = next(text, '\n', i, end);
+        }
+        if (cr < i) {
+          cr = next(text, '\r', i, end);
+        }
+        int at = Math.min(lf, cr);
+        if (at == end) {
+          break;
+        }
+        i = at + 1;
+        if (at == cr && i < length && text.charAt(i) == '\n') {
+          i++;
+        }
+        if (count == starts.length) {
+          starts = Arrays.copyOf(starts, count * 2);
+        }
+        starts[count++] = i;
       }
     }
     return new StartLines(text, Arrays.copyOf(starts, count));

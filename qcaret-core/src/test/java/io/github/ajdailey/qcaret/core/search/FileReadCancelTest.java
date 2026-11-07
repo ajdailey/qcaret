@@ -36,10 +36,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * A cancel inside a file read: each stage of {@link FileSearch#decode} stops within one block of
- * {@link FileSearch#BLOCK_BYTES}, counted through {@link FileSearch#setProbe}, for the walk and for
- * {@link FileSearch#searchFile}, with the reservation released. The block-wise read gives the same
- * text, encoding, skip, stamp and digest as a whole-file read, detect, decode and digest.
+ * A cancel inside a file read: each {@link FileSearch.Stage} stops within one block of {@link
+ * FileSearch#BLOCK_BYTES}, counted through {@link FileSearch#setProbe}, for the walk and for {@link
+ * FileSearch#searchFile}, with the reservation released. The block-wise read gives the same text,
+ * encoding, skip, stamp, bytes and digest as a whole-file read, detect, decode and digest.
  */
 class FileReadCancelTest {
   /** Least blocks in the large file. */
@@ -134,7 +134,9 @@ class FileReadCancelTest {
         new Executable() {
           @Override
           public void execute() throws IOException {
-            FileSearch.decode(file, options(StandardCharsets.UTF_8, null), token);
+            FileSearch.Decoded decoded =
+                FileSearch.decode(file, options(StandardCharsets.UTF_8, null), token);
+            FileSearch.digest(file, decoded.bytes(), token);
           }
         });
     assertTrue(probe.after() >= 0 && probe.after() <= 1, stage + " blocks after: " + probe.after());
@@ -219,7 +221,7 @@ class FileReadCancelTest {
             .onUnmappableCharacter(CodingErrorAction.REPLACE)
             .decode(ByteBuffer.wrap(bytes, bom, bytes.length - bom))
             .toString();
-    return new FileSearch.Decoded(text, encoding, stamp, FileSearch.digest(bytes), null);
+    return new FileSearch.Decoded(text, encoding, stamp, bytes, null);
   }
 
   private void assertMatchesWholeRead(String name, byte[] bytes, Charset fallback, String detected)
@@ -235,7 +237,13 @@ class FileReadCancelTest {
         actual.encoding().charset().name() + (actual.encoding().bom() ? " BOM" : ""),
         name);
     assertEquals(expected.stamp(), actual.stamp(), name);
-    assertArrayEquals(expected.digest(), actual.digest(), name);
+    assertArrayEquals(expected.bytes(), actual.bytes(), name);
+    if (actual.bytes() != null) {
+      assertArrayEquals(
+          FileSearch.digest(expected.bytes()),
+          FileSearch.digest(file, actual.bytes(), new CancellationToken()),
+          name);
+    }
     assertEquals(expected.text(), actual.text(), name);
   }
 
@@ -312,6 +320,6 @@ class FileReadCancelTest {
             new CancellationToken());
     assertEquals(FileSearch.Skip.TOO_LARGE, tooLarge.skip());
     assertNotNull(tooLarge.stamp());
-    assertNull(tooLarge.digest());
+    assertNull(tooLarge.bytes());
   }
 }

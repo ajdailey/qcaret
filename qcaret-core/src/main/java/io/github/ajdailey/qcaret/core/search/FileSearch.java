@@ -41,7 +41,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Searches the files under a directory. The calling thread (a {@code qcaret-search-} worker) walks
  * the tree without following symbolic links; each accepted file is read and decoded on a {@code
  * qcaret-io-} thread, at most {@value #READERS} at a time, and matched by {@link TextSearch} on the
- * CPU pool. Results reach the {@link Sink} on those threads, in no fixed order.
+ * CPU pool, which digests a file only when the {@link Sink} receives it. Results reach the {@link
+ * Sink} on those threads, in no fixed order.
  *
  * <ul>
  *   <li>A file over {@code maxFileBytes} is skipped as {@link Skip#TOO_LARGE}; a file {@link
@@ -99,7 +100,8 @@ public final class FileSearch {
    * @param path the file
    * @param encoding the encoding it was decoded with
    * @param stamp its stamp, read before its bytes
-   * @param digest the SHA-256 of the bytes searched
+   * @param digest the SHA-256 of the bytes searched; null when the outcome has no hits, skipped
+   *     lines or regex failure
    * @param outcome its matches and skipped lines
    */
   public record FileHits(
@@ -343,10 +345,9 @@ public final class FileSearch {
         TextSearch.Outcome outcome =
             TextSearch.search(
                 options.matcher(), decoded.text, null, room, options.maxLineChars(), token);
-        if (!outcome.hits().isEmpty()
-            || outcome.skippedLines() > 0
-            || outcome.tooComplexLine() >= 0) {
-          sink.found(new FileHits(file, decoded.encoding, decoded.stamp, decoded.digest, outcome));
+        if (reported(outcome)) {
+          byte[] digest = digest(file, decoded.bytes, token);
+          sink.found(new FileHits(file, decoded.encoding, decoded.stamp, digest, outcome));
         }
       }
     } catch (CancellationException e) {
@@ -415,8 +416,8 @@ public final class FileSearch {
       TextSearch.Outcome outcome =
           TextSearch.search(
               options.matcher(), decoded.text, null, room, options.maxLineChars(), token);
-      return new Single(
-          new FileHits(file, decoded.encoding, decoded.stamp, decoded.digest, outcome), null);
+      byte[] digest = reported(outcome) ? digest(file, decoded.bytes, token) : null;
+      return new Single(new FileHits(file, decoded.encoding, decoded.stamp, digest, outcome), null);
     } catch (IOException e) {
       return new Single(null, Skip.UNREADABLE);
     } finally {
@@ -426,15 +427,20 @@ public final class FileSearch {
     }
   }
 
-  /** A file's text, or why it is skipped. */
-  record Decoded(String text, TextEncoding encoding, FileStamp stamp, byte[] digest, Skip skip) {}
+  /** Reports whether an outcome has hits, skipped lines or a regex failure. */
+  private static boolean reported(TextSearch.Outcome outcome) {
+    return !outcome.hits().isEmpty() || outcome.skippedLines() > 0 || outcome.tooComplexLine() >= 0;
+  }
+
+  /** A file's text and the bytes it was decoded from, or why it is skipped. */
+  record Decoded(String text, TextEncoding encoding, FileStamp stamp, byte[] bytes, Skip skip) {}
 
   /** Bytes read, strictly decoded, decoded or digested between cancellation checks. */
   static final int BLOCK_BYTES = 1 << 16;
 
   private static final int DECODE_CHARS = 8192;
 
-  /** A step of {@link #decode} that works through the file block by block. */
+  /** A step of {@link #decode} or {@link #digest(Path, byte[], CancellationToken)}. */
   enum Stage {
     READ,
     DETECT,
@@ -442,7 +448,7 @@ public final class FileSearch {
     DIGEST
   }
 
-  /** Called at the start of each block of {@link #decode}, before its cancellation check. */
+  /** Called at the start of each block of a {@link Stage}, before its cancellation check. */
   interface Probe {
     void block(Path file, Stage stage);
   }
@@ -450,7 +456,7 @@ public final class FileSearch {
   /** Null outside tests. */
   private static volatile Probe probe;
 
-  /** Sets the probe {@link #decode} calls, or null for none. */
+  /** Sets the probe each {@link Stage} calls, or null for none. */
   static void setProbe(Probe p) {
     probe = p;
   }
@@ -463,8 +469,8 @@ public final class FileSearch {
   }
 
   /**
-   * Reads a file, detects its encoding, decodes it and digests its bytes, checking the token before
-   * each block of every step. The binary check reads only the head.
+   * Reads a file, detects its encoding and decodes it, checking the token before each block of
+   * every step. The binary check reads only the head.
    *
    * @throws CancellationException when canceled
    */
@@ -492,13 +498,23 @@ public final class FileSearch {
     StringBuilder text = new StringBuilder(bytes.length - bom);
     decode(
         encoding.charset(), CodingErrorAction.REPLACE, bytes, bom, text, file, Stage.DECODE, token);
+    return new Decoded(text.toString(), encoding, stamp, bytes, null);
+  }
+
+  /**
+   * Returns the SHA-256 of a file's bytes, checking the token before each block.
+   *
+   * @throws CancellationException when canceled
+   */
+  @WorkerThread
+  static byte[] digest(Path file, byte[] bytes, CancellationToken token) {
     MessageDigest sha = sha256();
     for (int at = 0; at < bytes.length; at += BLOCK_BYTES) {
       probe(file, Stage.DIGEST);
       token.check();
       sha.update(bytes, at, Math.min(BLOCK_BYTES, bytes.length - at));
     }
-    return new Decoded(text.toString(), encoding, stamp, sha.digest(), null);
+    return sha.digest();
   }
 
   /** Reads a whole file block by block; returns null once it holds more than {@code max} bytes. */
