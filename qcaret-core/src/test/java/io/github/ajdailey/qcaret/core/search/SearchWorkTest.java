@@ -241,4 +241,11 @@ class SearchWorkTest {
     long after = readsAfterCancel("zq[xy]", text, 2L * text.length() + 1000L);
     assertTrue(after <= TextMatcher.CHECK_CHARS, "reads after the cancel: " + after);
   }
+
+  @Test
+  void aCancelInTheLiteralSearchStopsWithinOneCheckInterval() {
+    String text = text();
+    long after = readsAfterCancel("zqx[xy]", text, 2L * text.length() + 1000L);
+    assertTrue(after <= TextMatcher.CHECK_CHARS, "reads after the cancel: " + after);
+  }
 }

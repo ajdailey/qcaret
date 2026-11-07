@@ -279,13 +279,18 @@ public final class TextSearch {
    * The text up to an offset: a find on it cannot read past a searched stretch into a skipped line
    * or, after an overflow, past one line.
    */
-  private static final class Prefix implements CharSequence {
+  static final class Prefix implements CharSequence {
     private final CharSequence text;
     private final int end;
 
     Prefix(CharSequence text, int end) {
       this.text = text;
       this.end = end;
+    }
+
+    /** Returns the whole text this is a prefix of. */
+    CharSequence text() {
+      return text;
     }
 
     @Override

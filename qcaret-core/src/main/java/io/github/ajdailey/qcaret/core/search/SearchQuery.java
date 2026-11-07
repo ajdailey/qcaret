@@ -18,6 +18,12 @@ public record SearchQuery(String text, boolean regex, boolean caseSensitive, boo
   /** Text tried after a pattern so the wrapper's closing group stays outside it. */
   private static final String[] CLOSERS = {"", "\\E", "\n", "\\E\n"};
 
+  /** Characters with a meaning in a {@link Pattern} outside a character class. */
+  private static final String REGEX_META = "\\^$.|?*+()[]{}";
+
+  /** Shortest literal a case-sensitive query is prefiltered by. */
+  static final int MIN_PREFILTER_CHARS = 3;
+
   /** Checks the components. */
   public SearchQuery {
     if (text == null) {
@@ -27,7 +33,11 @@ public record SearchQuery(String text, boolean regex, boolean caseSensitive, boo
 
   /**
    * Compiles the query. A regex compiles with {@code MULTILINE}, so {@code ^} and {@code $} match
-   * at every line break (CR, LF or CR LF), and {@code .} stops at a line break.
+   * at every line break (CR, LF or CR LF), and {@code .} stops at a line break. A case-sensitive
+   * query whose matches all start with a literal of at least {@value #MIN_PREFILTER_CHARS} chars
+   * (the text, or a regex's {@link #requiredPrefix}) runs the regex only where that literal occurs.
+   * Not for a regex holding {@code \G}, which matches where the search starts, or a literal
+   * starting with a low surrogate, which {@link Pattern} does not match inside a surrogate pair.
    *
    * @return the matcher
    * @throws PatternSyntaxException for an invalid regex
@@ -45,7 +55,35 @@ public record SearchQuery(String text, boolean regex, boolean caseSensitive, boo
     if (wholeWord) {
       source = wholeWord(source);
     }
-    return new TextMatcher(Pattern.compile(source, flags), regex);
+    String literal = null;
+    if (caseSensitive && !(regex && text.contains("\\G"))) {
+      literal = regex ? requiredPrefix(text) : text;
+      if (literal.length() < MIN_PREFILTER_CHARS || Character.isLowSurrogate(literal.charAt(0))) {
+        literal = null;
+      }
+    }
+    return new TextMatcher(Pattern.compile(source, flags), regex, literal);
+  }
+
+  /**
+   * Returns the chars before a regex's first metacharacter, less the last code point when a {@code
+   * ?}, {@code *} or <code>{</code> quantifier follows it; empty when the pattern has a {@code |}.
+   *
+   * @param pattern the regex
+   * @return a literal every match starts with, possibly empty
+   */
+  static String requiredPrefix(String pattern) {
+    if (pattern.indexOf('|') >= 0) {
+      return "";
+    }
+    int end = 0;
+    while (end < pattern.length() && REGEX_META.indexOf(pattern.charAt(end)) < 0) {
+      end++;
+    }
+    if (end > 0 && end < pattern.length() && "?*{".indexOf(pattern.charAt(end)) >= 0) {
+      end = pattern.offsetByCodePoints(end, -1);
+    }
+    return pattern.substring(0, end);
   }
 
   /**

@@ -22,10 +22,22 @@ invalid regex throws `PatternSyntaxException` and empty text
 - `next`, `previous` and `all` return non-empty `Match`es; empty matches are
   skipped. `replacementAt` returns the replacement when the query matches
   exactly a range; `replaceAll` returns one `Replacement` per match.
-- Every call reads through a char sequence that checks the `CancellationToken`
-  every 4,096 chars, so a catastrophic regex stops on cancel. A
-  `StackOverflowError` in the regex engine becomes
-  `PatternTooComplexException`.
+- Every call checks the `CancellationToken` every 4,096 chars it reads, so a
+  catastrophic regex stops on cancel. A `StackOverflowError` in the regex
+  engine becomes `PatternTooComplexException`.
+- A case-sensitive query whose matches all start with a literal of 3 or more
+  chars runs the regex only where that literal occurs, anchored there
+  (`lookingAt` on a region with transparent bounds), so the matches are those
+  of a `find` from the search's start. The literal is a literal query's text,
+  or a regex's `SearchQuery.requiredPrefix`: the chars before the first
+  metacharacter (`\ ^ $ . | ? * + ( ) [ ] { }`), less the last code point when
+  `?`, `*` or `{` follows it, and none when the pattern has a `|`. A regex
+  with `\G` (it matches where the search starts) and a literal starting with a
+  low surrogate (`Pattern` starts no match inside a surrogate pair) run
+  without it.
+- The literal search uses `String.indexOf` in 4,096-char windows on a `String`,
+  also behind `TextSearch`'s view of a stretch, and reads other text char by
+  char.
 - `ReplaceTemplate` parses a regex replacement once: `$n`, `${name}`, `\n`,
   `\t`, and a backslash before any other char inserts that char. A missing
   group or a dangling `\` or `$` throws `IllegalArgumentException`. A literal

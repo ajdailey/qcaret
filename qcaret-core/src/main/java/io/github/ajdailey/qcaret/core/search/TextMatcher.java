@@ -6,15 +6,18 @@ import io.github.ajdailey.qcaret.core.document.Replacement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.function.IntConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A compiled {@link SearchQuery}. Every search reads the text through a char sequence that checks
- * the cancellation token every {@value #CHECK_CHARS} chars, so a catastrophic regex stops on
- * cancel, and a {@link StackOverflowError} in the regex engine becomes a {@link
- * PatternTooComplexException}. Empty matches are skipped. Lookbehind and lookahead see the text
- * outside a searched range. Thread-safe; each call creates its own {@link Matcher}.
+ * A compiled {@link SearchQuery}. Every search checks the cancellation token every {@value
+ * #CHECK_CHARS} chars it reads, so a catastrophic regex stops on cancel, and a {@link
+ * StackOverflowError} in the regex engine becomes a {@link PatternTooComplexException}. Empty
+ * matches are skipped. Lookbehind and lookahead see the text outside a searched range. With a
+ * prefilter literal, a search runs the regex anchored at each occurrence of the literal, which
+ * gives the matches of a {@link Matcher#find} from the search's start. Thread-safe; each call
+ * creates its own {@link Matcher}.
  */
 public final class TextMatcher {
   /** Chars read between cancellation checks. */
@@ -22,10 +25,40 @@ public final class TextMatcher {
 
   private final Pattern pattern;
   private final boolean regex;
+  private final String literal;
+  private final IntConsumer starts;
 
-  TextMatcher(Pattern pattern, boolean regex) {
+  /**
+   * Creates a matcher.
+   *
+   * @param pattern the compiled query
+   * @param regex true for a regex query
+   * @param literal text every match starts with, or null to run the regex from each search start
+   */
+  TextMatcher(Pattern pattern, boolean regex, String literal) {
+    this(pattern, regex, literal, null);
+  }
+
+  private TextMatcher(Pattern pattern, boolean regex, String literal, IntConsumer starts) {
     this.pattern = pattern;
     this.regex = regex;
+    this.literal = literal;
+    this.starts = starts;
+  }
+
+  /** Returns the prefilter literal, or null. */
+  String literal() {
+    return literal;
+  }
+
+  /** Returns a copy without the prefilter literal. */
+  TextMatcher withoutLiteral() {
+    return new TextMatcher(pattern, regex, null, starts);
+  }
+
+  /** Returns a copy that passes each offset the regex runs from to {@code starts}. */
+  TextMatcher reportingStarts(IntConsumer starts) {
+    return new TextMatcher(pattern, regex, literal, starts);
   }
 
   /**
@@ -54,7 +87,7 @@ public final class TextMatcher {
     Matcher m = matcher(text, token, from);
     try {
       int at = from;
-      while (at <= text.length() && m.find(at)) {
+      while (at <= text.length() && find(m, text, at, text.length() + 1, token)) {
         if (m.end() > m.start()) {
           return new Match(m.start(), m.end());
         }
@@ -82,7 +115,7 @@ public final class TextMatcher {
     Match last = null;
     try {
       int at = 0;
-      while (at <= text.length() && m.find(at) && m.start() < before) {
+      while (at <= text.length() && find(m, text, at, before, token) && m.start() < before) {
         if (m.end() > m.start()) {
           last = new Match(m.start(), m.end());
           at = m.start() + 1;
@@ -114,7 +147,7 @@ public final class TextMatcher {
     Matcher m = matcher(text, token, from);
     try {
       int at = from;
-      while (found.size() < limit && at < to && m.find(at) && m.start() < to) {
+      while (found.size() < limit && at < to && find(m, text, at, to, token) && m.start() < to) {
         if (m.end() > m.start()) {
           found.add(new Match(m.start(), m.end()));
           at = m.end();
@@ -172,7 +205,7 @@ public final class TextMatcher {
     Matcher m = matcher(text, token, 0);
     try {
       int at = 0;
-      while (at <= text.length() && m.find(at)) {
+      while (at <= text.length() && find(m, text, at, text.length() + 1, token)) {
         if (m.end() > m.start()) {
           out.add(new Replacement(m.start(), m.end() - m.start(), template.expand(m)));
           at = m.end();
@@ -184,6 +217,81 @@ public final class TextMatcher {
     } catch (StackOverflowError e) {
       throw new PatternTooComplexException(0);
     }
+  }
+
+  /**
+   * Positions {@code m} on the first match starting at or after {@code at}, as {@code m.find(at)}
+   * does. With a literal, only matches starting before {@code before} are found.
+   *
+   * @return false when there is none
+   */
+  private boolean find(Matcher m, CharSequence text, int at, int before, CancellationToken token) {
+    if (literal == null) {
+      report(at);
+      return m.find(at);
+    }
+    int from = at;
+    while (true) {
+      int found = indexOfLiteral(text, from, before, token);
+      if (found < 0) {
+        return false;
+      }
+      report(found);
+      m.region(found, text.length());
+      if (m.lookingAt()) {
+        return true;
+      }
+      from = found + 1;
+    }
+  }
+
+  private void report(int offset) {
+    if (starts != null) {
+      starts.accept(offset);
+    }
+  }
+
+  /**
+   * Returns the first offset in {@code [from, before)} where the literal starts, or -1, checking
+   * the token every {@value #CHECK_CHARS} chars. A {@link String}, also behind a {@link
+   * TextSearch.Prefix}, is searched with {@link String#indexOf(String, int, int)}; other text is
+   * read char by char.
+   */
+  private int indexOfLiteral(CharSequence text, int from, int before, CancellationToken token) {
+    int last = Math.min(before, text.length() - literal.length() + 1);
+    CharSequence flat = text instanceof TextSearch.Prefix prefix ? prefix.text() : text;
+    if (flat instanceof String string) {
+      for (int at = from; at < last; at += CHECK_CHARS) {
+        token.check();
+        int end = (int) Math.min(last, (long) at + CHECK_CHARS);
+        int found = string.indexOf(literal, at, end - 1 + literal.length());
+        if (found >= 0) {
+          return found;
+        }
+      }
+      return -1;
+    }
+    char first = literal.charAt(0);
+    int check = from;
+    for (int at = from; at < last; at++) {
+      if (at >= check) {
+        token.check();
+        check = at + CHECK_CHARS;
+      }
+      if (text.charAt(at) == first && startsWith(text, at)) {
+        return at;
+      }
+    }
+    return -1;
+  }
+
+  private boolean startsWith(CharSequence text, int at) {
+    for (int i = 1; i < literal.length(); i++) {
+      if (text.charAt(at + i) != literal.charAt(i)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private Matcher matcher(CharSequence text, CancellationToken token, int from) {
