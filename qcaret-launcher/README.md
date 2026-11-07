@@ -60,11 +60,12 @@ The controller saves the placement at quit only when neither `-m` nor a
 only. The loop ends when every main window is disposed; then the Display is
 disposed and `run` returns 0.
 
-Before the Display, without `-m`, `Launcher` claims the instance lock (see the
-`qcaret-app` README). A held lock hands the launch over and exits 0, before
-`-l` attaches a log file. A settings directory another user owns or can write,
-or a failure to take the lock, logs one WARN and runs on alone, as with `-m`.
-A JDK where `flock` cannot be linked (`ProcessLock`, `qcaret-core` README) is
+Before the Display, without `-m`, `Launcher` claims the instance lock
+([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
+the launch over and exits 0, before `-l` attaches a log file. A settings
+directory another user owns or can write, or a failure to take the lock, logs
+one WARN and runs on alone, as with `-m`. A JDK where `flock` cannot be linked
+([`ProcessLock`](../qcaret-core/docs/files-and-encodings.md#process-lock)) is
 such a failure; `RecoveryController` then also logs `Recovery files are off`.
 
 `Gui.run` creates `Workers` and calls `InstanceServer.start` as its first steps,
@@ -186,58 +187,21 @@ classes, so the rules over the main classes never see them.
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
 | `DocumentBuilderFactory`, `SAXParserFactory` and `XMLInputFactory` only in `core.syntax` | Grammar files are the only XML parsed |
 
-## Tests
+## Testing
 
-`GuiTest` (tag `swt`) runs the composed application: a `-m` run with a file at
-900 x 600, location 50,40 shows the file's title and shuts down without a
-surviving `qcaret-` thread; a remembered placement opens with the untitled
-document's title and is saved again; a `--window-width` run and a `-m` run
-leave the saved placement unchanged. The title arrives on a later UI turn, so
-the test waits for it within a bound; the untitled document's title is set
-before the event loop starts. A quit with a reopen's read held in the decoder
-exits 0 with no surviving thread. `PortableRunTest` (tag `swt`)
-runs `Gui` twice over a portable bundle with `user.home` set as
-`PlatformSetup` sets it: the first run switches to the dark theme and the
-second starts dark; afterwards every new or changed file lies inside the
-bundle and the home directory is empty. `SigtermTest` (tag `swt`, Linux)
-starts `Main` with `-l` as a child process, waits for the window line in its
-log, sends SIGTERM (`Process.destroy`) and checks that the process ends within
-the hook's bound, saved the placement, and logged the hook's INFO line to the
-file. Windows has no SIGTERM; `destroy` there terminates without hooks.
-`WindowsGuiTest` (tag `swt`) opens a second window through the composed
-application, hands a file over a real loopback exchange, quits and checks that
-the endpoint is gone. It does not assert which window takes the file: a late
-`SWT.Activate` moves the target under load without a window manager.
-`WindowSetTest` in `qcaret-app` pins the target.
-It also starts over a two-window session: `--no-session` opens one window with
-an untitled document, a plain start opens both saved windows.
-`ScreenshotsTest` (tag `swt`) runs only with `-Dqcaret.screenshots=<dir>`
-(`tools/screenshots.sh`): it opens generated mock files and writes the README
-screenshots in the light and the dark theme.
-
-`AbnormalShutdownTest` (tag `swt`) starts `CrashChild`, which types into the
-untitled document, waits for its recovery file, kills it with `destroyForcibly`
-and starts `Gui` again: the buffer is offered and restores dirty. `StoreFaultsTest`
-(tag `swt`) starts over a malformed, oversized and unknown-version session file
-and a remembered charset the runtime lacks.
-
-`ShutdownHookTest` runs the hook's task directly. Surefire plants
-`java.util.logging.config.file` (`planted-logging.properties`);
-`LogConfiguratorTest` checks that its handlers, levels and properties are gone
-after `install`, and the format, level mapping and logger-name shortening.
-`RetainingLogManagerTest` checks that `reset()` keeps the handlers once
-retained. `FileLogTest` checks the file's location and levels, that the folder
-holds only the file after a detach, the per-process name, the roll to `.1`,
-that a failed roll (a non-empty directory named `qcaret.log.1`) keeps writing
-the file with one WARN and rolls once the directory is gone, that a failed
-reopen (a read-only file) detaches the file and its ERROR reaches the recent
-lines, and which files prune deletes. `LauncherTest`
-checks help, version, exit 1 for a bad option or settings path, `user.home`
-per settings mode on Linux and the WebView2 data folder on Windows.
-`LauncherProcessTest` runs 16 `LaunchMain` child JVMs against a closing primary
-and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A
-primary that reads every file in the settings directory keeps the lock and a
-second launch is `HANDED`; so does a primary refused a save over its lock. A
-primary refused a save over its `owner.lock` leaves a second start no buffers
-to claim. A child denied native access is `ALONE` with one
-WARN and no `instance.lock`.
+| Class | Covers |
+|---|---|
+| `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts |
+| `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |
+| `SigtermTest` (tag `swt`, Linux) | `Main` with `-l` as a child process, SIGTERM (`Process.destroy`) after the window line: the process ends within the hook's bound, saved the placement and logged the hook's INFO line to the file. Windows has no SIGTERM; `destroy` there terminates without hooks |
+| `WindowsGuiTest` (tag `swt`) | A second window through the composed application, a file handed over a real loopback exchange, the endpoint gone after quit; a start over a two-window session (`--no-session` opens one window with an untitled document, a plain start opens both saved windows). It does not assert which window takes the file: a late `SWT.Activate` moves the target under load without a window manager, and `WindowSetTest` in `qcaret-app` pins the target |
+| `AbnormalShutdownTest` (tag `swt`) | `CrashChild` types into the untitled document, waits for its recovery file and is killed with `destroyForcibly`; `Gui` started again offers the buffer and restores it dirty |
+| `StoreFaultsTest` (tag `swt`) | A start over a malformed, oversized and unknown-version session file, and a remembered charset the runtime lacks |
+| `ScreenshotsTest` (tag `swt`) | Runs only with `-Dqcaret.screenshots=<dir>` (`tools/screenshots.sh`): the README screenshots from generated mock files, in the light and the dark theme |
+| `ShutdownHookTest` | The hook's task run directly |
+| `LogConfiguratorTest` | The handlers, levels and properties of the planted `java.util.logging.config.file` (`planted-logging.properties`, set by surefire) gone after `install`; the format, level mapping and logger-name shortening |
+| `RetainingLogManagerTest` | `reset()` keeping the handlers once retained |
+| `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN and rolling once the directory is gone, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes |
+| `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows |
+| `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |
+| `ArchitectureTest` | The rules above, each shown to fail on its fixture |

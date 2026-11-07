@@ -95,9 +95,13 @@ child's status. A relaunched process that is still off the main thread prints
 `QCaret could not start on the macOS main thread.` and exits 2. JVM options of
 the first process are not carried over.
 
-## Tests
+## Testing
 
-`MainTest.java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary named
-by `-Dqcaret.test.java8=<path to java>` and is skipped without it.
-`BootstrapArchitectureTest` keeps the module on the JDK, process creation in
-`MacRelaunch` and `System.exit` in `Main`.
+| Class | Covers |
+|---|---|
+| `MainTest` | Java 21 and later accepted, the message naming the running Java, `Main` compiled as Java 8 bytecode; `java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary `-Dqcaret.test.java8=<path to java>` names and skips without it |
+| `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named |
+| `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
+| `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
+| `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |
+| `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`; each rule shown to fail on a fixture class |

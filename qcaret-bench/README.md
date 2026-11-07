@@ -47,8 +47,8 @@ reproduce.
 ### Heap
 
 `StorageHarness` and `SearchHarness` run at the shipped launchers'
-`-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the harness with it, and the first
-output line prints the options in force. A heap option on the command line
+`-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
+harness with it, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;
 `-Dqcaret.bench.heap=jvm` runs in place at the JVM default (25% of RAM). Give a
 run with JFR or native memory tracking a heap option: without one, both JVMs
@@ -97,3 +97,10 @@ The scripts use `$JAVA_HOME/bin/java` when set; build `qcaret-bench` first.
   which runs the 100 ms flush timer without its delay.
 - `ASCII` and `MIXED` generate the same text as when the storage was chosen,
   so their results compare with that run.
+
+## Testing
+
+| Class | Covers |
+|---|---|
+| `StorageHarnessTest` | Which JVM options count as heap options, so the harness runs in place instead of relaunching |
+| `SearchTreeTest` | The rare word in every hundredth file and each large file of `SearchTree`, and the tree deleted afterwards |

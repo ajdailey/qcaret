@@ -1,69 +1,42 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="qcaret-dist/src/icons/qcaret.svg">
-  <img src="qcaret-dist/src/icons/qcaret-light.svg" alt="QCaret logo" width="96" height="96">
-</picture>
+<picture> <source media="(prefers-color-scheme: dark)"
+srcset="qcaret-dist/src/icons/qcaret.svg"> <img
+src="qcaret-dist/src/icons/qcaret-light.svg" alt="QCaret logo" width="96"
+height="96"> </picture>
 
 # QCaret
 
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
-SWT. It runs no macros, scripts or plugins.
+SWT. It makes no outbound network connections; its only socket is a loopback
+endpoint that passes files from a second launch to the running instance.
 
-Features:
+QCaret runs no macros, scripts or plugins.
 
-- Tabs with undo and redo, word wrap, split views, zoom, light and dark themes,
-  a command palette and key bindings the Preferences dialog changes.
-- Multiple carets and selections (Mod+click, Mod+drag, or a key per row), column selection, line
-  commands, word completion, bracket matching, auto-close and smart indent.
-- Encoding detection and conversion, line-ending conversion, and a read-only
-  view of binary files.
-- Syntax highlighting for 35 languages and 12 file formats, with user grammars,
-  comment commands and folding.
-- Find and replace, HyperSearch over documents, folders and a workspace with
-  retained results, and replace across files with a preview, a report and a
-  restore.
-- Bookmarks with comments, Go Back and Go Forward, a workspace browser, Quick
-  Open and side-by-side comparison.
-- Drag-and-drop opening, load progress with a cancel, Recently Closed, Reload
-  from Disk.
-- Printing with page ranges, copies, line numbers and syntax colors.
-- External change detection, sessions, crash recovery, several windows with
-  tab moves, a single running instance and file associations.
-- An in-app user guide, written in `docs/user-guide.md`.
+<picture> <source media="(prefers-color-scheme: dark)"
+srcset="docs/images/qcaret-dark.png"> <img src="docs/images/qcaret-light.png"
+alt="QCaret main window with a highlighted Java file" width="880"> </picture>
 
-Limits: a file must fit the heap and no file over 2 GiB opens
-([Large files](#large-files)); a change to the theme, the font or a whole
-document's text blocks the window for about a second per million lines; GTK 4 is
-experimental and shows no in-app guide; the macOS bundles are not notarized.
+## Features
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/qcaret-dark.png">
-  <img src="docs/images/qcaret-light.png" alt="QCaret main window with a highlighted Java file" width="880">
-</picture>
+| Area | Summary | Guide |
+|---|---|---|
+| Editing | Tabs with undo and redo, line commands, case and indent commands, word completion, bracket matching, auto-close, smart indent, sort, duplicate removal and trailing-whitespace trim, read-only documents, a command palette | [Editing](docs/user-guide.md#editing) |
+| Carets | Multiple carets and selections (Mod+click, Mod+drag, a key per row, next occurrence), block selection by Alt+drag or keys, column selection mode | [Multiple carets](docs/user-guide.md#multiple-carets-and-block-selection) |
+| Encodings | Detection from the byte order mark, a declaration or the content; Reopen with Encoding and Save with Encoding; line-ending conversion; files that would not write back byte for byte open read-only; binary files open read-only after a prompt | [Encodings](docs/user-guide.md#encodings) |
+| Syntax highlighting | 35 languages and 12 file formats, user grammars, comment commands, folding by brackets, markers or indentation | [Syntax highlighting](docs/user-guide.md#syntax-highlighting), [Folding](docs/user-guide.md#folding) |
+| Search and HyperSearch | Find bar with incremental find and history; HyperSearch over a document, a selection, the open documents, the workspace folder or a directory tree, into a results dock that keeps ten sets and marks stale matches | [Search](docs/user-guide.md#search-and-hypersearch) |
+| Replace across files | Replace in a finished result set with a preview, a report per file, backups and a restore | [Replace](docs/user-guide.md#replace) |
+| Bookmarks and navigation | Bookmarks with comments and a Bookmarks list, Go Back and Go Forward, Go to Line, the overview strip | [Bookmarks](docs/user-guide.md#bookmarks), [Main window](docs/user-guide.md#the-main-window) |
+| Workspace and Quick Open | A workspace folder per window with a browser; Quick Open over the open documents, the folder's files and Recent Files; Switch Document | [Workspace](docs/user-guide.md#workspace), [Quick Open](docs/user-guide.md#quick-open) |
+| Compare | Side-by-side read-only comparison of two documents, a document and its file, or two files from the command line | [Compare](docs/user-guide.md#compare) |
+| Printing | Page ranges, copies, the selection, line numbers and syntax colors, in the background | [Printing](docs/user-guide.md#printing) |
+| External changes | Each open file checked on a poll and on window activation; a clean document reloads, a dirty one asks: Keep Mine, Reload or Compare | [External changes](docs/user-guide.md#external-changes) |
+| Sessions and recovery | Session restore of windows, tabs, carets, splits, folds, bookmarks and docks; per-file state; recovery files for unsaved buffers after a crash | [Sessions](docs/user-guide.md#sessions-and-recovery) |
+| Windows and single instance | Several windows with live tab moves; a second launch hands its files to the running instance; file associations | [Windows](docs/user-guide.md#windows-and-the-running-instance) |
+| Large files | Loads with progress and Cancel; a file must fit the heap; no file over 2 GiB opens | [Large files](docs/user-guide.md#large-files) |
+| Preferences and themes | Preferences applied without a restart, key bindings, editor font, light, dark and system themes, theme files | [Preferences](docs/user-guide.md#preferences) |
+| Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Show Log with a warning marker, debug log file, Report an Issue, About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
 
-`tools/screenshots.sh` regenerates these and the user guide's images under Xvfb
-from generated mock files.
-
-## Syntax highlighting
-
-QCaret highlights Plain Text, Java, XML, HTML (with embedded JavaScript and
-CSS), JSON, YAML, SQL, Python, JavaScript, TypeScript, C, C++, Shell Script,
-PowerShell, Windows Batch, Properties, INI, CSS and Markdown, and the file
-formats Dockerfile, Makefile, CMake, TOML, diff and patch, CSV and TSV (one
-color per column), log files (levels, timestamps, stack traces), HCL and
-Terraform, Protocol Buffers, GraphQL and nginx configuration. The grammar
-follows the file name, its extension, or its first line (a shebang, `<?xml`,
-`<!DOCTYPE html>`); View > Syntax or a click on the status bar's language
-field chooses another, from the last five chosen or from a category submenu.
-A line over 10,000 chars shows without colors.
-Highlighting runs on worker threads: opening a large file and typing never
-wait for it.
-
-User grammars go in `grammars/*.xml` in the settings directory, in the format
-`qcaret-core/README.md` describes; one with a built-in grammar's id replaces
-it, and its `category` attribute picks its Syntax submenu (User without one).
-They are read at startup and on View > Syntax > Reload Grammars, and an
-invalid file is skipped with a notice. Edit > Toggle Line Comment (Mod+/) and
-Toggle Block Comment (Mod+Shift+/) use the grammar's comment delimiters.
+Every key binding is listed under Help > Keyboard Shortcuts.
 
 ## Building
 
@@ -74,12 +47,8 @@ xvfb-run -a ./mvnw clean verify
 ```
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
-rules and every test, and builds the universal jar and the bundle for the
-build host. Tests tagged `swt` open windows. On Linux they run when `DISPLAY`
-is set and are skipped otherwise; Windows and macOS always run them, and macOS
-runs them with `-XstartOnFirstThread`. Surefire sets `GDK_BACKEND=x11`, so
-under `xvfb-run` the windows go to Xvfb even in a Wayland session. Fix
-formatting with `./mvnw spotless:apply`.
+rules and every test, and builds the universal jar and the bundle for the build
+host. Fix formatting with `./mvnw spotless:apply`.
 
 | Command | Builds |
 |---|---|
@@ -87,13 +56,26 @@ formatting with `./mvnw spotless:apply`.
 | `./mvnw clean verify -Dqcaret.target=<target>` | Universal zip and that target's bundle; compiles the UI against that target's SWT fragment and skips the `swt` tests |
 | `./mvnw clean verify -Pall-targets` | Universal zip and all six bundles |
 
+### GUI tests
+
+Tests tagged `swt` open windows.
+
+| Host | `swt` tests |
+|---|---|
+| Linux | Run when `DISPLAY` is set, skipped otherwise. Surefire sets `GDK_BACKEND=x11`, so under `xvfb-run` the windows go to Xvfb even in a Wayland session |
+| Windows | Always run |
+| macOS | Always run, with `-XstartOnFirstThread` |
+
+### Archives
+
 Archives are written to `dist/`, which no build step deletes. They are built on
-Linux x86_64 only: packaging runs `tar`, `jlink`, `jmod`, launch4j's x86-64
-Linux linker and `rcodesign`. On any other host `qcaret-dist` builds and
-smoke-tests `qcaret.jar` and writes no archive. The Temurin JDK archives and
-`rcodesign` are downloaded once into `~/.cache/qcaret-build/`
-(`-Dqcaret.cache.dir` overrides it) and checked against pinned SHA-256
-digests.
+Linux x86_64 only, because packaging runs `tar`, `jlink`, `jmod`, launch4j's
+x86-64 Linux linker and `rcodesign`. On any other host `qcaret-dist` builds and
+smoke-tests `qcaret.jar` and writes no archive.
+
+The Temurin JDK archives and `rcodesign` are downloaded once into
+`~/.cache/qcaret-build/` (`-Dqcaret.cache.dir` overrides it) and checked
+against pinned SHA-256 digests.
 
 Builds are reproducible: with the same JDK, two builds of one commit write
 byte-identical jars, `qcaret.exe` and archives, every entry dated
@@ -116,25 +98,29 @@ scripts/container.sh --out DIR     # write the archives to DIR
 scripts/container.sh ./mvnw -B spotless:check
 ```
 
-Any other command runs verbatim in the image at the repository root. Windows
-uses `scripts\container.bat` with the same arguments; WSL uses the Linux script.
-The output directory is bind-mounted over `dist/`, so `clean` empties it and
-never removes it. The Maven repository, the wrapper's Maven and the JDK cache
-live in the named volume `qcaret-maven-repo`. On Linux the container runs as
-the calling user, so files in `dist/` and `target/` belong to that user. The
-service is `linux/amd64`, because packaging runs launch4j's x86-64 linker; an
-arm64 host runs it under its engine's emulation.
+- Any other command runs verbatim in the image at the repository root.
+- Windows uses `scripts\container.bat` with the same arguments; WSL uses the
+  Linux script.
+- The output directory is bind-mounted over `dist/`, so `clean` empties it and
+  never removes it.
+- The Maven repository, the wrapper's Maven and the JDK cache live in the named
+  volume `qcaret-maven-repo`.
+- On Linux the container runs as the calling user, so files in `dist/` and
+  `target/` belong to that user.
+- The service is `linux/amd64`, because packaging runs launch4j's x86-64
+  linker; an arm64 host runs it under its engine's emulation.
 
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request,
-every pushed `v*` tag and on demand, with Temurin 21.0.12+8:
+every pushed `v*` tag and on demand, with Temurin 21.0.12+8. Actions are pinned
+by commit SHA.
 
 | Job | Runners | Does |
 |---|---|---|
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
-| `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 (`qcaret-ui-swt/README.md`); `continue-on-error`, outside `release` |
+| `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
 | `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
 | `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: runs `check-reproducible.sh`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
@@ -143,31 +129,35 @@ On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
 `runtime\bin\javaw.exe` with the target's PE machine type (`ARM64` on
 `windows-11-arm`); the universal zip's `qcaret.exe` must start the JDK's
-`javaw.exe`. On macOS it also runs `codesign --verify --deep --strict`
-on `QCaret.app`. The `package` job caches the JDK archives and `rcodesign`
-under `~/.cache/qcaret-build`, apart from the Maven cache, keyed on
+`javaw.exe`. On macOS it also runs `codesign --verify --deep --strict` on
+`QCaret.app`.
+
+The `package` job caches the JDK archives and `rcodesign` under
+`~/.cache/qcaret-build`, apart from the Maven cache, keyed on
 `qcaret-dist/src/build/dist.xml`; the `release` job shares that cache.
+
+#### Releases
 
 The draft Release carries the seven archives the `bundle` jobs ran,
 `SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
-release notes. To release:
+release notes. Only the `release` job has `contents: write`. To release:
 
 1. Push the tag: `git tag v<version> && git push origin v<version>`.
 2. Review the draft on the repository's Releases page.
 3. Publish it there, or with `gh release edit v<version> --draft=false`.
 
-A bad draft is fixed by deleting the draft and the tag
-(`gh release delete v<version> --cleanup-tag`) and tagging again. Only the
-`release` job has `contents: write`.
+To fix a bad draft, delete the draft and the tag
+(`gh release delete v<version> --cleanup-tag`) and tag again.
 
-`-Psbom` writes the CycloneDX SBOM to `dist/`: every compile and runtime
-dependency of the shipped modules, plus the six SWT fragments `qcaret.jar`
-carries. It leaves out build-only tools, `qcaret-bench`, the Temurin runtimes
-and launch4j's header.
+#### Dependencies
 
-`.github/workflows/dependency-check.yml` scans the dependencies for known
-vulnerabilities weekly, and Dependabot proposes Maven and Actions updates.
-Actions are pinned by commit SHA.
+- `-Psbom` writes the CycloneDX SBOM to `dist/`: every compile and runtime
+  dependency of the shipped modules, plus the six SWT fragments `qcaret.jar`
+  carries. It leaves out build-only tools, `qcaret-bench`, the Temurin runtimes
+  and launch4j's header.
+- `.github/workflows/dependency-check.yml` scans the dependencies for known
+  vulnerabilities weekly.
+- Dependabot proposes Maven and Actions updates.
 
 ## Targets
 
@@ -180,13 +170,21 @@ Actions are pinned by commit SHA.
 | macos-x86_64 | `cocoa.macosx.x86_64` | `qcaret-<version>-macos-x86_64.zip` (`QCaret.app`) |
 | macos-aarch64 | `cocoa.macosx.aarch64` | `qcaret-<version>-macos-aarch64.zip` (`QCaret.app`) |
 
-`qcaret-<version>.zip` holds the universal `lib/qcaret.jar`, which runs on all
-six targets under an installed Java 21, with `bin/qcaret` and `qcaret.exe`.
-Each bundle adds a Java runtime for its target, so it needs no installed Java.
-Linux targets need the system GTK 3 libraries. GTK 4 is an experimental opt-in
-on linux-x86_64: start QCaret with `SWT_GTK4=1` (GTK 4 libraries required).
-The macOS bundles are ad-hoc signed and not notarized, so macOS asks the user
-to approve the first launch.
+- `qcaret-<version>.zip` holds the universal `lib/qcaret.jar`, which runs on
+  all six targets under an installed Java 21, with `bin/qcaret` and
+  `qcaret.exe`.
+- Each bundle adds a Java runtime for its target, so it needs no installed
+  Java.
+- Linux targets need the system GTK 3 libraries. GTK 4 is an experimental
+  opt-in on linux-x86_64: start QCaret with `SWT_GTK4=1` (GTK 4 libraries
+  required). Under GTK 4 Help > User Guide shows no guide window; a notice
+  names the guide's file instead.
+- The macOS bundles are ad-hoc signed and not notarized, so macOS asks the user
+  to approve the first launch.
+- File associations: on Linux run `bin/install-desktop-entry`, on Windows
+  `register-associations.cmd`, each per user; the macOS bundle declares its
+  document types. Details are in
+  [qcaret-dist](qcaret-dist/README.md#file-associations).
 
 ## Command line
 
@@ -219,98 +217,13 @@ prints a message to stderr and exits 1; an SWT start failure, such as missing
 GTK libraries, exits 3. After `--`, a `+<line>` is a file name.
 
 Without `-m`, a launch hands its files to the instance running on the same
-settings directory and exits 0. Any failure opens the files in the launch's own
+settings directory and exits 0; any failure opens the files in the launch's own
 window. A file another window holds selects that tab, so an instance holds one
 buffer per file.
 
-## Windows
-
-File > Exit asks about unsaved documents in every window before it closes or
-saves anything; Cancel leaves every window as it was, and a save that fails
-stops the quit. Closing a window asks about its own and leaves the others open;
-closing the last one quits. Window >
-New Window opens another window. Settings, the theme, the key bindings,
-grammars and Recent Files are shared; each window has its own tabs, find bar,
-workspace folder and search results.
-
-Drag a tab out of every QCaret window to open it in a new window, or onto
-another window's tab strip to dock it at that position; Window > Move to New
-Window and the tab menu do the first without a drag. The document moves live:
-undo history, unsaved changes, carets, scroll, folds, bookmarks and its recovery
-file go with it, and nothing is read again. A tab with a save, reload or conversion running does
-not move. Search results stay in their window and still lead to the moved tab.
-
-File associations: on Linux run `bin/install-desktop-entry`; on Windows run
-`register-associations.cmd`, each per user; the macOS bundle declares its
-document types itself. Details are in `qcaret-dist/README.md`.
-
-## Large files
-
-A file opens only when its estimated memory cost fits the 60% of the maximum
-Java heap that documents share; otherwise QCaret refuses it unread and names
-the file's size, the memory it needs and the `-Xmx` value to start with. The
-estimate is the file's text plus 64 MiB of undo headroom (less for a file under
-64 MiB of text). Text costs 1 byte per file byte when the first 64 KiB are ASCII
-and 2 otherwise; a load holds no copy of the file. A file that costs more past
-its first 64 KiB raises its charge as it loads and is refused then if the
-memory is not there. The launchers set the maximum heap to half of the
-physical memory (`-XX:MaxRAMPercentage=50`). To raise it, run the jar with
-the bundle's runtime and `-Xmx`, for example
-`runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`
-(on Windows, add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`).
-
-Largest single file that opens, measured on Linux x86_64 with nothing else
-open (loads at the budget limit completed without an out-of-memory error, each
-in its own JVM; the non-ASCII text has a CJK char in every line):
-
-| Maximum heap | ASCII text | UTF-8 text with non-ASCII chars |
-|---|---|---|
-| 512 MiB | 243 MiB | 121 MiB |
-| 1 GiB | 550 MiB | 275 MiB |
-| 2 GiB | 1.1 GiB | 582 MiB |
-| 8 GiB | 2 GiB | 2 GiB |
-
-No file over 2 GiB opens.
-
-A reload holds only the text between the first and last change. A file at these
-limits reloads a change of about 19 MiB of text at most; a larger one leaves the
-buffer as it is, with a notice.
-
-These operations run on the UI thread, and the window does not respond while
-they apply (measured on Linux under Xvfb, one million lines):
-
-| Operation | Time |
-|---|---|
-| Theme switch or font change (View > Zoom, Preferences): every open view's per-line state is reset | About 1 s per view; a split document has two |
-| Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the computed text replaces the document's (busy cursor) | Sort: 1.2-2.0 s for the apply, after the edit is computed on a worker; the others not measured |
-
-Display update for one edit, also on the UI thread (measured on an idle Linux x86_64
-host, without SWT, one million lines): 2.4-3.6 us. It grows with the line's length,
-19 ms on a 4 MiB line, and with the collapsed fold regions, 2.9 ms among 99,999.
-
-Canceling a search stops inside a file within one 64 KiB block: on 16 MiB files
-HyperSearch stopped in 0.24 ms at the median and 0.34 ms at most, measured on the same
-host.
-
-## Network access
-
-QCaret makes no outbound network connections: no update check, telemetry or
-crash upload. Its only socket is the single-instance handoff, a TCP endpoint on
-the loopback address, authenticated with a token in the owner-only
-`instance.endpoint`, that passes a second launch's files to the running
-instance. A `-m` instance opens none.
-
-Help > Report an Issue and the project link in Help > About open a web address,
-in the system browser, only when the user picks them. Help > User Guide shows a
-copy of the guide page written to the settings directory, in an embedded browser
-with JavaScript off that loads only that page; the page holds its images and
-loads nothing from elsewhere. Where the embedded browser fails, the system's
-HTML application opens the same copy.
-
 ## Settings directory
 
-QCaret keeps its settings in `qcaret.conf` (Java properties, `version=1`) in
-the first directory that applies:
+QCaret keeps its files in the first directory that applies:
 
 | Mode | When | Directory |
 |---|---|---|
@@ -318,76 +231,34 @@ the first directory that applies:
 | Portable | `qcaret.conf` exists in the installation directory, the parent of `lib/` | The installation directory |
 | Per-user | Otherwise | Linux `$XDG_CONFIG_HOME/qcaret` (default `~/.config/qcaret`), Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
-An empty `qcaret.conf` in the installation directory selects portable mode.
-The macOS bundle is sealed, so portable use there goes through `--settings`.
-In explicit and portable mode on Linux, `user.home` is the settings directory,
-so GTK's `.swt/trims.prefs` lands there too. A malformed or unreadable file, or
-one over 1 MiB, is ignored with one warning and kept as `qcaret.conf.invalid`
-before the next save.
+An empty `qcaret.conf` in the installation directory selects portable mode. The
+macOS bundle is sealed, so portable use there goes through `--settings`.
 
-| Key | Values | Default | Set from |
-|---|---|---|---|
-| `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
-| `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
-| `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
-| `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
-| `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Edit > Preferences, Editor |
-| `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
-| `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Edit > Preferences, Editor |
-| `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
-| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
-| `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
-| `ui.themeFile` | A file in `themes/` in the settings directory, without `.theme`; empty for the built-in colors | empty | Edit > Preferences, Appearance |
-| `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
-| `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
-| `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |
-| `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Edit > Preferences, Files |
-| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Edit > Preferences, Files |
-| `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Edit > Preferences, Search and Workspace |
-| `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Edit > Preferences, Search and Workspace |
-| `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Edit > Preferences, Search and Workspace |
-| `shortcut.<COMMAND>` | Keys separated by spaces, such as `Mod+Alt+K F7`; `Mod` is Ctrl, or Command on macOS, and `Control` is the macOS Control key; empty for no key | The command's default keys | Edit > Preferences, Keys |
-| `search.regex`, `.caseSensitive`, `.wholeWord`, `.hiddenFiles` | The find bar's and HyperSearch's toggles | `false` | The find bar, HyperSearch |
-| `search.history.text.N`, `.directory.N`, `.mask.N`, `.replace.N` | Search texts of the find bar and HyperSearch, HyperSearch's directories and include masks, the find bar's replacements; newest first, 20 each | none | The find bar, HyperSearch |
-| `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
-| `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
+| File | Contents |
+|---|---|
+| `qcaret.conf` | Settings (Java properties, `version=1`); the keys are in [qcaret-app settings](qcaret-app/docs/settings.md#keys) |
+| `qcaret_session.conf` | The session: each window's tabs and docks, Recent Files, the state of the last 500 files |
+| `recovery/` | Recovery files of unsaved buffers, one directory per running instance |
+| `snapshot/` | Unsaved buffers a quit wrote when Quit without asking is on |
+| `instance.lock`, `instance.endpoint` | Single-instance lock and handoff endpoint |
+| `logs/` | Debug log files |
+| `cache/` | The user guide's copy; with `--settings` or in portable mode, the SWT natives; on Windows, the guide browser's data in `cache\webview2` |
+| `grammars/` | User grammars |
+| `themes/` | Theme files |
+| `replace-backups/` | Original bytes of the files a replace run rewrote |
 
-A value out of range falls back to its default with one warning naming the key.
-Every Preferences setting applies to the running window; none needs a restart.
-Saving writes only the keys that changed, over a fresh read of the file, so
-a second instance's newer values and hand-added keys stay. Keys another command
-holds are refused in the dialog; a conflict written by hand is logged and
-listed at the end of Help > Keyboard Shortcuts. The user guide documents the
-theme file format. Light and dark also set the
-native controls' theme; Windows applies a change to native controls at the
-next start, and macOS native controls follow the system appearance.
-
-### Sessions and recovery
-
-A start without file arguments restores the last session from
-`qcaret_session.conf` in the settings directory: every window at its position,
-with its tabs, carets, scroll positions, splits, folds, bookmarks, read-only
-state, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks
-list, workspace and search dock with its requests, and Recent Files. A file that
-does not open is named and skipped. A `-m` instance never replaces the session,
-and neither does a launch that could not hand off to a running instance: it
-reads Recent Files only. Clear History also removes the retained searches from
-the session file at once. A malformed or unreadable session file, or one over
-4 MiB, is ignored with one warning and kept as `qcaret_session.conf.invalid`
-before the next save.
-
-Unsaved buffers are written to `recovery/` in the settings directory. After a
-crash the next start lists them with the state of each original file: Restore
-opens the buffer with its unsaved changes and does not touch the original,
-Discard deletes the recovery file, and Later keeps it. A damaged recovery file
-is reported and kept.
+- In explicit and portable mode on Linux, `user.home` is the settings
+  directory, so GTK's `.swt/trims.prefs` lands there too.
+- On Linux and macOS a launch hands its files over only when the settings
+  directory belongs to the current user and no one else can write it; otherwise
+  every launch opens its own window.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
 | `qcaret-bootstrap/` | Entry point of `qcaret.jar`: Java version check, target selection, SWT natives, nested-jar class loader |
-| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer; no SWT, no logging dependency |
+| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer, search; no SWT, no logging dependency |
 | `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
 | `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the main toolbar and its icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
@@ -397,8 +268,14 @@ is reported and kept.
 | `docker/`, `compose.yaml`, `scripts/` | Container build |
 | `.github/` | CI workflows, Dependabot and the scripts the CI steps run |
 | `tools/icons.sh` | Renders the application icon from `qcaret-dist/src/icons/*.svg` |
-| `docs/user-guide.md` | The user guide; the build converts it to the page Help > User Guide shows |
-| `tools/screenshots.sh`, `docs/images/` | README and user guide screenshots and the script that writes them |
+| `docs/user-guide.md`, `docs/images/guide/` | The user guide; the build converts it to the page Help > User Guide shows |
+| `tools/screenshots.sh`, `docs/images/` | Writes the light and dark screenshots and the user guide's images under Xvfb from generated mock files |
 
-Each module's `README.md` describes its design and contracts. `NOTICE` and
-`qcaret-dist/src/dist/THIRD-PARTY.txt` list the licenses of shipped components.
+## Documents
+
+| Document | Covers |
+|---|---|
+| `<module>/README.md` | The module's packages, contracts and links to its topic documents under `<module>/docs/` |
+| `qcaret-core/TESTING.md`, `qcaret-app/TESTING.md`, `qcaret-ui-swt/TESTING.md` | Test harness and coverage by class |
+| `docs/user-guide.md` | The user guide |
+| `NOTICE`, `qcaret-dist/src/dist/THIRD-PARTY.txt` | Licenses of shipped components |

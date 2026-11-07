@@ -42,6 +42,8 @@ running load, and no tab opens.
 File > Reload from Disk reads the selected document's file again. With unsaved
 changes it asks first, and Undo brings them back.
 
+### Encodings
+
 The file's encoding comes from its byte order mark, an XML, HTML or Python
 declaration, or the content; UTF-8 is tried before windows-1252. Encoding >
 Reopen with Encoding reads the file again with another charset, and QCaret
@@ -58,9 +60,7 @@ such bytes does the same, and a later reload of bytes that write back ends it. A
 binary file asks first: Open Read-Only shows it as
 ISO-8859-1 text, with editing and saving off.
 
-A file needs heap to open: 1 byte per file byte for ASCII text and 2 otherwise,
-plus up to 64 MiB for undo. A file that does not fit is refused, and the notice
-names the `-Xmx` value to start with. No file over 2 GiB opens.
+### Saving
 
 Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Ctrl+Alt+S`) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
@@ -71,6 +71,8 @@ links, or in a folder you cannot write to, is written directly; once that write
 has begun, `Esc` does not stop it. Save As onto a file open
 in another tab closes that tab, after asking when the tab has unsaved changes.
 
+### Printing
+
 File > Print opens the system print dialog; it has no default key, because
 `Ctrl+P` is Quick Open, and Preferences can assign one. The dialog chooses the
 printer, the copies, and all pages, a page range or the selection. A job prints
@@ -80,6 +82,43 @@ has the file name and Page N of M at the top, line numbers, and the light
 theme's syntax colors on white in the editor's font at 10 points. A row above
 the status bar shows the progress with Cancel, and you can keep editing. One
 window runs one print job at a time; closing the window cancels it.
+
+### Large files
+
+A file opens only when its memory cost fits the 60% of the Java heap that open
+documents share. The cost is 1 byte per file byte when the first 64 KiB are
+ASCII and 2 otherwise, plus undo room of the same size, at most 64 MiB. A file
+that does not fit is refused unread, and the notice names its size, the memory
+it needs and the `-Xmx` value to start with. A file whose text costs more past
+its first 64 KiB is refused while it loads when the memory is not there. No
+file over 2 GiB opens.
+
+Largest single file that opens with nothing else open, measured on Linux
+x86_64 (the non-ASCII text has a CJK char in every line):
+
+| Maximum heap | ASCII text | UTF-8 text with non-ASCII chars |
+|---|---|---|
+| 512 MiB | 243 MiB | 121 MiB |
+| 1 GiB | 550 MiB | 275 MiB |
+| 2 GiB | 1.1 GiB | 582 MiB |
+| 8 GiB | 2 GiB | 2 GiB |
+
+The launchers set the maximum heap to half of the physical memory. To raise it,
+run the jar with the bundle's runtime:
+`runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`.
+On Windows add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`.
+
+A reload holds only the text between the first and last change. A file at these
+limits reloads a change of about 19 MiB of text at most; a larger one leaves
+the text as it is, with a notice.
+
+These operations run in the window itself, which does not respond while they
+apply (measured on Linux, one million lines):
+
+| Operation | Time |
+|---|---|
+| Theme switch or font change (View > Zoom, Preferences) | About 1 s per view; a split document has two |
+| Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the new text replaces the document's, with a busy cursor | Sort: 1.2-2.0 s after the sorted text is computed in the background; the others not measured |
 
 ## The main window
 
@@ -184,11 +223,15 @@ key select a block.
 
 ## Search and HyperSearch
 
+### Find bar
+
 Search > Find (`Ctrl+F`) opens the find bar, with a selection on one line as its
 text. Typing finds as you type and every match in view is highlighted. `F3`,
 `Shift+F3`, or Enter and `Shift+Enter` in the bar move between matches and wrap
 at the ends with a notice. Match case, Whole word and Regex are toggles. `Esc`
 closes the bar. Both fields keep a history.
+
+### HyperSearch
 
 Search > HyperSearch (`Ctrl+Shift+F`) finds every match in a scope and lists them
 in the results dock while you work.
@@ -206,6 +249,8 @@ in the results dock while you work.
 Files and Exclude take masks separated by `;`, such as `*.java;*.xml`. Open
 documents are searched as edited, in every scope, so a folder search reads an
 unsaved buffer and not its file.
+
+### Search results
 
 The dock keeps ten sets, newest first; Pin keeps one past that. A set stops at
 100,000 matches. Files over 64 MiB, binary and unreadable files and very long
@@ -274,16 +319,25 @@ split view folds on its own.
 
 ## Syntax highlighting
 
-QCaret highlights 35 languages and 12 file formats. The grammar follows the file
-name, its extension or its first line. View > Syntax, or a click on the status
-bar's language, chooses another one for the document, from the last five chosen
-or a category submenu. A line over 10,000 chars shows without colors;
-Preferences changes that limit.
+QCaret highlights 35 languages and 12 file formats:
 
-User grammars are XML files in `grammars/` in the settings directory. One with a
-built-in grammar's id replaces it. View > Syntax > Reload Grammars reads them
-again, and an invalid file is skipped with a notice. The format is in the project
-documentation, `qcaret-core/README.md`.
+| Kind | Grammars |
+|---|---|
+| Languages | Plain Text, Java, XML, HTML (with embedded JavaScript and CSS), JSON, YAML, SQL, Python, JavaScript, TypeScript, C, C++, Shell Script, PowerShell, Windows Batch, Properties, INI, CSS, Markdown, Go, Rust, C#, Kotlin, Ruby, PHP, Perl, Lua, Groovy, Scala, Swift, Dart, R, Haskell, Objective-C, VB.NET |
+| File formats | Dockerfile, Makefile, CMake, TOML, diff and patch, CSV and TSV (one color per column), log files (levels, timestamps, stack traces), HCL and Terraform, Protocol Buffers, GraphQL, nginx configuration |
+
+The grammar follows the file name, its extension or its first line (a shebang,
+`<?xml`, `<!DOCTYPE html>`). View > Syntax, or a click on the status bar's
+language, chooses another one for the document, from the last five chosen or a
+category submenu. A line over 10,000 chars shows without colors; Preferences
+changes that limit. Edit > Toggle Line Comment and Toggle Block Comment use the
+grammar's comment delimiters.
+
+User grammars are XML files in `grammars/` in the settings directory, read at
+startup. One with a built-in grammar's id replaces it, and its `category`
+attribute picks its Syntax submenu (User without one). View > Syntax > Reload
+Grammars reads them again, and an invalid file is skipped with a notice. The
+format is in the project documentation, `qcaret-core/docs/grammars.md`.
 
 ## External changes
 
@@ -372,9 +426,11 @@ workspace folder and search results. A document is open in one tab of one window
 at a time.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
-window's tab strip to dock it there; Window > Move to New Window does the first.
-The document moves live, with its undo history and unsaved changes. A tab with a
-save, reload or conversion running does not move.
+window's tab strip to dock it there; Window > Move to New Window and the tab
+menu do the first. The document moves live and nothing is read again: undo
+history, unsaved changes, carets, scroll, folds, bookmarks and its recovery file
+go with it. A tab with a save, reload or conversion running does not move.
+Search results stay in their window and still lead to the moved tab.
 
 File > Exit asks about unsaved documents in every window before anything closes;
 Cancel leaves everything as it was, and a save that fails stops the quit. Closing
@@ -416,8 +472,9 @@ and masks, and the searches kept in the session.
 Editor font lists the installed monospace families, filled in a moment after the
 dialog opens; columns need letters of equal width, so proportional fonts are not
 offered. Only TrueType and OpenType files in the system and user font folders
-are listed, and only families the platform reports as installed. If the chosen family is uninstalled, QCaret logs a warning and uses
-the platform's font until it returns. The font applies to every editor, the
+are listed, and only families the platform reports as installed. If the chosen
+family is uninstalled, QCaret logs a warning and uses the platform's font until
+it returns. The font applies to every editor, the
 comparison windows, the replace preview and the log and license windows.
 
 ### Theme files
@@ -459,6 +516,8 @@ keeps the built-in value; a key QCaret does not know is ignored.
 
 A theme file sets colors only: bold, italic and underline stay as built in.
 
+### Settings directory
+
 Settings are in `qcaret.conf`, in the first of these that applies:
 
 | Mode | When | Directory |
@@ -471,7 +530,9 @@ Settings are in `qcaret.conf`, in the first of these that applies:
 
 - Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy.
 - Command-Line Options shows the usage text.
-- User Guide shows this guide in a window that loads nothing else. Under GTK 4 a
+- User Guide shows this guide in a window that loads nothing else: a copy of
+  the page written to the settings directory, holding its own images, with
+  JavaScript off. Under GTK 4 a
   notice names the guide's file instead; open that file in a browser. Without a
   working embedded browser the guide opens in the system's HTML application.
 - Show Log shows the recent log lines and clears the Warnings link.
@@ -515,7 +576,4 @@ start failure, such as missing GTK libraries, exits 3.
 qcaret +120:8 src/Mock.java -r notes.txt
 ```
 
-To give QCaret more heap for large files, run the jar with the bundle's runtime:
-`runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`.
-On Windows add `-Xmx8g` as a line in
-`qcaret.l4j.ini` next to `qcaret.exe`.
+To give QCaret more heap for large files, see [Large files](#large-files).
