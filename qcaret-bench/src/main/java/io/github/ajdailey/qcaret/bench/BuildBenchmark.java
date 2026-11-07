@@ -20,7 +20,9 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(value = 2, jvmArgsAppend = "-XX:MaxRAMPercentage=50")
+@Fork(
+    value = 2,
+    jvmArgsAppend = {StorageHarness.LAUNCHER_HEAP, StorageHarness.LAUNCHER_GC})
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class BuildBenchmark {

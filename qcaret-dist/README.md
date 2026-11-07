@@ -106,9 +106,9 @@ recovery are in the root [README](../README.md#releases).
 
 | Launcher | Behavior |
 |---|---|
-| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. Runs only `uname` and `readlink` besides Java |
-| `qcaret.exe` (launch4j 3.50, `gui`) | Runs `lib\qcaret.jar` with a Java 21+ found in `runtime`, `%JAVA_HOME%`, then `%PATH%`; 64-bit only; `-XX:MaxRAMPercentage=50`. The launch4j header is a 32-bit x86 program that starts `javaw.exe` as a child process; on Windows arm64 it runs under x86 emulation and starting the arm64 runtime is unverified |
-| `QCaret.app/Contents/MacOS/QCaret` | The `jpackageapplauncher` binary from the target JDK's `jdk.jpackage` module. It reads `Contents/app/QCaret.cfg` and starts `Contents/runtime` with `-XstartOnFirstThread`, `--enable-native-access=ALL-UNNAMED` and `-XX:MaxRAMPercentage=50`; the layout copies jpackage's and is unverified on macOS |
+| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50 -XX:GCTimeRatio=1`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. Runs only `uname` and `readlink` besides Java |
+| `qcaret.exe` (launch4j 3.50, `gui`) | Runs `lib\qcaret.jar` with a Java 21+ found in `runtime`, `%JAVA_HOME%`, then `%PATH%`; 64-bit only; `-XX:MaxRAMPercentage=50 -XX:GCTimeRatio=1`. The launch4j header is a 32-bit x86 program that starts `javaw.exe` as a child process; on Windows arm64 it runs under x86 emulation and starting the arm64 runtime is unverified |
+| `QCaret.app/Contents/MacOS/QCaret` | The `jpackageapplauncher` binary from the target JDK's `jdk.jpackage` module. It reads `Contents/app/QCaret.cfg` and starts `Contents/runtime` with `-XstartOnFirstThread`, `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50` and `-XX:GCTimeRatio=1`; the layout copies jpackage's and is unverified on macOS |
 
 `rcodesign` 0.29.0 ad-hoc signs each `QCaret.app` on Linux with
 `src/macos/qcaret.entitlements` (`allow-jit`,

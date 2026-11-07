@@ -40,7 +40,7 @@ java -cp qcaret-bench/target/benchmarks.jar \
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
 run for the 4 MiB single line. Every JMH benchmark runs 2 forks of 5 warm-up
-and 10 measured iterations at `-XX:MaxRAMPercentage=50`. Run on an idle host
+and 10 measured iterations at `-XX:MaxRAMPercentage=50 -XX:GCTimeRatio=1`. Run on an idle host
 and record `uptime` before and after: timings taken under load do not
 reproduce.
 
@@ -48,7 +48,7 @@ reproduce.
 
 `StorageHarness` and `SearchHarness` run at the shipped launchers'
 `-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
-harness with it, and the first output line prints the options in force. A heap option on the command line
+harness with it and the launchers' `-XX:GCTimeRatio=1`, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;
 `-Dqcaret.bench.heap=jvm` runs in place at the JVM default (25% of RAM). Give a
 run with JFR or native memory tracking a heap option: without one, both JVMs
@@ -62,8 +62,8 @@ DEBUG line `First paint of file text`, which `FirstTextPaint` logs on the first
 paint with text. The first run also fills the settings directory and, for `qcaret.jar`,
 extracts the SWT natives, so it is reported apart from the median of the rest.
 
-`TARGET` is `qcaret.jar`, run with the harness JVM's `java` and
-`-XX:MaxRAMPercentage=50`, or an executable launcher: extract the bundle archive
+`TARGET` is `qcaret.jar`, run with the harness JVM's `java`,
+`-XX:MaxRAMPercentage=50` and `-XX:GCTimeRatio=1`, or an executable launcher: extract the bundle archive
 from `dist/` first, because the staging tree under `qcaret-dist/target` has no
 execute bits. On Linux `--settings` also moves `user.home`, so QCaret writes only
 inside `SETTINGS`, which holds each run's output as `startup-<n>.out`. Linux only:

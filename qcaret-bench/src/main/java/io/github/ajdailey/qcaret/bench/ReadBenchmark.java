@@ -22,7 +22,9 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /** W6 line lookups on 10 MiB and W7 sequential reads of 100 MiB, both after W3, on the rope. */
 @BenchmarkMode(Mode.AverageTime)
-@Fork(value = 2, jvmArgsAppend = "-XX:MaxRAMPercentage=50")
+@Fork(
+    value = 2,
+    jvmArgsAppend = {StorageHarness.LAUNCHER_HEAP, StorageHarness.LAUNCHER_GC})
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class ReadBenchmark {

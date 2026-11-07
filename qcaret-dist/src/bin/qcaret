@@ -25,6 +25,6 @@ fi
 
 # SWT on macOS needs the process main thread.
 if [ "$(uname -s)" = Darwin ]; then
-    exec "$java" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -XstartOnFirstThread -jar "$home/lib/qcaret.jar" "$@"
+    exec "$java" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -XX:GCTimeRatio=1 -XstartOnFirstThread -jar "$home/lib/qcaret.jar" "$@"
 fi
-exec "$java" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -jar "$home/lib/qcaret.jar" "$@"
+exec "$java" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -XX:GCTimeRatio=1 -jar "$home/lib/qcaret.jar" "$@"
