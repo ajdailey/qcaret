@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Line, column and snippet of each hit over CR, LF and CR LF, on a decoded string and on a rope;
  * selection ranges; a line too long to search skipped and counted with the lines around it searched
- * (QLogg CORE-4); a stack overflow naming its line and keeping the hits before it (QLogg CORE-2).
+ * (QLogg CORE-4), counted only where it lies in a range, whatever the scan chunk; a stack overflow
+ * naming its line and keeping the hits before it (QLogg CORE-2).
  */
 class TextSearchTest {
   private static final CancellationToken LIVE = new CancellationToken();
@@ -88,6 +89,63 @@ class TextSearchTest {
         TextSearch.search(literal("a"), RopeStorage.of(text).snapshot(), null, 100, 20, LIVE);
     assertEquals(2, rope.skippedLines());
     assertEquals(3, rope.hits().size());
+  }
+
+  /** Asserts the skipped-line count on a string and on a rope, with no limit to end the count. */
+  private static void assertSkipped(int expected, String text, int[] ranges, String name) {
+    assertEquals(
+        expected,
+        TextSearch.search(literal("a"), text, ranges, Integer.MAX_VALUE, 20, LIVE).skippedLines(),
+        name + " string");
+    assertEquals(
+        expected,
+        TextSearch.search(
+                literal("a"), RopeStorage.of(text).snapshot(), ranges, Integer.MAX_VALUE, 20, LIVE)
+            .skippedLines(),
+        name + " rope");
+  }
+
+  @Test
+  void aLongLineCountsWhenItLiesInARange() {
+    // Long lines (over 20 chars) start at 8 and 66.
+    String text = "a short\n" + "x".repeat(50) + "\nthen a\n" + "x".repeat(30) + "\nzz a";
+    assertSkipped(0, text, new int[] {0, 5}, "ends before");
+    assertSkipped(0, text, new int[] {0, 8}, "ends at its start");
+    assertSkipped(1, text, new int[] {0, 9}, "ends inside");
+    assertSkipped(1, text, new int[] {0, 62}, "ends after");
+    assertSkipped(1, text, new int[] {20, 30}, "starts inside");
+    assertSkipped(1, text, new int[] {58, 62}, "starts at its break");
+    assertSkipped(1, text, new int[] {10, 20, 30, 40}, "two ranges in one line");
+    assertSkipped(2, text, new int[] {10, 20, 70, 71}, "two ranges, two lines");
+    assertSkipped(1, text, new int[] {0, 5, 59, 68}, "a second range ending inside");
+    assertSkipped(2, text, null, "no ranges");
+  }
+
+  @Test
+  void theCountDoesNotDependOnTheScanChunk() {
+    int chunk = TextSearch.SCAN_CHARS;
+    StringBuilder text = new StringBuilder();
+    while (text.length() < chunk - 40) {
+      text.append("short a\n");
+    }
+    int first = text.length();
+    text.append("x".repeat(100)).append('\n');
+    while (text.length() < chunk + 200) {
+      text.append("short a\n");
+    }
+    int second = text.length();
+    text.append("x".repeat(100)).append('\n');
+    while (text.length() < 3 * chunk) {
+      text.append("short a\n");
+    }
+    String all = text.toString();
+    assertTrue(first < chunk && first + 20 < chunk && second < 2 * chunk);
+    assertSkipped(0, all, new int[] {0, first - 3}, "ends before, chunk crossed by the line");
+    assertSkipped(1, all, new int[] {0, first + 1}, "ends inside");
+    assertSkipped(1, all, new int[] {0, chunk + 10}, "ends after the chunk end");
+    assertSkipped(1, all, new int[] {0, second}, "ends at the second line");
+    assertSkipped(2, all, new int[] {0, second + 1}, "ends inside the second line");
+    assertSkipped(2, all, null, "no ranges");
   }
 
   @Test

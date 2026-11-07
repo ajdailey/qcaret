@@ -21,7 +21,8 @@ import org.junit.jupiter.params.provider.EnumSource;
  * {@link TextSearch.Prefix} of one gives the same {@link TextSearch.Outcome} as on other text, read
  * char by char, over 40 seeded texts with every break form, breaks at each side of a {@link
  * TextMatcher#CHECK_CHARS} window end, and texts past {@link TextSearch#SCAN_CHARS}. A cancel stops
- * each scan within one window, counted through {@link TextSearch#setProbe}. {@code
+ * each scan within one window, counted through {@link TextSearch#setProbe}. Without a limit, the
+ * skipped-line count equals a count taken line by line in the test. {@code
  * -Dqcaret.linescan.seed=N} runs one seed.
  */
 class LineScanTest {
@@ -91,11 +92,44 @@ class LineScanTest {
     return text.toString();
   }
 
+  /**
+   * Counts the lines over {@code max} chars whose chars or break lie in a range, each once, reading
+   * the text line by line.
+   */
+  private static int skipped(String text, int[] ranges, int max) {
+    int[] bounds = ranges == null ? new int[] {0, text.length()} : ranges;
+    int count = 0;
+    int start = 0;
+    while (start < text.length()) {
+      int end = start;
+      while (end < text.length() && text.charAt(end) != '\n' && text.charAt(end) != '\r') {
+        end++;
+      }
+      int next = end;
+      if (next < text.length()) {
+        next += text.startsWith("\r\n", next) ? 2 : 1;
+      }
+      if (end - start > max) {
+        for (int r = 0; r + 1 < bounds.length; r += 2) {
+          if (bounds[r] < bounds[r + 1] && start < bounds[r + 1] && next > bounds[r]) {
+            count++;
+            break;
+          }
+        }
+      }
+      start = next;
+    }
+    return count;
+  }
+
   private static void assertSame(
       String text, TextMatcher matcher, int[] ranges, int limit, int max, String name) {
     CancellationToken token = new CancellationToken();
     TextSearch.Outcome expected =
         TextSearch.search(matcher, new Chars(text), ranges, limit, max, token);
+    if (!expected.limited() && expected.tooComplexLine() < 0) {
+      assertEquals(skipped(text, ranges, max), expected.skippedLines(), name + " skipped");
+    }
     assertEquals(
         expected, TextSearch.search(matcher, text, ranges, limit, max, token), name + " string");
     assertEquals(
@@ -109,7 +143,7 @@ class LineScanTest {
     String text = text(seed);
     Random random = new Random(seed);
     int[] maxes = {Integer.MAX_VALUE, 1, 200, TextMatcher.CHECK_CHARS, 1 + random.nextInt(3000)};
-    int[] ranges = new int[4];
+    int[] ranges = new int[6];
     for (int i = 0; i < ranges.length; i++) {
       ranges[i] = random.nextInt(text.length() + 1);
     }

@@ -54,9 +54,12 @@ matched text and a snippet of the first line, control chars as spaces, trimmed,
 and cut to 500 chars around the match on a longer line. Optional ranges limit
 it to the selections; a match then lies inside one.
 
-- A line over `maxLineChars` is not searched and is counted in `skippedLines`.
-  One chunked pass finds those lines; each searched stretch ends before a
-  skipped line, so no match runs into one.
+- A line over `maxLineChars` is not searched. One chunked pass finds those
+  lines; each searched stretch ends before a skipped line, so no match runs
+  into one. `skippedLines` counts each such line once when it or its break lies
+  in a searched range: starting inside a range, or before it and running into
+  it. A line starting at a range's end or after does not count, although the
+  pass reads up to one 64 Ki-char chunk past the end.
 - The line-start scan and the long-line pass find CR and LF with
   `String.indexOf` in 4,096-char windows on a `String`, also behind a `Prefix`,
   and read other text char by char in 64 Ki-char chunks (`SCAN_CHARS`). Each

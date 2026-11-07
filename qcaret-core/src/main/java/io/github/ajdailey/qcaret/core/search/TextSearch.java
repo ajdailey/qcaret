@@ -13,9 +13,11 @@ import java.util.List;
  * snippet of its line, for a HyperSearch result.
  *
  * <ul>
- *   <li>A line longer than {@code maxLineChars} is not searched and is counted in {@link
- *       Outcome#skippedLines}; the text before and after it is. Each searched stretch ends before
- *       the skipped line, so no match runs into it.
+ *   <li>A line longer than {@code maxLineChars} is not searched; the text before and after it is.
+ *       Each searched stretch ends before the skipped line, so no match runs into it. {@link
+ *       Outcome#skippedLines} counts each such line once when it or its break lies in a searched
+ *       range, so one starting before a range and running into it counts and one starting at the
+ *       range's end does not.
  *   <li>A {@link PatternTooComplexException} ends the search: the outcome keeps the matches before
  *       the line that overflowed and names that line in {@link Outcome#tooComplexLine}.
  *   <li>The snippet is the match's first line with control chars as spaces and the leading and
@@ -58,7 +60,7 @@ public final class TextSearch {
    * What one text gave.
    *
    * @param hits the matches by offset
-   * @param skippedLines lines not searched for their length
+   * @param skippedLines lines in the searched ranges not searched for their length, each once
    * @param tooComplexLine the line where the regex overflowed the stack, or -1
    * @param limited true when matches beyond {@code limit} were left out
    */
@@ -90,6 +92,7 @@ public final class TextSearch {
     int[] bounds = ranges == null ? new int[] {0, text.length()} : ranges;
     List<Hit> hits = new ArrayList<Hit>();
     int skipped = 0;
+    int counted = -1;
     boolean limited = false;
     for (int r = 0; r + 1 < bounds.length && !limited; r += 2) {
       int from = Math.max(0, bounds[r]);
@@ -110,7 +113,11 @@ public final class TextSearch {
           limited = hits.size() > limit;
         }
         if (k < skip.length) {
-          skipped++;
+          // The scan reads past the range end; count lines starting before it, each once.
+          if (skip[k] < to && skip[k] > counted) {
+            skipped++;
+            counted = skip[k];
+          }
           at = Math.max(at, skip[k + 1]);
         }
       }
