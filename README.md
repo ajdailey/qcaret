@@ -284,6 +284,13 @@ they apply (measured on Linux under Xvfb, one million lines):
 | Theme switch or font change (View > Zoom, Preferences): every open view's per-line state is reset | About 1 s per view; a split document has two |
 | Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the computed text replaces the document's (busy cursor) | Sort: 1.2-2.0 s for the apply, after the edit is computed on a worker; the others not measured |
 
+Display update for one edit, also on the UI thread (measured on an idle Linux x86_64
+host, without SWT, one million lines): 2.4-3.6 us. It grows with the line's length,
+19 ms on a 4 MiB line, and with the collapsed fold regions, 2.9 ms among 99,999.
+
+Canceling a search finishes each file being read: on 16 MiB files HyperSearch stopped in
+48 ms at the median and 68 ms at most, measured on the same host.
+
 ## Network access
 
 QCaret makes no outbound network connections: no update check, telemetry or
