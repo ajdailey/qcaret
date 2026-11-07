@@ -292,6 +292,17 @@ public final class EditorPane implements EditorView {
           public void run() {
             composing = true;
           }
+        },
+        // A change reports whole rows, so StyledText.handleTextChanged takes a composition past
+        // column 0 for one that text before it moved, and shifts the IME's offset off the text.
+        // With no composition shown, a commit lands at the primary selection.
+        new Runnable() {
+          @Override
+          public void run() {
+            int[] range = selections.document().preeditRange();
+            int offset = range != null ? range[0] : selections.selections().primary().start();
+            text.getIME().setCompositionOffset(projection.toDisplay(offset));
+          }
         });
     // The widget moves its own caret while it applies a change; those moves are not the user's.
     content.onChange(

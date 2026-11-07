@@ -113,8 +113,9 @@ class DocumentControllerTest {
   }
 
   /**
-   * Waits until every started worker ended, then runs what they posted. The CPU pool's threads stay
-   * once a task ran on them, so they are not counted.
+   * Waits until every started blocking worker ended, then runs what they posted. The CPU pool's
+   * threads stay once a task ran on them, so they are not counted, and a CPU task can post after
+   * this returns.
    */
   private void settle() throws Exception {
     assertTrue(
@@ -858,10 +859,14 @@ class DocumentControllerTest {
     assertTrue(failure.getAndSet(null) instanceof IllegalStateException);
   }
 
-  /** Calls for a collection until the reference clears. */
-  private static void assertCollected(WeakReference<Document> reference) throws Exception {
+  /**
+   * Runs UI tasks and calls for a collection until the reference clears: a CPU task that outlives
+   * {@link #settle} queues a UI task holding the closed document's editor, and the queue holds it
+   * until it runs.
+   */
+  private void assertCollected(WeakReference<Document> reference) throws Exception {
     assertTrue(
-        Poll.until(
+        ui.runUntil(
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {

@@ -18,7 +18,6 @@ import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.lang.ref.WeakReference;
@@ -591,8 +590,9 @@ class TabMoveTest {
     first.execute(CommandId.MOVE_TO_NEW_WINDOW);
     windows.controllers.get(1).documents().closeActive();
     windows.settle("the close");
+    // A CPU task still running queues a UI task holding the closed document's editor.
     assertTrue(
-        Poll.until(
+        windows.ui.runUntil(
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {

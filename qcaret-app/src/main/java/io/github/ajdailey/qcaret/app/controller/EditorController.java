@@ -729,7 +729,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void type(String typed) {
-    if (document.isReadOnly()) {
+    if (disposed || document.isReadOnly()) {
       return;
     }
     document.clearPreedit();
@@ -1058,7 +1058,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void preeditFromView(String text) {
-    if (!document.isReadOnly()) {
+    if (!disposed && !document.isReadOnly()) {
       document.preedit(selections.selections().primary().start(), text);
     }
   }

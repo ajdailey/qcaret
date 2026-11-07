@@ -312,11 +312,16 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   input method composition text, goes to `EditorInput.preeditFromView`,
   outside undo. SWT sends `ImeComposition` on the `IME` widget, and its
   `StyledText` listener removes the composition at a commit; the committed
-  chars then arrive as key events on GTK, win32 and cocoa (read in SWT 3.135).
-  That listener also collapses the widget's selection, so `EditorPane` ignores
-  widget caret reports until its own `IME` listener runs, and puts the model's
-  selection back once no composition shows. `setText` goes to the controller as
-  an edit.
+  chars then arrive as key events, one per UTF-16 unit (measured on GTK 3 under
+  IBus; read in SWT 3.135 for win32 and cocoa). That listener also collapses
+  the widget's selection, so `EditorPane` ignores widget caret reports until its
+  own `IME` listener runs, and puts the model's selection back once no
+  composition shows. A display change reports whole rows, and
+  `StyledText.handleTextChanged` reads a change that starts before the
+  composition as text that moved it, so after each `replaceTextRange` the pane
+  sets `IME.setCompositionOffset` from the model. Without that, the offset of a
+  composition past column 0 moves off it, and at the document's end `showCaret`
+  throws. `setText` goes to the controller as an edit.
 - A `VerifyKey` listener converts each key with `SwtKeys.stroke`, runs the
   `Keymap`'s editor binding through `EditorInput.execute`, types printable
   chars and Tab, and consumes both; Ctrl+Alt (AltGr) and, on macOS, Option
@@ -696,9 +701,9 @@ widget between press and drag, and checks the block, its copy, and in a print of
 line within 1 px of the measured column 150 on a long line, with the virtual
 part painted after a resize and a horizontal scroll; sends
 composition text through the content and checks it stays out of undo; sends
-`IME` events for a composition over a selection, with the commit's key events,
-and checks a cancel keeps the selection and a commit replaces it as one undo
-step; runs Go
+`IME` events for a composition over a selection and past column 0, with the
+commit's key events, and checks a cancel keeps the selection, a commit replaces
+it as one undo step and the `IME`'s offset stays on the composition; runs Go
 to Line through its dialog; filters and copies Keyboard Shortcuts; holds a
 block drag below, right, left and above the view and checks that it scrolls
 until release, focus loss and tab close; and checks the
@@ -788,3 +793,47 @@ and the theme and zoom steps must replace the primary caret image.
 System cursors are left out: GTK SWT moves its cached cursors to a list it
 disposes with the Display on each theme switch, so the next request allocates
 another.
+
+### IBus test
+
+`IBusCompositionTest` (tag `swt`) drives a real input method through the GTK 3
+path. `IBusSession` starts `Xvfb`, `ibus-daemon` under `dbus-run-session` and
+the `IBusDriver` JVM, each with an environment built from nothing and a private
+`HOME`, `XDG_*` and display, so key events cannot reach a desktop session. GLib
+double-forks what the daemon spawns; `close` finds those processes by a mark in
+`/proc/<pid>/environ`. `IBusDriver` opens a real `MainWindow`, sends X key
+events with `xdotool key` (XTEST) and writes `target/diagnostics/ibus/results.txt`
+with each check's result and its `ImeComposition` and `KeyDown` trace, next to
+each process's log.
+
+The engine is `table:cangjie5`: a table with no language model, in the
+`ibus-table-cangjie5` package. The checks name its characters, and a host whose
+table composes `a` differently counts as unavailable.
+
+| Host | Default | `-Dqcaret.ibus.required=true` |
+|---|---|---|
+| Windows, macOS | Skips | Skips |
+| GTK 4 (`SWT_GTK4=1`) | Skips | Fails |
+| Linux without `Xvfb`, `dbus-run-session`, `ibus-daemon`, `ibus` or `xdotool` | Skips | Fails |
+| Linux where the daemon, the engine or the GTK module does not work, or the first key composes nothing | Skips | Fails |
+| Linux with all of them | Runs | Runs |
+
+The `test-ibus` CI job installs the packages and sets the property. To run it
+elsewhere, install `dbus ibus ibus-gtk3 ibus-table ibus-table-cangjie5 xdotool`
+and run `xvfb-run -a ./mvnw -B verify -pl qcaret-ui-swt -am
+-Dtest=IBusCompositionTest -Dsurefire.failIfNoSpecifiedTests=false
+-Dqcaret.ibus.required=true`.
+
+Events on GTK 3 under IBus 1.5.29, which `eventsMatchEditingSurfaceTest` pins and
+the `EditingSurfaceTest` helpers send:
+
+| Step | `ImeComposition` and key events |
+|---|---|
+| First composition text | `COMPOSITION_SELECTION`, then `COMPOSITION_CHANGED` over the selection |
+| Update | `COMPOSITION_CHANGED` over the composition |
+| Cancel | One `COMPOSITION_CHANGED` over the composition with empty text; no `COMPOSITION_SELECTION` |
+| Commit | That same empty change, then `COMPOSITION_CHANGED` with an empty range, the text and `getCommitCount` equal to its length, then one `KeyDown` per UTF-16 unit with `keyCode` 0 |
+
+The engine commits a composition when the widget loses the focus, and keeps it
+through a reload or save that cleared the model's copy, committing at the next
+key.

@@ -26,6 +26,7 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
   private Runnable changing;
   private Runnable changed;
   private Runnable composing;
+  private Runnable composed;
 
   ContentAdapter(DisplayProjection projection, EditorInput input) {
     this.projection = projection;
@@ -41,9 +42,10 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
     changed = after;
   }
 
-  /** Sets what runs before composition text from the widget reaches the model. */
-  void onComposition(Runnable before) {
+  /** Sets what runs before composition text from the widget reaches the model, and after. */
+  void onComposition(Runnable before, Runnable after) {
     composing = before;
+    composed = after;
   }
 
   /** Detaches from the projection. */
@@ -129,6 +131,9 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
       composing.run();
     }
     input.preeditFromView(text);
+    if (composed != null) {
+      composed.run();
+    }
   }
 
   @Override

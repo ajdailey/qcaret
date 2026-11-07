@@ -311,6 +311,19 @@ class MultiCaretTest {
     assertEquals("abq|", marked());
   }
 
+  /** A closing tab's widget loses the focus after the close, and the input method ends then. */
+  @Test
+  void aDisposedEditorDropsInputMethodText() {
+    open("ab|");
+    editor.preeditFromView("k");
+    document.clearPreedit();
+    editor.dispose();
+    editor.preeditFromView("");
+    editor.preeditFromView("ka");
+    editor.type("ka");
+    assertEquals("ab", document.text().toString());
+  }
+
   @Test
   void aCanceledCompositionOverASelectionLeavesTheTextAndTheSelection() {
     open("[hello] world");

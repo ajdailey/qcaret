@@ -223,6 +223,16 @@ class DocumentOpenerTest {
     assertTrue(ui.runUntil(results(1), BOUND));
     assertTrue(ui.runUntil(idle(), BOUND));
     assertStopped();
+    // The worker reaches the failure handler after its finally posted the result.
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return failure.get() != null;
+              }
+            },
+            BOUND));
     assertTrue(failure.getAndSet(null) instanceof IllegalStateException);
   }
 

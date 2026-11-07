@@ -651,10 +651,19 @@ class EditingSurfaceTest {
     imeEvent(text, ask.start, ask.end, composed);
   }
 
-  /** Commits as {@code IME} does: the commit count equals the text, then the chars are keys. */
+  /** Cancels as {@code IME} does under IBus: one empty change over the composition. */
+  private static void cancel(StyledText text, int start, int length) {
+    imeEvent(text, start, start + length, "");
+  }
+
+  /**
+   * Commits as {@code IME} does under IBus: an empty change removes the composition, an empty range
+   * carries the commit count, then the chars are keys. {@code IBusCompositionTest} pins it.
+   */
   private static void commit(StyledText text, int start, String composed) throws Exception {
+    cancel(text, start, composed.length());
     setIme(text, "commitCount", composed.length());
-    imeEvent(text, start, start + composed.length(), composed);
+    imeEvent(text, start, start, composed);
     setIme(text, "commitCount", 0);
     setIme(text, "startOffset", -1);
     for (char c : composed.toCharArray()) {
@@ -675,9 +684,7 @@ class EditingSurfaceTest {
     compose(text, "n");
     drain();
     assertEquals("nhello world", text.getText());
-    // GTK asks for the selection again to cancel, so the range names no composition.
-    setIme(text, "startOffset", -1);
-    compose(text, "");
+    cancel(text, 0, 1);
     drain();
     assertEquals("hello world", editor().document().text().toString());
     assertFalse(editor().document().isDirty());
@@ -701,6 +708,27 @@ class EditingSurfaceTest {
     drain();
     assertEquals("hello world", text.getText());
     assertEquals("hello", text.getSelectionText());
+  }
+
+  /** A change reports its whole row, which {@code StyledText} reads as text moving the offset. */
+  @Test
+  void aCompositionPastColumnZeroKeepsItsOffset() throws Exception {
+    openFile("imecolumn.txt", "ab");
+    StyledText text = window.activeText();
+    editor().selections().set(SelectionSet.caret(2));
+    drain();
+    compose(text, "k");
+    assertEquals(2, text.getIME().getCompositionOffset());
+    imeEvent(text, 2, 3, "ka");
+    assertEquals(2, text.getIME().getCompositionOffset());
+    drain();
+    assertEquals("abka", text.getText());
+    commit(text, 2, "ka");
+    drain();
+    assertEquals("abka", editor().document().text().toString());
+    controller.execute(CommandId.UNDO);
+    drain();
+    assertEquals("ab", text.getText());
   }
 
   @Test

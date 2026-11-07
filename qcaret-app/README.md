@@ -822,7 +822,9 @@ document ignores edits. The controller also runs the projection's rewraps on
   undo, at the primary selection's start; the selection stays. The view ends
   the composition and sends a commit as typed chars, which replace the
   selection and coalesce into one undo step. Every edit removes a composition
-  first.
+  first. A disposed `EditorController` drops `preeditFromView` and `type`: GTK
+  takes the focus from a closing tab's widget after the close, and the input
+  method ends its composition then.
 - `type` holds a high surrogate until its low one arrives: views send one char
   per key event, and a block's column moves between two lone halves.
 - Esc cancels a running line transform, save and comparison through one
