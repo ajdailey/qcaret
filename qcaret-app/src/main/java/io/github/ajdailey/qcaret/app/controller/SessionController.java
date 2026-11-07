@@ -333,6 +333,7 @@ final class SessionController implements DocumentController.FileMemory {
     recovery.start();
     reportDroppedComments(loaded.droppedComments());
     changed();
+    set.restoreEnded();
   }
 
   /** Shows the count once; the save {@link #finish} arms clears the key. */

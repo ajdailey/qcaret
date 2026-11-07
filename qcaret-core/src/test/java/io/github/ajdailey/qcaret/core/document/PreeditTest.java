@@ -38,8 +38,8 @@ class PreeditTest {
             // Not recorded.
           }
         });
-    document.preedit(1, 0, "ka");
-    document.preedit(1, 2, "か");
+    document.preedit(1, "ka");
+    document.preedit(1, "か");
     assertEquals("aかb", document.text().toString());
     assertArrayEquals(new int[] {1, 1}, document.preeditRange());
     assertFalse(document.isDirty());
@@ -71,10 +71,46 @@ class PreeditTest {
     Document document = document("ab");
     SelectionModel model = document.newSelectionModel();
     document.apply(EditBatch.replace(2, 0, "c"), model, SelectionSet.caret(3));
-    document.preedit(3, 0, "zz");
+    document.preedit(3, "zz");
     assertTrue(document.undo(model));
     assertEquals("ab", document.text().toString());
     assertNull(document.preeditRange());
+  }
+
+  @Test
+  void aCompositionReplacesOnlyItsOwnText() {
+    Document document = document("hello");
+    document.preedit(2, "ab");
+    document.preedit(0, "abc");
+    assertEquals("heabcllo", document.text().toString());
+    assertArrayEquals(new int[] {2, 3}, document.preeditRange());
+    document.preedit(0, "");
+    assertEquals("hello", document.text().toString());
+    assertNull(document.preeditRange());
+  }
+
+  @Test
+  void anUpdateAfterAClearStartsANewComposition() {
+    Document document = document("hello");
+    document.preedit(2, "k");
+    document.clearPreedit();
+    document.preedit(2, "ka");
+    assertEquals("hekallo", document.text().toString());
+    document.preedit(2, "");
+    assertEquals("hello", document.text().toString());
+    assertFalse(document.isDirty());
+  }
+
+  @Test
+  void aSelectionSurvivesACompositionAtItsStart() {
+    Document document = document("hello world");
+    SelectionModel model = document.newSelectionModel();
+    SelectionSet selected = SelectionSet.of(List.of(Selection.of(0, 5)), 0);
+    model.set(selected);
+    document.preedit(0, "n");
+    document.preedit(0, "");
+    assertEquals("hello world", document.text().toString());
+    assertEquals(selected, model.selections());
   }
 
   @Test

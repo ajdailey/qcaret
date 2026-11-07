@@ -17,16 +17,20 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Random batches, undo, redo, groups, saves and selection moves on a {@link Document}, checked
- * after every step: text integrity against a replay of the change events, position mapping against
- * a step-by-step reference, undo and redo reversibility (an undo state always holds the same text),
- * selection set invariants, revision consistency and line ending counts. {@code
- * -Dqcaret.document.seed=N} runs one seed; a failure names its seed.
+ * Random batches, undo, redo, groups, saves, selection moves, block selections and compositions on
+ * a {@link Document}, over text with surrogate pairs, checked after every step: text integrity
+ * against a replay of the change events, position mapping against a step-by-step reference, undo
+ * and redo reversibility (an undo state always holds the same text), selection set invariants, no
+ * selection inside a CR LF or a surrogate pair, a block's lines and rows, revision consistency and
+ * line ending counts. {@code -Dqcaret.document.seed=N} runs one seed; a failure names its seed.
  */
 class DocumentRandomTest {
   private static final int SEEDS = 24;
   private static final int OPS = 1_500;
-  private static final String ALPHABET = "abcdef  \t\n\r\n\ré中";
+  private static final String[] ALPHABET = {
+    "a", "b", "c", "d", "e", "f", " ", " ", "\t", "\n", "\r", "\n", "\r", "é", "中", "\uD83D\uDE00"
+  };
+  private static final int BLOCK_TAB_WIDTH = 4;
 
   static List<Long> seeds() {
     List<Long> seeds = new ArrayList<Long>();
@@ -145,7 +149,7 @@ class DocumentRandomTest {
     String saved = initial;
     for (int op = 0; op < OPS; op++) {
       now[0] += random.nextLong(1_500_000_000L);
-      int choice = random.nextInt(100);
+      int choice = random.nextInt(116);
       SelectionModel origin = models[random.nextInt(2)];
       if (choice < 40) {
         doc.apply(batch(random, doc.text().length(), doc.text()), origin, null);
@@ -162,10 +166,14 @@ class DocumentRandomTest {
       } else if (choice < 88) {
         doc.redo(origin);
       } else if (choice < 93) {
-        origin.set(randomSelections(random, doc.text().length()));
+        origin.set(randomSelections(random, doc.text()));
       } else if (choice < 96) {
         doc.markSaved(doc.snapshot());
         saved = doc.text().toString();
+      } else if (choice >= 108) {
+        blockStep(random, doc, origin);
+      } else if (choice >= 100) {
+        compositionStep(random, doc, origin, seed, op);
       } else {
         int offset = random.nextInt(doc.text().length() + 1);
         Bias bias = random.nextBoolean() ? Bias.BEFORE : Bias.AFTER;
@@ -227,14 +235,65 @@ class DocumentRandomTest {
     for (SelectionModel model : models) {
       SelectionSet set = model.selections();
       List<Selection> list = set.selections();
+      BlockSelection block = model.block();
+      if (block != null) {
+        assertTrue(
+            Math.max(block.anchorLine(), block.caretLine()) < doc.text().lineCount(),
+            "block lines, " + where);
+        assertEquals(block.toSelections(doc.text(), BLOCK_TAB_WIDTH), set, "block rows, " + where);
+      }
       assertTrue(set.primaryIndex() >= 0 && set.primaryIndex() < list.size(), "primary " + where);
       for (int i = 0; i < list.size(); i++) {
         Selection s = list.get(i);
         assertTrue(s.start() >= 0 && s.end() <= text.length(), "bounds, " + where);
+        assertTrue(legal(text, s.anchor()) && legal(text, s.caret()), "inside a pair, " + where);
         if (i > 0) {
           assertTrue(list.get(i - 1).end() < s.start(), "disjoint and sorted, " + where);
         }
       }
+    }
+  }
+
+  /** Runs a composition to its end: the text, undo state and selections come back unchanged. */
+  private static void compositionStep(
+      SplittableRandom random, Document doc, SelectionModel origin, long seed, int op) {
+    String where = "composition, seed " + seed + " op " + op;
+    String before = doc.text().toString();
+    SelectionSet selections = origin.selections();
+    long state = doc.snapshot().state();
+    int at = selections.primary().start();
+    doc.preedit(at, text(random, 1 + random.nextInt(4)));
+    doc.preedit(random.nextInt(doc.text().length() + 1), text(random, 1 + random.nextInt(4)));
+    if (random.nextBoolean()) {
+      doc.clearPreedit();
+      doc.preedit(at, text(random, 1));
+    }
+    if (random.nextBoolean()) {
+      doc.preedit(random.nextInt(doc.text().length() + 1), "");
+    } else {
+      doc.clearPreedit();
+    }
+    assertEquals(before, doc.text().toString(), where);
+    assertEquals(state, doc.snapshot().state(), where);
+    assertEquals(selections, origin.selections(), where);
+  }
+
+  /** Enters a block, then applies a batch that keeps it, may lose it, or undoes under it. */
+  private static void blockStep(SplittableRandom random, Document doc, SelectionModel origin) {
+    int lines = doc.text().lineCount();
+    int top = random.nextInt(lines);
+    int bottom = Math.min(lines - 1, top + random.nextInt(4));
+    int left = random.nextInt(12);
+    int right = random.nextBoolean() ? left : random.nextInt(12);
+    origin.setBlock(new BlockSelection(top, left, bottom, right), BLOCK_TAB_WIDTH);
+    switch (random.nextInt(3)) {
+      case 0 ->
+          doc.applyInBlock(
+              batch(random, doc.text().length(), doc.text()),
+              origin,
+              new BlockSelection(top, left, bottom, right));
+      case 1 -> doc.apply(batch(random, doc.text().length(), doc.text()), origin, null);
+      default -> doc.undo(origin);
     }
   }
 
@@ -255,7 +314,7 @@ class DocumentRandomTest {
       } else {
         return;
       }
-      caret = kind == EditBatch.Kind.TYPING ? caret + 1 : r.offset();
+      caret = kind == EditBatch.Kind.TYPING ? caret + r.text().length() : r.offset();
       doc.apply(EditBatch.of(kind, List.of(r)), origin, SelectionSet.caret(caret));
       now[0] += 100_000_000L;
     }
@@ -282,20 +341,36 @@ class DocumentRandomTest {
     return EditBatch.of(kind, out);
   }
 
-  private static SelectionSet randomSelections(SplittableRandom random, int length) {
+  private static SelectionSet randomSelections(SplittableRandom random, CharSequence text) {
+    int length = text.length();
     int count = 1 + random.nextInt(5);
     List<Selection> out = new ArrayList<Selection>();
     for (int i = 0; i < count; i++) {
-      out.add(Selection.of(random.nextInt(length + 1), random.nextInt(length + 1)));
+      int anchor = legalized(text, random.nextInt(length + 1));
+      out.add(Selection.of(anchor, legalized(text, random.nextInt(length + 1))));
     }
     return SelectionSet.of(out, random.nextInt(count));
   }
 
-  private static String text(SplittableRandom random, int length) {
-    char[] out = new char[length];
-    for (int i = 0; i < length; i++) {
-      out[i] = ALPHABET.charAt(random.nextInt(ALPHABET.length()));
+  private static boolean legal(CharSequence text, int at) {
+    if (at <= 0 || at >= text.length()) {
+      return true;
     }
-    return new String(out);
+    char before = text.charAt(at - 1);
+    char after = text.charAt(at);
+    return !(before == '\r' && after == '\n')
+        && !(Character.isHighSurrogate(before) && Character.isLowSurrogate(after));
+  }
+
+  private static int legalized(CharSequence text, int at) {
+    return legal(text, at) ? at : at - 1;
+  }
+
+  private static String text(SplittableRandom random, int length) {
+    StringBuilder out = new StringBuilder(length);
+    for (int i = 0; i < length; i++) {
+      out.append(ALPHABET[random.nextInt(ALPHABET.length)]);
+    }
+    return out.toString();
   }
 }

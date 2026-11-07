@@ -41,6 +41,12 @@ class LineTransformsTest {
   }
 
   @Test
+  void aSortedCaretLeavesASurrogatePairOrACrLf() {
+    assertEquals("ab\n|\uD83D\uDE00", sort("\uD83D\uDE00\na|b", LineTransforms.Order.ASCENDING));
+    assertEquals("a|\r\nzzz", sort("zz|z\r\na", LineTransforms.Order.ASCENDING));
+  }
+
+  @Test
   void eachRangeSortsItsOwnTouchedLines() {
     assertEquals(
         "x\n[a\nb\n]z\ny\n[c\nd]", sort("x\n[b\na\n]z\ny\n[d\nc]", LineTransforms.Order.ASCENDING));

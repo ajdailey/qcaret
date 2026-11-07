@@ -43,7 +43,7 @@ public final class CaretNavigation {
         target + 1 < projection.rowCount()
             && projection.lineOfRow(target + 1) == projection.lineOfRow(target);
     if (continued && at == text.length() && at > 0) {
-      at--;
+      at -= at > 1 && Character.isSurrogatePair(text.charAt(at - 2), text.charAt(at - 1)) ? 2 : 1;
     }
     return new int[] {projection.toModel(projection.rowStart(target) + at), column};
   }

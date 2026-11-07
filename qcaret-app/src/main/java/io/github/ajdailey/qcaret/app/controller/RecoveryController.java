@@ -476,6 +476,7 @@ final class RecoveryController implements RecoveryInput {
               case UNCHANGED -> UiText.RECOVERY_UNCHANGED.text();
               case CHANGED -> UiText.RECOVERY_CHANGED.text();
               case MISSING -> UiText.RECOVERY_MISSING.text();
+              case UNREADABLE -> UiText.RECOVERY_UNREADABLE.text();
             };
     return new RecoveryRow(name, time(h), state, entry.damaged());
   }
@@ -682,16 +683,17 @@ final class RecoveryController implements RecoveryInput {
   /**
    * Returns the baseline a recovered buffer starts from: the file as it stands when it still holds
    * the buffer's base, else the recorded base, which shows the change and makes a save ask. A file
-   * the buffer never matched gets a stamp that matches no file.
+   * the buffer never matched gets a stamp that matches no file; so does a file that cannot be read.
    */
   @WorkerThread
-  private static FileBaseline baseline(RecoveryFile.Header header, Path real) throws IOException {
-    FileBaseline now = FileCheck.read(real, new CancellationToken());
-    if (now == null) {
-      return null;
-    }
-    if (now.digest().equals(header.baseSha256())) {
-      return now;
+  private static FileBaseline baseline(RecoveryFile.Header header, Path real) {
+    try {
+      FileBaseline now = FileCheck.read(real, new CancellationToken());
+      if (now == null || now.digest().equals(header.baseSha256())) {
+        return now;
+      }
+    } catch (IOException e) {
+      LOG.warn("Cannot read a recovered buffer's file: {}", LogText.oneLine(e.getMessage()));
     }
     FileTime modified = FileTime.fromMillis(0);
     try {
@@ -784,23 +786,24 @@ final class RecoveryController implements RecoveryInput {
       final DocumentController documents,
       final Consumer<String> failed,
       final Runnable done) {
-    Result result;
+    Result result = new Result(null, UiText.RECOVERY_READ_FAILED.format(tab.buffer()));
     Path found = null;
     try {
       found = RecoveryStore.snapshotFile(settings, tab.buffer());
       result = load(found);
     } catch (IOException e) {
-      result = new Result(null, UiText.RECOVERY_READ_FAILED.format(tab.buffer()));
+      LOG.debug("Cannot find a snapshot: {}", LogText.oneLine(e.getMessage()));
+    } finally {
+      final Path file = found;
+      final Result read = result;
+      ui.asyncExec(
+          new Runnable() {
+            @Override
+            public void run() {
+              snapshotRead(tab, documents, file, read, failed, done);
+            }
+          });
     }
-    final Path file = found;
-    final Result read = result;
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            snapshotRead(tab, documents, file, read, failed, done);
-          }
-        });
   }
 
   private void snapshotRead(
@@ -810,19 +813,21 @@ final class RecoveryController implements RecoveryInput {
       Result read,
       Consumer<String> failed,
       Runnable done) {
-    if (read.recovered() == null) {
-      failed.accept(read.problem());
+    try {
+      if (read.recovered() == null) {
+        failed.accept(read.problem());
+        return;
+      }
+      DocumentController.Buffer buffer =
+          receiver(read.recovered(), documents).addRecovered(read.recovered(), tab);
+      if (buffer == null) {
+        budget.release(read.recovered().reserved());
+      } else {
+        adopt(buffer, file);
+      }
+    } finally {
       done.run();
-      return;
     }
-    DocumentController.Buffer buffer =
-        receiver(read.recovered(), documents).addRecovered(read.recovered(), tab);
-    if (buffer == null) {
-      budget.release(read.recovered().reserved());
-    } else {
-      adopt(buffer, file);
-    }
-    done.run();
   }
 
   // Quit.

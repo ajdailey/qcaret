@@ -82,6 +82,20 @@ class FoldingCommandsTest {
   }
 
   @Test
+  void aCompositionBelowACollapsedRegionLeavesTheTextUnchanged() throws InterruptedException {
+    EditorController editor = documents.activeEditor();
+    DisplayProjection p = editor.projection();
+    p.foldAll();
+    awaitCollapsed(p, p.foldRegionCount());
+    caret(editor, 8, 1);
+    editor.preeditFromView("ab");
+    editor.preeditFromView("abc");
+    editor.preeditFromView("");
+    assertEquals(TEXT, editor.document().text().toString());
+    assertFalse(editor.document().isDirty());
+  }
+
+  @Test
   void indentationGivesTheRegionsAndTheCommandsFoldThem() throws InterruptedException {
     EditorController editor = documents.activeEditor();
     DisplayProjection p = editor.projection();

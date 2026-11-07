@@ -32,6 +32,11 @@ final class GatedCharset extends Charset {
     encoderArmed.set(true);
   }
 
+  /** Reports whether a gate holds its caller, for a test that runs UI tasks while it waits. */
+  boolean held() {
+    return reached.getCount() == 0;
+  }
+
   boolean awaitHeld() throws InterruptedException {
     return reached.await(20, TimeUnit.SECONDS);
   }

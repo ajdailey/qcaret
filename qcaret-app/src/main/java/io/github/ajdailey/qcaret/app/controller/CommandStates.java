@@ -31,16 +31,17 @@ import java.util.Set;
  *
  * <p>A command that acts on the selected document is disabled without one. A binary file's view
  * disables every command that would write or edit it; a read-only document disables the edits and
- * the line-ending conversions. Undo and Redo need a step in the document's history, Cut and Copy a
- * selection, which a read-only document keeps for Copy. Reopen Closed Tab and Clear Recently Closed
- * need a closed file, not a document. The fold commands need fold regions in the focused view, the
- * unfold commands a collapsed one. Next, Previous and Clear Bookmarks need a bookmark; the
- * Bookmarks list shows without a document. HyperSearch runs without a document; Next and Previous
- * Result and Replace in Results need a match in a retained set. Go Back and Go Forward need a
- * position that way, Clear Recent Files a file. Compare Documents needs a second document, Compare
- * with File on Disk and Reload from Disk a file. A disabled menu item's accelerator does not fire;
- * the keys of Undo, Redo, Cut and Copy are editor bindings, not accelerators, so they stay live in
- * the editor and in text fields whatever the items show.
+ * the line-ending conversions, and Save too while its file's bytes do not encode back. Undo and
+ * Redo need a step in the document's history, Cut and Copy a selection, which a read-only document
+ * keeps for Copy. Reopen Closed Tab and Clear Recently Closed need a closed file, not a document.
+ * The fold commands need fold regions in the focused view, the unfold commands a collapsed one.
+ * Next, Previous and Clear Bookmarks need a bookmark; the Bookmarks list shows without a document.
+ * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
+ * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
+ * Compare Documents needs a second document, Compare with File on Disk and Reload from Disk a file.
+ * A disabled menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor
+ * bindings, not accelerators, so they stay live in the editor and in text fields whatever the items
+ * show.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -246,7 +247,8 @@ public final class CommandStates {
     }
     return switch (command) {
       case COPY -> selected(documents);
-      case SAVE, SAVE_AS, READ_ONLY -> !binary;
+      case SAVE -> !binary && !documents.activeRefusesSave();
+      case SAVE_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS, COMPARE_DOCUMENTS -> documents.count() > 1;
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;

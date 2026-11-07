@@ -193,7 +193,9 @@ classes, so the rules over the main classes never see them.
 surviving `qcaret-` thread; a remembered placement opens with the untitled
 document's title and is saved again; a `--window-width` run and a `-m` run
 leave the saved placement unchanged. The title arrives on a later UI turn, so
-the test waits for it within a bound. `PortableRunTest` (tag `swt`)
+the test waits for it within a bound; the untitled document's title is set
+before the event loop starts. A quit with a reopen's read held in the decoder
+exits 0 with no surviving thread. `PortableRunTest` (tag `swt`)
 runs `Gui` twice over a portable bundle with `user.home` set as
 `PlatformSetup` sets it: the first run switches to the dark theme and the
 second starts dark; afterwards every new or changed file lies inside the

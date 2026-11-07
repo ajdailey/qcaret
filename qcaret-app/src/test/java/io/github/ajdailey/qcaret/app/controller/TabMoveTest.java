@@ -18,11 +18,14 @@ import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
@@ -567,5 +570,37 @@ class TabMoveTest {
     first.moveTabToNewWindow(windows.view(first).tabs.get(0).input, 7, 8);
     assertEquals(List.of(left), windows.controllers.get(1).documents().openDocuments());
     assertEquals(Integer.valueOf(8), windows.geometries.get(0).y());
+  }
+
+  @Test
+  void aMovedDocumentClosedInItsNewWindowIsCollected() throws Exception {
+    open(first, "other.txt", "mockword\n");
+    final WeakReference<Document> reference =
+        new WeakReference<Document>(open(first, "moved.txt", "mockword\n"));
+    first.documents().activeEditor().type("mockw");
+    first.documents().activeEditor().execute(CommandId.COMPLETE_WORD);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !windows.view(first).selected.shown.completions.isEmpty();
+          }
+        },
+        "the completion");
+    first.documents().activeEditor().execute(CommandId.UNDO);
+    first.execute(CommandId.MOVE_TO_NEW_WINDOW);
+    windows.controllers.get(1).documents().closeActive();
+    windows.settle("the close");
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                System.gc();
+                return reference.get() == null;
+              }
+            },
+            Duration.ofSeconds(5)),
+        "the closed document is still reachable");
   }
 }

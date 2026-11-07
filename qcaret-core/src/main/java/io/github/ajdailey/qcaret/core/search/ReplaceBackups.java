@@ -43,10 +43,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@code yyyyMMdd-HHmmss-SSS}. Directories are created owner-only where POSIX permissions exist.
  *
  * <p>{@link #record} writes and forces a backup before its file is replaced, so a crash during the
- * write leaves the original recoverable; a write that does not happen deletes its backup. {@link
- * #restore} writes a backup back only while the file holds the bytes the run left; a file changed
- * since is refused. {@link #prune} deletes runs older than the days kept. Every method that touches
- * the disk runs on a worker; {@link #record} may run on several at once.
+ * write leaves the original recoverable; a write that does not happen deletes its backup, and
+ * {@link #writeFailed} keeps the backup of a write that changed the file. {@link #restore} writes a
+ * backup back only while the file holds the bytes the run left; a file changed since is refused.
+ * {@link #prune} deletes runs older than the days kept. Every method that touches the disk runs on
+ * a worker; {@link #record} may run on several at once.
  */
 public final class ReplaceBackups {
   /** The backups' directory under the settings directory. */
@@ -86,7 +87,7 @@ public final class ReplaceBackups {
    * @param number the backup's number, its file {@code <number>.bak}
    * @param file the file's real path when replaced
    * @param before the SHA-256 of the original bytes
-   * @param after the SHA-256 of the bytes the run wrote
+   * @param after the SHA-256 of the bytes the run left in the file
    */
   public record Entry(int number, Path file, byte[] before, byte[] after) {}
 
@@ -206,6 +207,47 @@ public final class ReplaceBackups {
   }
 
   /**
+   * Settles a backup after a failed write. A file that still holds its original bytes drops the
+   * backup. Any other file keeps it, with the digest of the bytes the write left as {@link
+   * Entry#after}, so {@link #restore} accepts them. A file that cannot be read keeps it as it is.
+   *
+   * @param number the backup's number
+   * @param file the file
+   * @param before the SHA-256 of the original bytes
+   */
+  @WorkerThread
+  public void writeFailed(int number, Path file, byte[] before) {
+    try {
+      if (MessageDigest.isEqual(before, Digests.bytesOf(file, new CancellationToken()))) {
+        dropQuietly(number);
+        return;
+      }
+    } catch (IOException e) {
+      return;
+    }
+    recordLeft(directory.resolve(number + SUFFIX), file);
+  }
+
+  /** Writes the digest of a file's bytes over a backup's {@code after} field, same length. */
+  @WorkerThread
+  private static void recordLeft(Path backup, Path file) {
+    try {
+      byte[] left = Digests.bytesOf(file, new CancellationToken());
+      ByteBuffer hex =
+          ByteBuffer.wrap(HexFormat.of().formatHex(left).getBytes(StandardCharsets.US_ASCII));
+      long at = HEADER.length() + 1 + hex.remaining() + 1;
+      try (FileChannel out = FileChannel.open(backup, StandardOpenOption.WRITE)) {
+        while (hex.hasRemaining()) {
+          at += out.write(hex, at);
+        }
+        out.force(true);
+      }
+    } catch (IOException e) {
+      // The backup stays; restore then refuses the file as changed.
+    }
+  }
+
+  /**
    * Lists the runs on disk, newest first; a directory whose name is not a run's is ignored.
    *
    * @param root the backups' directory
@@ -296,8 +338,9 @@ public final class ReplaceBackups {
   }
 
   /**
-   * Writes one backup back: only while the file holds the bytes the run wrote, through {@link
-   * SafeSave} with the stamp read before those bytes.
+   * Writes one backup back: only while the file holds the bytes the run left, through {@link
+   * SafeSave} with the stamp read before those bytes. A write that fails partway records the bytes
+   * it left, so a retry restores the file.
    *
    * @param run the run's directory
    * @param entry the file
@@ -326,17 +369,24 @@ public final class ReplaceBackups {
         return new Restored(file, Restore.FAILED, new IOException("The backup is damaged"));
       }
       token.check();
-      SafeSave.save(
-          file,
-          stamp,
-          new ContentWriter() {
-            @Override
-            public void write(OutputStream out) throws IOException {
-              // Not canceled: SafeSave may be writing the target in place.
-              copyBody(backup, out, new CancellationToken());
-            }
-          },
-          token);
+      try {
+        SafeSave.save(
+            file,
+            stamp,
+            new ContentWriter() {
+              @Override
+              public void write(OutputStream out) throws IOException {
+                // SafeSave applies the cancel, which must not stop an in-place write.
+                copyBody(backup, out, new CancellationToken());
+              }
+            },
+            token);
+      } catch (ExternalModificationException e) {
+        throw e;
+      } catch (IOException e) {
+        recordLeft(backup, file);
+        throw e;
+      }
       return new Restored(file, Restore.RESTORED, null);
     } catch (ExternalModificationException e) {
       return new Restored(file, Restore.CHANGED_SINCE, null);

@@ -21,6 +21,11 @@ class LineEditsTest {
   }
 
   @Test
+  void duplicateWithACaretOnAnEmptyLastLineKeepsBothCaretsOnTheirLines() {
+    assertEquals("a|\na\n|\n", duplicate("a|\n|"));
+  }
+
+  @Test
   void duplicateCopiesEachRangeAfterItself() {
     assertEquals("x[ab]ab y [c]c", duplicate("x[ab]* y [c]"));
   }
@@ -34,6 +39,29 @@ class LineEditsTest {
     m.apply(LineEdits.moveLines(m.document.text(), m.model.selections(), false));
     assertEquals("one\nthree\nt|wo", m.marked());
     assertNull(LineEdits.moveLines(m.document.text(), m.model.selections(), false));
+  }
+
+  @Test
+  void moveLinesRefusesAMoveThatJoinsACrAndAnLf() {
+    Marked up = new Marked("\r  fo|o\n  ");
+    assertNull(LineEdits.moveLines(up.document.text(), up.model.selections(), true));
+    Marked down = new Marked("|\r  foo\n  ");
+    assertNull(LineEdits.moveLines(down.document.text(), down.model.selections(), false));
+    Marked neighbor = new Marked("p\rx\n|\ny");
+    assertNull(LineEdits.moveLines(neighbor.document.text(), neighbor.model.selections(), true));
+  }
+
+  @Test
+  void moveLinesRefusesAJoinBetweenTwoMovedBlocks() {
+    Marked m = new Marked("a\nb|\rc\n|\nz");
+    assertNull(LineEdits.moveLines(m.document.text(), m.model.selections(), true));
+  }
+
+  @Test
+  void moveLinesKeepsMixedBreaksInPlaceWhenNothingJoins() {
+    Marked m = new Marked("a\rb|\nc");
+    m.apply(LineEdits.moveLines(m.document.text(), m.model.selections(), true));
+    assertEquals("b|\ra\nc", m.marked());
   }
 
   @Test

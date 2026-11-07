@@ -122,8 +122,10 @@ windows, text windows and the replace preview to the family; text windows and
 the preview keep the default size. `EditorFonts.family` resolves the saved
 family on the UI thread: one that `Display.getFontList` does not hold, or whose
 `i` and `W` measure differently, gives way to `Dialogs.monospaceName` with one
-WARN per window, and the saved value stays. The Appearance tab adds a saved
-family the scan lacks to its list, so OK does not drop it.
+WARN per window, and the saved value stays. The Appearance tab keeps the
+scanned families `EditorFonts.listed` finds in one `Display.getFontList` pass,
+since a font file's family can be missing from it (macOS: `.SF NS Mono`,
+`Courier`), and adds a saved family the list lacks, so OK does not drop it.
 
 - `MainToolBar` is a fixed row under the menu bar, shown unless `ui.toolbar`
   is false: New, Open, Save, Save All, Undo, Redo, Cut, Copy, Paste, Find,
@@ -308,9 +310,13 @@ scroll bar, in one composite (`control()`). The model is the only authority:
   edit. It sends no `textSet`; a loaded document gets a new adapter, read in
   `setContent`. A `replaceTextRange` from the widget, which it calls only for
   input method composition text, goes to `EditorInput.preeditFromView`,
-  outside undo; a commit the widget reports with the composition
-  (`IME.getCommitCount`) goes to `commitFromView`. `setText` goes to the
-  controller as an edit.
+  outside undo. SWT sends `ImeComposition` on the `IME` widget, and its
+  `StyledText` listener removes the composition at a commit; the committed
+  chars then arrive as key events on GTK, win32 and cocoa (read in SWT 3.135).
+  That listener also collapses the widget's selection, so `EditorPane` ignores
+  widget caret reports until its own `IME` listener runs, and puts the model's
+  selection back once no composition shows. `setText` goes to the controller as
+  an edit.
 - A `VerifyKey` listener converts each key with `SwtKeys.stroke`, runs the
   `Keymap`'s editor binding through `EditorInput.execute`, types printable
   chars and Tab, and consumes both; Ctrl+Alt (AltGr) and, on macOS, Option
@@ -553,7 +559,9 @@ sends Esc from any control of the shell to the cancel and consumes it, which
 covers a window with no tab and keeps Esc from also dropping carets.
 
 The window title is `CommandStates.windowTitle`, set with the status fields on
-the UI turn after a state change.
+the UI turn after a state change. `Gui` calls `showStatusNow` after
+`startSession`, so the untitled document's title does not wait for the startup
+events to drain.
 
 ## Icons
 
@@ -639,8 +647,8 @@ switch leaves it working, and a new size is remembered. With
 rows keep every column in two families, a family change measures the gutter again
 at a size it searches for, where two families' number columns round apart, a
 missing or proportional family falls back, the family and the zoom keep each
-other, an open log window follows, and the Appearance tab lists, applies and
-restores a theme file and a family. Its two-family cases skip on a host with
+other, an open log window follows, a family the toolkit lacks is not offered, and
+the Appearance tab lists, applies and restores a theme file and a family. Its two-family cases skip on a host with
 fewer, and the gutter case on a host where no size separates them. Every family
 measured on the Linux host has equal regular and bold advances, so
 `EditorLayoutGridTest` forces a row off the grid to reach the measured path.
@@ -687,7 +695,10 @@ drags with Alt from column 150 across long and short lines, scrolling the
 widget between press and drag, and checks the block, its copy, and in a print of the widget the block's left edge on a short
 line within 1 px of the measured column 150 on a long line, with the virtual
 part painted after a resize and a horizontal scroll; sends
-composition text through the content and checks it stays out of undo; runs Go
+composition text through the content and checks it stays out of undo; sends
+`IME` events for a composition over a selection, with the commit's key events,
+and checks a cancel keeps the selection and a commit replaces it as one undo
+step; runs Go
 to Line through its dialog; filters and copies Keyboard Shortcuts; holds a
 block drag below, right, left and above the view and checks that it scrolls
 until release, focus loss and tab close; and checks the

@@ -1,8 +1,13 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.core.text.LogText;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.widgets.Display;
 import org.slf4j.Logger;
@@ -42,6 +47,24 @@ final class EditorFonts {
       return Dialogs.monospaceName();
     }
     return saved;
+  }
+
+  /**
+   * Returns the given families the toolkit lists, from one pass over its scalable fonts. A font
+   * file's family can be missing from that list: macOS keeps some system families out of it.
+   */
+  static List<String> listed(Display display, List<String> families) {
+    Set<String> names = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    for (FontData data : display.getFontList(null, true)) {
+      names.add(data.getName());
+    }
+    List<String> out = new ArrayList<String>(families.size());
+    for (String family : families) {
+      if (names.contains(family)) {
+        out.add(family);
+      }
+    }
+    return out;
   }
 
   /** Reports whether the toolkit lists a family, scalable or not. */

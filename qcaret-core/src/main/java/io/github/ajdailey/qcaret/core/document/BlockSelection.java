@@ -23,7 +23,8 @@ public record BlockSelection(int anchorLine, int anchorColumn, int caretLine, in
   }
 
   /**
-   * Returns one row per line of the block, top first.
+   * Returns one row per line of the block, top first. A block as wide as nothing has empty rows,
+   * before a tab or wide char its column falls inside.
    *
    * @param text the text; every line of the block must exist
    * @param tabWidth columns per tab stop
@@ -39,7 +40,7 @@ public record BlockSelection(int anchorLine, int anchorColumn, int caretLine, in
     for (int line = top; line <= bottom; line++) {
       text.lineView(line, view);
       int start = Columns.index(view, left, tabWidth, false);
-      int end = Columns.index(view, right, tabWidth, true);
+      int end = left == right ? start : Columns.index(view, right, tabWidth, true);
       int padding = 0;
       if (start == view.length()) {
         padding = Math.max(0, left - Columns.column(view, start, tabWidth));

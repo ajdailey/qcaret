@@ -52,7 +52,9 @@ public final class RecoveryStore {
     /** The file changed since. */
     CHANGED,
     /** The file is gone. */
-    MISSING
+    MISSING,
+    /** The file exists and cannot be read. */
+    UNREADABLE
   }
 
   /**
@@ -270,9 +272,9 @@ public final class RecoveryStore {
     }
   }
 
-  /** Compares the original file with the base the header recorded. */
+  /** Compares the original file with the base the header recorded; a failure hides no buffer. */
   @WorkerThread
-  private static Original original(RecoveryFile.Header header) throws IOException {
+  private static Original original(RecoveryFile.Header header) {
     if (header.path().isEmpty()) {
       return Original.NONE;
     }
@@ -282,18 +284,21 @@ public final class RecoveryStore {
     } catch (InvalidPathException e) {
       return Original.MISSING;
     }
-    FileStamp stamp = FileStamp.read(path);
-    if (stamp == null) {
-      return header.baseSize() < 0 ? Original.NONE : Original.MISSING;
-    }
-    if (stamp.size() != header.baseSize()) {
-      return Original.CHANGED;
-    }
     try {
+      FileStamp stamp = FileStamp.read(path);
+      if (stamp == null) {
+        return header.baseSize() < 0 ? Original.NONE : Original.MISSING;
+      }
+      if (stamp.size() != header.baseSize()) {
+        return Original.CHANGED;
+      }
       boolean same = Digests.of(path, new CancellationToken()).equals(header.baseSha256());
       return same ? Original.UNCHANGED : Original.CHANGED;
     } catch (NoSuchFileException e) {
       return Original.MISSING;
+    } catch (IOException e) {
+      LOG.warn("Cannot read a recovered buffer's file: {}", LogText.oneLine(e.getMessage()));
+      return Original.UNREADABLE;
     }
   }
 

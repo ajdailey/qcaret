@@ -52,7 +52,10 @@ a file with mixed endings keeps them until then, and Enter inserts the ending
 last converted to.
 
 A file that cannot be written back byte for byte in its encoding opens
-read-only with a notice. A binary file asks first: Open Read-Only shows it as
+read-only with a notice, and Save stays off. Save As writes a converted copy;
+turning off Read-Only lets Save convert the file itself. A reload that brings in
+such bytes does the same, and a later reload of bytes that write back ends it. A
+binary file asks first: Open Read-Only shows it as
 ISO-8859-1 text, with editing and saving off.
 
 A file needs heap to open: 1 byte per file byte for ASCII text and 2 otherwise,
@@ -62,7 +65,10 @@ names the `-Xmx` value to start with. No file over 2 GiB opens.
 Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Ctrl+Alt+S`) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
 as it was. A save writes a temporary file and moves it over the target, keeps
-the file's permissions, and follows a symbolic link. Save As onto a file open
+the file's permissions and group, and follows a symbolic link. A file you have
+no write permission for is not saved, and a message says so. A file with hard
+links, or in a folder you cannot write to, is written directly; once that write
+has begun, `Esc` does not stop it. Save As onto a file open
 in another tab closes that tab, after asking when the tab has unsaved changes.
 
 File > Print opens the system print dialog; it has no default key, because
@@ -231,7 +237,9 @@ file: replaced, skipped with the reason, failed, or not attempted.
 - A file changed since the search is skipped.
 
 No undo spans files. Restore Run in the report, or Search > Restore Replace Run,
-writes a run's backups back, and refuses a file changed since the run.
+writes a run's backups back, and refuses a file changed since the run. A file
+whose write failed partway keeps its backup, and Restore Run puts the original
+back.
 
 ## Bookmarks
 
@@ -289,10 +297,13 @@ QCaret checks each open file every 5 seconds and when a window activates.
 
 QCaret waits until the file stops changing, for up to half a second, so one
 write by another program asks once. A reload is one undo step and keeps each
-view's caret line and column. When the change does not fit in memory, the tab
-keeps its text and a notice says so. Keep Mine makes the next save ask. A save that finds the file changed asks: Overwrite,
-Reload, Compare or Cancel. Preferences, Files sets the interval and can make a
-clean document ask too.
+view's caret line and column. It reads the file as an open does, so a file
+another program converted shows its new encoding; a charset chosen with Reopen
+with Encoding stays. Text typed during a reload stays, and QCaret asks. When the
+change does not fit in memory or the file cannot be read as text, the tab keeps
+its text and a notice shows once per change. Keep Mine makes the next save ask.
+A save that finds the file changed asks: Overwrite, Reload, Compare or Cancel.
+Preferences, Files sets the interval and can make a clean document ask too.
 
 ## Workspace
 
@@ -344,13 +355,14 @@ settings directory every 30 seconds. After a crash the next start lists those
 buffers with the state of each original file:
 
 - Restore opens the buffer with its unsaved changes and leaves the original file
-  alone.
+  alone. When the original cannot be read, the next save asks first.
 - Discard deletes the recovery file.
 - Later keeps it for the next start.
 
 Recovery files left by a crash are kept for 30 days. With Preferences, Files,
 Quit without asking on, Exit asks nothing and the next start restores unsaved
-and untitled buffers.
+and untitled buffers. Exit during a restore waits for the restore to end; Cancel
+on the load row ends a slow one, and that tab leaves the next session.
 
 ## Windows and the running instance
 
@@ -366,7 +378,8 @@ save, reload or conversion running does not move.
 
 File > Exit asks about unsaved documents in every window before anything closes;
 Cancel leaves everything as it was, and a save that fails stops the quit. Closing
-a window asks about its own documents; closing the last one quits.
+a window asks about its own documents; closing the last one quits. A document
+edited while its save from a close prompt runs stays open and asks again.
 
 A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
@@ -403,7 +416,7 @@ and masks, and the searches kept in the session.
 Editor font lists the installed monospace families, filled in a moment after the
 dialog opens; columns need letters of equal width, so proportional fonts are not
 offered. Only TrueType and OpenType files in the system and user font folders
-are listed. If the chosen family is uninstalled, QCaret logs a warning and uses
+are listed, and only families the platform reports as installed. If the chosen family is uninstalled, QCaret logs a warning and uses
 the platform's font until it returns. The font applies to every editor, the
 comparison windows, the replace preview and the log and license windows.
 

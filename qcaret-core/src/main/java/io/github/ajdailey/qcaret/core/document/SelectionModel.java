@@ -6,8 +6,9 @@ import java.util.List;
 
 /**
  * One view's carets and selections in a {@link Document}, or a rectangular block. The document maps
- * them through every change, so a change from any source leaves them valid. Use it on the
- * document's thread.
+ * them through every change, so a change from any source leaves them valid: an offset a change
+ * leaves inside a CR LF or a surrogate pair moves to the pair's start. Use it on the document's
+ * thread.
  */
 public final class SelectionModel {
   private final Document document;
@@ -109,20 +110,34 @@ public final class SelectionModel {
   }
 
   /**
-   * Sets the selections an edit or an undo step left, keeping block mode when the set is the
-   * block's.
+   * Sets the selections an edit or an undo step left, keeping block mode when the block's lines
+   * exist and the set is the block's.
    */
   void restore(SelectionSet set) {
-    if (block != null && !set.equals(block.toSelections(document.text(), tabWidth))) {
+    TextSnapshot text = document.text();
+    if (block != null
+        && (Math.max(block.anchorLine(), block.caretLine()) >= text.lineCount()
+            || !set.equals(block.toSelections(text, tabWidth)))) {
       block = null;
     }
-    update(set);
+    update(onBoundaries(set, text));
   }
 
-  /** Enters block mode with the block an edit left, at the tab width of the last block. */
+  /**
+   * Enters block mode with the block an edit left, at the tab width of the last block. A line past
+   * the text's end becomes the last line: deleting between a CR and an LF joins them, so an edit
+   * can remove a line it did not select.
+   */
   void restoreBlock(BlockSelection selection) {
-    block = selection;
-    update(selection.toSelections(document.text(), tabWidth));
+    TextSnapshot text = document.text();
+    int last = text.lineCount() - 1;
+    block =
+        new BlockSelection(
+            Math.min(selection.anchorLine(), last),
+            selection.anchorColumn(),
+            Math.min(selection.caretLine(), last),
+            selection.caretColumn());
+    update(block.toSelections(text, tabWidth));
   }
 
   /** Maps the selections, or the block's lines, through a change. */
@@ -136,12 +151,37 @@ public final class SelectionModel {
               block.caretColumn());
       update(block.toSelections(document.text(), tabWidth));
     } else {
-      update(selections.map(map));
+      update(onBoundaries(selections.map(map), document.text()));
     }
   }
 
   private int mapLine(int line, ChangeMap map, TextSnapshot before) {
     return document.text().lineAt(map.map(before.offsetOfLine(line), Bias.AFTER));
+  }
+
+  /** Returns the set with every offset inside a CR LF or a surrogate pair at the pair's start. */
+  private static SelectionSet onBoundaries(SelectionSet set, TextSnapshot text) {
+    List<Selection> out = new ArrayList<Selection>(set.size());
+    boolean moved = false;
+    for (Selection s : set.selections()) {
+      int anchor = boundary(text, s.anchor());
+      int caret = boundary(text, s.caret());
+      moved |= anchor != s.anchor() || caret != s.caret();
+      out.add(new Selection(anchor, caret, s.preferredColumn()));
+    }
+    return moved ? SelectionSet.of(out, set.primaryIndex()) : set;
+  }
+
+  private static int boundary(TextSnapshot text, int offset) {
+    if (offset > 0 && offset < text.length()) {
+      char before = text.charAt(offset - 1);
+      char after = text.charAt(offset);
+      if ((before == '\r' && after == '\n')
+          || (Character.isHighSurrogate(before) && Character.isLowSurrogate(after))) {
+        return offset - 1;
+      }
+    }
+    return offset;
   }
 
   private void update(SelectionSet set) {

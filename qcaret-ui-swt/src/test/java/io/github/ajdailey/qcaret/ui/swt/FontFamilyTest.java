@@ -291,6 +291,15 @@ class FontFamilyTest {
   }
 
   @Test
+  void aFamilyTheToolkitDoesNotListIsNotOffered() {
+    List<String> families = new ArrayList<String>(families());
+    assumeTrue(!families.isEmpty(), "a monospace family installed");
+    String family = families.get(0);
+    assertEquals(
+        List.of(family), EditorFonts.listed(display, List.of("QCaret Mock Absent", family)));
+  }
+
+  @Test
   void thePreferencesDialogListsChoicesWithoutHoldingItsOpenAndAppliesThem() throws Exception {
     List<String> families = families();
     assumeTrue(!families.isEmpty(), "a monospace family installed");

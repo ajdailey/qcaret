@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.document.Document;
@@ -18,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -186,6 +189,33 @@ class RecoveryStoreTest {
     assertEquals(RecoveryStore.Original.CHANGED, original(file, 1, digest));
     Files.delete(file);
     assertEquals(RecoveryStore.Original.MISSING, original(file, bytes.length, digest));
+  }
+
+  @Test
+  void anUnreadableOriginalHidesNoBuffer() throws IOException {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    byte[] bytes = "base\n".getBytes(StandardCharsets.UTF_8);
+    Path file = Files.write(temp.resolve("a.txt"), bytes);
+    RecoveryStore dead = new RecoveryStore(temp, "dead");
+    dead.open();
+    dead.write(header("b1", file.toString(), 5, Digests.of(bytes, 5)), text("edited"));
+    dead.write(header("b2", "", -1, ""), text("untitled"));
+    dead.close(true);
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("---------"));
+    RecoveryStore own = own();
+    try {
+      assumeFalse(Files.isReadable(file), "running as root");
+      List<RecoveryStore.Claim> claims = own.claimDead(0);
+      assertEquals(1, claims.size());
+      List<RecoveryStore.Entry> entries = claims.get(0).entries();
+      assertEquals(2, entries.size());
+      assertEquals(RecoveryStore.Original.UNREADABLE, entries.get(0).original());
+      assertEquals(RecoveryStore.Original.NONE, entries.get(1).original());
+      claims.get(0).close();
+    } finally {
+      own.close(false);
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+    }
   }
 
   @Test

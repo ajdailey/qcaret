@@ -23,6 +23,26 @@ class BlockEditsTest {
   }
 
   @Test
+  void aTallCaretInsideATabOrWideCharRemovesNothingWhenTyping() {
+    for (String[] row : new String[][] {{"\tx", "2", "Z\tx"}, {"\u4e2dx", "1", "Z\u4e2dx"}}) {
+      int column = Integer.parseInt(row[1]);
+      Marked m = block(row[0], new BlockSelection(0, column, 0, column));
+      apply(m, BlockEdits.type(m.document.text(), m.model.block(), 4, "Z", EditBatch.Kind.TYPING));
+      assertEquals(row[2], m.document.text().toString());
+    }
+  }
+
+  @Test
+  void backspaceAndDeleteAtATallCaretInsideATab() {
+    Marked back = block("a\tx", new BlockSelection(0, 2, 0, 2));
+    apply(back, BlockEdits.backspace(back.document.text(), back.model.block(), 4));
+    assertEquals("\tx", back.document.text().toString());
+    Marked forward = block("a\tx", new BlockSelection(0, 2, 0, 2));
+    apply(forward, BlockEdits.delete(forward.document.text(), forward.model.block(), 4));
+    assertEquals("ax", forward.document.text().toString());
+  }
+
+  @Test
   void typingPadsShortLinesAndKeepsATallCaret() {
     Marked m = block(TEXT, new BlockSelection(0, 4, 3, 4));
     for (char c : "XY".toCharArray()) {

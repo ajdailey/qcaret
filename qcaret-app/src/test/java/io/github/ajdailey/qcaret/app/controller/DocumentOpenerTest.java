@@ -2,11 +2,14 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
@@ -16,6 +19,9 @@ import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -27,6 +33,7 @@ import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -47,6 +54,7 @@ class DocumentOpenerTest {
   private final List<Integer> progress = new ArrayList<Integer>();
   private int progressEnds;
   private boolean alreadyOpen;
+  private boolean resolveFails;
   private DocumentOpener opener;
   private final AtomicInteger active = new AtomicInteger();
   private final ActivityIndicator activity =
@@ -90,6 +98,9 @@ class DocumentOpenerTest {
               public boolean resolved(Path requested, Path path) {
                 ui.checkUiThread();
                 resolved.add(path);
+                if (resolveFails) {
+                  throw new IllegalStateException("mock unchecked failure");
+                }
                 return alreadyOpen;
               }
 
@@ -187,6 +198,75 @@ class DocumentOpenerTest {
     assertTrue(results.get(1 - loaded) instanceof IOException);
     // The loaded document holds its retained cost: 6 ASCII chars plus as much undo headroom.
     assertEquals(12, budget.reserved());
+  }
+
+  private void assertStopped() {
+    assertEquals(1, results.size());
+    assertEquals(UiText.OPEN_STOPPED.text(), ((IOException) results.get(0)).getMessage());
+    assertEquals(0, active.get());
+  }
+
+  @Test
+  void anUncheckedFailureResolvingAPathReportsAFailedOpen() throws Exception {
+    Path broken =
+        (Path)
+            Proxy.newProxyInstance(
+                Path.class.getClassLoader(),
+                new Class<?>[] {Path.class},
+                new InvocationHandler() {
+                  @Override
+                  public Object invoke(Object proxy, Method method, Object[] args) {
+                    throw new IllegalStateException("mock unchecked failure");
+                  }
+                });
+    opener.open(broken, LoadOptions.DEFAULTS);
+    assertTrue(ui.runUntil(results(1), BOUND));
+    assertTrue(ui.runUntil(idle(), BOUND));
+    assertStopped();
+    assertTrue(failure.getAndSet(null) instanceof IllegalStateException);
+  }
+
+  @Test
+  void anUncheckedFailureOnTheUiThreadReportsAFailedOpen() throws Exception {
+    resolveFails = true;
+    opener.open(file("mock\n"), LoadOptions.DEFAULTS);
+    assertThrows(
+        IllegalStateException.class,
+        new Executable() {
+          @Override
+          public void execute() throws Exception {
+            ui.runUntil(results(1), BOUND);
+          }
+        });
+    assertTrue(ui.runUntil(idle(), BOUND));
+    assertStopped();
+  }
+
+  @Test
+  void aCanceledOpenEndsWithTheCancelBeforeItsRead() throws Exception {
+    Path file = file("mock\n");
+    CancellationToken token = opener.open(file, LoadOptions.DEFAULTS);
+    token.cancel();
+    assertTrue(ui.runUntil(idle(), BOUND));
+    ui.runPending();
+    assertEquals(1, canceled.size());
+    assertTrue(resolved.isEmpty());
+    assertTrue(results.isEmpty());
+  }
+
+  @Test
+  void aCanceledOpenThatFailsToResolveReportsTheCancel() throws Exception {
+    opener.open(temp, LoadOptions.DEFAULTS).cancel();
+    assertTrue(
+        ui.runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !canceled.isEmpty();
+              }
+            },
+            BOUND));
+    assertTrue(results.isEmpty());
   }
 
   @Test

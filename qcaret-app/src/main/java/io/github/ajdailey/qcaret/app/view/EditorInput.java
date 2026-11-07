@@ -132,21 +132,13 @@ public interface EditorInput {
   void addSelectionFromView(int anchor, int caret);
 
   /**
-   * Replaces the input method's composition text, outside undo.
+   * Replaces the input method's composition text, outside undo; a new composition starts at the
+   * primary selection's start. The selection stays: a commit arrives as {@link #type}, which
+   * replaces it.
    *
-   * @param start the first display offset replaced: the previous composition, or the caret
-   * @param end the display offset after the last
    * @param text the composition text, empty when it ends
    */
-  void preeditFromView(int start, int end, String text);
-
-  /**
-   * Commits the first chars of the composition text as typed text, one undo step; the rest stays
-   * composition text.
-   *
-   * @param count the committed chars
-   */
-  void commitFromView(int count);
+  void preeditFromView(String text);
 
   /**
    * Expands the collapsed region starting on a row's line, or else collapses the region starting

@@ -185,6 +185,8 @@ public enum UiText {
   RECOVERY_CHANGED,
   /** Recovery row: the original file is gone. */
   RECOVERY_MISSING,
+  /** Recovery dialog state: the original file exists and cannot be read. */
+  RECOVERY_UNREADABLE,
   /** Recovery row: the recovery file is damaged. */
   RECOVERY_DAMAGED,
   /** A damaged recovery file was not restored. */
@@ -536,6 +538,8 @@ public enum UiText {
   OPEN_TITLE,
   /** Open failure: the file name and the reason. */
   OPEN_FAILED,
+  /** Reason of an open ended by an internal failure, such as running out of memory. */
+  OPEN_STOPPED,
   /** The file is the running instance's lock. */
   INSTANCE_LOCK_REFUSED,
   /** The file is a recovery directory's lock, held by this process. */
@@ -1052,6 +1056,8 @@ public enum UiText {
   TAB_MISSING,
   /** Save notice: a reload runs. */
   SAVE_RELOADING,
+  /** Save notice: bytes that do not encode back; the file name, then the encoding. */
+  SAVE_NO_ROUND_TRIP,
   /** Notice: a file was deleted. */
   CHANGE_MISSING,
   /** External change prompt title. */

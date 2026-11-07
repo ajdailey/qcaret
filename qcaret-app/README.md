@@ -220,7 +220,8 @@ Window menu's document list, a tab menu's state and the status bar's
 there and never from controller getters (ArchUnit
 `viewsTakeCheckStateFromCommandStates`). Without a document only the window
 commands, zoom, theme and Help are enabled; a read-only document disables the
-edits and the line-ending conversions; a binary file's view also disables Save,
+edits and the line-ending conversions, and also Save while its file's bytes do
+not encode back; a binary file's view also disables Save,
 Save As and both encoding cascades. Undo and Redo need a step in the document's
 history, Cut and Copy a selection (`EditorController.hasSelection` walks the
 carets, never the text), and a read-only document keeps Copy. These four are
@@ -286,7 +287,9 @@ documents alone.
 - New opens an untitled UTF-8 document ("Untitled N"). Open goes through
   `DocumentOpener`; a missing file opens an empty document for its path, a
   file already open selects its tab, and a document whose text does not encode
-  back to the file's bytes opens read-only with a notice. The match is by real
+  back to the file's bytes opens read-only with a notice (`bytesGuarded`), and
+  Save refuses it with a notice while it stays read-only. Save As writes a
+  converted copy, and clearing Read-Only lets Save convert the file. The match is by real
   path, resolved on the opener's worker and looked up (`find`) on the UI thread
   before the file is read, so a file reached again through a link or a short
   name selects its tab unread.
@@ -307,8 +310,12 @@ documents alone.
   in the controller, whichever command path calls them, and the editor
   refuses its edits.
 - Reopen with Encoding loads a clean document's file again with the chosen
-  charset and replaces the document in its tab once loaded; a failed load
-  leaves it open. `reopenWithDetection` does the same with detection, past a
+  charset and replaces the document in its tab once loaded. A failed or refused
+  load shows a notice and leaves it open, and so does a missing file: a reopen
+  adds no tab. `reopening` holds the document, its revision and the load's
+  token: closing the tab cancels the load, and an edit or a Save As during the
+  load keeps the document and drops the load. One reopen of a document runs at a
+  time. `reopenWithDetection` does the same with detection, past a
   remembered charset, and leaves the document's `forced` charset null, so the
   file state and the session hold none. Save with Encoding changes only what the next save writes
   and makes the document dirty; the byte order mark is dropped for another
@@ -321,7 +328,9 @@ documents alone.
   `qcaret-io-` worker while editing goes on, then calls `markSaved`. An
   untitled document asks for a file first. A save while one runs for the same
   document shows a notice instead. Esc in the editor and closing the tab
-  cancel a running save; a cancel before the move leaves the target unchanged.
+  cancel a running save; a cancel before the move leaves the target unchanged,
+  and an in-place write that has begun runs to its end and reports saved. A
+  file without write permission fails with `SAVE_FAILED`.
   Save writes through the path the user opened, so a symbolic link is
   followed at each save. A target changed on disk since the load, the last
   save or the last reload is not written; the save conflict prompt offers
@@ -331,16 +340,20 @@ documents alone.
   through a link to it is checked too. Save As onto a file another tab holds,
   in any window (by real path, resolved on a `qcaret-io-` worker), closes that
   tab once the write succeeds; when that tab has unsaved changes it asks first,
-  and a decline writes nothing.
+  and a decline writes nothing. An edit in that tab after the question asks
+  Save, Don't Save or Cancel for it once the write ends; Cancel leaves two tabs
+  on the file, and the external-change check applies to the edited one.
 - Close asks Save, Don't Save or Cancel for a dirty document; Save closes once
-  the save succeeds. A closed document disposes its editor and releases its
-  heap reservation.
+  the save succeeds, and an edit made during the write asks again, with the tab
+  and its recovery file kept. A closed document disposes its editor and
+  releases its heap reservation.
 - Word wrap, Show Whitespace, Show Line Endings and the completion trigger
   are settings for the window's editors.
 - Each document has one `Bookmarks`, shared by its views and disposed on
   close. `WordCompletion` keeps one `WordIndex` per open document and builds
   it again on a `qcaret-cpu-` worker when the document's revision moved since
-  the last build.
+  the last build. `documentClosed` drops the index when the document closes or
+  moves to another window.
 - Split shows the selected document in a second view, side by side or one
   above the other; with two views, the other arrangement only rearranges them.
   Each view is an `EditorController` with its own `SelectionModel`,
@@ -416,16 +429,18 @@ documents alone.
   external-change check then applies to both tabs.
 - Exit (`QUIT`, the macOS Quit) runs `requestQuit`. With `session.snapshot` on
   and this instance owning the session it writes the snapshot of every window
-  (see Session and recovery). Otherwise `QuitPrompts` runs, in three steps:
+  (see Session and recovery); during a restore it waits for the restore's end.
+  Otherwise `QuitPrompts` runs, in three steps:
   - Asks about every dirty document, windows most recently activated first, tabs
     in order; nothing closes or saves. An answer belongs to the `Document`, so a
     tab moved during a prompt keeps it, and a file handed or a document edited
     meanwhile is asked about. Don't Save holds for the revision it was given on.
   - Runs the Save answers in the same order. A document edited during its save
     is asked about again. A save that writes no file (a failure, a canceled
-    chooser, a declined replace prompt, any answer but Overwrite at the save
-    conflict prompt) stops the quit with that tab selected: the windows stay
-    open, documents already saved stay saved.
+    chooser, a declined replace prompt, Reload or Cancel at the save conflict
+    prompt) stops the quit with that tab selected: the windows stay open,
+    documents already saved stay saved. Compare leaves that prompt open, and
+    the quit waits for its next answer.
   - Selects the tabs selected at the start, captures the session, closes every
     document and calls `quit`.
 
@@ -684,20 +699,31 @@ A file that never holds still is reported after the fifth wait.
 | No file | Kept, marked missing in the tab and dirty | Same |
 | File back with the same bytes | Missing mark cleared; clean again when the text is unchanged since | Missing mark cleared |
 
-- Reload compares the file with the text on a `qcaret-io-` worker in the
-  document's charset (detection when that does not decode; ISO-8859-1 for a
-  binary file's view), in two passes that hold only the changed span
-  (`DocumentFiles.reload`), and replaces the span between the common prefix and
+- Reload compares the file with the text on a `qcaret-io-` worker, in two passes
+  that hold only the changed span (`DocumentFiles.reload`). The charset is the
+  one the user chose (Reopen with Encoding, `--encoding`, or remembered for the
+  file; detection when that does not decode), else detection as for an open, or
+  ISO-8859-1 for a binary file's view. It replaces the span between the common prefix and
   suffix as one undo step. `LoadReservation.reload` charges the span past the
   document's undo headroom until the UI thread has applied it; a span the budget
-  cannot hold leaves the text as it is, with a notice. The watch takes the
-  checked baseline, so the file is read again, and the notice repeats, only on a
-  new change; the save baseline stays, so the next save asks. A file written in place
-  between the passes fails the reload with a notice, and the next check
-  reloads again. Each view's caret keeps its line and column; the views keep
+  cannot hold leaves the text as it is, with a notice, and so does a failed read.
+  After either, the watch takes the checked baseline, so the file is read again,
+  and the notice repeats, only on a new change; the save baseline stays, so the
+  next save asks. A file written in place between the passes fails the reload
+  with a notice, and the next check reloads again. A transient read failure
+  retries only on a new change. Each view's caret keeps its line and column; the views keep
   their top line. The document is clean afterwards and undo returns to the text
-  before, dirty. A document edited during the read reloads again, at most three
-  times.
+  before, dirty.
+- A document edited during the read reloads again, at most three times. An edit
+  that made a clean document dirty stops the reload: the text stays and the
+  change prompt shows, or Reload from Disk's prompt when no check started it. An
+  edit undone back to clean reloads. An edit during a reload the user confirmed
+  over dirty text is replaced, and undo returns it.
+- Reload applies the file's `roundTrips` as an open does. Bytes that do not round
+  trip set `bytesGuarded` and read-only, with the open's notice text in the
+  status bar, also after the user turned Read-Only off for earlier bytes. Bytes
+  that do clear the flag, and clear read-only when the guard alone set it
+  (`readOnlyByGuard`); Toggle Read-Only makes the state the user's.
 - One prompt per document at a time. A newer change while it is open becomes
   the change the answer acts on. Keep Mine takes the file's new baseline for
   the checks but keeps the save baseline, so the next save asks; closing the
@@ -710,7 +736,7 @@ A file that never holds still is reported after the fifth wait.
 `CompareController` opens the read-only comparison: Compare Documents (View >
 Compare) asks for another open document, and Compare with File on Disk and
 the prompts' Compare put the file on disk left of the buffer. The texts are
-snapshots; the file is read as a reload reads it; `Comparisons` builds the
+snapshots; the file is read in the charset a reload would use; `Comparisons` builds the
 rows with `LineDiff` on a `qcaret-cpu-` worker. A side over 100,000 lines or
 16 Mi chars gets a notice instead (`Comparisons.MAX_LINES`, `MAX_CHARS`); a
 line over 10,000 chars is compared whole and shown cut. A `Comparison` holds
@@ -761,6 +787,11 @@ reservation lowered to the retained cost. `close` sets a flag and cancels the
 running loads; a load that finishes after it drops its document and releases
 its reservation, whether the worker checks the flag before posting or the
 posted task checks it on the UI thread, so no document reaches a closed window.
+The token `open` returns cancels that open alone, at any step. An unchecked
+failure reports `Listener.failed` from a `finally` at the step it hit, so the
+progress row and a restoring tab end; a load's `Throwable` goes on to the
+worker's handler. `RecoveryController.readSnapshot` ends a tab's restore the
+same way.
 
 `EditorController` runs one editor's `EditorInput` against its document:
 every edit is one `Document.apply` with the view's `SelectionModel` as origin,
@@ -788,8 +819,12 @@ document ignores edits. The controller also runs the projection's rewraps on
   snapshot for the primary's text on a `qcaret-cpu-` worker and adds the match
   as the new primary; a result for another revision is dropped.
 - Composition text from the input method goes to `Document.preedit`, outside
-  undo; a commit the view reports with the composition becomes one undo step.
-  Every edit removes a composition first.
+  undo, at the primary selection's start; the selection stays. The view ends
+  the composition and sends a commit as typed chars, which replace the
+  selection and coalesce into one undo step. Every edit removes a composition
+  first.
+- `type` holds a high surrogate until its low one arrives: views send one char
+  per key event, and a block's column moves between two lone halves.
 - Esc cancels a running line transform, save and comparison through one
   `Runnable` and the `lineWork` token, and drops the secondary selections and the
   block; with neither, it closes the find bar.
@@ -1177,19 +1212,24 @@ last.
 | `quit` with dirty buffers (shutdown hook) | Written, directory kept, offered at the next start |
 | Restore in the dialog | New file written first, then the old one deleted; a failed write keeps the old one until a retry succeeds or the buffer needs no recovery |
 | Damaged file | Listed, not restorable, kept; Discard is the user's choice |
+| Original cannot be read | Listed as `UNREADABLE`, restorable; the other files of the instance are unaffected |
 | `recovery.keepDays` | Older files in dead directories go at start |
 
 `addRecovered` opens the buffer dirty and writes nothing. When the original
 still holds the buffer's base the document takes the file's current baseline;
-otherwise it keeps the recorded base, so `ExternalChanges` shows the change
-prompt and a save asks first. A clean tab of the file gives way, in the window
+otherwise, or when the file cannot be read, it keeps the recorded base, so
+`ExternalChanges` shows the change prompt and a save asks first. A clean tab of the file gives way, in the window
 holding it; a dirty one keeps its text and the row stays. Any other buffer opens
 in the window activated last.
 
 With `session.snapshot` on and this instance owning the session, a quit writes
 every window's dirty buffers to `<settings>/snapshot/`, again when one changed meanwhile,
 and asks nothing; a failed write falls back to the prompts. The tabs name their
-buffers, and the next start opens them dirty. Without an owner the quit prompts.
+buffers, and the next start opens them dirty. The write deletes every snapshot
+it does not name, and a restored buffer takes a new id, so a Quit during a
+restore waits for `WindowSet.restoreEnded`, called at the end of
+`SessionController.finish`. Canceling the running load ends that tab's restore.
+Without an owner the quit prompts.
 A shutdown hook quit goes through recovery files and the dialog instead.
 
 ## Themes (`app.theme`)
@@ -1284,8 +1324,9 @@ what the windows share, handoff targets, the one-buffer rule, close and quit.
 carries, refusals, close and quit around a move, and a line transform or replace
 run delivered after the move; the budget returning to its start shows each
 document released once. `QuitPromptsTest` covers answers before saves, Cancel,
-each way a save ends the quit, an edit during a save or after Don't Save, and an
-untitled document saved at a prompt. `WindowSessionTest` covers a two-window
+each way a save ends the quit, an edit during a save or after Don't Save, an
+untitled document saved at a prompt, and Compare at a save conflict followed by
+Overwrite or Cancel. `WindowSessionTest` covers a two-window
 restore, the capture before a quit's first close, Cancel and a process end at a
 quit prompt, a moved buffer's recovery file, a snapshot over two windows, the
 display state and Clear History in every window and in the session file.
@@ -1293,8 +1334,8 @@ display state and Clear History in every window and in the session file.
 `SessionStoreTest` covers the round trip, the limits, the `droppedComments`
 count, and malformed, oversized and unknown-version files. `RecoveryFileTest` round-trips a text over
 every buffer size, surrogates and damage. `RecoveryStoreTest` covers liveness by
-lock, a live child process that read its `owner.lock`, age limits and the
-original file's state. `SessionControllerTest` restores
+lock, a live child process that read its `owner.lock`, age limits, the
+original file's state and an unreadable original hiding no buffer. `SessionControllerTest` restores
 through real files, shows and clears the comment count and runs debounced and
 shutdown saves on racing workers. `RecoveryControllerTest` covers each lifecycle
 step, the dialog's choices, failed writes (a non-empty directory in the file's
@@ -1339,7 +1380,9 @@ drop, and Esc on a sort and a comparison. `DocumentOpenerTest`
 holds a load in its decoder past the window's
 close and closes after a result is posted; neither reaches the listener and
 both release their reservation; a load over the budget is refused unread, and
-one that outgrows it is refused while reading; an
+one that outgrows it is refused while reading; an unchecked failure at the
+resolve, the UI step or the read reports `failed`; a canceled open reports only
+`canceled`; an
 open document ends the open unread; a close ends an open waiting for the UI
 thread. A cancel, while the worker holds in the decoder or after it finished,
 reports only `canceled` and releases the reservation.
@@ -1349,9 +1392,19 @@ through a symbolic link selecting its tab and running the HyperSearch
 callback, Save As through a link to a file changed on disk opening the save
 conflict prompt (both skipped where links cannot be created), the unsaved prompt's
 three answers, `closeAll` stopping at Cancel, word wrap across editors and the
-heap refusal. Two cases hold a save in the encoder of `GatedCharset` and
+heap refusal. It holds a close's save and a Save As in the encoder and edits
+meanwhile, holds a reopen in the decoder and closes, saves or renames meanwhile,
+and refuses a reopen and an open: each leaves the tabs, the text, the
+reservation and `canMove` as they were. An unchecked decoder failure ends a
+tab's restore and shows a failed open, and a closed document a completion read
+is collected. Two cases hold a save in the encoder of `GatedCharset` and
 cancel it with Esc and with a tab close: the file must be unchanged, and a
 second save while the first is held shows the notice.
+`SaveRefusalTest` covers Save of a file that does not round-trip refusing with
+the file's bytes kept (regression: `ED 40` became `FA 5C`), clearing Read-Only
+and Save As converting, a file without write permission (skipped where the user
+writes every file) and a charset without an encoder, which reports the failure
+and keeps the document dirty.
 `ExternalChangesTest` pins a truncate and a later write to one report.
 `ExternalChangeTest` covers a clean document reloaded as one undo step with
 its caret line kept, a dirty document's prompt with Keep Mine making the next
@@ -1362,7 +1415,13 @@ same bytes neither prompting nor blocking the save, five saves never reported
 as external changes, Compare from the prompt, Compare Documents, a
 retargeted link reloading and saving its new target (skipped where links
 cannot be created), a 3 MiB file reloaded, a span the budget refuses, read
-again only on a new change and asked about at the next save, and a
+again only on a new change and asked about at the next save, a failed reload
+reported once per change and asked about at the next save, the round-trip guard
+set and cleared by a reload and kept apart from the user's read-only choice,
+typing during a reload (held in a gate charset): kept with a prompt, undo after
+accepting the reload, undone back to clean, Reload from Disk, a confirmed reload,
+a re-encoded file detected on reload and in Compare with File on Disk, a chosen
+charset surviving a reload, and a
 Compare refused when the file's text outgrows the budget. Each check runs on window
 activation; a case that asserts nothing was reported waits for two finished
 check passes requested after the change.
@@ -1371,8 +1430,14 @@ moves at the preferred column, block keys into virtual space with padded
 typing undone as one step, a block from the view's columns with copy and cut,
 column selection mode, add caret above and below and the click toggle, Add
 Next Occurrence from a worker, line commands whose undo restores every caret,
-paste per caret, composition text with a commit as one undo step, and Go to
-with a tab width change. `EditingSettingsTest` covers Save All, Reopen Closed
+paste per caret, composition text over a selection and a wrapped row and after
+a model clear, with a commit as one undo step, block mode with the block's lines
+gone, and Go to with a tab width change. `EditorRandomTest` runs 1,000 fixed seeds
+of 300 random commands, compositions and block selections through the controller
+on mixed line endings and surrogate pairs, on a fake clock, with wrap on every
+third seed and a second view: it replays the change events and checks selections,
+surrogates, line ending counts and display rows after each step, then undoes and
+redoes everything; `-Dqcaret.editor.seed=N` runs one seed. `EditingSettingsTest` covers Save All, Reopen Closed
 Tab, Read-Only, the tab settings and the Go to Line prompt.
 `SyntaxHighlighterTest` runs the highlighter on real workers: view lines
 arrive and the regions follow the pass, an edit's shifted tokens paint at once

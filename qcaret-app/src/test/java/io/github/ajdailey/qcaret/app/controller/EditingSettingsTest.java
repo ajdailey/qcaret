@@ -69,7 +69,7 @@ class EditingSettingsTest {
     harness.open(a);
     final EditorController editor = documents.activeEditor();
     editor.type("1");
-    editor.preeditFromView(1, 1, "ka");
+    editor.preeditFromView("ka");
     harness.application.execute(CommandId.SAVE);
     harness.await(
         new BooleanSupplier() {

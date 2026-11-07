@@ -324,4 +324,56 @@ class QuitPromptsTest {
     view(first).unsaved.accept(UnsavedChoice.DISCARD);
     assertTrue(windows.set.isQuitting());
   }
+
+  /** Quits with a changed file, answers Save and Compare, and leaves the conflict prompt open. */
+  private Path compareAtAQuitConflict() throws Exception {
+    Path a = file("conflict.txt", "a\n");
+    dirty(first, a);
+    Files.writeString(a, "changed outside\n");
+    Files.setLastModifiedTime(a, FileTime.fromMillis(System.currentTimeMillis() + 60_000));
+    first.windowActivated();
+    first.execute(CommandId.QUIT);
+    windows.view(first).unsaved.accept(UnsavedChoice.SAVE);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return windows.view(first).changeAnswer != null;
+          }
+        },
+        "the conflict prompt");
+    windows.view(first).changeAnswer.accept(ChangeChoice.COMPARE);
+    windows.settle("the comparison");
+    return a;
+  }
+
+  @Test
+  void compareThenOverwriteAtAQuitConflictStillQuits() throws Exception {
+    final Path a = compareAtAQuitConflict();
+    windows.view(first).unsaved = null;
+    first.execute(CommandId.QUIT);
+    assertNull(windows.view(first).unsaved, "Compare ended the quit under the open prompt");
+    windows.view(first).changeAnswer.accept(ChangeChoice.OVERWRITE);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return windows.set.isQuitting();
+          }
+        },
+        "the quit");
+    assertEquals("xa\n", Files.readString(a));
+  }
+
+  @Test
+  void compareThenCancelAtAQuitConflictStopsTheQuitOnce() throws Exception {
+    compareAtAQuitConflict();
+    windows.view(first).changeAnswer.accept(ChangeChoice.CANCEL);
+    windows.settle("the cancel");
+    assertFalse(windows.set.isQuitting());
+    windows.view(first).unsaved = null;
+    first.execute(CommandId.QUIT);
+    assertNotNull(windows.view(first).unsaved, "a new Quit does not ask");
+    windows.view(first).unsaved.accept(UnsavedChoice.CANCEL);
+  }
 }

@@ -44,6 +44,7 @@ class MultiCaretTest {
   private SelectionModel selections;
   private EditorController editor;
   private FakeView.FakeTab tab;
+  private DisplayProjection projection;
 
   @BeforeEach
   void setUp() {
@@ -67,6 +68,10 @@ class MultiCaretTest {
   }
 
   private void open(String marked) {
+    open(marked, 0);
+  }
+
+  private void open(String marked, int wrap) {
     StringBuilder text = new StringBuilder();
     List<Selection> list = new ArrayList<Selection>();
     int primary = 0;
@@ -87,9 +92,9 @@ class MultiCaretTest {
             LineEnding.LF,
             UndoLimits.DEFAULTS);
     selections = document.newSelectionModel();
-    DisplayProjection projection =
+    projection =
         new DisplayProjection(
-            document, DisplayProjection.layout(document.text(), 0, new CancellationToken()));
+            document, DisplayProjection.layout(document.text(), wrap, new CancellationToken()));
     editor =
         new EditorController(
             projection,
@@ -274,22 +279,179 @@ class MultiCaretTest {
     assertEquals("a1x\ny\nz|\nb2x\ny\nz|\nc", marked());
   }
 
+  /** Ends a composition as every platform commits: the widget removes it, then sends keys. */
+  private void commit(String composed) {
+    editor.preeditFromView("");
+    for (char c : composed.toCharArray()) {
+      editor.type(String.valueOf(c));
+    }
+  }
+
+  private void assertViewMatchesDocument() {
+    assertEquals(document.text().lineCount(), projection.rowCount(), "rows against lines");
+    assertEquals(
+        document.text().toString(), projection.textRange(0, projection.length()), "display text");
+  }
+
   @Test
   void compositionTextIsTransientAndTheCommitIsOneUndoStep() {
     open("ab|");
-    editor.preeditFromView(2, 2, "k");
-    editor.preeditFromView(2, 3, "ka");
+    editor.preeditFromView("k");
+    editor.preeditFromView("ka");
     assertEquals("abka", document.text().toString());
     assertFalse(document.isDirty());
     assertFalse(document.canUndo());
-    editor.commitFromView(2);
+    commit("ka");
     assertEquals("abka|", marked());
     assertTrue(document.isDirty());
     editor.undo();
     assertEquals("ab|", marked());
-    editor.preeditFromView(2, 2, "zz");
+    editor.preeditFromView("zz");
     editor.type("q");
     assertEquals("abq|", marked());
+  }
+
+  @Test
+  void aCanceledCompositionOverASelectionLeavesTheTextAndTheSelection() {
+    open("[hello] world");
+    editor.preeditFromView("n");
+    assertEquals("nhello world", document.text().toString());
+    editor.preeditFromView("");
+    assertEquals("[hello] world", marked());
+    assertFalse(document.isDirty());
+    assertFalse(document.canUndo());
+  }
+
+  @Test
+  void aCommitOverASelectionReplacesItAsOneUndoStep() {
+    open("[hello] world");
+    editor.preeditFromView("ka");
+    commit("ka");
+    assertEquals("ka| world", marked());
+    editor.undo();
+    assertEquals("[hello] world", marked());
+  }
+
+  @Test
+  void undoAfterACompositionOverASelectionUndoesTheRightText() {
+    open("abc def|");
+    editor.type("x");
+    selections.set(SelectionSet.of(List.of(Selection.of(0, 4)), 0));
+    editor.preeditFromView("n");
+    editor.preeditFromView("");
+    editor.execute(CommandId.UNDO);
+    assertEquals("abc def", document.text().toString());
+  }
+
+  @Test
+  void aCompositionAcrossAVirtualBreakLeavesNoCharBehind() {
+    open("abcdefg|", 8);
+    editor.preeditFromView("ab");
+    assertEquals("abcdefgab", document.text().toString());
+    assertTrue(projection.rowCount() > 1, "the composition wraps");
+    editor.preeditFromView("");
+    assertEquals("abcdefg", document.text().toString());
+    assertFalse(document.isDirty());
+  }
+
+  @Test
+  void undoAfterAWrappedCompositionUndoesTheRightText() {
+    open("abcdefg|", 8);
+    editor.type("h");
+    editor.execute(CommandId.CARET_LEFT);
+    editor.preeditFromView("xy");
+    editor.preeditFromView("");
+    editor.execute(CommandId.UNDO);
+    assertEquals("abcdefg", document.text().toString());
+  }
+
+  @Test
+  void aCompositionUpdateAfterTheModelClearedItRemovesNoRealText() {
+    open("he|llo");
+    editor.preeditFromView("k");
+    document.clearPreedit();
+    editor.preeditFromView("ka");
+    editor.preeditFromView("");
+    assertEquals("hello", document.text().toString());
+    assertFalse(document.isDirty());
+  }
+
+  @Test
+  void undoInBlockModeWithTheBlockLinesGoneLeavesBlockMode() {
+    open("one|");
+    view.clipboard = "\nx\ny\nz";
+    editor.execute(CommandId.PASTE);
+    selections.setBlock(new BlockSelection(2, 0, 3, 1), document.tabWidth());
+    editor.execute(CommandId.UNDO);
+    assertEquals("one", document.text().toString());
+    assertNull(selections.block());
+    assertViewMatchesDocument();
+  }
+
+  @Test
+  void deleteLineInBlockModeOnTheLastLinesLeavesBlockMode() {
+    open("a\nb\nc\nd|");
+    selections.setBlock(new BlockSelection(2, 0, 3, 1), document.tabWidth());
+    editor.execute(CommandId.DELETE_LINE);
+    assertNull(selections.block());
+    assertViewMatchesDocument();
+  }
+
+  @Test
+  void aBlockDeleteThatJoinsACrAndAnLfKeepsTheLinesLeft() {
+    open("a\rb\n|");
+    selections.setBlock(new BlockSelection(1, 0, 2, 1), document.tabWidth());
+    editor.execute(CommandId.DELETE_FORWARD);
+    assertEquals("a\r\n", document.text().toString());
+    assertEquals(new BlockSelection(1, 0, 1, 0), selections.block());
+    assertViewMatchesDocument();
+  }
+
+  @Test
+  void typingAfterASortKeepsASurrogatePairWhole() throws InterruptedException {
+    open("\uD83D\uDE00\na|b");
+    final long before = document.revision();
+    editor.execute(CommandId.SORT_LINES_ASCENDING);
+    assertTrue(
+        ui.runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return document.revision() != before;
+              }
+            },
+            BOUND),
+        "sorted");
+    editor.type("x");
+    assertEquals("ab\nx|\uD83D\uDE00", marked());
+  }
+
+  @Test
+  void aSurrogatePairTypedOneCharAtATimeStaysWholeOnEveryBlockRow() {
+    open("ab\n\tx|");
+    selections.setBlock(new BlockSelection(0, 3, 1, 3), document.tabWidth());
+    editor.type("\uD83D");
+    assertEquals("ab\n\tx", document.text().toString());
+    editor.type("\uDE00");
+    assertEquals("ab \uD83D\uDE00\n\uD83D\uDE00\tx", document.text().toString());
+  }
+
+  @Test
+  void aVerticalMoveToAWrappedRowsEndStopsBeforeASurrogatePair() {
+    open("ab\uD83D\uDE00cdef|", 4);
+    selections.set(SelectionSet.of(List.of(new Selection(8, 8, 9)), 0));
+    editor.execute(CommandId.CARET_UP);
+    assertEquals("ab|\uD83D\uDE00cdef", marked());
+  }
+
+  @Test
+  void deleteForwardSkipsACaretInsideThePairTheCaretBeforeItDeletes() {
+    open("|\uD83D|\uDE00x");
+    editor.execute(CommandId.DELETE_FORWARD);
+    assertEquals("|x", marked());
+    open("a|\r|\nx");
+    editor.execute(CommandId.DELETE_FORWARD);
+    assertEquals("a|x", marked());
   }
 
   @Test

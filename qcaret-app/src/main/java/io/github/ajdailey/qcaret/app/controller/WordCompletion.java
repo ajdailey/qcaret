@@ -116,6 +116,11 @@ final class WordCompletion {
     }
   }
 
+  /** Drops a document's index, which holds its text; the document left this window. */
+  void documentClosed(Document document) {
+    indexes.remove(document);
+  }
+
   /** Keeps the indexes of the documents still open. */
   private void keep(List<Source> sources, List<Indexed> built) {
     List<Document> open = documents.get();

@@ -983,6 +983,11 @@ public final class MainWindow implements MainView {
         });
   }
 
+  /** Shows the title and the status fields now, before the event loop runs. */
+  public void showStatusNow() {
+    showStatus();
+  }
+
   private void showStatus() {
     if (shell.isDisposed() || menuBar == null) {
       return;

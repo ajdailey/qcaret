@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
@@ -35,7 +36,8 @@ import java.util.function.LongConsumer;
  * load that finishes after it, on the worker or in a task already posted, drops its document and
  * releases its reservation, so no document reaches a closed window. Each open counts as one {@link
  * ActivityIndicator} operation until it ends: unread after {@link Listener#resolved}, refused,
- * failed, loaded, canceled or closed.
+ * failed, loaded, canceled or closed. An unchecked failure at any step reaches {@link
+ * Listener#failed}, and goes on to the worker's handler.
  *
  * <p>A load still reading {@value #PROGRESS_DELAY_MILLIS} ms after it started shows through {@link
  * Listener#progress}, with every other running load, until the last ends or {@link #cancelLoads}
@@ -189,12 +191,13 @@ public final class DocumentOpener {
    *
    * @param path the file as the user named it
    * @param options the forced charset, fallback and undo bounds
+   * @return cancels this open alone; {@link Listener#canceled} ends it
    */
-  public void open(final Path path, final LoadOptions options) {
-    if (closed) {
-      return;
-    }
+  public CancellationToken open(final Path path, final LoadOptions options) {
     final CancellationToken token = new CancellationToken();
+    if (closed) {
+      return token;
+    }
     running.add(token);
     activity.setActive();
     boolean started =
@@ -204,6 +207,7 @@ public final class DocumentOpener {
               @Override
               public void run() {
                 boolean handedOn = false;
+                boolean reported = false;
                 try {
                   if (closed) {
                     return;
@@ -211,9 +215,13 @@ public final class DocumentOpener {
                   Path file = SafePaths.userFile(path);
                   handedOn = postResolved(path, file, options, token);
                 } catch (IOException e) {
-                  postFailed(path, e);
+                  reported = true;
+                  postFailed(path, e, token);
                 } finally {
                   if (!handedOn) {
+                    if (!reported) {
+                      postFailed(path, stopped(), token);
+                    }
                     end(token);
                   }
                 }
@@ -222,6 +230,12 @@ public final class DocumentOpener {
     if (!started) {
       end(token);
     }
+    return token;
+  }
+
+  /** The failure reported for a load ended by an unchecked failure. */
+  private static IOException stopped() {
+    return new IOException(UiText.OPEN_STOPPED.text());
   }
 
   /**
@@ -245,10 +259,26 @@ public final class DocumentOpener {
             if (!waiting.remove(token)) {
               return;
             }
-            if (closed
-                || listener.resolved(requested, file)
-                || !load(file, listener.options(file, options), token)) {
+            if (!closed && token.isCanceled()) {
               end(token);
+              listener.canceled(file);
+              return;
+            }
+            boolean reading = false;
+            boolean answered = false;
+            try {
+              reading =
+                  !closed
+                      && !listener.resolved(requested, file)
+                      && load(file, listener.options(file, options), token);
+              answered = true;
+            } finally {
+              if (!reading) {
+                end(token);
+              }
+              if (!answered) {
+                listener.failed(file, stopped());
+              }
             }
           }
         });
@@ -274,6 +304,7 @@ public final class DocumentOpener {
         new Runnable() {
           @Override
           public void run() {
+            boolean posted = false;
             try {
               if (closed) {
                 return;
@@ -283,6 +314,7 @@ public final class DocumentOpener {
               load.total = cost.fileBytes();
               try (LoadReservation reservation = LoadReservation.reserve(budget, cost)) {
                 if (reservation == null) {
+                  posted = true;
                   postTooLarge(load, cost, budget.available());
                   return;
                 }
@@ -300,15 +332,22 @@ public final class DocumentOpener {
                 DisplayProjection.Layout layout =
                     DisplayProjection.layout(loaded.document().text(), 0, token);
                 long reserved = reservation.keep(loaded.retainedBytes());
+                posted = true;
                 post(load, new Loaded(loaded, layout, reserved), null);
               }
             } catch (LoadTooLargeException e) {
+              posted = true;
               postTooLarge(load, e.cost(), budget.available());
             } catch (IOException e) {
+              posted = true;
               post(load, null, e);
             } catch (CancellationException e) {
+              posted = true;
               post(load, null, null);
             } finally {
+              if (!posted) {
+                post(load, null, stopped());
+              }
               end(token);
             }
           }
@@ -407,13 +446,18 @@ public final class DocumentOpener {
   /** A loaded file on its way to the UI thread, holding its reservation. */
   private record Loaded(LoadedFile file, DisplayProjection.Layout layout, long reserved) {}
 
-  /** Posts the failure of an open that never reached a read. */
-  private void postFailed(final Path path, final IOException error) {
+  /** Posts the failure of an open that never reached a read; a canceled open reports the cancel. */
+  private void postFailed(final Path path, final IOException error, final CancellationToken token) {
     ui.asyncExec(
         new Runnable() {
           @Override
           public void run() {
-            if (!closed) {
+            if (closed) {
+              return;
+            }
+            if (token.isCanceled()) {
+              listener.canceled(path);
+            } else {
               listener.failed(path, error);
             }
           }

@@ -137,17 +137,26 @@ on a worker.
 1. A target that exists with a `FileStamp` (size, modified time, file key)
    other than `baseline` fails with `ExternalModificationException`; nothing
    is written. A missing target is written.
-2. A symbolic link is resolved, so the link stays a link.
-3. The content goes to `.<name>.<random>.qcaret-tmp` in the target's
-   directory, which receives the target's POSIX permissions or DOS hidden and
-   system flags and is forced to disk, then moves over the target with
-   `ATOMIC_MOVE`. A cancel before the move leaves the target unchanged and
-   deletes the temporary file.
-4. The target is written in place (truncate, write, force) when it has more
-   than one hard link, its owner differs from the temporary file's, its
-   directory is not writable, or the move fails five times 100 ms apart
-   (Windows sharing violations). A failure partway through an in-place write
-   leaves the target partly written.
+2. A symbolic link is resolved, so the link stays a link. A dangling link
+   resolves to the missing file it names, relative to the link's directory.
+3. A target that exists and fails `Files.isWritable` fails with
+   `AccessDeniedException`; nothing is written. On Windows that is the DOS
+   read-only attribute or an ACL.
+4. The content goes to `.<name>.<random>.qcaret-tmp` in the target's
+   directory and is forced to disk, then the file moves over the target with
+   `ATOMIC_MOVE`. Replacing a file, the temporary file is created owner-only,
+   takes the target's group before the write, and takes the target's POSIX
+   permissions or DOS hidden and system flags before the move. A new file
+   takes the default mode. `SafeSave` checks the token on each write to the
+   temporary file, so a `ContentWriter` need not; a cancel before the move
+   leaves the target unchanged and deletes the temporary file.
+5. The target is written in place (truncate, write, force) when it has more
+   than one hard link, its owner differs from the temporary file's, the user
+   cannot give the temporary file its group, its directory is not writable,
+   or the move fails five times 100 ms apart (Windows sharing violations).
+   The token is checked before the truncate and never after it: an in-place
+   write runs to its end, so Esc does not stop one on a large file. A failure
+   partway leaves the target partly written.
 
 `BinaryDetector` calls a file binary when its first 64 KiB hold a NUL byte
 (unless the encoding is UTF-16 or UTF-32) or more than 10% C0 controls other
@@ -231,11 +240,14 @@ offset in the text before the change, with the removed and inserted text, the
 start line and the line breaks in each. Applying the edits highest offset
 first to the text before the change reproduces the text after it. A read-only
 document refuses `apply`, `undo` and `redo`. `applyInBlock` applies a batch
-and leaves the origin model in block mode with the given block.
+and leaves the origin model in block mode with the given block; a line past
+the new text's end becomes the last line. An undo or edit that leaves the
+model's block lines gone leaves block mode.
 
-`preedit(offset, removeLength, text)` replaces an input method's composition
-text outside undo: the undo state, and so the dirty state, stay as they are,
-and the change fires with cause `PREEDIT`, which recovery skips. Undo, redo
+`preedit(offset, text)` replaces an input method's composition text outside
+undo: the undo state, and so the dirty state, stay as they are, and the change
+fires with cause `PREEDIT`, which recovery skips. It replaces only the current
+composition; `offset` places a new one, and no call removes other text. Undo, redo
 and `beginGroup` remove the composition first; `apply` refuses while one
 shows, since the batch's offsets would include it, so callers run
 `clearPreedit()` before computing an edit.
@@ -268,7 +280,7 @@ clear it.
 | `Selection` | Anchor, caret and preferred visual column; empty is a caret |
 | `SelectionSet` | Immutable, sorted, with one primary; selections that overlap or touch merge when the set is built |
 | `SelectionModel` | One view's selections, from `Document.newSelectionModel()`, mapped through every change: a caret moves past an insert at it, a range does not grow at either end. `set` is a user move and ends typing coalescing |
-| `BlockSelection` | Lines and visual columns (`Columns`: tabs to the next stop, East Asian wide chars 2). `rows` gives one `BlockRow` per line with the spaces typing must insert to reach the left column on a short line; in block mode the model maps the block's lines and rebuilds its selections |
+| `BlockSelection` | Lines and visual columns (`Columns`: tabs to the next stop, East Asian wide chars 2). `rows` gives one `BlockRow` per line with the spaces typing must insert to reach the left column on a short line; a block as wide as nothing has empty rows, before a tab or wide char its column falls inside; in block mode the model maps the block's lines and rebuilds its selections |
 
 ## Editing commands (`core.edit`)
 
@@ -279,12 +291,12 @@ ending at a line's start leaves that line out.
 
 | Class | Commands |
 |---|---|
-| `LineEdits` | Duplicate (each range after itself, or each caret's lines below them), move lines up or down (touching blocks move together; nothing moves at the edge), delete lines (the last line takes the break before it), join (break and the next line's indentation become one space, or none after an empty line or whitespace), upper and lower case one code point at a time (the word at a caret), indent and outdent (empty lines skipped; outdent removes a tab or up to a tab width of spaces), the Tab key (indents when a range spans lines, else a tab or spaces to the next stop), split a range into one selection per line |
+| `LineEdits` | Duplicate (each range after itself, or each caret's lines below them), move lines up or down (touching blocks move together; nothing moves at the edge or when a CR and an LF would become neighbors, which joins two breaks), delete lines (the last line takes the break before it), join (break and the next line's indentation become one space, or none after an empty line or whitespace), upper and lower case one code point at a time (the word at a caret), indent and outdent (empty lines skipped; outdent removes a tab or up to a tab width of spaces), the Tab key (indents when a range spans lines, else a tab or spaces to the next stop), split a range into one selection per line |
 | `BlockEdits` | Typing, Backspace, Delete and paste in a `BlockSelection` (Notepad++ column mode): a row that ends left of the block is padded with spaces; the block stays a block, as wide as nothing after typing; paste gives each row one line |
 | `Moves`, `Words` | Caret steps by char (a CR LF and a surrogate pair are one), smart Home, End, and word moves that stop at runs of word chars, of other non-blank chars and at line breaks |
 | `CommentEdits` | Toggle line comments on the touched lines (removed when every non-blank line has one after its indentation, else added at the block's smallest indentation; a block comment per block of lines without a line comment) and block comments around each selection or a caret's trimmed line; a range keeps text inserted at its ends |
 | `Occurrences` | The next exact occurrence of a text at or after an offset, wrapping, and the whole-word occurrences of a word in a range; cancelable, for a worker |
-| `LineTransforms` | Sort (code unit, descending, ignoring case), remove duplicate lines (keeps the first) and trim trailing spaces and tabs, over each range's touched lines or, when every selection is a caret, every line but an empty last one. A sort leaves each break in its place, so offsets and selections stay; a removed last line takes the break before it. Cancelable, for a worker |
+| `LineTransforms` | Sort (code unit, descending, ignoring case), remove duplicate lines (keeps the first) and trim trailing spaces and tabs, over each range's touched lines or, when every selection is a caret, every line but an empty last one. A sort leaves each break in its place, so offsets and selections stay, and `SelectionModel` moves one that lands inside a pair; a removed last line takes the break before it. Cancelable, for a worker |
 | `AutoClose`, `Pairs` | Typing with auto-closed pairs at each caret: an open char inserts its pair before a line end, blank, close bracket, `,` or `;` (a quote also needs no word char or same quote before it), a close char before the same char moves over it, Backspace between a pair deletes both. Returns null when no caret uses a pair, so plain typing applies. `Pairs.DEFAULT` is `() [] {} "" ''` |
 | `Brackets` | The bracket beside a caret (the char before first) and its partner within bounds: same-pair brackets nest, other chars are ignored, and a `Filter` leaves out brackets (the app passes the ones in strings and comments); `NONE` when the text holds no partner, `BEYOND` when the bounds ended the search |
 | `WordIndex` | The distinct words of a text for completion (letter or `_` first, 2 to 100 chars, at most 100,000), sorted by lower case; prefix lookup ignoring case. A word is copied only the first time it is seen |
@@ -349,7 +361,8 @@ their `CancellationToken` per block.
   is only counted and joins the span when a later char differs, so the run left
   at the end is the common suffix, and the rope builder holds only the span.
   A second-pass digest or char count that differs from the first is an
-  `IOException`: the two passes must describe one file.
+  `IOException`: the two passes must describe one file. `roundTrips` comes from
+  the first pass, as for a load.
 - `LoadReservation.reload` charges the buffers, the inserted text twice (a
   `String` and the rope's leaves) and the removed text once (the undo step's
   `String`), the heap `Document.apply` reaches, and the caller holds it until
@@ -572,12 +585,16 @@ replaced. `ReplaceBackups` keeps one directory per run under
 `<settings>/replace-backups/`, named by its UTC start time. Each replaced file
 gets `<n>.bak`: a header line with its path and the SHA-256 of its bytes
 before and after, then the original bytes, forced to disk before the file is
-replaced; a write that does not happen deletes it. `restore` writes a backup
-back through `SafeSave` only while the file holds the bytes the run wrote; a
-file changed since is refused, one already holding its original reports
-unchanged. Its digests and the copy stream 1 MiB blocks through the backup's
-body. The digest of the body is checked before the write, since `SafeSave` can
-write in place; for the same reason a cancel does not stop the copy. `prune` deletes runs older than the days kept.
+replaced; a write that does not happen deletes it. After a failed write,
+`writeFailed` deletes the backup only when the file still holds its original
+bytes. Otherwise the backup stays, and the digest of the bytes the write left
+replaces the header's after digest. `restore` writes a backup back through
+`SafeSave` only while the file holds the bytes the run left; a file changed
+since is refused, one already holding its original reports unchanged. A
+restore that fails partway records the bytes it left the same way, so a retry
+works. Its digests and the copy stream 1 MiB blocks through the backup's body.
+The digest of the body is checked before the write, since `SafeSave` can write
+in place. `prune` deletes runs older than the days kept.
 
 ## Line diff (`core.diff`)
 
@@ -679,13 +696,16 @@ forward and backward cursor walks, chunk reads and earlier snapshots with a
 `StringBuilder`. A case is named by its endings and seed;
 `-Dqcaret.storage.seed=N` runs one seed.
 
-`DocumentRandomTest` runs 1,500 random steps per seed (batches, typing runs,
-groups, undo, redo, selection moves, saves, new anchors) and checks after each:
+`DocumentRandomTest` runs 1,500 random steps per seed over text with surrogate
+pairs (batches, typing runs, groups, undo, redo, selection moves, saves, new
+anchors, block selections, compositions) and checks after each:
 the text against a replay of the change events, revisions one apart, each
 event's removed text and start line, anchors and `PositionMap` against a
 step-by-step mapping, an undo state always holding the same text, a clean
-document holding the saved text, the line ending counts, and every selection
-set sorted, disjoint and in bounds. It ends by undoing every step and redoing
+document holding the saved text, the line ending counts, every selection set
+sorted, disjoint, in bounds and outside any CR LF or surrogate pair, and a
+block's lines and rows. A composition must leave the text, undo state and
+selections as it found them. It ends by undoing every step and redoing
 them. `-Dqcaret.document.seed=N` runs one seed.
 
 `MemoryBudgetTest` covers the share and refusals.
@@ -699,7 +719,8 @@ one undo step each; `AutoCloseTest` the insert, type-over and pair-delete
 rules per caret; `BracketsTest` nesting, unmatched brackets and the bounds;
 `WordIndexTest` the word rules, prefix lookup and whole-word occurrences.
 `PreeditTest` covers composition text outside undo and the dirty state, undo
-removing it, `applyInBlock` and the tab settings.
+removing it, an update replacing only the composition, a new composition after
+a clear, a selection surviving one, `applyInBlock` and the tab settings.
 
 `DocumentTest` covers change events, coalescing rules, groups, redo
 discard, dirty state, the undo bounds, refused edits, anchors, the position
@@ -708,7 +729,10 @@ every BOM and mixed line endings byte for byte, and covers the fallback,
 binary files, an unmappable save, a malformed forced decode, text that does
 not encode back, a canceled load, a file larger than one 1 MiB read block
 (regression: the read stopped after the first block), the load estimate, and
-the digests of a load and a save. `StreamingLoadTest` compares a load with a
+the digests of a load and a save. `DocumentSaveCancelTest` cancels in the third
+encoder block of a 4 MiB save: a hard-linked file ends with the whole new text
+in both links (regression: 196,608 bytes were left), and an atomic save and a
+cancel before an in-place save leave the file as it was. `StreamingLoadTest` compares a load with a
 whole-array decode of the same bytes: every menu charset, BOM form and two
 ISO-2022 charsets with a block boundary at each offset of each sequence and CR
 LF, at blocks of 1 to 9 bytes and at the real first boundary; a detection corpus
@@ -748,7 +772,13 @@ ending, UTF-16 LE with its BOM, an unmappable replacement, a file changed
 after the search, a read-only file (skipped where the user writes read-only
 files), a dropped match, malformed and binary files, a 3 MiB file replaced at
 both ends, a cancel leaving no backup, a restore refusing a file changed
-since, a restore past every block, a damaged backup, and listing and pruning runs. `LineDiffTest` compares 400 seeded random
+since, a restore past every block, a damaged backup, and listing and pruning runs.
+`FailedReplaceTest` runs a replace and a restore in a JVM under `ulimit -f`
+where `bash` and the `unix` view exist: a failed in-place replace keeps a
+backup that restores (regression: the backup was deleted with the file cut), a
+failed atomic replace drops its backup, and a restore that fails partway can be
+retried. Direct calls to `writeFailed` cover the same outcomes on every
+platform. `LineDiffTest` compares 400 seeded random
 edits with a dynamic-programming longest common subsequence: each script
 rebuilds both lists, keeps a longest common subsequence and lists removed
 lines first; hunks keep their context. It also covers the edit bound.

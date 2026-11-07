@@ -247,6 +247,44 @@ class RecoveryControllerTest {
     assertEquals("mock alpha\n", Files.readString(a));
   }
 
+  /** The buffer restores on the recorded base, so a save still asks before it replaces the file. */
+  @Test
+  void anUnreadableOriginalIsListedAndItsBufferRestores() throws Exception {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Path a = file("a.txt", "alpha\n");
+    Harness first = start(false);
+    first.open(a);
+    edit(first, "mock ");
+    end(first);
+    Files.setPosixFilePermissions(a, PosixFilePermissions.fromString("---------"));
+    try {
+      assumeFalse(Files.isReadable(a), "running as root");
+      final Harness second = start(false);
+      second.await(offered(second), "the dialog");
+      List<RecoveryRow> rows = second.view.recovery.rows();
+      assertEquals(1, rows.size());
+      assertEquals(UiText.RECOVERY_UNREADABLE.text(), rows.get(0).state());
+      second.view.recovery.restore(new int[] {0});
+      second.await(rowsLeft(second, 0), "restored");
+      second.awaitIdle("restore");
+      Document document = second.application.documents().activeDocument();
+      assertEquals("mock alpha\n", document.text().toString());
+      assertTrue(document.isDirty());
+      assertEquals(a, second.application.documents().activePath());
+      second.application.documents().save();
+      second.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return second.view.changePrompts.contains("save a.txt");
+            }
+          },
+          "the save conflict");
+    } finally {
+      Files.setPosixFilePermissions(a, PosixFilePermissions.fromString("rw-------"));
+    }
+  }
+
   private static BooleanSupplier offered(final Harness harness) {
     return new BooleanSupplier() {
       @Override
@@ -643,6 +681,77 @@ class RecoveryControllerTest {
           }
         },
         "the snapshot files went");
+  }
+
+  /** Quits a first run with three untitled buffers, which then exist only as snapshots. */
+  private void writeThreeSnapshots() throws Exception {
+    Harness first = start(true);
+    setSnapshot(first);
+    edit(first, "mock one");
+    first.application.documents().newDocument();
+    first.ui.runPending();
+    edit(first, "mock two");
+    first.application.documents().newDocument();
+    first.ui.runPending();
+    edit(first, "mock three");
+    first.application.requestQuit();
+    awaitQuit(first);
+  }
+
+  /** Starts a restore, quits once {@code restored} tabs are open, and waits for the quit. */
+  private void quitDuringTheRestore(final int restored) throws Exception {
+    final Harness harness = new Harness(temp);
+    open.add(harness);
+    setSnapshot(harness);
+    SessionStore store = new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, settings));
+    harness.application.startSession(store, store.load(), true);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.application.documents().count() == restored;
+          }
+        },
+        "the restored tabs");
+    assertTrue(harness.application.windowSet().session().restoring());
+    harness.application.requestQuit();
+    awaitQuit(harness);
+    assertTrue(harness.failures.isEmpty(), harness.failures.toString());
+  }
+
+  private void assertEveryBufferRestores() throws Exception {
+    final Harness next = new Harness(temp);
+    open.add(next);
+    SessionStore store = new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, settings));
+    next.application.startSession(store, store.load(), true);
+    next.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !next.application.windowSet().session().restoring();
+          }
+        },
+        "the restore");
+    next.awaitIdle("restore");
+    List<String> texts = new ArrayList<String>();
+    for (Document document : next.application.documents().openDocuments()) {
+      texts.add(document.text().toString());
+    }
+    assertEquals(List.of("mock one", "mock two", "mock three"), texts);
+  }
+
+  @Test
+  void aSnapshotQuitDuringARestoreKeepsEveryUnsavedBuffer() throws Exception {
+    writeThreeSnapshots();
+    quitDuringTheRestore(0);
+    assertEveryBufferRestores();
+  }
+
+  @Test
+  void aSnapshotQuitWithOneBufferRestoredKeepsTheOthers() throws Exception {
+    writeThreeSnapshots();
+    quitDuringTheRestore(1);
+    assertEveryBufferRestores();
   }
 
   @Test

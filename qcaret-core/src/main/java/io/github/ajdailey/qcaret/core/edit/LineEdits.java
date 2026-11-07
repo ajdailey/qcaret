@@ -34,31 +34,34 @@ public final class LineEdits {
       carets &= s.isEmpty();
     }
     if (carets) {
+      Replacement lastLine = null;
       for (int[] block : Lines.blocks(text, set, false)) {
         int start = text.offsetOfLine(block[0]);
         int next = Lines.next(text, block[1]);
         if (block[1] == text.lineCount() - 1) {
           String lines = text.subSequence(start, Lines.end(text, block[1])).toString();
-          out.add(new Replacement(text.length(), 0, lineEnding + lines));
+          lastLine = new Replacement(text.length(), 0, lineEnding + lines);
+          out.add(lastLine);
         } else {
           out.add(new Replacement(next, 0, text.subSequence(start, next).toString()));
         }
       }
       // A caret at a line start belongs to that line and moves past a copy inserted there; one at
-      // the text's end belongs to the last line and stays before its copy.
+      // the text's end belongs to the last line and stays before that line's copy.
       List<Selection> after = new ArrayList<Selection>(set.size());
       for (Selection s : set.selections()) {
         int at = s.caret();
         int shift = 0;
         for (Replacement r : out) {
-          if (r.offset() < at || (r.offset() == at && at < text.length())) {
+          if (r.offset() < at || (r.offset() == at && r != lastLine)) {
             shift += r.text().length();
           }
         }
         after.add(new Selection(at + shift, at + shift, s.preferredColumn()));
       }
       return new Edit(
-          EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex()));
+          EditBatch.of(EditBatch.Kind.COMMAND, mergedAtEnd(out)),
+          SelectionSet.of(after, set.primaryIndex()));
     } else {
       for (Selection s : set.selections()) {
         if (!s.isEmpty()) {
@@ -71,8 +74,9 @@ public final class LineEdits {
 
   /**
    * Moves each block of touched lines one line up or down, past the neighboring line; blocks that
-   * touch move together. Nothing moves when a block is at the top (up) or bottom (down). The
-   * selections move with their lines.
+   * touch move together. Nothing moves when a block is at the top (up) or bottom (down), or when
+   * the move would put a CR and an LF side by side, which joins two breaks into one. The selections
+   * move with their lines.
    *
    * @param text the text
    * @param set the selections
@@ -115,6 +119,9 @@ public final class LineEdits {
               Lines.end(text, b), start + line.length() + blockBreak.length(), lineBreak.length()
             };
       }
+    }
+    if (joinsBreaks(text, out)) {
+      return null;
     }
     List<Selection> after = new ArrayList<Selection>(set.size());
     for (Selection s : set.selections()) {
@@ -391,6 +398,54 @@ public final class LineEdits {
       }
     }
     return SelectionSet.of(out, primary);
+  }
+
+  /** Returns the replacements with two inserts at the same offset, at the text's end, as one. */
+  private static List<Replacement> mergedAtEnd(List<Replacement> out) {
+    int n = out.size();
+    if (n < 2 || out.get(n - 2).offset() != out.get(n - 1).offset()) {
+      return out;
+    }
+    List<Replacement> merged = new ArrayList<Replacement>(out.subList(0, n - 2));
+    String both = out.get(n - 2).text() + out.get(n - 1).text();
+    merged.add(new Replacement(out.get(n - 1).offset(), 0, both));
+    return merged;
+  }
+
+  /**
+   * Reports whether sorted replacements that rearrange whole lines leave more CR LF pairs than they
+   * remove. A range starts and ends at a line boundary, so no pair crosses one before the edit.
+   */
+  private static boolean joinsBreaks(TextContent text, List<Replacement> sorted) {
+    for (int i = 0; i < sorted.size(); i++) {
+      Replacement r = sorted.get(i);
+      boolean afterPrevious = i > 0 && sorted.get(i - 1).end() == r.offset();
+      boolean beforeNext = i + 1 < sorted.size() && r.end() == sorted.get(i + 1).offset();
+      StringBuilder result = new StringBuilder(r.text());
+      if (afterPrevious) {
+        String previous = sorted.get(i - 1).text();
+        result.insert(0, previous.charAt(previous.length() - 1));
+      } else if (r.offset() > 0) {
+        result.insert(0, text.charAt(r.offset() - 1));
+      }
+      if (!beforeNext && r.end() < text.length()) {
+        result.append(text.charAt(r.end()));
+      }
+      if (crLfCount(result) > crLfCount(slice(text, r.offset(), r.end()))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static int crLfCount(CharSequence s) {
+    int count = 0;
+    for (int i = 1; i < s.length(); i++) {
+      if (s.charAt(i - 1) == '\r' && s.charAt(i) == '\n') {
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

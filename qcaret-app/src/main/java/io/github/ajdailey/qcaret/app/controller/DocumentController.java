@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -86,8 +87,9 @@ import org.slf4j.LoggerFactory;
  *   <li>Open goes through {@link DocumentOpener}: the heap-budget check, the load and the rows on a
  *       worker. A missing file opens an empty document for its path; a file already open selects
  *       its tab. A document whose text does not encode back to the file's bytes opens read-only
- *       with a notice. A binary file opens only after the user accepts a read-only ISO-8859-1 view;
- *       that document is never written: Save and Save As refuse it, whatever calls them.
+ *       with a notice, and Save refuses it while it stays read-only. A binary file opens only after
+ *       the user accepts a read-only ISO-8859-1 view; that document is never written: Save and Save
+ *       As refuse it, whatever calls them.
  *   <li>Reopen with an encoding loads the file again with that charset, or with detection, and
  *       replaces the clean document in its tab once loaded; a failed load leaves the document open.
  *       Save with an encoding changes only what the next save writes. Converting the line endings
@@ -97,9 +99,9 @@ import org.slf4j.LoggerFactory;
  *       qcaret-io-} worker while editing goes on; the document is clean once the snapshot's state
  *       is current. A save while one runs for the same document shows a notice instead. Esc in the
  *       editor and closing the tab cancel a running save, which leaves the target unchanged when
- *       the cancel lands before the file is replaced. Esc also cancels a running comparison. Save
- *       As onto a file another tab holds, in any window, closes that tab once the write succeeds,
- *       asking first when it has unsaved changes.
+ *       the cancel lands before the file is replaced; an in-place write that has begun runs to its
+ *       end. Esc also cancels a running comparison. Save As onto a file another tab holds, in any
+ *       window, closes that tab once the write succeeds, asking first when it has unsaved changes.
  *   <li>Each document with a file is checked through {@link ExternalChanges} on the path the user
  *       opened: a clean document reloads a changed file as one undo step, a dirty one asks Keep
  *       Mine, Reload or Compare, a deleted file leaves its buffer open, marked missing and dirty. A
@@ -169,7 +171,7 @@ public final class DocumentController {
   private final LoadOptions options;
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
-  private final Set<Path> reopening = new HashSet<Path>();
+  private final Map<Path, Reopen> reopening = new HashMap<Path, Reopen>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
   private boolean disposing;
   private OpenDocument active;
@@ -198,6 +200,15 @@ public final class DocumentController {
   private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
   private boolean defaultInsertSpaces;
 
+  /**
+   * A reopen on its way through the opener.
+   *
+   * @param document the document it replaces
+   * @param revision the revision it replaces; an edit since then keeps the document
+   * @param load cancels the load
+   */
+  private record Reopen(OpenDocument document, long revision, CancellationToken load) {}
+
   /** One open document and its tab. */
   private final class OpenDocument implements DocumentListener {
     final Document document;
@@ -216,6 +227,13 @@ public final class DocumentController {
     CancellationToken saving;
     CancellationToken converting;
     boolean binary;
+
+    /** The file's bytes do not encode back from the text: Save refuses while read-only. */
+    boolean bytesGuarded;
+
+    /** Held on a worker while a save writes this document's file. */
+    final ReentrantLock writing;
+
     boolean closed;
     SyntaxHighlighter syntax;
     String grammar = GrammarSet.PLAIN;
@@ -231,9 +249,16 @@ public final class DocumentController {
     /** What the check that started a reload found; a refused reload takes it as the baseline. */
     FileBaseline reloadCheck;
 
+    /** The document was clean when the running reload took its snapshot. */
+    boolean reloadOfClean;
+
+    /** The guard alone made the document read-only, so a reload that ends the guard clears it. */
+    boolean readOnlyByGuard;
+
     int detecting;
 
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
+      this.writing = new ReentrantLock();
       this.document = document;
       this.path = path;
       this.baseline = baseline;
@@ -250,7 +275,9 @@ public final class DocumentController {
     OpenDocument(OpenDocument from) {
       this.document = from.document;
       this.bufferId = from.bufferId;
+      this.writing = from.writing;
       this.forced = from.forced;
+      this.readOnlyByGuard = from.readOnlyByGuard;
       this.path = from.path;
       this.baseline = from.baseline;
       this.reserved = from.reserved;
@@ -260,6 +287,7 @@ public final class DocumentController {
       this.sideBySide = from.sideBySide;
       this.bookmarks = from.bookmarks;
       this.binary = from.binary;
+      this.bytesGuarded = from.bytesGuarded;
       this.syntax = from.syntax;
       this.grammar = from.grammar;
       this.manualGrammar = from.manualGrammar;
@@ -364,7 +392,11 @@ public final class DocumentController {
               @Override
               public void opened(
                   Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-                loaded(path, file, layout, reserved);
+                try {
+                  loaded(path, file, layout, reserved);
+                } finally {
+                  finishRestore(path);
+                }
               }
 
               @Override
@@ -434,6 +466,11 @@ public final class DocumentController {
   /** Reports whether the selected document is a binary file's read-only view. */
   boolean activeBinary() {
     return active != null && active.binary;
+  }
+
+  /** Returns the charset the user chose for the selected document, or null when it is detected. */
+  Charset activeForced() {
+    return active == null ? null : active.forced;
   }
 
   /** Returns the tab labels in tab order: each path, or the title of an untitled document. */
@@ -711,8 +748,8 @@ public final class DocumentController {
     if (restored != null) {
       restoring.put(path, restored);
     }
-    OpenDocument d = reopening.contains(path) ? null : find(path);
-    if (d == null && elsewhere != null && !reopening.contains(path)) {
+    OpenDocument d = reopening.containsKey(path) ? null : find(path);
+    if (d == null && elsewhere != null && !reopening.containsKey(path)) {
       if (elsewhere.show(this, path, then)) {
         finishRestore(path);
         return true;
@@ -732,14 +769,18 @@ public final class DocumentController {
   }
 
   private void loaded(Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-    boolean reopen = reopening.remove(path);
+    Reopen reopen = reopening.remove(path);
     Path given = requestedPaths.remove(path);
     Charset forced = forcedLoads.remove(path);
     remembered.remove(path);
+    if (reopen != null && !path.equals(reopen.document().path)) {
+      budget.release(reserved);
+      return;
+    }
     int index = documents.size();
     for (OpenDocument d : documents) {
       if (path.equals(d.path)) {
-        if (!reopen || d.document.isDirty()) {
+        if (reopen == null || d.document.revision() != reopen.revision() || d.document.isDirty()) {
           budget.release(reserved);
           d.tab.select();
           opened(path, d);
@@ -755,7 +796,7 @@ public final class DocumentController {
     OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
     d.forced = forced;
     watch(d, given == null ? path : given, file.baseline());
-    if (!reopen && memory != null && !restoring.containsKey(path)) {
+    if (reopen == null && memory != null && !restoring.containsKey(path)) {
       applyFile(d, memory.state(path));
     }
     opened(path, d);
@@ -764,7 +805,7 @@ public final class DocumentController {
       d.updateTitle();
       view.documentStateChanged();
     } else if (!file.roundTrips()) {
-      document.setReadOnly(true);
+      guardBytes(d);
       view.showInfo(
           UiText.OPEN_TITLE.text(),
           UiText.OPEN_READ_ONLY.format(
@@ -780,6 +821,9 @@ public final class DocumentController {
   }
 
   private void refuse(Path path, LoadCost cost, long available, long maxHeap) {
+    reopening.remove(path);
+    requestedPaths.remove(path);
+    afterOpen.remove(path);
     forcedLoads.remove(path);
     remembered.remove(path);
     if (skipRestore(path)) {
@@ -817,13 +861,13 @@ public final class DocumentController {
       opener.open(path, options);
       return;
     }
-    reopening.remove(path);
+    boolean reopen = reopening.remove(path) != null;
     requestedPaths.remove(path);
     if (skipRestore(path)) {
       return;
     }
     Consumer<EditorController> then = afterOpen.remove(path);
-    if (error instanceof BinaryFileException) {
+    if (!reopen && error instanceof BinaryFileException) {
       view.askOpenBinary(
           String.valueOf(path.getFileName()),
           new Runnable() {
@@ -834,7 +878,10 @@ public final class DocumentController {
           });
       return;
     }
-    if (error instanceof NoSuchFileException && path.isAbsolute() && path.getParent() != null) {
+    if (!reopen
+        && error instanceof NoSuchFileException
+        && path.isAbsolute()
+        && path.getParent() != null) {
       Document document =
           Document.of(
               "",
@@ -1072,7 +1119,7 @@ public final class DocumentController {
   }
 
   private void save(OpenDocument d, SaveEnd end) {
-    if (binaryNotice(d)) {
+    if (binaryNotice(d) || noRoundTripNotice(d)) {
       end.stop();
       return;
     }
@@ -1131,7 +1178,9 @@ public final class DocumentController {
 
   /**
    * Writes a Save As target. When another tab holds the file, in any window, that tab closes once
-   * the write succeeds; with unsaved changes it asks first, and a decline writes nothing.
+   * the write succeeds; with unsaved changes it asks first, and a decline writes nothing. An edit
+   * in that tab after the question asks about the tab again; a Cancel keeps it and the save still
+   * ends as written.
    */
   private void targetResolved(
       final OpenDocument d, final Path target, Path real, final SaveEnd end) {
@@ -1145,19 +1194,31 @@ public final class DocumentController {
       return;
     }
     final Document held = other.document;
+    final long seen = held.revision();
     final SaveEnd closeOther =
         new SaveEnd(
             new Runnable() {
               @Override
               public void run() {
+                Runnable ended =
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        if (!d.closed) {
+                          d.tab.select();
+                        }
+                        end.finish();
+                      }
+                    };
                 DocumentController holder = holderOf(held);
-                if (holder != null) {
+                if (holder == null) {
+                  ended.run();
+                } else if (held.isDirty() && held.revision() != seen) {
+                  holder.close(holder.entry(held), ended, ended);
+                } else {
                   holder.discard(holder.entry(held));
+                  ended.run();
                 }
-                if (!d.closed) {
-                  d.tab.select();
-                }
-                end.finish();
               }
             },
             end.stopped());
@@ -1213,6 +1274,21 @@ public final class DocumentController {
     return true;
   }
 
+  /** Shows the notice and returns true when a Save would rewrite bytes opened read-only. */
+  private boolean noRoundTripNotice(OpenDocument d) {
+    if (!refusesSave(d)) {
+      return false;
+    }
+    view.showInfo(
+        UiText.SAVE_TITLE.text(),
+        UiText.SAVE_NO_ROUND_TRIP.format(d.name(), d.document.encoding().charset().displayName()));
+    return true;
+  }
+
+  private static boolean refusesSave(OpenDocument d) {
+    return d.bytesGuarded && d.document.isReadOnly();
+  }
+
   /** Shows the notice and returns true when a save or a reload of the document is running. */
   private boolean savingNotice(OpenDocument d) {
     if (d.reloading != null) {
@@ -1266,7 +1342,13 @@ public final class DocumentController {
                 Path written = target;
                 try {
                   FileStamp expected = sameFile(target, known) ? baseline : null;
-                  stamp = DocumentFiles.save(target, snapshot, expected, token);
+                  // A canceled in-place write runs to its end; the next save must not interleave.
+                  d.writing.lock();
+                  try {
+                    stamp = DocumentFiles.save(target, snapshot, expected, token);
+                  } finally {
+                    d.writing.unlock();
+                  }
                   try {
                     written = target.toRealPath();
                   } catch (IOException e) {
@@ -1275,7 +1357,7 @@ public final class DocumentController {
                 } catch (IOException e) {
                   error = e;
                 } catch (CancellationException e) {
-                  // Canceled: the target is unchanged unless the move had happened.
+                  // Canceled: the target is unchanged.
                 } finally {
                   final FileBaseline saved = stamp;
                   final IOException failure = error;
@@ -1336,6 +1418,7 @@ public final class DocumentController {
       boolean renamed = !target.equals(d.path);
       d.path = target;
       d.baseline = stamp.stamp();
+      d.bytesGuarded = false;
       d.missing = false;
       d.cleanAtMissing = null;
       Path file = named.toAbsolutePath().normalize();
@@ -1505,7 +1588,19 @@ public final class DocumentController {
     }
   }
 
-  private void close(final OpenDocument d, final Runnable then) {
+  private void close(OpenDocument d, Runnable then) {
+    close(d, then, null);
+  }
+
+  /**
+   * Closes a document, asking first when it has unsaved changes. Save closes it once the file is
+   * written, unless an edit arrived during the write: that asks again.
+   *
+   * @param d the document
+   * @param then runs once it closed
+   * @param kept runs instead when the tab stays: a Cancel or a save that wrote no file
+   */
+  private void close(final OpenDocument d, final Runnable then, final Runnable kept) {
     cancelSave(d);
     if (!d.document.isDirty()) {
       discard(d);
@@ -1521,9 +1616,12 @@ public final class DocumentController {
           @Override
           public void accept(UnsavedChoice choice) {
             if (d.closed) {
+              if (kept != null) {
+                kept.run();
+              }
               return;
             }
-            Runnable done =
+            final Runnable done =
                 new Runnable() {
                   @Override
                   public void run() {
@@ -1533,11 +1631,24 @@ public final class DocumentController {
                     }
                   }
                 };
+            Runnable written =
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (d.document.isDirty()) {
+                      close(d, then, kept);
+                    } else {
+                      done.run();
+                    }
+                  }
+                };
             switch (choice) {
-              case SAVE -> save(d, new SaveEnd(done, null));
+              case SAVE -> save(d, new SaveEnd(written, kept));
               case DISCARD -> done.run();
               case CANCEL -> {
-                // The tab stays open.
+                if (kept != null) {
+                  kept.run();
+                }
               }
             }
           }
@@ -1557,6 +1668,11 @@ public final class DocumentController {
       elsewhere.closed(this, d.document);
     }
     cancelSave(d);
+    Path reopened = reopenedFile(d);
+    if (reopened != null) {
+      reopening.remove(reopened).load().cancel();
+    }
+    completion.documentClosed(d.document);
     if (d.watch != null) {
       changes.unwatch(d.watch);
     }
@@ -1897,32 +2013,52 @@ public final class DocumentController {
 
   /**
    * Loads the selected document's file again, decoded with a charset, and replaces the document in
-   * its tab. Does nothing for an untitled, dirty or binary document.
+   * its tab. Does nothing for an untitled, dirty or binary document, or during another reopen of
+   * it. Closing the tab cancels the load; an edit or a Save As during the load keeps the document
+   * and drops the load; a failed load shows a notice and keeps the document.
    *
    * @param charset the charset
    */
   public void reopenWithEncoding(Charset charset) {
     if (canReopen()) {
-      reopening.add(active.path);
-      opener.open(active.path, options.withForced(charset));
+      reopen(options.withForced(charset));
     }
   }
 
   /**
    * Loads the selected document's file again with encoding detection and replaces the document in
-   * its tab, past a charset forced or remembered for the file. Does nothing for an untitled, dirty
-   * or binary document.
+   * its tab, past a charset forced or remembered for the file. Does nothing where {@link
+   * #reopenWithEncoding} does nothing, and a running reopen ends the same way.
    */
   public void reopenWithDetection() {
     if (canReopen()) {
-      reopening.add(active.path);
       detecting.add(active.path);
-      opener.open(active.path, options);
+      reopen(options);
     }
   }
 
+  private void reopen(LoadOptions with) {
+    reopening.put(
+        active.path,
+        new Reopen(active, active.document.revision(), opener.open(active.path, with)));
+  }
+
   private boolean canReopen() {
-    return active != null && active.path != null && !active.binary && !active.document.isDirty();
+    return active != null
+        && active.path != null
+        && !active.binary
+        && !active.document.isDirty()
+        && reopenedFile(active) == null;
+  }
+
+  /** Returns the file a running reopen of a document reads, or null. */
+  private Path reopenedFile(OpenDocument d) {
+    for (Map.Entry<Path, Reopen> running : reopening.entrySet()) {
+      if (running.getValue().document() == d) {
+        return running.getKey();
+      }
+    }
+    return null;
   }
 
   /**
@@ -1936,6 +2072,7 @@ public final class DocumentController {
     if (active == null || active.binary) {
       return;
     }
+    active.forced = charset;
     TextEncoding current = active.document.encoding();
     if (!current.charset().equals(charset)) {
       active.document.setEncoding(TextEncoding.of(charset, false));
@@ -2055,6 +2192,11 @@ public final class DocumentController {
     }
   }
 
+  /** Reports whether Save refuses the selected document; for {@link CommandStates}. */
+  boolean activeRefusesSave() {
+    return active != null && refusesSave(active);
+  }
+
   /** Reports whether a document has unsaved changes; for {@link CommandStates}. */
   boolean anyDirty() {
     for (OpenDocument d : documents) {
@@ -2108,6 +2250,7 @@ public final class DocumentController {
       document.clearPreedit();
     }
     document.setReadOnly(!document.isReadOnly());
+    active.readOnlyByGuard = false;
     active.updateTitle();
     view.documentStateChanged();
     sessionChanged();
@@ -2369,6 +2512,7 @@ public final class DocumentController {
       TextEncoding encoding,
       LineEnding lineEnding,
       FileBaseline baseline,
+      boolean roundTrips,
       Path real,
       LoadReservation reservation) {}
 
@@ -2471,25 +2615,33 @@ public final class DocumentController {
     if (d.missing) {
       view.showNotice(UiText.CHANGE_MISSING.format(d.name()));
     } else if (d.document.isDirty()) {
-      d.changePrompt = true;
-      view.askReload(
-          d.name(),
-          new Runnable() {
-            @Override
-            public void run() {
-              d.changePrompt = false;
-              reload(d);
-            }
-          },
-          new Runnable() {
-            @Override
-            public void run() {
-              d.changePrompt = false;
-            }
-          });
+      askReload(d);
     } else {
       reload(d);
     }
+  }
+
+  /** Asks before Reload from Disk replaces edits; one prompt per document at a time. */
+  private void askReload(final OpenDocument d) {
+    if (d.changePrompt) {
+      return;
+    }
+    d.changePrompt = true;
+    view.askReload(
+        d.name(),
+        new Runnable() {
+          @Override
+          public void run() {
+            d.changePrompt = false;
+            reload(d);
+          }
+        },
+        new Runnable() {
+          @Override
+          public void run() {
+            d.changePrompt = false;
+          }
+        });
   }
 
   /** Keeps the buffer of a deleted file, dirty, and remembers whether it matched the file. */
@@ -2548,7 +2700,7 @@ public final class DocumentController {
         });
   }
 
-  /** Asks what a save that found the file changed does next. */
+  /** Asks what a save that found the file changed does next; Compare leaves the prompt open. */
   private void askConflict(final OpenDocument d, final SaveEnd end) {
     view.askExternalChange(
         d.name(),
@@ -2557,7 +2709,9 @@ public final class DocumentController {
           @Override
           public void accept(ChangeChoice choice) {
             if (d.closed) {
-              end.stop();
+              if (choice != ChangeChoice.COMPARE) {
+                end.stop();
+              }
               return;
             }
             switch (choice) {
@@ -2569,10 +2723,7 @@ public final class DocumentController {
                 reload(d);
                 end.stop();
               }
-              case COMPARE -> {
-                compareWithDisk(d);
-                end.stop();
-              }
+              case COMPARE -> compareWithDisk(d);
               default -> end.stop();
             }
           }
@@ -2581,7 +2732,7 @@ public final class DocumentController {
 
   private void compareWithDisk(OpenDocument d) {
     if (compare != null && d.watch != null) {
-      compare.compareWithDisk(d.document, d.watch.path(), d.binary);
+      compare.compareWithDisk(d.document, d.watch.path(), d.forced, d.binary);
     }
   }
 
@@ -2590,9 +2741,11 @@ public final class DocumentController {
    * text between the common prefix and suffix as one undo step, keeping each view's caret by line
    * and column. The changed span stays reserved until it is applied. The document is clean
    * afterwards; undo returns to the text before the reload, dirty. A document edited during the
-   * read reloads again, at most {@value #RELOAD_ATTEMPTS} times. A span the budget refuses leaves
-   * the text; the watch takes the checked baseline, so the file is read again on a new change,
-   * while the document's stamp stays and a save still finds the conflict.
+   * read reloads again, at most {@value #RELOAD_ATTEMPTS} times, unless the edit made a clean
+   * document dirty: that edit stays and the user is asked. A failed read or a span the budget
+   * refuses leaves the text; the watch takes the checked baseline, so the file is read again on a
+   * new change, while the document's stamp stays and a save still finds the conflict. A charset the
+   * user chose is forced; any other is detected, as an open does.
    */
   private void reload(final OpenDocument d) {
     if (d.closed || d.watch == null || d.reloading != null || d.saving != null) {
@@ -2600,11 +2753,12 @@ public final class DocumentController {
     }
     final CancellationToken token = new CancellationToken();
     d.reloading = token;
+    d.reloadOfClean = !d.document.isDirty();
     changes.pause(d.watch);
     d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
     final Path file = d.watch.path();
-    final Charset charset = d.document.encoding().charset();
+    final Charset charset = d.forced;
     final boolean binary = d.binary;
     final LoadReservation reservation =
         LoadReservation.reload(budget, d.reserved, options.limits());
@@ -2627,6 +2781,7 @@ public final class DocumentController {
                           read.encoding(),
                           read.lineEnding(),
                           read.baseline(),
+                          read.roundTrips(),
                           realFile(file),
                           reservation);
                 } catch (LoadTooLargeException e) {
@@ -2688,6 +2843,9 @@ public final class DocumentController {
       if (error instanceof NoSuchFileException) {
         markMissing(d);
       } else if (error != null) {
+        if (checked != null) {
+          changes.accept(d.watch, checked);
+        }
         view.showNotice(UiText.RELOAD_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
       } else if (!token.isCanceled()) {
         if (checked != null) {
@@ -2698,6 +2856,17 @@ public final class DocumentController {
       return;
     }
     if (d.document.revision() != revision) {
+      if (d.reloadOfClean && d.document.isDirty()) {
+        d.reloadAttempts = 0;
+        resumeWatch(d);
+        if (checked == null) {
+          askReload(d);
+        } else {
+          changes.accept(d.watch, checked);
+          askChange(d);
+        }
+        return;
+      }
       if (++d.reloadAttempts < RELOAD_ATTEMPTS) {
         d.reloadCheck = checked;
         reload(d);
@@ -2752,8 +2921,26 @@ public final class DocumentController {
     d.missing = false;
     d.cleanAtMissing = null;
     changes.resume(d.watch, d.watch.path(), r.baseline());
+    if (r.roundTrips() || d.binary) {
+      d.bytesGuarded = false;
+      if (d.readOnlyByGuard) {
+        d.readOnlyByGuard = false;
+        document.setReadOnly(false);
+      }
+    } else if (!d.bytesGuarded || !document.isReadOnly()) {
+      guardBytes(d);
+      view.showNotice(UiText.OPEN_READ_ONLY.format(d.name(), r.encoding().charset().displayName()));
+    }
     d.updateTitle();
     view.documentStateChanged();
+  }
+
+  /** Makes a document read-only because a save would change its file's bytes. */
+  private void guardBytes(OpenDocument d) {
+    d.readOnlyByGuard |= !d.document.isReadOnly();
+    d.bytesGuarded = true;
+    d.document.clearPreedit();
+    d.document.setReadOnly(true);
   }
 
   // Multiple windows and the command line.
@@ -2955,7 +3142,7 @@ public final class DocumentController {
         && d.converting == null
         && d.reloading == null
         && !d.changePrompt
-        && (d.path == null || !reopening.contains(d.path));
+        && reopenedFile(d) == null;
   }
 
   /**
@@ -2976,6 +3163,7 @@ public final class DocumentController {
     }
     FileBaseline baseline = from.watch == null ? null : from.watch.baseline();
     from.closed = true;
+    completion.documentClosed(document);
     if (from.watch != null) {
       changes.unwatch(from.watch);
     }

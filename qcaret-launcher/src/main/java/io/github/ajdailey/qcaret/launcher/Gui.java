@@ -249,6 +249,7 @@ final class Gui {
           }
         });
     controller.startSession(sessions, session, restore, request);
+    window.showStatusNow();
     if (EventLoopWatchdog.enabled()) {
       new EventLoopWatchdog(
               workers,

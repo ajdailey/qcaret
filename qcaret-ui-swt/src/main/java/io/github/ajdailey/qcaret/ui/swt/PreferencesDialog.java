@@ -127,7 +127,8 @@ final class PreferencesDialog {
           public void accept(AppearanceChoices choices) {
             if (!shell.isDisposed()) {
               fillChoices(themeFile, choices.themeFiles());
-              fillChoices(fontFamily, choices.fontFamilies());
+              fillChoices(
+                  fontFamily, EditorFonts.listed(shell.getDisplay(), choices.fontFamilies()));
             }
           }
         });

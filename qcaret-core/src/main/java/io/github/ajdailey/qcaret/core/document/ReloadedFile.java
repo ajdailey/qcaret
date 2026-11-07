@@ -12,6 +12,11 @@ import io.github.ajdailey.qcaret.core.text.TextEncoding;
  * @param encoding the encoding the file decoded in
  * @param lineEnding the file's dominant line ending
  * @param baseline the file's stamp before it was read and the SHA-256 of the bytes read
+ * @param roundTrips true when the file's text encodes back to its bytes
  */
 public record ReloadedFile(
-    Replacement replacement, TextEncoding encoding, LineEnding lineEnding, FileBaseline baseline) {}
+    Replacement replacement,
+    TextEncoding encoding,
+    LineEnding lineEnding,
+    FileBaseline baseline,
+    boolean roundTrips) {}

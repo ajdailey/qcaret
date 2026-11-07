@@ -25,6 +25,7 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
   private final List<TextChangeListener> listeners = new ArrayList<TextChangeListener>();
   private Runnable changing;
   private Runnable changed;
+  private Runnable composing;
 
   ContentAdapter(DisplayProjection projection, EditorInput input) {
     this.projection = projection;
@@ -38,6 +39,11 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
   void onChange(Runnable before, Runnable after) {
     changing = before;
     changed = after;
+  }
+
+  /** Sets what runs before composition text from the widget reaches the model. */
+  void onComposition(Runnable before) {
+    composing = before;
   }
 
   /** Detaches from the projection. */
@@ -119,7 +125,10 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
 
   @Override
   public void replaceTextRange(int start, int replaceLength, String text) {
-    input.preeditFromView(start, start + replaceLength, text);
+    if (composing != null) {
+      composing.run();
+    }
+    input.preeditFromView(text);
   }
 
   @Override

@@ -118,6 +118,7 @@ public final class EditorController implements EditorInput {
   private CancellationToken occurrence;
   private Runnable escapeListener;
   private boolean columnMode;
+  private String highSurrogate;
   private boolean disposed;
   private Grammar.Comments comments = Grammar.Comments.NONE;
   private FoldRegionSource foldSource;
@@ -727,11 +728,15 @@ public final class EditorController implements EditorInput {
   // Edits.
 
   @Override
-  public void type(String text) {
+  public void type(String typed) {
     if (document.isReadOnly()) {
       return;
     }
     document.clearPreedit();
+    String text = wholeCodePoints(typed);
+    if (text == null) {
+      return;
+    }
     BlockSelection block = selections.block();
     if (block != null && text.indexOf('\r') < 0 && text.indexOf('\n') < 0) {
       applyBlock(
@@ -761,6 +766,21 @@ public final class EditorController implements EditorInput {
       replaceSelections(text, EditBatch.Kind.TYPING);
     }
     typed(text);
+  }
+
+  /**
+   * Returns typed text with a held high surrogate before its low one, or null while holding one.
+   * The view sends one char per key event, and a block's column moves between two lone halves.
+   */
+  private String wholeCodePoints(String typed) {
+    if (typed.length() == 1 && Character.isHighSurrogate(typed.charAt(0))) {
+      highSurrogate = typed;
+      return null;
+    }
+    String high = highSurrogate;
+    highSurrogate = null;
+    boolean paired = high != null && !typed.isEmpty() && Character.isLowSurrogate(typed.charAt(0));
+    return paired ? high + typed : typed;
   }
 
   @Override
@@ -1037,35 +1057,10 @@ public final class EditorController implements EditorInput {
   // Input method composition.
 
   @Override
-  public void preeditFromView(int start, int end, String text) {
-    if (document.isReadOnly()) {
-      return;
+  public void preeditFromView(String text) {
+    if (!document.isReadOnly()) {
+      document.preedit(selections.selections().primary().start(), text);
     }
-    int from = projection.toModel(start);
-    int to = Math.max(from, projection.toModel(end));
-    document.preedit(from, to - from, text);
-  }
-
-  @Override
-  public void commitFromView(int count) {
-    int[] range = document.preeditRange();
-    if (range == null || count <= 0 || document.isReadOnly()) {
-      return;
-    }
-    String composed = document.text().subSequence(range[0], range[0] + range[1]).toString();
-    int n = Math.min(count, composed.length());
-    String rest = composed.substring(n);
-    document.clearPreedit();
-    document.apply(
-        EditBatch.of(
-            EditBatch.Kind.COMMAND,
-            List.of(new Replacement(range[0], 0, composed.substring(0, n)))),
-        selections,
-        SelectionSet.caret(range[0] + n));
-    if (!rest.isEmpty()) {
-      document.preedit(range[0] + n, 0, rest);
-    }
-    showCaret();
   }
 
   // Caret moves.
@@ -1591,13 +1586,15 @@ public final class EditorController implements EditorInput {
       int to = s.end();
       if (s.isEmpty()) {
         if (back) {
-          from = Math.max(lastEnd, Moves.left(text, s.start()));
-        } else {
+          from = Moves.left(text, s.start());
+        } else if (s.end() >= lastEnd) {
           to = Moves.right(text, s.end());
         }
       } else {
         anySelected = true;
       }
+      from = Math.max(from, lastEnd);
+      to = Math.max(to, from);
       if (to > from) {
         replacements.add(new Replacement(from, to - from, ""));
       }
@@ -2430,14 +2427,16 @@ public final class EditorController implements EditorInput {
     List<Replacement> out = new ArrayList<Replacement>();
     List<Selection> after = new ArrayList<Selection>(set.size());
     int shift = 0;
+    int lastEnd = 0;
     for (Selection s : set.selections()) {
       int at = s.caret();
       if (s.isEmpty()
-          && at >= n
+          && at - n >= lastEnd
           && prefix.regionMatches(true, 0, text.subSequence(at - n, at).toString(), 0, n)) {
         out.add(new Replacement(at - n, n, word));
         shift += word.length() - n;
         after.add(Selection.caret(at + shift));
+        lastEnd = at;
       } else {
         after.add(new Selection(s.anchor() + shift, s.caret() + shift, s.preferredColumn()));
       }

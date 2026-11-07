@@ -114,6 +114,26 @@ public final class Document {
   }
 
   /**
+   * Creates a document as {@link #of(CharSequence, TextEncoding, LineEnding, UndoLimits)} does,
+   * timing typing coalescing on a given clock.
+   *
+   * @param text the initial text
+   * @param encoding the encoding a save writes
+   * @param empty the line ending of a text without breaks
+   * @param limits the undo history bounds
+   * @param clock the current time in nanoseconds
+   * @return the document, clean, at revision 0
+   */
+  public static Document of(
+      CharSequence text,
+      TextEncoding encoding,
+      LineEnding empty,
+      UndoLimits limits,
+      LongSupplier clock) {
+    return new Document(text, encoding, empty, limits, clock);
+  }
+
+  /**
    * Returns the current text: an immutable version, O(1).
    *
    * @return the text
@@ -335,7 +355,8 @@ public final class Document {
    *
    * @param batch the replacements, in the current text's coordinates
    * @param origin the selection model that edited
-   * @param after the origin's block after the edit; its lines must exist in the new text
+   * @param after the origin's block after the edit; a line past the new text's end becomes the last
+   *     line
    */
   public void applyInBlock(EditBatch batch, SelectionModel origin, BlockSelection after) {
     apply(batch, origin, null, Objects.requireNonNull(after));
@@ -531,27 +552,26 @@ public final class Document {
   }
 
   /**
-   * Replaces the composition text an input method shows, outside undo: the undo and dirty state
-   * stay as they are. The range replaced is the previous composition, or empty at the caret when
-   * none shows.
+   * Shows an input method's composition text, outside undo: the undo and dirty state stay as they
+   * are. Only the current composition is replaced, so no other text can change.
    *
-   * @param offset the first offset replaced
-   * @param removeLength the chars removed
+   * @param offset where the text goes when no composition shows; ignored while one shows
    * @param text the new composition text, empty when the composition ends
    * @throws IllegalStateException when read-only, inside a group, from a listener or another thread
    */
-  public void preedit(int offset, int removeLength, String text) {
+  public void preedit(int offset, String text) {
     checkEditable();
     if (groupDepth > 0) {
       throw new IllegalStateException("composition inside a group");
     }
-    Objects.checkFromIndexSize(offset, removeLength, storage.length());
-    if (removeLength > 0 || !text.isEmpty()) {
-      Change c =
-          new Change(offset, storage.subSequence(offset, offset + removeLength).toString(), text);
+    int start = preeditStart >= 0 ? preeditStart : offset;
+    Objects.checkIndex(start, storage.length() + 1);
+    if (preeditLength > 0 || !text.isEmpty()) {
+      String removed = storage.subSequence(start, start + preeditLength).toString();
+      Change c = new Change(start, removed, text);
       change(List.of(c), DocumentChange.Cause.PREEDIT, null, null, null, isDirty());
     }
-    preeditStart = text.isEmpty() ? -1 : offset;
+    preeditStart = text.isEmpty() ? -1 : start;
     preeditLength = text.length();
   }
 

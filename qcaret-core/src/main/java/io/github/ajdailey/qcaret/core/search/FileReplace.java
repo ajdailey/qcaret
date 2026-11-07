@@ -42,7 +42,8 @@ import java.util.concurrent.CancellationException;
  *       kept.
  *   <li>Record the original bytes in the run's {@link ReplaceBackups}, then write through {@link
  *       SafeSave} with the stamp read in step 1 as the baseline. A change between the read and the
- *       write's stamp check skips the file; a change after that check is overwritten.
+ *       write's stamp check skips the file; a change after that check is overwritten. A write that
+ *       fails keeps the backup unless the file still holds its original bytes.
  * </ol>
  *
  * <p>The file, its decoded text and the new bytes are held at once: {@value #BYTES_RESERVED} bytes
@@ -368,7 +369,7 @@ public final class FileReplace {
       backups.dropQuietly(entry);
       return new Outcome(Skip.CHANGED, 0, dropped, null);
     } catch (IOException e) {
-      backups.dropQuietly(entry);
+      backups.writeFailed(entry, target.file(), target.digest());
       return new Outcome(null, 0, dropped, e);
     } catch (CancellationException e) {
       backups.dropQuietly(entry);

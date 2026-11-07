@@ -226,7 +226,7 @@ class FindControllerTest {
   @Test
   void replaceAllDuringACompositionDropsTheCompositionAndReplaces() throws Exception {
     EditorController editor = open("cat cat\n");
-    editor.preeditFromView(0, 0, "ca");
+    editor.preeditFromView("ca");
     find.open(true);
     find.setText("cat");
     find.setReplacement("dog");

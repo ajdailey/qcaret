@@ -23,13 +23,18 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
@@ -114,6 +119,126 @@ class GuiTest {
   private int run(StartupRequest request, Preferences preferences, Recorder recorder) {
     PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
     return new Gui(request, config(), preferences, err, recorder, LogFiles.NONE).run();
+  }
+
+  @Test
+  void theTitleIsSetBeforeTheEventLoopStarts() {
+    final String[] title = new String[1];
+    Gui.Observer observer =
+        new Gui.Observer() {
+          @Override
+          public void opened(MainWindow window, ApplicationController controller, Workers owned) {
+            title[0] = window.shell().getText();
+            controller.quit();
+          }
+        };
+    PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+    StartupRequest request = request(List.of(), 600, 400, 0, 0, true);
+    assertEquals(
+        0, new Gui(request, config(), Preferences.DEFAULTS, err, observer, LogFiles.NONE).run());
+    assertEquals(UNTITLED, title[0]);
+  }
+
+  /** ISO-8859-1 whose first decoder request after {@link #arm} blocks until {@link #release}. */
+  private static final class GatedCharset extends Charset {
+    private final AtomicBoolean armed = new AtomicBoolean();
+    private final CountDownLatch released = new CountDownLatch(1);
+    private volatile boolean held;
+
+    GatedCharset() {
+      super("X-QCARET-TEST-GATE", null);
+    }
+
+    void arm() {
+      armed.set(true);
+    }
+
+    boolean held() {
+      return held;
+    }
+
+    void release() {
+      released.countDown();
+    }
+
+    @Override
+    public boolean contains(Charset other) {
+      return StandardCharsets.ISO_8859_1.contains(other);
+    }
+
+    @Override
+    public CharsetDecoder newDecoder() {
+      if (armed.compareAndSet(true, false)) {
+        held = true;
+        try {
+          released.await(BOUND_NANOS, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      return StandardCharsets.ISO_8859_1.newDecoder();
+    }
+
+    @Override
+    public CharsetEncoder newEncoder() {
+      return StandardCharsets.ISO_8859_1.newEncoder();
+    }
+  }
+
+  /** Reopens the file once its tab shows, quits with the reopen's read held, then lets it go. */
+  private static final class QuitDuringALoad implements Gui.Observer {
+    final GatedCharset gate = new GatedCharset();
+    boolean quitHeldALoad;
+    Workers workers;
+
+    @Override
+    public void opened(MainWindow window, final ApplicationController controller, Workers owned) {
+      workers = owned;
+      final Display display = window.shell().getDisplay();
+      final long deadline = System.nanoTime() + BOUND_NANOS;
+      display.timerExec(
+          20,
+          new Runnable() {
+            private boolean reopened;
+
+            @Override
+            public void run() {
+              if (!reopened && controller.documents().activePath() != null) {
+                reopened = true;
+                gate.arm();
+                controller.documents().reopenWithEncoding(gate);
+              }
+              if (gate.held() || System.nanoTime() > deadline) {
+                quitHeldALoad = gate.held() && controller.documents().loading() == 1;
+                controller.quit();
+                gate.release();
+              } else {
+                display.timerExec(20, this);
+              }
+            }
+          });
+    }
+  }
+
+  @Test
+  void aQuitDuringALoadEndsCleanly() throws Exception {
+    Path file = Files.writeString(temp.resolve("notes.txt"), "mock\n");
+    final QuitDuringALoad observer = new QuitDuringALoad();
+    StartupRequest request = request(List.of(new FileRequest(file)), 600, 400, 0, 0, true);
+    PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+    assertEquals(
+        0, new Gui(request, config(), Preferences.DEFAULTS, err, observer, LogFiles.NONE).run());
+    assertTrue(observer.quitHeldALoad, "the quit ran with no load held");
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return observer.workers.liveThreads() == 0;
+              }
+            },
+            Duration.ofNanos(BOUND_NANOS)),
+        observer.workers.liveThreadNames());
   }
 
   @Test

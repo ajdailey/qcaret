@@ -337,6 +337,23 @@ class ProductivityTest {
   }
 
   @Test
+  void acceptingACompletionSkipsACaretWhosePrefixOverlapsThePrimary() throws InterruptedException {
+    open("aa|a| aaxy");
+    editor.execute(CommandId.COMPLETE_WORD);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !tab.shown.completions.isEmpty();
+          }
+        },
+        "list");
+    editor.execute(CommandId.NEWLINE);
+    assertEquals("aaa|a| aaxy", marked());
+    assertEquals(List.of(), tab.shown.completions);
+  }
+
+  @Test
   void theListMovesWithArrowsAndClosesOnEsc() throws InterruptedException {
     open("alpha alpine al|");
     editor.execute(CommandId.COMPLETE_WORD);

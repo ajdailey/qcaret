@@ -276,7 +276,11 @@ public final class DocumentFiles {
               replacement = span.replacement();
             }
             return new ReloadedFile(
-                replacement, encoding, prefix.endings().dominant(options.empty()), read.baseline());
+                replacement,
+                encoding,
+                prefix.endings().dominant(options.empty()),
+                read.baseline(),
+                read.pass().roundTrips());
           }
         });
   }
@@ -377,18 +381,21 @@ public final class DocumentFiles {
    * @param snapshot the version to write and its encoding
    * @param baseline the stamp from the load or the last save, or null for a new file
    * @param token canceled by a close of the document or Esc; a cancel before the target is replaced
-   *     leaves it unchanged
+   *     leaves it unchanged, and an in-place write that has begun runs to its end
    * @return the saved file's stamp and the SHA-256 of the bytes written
    * @throws TextCodingException when a char cannot be encoded; no file is touched
    * @throws io.github.ajdailey.qcaret.core.io.ExternalModificationException when the target changed
    *     since {@code baseline}
-   * @throws IOException when the write fails
+   * @throws IOException when the charset has no encoder or the write fails
    */
   @WorkerThread
   public static FileBaseline save(
       Path file, final DocumentSnapshot snapshot, FileStamp baseline, final CancellationToken token)
       throws IOException {
     final TextEncoding encoding = snapshot.encoding();
+    if (!encoding.charset().canEncode()) {
+      throw new IOException("The encoding " + encoding.charset().name() + " cannot be written");
+    }
     encode(snapshot.text(), encoding, null, token);
     final AtomicReference<String> digest = new AtomicReference<String>();
     long recorded = System.currentTimeMillis();
@@ -402,7 +409,8 @@ public final class DocumentFiles {
                 MessageDigest sha = Digests.sha256();
                 OutputStream digesting = new DigestOutputStream(out, sha);
                 digesting.write(encoding.bomBytes());
-                encode(snapshot.text(), encoding, digesting, token);
+                // SafeSave applies the cancel, which must not stop an in-place write.
+                encode(snapshot.text(), encoding, digesting, new CancellationToken());
                 digesting.flush();
                 digest.set(Digests.hex(sha));
               }

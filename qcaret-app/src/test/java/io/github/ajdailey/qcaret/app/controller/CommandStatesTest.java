@@ -272,6 +272,15 @@ class CommandStatesTest {
   }
 
   @Test
+  void saveFollowsTheRoundTripGuardAndSaveAsStays() throws Exception {
+    harness.open(Files.write(temp.resolve("guarded.xml"), SaveRefusalTest.NO_ROUND_TRIP));
+    assertEquals(false, states.enabled(CommandId.SAVE));
+    assertEquals(true, states.enabled(CommandId.SAVE_AS));
+    harness.application.execute(CommandId.READ_ONLY);
+    assertEquals(true, states.enabled(CommandId.SAVE));
+  }
+
+  @Test
   void statusFieldsDescribeThePrimaryCaret() throws Exception {
     assertEquals(StatusFields.NONE, states.status());
     harness.open(Files.writeString(temp.resolve("tabs.txt"), "a\tb\r\nsecond\r\n"));

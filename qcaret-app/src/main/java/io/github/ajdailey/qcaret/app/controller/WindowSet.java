@@ -116,6 +116,7 @@ public final class WindowSet {
   private boolean snapshotWritten;
   private QuitPrompts prompts;
   private volatile boolean quitting;
+  private boolean quitAfterRestore;
 
   private final DocumentController.Elsewhere elsewhere =
       new DocumentController.Elsewhere() {
@@ -841,16 +842,29 @@ public final class WindowSet {
   /**
    * Asks about the unsaved changes of every window, then closes the documents and quits unless the
    * user canceled or a save failed; with {@code session.snapshot} on, writes them as a snapshot and
-   * quits. A request while a quit asks does nothing.
+   * quits. A snapshot quit during a restore waits for {@link #restoreEnded}: writing one drops the
+   * snapshots of buffers not restored yet. A request while a quit asks does nothing.
    */
   public void requestQuit() {
     if (quitting || snapshotting || prompts != null) {
       return;
     }
     if (session.owner() && settings.current().options().sessionSnapshot()) {
-      writeSnapshot();
+      if (session.restoring()) {
+        quitAfterRestore = true;
+      } else {
+        writeSnapshot();
+      }
     } else {
       closeAndQuit();
+    }
+  }
+
+  /** Runs a Quit requested during the restore, which has ended. */
+  void restoreEnded() {
+    if (quitAfterRestore) {
+      quitAfterRestore = false;
+      requestQuit();
     }
   }
 

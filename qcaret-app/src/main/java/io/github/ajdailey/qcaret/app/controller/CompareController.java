@@ -113,7 +113,7 @@ public final class CompareController {
     Document document = documents.activeDocument();
     Path file = documents.activeOpenedPath();
     if (document != null && file != null) {
-      compareWithDisk(document, file, documents.activeBinary());
+      compareWithDisk(document, file, documents.activeForced(), documents.activeBinary());
     }
   }
 
@@ -122,9 +122,11 @@ public final class CompareController {
    *
    * @param document the open document
    * @param file the path the user opened
+   * @param forced the charset the user chose, or null to detect one
    * @param binary true for a binary file's view, read as ISO-8859-1
    */
-  void compareWithDisk(final Document document, final Path file, final boolean binary) {
+  void compareWithDisk(
+      final Document document, final Path file, final Charset forced, final boolean binary) {
     if (disposed) {
       return;
     }
@@ -142,8 +144,7 @@ public final class CompareController {
               public void run() {
                 boolean handedOn = false;
                 try {
-                  Document disk =
-                      readDisk(file, base, document.encoding().charset(), binary, token);
+                  Document disk = readDisk(file, base, forced, binary, token);
                   if (disk == null) {
                     post(UiText.COMPARE_TOO_LARGE.format(name));
                   } else {
@@ -222,7 +223,7 @@ public final class CompareController {
   }
 
   /**
-   * Reads a file as a reload does ({@link #load}) while its cost is reserved from the budget.
+   * Reads a file ({@link #load}) while its cost is reserved from the budget.
    *
    * @return the document, or null when the budget cannot hold it
    */
@@ -242,12 +243,12 @@ public final class CompareController {
   }
 
   /**
-   * Loads a file for a reload or a comparison: in the document's charset, with detection when that
-   * charset does not decode the bytes, or as ISO-8859-1 for a binary file's view.
+   * Loads a file for a comparison: in the charset the user chose, with detection when there is none
+   * or it does not decode the bytes, or as ISO-8859-1 for a binary file's view.
    *
    * @param file the path the user opened
    * @param base the window's load options
-   * @param charset the document's charset
+   * @param charset the charset the user chose, or null to detect one
    * @param binary true for a binary file's view
    * @param reservation charged as the text arrives
    * @param token canceled by a close
@@ -278,7 +279,7 @@ public final class CompareController {
    *
    * @param file the path the user opened
    * @param base the window's load options
-   * @param charset the document's charset
+   * @param charset the charset the user chose, or null to detect one
    * @param binary true for a binary file's view
    * @param current the document's text
    * @param reservation charged for the changed span

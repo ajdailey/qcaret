@@ -33,6 +33,7 @@ import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,6 +56,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.IME;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.junit.jupiter.api.AfterEach;
@@ -621,6 +623,84 @@ class EditingSurfaceTest {
     assertEquals("abx", editor().document().text().toString());
     controller.execute(CommandId.UNDO);
     assertEquals("ab", text.getText());
+  }
+
+  /** Sets a field the platform's {@code IME} keeps; the three share these names. */
+  private static void setIme(StyledText text, String field, int value) throws Exception {
+    Field f = IME.class.getDeclaredField(field);
+    f.setAccessible(true);
+    f.setInt(text.getIME(), value);
+  }
+
+  /** Sends one composition event on the {@code IME}, where every platform sends it. */
+  private static void imeEvent(StyledText text, int start, int end, String composed) {
+    Event event = new Event();
+    event.detail = SWT.COMPOSITION_CHANGED;
+    event.start = start;
+    event.end = end;
+    event.text = composed;
+    text.getIME().notifyListeners(SWT.ImeComposition, event);
+  }
+
+  /** Starts a composition as {@code IME} does: asks the widget for the range, then changes it. */
+  private static void compose(StyledText text, String composed) throws Exception {
+    Event ask = new Event();
+    ask.detail = SWT.COMPOSITION_SELECTION;
+    text.getIME().notifyListeners(SWT.ImeComposition, ask);
+    setIme(text, "startOffset", ask.start);
+    imeEvent(text, ask.start, ask.end, composed);
+  }
+
+  /** Commits as {@code IME} does: the commit count equals the text, then the chars are keys. */
+  private static void commit(StyledText text, int start, String composed) throws Exception {
+    setIme(text, "commitCount", composed.length());
+    imeEvent(text, start, start + composed.length(), composed);
+    setIme(text, "commitCount", 0);
+    setIme(text, "startOffset", -1);
+    for (char c : composed.toCharArray()) {
+      Event key = new Event();
+      key.character = c;
+      text.notifyListeners(SWT.KeyDown, key);
+    }
+  }
+
+  @Test
+  void aCanceledCompositionOverASelectionKeepsTheTextAndTheSelection() throws Exception {
+    openFile("imecancel.txt", "hello world");
+    StyledText text = window.activeText();
+    Selection selected = Selection.of(0, 5);
+    editor().selections().set(SelectionSet.of(List.of(selected), 0));
+    drain();
+    assertEquals("hello", text.getSelectionText());
+    compose(text, "n");
+    drain();
+    assertEquals("nhello world", text.getText());
+    // GTK asks for the selection again to cancel, so the range names no composition.
+    setIme(text, "startOffset", -1);
+    compose(text, "");
+    drain();
+    assertEquals("hello world", editor().document().text().toString());
+    assertFalse(editor().document().isDirty());
+    assertEquals(selected, editor().selections().selections().primary());
+    assertEquals("hello", text.getSelectionText());
+  }
+
+  @Test
+  void aCommittedCompositionReplacesTheSelectionAsOneUndoStep() throws Exception {
+    openFile("imecommit.txt", "hello world");
+    StyledText text = window.activeText();
+    editor().selections().set(SelectionSet.of(List.of(Selection.of(0, 5)), 0));
+    drain();
+    compose(text, "ka");
+    drain();
+    commit(text, 0, "ka");
+    drain();
+    assertEquals("ka world", editor().document().text().toString());
+    assertEquals("ka world", text.getText());
+    controller.execute(CommandId.UNDO);
+    drain();
+    assertEquals("hello world", text.getText());
+    assertEquals("hello", text.getSelectionText());
   }
 
   @Test

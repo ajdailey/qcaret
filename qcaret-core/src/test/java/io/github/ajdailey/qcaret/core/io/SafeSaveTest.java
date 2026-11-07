@@ -5,19 +5,26 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.GroupPrincipal;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
@@ -173,6 +180,154 @@ class SafeSaveTest {
     assertEquals("new", Files.readString(other));
     assertEquals(baseline.fileKey(), saved.fileKey());
     assertFalse(names().size() > 2);
+  }
+
+  @Test
+  void aFileWithoutWritePermissionIsNotReplaced() throws Exception {
+    final Path file = temp.resolve("a.txt");
+    Files.writeString(file, "old");
+    if (posix()) {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("r--r--r--"));
+    } else {
+      Files.setAttribute(file, "dos:readonly", true);
+    }
+    assumeFalse(Files.isWritable(file), "the user writes every file");
+    final FileStamp baseline = FileStamp.read(file);
+    IOException refused =
+        assertThrows(
+            AccessDeniedException.class,
+            new Executable() {
+              @Override
+              public void execute() throws Throwable {
+                SafeSave.save(file, baseline, text("new"), new CancellationToken());
+              }
+            });
+    assertEquals("The file is not writable", refused.getMessage());
+    assertEquals("old", Files.readString(file));
+    assertEquals(List.of("a.txt"), names());
+  }
+
+  /** Returns the mode of the temporary file, read while the content is written. */
+  private String modeWhileWritten(Path file) throws Exception {
+    final AtomicReference<Set<PosixFilePermission>> seen =
+        new AtomicReference<Set<PosixFilePermission>>();
+    SafeSave.save(
+        file,
+        null,
+        new ContentWriter() {
+          @Override
+          public void write(OutputStream out) throws IOException {
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(temp, ".*qcaret-tmp")) {
+              for (Path p : files) {
+                seen.set(Files.getPosixFilePermissions(p));
+              }
+            }
+            out.write('x');
+          }
+        },
+        new CancellationToken());
+    return PosixFilePermissions.toString(seen.get());
+  }
+
+  @Test
+  void theTemporaryFileIsOwnerOnlyWhileAFileIsReplaced() throws Exception {
+    assumeTrue(posix());
+    Path file = temp.resolve("secret.txt");
+    Files.writeString(file, "old");
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+    assertEquals("rw-------", modeWhileWritten(file));
+    assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-rw-r--"));
+    assertEquals("rw-------", modeWhileWritten(file));
+    assertEquals("rw-rw-r--", PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+  }
+
+  @Test
+  void aNewFileTakesTheDefaultMode() throws Exception {
+    assumeTrue(posix());
+    Path plain = Files.createFile(temp.resolve("plain.txt"));
+    Path file = temp.resolve("new.txt");
+    SafeSave.save(file, null, text("x"), new CancellationToken());
+    assertEquals(Files.getPosixFilePermissions(plain), Files.getPosixFilePermissions(file));
+  }
+
+  /** Moves a file to a group of the user other than its current one; null without a second. */
+  private static GroupPrincipal otherGroup(Path file) throws Exception {
+    Process id = new ProcessBuilder("id", "-Gn").redirectErrorStream(true).start();
+    String names = new String(id.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    id.waitFor();
+    PosixFileAttributeView view = Files.getFileAttributeView(file, PosixFileAttributeView.class);
+    GroupPrincipal current = view.readAttributes().group();
+    for (String name : names.trim().split("\\s+")) {
+      try {
+        GroupPrincipal group =
+            file.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByGroupName(name);
+        if (!group.equals(current)) {
+          view.setGroup(group);
+          return group;
+        }
+      } catch (IOException e) {
+        // Not a group this file can take.
+      }
+    }
+    return null;
+  }
+
+  @Test
+  void anAtomicSaveKeepsTheGroup() throws Exception {
+    assumeTrue(posix());
+    Path file = temp.resolve("shared.txt");
+    Files.writeString(file, "old");
+    GroupPrincipal group = otherGroup(file);
+    assumeTrue(group != null, "the user has no second group");
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-rw----"));
+    FileStamp baseline = FileStamp.read(file);
+    FileStamp saved = SafeSave.save(file, baseline, text("new"), new CancellationToken());
+    assertNotEquals(baseline.fileKey(), saved.fileKey());
+    assertEquals(
+        group,
+        Files.getFileAttributeView(file, PosixFileAttributeView.class).readAttributes().group());
+    assertEquals("rw-rw----", PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+  }
+
+  private Path link(String name, Path to) throws Exception {
+    Path link = temp.resolve(name);
+    try {
+      Files.createSymbolicLink(link, to);
+    } catch (IOException | UnsupportedOperationException e) {
+      assumeTrue(false, "no symbolic links: " + e);
+    }
+    return link;
+  }
+
+  @Test
+  void aSaveThroughADanglingLinkKeepsTheLink() throws Exception {
+    Path dir = Files.createDirectory(temp.resolve("real"));
+    Path gone = dir.resolve("gone.txt");
+    Path link = link("link.txt", gone);
+    SafeSave.save(link, null, text("new"), new CancellationToken());
+    assertTrue(Files.isSymbolicLink(link));
+    assertEquals("new", Files.readString(gone));
+  }
+
+  @Test
+  void aRelativeDanglingLinkResolvesFromItsDirectory() throws Exception {
+    Path dir = Files.createDirectory(temp.resolve("real"));
+    Path link = link("link.txt", Path.of("real", "gone.txt"));
+    SafeSave.save(link, null, text("new"), new CancellationToken());
+    assertTrue(Files.isSymbolicLink(link));
+    assertEquals("new", Files.readString(dir.resolve("gone.txt")));
+  }
+
+  @Test
+  void aChainOfLinksEndingNowhereKeepsEveryLink() throws Exception {
+    Path gone = temp.resolve("gone.txt");
+    Path last = link("last.txt", gone);
+    Path first = link("first.txt", Path.of("last.txt"));
+    SafeSave.save(first, null, text("new"), new CancellationToken());
+    assertTrue(Files.isSymbolicLink(first));
+    assertTrue(Files.isSymbolicLink(last));
+    assertEquals("new", Files.readString(gone));
   }
 
   @Test

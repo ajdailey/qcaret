@@ -57,7 +57,6 @@ import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Caret;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.IME;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Slider;
 
@@ -79,8 +78,9 @@ import org.eclipse.swt.widgets.Slider;
  *       paste) arrives as {@code Verify}, is canceled and goes to {@link
  *       EditorInput#replaceFromView}. A plain click and drag move the widget's caret natively; each
  *       move is sent to the model. {@link EditorGestures} takes the block and add-caret gestures
- *       first. Input method composition text goes to {@link EditorInput#preeditFromView}, and a
- *       commit reported with the composition to {@link EditorInput#commitFromView}.
+ *       first. Input method composition text goes to {@link EditorInput#preeditFromView}. On every
+ *       platform the widget removes the composition when it commits, and the committed text arrives
+ *       as key events.
  *   <li>Selections: the widget holds only the model's primary selection, set again after every
  *       model change and every display change. A widget report of that primary, such as after a
  *       resize, keeps the other selections; a plain click leaves one.
@@ -183,6 +183,7 @@ public final class EditorPane implements EditorView {
   private int reportedStart = -1;
   private int reportedEnd = -1;
   private boolean syncing;
+  private boolean composing;
   private final EditorLayout layout;
   private final EditorGestures gestures;
   private final UiDispatcher ui;
@@ -285,6 +286,13 @@ public final class EditorPane implements EditorView {
     setPalette(palette);
     content = new ContentAdapter(projection, input);
     text.setContent(content);
+    content.onComposition(
+        new Runnable() {
+          @Override
+          public void run() {
+            composing = true;
+          }
+        });
     // The widget moves its own caret while it applies a change; those moves are not the user's.
     content.onChange(
         new Runnable() {
@@ -686,7 +694,7 @@ public final class EditorPane implements EditorView {
    * as the model holds it, such as after a resize, keeps the other selections unless {@code click}.
    */
   private void fromWidget(boolean click) {
-    if (syncing || text.isDisposed()) {
+    if (syncing || composing || text.isDisposed()) {
       return;
     }
     int[] ranges = text.getSelectionRanges();
@@ -817,19 +825,22 @@ public final class EditorPane implements EditorView {
             measure();
           }
         });
-    text.addListener(
-        SWT.ImeComposition,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            IME ime = text.getIME();
-            if (event.detail == SWT.COMPOSITION_CHANGED
-                && ime != null
-                && ime.getCommitCount() > 0) {
-              input.commitFromView(ime.getCommitCount());
-            }
-          }
-        });
+    // Runs after the widget's own listener, which collapses its selection onto the composition.
+    // The model's selection stays, for the commit to replace; the widget gets it back at the end.
+    text.getIME()
+        .addListener(
+            SWT.ImeComposition,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (event.detail == SWT.COMPOSITION_CHANGED) {
+                  composing = false;
+                  if (selections.document().preeditRange() == null) {
+                    syncWidget();
+                  }
+                }
+              }
+            });
     text.addListener(
         SWT.FocusOut,
         new Listener() {
