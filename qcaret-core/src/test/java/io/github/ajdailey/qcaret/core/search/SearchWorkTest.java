@@ -25,9 +25,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Bounds that hold on any runner: the files a walk accepts after a cancel or after the room ends,
- * the chars a search reads after a cancel, and the memory reads hold. Each file carries one match.
- * A file holds a reader slot until its {@link FileSearch.Sink#found} returns, so the counts below
- * follow from {@link FileSearch#READERS}, not from timing.
+ * the chars a search reads after a cancel in each scan and in the matcher, and the memory reads
+ * hold. Each file carries one match. A file holds a reader slot until its {@link
+ * FileSearch.Sink#found} returns, so the counts below follow from {@link FileSearch#READERS}, not
+ * from timing.
  */
 class SearchWorkTest {
   private static final int FILES = 200;
@@ -218,6 +219,13 @@ class SearchWorkTest {
 
   private static String text() {
     return LINE.repeat((1 << 21) / LINE.length());
+  }
+
+  @Test
+  void aCancelInTheLineStartScanStopsWithinOneBlock() {
+    String text = text();
+    long after = readsAfterCancel("zq[xy]", text, text.length() / 2);
+    assertTrue(after <= TextSearch.SCAN_CHARS, "reads after the cancel: " + after);
   }
 
   @Test

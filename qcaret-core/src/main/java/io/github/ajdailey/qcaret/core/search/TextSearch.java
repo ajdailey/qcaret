@@ -85,7 +85,8 @@ public final class TextSearch {
       int limit,
       int maxLineChars,
       CancellationToken token) {
-    Lines lines = text instanceof TextContent content ? new ContentLines(content) : scan(text);
+    Lines lines =
+        text instanceof TextContent content ? new ContentLines(content) : scan(text, token);
     int[] bounds = ranges == null ? new int[] {0, text.length()} : ranges;
     List<Hit> hits = new ArrayList<Hit>();
     int skipped = 0;
@@ -198,7 +199,7 @@ public final class TextSearch {
     return scan.finish(at);
   }
 
-  /** Chars read between cancellation checks while finding long lines. */
+  /** Chars read between cancellation checks while finding line starts and long lines. */
   static final int SCAN_CHARS = 1 << 16;
 
   /** Measures lines as their chars arrive; CR, LF and CR LF each end a line. */
@@ -409,12 +410,20 @@ public final class TextSearch {
     }
   }
 
-  /** Scans a text for its line starts; CR, LF and CR LF each end a line. */
-  private static Lines scan(CharSequence text) {
+  /**
+   * Scans a text for its line starts, checking the token every {@link #SCAN_CHARS} chars; CR, LF
+   * and CR LF each end a line.
+   */
+  private static Lines scan(CharSequence text, CancellationToken token) {
     int[] starts = new int[16];
     int count = 1;
     int length = text.length();
+    int check = 0;
     for (int i = 0; i < length; i++) {
+      if (i >= check) {
+        token.check();
+        check = i + SCAN_CHARS;
+      }
       char c = text.charAt(i);
       if (c == '\n' || c == '\r') {
         if (c == '\r' && i + 1 < length && text.charAt(i + 1) == '\n') {

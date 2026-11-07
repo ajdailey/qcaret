@@ -288,8 +288,9 @@ Display update for one edit, also on the UI thread (measured on an idle Linux x8
 host, without SWT, one million lines): 2.4-3.6 us. It grows with the line's length,
 19 ms on a 4 MiB line, and with the collapsed fold regions, 2.9 ms among 99,999.
 
-Canceling a search finishes each file being read: on 16 MiB files HyperSearch stopped in
-48 ms at the median and 68 ms at most, measured on the same host.
+Canceling a search stops inside a file within one 64 KiB block: on 16 MiB files
+HyperSearch stopped in 0.24 ms at the median and 0.34 ms at most, measured on the same
+host.
 
 ## Network access
 

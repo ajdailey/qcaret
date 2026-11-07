@@ -546,7 +546,12 @@ at a time, and matched on the CPU pool.
 
 The `Sink` receives results on worker threads in no fixed order; its `room()`
 bounds the hits, and 0 ends the walk. Cancel stops the walk; `run` returns
-once the reads in flight end.
+once the reads in flight end. A read checks the `CancellationToken` before each
+64 KiB block (`BLOCK_BYTES`) of the file read, each strict decode that picks
+the encoding, the decode and the SHA-256; the binary check reads only the
+head. `TextSearch` checks it every 64 Ki chars while it finds line starts. A
+file canceled mid-read counts as done with no skip, and its reservation is
+released.
 
 `FileSearch.searchFile` reads, decodes and matches one file on the calling
 thread, as the walk does each file, for a per-file rerun.
@@ -760,8 +765,13 @@ generated tree: masks, excluded and hidden directories, the top level only,
 open documents left out, binary, too-large and refused-memory skips, and the
 stamp and SHA-256 of a found file.
 `SearchWorkTest` pins bounds that do not depend on the runner: files accepted
-after a cancel or after the room ends, chars read after a cancel, and the memory
-reads hold.
+after a cancel or after the room ends, chars read after a cancel in each scan
+and in the matcher, and the memory reads hold. `FileReadCancelTest` cancels at
+the third block of each read stage, counted through the package-private
+`FileSearch.setProbe`, and requires at most one block after it, in the walk and in
+`searchFile`, with the reservation released; it also compares the block-wise
+read of files over 20 blocks, with sequences split across a block end, with a
+whole-file read, detect, decode and digest for each encoding and BOM case.
 `FileReplaceTest` covers a replacement line break taking a CR LF file's
 ending, UTF-16 LE with its BOM, an unmappable replacement, a file changed
 after the search, a read-only file (skipped where the user writes read-only

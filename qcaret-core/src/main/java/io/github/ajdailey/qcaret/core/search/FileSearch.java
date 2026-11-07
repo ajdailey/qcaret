@@ -11,9 +11,12 @@ import io.github.ajdailey.qcaret.core.text.EncodingDetection;
 import io.github.ajdailey.qcaret.core.text.EncodingDetector;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileVisitOption;
@@ -24,7 +27,9 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
@@ -45,8 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       MemoryBudget} until its matching ends; a refusal skips the file as {@link Skip#NO_MEMORY}.
  *   <li>The encoding comes from {@link EncodingDetector}; a malformed sequence decodes to U+FFFD so
  *       the rest of the file is still searched.
- *   <li>Cancel stops the walk; reads and matches in flight end at their next check, and {@link
- *       #run} returns once they have.
+ *   <li>Cancel stops the walk; reads in flight end at their next {@value #BLOCK_BYTES}-byte block
+ *       and matches at their next check, and {@link #run} returns once they have.
  * </ul>
  */
 public final class FileSearch {
@@ -299,7 +304,7 @@ public final class FileSearch {
     boolean handed = false;
     try {
       token.check();
-      final Decoded decoded = decode(file, options);
+      final Decoded decoded = decode(file, options, token);
       skip = decoded.skip;
       if (skip == null) {
         workers.executeCpu(
@@ -403,7 +408,7 @@ public final class FileSearch {
         reserved = size * BYTES_RESERVED;
       }
       token.check();
-      Decoded decoded = decode(file, options);
+      Decoded decoded = decode(file, options, token);
       if (decoded.skip != null) {
         return new Single(null, decoded.skip);
       }
@@ -422,36 +427,171 @@ public final class FileSearch {
   }
 
   /** A file's text, or why it is skipped. */
-  private record Decoded(
-      String text, TextEncoding encoding, FileStamp stamp, byte[] digest, Skip skip) {}
+  record Decoded(String text, TextEncoding encoding, FileStamp stamp, byte[] digest, Skip skip) {}
 
+  /** Bytes read, strictly decoded, decoded or digested between cancellation checks. */
+  static final int BLOCK_BYTES = 1 << 16;
+
+  private static final int DECODE_CHARS = 8192;
+
+  /** A step of {@link #decode} that works through the file block by block. */
+  enum Stage {
+    READ,
+    DETECT,
+    DECODE,
+    DIGEST
+  }
+
+  /** Called at the start of each block of {@link #decode}, before its cancellation check. */
+  interface Probe {
+    void block(Path file, Stage stage);
+  }
+
+  /** Null outside tests. */
+  private static volatile Probe probe;
+
+  /** Sets the probe {@link #decode} calls, or null for none. */
+  static void setProbe(Probe p) {
+    probe = p;
+  }
+
+  private static void probe(Path file, Stage stage) {
+    Probe p = probe;
+    if (p != null) {
+      p.block(file, stage);
+    }
+  }
+
+  /**
+   * Reads a file, detects its encoding, decodes it and digests its bytes, checking the token before
+   * each block of every step. The binary check reads only the head.
+   *
+   * @throws CancellationException when canceled
+   */
   @WorkerThread
-  private static Decoded decode(Path file, Options options) throws IOException {
+  static Decoded decode(Path file, Options options, CancellationToken token) throws IOException {
     FileStamp stamp = FileStamp.read(file);
-    byte[] bytes = Files.readAllBytes(file);
-    if (bytes.length > options.maxFileBytes()) {
+    byte[] bytes = read(file, options.maxFileBytes(), token);
+    if (bytes == null) {
       return new Decoded(null, null, stamp, null, Skip.TOO_LARGE);
     }
-    EncodingDetection detection = EncodingDetector.detect(bytes, bytes.length, options.fallback());
-    TextEncoding encoding = detection.encoding();
+    List<EncodingDetection> candidates =
+        EncodingDetector.candidates(bytes, bytes.length, options.fallback());
+    TextEncoding encoding = candidates.get(candidates.size() - 1).encoding();
+    for (int i = 0; i < candidates.size() - 1; i++) {
+      Charset charset = candidates.get(i).encoding().charset();
+      if (decode(charset, CodingErrorAction.REPORT, bytes, 0, null, file, Stage.DETECT, token)) {
+        encoding = candidates.get(i).encoding();
+        break;
+      }
+    }
     if (BinaryDetector.isBinary(bytes, bytes.length, encoding.unitWidth() > 1)) {
       return new Decoded(null, encoding, stamp, null, Skip.BINARY);
     }
     int bom = encoding.bomBytes().length;
-    String text;
-    try {
-      text =
-          encoding
-              .charset()
-              .newDecoder()
-              .onMalformedInput(CodingErrorAction.REPLACE)
-              .onUnmappableCharacter(CodingErrorAction.REPLACE)
-              .decode(ByteBuffer.wrap(bytes, bom, bytes.length - bom))
-              .toString();
-    } catch (CharacterCodingException e) {
-      throw new IOException(e);
+    StringBuilder text = new StringBuilder(bytes.length - bom);
+    decode(
+        encoding.charset(), CodingErrorAction.REPLACE, bytes, bom, text, file, Stage.DECODE, token);
+    MessageDigest sha = sha256();
+    for (int at = 0; at < bytes.length; at += BLOCK_BYTES) {
+      probe(file, Stage.DIGEST);
+      token.check();
+      sha.update(bytes, at, Math.min(BLOCK_BYTES, bytes.length - at));
     }
-    return new Decoded(text, encoding, stamp, digest(bytes), null);
+    return new Decoded(text.toString(), encoding, stamp, sha.digest(), null);
+  }
+
+  /** Reads a whole file block by block; returns null once it holds more than {@code max} bytes. */
+  private static byte[] read(Path file, long max, CancellationToken token) throws IOException {
+    long cap = Math.min(max + 1, Integer.MAX_VALUE - 8);
+    try (InputStream in = Files.newInputStream(file)) {
+      byte[] bytes = new byte[(int) Math.min(cap, Files.size(file))];
+      int length = 0;
+      while (true) {
+        probe(file, Stage.READ);
+        token.check();
+        if (length == bytes.length) {
+          int next = in.read();
+          if (next < 0) {
+            break;
+          }
+          if (length == cap) {
+            return null;
+          }
+          bytes =
+              Arrays.copyOf(
+                  bytes, (int) Math.min(cap, Math.max(2L * length, length + BLOCK_BYTES)));
+          bytes[length++] = (byte) next;
+          continue;
+        }
+        int n = in.readNBytes(bytes, length, Math.min(BLOCK_BYTES, bytes.length - length));
+        if (n == 0) {
+          break;
+        }
+        length += n;
+      }
+      if (length > max) {
+        return null;
+      }
+      return length == bytes.length ? bytes : Arrays.copyOf(bytes, length);
+    }
+  }
+
+  /**
+   * Decodes {@code bytes} from {@code from} to the end block by block, appending the chars to
+   * {@code out} when it is not null.
+   *
+   * @return false when {@code action} is {@code REPORT} and a sequence is malformed or unmappable
+   */
+  private static boolean decode(
+      Charset charset,
+      CodingErrorAction action,
+      byte[] bytes,
+      int from,
+      StringBuilder out,
+      Path file,
+      Stage stage,
+      CancellationToken token) {
+    CharsetDecoder decoder =
+        charset.newDecoder().onMalformedInput(action).onUnmappableCharacter(action);
+    ByteBuffer in = ByteBuffer.wrap(bytes, from, bytes.length - from);
+    CharBuffer chars = CharBuffer.allocate(DECODE_CHARS);
+    int end = from;
+    boolean last = false;
+    while (!last) {
+      probe(file, stage);
+      token.check();
+      end = (int) Math.min(bytes.length, (long) end + BLOCK_BYTES);
+      last = end == bytes.length;
+      in.limit(end);
+      while (true) {
+        CoderResult result = decoder.decode(in, chars, last);
+        if (result.isError()) {
+          return false;
+        }
+        drain(chars, out);
+        if (result.isUnderflow()) {
+          break;
+        }
+      }
+    }
+    while (true) {
+      CoderResult result = decoder.flush(chars);
+      if (result.isError()) {
+        return false;
+      }
+      drain(chars, out);
+      if (result.isUnderflow()) {
+        return true;
+      }
+    }
+  }
+
+  private static void drain(CharBuffer chars, StringBuilder out) {
+    if (out != null) {
+      out.append(chars.array(), 0, chars.position());
+    }
+    chars.clear();
   }
 
   /**
@@ -461,8 +601,12 @@ public final class FileSearch {
    * @return 32 bytes
    */
   public static byte[] digest(byte[] bytes) {
+    return sha256().digest(bytes);
+  }
+
+  private static MessageDigest sha256() {
     try {
-      return MessageDigest.getInstance("SHA-256").digest(bytes);
+      return MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is missing", e);
     }
