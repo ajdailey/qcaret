@@ -236,13 +236,22 @@ class RecoveryControllerTest {
     second.await(rowsLeft(second, 0), "restored");
     second.awaitIdle("restore");
     awaitFiles(second, 1);
-    Document document = second.application.documents().activeDocument();
+    final Document document = second.application.documents().activeDocument();
     assertEquals("mock alpha\n", document.text().toString());
     assertTrue(document.isDirty());
     assertEquals(a, second.application.documents().activePath());
     assertEquals("alpha\n", Files.readString(a), "a restore never writes the original");
 
     second.application.documents().save();
+    // A listing can miss a file a recovery write is renaming, so the count alone proves no save.
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !document.isDirty();
+          }
+        },
+        "saved");
     awaitFiles(second, 0);
     assertEquals("mock alpha\n", Files.readString(a));
   }

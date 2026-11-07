@@ -24,6 +24,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -162,7 +163,19 @@ class ExternalChangeTest {
   /** Writes a file in one step, so a monitor pass cannot count it as two changes. */
   private void replace(Path file, byte[] bytes) throws IOException {
     Path next = Files.write(temp.resolve("next.tmp"), bytes);
-    Files.move(next, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (true) {
+      try {
+        Files.move(next, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        return;
+      } catch (AccessDeniedException e) {
+        // Windows refuses the move while a monitor pass has the file open.
+        if (System.nanoTime() > deadline) {
+          throw e;
+        }
+        Thread.onSpinWait();
+      }
+    }
   }
 
   private static byte[] concat(byte[] first, byte[] second) throws IOException {
