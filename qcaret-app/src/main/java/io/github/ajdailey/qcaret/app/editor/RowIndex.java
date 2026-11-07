@@ -33,6 +33,23 @@ final class RowIndex {
     private int[] first = new int[17];
     private int[] breaks = new int[16];
     private int size;
+    private int visited;
+    private int measured;
+
+    /** Counts lines read for this builder, measured or only scanned. */
+    void visit(int lines) {
+      visited += lines;
+    }
+
+    /** Returns the lines {@link #visit} counted. */
+    int visited() {
+      return visited;
+    }
+
+    /** Returns the lines passed to {@link #add}, with or without breaks. */
+    int measured() {
+      return measured;
+    }
 
     /**
      * Adds a line's breaks; lines must ascend. A line without breaks is skipped.
@@ -41,6 +58,7 @@ final class RowIndex {
      * @param rowBreaks its breaks, ascending
      */
     void add(int line, int[] rowBreaks) {
+      measured++;
       if (rowBreaks.length == 0) {
         return;
       }

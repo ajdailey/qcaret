@@ -48,7 +48,7 @@ public final class StorageHarness {
   public static void main(String[] args) throws IOException, InterruptedException {
     List<String> options = ManagementFactory.getRuntimeMXBean().getInputArguments();
     if (heapOption(options) == null && !"jvm".equals(System.getProperty("qcaret.bench.heap"))) {
-      System.exit(relaunch(options, args));
+      System.exit(relaunch(StorageHarness.class, options, args));
     }
     String[] workloads = args.length > 0 ? args : new String[] {"w1heap", "w2", "w3heap", "w4"};
     System.out.printf(
@@ -83,8 +83,8 @@ public final class StorageHarness {
     return null;
   }
 
-  /** Runs the same workloads in a new JVM with {@link #LAUNCHER_HEAP} and this JVM's options. */
-  private static int relaunch(List<String> options, String[] args)
+  /** Runs a harness in a new JVM with {@link #LAUNCHER_HEAP} and this JVM's options. */
+  static int relaunch(Class<?> harness, List<String> options, String[] args)
       throws IOException, InterruptedException {
     List<String> command = new ArrayList<String>();
     command.add(javaCommand());
@@ -92,7 +92,7 @@ public final class StorageHarness {
     command.addAll(options);
     command.add("-cp");
     command.add(System.getProperty("java.class.path"));
-    command.add(StorageHarness.class.getName());
+    command.add(harness.getName());
     command.addAll(Arrays.asList(args));
     return new ProcessBuilder(command).inheritIO().start().waitFor();
   }
@@ -215,7 +215,7 @@ public final class StorageHarness {
   }
 
   /** Heap used after full collections: the live set. */
-  private static long liveHeap() {
+  static long liveHeap() {
     MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
     for (int i = 0; i < 3; i++) {
       System.gc();

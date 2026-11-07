@@ -759,6 +759,9 @@ read past its line into the overflowing one). `FileSearchTest` walks a
 generated tree: masks, excluded and hidden directories, the top level only,
 open documents left out, binary, too-large and refused-memory skips, and the
 stamp and SHA-256 of a found file.
+`SearchWorkTest` pins bounds that do not depend on the runner: files accepted
+after a cancel or after the room ends, chars read after a cancel, and the memory
+reads hold.
 `FileReplaceTest` covers a replacement line break taking a CR LF file's
 ending, UTF-16 LE with its BOM, an unmappable replacement, a file changed
 after the search, a read-only file (skipped where the user writes read-only

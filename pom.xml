@@ -123,6 +123,12 @@
             </dependency>
             <dependency>
                 <groupId>io.github.ajdailey.qcaret</groupId>
+                <artifactId>qcaret-app</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>io.github.ajdailey.qcaret</groupId>
                 <artifactId>qcaret-ui-swt</artifactId>
                 <version>${project.version}</version>
             </dependency>

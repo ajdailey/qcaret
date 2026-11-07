@@ -57,7 +57,7 @@ public final class DisplayProjection implements DocumentListener {
   static final int SYNC_CHARS = 1 << 20;
 
   /** Lines between cancellation checks on a worker. */
-  private static final int CHECK_LINES = 1024;
+  static final int CHECK_LINES = 1024;
 
   /** Rows whose text is cached between changes. */
   private static final int CACHED_ROWS = 512;
@@ -141,6 +141,8 @@ public final class DisplayProjection implements DocumentListener {
   private int[] regionStarts = new int[0];
   private int[] regionEnds = new int[0];
   private long foldOps;
+  private long linesVisited;
+  private long linesMeasured;
 
   /**
    * Creates a projection and starts following the document. Call on the UI thread.
@@ -201,6 +203,7 @@ public final class DisplayProjection implements DocumentListener {
       int maxRowChars,
       CancellationToken token,
       RowIndex.Builder builder) {
+    builder.visit(to - from + 1);
     LineView line = new LineView();
     if (wrapColumns > 0) {
       for (int i = from; i <= to; i++) {
@@ -485,6 +488,8 @@ public final class DisplayProjection implements DocumentListener {
       RowIndex.Builder builder = new RowIndex.Builder();
       rows(after, g[2], g[3], g[2] - g[0], rowColumns, tabWidth, maxRowChars, null, builder);
       builders.add(builder);
+      linesVisited += builder.visited();
+      linesMeasured += builder.measured();
       oldGroupBreaks += index.breaksBefore(g[1] + 1) - index.breaksBefore(g[0]);
       newGroupBreaks += builder.build().totalBreaks();
     }
@@ -1547,5 +1552,15 @@ public final class DisplayProjection implements DocumentListener {
   /** Returns the collapsed regions, for tests. */
   FoldLayer folds() {
     return folds;
+  }
+
+  /** Returns the lines document changes have read so far, measured or only scanned, for tests. */
+  long linesVisited() {
+    return linesVisited;
+  }
+
+  /** Returns the lines document changes have passed to {@link RowBreaks} so far, for tests. */
+  long linesMeasured() {
+    return linesMeasured;
   }
 }

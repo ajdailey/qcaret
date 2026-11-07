@@ -1505,7 +1505,7 @@ changed on disk, Next and Previous Result wrapping, a stopped rerun keeping
 the finished set and a done one replacing it, the retained
 limit with a pin, the dialog's seed and history, the refused requests,
 the workspace folder, and a tree searched through a symbolic link reading the
-open buffer once (skipped where links cannot be created). `HyperSearchTest` covers documents and a folder in one
+open buffer once (skipped where links cannot be created). `HyperSearchWorkTest` pins the memory charge of a set, a long line charged by its snippets, the memory and match limits, and the UI posts per search. `HyperSearchTest` covers documents and a folder in one
 set, the match limit, a refused reservation, a cancel, a regex overflow on
 its group and a document group following edits. `ReplaceControllerTest` covers
 a selection replaced as one undo step, open documents with one changed since
@@ -1527,6 +1527,10 @@ line by line from `RowBreaks` after 1,500 seeded random edits that join and
 part CR LF pairs, wrap on and off, replaying each display change on a mirror
 string; it also covers stale and superseded rewraps and the large-change
 fallback, one change over distant edits, and a rewrap on a tab width change.
+`ProjectionWorkTest` pins work counts that do not depend on the runner, at two
+document sizes: text reads through a counting snapshot for a layout, a viewport,
+a fold and an edit among collapsed regions, and lines visited and measured per
+edit through the package-private `linesVisited` and `linesMeasured`.
 `FoldingTest` compares the projection with a display text built line by line
 with the collapsed lines left out, through 80 seeded rounds of random region
 sets, folds, unfolds, reveals and edits that join and part CR LF pairs, wrap

@@ -1,8 +1,9 @@
 # qcaret-bench
 
-JMH benchmarks, a latency and heap harness for `RopeStorage` in `core.buffer`,
-and a startup harness for the shipped application. Not shipped and not scanned
-by SpotBugs. Input is generated, never read from the repository.
+JMH benchmarks of `RopeStorage` in `core.buffer`, `DisplayProjection` and
+HyperSearch, latency and heap harnesses for the storage and for search, and a
+startup harness for the shipped application. Not shipped and not scanned by
+SpotBugs. Input is generated, never read from the repository.
 
 ## Map
 
@@ -15,6 +16,10 @@ by SpotBugs. Input is generated, never read from the repository.
 | `ReadBenchmark` | W6 `lineAt`, `offsetOfLine`, `line` and a reused `LineView` on 10 MiB; W7 `TextCursor`, `charAt` and chunk reads of 100 MiB; both after W3 |
 | `StorageHarness` | W2 and W4 latency percentiles; live heap after W1 and after W3 |
 | `StartupHarness` | Process start to the first paint of file text, for `qcaret.jar` or a bundle launcher |
+| `ProjectionBenchmark` | `DisplayProjection` on a `Document`: `build`, `rewrap` at a width change, `foldAndUnfold`, `foldAllAndUnfoldAll`, `toDisplay`, `toModel`, `edit`, `editLineBreak` |
+| `SearchTree` | Seeded tree in a temporary directory: 20,000 files of 2 KiB and 4 of 16 MiB; the four `Query` values, literal and regex, few and many hits |
+| `SearchBenchmark` | Time to complete, `fileSearch` into a counting sink and `hyperSearch` into a `ResultSet` |
+| `SearchHarness` | Time to first result, cancel latency, and a finished set's live heap against its charge |
 
 ## Running
 
@@ -27,6 +32,10 @@ java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.StorageHarness [w1heap w2 w3heap w4]
 xvfb-run -a env GDK_BACKEND=x11 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.StartupHarness TARGET FILE SETTINGS [RUNS]
+java -jar qcaret-bench/target/benchmarks.jar ProjectionBenchmark
+java -jar qcaret-bench/target/benchmarks.jar SearchBenchmark
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.SearchHarness [first cancel heap]
 ```
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
@@ -37,8 +46,8 @@ reproduce.
 
 ### Heap
 
-`StorageHarness` runs at the shipped launchers' `-XX:MaxRAMPercentage=50`: a JVM
-started without a heap option relaunches the harness with it, and the first
+`StorageHarness` and `SearchHarness` run at the shipped launchers'
+`-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the harness with it, and the first
 output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;
 `-Dqcaret.bench.heap=jvm` runs in place at the JVM default (25% of RAM). Give a
@@ -74,5 +83,17 @@ The scripts use `$JAVA_HOME/bin/java` when set; build `qcaret-bench` first.
 - The harness reads the live heap after three `System.gc()` calls, which are
   full collections under G1. W2 stops a size after 120 s and reports the
   keystrokes completed.
+- `ProjectionBenchmark.Shape`: `LINES` has 1,000,000 lines of 80 chars, `LINES_WRAP`
+  wraps them at 60 columns, `LINES_FOLDS` collapses 99,999 regions. `LONGLINE` is
+  4 MiB, split but not wrapped. `LONGLINE_WRAP` is 1,000,000 chars: an edit on a
+  longer wrapped line passes `SYNC_CHARS`, which drops the wrap until a rewrap, so
+  repeated edits would measure the unwrapped path.
+- `edit` and `editLineBreak` run through `Document.apply`, so they include the rope
+  and the undo step, and report the mean of an insert and its removal.
+- `SearchTree` needs about 105 MiB in `java.io.tmpdir` and deletes itself. A
+  many-hits `hyperSearch` ends at the 100,000-match limit, a `fileSearch` reads the
+  whole tree. The page cache is warm after the first run.
+- `SearchBenchmark` and `SearchHarness` pump HyperSearch on a `ManualUiDispatcher`,
+  which runs the 100 ms flush timer without its delay.
 - `ASCII` and `MIXED` generate the same text as when the storage was chosen,
   so their results compare with that run.
