@@ -36,11 +36,11 @@ import org.eclipse.swt.widgets.ToolItem;
  * px copy for 200% zoom. The ink follows the native widget background, not the QCaret palette,
  * because toolbars and buttons are native. GTK refreshes {@code getBackground} and sends {@code
  * SWT.Settings} only on the first {@code Display.sleep} after {@code setDarkThemePreferred}, so on
- * GTK a visible owner is read from a drawn pixel. GTK's disabled effect lightens an image, which on
- * a dark background brightens it, so there {@link #showState} shows a disabled item a faded copy.
- * SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha, so the same
- * faded copy serves menu items. Images are created on first use on the UI thread and disposed with
- * the owner control.
+ * GTK a visible ink source is read from a drawn pixel. GTK's disabled effect lightens an image,
+ * which on a dark background brightens it, so there {@link #showState} shows a disabled item a
+ * faded copy. SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha,
+ * so the same faded copy serves menu items. Images are created on first use on the UI thread and
+ * disposed with the owner control.
  */
 final class ToolIcons {
   /** Opens files. */
@@ -178,7 +178,7 @@ final class ToolIcons {
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 
-  /** Side of the image a visible owner is drawn into; the corner holds no item. */
+  /** Side of the image a visible ink source is drawn into; the corner holds no item. */
   private static final int SAMPLE = 2;
 
   /** Suffix of a faded copy's key in the image cache. */
@@ -219,6 +219,7 @@ final class ToolIcons {
 
   private final Display display;
   private final Control owner;
+  private final Control source;
   private final Map<String, Image> images = new HashMap<String, Image>();
   private final Map<ToolItem, String> items = new LinkedHashMap<ToolItem, String>();
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
@@ -233,7 +234,20 @@ final class ToolIcons {
    * @param owner a control whose background the icons are drawn on
    */
   ToolIcons(Control owner) {
-    this(owner, false, dark(owner.getBackground()));
+    this(owner, owner);
+  }
+
+  /**
+   * Creates the set for controls on an owner that draws no background of its own, such as a plain
+   * {@code Composite}, whose GTK print leaves the sample white in either theme. The ink is read
+   * from the source, a control that draws the same native background. The images are disposed with
+   * the owner.
+   *
+   * @param owner the control that disposes the images
+   * @param source a control whose background the icons' background matches, such as the toolbar
+   */
+  ToolIcons(Control owner, Control source) {
+    this(owner, source, false, dark(source.getBackground()));
   }
 
   /**
@@ -244,12 +258,13 @@ final class ToolIcons {
    * @param dark true for the light ink
    */
   ToolIcons(Control owner, boolean dark) {
-    this(owner, true, dark);
+    this(owner, owner, true, dark);
   }
 
-  private ToolIcons(Control owner, boolean fixedInk, boolean dark) {
+  private ToolIcons(Control owner, Control source, boolean fixedInk, boolean dark) {
     this.display = owner.getDisplay();
     this.owner = owner;
+    this.source = source;
     this.fixedInk = fixedInk;
     this.darkBackground = dark;
     final Listener settings =
@@ -381,12 +396,12 @@ final class ToolIcons {
   }
 
   /**
-   * Reads the owner's background again and, when it calls for the other ink, replaces the image of
-   * every item given to {@link #apply}. Native controls change background with the theme. A set of
-   * fixed ink stays as it is.
+   * Reads the ink source's background again and, when it calls for the other ink, replaces the
+   * image of every item given to {@link #apply}. Native controls change background with the theme.
+   * A set of fixed ink stays as it is.
    */
   void reink() {
-    if (fixedInk || owner.isDisposed()) {
+    if (fixedInk || owner.isDisposed() || source.isDisposed()) {
       return;
     }
     boolean now = dark(background());
@@ -482,16 +497,16 @@ final class ToolIcons {
     }
   }
 
-  /** Returns the color the owner shows now. */
+  /** Returns the color the ink source shows now. */
   private Color background() {
-    if (!GTK || !owner.isVisible()) {
-      return owner.getBackground();
+    if (!GTK || !source.isVisible()) {
+      return source.getBackground();
     }
     Image image = new Image(display, SAMPLE, SAMPLE);
     GC gc = new GC(image);
     try {
-      if (!owner.print(gc)) {
-        return owner.getBackground();
+      if (!source.print(gc)) {
+        return source.getBackground();
       }
       ImageData data = image.getImageData();
       RGB rgb = data.palette.getRGB(data.getPixel(SAMPLE - 1, SAMPLE - 1));

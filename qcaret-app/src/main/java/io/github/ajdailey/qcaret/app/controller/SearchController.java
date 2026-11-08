@@ -711,7 +711,12 @@ public final class SearchController implements ResultsInput {
     SearchRequest q = r.request();
     String scope = q.scope().label() + (q.folder() == null ? "" : " " + q.folder());
     StringBuilder text =
-        new StringBuilder(UiText.SEARCH_SET.format(q.text(), scope, r.matches(), r.files().size()));
+        new StringBuilder(
+            UiText.SEARCH_SET.format(
+                q.text(),
+                scope,
+                UiText.count(r.matches(), UiText.COUNT_MATCH, UiText.COUNT_MATCHES),
+                UiText.count(r.files().size(), UiText.COUNT_FILE, UiText.COUNT_FILES)));
     List<String> notes = new ArrayList<String>();
     switch (r.state()) {
       case RUNNING ->

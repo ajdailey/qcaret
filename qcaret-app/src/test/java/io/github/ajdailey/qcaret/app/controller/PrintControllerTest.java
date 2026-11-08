@@ -172,7 +172,7 @@ class PrintControllerTest {
     assertTrue(target.finished);
     assertTrue(target.thread.getName().startsWith("qcaret-print-"));
     assertFalse(target.thread.isVirtual());
-    assertEquals(UiText.PRINT_SENT.format("sample.txt", 2), notice());
+    assertEquals("sample.txt: 2 pages sent to the printer", notice());
   }
 
   @Test
@@ -239,7 +239,7 @@ class PrintControllerTest {
     assertEquals(1, target.pages.size());
     assertFalse(target.finished);
     assertEquals(1, target.closes);
-    assertNotEquals(UiText.PRINT_SENT.format("sample.txt", 1), notice());
+    assertNotEquals("sample.txt: 1 page sent to the printer", notice());
   }
 
   @Test
@@ -283,7 +283,7 @@ class PrintControllerTest {
     assertEquals(List.of("c", "d", "e"), target.text());
     assertEquals(2, target.pages.get(0).number());
     assertEquals(3, target.pages.get(0).total());
-    assertEquals(UiText.PRINT_SENT.format("sample.txt", 2), notice());
+    assertEquals("sample.txt: 2 pages sent to the printer", notice());
   }
 
   @Test
@@ -295,7 +295,7 @@ class PrintControllerTest {
     awaitEnd();
     assertTrue(target.pages.isEmpty());
     assertFalse(target.finished);
-    assertEquals(UiText.PRINT_NO_PAGES.format(1), notice());
+    assertEquals("The document has 1 page; the page range is past the end", notice());
   }
 
   @Test

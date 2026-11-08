@@ -133,7 +133,7 @@ class BookmarkListTest {
     awaitRows("rows", 1, 3);
     assertEquals(new BookmarkRow(1, "on beta", "  beta"), list.row(0));
     assertEquals(new BookmarkRow(3, "", "delta"), list.row(1));
-    assertEquals(UiText.BOOKMARKS_SUMMARY.format("a.txt", 2), list.summary());
+    assertEquals("a.txt: 2 bookmarks", list.summary());
     assertTrue(list.charged() > 0);
 
     caretAt(0);
@@ -145,14 +145,14 @@ class BookmarkListTest {
 
     harness.open(Files.writeString(temp.resolve("b.txt"), "one\ntwo\n"));
     awaitRows("the second tab's rows");
-    assertEquals(UiText.BOOKMARKS_SUMMARY.format("b.txt", 0), list.summary());
+    assertEquals("b.txt: 0 bookmarks", list.summary());
     harness.view.tabs.get(0).select();
     awaitRows("the first tab's rows again", 1, 3);
 
     documents.closeActive();
     harness.ui.runPending();
     awaitRows("the remaining tab's rows");
-    assertEquals(UiText.BOOKMARKS_SUMMARY.format("b.txt", 0), list.summary());
+    assertEquals("b.txt: 0 bookmarks", list.summary());
     documents.closeAll(null);
     harness.ui.runPending();
     assertEquals(UiText.BOOKMARKS_NO_DOCUMENT.text(), list.summary());

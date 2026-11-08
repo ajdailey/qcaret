@@ -216,7 +216,7 @@ class FindControllerTest {
     find.replaceAll();
     settle();
     assertEquals("dog dog dog\n", editor.document().text().toString());
-    assertEquals(UiText.FIND_REPLACED.format(2), last.notice());
+    assertEquals("Replaced 2 matches", last.notice());
     editor.undo();
     assertEquals("dog cat cat\n", editor.document().text().toString());
     editor.undo();

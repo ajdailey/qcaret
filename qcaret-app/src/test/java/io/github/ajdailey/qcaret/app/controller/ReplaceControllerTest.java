@@ -159,7 +159,7 @@ class ReplaceControllerTest {
     EditorController second = open(Files.writeString(temp.resolve("b.txt"), "key key\n"));
     run("key", true, SearchScope.OPEN_DOCUMENTS, "");
     ReplaceInput input = preview("x$0");
-    assertEquals(UiText.REPLACE_SUMMARY.format(3, 3, 2, 2), input.summary());
+    assertEquals(UiText.REPLACE_SUMMARY.format(3, "3 matches", 2, "2 files"), input.summary());
     input.setReplacement("x\\");
     assertFalse(input.canApply());
     input.setReplacement("lock");
@@ -253,7 +253,7 @@ class ReplaceControllerTest {
         "runs listed");
     assertEquals(1, harness.view.runChoices.size());
     assertTrue(
-        harness.view.runChoices.get(0).endsWith(UiText.RESTORE_RUN_ROW.format("", 2)),
+        harness.view.runChoices.get(0).endsWith(UiText.RESTORE_RUN_ROW.format("", "2 files")),
         harness.view.runChoices.toString());
     harness.view.runChooser.accept(0);
     ReportInput restore = awaitReport(harness.view.reports.get(1));

@@ -57,6 +57,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.IME;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.junit.jupiter.api.AfterEach;
@@ -82,10 +83,24 @@ class EditingSurfaceTest {
   private MainWindow window;
   private ApplicationController controller;
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
+  private boolean posting;
 
   @BeforeEach
   void open() {
     display = new Display();
+    // The tests post every mouse event. A real pointer left over the text by an earlier test
+    // sends a motion without a button, which ends a posted drag; added first, this filter runs
+    // before the editor's and drops it.
+    display.addFilter(
+        SWT.MouseMove,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (!posting) {
+              event.type = SWT.None;
+            }
+          }
+        });
     workers =
         new Workers(
             2,
@@ -162,14 +177,19 @@ class EditingSurfaceTest {
     text.notifyListeners(SWT.KeyDown, event);
   }
 
-  private static void mouse(StyledText text, int type, int x, int y, int stateMask) {
+  private void mouse(StyledText text, int type, int x, int y, int stateMask) {
     Event event = new Event();
     event.button = type == SWT.MouseMove ? 0 : 1;
     event.count = 1;
     event.x = x;
     event.y = y;
     event.stateMask = stateMask;
-    text.notifyListeners(type, event);
+    posting = true;
+    try {
+      text.notifyListeners(type, event);
+    } finally {
+      posting = false;
+    }
   }
 
   /** Saves the window to {@code <qcaret.screenshots>/<name>.png} when the property is set. */

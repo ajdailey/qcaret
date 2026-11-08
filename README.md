@@ -13,7 +13,8 @@ QCaret runs no macros, scripts or plugins.
 
 <picture> <source media="(prefers-color-scheme: dark)"
 srcset="docs/images/qcaret-dark.png"> <img src="docs/images/qcaret-light.png"
-alt="QCaret main window with a highlighted Java file" width="880"> </picture>
+alt="QCaret main window with the Workspace Browser, a highlighted Java file and
+search results" width="880"> </picture>
 
 ## Features
 

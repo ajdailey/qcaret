@@ -458,7 +458,11 @@ public final class FindController implements DocumentController.ViewListener {
                 if (editor.view() != null) {
                   editor.view().showCaret();
                 }
-                report(UiText.FIND_REPLACED.format(replacements.size()), false);
+                report(
+                    UiText.FIND_REPLACED.format(
+                        UiText.count(
+                            replacements.size(), UiText.COUNT_MATCH, UiText.COUNT_MATCHES)),
+                    false);
               }
             };
           }

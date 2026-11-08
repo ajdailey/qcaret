@@ -126,7 +126,8 @@ final class PrintController {
     int first = target.firstPage();
     int last = Math.min(target.lastPage(), total);
     if (first > total) {
-      return UiText.PRINT_NO_PAGES.format(total);
+      return UiText.PRINT_NO_PAGES.format(
+          UiText.count(total, UiText.COUNT_PAGE, UiText.COUNT_PAGES));
     }
     for (int page = first; page <= last; page++) {
       target.page(layout.page(page, cancel));
@@ -134,7 +135,8 @@ final class PrintController {
     }
     cancel.check();
     target.finish();
-    return UiText.PRINT_SENT.format(source.name(), last - first + 1);
+    return UiText.PRINT_SENT.format(
+        source.name(), UiText.count(last - first + 1, UiText.COUNT_PAGE, UiText.COUNT_PAGES));
   }
 
   /** Posts an update unless the last one has not shown yet. */

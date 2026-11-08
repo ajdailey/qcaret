@@ -1336,6 +1336,26 @@ public enum UiText {
   BROWSE_BAD_FILTER,
   /** Notice: a rename moved the workspace folder; takes the new path. */
   WORKSPACE_MOVED,
+  /** A count of one match, for {@link #count}. */
+  COUNT_MATCH,
+  /** A count of matches other than one, for {@link #count}. */
+  COUNT_MATCHES,
+  /** A count of one file, for {@link #count}. */
+  COUNT_FILE,
+  /** A count of files other than one, for {@link #count}. */
+  COUNT_FILES,
+  /** A count of one page, for {@link #count}. */
+  COUNT_PAGE,
+  /** A count of pages other than one, for {@link #count}. */
+  COUNT_PAGES,
+  /** A count of one bookmark, for {@link #count}. */
+  COUNT_BOOKMARK,
+  /** A count of bookmarks other than one, for {@link #count}. */
+  COUNT_BOOKMARKS,
+  /** A count of one symbol, for {@link #count}. */
+  COUNT_SYMBOL,
+  /** A count of symbols other than one, for {@link #count}. */
+  COUNT_SYMBOLS,
   /** Notice: a delete took the workspace folder; takes its path. */
   WORKSPACE_DELETED;
 
@@ -1364,6 +1384,18 @@ public enum UiText {
    */
   public String format(Object... args) {
     return String.format(Locale.ROOT, text(), args);
+  }
+
+  /**
+   * Formats a count with its noun: {@code one} when the count is 1, else {@code many}.
+   *
+   * @param count the count
+   * @param one the pattern for a count of one, such as {@link #COUNT_FILE}
+   * @param many the pattern for any other count, such as {@link #COUNT_FILES}
+   * @return the formatted count, such as {@code 1 file} or {@code 2 files}
+   */
+  public static String count(long count, UiText one, UiText many) {
+    return (count == 1 ? one : many).format(count);
   }
 
   /**

@@ -18,6 +18,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
@@ -77,22 +78,22 @@ final class WorkspaceDock {
    * Creates the dock.
    *
    * @param parent the window's side area
+   * @param inkSource the main toolbar, whose drawn background sets the icons' ink
    */
-  WorkspaceDock(Composite parent) {
+  WorkspaceDock(Composite parent, Control inkSource) {
     root = new Composite(parent, SWT.NONE);
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 0;
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     root.setLayout(layout);
-    // The row's margin keeps the corner pixel ToolIcons reads free of buttons.
     Composite bar = new Composite(root, SWT.NONE);
     RowLayout barLayout = new RowLayout(SWT.HORIZONTAL);
     barLayout.wrap = true;
     barLayout.spacing = 2;
     bar.setLayout(barLayout);
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    icons = new ToolIcons(bar);
+    icons = new ToolIcons(bar, inkSource);
     browseBar = new BrowseBar(root, bar, icons);
     button(bar, ToolIcons.RELOAD, UiText.WORKSPACE_REFRESH, Action.REFRESH);
     button(bar, ToolIcons.REVEAL, UiText.WORKSPACE_REVEAL, Action.REVEAL);

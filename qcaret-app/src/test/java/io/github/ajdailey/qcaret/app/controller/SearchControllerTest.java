@@ -136,7 +136,8 @@ class SearchControllerTest {
     assertTrue(harness.view.resultsShown);
     assertEquals(1, search.setCount());
     assertEquals(
-        UiText.SEARCH_SET.format("key", SearchScope.CURRENT_DOCUMENT.label(), 3, 1),
+        UiText.SEARCH_SET.format(
+            "key", SearchScope.CURRENT_DOCUMENT.label(), "3 matches", "1 file"),
         search.set(0).text());
     assertEquals(3, search.matchCount(0, 0));
     ResultLabel row = search.match(0, 0, 1);

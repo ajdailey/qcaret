@@ -202,7 +202,11 @@ public final class ReplaceController implements ReplaceInput {
   public String title() {
     SearchRequest q = set.request();
     String scope = q.scope().label() + (q.folder() == null ? "" : " " + q.folder());
-    return UiText.REPLACE_HEADER.format(q.text(), scope, set.matches(), set.files().size());
+    return UiText.REPLACE_HEADER.format(
+        q.text(),
+        scope,
+        UiText.count(set.matches(), UiText.COUNT_MATCH, UiText.COUNT_MATCHES),
+        UiText.count(set.files().size(), UiText.COUNT_FILE, UiText.COUNT_FILES));
   }
 
   @Override
@@ -321,7 +325,11 @@ public final class ReplaceController implements ReplaceInput {
     if (matches == 0) {
       return UiText.REPLACE_NOTHING_CHECKED.text();
     }
-    return UiText.REPLACE_SUMMARY.format(matches, total, checkedFiles, files.size());
+    return UiText.REPLACE_SUMMARY.format(
+        matches,
+        UiText.count(total, UiText.COUNT_MATCH, UiText.COUNT_MATCHES),
+        checkedFiles,
+        UiText.count(files.size(), UiText.COUNT_FILE, UiText.COUNT_FILES));
   }
 
   @Override
@@ -717,7 +725,9 @@ public final class ReplaceController implements ReplaceInput {
       ZoneId zone = ZoneId.systemDefault();
       for (ReplaceBackups.Run r : runs) {
         labels.add(
-            UiText.RESTORE_RUN_ROW.format(RUN_TIME.format(r.started().atZone(zone)), r.files()));
+            UiText.RESTORE_RUN_ROW.format(
+                RUN_TIME.format(r.started().atZone(zone)),
+                UiText.count(r.files(), UiText.COUNT_FILE, UiText.COUNT_FILES)));
       }
     } catch (IOException e) {
       failure = LogText.oneLine(String.valueOf(e.getMessage()));
@@ -878,7 +888,8 @@ public final class ReplaceController implements ReplaceInput {
       int waiting = run.count(ReplaceRun.Status.NOT_ATTEMPTED);
       if (!run.isFinished() && groups != null) {
         return UiText.REPLACE_REPORT_PROGRESS.format(
-            run.rows().size() - waiting, run.rows().size());
+            run.rows().size() - waiting,
+            UiText.count(run.rows().size(), UiText.COUNT_FILE, UiText.COUNT_FILES));
       }
       String text = UiText.REPLACE_REPORT_DONE.format(changed, skipped, failed, waiting);
       return run.backups() == null

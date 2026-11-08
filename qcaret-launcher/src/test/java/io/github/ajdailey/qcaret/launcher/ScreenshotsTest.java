@@ -5,18 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
-import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.core.document.Selection;
-import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,11 +38,12 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Writes the README screenshots: the window on generated mock files, a highlighted Java file in
- * front, once per palette, at 1100 x 700 unless {@code -Dqcaret.screenshots.width} and {@code
- * -Dqcaret.screenshots.height} say otherwise, painted through {@code Shell.print}. Runs only with
- * {@code -Dqcaret.screenshots=<dir>} ({@code tools/screenshots.sh}). The files are written to
- * {@code -Dqcaret.screenshots.files=<dir>} when given, else to a test temporary directory.
+ * Writes the README screenshots: the window on a generated mock project with the Workspace Browser
+ * open, a highlighted Java file in front and a search's results below it, once per palette, at 1100
+ * x 700 unless {@code -Dqcaret.screenshots.width} and {@code -Dqcaret.screenshots.height} say
+ * otherwise, painted through {@code Shell.print}. Runs only with {@code -Dqcaret.screenshots=<dir>}
+ * ({@code tools/screenshots.sh}). The files are written to {@code -Dqcaret.screenshots.files=<dir>}
+ * when given, else to a test temporary directory.
  */
 @Tag("swt")
 @EnabledIfSystemProperty(named = "qcaret.screenshots", matches = ".+")
@@ -88,6 +90,22 @@ class ScreenshotsTest {
       }
       """;
 
+  private static final String CATALOG =
+      """
+      package mock.inventory;
+
+      import java.util.List;
+
+      /** Lists the items of every mock shelf. */
+      final class Catalog {
+        private final List<Shelf> shelves;
+
+        Catalog(List<Shelf> shelves) {
+          this.shelves = List.copyOf(shelves);
+        }
+      }
+      """;
+
   @TempDir Path temp;
 
   @Test
@@ -96,29 +114,21 @@ class ScreenshotsTest {
     Files.createDirectories(out);
     String files = System.getProperty("qcaret.screenshots.files", "");
     Path dir = files.isEmpty() ? temp : Files.createDirectories(Path.of(files));
+    Path project = mockProject(dir.resolve("inventory"));
     List<FileRequest> requests = new ArrayList<FileRequest>();
-    requests.add(
-        new FileRequest(
-            Files.writeString(
-                dir.resolve("settings.yaml"),
-                "# Mock service settings\nservice:\n  name: mock-shelf\n  port: 8080\n"
-                    + "  enabled: true\n",
-                StandardCharsets.UTF_8)));
-    requests.add(
-        new FileRequest(
-            Files.writeString(dir.resolve("Shelf.java"), JAVA, StandardCharsets.UTF_8)));
-    try {
-      shoot(requests, ThemeMode.LIGHT, out.resolve("qcaret-light.png"));
-      shoot(requests, ThemeMode.DARK, out.resolve("qcaret-dark.png"));
-    } finally {
-      for (FileRequest request : requests) {
-        Files.deleteIfExists(request.path());
-      }
-    }
+    requests.add(new FileRequest(project.resolve("src").resolve("Catalog.java")));
+    shoot(requests, project, ThemeMode.LIGHT, out.resolve("qcaret-light.png"));
+    shoot(requests, project, ThemeMode.DARK, out.resolve("qcaret-dark.png"));
   }
 
-  private void shoot(List<FileRequest> files, ThemeMode theme, final Path png) throws Exception {
-    Files.createDirectories(temp.resolve("settings"));
+  /**
+   * Opens {@code Catalog.java}, sets the project as the workspace, shows the browser, searches the
+   * project for {@code LIMIT}, goes to the first match, which opens {@code Shelf.java} in a second
+   * tab, reveals that file in the browser and saves the window.
+   */
+  private void shoot(List<FileRequest> files, final Path project, ThemeMode theme, final Path png)
+      throws Exception {
+    Path settings = Files.createDirectories(temp.resolve("settings-" + theme));
     StartupRequest request = new StartupRequest(files, WIDTH, HEIGHT, 0, 0, null, true);
     final boolean[] saved = new boolean[1];
     Gui.Observer observer =
@@ -128,44 +138,63 @@ class ScreenshotsTest {
               final MainWindow window, final ApplicationController controller, Workers workers) {
             final Display display = window.shell().getDisplay();
             final long deadline = System.nanoTime() + BOUND_NANOS;
-            final int[] step = new int[1];
             display.timerExec(
                 50,
                 new Runnable() {
+                  private int phase;
+                  private int ticks;
+
                   @Override
                   public void run() {
                     if (System.nanoTime() > deadline) {
                       controller.quit();
                       return;
                     }
-                    EditorController editor = controller.documents().activeEditor();
-                    boolean ready =
-                        controller.documents().count() == 2
-                            && controller.documents().loading() == 0
-                            && editor != null;
-                    if (!ready) {
-                      display.timerExec(50, this);
-                      return;
-                    }
-                    if (step[0] == 0) {
-                      // Loads end in any order: show the Java file.
-                      for (int i = 0; i < 2 && editor.document().text().length() < 200; i++) {
-                        controller.documents().select(i);
-                        editor = controller.documents().activeEditor();
-                      }
-                      editor.goTo(18, 15);
-                      int caret = editor.selections().selections().primary().caret();
-                      editor
-                          .selections()
-                          .set(SelectionSet.of(List.of(Selection.of(caret, caret + 5)), 0));
-                    }
-                    if (++step[0] < 30) {
+                    if (!advance()) {
                       display.timerExec(50, this);
                       return;
                     }
                     save(window, png);
                     saved[0] = true;
                     controller.quit();
+                  }
+
+                  /** Takes the next step once the last one has finished; true when settled. */
+                  private boolean advance() {
+                    switch (phase) {
+                      case 0 -> {
+                        if (controller.documents().count() == 1
+                            && controller.documents().loading() == 0) {
+                          controller.workspace().set(project);
+                          phase = 1;
+                        }
+                      }
+                      case 1 -> {
+                        if (controller.workspace().root() != null) {
+                          controller.execute(CommandId.WORKSPACE_BROWSER);
+                          controller.search().run(form(controller.workspace().root()));
+                          phase = 2;
+                        }
+                      }
+                      case 2 -> {
+                        if (controller.search().setCount() == 1
+                            && !controller.search().running(0)) {
+                          controller.execute(CommandId.NEXT_RESULT);
+                          phase = 3;
+                        }
+                      }
+                      case 3 -> {
+                        if (controller.documents().count() == 2
+                            && controller.documents().loading() == 0) {
+                          controller.workspace().revealActive();
+                          phase = 4;
+                        }
+                      }
+                      default -> {
+                        return ++ticks >= 30;
+                      }
+                    }
+                    return false;
                   }
                 });
           }
@@ -175,14 +204,44 @@ class ScreenshotsTest {
         0,
         new Gui(
                 request,
-                new ConfigStore(
-                    new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings"))),
+                new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, settings)),
                 Preferences.DEFAULTS.withTheme(theme),
                 err,
                 observer,
                 LogFiles.NONE)
             .run());
     assertTrue(saved[0], "screenshot not taken");
+  }
+
+  /** Returns a case-sensitive whole-word search for {@code LIMIT} in the workspace's Java files. */
+  private static SearchForm form(Path root) {
+    return new SearchForm(
+        "LIMIT",
+        false,
+        true,
+        true,
+        SearchScope.WORKSPACE,
+        "",
+        "*.java",
+        "",
+        false,
+        root.toString(),
+        List.of(),
+        List.of(),
+        List.of());
+  }
+
+  private static Path mockProject(Path root) throws IOException {
+    Files.createDirectories(root.resolve("src"));
+    Files.createDirectories(root.resolve("config"));
+    Files.writeString(root.resolve("src").resolve("Shelf.java"), JAVA, StandardCharsets.UTF_8);
+    Files.writeString(root.resolve("src").resolve("Catalog.java"), CATALOG, StandardCharsets.UTF_8);
+    Files.writeString(
+        root.resolve("config").resolve("settings.yaml"),
+        "# Mock service settings\nservice:\n  name: mock-shelf\n  port: 8080\n",
+        StandardCharsets.UTF_8);
+    Files.writeString(root.resolve("notes.txt"), "Mock notes.\n", StandardCharsets.UTF_8);
+    return root.toRealPath();
   }
 
   /** Paints the shell into an image through the public print API and writes a PNG. */

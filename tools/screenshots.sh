@@ -6,12 +6,16 @@
 # real home directory. The files are written to /tmp/qcaret-demo and removed
 # afterwards. Every image the guide names must exist before this runs, because
 # the build embeds them; the next build embeds the new ones.
+# XDG_CONFIG_HOME names the tests' settings.ini, so GTK draws Adwaita, light or
+# dark as each shot asks, whatever the desktop theme is.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 files=/tmp/qcaret-demo
 cd "$root"
 trap 'rm -rf "$files"' EXIT
+XDG_CONFIG_HOME="$root/qcaret-ui-swt/src/test/resources/gtk-config/adwaita"
+export XDG_CONFIG_HOME
 xvfb-run -a -s "-screen 0 1280x800x24" ./mvnw -q package -pl qcaret-launcher -am \
     -Dtest='ScreenshotsTest,GuideScreenshotsTest' -Dsurefire.failIfNoSpecifiedTests=false \
     -Dqcaret.screenshots="$root/docs/images" -Dqcaret.guide.shots="$root/docs/images/guide" \

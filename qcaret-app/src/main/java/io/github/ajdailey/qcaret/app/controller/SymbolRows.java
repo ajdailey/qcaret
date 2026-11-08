@@ -188,7 +188,11 @@ final class SymbolRows {
     if (!scan.rules()) {
       return UiText.SYMBOL_NO_RULES.format(name, scan.grammar());
     }
-    String count = UiText.SYMBOL_COUNT.format(matched.size(), scan.result().symbols().size(), name);
+    String count =
+        UiText.SYMBOL_COUNT.format(
+            matched.size(),
+            UiText.count(scan.result().symbols().size(), UiText.COUNT_SYMBOL, UiText.COUNT_SYMBOLS),
+            name);
     if (scan.result().truncated()) {
       count = UiText.SYMBOL_CUT.format(count, SymbolScanner.MAX_SYMBOLS);
     }

@@ -684,7 +684,7 @@ public final class MainWindow implements MainView {
     docks.setWeights(new int[] {3, 2});
     body.setWeights(new int[] {3, 1});
     body.setMaximizedControl(tabs);
-    workspaceDock = new WorkspaceDock(side);
+    workspaceDock = new WorkspaceDock(side, toolBar);
     workspaceDock.control().moveAbove(body);
     side.setWeights(new int[] {1, 3});
     side.setMaximizedControl(body);

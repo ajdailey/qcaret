@@ -355,7 +355,8 @@ public final class BookmarkList implements BookmarksInput {
     String name = documents.nameOf(document);
     return rows.size() < total
         ? UiText.BOOKMARKS_SUMMARY_CUT.format(name, rows.size(), total)
-        : UiText.BOOKMARKS_SUMMARY.format(name, total);
+        : UiText.BOOKMARKS_SUMMARY.format(
+            name, UiText.count(total, UiText.COUNT_BOOKMARK, UiText.COUNT_BOOKMARKS));
   }
 
   /** Returns the line a row's bookmark marks; -1 when the bookmark is gone. */
