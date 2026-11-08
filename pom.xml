@@ -323,6 +323,9 @@
                     <configuration>
                         <configLocation>${qcaret.config.dir}/checkstyle.xml</configLocation>
                         <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <!-- qcaret-app takes LICENSE and NOTICE from the repository root as a
+                             resource directory; skip agent worktrees and build output there. -->
+                        <resourceExcludes>.claude/**,**/target/**</resourceExcludes>
                         <consoleOutput>true</consoleOutput>
                         <failOnViolation>true</failOnViolation>
                         <violationSeverity>warning</violationSeverity>
