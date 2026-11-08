@@ -101,6 +101,8 @@ after the change.
 | `ProjectionWorkTest` | Work counts that do not depend on the runner, at two document sizes: text reads through a counting snapshot for a layout, a viewport, a fold and an edit among collapsed regions, and lines visited and measured per edit through the package-private `linesVisited` and `linesMeasured` |
 | `FoldingTest` | The projection against a display text built with the collapsed lines left out, through 80 seeded rounds of random region sets, folds, unfolds, reveals and edits that join and part CR LF pairs, wrap on and off, replayed on a mirror (`-DfoldRounds=N` runs more); rewraps with folds, the expand rules, the offered regions' reconciliation, indentation regions, a worker-measured Fold All applied, stale after an edit or a rewrap and dropped after a fold |
 | `FoldingCommandsTest` | The fold commands, caret moves over a collapsed region, the reveal, Next and Previous Bookmark onto a hidden line, an edit at a hidden secondary caret, independent split views, smart indent through the controllers |
+| `MergedFoldSourceTest` | Two sources merged; null while either has no regions |
+| `GrammarFoldingTest` | Python's indentation regions merged with a docstring span; Fold All over 110,000 lines of Markdown sections and fences through the commands |
 | `ColumnMetricsTest` | Column 150 at a 7.22 px advance |
 
 ### Syntax highlighting

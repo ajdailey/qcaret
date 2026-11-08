@@ -97,7 +97,7 @@ link or a Windows junction.
   rename changes nothing.
 - A rename of the workspace folder or a parent moves the workspace folder and
   a folder browsed to under the entry in every window
-  (`WorkspaceController.follow`), with a notice: the index is built again
+  (`WorkspaceFollow.follow`), with a notice: the index is built again
   under the new path, the browser lists it again with its expanded
   directories, and the session is saved.
 - From the moment the name is accepted until the move lands or fails, the
@@ -117,7 +117,7 @@ link or a Windows junction.
   checked at once, which marks a deleted file missing (see [External
   changes](external-changes.md)). A finished delete of the workspace folder or
   a parent clears the workspace folder in every window with a notice
-  (`WorkspaceController.clearUnder`), and a folder browsed to under the entry
+  (`WorkspaceFollow.clearUnder`), and a folder browsed to under the entry
   with it; a delete that stops partway leaves the workspace folder set.
 - Rename and Delete refuse, with a notice, while a save, a reload or a change
   prompt holds a document under the entry.

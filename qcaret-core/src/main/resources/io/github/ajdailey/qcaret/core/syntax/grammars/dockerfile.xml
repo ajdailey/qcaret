@@ -19,6 +19,9 @@
     <pair open='"' close='"'/>
     <pair open="'" close="'"/>
   </autoClose>
+  <folding mode="sections">
+    <section regex="(?i)^[ \t]*FROM(?=[ \t])"/>
+  </folding>
   <symbols>
     <symbol kind="target" regex="(?i)^\s*FROM\s+(?:--\S+\s+)*\S+\s+AS\s+([\w.-]+)"/>
   </symbols>

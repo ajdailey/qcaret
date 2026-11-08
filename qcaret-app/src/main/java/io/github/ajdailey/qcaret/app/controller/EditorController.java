@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.editor.IndentFoldSource;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
+import io.github.ajdailey.qcaret.app.editor.MergedFoldSource;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
@@ -129,6 +130,10 @@ public final class EditorController implements EditorInput {
   private boolean disposed;
   private Grammar.Comments comments = Grammar.Comments.NONE;
   private FoldRegionSource foldSource;
+
+  /** True when indentation regions join {@link #foldSource}'s, or stand alone without one. */
+  private boolean indentFolds = true;
+
   private IndentRules indentRules = IndentRules.BRACKETS;
   private boolean foldsRunning;
   private DisplayProjection.FoldAll foldAll;
@@ -330,7 +335,7 @@ public final class EditorController implements EditorInput {
     if (view != null) {
       view.setTabWidth(document.tabWidth());
     }
-    if (foldSource == null) {
+    if (indentFolds) {
       ui.cancelTimer(foldTimer);
       ui.timerExec(0, foldTimer);
     }
@@ -650,17 +655,23 @@ public final class EditorController implements EditorInput {
   }
 
   /**
-   * Takes the document grammar's comments, fold mode, indent rules and pairs. A {@code brackets} or
-   * {@code markers} grammar's fold regions come from the document's highlighter; every other
-   * grammar, and plain text, folds by indentation.
+   * Takes the document grammar's comments, fold mode, indent rules and pairs. A {@code brackets},
+   * {@code markers} or {@code sections} grammar's fold regions come from the document's
+   * highlighter; every other grammar folds by indentation merged with the highlighter's span and
+   * region marker regions, and plain text by indentation alone.
    *
    * @param grammar the grammar, or null for plain text
    */
   void setGrammar(Grammar grammar) {
     comments = grammar == null ? Grammar.Comments.NONE : grammar.comments();
     Grammar.FoldMode mode = grammar == null ? Grammar.FoldMode.NONE : grammar.folding().mode();
-    boolean regions = mode == Grammar.FoldMode.BRACKETS || mode == Grammar.FoldMode.MARKERS;
-    setFoldSource(regions ? syntax : null);
+    boolean own =
+        mode == Grammar.FoldMode.BRACKETS
+            || mode == Grammar.FoldMode.MARKERS
+            || mode == Grammar.FoldMode.SECTIONS;
+    boolean highlighted = grammar != null && syntax != null && syntax.syntax() != null;
+    indentFolds = !own;
+    setFoldSource(own || highlighted ? syntax : null);
     indentRules =
         grammar == null
                 || (grammar.indentIncrease() == null
@@ -686,7 +697,7 @@ public final class EditorController implements EditorInput {
 
   /**
    * Sets the document's highlighter, whose tokens leave strings and comments out of bracket
-   * matching and whose regions a {@code brackets} or {@code markers} grammar folds by.
+   * matching and whose fold regions a grammar folds by.
    *
    * @param highlighter the highlighter
    */
@@ -1399,8 +1410,11 @@ public final class EditorController implements EditorInput {
       foldsAgain = true;
       return;
     }
+    FoldRegionSource indent = new IndentFoldSource(document.tabWidth());
     final FoldRegionSource source =
-        foldSource != null ? foldSource : new IndentFoldSource(document.tabWidth());
+        foldSource == null
+            ? indent
+            : indentFolds ? new MergedFoldSource(foldSource, indent) : foldSource;
     final TextSnapshot text = document.text();
     final long revision = document.revision();
     foldsRunning = true;

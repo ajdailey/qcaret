@@ -11,6 +11,6 @@
   <context id="main">
     <span token="comment" begin="^\s*[#!]"/>
     <match token="attribute" regex="^\s*(?:\\.|[^\s=:\\])+"/>
-    <span token="string" begin="\s*[=:]\s*|\s+" end="(?&lt;!(?&lt;!\\)\\(?:\\\\){0,100})$" escape="\\(?:u[0-9A-Fa-f]{4}|.)" multiLine="true"/>
+    <span token="string" begin="\s*[=:]\s*|\s+" end="(?&lt;!(?&lt;!\\)\\(?:\\\\){0,100})$" escape="\\(?:u[0-9A-Fa-f]{4}|.)" multiLine="true" fold="false"/>
   </context>
 </grammar>

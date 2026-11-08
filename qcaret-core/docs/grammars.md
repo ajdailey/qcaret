@@ -22,9 +22,9 @@ settings directory.
 | `comments` | `line`, `blockStart`, `blockEnd` |
 | `brackets`, `autoClose` | `pair open close` |
 | `indent` | `increase`, `decrease` and `dedentNext` regexes |
-| `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
+| `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes), `indent` or `sections` (up to 16 `section` rules); an optional `region` with `begin` and `end` regexes ([Folding](#folding)) |
 | `symbols` | Up to 64 `symbol` rules for Go to Symbol: `regex`, `kind`, optional `group` ([Symbol rules](#symbol-rules)) |
-| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`, `bodyNextLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
+| `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`, `bodyNextLine`, `fold`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
 
 Tokens are `TokenType`: comment, string, escape, keyword, keyword2, type,
 number, constant, operator, delimiter, function, preprocessor, tag, attribute,
@@ -51,6 +51,42 @@ The format grammars use the token set as follows:
 | `csv`, `tsv` | Columns cycle through `keyword2`, `type`, `number`, `preprocessor`, `string`: a separator match pops the column context and pushes the next, and a zero-width `$` match pops it at the line's end, so a CSV quoted field keeps its column across a line break |
 | `log` | Levels: FATAL and ERROR `invalid`, WARN `escape`, INFO `type`, DEBUG `keyword2`, TRACE `comment`, as upper-case words, logfmt `level=` and JSON `"level":` values, and one-letter forms (`[E]`, Android `E/Tag`, glog `E0102`). Timestamps `number`, bracketed thread names `delimiter`, `package.Class` logger names `function`, exception names and `Caused by:` `keyword`, `at` and `... N more` lines `comment`, URLs `link`, keys of `key=value` `attribute` |
 | `diff` | File headers `heading`, hunk headers `keyword`, added lines `type`, removed lines `escape`, context-format changed lines `constant`; inside a unified hunk a `---` line is a removed line, and a line starting with any other char ends the hunk |
+
+## Folding
+
+`SyntaxEngine` merges the regions of three sources with `FoldRegions.merge`:
+one region per start line, the largest, spanning two lines or more.
+
+| Source | Region |
+|---|---|
+| `brackets`, `markers` mode | From the line with an opening mark outside comments and strings to the line with its closing mark |
+| `sections` mode | From a header line to the line before the next header of the same or a lower level number, or to the last non-blank line of the text |
+| A `multiLine` span with an `end`, unless `fold="false"` | From the line where it opens to the line where it closes; a span left open runs to the last line |
+| `region` markers | From a `begin` line to the `end` line that pairs with it by nesting; an unpaired marker folds nothing |
+
+- A `section` rule's `regex` and the `region` regexes match at a line's start.
+  A line starting inside a span (comment, string, fenced block) matches none,
+  and neither does a match whose first non-blank char is a comment, string or
+  escape token; a region marker may be a comment (`// #region`).
+- A `section` gives its level in `level`, 1 the highest; a group named `level`
+  in the regex gives it as the group's length instead (Markdown's `#` count).
+- `previous="true"` makes the line above the match the header (a setext
+  underline), when that line is not blank, not a header and not inside a span.
+- The span key is the outermost folding span of the line's end state: a span
+  that closes and another of the same rule at the same depth that opens on one
+  line continue one region.
+- The editor merges an `indent`, `none` or missing mode's indentation regions
+  with the engine's.
+
+Built-in sections: Markdown ATX headings (level from the `#` count) and setext
+underlines; TOML `[table]` and `[[array]]` headers; INI `[section]` headers;
+Dockerfile `FROM` stages; diff `From <sha>` mails, `diff`/`Index:` files,
+`---`/`***` file headers and `@@`/`***************` hunks. Region markers:
+`#region` (C#, VB.NET `#Region`), `#pragma region` (C, C++), `// #region` and
+`//#region` (JavaScript, TypeScript, Java, Kotlin). CSV fields and properties
+values set `fold="false"`. In a unified diff a `---` line inside a hunk is a
+removed line, so a second file's header after a hunk is a section only behind a
+`diff` or `Index:` line.
 
 ## Symbol rules
 
@@ -137,8 +173,9 @@ or a `StackOverflowError`, leaves the rest of the line plain.
 
 `SyntaxEngine` highlights one document on one thread at a time:
 
-- It stores each line's start state and fold counts, 4 bytes each. `edit`
-  shifts both by each edit's line range widened by one line on each side (a CR
+- It stores each line's start state and fold counts, 4 bytes each, and for a
+  grammar with region markers their counts, 4 more. `edit` shifts them by each
+  edit's line range widened by one line on each side (a CR
   and an LF that join or part stay inside it) and moves the frontier back.
 - It copies up to 256 lines, at most 256 Ki chars, in one read: a `LineView`
   locates its line from the start of its leaf, so line by line reads scan each
@@ -151,10 +188,9 @@ or a `StackOverflowError`, leaves the rest of the line plain.
 - The frontier returns the lines of each view range (`setViewport`) as it
   passes them; a requested line beyond it is tokenized from a stored state, or
   from the initial state, and returned again when the frontier passes.
-- At the end it pairs the fold counts into regions: per line the closing and
-  opening marks left after pairing within the line, outside comments and
-  strings; one region per start line, the largest, spanning two lines or more.
-  It also counts the lines over the limit.
+- At the end it computes the fold regions ([Folding](#folding)) from the
+  counts and the line states, and counts the lines over the limit. A `sections`
+  grammar's fold counts hold the line's header level and its blank flag.
 
 ## Grammar set and detection
 

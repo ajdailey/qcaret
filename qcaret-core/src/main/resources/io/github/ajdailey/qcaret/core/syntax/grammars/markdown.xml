@@ -18,6 +18,11 @@
     <pair open="[" close="]"/>
     <pair open="`" close="`"/>
   </autoClose>
+  <folding mode="sections">
+    <section regex="^ {0,3}(?&lt;level&gt;#{1,6})(?:[ \t]|$)"/>
+    <section regex="^ {0,3}=+[ \t]*$" level="1" previous="true"/>
+    <section regex="^ {0,3}-+[ \t]*$" level="2" previous="true"/>
+  </folding>
   <symbols>
     <symbol kind="section" regex="^ {0,3}#{1,6}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$"/>
   </symbols>

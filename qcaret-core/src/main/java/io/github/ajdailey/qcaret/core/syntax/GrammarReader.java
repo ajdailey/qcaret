@@ -156,19 +156,7 @@ public final class GrammarReader {
           decrease = regex(e, "decrease");
           dedentNext = regex(e, "dedentNext");
         }
-        case "folding" ->
-            folding =
-                new Grammar.Folding(
-                    switch (e.getAttribute("mode")) {
-                      case "brackets" -> Grammar.FoldMode.BRACKETS;
-                      case "markers" -> Grammar.FoldMode.MARKERS;
-                      case "indent" -> Grammar.FoldMode.INDENT;
-                      default -> Grammar.FoldMode.NONE;
-                    },
-                    e.getAttribute("open"),
-                    e.getAttribute("close"),
-                    regex(e, "begin"),
-                    regex(e, "end"));
+        case "folding" -> folding = folding(e);
         case "symbols" -> {
           for (Element r : children(e)) {
             symbols.add(symbol(r));
@@ -183,6 +171,9 @@ public final class GrammarReader {
     if (folding.mode() == Grammar.FoldMode.MARKERS
         && (folding.begin() == null || folding.end() == null)) {
       throw new IllegalArgumentException("marker folding needs begin and end");
+    }
+    if (folding.mode() == Grammar.FoldMode.SECTIONS && folding.sections().isEmpty()) {
+      throw new IllegalArgumentException("section folding needs a section");
     }
     checkReferences(contexts);
     return new Grammar(
@@ -202,6 +193,40 @@ public final class GrammarReader {
         folding,
         contexts,
         symbols);
+  }
+
+  private static Grammar.Folding folding(Element e) {
+    List<Grammar.Section> sections = new ArrayList<Grammar.Section>();
+    Pattern regionBegin = null;
+    Pattern regionEnd = null;
+    for (Element c : children(e)) {
+      if (c.getTagName().equals("section")) {
+        String level = attribute(c, "level");
+        sections.add(
+            new Grammar.Section(
+                regex(c, "regex"),
+                level == null ? 1 : Integer.parseInt(level),
+                Boolean.parseBoolean(c.getAttribute("previous"))));
+      } else {
+        regionBegin = regex(c, "begin");
+        regionEnd = regex(c, "end");
+      }
+    }
+    return new Grammar.Folding(
+        switch (e.getAttribute("mode")) {
+          case "brackets" -> Grammar.FoldMode.BRACKETS;
+          case "markers" -> Grammar.FoldMode.MARKERS;
+          case "indent" -> Grammar.FoldMode.INDENT;
+          case "sections" -> Grammar.FoldMode.SECTIONS;
+          default -> Grammar.FoldMode.NONE;
+        },
+        e.getAttribute("open"),
+        e.getAttribute("close"),
+        regex(e, "begin"),
+        regex(e, "end"),
+        sections,
+        regionBegin,
+        regionEnd);
   }
 
   /**
@@ -260,7 +285,8 @@ public final class GrammarReader {
                   attribute(r, "context"),
                   Boolean.parseBoolean(r.getAttribute("multiLine")),
                   Boolean.parseBoolean(r.getAttribute("nested")),
-                  Boolean.parseBoolean(r.getAttribute("bodyNextLine")));
+                  Boolean.parseBoolean(r.getAttribute("bodyNextLine")),
+                  !r.getAttribute("fold").matches("false|0"));
           if (span.nested() && span.bodyNextLine()) {
             throw new IllegalArgumentException(
                 "span " + span.begin() + " is nested and bodyNextLine");

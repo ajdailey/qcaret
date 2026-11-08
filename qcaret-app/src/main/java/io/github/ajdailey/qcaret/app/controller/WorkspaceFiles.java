@@ -335,7 +335,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     }
     recent.moved(move);
     session.moved(move);
-    workspace.moved(move);
+    workspace.following().moved(move);
     Path source = move.from().path();
     Path target = move.to().path();
     workspace.changed(source.getParent(), source, indexed ? target : null, folder, target);
@@ -491,7 +491,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
       window.under().deleted(found.entry());
     }
     if (result.done()) {
-      workspace.deleted(found.entry());
+      workspace.following().deleted(found.entry());
     }
     Path path = found.entry().path();
     boolean folder = found.folder() || found.entry().real() == null;

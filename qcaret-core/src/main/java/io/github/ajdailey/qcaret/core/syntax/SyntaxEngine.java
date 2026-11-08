@@ -31,9 +31,14 @@ import java.util.regex.Matcher;
  *       where the frontier has passed or one is stored, else from {@link Tokenizer#INITIAL}. The
  *       frontier returns the lines of each view range ({@link #setViewport}) again as it passes
  *       them.
- *   <li>Once the frontier reaches the end, the fold regions of the grammar's {@link
- *       Grammar.FoldMode#BRACKETS} or {@link Grammar.FoldMode#MARKERS} mode are computed from the
- *       stored counts.
+ *   <li>Once the frontier reaches the end, the fold regions are computed from the stored counts and
+ *       states and merged by {@link FoldRegions#merge}: those of the grammar's {@link
+ *       Grammar.FoldMode#BRACKETS}, {@link Grammar.FoldMode#MARKERS} or {@link
+ *       Grammar.FoldMode#SECTIONS} mode, each folding span covering two or more lines, and the
+ *       grammar's region markers, paired by nesting.
+ *   <li>A section header or a region marker matches at a line's start, on a line that does not
+ *       start inside a span, where the token at its first non-blank char is not a comment, string
+ *       or escape; a region marker may be a comment.
  * </ul>
  */
 public final class SyntaxEngine {
@@ -45,6 +50,9 @@ public final class SyntaxEngine {
   private static final int OVERLONG = 1 << 30;
   private static final int BLOCK_LINES = 256;
   private static final int BLOCK_CHARS = 1 << 18;
+  private static final int LEVEL_MASK = 0x3f;
+  private static final int PREVIOUS = 1 << 6;
+  private static final int BLANK = 1 << 7;
 
   private final Tokenizer tokenizer;
   private final Grammar.Folding folding;
@@ -60,11 +68,18 @@ public final class SyntaxEngine {
   private final BoundedChars markerChars = new BoundedChars();
   private final Matcher markerBegin;
   private final Matcher markerEnd;
+  private final Matcher[] sections;
+  private final Matcher regionBegin;
+  private final Matcher regionEnd;
   private final Map<Integer, int[]> viewports = new LinkedHashMap<Integer, int[]>();
   private TextSnapshot text;
   private int lineCount;
   private int[] states;
   private int[] folds;
+
+  /** Region marker counts per line, packed as {@link #folds}; null without region markers. */
+  private int[] marks;
+
   private int frontier;
   private int known;
   private int dirtyEnd = -1;
@@ -120,6 +135,15 @@ public final class SyntaxEngine {
         folding.mode() == Grammar.FoldMode.MARKERS ? folding.begin().matcher(markerChars) : null;
     markerEnd =
         folding.mode() == Grammar.FoldMode.MARKERS ? folding.end().matcher(markerChars) : null;
+    sections = new Matcher[folding.sections().size()];
+    for (int i = 0; i < sections.length; i++) {
+      sections[i] = folding.sections().get(i).regex().matcher(markerChars);
+    }
+    regionBegin = folding.regionBegin() == null ? null : folding.regionBegin().matcher(markerChars);
+    regionEnd = folding.regionEnd() == null ? null : folding.regionEnd().matcher(markerChars);
+    if (regionBegin != null && regionEnd != null) {
+      marks = new int[lineCount + 1];
+    }
     for (char c : (folding.open() + folding.close()).toCharArray()) {
       if (c < brackets.length) {
         brackets[c] = true;
@@ -192,6 +216,9 @@ public final class SyntaxEngine {
       if (from <= lineCount) {
         System.arraycopy(states, from, states, from + delta, lineCount + 1 - from);
         System.arraycopy(folds, from, folds, from + delta, lineCount + 1 - from);
+        if (marks != null) {
+          System.arraycopy(marks, from, marks, from + delta, lineCount + 1 - from);
+        }
       }
       lineCount += delta;
       if (frontier < known) {
@@ -303,7 +330,11 @@ public final class SyntaxEngine {
     while (frontier < lineCount) {
       int line = frontier;
       int end = tokenizeLine(line, states[line], cancel);
-      folds[line] = foldCounts(cancel);
+      boolean inSpan = tokenizer.inSpan(states[line]);
+      folds[line] = foldCounts(inSpan, cancel);
+      if (marks != null) {
+        marks[line] = inSpan || lineLength > tokenizer.maxLineChars() ? 0 : regionCounts(cancel);
+      }
       if (from < 0) {
         from = line;
       }
@@ -433,9 +464,11 @@ public final class SyntaxEngine {
 
   /**
    * Counts the opening and closing fold marks outside comments and strings of the line {@link
-   * #tokens} holds, packed; an over-long line gets the over-long flag only.
+   * #tokens} holds, packed; an over-long line gets the over-long flag only. In {@link
+   * Grammar.FoldMode#SECTIONS} mode returns the header level, the previous-line flag and the blank
+   * flag instead.
    */
-  private int foldCounts(CancellationToken cancel) {
+  private int foldCounts(boolean inSpan, CancellationToken cancel) {
     if (lineLength > tokenizer.maxLineChars()) {
       return OVERLONG;
     }
@@ -475,11 +508,72 @@ public final class SyntaxEngine {
           }
         }
       }
+      case SECTIONS -> {
+        return v.isBlank() ? BLANK : inSpan ? 0 : header(v, cancel);
+      }
       default -> {
         return 0;
       }
     }
     return Math.min(opens, OPEN_MASK) | (Math.min(closes, OPEN_MASK) << CLOSE_SHIFT);
+  }
+
+  /** Returns the first section rule matching at the line's start as level and flag, or 0. */
+  private int header(String v, CancellationToken cancel) {
+    try {
+      for (int i = 0; i < sections.length; i++) {
+        Matcher m = matchAtStart(sections[i], v, cancel);
+        if (m != null) {
+          Grammar.Section rule = folding.sections().get(i);
+          int level = rule.level();
+          if (m.pattern().namedGroups().containsKey("level") && m.start("level") >= 0) {
+            level = Math.max(1, Math.min(LEVEL_MASK, m.end("level") - m.start("level")));
+          }
+          return level | (rule.previous() ? PREVIOUS : 0);
+        }
+      }
+    } catch (BoundedChars.LimitReached | StackOverflowError e) {
+      return 0;
+    }
+    return 0;
+  }
+
+  /** Returns the region markers of the line {@link #tokens} holds as packed counts. */
+  private int regionCounts(CancellationToken cancel) {
+    try {
+      if (matchAtStart(regionBegin, lineText, cancel) != null) {
+        return 1;
+      }
+      if (matchAtStart(regionEnd, lineText, cancel) != null) {
+        return 1 << CLOSE_SHIFT;
+      }
+    } catch (BoundedChars.LimitReached | StackOverflowError e) {
+      return 0;
+    }
+    return 0;
+  }
+
+  /**
+   * Matches a regex at a line's start; returns the matcher when it matches and the token at the
+   * match's first non-blank char is not a string or an escape, or a comment unless the matcher is a
+   * region marker.
+   */
+  private Matcher matchAtStart(Matcher m, String v, CancellationToken cancel) {
+    markerChars.reset(v, BoundedChars.lineLimit(v), cancel);
+    m.reset();
+    if (!m.lookingAt()) {
+      return null;
+    }
+    int at = m.start();
+    while (at < m.end() && Character.isWhitespace(v.charAt(at))) {
+      at++;
+    }
+    if (at >= v.length()) {
+      return m;
+    }
+    TokenType type = tokens.typeAt(at);
+    boolean comment = type == TokenType.COMMENT && (m == regionBegin || m == regionEnd);
+    return code(type) || comment ? m : null;
   }
 
   /** Returns marker matches as {@code position, +1 or -1} pairs by position. */
@@ -523,20 +617,32 @@ public final class SyntaxEngine {
     return type != TokenType.COMMENT && type != TokenType.STRING && type != TokenType.ESCAPE;
   }
 
-  /**
-   * Pairs the stored fold counts into regions: one per start line, the largest, spanning at least
-   * two lines.
-   */
+  /** Computes the regions of every source and merges them. */
   private List<int[]> regions() {
-    if (folding.mode() != Grammar.FoldMode.BRACKETS && folding.mode() != Grammar.FoldMode.MARKERS) {
-      return List.of();
-    }
+    List<int[]> main =
+        switch (folding.mode()) {
+          case BRACKETS, MARKERS -> pairs(folds);
+          case SECTIONS -> sections();
+          default -> List.of();
+        };
+    List<int[]> out = FoldRegions.merge(main, spans());
+    return marks == null ? out : FoldRegions.merge(out, pairs(marks));
+  }
+
+  /**
+   * Pairs packed open and close counts into regions: one per start line, the largest, spanning at
+   * least two lines.
+   */
+  private List<int[]> pairs(int[] counts) {
     int[] open = new int[64];
     int depth = 0;
     int[] endOf = new int[lineCount];
     Arrays.fill(endOf, -1);
     for (int line = 0; line < lineCount; line++) {
-      int f = folds[line];
+      int f = counts[line];
+      if ((f & OVERLONG) != 0) {
+        continue;
+      }
       int closes = (f >>> CLOSE_SHIFT) & OPEN_MASK;
       for (int j = 0; j < closes && depth > 0; j++) {
         int start = open[--depth];
@@ -552,9 +658,90 @@ public final class SyntaxEngine {
         open[depth++] = line;
       }
     }
+    return ascending(endOf);
+  }
+
+  /**
+   * Returns the folding spans covering two or more lines: from the line ending inside a span to the
+   * line ending outside it. A span left open runs to the last line.
+   */
+  private List<int[]> spans() {
     List<int[]> out = new ArrayList<int[]>();
+    int openLine = -1;
+    int openKey = 0;
     for (int line = 0; line < lineCount; line++) {
-      if (endOf[line] >= 0) {
+      int key = tokenizer.foldSpan(states[line + 1]);
+      if (openLine >= 0 && key != openKey) {
+        out.add(new int[] {openLine, line});
+        openLine = -1;
+      }
+      if (key != 0 && openLine < 0) {
+        openLine = line;
+        openKey = key;
+      }
+    }
+    if (openLine >= 0 && openLine < lineCount - 1) {
+      out.add(new int[] {openLine, lineCount - 1});
+    }
+    return out;
+  }
+
+  /**
+   * Returns the sections: each header runs to the line before the next header of the same or a
+   * higher level, or to the last non-blank line. A previous-line rule makes the line above it the
+   * header when that line is not blank, not a header and not inside a span.
+   */
+  private List<int[]> sections() {
+    byte[] level = new byte[lineCount];
+    int last = -1;
+    for (int line = 0; line < lineCount; line++) {
+      int f = folds[line];
+      if ((f & OVERLONG) != 0 || (f & BLANK) == 0) {
+        last = line;
+      }
+      if ((f & OVERLONG) != 0 || (f & LEVEL_MASK) == 0) {
+        continue;
+      }
+      int header = line;
+      if ((f & PREVIOUS) != 0) {
+        header = line - 1;
+        if (header < 0
+            || (folds[header] & (BLANK | LEVEL_MASK | OVERLONG)) != 0
+            || tokenizer.inSpan(states[header])) {
+          continue;
+        }
+      }
+      level[header] = (byte) (f & LEVEL_MASK);
+    }
+    int[] endOf = new int[lineCount];
+    Arrays.fill(endOf, -1);
+    int[] open = new int[LEVEL_MASK + 1];
+    int depth = 0;
+    for (int line = 0; line < lineCount; line++) {
+      if (level[line] == 0) {
+        continue;
+      }
+      while (depth > 0 && level[open[depth - 1]] >= level[line]) {
+        int start = open[--depth];
+        endOf[start] = line - 1;
+      }
+      if (depth == open.length) {
+        open = Arrays.copyOf(open, depth * 2);
+      }
+      open[depth++] = line;
+    }
+    while (depth > 0) {
+      int start = open[--depth];
+      endOf[start] = last;
+    }
+    return ascending(endOf);
+  }
+
+  /** Returns {@code {line, endOf[line]}} for each line whose end lies below it, ascending. */
+  private static List<int[]> ascending(int[] endOf) {
+    List<int[]> out = new ArrayList<int[]>();
+    for (int line = 0; line < endOf.length; line++) {
+      if (endOf[line] > line) {
         out.add(new int[] {line, endOf[line]});
       }
     }
@@ -566,6 +753,9 @@ public final class SyntaxEngine {
       int size = Math.max(capacity, states.length + (states.length >> 1));
       states = Arrays.copyOf(states, size);
       folds = Arrays.copyOf(folds, size);
+      if (marks != null) {
+        marks = Arrays.copyOf(marks, size);
+      }
     }
   }
 }

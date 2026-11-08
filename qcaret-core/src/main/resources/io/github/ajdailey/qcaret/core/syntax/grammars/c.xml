@@ -19,7 +19,9 @@
     <pair open="'" close="'"/>
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
-  <folding mode="brackets" open="{" close="}"/>
+  <folding mode="brackets" open="{" close="}">
+    <region begin="^[ \t]*#[ \t]*pragma[ \t]+region\b" end="^[ \t]*#[ \t]*pragma[ \t]+endregion\b"/>
+  </folding>
   <symbols>
     <symbol kind="macro" regex="^\s*#\s*define\s+([A-Za-z_]\w*)"/>
     <symbol kind="struct" regex="\bstruct\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>

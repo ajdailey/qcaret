@@ -373,7 +373,12 @@ Comment and Remove. A document holds up to 1,000 comments of 1,000 chars.
 
 A box in the gutter marks each line that starts a fold region; a click toggles
 it. A collapsed region's first line ends in a box with an ellipsis. Regions come
-from the grammar's brackets or markers, and from indentation otherwise.
+from the grammar's brackets, block keywords or section headers, such as
+Markdown headings, TOML tables, INI sections, Dockerfile stages and diff files
+and hunks, and from indentation otherwise. Multi-line comments and strings fold
+in every language, as do Markdown code fences and region markers: `#region` in
+C# and VB.NET, `#pragma region` in C and C++, `// #region` in JavaScript,
+TypeScript, Java and Kotlin, each closed by its `endregion` line.
 
 | Keys | Action |
 |---|---|

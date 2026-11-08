@@ -57,7 +57,7 @@ final class BrowserWindows {
    */
   void moved(PathMove move) {
     for (WorkspaceController browser : new ArrayList<WorkspaceController>(browsers)) {
-      browser.follow(move);
+      browser.following().follow(move);
     }
   }
 
@@ -68,7 +68,7 @@ final class BrowserWindows {
    */
   void deleted(BrowserPath entry) {
     for (WorkspaceController browser : new ArrayList<WorkspaceController>(browsers)) {
-      browser.clearUnder(entry);
+      browser.following().clearUnder(entry);
     }
   }
 }

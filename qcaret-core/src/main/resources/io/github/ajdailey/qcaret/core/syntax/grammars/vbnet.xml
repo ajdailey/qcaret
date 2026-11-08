@@ -15,7 +15,9 @@
     <pair open='"' close='"'/>
   </autoClose>
   <indent increase="(?i)^\s*(?:(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|NotOverridable|Overloads|Shadows|Partial|ReadOnly|WriteOnly|Async|Iterator|Default|Static|MustInherit|NotInheritable|Widening|Narrowing)\s+)*(?:Sub|Function|Class|Module|Structure|Interface|Enum|Namespace|Property|Get|Set|Operator|Try|Catch|Finally|Else|ElseIf|Select|Case|With|Using|SyncLock|While|For|Do)\b(?!.*\bEnd\s+\w+\s*$)(?!.*\bThen\s+\S)|\bThen\s*('.*)?$" decrease="(?i)^\s*(?:End|Next|Loop|Wend|Else|ElseIf|Case|Catch|Finally)\b"/>
-  <folding mode="indent"/>
+  <folding mode="indent">
+    <region begin="(?i)^[ \t]*#[ \t]*Region\b" end="(?i)^[ \t]*#[ \t]*End[ \t]+Region\b"/>
+  </folding>
   <symbols>
     <symbol kind="function" regex="(?i)^\s*(?:(?:public|private|protected|friend|shared|overrides|overridable|mustoverride|notoverridable|overloads|shadows|async|iterator|partial|static|default|readonly|writeonly|declare|ansi|unicode|auto)\s+)*(?:sub|function)\s+(\w+)"/>
     <symbol kind="property" regex="(?i)^\s*(?:(?:public|private|protected|friend|shared|overrides|overridable|mustoverride|notoverridable|overloads|shadows|default|readonly|writeonly|iterator)\s+)*property\s+(\w+)"/>

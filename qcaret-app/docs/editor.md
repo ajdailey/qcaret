@@ -125,11 +125,13 @@ and pairs.
 - Fold regions come from a `FoldRegionSource` on a `qcaret-cpu-` worker, 300 ms
   after the last change and at once on a tab width change, one run at a time; a
   result for an older revision is dropped. Each view computes its own. A
-  `brackets` or `markers` grammar's source is the document's
-  `SyntaxHighlighter`, whose new regions run the step again; other grammars and
-  plain text use `IndentFoldSource` at the document's tab width. A source that
-  has no regions for the snapshot's revision returns null, and the installed
-  regions stay.
+  `brackets`, `markers` or `sections` grammar's source is the document's
+  `SyntaxHighlighter`, whose new regions run the step again. Other grammars use
+  a `MergedFoldSource` of the highlighter's regions (folding spans and region
+  markers) and `IndentFoldSource` at the document's tab width; plain text uses
+  `IndentFoldSource` alone. A source that has no regions for the snapshot's
+  revision returns null, and the installed regions stay, so an indentation
+  grammar's regions wait for the highlighter's pass.
 
 ## Line transforms
 

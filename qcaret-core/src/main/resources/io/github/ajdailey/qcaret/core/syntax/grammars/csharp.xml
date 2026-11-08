@@ -20,7 +20,9 @@
     <pair open="'" close="'"/>
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
-  <folding mode="brackets" open="{" close="}"/>
+  <folding mode="brackets" open="{" close="}">
+    <region begin="^[ \t]*#[ \t]*region\b" end="^[ \t]*#[ \t]*endregion\b"/>
+  </folding>
   <symbols>
     <symbol kind="class" regex="\b(?:class|record)\s+(?!struct\b)([\p{L}_][\p{L}\p{N}_]*)"/>
     <symbol kind="struct" regex="\b(?:record\s+)?struct\s+([\p{L}_][\p{L}\p{N}_]*)"/>

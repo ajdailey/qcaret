@@ -104,6 +104,28 @@
         </xs:element>
         <xs:element name="folding" minOccurs="0">
           <xs:complexType>
+            <xs:sequence>
+              <xs:element name="section" minOccurs="0" maxOccurs="16">
+                <xs:complexType>
+                  <xs:attribute name="regex" type="regex" use="required"/>
+                  <xs:attribute name="level" default="1">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:int">
+                        <xs:minInclusive value="1"/>
+                        <xs:maxInclusive value="63"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                  <xs:attribute name="previous" type="xs:boolean" default="false"/>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="region" minOccurs="0">
+                <xs:complexType>
+                  <xs:attribute name="begin" type="regex" use="required"/>
+                  <xs:attribute name="end" type="regex" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
             <xs:attribute name="mode" use="required">
               <xs:simpleType>
                 <xs:restriction base="xs:string">
@@ -111,6 +133,7 @@
                   <xs:enumeration value="brackets"/>
                   <xs:enumeration value="markers"/>
                   <xs:enumeration value="indent"/>
+                  <xs:enumeration value="sections"/>
                 </xs:restriction>
               </xs:simpleType>
             </xs:attribute>
@@ -171,6 +194,7 @@
                   <xs:attribute name="multiLine" type="xs:boolean" default="false"/>
                   <xs:attribute name="nested" type="xs:boolean" default="false"/>
                   <xs:attribute name="bodyNextLine" type="xs:boolean" default="false"/>
+                  <xs:attribute name="fold" type="xs:boolean" default="true"/>
                 </xs:complexType>
               </xs:element>
               <xs:element name="include">

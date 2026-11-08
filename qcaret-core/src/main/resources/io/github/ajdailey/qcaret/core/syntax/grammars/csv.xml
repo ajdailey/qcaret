@@ -9,31 +9,31 @@
   </autoClose>
   <folding mode="none"/>
   <context id="main">
-    <span token="keyword2" begin='"' end='"' escape='""' multiLine="true"/>
+    <span token="keyword2" begin='"' end='"' escape='""' multiLine="true" fold="false"/>
     <match token="keyword2" regex='[^,"]+'/>
     <match token="delimiter" regex="," push="c2"/>
   </context>
   <context id="c2">
     <match regex="$" pop="true"/>
-    <span token="type" begin='"' end='"' escape='""' multiLine="true"/>
+    <span token="type" begin='"' end='"' escape='""' multiLine="true" fold="false"/>
     <match token="type" regex='[^,"]+'/>
     <match token="delimiter" regex="," pop="true" push="c3"/>
   </context>
   <context id="c3">
     <match regex="$" pop="true"/>
-    <span token="number" begin='"' end='"' escape='""' multiLine="true"/>
+    <span token="number" begin='"' end='"' escape='""' multiLine="true" fold="false"/>
     <match token="number" regex='[^,"]+'/>
     <match token="delimiter" regex="," pop="true" push="c4"/>
   </context>
   <context id="c4">
     <match regex="$" pop="true"/>
-    <span token="preprocessor" begin='"' end='"' escape='""' multiLine="true"/>
+    <span token="preprocessor" begin='"' end='"' escape='""' multiLine="true" fold="false"/>
     <match token="preprocessor" regex='[^,"]+'/>
     <match token="delimiter" regex="," pop="true" push="c5"/>
   </context>
   <context id="c5">
     <match regex="$" pop="true"/>
-    <span token="string" begin='"' end='"' escape='""' multiLine="true"/>
+    <span token="string" begin='"' end='"' escape='""' multiLine="true" fold="false"/>
     <match token="string" regex='[^,"]+'/>
     <match token="delimiter" regex="," pop="true"/>
   </context>

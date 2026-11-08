@@ -91,7 +91,9 @@ public record Grammar(
     /** Begin and end regex matches outside comments and strings. */
     MARKERS,
     /** By indentation, which the editor computes. */
-    INDENT
+    INDENT,
+    /** From a header line to the line before the next header of the same or a higher level. */
+    SECTIONS
   }
 
   /**
@@ -102,11 +104,37 @@ public record Grammar(
    * @param close the closing bracket chars
    * @param begin a match opens a region, for {@link FoldMode#MARKERS}
    * @param end a match closes a region
+   * @param sections the header rules, for {@link FoldMode#SECTIONS}, tried in order
+   * @param regionBegin a match at a line's start opens a region beside the mode's, or null
+   * @param regionEnd a match at a line's start closes the innermost open one, or null
    */
-  public record Folding(FoldMode mode, String open, String close, Pattern begin, Pattern end) {
+  public record Folding(
+      FoldMode mode,
+      String open,
+      String close,
+      Pattern begin,
+      Pattern end,
+      List<Section> sections,
+      Pattern regionBegin,
+      Pattern regionEnd) {
     /** No folding. */
-    public static final Folding NONE = new Folding(FoldMode.NONE, "", "", null, null);
+    public static final Folding NONE =
+        new Folding(FoldMode.NONE, "", "", null, null, List.of(), null, null);
+
+    /** Copies the sections. */
+    public Folding {
+      sections = List.copyOf(sections);
+    }
   }
+
+  /**
+   * A section header rule, matched at a line's start.
+   *
+   * @param regex the header; a group named {@code level} gives the level as its length
+   * @param level the level without such a group, 1 the highest
+   * @param previous true when the match underlines a header on the line before it
+   */
+  public record Section(Pattern regex, int level, boolean previous) {}
 
   /** One rule of a context, tried in order at each position; the earliest match wins. */
   public sealed interface Rule permits Match, Keywords, Span, Include, Embed {}
@@ -154,6 +182,7 @@ public record Grammar(
    *     {@code end} closes
    * @param bodyNextLine true when the span's body starts at the next line: the rest of the line
    *     holding {@code begin} keeps the enclosing context's rules, as after a here-document marker
+   * @param fold true when a {@code multiLine} span covering two or more lines is a fold region
    */
   public record Span(
       Pattern begin,
@@ -163,7 +192,8 @@ public record Grammar(
       String context,
       boolean multiLine,
       boolean nested,
-      boolean bodyNextLine)
+      boolean bodyNextLine,
+      boolean fold)
       implements Rule {}
 
   /**

@@ -132,6 +132,24 @@ class SyntaxEngineTest {
     }
   }
 
+  @Test
+  void randomEditsOverSectionsAndRegionMarkersLeaveTheSameRegions() {
+    String[] markdown = {"# ", "## ", "\n===\n", "\n---\n", "```", "\n", "<!--", "-->", "x", " "};
+    String[] java = {"// #region", "// #endregion", "/*", "*/", "{", "}", "\n", "\"\"\"", "x"};
+    StringBuilder markdownText = new StringBuilder();
+    StringBuilder javaText = new StringBuilder();
+    for (int i = 0; i < 20; i++) {
+      markdownText.append("# Mock ").append(i).append("\n\ntext\n\n## Sub\n```\n# code\n```\n");
+      markdownText.append("Setext\n---\n<!-- a\nb -->\n");
+      javaText.append("// #region m").append(i).append("\n/**\n * Doc.\n */\nclass M").append(i);
+      javaText.append(" {\n  //#region\n  int a;\n  //#endregion\n}\n// #endregion\n");
+    }
+    for (long seed = 1; seed <= 100; seed++) {
+      randomEdits("markdown", markdownText.toString(), markdown, seed, true);
+      randomEdits("java", javaText.toString(), java, seed, true);
+    }
+  }
+
   /**
    * Applies seeded random edits to 240 lines of Java; after some edits runs a partial pass, after
    * others finishes the pass and compares with a new engine.

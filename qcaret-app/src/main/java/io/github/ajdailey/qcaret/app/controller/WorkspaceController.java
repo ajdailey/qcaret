@@ -80,6 +80,7 @@ public final class WorkspaceController implements WorkspaceInput {
   private WorkspaceFiles files;
   private WorkspaceBrowse browse;
   private BrowserWindows peers;
+  private final WorkspaceFollow following;
 
   /** The folder the browser shows instead of the workspace folder; null for the workspace. */
   private Path browsed;
@@ -116,6 +117,7 @@ public final class WorkspaceController implements WorkspaceInput {
     this.ui = ui;
     this.documents = documents;
     this.budget = budget;
+    this.following = new WorkspaceFollow(this, view);
   }
 
   /**
@@ -819,79 +821,40 @@ public final class WorkspaceController implements WorkspaceInput {
     }
   }
 
-  /**
-   * Moves the workspace folder and the folder browsed to after a rename of either or a parent, in
-   * every window ({@link #follow}).
-   *
-   * @param move the rename
-   */
-  void moved(PathMove move) {
-    if (peers == null) {
-      follow(move);
-    } else {
-      peers.moved(move);
-    }
+  /** Returns what moves or clears the folders after a rename or a delete. */
+  WorkspaceFollow following() {
+    return following;
+  }
+
+  /** Returns the windows whose browsers follow each other's changes, or null. */
+  BrowserWindows peers() {
+    return peers;
+  }
+
+  /** Reports whether the controller is disposed. */
+  boolean disposed() {
+    return disposed;
   }
 
   /**
-   * Moves this window's workspace folder and folder browsed to with a rename: the index is built
-   * again under the new path, the browser lists it again with the expanded directories moved, and
-   * the session is written.
+   * Sets the workspace folder and the folder browsed to and lists again; a new workspace folder
+   * builds the index again. Each expanded directory expands once its parent is listed. Writes the
+   * session.
    *
-   * @param move the rename
+   * @param nextRoot the workspace folder, or null
+   * @param nextBrowsed the folder browsed to, or null
+   * @param expanded the directories to expand
    */
-  void follow(PathMove move) {
-    Path nextRoot = move.real(root);
-    Path nextBrowsed = move.real(browsed);
-    if (disposed || (nextRoot == root && nextBrowsed == browsed)) {
-      return;
-    }
-    for (String directory : expandedDirectories()) {
-      restoredExpanded.add(move.real(Path.of(directory)));
-    }
+  void relocate(Path nextRoot, Path nextBrowsed, List<Path> expanded) {
     boolean rootMoved = nextRoot != root;
+    restoredExpanded.addAll(expanded);
     root = nextRoot;
     browsed = nextBrowsed;
     if (rootMoved) {
-      view.showNotice(UiText.WORKSPACE_MOVED.format(root));
       reset();
     } else {
       relist();
     }
-    documents.sessionChanged();
-  }
-
-  /**
-   * Clears the workspace folder, in every window, after a delete of it or a parent ({@link
-   * #clearUnder}).
-   *
-   * @param entry the deleted entry
-   */
-  void deleted(BrowserPath entry) {
-    if (peers == null) {
-      clearUnder(entry);
-    } else {
-      peers.deleted(entry);
-    }
-  }
-
-  /**
-   * Clears this window's workspace folder with a notice when a deleted entry held it; a folder
-   * browsed to under the entry goes with it. The index is dropped and the session written.
-   *
-   * @param entry the deleted entry
-   */
-  void clearUnder(BrowserPath entry) {
-    if (disposed
-        || !(BrowserPath.under(root, entry.real()) || BrowserPath.under(root, entry.path()))) {
-      return;
-    }
-    view.showNotice(UiText.WORKSPACE_DELETED.format(root));
-    root = null;
-    if (BrowserPath.under(browsed, entry.real()) || BrowserPath.under(browsed, entry.path())) {
-      browsed = null;
-    }
-    reset();
     documents.sessionChanged();
   }
 

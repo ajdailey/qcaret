@@ -19,6 +19,9 @@
     <pair open="[" close="]"/>
     <pair open='"' close='"'/>
   </autoClose>
+  <folding mode="sections">
+    <section regex="^[ \t]*\[[^\]]*\]"/>
+  </folding>
   <symbols>
     <symbol kind="section" regex="^\s*\[([^\]]+)\]"/>
   </symbols>

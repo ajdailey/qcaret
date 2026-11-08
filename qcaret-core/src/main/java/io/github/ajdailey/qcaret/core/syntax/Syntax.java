@@ -109,6 +109,9 @@ public final class Syntax {
     /** True for a span body that starts at the line after its begin. */
     boolean nextLine;
 
+    /** True for a multi-line span whose lines fold. */
+    boolean fold;
+
     /**
      * For a pending context, the body it becomes at the line's end; else -1. A pending context has
      * no rules: the tokenizer applies the context below it.
@@ -251,6 +254,7 @@ public final class Syntax {
       Context c =
           new Context(contexts.size(), t.name + ":" + text, t.content, t.lineEnd, null, null);
       c.nextLine = t.nextLine;
+      c.fold = t.fold;
       try {
         if (s.escape() != null) {
           c.alts.add(
@@ -586,6 +590,7 @@ public final class Syntax {
               null,
               template ? s : null);
       c.nextLine = s.bodyNextLine();
+      c.fold = s.fold() && s.multiLine() && s.end() != null;
       for (Pattern p : new Pattern[] {s.escape(), s.end()}) {
         if (templated(p)) {
           if (UNSUPPORTED.matcher(substitute(p, "").pattern()).find()) {

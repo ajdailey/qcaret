@@ -20,6 +20,9 @@
     <pair open="'" close="'"/>
   </autoClose>
   <indent increase="[\[{]\s*(#.*)?$" decrease="^\s*[\]}]"/>
+  <folding mode="sections">
+    <section regex="^[ \t]*\[\[?[^\]\r\n]*\]\]?[ \t]*(?:#.*)?$"/>
+  </folding>
   <symbols>
     <symbol kind="section" regex="^\s*\[\[?\s*([^\]]+?)\s*\]\]?"/>
   </symbols>

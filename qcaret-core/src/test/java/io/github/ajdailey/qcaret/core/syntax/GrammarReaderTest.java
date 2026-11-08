@@ -55,6 +55,36 @@ class GrammarReaderTest {
   }
 
   @Test
+  void readsSectionsRegionMarkersAndSpanFolding() throws Exception {
+    Grammar g =
+        Tokens.read(
+            "<grammar id=\"mock\" name=\"Mock\"><folding mode=\"sections\">"
+                + "<section regex=\"#+\"/><section regex=\"=+\" level=\"2\" previous=\"true\"/>"
+                + "<region begin=\"a\" end=\"b\"/></folding><context id=\"main\">"
+                + "<span token=\"string\" begin=\"'\" end=\"'\" multiLine=\"true\" fold=\"false\"/>"
+                + "<span token=\"comment\" begin=\"/\" end=\"/\" multiLine=\"true\"/>"
+                + "</context></grammar>");
+    Grammar.Folding f = g.folding();
+    assertEquals(Grammar.FoldMode.SECTIONS, f.mode());
+    assertEquals(1, f.sections().get(0).level());
+    assertEquals(2, f.sections().get(1).level());
+    assertTrue(f.sections().get(1).previous());
+    assertEquals("a", f.regionBegin().pattern());
+    assertEquals("b", f.regionEnd().pattern());
+    assertEquals(false, ((Grammar.Span) g.contexts().get("main").get(0)).fold());
+    assertTrue(((Grammar.Span) g.contexts().get("main").get(1)).fold());
+  }
+
+  @Test
+  void sectionFoldingWithoutASectionIsInvalid() {
+    assertTrue(
+        invalid(
+                "<grammar id=\"mock\" name=\"Mock\"><folding mode=\"sections\"/>"
+                    + "<context id=\"main\"/></grammar>")
+            .contains("section folding needs a section"));
+  }
+
+  @Test
   void aDoctypeIsRefusedSoNoEntityIsRead() {
     String message =
         invalid(

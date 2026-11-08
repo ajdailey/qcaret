@@ -20,7 +20,9 @@
     <pair open="'" close="'"/>
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$|-&gt;\s*(//.*)?$" decrease="^\s*[})\]]"/>
-  <folding mode="brackets" open="{" close="}"/>
+  <folding mode="brackets" open="{" close="}">
+    <region begin="^[ \t]*//[ \t]*#region\b" end="^[ \t]*//[ \t]*#endregion\b"/>
+  </folding>
   <symbols>
     <symbol kind="enum" regex="\benum\s+class\s+([\p{L}_][\p{L}\p{N}_]*)"/>
     <symbol kind="class" regex="\bclass\s+([\p{L}_][\p{L}\p{N}_]*)"/>

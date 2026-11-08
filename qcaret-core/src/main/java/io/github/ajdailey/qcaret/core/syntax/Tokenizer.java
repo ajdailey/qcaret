@@ -41,6 +41,9 @@ public final class Tokenizer {
   /** Deepest context stack; a push beyond it is skipped. */
   static final int MAX_DEPTH = 256;
 
+  /** Set in a state's span key when any span is open. */
+  private static final int IN_SPAN = 1 << 30;
+
   private final Syntax syntax;
   private final int maxLineChars;
   private final BoundedChars chars = new BoundedChars();
@@ -48,6 +51,7 @@ public final class Tokenizer {
       new IdentityHashMap<Syntax.Combined, Matcher>();
   private final Map<Stack, Integer> ids = new HashMap<Stack, Integer>();
   private final List<Stack> stacks = new ArrayList<Stack>();
+  private int[] foldSpans = new int[16];
   private int[] work = new int[8];
   private Syntax.Combined[] plain = new Syntax.Combined[16];
   private int depth;
@@ -341,8 +345,51 @@ public final class Tokenizer {
       id = stacks.size();
       ids.put(key, id);
       stacks.add(key);
+      if (id == foldSpans.length) {
+        foldSpans = Arrays.copyOf(foldSpans, id * 2);
+      }
+      foldSpans[id] = spans(key.contexts());
     }
     return id;
+  }
+
+  /**
+   * Packs a stack's outermost folding span as {@code depth << 20 | context + 1}, or 0, with {@link
+   * #IN_SPAN} set when any span is open.
+   */
+  private int spans(int[] contexts) {
+    int out = 0;
+    for (int i = contexts.length - 1; i > 0; i--) {
+      Syntax.Context c = syntax.context(contexts[i]);
+      if (c.content != null) {
+        out |= IN_SPAN;
+        if (c.fold) {
+          out = IN_SPAN | (i << 20) | (c.id + 1);
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Returns the outermost open span of a state whose lines fold, as a key that differs between
+   * spans at different stack depths or of different rules.
+   *
+   * @param state a state this tokenizer returned
+   * @return the key, or 0 when no such span is open
+   */
+  public int foldSpan(int state) {
+    return foldSpans[state] & ~IN_SPAN;
+  }
+
+  /**
+   * Reports whether a state is inside a span, such as a comment or a string.
+   *
+   * @param state a state this tokenizer returned
+   * @return true when a span is open
+   */
+  public boolean inSpan(int state) {
+    return (foldSpans[state] & IN_SPAN) != 0;
   }
 
   /**

@@ -7,7 +7,12 @@
     <extension>rej</extension>
     <firstLine>^(?:diff -|Index: |From [0-9a-f]{40} |--- \S)</firstLine>
   </detect>
-  <folding mode="none"/>
+  <folding mode="sections">
+    <section regex="^From [0-9a-f]{40} " level="1"/>
+    <section regex="^(?:diff |Index: )" level="2"/>
+    <section regex="^(?:---|\*\*\*) (?!\d+(?:,\d+)? (?:----|\*\*\*\*)$)" level="3"/>
+    <section regex="^(?:@@|\*{15}$)" level="4"/>
+  </folding>
   <symbols>
     <symbol kind="section" regex="^\+\+\+ (?:[ab]/)?(\S+)"/>
   </symbols>
