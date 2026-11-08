@@ -112,15 +112,73 @@ tries each over the file (`DocumentFiles.load`):
    UTF-16LE file whose first char is U+0000 reads as UTF-32LE.
 2. UTF-16 without BOM: at least 30% zero bytes at one parity and under 5% at
    the other in the first 64 KiB.
-3. Declared: an XML declaration, an HTML `meta charset` or a Python or Emacs
-   coding line in the first two lines, within the first 1 KiB; used only when
-   the whole file decodes strictly with it. A name Java lacks is retried
-   without hyphens (`latin-1`); a declared UTF-16 or UTF-32 is ignored.
-4. The whole file is valid UTF-8 (an empty file is).
-5. The fallback (`encoding.fallback`, windows-1252 by default), or ISO-8859-1
+3. Declared: an XML declaration, an HTML `meta charset` or a coding line
+   (`coding:` or `coding=` in the first two lines, within the first 1 KiB),
+   else a modeline's charset when the caller passes the file's tail (see
+   [Modelines](#modelines)); used only when the whole file decodes strictly
+   with it. A name Java lacks is retried without hyphens (`latin-1`); a declared
+   UTF-16 or UTF-32 is ignored.
+4. Configured: the caller's EditorConfig charset (`LoadOptions.configured`),
+   under the same strict-decode condition.
+5. The whole file is valid UTF-8 (an empty file is).
+6. The fallback (`encoding.fallback`, windows-1252 by default), or ISO-8859-1
    when the fallback does not decode the file strictly.
 
+A BOM or the UTF-16 pattern leaves no other candidate, so a BOM wins over a
+declared or configured charset.
+
 `forced` applies a user's charset, keeping a matching BOM as the file's BOM.
+
+## Per-file settings
+
+`FileSettings.of` combines a file's EditorConfig properties and its modelines,
+a modeline's value replacing EditorConfig's: width, spaces or tabs, line ending,
+charset, `trim_trailing_whitespace` and `insert_final_newline` (the last two
+from EditorConfig only), plus the contributing `.editorconfig` paths and the
+modeline kind. The app applies them ([Per-file
+settings](../../qcaret-app/docs/documents.md#per-file-settings)).
+
+| Property | Width and spaces |
+|---|---|
+| `indent_style = space` | Spaces; width `indent_size`, else `tab_width` |
+| `indent_style = tab` | Tabs; width `tab_width`, else `indent_size` |
+| No `indent_style` | Width `tab_width`, else `indent_size` |
+
+A width outside 1 to 16 is ignored. `charset` is `latin1`, `utf-8`,
+`utf-8-bom`, `utf-16be` or `utf-16le`; `declaredCharset` leaves out UTF-16,
+which detection finds by its BOM or zero bytes, so a UTF-16 value sets only a
+new file's encoding (with a BOM).
+
+### EditorConfig
+
+`EditorConfig.resolve` (`@WorkerThread`) reads `.editorconfig` in the file's
+directory and each parent, up to one with `root = true` or the file system root,
+and applies the matching sections farthest file first, in file order; `unset`
+removes a property. Then the EditorConfig core libraries' defaults apply
+(`indent_size = tab` for tab style, `tab_width` from a numeric `indent_size`).
+
+| Case | Result |
+|---|---|
+| Path | The caller passes the real path; the walk uses its parents as named |
+| `.editorconfig` a symbolic link | Followed |
+| `.editorconfig` a directory, FIFO or device | Skipped unread |
+| Over 256 KiB or 10,000 lines, not UTF-8, unreadable, a line that is not blank, a comment, a section or `key = value` | Contributes nothing, its `root` included; named in `Result.problems` |
+
+`EditorConfigFile.parse` lower-cases keys and the standard properties' values; a
+`#` or `;` inside a value belongs to it. `EditorConfigGlob` compiles a section
+name to a regular expression over the path below the file's directory (glob
+table in its Javadoc): a name without `/` matches at any depth, one with `/` is
+anchored.
+
+### Modelines
+
+`Modelines.parse` reads vim modelines in the first and last 5 lines and Emacs
+file variables (the `-*- -*-` line, on line 2 after a `#!` line, and a
+`Local Variables:` block ending in `End:` in the last 3,000 chars); its
+Javadoc lists the options. vim's values replace Emacs's, and only a recognized
+option makes a modeline count. `Modelines.codingLine` is the coding line rule
+of [detection](#encodings); `TextModelines.read` (`core.document`) parses a
+document's text from its two ends, at most 64 KiB of the first lines.
 
 ## Line endings
 

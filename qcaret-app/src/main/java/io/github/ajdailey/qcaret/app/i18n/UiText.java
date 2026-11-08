@@ -852,6 +852,54 @@ public enum UiText {
   WORKSPACE_RUNS,
   /** Notice: no application opened the file. */
   WORKSPACE_LAUNCH_FAILED,
+  /** Workspace browser menu item. */
+  WORKSPACE_SEARCH_FOLDER,
+  /** Workspace browser menu item. */
+  WORKSPACE_NEW_FILE,
+  /** Workspace browser menu item. */
+  WORKSPACE_NEW_FOLDER,
+  /** Workspace browser menu item. */
+  WORKSPACE_RENAME,
+  /** Workspace browser menu item. */
+  WORKSPACE_DELETE,
+  /** New File window title. */
+  NEW_FILE_TITLE,
+  /** New Folder window title. */
+  NEW_FOLDER_TITLE,
+  /** New File and New Folder field label; the directory. */
+  NEW_ENTRY_MESSAGE,
+  /** Rename window title. */
+  RENAME_TITLE,
+  /** Rename field label; the old name. */
+  RENAME_MESSAGE,
+  /** Refusal: not a single file name; the name. */
+  FILE_NAME_INVALID,
+  /** Refusal: the name is taken; the name. */
+  FILE_EXISTS,
+  /** Refusal: a save, reload or change prompt holds an open document under the entry. */
+  FILE_BUSY,
+  /** Create failed; the name, then the reason. */
+  CREATE_FAILED,
+  /** Rename failed; the name, then the reason. */
+  RENAME_FAILED,
+  /** Delete window title. */
+  DELETE_TITLE,
+  /** Delete prompt for a file; the name. */
+  DELETE_FILE_MESSAGE,
+  /** Delete prompt for a link; the name. */
+  DELETE_LINK_MESSAGE,
+  /** Delete prompt for a folder; the name, its files, its folders. */
+  DELETE_FOLDER_MESSAGE,
+  /** Delete prompt line: open documents with unsaved changes; their names. */
+  DELETE_UNSAVED,
+  /** Delete stopped; the name, the entry that failed, the reason, files and folders left. */
+  DELETE_FAILED,
+  /** Delete refused: the entry cannot be read; the name, then the reason. */
+  DELETE_UNREADABLE,
+  /** Save or reload refused while a browser rename of the file or a folder above it runs. */
+  RENAME_RUNNING,
+  /** Button label. */
+  BUTTON_DELETE,
   /** Notice: a line command dropped its result because the document changed. */
   LINES_STALE,
   /** Command label. */
@@ -1179,7 +1227,15 @@ public enum UiText {
   /** Notice for a page range past the end; takes the page count. */
   PRINT_NO_PAGES,
   /** Notice after a failed job; takes the document name. */
-  PRINT_FAILED;
+  PRINT_FAILED,
+  /** Tab tool tip line naming where the settings came from; takes the sources. */
+  SETTINGS_FROM,
+  /** A modeline as a settings source; takes its kind. */
+  SETTINGS_MODELINE,
+  /** Preferences box for reading .editorconfig files. */
+  PREFERENCES_EDITOR_CONFIG,
+  /** Preferences box for reading modelines. */
+  PREFERENCES_MODELINES;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

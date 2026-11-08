@@ -82,7 +82,9 @@ A launch that failed its handoff to a live primary gets Recent Files alone from
 document's real path (caret, top line, tab settings, forced charset, chosen
 grammar). A closing file's state goes in; an opening file's comes out, in
 `DocumentOpener.Listener.options` for the charset and after the load for the
-rest. Reopen Closed Tab therefore lands where the file was.
+rest. Reopen Closed Tab therefore lands where the file was. A width or
+indentation the file declares replaces the remembered and session tab settings
+([Per-file settings](documents.md#per-file-settings)).
 
 ## Recovery files
 
@@ -113,6 +115,7 @@ last.
 | Ordered quit | The instance directory goes |
 | `quit` with dirty buffers (shutdown hook) | Written, directory kept, offered at the next start |
 | Restore in the dialog | New file written first, then the old one deleted; a failed write keeps the old one until a retry succeeds or the buffer needs no recovery |
+| Rename from the workspace browser | Written again at the next interval with the new path, whatever its revision |
 | Damaged file | Listed, not restorable, kept; Discard is the user's choice |
 | Original cannot be read | Listed as `UNREADABLE`, restorable; the other files of the instance are unaffected |
 | `recovery.keepDays` | Older files in dead directories go at start |

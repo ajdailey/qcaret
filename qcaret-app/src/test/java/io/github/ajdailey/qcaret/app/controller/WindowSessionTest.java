@@ -705,7 +705,9 @@ class WindowSessionTest {
                     o.tabWidth(),
                     o.insertSpaces(),
                     Options.DEFAULTS.rightMargin(),
-                    Options.DEFAULTS.dateFormat())));
+                    Options.DEFAULTS.dateFormat(),
+                    Options.DEFAULTS.editorConfig(),
+                    Options.DEFAULTS.modelines())));
     edit(first, "left");
     ApplicationController second = before.second();
     second.documents().newDocument();

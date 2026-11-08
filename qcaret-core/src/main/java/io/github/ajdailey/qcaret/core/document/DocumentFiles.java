@@ -22,6 +22,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -45,6 +46,9 @@ public final class DocumentFiles {
 
   /** Heap a load's buffers take beyond the text: four read blocks and the char buffers. */
   static final long BUFFER_BYTES = 5L * BLOCK_BYTES;
+
+  /** Bytes at a file's end read for its modelines. */
+  static final int TAIL_BYTES = 4096;
 
   /** Bytes {@link #estimate} reads from the start of a file. */
   static final int SAMPLE_BYTES = 64 * 1024;
@@ -331,7 +335,12 @@ public final class DocumentFiles {
       List<EncodingDetection> candidates =
           options.forced() != null
               ? List.of(EncodingDetector.forced(options.forced(), head.array(), length))
-              : EncodingDetector.candidates(head.array(), length, options.fallback());
+              : EncodingDetector.candidates(
+                  head.array(),
+                  length,
+                  options.modelines() ? tail(channel, size) : null,
+                  options.fallback(),
+                  options.configured());
       if (!options.allowBinary() && everyBinary(candidates, head.array(), length)) {
         throw new BinaryFileException(String.valueOf(file.getFileName()));
       }
@@ -357,6 +366,16 @@ public final class DocumentFiles {
         return reading.finish(new Finished(channel, size, pass, detection, binary, baseline), sink);
       }
     }
+  }
+
+  /** Reads the file's last {@value #TAIL_BYTES} bytes as ISO-8859-1, for the modelines there. */
+  private static String tail(FileChannel channel, long size) throws IOException {
+    long from = Math.max(0, size - TAIL_BYTES);
+    ByteBuffer tail = ByteBuffer.allocate((int) (size - from));
+    while (tail.hasRemaining() && channel.read(tail, from + tail.position()) >= 0) {
+      // Fill the tail.
+    }
+    return new String(tail.array(), 0, tail.position(), StandardCharsets.ISO_8859_1);
   }
 
   private static boolean binary(byte[] head, int length, TextEncoding encoding) {

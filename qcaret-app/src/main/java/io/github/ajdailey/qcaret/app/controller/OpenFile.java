@@ -70,6 +70,9 @@ final class OpenFile {
   /** A change or Reload from Disk prompt is open. */
   boolean changePrompt;
 
+  /** A workspace browser rename of the file or a folder above it runs; Save and reload refuse. */
+  boolean renaming;
+
   OpenFile(Path path, FileStamp baseline) {
     this.path = path;
     this.baseline = baseline;

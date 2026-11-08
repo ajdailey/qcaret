@@ -67,6 +67,13 @@ public interface WorkspaceInput {
    */
   void openInDefaultApplication(WorkspaceNode node);
 
+  /**
+   * Returns the row menu's file operations.
+   *
+   * @return Search in Folder, New File, New Folder, Rename and Delete
+   */
+  WorkspaceFilesInput files();
+
   /** Lists the selected document's directories and selects its row. */
   void revealActive();
 

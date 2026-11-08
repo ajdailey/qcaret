@@ -35,6 +35,8 @@ final class PreferenceKeys {
   static final String HIGHLIGHT_CHARS = "editor.maxHighlightLineChars";
   static final String TAB_WIDTH = "editor.tabWidth";
   static final String INSERT_SPACES = "editor.insertSpaces";
+  static final String EDITOR_CONFIG = "editor.editorConfig";
+  static final String MODELINES = "editor.modelines";
   static final String FONT_SIZE = "editor.fontSize";
   static final String POLL_SECONDS = "file.pollSeconds";
   static final String AUTO_RELOAD = "file.autoReloadClean";
@@ -104,6 +106,8 @@ final class PreferenceKeys {
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
     keys.put(DATE_FORMAT, o.dateFormat());
+    keys.put(EDITOR_CONFIG, Boolean.toString(o.editorConfig()));
+    keys.put(MODELINES, Boolean.toString(o.modelines()));
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -248,7 +252,9 @@ final class PreferenceKeys {
         number(p, TAB_WIDTH, 1, Document.MAX_TAB_WIDTH, d.tabWidth(), file),
         flag(p, INSERT_SPACES, d.insertSpaces(), file),
         number(p, RIGHT_MARGIN, 1, Options.MAX_RIGHT_MARGIN, d.rightMargin(), file),
-        dateFormat(p, DATE_FORMAT, d.dateFormat(), file));
+        dateFormat(p, DATE_FORMAT, d.dateFormat(), file),
+        flag(p, EDITOR_CONFIG, d.editorConfig(), file),
+        flag(p, MODELINES, d.modelines(), file));
   }
 
   private static UiState state(Properties p, Path file) {

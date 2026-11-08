@@ -27,7 +27,9 @@ import org.eclipse.swt.widgets.TreeItem;
  * when the input reports the change. A refill keeps the expanded state of rows that remain. Enter
  * or a double click opens a file, shows more entries on a "more" row, and expands or collapses a
  * directory. One context menu, built on the first right click, offers Open, Open in Default
- * Application, Set as Workspace Folder and Copy Path for the row under the pointer.
+ * Application, Set as Workspace Folder, Copy Path, Search in Folder, New File, New Folder, Rename
+ * and Delete for the row under the pointer, or for the workspace folder over empty space. Delete
+ * and F2 delete and rename the selected row while the tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
   private final Composite root;
@@ -44,7 +46,12 @@ final class WorkspaceDock {
     OPEN,
     OPEN_DEFAULT,
     SET_FOLDER,
-    COPY_PATH
+    COPY_PATH,
+    SEARCH_FOLDER,
+    NEW_FILE,
+    NEW_FOLDER,
+    RENAME,
+    DELETE
   }
 
   /**
@@ -107,7 +114,23 @@ final class WorkspaceDock {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
+            if (event.detail == SWT.MENU_MOUSE
+                && tree.getItem(tree.toControl(event.x, event.y)) == null) {
+              tree.deselectAll();
+            }
             showMenu();
+          }
+        });
+    tree.addListener(
+        SWT.KeyDown,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if ((event.stateMask & SWT.MODIFIER_MASK) == 0
+                && (event.keyCode == SWT.DEL || event.keyCode == SWT.F2)) {
+              event.doit = false;
+              act(event.keyCode == SWT.DEL ? Action.DELETE : Action.RENAME, selected());
+            }
           }
         });
   }
@@ -348,21 +371,50 @@ final class WorkspaceDock {
       menuItem(UiText.WORKSPACE_OPEN_DEFAULT, Action.OPEN_DEFAULT);
       menuItem(UiText.WORKSPACE_SET_FOLDER, Action.SET_FOLDER);
       menuItem(UiText.WORKSPACE_COPY_PATH, Action.COPY_PATH);
+      new MenuItem(menu, SWT.SEPARATOR);
+      menuItem(UiText.WORKSPACE_SEARCH_FOLDER, Action.SEARCH_FOLDER);
+      menuItem(UiText.WORKSPACE_NEW_FILE, Action.NEW_FILE);
+      menuItem(UiText.WORKSPACE_NEW_FOLDER, Action.NEW_FOLDER);
+      menuItem(UiText.WORKSPACE_RENAME, Action.RENAME);
+      menuItem(UiText.WORKSPACE_DELETE, Action.DELETE);
       tree.setMenu(menu);
     }
-    WorkspaceNode node = selected();
-    boolean file = node != null && node.kind() == WorkspaceNode.Kind.FILE;
-    boolean directory = node != null && node.expands();
-    MenuItem[] items = menu.getItems();
-    items[0].setEnabled(file);
-    items[1].setEnabled(file);
-    items[2].setEnabled(directory);
-    items[3].setEnabled(file || directory);
+    WorkspaceNode node = target(selected());
+    for (MenuItem item : menu.getItems()) {
+      if (item.getData() instanceof Action action) {
+        item.setEnabled(enabled(action, node));
+      }
+    }
+  }
+
+  /** Returns the row an action applies to: the given one, or the workspace folder without one. */
+  private WorkspaceNode target(WorkspaceNode node) {
+    return node != null || input == null ? node : input.rootNode();
+  }
+
+  /** Reports whether a row menu item applies to a row; the workspace folder takes no row edits. */
+  private boolean enabled(Action action, WorkspaceNode node) {
+    if (node == null) {
+      return false;
+    }
+    boolean file = node.kind() == WorkspaceNode.Kind.FILE;
+    boolean directory = node.expands();
+    boolean below = !node.equals(input.rootNode());
+    boolean entry = (file || directory || node.kind() == WorkspaceNode.Kind.CYCLE) && below;
+    return switch (action) {
+      case OPEN, OPEN_DEFAULT -> file;
+      case SET_FOLDER -> directory && below;
+      case NEW_FILE, NEW_FOLDER -> directory;
+      case COPY_PATH, SEARCH_FOLDER -> file || directory;
+      case RENAME, DELETE -> entry;
+      default -> true;
+    };
   }
 
   private void menuItem(UiText label, final Action action) {
     MenuItem item = new MenuItem(menu, SWT.PUSH);
     item.setText(label.text());
+    item.setData(action);
     item.addListener(
         SWT.Selection,
         new Listener() {
@@ -382,8 +434,9 @@ final class WorkspaceDock {
       case REVEAL -> input.revealActive();
       case HIDE -> input.hide();
       default -> {
-        if (node != null) {
-          actOn(action, node);
+        WorkspaceNode at = target(node);
+        if (at != null && enabled(action, at)) {
+          actOn(action, at);
         }
       }
     }
@@ -395,6 +448,11 @@ final class WorkspaceDock {
       case OPEN_DEFAULT -> input.openInDefaultApplication(node);
       case SET_FOLDER -> input.setWorkspace(node);
       case COPY_PATH -> input.copyPath(node);
+      case SEARCH_FOLDER -> input.files().searchInFolder(node);
+      case NEW_FILE -> input.files().newFile(node);
+      case NEW_FOLDER -> input.files().newFolder(node);
+      case RENAME -> input.files().rename(node);
+      case DELETE -> input.files().delete(node);
       default -> {
         // The buttons act without a row.
       }
@@ -428,6 +486,11 @@ final class WorkspaceDock {
       case OPEN_DEFAULT -> UiText.WORKSPACE_OPEN_DEFAULT;
       case SET_FOLDER -> UiText.WORKSPACE_SET_FOLDER;
       case COPY_PATH -> UiText.WORKSPACE_COPY_PATH;
+      case SEARCH_FOLDER -> UiText.WORKSPACE_SEARCH_FOLDER;
+      case NEW_FILE -> UiText.WORKSPACE_NEW_FILE;
+      case NEW_FOLDER -> UiText.WORKSPACE_NEW_FOLDER;
+      case RENAME -> UiText.WORKSPACE_RENAME;
+      case DELETE -> UiText.WORKSPACE_DELETE;
     };
   }
 

@@ -290,4 +290,19 @@ class KeymapTest {
     assertEquals("Mod+K Alt+K", overrides.keys().get("shortcut.FIND"));
     assertEquals(overrides, ShortcutOverrides.parse(overrides.keys(), new ArrayList<String>()));
   }
+
+  /** The workspace browser handles plain Delete and F2 itself; a window binding would take them. */
+  @Test
+  void noDefaultWindowBindingTakesPlainDeleteOrF2() {
+    KeyStroke delete = new KeyStroke(0, KeyStroke.DELETE);
+    KeyStroke f2 = new KeyStroke(0, KeyStroke.F1 + 1);
+    for (boolean mac : new boolean[] {false, true}) {
+      for (Binding binding : Keymap.defaults(mac).bindings()) {
+        if (binding.scope() == Binding.Scope.WINDOW) {
+          assertFalse(binding.stroke().equals(delete), binding.toString());
+          assertFalse(binding.stroke().equals(f2), binding.toString());
+        }
+      }
+    }
+  }
 }

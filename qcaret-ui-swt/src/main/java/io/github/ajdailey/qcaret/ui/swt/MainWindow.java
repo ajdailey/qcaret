@@ -233,6 +233,8 @@ public final class MainWindow implements MainView {
   private ResultsDock resultsDock;
   private BookmarksDock bookmarksDock;
   private BookmarkCommentDialog commentDialog;
+  private FileNameDialog fileNameDialog;
+  private DeleteDialog deleteDialog;
   private SearchDialog searchDialog;
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
@@ -2393,6 +2395,25 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public void askFileName(
+      String title, String message, String name, int selectEnd, Consumer<String> answer) {
+    if (shell.isDisposed()) {
+      answer.accept(null);
+      return;
+    }
+    fileNameDialog = new FileNameDialog(shell, title, message, name, selectEnd, answer);
+    fileNameDialog.open();
+  }
+
+  @Override
+  public void askDelete(String message, Runnable delete) {
+    if (!shell.isDisposed()) {
+      deleteDialog = new DeleteDialog(shell, message, delete);
+      deleteDialog.open();
+    }
+  }
+
+  @Override
   public void resultsChanged(boolean structure) {
     if (resultsDock != null && !shell.isDisposed()) {
       resultsDock.refresh(structure);
@@ -2514,6 +2535,24 @@ public final class MainWindow implements MainView {
    */
   BookmarkCommentDialog commentDialog() {
     return commentDialog;
+  }
+
+  /**
+   * Returns the name dialog opened last.
+   *
+   * @return the dialog, or null before one opened
+   */
+  FileNameDialog fileNameDialog() {
+    return fileNameDialog;
+  }
+
+  /**
+   * Returns the delete prompt opened last.
+   *
+   * @return the dialog, or null before one opened
+   */
+  DeleteDialog deleteDialog() {
+    return deleteDialog;
   }
 
   /**

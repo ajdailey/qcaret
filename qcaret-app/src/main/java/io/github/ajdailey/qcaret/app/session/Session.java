@@ -252,5 +252,15 @@ public record Session(
       int tabWidth,
       boolean insertSpaces,
       String selections,
-      int top) {}
+      int top) {
+    /**
+     * Returns this state for another path, as a rename moves it.
+     *
+     * @param moved the file's new real path
+     * @return the state with the new path
+     */
+    public FileState withPath(String moved) {
+      return new FileState(moved, encoding, language, tabWidth, insertSpaces, selections, top);
+    }
+  }
 }

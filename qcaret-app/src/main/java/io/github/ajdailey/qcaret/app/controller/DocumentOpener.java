@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.document.LoadTooLargeException;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
+import io.github.ajdailey.qcaret.core.text.EditorConfig;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -32,10 +33,11 @@ import java.util.function.LongConsumer;
  * reading, the worker estimates the load's heap cost ({@link DocumentFiles#estimate}) and reserves
  * it from the {@link MemoryBudget}; a load the budget cannot hold is refused unread, and a load
  * whose text outgrows the estimate past the budget is refused when it gets there. A loaded document
- * arrives with its rows ({@link DisplayProjection#layout}) and its reservation lowered to the
- * retained cost, which the listener owns from then on. {@link #close} cancels the running loads; a
- * load that finishes after it, on the worker or in a task already posted, drops its document and
- * releases its reservation, so no document reaches a closed window. Each open counts as one {@link
+ * arrives with its rows ({@link DisplayProjection#layout}), the settings its EditorConfig files and
+ * modelines declare ({@link #setSettings}), and its reservation lowered to the retained cost, which
+ * the listener owns from then on. {@link #close} cancels the running loads; a load that finishes
+ * after it, on the worker or in a task already posted, drops its document and releases its
+ * reservation, so no document reaches a closed window. Each open counts as one {@link
  * ActivityIndicator} operation until it ends: unread after {@link Listener#resolved}, refused,
  * failed, loaded, canceled or closed. An unchecked failure at any step reaches {@link
  * Listener#failed}, and goes on to the worker's handler.
@@ -167,6 +169,7 @@ public final class DocumentOpener {
   private int shownPercent;
   private int shownFiles;
   private volatile boolean closed;
+  private volatile FileSettingsReader settings;
 
   /**
    * Creates the opener.
@@ -188,6 +191,16 @@ public final class DocumentOpener {
     this.budget = budget;
     this.activity = activity;
     this.progress = progress;
+  }
+
+  /**
+   * Sets what reads the settings a file declares, before and after its load on the worker; null
+   * reads none.
+   *
+   * @param reader the reader, or null
+   */
+  void setSettings(FileSettingsReader reader) {
+    settings = reader;
   }
 
   /**
@@ -337,7 +350,14 @@ public final class DocumentOpener {
                         }
                       }
                     });
-                LoadedFile loaded = DocumentFiles.load(file, options, reservation, token);
+                FileSettingsReader declared = settings;
+                EditorConfig.Result config =
+                    declared == null ? EditorConfig.Result.NONE : declared.editorConfig(file);
+                LoadOptions with = declared == null ? options : declared.options(options, config);
+                LoadedFile loaded = DocumentFiles.load(file, with, reservation, token);
+                if (declared != null && !loaded.binary()) {
+                  loaded = loaded.withSettings(declared.settings(config, loaded.document().text()));
+                }
                 DisplayProjection.Layout layout =
                     DisplayProjection.layout(loaded.document().text(), 0, token);
                 long reserved = reservation.keep(loaded.retainedBytes());

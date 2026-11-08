@@ -347,7 +347,9 @@ class ConfigStoreTest {
             6,
             true,
             100,
-            "dd.MM.yyyy");
+            "dd.MM.yyyy",
+            true,
+            true);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),

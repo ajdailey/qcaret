@@ -138,6 +138,52 @@ public final class FileIndex {
     return new FileIndex(root, found.toArray(new String[0]), cut[0], reserved[0]);
   }
 
+  /**
+   * Returns this index with one file taken out and one put in, for a file created, renamed or
+   * deleted below the root. The new index charges for the added path; the caller returns this
+   * index's charge when it drops it.
+   *
+   * @param removed a file below the root, or null
+   * @param added a file below the root that the walk would list, or null
+   * @param budget charged for the added path
+   * @return the new index; null when this one is cut or full, a path lies outside the root, or the
+   *     budget refuses, and the caller builds it again
+   */
+  public FileIndex withChange(Path removed, Path added, MemoryBudget budget) {
+    if (cut != Cut.NONE
+        || paths.length >= MAX_FILES
+        || (removed != null && !below(removed))
+        || (added != null && !below(added))) {
+      return null;
+    }
+    String gone = removed == null ? null : relative(root, removed);
+    String put = added == null ? null : relative(root, added);
+    List<String> next = new ArrayList<String>(paths.length + 1);
+    long charge = 0;
+    for (String path : paths) {
+      if (path.equals(gone)) {
+        continue;
+      }
+      if (path.equals(put)) {
+        put = null;
+      }
+      next.add(path);
+      charge += ENTRY_BYTES + 2L * path.length();
+    }
+    if (put != null) {
+      next.add(put);
+      charge += ENTRY_BYTES + 2L * put.length();
+    }
+    if (!budget.reserve(charge)) {
+      return null;
+    }
+    return new FileIndex(root, next.toArray(new String[0]), Cut.NONE, charge);
+  }
+
+  private boolean below(Path file) {
+    return file.startsWith(root) && !file.equals(root);
+  }
+
   /** Joins a file's path elements below the root with {@code /}. */
   private static String relative(Path root, Path file) {
     Path relative = root.relativize(file);

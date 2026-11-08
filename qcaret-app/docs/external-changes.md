@@ -29,7 +29,10 @@ after the fifth wait.
 | No file | Kept, marked missing in the tab and dirty | Same |
 | File back with the same bytes | Missing mark cleared; clean again when the text is unchanged since | Missing mark cleared |
 
-Save of a missing file writes it without a prompt and clears the mark.
+Save of a missing file writes it without a prompt and clears the mark. A
+delete from the workspace browser checks the documents under the deleted entry
+at once; a rename from it moves their watches to the new path
+([Browser file operations](workspace-and-navigation.md#browser-file-operations)).
 
 ## Reload
 

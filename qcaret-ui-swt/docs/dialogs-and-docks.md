@@ -89,7 +89,17 @@ over the folder and a `Tree`.
   that remain.
 - Enter or a double click opens a file, shows more entries on a "more" row and
   toggles a directory.
-- One context menu, built on the first `MenuDetect`, serves every row.
+- One context menu, built on the first `MenuDetect`, serves every row; a
+  right click over empty space clears the selection and the menu acts on the
+  workspace folder. Each item's enablement comes from the row kind, and the
+  folder itself takes no Rename, Delete or Set as Workspace Folder.
+- Plain Delete and F2 delete and rename the selected row from a `KeyDown`
+  listener on the tree. No default window binding uses either key
+  (`KeymapTest`), so the `MainWindow` key filter does not take them, and the
+  editor runs its own F2 binding only with the focus in the editor.
+- `FileNameDialog` asks a name for New File, New Folder and Rename, the old
+  name selected up to its extension. `DeleteDialog` asks before a delete with
+  Cancel as the default button and the focus.
 - The tree is not virtual: GTK's virtual `Tree` is quadratic in a node's child
   count (measured), and a directory shows 500 rows at a time.
 

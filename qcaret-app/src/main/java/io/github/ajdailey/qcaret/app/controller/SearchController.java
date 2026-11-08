@@ -158,6 +158,16 @@ public final class SearchController implements ResultsInput {
    * becomes the text; a selection over several lines makes the selection the scope.
    */
   public void showDialog() {
+    showDialog(null);
+  }
+
+  /**
+   * Opens the HyperSearch dialog as {@link #showDialog()} does, with the scope set to a folder and
+   * its subdirectories when one is given.
+   *
+   * @param folder the folder, or null
+   */
+  void showDialog(Path folder) {
     if (disposed) {
       return;
     }
@@ -187,6 +197,10 @@ public final class SearchController implements ResultsInput {
           parent != null
               ? parent.toString()
               : workspace.root() == null ? "" : workspace.root().toString();
+    }
+    if (folder != null) {
+      scope = SearchScope.TREE;
+      directory = folder.toString();
     }
     SearchForm form =
         new SearchForm(

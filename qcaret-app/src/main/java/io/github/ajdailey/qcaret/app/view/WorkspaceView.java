@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /** The workspace browser dock and the Quick Open popup. Called on the UI thread. */
 public interface WorkspaceView {
@@ -25,6 +26,27 @@ public interface WorkspaceView {
    * @param chain directories below the root, then the row to select
    */
   void revealWorkspace(List<WorkspaceNode> chain);
+
+  /**
+   * Asks for a file or folder name in a one-line field. OK passes the text; Cancel, Esc and closing
+   * pass null. The answer runs once.
+   *
+   * @param title the window title
+   * @param message the line above the field
+   * @param name the field's text, selected up to {@code selectEnd}
+   * @param selectEnd the end of the selection in {@code name}
+   * @param answer receives the text, or null
+   */
+  void askFileName(
+      String title, String message, String name, int selectEnd, Consumer<String> answer);
+
+  /**
+   * Asks before a permanent delete, with Cancel the default.
+   *
+   * @param message what goes, and that it cannot be undone
+   * @param delete runs when the user confirms
+   */
+  void askDelete(String message, Runnable delete);
 
   /**
    * Shows the Quick Open popup: a filter field over the rows {@link QuickOpenInput#rows} returns.

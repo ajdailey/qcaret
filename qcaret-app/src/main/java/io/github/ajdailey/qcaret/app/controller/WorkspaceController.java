@@ -34,7 +34,8 @@ import java.util.function.Consumer;
  * <p>The browser lists a directory on a {@code qcaret-io-} worker the first time it expands ({@link
  * DirectoryListing}, {@code workspace.excludedDirectories}), and shows {@value #PAGE} entries at a
  * time behind a "more" row. Refresh lists every listed directory again, keeping the old rows until
- * the new ones arrive, and rebuilds the index.
+ * the new ones arrive, and rebuilds the index. The row menu's file operations run in {@link
+ * WorkspaceFiles}.
  *
  * <p>The file index ({@link FileIndex}, at most {@link FileIndex#MAX_FILES} files, charged to the
  * {@link MemoryBudget}) is built on a {@code qcaret-search-} worker whenever the folder changes and
@@ -69,6 +70,7 @@ public final class WorkspaceController implements WorkspaceInput {
   private FileIndex index;
   private CancellationToken indexing;
   private Path revealing;
+  private WorkspaceFiles files;
 
   /** One directory's listing as the browser holds it. */
   private static final class Listing {
@@ -203,9 +205,27 @@ public final class WorkspaceController implements WorkspaceInput {
     buildIndex();
   }
 
+  /** Sets what runs the row operations. */
+  void setFiles(WorkspaceFiles value) {
+    files = value;
+  }
+
+  @Override
+  public WorkspaceFiles files() {
+    return files;
+  }
+
+  /** Returns the entries the browser and the index leave out. */
+  WalkRules rules() {
+    return rules;
+  }
+
   /** Stops the index build and the listings and returns the index's charge. */
   void dispose() {
     disposed = true;
+    if (files != null) {
+      files.dispose();
+    }
     for (Listing listing : listings.values()) {
       cancel(listing);
     }
@@ -640,6 +660,53 @@ public final class WorkspaceController implements WorkspaceInput {
   @Override
   public void hide() {
     setShown(false);
+  }
+
+  /**
+   * Brings the browser and the index in line after a row operation: lists the directory again,
+   * drops the listings under a removed folder, selects a row once listed, and changes the index in
+   * place for one file or builds it again.
+   *
+   * @param directory the directory that changed
+   * @param removed the entry that went, or null
+   * @param added the file the index gains, or null
+   * @param folder true when a folder or a link changed, which builds the index again
+   * @param select the row to select, or null
+   */
+  void changed(Path directory, Path removed, Path added, boolean folder, Path select) {
+    if (disposed || root == null) {
+      return;
+    }
+    if (removed != null) {
+      for (Path listed : new ArrayList<Path>(listings.keySet())) {
+        if (listed.startsWith(removed)) {
+          cancel(listings.remove(listed));
+        }
+      }
+    }
+    Listing listing = listings.get(directory);
+    if (listing != null) {
+      list(directory, listing);
+    }
+    if (select != null && select.startsWith(root)) {
+      revealing = select;
+      if (listing == null) {
+        reveal();
+      }
+    }
+    FileIndex next =
+        folder || index == null || indexing != null
+            ? null
+            : index.withChange(removed, added, budget);
+    if (next == null) {
+      buildIndex();
+    } else {
+      budget.release(index.charged());
+      index = next;
+      for (Runnable listener : new ArrayList<Runnable>(indexListeners)) {
+        listener.run();
+      }
+    }
   }
 
   // The file index.

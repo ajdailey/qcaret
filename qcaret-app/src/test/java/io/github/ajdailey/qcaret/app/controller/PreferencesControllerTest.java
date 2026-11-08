@@ -115,7 +115,9 @@ class PreferencesControllerTest {
         field.equals("themeFile") ? value : f.themeFile(),
         field.equals("fontFamily") ? value : f.fontFamily(),
         field.equals("rightMargin") ? value : f.rightMargin(),
-        field.equals("dateFormat") ? value : f.dateFormat());
+        field.equals("dateFormat") ? value : f.dateFormat(),
+        f.editorConfig(),
+        f.modelines());
   }
 
   @Test
@@ -145,7 +147,9 @@ class PreferencesControllerTest {
                 f.themeFile(),
                 f.fontFamily(),
                 f.rightMargin(),
-                f.dateFormat()));
+                f.dateFormat(),
+                f.editorConfig(),
+                f.modelines()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -169,7 +173,9 @@ class PreferencesControllerTest {
                 f.themeFile(),
                 f.fontFamily(),
                 f.rightMargin(),
-                f.dateFormat())));
+                f.dateFormat(),
+                f.editorConfig(),
+                f.modelines())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -265,7 +271,9 @@ class PreferencesControllerTest {
                 f.themeFile(),
                 f.fontFamily(),
                 f.rightMargin(),
-                f.dateFormat())));
+                f.dateFormat(),
+                f.editorConfig(),
+                f.modelines())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -375,7 +383,9 @@ class PreferencesControllerTest {
                 f.themeFile(),
                 f.fontFamily(),
                 f.rightMargin(),
-                f.dateFormat())));
+                f.dateFormat(),
+                f.editorConfig(),
+                f.modelines())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -412,7 +422,9 @@ class PreferencesControllerTest {
         o.tabWidth(),
         o.insertSpaces(),
         Options.DEFAULTS.rightMargin(),
-        Options.DEFAULTS.dateFormat());
+        Options.DEFAULTS.dateFormat(),
+        Options.DEFAULTS.editorConfig(),
+        Options.DEFAULTS.modelines());
   }
 
   @Test

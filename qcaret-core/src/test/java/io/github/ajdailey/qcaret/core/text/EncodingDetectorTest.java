@@ -143,4 +143,39 @@ class EncodingDetectorTest {
     byte[] bom = {(byte) 0xef, (byte) 0xbb, (byte) 0xbf, 'a'};
     assertEquals(1, EncodingDetector.candidates(bom, 4, StandardCharsets.UTF_8).size());
   }
+
+  private static List<EncodingDetection> candidates(byte[] data, boolean tail, Charset configured) {
+    String end = tail ? new String(data, StandardCharsets.ISO_8859_1) : null;
+    return EncodingDetector.candidates(data, data.length, end, CP1252, configured);
+  }
+
+  @Test
+  void aConfiguredCharsetComesAfterADeclaredOneAndBeforeUtf8() {
+    byte[] data = "caf\u00e9\n".getBytes(StandardCharsets.UTF_8);
+    List<EncodingDetection> c = candidates(data, false, StandardCharsets.ISO_8859_1);
+    assertDetected("ISO-8859-1", false, DetectionReason.CONFIGURED, c.get(0));
+    assertDetected("UTF-8", false, DetectionReason.UTF8_VALID, c.get(1));
+    byte[] declared = "# coding: windows-1252\n".getBytes(StandardCharsets.US_ASCII);
+    c = candidates(declared, false, StandardCharsets.ISO_8859_1);
+    assertDetected("windows-1252", false, DetectionReason.DECLARED, c.get(0));
+    assertDetected("ISO-8859-1", false, DetectionReason.CONFIGURED, c.get(1));
+  }
+
+  @Test
+  void aByteOrderMarkWinsOverAConfiguredCharset() {
+    byte[] data = bytes(0xef, 0xbb, 0xbf, 'a');
+    List<EncodingDetection> c = candidates(data, true, StandardCharsets.ISO_8859_1);
+    assertEquals(1, c.size());
+    assertDetected("UTF-8", true, DetectionReason.BOM, c.get(0));
+  }
+
+  @Test
+  void aModelineAtTheEndDeclaresOnlyWhenTheTailIsRead() {
+    byte[] data =
+        ("x\n".repeat(50) + "# vim: set fenc=latin1 :\n").getBytes(StandardCharsets.US_ASCII);
+    assertDetected(
+        "ISO-8859-1", false, DetectionReason.DECLARED, candidates(data, true, null).get(0));
+    assertDetected(
+        "UTF-8", false, DetectionReason.UTF8_VALID, candidates(data, false, null).get(0));
+  }
 }

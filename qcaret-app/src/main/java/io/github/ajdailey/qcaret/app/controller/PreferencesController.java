@@ -85,7 +85,9 @@ final class PreferencesController implements PreferencesInput {
         p.appearance().themeFile(),
         p.appearance().fontFamily(),
         Integer.toString(o.rightMargin()),
-        o.dateFormat());
+        o.dateFormat(),
+        o.editorConfig(),
+        o.modelines());
   }
 
   @Override
@@ -225,7 +227,9 @@ final class PreferencesController implements PreferencesInput {
                     tabWidth.value(),
                     form.insertSpaces(),
                     margin.value(),
-                    dateFormat));
+                    dateFormat,
+                    form.editorConfig(),
+                    form.modelines()));
     boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,

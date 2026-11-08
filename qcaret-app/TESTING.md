@@ -65,6 +65,8 @@ of a file without write permission skip where the user writes every file.
 | `FileCommandsTest` | Reload from Disk (clean, dirty with both answers, deleted), Recently Closed, Automatic Detection past a forced and a remembered charset, Tab Width > Other, the tab defaults against saved state, the title, a drop, Esc on a sort and a comparison |
 | `EditingSettingsTest` | Save All, Reopen Closed Tab, Read-Only, the tab settings, the Go to Line prompt |
 | `EncodingChoicesTest`, `LineConversionTest` | The charset list; the line-ending conversion |
+| `FileSettingsControllerTest` | `.editorconfig` and modeline settings through open, the tool tip, the precedence table over remembered state and Preferences, the save cleanup as one undo step and recomputed after an edit, Esc during it, `false` values, a forced windows-1252 file past three read blocks trimmed and saved, CR, LF, CR LF, mixed and break-free files with `end_of_line`, a BOM over `charset`, a new UTF-16LE CR LF file, Save As to another directory and Reopen with Encoding reading again, each switch off |
+| `SaveCleanupTest` | The trim and final-newline table, a text needing no edit |
 
 ### External changes
 
@@ -128,6 +130,7 @@ after the change.
 | `QuickOpenTest` | `:line` and `:line:column` parsing, name matches before path matches and shorter paths first, an open document listed once and first, a file opened at a line and column, Switch Document, an index over 2,000 files matched on a worker |
 | `NavigationHistoryTest` | Go to Line and Next Bookmark positions following an insert, a jump after Go Back dropping the positions ahead, plain caret moves recording nothing, a tab switch recorded once, a closed file reopened at its line with an untitled document skipped, a deleted file dropped with a notice, the 100-position limit |
 | `RecentFilesTest` | Newest first, a reopen moving a file up, a file opened through a link and its target as one entry, the 20-file limit, Clear |
+| `WorkspaceFilesTest` | Search in Folder, New File, New Folder, Rename and Delete through the controller: refused names, no Rename or Delete on the root, a case-only rename of an open document, a folder rename moving open dirty documents, closed-file state and the recovery file, Save and Reload refused while a rename runs, a rename reading the new name's per-file settings, a save refused during a rename running no cleanup, a folder delete with its counts leaving a dirty document missing, a file delete leaving the index, a link to an outside folder deleted alone |
 
 ### Other classes
 

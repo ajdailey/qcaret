@@ -27,6 +27,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param fontFamily the editor font family; empty for the platform's monospace font
  * @param rightMargin the right margin line's column
  * @param dateFormat Insert Date and Time's first format
+ * @param editorConfig the box making documents take {@code .editorconfig} settings
+ * @param modelines the box making documents take modeline settings
  */
 public record PreferencesForm(
     String completionChars,
@@ -48,7 +50,9 @@ public record PreferencesForm(
     String themeFile,
     String fontFamily,
     String rightMargin,
-    String dateFormat) {
+    String dateFormat,
+    boolean editorConfig,
+    boolean modelines) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

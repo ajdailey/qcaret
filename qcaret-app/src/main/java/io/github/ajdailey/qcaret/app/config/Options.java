@@ -34,6 +34,9 @@ import java.time.format.DateTimeFormatter;
  * @param rightMargin {@code editor.rightMargin}: the column the right margin line sits left of
  * @param dateFormat {@code editor.dateFormat}: Insert Date and Time's first format, a {@link
  *     DateTimeFormatter} pattern
+ * @param editorConfig {@code editor.editorConfig}: documents take the settings of {@code
+ *     .editorconfig} files
+ * @param modelines {@code editor.modelines}: documents take the settings of vim and Emacs modelines
  */
 public record Options(
     int completionChars,
@@ -51,7 +54,9 @@ public record Options(
     int tabWidth,
     boolean insertSpaces,
     int rightMargin,
-    String dateFormat) {
+    String dateFormat,
+    boolean editorConfig,
+    boolean modelines) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -128,7 +133,9 @@ public record Options(
           Document.DEFAULT_TAB_WIDTH,
           false,
           80,
-          "yyyy-MM-dd HH:mm");
+          "yyyy-MM-dd HH:mm",
+          true,
+          true);
 
   /** Checks the components. */
   public Options {
@@ -225,7 +232,9 @@ public record Options(
         tabWidth,
         insertSpaces,
         rightMargin,
-        dateFormat);
+        dateFormat,
+        editorConfig,
+        modelines);
   }
 
   /**
@@ -251,6 +260,8 @@ public record Options(
         tabWidth,
         insertSpaces,
         rightMargin,
-        dateFormat);
+        dateFormat,
+        editorConfig,
+        modelines);
   }
 }

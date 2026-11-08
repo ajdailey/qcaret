@@ -129,7 +129,9 @@ class EditorAdditionsTest {
         f.themeFile(),
         f.fontFamily(),
         margin,
-        format);
+        format,
+        f.editorConfig(),
+        f.modelines());
   }
 
   // Document statistics.

@@ -249,7 +249,9 @@ class FileCommandsTest {
                     width,
                     spaces,
                     Options.DEFAULTS.rightMargin(),
-                    Options.DEFAULTS.dateFormat())));
+                    Options.DEFAULTS.dateFormat(),
+                    Options.DEFAULTS.editorConfig(),
+                    Options.DEFAULTS.modelines())));
   }
 
   @Test

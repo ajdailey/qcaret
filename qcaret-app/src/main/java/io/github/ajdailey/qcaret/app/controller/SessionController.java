@@ -364,6 +364,31 @@ final class SessionController implements DocumentController.FileMemory {
     return files.get(path.toString());
   }
 
+  /** Moves the state of the files under a renamed entry to their new paths, keeping the order. */
+  void moved(PathMove move) {
+    List<Session.FileState> states = new ArrayList<Session.FileState>(files.values());
+    List<Session.FileState> next = new ArrayList<Session.FileState>(states.size());
+    boolean any = false;
+    for (Session.FileState state : states) {
+      Path path;
+      try {
+        path = Path.of(state.path());
+      } catch (InvalidPathException e) {
+        path = null;
+      }
+      Path moved = move.real(path);
+      any |= moved != path;
+      next.add(moved == path ? state : state.withPath(moved.toString()));
+    }
+    if (any) {
+      files.clear();
+      for (Session.FileState state : next) {
+        files.put(state.path(), state);
+      }
+      changed();
+    }
+  }
+
   @Override
   public void remember(Session.FileState state) {
     files.put(state.path(), state);

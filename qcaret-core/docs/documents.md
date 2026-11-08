@@ -135,7 +135,10 @@ their `CancellationToken` per block.
 Load holds no copy of the file (at most `Integer.MAX_VALUE - 8` bytes). The
 first 64 KiB give the forced charset or `EncodingDetector.candidates` and the
 binary check; `BinaryFileException` for a binary file unless
-`LoadOptions.asBinary()` (ISO-8859-1, which maps every byte).
+`LoadOptions.asBinary()` (ISO-8859-1, which maps every byte). With
+`LoadOptions.modelines` the last 4 KiB are read too, for a modeline charset, and
+`LoadOptions.configured` is the EditorConfig charset; both reach detection only
+without a forced charset.
 
 Each candidate takes one `LoadPass`: 1 MiB blocks are digested, decoded
 strictly into a `DocumentBuilder` (rope leaves and line-ending counts) and the

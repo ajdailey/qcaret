@@ -161,6 +161,9 @@ public final class ApplicationController {
         HyperSearch.Limits.DEFAULTS.withMaxLineChars(options.searchMaxLineChars());
     this.search =
         new SearchController(documents, workspace, workers, ui, view, budget, limits, settings);
+    workspace.setFiles(
+        new WorkspaceFiles(
+            workspace, view, workers, ui, documents, recentFiles, set.session(), search));
     this.replace =
         new ReplaceController(
             documents,
@@ -193,6 +196,7 @@ public final class ApplicationController {
     documents.setCompletionChars(options.completionChars());
     documents.setAutoClose(options.autoClose());
     documents.setTabDefaults(options.tabWidth(), options.insertSpaces());
+    documents.setFileSettings(options.editorConfig(), options.modelines());
     documents.setMaxHighlightLineChars(options.maxHighlightLineChars());
     documents.setPollSeconds(options.pollSeconds());
     documents.setAutoReloadClean(options.autoReloadClean());
@@ -237,6 +241,7 @@ public final class ApplicationController {
       view.setFontFamily(after.appearance().fontFamily());
     }
     documents.setTabDefaults(now.tabWidth(), now.insertSpaces());
+    documents.setFileSettings(now.editorConfig(), now.modelines());
     if (now.pollSeconds() != old.pollSeconds()) {
       documents.setPollSeconds(now.pollSeconds());
     }

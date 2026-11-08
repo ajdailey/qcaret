@@ -48,6 +48,14 @@ final class RecentFiles {
     view.documentStateChanged();
   }
 
+  /** Moves the entries under a renamed entry, keeping their order. */
+  void moved(PathMove move) {
+    for (int i = 0; i < paths.size(); i++) {
+      paths.set(i, move.real(paths.get(i)));
+    }
+    view.documentStateChanged();
+  }
+
   /** Returns the files, newest first. */
   List<Path> paths() {
     return List.copyOf(paths);

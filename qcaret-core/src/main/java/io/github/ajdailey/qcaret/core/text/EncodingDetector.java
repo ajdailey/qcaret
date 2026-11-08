@@ -6,7 +6,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,11 +16,11 @@ import java.util.regex.Pattern;
 /**
  * Chooses the encoding of a whole file. Order: a BOM (UTF-8, UTF-32 LE/BE, UTF-16 LE/BE), the
  * UTF-16 zero-byte pattern in the first {@value #SAMPLE_BYTES} bytes, a declared charset (XML
- * declaration, HTML meta charset, a Python or Emacs coding line in the first two lines) that
- * decodes the whole file strictly, valid UTF-8, then the fallback, or ISO-8859-1 when the fallback
- * does not decode the file strictly. ISO-8859-1 maps every byte. The UTF-32LE BOM {@code FF FE 00
- * 00} is checked before the UTF-16LE BOM it starts with, so a UTF-16LE file whose first char is
- * U+0000 is detected as UTF-32LE.
+ * declaration, HTML meta charset, a coding line or a modeline read by {@link Modelines}) that
+ * decodes the whole file strictly, a configured charset (EditorConfig) that does, valid UTF-8, then
+ * the fallback, or ISO-8859-1 when the fallback does not decode the file strictly. ISO-8859-1 maps
+ * every byte. The UTF-32LE BOM {@code FF FE 00 00} is checked before the UTF-16LE BOM it starts
+ * with, so a UTF-16LE file whose first char is U+0000 is detected as UTF-32LE.
  *
  * <p>UTF-16 pattern: at least {@value #UTF16_ZERO_PERCENT}% of the sampled bytes at one parity are
  * zero and under {@value #UTF16_OTHER_PERCENT}% at the other; zeros at odd offsets mean
@@ -49,7 +48,6 @@ public final class EncodingDetector {
       Pattern.compile(
           "<meta[^>]{0,200}?charset\\s*=\\s*[\"']?([A-Za-z0-9._:-]{1,40})",
           Pattern.CASE_INSENSITIVE);
-  private static final Pattern CODING = Pattern.compile("coding[:=]\\s*([-\\w.]{1,40})");
 
   private EncodingDetector() {}
 
@@ -85,6 +83,25 @@ public final class EncodingDetector {
    * @return the candidates, each charset once, never empty
    */
   public static List<EncodingDetection> candidates(byte[] head, int length, Charset fallback) {
+    return candidates(head, length, null, fallback, null);
+  }
+
+  /**
+   * Lists the encodings as {@link #candidates(byte[], int, Charset)} does, with the modelines at
+   * the file's end and a configured charset. A modeline's charset counts as declared; the
+   * configured charset comes after a declared one and before UTF-8. A BOM or the UTF-16 pattern
+   * still leaves the only candidate.
+   *
+   * @param head the file's first bytes, as for {@link #candidates(byte[], int, Charset)}
+   * @param length the head's length
+   * @param tail the file's last bytes read as ISO-8859-1, or null to read no modeline but the
+   *     coding line
+   * @param fallback used when no other rule matches
+   * @param configured the EditorConfig charset, or null
+   * @return the candidates, each charset once, never empty
+   */
+  public static List<EncodingDetection> candidates(
+      byte[] head, int length, String tail, Charset fallback, Charset configured) {
     TextEncoding bom = bom(head, length);
     if (bom != null) {
       return List.of(new EncodingDetection(bom, DetectionReason.BOM));
@@ -94,9 +111,12 @@ public final class EncodingDetector {
       return List.of(new EncodingDetection(utf16, DetectionReason.UTF16_PATTERN));
     }
     List<EncodingDetection> candidates = new ArrayList<EncodingDetection>(4);
-    Charset declared = declared(head, length);
+    Charset declared = declared(head, length, tail);
     if (declared != null) {
       add(candidates, declared, DetectionReason.DECLARED);
+    }
+    if (configured != null) {
+      add(candidates, configured, DetectionReason.CONFIGURED);
     }
     add(candidates, StandardCharsets.UTF_8, DetectionReason.UTF8_VALID);
     add(candidates, fallback, DetectionReason.FALLBACK);
@@ -231,7 +251,7 @@ public final class EncodingDetector {
   }
 
   /** Returns the charset an ASCII-compatible declaration names, or null. */
-  private static Charset declared(byte[] bytes, int length) {
+  private static Charset declared(byte[] bytes, int length, String tail) {
     String head =
         new String(bytes, 0, Math.min(length, DECLARATION_BYTES), StandardCharsets.ISO_8859_1);
     String name = null;
@@ -242,46 +262,21 @@ public final class EncodingDetector {
     } else if (html.find()) {
       name = html.group(1);
     } else {
-      Matcher coding = CODING.matcher(firstLines(head, 2));
-      if (coding.find()) {
-        name = coding.group(1);
-      }
+      name = Modelines.codingLine(head);
     }
-    if (name == null) {
+    Charset charset = name == null ? null : Modelines.charset(name);
+    if (charset == null && tail != null) {
+      String start = new String(bytes, 0, length, StandardCharsets.ISO_8859_1);
+      charset = Modelines.parse(start, tail).charset();
+    }
+    if (charset == null) {
       return null;
     }
-    // Python spells some charsets with a hyphen Java lacks: latin-1 for latin1.
-    if (!supported(name)) {
-      name = name.replace("-", "");
-      if (!supported(name)) {
-        return null;
-      }
-    }
-    Charset charset = Charset.forName(name);
     // A declaration readable as ASCII rules out the wide encodings it might name.
     if (charset.name().toUpperCase(Locale.ROOT).startsWith("UTF-16")
         || charset.name().toUpperCase(Locale.ROOT).startsWith("UTF-32")) {
       return null;
     }
     return charset;
-  }
-
-  private static boolean supported(String name) {
-    try {
-      return Charset.isSupported(name);
-    } catch (IllegalCharsetNameException e) {
-      return false;
-    }
-  }
-
-  private static String firstLines(String head, int lines) {
-    int end = 0;
-    for (int i = 0; i < lines && end >= 0; i++) {
-      int lf = head.indexOf('\n', end);
-      int cr = head.indexOf('\r', end);
-      int next = lf < 0 ? cr : cr < 0 ? lf : Math.min(lf, cr);
-      end = next < 0 ? -1 : next + 1;
-    }
-    return end < 0 ? head : head.substring(0, end);
   }
 }

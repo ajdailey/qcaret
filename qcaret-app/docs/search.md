@@ -53,7 +53,7 @@ its scope, or without a directory shows a message instead.
 |---|---|
 | Current document, Selection | The selected document's snapshot; Selection only inside the focused view's selections |
 | Open documents | Every open document's snapshot, binary views left out |
-| Workspace folder, Directory and subdirectories | The folder's tree through `FileSearch`; Directory reads its files only |
+| Workspace folder, Directory and subdirectories | The folder's tree through `FileSearch`; Directory reads its files only. The workspace browser's Search in Folder opens the dialog on Directory and subdirectories |
 
 ### Open documents in folder scopes
 

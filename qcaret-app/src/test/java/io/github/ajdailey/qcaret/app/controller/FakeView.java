@@ -863,6 +863,30 @@ final class FakeView implements MainView {
     revealedChain = chain;
   }
 
+  String fileNameAsked;
+  String fileNameInitial;
+  int fileNameSelectEnd;
+  Consumer<String> fileNameAnswer;
+  String deleteAsked;
+  Runnable deleteAccept;
+
+  @Override
+  public void askFileName(
+      String title, String message, String name, int selectEnd, Consumer<String> answer) {
+    ui.checkUiThread();
+    fileNameAsked = title + ": " + message;
+    fileNameInitial = name;
+    fileNameSelectEnd = selectEnd;
+    fileNameAnswer = answer;
+  }
+
+  @Override
+  public void askDelete(String message, Runnable delete) {
+    ui.checkUiThread();
+    deleteAsked = message;
+    deleteAccept = delete;
+  }
+
   @Override
   public void showQuickOpen(QuickOpenInput input) {
     ui.checkUiThread();

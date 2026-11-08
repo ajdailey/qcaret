@@ -630,7 +630,9 @@ class RecoveryControllerTest {
         o.tabWidth(),
         o.insertSpaces(),
         Options.DEFAULTS.rightMargin(),
-        Options.DEFAULTS.dateFormat());
+        Options.DEFAULTS.dateFormat(),
+        Options.DEFAULTS.editorConfig(),
+        Options.DEFAULTS.modelines());
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

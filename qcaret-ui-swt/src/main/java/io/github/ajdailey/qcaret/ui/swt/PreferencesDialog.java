@@ -56,6 +56,8 @@ final class PreferencesDialog {
   private Button insertSpaces;
   private Text rightMargin;
   private Text dateFormat;
+  private Button editorConfig;
+  private Button modelines;
   private Text maxHighlightLineChars;
   private Text pollSeconds;
   private Button autoReloadClean;
@@ -172,6 +174,8 @@ final class PreferencesDialog {
     insertSpaces = check(page, UiText.PREFERENCES_INSERT_SPACES);
     rightMargin = field(page, UiText.PREFERENCES_RIGHT_MARGIN);
     dateFormat = field(page, UiText.PREFERENCES_DATE_FORMAT);
+    editorConfig = check(page, UiText.PREFERENCES_EDITOR_CONFIG);
+    modelines = check(page, UiText.PREFERENCES_MODELINES);
   }
 
   private void files(Composite page) {
@@ -370,6 +374,8 @@ final class PreferencesDialog {
     insertSpaces.setSelection(form.insertSpaces());
     rightMargin.setText(form.rightMargin());
     dateFormat.setText(form.dateFormat());
+    editorConfig.setSelection(form.editorConfig());
+    modelines.setSelection(form.modelines());
     pollSeconds.setText(form.pollSeconds());
     autoReloadClean.setSelection(form.autoReloadClean());
     recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
@@ -409,7 +415,9 @@ final class PreferencesDialog {
         chosen(themeFile),
         chosen(fontFamily),
         rightMargin.getText(),
-        dateFormat.getText());
+        dateFormat.getText(),
+        editorConfig.getSelection(),
+        modelines.getSelection());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */

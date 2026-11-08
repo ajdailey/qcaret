@@ -49,6 +49,8 @@ import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
+import io.github.ajdailey.qcaret.core.text.EditorConfig;
+import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -191,9 +193,10 @@ public final class DocumentController {
   private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
   private boolean defaultInsertSpaces;
   private long opens;
+  private final DocumentSettings declared;
 
   /** One open document and its tab. */
-  private final class OpenDocument implements DocumentListener {
+  private final class OpenDocument implements DocumentListener, DocumentSettings.Tab {
     final Document document;
     final String bufferId;
     String untitled;
@@ -222,6 +225,8 @@ public final class DocumentController {
     /** The number of the newest open whose callback reached this tab. */
     long landed;
 
+    final DocumentSettings.State settings = new DocumentSettings.State();
+
     OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
       this.document = document;
       this.file = new OpenFile(path, baseline);
@@ -249,6 +254,7 @@ public final class DocumentController {
       this.syntax = from.syntax;
       this.grammar = from.grammar;
       this.manualGrammar = from.manualGrammar;
+      this.settings.settings = from.settings.settings;
     }
 
     String name() {
@@ -268,8 +274,46 @@ public final class DocumentController {
         if (file.missing) {
           title = UiText.TAB_MISSING.format(title);
         }
-        tab.setTitle(title, file.path == null ? name : file.path.toString());
+        tab.setTitle(
+            title,
+            DocumentSettings.toolTip(file.path == null ? name : file.path.toString(), settings));
       }
+    }
+
+    @Override
+    public Document document() {
+      return document;
+    }
+
+    @Override
+    public OpenFile file() {
+      return file;
+    }
+
+    @Override
+    public boolean closed() {
+      return closed;
+    }
+
+    @Override
+    public SelectionModel selections() {
+      return editor.selections();
+    }
+
+    @Override
+    public DocumentSettings.State declared() {
+      return settings;
+    }
+
+    @Override
+    public void setTabSettings(int tabWidth, boolean insertSpaces) {
+      DocumentController.this.setTabSettings(this, tabWidth, insertSpaces);
+    }
+
+    @Override
+    public void settingsChanged() {
+      updateTitle();
+      view.documentStateChanged();
     }
 
     @Override
@@ -429,6 +473,9 @@ public final class DocumentController {
       if (restoring != null) {
         applyTab(d, restoring.tab());
       }
+      if (file.settings().any()) {
+        declared.apply(d, file.settings());
+      }
     }
 
     /**
@@ -524,6 +571,7 @@ public final class DocumentController {
                 documents.size(),
                 false);
         watch(d, path.normalize(), null);
+        declared.readForNewFile(d, path);
         if (then != null) {
           then.accept(d.editor);
         }
@@ -577,6 +625,7 @@ public final class DocumentController {
     this.view = view;
     this.budget = budget;
     this.options = options;
+    this.declared = new DocumentSettings(workers, ui, view);
     this.changes =
         new ExternalChanges(
             workers,
@@ -1181,6 +1230,8 @@ public final class DocumentController {
 
   /** Resolves a Save As target's real path on a worker, then writes it. */
   private void saveAsTarget(final OpenDocument d, final Path target, final SaveEnd end) {
+    final FileSettingsReader reader = declared.reader();
+    final TextSnapshot text = d.document.text();
     boolean started =
         workers.tryStart(
             Workers.Kind.IO,
@@ -1188,11 +1239,12 @@ public final class DocumentController {
               @Override
               public void run() {
                 final Path real = realFile(target);
+                final FileSettings found = reader == null ? null : reader.read(real, text);
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
-                        targetResolved(d, target, real, end);
+                        targetResolved(d, target, real, found, end);
                       }
                     });
               }
@@ -1210,14 +1262,18 @@ public final class DocumentController {
    * ends as written.
    */
   private void targetResolved(
-      final OpenDocument d, final Path target, Path real, final SaveEnd end) {
+      final OpenDocument d,
+      final Path target,
+      Path real,
+      final FileSettings found,
+      final SaveEnd end) {
     if (d.closed) {
       end.stop();
       return;
     }
     final OpenDocument other = holderOfFile(d, real);
     if (other == null) {
-      write(d, target, d.file.path, d.file.baseline, end);
+      writeAs(d, target, found, end);
       return;
     }
     final Document held = other.document;
@@ -1250,7 +1306,7 @@ public final class DocumentController {
             },
             end.stopped());
     if (!held.isDirty()) {
-      write(d, target, d.file.path, d.file.baseline, closeOther);
+      writeAs(d, target, found, closeOther);
       return;
     }
     view.askReplaceOpenFile(
@@ -1261,11 +1317,17 @@ public final class DocumentController {
             if (d.closed) {
               end.stop();
             } else {
-              write(d, target, d.file.path, d.file.baseline, closeOther);
+              writeAs(d, target, found, closeOther);
             }
           }
         },
         end::stop);
+  }
+
+  /** Writes a Save As target with the settings read for it, applied once the write succeeds. */
+  private void writeAs(OpenDocument d, Path target, FileSettings found, SaveEnd end) {
+    d.settings.pending = found;
+    write(d, target, d.file.path, d.file.baseline, end);
   }
 
   /** Returns the tab of a file other than {@code d}, this window first, or null. */
@@ -1346,8 +1408,12 @@ public final class DocumentController {
       final Path known,
       final FileStamp baseline,
       final SaveEnd end) {
-    if (d.binary || savingNotice(d)) {
+    if (d.binary || savingNotice(d) || under().refusesSave(d.file, d.name(), target)) {
+      d.settings.pending = null;
       end.stop();
+      return;
+    }
+    if (prepareSave(d, target, known, baseline, end)) {
       return;
     }
     d.document.clearPreedit();
@@ -1403,10 +1469,29 @@ public final class DocumentController {
             });
     if (!started) {
       d.file.saving = null;
+      d.settings.pending = null;
       resumeWatch(d);
       view.setIdle();
       end.stop();
     }
+  }
+
+  /** Starts the save cleanup; true when the write continues from its result. */
+  private boolean prepareSave(
+      final OpenDocument d,
+      final Path target,
+      final Path known,
+      final FileStamp baseline,
+      final SaveEnd end) {
+    return declared.prepareSave(
+        d,
+        new Runnable() {
+          @Override
+          public void run() {
+            write(d, target, known, baseline, end);
+          }
+        },
+        end::stop);
   }
 
   /** Reports whether {@code path} resolves to {@code real}; false for a missing file or no real. */
@@ -1437,11 +1522,16 @@ public final class DocumentController {
     if (d.file.saving == token) {
       d.file.saving = null;
     }
+    FileSettings pending = d.settings.pending;
+    d.settings.pending = null;
     if (d.closed) {
       end.stop();
       return;
     }
     if (stamp != null) {
+      if (pending != null) {
+        declared.apply(d, pending);
+      }
       boolean renamed = !target.equals(d.file.path);
       d.file.current(target, stamp.stamp());
       d.file.bytesGuarded = false;
@@ -2544,7 +2634,8 @@ public final class DocumentController {
       FileBaseline baseline,
       boolean roundTrips,
       Path real,
-      LoadReservation reservation) {}
+      LoadReservation reservation,
+      EditorConfig.Result config) {}
 
   /** Sets the controller that shows the prompt's Compare. */
   void setCompare(CompareController value) {
@@ -2773,6 +2864,9 @@ public final class DocumentController {
    * user chose is forced; any other is detected, as an open does.
    */
   private void reload(final OpenDocument d) {
+    if (under().refusesReload(d.file, d.name())) {
+      return;
+    }
     if (d.closed || d.file.watch == null || d.file.reloading != null || d.file.saving != null) {
       return;
     }
@@ -2787,6 +2881,7 @@ public final class DocumentController {
     final boolean binary = d.binary;
     final LoadReservation reservation =
         LoadReservation.reload(budget, d.reserved, options.limits());
+    final FileSettingsReader reader = binary ? null : declared.reader();
     view.setActive();
     boolean started =
         workers.tryStart(
@@ -2797,9 +2892,12 @@ public final class DocumentController {
                 Reloaded result = null;
                 IOException error = null;
                 try {
+                  Path real = realFile(file);
+                  EditorConfig.Result config = reader == null ? null : reader.editorConfig(real);
+                  LoadOptions with = reader == null ? options : reader.options(options, config);
                   ReloadedFile read =
                       CompareController.reload(
-                          file, options, charset, binary, snapshot.text(), reservation, token);
+                          file, with, charset, binary, snapshot.text(), reservation, token);
                   result =
                       new Reloaded(
                           read.replacement(),
@@ -2807,8 +2905,9 @@ public final class DocumentController {
                           read.lineEnding(),
                           read.baseline(),
                           read.roundTrips(),
-                          realFile(file),
-                          reservation);
+                          real,
+                          reservation,
+                          config);
                 } catch (LoadTooLargeException e) {
                   // Reported as a reload without room: no result and no error.
                 } catch (IOException e) {
@@ -2950,6 +3049,9 @@ public final class DocumentController {
     } else if (!d.file.bytesGuarded || !document.isReadOnly()) {
       guardBytes(d);
       view.showNotice(UiText.OPEN_READ_ONLY.format(d.name(), r.encoding().charset().displayName()));
+    }
+    if (r.config() != null && declared.reader() != null) {
+      declared.apply(d, declared.reader().settings(r.config(), document.text()));
     }
     d.updateTitle();
     view.documentStateChanged();
@@ -3097,6 +3199,76 @@ public final class DocumentController {
   /** Returns the open documents of every window, this window's first, each in tab order. */
   List<Document> documentsAnywhere() {
     return elsewhere == null ? openDocuments() : elsewhere.documents(this);
+  }
+
+  // Workspace browser file operations.
+
+  private DocumentsUnder under;
+  private Consumer<String> bufferMoved;
+
+  /** Returns this window's documents as the workspace browser's Rename and Delete reach them. */
+  DocumentsUnder under() {
+    if (under == null) {
+      under =
+          new DocumentsUnder(
+              changes,
+              closedPaths,
+              view,
+              new Supplier<List<DocumentsUnder.Tab>>() {
+                @Override
+                public List<DocumentsUnder.Tab> get() {
+                  return tabs();
+                }
+              },
+              new Runnable() {
+                @Override
+                public void run() {
+                  sessionChanged();
+                }
+              });
+    }
+    return under;
+  }
+
+  /** Sets what receives a buffer's id when a rename moved its file. */
+  void setBufferMoved(Consumer<String> listener) {
+    bufferMoved = listener;
+  }
+
+  private List<DocumentsUnder.Tab> tabs() {
+    List<DocumentsUnder.Tab> tabs = new ArrayList<DocumentsUnder.Tab>(documents.size());
+    for (final OpenDocument d : documents) {
+      tabs.add(
+          new DocumentsUnder.Tab() {
+            @Override
+            public OpenFile file() {
+              return d.file;
+            }
+
+            @Override
+            public boolean dirty() {
+              return d.document.isDirty();
+            }
+
+            @Override
+            public String name() {
+              return d.name();
+            }
+
+            @Override
+            public void moved(boolean renamed) {
+              if (renamed) {
+                detect(d);
+              }
+              declared.readForMove(d);
+              if (bufferMoved != null) {
+                bufferMoved.accept(d.bufferId);
+              }
+              d.updateTitle();
+            }
+          });
+    }
+    return tabs;
   }
 
   /** Selects a document's tab in the window holding it, raises that window, returns the editor. */
@@ -3366,6 +3538,20 @@ public final class DocumentController {
       }
     }
     d.document.setInsertSpaces(insertSpaces);
+  }
+
+  /**
+   * Reads the settings files declare from these sources from now on; the first call turns the
+   * reading on. Open documents keep theirs.
+   *
+   * @param editorConfig true to read {@code .editorconfig} files
+   * @param modelines true to read modelines
+   */
+  void setFileSettings(boolean editorConfig, boolean modelines) {
+    FileSettingsReader created = declared.setSources(editorConfig, modelines);
+    if (created != null) {
+      opener.setSettings(created);
+    }
   }
 
   /** Uses a remembered grammar; a grammar the library lacks falls back to detection. */

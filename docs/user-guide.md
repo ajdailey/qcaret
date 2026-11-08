@@ -45,7 +45,9 @@ changes it asks first, and Undo brings them back.
 ### Encodings
 
 The file's encoding comes from its byte order mark, an XML, HTML or Python
-declaration, or the content; UTF-8 is tried before windows-1252. Encoding >
+declaration, a modeline or `.editorconfig` file (see [Per-file
+settings](#per-file-settings)), or the content; UTF-8 is tried before
+windows-1252. Encoding >
 Reopen with Encoding reads the file again with another charset, and QCaret
 remembers it for that file; its Automatic Detection entry returns the file to
 detection. Encoding > Save with Encoding changes what the next
@@ -59,6 +61,32 @@ turning off Read-Only lets Save convert the file itself. A reload that brings in
 such bytes does the same, and a later reload of bytes that write back ends it. A
 binary file asks first: Open Read-Only shows it as
 ISO-8859-1 text, with editing and saving off.
+
+### Per-file settings
+
+A file takes settings from the `.editorconfig` files in its folder and the
+folders above it, up to one with `root = true`, and from vim and Emacs
+modelines in its first and last five lines:
+
+| Setting | `.editorconfig` | vim | Emacs |
+|---|---|---|---|
+| Tab width and indentation | `indent_style`, `indent_size`, `tab_width` | `ts`, `sw`, `sts`, `et`, `noet` | `tab-width`, `indent-tabs-mode` |
+| Line ending of a file without line breaks | `end_of_line` | `ff` | a `-unix`, `-dos` or `-mac` coding |
+| Encoding | `charset` | `fenc` | `coding` |
+| Clean up at Save | `trim_trailing_whitespace`, `insert_final_newline` | none | none |
+
+A modeline wins over `.editorconfig`, and both win over the tab settings
+QCaret remembers for the file and over Preferences. An encoding you chose with
+Reopen with Encoding or Save with Encoding wins over both, and a byte order mark
+wins over a declared encoding; a declared encoding that does not read the file
+is skipped. `end_of_line` never converts a file's existing line breaks; use
+Encoding > Line Endings for that. Trim and the final newline happen at each Save
+as one Undo step, so the file holds what the window shows.
+
+The tab's tool tip names the files and the modeline a document's settings came
+from. Save As to another folder, a rename in the workspace browser, Reload and
+Reopen with Encoding read them again. Edit > Preferences, Editor, turns each
+source off.
 
 ### Saving
 
@@ -381,6 +409,21 @@ folder again, and Reveal Active File selects the current document's file. A
 row's menu offers Open in Default Application, Set as Workspace Folder and Copy
 Path. Open in Default Application refuses a file the system would run.
 
+The row menu also changes files; right-click empty space in the browser to act
+on the workspace folder itself.
+
+| Command | Effect |
+|---|---|
+| Search in Folder | Opens HyperSearch on the folder and its subdirectories, or on a file's folder; press Search to run it |
+| New File, New Folder | Asks a name and creates the entry in the folder; a new file opens in a tab |
+| Rename (F2) | Asks a new name in the same folder; open documents under it follow with their unsaved changes |
+| Delete (Delete key) | Asks first, naming what goes and how many files and folders a folder holds, then deletes permanently: there is no trash and no undo |
+
+A name must be a single file or folder name, and a name already in use is
+refused. A link is renamed or deleted as the link; its target stays. Open
+documents under a deleted entry stay open, marked missing, and Save writes them
+again. A folder delete that fails partway stops and says what is left.
+
 Hidden entries and the excluded directories (`.git`, `.svn`, `.hg`, `target`,
 `node_modules` and `build` by default) stay out of the browser, Quick Open and
 folder searches. Preferences, Search and Workspace changes the list.
@@ -470,7 +513,7 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, theme file, editor font |

@@ -105,6 +105,10 @@ final class RecoveryController implements RecoveryInput {
   private final Map<String, Path> replaced = new HashMap<String, Path>();
 
   private final Map<String, String> created = new HashMap<String, String>();
+
+  /** Buffers whose file a rename moved; the next interval writes them with the new path. */
+  private final Set<String> renamed = new HashSet<String>();
+
   private final List<Row> rows = new ArrayList<Row>();
   private final Consumer<String> bufferCleaned =
       new Consumer<String>() {
@@ -160,6 +164,13 @@ final class RecoveryController implements RecoveryInput {
   /** Follows a new window's buffers. */
   void attach(DocumentController documents) {
     documents.setBufferCleaned(bufferCleaned);
+    documents.setBufferMoved(this::renamed);
+  }
+
+  private void renamed(String id) {
+    if (tracked.contains(id)) {
+      renamed.add(id);
+    }
   }
 
   private void notice(String text) {
@@ -228,7 +239,9 @@ final class RecoveryController implements RecoveryInput {
     for (DocumentController.Buffer buffer : dirty) {
       ids.add(buffer.id());
       Long revision = buffer.snapshot().revision();
-      if (!revision.equals(written.get(buffer.id())) && !revision.equals(queued.get(buffer.id()))) {
+      if (renamed.remove(buffer.id())
+          || (!revision.equals(written.get(buffer.id()))
+              && !revision.equals(queued.get(buffer.id())))) {
         write(buffer);
       }
     }
@@ -292,6 +305,7 @@ final class RecoveryController implements RecoveryInput {
 
   private void cleaned(final String id) {
     created.remove(id);
+    renamed.remove(id);
     written.remove(id);
     queued.remove(id);
     if (tracked.remove(id)) {

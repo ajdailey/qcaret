@@ -113,6 +113,8 @@ Shortcuts.
 | `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
 | `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of | 80 | Edit > Preferences, Editor |
 | `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Edit > Preferences, Editor |
+| `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Edit > Preferences, Editor |
+| `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Edit > Preferences, Editor |
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
 | `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
 | `ui.themeFile` | A file in `themes/` in the settings directory, without `.theme`; empty for the built-in colors | empty | Edit > Preferences, Appearance |

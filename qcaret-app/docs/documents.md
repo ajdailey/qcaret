@@ -6,7 +6,8 @@ Opening, loading, saving, encodings and printing of one window's documents:
 
 `DocumentController` holds the window's documents, one tab each. `add` gives
 every document `editor.tabWidth` and `editor.insertSpaces`; a remembered file
-state or a session tab then replaces them, and a settings change leaves open
+state or a session tab then replaces them, then the file's declared settings
+([Per-file settings](#per-file-settings)), and a settings change leaves open
 documents alone. Loads, saves and conversions each count as one view activity
 until their worker ends.
 
@@ -114,6 +115,53 @@ worker.
   (`LineConversion`) and applies it as one whole-text replacement and one undo
   step, then makes the ending the one Enter inserts. A result whose document
   changed or closed meanwhile is dropped. Mixed endings are otherwise kept.
+
+## Per-file settings
+
+`FileSettingsReader` reads what a file declares in `.editorconfig` files and
+modelines ([Per-file
+settings](../../qcaret-core/docs/files-and-encodings.md#per-file-settings)),
+from the sources `editor.editorConfig` and `editor.modelines` turn on;
+`ApplicationController` turns it on with `setFileSettings`. Each
+`.editorconfig` that contributes nothing logs one WARN per read.
+
+On open, `DocumentOpener`'s `qcaret-io-` worker resolves the EditorConfig
+properties before the load, passes their charset as `LoadOptions.configured`,
+and reads the modelines from the loaded text; `LoadedFile.settings` carries the
+result to the UI thread.
+
+| Setting | Order, first wins |
+|---|---|
+| Charset | A charset the user forced (Reopen with Encoding, `-e`, Save with Encoding, the one remembered for the file or the session tab); a BOM; a modeline or in-file declaration; EditorConfig; detection |
+| Width, spaces or tabs | Modeline; EditorConfig; the remembered file state or session tab; `editor.tabWidth` and `editor.insertSpaces` |
+| Ending Enter inserts | Modeline or EditorConfig, only while the text has no line break; the most frequent ending; `newFile.lineEnding` |
+
+`end_of_line` converts no existing ending, so a CR LF file in an `lf` project
+stays CR LF and Enter inserts CR LF. A file that does not exist yet takes the
+declared charset, ending and indentation once a worker has read them, while it
+is empty and clean.
+
+The tab's tool tip adds a line naming the `.editorconfig` files and the
+modeline kind when any contributed.
+
+| Event | Settings read again | What changes |
+|---|---|---|
+| Save As to another path | For the target, on the worker that resolves its real path | Width, spaces, Enter's ending, trim and final newline, tool tip, applied once the write succeeds; the encoding written stays |
+| Reload, external change | For the file, on the reload worker | The same, from the reloaded text; the EditorConfig charset joins detection |
+| Rename from the workspace browser | For the new path, on a `qcaret-io-` worker; dropped when the document moved again meanwhile | As Save As, applied when the result arrives |
+| Reopen with Encoding | As an open | Everything an open sets; the chosen charset stays forced |
+
+### Save cleanup
+
+With `trim_trailing_whitespace = true` or `insert_final_newline = true`, a save
+first computes `SaveCleanup.edits` from a snapshot on a `qcaret-io-` worker:
+spaces and tabs at each line's end removed, then the document's line ending
+appended to a text that does not end with a break. The UI thread applies the
+edit as one undo step and the write takes the snapshot after it, so the bytes
+written are the text shown. An edit made while the cleanup ran drops it and
+computes it again, up to 3 times; then the write goes on without it. Esc or a
+close during the cleanup ends the save unwritten. `false`, a missing property
+and a read-only document leave the text alone.
 
 ## Saving
 

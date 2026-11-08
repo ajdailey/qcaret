@@ -8,10 +8,15 @@ public enum DetectionReason {
   BOM,
   /** The zero-byte pattern of UTF-16 without a BOM. */
   UTF16_PATTERN,
-  /** An XML declaration, an HTML meta charset or a coding line, confirmed by a strict decode. */
+  /**
+   * An XML declaration, an HTML meta charset, a coding line or a modeline, confirmed by a strict
+   * decode.
+   */
   DECLARED,
   /** The whole file decodes as UTF-8. */
   UTF8_VALID,
   /** No rule matched. */
-  FALLBACK
+  FALLBACK,
+  /** An EditorConfig {@code charset}, confirmed by a strict decode. */
+  CONFIGURED
 }
