@@ -19,8 +19,9 @@ hidden entries and `workspace.excludedDirectories`; a change of
   contains it lists as a row that does not expand.
 - Each row carries its Size and Modified texts, built with the listing on the
   worker (`BrowserRows`), so no row reads the disk on the UI thread: a file's
-  size in B, or KiB, MiB or GiB with one decimal, and the time in the default
-  locale's short date and time format and the default time zone. A directory
+  size in B, or KiB, MiB or GiB with one decimal, and the date in the default
+  locale's short date format and the default time zone, with the short date
+  and time as the cell's tool tip (`WorkspaceNode.modifiedTime`). A directory
   has no size.
 - Refresh lists every listed directory again, keeping the old rows until the
   new ones arrive, and rebuilds the index.

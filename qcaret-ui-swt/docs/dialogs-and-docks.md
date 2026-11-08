@@ -80,15 +80,29 @@ the dialog cancels a running match.
 
 ## Workspace browser
 
-`WorkspaceDock` is the workspace browser: Refresh, Reveal Active File and Hide,
-the workspace folder, the `BrowseBar` and a `Tree` with Name, Size and Modified
-columns.
+`WorkspaceDock` is the workspace browser: a row of icon buttons, the
+`BrowseBar` fields and a `Tree` with Name, Size and Modified columns.
 
-- `BrowseBar` holds Parent, Home, Favorites and Workspace, the path field, the
-  filter field and the Hidden check box (`SwtThemeService.check`). Enter in a
-  field passes its text to `WorkspaceBrowseInput`; each `workspaceChanged(null)`
-  sets the fields, the check box and Workspace's enablement from it. Favorites
-  builds its pop-up menu at each opening from `favorites()`.
+- The buttons are Parent, Home, Favorites, Workspace, Refresh, Reveal Active
+  File and Hide, each an icon from `ToolIcons.button` with its name as the tool
+  tip and accessible name. The row is a wrapping `RowLayout`, so a dock too
+  narrow for one row puts the rest on a second; at the default window size and
+  side weights the seven fit one row (`WorkspaceDockLayoutTest`). The row is
+  the icons' `ToolIcons` owner; `MainWindow` re-inks it after a theme change
+  and when the dock shows.
+- `BrowseBar` holds the first four buttons, the path field, the filter field
+  and the Hidden check box (`SwtThemeService.check`). The path field shows the
+  shown folder; its tool tip says whether that is the workspace folder, and
+  Workspace is enabled only when it is not. Both fields ask for no width of
+  their own, so a long path never widens the dock or pushes Hidden out. Enter
+  in a field passes its text to `WorkspaceBrowseInput`; each
+  `workspaceChanged(null)` sets the fields, the check box and Workspace's
+  enablement from it. Favorites builds its pop-up menu at each opening from
+  `favorites()`.
+- Size and Modified start as wide as their headers and widen to the widest
+  text a fill adds; Name takes the rest of the tree's width at each resize,
+  down to its header's width. Modified shows the date; a `MouseMove` over the
+  cell sets the tree's tool tip to the date and time.
 - A column header click calls `sort` with the column, descending when it
   already sorts ascending; the tree shows the sort column and direction.
 

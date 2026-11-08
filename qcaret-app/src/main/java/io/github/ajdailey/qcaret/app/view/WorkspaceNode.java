@@ -12,9 +12,11 @@ import java.util.Objects;
  * @param name the text shown
  * @param kind what the row is
  * @param size the Size column's text; empty for a directory and the other rows
- * @param modified the Modified column's text; empty for the rows that are not entries
+ * @param modified the Modified column's text, the date; empty for the rows that are not entries
+ * @param modifiedTime the date and time, the Modified cell's tool tip; empty like {@code modified}
  */
-public record WorkspaceNode(Path path, String name, Kind kind, String size, String modified) {
+public record WorkspaceNode(
+    Path path, String name, Kind kind, String size, String modified, String modifiedTime) {
   /** What a row is. */
   public enum Kind {
     /** A directory; expands. */
@@ -41,7 +43,7 @@ public record WorkspaceNode(Path path, String name, Kind kind, String size, Stri
    * @param kind what the row is
    */
   public WorkspaceNode(Path path, String name, Kind kind) {
-    this(path, name, kind, "", "");
+    this(path, name, kind, "", "", "");
   }
 
   /**

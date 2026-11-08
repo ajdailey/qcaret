@@ -177,7 +177,6 @@ class WorkspaceSurfaceTest {
   void theBrowserListsOnExpandAndOpensAFileOnEnter() {
     WorkspaceDock dock = browser();
     assertTrue(window.workspaceShown());
-    assertEquals(root.toString(), dock.title());
     TreeItem src = dock.tree().getItem(1);
     assertEquals(1, src.getItemCount());
     expand(dock, root.resolve("src"), List.of("main/", "test/"));

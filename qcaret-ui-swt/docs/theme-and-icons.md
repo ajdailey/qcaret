@@ -111,7 +111,9 @@ fill) and no child overrides it; `MenuIconsTest` fails on a difference.
 
 `MenuIcons.icon` maps a command to its icon, for the toolbar and the menus.
 `MenuIcons.decorate` shows the icons on the push items of the menu bar and the
-editor menu, through a `ToolIcons` of the window's own.
+editor menu, through a `ToolIcons` of the window's own. `ToolIcons.button`
+makes the workspace browser's icon push buttons, inked from the button row's
+background like the toolbar.
 
 | Platform | Item image | Ink | Items without an icon |
 |---|---|---|---|

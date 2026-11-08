@@ -7,15 +7,18 @@ import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -24,26 +27,35 @@ import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 
 /**
- * The workspace browser dock: three buttons (Refresh, Reveal Active File, Hide), the workspace
- * folder and the {@link BrowseBar} over a {@link Tree} of a {@link WorkspaceInput}'s rows with
- * Name, Size and Modified columns. A click on a column header sorts by it, a second click reverses
- * the order. A directory row holds an empty placeholder child until it first expands, which asks
- * the input to list it; its rows replace the placeholder when the input reports the change. A
- * refill keeps the expanded state of rows that remain. Enter or a double click opens a file, shows
- * more entries on a "more" row, and expands or collapses a directory. One context menu, built on
- * the first right click, offers Open, Open in Default Application, Set as Workspace Folder, Copy
- * Path, Search in Folder, New File, New Folder, Rename and Delete for the row under the pointer, or
- * for the workspace folder over empty space. Delete and F2 delete and rename the selected row while
- * the tree has focus; the editor never sees them.
+ * The workspace browser dock: a wrapping row of icon buttons ({@link BrowseBar}'s four, then
+ * Refresh, Reveal Active File and Hide) and the {@link BrowseBar}'s fields over a {@link Tree} of a
+ * {@link WorkspaceInput}'s rows with Name, Size and Modified columns. Size and Modified are as wide
+ * as their header and widest text shown, Modified shows the date with the date and time as the
+ * cell's tool tip, and Name takes the rest of the tree's width. A click on a column header sorts by
+ * it, a second click reverses the order. A directory row holds an empty placeholder child until it
+ * first expands, which asks the input to list it; its rows replace the placeholder when the input
+ * reports the change. A refill keeps the expanded state of rows that remain. Enter or a double
+ * click opens a file, shows more entries on a "more" row, and expands or collapses a directory. One
+ * context menu, built on the first right click, offers Open, Open in Default Application, Set as
+ * Workspace Folder, Copy Path, Search in Folder, New File, New Folder, Rename and Delete for the
+ * row under the pointer, or for the workspace folder over empty space. Delete and F2 delete and
+ * rename the selected row while the tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
   private final Composite root;
-  private final Label title;
+  private final ToolIcons icons;
   private final BrowseBar browseBar;
   private final Tree tree;
   private final TreeColumn[] columns = new TreeColumn[3];
+  private int nameMinimum;
   private Menu menu;
   private WorkspaceInput input;
+
+  /** Pixels added to a header text's width for its padding and sort arrow. */
+  private static final int HEADER_PADDING = 24;
+
+  /** Pixels added to a cell text's width for its padding. */
+  private static final int CELL_PADDING = 16;
 
   /** What a button or menu item does. */
   private enum Action {
@@ -73,23 +85,38 @@ final class WorkspaceDock {
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     root.setLayout(layout);
+    // The row's margin keeps the corner pixel ToolIcons reads free of buttons.
     Composite bar = new Composite(root, SWT.NONE);
-    GridLayout barLayout = new GridLayout(3, false);
-    barLayout.marginHeight = 2;
-    barLayout.marginWidth = 0;
-    barLayout.horizontalSpacing = 4;
+    RowLayout barLayout = new RowLayout(SWT.HORIZONTAL);
+    barLayout.wrap = true;
+    barLayout.spacing = 2;
     bar.setLayout(barLayout);
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    button(bar, UiText.WORKSPACE_REFRESH, Action.REFRESH);
-    button(bar, UiText.WORKSPACE_REVEAL, Action.REVEAL);
-    button(bar, UiText.WORKSPACE_HIDE, Action.HIDE);
-    title = new Label(root, SWT.NONE);
-    title.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    browseBar = new BrowseBar(root);
+    icons = new ToolIcons(bar);
+    browseBar = new BrowseBar(root, bar, icons);
+    button(bar, ToolIcons.RELOAD, UiText.WORKSPACE_REFRESH, Action.REFRESH);
+    button(bar, ToolIcons.REVEAL, UiText.WORKSPACE_REVEAL, Action.REVEAL);
+    button(bar, ToolIcons.HIDE, UiText.WORKSPACE_HIDE, Action.HIDE);
     tree = new Tree(root, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL | SWT.FULL_SELECTION);
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     tree.setHeaderVisible(true);
     addColumns();
+    tree.addListener(
+        SWT.Resize,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            fitNameColumn();
+          }
+        });
+    tree.addListener(
+        SWT.MouseMove,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            showModifiedTip(event.x, event.y);
+          }
+        });
     tree.addListener(
         SWT.Expand,
         new Listener() {
@@ -145,19 +172,18 @@ final class WorkspaceDock {
         });
   }
 
-  /** Adds the Name, Size and Modified columns, sized to sample texts in the tree's font. */
+  /** Adds the Name, Size and Modified columns, each as wide as its header. */
   private void addColumns() {
     UiText[] labels = {
       UiText.BROWSE_COLUMN_NAME, UiText.BROWSE_COLUMN_SIZE, UiText.BROWSE_COLUMN_MODIFIED
     };
-    String[] samples = {"mock-project-name.txt", "1023.9 MiB", "00/00/0000, 00:00 PM"};
     GC gc = new GC(tree);
     try {
       for (int i = 0; i < columns.length; i++) {
         final WorkspaceBrowseInput.Column column = WorkspaceBrowseInput.Column.values()[i];
         columns[i] = new TreeColumn(tree, i == 1 ? SWT.RIGHT : SWT.LEFT);
         columns[i].setText(labels[i].text());
-        columns[i].setWidth(gc.textExtent(samples[i]).x + 24);
+        columns[i].setWidth(gc.textExtent(labels[i].text()).x + HEADER_PADDING);
         columns[i].addListener(
             SWT.Selection,
             new Listener() {
@@ -169,6 +195,59 @@ final class WorkspaceDock {
       }
     } finally {
       gc.dispose();
+    }
+  }
+
+  /** Gives the Name column the tree's width less Size and Modified, down to its header's width. */
+  private void fitNameColumn() {
+    if (nameMinimum == 0) {
+      nameMinimum = columns[0].getWidth();
+    }
+    int rest = tree.getClientArea().width - columns[1].getWidth() - columns[2].getWidth();
+    columns[0].setWidth(Math.max(nameMinimum, rest));
+  }
+
+  /** Widens Size and Modified to fit the rows' texts; they never narrow while the dock lives. */
+  private void widen(List<WorkspaceNode> rows) {
+    boolean wider = false;
+    GC gc = new GC(tree);
+    try {
+      for (WorkspaceNode row : rows) {
+        wider |= widen(columns[1], gc, row.size());
+        wider |= widen(columns[2], gc, row.modified());
+      }
+    } finally {
+      gc.dispose();
+    }
+    if (wider) {
+      fitNameColumn();
+    }
+  }
+
+  private static boolean widen(TreeColumn column, GC gc, String text) {
+    int width = text.isEmpty() ? 0 : gc.textExtent(text).x + CELL_PADDING;
+    if (width <= column.getWidth()) {
+      return false;
+    }
+    column.setWidth(width);
+    return true;
+  }
+
+  /**
+   * Shows a Modified cell's date and time as the tree's tool tip while the pointer is on it. Only x
+   * is compared with the cell: GTK 4 item bounds start below the header.
+   */
+  private void showModifiedTip(int x, int y) {
+    Point at = new Point(x, y);
+    TreeItem item = tree.getItem(at);
+    WorkspaceNode node = item == null ? null : node(item);
+    Rectangle cell = item == null ? null : item.getBounds(2);
+    String tip =
+        node != null && x >= cell.x && x < cell.x + cell.width && !node.modifiedTime().isEmpty()
+            ? node.modifiedTime()
+            : null;
+    if (!Objects.equals(tip, tree.getToolTipText())) {
+      tree.setToolTipText(tip);
     }
   }
 
@@ -195,9 +274,8 @@ final class WorkspaceDock {
     tree.setSortDirection(browse.descending() ? SWT.DOWN : SWT.UP);
   }
 
-  private void button(Composite parent, UiText label, final Action action) {
-    Button button = new Button(parent, SWT.PUSH);
-    button.setText(label.text());
+  private void button(Composite parent, String icon, UiText label, final Action action) {
+    Button button = icons.button(parent, icon, label.text());
     button.addListener(
         SWT.Selection,
         new Listener() {
@@ -226,13 +304,9 @@ final class WorkspaceDock {
     return tree;
   }
 
-  /**
-   * Returns the folder line, for tests.
-   *
-   * @return the text
-   */
-  String title() {
-    return title.getText();
+  /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */
+  void reink() {
+    icons.reink();
   }
 
   /**
@@ -260,9 +334,7 @@ final class WorkspaceDock {
     if (tree.isDisposed()) {
       return;
     }
-    title.setText(input == null ? "" : input.title());
-    title.setToolTipText(title.getText());
-    browseBar.update();
+    browseBar.update(input == null ? UiText.WORKSPACE_NONE.text() : input.title());
     showSort();
     WorkspaceNode top = input == null ? null : input.rootNode();
     tree.setRedraw(false);
@@ -329,6 +401,7 @@ final class WorkspaceDock {
 
   /** Adds rows under a parent row, or at the top for null; re-expands the rows in {@code open}. */
   private void fill(TreeItem parent, List<WorkspaceNode> rows, Set<WorkspaceNode> open) {
+    widen(rows);
     for (WorkspaceNode row : rows) {
       TreeItem item =
           parent == null ? new TreeItem(tree, SWT.NONE) : new TreeItem(parent, SWT.NONE);

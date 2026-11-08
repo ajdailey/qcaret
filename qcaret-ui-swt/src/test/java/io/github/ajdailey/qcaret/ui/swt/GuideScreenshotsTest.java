@@ -192,7 +192,6 @@ class GuideScreenshotsTest {
           }
         });
     controller.execute(CommandId.WORKSPACE_BROWSER);
-    window.setSideWeights(new int[] {1, 2});
     controller
         .search()
         .run(

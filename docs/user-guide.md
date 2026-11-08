@@ -441,8 +441,10 @@ Preferences, Files sets the interval and can make a clean document ask too.
 
 File > Set Workspace Folder gives each window one folder, the scope of
 HyperSearch's Workspace folder and of Quick Open's file list. View > Workspace
-Browser shows its tree. Enter or a double click opens a file. Refresh lists the
-folder again, and Reveal Active File selects the current document's file. A
+Browser shows its tree. Enter or a double click opens a file. The buttons above
+the tree show icons; hover over one for its name. Refresh lists the folder
+again, Reveal Active File selects the current document's file, and Hide Browser
+hides the browser. A
 row's menu offers Open in Default Application, Set as Workspace Folder and Copy
 Path. Open in Default Application refuses a file the system would run.
 
@@ -450,15 +452,16 @@ The row menu also changes files; right-click empty space in the browser to act
 on the shown folder itself.
 
 The browser can show any folder without changing the workspace folder, which
-stays the scope of Quick Open and HyperSearch. Type a path in the path field
-and press Enter: a path relative to the shown folder, or `~` for your home
-folder. Parent and Home move up and home; Workspace shows the workspace folder
-again. Favorites lists your favorite folders and adds or removes the shown
-one. The filter field takes patterns such as `*.java;*.md` and applies to files,
-not folders; it ignores case on Windows and macOS. Hidden lists hidden entries.
-Click a column header to sort by name, size or modified time, and again to
-reverse. Each window keeps its shown folder, filter and Hidden setting in the
-session. A change made in one window's browser shows in every window's.
+stays the scope of Quick Open and HyperSearch. The path field shows the shown
+folder; hover over it to see whether that is the workspace folder. Type a path
+there and press Enter: a path relative to the shown folder, or `~` for your home
+folder. Parent Folder and Home Folder move up and home; Workspace Folder shows
+the workspace folder again. Favorites lists your favorite folders and adds or
+removes the shown one. The filter field takes patterns such as `*.java;*.md`
+and applies to files, not folders; it ignores case on Windows and macOS. Hidden
+lists hidden entries. Modified shows the date; hover over it for the time. Click
+a column header to sort by name, size or modified time, and again to reverse.
+Each window keeps its shown folder, filter and Hidden setting in the session. A change made in one window's browser shows in every window's.
 
 | Command | Effect |
 |---|---|

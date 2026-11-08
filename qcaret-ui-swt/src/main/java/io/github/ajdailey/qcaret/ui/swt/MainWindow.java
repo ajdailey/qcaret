@@ -825,6 +825,9 @@ public final class MainWindow implements MainView {
             if (!shell.isDisposed()) {
               toolIcons.reink();
               menuIcons.reink();
+              if (workspaceDock != null) {
+                workspaceDock.reink();
+              }
             }
           }
         });
@@ -2216,6 +2219,9 @@ public final class MainWindow implements MainView {
     workspaceDock.setInput(input);
     side.setMaximizedControl(shown ? null : body);
     side.layout(true);
+    if (shown) {
+      workspaceDock.reink();
+    }
   }
 
   @Override

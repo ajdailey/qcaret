@@ -46,9 +46,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The workspace browser's path field, Parent and Workspace buttons, filter field, Hidden check box,
- * Favorites menu and sortable Size and Modified columns; with {@code -Dqcaret.screenshots=<dir>},
- * the browser with a filter and a size sort as PNG in the light and the dark theme.
+ * The workspace browser's path field and its tool tip, Parent and Workspace buttons, filter field,
+ * Hidden check box, Favorites menu and sortable Size and Modified columns; with {@code
+ * -Dqcaret.screenshots=<dir>}, the browser with a filter and a size sort as PNG in the light and
+ * the dark theme.
  */
 @Tag("swt")
 class WorkspaceBrowseSurfaceTest {
@@ -188,10 +189,13 @@ class WorkspaceBrowseSurfaceTest {
     final WorkspaceDock dock = browser(List.of("docs/", "build.xml", "README.txt"));
     BrowseBar bar = dock.bar();
     assertEquals(root.toString(), bar.path().getText());
+    assertEquals(UiText.BROWSE_PATH_WORKSPACE.text(), bar.path().getToolTipText());
+    assertFalse(bar.workspaceButton().getEnabled());
     enter(bar.path(), "docs");
     awaitRows(dock, List.of("drafts/", "guide.txt"));
     assertEquals(root.resolve("docs").toString(), bar.path().getText());
-    assertEquals(root.toString(), dock.title());
+    assertEquals(UiText.BROWSE_PATH_OTHER.format(root.toString()), bar.path().getToolTipText());
+    assertTrue(bar.workspaceButton().getEnabled());
     bar.press(UiText.BROWSE_PARENT);
     awaitRows(dock, List.of("docs/", "build.xml", "README.txt"));
     bar.press(UiText.BROWSE_PARENT);

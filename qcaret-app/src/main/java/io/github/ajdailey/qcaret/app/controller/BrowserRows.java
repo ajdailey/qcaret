@@ -45,11 +45,22 @@ final class BrowserRows {
   /**
    * Returns the Modified column's format.
    *
-   * @param locale the short date and time style's locale
+   * @param locale the short date style's locale
    * @param zone the time zone shown
    * @return the formatter
    */
   static DateTimeFormatter dates(Locale locale, ZoneId zone) {
+    return DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale).withZone(zone);
+  }
+
+  /**
+   * Returns the Modified cell's tool tip format.
+   *
+   * @param locale the short date and time style's locale
+   * @param zone the time zone shown
+   * @return the formatter
+   */
+  static DateTimeFormatter times(Locale locale, ZoneId zone) {
     return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
         .withLocale(locale)
         .withZone(zone);
@@ -67,6 +78,7 @@ final class BrowserRows {
   @WorkerThread
   static List<WorkspaceNode> rows(Path dir, DirectoryListing listing, Locale locale, ZoneId zone) {
     DateTimeFormatter dates = dates(locale, zone);
+    DateTimeFormatter times = times(locale, zone);
     List<DirectoryListing.Entry> entries = listing.entries();
     List<WorkspaceNode> rows = new ArrayList<WorkspaceNode>(entries.size());
     for (DirectoryListing.Entry entry : entries) {
@@ -76,13 +88,15 @@ final class BrowserRows {
             case FILE -> WorkspaceNode.Kind.FILE;
             case CYCLE -> WorkspaceNode.Kind.CYCLE;
           };
+      Instant modified = Instant.ofEpochMilli(entry.modified());
       rows.add(
           new WorkspaceNode(
               dir.resolve(entry.name()),
               entry.name(),
               kind,
               kind == WorkspaceNode.Kind.FILE ? size(entry.size(), locale) : "",
-              dates.format(Instant.ofEpochMilli(entry.modified()))));
+              dates.format(modified),
+              times.format(modified)));
     }
     return rows;
   }

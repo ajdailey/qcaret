@@ -312,6 +312,10 @@ class WorkspaceBrowseTest {
         "refreshed");
     WorkspaceNode notes = child(workspace().children(top), "notes.txt");
     assertEquals(BrowserRows.size(2_048, Locale.getDefault()), notes.size());
+    assertEquals(
+        BrowserRows.times(Locale.getDefault(), ZoneId.systemDefault())
+            .format(Instant.ofEpochMilli(1_000_000_000L)),
+        notes.modifiedTime());
     assertEquals("", child(workspace().children(top), "src").size());
     assertEquals(
         modified(2_000_000_000L), child(workspace().children(top), "Readme.MD").modified());

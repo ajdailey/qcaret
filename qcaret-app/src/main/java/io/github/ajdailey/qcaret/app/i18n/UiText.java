@@ -1310,6 +1310,10 @@ public enum UiText {
   BROWSE_NO_FAVORITES,
   /** Path field hint. */
   BROWSE_PATH_HINT,
+  /** Path field tool tip while it shows the workspace folder. */
+  BROWSE_PATH_WORKSPACE,
+  /** Path field tool tip while it shows another folder; takes the workspace folder. */
+  BROWSE_PATH_OTHER,
   /** Filter field hint. */
   BROWSE_FILTER_HINT,
   /** Check box: list hidden entries. */

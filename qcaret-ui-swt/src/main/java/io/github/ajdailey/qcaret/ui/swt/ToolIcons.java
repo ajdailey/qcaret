@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTException;
+import org.eclipse.swt.accessibility.AccessibleAdapter;
+import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
@@ -16,6 +18,8 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -24,7 +28,7 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolItem;
 
 /**
- * The toolbar, toggle and menu icons, rendered at build time from the SVG set into {@code
+ * The toolbar, toggle, button and menu icons, rendered at build time from the SVG set into {@code
  * icons/tool/NAME-light-16.png} (dark ink) and {@code NAME-dark-16.png} (light ink), each with a 32
  * px copy for 200% zoom. The ink follows the native widget background, not the QCaret palette,
  * because toolbars and buttons are native. GTK refreshes {@code getBackground} and sends {@code
@@ -150,6 +154,24 @@ final class ToolIcons {
   /** Opens About. */
   static final String ABOUT = "about";
 
+  /** Shows the parent folder. */
+  static final String PARENT = "parent";
+
+  /** Shows the home folder. */
+  static final String HOME = "home";
+
+  /** Opens the favorite folders. */
+  static final String FAVORITES = "favorites";
+
+  /** Shows the workspace folder again. */
+  static final String WORKSPACE = "workspace";
+
+  /** Selects the active file's row. */
+  static final String REVEAL = "reveal";
+
+  /** Hides a side panel. */
+  static final String HIDE = "hide";
+
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 
@@ -172,6 +194,7 @@ final class ToolIcons {
   private final Map<String, Image> images = new HashMap<String, Image>();
   private final Map<ToolItem, String> items = new LinkedHashMap<ToolItem, String>();
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
+  private final Map<Button, String> buttons = new LinkedHashMap<Button, String>();
   private final boolean fixedInk;
   private Image blank;
   private boolean darkBackground;
@@ -264,6 +287,49 @@ final class ToolIcons {
   }
 
   /**
+   * Creates a push button showing an icon, with the label as its tool tip and accessible name; the
+   * button shows the label instead when the icon's PNG is missing.
+   *
+   * @param parent the button's parent
+   * @param name one of the name constants
+   * @param label the tool tip and accessible name
+   * @return the button
+   */
+  Button button(Composite parent, String name, final String label) {
+    Button button = new Button(parent, SWT.PUSH);
+    if (!apply(button, name)) {
+      button.setText(label.replace("&", "&&"));
+    }
+    button.setToolTipText(label);
+    button
+        .getAccessible()
+        .addAccessibleListener(
+            new AccessibleAdapter() {
+              @Override
+              public void getName(AccessibleEvent event) {
+                event.result = label;
+              }
+            });
+    return button;
+  }
+
+  /**
+   * Shows an icon on a push button and keeps it in the owner's ink across {@link #reink}.
+   *
+   * @param button the button
+   * @param name one of the name constants
+   * @return false when the PNG is missing from the jar and the button shows no image
+   */
+  boolean apply(Button button, String name) {
+    if (get(name) == null) {
+      return false;
+    }
+    buttons.put(button, name);
+    showState(button);
+    return true;
+  }
+
+  /**
    * Returns a transparent image of an icon's size, created on first use.
    *
    * @return the image, disposed with the owner
@@ -307,6 +373,9 @@ final class ToolIcons {
     for (MenuItem item : menuItems.keySet()) {
       showState(item);
     }
+    for (Button button : buttons.keySet()) {
+      showState(button);
+    }
     for (Image image : old) {
       if (image != null) {
         image.dispose();
@@ -345,6 +414,23 @@ final class ToolIcons {
     Image image = get(GTK && darkBackground && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
+    }
+  }
+
+  /**
+   * Shows the image of a button's enabled state; call after changing it. A button not given to
+   * {@link #apply} keeps its image.
+   *
+   * @param button the button
+   */
+  void showState(Button button) {
+    String name = buttons.get(button);
+    if (name == null || button.isDisposed()) {
+      return;
+    }
+    Image image = get(GTK && darkBackground && !button.getEnabled() ? name + FADED : name);
+    if (button.getImage() != image) {
+      button.setImage(image);
     }
   }
 
