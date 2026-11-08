@@ -20,6 +20,14 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{[" close="}]"/>
+  <symbols>
+    <symbol kind="class" regex="\bclass\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="trait" regex="\bmixin\s+(?!class\b)([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="type" regex="\bextension\s+([\p{L}_][\p{L}\p{N}_]*)\s+on\b"/>
+    <symbol kind="type" regex="\btypedef\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="^\s*(?:(?:static|external|factory|abstract|final|const|late)\s+)*(?:(?!(?:return|new|throw|else|yield|case|assert|await|package|import|using|goto|delete|var|val|let)\b)[\p{L}_$][\p{L}\p{N}_$.]*(?:&lt;[^()]*?&gt;)?\??\s+)?(?:get\s+|set\s+)?(?!(?:if|for|while|switch|catch|return|else|try|finally|do|async|sync|get|set|class|enum|mixin|extension|assert|super|this)\b)([\p{L}_$][\p{L}\p{N}_$]*(?:\.\w+)?)\s*(?:\([^;{'\&quot;]*\))?\s*(?:async\*?\s*|sync\*\s*)?(?:\{|=&gt;)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>

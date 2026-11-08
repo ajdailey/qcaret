@@ -42,13 +42,21 @@ public record WalkRules(Set<String> excludedDirectories) {
    * @return true for a hidden entry or an excluded directory name
    */
   public boolean skips(Path path, boolean directory) {
-    Path name = path.getFileName();
-    if (name == null) {
+    if (path.getFileName() == null) {
       return false;
     }
-    if (directory && excludedDirectories.contains(name.toString())) {
-      return true;
-    }
-    return HiddenFiles.hidden(path);
+    return excludes(path, directory) || HiddenFiles.hidden(path);
+  }
+
+  /**
+   * Reports whether an entry is an excluded directory, whether hidden or not.
+   *
+   * @param path the entry
+   * @param directory true for a directory
+   * @return true for a directory with an excluded name
+   */
+  public boolean excludes(Path path, boolean directory) {
+    Path name = path.getFileName();
+    return directory && name != null && excludedDirectories.contains(name.toString());
   }
 }

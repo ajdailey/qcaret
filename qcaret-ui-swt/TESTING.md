@@ -67,6 +67,7 @@ checks that need them skip there.
 | `ReplaceSurfaceTest` | The preview opened from the dock over a tree search, a typed replacement, an unchecked match, Apply, the report's rows and the files, the run restored from the report |
 | `BookmarksSurfaceTest` | A plain bookmark's bar and a commented bookmark's flag in pixels, by color and by x range, in both themes; the tooltip over the gutter and its absence elsewhere; the comment prompt; the list's cells, Go To, Edit Comment, Remove and Hide; both docks shown at once |
 | `WorkspaceSurfaceTest` | Browser rows expanded, a file opened with Enter, a path copied, the active file revealed, a Quick Open match chosen at `:2`, the Recent Files entry, an empty Quick Open (the open document in bold, then a closed recent file) |
+| `GoToSymbolSurfaceTest` | Go to Symbol's field starting with `@`, the rows and the detail column heading, a filtered row chosen with Enter moving the caret |
 | `CompareSurfaceTest` | A dirty document's file changed and the window activated until the prompt shows; Compare from it with both sides' rows, Next, Previous and Shift+F7 with wrapping, the other side following a scroll, the dark palette's background after a theme switch; Reload from the prompt loading the file |
 | `PreferencesSurfaceTest` | A refused field keeping the dialog open on its tab, Restore Defaults applying nothing, the Keys tab refusing a typing or taken key and a free one reaching the menu item's accelerator, Clear History's prompt declining and clearing with an open find bar following, a theme switch leaving it working, a new size remembered |
 | `RecoverySurfaceTest` | The recovery dialog and a restored split on a real window, with the top line of a tab shown later and a fold in one view |
@@ -100,6 +101,7 @@ files. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
 | `ProductivitySurfaceTest` | The marks with a bookmark and occurrences, the open palette, a Java file with a collapsed region, occurrences and a matched bracket (`merge.png`) |
 | `BookmarksSurfaceTest` | `bookmark-tooltip.png` (the whole screen, so the tooltip shows), `bookmarks-list.png` |
 | `WorkspaceSurfaceTest` | `workspace-browser.png`, `quick-open-empty.png`, `quick-open.png` |
+| `GoToSymbolSurfaceTest` | `go-to-symbol-light.png`, `go-to-symbol-dark.png` |
 | `CompareSurfaceTest` | `change-prompt.png`, `diff-view.png` (the whole screen) |
 | `ReplaceSurfaceTest` | `replace-preview.png`, `replace-report.png` |
 | `RecoverySurfaceTest`, `PreferencesSurfaceTest` | The recovery dialog and the restored split; each Preferences group |

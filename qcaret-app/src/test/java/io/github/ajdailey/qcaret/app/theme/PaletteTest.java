@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.theme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,6 +57,13 @@ class PaletteTest {
           new Rgb[] {palette.diffRemoved(), palette.diffAdded(), palette.diffChanged()}) {
         assertTrue(contrast(palette.text(), row) >= 4.5, "text on " + row);
       }
+      for (Rgb mark :
+          new Rgb[] {palette.lineAdded(), palette.lineChanged(), palette.lineRemoved()}) {
+        assertTrue(contrast(mark, palette.background()) >= 3, mark + " on the background");
+        assertTrue(contrast(mark, palette.currentLine()) >= 3, mark + " on the current line");
+      }
+      assertNotEquals(palette.background(), palette.indentGuide());
+      assertNotEquals(palette.currentLine(), palette.indentGuide());
     }
   }
 

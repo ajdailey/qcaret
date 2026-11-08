@@ -1,10 +1,11 @@
 package io.github.ajdailey.qcaret.core.edit;
 
-import io.github.ajdailey.qcaret.core.buffer.TextContent;
-
 /**
- * Word boundaries: a word is a run of letters, digits and {@code _}. Caret moves treat a run of
- * other non-blank chars as a word too, and stop at every line break.
+ * Word boundaries: a word is a run of letters, digits and {@code _}. Caret moves, double-click, Add
+ * Next Occurrence and Delete Word treat a run of other non-blank chars as a word too, and stop at
+ * every line break. The text is walked in clusters: a code point and the combining marks after it,
+ * which take its kind, so neither a surrogate pair nor a base char and its marks is split. A mark
+ * after a blank or a line break is a cluster of its own, not part of a word.
  */
 public final class Words {
   private static final int WORD = 0;
@@ -21,21 +22,19 @@ public final class Words {
    * @param offset an offset from 0 to the text length
    * @return {start, end}, or an empty array when no word touches it
    */
-  public static int[] at(TextContent text, int offset) {
-    int start = offset;
-    int end = offset;
-    if (offset < text.length() && isWord(text.charAt(offset))) {
-      end++;
-    } else if (offset > 0 && isWord(text.charAt(offset - 1))) {
-      start--;
-    } else {
+  public static int[] at(CharSequence text, int offset) {
+    int length = text.length();
+    if (!(offset < length && isWordAt(text, offset))
+        && !(offset > 0 && isWordBefore(text, offset))) {
       return new int[0];
     }
-    while (start > 0 && isWord(text.charAt(start - 1))) {
-      start--;
+    int start = offset;
+    int end = offset;
+    while (start > 0 && isWordBefore(text, start)) {
+      start = clusterStart(text, start);
     }
-    while (end < text.length() && isWord(text.charAt(end))) {
-      end++;
+    while (end < length && isWordAt(text, end)) {
+      end = clusterEnd(text, end);
     }
     return new int[] {start, end};
   }
@@ -48,22 +47,21 @@ public final class Words {
    * @param offset the start
    * @return the end offset
    */
-  public static int right(TextContent text, int offset) {
+  public static int right(CharSequence text, int offset) {
     int length = text.length();
     if (offset >= length) {
       return length;
     }
-    char c = text.charAt(offset);
-    if (c == '\r' || c == '\n') {
-      return Moves.right(text, offset);
+    if (isBreak(text.charAt(offset))) {
+      return breakEnd(text, offset);
     }
     int at = offset;
-    int kind = kind(c);
-    while (at < length && kind != BLANK && kind(text.charAt(at)) == kind) {
-      at++;
+    int kind = kindAt(text, at);
+    while (at < length && kind != BLANK && kindAt(text, at) == kind) {
+      at = clusterEnd(text, at);
     }
-    while (at < length && kind(text.charAt(at)) == BLANK) {
-      at++;
+    while (at < length && kindAt(text, at) == BLANK) {
+      at = clusterEnd(text, at);
     }
     return at;
   }
@@ -76,43 +74,156 @@ public final class Words {
    * @param offset the start
    * @return the end offset
    */
-  public static int left(TextContent text, int offset) {
+  public static int left(CharSequence text, int offset) {
     if (offset <= 0) {
       return 0;
     }
-    char c = text.charAt(offset - 1);
-    if (c == '\r' || c == '\n') {
-      return Moves.left(text, offset);
+    if (isBreak(text.charAt(offset - 1))) {
+      return breakStart(text, offset);
     }
     int at = offset;
-    while (at > 0 && kind(text.charAt(at - 1)) == BLANK) {
-      at--;
+    while (at > 0 && kindBefore(text, at) == BLANK) {
+      at = clusterStart(text, at);
     }
-    if (at == 0 || isBreak(text.charAt(at - 1))) {
+    if (at == 0 || kindBefore(text, at) == BREAK) {
       return at;
     }
-    int kind = kind(text.charAt(at - 1));
-    while (at > 0 && kind(text.charAt(at - 1)) == kind) {
-      at--;
+    int kind = kindBefore(text, at);
+    while (at > 0 && kindBefore(text, at) == kind) {
+      at = clusterStart(text, at);
     }
     return at;
   }
 
-  private static int kind(char c) {
-    if (isWord(c)) {
+  /**
+   * Reports whether the cluster holding the code point at an offset belongs to a word.
+   *
+   * @param text the text
+   * @param offset an offset below the text length
+   * @return true for a letter, digit, {@code _} or a mark on one
+   */
+  public static boolean isWordAt(CharSequence text, int offset) {
+    return kindAt(text, offset) == WORD;
+  }
+
+  /**
+   * Reports whether the cluster ending at an offset belongs to a word.
+   *
+   * @param text the text
+   * @param offset an offset above 0
+   * @return true for a letter, digit, {@code _} or a mark on one
+   */
+  public static boolean isWordBefore(CharSequence text, int offset) {
+    return kindBefore(text, offset) == WORD;
+  }
+
+  /**
+   * Reports whether a char can be part of a word, for a scan that reads one char at a time:
+   * letters, digits, {@code _} and combining marks.
+   *
+   * @param c the char
+   * @return true for a word char
+   */
+  static boolean isWord(char c) {
+    return Character.isLetterOrDigit(c) || c == '_' || CaseEdits.isMark(c);
+  }
+
+  /** Returns the start of the cluster ending at an offset. */
+  private static int clusterStart(CharSequence text, int offset) {
+    int at = offset;
+    while (at > 0) {
+      int cp = codePointBefore(text, at);
+      at -= Character.charCount(cp);
+      if (!CaseEdits.isMark(cp) || at == 0 || isBlankOrBreak(codePointBefore(text, at))) {
+        return at;
+      }
+    }
+    return at;
+  }
+
+  /** Returns the end of the cluster starting at an offset. */
+  private static int clusterEnd(CharSequence text, int offset) {
+    int cp = codePointAt(text, offset);
+    int at = offset + Character.charCount(cp);
+    if (isBlankOrBreak(cp)) {
+      return at;
+    }
+    while (at < text.length()) {
+      int next = codePointAt(text, at);
+      if (!CaseEdits.isMark(next)) {
+        break;
+      }
+      at += Character.charCount(next);
+    }
+    return at;
+  }
+
+  /** Returns the kind of the cluster ending at an offset: its first code point's. */
+  private static int kindBefore(CharSequence text, int offset) {
+    return kind(codePointAt(text, clusterStart(text, offset)));
+  }
+
+  /** Returns the kind of the cluster holding the code point at an offset. */
+  private static int kindAt(CharSequence text, int offset) {
+    return kindBefore(text, offset + Character.charCount(codePointAt(text, offset)));
+  }
+
+  private static int kind(int cp) {
+    if (Character.isLetterOrDigit(cp) || cp == '_') {
       return WORD;
     }
-    if (c == ' ' || c == '\t') {
+    if (cp == ' ' || cp == '\t') {
       return BLANK;
     }
-    return isBreak(c) ? BREAK : OTHER;
+    return cp == '\r' || cp == '\n' ? BREAK : OTHER;
+  }
+
+  private static boolean isBlankOrBreak(int cp) {
+    int kind = kind(cp);
+    return kind == BLANK || kind == BREAK;
   }
 
   private static boolean isBreak(char c) {
     return c == '\r' || c == '\n';
   }
 
-  static boolean isWord(char c) {
-    return Character.isLetterOrDigit(c) || c == '_';
+  /** Returns the offset past the line break at an offset, a CR LF as one. */
+  private static int breakEnd(CharSequence text, int offset) {
+    if (text.charAt(offset) == '\r'
+        && offset + 1 < text.length()
+        && text.charAt(offset + 1) == '\n') {
+      return offset + 2;
+    }
+    return offset + 1;
+  }
+
+  /** Returns the offset before the line break ending at an offset, a CR LF as one. */
+  private static int breakStart(CharSequence text, int offset) {
+    if (text.charAt(offset - 1) == '\n' && offset >= 2 && text.charAt(offset - 2) == '\r') {
+      return offset - 2;
+    }
+    return offset - 1;
+  }
+
+  private static int codePointAt(CharSequence text, int offset) {
+    char c = text.charAt(offset);
+    if (Character.isHighSurrogate(c) && offset + 1 < text.length()) {
+      char low = text.charAt(offset + 1);
+      if (Character.isLowSurrogate(low)) {
+        return Character.toCodePoint(c, low);
+      }
+    }
+    return c;
+  }
+
+  private static int codePointBefore(CharSequence text, int offset) {
+    char c = text.charAt(offset - 1);
+    if (Character.isLowSurrogate(c) && offset >= 2) {
+      char high = text.charAt(offset - 2);
+      if (Character.isHighSurrogate(high)) {
+        return Character.toCodePoint(high, c);
+      }
+    }
+    return c;
   }
 }

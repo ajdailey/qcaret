@@ -415,4 +415,28 @@ class EditorSurfaceTest {
         selected,
         "widget " + text.getSelection() + " caret " + text.getCaretOffset() + " model " + primary);
   }
+
+  /** A double click takes the word by the rule of the word moves: marks join, {@code .} splits. */
+  @Test
+  void aDoubleClickSelectsTheWordOfTheWordMoves() throws Exception {
+    openFile("marks.txt", "x cafe\u0301_b.q y\n");
+    final EditorController editor = controller.documents().activeEditor();
+    StyledText text = window.activeText();
+    Point at = text.getLocationAtOffset(editor.projection().toDisplay(3));
+    int x = at.x + 1;
+    int y = at.y + text.getLineHeight() / 2;
+    for (int type : new int[] {SWT.MouseDown, SWT.MouseDoubleClick, SWT.MouseUp}) {
+      Event event = new Event();
+      event.button = 1;
+      event.count = 2;
+      event.x = x;
+      event.y = y;
+      text.notifyListeners(type, event);
+    }
+    Selection primary = editor.selections().selections().primary();
+    assertEquals(
+        "cafe\u0301_b",
+        modelText().substring(primary.start(), primary.end()),
+        "widget " + text.getSelection() + " model " + primary);
+  }
 }

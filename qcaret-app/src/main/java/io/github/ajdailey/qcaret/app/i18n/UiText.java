@@ -47,6 +47,32 @@ public enum UiText {
   COMMAND_INSERT_DATE_TIME,
   /** Command label. */
   COMMAND_DOCUMENT_STATISTICS,
+  /** Command label. */
+  COMMAND_DELETE_WORD_BACK,
+  /** Command label. */
+  COMMAND_DELETE_WORD_FORWARD,
+  /** Command label. */
+  COMMAND_TITLE_CASE,
+  /** Command label. */
+  COMMAND_SWAP_CASE,
+  /** Command label. */
+  COMMAND_TRANSPOSE,
+  /** Command label. */
+  COMMAND_SELECT_ALL_OCCURRENCES,
+  /** Command label. */
+  COMMAND_SKIP_OCCURRENCE,
+  /** Command label. */
+  COMMAND_EXPAND_SELECTION,
+  /** Command label. */
+  COMMAND_SELECT_LINE,
+  /** Command label. */
+  COMMAND_UNDO_SELECTION,
+  /** Command label. */
+  COMMAND_REDO_SELECTION,
+  /** Select All Occurrences found too many: the limit. */
+  OCCURRENCES_LIMIT,
+  /** A selection search's result arrived after an edit. */
+  OCCURRENCES_STALE,
   /** Preferences field. */
   PREFERENCES_RIGHT_MARGIN,
   /** Preferences field. */
@@ -87,6 +113,14 @@ public enum UiText {
   STATISTICS_NO_DOCUMENT,
   /** Button counting again. */
   BUTTON_REFRESH,
+  /** Command label. */
+  COMMAND_WRAP_PARAGRAPH,
+  /** Command label. */
+  COMMAND_INDENT_GUIDES,
+  /** Command label. */
+  COMMAND_LINE_CHANGES,
+  /** Gutter tooltip of a document too large for modified-line marks: the line and char limits. */
+  LINE_CHANGES_OVER_LIMIT,
   /** Title of a document without a file: its number. */
   TAB_UNTITLED,
   /** File menu. */
@@ -1235,7 +1269,71 @@ public enum UiText {
   /** Preferences box for reading .editorconfig files. */
   PREFERENCES_EDITOR_CONFIG,
   /** Preferences box for reading modelines. */
-  PREFERENCES_MODELINES;
+  PREFERENCES_MODELINES,
+  /** Command label. */
+  COMMAND_GO_TO_SYMBOL,
+  /** Quick Open detail column heading over symbol rows. */
+  SYMBOL_HEADING,
+  /** Symbol row detail; takes the kind and the line. */
+  SYMBOL_DETAIL,
+  /** Symbol summary without a document. */
+  SYMBOL_NO_DOCUMENT,
+  /** Symbol summary while the scan runs; takes the document name. */
+  SYMBOL_SCANNING,
+  /** Symbol summary after the document changed during every scan; takes its name. */
+  SYMBOL_CHANGING,
+  /** Symbol summary for plain text; takes the document name. */
+  SYMBOL_PLAIN,
+  /** Symbol summary for a grammar without symbol rules; takes the document and grammar names. */
+  SYMBOL_NO_RULES,
+  /** Symbol summary; takes the matched and found counts and the document name. */
+  SYMBOL_COUNT,
+  /** Symbol summary after the scan stopped at its count; takes the summary and the count. */
+  SYMBOL_CUT,
+  /** Symbol summary with long lines skipped; takes the summary and the line count. */
+  SYMBOL_SKIPPED,
+  /** Notice when no symbol matches a file@symbol query; takes the query and the document name. */
+  SYMBOL_NOT_FOUND,
+  /** Workspace browser button: the shown folder's parent. */
+  BROWSE_PARENT,
+  /** Workspace browser button: the home folder. */
+  BROWSE_HOME,
+  /** Workspace browser button: the favorites menu. */
+  BROWSE_FAVORITES,
+  /** Workspace browser button: the workspace folder again. */
+  BROWSE_WORKSPACE,
+  /** Favorites menu item. */
+  BROWSE_ADD_FAVORITE,
+  /** Favorites menu item. */
+  BROWSE_REMOVE_FAVORITE,
+  /** Favorites menu row without favorites. */
+  BROWSE_NO_FAVORITES,
+  /** Path field hint. */
+  BROWSE_PATH_HINT,
+  /** Filter field hint. */
+  BROWSE_FILTER_HINT,
+  /** Check box: list hidden entries. */
+  BROWSE_HIDDEN,
+  /** Browser column. */
+  BROWSE_COLUMN_NAME,
+  /** Browser column. */
+  BROWSE_COLUMN_SIZE,
+  /** Browser column. */
+  BROWSE_COLUMN_MODIFIED,
+  /** Notice: Reveal Active File outside the shown folder; takes the file name. */
+  BROWSE_OUTSIDE,
+  /** Notice: a typed folder does not exist; takes the path. */
+  BROWSE_MISSING,
+  /** Notice: a typed path is a file; takes the path. */
+  BROWSE_NOT_FOLDER,
+  /** Notice: a typed path does not parse; takes the text. */
+  BROWSE_INVALID,
+  /** Notice: a filter does not parse; takes the text. */
+  BROWSE_BAD_FILTER,
+  /** Notice: a rename moved the workspace folder; takes the new path. */
+  WORKSPACE_MOVED,
+  /** Notice: a delete took the workspace folder; takes its path. */
+  WORKSPACE_DELETED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

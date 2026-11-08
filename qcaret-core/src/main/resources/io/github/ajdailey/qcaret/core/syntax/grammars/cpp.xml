@@ -29,6 +29,16 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="macro" regex="^\s*#\s*define\s+([A-Za-z_]\w*)"/>
+    <symbol kind="struct" regex="\bstruct\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="struct" regex="\bunion\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="enum" regex="\benum\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="type" regex="^\s*typedef\b.*?\b([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)*;\s*$"/>
+    <symbol kind="namespace" regex="\bnamespace\s+([A-Za-z_][\w:]*)\s*(?:\{|$)"/>
+    <symbol kind="class" regex="\bclass\s+([A-Za-z_]\w*)(?:\s+final)?\s*(?::(?!:)|\{|$)"/>
+    <symbol kind="function" regex="^(?!(?:if|for|while|switch|return|else|do|case|goto|typedef|struct|union|enum|using|namespace|class|template)\b)(?:[A-Za-z_][\w\s*&amp;:&lt;&gt;,]*?[\s*&amp;]+)?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

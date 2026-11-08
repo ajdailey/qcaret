@@ -13,11 +13,12 @@ import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.workspace.DirectoryListing;
 import io.github.ajdailey.qcaret.core.workspace.FileIndex;
+import io.github.ajdailey.qcaret.core.workspace.ListingOptions;
 import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,11 +32,17 @@ import java.util.function.Consumer;
  * its browser and file index. HyperSearch's workspace scope searches its tree. Confined to the UI
  * thread.
  *
- * <p>The browser lists a directory on a {@code qcaret-io-} worker the first time it expands ({@link
- * DirectoryListing}, {@code workspace.excludedDirectories}), and shows {@value #PAGE} entries at a
- * time behind a "more" row. Refresh lists every listed directory again, keeping the old rows until
- * the new ones arrive, and rebuilds the index. The row menu's file operations run in {@link
- * WorkspaceFiles}.
+ * <p>The browser shows the workspace folder, or a folder browsed to through {@link WorkspaceBrowse}
+ * without changing the workspace. It lists a directory on a {@code qcaret-io-} worker the first
+ * time it expands ({@link DirectoryListing}, {@code workspace.excludedDirectories}, the filter,
+ * hidden entries and the sort), with the rows' Size and Modified texts ({@link BrowserRows}), and
+ * shows {@value #PAGE} entries at a time behind a "more" row. Refresh, and a filter, hidden or sort
+ * change, list every listed directory again, keeping the old rows until the new ones arrive;
+ * Refresh also rebuilds the index. A new shown folder drops every listing, so a listing still
+ * running is canceled and its result dropped. The row menu's file operations run in {@link
+ * WorkspaceFiles}; after one, or a Refresh, every other window's browser lists the directories it
+ * shows again ({@link BrowserWindows}). A rename of the workspace folder or a parent moves the
+ * workspace in every window ({@link #follow}); a delete of either clears it ({@link #clearUnder}).
  *
  * <p>The file index ({@link FileIndex}, at most {@link FileIndex#MAX_FILES} files, charged to the
  * {@link MemoryBudget}) is built on a {@code qcaret-search-} worker whenever the folder changes and
@@ -71,10 +78,19 @@ public final class WorkspaceController implements WorkspaceInput {
   private CancellationToken indexing;
   private Path revealing;
   private WorkspaceFiles files;
+  private WorkspaceBrowse browse;
+  private BrowserWindows peers;
+
+  /** The folder the browser shows instead of the workspace folder; null for the workspace. */
+  private Path browsed;
+
+  /** Runs on the worker before a directory is read; a test seam, null otherwise. */
+  private volatile Runnable beforeList;
 
   /** One directory's listing as the browser holds it. */
   private static final class Listing {
     DirectoryListing entries;
+    List<WorkspaceNode> rows;
     String error;
     int shown = PAGE;
     CancellationToken reading;
@@ -122,7 +138,7 @@ public final class WorkspaceController implements WorkspaceInput {
     WalkRules next = WalkRules.of(names);
     if (!next.equals(rules)) {
       rules = next;
-      if (root != null && !disposed) {
+      if (shownFolder() != null && !disposed) {
         reset();
       }
     }
@@ -160,6 +176,7 @@ public final class WorkspaceController implements WorkspaceInput {
                   public void run() {
                     if (!disposed) {
                       root = real;
+                      browsed = null;
                       view.showNotice(UiText.WORKSPACE_SET.format(real));
                       reset();
                       documents.sessionChanged();
@@ -189,20 +206,25 @@ public final class WorkspaceController implements WorkspaceInput {
 
   /** Drops every listing and the index, lists the root again when shown and builds the index. */
   private void reset() {
+    if (index != null) {
+      budget.release(index.charged());
+      index = null;
+    }
+    relist();
+    buildIndex();
+  }
+
+  /** Drops every listing and lists the shown folder again when the browser shows. */
+  private void relist() {
     for (Listing listing : listings.values()) {
       cancel(listing);
     }
     listings.clear();
     revealing = null;
-    if (index != null) {
-      budget.release(index.charged());
-      index = null;
-    }
     view.workspaceChanged(null);
-    if (shown && root != null) {
+    if (shown && shownFolder() != null) {
       expand(rootNode());
     }
-    buildIndex();
   }
 
   /** Sets what runs the row operations. */
@@ -215,6 +237,62 @@ public final class WorkspaceController implements WorkspaceInput {
     return files;
   }
 
+  /** Sets what runs the navigation, filter and sort. */
+  void setBrowse(WorkspaceBrowse value) {
+    browse = value;
+  }
+
+  @Override
+  public WorkspaceBrowse browse() {
+    return browse;
+  }
+
+  /** Joins the windows whose browsers follow each other's changes. */
+  void setPeers(BrowserWindows value) {
+    peers = value;
+    value.add(this);
+  }
+
+  void setBeforeList(Runnable hook) {
+    beforeList = hook;
+  }
+
+  /** Returns the folder the browser shows: the folder browsed to, else the workspace folder. */
+  Path shownFolder() {
+    return browsed != null ? browsed : root;
+  }
+
+  /** Returns the folder browsed to; null while the browser shows the workspace folder. */
+  Path browsed() {
+    return browsed;
+  }
+
+  /**
+   * Shows a folder in the browser without changing the workspace folder.
+   *
+   * @param real the folder's real path; the workspace folder, or null, shows the workspace
+   */
+  void showFolder(Path real) {
+    if (disposed) {
+      return;
+    }
+    browsed = real == null || real.equals(root) ? null : real;
+    relist();
+    documents.sessionChanged();
+  }
+
+  /** Lists every listed directory again, after the filter, hidden entries or sort changed. */
+  void relistAll() {
+    if (disposed) {
+      return;
+    }
+    for (Map.Entry<Path, Listing> entry : listings.entrySet()) {
+      list(entry.getKey(), entry.getValue());
+    }
+    view.workspaceChanged(null);
+    documents.sessionChanged();
+  }
+
   /** Returns the entries the browser and the index leave out. */
   WalkRules rules() {
     return rules;
@@ -223,6 +301,9 @@ public final class WorkspaceController implements WorkspaceInput {
   /** Stops the index build and the listings and returns the index's charge. */
   void dispose() {
     disposed = true;
+    if (peers != null) {
+      peers.remove(this);
+    }
     if (files != null) {
       files.dispose();
     }
@@ -266,7 +347,7 @@ public final class WorkspaceController implements WorkspaceInput {
     }
     shown = value;
     view.showWorkspace(this, shown);
-    if (shown && root != null) {
+    if (shown && shownFolder() != null) {
       expand(rootNode());
     }
     view.documentStateChanged();
@@ -280,12 +361,13 @@ public final class WorkspaceController implements WorkspaceInput {
 
   @Override
   public WorkspaceNode rootNode() {
-    if (root == null) {
+    Path top = shownFolder();
+    if (top == null) {
       return null;
     }
-    Path name = root.getFileName();
+    Path name = top.getFileName();
     return new WorkspaceNode(
-        root, name == null ? root.toString() : name.toString(), WorkspaceNode.Kind.DIRECTORY);
+        top, name == null ? top.toString() : name.toString(), WorkspaceNode.Kind.DIRECTORY);
   }
 
   @Override
@@ -302,16 +384,13 @@ public final class WorkspaceController implements WorkspaceInput {
       return List.of(
           new WorkspaceNode(dir, UiText.WORKSPACE_LOADING.text(), WorkspaceNode.Kind.LOADING));
     }
-    List<DirectoryListing.Entry> entries = listing.entries.entries();
+    List<WorkspaceNode> entries = listing.rows;
     if (entries.isEmpty()) {
       return List.of(
           new WorkspaceNode(dir, UiText.WORKSPACE_EMPTY.text(), WorkspaceNode.Kind.EMPTY));
     }
     int count = Math.min(listing.shown, entries.size());
-    List<WorkspaceNode> nodes = new ArrayList<WorkspaceNode>(count + 1);
-    for (int i = 0; i < count; i++) {
-      nodes.add(node(dir, entries.get(i)));
-    }
+    List<WorkspaceNode> nodes = new ArrayList<WorkspaceNode>(entries.subList(0, count));
     if (count < entries.size()) {
       int more = Math.min(PAGE, entries.size() - count);
       nodes.add(
@@ -329,16 +408,6 @@ public final class WorkspaceController implements WorkspaceInput {
     return nodes;
   }
 
-  private static WorkspaceNode node(Path dir, DirectoryListing.Entry entry) {
-    WorkspaceNode.Kind kind =
-        switch (entry.kind()) {
-          case DIRECTORY -> WorkspaceNode.Kind.DIRECTORY;
-          case FILE -> WorkspaceNode.Kind.FILE;
-          case CYCLE -> WorkspaceNode.Kind.CYCLE;
-        };
-    return new WorkspaceNode(dir.resolve(entry.name()), entry.name(), kind);
-  }
-
   @Override
   public void expand(WorkspaceNode directory) {
     if (disposed || !directory.expands() || listings.containsKey(directory.path())) {
@@ -354,6 +423,7 @@ public final class WorkspaceController implements WorkspaceInput {
     cancel(listing);
     final CancellationToken token = new CancellationToken();
     final WalkRules walk = rules;
+    final ListingOptions how = browse == null ? ListingOptions.DEFAULTS : browse.options();
     listing.reading = token;
     workers.tryStart(
         Workers.Kind.IO,
@@ -361,21 +431,28 @@ public final class WorkspaceController implements WorkspaceInput {
           @Override
           public void run() {
             DirectoryListing read = null;
+            List<WorkspaceNode> rows = null;
             String error = null;
             try {
-              read = DirectoryListing.read(dir, walk, token);
+              Runnable hook = beforeList;
+              if (hook != null) {
+                hook.run();
+              }
+              read = DirectoryListing.read(dir, walk, how, token);
+              rows = BrowserRows.rows(dir, read, Locale.getDefault(), ZoneId.systemDefault());
             } catch (IOException e) {
               error = UiText.WORKSPACE_UNREADABLE.format(LogText.oneLine(String.valueOf(e)));
             } catch (CancellationException e) {
               error = null;
             } finally {
-              final DirectoryListing result = read;
+              final DirectoryListing result = rows == null ? null : read;
+              final List<WorkspaceNode> shownRows = rows;
               final String failure = error;
               ui.asyncExec(
                   new Runnable() {
                     @Override
                     public void run() {
-                      listed(dir, listing, token, result, failure);
+                      listed(dir, listing, token, result, shownRows, failure);
                     }
                   });
             }
@@ -384,7 +461,12 @@ public final class WorkspaceController implements WorkspaceInput {
   }
 
   private void listed(
-      Path dir, Listing listing, CancellationToken token, DirectoryListing read, String error) {
+      Path dir,
+      Listing listing,
+      CancellationToken token,
+      DirectoryListing read,
+      List<WorkspaceNode> rows,
+      String error) {
     if (disposed || listing.reading != token || listings.get(dir) != listing) {
       return;
     }
@@ -393,6 +475,7 @@ public final class WorkspaceController implements WorkspaceInput {
       return;
     }
     listing.entries = read;
+    listing.rows = rows;
     listing.error = error;
     view.workspaceChanged(directoryNode(dir));
     if (revealing != null) {
@@ -407,49 +490,27 @@ public final class WorkspaceController implements WorkspaceInput {
   private final List<Path> restoredExpanded = new ArrayList<Path>();
 
   /**
-   * Puts back a session's folder and browser: the folder's real path is resolved on a {@code
-   * qcaret-io-} worker, a folder that is gone is dropped, and each directory expands once its
-   * parent is listed.
+   * Puts back a session's folders and browser ({@link WorkspaceBrowse#restoreFolders}); each
+   * expanded directory expands once its parent is listed.
    *
-   * @param folder the folder, empty for none
+   * @param real the workspace folder's real path, or null to keep none
+   * @param other the real path of the folder the browser showed instead, or null
    * @param browser true to show the browser
    * @param expanded the expanded directories, parents first
    */
-  void restore(String folder, final boolean browser, final List<Path> expanded) {
-    if (folder.isEmpty()) {
-      setShown(browser);
+  void restored(Path real, Path other, boolean browser, List<Path> expanded) {
+    if (disposed) {
       return;
     }
-    final Path given;
-    try {
-      given = Path.of(folder).toAbsolutePath().normalize();
-    } catch (InvalidPathException e) {
-      setShown(browser);
-      return;
+    if (real != null || other != null) {
+      if (real != null) {
+        root = real;
+      }
+      browsed = other == null || other.equals(root) ? null : other;
+      restoredExpanded.addAll(expanded);
+      reset();
     }
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            final Path real = Files.isDirectory(given) ? realFolder(given) : null;
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    if (disposed) {
-                      return;
-                    }
-                    if (real != null) {
-                      root = real;
-                      restoredExpanded.addAll(expanded);
-                      reset();
-                    }
-                    setShown(browser);
-                  }
-                });
-          }
-        });
+    setShown(browser);
   }
 
   /** Expands each restored directory whose parent is listed; the others wait. */
@@ -463,7 +524,7 @@ public final class WorkspaceController implements WorkspaceInput {
                 ? -1
                 : indexOf(parent.entries.entries(), String.valueOf(directory.getFileName()));
         if (at >= 0 && at < parent.shown) {
-          view.expandWorkspace(node(directory.getParent(), parent.entries.entries().get(at)));
+          view.expandWorkspace(parent.rows.get(at));
         }
       }
     }
@@ -481,7 +542,7 @@ public final class WorkspaceController implements WorkspaceInput {
   }
 
   private WorkspaceNode directoryNode(Path dir) {
-    if (dir.equals(root)) {
+    if (dir.equals(shownFolder())) {
       return rootNode();
     }
     return new WorkspaceNode(dir, String.valueOf(dir.getFileName()), WorkspaceNode.Kind.DIRECTORY);
@@ -509,13 +570,32 @@ public final class WorkspaceController implements WorkspaceInput {
 
   @Override
   public void refresh() {
-    if (disposed || root == null) {
+    if (disposed || shownFolder() == null) {
       return;
     }
-    for (Map.Entry<Path, Listing> entry : listings.entrySet()) {
-      list(entry.getKey(), entry.getValue());
-    }
+    List<Path> listed = new ArrayList<Path>(listings.keySet());
+    relisted(listed);
     buildIndex();
+    if (peers != null) {
+      peers.refreshed(this, listed);
+    }
+  }
+
+  /**
+   * Lists directories again where this browser lists them.
+   *
+   * @param directories the directories
+   */
+  void relisted(List<Path> directories) {
+    if (disposed) {
+      return;
+    }
+    for (Path dir : directories) {
+      Listing listing = listings.get(dir);
+      if (listing != null) {
+        list(dir, listing);
+      }
+    }
   }
 
   @Override
@@ -598,8 +678,10 @@ public final class WorkspaceController implements WorkspaceInput {
     if (disposed || path == null) {
       return;
     }
-    if (root == null || !path.startsWith(root) || path.equals(root)) {
-      view.showNotice(UiText.WORKSPACE_OUTSIDE.format(path.getFileName()));
+    Path top = shownFolder();
+    if (top == null || !path.startsWith(top) || path.equals(top)) {
+      UiText outside = browsed == null ? UiText.WORKSPACE_OUTSIDE : UiText.BROWSE_OUTSIDE;
+      view.showNotice(outside.format(path.getFileName()));
       return;
     }
     revealing = path;
@@ -613,7 +695,7 @@ public final class WorkspaceController implements WorkspaceInput {
    */
   private void reveal() {
     Path target = revealing;
-    Path dir = root;
+    Path dir = shownFolder();
     if (target == null || dir == null) {
       return;
     }
@@ -640,7 +722,7 @@ public final class WorkspaceController implements WorkspaceInput {
         listing.shown = (at / PAGE + 1) * PAGE;
         view.workspaceChanged(directoryNode(dir));
       }
-      WorkspaceNode next = node(dir, listing.entries.entries().get(at));
+      WorkspaceNode next = listing.rows.get(at);
       chain.add(next);
       dir = next.path();
     }
@@ -663,9 +745,8 @@ public final class WorkspaceController implements WorkspaceInput {
   }
 
   /**
-   * Brings the browser and the index in line after a row operation: lists the directory again,
-   * drops the listings under a removed folder, selects a row once listed, and changes the index in
-   * place for one file or builds it again.
+   * Brings the browser and the index in line after a row operation, here and in every other window
+   * ({@link #apply}).
    *
    * @param directory the directory that changed
    * @param removed the entry that went, or null
@@ -674,7 +755,29 @@ public final class WorkspaceController implements WorkspaceInput {
    * @param select the row to select, or null
    */
   void changed(Path directory, Path removed, Path added, boolean folder, Path select) {
-    if (disposed || root == null) {
+    if (disposed) {
+      return;
+    }
+    apply(directory, removed, added, folder, select);
+    if (peers != null) {
+      peers.changed(this, directory, removed, added, folder);
+    }
+  }
+
+  /**
+   * Brings this browser and index in line after a row operation: lists the directory again where
+   * listed, drops the listings under a removed folder, selects a row once listed, and, for a change
+   * under the workspace folder, changes the index in place for one file or builds it again.
+   *
+   * @param directory the directory that changed
+   * @param removed the entry that went, or null
+   * @param added the file the index gains, or null
+   * @param folder true when a folder or a link changed, which builds the index again
+   * @param select the row to select, or null
+   */
+  void apply(Path directory, Path removed, Path added, boolean folder, Path select) {
+    Path top = shownFolder();
+    if (disposed || top == null) {
       return;
     }
     if (removed != null) {
@@ -683,16 +786,23 @@ public final class WorkspaceController implements WorkspaceInput {
           cancel(listings.remove(listed));
         }
       }
+      if (shown && top.startsWith(removed)) {
+        expand(rootNode());
+      }
     }
     Listing listing = listings.get(directory);
     if (listing != null) {
       list(directory, listing);
     }
-    if (select != null && select.startsWith(root)) {
+    if (select != null && select.startsWith(top) && !select.equals(top)) {
       revealing = select;
       if (listing == null) {
         reveal();
       }
+    }
+    if (root == null
+        || !(directory.startsWith(root) || (removed != null && root.startsWith(removed)))) {
+      return;
     }
     FileIndex next =
         folder || index == null || indexing != null
@@ -707,6 +817,82 @@ public final class WorkspaceController implements WorkspaceInput {
         listener.run();
       }
     }
+  }
+
+  /**
+   * Moves the workspace folder and the folder browsed to after a rename of either or a parent, in
+   * every window ({@link #follow}).
+   *
+   * @param move the rename
+   */
+  void moved(PathMove move) {
+    if (peers == null) {
+      follow(move);
+    } else {
+      peers.moved(move);
+    }
+  }
+
+  /**
+   * Moves this window's workspace folder and folder browsed to with a rename: the index is built
+   * again under the new path, the browser lists it again with the expanded directories moved, and
+   * the session is written.
+   *
+   * @param move the rename
+   */
+  void follow(PathMove move) {
+    Path nextRoot = move.real(root);
+    Path nextBrowsed = move.real(browsed);
+    if (disposed || (nextRoot == root && nextBrowsed == browsed)) {
+      return;
+    }
+    for (String directory : expandedDirectories()) {
+      restoredExpanded.add(move.real(Path.of(directory)));
+    }
+    boolean rootMoved = nextRoot != root;
+    root = nextRoot;
+    browsed = nextBrowsed;
+    if (rootMoved) {
+      view.showNotice(UiText.WORKSPACE_MOVED.format(root));
+      reset();
+    } else {
+      relist();
+    }
+    documents.sessionChanged();
+  }
+
+  /**
+   * Clears the workspace folder, in every window, after a delete of it or a parent ({@link
+   * #clearUnder}).
+   *
+   * @param entry the deleted entry
+   */
+  void deleted(BrowserPath entry) {
+    if (peers == null) {
+      clearUnder(entry);
+    } else {
+      peers.deleted(entry);
+    }
+  }
+
+  /**
+   * Clears this window's workspace folder with a notice when a deleted entry held it; a folder
+   * browsed to under the entry goes with it. The index is dropped and the session written.
+   *
+   * @param entry the deleted entry
+   */
+  void clearUnder(BrowserPath entry) {
+    if (disposed
+        || !(BrowserPath.under(root, entry.real()) || BrowserPath.under(root, entry.path()))) {
+      return;
+    }
+    view.showNotice(UiText.WORKSPACE_DELETED.format(root));
+    root = null;
+    if (BrowserPath.under(browsed, entry.real()) || BrowserPath.under(browsed, entry.path())) {
+      browsed = null;
+    }
+    reset();
+    documents.sessionChanged();
   }
 
   // The file index.

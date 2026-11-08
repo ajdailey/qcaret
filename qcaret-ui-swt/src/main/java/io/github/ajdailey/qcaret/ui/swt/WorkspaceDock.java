@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.WorkspaceBrowseInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -18,23 +20,28 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 
 /**
- * The workspace browser dock: the folder and three buttons (Refresh, Reveal Active File, Hide) over
- * a {@link Tree} of a {@link WorkspaceInput}'s rows. A directory row holds an empty placeholder
- * child until it first expands, which asks the input to list it; its rows replace the placeholder
- * when the input reports the change. A refill keeps the expanded state of rows that remain. Enter
- * or a double click opens a file, shows more entries on a "more" row, and expands or collapses a
- * directory. One context menu, built on the first right click, offers Open, Open in Default
- * Application, Set as Workspace Folder, Copy Path, Search in Folder, New File, New Folder, Rename
- * and Delete for the row under the pointer, or for the workspace folder over empty space. Delete
- * and F2 delete and rename the selected row while the tree has focus; the editor never sees them.
+ * The workspace browser dock: three buttons (Refresh, Reveal Active File, Hide), the workspace
+ * folder and the {@link BrowseBar} over a {@link Tree} of a {@link WorkspaceInput}'s rows with
+ * Name, Size and Modified columns. A click on a column header sorts by it, a second click reverses
+ * the order. A directory row holds an empty placeholder child until it first expands, which asks
+ * the input to list it; its rows replace the placeholder when the input reports the change. A
+ * refill keeps the expanded state of rows that remain. Enter or a double click opens a file, shows
+ * more entries on a "more" row, and expands or collapses a directory. One context menu, built on
+ * the first right click, offers Open, Open in Default Application, Set as Workspace Folder, Copy
+ * Path, Search in Folder, New File, New Folder, Rename and Delete for the row under the pointer, or
+ * for the workspace folder over empty space. Delete and F2 delete and rename the selected row while
+ * the tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
   private final Composite root;
   private final Label title;
+  private final BrowseBar browseBar;
   private final Tree tree;
+  private final TreeColumn[] columns = new TreeColumn[3];
   private Menu menu;
   private WorkspaceInput input;
 
@@ -78,8 +85,11 @@ final class WorkspaceDock {
     button(bar, UiText.WORKSPACE_HIDE, Action.HIDE);
     title = new Label(root, SWT.NONE);
     title.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    tree = new Tree(root, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL);
+    browseBar = new BrowseBar(root);
+    tree = new Tree(root, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL | SWT.FULL_SELECTION);
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    tree.setHeaderVisible(true);
+    addColumns();
     tree.addListener(
         SWT.Expand,
         new Listener() {
@@ -135,6 +145,56 @@ final class WorkspaceDock {
         });
   }
 
+  /** Adds the Name, Size and Modified columns, sized to sample texts in the tree's font. */
+  private void addColumns() {
+    UiText[] labels = {
+      UiText.BROWSE_COLUMN_NAME, UiText.BROWSE_COLUMN_SIZE, UiText.BROWSE_COLUMN_MODIFIED
+    };
+    String[] samples = {"mock-project-name.txt", "1023.9 MiB", "00/00/0000, 00:00 PM"};
+    GC gc = new GC(tree);
+    try {
+      for (int i = 0; i < columns.length; i++) {
+        final WorkspaceBrowseInput.Column column = WorkspaceBrowseInput.Column.values()[i];
+        columns[i] = new TreeColumn(tree, i == 1 ? SWT.RIGHT : SWT.LEFT);
+        columns[i].setText(labels[i].text());
+        columns[i].setWidth(gc.textExtent(samples[i]).x + 24);
+        columns[i].addListener(
+            SWT.Selection,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                sort(column);
+              }
+            });
+      }
+    } finally {
+      gc.dispose();
+    }
+  }
+
+  /**
+   * Sorts by a column, reversing the order when it already sorts by it.
+   *
+   * @param column the column
+   */
+  void sort(WorkspaceBrowseInput.Column column) {
+    WorkspaceBrowseInput browse = input == null ? null : input.browse();
+    if (browse != null) {
+      browse.sort(column, browse.sortColumn() == column && !browse.descending());
+    }
+  }
+
+  /** Shows the model's sort column and direction in the header. */
+  private void showSort() {
+    WorkspaceBrowseInput browse = input == null ? null : input.browse();
+    if (browse == null) {
+      tree.setSortColumn(null);
+      return;
+    }
+    tree.setSortColumn(columns[browse.sortColumn().ordinal()]);
+    tree.setSortDirection(browse.descending() ? SWT.DOWN : SWT.UP);
+  }
+
   private void button(Composite parent, UiText label, final Action action) {
     Button button = new Button(parent, SWT.PUSH);
     button.setText(label.text());
@@ -176,12 +236,22 @@ final class WorkspaceDock {
   }
 
   /**
+   * Returns the navigation and filter rows, for tests.
+   *
+   * @return the rows
+   */
+  BrowseBar bar() {
+    return browseBar;
+  }
+
+  /**
    * Shows a model.
    *
    * @param workspace the model
    */
   void setInput(WorkspaceInput workspace) {
     input = workspace;
+    browseBar.setInput(workspace == null ? null : workspace.browse());
     rebuild();
   }
 
@@ -192,6 +262,8 @@ final class WorkspaceDock {
     }
     title.setText(input == null ? "" : input.title());
     title.setToolTipText(title.getText());
+    browseBar.update();
+    showSort();
     WorkspaceNode top = input == null ? null : input.rootNode();
     tree.setRedraw(false);
     try {
@@ -260,7 +332,12 @@ final class WorkspaceDock {
     for (WorkspaceNode row : rows) {
       TreeItem item =
           parent == null ? new TreeItem(tree, SWT.NONE) : new TreeItem(parent, SWT.NONE);
-      item.setText(row.kind() == WorkspaceNode.Kind.DIRECTORY ? row.name() + "/" : row.name());
+      item.setText(
+          new String[] {
+            row.kind() == WorkspaceNode.Kind.DIRECTORY ? row.name() + "/" : row.name(),
+            row.size(),
+            row.modified()
+          });
       item.setData(row);
       if (!row.expands()) {
         continue;
@@ -403,12 +480,17 @@ final class WorkspaceDock {
     boolean entry = (file || directory || node.kind() == WorkspaceNode.Kind.CYCLE) && below;
     return switch (action) {
       case OPEN, OPEN_DEFAULT -> file;
-      case SET_FOLDER -> directory && below;
+      case SET_FOLDER -> directory && (below || browsing());
       case NEW_FILE, NEW_FOLDER -> directory;
       case COPY_PATH, SEARCH_FOLDER -> file || directory;
       case RENAME, DELETE -> entry;
       default -> true;
     };
+  }
+
+  private boolean browsing() {
+    WorkspaceBrowseInput browse = input == null ? null : input.browse();
+    return browse != null && browse.browsing();
   }
 
   private void menuItem(UiText label, final Action action) {
@@ -492,6 +574,21 @@ final class WorkspaceDock {
       case RENAME -> UiText.WORKSPACE_RENAME;
       case DELETE -> UiText.WORKSPACE_DELETE;
     };
+  }
+
+  /**
+   * Returns the Size and Modified texts of a row under the top level, for tests.
+   *
+   * @param name the row's Name text
+   * @return the two texts, or null when no such row shows
+   */
+  List<String> columnTexts(String name) {
+    for (TreeItem item : tree.getItems()) {
+      if (item.getText().equals(name)) {
+        return List.of(item.getText(1), item.getText(2));
+      }
+    }
+    return null;
   }
 
   /**

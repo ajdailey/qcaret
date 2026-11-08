@@ -19,6 +19,14 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="class" regex="\bclass\s+([\p{L}_$][\p{L}\p{N}_$]*)"/>
+    <symbol kind="class" regex="\brecord\s+([\p{L}_$][\p{L}\p{N}_$]*)\s*[(&lt;]"/>
+    <symbol kind="interface" regex="@?\binterface\s+([\p{L}_$][\p{L}\p{N}_$]*)"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_$][\p{L}\p{N}_$]*)"/>
+    <symbol kind="method" regex="^\s*(?:@[\p{L}_$][\p{L}\p{N}_$.]*(?:\([^)]*\))?\s+)*(?:(?:public|protected|private|static|final|abstract|synchronized|native|default|strictfp|sealed|non-sealed)\s+)*(?:&lt;[^&gt;]*&gt;\s+)?(?!(?:return|new|throw|else|yield|case|assert|await|package|import|using|goto|delete|var|val|let)\b)[\p{L}_$][\p{L}\p{N}_$.]*(?:&lt;[^()]*?&gt;)?(?:\[\])*\s+(?!(?:if|for|foreach|while|switch|catch|synchronized|return|using|lock|fixed|when|function|with|sizeof|typeof|nameof)\b)([\p{L}_$][\p{L}\p{N}_$]*)\s*\("/>
+    <symbol kind="method" regex="^\s*(?:public|protected|private)\s+(?:&lt;[^&gt;]*&gt;\s+)?(\p{Lu}[\p{L}\p{N}_$]*)\s*\("/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

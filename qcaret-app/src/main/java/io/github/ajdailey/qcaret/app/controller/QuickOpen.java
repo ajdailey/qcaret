@@ -38,6 +38,10 @@ import java.util.regex.Pattern;
  * {@code :line:column} (from 1) matches the text before it and moves the caret there on open.
  * Confined to the UI thread.
  *
+ * <p>A query with {@code @} matches symbols: {@code @symbol} lists the selected document's symbols
+ * ({@link SymbolRows}), and {@code file@symbol} matches the file before the {@code @} and on open
+ * moves the caret to the symbol that best matches the text after it.
+ *
  * <p>An index of up to {@value #SYNC_FILES} files is matched on the UI thread; a larger one on a
  * {@code qcaret-cpu-} worker, canceled by the next query or the popup's close, and the rows change
  * when it ends. A file open in a tab is listed once, as the document. When an index build ends
@@ -73,9 +77,22 @@ final class QuickOpen implements QuickOpenInput {
    * @param text the text matched, with {@code \} as {@code /}
    * @param line the line from 1, or 0 when none was given
    * @param column the column from 1, or 0 when none was given
+   * @param symbol the text after the first {@code @}, or null without one
    */
-  record Query(String text, int line, int column) {
+  record Query(String text, int line, int column, String symbol) {
+    Query(String text, int line, int column) {
+      this(text, line, column, null);
+    }
+
     static Query parse(String input) {
+      int at = input.indexOf('@');
+      if (at >= 0) {
+        return new Query(
+            input.substring(0, at).strip().replace('\\', '/'),
+            0,
+            0,
+            input.substring(at + 1).strip());
+      }
       String query = input.strip().replace('\\', '/');
       Matcher m = POSITION.matcher(query);
       if (m.matches() && !m.group(1).isEmpty()) {
@@ -102,6 +119,8 @@ final class QuickOpen implements QuickOpenInput {
   private final MainView view;
   private final boolean documentsOnly;
   private final List<Path> recent;
+  private final SymbolRows symbols;
+  private final String initial;
   private final Runnable indexChanged =
       new Runnable() {
         @Override
@@ -128,7 +147,9 @@ final class QuickOpen implements QuickOpenInput {
       UiDispatcher ui,
       MainView view,
       boolean documentsOnly,
-      List<Path> recent) {
+      List<Path> recent,
+      GrammarLibrary grammars,
+      String initial) {
     this.documents = documents;
     this.workspace = workspace;
     this.workers = workers;
@@ -136,10 +157,39 @@ final class QuickOpen implements QuickOpenInput {
     this.view = view;
     this.documentsOnly = documentsOnly;
     this.recent = documentsOnly ? List.<Path>of() : List.copyOf(recent);
+    this.initial = initial;
+    this.symbols =
+        new SymbolRows(
+            documents,
+            grammars,
+            workers,
+            ui,
+            view,
+            new Runnable() {
+              @Override
+              public void run() {
+                view.quickOpenChanged();
+              }
+            });
     if (!documentsOnly) {
       workspace.addIndexListener(indexChanged);
     }
-    filter("");
+    filter(initial);
+  }
+
+  @Override
+  public String initialQuery() {
+    return initial;
+  }
+
+  @Override
+  public String detailHeading() {
+    return symbolRows() ? UiText.SYMBOL_HEADING.text() : UiText.QUICK_OPEN_PATH.text();
+  }
+
+  /** Reports whether the rows are the selected document's symbols. */
+  private boolean symbolRows() {
+    return query.symbol() != null && query.text().isEmpty();
   }
 
   @Override
@@ -155,6 +205,14 @@ final class QuickOpen implements QuickOpenInput {
     input = text;
     query = Query.parse(text);
     cancel();
+    if (symbolRows()) {
+      documentRows = List.of();
+      documentTargets = List.of();
+      fileRows = List.of();
+      fileTargets = List.of();
+      symbols.filter(query.symbol());
+      return;
+    }
     matchDocuments();
     fileRows = List.of();
     fileTargets = List.of();
@@ -471,6 +529,9 @@ final class QuickOpen implements QuickOpenInput {
 
   @Override
   public List<QuickOpenRow> rows() {
+    if (symbolRows()) {
+      return symbols.rows();
+    }
     List<QuickOpenRow> all = new ArrayList<QuickOpenRow>(documentRows.size() + fileRows.size());
     all.addAll(documentRows);
     all.addAll(fileRows);
@@ -479,6 +540,9 @@ final class QuickOpen implements QuickOpenInput {
 
   @Override
   public String summary() {
+    if (symbolRows()) {
+      return symbols.summary();
+    }
     if (documentsOnly) {
       return UiText.QUICK_OPEN_DOCUMENTS.format(documentRows.size(), documents.count());
     }
@@ -511,6 +575,10 @@ final class QuickOpen implements QuickOpenInput {
       return;
     }
     final Query chosen = query;
+    if (symbolRows()) {
+      symbols.choose(index);
+      return;
+    }
     if (index < documentTargets.size()) {
       EditorController editor = documents.show(documentTargets.get(index));
       if (editor != null) {
@@ -531,8 +599,10 @@ final class QuickOpen implements QuickOpenInput {
     }
   }
 
-  private static void arrive(EditorController editor, Query chosen) {
-    if (chosen.line() > 0) {
+  private void arrive(EditorController editor, Query chosen) {
+    if (chosen.symbol() != null) {
+      symbols.jumpToBest(editor, chosen.symbol());
+    } else if (chosen.line() > 0) {
       editor.goTo(chosen.line() - 1, Math.max(0, chosen.column() - 1));
     }
     if (editor.view() != null) {
@@ -544,6 +614,7 @@ final class QuickOpen implements QuickOpenInput {
   public void close() {
     closed = true;
     cancel();
+    symbols.close();
     workspace.removeIndexListener(indexChanged);
   }
 

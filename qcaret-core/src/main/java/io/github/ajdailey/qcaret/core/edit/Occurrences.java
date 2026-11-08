@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 
 /**
- * Literal occurrences: the next one of a selection's text, for Add Next Occurrence, and the whole
- * words in a range, for the occurrence highlight.
+ * Literal occurrences: the next one of a selection's text, for Add Next Occurrence, every one, and
+ * the whole words in a range, for the occurrence highlight and Select All Occurrences.
  */
 public final class Occurrences {
   /** Chars scanned between cancellation checks. */
@@ -36,8 +36,9 @@ public final class Occurrences {
   }
 
   /**
-   * Returns the occurrences of a word in a range that are whole words: no letter, digit or {@code
-   * _} touches either end. Matching is exact and case sensitive.
+   * Returns the occurrences of a word in a range that are whole words: no word char ({@link
+   * Words#isWordAt}) touches either end, so a combining mark after the end rules a match out.
+   * Matching is exact and case sensitive.
    *
    * @param text the text
    * @param word the word, not empty
@@ -61,8 +62,8 @@ public final class Occurrences {
       }
       int after = at + word.length();
       boolean whole =
-          (at == 0 || !Words.isWord(text.charAt(at - 1)))
-              && (after == text.length() || !Words.isWord(text.charAt(after)));
+          (at == 0 || !Words.isWordBefore(text, at))
+              && (after == text.length() || !Words.isWordAt(text, after));
       if (whole) {
         found.add(at);
       }
@@ -72,6 +73,36 @@ public final class Occurrences {
     for (int i = 0; i < found.size(); i++) {
       ranges[2 * i] = found.get(i);
       ranges[2 * i + 1] = found.get(i) + word.length();
+    }
+    return ranges;
+  }
+
+  /**
+   * Returns the occurrences of a text that do not overlap, scanning from the start; matching is
+   * exact and case sensitive.
+   *
+   * @param text the text
+   * @param needle the text sought, not empty
+   * @param max the most occurrences returned
+   * @param token checked every {@value #CHECK_CHARS} chars
+   * @return start and end offset pairs, ascending
+   * @throws CancellationException when canceled
+   */
+  public static int[] all(TextContent text, String needle, int max, CancellationToken token) {
+    List<Integer> found = new ArrayList<Integer>();
+    int at = 0;
+    while (found.size() < max) {
+      at = scan(text, needle, at, text.length(), token);
+      if (at < 0) {
+        break;
+      }
+      found.add(at);
+      at += needle.length();
+    }
+    int[] ranges = new int[found.size() * 2];
+    for (int i = 0; i < found.size(); i++) {
+      ranges[2 * i] = found.get(i);
+      ranges[2 * i + 1] = found.get(i) + needle.length();
     }
     return ranges;
   }

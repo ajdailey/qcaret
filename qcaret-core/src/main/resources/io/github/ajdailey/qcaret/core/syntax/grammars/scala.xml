@@ -20,6 +20,14 @@
   </autoClose>
   <indent increase="(?:[{(\[]|=&gt;|=|:|\b(?:then|else|do|yield|match|try|catch|finally|with))\s*(//.*)?$" decrease="^\s*(?:[})\]]|end\b)"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="class" regex="\bclass\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="class" regex="\bobject\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="trait" regex="\btrait\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="type" regex="\btype\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="method" regex="\bdef\s+([\p{L}_][\p{L}\p{N}_]*|[!#%&amp;*+\-/:&lt;=&gt;?@\\^|~]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>

@@ -22,6 +22,11 @@
   </autoClose>
   <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="function" regex="(?i)^\s*(?:function|filter|workflow)\s+(?:[a-z]+:)?([\w-]+)"/>
+    <symbol kind="class" regex="(?i)^\s*class\s+(\w+)"/>
+    <symbol kind="enum" regex="(?i)^\s*enum\s+(\w+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="&lt;#" end="#&gt;" multiLine="true"/>
     <span token="comment" begin="#"/>

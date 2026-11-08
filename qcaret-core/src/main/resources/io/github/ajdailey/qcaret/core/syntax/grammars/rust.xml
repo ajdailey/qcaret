@@ -19,6 +19,18 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="method" regex="^\s+(?:pub(?:\([^)]*\))?\s+)?(?:(?:const|async|unsafe|default)\s+|extern\s+\&quot;[^\&quot;]*\&quot;\s+)*fn\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="\bfn\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="struct" regex="\bstruct\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="struct" regex="\bunion\s+([\p{L}_][\p{L}\p{N}_]*)\s*[&lt;{]"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="trait" regex="\btrait\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="type" regex="\btype\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:&lt;[^&gt;]*&gt;)?\s*="/>
+    <symbol kind="module" regex="\bmod\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="macro" regex="\bmacro_rules!\s*([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="constant" regex="^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+(?:mut\s+)?([A-Z_][A-Z0-9_]*)\s*:"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>
     <span token="comment" begin="//"/>

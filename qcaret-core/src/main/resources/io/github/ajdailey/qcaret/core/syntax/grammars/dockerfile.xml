@@ -19,6 +19,9 @@
     <pair open='"' close='"'/>
     <pair open="'" close="'"/>
   </autoClose>
+  <symbols>
+    <symbol kind="target" regex="(?i)^\s*FROM\s+(?:--\S+\s+)*\S+\s+AS\s+([\w.-]+)"/>
+  </symbols>
   <context id="main">
     <match token="preprocessor" regex="^#\s*(?i:syntax|escape|check)\s*=.*$"/>
     <span token="comment" begin="^\s*#"/>

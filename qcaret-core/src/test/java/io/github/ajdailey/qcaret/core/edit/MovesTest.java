@@ -2,7 +2,9 @@ package io.github.ajdailey.qcaret.core.edit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
@@ -57,6 +59,24 @@ class MovesTest {
     assertArrayEquals(new int[] {3, 7}, Words.at(t, 3));
     assertArrayEquals(new int[] {0, 2}, Words.at(t, 2));
     assertEquals(0, Words.at(t, 8).length);
+  }
+
+  @Test
+  void wordsKeepCombiningMarksAndSurrogatePairsWithTheirBase() {
+    TextSnapshot t = text("x cafe\u0301 y \u0301b \uD835\uDC00\uD835\uDC01 z");
+    assertEquals(8, Words.right(t, 2));
+    assertEquals(2, Words.left(t, 7));
+    assertArrayEquals(new int[] {2, 7}, Words.at(t, 3));
+    assertArrayEquals(new int[] {2, 7}, Words.at(t, 7));
+    assertTrue(Words.isWordAt(t, 6));
+    assertFalse(Words.isWordAt(t, 10));
+    assertEquals(0, Words.at(t, 10).length);
+    assertArrayEquals(new int[] {11, 12}, Words.at(t, 11));
+    assertArrayEquals(new int[] {13, 17}, Words.at(t, 13));
+    assertEquals(18, Words.right(t, 13));
+    assertArrayEquals(
+        new int[] {6, 10},
+        Occurrences.words(text("cafe\u0301 cafe"), "cafe", 0, 10, 10, new CancellationToken()));
   }
 
   @Test

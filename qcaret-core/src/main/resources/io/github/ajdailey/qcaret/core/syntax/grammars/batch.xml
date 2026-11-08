@@ -15,6 +15,9 @@
   </autoClose>
   <indent increase="\(\s*$" decrease="^\s*\)"/>
   <folding mode="brackets" open="(" close=")"/>
+  <symbols>
+    <symbol kind="label" regex="^\s*:([A-Za-z_][\w.-]*)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="(?i)^\s*@?rem(?=\s|$)"/>
     <span token="comment" begin="^\s*::"/>

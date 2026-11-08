@@ -20,6 +20,10 @@
     <pair open="'" close="'"/>
   </autoClose>
   <folding mode="markers" begin="^\s*(?:define|ifeq|ifneq|ifdef|ifndef)(?=\s|$)" end="^\s*(?:endef|endif)(?=\s|$)"/>
+  <symbols>
+    <symbol kind="macro" regex="^define\s+([\w.-]+)"/>
+    <symbol kind="target" regex="^(?!\.[A-Z_]+\s*:)(?!define\b)([^\s:#=][^:#=\t]*?)\s*::?(?![=:])"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="(?&lt;!\\)#"/>
     <match token="operator" regex="^\t[@+-]+"/>

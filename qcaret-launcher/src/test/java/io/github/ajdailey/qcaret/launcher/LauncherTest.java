@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.ipc.InstanceClient;
 import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -119,17 +120,24 @@ class LauncherTest {
   @Test
   void explicitAndPortableSettingsOnLinuxMoveUserHome() {
     String home = System.getProperty("user.home");
+    String saved = System.clearProperty(HomeFolder.PROPERTY);
     try {
       PlatformSetup.apply("Windows 11", new SettingsLocation(SettingsMode.EXPLICIT, temp));
       PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.PER_USER, temp));
       assertEquals(home, System.getProperty("user.home"));
+      assertNull(System.getProperty(HomeFolder.PROPERTY));
       PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.EXPLICIT, temp));
       assertEquals(temp.toString(), System.getProperty("user.home"));
       Path portable = temp.resolve("portable");
       PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.PORTABLE, portable));
       assertEquals(portable.toString(), System.getProperty("user.home"));
+      assertEquals(home, System.getProperty(HomeFolder.PROPERTY));
     } finally {
       System.setProperty("user.home", home);
+      System.clearProperty(HomeFolder.PROPERTY);
+      if (saved != null) {
+        System.setProperty(HomeFolder.PROPERTY, saved);
+      }
     }
   }
 

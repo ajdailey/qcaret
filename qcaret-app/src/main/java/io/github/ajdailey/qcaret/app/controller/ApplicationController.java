@@ -32,6 +32,8 @@ import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
+import io.github.ajdailey.qcaret.core.workspace.NameFilter;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -84,6 +86,7 @@ public final class ApplicationController {
   private final PreferencesController preferences;
   private final StatisticsController statistics;
   private final DateTimeInsert dateTime;
+  private final EditorAids aids;
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -164,6 +167,16 @@ public final class ApplicationController {
     workspace.setFiles(
         new WorkspaceFiles(
             workspace, view, workers, ui, documents, recentFiles, set.session(), search));
+    workspace.setBrowse(
+        new WorkspaceBrowse(
+            workspace,
+            view,
+            workers,
+            ui,
+            settings,
+            HomeFolder.find(),
+            NameFilter.PLATFORM_IGNORES_CASE));
+    workspace.setPeers(set.browsers());
     this.replace =
         new ReplaceController(
             documents,
@@ -214,6 +227,7 @@ public final class ApplicationController {
     this.dateTime =
         new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
     view.setRightMargin(rightMarginColumn());
+    this.aids = new EditorAids(settings, view, documents);
     settings.addListener(settingsListener);
     set.register(this);
     if (set.recent() != null) {
@@ -272,6 +286,7 @@ public final class ApplicationController {
         || now.rightMargin() != old.rightMargin()) {
       view.setRightMargin(rightMarginColumn());
     }
+    aids.apply(before, after);
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -350,6 +365,20 @@ public final class ApplicationController {
    */
   public GrammarLibrary grammars() {
     return grammars;
+  }
+
+  /** Creates Quick Open, over the open documents only for Switch Document. */
+  private QuickOpen quickOpen(boolean documentsOnly, String initial) {
+    return new QuickOpen(
+        documents,
+        workspace,
+        workers,
+        ui,
+        view,
+        documentsOnly,
+        recentFiles.paths(),
+        grammars,
+        initial);
   }
 
   /** Reads the built-in and user grammars on a worker; call once the window is attached. */
@@ -709,15 +738,23 @@ public final class ApplicationController {
           NEXT_BOOKMARK,
           PREVIOUS_BOOKMARK,
           CLEAR_BOOKMARKS,
-          EDIT_BOOKMARK_COMMENT ->
+          EDIT_BOOKMARK_COMMENT,
+          DELETE_WORD_BACK,
+          DELETE_WORD_FORWARD,
+          TITLE_CASE,
+          SWAP_CASE,
+          TRANSPOSE,
+          SELECT_ALL_OCCURRENCES,
+          SKIP_OCCURRENCE,
+          EXPAND_SELECTION,
+          SELECT_LINE,
+          UNDO_SELECTION,
+          REDO_SELECTION ->
           edit(command);
       case BOOKMARKS_LIST -> bookmarkList.toggle();
-      case QUICK_OPEN ->
-          view.showQuickOpen(
-              new QuickOpen(documents, workspace, workers, ui, view, false, recentFiles.paths()));
-      case SWITCH_DOCUMENT ->
-          view.showQuickOpen(
-              new QuickOpen(documents, workspace, workers, ui, view, true, List.of()));
+      case QUICK_OPEN -> view.showQuickOpen(quickOpen(false, ""));
+      case SWITCH_DOCUMENT -> view.showQuickOpen(quickOpen(true, ""));
+      case GO_TO_SYMBOL -> view.showQuickOpen(quickOpen(false, "@"));
       case CLEAR_RECENT_FILES -> recentFiles.clear();
       case WORKSPACE_BROWSER -> workspace.toggle();
       case GO_BACK -> history.back();
@@ -762,6 +799,9 @@ public final class ApplicationController {
       case LINE_NUMBERS -> documents.toggleLineNumbers();
       case TOOLBAR -> toggleToolbar();
       case RIGHT_MARGIN -> toggleRightMargin();
+      case INDENT_GUIDES -> aids.toggleIndentGuides();
+      case LINE_CHANGES -> aids.toggleLineChanges();
+      case WRAP_PARAGRAPH -> aids.wrapParagraph();
       case INSERT_DATE_TIME -> dateTime.choose();
       case DOCUMENT_STATISTICS -> statistics.open();
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);

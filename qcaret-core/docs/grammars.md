@@ -23,6 +23,7 @@ settings directory.
 | `brackets`, `autoClose` | `pair open close` |
 | `indent` | `increase`, `decrease` and `dedentNext` regexes |
 | `folding` | `mode`: `none`, `brackets` (`open` and `close` chars), `markers` (`begin` and `end` regexes) or `indent` |
+| `symbols` | Up to 64 `symbol` rules for Go to Symbol: `regex`, `kind`, optional `group` ([Symbol rules](#symbol-rules)) |
 | `context` | Rules in order: `match` (regex, token, optional `push` and `pop`), `keywords` (words, `ignoreCase`, `wordChars`), `span` (`begin`, optional `end`, `escape`, inner `context`, `multiLine`, `nested`, `bodyNextLine`), `include` (a context's rules in place), `embed` (another grammar between `begin` and `end`) |
 
 Tokens are `TokenType`: comment, string, escape, keyword, keyword2, type,
@@ -50,6 +51,34 @@ The format grammars use the token set as follows:
 | `csv`, `tsv` | Columns cycle through `keyword2`, `type`, `number`, `preprocessor`, `string`: a separator match pops the column context and pushes the next, and a zero-width `$` match pops it at the line's end, so a CSV quoted field keeps its column across a line break |
 | `log` | Levels: FATAL and ERROR `invalid`, WARN `escape`, INFO `type`, DEBUG `keyword2`, TRACE `comment`, as upper-case words, logfmt `level=` and JSON `"level":` values, and one-letter forms (`[E]`, Android `E/Tag`, glog `E0102`). Timestamps `number`, bracketed thread names `delimiter`, `package.Class` logger names `function`, exception names and `Caused by:` `keyword`, `at` and `... N more` lines `comment`, URLs `link`, keys of `key=value` `attribute` |
 | `diff` | File headers `heading`, hunk headers `keyword`, added lines `type`, removed lines `escape`, context-format changed lines `constant`; inside a unified hunk a `---` line is a removed line, and a line starting with any other char ends the hunk |
+
+## Symbol rules
+
+`SymbolScanner` finds a document's definitions with the grammar's `symbol`
+rules. A rule's `regex` is matched against each line without its break; `kind`
+is a `SymbolKind` (function, method, class, interface, struct, enum, trait,
+type, module, namespace, macro, constant, variable, property, section, target,
+label, selector, table, view); `group` is the name's group by number or name,
+by default the group named `name`, else group 1. `GrammarReader` refuses a rule
+whose group does not exist. A symbol regex compiles alone, so it may use named
+groups.
+
+- Every line is tokenized from the first, and a match counts only when its
+  first non-blank char lies outside comment, string and escape tokens. The name
+  may lie in a string, as HCL's quoted labels do.
+- Each rule finds every match on a line. At one column the first rule wins, and
+  a line's symbols are in column order.
+- Each rule run reads the line through a `BoundedChars` (`8 * length + 65,536`
+  reads); reaching the limit ends that rule on that line.
+- The caller sets the line limit and the count: Go to Symbol skips lines over
+  10,000 chars, keeping the tokenizer's state, and stops at 10,000 symbols. A
+  name is cut at 200 chars.
+- A rule sees one line. A definition whose name follows its keyword on a later
+  line is not found, nor is a Markdown setext heading. C, C++ and Objective-C
+  functions are found when defined at column 0 with the name and `(` on one
+  line; Java, C#, Groovy, Dart and JavaScript methods only at a line's start.
+
+Plain text, XML, HTML, JSON, CSV, TSV and log files have no symbol rules.
 
 ## Compilation
 

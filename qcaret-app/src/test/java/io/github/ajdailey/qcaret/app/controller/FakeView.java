@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
@@ -67,6 +68,7 @@ final class FakeView implements MainView {
     final List<Boolean> busy = new ArrayList<Boolean>();
     OverviewMarks overview = OverviewMarks.EMPTY;
     boolean overviewShown;
+    LineChanges lineChanges = LineChanges.NONE;
   }
 
   /** One editor view: what the controller asked of it. */
@@ -196,6 +198,12 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       shown.overviewShown = value;
     }
+
+    @Override
+    public void showLineChanges(LineChanges changes) {
+      ui.checkUiThread();
+      shown.lineChanges = changes;
+    }
   }
 
   /** A tab: its title, its views and what the controller asked of it. */
@@ -300,6 +308,7 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       FakeEditor view = new FakeEditor(splitEditor);
       splits.add(view);
+      splitEditor.lineChangesShown(lineChangesShown);
       sideBySide = side;
       return view;
     }
@@ -414,6 +423,12 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       shown.overviewShown = value;
     }
+
+    @Override
+    public void showLineChanges(LineChanges changes) {
+      ui.checkUiThread();
+      shown.lineChanges = changes;
+    }
   }
 
   /** A grid of 10 by 10 pixel cells, five rows to a page; row and column from x and y alone. */
@@ -502,6 +517,12 @@ final class FakeView implements MainView {
 
   /** The right margin column set, 0 while hidden. */
   int rightMargin = -1;
+
+  /** The indent guides toggle set. */
+  boolean indentGuides;
+
+  /** The modified-line marks toggle set; every editor added hears it. */
+  boolean lineChangesShown;
 
   /** The open statistics dialog's state. */
   static final class Statistics implements StatisticsDisplay {
@@ -624,6 +645,7 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     FakeTab fake = new FakeTab(projection, selections, editor, tab);
     tabs.add(index, fake);
+    editor.lineChangesShown(lineChangesShown);
     selected = fake;
     return fake;
   }
@@ -987,6 +1009,24 @@ final class FakeView implements MainView {
   public void setRightMargin(int column) {
     ui.checkUiThread();
     rightMargin = column;
+  }
+
+  @Override
+  public void setIndentGuides(boolean shown) {
+    ui.checkUiThread();
+    indentGuides = shown;
+  }
+
+  @Override
+  public void setLineChangesShown(boolean shown) {
+    ui.checkUiThread();
+    lineChangesShown = shown;
+    for (FakeTab tab : tabs) {
+      tab.editor.lineChangesShown(shown);
+      for (FakeEditor split : tab.splits) {
+        split.editor.lineChangesShown(shown);
+      }
+    }
   }
 
   @Override

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.config.Options;
+import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
@@ -110,8 +111,8 @@ import org.slf4j.LoggerFactory;
  *   <li>Each document has a {@link SyntaxHighlighter} its views paint from. Its grammar is detected
  *       on a {@code qcaret-cpu-} worker from the file name and the first line when the document
  *       opens, when a save gives it another name and when the grammars are read again, unless the
- *       user chose one ({@link #setSyntax}). The last {@value #RECENT_GRAMMARS} grammars chosen,
- *       Plain Text aside, are kept for the run.
+ *       user chose one ({@link #setSyntax}). The last {@value UiState#MAX_RECENT_GRAMMARS} grammars
+ *       chosen, Plain Text aside, are saved in {@code syntax.recent}.
  *   <li>Bookmarks are per document, shared by its views. Word completion ({@link WordCompletion})
  *       reads every open document. Show Whitespace, Show Line Endings and the completion trigger
  *       apply to every editor of the window.
@@ -2929,9 +2930,10 @@ public final class DocumentController {
   }
 
   /**
-   * Opens a recovered buffer dirty; the original file is not written. Its baseline is the one the
-   * buffer was based on, so a file that changed since shows the change prompt and a save asks
-   * first. A clean tab of the file gives way to the buffer.
+   * Opens a recovered buffer dirty; the original file is not written. The file on disk becomes its
+   * modified-line baseline ({@link RecoveredBaseline}). Its watch baseline is the one the buffer
+   * was based on, so a file that changed since shows the change prompt and a save asks first. A
+   * clean tab of the file gives way to the buffer.
    *
    * @param r the buffer
    * @param tab the session's tab, or null to take the selections from the header
@@ -2962,6 +2964,7 @@ public final class DocumentController {
       d.untitled = header.title().isEmpty() ? d.untitled : header.title();
     } else {
       files.watch(d, r.given(), r.base());
+      RecoveredBaseline.read(d, r.real(), workers, ui, budget, options);
     }
     document.setLineEnding(lineEnding(header.lineEnding()));
     document.markUnsaved();

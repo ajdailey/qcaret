@@ -17,6 +17,12 @@
   </autoClose>
   <indent increase="(?i)(?:\(|\bbegin)\s*(--.*)?$" decrease="(?i)^\s*(?:\)|end\b)"/>
   <folding mode="markers" begin="(?i)\b(?:begin(?!\s+(?:tran|transaction|work)\b)|case)\b|\(" end="(?i)\bend\b|\)"/>
+  <symbols>
+    <symbol kind="table" regex="(?i)\bcreate\s+(?:or\s+replace\s+)?(?:(?:global\s+|local\s+)?(?:temp|temporary)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?([\w$.]+)"/>
+    <symbol kind="view" regex="(?i)\bcreate\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\s+(?:if\s+not\s+exists\s+)?([\w$.]+)"/>
+    <symbol kind="function" regex="(?i)\bcreate\s+(?:or\s+replace\s+)?(?:function|procedure)\s+([\w$.]+)"/>
+    <symbol kind="type" regex="(?i)\bcreate\s+(?:or\s+replace\s+)?type\s+([\w$.]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="--"/>

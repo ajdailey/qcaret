@@ -15,7 +15,8 @@ public interface QuickOpenInput {
    * Matches a query; the rows change at once or, for a large index, when {@link
    * WorkspaceView#quickOpenChanged} is called.
    *
-   * @param query the filter text, optionally ending in {@code :line} or {@code :line:column}
+   * @param query the filter text, optionally ending in {@code :line} or {@code :line:column}, or
+   *     holding {@code @} and a symbol query
    */
   void filter(String query);
 
@@ -42,4 +43,18 @@ public interface QuickOpenInput {
 
   /** Cancels a running match; the popup closed. */
   void close();
+
+  /**
+   * Returns the text the filter field starts with, already matched.
+   *
+   * @return empty, or {@code @} for Go to Symbol
+   */
+  String initialQuery();
+
+  /**
+   * Returns the heading of the rows' detail column.
+   *
+   * @return Path, or Kind and line while the rows are symbols
+   */
+  String detailHeading();
 }

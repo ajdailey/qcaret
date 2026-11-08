@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -74,6 +75,59 @@ class GrammarReaderTest {
     invalid(
         "<grammar id=\"mock\" name=\"x\"><context id=\"main\">"
             + "<match regex=\"a\" token=\"bold\"/></context></grammar>");
+  }
+
+  private static String withSymbols(String symbols) {
+    return "<grammar id=\"mock\" name=\"x\"><symbols>"
+        + symbols
+        + "</symbols><context id=\"main\"/></grammar>";
+  }
+
+  @Test
+  void symbolRulesReadTheirKindAndNameGroup() throws Exception {
+    Grammar g =
+        Tokens.read(
+            withSymbols(
+                "<symbol regex=\"^def (\\w+)\" kind=\"function\"/>"
+                    + "<symbol regex=\"^class (?&lt;name&gt;\\w+)(\\w*)\" kind=\"class\"/>"
+                    + "<symbol regex=\"^(let) (\\w+)\" kind=\"variable\" group=\"2\"/>"
+                    + "<symbol regex=\"^type (?&lt;id&gt;\\w+)\" kind=\"type\" group=\"id\"/>"));
+    assertEquals(4, g.symbols().size());
+    assertEquals(SymbolKind.FUNCTION, g.symbols().get(0).kind());
+    assertEquals("1", g.symbols().get(0).group());
+    assertEquals("name", g.symbols().get(1).group());
+    assertEquals("2", g.symbols().get(2).group());
+    assertEquals("id", g.symbols().get(3).group());
+    assertEquals(
+        List.of(), Tokens.read(withSymbols("").replace("<symbols></symbols>", "")).symbols());
+  }
+
+  @Test
+  void aSymbolRuleWithoutItsNameGroupOrAKnownKindIsRefused() {
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"^def \\w+\" kind=\"function\"/>"))
+            .contains("no group 1"));
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"^def (\\w+)\" kind=\"function\" group=\"2\"/>"))
+            .contains("no group 2"));
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"^def (\\w+)\" kind=\"function\" group=\"nm\"/>"))
+            .contains("no group nm"));
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"^def (\\w+)\" kind=\"lambda\"/>"))
+            .startsWith("test.xml:1:"));
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"^def (\\w+)\" kind=\"function\" group=\"0\"/>"))
+            .startsWith("test.xml:1:"));
+    assertTrue(invalid(withSymbols("<symbol kind=\"function\"/>")).startsWith("test.xml:1:"));
+    assertTrue(invalid(withSymbols("")).startsWith("test.xml:1:"));
+    assertTrue(
+        invalid(withSymbols("<symbol regex=\"(\" kind=\"function\"/>")).contains("invalid regex"));
+    assertTrue(
+        invalid(
+                "<grammar id=\"mock\" name=\"x\"><context id=\"main\"/><symbols>"
+                    + "<symbol regex=\"(a)\" kind=\"function\"/></symbols></grammar>")
+            .startsWith("test.xml:1:"));
   }
 
   @Test

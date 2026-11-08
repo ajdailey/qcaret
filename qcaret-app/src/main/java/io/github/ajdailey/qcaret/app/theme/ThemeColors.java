@@ -74,7 +74,11 @@ public final class ThemeColors {
     "diffRemoved",
     "diffAdded",
     "diffChanged",
-    "rightMargin"
+    "rightMargin",
+    "indentGuide",
+    "lineAdded",
+    "lineChanged",
+    "lineRemoved"
   };
 
   private final Map<String, Rgb> light;
@@ -261,6 +265,10 @@ public final class ThemeColors {
             colors.getOrDefault("diffRemoved", a.diffRemoved()),
             colors.getOrDefault("diffAdded", a.diffAdded()),
             colors.getOrDefault("diffChanged", a.diffChanged()),
-            colors.getOrDefault("rightMargin", a.rightMargin())));
+            colors.getOrDefault("rightMargin", a.rightMargin()),
+            colors.getOrDefault("indentGuide", a.indentGuide()),
+            colors.getOrDefault("lineAdded", a.lineAdded()),
+            colors.getOrDefault("lineChanged", a.lineChanged()),
+            colors.getOrDefault("lineRemoved", a.lineRemoved())));
   }
 }

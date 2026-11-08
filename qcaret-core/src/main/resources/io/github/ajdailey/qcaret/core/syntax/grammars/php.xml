@@ -27,6 +27,16 @@
   </autoClose>
   <indent increase="[{(\[:]\s*(//.*|#.*)?$" decrease="^\s*(?:[})\]]|(?:endif|endwhile|endfor|endforeach|endswitch|else|elseif)\b)"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="method" regex="(?i)^\s*(?:(?:public|protected|private|static|abstract|final)\s+)+function\s+&amp;?([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="(?i)\bfunction\s+&amp;?([\p{L}_][\p{L}\p{N}_]*)\s*\("/>
+    <symbol kind="class" regex="(?i)\bclass\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="interface" regex="(?i)\binterface\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="trait" regex="(?i)\btrait\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="enum" regex="(?i)\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="namespace" regex="(?i)^\s*namespace\s+([\p{L}_\\][\p{L}\p{N}_\\]*)"/>
+    <symbol kind="constant" regex="(?i)^\s*(?:(?:public|protected|private|final)\s+)*const\s+(?:[\p{L}_][\p{L}\p{N}_]*\s+)?([\p{L}_][\p{L}\p{N}_]*)\s*="/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <match token="preprocessor" regex="&lt;\?(?:php\b|=)?" push="code"/>

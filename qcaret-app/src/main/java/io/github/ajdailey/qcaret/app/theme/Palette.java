@@ -54,6 +54,10 @@ public record Palette(
    * @param diffAdded the comparison window's background of a line on the right only
    * @param diffChanged the comparison window's background of a line that differs
    * @param rightMargin the editors' right margin line
+   * @param indentGuide the editors' indent guides
+   * @param lineAdded the gutter mark of a line added since the last load or save
+   * @param lineChanged the gutter mark of a line changed since then
+   * @param lineRemoved the gutter mark of removed lines
    */
   public record Accents(
       Rgb tabText,
@@ -63,7 +67,11 @@ public record Palette(
       Rgb diffRemoved,
       Rgb diffAdded,
       Rgb diffChanged,
-      Rgb rightMargin) {}
+      Rgb rightMargin,
+      Rgb indentGuide,
+      Rgb lineAdded,
+      Rgb lineChanged,
+      Rgb lineRemoved) {}
 
   /** The default palette. */
   public static final Palette LIGHT =
@@ -108,7 +116,11 @@ public record Palette(
               Rgb.of(0xfde2e1),
               Rgb.of(0xdcf5e3),
               Rgb.of(0xfdf0cc),
-              Rgb.of(0xc9d3dd)));
+              Rgb.of(0xc9d3dd),
+              Rgb.of(0xd8dfe6),
+              Rgb.of(0x3a9d5d),
+              Rgb.of(0xa86d0c),
+              Rgb.of(0xc0281f)));
 
   /** The dark palette. */
   public static final Palette DARK =
@@ -153,7 +165,11 @@ public record Palette(
               Rgb.of(0x4a2a30),
               Rgb.of(0x1f4232),
               Rgb.of(0x4a3d1f),
-              Rgb.of(0x3a5070)));
+              Rgb.of(0x3a5070),
+              Rgb.of(0x2c4560),
+              Rgb.of(0x6cc58a),
+              Rgb.of(0xe0a84e),
+              Rgb.of(0xff8a80)));
 
   /** Checks that every role has a style and keeps an unmodifiable copy. */
   public Palette {
@@ -250,6 +266,42 @@ public record Palette(
    */
   public Rgb rightMargin() {
     return accents.rightMargin();
+  }
+
+  /**
+   * Returns the editors' indent guides.
+   *
+   * @return the color
+   */
+  public Rgb indentGuide() {
+    return accents.indentGuide();
+  }
+
+  /**
+   * Returns the gutter mark of a line added since the last load or save.
+   *
+   * @return the color
+   */
+  public Rgb lineAdded() {
+    return accents.lineAdded();
+  }
+
+  /**
+   * Returns the gutter mark of a line changed since the last load or save.
+   *
+   * @return the color
+   */
+  public Rgb lineChanged() {
+    return accents.lineChanged();
+  }
+
+  /**
+   * Returns the gutter mark of lines removed since the last load or save.
+   *
+   * @return the color
+   */
+  public Rgb lineRemoved() {
+    return accents.lineRemoved();
   }
 
   /** Maps the styles, given in {@link TokenRole} declaration order. */

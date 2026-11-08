@@ -26,7 +26,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.search` | 7 | `TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups` | [Search](docs/search.md) |
 | `core.diff` | 7 | `LineDiff` | [Search](docs/search.md#line-diff) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |
-| `core.workspace` | above `io` | `WalkRules`, `DirectoryListing`, `FileIndex` | [Search](docs/search.md#workspace-folder) |
+| `core.workspace` | above `io` | `WalkRules`, `DirectoryListing`, `ListingOptions`, `NameFilter`, `FileIndex` | [Search](docs/search.md#workspace-folder) |
 
 The layer 7 packages do not use each other.
 

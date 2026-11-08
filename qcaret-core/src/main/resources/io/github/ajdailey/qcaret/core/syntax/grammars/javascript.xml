@@ -24,6 +24,12 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{[" close="}]"/>
+  <symbols>
+    <symbol kind="class" regex="\bclass\s+([\p{L}_$][\p{L}\p{N}_$]*)"/>
+    <symbol kind="function" regex="\bfunction\b\s*\*?\s*([\p{L}_$][\p{L}\p{N}_$]*)\s*\("/>
+    <symbol kind="function" regex="^\s*(?:export\s+(?:default\s+)?)?(?:const|let|var)\s+([\p{L}_$][\p{L}\p{N}_$]*)\s*=\s*(?:async\s+)?(?:function\b|\([^)]*\)\s*=&gt;|[\p{L}_$][\p{L}\p{N}_$]*\s*=&gt;)"/>
+    <symbol kind="method" regex="^\s+(?:(?:static|async|get|set|public|private|protected|readonly|abstract|override)\s+|\*\s*)*(?!(?:if|for|foreach|while|switch|catch|synchronized|return|using|lock|fixed|when|function|with|sizeof|typeof|nameof)\b)(#?[\p{L}_$][\p{L}\p{N}_$]*)\s*(?:&lt;[^&gt;]*&gt;)?\s*\([^()]*\)\s*(?::\s*[^{=;]+)?\{"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

@@ -22,6 +22,10 @@
   </autoClose>
   <indent increase="(?:\b(?:then|do|else|repeat)|\bfunction\b[^()]*\([^()]*\)|[{(\[])\s*(--.*)?$" decrease="^\s*(?:(?:end|else|elseif|until)\b|[})\]])"/>
   <folding mode="markers" begin="\b(?:function|if|do|repeat)\b|\{" end="\b(?:end|until)\b|\}"/>
+  <symbols>
+    <symbol kind="function" regex="\bfunction\s+([\w.:]+)\s*\("/>
+    <symbol kind="function" regex="^\s*(?:local\s+)?([\w.]+)\s*=\s*function\b"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <span token="comment" begin="--\[(=*)\[" end="\]\1\]" multiLine="true"/>

@@ -21,6 +21,13 @@
   </autoClose>
   <indent increase="(?:\b(?:where|let|do|of|if|then|else)|=|-&gt;|\|)\s*(--.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="module" regex="^module\s+([A-Z][\w.']*)"/>
+    <symbol kind="class" regex="^class\s+(?:[^=]*=&gt;\s*)?([A-Z][\w']*)"/>
+    <symbol kind="type" regex="^(?:data|newtype)\s+(?:instance\s+)?(?:[^=]*=&gt;\s*)?([A-Z][\w']*)"/>
+    <symbol kind="type" regex="^type\s+(?:family\s+|instance\s+)?([A-Z][\w']*)"/>
+    <symbol kind="function" regex="^([a-z_][\w']*|\([^)\s]+\))\s*::"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <span token="preprocessor" begin="\{-#" end="#-\}" multiLine="true"/>

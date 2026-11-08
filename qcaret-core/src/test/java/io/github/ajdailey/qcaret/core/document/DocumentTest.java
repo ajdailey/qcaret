@@ -35,10 +35,16 @@ class DocumentTest {
   private static final class Recorder implements DocumentListener {
     final List<DocumentChange> changes = new ArrayList<DocumentChange>();
     final List<Boolean> dirty = new ArrayList<Boolean>();
+    int saved;
 
     @Override
     public void textChanged(DocumentChange change) {
       changes.add(change);
+    }
+
+    @Override
+    public void textSaved() {
+      saved++;
     }
 
     @Override
@@ -256,6 +262,26 @@ class DocumentTest {
             Boolean.TRUE,
             Boolean.FALSE),
         recorder.dirty);
+  }
+
+  @Test
+  void theSavedTextIsTheInitialTextUntilASaveAndSurvivesMarkUnsaved() {
+    Document doc = document("x");
+    SelectionModel carets = doc.newSelectionModel();
+    Recorder recorder = new Recorder();
+    doc.addListener(recorder);
+    assertEquals("x", doc.savedText().toString());
+    type(doc, carets, "ab");
+    assertEquals("x", doc.savedText().toString());
+    DocumentSnapshot saved = doc.snapshot();
+    type(doc, carets, "c");
+    doc.markSaved(saved);
+    assertEquals(1, recorder.saved);
+    assertEquals("abx", doc.savedText().toString());
+    assertTrue(doc.isDirty());
+    doc.markUnsaved();
+    assertEquals("abx", doc.savedText().toString());
+    assertEquals(1, recorder.saved);
   }
 
   @Test

@@ -19,6 +19,17 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$|^\s*(?:case\b.*|default):\s*(//.*)?$" decrease="^\s*(?:[})\]]|case\b|default:)"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="class" regex="\bclass\s+(?!(?:func|var|let|subscript|init)\b)([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="class" regex="\bactor\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="struct" regex="\bstruct\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="interface" regex="\bprotocol\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="type" regex="\bextension\s+([\p{L}_][\p{L}\p{N}_.]*)"/>
+    <symbol kind="type" regex="\btypealias\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="\bfunc\s+([\p{L}_][\p{L}\p{N}_]*|[-+*/%&lt;=&gt;!&amp;|^~?.]+)"/>
+    <symbol kind="method" regex="(?&lt;![\w.])(init)\s*[?!]?\s*[(&lt;]"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^#!"/>
     <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>

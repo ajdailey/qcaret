@@ -23,6 +23,13 @@
   </autoClose>
   <indent increase="[{(\[]\s*(?:(?:#|//).*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{[" close="}]"/>
+  <symbols>
+    <symbol kind="section" regex="^\s*(?:resource|data)\s+\&quot;[^\&quot;]*\&quot;\s+\&quot;([^\&quot;]+)\&quot;"/>
+    <symbol kind="section" regex="^\s*provider\s+\&quot;([^\&quot;]+)\&quot;"/>
+    <symbol kind="variable" regex="^\s*variable\s+\&quot;([^\&quot;]+)\&quot;"/>
+    <symbol kind="property" regex="^\s*output\s+\&quot;([^\&quot;]+)\&quot;"/>
+    <symbol kind="module" regex="^\s*module\s+\&quot;([^\&quot;]+)\&quot;"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="#|//"/>

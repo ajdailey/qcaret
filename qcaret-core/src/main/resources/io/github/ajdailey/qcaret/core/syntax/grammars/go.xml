@@ -20,6 +20,15 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$|^\s*(?:case\b.*|default):\s*(//.*)?$" decrease="^\s*(?:[})\]]|case\b|default:)"/>
   <folding mode="brackets" open="{(" close="})"/>
+  <symbols>
+    <symbol kind="method" regex="^func\s+\([^)]*\)\s*([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="^func\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="struct" regex="^\s*type\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:\[[^\]]*\]\s*)?struct\b"/>
+    <symbol kind="interface" regex="^\s*type\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:\[[^\]]*\]\s*)?interface\b"/>
+    <symbol kind="type" regex="^\s*type\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="constant" regex="^const\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="variable" regex="^var\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

@@ -18,6 +18,9 @@
     <pair open="[" close="]"/>
     <pair open="`" close="`"/>
   </autoClose>
+  <symbols>
+    <symbol kind="section" regex="^ {0,3}#{1,6}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="&lt;!--" end="--&gt;" multiLine="true"/>
     <span token="string" begin="^\s{0,3}```.*$" end="^\s{0,3}```\s*$" multiLine="true"/>

@@ -37,8 +37,9 @@ import java.util.function.Consumer;
  * As onto the entry and reload from writing or reading the source path. Delete is permanent: the
  * prompt names the entry, counts a folder's contents first and lists the open documents under it
  * with unsaved changes; afterwards those documents are checked, which marks a deleted file missing.
- * Rename and Delete refuse while a save, a reload or a change prompt holds a document under the
- * entry.
+ * The workspace folder follows a rename and is cleared by a finished delete ({@link
+ * WorkspaceController#moved}, {@link WorkspaceController#deleted}). Rename and Delete refuse while
+ * a save, a reload or a change prompt holds a document under the entry.
  */
 final class WorkspaceFiles implements WorkspaceFilesInput {
   /** Unsaved document names the delete prompt lists before "and N more". */
@@ -119,7 +120,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
   }
 
   private boolean below(WorkspaceNode node) {
-    Path root = workspace.root();
+    Path root = workspace.shownFolder();
     return root != null && node.path().startsWith(root) && !node.path().equals(root);
   }
 
@@ -334,6 +335,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     }
     recent.moved(move);
     session.moved(move);
+    workspace.moved(move);
     Path source = move.from().path();
     Path target = move.to().path();
     workspace.changed(source.getParent(), source, indexed ? target : null, folder, target);
@@ -487,6 +489,9 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
   private void deleted(Found found, FileOperations.Deleted result) {
     for (DocumentController window : windows()) {
       window.under().deleted(found.entry());
+    }
+    if (result.done()) {
+      workspace.deleted(found.entry());
     }
     Path path = found.entry().path();
     boolean folder = found.folder() || found.entry().real() == null;

@@ -12,9 +12,9 @@ public interface WorkspaceInput {
   String title();
 
   /**
-   * Returns the workspace folder's row.
+   * Returns the shown folder's row: the workspace folder, or the folder browsed to.
    *
-   * @return the root directory, or null without a folder
+   * @return the root directory, or null without either
    */
   WorkspaceNode rootNode();
 
@@ -73,6 +73,14 @@ public interface WorkspaceInput {
    * @return Search in Folder, New File, New Folder, Rename and Delete
    */
   WorkspaceFilesInput files();
+
+  /**
+   * Returns the navigation, filter and sort.
+   *
+   * @return the path field, Parent, Home, Favorites, Workspace, the filter, hidden entries and the
+   *     sort column
+   */
+  WorkspaceBrowseInput browse();
 
   /** Lists the selected document's directories and selects its row. */
   void revealActive();

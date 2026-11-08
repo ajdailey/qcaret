@@ -5,6 +5,9 @@
     <extension>properties</extension>
   </detect>
   <comments line="#"/>
+  <symbols>
+    <symbol kind="property" regex="^\s*((?:\\.|[^\s=:\\#!])(?:\\.|[^\s=:\\])*)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^\s*[#!]"/>
     <match token="attribute" regex="^\s*(?:\\.|[^\s=:\\])+"/>

@@ -30,6 +30,11 @@
   </autoClose>
   <indent increase="^\s*(?:(?:private|protected|public)\s+)?(?:def|class|module|if|unless|while|until|for|case|begin|else|elsif|when|in|rescue|ensure)\b(?!.*\bend\s*$)|\bdo(?:\s*\|[^|]*\|)?\s*(#.*)?$|[{(\[](?:\s*\|[^|]*\|)?\s*(#.*)?$" decrease="^\s*(?:(?:end|else|elsif|when|in|rescue|ensure)\b|[})\]])"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="class" regex="^\s*class\s+([A-Z][\w:]*)"/>
+    <symbol kind="module" regex="^\s*module\s+([A-Z][\w:]*)"/>
+    <symbol kind="method" regex="^\s*def\s+(?:self\.)?([\w.]+[?!=]?|[-+*/%&lt;=&gt;!~^&amp;|\[\]]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^=begin\b" end="^=end\b.*" multiLine="true"/>
     <span token="comment" begin="(?&lt;!\$)#(?!\{)"/>

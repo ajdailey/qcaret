@@ -19,6 +19,9 @@
   </autoClose>
   <indent increase="\{\s*(/\*.*)?$" decrease="^\s*\}"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="selector" regex="^\s*([^\s{}@;][^{};]*?)\s*\{"/>
+  </symbols>
   <context id="main">
     <include context="common"/>
     <match token="delimiter" regex="\{" push="block"/>

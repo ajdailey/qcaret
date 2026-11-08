@@ -32,6 +32,10 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 - View > Right Margin toggles `ui.rightMargin`; `MainView.setRightMargin`
   passes every editor `editor.rightMargin` while it is on, else 0, and again
   when either setting changes.
+- `EditorAids` holds View > Indent Guides (`ui.indentGuides`) and View >
+  Modified Line Marks (`ui.lineChanges`), passed through
+  `MainView.setIndentGuides` and `MainView.setLineChangesShown` at start and on
+  a change, and runs Edit > Wrap Paragraph at `editor.rightMargin`.
 - `PreferencesInput.loadChoices` lists the theme files and the monospace
   families on a `qcaret-io-` worker; the dialog fills its lists when they
   arrive.
@@ -71,7 +75,10 @@ changed palette to its `PaletteListener`s.
 background, selection, current line, gutter and line numbers, caret, whitespace
 marks, the find-match background, the comparison window's row backgrounds
 (`diffRemoved`, `diffAdded`, `diffChanged`), the unselected tab label
-(`tabText`), the right margin line (`rightMargin`), and a `TokenStyle` (color,
+(`tabText`), the right margin line (`rightMargin`), the indent guides
+(`indentGuide`), the modified-line marks (`lineAdded`, `lineChanged`,
+`lineRemoved`, each at a contrast ratio of 3 on the background and the current
+line), and a `TokenStyle` (color,
 bold, italic, underline) for every `TokenRole`; a grammar token type paints
 with the role of the same name. The light and dark defaults derive from the
 brand navy `#1B2E44`, cyan `#56C1F0` and amber `#F3B65B`; every token color

@@ -74,6 +74,16 @@ public interface EditorInput {
   void selectFromView(int anchor, int caret);
 
   /**
+   * Selects the word ({@code Words.at}) at a double click, so double-click and the word commands
+   * share one rule.
+   *
+   * @param offset the display offset of the char clicked, or of a wrapped row's end
+   * @param onChar true to select only when the char at {@code offset} is in a word; false to take
+   *     the word touching {@code offset}
+   */
+  void selectWordFromView(int offset, boolean onChar);
+
+  /**
    * Sets several selections the widget holds, after an Alt+click added one.
    *
    * @param ranges display offset pairs, anchor then caret
@@ -169,4 +179,11 @@ public interface EditorInput {
    * @param height pixel rows, 0 while hidden
    */
   void overviewResized(int height);
+
+  /**
+   * Reports whether the view shows the gutter's modified-line marks, which are computed only then.
+   *
+   * @param shown true while shown
+   */
+  void lineChangesShown(boolean shown);
 }

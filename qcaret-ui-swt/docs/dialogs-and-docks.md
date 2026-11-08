@@ -80,8 +80,17 @@ the dialog cancels a running match.
 
 ## Workspace browser
 
-`WorkspaceDock` is the workspace browser: Refresh, Reveal Active File and Hide
-over the folder and a `Tree`.
+`WorkspaceDock` is the workspace browser: Refresh, Reveal Active File and Hide,
+the workspace folder, the `BrowseBar` and a `Tree` with Name, Size and Modified
+columns.
+
+- `BrowseBar` holds Parent, Home, Favorites and Workspace, the path field, the
+  filter field and the Hidden check box (`SwtThemeService.check`). Enter in a
+  field passes its text to `WorkspaceBrowseInput`; each `workspaceChanged(null)`
+  sets the fields, the check box and Workspace's enablement from it. Favorites
+  builds its pop-up menu at each opening from `favorites()`.
+- A column header click calls `sort` with the column, descending when it
+  already sorts ascending; the tree shows the sort column and direction.
 
 - A directory row holds an empty placeholder child until it first expands,
   which asks `WorkspaceInput.expand` to list it; the listed rows replace the
@@ -91,8 +100,9 @@ over the folder and a `Tree`.
   toggles a directory.
 - One context menu, built on the first `MenuDetect`, serves every row; a
   right click over empty space clears the selection and the menu acts on the
-  workspace folder. Each item's enablement comes from the row kind, and the
-  folder itself takes no Rename, Delete or Set as Workspace Folder.
+  shown folder. Each item's enablement comes from the row kind, and the shown
+  folder takes no Rename or Delete, and Set as Workspace Folder only while it
+  is not the workspace folder.
 - Plain Delete and F2 delete and rename the selected row from a `KeyDown`
   listener on the tree. No default window binding uses either key
   (`KeymapTest`), so the `MainWindow` key filter does not take them, and the

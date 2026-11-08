@@ -79,6 +79,10 @@ class ThemeColorsTest {
     assertEquals(MOCK, light("diffRemoved").diffRemoved());
     assertEquals(MOCK, light("diffAdded").diffAdded());
     assertEquals(MOCK, light("diffChanged").diffChanged());
+    assertEquals(MOCK, light("indentGuide").indentGuide());
+    assertEquals(MOCK, light("lineAdded").lineAdded());
+    assertEquals(MOCK, light("lineChanged").lineChanged());
+    assertEquals(MOCK, light("lineRemoved").lineRemoved());
   }
 
   @Test

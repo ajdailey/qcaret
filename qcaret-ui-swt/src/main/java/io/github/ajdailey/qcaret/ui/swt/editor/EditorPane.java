@@ -7,9 +7,11 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.HighlightComposer;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.LineEnds;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.TokenRole;
@@ -95,8 +97,8 @@ import org.eclipse.swt.widgets.Slider;
  *       line's end and its carets there are painted from the line end's measured position at the
  *       font's fractional advance.
  *   <li>Word wrap: the width in columns that fits the text area goes to {@link
- *       EditorInput#viewColumnsChanged} on every resize and font change. A double click at or past
- *       a wrapped row's right edge selects the row's last word.
+ *       EditorInput#viewColumnsChanged} on every resize and font change. A double click selects the
+ *       word by {@link EditorGestures#selectWord}.
  *   <li>Primary caret: the widget's caret is an SWT {@link Caret} whose image, {@value
  *       #CARET_WIDTH} px wide and one line high, shows the scheme's caret color over the current
  *       line ({@link CaretInk}). The image is rebuilt on a font change, a zoom change and a palette
@@ -121,6 +123,12 @@ import org.eclipse.swt.widgets.Slider;
  *       loses focus.
  *   <li>Right margin: {@link MarginPainter} draws the line in the palette's right margin color
  *       after {@link #setRightMargin}.
+ *   <li>Indent guides: {@link IndentGuidePainter} after {@link #setIndentGuides}, before the
+ *       whitespace marks.
+ *   <li>Modified-line marks: {@link LineChangePainter} in the gap between the gutter and the text
+ *       after {@link #setLineChangesShown}, which tells {@link EditorInput#lineChangesShown}. While
+ *       a document is too large for marks, the gutter's tooltip says so where no bookmark comment
+ *       shows.
  * </ul>
  */
 public final class EditorPane implements EditorView {
@@ -204,6 +212,8 @@ public final class EditorPane implements EditorView {
   private boolean markLineEndings;
   private boolean lineNumbersShown;
   private final MarginPainter margin = new MarginPainter();
+  private final IndentGuidePainter guides = new IndentGuidePainter();
+  private final LineChangePainter lineChanges = new LineChangePainter();
 
   /**
    * Creates the editor.
@@ -471,6 +481,69 @@ public final class EditorPane implements EditorView {
   }
 
   /**
+   * Shows or hides the indent guides.
+   *
+   * @param shown true to show them
+   */
+  public void setIndentGuides(boolean shown) {
+    if (!text.isDisposed() && guides.setShown(shown)) {
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns a row's indent guide positions, for tests.
+   *
+   * @param row a display row
+   * @return x per guide in the widget, empty while the guides are hidden
+   */
+  public int[] indentGuides(int row) {
+    if (!guides.shown()) {
+      return new int[0];
+    }
+    return IndentGuidePainter.guides(text, projection, row, text.getClientArea().width);
+  }
+
+  /**
+   * Shows or hides the modified-line marks and tells the controller, which computes them only while
+   * they show.
+   *
+   * @param shown true to show them
+   */
+  public void setLineChangesShown(boolean shown) {
+    if (!text.isDisposed() && lineChanges.setShown(shown)) {
+      input.lineChangesShown(shown);
+      text.redraw();
+    }
+  }
+
+  @Override
+  public void showLineChanges(LineChanges changes) {
+    if (!text.isDisposed() && lineChanges.shown()) {
+      lineChanges.setChanges(changes);
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns the modified-line marks painted.
+   *
+   * @return the marks, {@link LineChanges#NONE} while hidden
+   */
+  public LineChanges lineChanges() {
+    return lineChanges.changes();
+  }
+
+  /**
+   * Returns the modified-line mark column's left edge, for tests.
+   *
+   * @return pixels from the widget's left edge
+   */
+  public int lineChangeColumn() {
+    return gutterWidth;
+  }
+
+  /**
    * Returns the right margin line's x, for tests.
    *
    * @return pixels from the widget's left edge, or -1 without a line
@@ -610,6 +683,9 @@ public final class EditorPane implements EditorView {
     bracketBack = color(palette.bracket());
     whitespace = color(palette.whitespace());
     margin.setColor(color(palette.rightMargin()));
+    guides.setColor(color(palette.indentGuide()));
+    lineChanges.setColors(
+        color(palette.lineAdded()), color(palette.lineChanged()), color(palette.lineRemoved()));
     if (strip != null) {
       strip.setPalette(palette);
     }
@@ -810,7 +886,7 @@ public final class EditorPane implements EditorView {
           @Override
           public void handleEvent(Event event) {
             if (event.button == 1) {
-              wordAtWrappedRowEnd(event.x, event.y);
+              gestures.selectWord(event.x, event.y);
             }
           }
         });
@@ -920,8 +996,10 @@ public final class EditorPane implements EditorView {
           @Override
           public void paintControl(PaintEvent event) {
             paintGutter(event.gc, event.y, event.height);
+            lineChanges.paint(event.gc, text, projection, gutterWidth);
             paintCollapsed(event.gc);
             paintBookmarks(event.gc);
+            guides.paint(event.gc, text, projection);
             paintMarks(event.gc);
             margin.paint(event.gc, text, metrics, event.y, event.height);
             if (selections.block() != null) {
@@ -977,37 +1055,6 @@ public final class EditorPane implements EditorView {
       frame.layout(true);
     }
     strip.report();
-  }
-
-  /**
-   * Selects the last word of a wrapped row when a double click lands at or past its right edge. The
-   * widget alone takes the row's trailing space and virtual break there, since it sees the row as a
-   * line.
-   */
-  private void wordAtWrappedRowEnd(int x, int y) {
-    int row = text.getLineIndex(y);
-    if (row + 1 >= projection.rowCount()
-        || projection.lineOfRow(row + 1) != projection.lineOfRow(row)) {
-      return;
-    }
-    String rowText = projection.rowText(row);
-    int rowStart = projection.rowStart(row);
-    if (x < text.getLocationAtOffset(rowStart + rowText.length()).x - 1) {
-      return;
-    }
-    int end = rowText.length();
-    while (end > 0 && Character.isWhitespace(rowText.charAt(end - 1))) {
-      end--;
-    }
-    int start = end;
-    while (start > 0
-        && (Character.isLetterOrDigit(rowText.charAt(start - 1))
-            || rowText.charAt(start - 1) == '_')) {
-      start--;
-    }
-    if (start < end) {
-      input.selectFromView(rowStart + start, rowStart + end);
-    }
   }
 
   /**
@@ -1504,7 +1551,8 @@ public final class EditorPane implements EditorView {
 
   /**
    * Shows a commented bookmark's comment as the tooltip while the pointer is over the gutter left
-   * of the fold markers on its line, and no tooltip elsewhere.
+   * of the fold markers on its line; elsewhere left of the text, the modified-line limit notice
+   * while the marks are over the limit; no tooltip otherwise.
    */
   private void updateToolTip(int x, int y) {
     String tip = null;
@@ -1514,6 +1562,9 @@ public final class EditorPane implements EditorView {
       if (y >= top && y < top + text.getLineHeight()) {
         tip = bookmarks.comment(projection.lineOfRow(row));
       }
+    }
+    if (tip == null && x >= 0 && x < text.getLeftMargin() && lineChanges.changes().overLimit()) {
+      tip = UiText.LINE_CHANGES_OVER_LIMIT.format(LineChanges.MAX_LINES, LineChanges.MAX_CHARS);
     }
     if (!Objects.equals(tip, text.getToolTipText())) {
       text.setToolTipText(tip);

@@ -20,8 +20,9 @@ import org.eclipse.swt.widgets.Text;
 
 /**
  * File > Quick Open and Window > Switch Document: a modal dialog with a filter field over a table
- * of names and paths and a summary line; an open document's row is in bold. Each change of the
- * field calls {@link QuickOpenInput#filter}; the table refills then and on each {@link #changed},
+ * of names and paths and a summary line; an open document's row is in bold. The field starts with
+ * {@link QuickOpenInput#initialQuery}, {@code @} for Edit > Go to Symbol. Each change of the field
+ * calls {@link QuickOpenInput#filter}; the table refills then and on each {@link #changed},
  * selecting its first row. Up, Down, Page Up and Page Down in the field move the selection; Enter
  * or a double click closes the dialog and passes the row to {@link QuickOpenInput#choose} on the
  * next UI turn. Esc closes the dialog; closing it calls {@link QuickOpenInput#close}.
@@ -33,6 +34,7 @@ final class QuickOpenWindow {
   private final Text filter;
   private final Table table;
   private final Label summary;
+  private final TableColumn path;
   private final Font bold;
 
   QuickOpenWindow(Shell parent, final QuickOpenInput input, UiDispatcher ui) {
@@ -47,8 +49,7 @@ final class QuickOpenWindow {
     TableColumn name = new TableColumn(table, SWT.LEFT);
     name.setText(UiText.QUICK_OPEN_NAME.text());
     name.setWidth(200);
-    TableColumn path = new TableColumn(table, SWT.LEFT);
-    path.setText(UiText.QUICK_OPEN_PATH.text());
+    path = new TableColumn(table, SWT.LEFT);
     path.setWidth(420);
     table.setHeaderVisible(true);
     FontData[] data = table.getFont().getFontData();
@@ -106,6 +107,11 @@ final class QuickOpenWindow {
             bold.dispose();
           }
         });
+    String initial = input.initialQuery();
+    if (!initial.isEmpty()) {
+      filter.setText(initial);
+      filter.setSelection(initial.length());
+    }
     fill();
   }
 
@@ -135,6 +141,7 @@ final class QuickOpenWindow {
       table.setRedraw(true);
     }
     summary.setText(input.summary());
+    path.setText(input.detailHeading());
   }
 
   private void choose() {

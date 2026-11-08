@@ -17,7 +17,8 @@ same order to the SWT native cache.
 `Preferences` holds `ui.theme`, `window.*`, `log.debugFile` (attaches the debug
 log file at the next start), `Options` (the Preferences dialog's settings),
 `UiState` (search toggles, histories, recent grammars, dialog sizes, the
-toolbar and right margin choices, the last date format), `ShortcutOverrides`
+toolbar, right margin, indent guide and modified-line mark choices, the last
+date format), `ShortcutOverrides`
 and `Appearance` (`ui.themeFile`, `editor.fontFamily`). `PreferenceKeys` maps
 them to and from `qcaret.conf`. A new setting is a record component and its
 lines in `PreferenceKeys`, plus a `PreferencesForm` field when the dialog shows
@@ -103,6 +104,8 @@ Shortcuts.
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
 | `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
+| `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
+| `ui.lineChanges` | `true`, `false`: the editors mark the lines changed since the last load or save | `false` | View > Modified Line Marks |
 | `ui.lastDateFormat` | The pattern Insert Date and Time used last, selected first in its list | none | Edit > Insert Date and Time |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
@@ -111,7 +114,7 @@ Shortcuts.
 | `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
 | `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Edit > Preferences, Editor |
 | `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
-| `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of | 80 | Edit > Preferences, Editor |
+| `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of, and the widest line Wrap Paragraph makes | 80 | Edit > Preferences, Editor |
 | `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Edit > Preferences, Editor |
 | `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Edit > Preferences, Editor |
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Edit > Preferences, Editor |
@@ -131,5 +134,6 @@ Shortcuts.
 | `search.history.text.N`, `.directory.N`, `.mask.N`, `.replace.N` | Search texts of the find bar and HyperSearch, HyperSearch's directories and include masks, the find bar's replacements; newest first, 20 each | none | The find bar, HyperSearch |
 | `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
 | `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
+| `workspace.favorite.N` | The workspace browser's favorite folders in the order added, 20 at most | none | The browser's Favorites menu |
 
 A value out of range falls back to its default with one warning naming the key.

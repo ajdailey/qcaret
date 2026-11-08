@@ -94,6 +94,8 @@ public enum CommandId {
   INDENT_WITH_SPACES(CommandGroup.EDIT, UiText.COMMAND_INDENT_WITH_SPACES, false, true, null),
   /** Move the caret to a line and column. */
   GO_TO_LINE(CommandGroup.EDIT, UiText.COMMAND_GO_TO_LINE, true, false, null),
+  /** Open Quick Open over the selected document's symbols. */
+  GO_TO_SYMBOL(CommandGroup.EDIT, UiText.COMMAND_GO_TO_SYMBOL, false, false, null),
   /** Refuse or allow edits to the selected document. */
   READ_ONLY(CommandGroup.EDIT, UiText.COMMAND_READ_ONLY, true, true, null),
   /** Add a caret one row above the top caret. */
@@ -224,6 +226,10 @@ public enum CommandId {
   /** Remove trailing spaces and tabs from the touched lines, or every line. */
   TRIM_TRAILING_WHITESPACE(
       CommandGroup.EDIT, UiText.COMMAND_TRIM_TRAILING_WHITESPACE, false, false, null),
+  /**
+   * Hard-wrap the selected lines, or the paragraph at each caret, at {@code editor.rightMargin}.
+   */
+  WRAP_PARAGRAPH(CommandGroup.EDIT, UiText.COMMAND_WRAP_PARAGRAPH, false, false, null),
   /** Complete the word before the caret from the words of the open documents. */
   COMPLETE_WORD(CommandGroup.EDIT, UiText.COMMAND_COMPLETE_WORD, true, false, null),
   /** Select from each caret's bracket to its partner, both included. */
@@ -263,6 +269,12 @@ public enum CommandId {
   LINE_NUMBERS(CommandGroup.VIEW, UiText.COMMAND_LINE_NUMBERS, false, true, null),
   /** Show a line at {@code editor.rightMargin} in every editor; checked while shown. */
   RIGHT_MARGIN(CommandGroup.VIEW, UiText.COMMAND_RIGHT_MARGIN, false, true, null),
+  /**
+   * Show a line at each indent level of leading whitespace in every editor; checked while shown.
+   */
+  INDENT_GUIDES(CommandGroup.VIEW, UiText.COMMAND_INDENT_GUIDES, false, true, null),
+  /** Mark the lines changed since the last load or save in every editor; checked while shown. */
+  LINE_CHANGES(CommandGroup.VIEW, UiText.COMMAND_LINE_CHANGES, false, true, null),
   /** Show the main toolbar in every window; checked while shown. */
   TOOLBAR(CommandGroup.VIEW, UiText.COMMAND_TOOLBAR, false, true, null),
   /** Find and run a command by name. */
@@ -281,6 +293,29 @@ public enum CommandId {
   /** Compare the selected document's file on disk with its text, side by side. */
   COMPARE_WITH_DISK(
       CommandGroup.VIEW, UiText.COMMAND_COMPARE_WITH_DISK, false, false, UiText.MENU_COMPARE),
+  /** Delete each selection, or the word or blanks before each caret. */
+  DELETE_WORD_BACK(CommandGroup.EDIT, UiText.COMMAND_DELETE_WORD_BACK, true, false, null),
+  /** Delete each selection, or the word and blanks after each caret. */
+  DELETE_WORD_FORWARD(CommandGroup.EDIT, UiText.COMMAND_DELETE_WORD_FORWARD, false, false, null),
+  /** Capitalize each word of the selections, or the word at each caret. */
+  TITLE_CASE(CommandGroup.EDIT, UiText.COMMAND_TITLE_CASE, false, false, null),
+  /** Swap upper and lower case in the selections, or the word at each caret. */
+  SWAP_CASE(CommandGroup.EDIT, UiText.COMMAND_SWAP_CASE, false, false, null),
+  /** Swap the characters around each caret, or rotate the texts of two or more selections. */
+  TRANSPOSE(CommandGroup.EDIT, UiText.COMMAND_TRANSPOSE, false, false, null),
+  /** Select every occurrence of the primary selection, or of the word at the caret. */
+  SELECT_ALL_OCCURRENCES(
+      CommandGroup.SELECTION, UiText.COMMAND_SELECT_ALL_OCCURRENCES, true, false, null),
+  /** Drop the occurrence added last and select the next one. */
+  SKIP_OCCURRENCE(CommandGroup.SELECTION, UiText.COMMAND_SKIP_OCCURRENCE, false, false, null),
+  /** Widen each selection to the word, quotes, brackets, line or text around it. */
+  EXPAND_SELECTION(CommandGroup.SELECTION, UiText.COMMAND_EXPAND_SELECTION, false, false, null),
+  /** Select the lines each selection touches, or the next line too. */
+  SELECT_LINE(CommandGroup.SELECTION, UiText.COMMAND_SELECT_LINE, false, false, null),
+  /** Return the carets and selections to their state before the last change. */
+  UNDO_SELECTION(CommandGroup.SELECTION, UiText.COMMAND_UNDO_SELECTION, true, false, null),
+  /** Return the carets and selections Undo Selection changed. */
+  REDO_SELECTION(CommandGroup.SELECTION, UiText.COMMAND_REDO_SELECTION, false, false, null),
   /** Move every caret one char left, or to the start of its selection. */
   CARET_LEFT(CommandGroup.EDITOR, UiText.COMMAND_CARET_LEFT, false, false, null),
   /** Move every caret one char right, or to the end of its selection. */

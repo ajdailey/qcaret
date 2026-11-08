@@ -39,7 +39,8 @@ import java.util.Set;
  * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
  * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
  * Compare Documents needs a second document, Compare with File on Disk and Reload from Disk a file.
- * A disabled menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor
+ * Undo Selection and Redo Selection need an entry in the focused view's selection history. A
+ * disabled menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor
  * bindings, not accelerators, so they stay live in the editor and in text fields whatever the items
  * show.
  */
@@ -71,6 +72,8 @@ public final class CommandStates {
           CommandId.OVERVIEW_STRIP,
           CommandId.LINE_NUMBERS,
           CommandId.RIGHT_MARGIN,
+          CommandId.INDENT_GUIDES,
+          CommandId.LINE_CHANGES,
           CommandId.TOOLBAR,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
@@ -113,7 +116,13 @@ public final class CommandStates {
           CommandId.REMOVE_DUPLICATE_LINES,
           CommandId.TRIM_TRAILING_WHITESPACE,
           CommandId.COMPLETE_WORD,
-          CommandId.INSERT_DATE_TIME);
+          CommandId.INSERT_DATE_TIME,
+          CommandId.DELETE_WORD_BACK,
+          CommandId.DELETE_WORD_FORWARD,
+          CommandId.TITLE_CASE,
+          CommandId.SWAP_CASE,
+          CommandId.TRANSPOSE,
+          CommandId.WRAP_PARAGRAPH);
 
   /**
    * Commands whose state follows the text and the selection. A view reads them on every status
@@ -199,6 +208,8 @@ public final class CommandStates {
       case OVERVIEW_STRIP -> application.documents().overviewShown();
       case LINE_NUMBERS -> application.documents().lineNumbersShown();
       case RIGHT_MARGIN -> application.rightMarginShown();
+      case INDENT_GUIDES -> application.preferences().state().indentGuides();
+      case LINE_CHANGES -> application.preferences().state().lineChanges();
       case TOOLBAR -> application.toolbarShown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();
@@ -264,6 +275,10 @@ public final class CommandStates {
       case NEXT_BOOKMARK, PREVIOUS_BOOKMARK, CLEAR_BOOKMARKS ->
           documents.activeBookmarks().length > 0;
       case COMPARE_WITH_DISK, RELOAD -> documents.activeOpenedPath() != null;
+      case UNDO_SELECTION ->
+          documents.activeEditor() != null && documents.activeEditor().selectionHistory().canUndo();
+      case REDO_SELECTION ->
+          documents.activeEditor() != null && documents.activeEditor().selectionHistory().canRedo();
       default -> true;
     };
   }

@@ -20,7 +20,9 @@ undo and redo restore that model. A read-only document ignores edits.
 - `type` holds a high surrogate until its low one arrives: views send one char
   per key event, and a block's column moves between two lone halves.
 - Line, case and indent commands are `core.edit` functions applied as one
-  command each; undo restores every caret.
+  command each; undo restores every caret. Delete Word Back and Forward
+  (`WordDeletes`), Title Case and Swap Case (`CaseEdits`) and Transpose
+  (`Transpose`) are such functions too.
 - The controller runs the projection's rewraps on `qcaret-cpu-` workers, a
   newer request canceling the running one.
 
@@ -38,9 +40,47 @@ undo and redo restore that model. A read-only document ignores edits.
 - Add Next Occurrence selects the word at a primary caret, else searches a
   snapshot for the primary's text on a `qcaret-cpu-` worker and adds the match
   as the new primary; a result for another revision is dropped.
-- Esc cancels a running line transform, save and comparison through one
-  `Runnable` and the `lineWork` token, and drops the secondary selections and
-  the block; with neither, it closes the find bar.
+- Esc cancels a running save and comparison through one `Runnable`, a line
+  transform through the `lineWork` token and a selection search through
+  `SelectionCommands`, and drops the secondary selections and the block; with
+  neither, it closes the find bar.
+
+## Selection commands
+
+`SelectionCommands` holds one view's selection commands; `EditorController`
+passes them the command.
+
+- Select All Occurrences selects every occurrence of the primary selection's
+  text (`Occurrences.all`), or every whole-word occurrence of the word at a
+  primary caret (`Occurrences.words`); the occurrence at the old primary stays
+  primary. Past `SelectionCommands.MAX_OCCURRENCES` (10,000) it selects
+  nothing and shows a notice.
+- Skip Occurrence drops the primary, which Add Next Occurrence added last, and
+  selects the next occurrence of its text, wrapping, as the new primary. When
+  that occurrence is already selected, it becomes the primary. At a caret it
+  runs Add Next Occurrence.
+- Expand Selection widens each selection to the smallest longer range of
+  `SelectionExpansion.expand` that holds it: the word, the inside of the
+  quotes around it on its line (`"`, `'`, `` ` ``; a backslash escapes), the
+  quotes too, the inside of the innermost bracket pair, the brackets too, its
+  lines without the last break, the whole text. Brackets pair and skip strings
+  and comments as bracket matching does, within 16 Ki chars on the UI thread.
+  A line wrapped inside a bracket pair is smaller than the pair, so the line
+  comes first there.
+- Select Line selects the touched lines with their breaks; a selection that
+  already holds them takes the next line too.
+
+A text longer than `SYNC_CHARS` (64 Ki chars) is searched on a `qcaret-cpu-`
+worker, as is a bracket pair further than 16 Ki chars, with the view busy. The
+result applies only at the same revision and selections; one for an older
+revision is dropped with a notice.
+
+`SelectionHistory` keeps Undo Selection and Redo Selection: before each
+selection change, the selections and block, at most 100 in each direction. A
+change that keeps every anchor of a non-empty selection, such as a drag or
+Shift with an arrow key, extends the entry of the change before it. Any text
+change, from any view, clears both directions, since the entries are offsets in
+the old text.
 
 ## Input method composition
 
@@ -93,10 +133,30 @@ and pairs.
 
 ## Line transforms
 
-Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their
-`LineTransforms` edit on a `qcaret-cpu-` worker and apply it on the UI thread
-as one undo step, with the view's busy cursor from the command to the apply; a
-result for an older revision is dropped with a notice.
+Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph
+compute their edit (`LineTransforms`, `ParagraphWrap`) on a `qcaret-cpu-`
+worker and apply it on the UI thread as one undo step, with the view's busy
+cursor from the command to the apply; a result for an older revision is dropped
+with a notice.
+
+### Wrap Paragraph
+
+Edit > Wrap Paragraph hard-wraps at `editor.rightMargin`: with a selection,
+every paragraph in the lines it touches; with carets only, the paragraph at
+each caret. `ParagraphWrap` defines the rest:
+
+- A paragraph is a run of lines that are not blank and that all start, after
+  their indent, with the grammar's line comment, or none of which does. A line
+  of blanks alone, or of its indent, the comment and blanks, is blank.
+- Every wrapped line starts with the first line's indent, plus the comment and
+  the blanks after it on a comment paragraph.
+- Words are runs of chars other than space and tab, joined by one space. A line
+  takes the words that keep it within the column, a tab counted to the next tab
+  stop and a char per code point; a longer word is a line of its own.
+- Wrapped lines end in the paragraph's first line break, or the document's line
+  ending for a one-line paragraph, so a CR LF paragraph stays CR LF.
+- A selection then spans its wrapped lines; a caret moves to the end of its
+  paragraph.
 
 ## Bookmarks
 
@@ -191,6 +251,36 @@ the bookmarks.
 - The strip scales by model lines, marks and click alike, so folds change
   neither: a mark on a hidden line stays, and a click there scrolls to the row
   of the fold's first line (`DisplayProjection.rowOfLine`).
+
+## Modified-line marks
+
+Each editor view has a `LineChangesUpdater` that computes its gutter marks
+(`LineChanges`) while the view shows them (View > Modified Line Marks,
+`ui.lineChanges`); the view reports the toggle through
+`EditorInput.lineChangesShown`.
+
+- The baseline is `Document.savedText`: the text of the last
+  `Document.markSaved`, which a load, a save and a reload all end in, or the
+  initial text. `markUnsaved` keeps it, so a deleted file keeps its last
+  baseline. A document restored from a recovery file takes the file on disk
+  (`RecoveredBaseline`, read on a `qcaret-io-` worker through
+  `Document.setSavedText`); a missing or unreadable file leaves the recovered
+  text, so no line is marked. `DocumentListener.textSaved` reports each
+  `markSaved` and `setSavedText`.
+- `LineChanges.compute` diffs the saved and current texts by line with
+  `LineDiff` on a `qcaret-cpu-` worker. In a run of removed lines followed by
+  added lines, the added lines pair with the removed ones as changed and the
+  rest are added; removed lines alone mark the line after them, or the last
+  line.
+- A text change waits 250 ms; a save computes at once. A current text that is
+  the saved snapshot itself clears the marks without a worker. A newer request
+  cancels the running one, and a result shows only while the document still
+  has its revision and saved text. Undo back to the saved text computes no
+  marks.
+- A side over 100,000 lines or 16,777,216 chars is not compared: the view
+  shows no marks and its gutter tooltip says why. Past `LineDiff.MAX_EDITS` the changed
+  middle of the text is marked as one change.
+- A split view computes its own marks.
 
 ## Bookmarks list
 

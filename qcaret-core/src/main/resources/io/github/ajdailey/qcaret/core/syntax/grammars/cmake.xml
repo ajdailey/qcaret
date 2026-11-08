@@ -18,6 +18,11 @@
   </autoClose>
   <indent increase="(?i)^\s*(?:if|elseif|else|foreach|while|function|macro|block)\s*\(.*$" decrease="(?i)^\s*(?:endif|elseif|else|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
   <folding mode="markers" begin="(?i)(?&lt;![\w.-])(?:if|foreach|while|function|macro|block)\s*\(" end="(?i)(?&lt;![\w.-])(?:endif|endforeach|endwhile|endfunction|endmacro|endblock)\s*\("/>
+  <symbols>
+    <symbol kind="function" regex="(?i)^\s*function\s*\(\s*([\w.-]+)"/>
+    <symbol kind="macro" regex="(?i)^\s*macro\s*\(\s*([\w.-]+)"/>
+    <symbol kind="target" regex="(?i)^\s*add_(?:executable|library|custom_target)\s*\(\s*([\w.:-]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="#\[(=*)\[" end="\]\1\]" multiLine="true"/>
     <span token="comment" begin="#"/>

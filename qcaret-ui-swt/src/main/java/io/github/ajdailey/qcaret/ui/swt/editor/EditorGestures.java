@@ -219,6 +219,39 @@ final class EditorGestures implements Listener {
     return autoscrolling;
   }
 
+  /**
+   * Has the controller select the word under a double click ({@link
+   * EditorInput#selectWordFromView}), replacing the widget's own word selection. At or past a
+   * wrapped row's right edge it takes the row's last word, where the widget would take the row's
+   * trailing space and virtual break. A click on a char outside a word keeps the widget's
+   * selection.
+   *
+   * @param x the click's x
+   * @param y the click's y
+   */
+  void selectWord(int x, int y) {
+    int row = Math.max(0, Math.min(projection.rowCount() - 1, text.getLineIndex(y)));
+    String rowText = projection.rowText(row);
+    int rowStart = projection.rowStart(row);
+    boolean wrapped =
+        row + 1 < projection.rowCount()
+            && projection.lineOfRow(row + 1) == projection.lineOfRow(row);
+    if (wrapped && x >= text.getLocationAtOffset(rowStart + rowText.length()).x - 1) {
+      int end = rowText.length();
+      while (end > 0 && Character.isWhitespace(rowText.charAt(end - 1))) {
+        end--;
+      }
+      if (end > 0) {
+        input.selectWordFromView(rowStart + end, false);
+      }
+      return;
+    }
+    int at = text.getOffsetAtPoint(new Point(x, y));
+    if (at >= rowStart && at < rowStart + rowText.length()) {
+      input.selectWordFromView(at, true);
+    }
+  }
+
   /** Returns the display offset nearest a point, the row's end past it. */
   int offsetAt(int x, int y) {
     int at = text.getOffsetAtPoint(new Point(x, y));

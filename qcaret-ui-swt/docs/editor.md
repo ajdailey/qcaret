@@ -85,9 +85,11 @@ other row uses the widget's measured glyph positions. A family's bold or italic
 face can be wider than its regular face, which is the advance `ColumnMetrics`
 measures. Past a row's end columns continue at the fractional advance.
 
-A double click at or past a wrapped row's right edge selects the row's last
-word, where the widget alone would take the trailing space and the virtual
-break.
+`EditorGestures.selectWord` replaces the widget's double-click word selection
+through `EditorInput.selectWordFromView`, which selects `Words.at`, the rule of
+the word moves, Add Next Occurrence and Delete Word. A double click at or past a wrapped row's right edge selects the row's
+last word, where the widget alone would take the trailing space and the virtual
+break. A double click on a char outside a word keeps the widget's selection.
 
 ## Gutter
 
@@ -110,6 +112,14 @@ sizes the margin.
   bookmark's line shows its comment as the `StyledText` tooltip. The pane
   follows the document's `Bookmarks` and repaints on each change they report; a
   palette change recolors the marks.
+- `LineChangePainter` draws the modified-line marks (`setLineChangesShown`,
+  `showLineChanges`) in the 3 px left of the gap between the gutter and the
+  text: a bar on every row of an added line (`lineAdded`) or a changed line
+  (`lineChanged`), and a triangle (`lineRemoved`) on the top edge of the line
+  after removed lines, or the bottom edge of the last line. The marks stay
+  until the next result, so they lag an edit by one computation. While a
+  document is over the mark limit, the tooltip left of the text says so where
+  no bookmark comment shows.
 
 ## Painting
 
@@ -137,6 +147,15 @@ sizes the margin.
   ColumnMetrics.x(column)`: the column's x on an ASCII row, after a scroll,
   zoom or font change, and under word wrap. It draws one line per paint, over
   the text and under the carets, and nothing left of the text area.
+- `IndentGuidePainter` draws the indent guides (`setIndentGuides`), 1 px wide
+  and one row high in the palette's `indentGuide` color, at columns 0, w, 2w and
+  on below a line's indent, where w is the widget's tab width. Each guide sits
+  at `getLocationAtOffset` of the char starting its column, so it follows a
+  tab, a scroll, a zoom and a font change. Only a line's first row has guides;
+  a row of blanks alone takes the levels below both neighbors' indents, at the
+  row above's positions, each neighbor sought within 100 rows. A row's first
+  1,000 chars are read. Measured on 1,000,000 indented lines (500 page scrolls
+  each, xvfb): median 2.35 ms with guides, 2.43 ms without.
 - `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
   whole-text operation computes and applies.
 - Each paint that shows another display range reports it through

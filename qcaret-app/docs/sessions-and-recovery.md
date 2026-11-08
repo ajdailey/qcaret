@@ -45,7 +45,7 @@ instance started with `restore` true saves, so `-m` never replaces the session.
 | Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
 | Per view | Selections, top line (kept through the rewraps of a wrapped window), collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
 | Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments, read-only state |
-| Per window | Workspace folder, browser visibility, sash, expanded directories, results dock and its sash, the sash between the results and Bookmarks docks, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks list visibility |
+| Per window | Workspace folder, browser visibility, the browser's shown folder, filter and Hidden state, sash, expanded directories, results dock and its sash, the sash between the results and Bookmarks docks, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks list visibility |
 | Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
 
 A remembered charset the runtime lacks warns and detects; one that no longer

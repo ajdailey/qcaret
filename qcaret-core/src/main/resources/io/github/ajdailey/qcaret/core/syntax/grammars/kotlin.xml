@@ -21,6 +21,15 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$|-&gt;\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="enum" regex="\benum\s+class\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="class" regex="\bclass\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="interface" regex="\binterface\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="class" regex="\bobject\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="type" regex="\btypealias\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="\bfun\s+(?:&lt;[^&gt;]*&gt;\s*)?(?:[\p{L}_][\p{L}\p{N}_.&lt;&gt;?, ]*\.)?([\p{L}_][\p{L}\p{N}_]*)\s*\("/>
+    <symbol kind="constant" regex="\bconst\s+val\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true" nested="true"/>
     <span token="comment" begin="//"/>

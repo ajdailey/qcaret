@@ -57,6 +57,7 @@ public final class Document {
   private LineEnding lineEnding;
   private TextEncoding encoding;
   private TextEncoding savedEncoding;
+  private TextSnapshot savedText;
   private boolean readOnly;
   private int tabWidth = DEFAULT_TAB_WIDTH;
   private boolean insertSpaces;
@@ -94,6 +95,7 @@ public final class Document {
     this.clock = clock;
     this.encoding = encoding;
     this.savedEncoding = encoding;
+    this.savedText = storage.snapshot();
     this.lineEndings = lineEndings;
     this.lineEnding = lineEndings.dominant(empty);
   }
@@ -167,6 +169,16 @@ public final class Document {
    */
   public PositionMap positions() {
     return positions;
+  }
+
+  /**
+   * Returns the text of the last {@link #markSaved} or {@link #setSavedText}, or the initial text
+   * before one. {@link #markUnsaved} keeps it.
+   *
+   * @return the text
+   */
+  public TextSnapshot savedText() {
+    return savedText;
   }
 
   /**
@@ -599,7 +611,9 @@ public final class Document {
 
   /**
    * Records a finished save of a snapshot: the document is clean while its undo state and encoding
-   * match the snapshot's. Typing after the save starts a new undo step, so undo can return to it.
+   * match the snapshot's, and {@link #savedText} is the snapshot's text. Typing after the save
+   * starts a new undo step, so undo can return to it. Listeners hear {@link
+   * DocumentListener#textSaved} after any dirty change.
    *
    * @param saved the snapshot the save wrote
    */
@@ -608,8 +622,26 @@ public final class Document {
     boolean wasDirty = isDirty();
     savedState = saved.state();
     savedEncoding = saved.encoding();
+    savedText = saved.text();
     breakCoalescing();
     fireDirty(wasDirty);
+    for (DocumentListener listener : new ArrayList<DocumentListener>(listeners)) {
+      listener.textSaved();
+    }
+  }
+
+  /**
+   * Replaces {@link #savedText} without changing the clean state, as for a restored buffer whose
+   * file on disk holds other text. Listeners hear {@link DocumentListener#textSaved}.
+   *
+   * @param text the file's text
+   */
+  public void setSavedText(TextSnapshot text) {
+    checkThread();
+    savedText = text;
+    for (DocumentListener listener : new ArrayList<DocumentListener>(listeners)) {
+      listener.textSaved();
+    }
   }
 
   /**

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.view;
 
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import java.util.List;
@@ -125,4 +126,11 @@ public interface EditorView {
    * @param shown true to show
    */
   void setOverviewShown(boolean shown);
+
+  /**
+   * Shows the gutter's modified-line marks; replaces the ones shown before.
+   *
+   * @param changes the marks, {@link LineChanges#NONE} for none
+   */
+  void showLineChanges(LineChanges changes);
 }

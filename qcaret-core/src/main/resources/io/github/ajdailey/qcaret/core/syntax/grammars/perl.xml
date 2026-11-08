@@ -23,6 +23,10 @@
   </autoClose>
   <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="function" regex="^\s*sub\s+([\w:]+)"/>
+    <symbol kind="module" regex="^\s*package\s+([\w:]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^=[A-Za-z]\w*" end="^=cut\b.*" multiLine="true"/>
     <span token="comment" begin="^__(?:END|DATA)__\b" end="(?!)" multiLine="true"/>

@@ -85,7 +85,10 @@ class KeymapTest {
     assertEquals("", Keymap.defaults(false).reference("no such command"));
   }
 
-  /** Line transforms, Insert Date and Time and Document Statistics stay menu only. */
+  /**
+   * Line transforms, Insert Date and Time, Document Statistics, Title Case and Swap Case stay menu
+   * only.
+   */
   private static final Set<CommandId> MENU_ONLY =
       EnumSet.of(
           CommandId.SORT_LINES_ASCENDING,
@@ -93,8 +96,11 @@ class KeymapTest {
           CommandId.SORT_LINES_IGNORE_CASE,
           CommandId.REMOVE_DUPLICATE_LINES,
           CommandId.TRIM_TRAILING_WHITESPACE,
+          CommandId.WRAP_PARAGRAPH,
           CommandId.INSERT_DATE_TIME,
-          CommandId.DOCUMENT_STATISTICS);
+          CommandId.DOCUMENT_STATISTICS,
+          CommandId.TITLE_CASE,
+          CommandId.SWAP_CASE);
 
   @Test
   void everyEditingCommandHasAKey() {
@@ -187,6 +193,35 @@ class KeymapTest {
    * KDE, Windows or macOS uses it, unlike Alt+F2 (GNOME and KDE run dialogs) and Ctrl+F2 (macOS
    * menu bar focus).
    */
+  /**
+   * Select Line and Transpose take Control on macOS, where Command+L is Go to Line; Delete Word
+   * takes Option there; Undo and Redo Selection, Title Case and Swap Case have no key.
+   */
+  @Test
+  void selectionAndWordCommandKeysPerPlatform() {
+    Keymap other = Keymap.defaults(false, false);
+    Keymap mac = Keymap.defaults(true, false);
+    String[][] expected = {
+      {"SELECT_ALL_OCCURRENCES", "Alt+Enter", "Option+Enter"},
+      {"SKIP_OCCURRENCE", "Ctrl+K", "Cmd+K"},
+      {"EXPAND_SELECTION", "Ctrl+Shift+Space", "Cmd+Shift+Space"},
+      {"SELECT_LINE", "Ctrl+L", "Ctrl+L"},
+      {"TRANSPOSE", "Ctrl+T", "Ctrl+T"},
+      {"DELETE_WORD_BACK", "Ctrl+Backspace", "Option+Backspace"},
+      {"DELETE_WORD_FORWARD", "Ctrl+Delete", "Option+Delete"},
+      {"UNDO_SELECTION", "", ""},
+      {"REDO_SELECTION", "", ""},
+      {"TITLE_CASE", "", ""},
+      {"SWAP_CASE", "", ""}
+    };
+    for (String[] row : expected) {
+      CommandId command = CommandId.valueOf(row[0]);
+      assertEquals(row[1], other.keysText(command), row[0]);
+      assertEquals(row[1], Keymap.defaults(false, true).keysText(command), row[0]);
+      assertEquals(row[2], mac.keysText(command), row[0]);
+    }
+  }
+
   @Test
   void editBookmarkCommentTakesModShiftF2() {
     for (boolean mac : new boolean[] {false, true}) {

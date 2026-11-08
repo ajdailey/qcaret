@@ -16,6 +16,16 @@
   </autoClose>
   <indent increase="(?i)^\s*(?:(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|NotOverridable|Overloads|Shadows|Partial|ReadOnly|WriteOnly|Async|Iterator|Default|Static|MustInherit|NotInheritable|Widening|Narrowing)\s+)*(?:Sub|Function|Class|Module|Structure|Interface|Enum|Namespace|Property|Get|Set|Operator|Try|Catch|Finally|Else|ElseIf|Select|Case|With|Using|SyncLock|While|For|Do)\b(?!.*\bEnd\s+\w+\s*$)(?!.*\bThen\s+\S)|\bThen\s*('.*)?$" decrease="(?i)^\s*(?:End|Next|Loop|Wend|Else|ElseIf|Case|Catch|Finally)\b"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="function" regex="(?i)^\s*(?:(?:public|private|protected|friend|shared|overrides|overridable|mustoverride|notoverridable|overloads|shadows|async|iterator|partial|static|default|readonly|writeonly|declare|ansi|unicode|auto)\s+)*(?:sub|function)\s+(\w+)"/>
+    <symbol kind="property" regex="(?i)^\s*(?:(?:public|private|protected|friend|shared|overrides|overridable|mustoverride|notoverridable|overloads|shadows|default|readonly|writeonly|iterator)\s+)*property\s+(\w+)"/>
+    <symbol kind="class" regex="(?i)^\s*(?:(?:public|private|protected|friend|partial|mustinherit|notinheritable|shadows)\s+)*class\s+(\w+)"/>
+    <symbol kind="module" regex="(?i)^\s*(?:(?:public|private|protected|friend|partial)\s+)*module\s+(\w+)"/>
+    <symbol kind="struct" regex="(?i)^\s*(?:(?:public|private|protected|friend|partial|shadows)\s+)*structure\s+(\w+)"/>
+    <symbol kind="interface" regex="(?i)^\s*(?:(?:public|private|protected|friend|partial|shadows)\s+)*interface\s+(\w+)"/>
+    <symbol kind="enum" regex="(?i)^\s*(?:(?:public|private|protected|friend|shadows)\s+)*enum\s+(\w+)"/>
+    <symbol kind="namespace" regex="(?i)^\s*namespace\s+([\w.]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="'|(?i)(?&lt;![\w.])REM\b"/>
     <match token="preprocessor" regex="(?i)^\s*#\s*(?:If|ElseIf|Else|End\s+If|Const|Region|End\s+Region|ExternalSource|End\s+ExternalSource|ExternalChecksum|Enable|Disable)\b"/>

@@ -17,9 +17,10 @@ import java.util.Locale;
 
 /**
  * One directory's entries as the workspace browser lists them: directories first, then files, each
- * by name ignoring case, without the entries {@link WalkRules} leaves out. A link to a directory
- * lists as a directory unless its target contains the link ({@link Kind#CYCLE}); a link to a file,
- * or a broken link, lists as a file. At most {@value #MAX_ENTRIES} entries are read. Immutable.
+ * in {@link ListingOptions#order()}, without the entries {@link WalkRules} leaves out. A link to a
+ * directory lists as a directory unless its target contains the link ({@link Kind#CYCLE}); a link
+ * to a file, or a broken link, lists as a file, with its target's size and time where it resolves.
+ * At most {@value #MAX_ENTRIES} entries are read. Immutable.
  */
 public final class DirectoryListing {
   /** Most entries read from one directory. */
@@ -40,23 +41,39 @@ public final class DirectoryListing {
    *
    * @param name its file name
    * @param kind what it is
+   * @param size its size in bytes
+   * @param modified its last-modified time in milliseconds since the epoch
    */
-  public record Entry(String name, Kind kind) {}
+  public record Entry(String name, Kind kind, long size, long modified) {}
 
-  private static final Comparator<Entry> ORDER =
-      new Comparator<Entry>() {
-        @Override
-        public int compare(Entry a, Entry b) {
-          boolean aFile = a.kind() == Kind.FILE;
-          boolean bFile = b.kind() == Kind.FILE;
-          if (aFile != bFile) {
-            return aFile ? 1 : -1;
-          }
-          int byCase =
-              a.name().toLowerCase(Locale.ROOT).compareTo(b.name().toLowerCase(Locale.ROOT));
-          return byCase != 0 ? byCase : a.name().compareTo(b.name());
+  private static int byName(Entry a, Entry b) {
+    int byCase = a.name().toLowerCase(Locale.ROOT).compareTo(b.name().toLowerCase(Locale.ROOT));
+    return byCase != 0 ? byCase : a.name().compareTo(b.name());
+  }
+
+  /** Returns the order of {@code options}: directories first, ties by name. */
+  private static Comparator<Entry> order(final ListingOptions options) {
+    return new Comparator<Entry>() {
+      @Override
+      public int compare(Entry a, Entry b) {
+        boolean aFile = a.kind() == Kind.FILE;
+        boolean bFile = b.kind() == Kind.FILE;
+        if (aFile != bFile) {
+          return aFile ? 1 : -1;
         }
-      };
+        int key =
+            switch (options.order()) {
+              case NAME -> 0;
+              case SIZE -> aFile ? Long.compare(a.size(), b.size()) : 0;
+              case MODIFIED -> Long.compare(a.modified(), b.modified());
+            };
+        if (key == 0) {
+          key = byName(a, b);
+        }
+        return options.descending() ? -key : key;
+      }
+    };
+  }
 
   private final List<Entry> entries;
   private final boolean truncated;
@@ -67,7 +84,7 @@ public final class DirectoryListing {
   }
 
   /**
-   * Reads a directory.
+   * Reads a directory in the default order: every file, no hidden entries, by name.
    *
    * @param directory the directory
    * @param rules the entries left out
@@ -78,6 +95,24 @@ public final class DirectoryListing {
    */
   @WorkerThread
   public static DirectoryListing read(Path directory, WalkRules rules, CancellationToken token)
+      throws IOException {
+    return read(directory, rules, ListingOptions.DEFAULTS, token);
+  }
+
+  /**
+   * Reads a directory.
+   *
+   * @param directory the directory
+   * @param rules the entries left out
+   * @param options the filter, hidden entries and order
+   * @param token checked per entry
+   * @return the listing
+   * @throws IOException when the directory cannot be read
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public static DirectoryListing read(
+      Path directory, WalkRules rules, ListingOptions options, CancellationToken token)
       throws IOException {
     List<Entry> list = new ArrayList<Entry>();
     boolean cut = false;
@@ -96,21 +131,39 @@ public final class DirectoryListing {
           continue;
         }
         Kind kind = attrs.isDirectory() ? Kind.DIRECTORY : Kind.FILE;
-        if (attrs.isSymbolicLink() && Files.isDirectory(entry)) {
-          if (real == null) {
-            real = directory.toRealPath();
+        if (attrs.isSymbolicLink()) {
+          attrs = target(entry, attrs);
+          if (attrs.isDirectory()) {
+            if (real == null) {
+              real = directory.toRealPath();
+            }
+            kind = cycle(real, entry) ? Kind.CYCLE : Kind.DIRECTORY;
           }
-          kind = cycle(real, entry) ? Kind.CYCLE : Kind.DIRECTORY;
         }
-        if (!rules.skips(entry, kind != Kind.FILE)) {
-          list.add(new Entry(String.valueOf(entry.getFileName()), kind));
+        String name = String.valueOf(entry.getFileName());
+        boolean directoryKind = kind != Kind.FILE;
+        boolean left =
+            options.hidden()
+                ? rules.excludes(entry, directoryKind)
+                : rules.skips(entry, directoryKind);
+        if (!left && (directoryKind || options.filter().matches(name))) {
+          list.add(new Entry(name, kind, attrs.size(), attrs.lastModifiedTime().toMillis()));
         }
       }
     } catch (DirectoryIteratorException e) {
       throw e.getCause();
     }
-    Collections.sort(list, ORDER);
+    Collections.sort(list, order(options));
     return new DirectoryListing(Collections.unmodifiableList(list), cut);
+  }
+
+  /** Returns a link's target's attributes, or the link's own when it does not resolve. */
+  private static BasicFileAttributes target(Path link, BasicFileAttributes own) {
+    try {
+      return Files.readAttributes(link, BasicFileAttributes.class);
+    } catch (IOException e) {
+      return own;
+    }
   }
 
   /** Reports whether a link's target contains the directory that holds the link. */
@@ -125,7 +178,7 @@ public final class DirectoryListing {
   /**
    * Returns the entries.
    *
-   * @return directories first, then files, each by name ignoring case
+   * @return directories first, then files, each in the listing's order
    */
   public List<Entry> entries() {
     return entries;

@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.editor.IndentFoldSource;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
@@ -35,6 +36,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.edit.AutoClose;
 import io.github.ajdailey.qcaret.core.edit.BlockEdits;
 import io.github.ajdailey.qcaret.core.edit.Brackets;
+import io.github.ajdailey.qcaret.core.edit.CaseEdits;
 import io.github.ajdailey.qcaret.core.edit.CommentEdits;
 import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.edit.LineEdits;
@@ -42,14 +44,19 @@ import io.github.ajdailey.qcaret.core.edit.LineTransforms;
 import io.github.ajdailey.qcaret.core.edit.Moves;
 import io.github.ajdailey.qcaret.core.edit.Occurrences;
 import io.github.ajdailey.qcaret.core.edit.Pairs;
+import io.github.ajdailey.qcaret.core.edit.ParagraphWrap;
+import io.github.ajdailey.qcaret.core.edit.Transpose;
+import io.github.ajdailey.qcaret.core.edit.WordDeletes;
 import io.github.ajdailey.qcaret.core.edit.Words;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
+import io.github.ajdailey.qcaret.core.syntax.Syntax;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 
 /**
  * Runs one editor view's input against its document: every edit is one {@link Document#apply} with
@@ -67,7 +74,8 @@ import java.util.function.IntConsumer;
  *       BlockEdits} and the block stays a block.
  *   <li>Paste gives one clipboard line to each selection when the counts match.
  *   <li>Add Next Occurrence searches a snapshot on a {@code qcaret-cpu-} worker; a result for an
- *       older revision is dropped.
+ *       older revision is dropped. Select All Occurrences, Skip Occurrence, Expand Selection,
+ *       Select Line, Undo Selection and Redo Selection run in {@link SelectionCommands}.
  *   <li>Input method composition text applies outside undo ({@link Document#preedit}); any edit
  *       first removes it.
  *   <li>Toggle Line Comment and Toggle Block Comment use the document grammar's delimiters ({@link
@@ -80,9 +88,9 @@ import java.util.function.IntConsumer;
  *       it. Left, Right, word and document-end moves step over hidden lines.
  *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()} unless {@code
  *       editor.autoClose} is off.
- *   <li>Sort, Remove Duplicate Lines and Trim Trailing Whitespace compute their edit on a {@code
- *       qcaret-cpu-} worker and apply it on the UI thread, with the view busy from the command to
- *       the apply; a result for an older revision is dropped with a notice.
+ *   <li>Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph compute their
+ *       edit on a {@code qcaret-cpu-} worker and apply it on the UI thread, with the view busy from
+ *       the command to the apply; a result for an older revision is dropped with a notice.
  *   <li>{@link EditorHighlights} recomputes the view's bracket and occurrence highlights after a
  *       caret move, an edit or a scroll.
  *   <li>Word completion ({@link WordCompletion}) shows its list in the view; while it shows, Up,
@@ -114,6 +122,7 @@ public final class EditorController implements EditorInput {
   private CancellationToken rewrap;
   private CancellationToken occurrence;
   private final EditorHighlights highlights;
+  private final SelectionCommands selectionCommands;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
@@ -192,6 +201,18 @@ public final class EditorController implements EditorInput {
     scheduleFolds();
     highlights = new EditorHighlights(this, workers, ui);
     selections.addListener(selectionListener);
+    selectionCommands = new SelectionCommands(this, workers, ui);
+    lineChanges =
+        new LineChangesUpdater(
+            document,
+            workers,
+            ui,
+            new Supplier<EditorView>() {
+              @Override
+              public EditorView get() {
+                return view;
+              }
+            });
   }
 
   /**
@@ -210,6 +231,7 @@ public final class EditorController implements EditorInput {
       view.setColumnMode(true);
     }
     highlights.viewAttached();
+    lineChanges.viewAttached();
   }
 
   /** Lets go of the view before its tab moves to another window; closes the completion list. */
@@ -273,9 +295,11 @@ public final class EditorController implements EditorInput {
       selections.removeListener(revealer);
       document.removeListener(foldFollower);
       disposeProductivity();
+      selectionCommands.dispose();
       if (overview != null) {
         overview.dispose();
       }
+      lineChanges.dispose();
       projection.dispose();
       selections.dispose();
     }
@@ -593,6 +617,22 @@ public final class EditorController implements EditorInput {
           commentRequest.accept(document.text().lineAt(current().primary().caret()));
         }
       }
+      case SELECT_ALL_OCCURRENCES,
+          SKIP_OCCURRENCE,
+          EXPAND_SELECTION,
+          SELECT_LINE,
+          UNDO_SELECTION,
+          REDO_SELECTION ->
+          selectionCommands.execute(command);
+      case DELETE_WORD_BACK, DELETE_WORD_FORWARD ->
+          applyEdit(
+              WordDeletes.delete(
+                  document.text(), current(), command == CommandId.DELETE_WORD_BACK));
+      case TITLE_CASE ->
+          applyEdit(CaseEdits.convert(document.text(), current(), CaseEdits.Mode.TITLE));
+      case SWAP_CASE ->
+          applyEdit(CaseEdits.convert(document.text(), current(), CaseEdits.Mode.SWAP));
+      case TRANSPOSE -> applyEdit(Transpose.transpose(document.text(), current()));
       default -> {
         return false;
       }
@@ -652,6 +692,16 @@ public final class EditorController implements EditorInput {
    */
   void setSyntax(SyntaxHighlighter highlighter) {
     syntax = highlighter;
+  }
+
+  /** Returns the document's compiled grammar; null for plain text and before one is chosen. */
+  Syntax compiledSyntax() {
+    return syntax == null ? null : syntax.syntax();
+  }
+
+  /** Reports whether the editor is disposed. */
+  boolean disposed() {
+    return disposed;
   }
 
   /** Runs the fold step again when the regions come from the highlighter, which has new ones. */
@@ -941,6 +991,7 @@ public final class EditorController implements EditorInput {
     if (lineWork != null) {
       lineWork.cancel();
     }
+    selectionCommands.cancel();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
       selections.set(SelectionSet.of(List.of(set.primary()), 0));
@@ -977,6 +1028,19 @@ public final class EditorController implements EditorInput {
     SelectionSet set = SelectionSet.of(List.of(selection), 0);
     if (!set.equals(selections.selections()) || selections.block() != null) {
       selections.set(set);
+    }
+  }
+
+  @Override
+  public void selectWordFromView(int offset, boolean onChar) {
+    TextSnapshot text = document.text();
+    int at = projection.toModel(offset);
+    if (onChar && (at >= text.length() || !Words.isWordAt(text, at))) {
+      return;
+    }
+    int[] word = Words.at(text, at);
+    if (word.length > 0) {
+      selections.set(SelectionSet.of(List.of(Selection.of(word[0], word[1])), 0));
     }
   }
 
@@ -1473,7 +1537,7 @@ public final class EditorController implements EditorInput {
 
   // Applying edits.
 
-  private void showCaret() {
+  void showCaret() {
     if (view != null) {
       view.showCaret();
     }
@@ -1751,6 +1815,18 @@ public final class EditorController implements EditorInput {
     notices = listener;
   }
 
+  /** Shows a notice through the listener, if one is set. */
+  void notice(String text) {
+    if (notices != null) {
+      notices.accept(text);
+    }
+  }
+
+  /** Returns the view's Undo Selection and Redo Selection history. */
+  SelectionHistory selectionHistory() {
+    return selectionCommands.history();
+  }
+
   // Overview strip.
 
   private OverviewUpdater overview;
@@ -1786,6 +1862,20 @@ public final class EditorController implements EditorInput {
     if (overview != null) {
       overview.setHeight(height);
     }
+  }
+
+  // Modified-line marks.
+
+  private final LineChangesUpdater lineChanges;
+
+  @Override
+  public void lineChangesShown(boolean shown) {
+    lineChanges.setShown(shown);
+  }
+
+  /** Returns the modified-line marks shown last. */
+  LineChanges lineChanges() {
+    return lineChanges.changes();
   }
 
   /**
@@ -1827,7 +1917,23 @@ public final class EditorController implements EditorInput {
 
   // Line transforms.
 
-  /** Computes a sort, duplicate removal or trim on a worker and applies it at the same revision. */
+  private int wrapColumn = 1;
+
+  /**
+   * Runs Wrap Paragraph ({@link ParagraphWrap}) with the grammar's line comment, as a line
+   * transform.
+   *
+   * @param column the widest line, in columns
+   */
+  void wrapParagraph(int column) {
+    wrapColumn = column;
+    transformLines(CommandId.WRAP_PARAGRAPH);
+  }
+
+  /**
+   * Computes a sort, duplicate removal, trim or paragraph wrap on a worker and applies it at the
+   * same revision.
+   */
   private void transformLines(final CommandId command) {
     if (document.isReadOnly()) {
       return;
@@ -1840,6 +1946,10 @@ public final class EditorController implements EditorInput {
     }
     final CancellationToken token = new CancellationToken();
     lineWork = token;
+    final String comment = comments.line();
+    final int tabWidth = document.tabWidth();
+    final String ending = document.lineEnding().text();
+    final int column = wrapColumn;
     if (view != null) {
       view.setBusy(true);
     }
@@ -1850,7 +1960,10 @@ public final class EditorController implements EditorInput {
             public void run() {
               Edit edit = null;
               try {
-                edit = lineEdit(command, text, set, token);
+                edit =
+                    command == CommandId.WRAP_PARAGRAPH
+                        ? ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token)
+                        : lineEdit(command, text, set, token);
               } catch (CancellationException e) {
                 // Esc, a newer transform, or the view closed.
               } finally {

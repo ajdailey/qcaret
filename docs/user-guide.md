@@ -173,6 +173,19 @@ apply (measured on Linux, one million lines):
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
 - View > Right Margin draws a line after column 80 in every editor, also with
   word wrap on; Preferences, Editor sets another column. The choice is saved.
+- View > Indent Guides draws a faint line at each indent level of a line's
+  leading spaces and tabs, at the document's tab width. A blank line carries the
+  guides of the lines around it; a wrapped line's later rows have none.
+- View > Modified Line Marks marks, right of the gutter, the lines added (green)
+  or changed (amber) since the file was opened, saved or reloaded, and a red
+  triangle where lines were removed. A document restored after a crash is
+  marked against its file on disk. Saving clears the marks, and so does
+  undoing back to the saved text. A document or saved text over 100,000 lines
+  shows no marks; the gutter's tooltip says so. Both choices are saved.
+- Edit > Wrap Paragraph rewraps the selected lines, or the paragraph at the
+  caret, to the right margin column. Every line keeps the first line's indent,
+  and a comment paragraph keeps its comment marker, such as `//` or `#`. A
+  blank line ends a paragraph. Undo restores the text in one step.
 - A right click in the text opens Cut, Copy, Paste, Select All, Toggle Bookmark,
   Edit Bookmark Comment and Toggle Fold for that view. A click in a selection
   keeps it; a click elsewhere moves the caret there first.
@@ -208,6 +221,8 @@ the grammar's rules.
 | `Alt+Up`, `Alt+Down` | Move the lines up or down |
 | `Ctrl+J` | Join lines |
 | `Ctrl+Shift+U`, `Ctrl+U` | Upper case, lower case (Edit menu only on Linux) |
+| `Ctrl+Backspace`, `Ctrl+Delete` (`Option` on macOS) | Delete the word before or after each caret |
+| `Ctrl+T` (`Control+T` on macOS) | Transpose: swap the characters around each caret, or rotate the texts of two or more selections |
 | `Ctrl+]`, `Ctrl+[`, `Shift+Tab` | Indent, outdent |
 | `Ctrl+/`, `Ctrl+Shift+/` | Toggle a line or block comment |
 | `Ctrl+Space` (`Option+Esc` on macOS) | Complete the word from the open documents |
@@ -226,6 +241,9 @@ highlighted.
 
 Completion opens on its key, or by itself after the number of word chars set in
 Preferences. Up, Down, Enter, Tab and `Esc` work in the list; typing narrows it.
+
+Edit > Title Case capitalizes each word of the selections, or the word at each
+caret; Edit > Swap Case swaps upper and lower case.
 
 Edit > Insert Date and Time lists formats with the current time in each:
 the one set in Preferences, Editor (a Java `DateTimeFormatter` pattern such as
@@ -248,6 +266,10 @@ large document shows the percent counted; Refresh counts again after an edit.
 | `Ctrl`+drag (`Cmd` on macOS) | Add a selection |
 | `Ctrl+Shift+Up`, `Ctrl+Shift+Down` (`Control+Shift` on macOS) | Add a caret above or below |
 | `Ctrl+E` | Select the word, then add its next occurrence |
+| `Ctrl+K` | Skip Occurrence: drop the occurrence added last and select the next one |
+| `Alt+Enter` | Select every occurrence of the selection, or of the word at the caret |
+| `Ctrl+Shift+Space` | Expand Selection: word, quotes, brackets, line, then the whole text |
+| `Ctrl+L` (`Control+L` on macOS) | Select the line; again to add the next line |
 | Selection > Split into Lines | One selection per line of each selection |
 | `Alt`+drag, `Ctrl+Alt`+drag | Select a block |
 | `Alt+Shift`+arrow (`Cmd+Option+Shift` on macOS) | Extend a block by one row or column |
@@ -261,6 +283,11 @@ line, and typing there pads the line.
 
 Selection > Column Selection Mode makes a plain drag and `Shift` with an arrow
 key select a block.
+
+Selection > Undo Selection and Redo Selection step back and forward through the
+caret and selection changes of the view, up to 100, without changing the text.
+An edit starts the history again. Select All Occurrences selects nothing past
+10,000 occurrences.
 
 ## Search and HyperSearch
 
@@ -410,7 +437,18 @@ row's menu offers Open in Default Application, Set as Workspace Folder and Copy
 Path. Open in Default Application refuses a file the system would run.
 
 The row menu also changes files; right-click empty space in the browser to act
-on the workspace folder itself.
+on the shown folder itself.
+
+The browser can show any folder without changing the workspace folder, which
+stays the scope of Quick Open and HyperSearch. Type a path in the path field
+and press Enter: a path relative to the shown folder, or `~` for your home
+folder. Parent and Home move up and home; Workspace shows the workspace folder
+again. Favorites lists your favorite folders and adds or removes the shown
+one. The filter field takes patterns such as `*.java;*.md` and applies to files,
+not folders; it ignores case on Windows and macOS. Hidden lists hidden entries.
+Click a column header to sort by name, size or modified time, and again to
+reverse. Each window keeps its shown folder, filter and Hidden setting in the
+session. A change made in one window's browser shows in every window's.
 
 | Command | Effect |
 |---|---|
@@ -422,11 +460,14 @@ on the workspace folder itself.
 A name must be a single file or folder name, and a name already in use is
 refused. A link is renamed or deleted as the link; its target stays. Open
 documents under a deleted entry stay open, marked missing, and Save writes them
-again. A folder delete that fails partway stops and says what is left.
+again. A folder delete that fails partway stops and says what is left. Renaming
+the workspace folder or a folder above it moves the workspace folder in every
+window; deleting it leaves no workspace folder set. A notice says so.
 
 Hidden entries and the excluded directories (`.git`, `.svn`, `.hg`, `target`,
 `node_modules` and `build` by default) stay out of the browser, Quick Open and
-folder searches. Preferences, Search and Workspace changes the list.
+folder searches; the browser lists hidden entries with Hidden checked.
+Preferences, Search and Workspace changes the list.
 
 ## Quick Open
 
@@ -438,6 +479,12 @@ query's letters match in order and need not be adjacent. A query ending in
 `:line` or `:line:column` opens there. With nothing typed it lists the open
 documents and Recent Files. Window > Switch Document (`Ctrl+Shift+O`) is the same
 list over the open documents.
+
+Edit > Go to Symbol (`Ctrl+R`, `Cmd+R` on macOS) lists the functions, classes,
+headings and other definitions of the document, found by its language; typing
+narrows the list, and Enter moves the caret to the one selected. In Quick Open,
+`@` followed by a name does the same, and `Shop@total` opens `Shop.java` at
+`total`. Definitions inside comments and strings are left out.
 
 ## Compare
 
@@ -569,6 +616,8 @@ keeps the built-in value; a key QCaret does not know is ignored.
 | `bookmarkComment` | The gutter mark of a bookmark with a comment |
 | `diffRemoved`, `diffAdded`, `diffChanged` | Comparison window line backgrounds |
 | `rightMargin` | The right margin line |
+| `indentGuide` | Indent guides |
+| `lineAdded`, `lineChanged`, `lineRemoved` | Modified-line marks of an added line, a changed line and removed lines |
 | `token.<role>` | Syntax colors; the role is `comment`, `string`, `escape`, `keyword`, `keyword2`, `type`, `number`, `constant`, `operator`, `delimiter`, `function`, `preprocessor`, `tag`, `attribute`, `heading`, `emphasis`, `link` or `invalid` |
 
 A theme file sets colors only: bold, italic and underline stay as built in.

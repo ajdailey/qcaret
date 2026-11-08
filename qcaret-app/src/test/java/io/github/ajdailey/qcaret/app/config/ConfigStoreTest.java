@@ -361,7 +361,10 @@ class ConfigStoreTest {
                 Map.of(),
                 false,
                 true,
-                "HH:mm")
+                "HH:mm",
+                true,
+                true,
+                List.of("/mock/favorite", "/mock/other"))
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE

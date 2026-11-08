@@ -15,4 +15,10 @@ public interface DocumentListener {
    * @param dirty the new state
    */
   void dirtyChanged(boolean dirty);
+
+  /**
+   * Called after {@link Document#markSaved} or {@link Document#setSavedText}, which set {@link
+   * Document#savedText}.
+   */
+  default void textSaved() {}
 }

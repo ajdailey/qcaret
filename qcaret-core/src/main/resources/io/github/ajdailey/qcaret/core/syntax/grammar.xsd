@@ -38,6 +38,31 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:simpleType name="symbolKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="function"/>
+      <xs:enumeration value="method"/>
+      <xs:enumeration value="class"/>
+      <xs:enumeration value="interface"/>
+      <xs:enumeration value="struct"/>
+      <xs:enumeration value="enum"/>
+      <xs:enumeration value="trait"/>
+      <xs:enumeration value="type"/>
+      <xs:enumeration value="module"/>
+      <xs:enumeration value="namespace"/>
+      <xs:enumeration value="macro"/>
+      <xs:enumeration value="constant"/>
+      <xs:enumeration value="variable"/>
+      <xs:enumeration value="property"/>
+      <xs:enumeration value="section"/>
+      <xs:enumeration value="target"/>
+      <xs:enumeration value="label"/>
+      <xs:enumeration value="selector"/>
+      <xs:enumeration value="table"/>
+      <xs:enumeration value="view"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:complexType name="pair">
     <xs:attribute name="open" type="xs:string" use="required"/>
     <xs:attribute name="close" type="xs:string" use="required"/>
@@ -93,6 +118,25 @@
             <xs:attribute name="close" type="xs:string"/>
             <xs:attribute name="begin" type="regex"/>
             <xs:attribute name="end" type="regex"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="symbols" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="symbol" maxOccurs="64">
+                <xs:complexType>
+                  <xs:attribute name="regex" type="regex" use="required"/>
+                  <xs:attribute name="kind" type="symbolKind" use="required"/>
+                  <xs:attribute name="group">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <xs:pattern value="[1-9][0-9]?|[A-Za-z][A-Za-z0-9]{0,31}"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
           </xs:complexType>
         </xs:element>
         <xs:element name="context" maxOccurs="unbounded">

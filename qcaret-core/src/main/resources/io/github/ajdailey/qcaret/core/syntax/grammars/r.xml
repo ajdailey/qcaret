@@ -21,6 +21,9 @@
   </autoClose>
   <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{(" close="})"/>
+  <symbols>
+    <symbol kind="function" regex="^\s*([\w.]+|`[^`]+`)\s*(?:&lt;&lt;?-|=)\s*function\b"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="#"/>
     <span token="string" begin="(?&lt;![\w.])[rR][&quot;'](-*)\(" end="\)\1[&quot;']" multiLine="true"/>

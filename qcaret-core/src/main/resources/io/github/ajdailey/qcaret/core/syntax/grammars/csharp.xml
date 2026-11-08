@@ -21,6 +21,16 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="class" regex="\b(?:class|record)\s+(?!struct\b)([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="struct" regex="\b(?:record\s+)?struct\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="interface" regex="\binterface\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="enum" regex="\benum\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="namespace" regex="\bnamespace\s+([\p{L}_][\p{L}\p{N}_.]*)"/>
+    <symbol kind="method" regex="^\s*(?:(?:public|protected|private|internal|static|virtual|override|abstract|sealed|async|extern|unsafe|new|partial|readonly|required|file)\s+)*(?:&lt;[^&gt;]*&gt;\s+)?(?!(?:return|new|throw|else|yield|case|assert|await|package|import|using|goto|delete|var|val|let)\b)[\p{L}_][\p{L}\p{N}_.]*(?:&lt;[^()]*?&gt;)?(?:\[[,\s]*\])*\??\s+(?!(?:if|for|foreach|while|switch|catch|synchronized|return|using|lock|fixed|when|function|with|sizeof|typeof|nameof)\b)([\p{L}_][\p{L}\p{N}_]*)\s*(?:&lt;[^&gt;()]*&gt;)?\s*\("/>
+    <symbol kind="method" regex="^\s*(?:public|protected|private|internal|static)\s+(\p{Lu}[\p{L}\p{N}_]*)\s*\("/>
+    <symbol kind="property" regex="^\s*(?:(?:public|protected|private|internal|static|virtual|override|abstract|sealed|async|extern|unsafe|new|partial|readonly|required|file)\s+)+[\p{L}_][\p{L}\p{N}_.]*(?:&lt;[^()]*?&gt;)?(?:\[[,\s]*\])*\??\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:\{|=&gt;)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

@@ -8,6 +8,9 @@
     <firstLine>^(?:diff -|Index: |From [0-9a-f]{40} |--- \S)</firstLine>
   </detect>
   <folding mode="none"/>
+  <symbols>
+    <symbol kind="section" regex="^\+\+\+ (?:[ab]/)?(\S+)"/>
+  </symbols>
   <context id="main">
     <match token="heading" regex="^(?:diff|Index:|=+$|index|new file mode|deleted file mode|old mode|new mode|similarity index|dissimilarity index|rename from|rename to|copy from|copy to|Binary files|Only in|Files)(?:\s.*)?$"/>
     <match token="delimiter" regex="^\*{15}$"/>

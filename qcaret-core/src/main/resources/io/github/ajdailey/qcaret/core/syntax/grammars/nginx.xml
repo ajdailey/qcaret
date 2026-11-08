@@ -26,6 +26,10 @@
   </autoClose>
   <indent increase="\{\s*(#.*)?$" decrease="^\s*\}"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="section" regex="^\s*location\s+(?:[=~^*]+\s*)?([^\s{]+)"/>
+    <symbol kind="section" regex="^\s*upstream\s+([^\s{]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="(?&lt;![^\s;{}])#"/>
     <match token="keyword" regex="(?&lt;=^\s{0,64}|[;{}]\s{0,64})[A-Za-z_][\w.-]*"/>

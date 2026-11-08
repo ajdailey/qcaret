@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -199,6 +200,8 @@ public final class MainWindow implements MainView {
   private final ToolBar toolBar;
   private boolean lineNumbersShown = true;
   private int rightMargin;
+  private boolean indentGuides;
+  private boolean lineChangesShown;
   private StatisticsDialog statisticsDialog;
   private DateFormatChooser dateFormatChooser;
   private Keymap keymap;
@@ -356,6 +359,11 @@ public final class MainWindow implements MainView {
       public void setOverviewShown(boolean shown) {
         editor.setOverviewShown(shown);
       }
+
+      @Override
+      public void showLineChanges(LineChanges changes) {
+        editor.showLineChanges(changes);
+      }
     }
 
     Tab(SashForm sash, TabInput input, int index) {
@@ -379,6 +387,8 @@ public final class MainWindow implements MainView {
               dispatcher,
               lineNumbersShown);
       added.setRightMargin(rightMargin);
+      added.setIndentGuides(indentGuides);
+      added.setLineChangesShown(lineChangesShown);
       added
           .text()
           .addListener(
@@ -984,6 +994,33 @@ public final class MainWindow implements MainView {
         }
       }
     }
+  }
+
+  @Override
+  public void setIndentGuides(boolean shown) {
+    indentGuides = shown;
+    for (EditorPane pane : allPanes()) {
+      pane.setIndentGuides(shown);
+    }
+  }
+
+  @Override
+  public void setLineChangesShown(boolean shown) {
+    lineChangesShown = shown;
+    for (EditorPane pane : allPanes()) {
+      pane.setLineChangesShown(shown);
+    }
+  }
+
+  /** Returns every editor of every tab. */
+  private List<EditorPane> allPanes() {
+    List<EditorPane> panes = new ArrayList<EditorPane>();
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        panes.addAll(tab.panes);
+      }
+    }
+    return panes;
   }
 
   @Override

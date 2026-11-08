@@ -19,6 +19,9 @@
     <pair open="[" close="]"/>
     <pair open='"' close='"'/>
   </autoClose>
+  <symbols>
+    <symbol kind="section" regex="^\s*\[([^\]]+)\]"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="^\s*[;#]"/>
     <match token="keyword" regex="^\s*\[[^\]]*\]"/>

@@ -260,6 +260,9 @@ public final class SessionStore {
       keys.put(key + "results", Boolean.toString(window.results()));
       put(keys, key + "dockWeights", window.dockWeights());
       put(keys, key + "resultsWeights", window.resultsWeights());
+      put(keys, key + "browseFolder", window.browse().folder());
+      put(keys, key + "browseFilter", window.browse().filter());
+      keys.put(key + "browseHidden", Boolean.toString(window.browse().hidden()));
       list(keys, key + "closed.", window.closed(), MAX_CLOSED);
       Session.Display display = window.display();
       keys.put(key + "wrap", Boolean.toString(display.wrap()));
@@ -426,7 +429,11 @@ public final class SessionStore {
             !"false".equals(p.getProperty(key + "overview", "true").strip()),
             flag(p, key + "bookmarks"),
             !"false".equals(p.getProperty(key + "lineNumbers", "true").strip())),
-        p.getProperty(key + "resultsWeights", ""));
+        p.getProperty(key + "resultsWeights", ""),
+        new Session.Browse(
+            p.getProperty(key + "browseFolder", ""),
+            p.getProperty(key + "browseFilter", ""),
+            flag(p, key + "browseHidden")));
   }
 
   private static Session.Tab tab(Properties p, String key, int maxComments) {

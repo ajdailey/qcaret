@@ -64,8 +64,9 @@ while open. It follows the system appearance, not `ui.theme`.
 
 ## Palette application
 
-`MainWindow` applies a palette to the `StyledText` colors and the tab strip,
-then re-inks its `ToolIcons` on the next UI turn, after native controls have
+`MainWindow` applies a palette to the `StyledText` colors, the editors' painted
+marks (margin, indent guides, modified-line marks) and the tab strip, then
+re-inks its `ToolIcons` on the next UI turn, after native controls have
 restyled.
 
 `ToolIcons` picks dark or light ink from the owner control's background

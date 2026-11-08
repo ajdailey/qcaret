@@ -21,6 +21,9 @@
   </autoClose>
   <indent increase=":\s*(#.*)?$"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="section" regex="^([\p{L}\p{N}_$][\w.$/-]*)\s*:(?:\s|$)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="(?&lt;!\S)#"/>
     <match token="preprocessor" regex="^(?:---|\.\.\.)(?=\s|$)|^%\w+.*$"/>

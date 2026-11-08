@@ -230,8 +230,8 @@ public final class LineEdits {
   }
 
   /**
-   * Converts each selected range, or the word at a caret, to upper or lower case one code point at
-   * a time, independent of the locale. A range stays selected; a caret stays at its offset.
+   * Converts each selected range, or the word at a caret, to upper or lower case, as {@link
+   * CaseEdits#convert(TextContent, SelectionSet, CaseEdits.Mode)} does.
    *
    * @param text the text
    * @param set the selections
@@ -239,48 +239,7 @@ public final class LineEdits {
    * @return the edit, or null when nothing changes
    */
   public static Edit changeCase(TextContent text, SelectionSet set, boolean upper) {
-    List<Replacement> out = new ArrayList<Replacement>();
-    int lastEnd = -1;
-    for (Selection s : set.selections()) {
-      int[] range = s.isEmpty() ? Words.at(text, s.caret()) : new int[] {s.start(), s.end()};
-      if (range.length == 0 || range[0] < lastEnd || range[0] == range[1]) {
-        continue;
-      }
-      String old = slice(text, range[0], range[1]);
-      String converted = convertCase(old, upper);
-      if (!converted.equals(old)) {
-        out.add(new Replacement(range[0], range[1] - range[0], converted));
-      }
-      lastEnd = range[1];
-    }
-    if (out.isEmpty()) {
-      return null;
-    }
-    List<Selection> after = new ArrayList<Selection>(set.size());
-    for (Selection s : set.selections()) {
-      if (s.isEmpty()) {
-        int at = s.caret();
-        int shift = 0;
-        for (Replacement r : out) {
-          if (r.offset() >= at) {
-            break;
-          }
-          if (at >= r.end()) {
-            shift += r.text().length() - r.removeLength();
-          } else {
-            int into = at - r.offset();
-            shift += Math.min(into, r.text().length()) - into;
-          }
-        }
-        after.add(new Selection(at + shift, at + shift, s.preferredColumn()));
-      } else {
-        int start = Lines.map(out, s.start(), true);
-        int end = Lines.map(out, s.end(), false);
-        after.add(s.anchor() <= s.caret() ? Selection.of(start, end) : Selection.of(end, start));
-      }
-    }
-    return new Edit(
-        EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex()));
+    return CaseEdits.convert(text, set, upper ? CaseEdits.Mode.UPPER : CaseEdits.Mode.LOWER);
   }
 
   /**
@@ -469,18 +428,6 @@ public final class LineEdits {
       after.add(Lines.map(batch.replacements(), s));
     }
     return new Edit(batch, SelectionSet.of(after, set.primaryIndex()));
-  }
-
-  /** Maps each code point on its own, so a char never expands (no SS for a sharp s). */
-  private static String convertCase(String text, boolean upper) {
-    StringBuilder out = new StringBuilder(text.length());
-    int i = 0;
-    while (i < text.length()) {
-      int c = text.codePointAt(i);
-      out.appendCodePoint(upper ? Character.toUpperCase(c) : Character.toLowerCase(c));
-      i += Character.charCount(c);
-    }
-    return out.toString();
   }
 
   private static String slice(TextContent text, int start, int end) {

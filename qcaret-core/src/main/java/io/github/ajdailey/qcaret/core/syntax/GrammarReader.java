@@ -132,6 +132,7 @@ public final class GrammarReader {
     Pattern dedentNext = null;
     Grammar.Folding folding = Grammar.Folding.NONE;
     Map<String, List<Grammar.Rule>> contexts = new LinkedHashMap<String, List<Grammar.Rule>>();
+    List<Grammar.SymbolRule> symbols = new ArrayList<Grammar.SymbolRule>();
     for (Element e : children(root)) {
       switch (e.getTagName()) {
         case "detect" -> {
@@ -168,6 +169,11 @@ public final class GrammarReader {
                     e.getAttribute("close"),
                     regex(e, "begin"),
                     regex(e, "end"));
+        case "symbols" -> {
+          for (Element r : children(e)) {
+            symbols.add(symbol(r));
+          }
+        }
         default -> contexts.put(e.getAttribute("id"), rules(e));
       }
     }
@@ -194,7 +200,29 @@ public final class GrammarReader {
         decrease,
         dedentNext,
         folding,
-        contexts);
+        contexts,
+        symbols);
+  }
+
+  /**
+   * Reads a symbol rule. Without {@code group} the name is the group named {@code name}, else group
+   * 1.
+   */
+  private static Grammar.SymbolRule symbol(Element r) {
+    Pattern regex = regex(r, "regex");
+    String group = attribute(r, "group");
+    if (group == null) {
+      group = regex.namedGroups().containsKey("name") ? "name" : "1";
+    }
+    boolean exists =
+        Character.isDigit(group.charAt(0))
+            ? Integer.parseInt(group) <= regex.matcher("").groupCount()
+            : regex.namedGroups().containsKey(group);
+    if (!exists) {
+      throw new IllegalArgumentException(
+          "symbol regex " + regex + " has no group " + group + " for the name");
+    }
+    return new Grammar.SymbolRule(regex, SymbolKind.fromName(r.getAttribute("kind")), group);
   }
 
   private static List<Grammar.Rule> rules(Element context) {

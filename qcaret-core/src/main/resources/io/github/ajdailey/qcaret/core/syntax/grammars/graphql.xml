@@ -20,6 +20,16 @@
   </autoClose>
   <indent increase="[{(\[]\s*(#.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="type" regex="^\s*(?:extend\s+)?(?:type|input)\s+(\w+)"/>
+    <symbol kind="interface" regex="^\s*(?:extend\s+)?interface\s+(\w+)"/>
+    <symbol kind="enum" regex="^\s*(?:extend\s+)?enum\s+(\w+)"/>
+    <symbol kind="type" regex="^\s*(?:extend\s+)?union\s+(\w+)"/>
+    <symbol kind="type" regex="^\s*(?:extend\s+)?scalar\s+(\w+)"/>
+    <symbol kind="macro" regex="^\s*directive\s+@(\w+)"/>
+    <symbol kind="function" regex="^\s*(?:query|mutation|subscription)\s+(\w+)"/>
+    <symbol kind="function" regex="^\s*fragment\s+(\w+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="#"/>
     <span token="string" begin='"""' end='"""' escape='\\"""' multiLine="true"/>

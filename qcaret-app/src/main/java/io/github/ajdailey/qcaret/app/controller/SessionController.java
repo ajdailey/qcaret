@@ -206,7 +206,10 @@ final class SessionController implements DocumentController.FileMemory {
       return;
     }
     restored.add(new Restored(window, saved.active()));
-    window.workspace().restore(saved.workspace(), saved.browser(), paths(saved.expanded()));
+    WorkspaceBrowse browse = window.workspace().browse();
+    browse.restore(saved.browse().filter(), saved.browse().hidden());
+    browse.restoreFolders(
+        saved.workspace(), saved.browse().folder(), saved.browser(), paths(saved.expanded()));
     setWeights(window.view(), saved);
     window.search().restore(saved.searches(), saved.results());
     window.documents().restoreClosed(saved.closed());
@@ -559,7 +562,11 @@ final class SessionController implements DocumentController.FileMemory {
         search.retained(),
         documents.closedFiles(),
         documents.sessionDisplay(window.bookmarkList().shown()),
-        SessionText.numbers(view.resultsWeights()));
+        SessionText.numbers(view.resultsWeights()),
+        new Session.Browse(
+            workspace.browsed() == null ? "" : workspace.browsed().toString(),
+            workspace.browse().options().filter().text(),
+            workspace.browse().options().hidden()));
   }
 
   /**

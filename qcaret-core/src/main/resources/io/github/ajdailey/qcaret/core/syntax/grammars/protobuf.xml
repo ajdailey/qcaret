@@ -21,6 +21,13 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$" decrease="^\s*[})\]]"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="type" regex="^\s*message\s+(\w+)"/>
+    <symbol kind="enum" regex="^\s*enum\s+(\w+)"/>
+    <symbol kind="interface" regex="^\s*service\s+(\w+)"/>
+    <symbol kind="method" regex="^\s*rpc\s+(\w+)"/>
+    <symbol kind="namespace" regex="^\s*package\s+([\w.]+)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

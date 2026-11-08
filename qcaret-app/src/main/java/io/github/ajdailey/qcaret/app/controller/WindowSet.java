@@ -95,6 +95,7 @@ public final class WindowSet {
   private final boolean rememberWindow;
   private final RecoveryController recovery;
   private final SessionController session;
+  private final BrowserWindows browsers = new BrowserWindows();
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
@@ -493,6 +494,10 @@ public final class WindowSet {
 
   SessionController session() {
     return session;
+  }
+
+  BrowserWindows browsers() {
+    return browsers;
   }
 
   // Session and recovery.

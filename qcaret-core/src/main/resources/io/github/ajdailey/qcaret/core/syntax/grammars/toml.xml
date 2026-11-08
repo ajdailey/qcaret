@@ -20,6 +20,9 @@
     <pair open="'" close="'"/>
   </autoClose>
   <indent increase="[\[{]\s*(#.*)?$" decrease="^\s*[\]}]"/>
+  <symbols>
+    <symbol kind="section" regex="^\s*\[\[?\s*([^\]]+?)\s*\]\]?"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="#"/>
     <match token="keyword" regex="^\s*\[\[?\s*(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*')(?:\s*\.\s*(?:[A-Za-z0-9_-]+|&quot;(?:[^&quot;\\]|\\.)*&quot;|'[^']*'))*\s*\]\]?"/>

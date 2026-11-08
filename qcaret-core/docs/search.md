@@ -159,11 +159,17 @@ given number of context lines.
 or the DOS hidden attribute on Windows) and directories with an excluded name,
 with their trees. `FileSearch` applies the same hidden rule.
 
-`DirectoryListing.read` lists one directory for the browser: directories first,
-then files, each by name ignoring case. It reads at most 50,000 entries, in
-directory order, and reports the cut. A link to a directory lists as a
-directory unless its target contains the link (`CYCLE`, never listed further);
-a link to a file and a broken link list as files.
+`DirectoryListing.read` lists one directory for the browser with its
+`ListingOptions`: directories first, then files, each by name ignoring case,
+size or modified time, ascending or descending, ties by name; directories sort
+by name under the size order. Each entry carries its size and modified time; a
+link to a file carries its target's. The `NameFilter` (`;`-separated globs
+with `*`, `?`, `[...]`, `[!...]` and `{a,b}`) applies to files only; a
+directory always lists. With `hidden` on, hidden entries list and excluded
+directory names stay out (`WalkRules.excludes`). It reads at most 50,000
+entries, in directory order, and reports the cut. A link to a directory lists
+as a directory unless its target contains the link (`CYCLE`, never listed
+further); a link to a file and a broken link list as files.
 
 `FileIndex.build` walks a folder for Quick Open into paths relative to the
 root, joined with `/`. It follows no link to a directory, so a link cycle is

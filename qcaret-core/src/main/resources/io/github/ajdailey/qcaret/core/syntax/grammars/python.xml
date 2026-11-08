@@ -23,6 +23,11 @@
   </autoClose>
   <indent increase=":\s*(#.*)?$" dedentNext="^\s*(?:return|pass|break|continue|raise)\b"/>
   <folding mode="indent"/>
+  <symbols>
+    <symbol kind="class" regex="^\s*class\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="function" regex="^(?:async\s+)?def\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+    <symbol kind="method" regex="^\s+(?:async\s+)?def\s+([\p{L}_][\p{L}\p{N}_]*)"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="#"/>
     <span token="string" begin='(?&lt;!\w)(?i:[rbuf]{0,2})"""' end='"""' escape="\\." multiLine="true"/>

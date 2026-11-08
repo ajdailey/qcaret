@@ -21,6 +21,11 @@ import java.util.Map;
  * @param rightMargin {@code ui.rightMargin}: the editors show the right margin line
  * @param lastDateFormat {@code ui.lastDateFormat}: the pattern Insert Date and Time used last;
  *     empty for none
+ * @param indentGuides {@code ui.indentGuides}: the editors show indent guides
+ * @param lineChanges {@code ui.lineChanges}: the editors mark the lines changed since the last load
+ *     or save
+ * @param favorites {@code workspace.favorite.N}: the workspace browser's favorite folders, in the
+ *     order added
  */
 public record UiState(
     SearchToggles search,
@@ -32,7 +37,10 @@ public record UiState(
     Map<String, Size> dialogs,
     boolean toolbar,
     boolean rightMargin,
-    String lastDateFormat) {
+    String lastDateFormat,
+    boolean indentGuides,
+    boolean lineChanges,
+    List<String> favorites) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -57,7 +65,10 @@ public record UiState(
           Map.of(),
           true,
           false,
-          "");
+          "",
+          false,
+          false,
+          List.of());
 
   /**
    * A dialog's size in pixels.
@@ -88,6 +99,7 @@ public record UiState(
     if (lastDateFormat == null) {
       throw new IllegalArgumentException("lastDateFormat is required");
     }
+    favorites = limited(favorites, MAX_HISTORY);
   }
 
   private static List<String> limited(List<String> list, int max) {
@@ -128,7 +140,10 @@ public record UiState(
         dialogs,
         toolbar,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -151,7 +166,10 @@ public record UiState(
         dialogs,
         toolbar,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -171,7 +189,10 @@ public record UiState(
         dialogs,
         toolbar,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -200,7 +221,10 @@ public record UiState(
         dialogs,
         toolbar,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -220,7 +244,10 @@ public record UiState(
         dialogs,
         value,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -250,7 +277,10 @@ public record UiState(
         copy,
         toolbar,
         rightMargin,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -270,7 +300,10 @@ public record UiState(
         dialogs,
         toolbar,
         value,
-        lastDateFormat);
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites);
   }
 
   /**
@@ -290,6 +323,78 @@ public record UiState(
         dialogs,
         toolbar,
         rightMargin,
+        value,
+        indentGuides,
+        lineChanges,
+        favorites);
+  }
+
+  /**
+   * Returns a copy with the indent guides shown or hidden.
+   *
+   * @param value true to show them
+   * @return the copy
+   */
+  public UiState withIndentGuides(boolean value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        value,
+        lineChanges,
+        favorites);
+  }
+
+  /**
+   * Returns a copy with the modified-line marks shown or hidden.
+   *
+   * @param value true to show them
+   * @return the copy
+   */
+  public UiState withLineChanges(boolean value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        indentGuides,
+        value,
+        favorites);
+  }
+
+  /**
+   * Returns a copy with other favorite folders.
+   *
+   * @param value the paths, in the order added
+   * @return the copy
+   */
+  public UiState withFavorites(List<String> value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
         value);
   }
 }

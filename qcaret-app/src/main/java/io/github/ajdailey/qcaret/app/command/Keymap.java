@@ -49,7 +49,8 @@ public final class Keymap {
    * Ctrl+Y and the Insert and Delete clipboard keys are bound only off macOS. Upper and lower case
    * have no keys on Linux, where IBus takes Ctrl+Shift+U. On macOS, where Option+Shift with Left or
    * Right selects words, the block selection keys add Command, and Add Caret Above and Below take
-   * Control+Shift.
+   * Control+Shift. Select Line and Transpose take Control on macOS, where Command+L is Go to Line;
+   * Delete Word Back and Forward take Option there, as word moves do.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -121,6 +122,7 @@ public final class Keymap {
     window(b, CommandId.SAVE_ALL, P | a, 's');
     window(b, CommandId.REOPEN_CLOSED, P | S, 't');
     window(b, CommandId.GO_TO_LINE, P, mac ? 'l' : 'g');
+    window(b, CommandId.GO_TO_SYMBOL, P, 'r');
     editor(b, CommandId.DUPLICATE, P, 'd');
     editor(b, CommandId.DELETE_LINE, P | S, 'l');
     editor(b, CommandId.MOVE_LINES_UP, a, KeyStroke.UP);
@@ -140,6 +142,14 @@ public final class Keymap {
     editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');
     editor(b, CommandId.TOGGLE_LINE_COMMENT, P, '/');
     editor(b, CommandId.TOGGLE_BLOCK_COMMENT, P | S, '/');
+    int control = mac ? KeyStroke.CONTROL : P;
+    editor(b, CommandId.SELECT_ALL_OCCURRENCES, a, KeyStroke.ENTER);
+    editor(b, CommandId.SKIP_OCCURRENCE, P, 'k');
+    editor(b, CommandId.EXPAND_SELECTION, P | S, KeyStroke.SPACE);
+    editor(b, CommandId.SELECT_LINE, control, 'l');
+    editor(b, CommandId.TRANSPOSE, control, 't');
+    editor(b, CommandId.DELETE_WORD_BACK, mac ? a : P, KeyStroke.BACKSPACE);
+    editor(b, CommandId.DELETE_WORD_FORWARD, mac ? a : P, KeyStroke.DELETE);
     int word = mac ? a : P;
     int block = mac ? P | a | S : a | S;
     for (int shift = 0; shift <= S; shift += S) {

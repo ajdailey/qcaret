@@ -82,7 +82,8 @@ class SessionStoreTest {
             List.of(new Session.Search(request, true)),
             List.of("/mock/gone.txt"),
             Session.Display.DEFAULTS,
-            "5,2");
+            "5,2",
+            new Session.Browse("/mock/elsewhere", "*.java;*.md", true));
     return new Session(
         List.of(window),
         List.of("/mock/a.txt"),

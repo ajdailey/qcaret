@@ -86,10 +86,10 @@ declaration order.
 | Menu | Holds |
 |---|---|
 | File | File commands; Set Workspace Folder |
-| Edit | Also the line commands, case, indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with spaces, Go to Line, Read-Only, Insert Date and Time and Document Statistics |
-| Selection | Add caret above and below, add next occurrence, split into lines, column selection mode |
+| Edit | Also the line commands, Wrap Paragraph, case, indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with spaces, Go to Line, Go to Symbol, Read-Only, Insert Date and Time, Document Statistics, Delete Word Back and Forward, Title Case, Swap Case, Transpose |
+| Selection | Add caret above and below, add next occurrence, split into lines, column selection mode, Select to Matching Bracket, Select All Occurrences, Skip Occurrence, Expand Selection, Select Line, Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace, HyperSearch, Next and Previous Result, Search Results |
-| View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip, Line Numbers, Right Margin |
+| View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip, Line Numbers, Right Margin, Indent Guides, Modified Line Marks |
 | Encoding | The line-ending conversions; the view adds the charset cascades |
 | Window | Next and previous tab, Close Others; the view lists the documents |
 | Help | Help commands |
@@ -128,19 +128,25 @@ Platform choices in the defaults, with the conflict each avoids:
 | Edit Bookmark Comment | Mod+Shift+F2 | Alt+F2 opens the GNOME and KDE run dialogs; Ctrl+F2 focuses the macOS menu bar |
 | Complete Word | Ctrl+Space; Option+Esc on macOS | macOS Ctrl+Space switches the input source |
 | Go Back, Go Forward | Alt+Left, Alt+Right; Control+Command+Left and Right on macOS | macOS Option+Left and Right move by word |
+| Select Line, Transpose | Ctrl+L, Ctrl+T; Control+L and Control+T on macOS | Command+L is Go to Line on macOS |
+| Delete Word Back and Forward | Ctrl+Backspace, Ctrl+Delete; Option on macOS | The word-move modifier of each platform |
+| Title Case, Swap Case | None | Ctrl+Alt+letter is AltGr on Windows and types a char on many layouts |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], Fold All and Unfold All Mod+Alt+[ and ], as editor bindings;
 bookmarks Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and Select
 to Matching Bracket Mod+B and Mod+Shift+B; Command Palette Mod+Shift+P;
 HyperSearch Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Quick Open
-Mod+P and Switch Document Mod+Shift+O.
+Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
+Occurrences Alt+Enter, Skip Occurrence Mod+K, Expand Selection Mod+Shift+Space,
+as editor bindings.
 
 Menu only: the split commands, Toggle Fold, Sort, Remove Duplicate Lines, Trim
-Trailing Whitespace, Clear Bookmarks, Bookmarks List, Show Whitespace and Line
-Endings, Set Workspace Folder, Search Results, Overview Strip, Workspace
-Browser, Clear Recent Files, Right Margin, Insert Date and Time and Document
-Statistics. User overrides are in
+Trailing Whitespace, Wrap Paragraph, Clear Bookmarks, Bookmarks List, Show
+Whitespace and Line Endings, Set Workspace Folder, Search Results, Overview
+Strip, Workspace Browser, Clear Recent Files, Right Margin, Indent Guides,
+Modified Line Marks, Insert Date and Time, Document Statistics, Title Case, Swap
+Case, Undo Selection and Redo Selection. User overrides are in
 [Settings](settings.md#key-binding-overrides).
 
 ## Menu and status state

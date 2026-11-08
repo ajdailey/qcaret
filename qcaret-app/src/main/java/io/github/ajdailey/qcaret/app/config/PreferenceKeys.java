@@ -59,6 +59,9 @@ final class PreferenceKeys {
   static final String DATE_FORMAT = "editor.dateFormat";
   static final String RIGHT_MARGIN_SHOWN = "ui.rightMargin";
   static final String LAST_DATE_FORMAT = "ui.lastDateFormat";
+  static final String INDENT_GUIDES = "ui.indentGuides";
+  static final String LINE_CHANGES = "ui.lineChanges";
+  static final String FAVORITES = "workspace.favorite.";
   static final String DIALOG = "dialog.";
   static final String WIDTH = ".width";
   static final String HEIGHT = ".height";
@@ -118,10 +121,13 @@ final class PreferenceKeys {
     if (!s.lastDateFormat().isEmpty()) {
       keys.put(LAST_DATE_FORMAT, s.lastDateFormat());
     }
+    keys.put(INDENT_GUIDES, Boolean.toString(s.indentGuides()));
+    keys.put(LINE_CHANGES, Boolean.toString(s.lineChanges()));
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
     putList(keys, HISTORY_REPLACE, s.replacements());
+    putList(keys, FAVORITES, s.favorites());
     if (!s.recentGrammars().isEmpty()) {
       keys.put(RECENT_GRAMMARS, String.join(";", s.recentGrammars()));
     }
@@ -281,7 +287,10 @@ final class PreferenceKeys {
         dialogs(p, file),
         flag(p, TOOLBAR, true, file),
         flag(p, RIGHT_MARGIN_SHOWN, false, file),
-        dateFormat(p, LAST_DATE_FORMAT, "", file));
+        dateFormat(p, LAST_DATE_FORMAT, "", file),
+        flag(p, INDENT_GUIDES, false, file),
+        flag(p, LINE_CHANGES, false, file),
+        list(p, FAVORITES));
   }
 
   /** Returns a valid date and time pattern, the fallback when absent, or it with one WARN. */

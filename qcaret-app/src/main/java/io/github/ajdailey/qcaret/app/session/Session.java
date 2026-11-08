@@ -75,6 +75,7 @@ public record Session(
    * @param closed Reopen Closed Tab's files, newest first
    * @param display what the window's editors show
    * @param resultsWeights the results and Bookmarks docks, {@code a,b}; empty when unknown
+   * @param browse the browser's shown folder, filter and hidden entries
    */
   public record Window(
       WindowState bounds,
@@ -89,13 +90,65 @@ public record Session(
       List<Search> searches,
       List<String> closed,
       Display display,
-      String resultsWeights) {
+      String resultsWeights,
+      Browse browse) {
     /** Copies the lists. */
     public Window {
       tabs = List.copyOf(tabs);
       expanded = List.copyOf(expanded);
       searches = List.copyOf(searches);
       closed = List.copyOf(closed);
+      if (browse == null) {
+        throw new IllegalArgumentException("browse is required");
+      }
+    }
+
+    /**
+     * Creates a window whose browser shows the workspace folder, every file and no hidden entries.
+     *
+     * @param bounds its normal bounds and maximized state
+     * @param tabs its tabs, in order
+     * @param active the selected tab, -1 when none is known
+     * @param workspace the workspace folder, empty for none
+     * @param browser true when the workspace browser shows
+     * @param sideWeights the browser and the editors, {@code a,b}; empty when unknown
+     * @param expanded the browser's expanded directories, parents first
+     * @param results true when the results dock shows
+     * @param dockWeights the editors and the docks, {@code a,b}; empty when unknown
+     * @param searches the retained HyperSearch requests, newest first
+     * @param closed Reopen Closed Tab's files, newest first
+     * @param display what the window's editors show
+     * @param resultsWeights the results and Bookmarks docks, {@code a,b}; empty when unknown
+     */
+    public Window(
+        WindowState bounds,
+        List<Tab> tabs,
+        int active,
+        String workspace,
+        boolean browser,
+        String sideWeights,
+        List<String> expanded,
+        boolean results,
+        String dockWeights,
+        List<Search> searches,
+        List<String> closed,
+        Display display,
+        String resultsWeights) {
+      this(
+          bounds,
+          tabs,
+          active,
+          workspace,
+          browser,
+          sideWeights,
+          expanded,
+          results,
+          dockWeights,
+          searches,
+          closed,
+          display,
+          resultsWeights,
+          Browse.NONE);
     }
 
     /**
@@ -117,8 +170,21 @@ public record Session(
           List.of(),
           closed,
           display,
-          resultsWeights);
+          resultsWeights,
+          browse);
     }
+  }
+
+  /**
+   * A window's workspace browser beyond the workspace folder.
+   *
+   * @param folder the folder shown instead of the workspace folder, empty for the workspace
+   * @param filter the file filter, empty for every file
+   * @param hidden true when hidden entries are listed
+   */
+  public record Browse(String folder, String filter, boolean hidden) {
+    /** The workspace folder, every file, no hidden entries. */
+    public static final Browse NONE = new Browse("", "", false);
   }
 
   /**

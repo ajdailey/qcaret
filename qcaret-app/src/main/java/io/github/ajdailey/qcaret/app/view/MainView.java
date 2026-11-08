@@ -156,6 +156,21 @@ public interface MainView
   void setRightMargin(int column);
 
   /**
+   * Shows or hides the indent guides in every editor of the window, later ones included.
+   *
+   * @param shown true to show them
+   */
+  void setIndentGuides(boolean shown);
+
+  /**
+   * Shows or hides the modified-line marks in every editor of the window, later ones included; each
+   * editor reports it through {@link EditorInput#lineChangesShown}.
+   *
+   * @param shown true to show them
+   */
+  void setLineChangesShown(boolean shown);
+
+  /**
    * Opens the Document Statistics dialog, which calls {@link StatisticsInput#closed} once it
    * closes.
    *

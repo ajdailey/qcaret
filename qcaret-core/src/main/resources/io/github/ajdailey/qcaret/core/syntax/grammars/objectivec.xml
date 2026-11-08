@@ -20,6 +20,18 @@
   </autoClose>
   <indent increase="[{(\[]\s*(//.*)?$|^\s*@(?:interface|implementation|protocol)\b(?!.*;\s*$)" decrease="^\s*(?:[})\]]|@end\b)"/>
   <folding mode="brackets" open="{" close="}"/>
+  <symbols>
+    <symbol kind="macro" regex="^\s*#\s*define\s+([A-Za-z_]\w*)"/>
+    <symbol kind="struct" regex="\bstruct\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="struct" regex="\bunion\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="enum" regex="\benum\s+([A-Za-z_]\w*)\s*(?:\{|$)"/>
+    <symbol kind="type" regex="^\s*typedef\b.*?\b([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)*;\s*$"/>
+    <symbol kind="class" regex="^\s*@interface\s+(\w+)"/>
+    <symbol kind="class" regex="^\s*@implementation\s+(\w+)"/>
+    <symbol kind="interface" regex="^\s*@protocol\s+(\w+)\b(?!\s*;)"/>
+    <symbol kind="method" regex="^\s*[-+]\s*\([^)]*\)\s*(\w+)"/>
+    <symbol kind="function" regex="^(?!(?:if|for|while|switch|return|else|do|case|goto|typedef)\b)[A-Za-z_][\w\s*]*?[\s*]+([A-Za-z_]\w*)\s*\([^;]*$"/>
+  </symbols>
   <context id="main">
     <span token="comment" begin="/\*" end="\*/" multiLine="true"/>
     <span token="comment" begin="//"/>

@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
  * @param indentDedentNext a line matching it outdents the line after it, or null
  * @param folding how fold regions are found
  * @param contexts the contexts by id; {@link #MAIN} starts every file
+ * @param symbols the rules Goto Symbol finds definitions with
  */
 public record Grammar(
     String id,
@@ -39,7 +40,8 @@ public record Grammar(
     Pattern indentDecrease,
     Pattern indentDedentNext,
     Folding folding,
-    Map<String, List<Rule>> contexts) {
+    Map<String, List<Rule>> contexts,
+    List<SymbolRule> symbols) {
   /** The context every file starts in. */
   public static final String MAIN = "main";
 
@@ -53,6 +55,7 @@ public record Grammar(
     brackets = List.copyOf(brackets);
     autoClose = List.copyOf(autoClose);
     contexts = Map.copyOf(contexts);
+    symbols = List.copyOf(symbols);
     if (!contexts.containsKey(MAIN)) {
       throw new IllegalArgumentException("grammar " + id + " has no context " + MAIN);
     }
@@ -181,4 +184,14 @@ public record Grammar(
    */
   public record Embed(String grammar, Pattern begin, Pattern end, TokenType token)
       implements Rule {}
+
+  /**
+   * A definition found line by line: a match whose first non-blank char lies outside comments and
+   * strings.
+   *
+   * @param regex matched against each line without its break
+   * @param kind what the match defines
+   * @param group the name's group: a number, or a name the regex declares
+   */
+  public record SymbolRule(Pattern regex, SymbolKind kind, String group) {}
 }

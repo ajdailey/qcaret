@@ -8,10 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
@@ -310,6 +312,55 @@ class RecoveryControllerTest {
         return harness.view.recovery.rows().size() == count;
       }
     };
+  }
+
+  /** Restores the one buffer of a file the first harness edited, with the marks shown. */
+  private Harness restoreWithMarks(Path a, boolean deleteFile) throws Exception {
+    Harness first = start(false);
+    first.open(a);
+    edit(first, "mine ");
+    end(first);
+    if (deleteFile) {
+      Files.delete(a);
+    }
+    Harness second = start(false);
+    second.application.execute(CommandId.LINE_CHANGES);
+    second.await(offered(second), "the dialog");
+    second.view.recovery.restore(new int[] {0});
+    second.await(rowsLeft(second, 0), "restored");
+    return second;
+  }
+
+  @Test
+  void aRestoredBufferMarksItsLinesAgainstTheFileOnDisk() throws Exception {
+    final Harness second = restoreWithMarks(file("a.txt", "alpha\nbeta\n"), false);
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return second.view.selected.shown.lineChanges.kind(0) == LineChanges.CHANGED;
+          }
+        },
+        "the first line marked changed");
+    assertEquals(0, second.view.selected.shown.lineChanges.kind(1));
+    assertTrue(second.application.documents().activeDocument().isDirty());
+  }
+
+  @Test
+  void aRestoredBufferWithoutItsFileMarksNothing() throws Exception {
+    final Harness second = restoreWithMarks(file("a.txt", "alpha\nbeta\n"), true);
+    second.awaitIdle("restore");
+    final Document document = second.application.documents().activeDocument();
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return second.view.selected.shown.lineChanges.revision() == document.revision();
+          }
+        },
+        "marks");
+    assertFalse(second.view.selected.shown.lineChanges.any());
+    assertEquals("mine alpha\nbeta\n", document.text().toString());
   }
 
   @Test
