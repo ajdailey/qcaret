@@ -191,6 +191,15 @@ class WorkspaceDockLayoutTest {
     post(SWT.MouseUp, at, 1);
   }
 
+  /**
+   * Posted pointer events land on the expander and cell geometry of GTK only: on win32 the click
+   * misses the expander and on cocoa posting them ends the test JVM. The G1-G3 host rows click
+   * there by hand.
+   */
+  private static void assumePostedClicks() {
+    assumeTrue("gtk".equals(SWT.getPlatform()), "posted clicks are checked on GTK only");
+  }
+
   private static boolean gtk4() {
     return "1".equals(System.getenv("SWT_GTK4"));
   }
@@ -254,6 +263,7 @@ class WorkspaceDockLayoutTest {
   /** Lists 1,000 entries per directory, so each expansion shows the loading row first. */
   @Test
   void twoDirectoriesExpandByClicksAndStayExpanded() throws IOException {
+    assumePostedClicks();
     for (int i = 0; i < 1_000; i++) {
       write("alpha/f" + i + ".txt", 1);
       write("beta/g" + i + ".txt", 1);
@@ -324,6 +334,7 @@ class WorkspaceDockLayoutTest {
 
   @Test
   void theModifiedCellShowsTheDateAndTimeAsItsToolTip() {
+    assumePostedClicks();
     WorkspaceDock dock = browser();
     Tree tree = dock.tree();
     TreeItem notes = row(dock, "notes.txt");
