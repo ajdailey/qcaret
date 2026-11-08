@@ -479,6 +479,49 @@ class WorkspaceFilesTest {
     assertFalse(Files.exists(notes));
   }
 
+  @Test
+  void aReloadOfACleanDocumentIsRefusedWhileARenameRuns() throws Exception {
+    final Path notes = root.resolve("notes.txt");
+    harness.open(notes);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    workspace()
+        .files()
+        .setBeforeRename(
+            new Runnable() {
+              @Override
+              public void run() {
+                entered.countDown();
+                try {
+                  release.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              }
+            });
+    workspace().files().rename(file(notes));
+    answer("renamed.txt");
+    final Path renamed = root.resolve("renamed.txt");
+    try {
+      assertTrue(entered.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "rename started");
+      int notices = harness.view.notices.size();
+      documents().reloadFromDisk();
+      assertEquals(
+          List.of(UiText.RENAME_RUNNING.format("notes.txt")),
+          harness.view.notices.subList(notices, harness.view.notices.size()));
+    } finally {
+      release.countDown();
+    }
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return renamed.equals(documents().activePath());
+          }
+        },
+        "renamed");
+  }
+
   /** A rename reads the new path's per-file settings, as a Save As to that path does. */
   @Test
   void aRenameReadsThePerFileSettingsOfTheNewName() throws Exception {

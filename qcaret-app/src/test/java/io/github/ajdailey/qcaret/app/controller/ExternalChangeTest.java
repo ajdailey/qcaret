@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,6 +84,40 @@ class ExternalChangeTest {
         reached.countDown();
         try {
           released.await(BOUND.toSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      return StandardCharsets.ISO_8859_1.newDecoder();
+    }
+
+    @Override
+    public CharsetEncoder newEncoder() {
+      return StandardCharsets.ISO_8859_1.newEncoder();
+    }
+  }
+
+  /** ISO-8859-1 whose decoder requests, while {@link #on}, each wait for one pass. */
+  private static final class Turnstile extends Charset {
+    final AtomicBoolean on = new AtomicBoolean();
+    final Semaphore arrived = new Semaphore(0);
+    final Semaphore passes = new Semaphore(0);
+
+    Turnstile() {
+      super("X-QCARET-TURNSTILE", null);
+    }
+
+    @Override
+    public boolean contains(Charset other) {
+      return StandardCharsets.ISO_8859_1.contains(other);
+    }
+
+    @Override
+    public CharsetDecoder newDecoder() {
+      if (on.get()) {
+        arrived.release();
+        try {
+          passes.tryAcquire(BOUND.toSeconds(), TimeUnit.SECONDS);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
         }
@@ -212,14 +247,19 @@ class ExternalChangeTest {
 
   /** Replaces the window's controllers with ones that read every file in a {@link Gate}. */
   private Gate gated() {
+    Gate gate = new Gate();
+    readWith(gate);
+    return gate;
+  }
+
+  /** Replaces the window's controllers with ones that read every file in {@code charset}. */
+  private void readWith(Charset charset) {
     compare.dispose();
     documents.dispose();
-    Gate gate = new Gate();
     documents =
-        new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS.withForced(gate));
+        new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS.withForced(charset));
     compare = new CompareController(documents, workers, ui, view, budget);
     documents.setCompare(compare);
-    return gate;
   }
 
   private void awaitHeld(final Gate gate) throws Exception {
@@ -1079,5 +1119,77 @@ class ExternalChangeTest {
     FileBaseline kept = documents.dirtyBuffers().get(0).base();
     assertFalse(opened.stamp().equals(kept.stamp()));
     assertEquals(Files.size(temp.resolve("a.txt")), kept.stamp().size());
+  }
+
+  @Test
+  void reloadAtTheSaveConflictReadsTheFileAndWritesNothing() throws Exception {
+    Path file = write("a.txt", "one\n");
+    Document document = open(file);
+    documents.activeEditor().type("mine ");
+    write("a.txt", "theirs\n");
+    checkUntilPrompts(1);
+    view.changeAnswer.accept(ChangeChoice.KEEP);
+    checkAndSettle();
+    documents.save();
+    awaitPrompts(2);
+    assertEquals("save a.txt", view.changePrompts.get(1));
+    view.changeAnswer.accept(ChangeChoice.RELOAD);
+    idle();
+    assertEquals("theirs\n", document.text().toString());
+    assertFalse(document.isDirty());
+    assertEquals("theirs\n", Files.readString(file));
+  }
+
+  @Test
+  void aSaveDuringAReloadShowsANotice() throws Exception {
+    Gate gate = gated();
+    Path file = write("a.txt", "one\n");
+    open(file);
+    gate.armed.set(true);
+    documents.reloadFromDisk();
+    awaitHeld(gate);
+    documents.save();
+    String notice = UiText.SAVE_TITLE.text() + ": " + UiText.SAVE_RELOADING.format("a.txt");
+    assertEquals(List.of(notice), view.infos);
+    gate.released.countDown();
+    idle();
+  }
+
+  /** A reload confirmed over dirty text and edited during every read stops at the last attempt. */
+  @Test
+  void aReloadEditedDuringEveryReadKeepsTheTextWithANotice() throws Exception {
+    final Turnstile gate = new Turnstile();
+    readWith(gate);
+    Path file = write("a.txt", "one\n");
+    Document document = open(file);
+    documents.activeEditor().type("mine ");
+    write("a.txt", "theirs\n");
+    checkUntilPrompts(1);
+    gate.on.set(true);
+    view.changeAnswer.accept(ChangeChoice.RELOAD);
+    final String edited = UiText.RELOAD_EDITED.format("a.txt");
+    int reads = 0;
+    while (true) {
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return gate.arrived.availablePermits() > 0 || view.notices.contains(edited);
+            }
+          },
+          "a read or the notice");
+      if (!gate.arrived.tryAcquire()) {
+        break;
+      }
+      documents.activeEditor().type("e");
+      gate.passes.release();
+      reads++;
+    }
+    gate.on.set(false);
+    idle();
+    assertTrue(reads >= SaveAndReload.RELOAD_ATTEMPTS, "reads: " + reads);
+    assertEquals("mine " + "e".repeat(reads) + "one\n", document.text().toString());
+    assertTrue(document.isDirty());
+    assertEquals(1, Collections.frequency(view.notices, edited), view.notices.toString());
   }
 }

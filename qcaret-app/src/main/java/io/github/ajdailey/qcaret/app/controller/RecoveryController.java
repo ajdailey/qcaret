@@ -659,7 +659,7 @@ final class RecoveryController implements RecoveryInput {
       DisplayProjection.Layout layout =
           DisplayProjection.layout(document.text(), 0, new CancellationToken());
       Path given = header.path().isEmpty() ? null : Path.of(header.path());
-      Path real = given == null ? null : DocumentController.realFile(given);
+      Path real = given == null ? null : SaveAndReload.realFile(given);
       FileBaseline base = given == null ? null : baseline(header, real);
       long reserved = reservation.keep(loaded.text().retainedBytes(options.limits()));
       return new Result(

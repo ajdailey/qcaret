@@ -19,7 +19,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 | `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `CommandPalette` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
 | `app.controller` | `WindowSet`, `ApplicationController`, quit, tab moves | [Windows and tabs](docs/windows-and-tabs.md) |
-| `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`: open, load, save, encodings, split views; printing | [Documents](docs/documents.md) |
+| `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`, `SaveAndReload`: open, load, save, reload, encodings, split views; printing | [Documents](docs/documents.md) |
 | `app.controller` | `ExternalChanges`, reload, change prompts, `CompareController` | [External changes](docs/external-changes.md) |
 | `app.controller`, `app.search` | Find bar, HyperSearch, result sets, replace across files | [Search](docs/search.md) |
 | `app.controller` | Workspace folder and browser, file index, Quick Open, navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |

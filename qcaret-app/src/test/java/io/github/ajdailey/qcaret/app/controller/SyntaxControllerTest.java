@@ -102,6 +102,16 @@ class SyntaxControllerTest {
   }
 
   @Test
+  void saveAsUnderAnotherNameDetectsTheGrammarAgain() throws Exception {
+    loadGrammars();
+    open("notes", "class Mock {}\n");
+    awaitLanguage("Plain Text");
+    harness.application.documents().saveAs();
+    harness.view.saveChooser.accept(temp.resolve("Mock.java"));
+    awaitLanguage("Java");
+  }
+
+  @Test
   void theSyntaxMenuKeepsTheLastFiveGrammarsChosen() throws Exception {
     loadGrammars();
     open("notes", "plain words\n");

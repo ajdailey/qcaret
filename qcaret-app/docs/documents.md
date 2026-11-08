@@ -1,7 +1,7 @@
 # Documents
 
 Opening, loading, saving, encodings and printing of one window's documents:
-`DocumentController`, `DocumentOpener` and `PrintController` in
+`DocumentController`, `DocumentOpener`, `SaveAndReload` and `PrintController` in
 `app.controller` of [qcaret-app](../README.md).
 
 `DocumentController` holds the window's documents, one tab each, as
@@ -169,6 +169,11 @@ close during the cleanup ends the save unwritten. `false`, a missing property
 and a read-only document leave the text alone.
 
 ## Saving
+
+`DocumentController` routes Save, Save As, Save All, the quit saves and reload
+to `SaveAndReload`, one per window. `SaveAndReload` calls
+`DocumentSettings.prepareSave` for the save cleanup and `DocumentsUnder` for the
+rename hold.
 
 Save writes a `DocumentSnapshot` through `DocumentFiles.save` on a `qcaret-io-`
 worker while editing goes on, then calls `markSaved`.
