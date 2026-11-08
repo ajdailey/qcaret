@@ -34,6 +34,7 @@ import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -81,6 +82,8 @@ public final class ApplicationController {
   private final PrintController print;
   private final GrammarLibrary grammars;
   private final PreferencesController preferences;
+  private final StatisticsController statistics;
+  private final DateTimeInsert dateTime;
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -203,6 +206,10 @@ public final class ApplicationController {
     workspace.setExcludedDirectories(options.excludedDirectories());
     this.preferences =
         new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory, set);
+    this.statistics = new StatisticsController(documents, workers, ui, view);
+    this.dateTime =
+        new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
+    view.setRightMargin(rightMarginColumn());
     settings.addListener(settingsListener);
     set.register(this);
     if (set.recent() != null) {
@@ -255,6 +262,10 @@ public final class ApplicationController {
     }
     if (after.state().toolbar() != before.state().toolbar()) {
       view.setToolbarShown(after.state().toolbar());
+    }
+    if (after.state().rightMargin() != before.state().rightMargin()
+        || now.rightMargin() != old.rightMargin()) {
+      view.setRightMargin(rightMarginColumn());
     }
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
@@ -745,6 +756,9 @@ public final class ApplicationController {
       case OVERVIEW_STRIP -> documents.toggleOverview();
       case LINE_NUMBERS -> documents.toggleLineNumbers();
       case TOOLBAR -> toggleToolbar();
+      case RIGHT_MARGIN -> toggleRightMargin();
+      case INSERT_DATE_TIME -> dateTime.choose();
+      case DOCUMENT_STATISTICS -> statistics.open();
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
       case LINE_ENDING_CR -> documents.convertLineEndings(LineEnding.CR);
@@ -806,6 +820,25 @@ public final class ApplicationController {
   private void toggleToolbar() {
     Preferences current = settings.current();
     settings.set(current.withState(current.state().withToolbar(!toolbarShown())));
+  }
+
+  /**
+   * Reports whether the editors show the right margin line.
+   *
+   * @return {@code ui.rightMargin}
+   */
+  public boolean rightMarginShown() {
+    return settings.current().state().rightMargin();
+  }
+
+  private void toggleRightMargin() {
+    Preferences current = settings.current();
+    settings.set(current.withState(current.state().withRightMargin(!rightMarginShown())));
+  }
+
+  /** Returns {@code editor.rightMargin} while the line shows, else 0. */
+  private int rightMarginColumn() {
+    return rightMarginShown() ? settings.current().options().rightMargin() : 0;
   }
 
   /**

@@ -86,10 +86,10 @@ declaration order.
 | Menu | Holds |
 |---|---|
 | File | File commands; Set Workspace Folder |
-| Edit | Also the line commands, case, indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with spaces, Go to Line and Read-Only |
+| Edit | Also the line commands, case, indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with spaces, Go to Line, Read-Only, Insert Date and Time and Document Statistics |
 | Selection | Add caret above and below, add next occurrence, split into lines, column selection mode |
 | Search | Find, Find Next, Find Previous, Replace, HyperSearch, Next and Previous Result, Search Results |
-| View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip |
+| View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip, Line Numbers, Right Margin |
 | Encoding | The line-ending conversions; the view adds the charset cascades |
 | Window | Next and previous tab, Close Others; the view lists the documents |
 | Help | Help commands |
@@ -139,7 +139,8 @@ Mod+P and Switch Document Mod+Shift+O.
 Menu only: the split commands, Toggle Fold, Sort, Remove Duplicate Lines, Trim
 Trailing Whitespace, Clear Bookmarks, Bookmarks List, Show Whitespace and Line
 Endings, Set Workspace Folder, Search Results, Overview Strip, Workspace
-Browser and Clear Recent Files. User overrides are in
+Browser, Clear Recent Files, Right Margin, Insert Date and Time and Document
+Statistics. User overrides are in
 [Settings](settings.md#key-binding-overrides).
 
 ## Menu and status state

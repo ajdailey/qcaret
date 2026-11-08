@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.view;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -146,6 +147,31 @@ public interface MainView
    * @param shown true to show them
    */
   void setLineNumbersShown(boolean shown);
+
+  /**
+   * Shows the right margin line in every editor of the window, later ones included.
+   *
+   * @param column the column the line sits left of, or 0 to hide it
+   */
+  void setRightMargin(int column);
+
+  /**
+   * Opens the Document Statistics dialog, which calls {@link StatisticsInput#closed} once it
+   * closes.
+   *
+   * @param input runs its Refresh button
+   * @return the dialog, for the counts
+   */
+  StatisticsDisplay showStatistics(StatisticsInput input);
+
+  /**
+   * Asks which date and time format Insert Date and Time inserts.
+   *
+   * @param rows each format with the current time in it
+   * @param selected the row selected at first
+   * @param chosen receives the chosen row; not called on cancel
+   */
+  void chooseDateFormat(List<String> rows, int selected, Consumer<Integer> chosen);
 
   /**
    * Returns the editor font's platform default size.

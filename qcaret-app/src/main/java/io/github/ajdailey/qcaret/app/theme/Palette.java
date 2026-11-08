@@ -53,6 +53,7 @@ public record Palette(
    * @param diffRemoved the comparison window's background of a line on the left only
    * @param diffAdded the comparison window's background of a line on the right only
    * @param diffChanged the comparison window's background of a line that differs
+   * @param rightMargin the editors' right margin line
    */
   public record Accents(
       Rgb tabText,
@@ -61,7 +62,8 @@ public record Palette(
       Rgb bookmarkComment,
       Rgb diffRemoved,
       Rgb diffAdded,
-      Rgb diffChanged) {}
+      Rgb diffChanged,
+      Rgb rightMargin) {}
 
   /** The default palette. */
   public static final Palette LIGHT =
@@ -105,7 +107,8 @@ public record Palette(
               Rgb.of(0x18736a),
               Rgb.of(0xfde2e1),
               Rgb.of(0xdcf5e3),
-              Rgb.of(0xfdf0cc)));
+              Rgb.of(0xfdf0cc),
+              Rgb.of(0xc9d3dd)));
 
   /** The dark palette. */
   public static final Palette DARK =
@@ -149,7 +152,8 @@ public record Palette(
               Rgb.of(0x5fd3b0),
               Rgb.of(0x4a2a30),
               Rgb.of(0x1f4232),
-              Rgb.of(0x4a3d1f)));
+              Rgb.of(0x4a3d1f),
+              Rgb.of(0x3a5070)));
 
   /** Checks that every role has a style and keeps an unmodifiable copy. */
   public Palette {
@@ -237,6 +241,15 @@ public record Palette(
    */
   public Rgb diffChanged() {
     return accents.diffChanged();
+  }
+
+  /**
+   * Returns the editors' right margin line.
+   *
+   * @return the color
+   */
+  public Rgb rightMargin() {
+    return accents.rightMargin();
   }
 
   /** Maps the styles, given in {@link TokenRole} declaration order. */

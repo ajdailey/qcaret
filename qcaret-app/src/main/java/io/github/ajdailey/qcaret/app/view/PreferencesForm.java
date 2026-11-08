@@ -25,6 +25,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param shortcuts the keys set in place of the defaults
  * @param themeFile the theme file's name; empty for the built-in colors
  * @param fontFamily the editor font family; empty for the platform's monospace font
+ * @param rightMargin the right margin line's column
+ * @param dateFormat Insert Date and Time's first format
  */
 public record PreferencesForm(
     String completionChars,
@@ -44,7 +46,9 @@ public record PreferencesForm(
     String fontSize,
     ShortcutOverrides shortcuts,
     String themeFile,
-    String fontFamily) {
+    String fontFamily,
+    String rightMargin,
+    String dateFormat) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

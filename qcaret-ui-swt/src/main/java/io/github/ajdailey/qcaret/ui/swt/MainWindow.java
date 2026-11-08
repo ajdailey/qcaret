@@ -33,6 +33,8 @@ import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
+import io.github.ajdailey.qcaret.app.view.StatisticsInput;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
@@ -196,6 +198,9 @@ public final class MainWindow implements MainView {
   private EditorMenu editorMenu;
   private final ToolBar toolBar;
   private boolean lineNumbersShown = true;
+  private int rightMargin;
+  private StatisticsDialog statisticsDialog;
+  private DateFormatChooser dateFormatChooser;
   private Keymap keymap;
   private PreferencesDialog preferencesDialog;
   private Menu tabMenu;
@@ -371,6 +376,7 @@ public final class MainWindow implements MainView {
               palette,
               dispatcher,
               lineNumbersShown);
+      added.setRightMargin(rightMargin);
       added
           .text()
           .addListener(
@@ -964,6 +970,54 @@ public final class MainWindow implements MainView {
         }
       }
     }
+  }
+
+  @Override
+  public void setRightMargin(int column) {
+    rightMargin = column;
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof Tab tab) {
+        for (EditorPane pane : tab.panes) {
+          pane.setRightMargin(column);
+        }
+      }
+    }
+  }
+
+  @Override
+  public StatisticsDisplay showStatistics(StatisticsInput input) {
+    if (shell.isDisposed()) {
+      return StatisticsDialog.NONE;
+    }
+    statisticsDialog = new StatisticsDialog(shell, input);
+    statisticsDialog.open();
+    return statisticsDialog;
+  }
+
+  @Override
+  public void chooseDateFormat(List<String> rows, int selected, Consumer<Integer> chosen) {
+    if (!shell.isDisposed()) {
+      dateFormatChooser = new DateFormatChooser(shell, rows, selected, chosen);
+      dateFormatChooser.open();
+    }
+  }
+
+  /**
+   * Returns the newest Document Statistics dialog.
+   *
+   * @return the dialog, or null before one opened
+   */
+  StatisticsDialog statisticsDialog() {
+    return statisticsDialog;
+  }
+
+  /**
+   * Returns the newest date format chooser.
+   *
+   * @return the dialog, or null before one opened
+   */
+  DateFormatChooser dateFormatChooser() {
+    return dateFormatChooser;
   }
 
   /** Shows the status fields on a later UI turn; calls before then share that one read. */

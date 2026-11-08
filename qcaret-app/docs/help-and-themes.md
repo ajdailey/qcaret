@@ -29,6 +29,9 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
   Zoom sets it to 0, the platform's default. The view changes the font in
   place. A change of `editor.fontFamily` reaches the view through
   `MainView.setFontFamily`.
+- View > Right Margin toggles `ui.rightMargin`; `MainView.setRightMargin`
+  passes every editor `editor.rightMargin` while it is on, else 0, and again
+  when either setting changes.
 - `PreferencesInput.loadChoices` lists the theme files and the monospace
   families on a `qcaret-io-` worker; the dialog fills its lists when they
   arrive.
@@ -68,11 +71,12 @@ changed palette to its `PaletteListener`s.
 background, selection, current line, gutter and line numbers, caret, whitespace
 marks, the find-match background, the comparison window's row backgrounds
 (`diffRemoved`, `diffAdded`, `diffChanged`), the unselected tab label
-(`tabText`), and a `TokenStyle` (color, bold, italic, underline) for every
-`TokenRole`; a grammar token type paints with the role of the same name. The
-light and dark defaults derive from the brand navy `#1B2E44`, cyan `#56C1F0`
-and amber `#F3B65B`; every token color reaches a contrast ratio of 4.5 on the
-background, the current line and a find match (`PaletteTest`).
+(`tabText`), the right margin line (`rightMargin`), and a `TokenStyle` (color,
+bold, italic, underline) for every `TokenRole`; a grammar token type paints
+with the role of the same name. The light and dark defaults derive from the
+brand navy `#1B2E44`, cyan `#56C1F0` and amber `#F3B65B`; every token color
+reaches a contrast ratio of 4.5 on the background, the current line and a find
+match (`PaletteTest`).
 
 ### Theme files
 

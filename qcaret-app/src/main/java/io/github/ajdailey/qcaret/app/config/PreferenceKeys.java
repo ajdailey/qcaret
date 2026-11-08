@@ -53,6 +53,10 @@ final class PreferenceKeys {
   static final String HISTORY_MASK = "search.history.mask.";
   static final String HISTORY_REPLACE = "search.history.replace.";
   static final String RECENT_GRAMMARS = "syntax.recent";
+  static final String RIGHT_MARGIN = "editor.rightMargin";
+  static final String DATE_FORMAT = "editor.dateFormat";
+  static final String RIGHT_MARGIN_SHOWN = "ui.rightMargin";
+  static final String LAST_DATE_FORMAT = "ui.lastDateFormat";
   static final String DIALOG = "dialog.";
   static final String WIDTH = ".width";
   static final String HEIGHT = ".height";
@@ -98,12 +102,18 @@ final class PreferenceKeys {
     keys.put(SESSION_SNAPSHOT, Boolean.toString(o.sessionSnapshot()));
     keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
+    keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
+    keys.put(DATE_FORMAT, o.dateFormat());
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
     keys.put(SEARCH_WORD, Boolean.toString(s.search().wholeWord()));
     keys.put(SEARCH_HIDDEN, Boolean.toString(s.search().hiddenFiles()));
     keys.put(TOOLBAR, Boolean.toString(s.toolbar()));
+    keys.put(RIGHT_MARGIN_SHOWN, Boolean.toString(s.rightMargin()));
+    if (!s.lastDateFormat().isEmpty()) {
+      keys.put(LAST_DATE_FORMAT, s.lastDateFormat());
+    }
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
@@ -236,7 +246,9 @@ final class PreferenceKeys {
             file),
         flag(p, SESSION_SNAPSHOT, d.sessionSnapshot(), file),
         number(p, TAB_WIDTH, 1, Document.MAX_TAB_WIDTH, d.tabWidth(), file),
-        flag(p, INSERT_SPACES, d.insertSpaces(), file));
+        flag(p, INSERT_SPACES, d.insertSpaces(), file),
+        number(p, RIGHT_MARGIN, 1, Options.MAX_RIGHT_MARGIN, d.rightMargin(), file),
+        dateFormat(p, DATE_FORMAT, d.dateFormat(), file));
   }
 
   private static UiState state(Properties p, Path file) {
@@ -261,7 +273,22 @@ final class PreferenceKeys {
         list(p, HISTORY_REPLACE),
         grammars,
         dialogs(p, file),
-        flag(p, TOOLBAR, true, file));
+        flag(p, TOOLBAR, true, file),
+        flag(p, RIGHT_MARGIN_SHOWN, false, file),
+        dateFormat(p, LAST_DATE_FORMAT, "", file));
+  }
+
+  /** Returns a valid date and time pattern, the fallback when absent, or it with one WARN. */
+  private static String dateFormat(Properties p, String key, String fallback, Path file) {
+    String value = p.getProperty(key);
+    if (value == null) {
+      return fallback;
+    }
+    if (Options.validDateFormat(value)) {
+      return value;
+    }
+    invalid(key, file);
+    return fallback;
   }
 
   /** Returns a history from index 0 up to the first gap, without duplicates or long entries. */

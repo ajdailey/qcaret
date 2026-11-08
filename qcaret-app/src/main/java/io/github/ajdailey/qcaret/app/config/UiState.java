@@ -18,6 +18,9 @@ import java.util.Map;
  * @param recentGrammars {@code syntax.recent}: grammar ids chosen in the Syntax menu, newest first
  * @param dialogs {@code dialog.<name>.width} and {@code .height}: a dialog's last size
  * @param toolbar {@code ui.toolbar}: the windows show the main toolbar
+ * @param rightMargin {@code ui.rightMargin}: the editors show the right margin line
+ * @param lastDateFormat {@code ui.lastDateFormat}: the pattern Insert Date and Time used last;
+ *     empty for none
  */
 public record UiState(
     SearchToggles search,
@@ -27,7 +30,9 @@ public record UiState(
     List<String> replacements,
     List<String> recentGrammars,
     Map<String, Size> dialogs,
-    boolean toolbar) {
+    boolean toolbar,
+    boolean rightMargin,
+    String lastDateFormat) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -50,7 +55,9 @@ public record UiState(
           List.of(),
           List.of(),
           Map.of(),
-          true);
+          true,
+          false,
+          "");
 
   /**
    * A dialog's size in pixels.
@@ -78,6 +85,9 @@ public record UiState(
     replacements = limited(replacements, MAX_HISTORY);
     recentGrammars = limited(recentGrammars, MAX_RECENT_GRAMMARS);
     dialogs = Collections.unmodifiableMap(new LinkedHashMap<String, Size>(dialogs));
+    if (lastDateFormat == null) {
+      throw new IllegalArgumentException("lastDateFormat is required");
+    }
   }
 
   private static List<String> limited(List<String> list, int max) {
@@ -109,7 +119,16 @@ public record UiState(
    */
   public UiState withSearch(SearchToggles value) {
     return new UiState(
-        value, texts, directories, masks, replacements, recentGrammars, dialogs, toolbar);
+        value,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat);
   }
 
   /**
@@ -123,7 +142,16 @@ public record UiState(
   public UiState withHistory(
       List<String> textList, List<String> directoryList, List<String> maskList) {
     return new UiState(
-        search, textList, directoryList, maskList, replacements, recentGrammars, dialogs, toolbar);
+        search,
+        textList,
+        directoryList,
+        maskList,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat);
   }
 
   /**
@@ -133,7 +161,17 @@ public record UiState(
    * @return the copy
    */
   public UiState withReplacements(List<String> value) {
-    return new UiState(search, texts, directories, masks, value, recentGrammars, dialogs, toolbar);
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        value,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat);
   }
 
   /**
@@ -152,7 +190,17 @@ public record UiState(
    * @return the copy
    */
   public UiState withRecentGrammars(List<String> value) {
-    return new UiState(search, texts, directories, masks, replacements, value, dialogs, toolbar);
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        value,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat);
   }
 
   /**
@@ -163,7 +211,16 @@ public record UiState(
    */
   public UiState withToolbar(boolean value) {
     return new UiState(
-        search, texts, directories, masks, replacements, recentGrammars, dialogs, value);
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        value,
+        rightMargin,
+        lastDateFormat);
   }
 
   /**
@@ -184,6 +241,55 @@ public record UiState(
       copy.remove(copy.keySet().iterator().next());
     }
     return new UiState(
-        search, texts, directories, masks, replacements, recentGrammars, copy, toolbar);
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        copy,
+        toolbar,
+        rightMargin,
+        lastDateFormat);
+  }
+
+  /**
+   * Returns a copy with the right margin line shown or hidden.
+   *
+   * @param value true to show it
+   * @return the copy
+   */
+  public UiState withRightMargin(boolean value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        value,
+        lastDateFormat);
+  }
+
+  /**
+   * Returns a copy with another last date and time pattern.
+   *
+   * @param value the pattern, empty for none
+   * @return the copy
+   */
+  public UiState withLastDateFormat(String value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        value);
   }
 }

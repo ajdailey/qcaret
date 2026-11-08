@@ -54,6 +54,8 @@ final class PreferencesDialog {
   private Button autoClose;
   private Text tabWidth;
   private Button insertSpaces;
+  private Text rightMargin;
+  private Text dateFormat;
   private Text maxHighlightLineChars;
   private Text pollSeconds;
   private Button autoReloadClean;
@@ -168,6 +170,8 @@ final class PreferencesDialog {
     maxHighlightLineChars = field(page, UiText.PREFERENCES_HIGHLIGHT_CHARS);
     tabWidth = field(page, UiText.PREFERENCES_TAB_WIDTH);
     insertSpaces = check(page, UiText.PREFERENCES_INSERT_SPACES);
+    rightMargin = field(page, UiText.PREFERENCES_RIGHT_MARGIN);
+    dateFormat = field(page, UiText.PREFERENCES_DATE_FORMAT);
   }
 
   private void files(Composite page) {
@@ -364,6 +368,8 @@ final class PreferencesDialog {
     maxHighlightLineChars.setText(form.maxHighlightLineChars());
     tabWidth.setText(form.tabWidth());
     insertSpaces.setSelection(form.insertSpaces());
+    rightMargin.setText(form.rightMargin());
+    dateFormat.setText(form.dateFormat());
     pollSeconds.setText(form.pollSeconds());
     autoReloadClean.setSelection(form.autoReloadClean());
     recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
@@ -401,7 +407,9 @@ final class PreferencesDialog {
         fontSize.getText(),
         overrides,
         chosen(themeFile),
-        chosen(fontFamily));
+        chosen(fontFamily),
+        rightMargin.getText(),
+        dateFormat.getText());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -571,5 +579,13 @@ final class PreferencesDialog {
 
   Combo fontFamily() {
     return fontFamily;
+  }
+
+  Text rightMargin() {
+    return rightMargin;
+  }
+
+  Text dateFormat() {
+    return dateFormat;
   }
 }

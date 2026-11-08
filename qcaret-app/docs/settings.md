@@ -17,10 +17,11 @@ same order to the SWT native cache.
 `Preferences` holds `ui.theme`, `window.*`, `log.debugFile` (attaches the debug
 log file at the next start), `Options` (the Preferences dialog's settings),
 `UiState` (search toggles, histories, recent grammars, dialog sizes, the
-toolbar choice), `ShortcutOverrides` and `Appearance` (`ui.themeFile`,
-`editor.fontFamily`). `PreferenceKeys` maps them to and from `qcaret.conf`. A
-new setting is a record component and its lines in `PreferenceKeys`, plus a
-`PreferencesForm` field when the dialog shows it.
+toolbar and right margin choices, the last date format), `ShortcutOverrides`
+and `Appearance` (`ui.themeFile`, `editor.fontFamily`). `PreferenceKeys` maps
+them to and from `qcaret.conf`. A new setting is a record component and its
+lines in `PreferenceKeys`, plus a `PreferencesForm` field when the dialog shows
+it.
 
 ## Settings file
 
@@ -101,6 +102,8 @@ Shortcuts.
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
 | `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
+| `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
+| `ui.lastDateFormat` | The pattern Insert Date and Time used last, selected first in its list | none | Edit > Insert Date and Time |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
 | `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
@@ -108,6 +111,8 @@ Shortcuts.
 | `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
 | `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Edit > Preferences, Editor |
 | `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
+| `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of | 80 | Edit > Preferences, Editor |
+| `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Edit > Preferences, Editor |
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
 | `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
 | `ui.themeFile` | A file in `themes/` in the settings directory, without `.theme`; empty for the built-in colors | empty | Edit > Preferences, Appearance |

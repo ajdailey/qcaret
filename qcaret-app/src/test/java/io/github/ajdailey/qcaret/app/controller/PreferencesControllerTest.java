@@ -113,7 +113,9 @@ class PreferencesControllerTest {
         field.equals("font") ? value : f.fontSize(),
         f.shortcuts(),
         field.equals("themeFile") ? value : f.themeFile(),
-        field.equals("fontFamily") ? value : f.fontFamily());
+        field.equals("fontFamily") ? value : f.fontFamily(),
+        field.equals("rightMargin") ? value : f.rightMargin(),
+        field.equals("dateFormat") ? value : f.dateFormat());
   }
 
   @Test
@@ -141,7 +143,9 @@ class PreferencesControllerTest {
                 f.fontSize(),
                 f.shortcuts(),
                 f.themeFile(),
-                f.fontFamily()));
+                f.fontFamily(),
+                f.rightMargin(),
+                f.dateFormat()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -163,7 +167,9 @@ class PreferencesControllerTest {
                 f.fontSize(),
                 f.shortcuts(),
                 f.themeFile(),
-                f.fontFamily())));
+                f.fontFamily(),
+                f.rightMargin(),
+                f.dateFormat())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -257,7 +263,9 @@ class PreferencesControllerTest {
                 f.fontSize(),
                 f.shortcuts(),
                 f.themeFile(),
-                f.fontFamily())));
+                f.fontFamily(),
+                f.rightMargin(),
+                f.dateFormat())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -365,7 +373,9 @@ class PreferencesControllerTest {
                 f.fontSize(),
                 overrides,
                 f.themeFile(),
-                f.fontFamily())));
+                f.fontFamily(),
+                f.rightMargin(),
+                f.dateFormat())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -400,7 +410,9 @@ class PreferencesControllerTest {
         o.recoveryKeepDays(),
         o.sessionSnapshot(),
         o.tabWidth(),
-        o.insertSpaces());
+        o.insertSpaces(),
+        Options.DEFAULTS.rightMargin(),
+        Options.DEFAULTS.dateFormat());
   }
 
   @Test

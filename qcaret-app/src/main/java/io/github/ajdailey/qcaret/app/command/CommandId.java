@@ -249,6 +249,10 @@ public enum CommandId {
       CommandGroup.SEARCH, UiText.COMMAND_BOOKMARKS_LIST, true, true, UiText.MENU_BOOKMARKS),
   /** Ask for the comment of the primary caret's line's bookmark, bookmarking the line. */
   EDIT_BOOKMARK_COMMENT(CommandGroup.EDIT, UiText.COMMAND_EDIT_BOOKMARK_COMMENT, true, false, null),
+  /** Insert the date and time in a chosen format at every caret, replacing each selection. */
+  INSERT_DATE_TIME(CommandGroup.EDIT, UiText.COMMAND_INSERT_DATE_TIME, true, false, null),
+  /** Count the lines, words, chars and bytes of the selected document and its selections. */
+  DOCUMENT_STATISTICS(CommandGroup.EDIT, UiText.COMMAND_DOCUMENT_STATISTICS, false, false, null),
   /** Mark spaces and tabs in the window's editors. */
   SHOW_WHITESPACE(CommandGroup.VIEW, UiText.COMMAND_SHOW_WHITESPACE, true, true, null),
   /** Mark each line break in the window's editors with its kind. */
@@ -257,6 +261,8 @@ public enum CommandId {
   OVERVIEW_STRIP(CommandGroup.VIEW, UiText.COMMAND_OVERVIEW_STRIP, false, true, null),
   /** Show the line numbers in the window's editors; checked while shown. */
   LINE_NUMBERS(CommandGroup.VIEW, UiText.COMMAND_LINE_NUMBERS, false, true, null),
+  /** Show a line at {@code editor.rightMargin} in every editor; checked while shown. */
+  RIGHT_MARGIN(CommandGroup.VIEW, UiText.COMMAND_RIGHT_MARGIN, false, true, null),
   /** Show the main toolbar in every window; checked while shown. */
   TOOLBAR(CommandGroup.VIEW, UiText.COMMAND_TOOLBAR, false, true, null),
   /** Find and run a command by name. */

@@ -73,7 +73,8 @@ public final class ThemeColors {
     "bookmarkComment",
     "diffRemoved",
     "diffAdded",
-    "diffChanged"
+    "diffChanged",
+    "rightMargin"
   };
 
   private final Map<String, Rgb> light;
@@ -259,6 +260,7 @@ public final class ThemeColors {
             colors.getOrDefault("bookmarkComment", a.bookmarkComment()),
             colors.getOrDefault("diffRemoved", a.diffRemoved()),
             colors.getOrDefault("diffAdded", a.diffAdded()),
-            colors.getOrDefault("diffChanged", a.diffChanged())));
+            colors.getOrDefault("diffChanged", a.diffChanged()),
+            colors.getOrDefault("rightMargin", a.rightMargin())));
   }
 }

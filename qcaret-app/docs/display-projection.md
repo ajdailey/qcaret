@@ -115,9 +115,9 @@ indented no deeper; blank lines stay outside.
 
 `ColumnMetrics` holds a monospace font's column geometry: the advance is the
 measured width of 1,000 digits over 1,000, kept fractional, and column `c`
-starts at `round(c * advance)`. The gutter width and the wrap width in columns
-use it; text outside printable ASCII is placed at the widget's measured glyph
-positions.
+starts at `round(c * advance)`. The gutter width, the wrap width in columns and
+the right margin line use it; text outside printable ASCII is placed at the
+widget's measured glyph positions.
 
 ## Bookmarks
 

@@ -119,6 +119,8 @@ import org.eclipse.swt.widgets.Slider;
  *       placed from the widget's measured offsets.
  *   <li>Completion: {@link CompletionPopup} below the primary caret; it closes when the editor
  *       loses focus.
+ *   <li>Right margin: {@link MarginPainter} draws the line in the palette's right margin color
+ *       after {@link #setRightMargin}.
  * </ul>
  */
 public final class EditorPane implements EditorView {
@@ -201,6 +203,7 @@ public final class EditorPane implements EditorView {
   private boolean markWhitespace;
   private boolean markLineEndings;
   private boolean lineNumbersShown;
+  private final MarginPainter margin = new MarginPainter();
 
   /**
    * Creates the editor.
@@ -457,6 +460,26 @@ public final class EditorPane implements EditorView {
   }
 
   /**
+   * Shows the right margin line at a column, or hides it.
+   *
+   * @param column the column the line sits left of, or 0 to hide it
+   */
+  public void setRightMargin(int column) {
+    if (!text.isDisposed() && margin.setColumn(column)) {
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns the right margin line's x, for tests.
+   *
+   * @return pixels from the widget's left edge, or -1 without a line
+   */
+  public int rightMarginX() {
+    return margin.x(text, metrics);
+  }
+
+  /**
    * Prepares a context menu opened by the pointer; see {@link EditorInput#menuFromView}.
    *
    * @param x the point's x in display coordinates
@@ -586,6 +609,7 @@ public final class EditorPane implements EditorView {
     occurrenceBack = color(palette.occurrence());
     bracketBack = color(palette.bracket());
     whitespace = color(palette.whitespace());
+    margin.setColor(color(palette.rightMargin()));
     if (strip != null) {
       strip.setPalette(palette);
     }
@@ -899,6 +923,7 @@ public final class EditorPane implements EditorView {
             paintCollapsed(event.gc);
             paintBookmarks(event.gc);
             paintMarks(event.gc);
+            margin.paint(event.gc, text, metrics, event.y, event.height);
             if (selections.block() != null) {
               paintBlock(event.gc);
             } else {

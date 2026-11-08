@@ -138,6 +138,43 @@ move in it, Enter and Tab replace the typed prefix at every caret that ends
 with it, Esc closes it, typing narrows it, and any other command or a caret
 moving off the word closes it.
 
+## Insert Date and Time
+
+`DateTimeInsert` runs Edit > Insert Date and Time. The chooser lists
+`editor.dateFormat` first, then six common `DateTimeFormatter` patterns
+(`DateTimeInsert.COMMON`), each with the current time, and selects
+`ui.lastDateFormat`. The rows are formatted on a `qcaret-cpu-` worker: the first
+format of a zoned time loads the time-zone rules (13 ms measured in QLogg).
+The chosen format, in the default locale at the time of the choice, goes to
+`EditorController.insertText`, which replaces every selection as one undo step
+(a block takes it on every row, as typed text) and does nothing on a read-only
+document. `Options.validDateFormat` checks a pattern by formatting a fixed UTC
+time; the Preferences dialog refuses an invalid one, and an invalid one in
+`qcaret.conf` falls back to the default.
+
+## Document statistics
+
+`StatisticsController` runs Edit > Document Statistics in a modeless dialog.
+It counts the selected document's text snapshot and its non-empty selections
+on a `qcaret-cpu-` worker, posting each new whole percent read; Refresh counts
+again and closing the dialog cancels the count through its token. A result
+for an older revision is dropped and the dialog says the document changed.
+
+`TextStatistics` defines the counts:
+
+| Count | Definition |
+|---|---|
+| Lines | Line breaks (LF, CR LF, CR) plus one, per counted range |
+| Characters | Code points, line breaks included: a surrogate pair is one, CR LF two |
+| Characters without spaces | Code points that are not `Character.isWhitespace`; a no-break space counts |
+| Words | Maximal runs of such code points |
+| Bytes | The text encoded in the document's charset, plus its BOM for the document; an unencodable char or a lone surrogate counts as the charset's replacement bytes |
+
+Selections are counted one by one and summed, so a word cut by two selections
+counts twice. `TextStatistics.Counter` reads `TextContent.readChunks` and
+encodes through an 8,192-char buffer, carrying a surrogate pair split between
+chunks or buffer fills.
+
 ## Overview strip
 
 Each editor view has an `OverviewUpdater` that computes its strip's

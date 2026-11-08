@@ -4,6 +4,10 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
+import java.time.DateTimeException;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * The settings of the Preferences dialog apart from the theme and the keys. Immutable.
@@ -27,6 +31,9 @@ import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
  *     unsaved and untitled buffers
  * @param tabWidth {@code editor.tabWidth}: columns per tab stop of a document without saved state
  * @param insertSpaces {@code editor.insertSpaces}: such a document indents with spaces
+ * @param rightMargin {@code editor.rightMargin}: the column the right margin line sits left of
+ * @param dateFormat {@code editor.dateFormat}: Insert Date and Time's first format, a {@link
+ *     DateTimeFormatter} pattern
  */
 public record Options(
     int completionChars,
@@ -42,7 +49,13 @@ public record Options(
     int recoveryKeepDays,
     boolean sessionSnapshot,
     int tabWidth,
-    boolean insertSpaces) {
+    boolean insertSpaces,
+    int rightMargin,
+    String dateFormat) {
+  /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
+  private static final ZonedDateTime SAMPLE_TIME =
+      ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+
   /** Largest {@code completionChars}. */
   public static final int MAX_COMPLETION_CHARS = 20;
 
@@ -91,6 +104,12 @@ public record Options(
   /** Most {@code recoveryKeepDays}. */
   public static final int MAX_RECOVERY_DAYS = 365;
 
+  /** Largest {@code rightMargin}. */
+  public static final int MAX_RIGHT_MARGIN = 1000;
+
+  /** Longest {@code dateFormat}. */
+  public static final int MAX_DATE_FORMAT_CHARS = 100;
+
   /** The settings when the file holds none. */
   public static final Options DEFAULTS =
       new Options(
@@ -107,7 +126,9 @@ public record Options(
           30,
           false,
           Document.DEFAULT_TAB_WIDTH,
-          false);
+          false,
+          80,
+          "yyyy-MM-dd HH:mm");
 
   /** Checks the components. */
   public Options {
@@ -124,6 +145,35 @@ public record Options(
     range(tabWidth, 1, Document.MAX_TAB_WIDTH);
     if (!validDirectories(excludedDirectories)) {
       throw new IllegalArgumentException("excludedDirectories");
+    }
+    range(rightMargin, 1, MAX_RIGHT_MARGIN);
+    if (!validDateFormat(dateFormat)) {
+      throw new IllegalArgumentException("dateFormat");
+    }
+  }
+
+  /**
+   * Reports whether a date and time pattern is valid.
+   *
+   * @param pattern a {@link DateTimeFormatter} pattern, or null
+   * @return false for null, blank, over {@link #MAX_DATE_FORMAT_CHARS} chars, holding a control
+   *     char, refused by {@link DateTimeFormatter#ofPattern}, or failing to format a zoned date and
+   *     time
+   */
+  public static boolean validDateFormat(String pattern) {
+    if (pattern == null || pattern.isBlank() || pattern.length() > MAX_DATE_FORMAT_CHARS) {
+      return false;
+    }
+    for (int i = 0; i < pattern.length(); i++) {
+      if (Character.isISOControl(pattern.charAt(i))) {
+        return false;
+      }
+    }
+    try {
+      DateTimeFormatter.ofPattern(pattern).format(SAMPLE_TIME);
+      return true;
+    } catch (IllegalArgumentException | DateTimeException e) {
+      return false;
     }
   }
 
@@ -173,7 +223,9 @@ public record Options(
         recoveryKeepDays,
         sessionSnapshot,
         tabWidth,
-        insertSpaces);
+        insertSpaces,
+        rightMargin,
+        dateFormat);
   }
 
   /**
@@ -197,6 +249,8 @@ public record Options(
         recoveryKeepDays,
         sessionSnapshot,
         tabWidth,
-        insertSpaces);
+        insertSpaces,
+        rightMargin,
+        dateFormat);
   }
 }

@@ -78,7 +78,9 @@ class SearchControllerTest {
                     o.recoveryKeepDays(),
                     o.sessionSnapshot(),
                     o.tabWidth(),
-                    o.insertSpaces())));
+                    o.insertSpaces(),
+                    Options.DEFAULTS.rightMargin(),
+                    Options.DEFAULTS.dateFormat())));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();
     assertEquals(1, search.sets().get(0).matches());

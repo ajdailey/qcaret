@@ -315,9 +315,39 @@ class ConfigStoreTest {
   }
 
   @Test
+  void aBadMarginOrDatePatternFallsBackToTheDefault() throws IOException {
+    Files.createDirectories(temp);
+    Files.writeString(
+        conf(),
+        "editor.rightMargin=0\neditor.dateFormat=yyyy {\nui.rightMargin=true\n"
+            + "ui.lastDateFormat=HH:mm\n");
+    Preferences loaded = store(temp).load();
+    assertEquals(Options.DEFAULTS.rightMargin(), loaded.options().rightMargin());
+    assertEquals(Options.DEFAULTS.dateFormat(), loaded.options().dateFormat());
+    assertTrue(loaded.state().rightMargin());
+    assertEquals("HH:mm", loaded.state().lastDateFormat());
+  }
+
+  @Test
   void everySettingRoundTrips() throws IOException {
     Options options =
-        new Options(3, false, 2000, 14, 30, false, 9, 50_000, ".git;dist", 45, 12, true, 6, true);
+        new Options(
+            3,
+            false,
+            2000,
+            14,
+            30,
+            false,
+            9,
+            50_000,
+            ".git;dist",
+            45,
+            12,
+            true,
+            6,
+            true,
+            100,
+            "dd.MM.yyyy");
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -327,7 +357,9 @@ class ConfigStoreTest {
                 List.of("swapped", " padded "),
                 List.of("java", "xml"),
                 Map.of(),
-                false)
+                false,
+                true,
+                "HH:mm")
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE

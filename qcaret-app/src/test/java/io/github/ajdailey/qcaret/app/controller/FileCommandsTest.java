@@ -247,7 +247,9 @@ class FileCommandsTest {
                     o.recoveryKeepDays(),
                     o.sessionSnapshot(),
                     width,
-                    spaces)));
+                    spaces,
+                    Options.DEFAULTS.rightMargin(),
+                    Options.DEFAULTS.dateFormat())));
   }
 
   @Test

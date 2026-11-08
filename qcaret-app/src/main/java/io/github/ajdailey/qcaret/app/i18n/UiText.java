@@ -41,6 +41,52 @@ public enum UiText {
   PREFERENCES_TAB_WIDTH,
   /** Preferences field. */
   PREFERENCES_INSERT_SPACES,
+  /** Command label. */
+  COMMAND_RIGHT_MARGIN,
+  /** Command label. */
+  COMMAND_INSERT_DATE_TIME,
+  /** Command label. */
+  COMMAND_DOCUMENT_STATISTICS,
+  /** Preferences field. */
+  PREFERENCES_RIGHT_MARGIN,
+  /** Preferences field. */
+  PREFERENCES_DATE_FORMAT,
+  /** Refusal of a date format: the field's label. */
+  PREFERENCES_BAD_DATE_FORMAT,
+  /** Title of the date format chooser. */
+  DATE_FORMAT_TITLE,
+  /** The date format chooser's prompt. */
+  DATE_FORMAT_LABEL,
+  /** A date format chooser row: the formatted time and the pattern. */
+  DATE_FORMAT_ROW,
+  /** Button inserting the chosen format. */
+  BUTTON_INSERT,
+  /** Title of the Document Statistics dialog. */
+  STATISTICS_TITLE,
+  /** Document Statistics heading: the document's name and the charset name. */
+  STATISTICS_HEADING,
+  /** Document Statistics column. */
+  STATISTICS_DOCUMENT,
+  /** Document Statistics column. */
+  STATISTICS_SELECTION,
+  /** Document Statistics row. */
+  STATISTICS_LINES,
+  /** Document Statistics row. */
+  STATISTICS_WORDS,
+  /** Document Statistics row. */
+  STATISTICS_CHARS,
+  /** Document Statistics row. */
+  STATISTICS_NON_SPACE_CHARS,
+  /** Document Statistics row. */
+  STATISTICS_BYTES,
+  /** Document Statistics while counting: the percent read. */
+  STATISTICS_COUNTING,
+  /** Document Statistics after an edit during the count. */
+  STATISTICS_CHANGED,
+  /** Document Statistics without a document. */
+  STATISTICS_NO_DOCUMENT,
+  /** Button counting again. */
+  BUTTON_REFRESH,
   /** Title of a document without a file: its number. */
   TAB_UNTITLED,
   /** File menu. */

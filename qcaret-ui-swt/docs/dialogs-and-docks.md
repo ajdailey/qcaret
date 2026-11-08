@@ -27,6 +27,8 @@ and `Clipboard.getContents` on GTK, which `MainWindow.clipboardText` uses.
 | `ReplaceOpenDialog` | Asks before Save As replaces a file another tab holds with unsaved changes |
 | `ClearHistoryDialog` | Asks before Clear History |
 | `DocumentChooser` | Asks for the document Compare Documents compares with |
+| `DateFormatChooser` | Edit > Insert Date and Time: a modal list of formats with the current time; Insert, Enter or a double click inserts the selected one |
+| `StatisticsDialog` | Edit > Document Statistics: modeless; the document and selection counts, the percent read or a message, Refresh and Close; Esc closes it and closing cancels the count |
 | `BookmarkCommentDialog` | A modal one-line field limited to the comment length, starting with the current comment selected; OK answers its text, and Cancel, Esc and closing answer null |
 
 ## Shortcuts and Preferences

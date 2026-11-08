@@ -83,7 +83,9 @@ final class PreferencesController implements PreferencesInput {
         o.fontSize() == 0 ? "" : Integer.toString(o.fontSize()),
         p.shortcuts(),
         p.appearance().themeFile(),
-        p.appearance().fontFamily());
+        p.appearance().fontFamily(),
+        Integer.toString(o.rightMargin()),
+        o.dateFormat());
   }
 
   @Override
@@ -118,6 +120,13 @@ final class PreferencesController implements PreferencesInput {
             1,
             Document.MAX_TAB_WIDTH,
             UiText.PREFERENCES_TAB_WIDTH,
+            PreferencesForm.Group.EDITOR);
+    Checked margin =
+        number(
+            form.rightMargin(),
+            1,
+            Options.MAX_RIGHT_MARGIN,
+            UiText.PREFERENCES_RIGHT_MARGIN,
             PreferencesForm.Group.EDITOR);
     Checked poll =
         number(
@@ -164,12 +173,27 @@ final class PreferencesController implements PreferencesInput {
                 UiText.PREFERENCES_FONT_SIZE,
                 PreferencesForm.Group.APPEARANCE);
     Checked[] fields = {
-      completion, highlight, tabWidth, poll, recoverySeconds, recoveryDays, days, lineChars, font
+      completion,
+      highlight,
+      tabWidth,
+      margin,
+      poll,
+      recoverySeconds,
+      recoveryDays,
+      days,
+      lineChars,
+      font
     };
     for (Checked checked : fields) {
       if (checked.problem() != null) {
         return checked.problem();
       }
+    }
+    String dateFormat = form.dateFormat().strip();
+    if (!Options.validDateFormat(dateFormat)) {
+      return new PreferencesForm.Problem(
+          PreferencesForm.Group.EDITOR,
+          UiText.PREFERENCES_BAD_DATE_FORMAT.format(label(UiText.PREFERENCES_DATE_FORMAT)));
     }
     String excluded = form.excludedDirectories().strip();
     if (!Options.validDirectories(excluded)) {
@@ -199,7 +223,9 @@ final class PreferencesController implements PreferencesInput {
                     recoveryDays.value(),
                     form.sessionSnapshot(),
                     tabWidth.value(),
-                    form.insertSpaces()));
+                    form.insertSpaces(),
+                    margin.value(),
+                    dateFormat));
     boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,

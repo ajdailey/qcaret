@@ -132,6 +132,11 @@ sizes the margin.
   Show Line Endings the break's kind (`CRLF`, `LF`, `CR`) after each line's
   last row, in the palette's whitespace color, which a theme switch recolors.
   Positions come from `getLocationAtOffset` at each run's ends.
+- `MarginPainter` draws the right margin line (`setRightMargin`), 1 px in the
+  palette's `rightMargin` color, at `leftMargin - horizontalPixel +
+  ColumnMetrics.x(column)`: the column's x on an ASCII row, after a scroll,
+  zoom or font change, and under word wrap. It draws one line per paint, over
+  the text and under the carets, and nothing left of the text area.
 - `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
   whole-text operation computes and applies.
 - Each paint that shows another display range reports it through

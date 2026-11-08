@@ -22,6 +22,9 @@ import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
+import io.github.ajdailey.qcaret.app.view.StatisticsInput;
+import io.github.ajdailey.qcaret.app.view.StatisticsReport;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
@@ -496,6 +499,49 @@ final class FakeView implements MainView {
   Consumer<ChangeChoice> changeAnswer;
   List<String> documentChoices;
   Consumer<Integer> documentChooser;
+
+  /** The right margin column set, 0 while hidden. */
+  int rightMargin = -1;
+
+  /** The open statistics dialog's state. */
+  static final class Statistics implements StatisticsDisplay {
+    final StatisticsInput input;
+    final List<Integer> progress = new ArrayList<Integer>();
+    StatisticsReport report;
+    String message;
+    int fronted;
+
+    Statistics(StatisticsInput input) {
+      this.input = input;
+    }
+
+    @Override
+    public void showProgress(int percent) {
+      progress.add(percent);
+    }
+
+    @Override
+    public void showReport(StatisticsReport value) {
+      report = value;
+      message = null;
+    }
+
+    @Override
+    public void showMessage(String value) {
+      message = value;
+      report = null;
+    }
+
+    @Override
+    public void toFront() {
+      fronted++;
+    }
+  }
+
+  Statistics statistics;
+  List<String> dateRows;
+  int dateSelected = -1;
+  Consumer<Integer> dateChooser;
   final List<Comparison> comparisons = new ArrayList<Comparison>();
 
   FakeView(ManualUiDispatcher ui) {
@@ -911,6 +957,27 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     changePrompts.add((saving ? "save " : "") + name);
     changeAnswer = answer;
+  }
+
+  @Override
+  public void setRightMargin(int column) {
+    ui.checkUiThread();
+    rightMargin = column;
+  }
+
+  @Override
+  public StatisticsDisplay showStatistics(StatisticsInput input) {
+    ui.checkUiThread();
+    statistics = new Statistics(input);
+    return statistics;
+  }
+
+  @Override
+  public void chooseDateFormat(List<String> rows, int selected, Consumer<Integer> chosen) {
+    ui.checkUiThread();
+    dateRows = rows;
+    dateSelected = selected;
+    dateChooser = chosen;
   }
 
   @Override

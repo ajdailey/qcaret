@@ -70,6 +70,7 @@ public final class CommandStates {
           CommandId.RESTORE_REPLACE_RUN,
           CommandId.OVERVIEW_STRIP,
           CommandId.LINE_NUMBERS,
+          CommandId.RIGHT_MARGIN,
           CommandId.TOOLBAR,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
@@ -111,7 +112,8 @@ public final class CommandStates {
           CommandId.SORT_LINES_IGNORE_CASE,
           CommandId.REMOVE_DUPLICATE_LINES,
           CommandId.TRIM_TRAILING_WHITESPACE,
-          CommandId.COMPLETE_WORD);
+          CommandId.COMPLETE_WORD,
+          CommandId.INSERT_DATE_TIME);
 
   /**
    * Commands whose state follows the text and the selection. A view reads them on every status
@@ -196,6 +198,7 @@ public final class CommandStates {
       case SEARCH_RESULTS -> application.search().resultsShown();
       case OVERVIEW_STRIP -> application.documents().overviewShown();
       case LINE_NUMBERS -> application.documents().lineNumbersShown();
+      case RIGHT_MARGIN -> application.rightMarginShown();
       case TOOLBAR -> application.toolbarShown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();

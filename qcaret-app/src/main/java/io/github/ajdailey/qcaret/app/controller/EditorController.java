@@ -895,6 +895,27 @@ public final class EditorController implements EditorInput {
     }
   }
 
+  /**
+   * Inserts text at every caret, replacing each selection, as one undo step; a block takes it on
+   * every row, as a typed text.
+   *
+   * @param text text without line breaks
+   */
+  void insertText(String text) {
+    if (text.isEmpty() || document.isReadOnly()) {
+      return;
+    }
+    document.clearPreedit();
+    BlockSelection block = selections.block();
+    if (block != null) {
+      applyBlock(
+          BlockEdits.type(
+              document.text(), block, document.tabWidth(), text, EditBatch.Kind.COMMAND));
+    } else {
+      replaceSelections(text, EditBatch.Kind.COMMAND);
+    }
+  }
+
   @Override
   public void undo() {
     if (!document.isReadOnly() && document.undo(selections)) {

@@ -703,7 +703,9 @@ class WindowSessionTest {
                     o.recoveryKeepDays(),
                     true,
                     o.tabWidth(),
-                    o.insertSpaces())));
+                    o.insertSpaces(),
+                    Options.DEFAULTS.rightMargin(),
+                    Options.DEFAULTS.dateFormat())));
     edit(first, "left");
     ApplicationController second = before.second();
     second.documents().newDocument();

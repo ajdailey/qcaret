@@ -628,7 +628,9 @@ class RecoveryControllerTest {
         o.recoveryKeepDays(),
         snapshot,
         o.tabWidth(),
-        o.insertSpaces());
+        o.insertSpaces(),
+        Options.DEFAULTS.rightMargin(),
+        Options.DEFAULTS.dateFormat());
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

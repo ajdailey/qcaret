@@ -143,6 +143,8 @@ apply (measured on Linux, one million lines):
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+- View > Right Margin draws a line after column 80 in every editor, also with
+  word wrap on; Preferences, Editor sets another column. The choice is saved.
 - A right click in the text opens Cut, Copy, Paste, Select All, Toggle Bookmark,
   Edit Bookmark Comment and Toggle Fold for that view. A click in a selection
   keeps it; a click elsewhere moves the caret there first.
@@ -196,6 +198,17 @@ highlighted.
 
 Completion opens on its key, or by itself after the number of word chars set in
 Preferences. Up, Down, Enter, Tab and `Esc` work in the list; typing narrows it.
+
+Edit > Insert Date and Time lists formats with the current time in each:
+the one set in Preferences, Editor (a Java `DateTimeFormatter` pattern such as
+`yyyy-MM-dd HH:mm`) first, the format used last selected. The chosen one
+replaces every selection, as one undo step.
+
+Edit > Document Statistics shows the selected document's lines, words,
+characters, characters without spaces and bytes in its encoding, and the same
+for the selections. A word is a run of characters that are not spaces, tabs or
+line breaks; a character is a Unicode code point, so an emoji counts once. A
+large document shows the percent counted; Refresh counts again after an edit.
 
 ## Multiple carets and block selection
 
@@ -457,7 +470,7 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, theme file, editor font |
@@ -512,6 +525,7 @@ keeps the built-in value; a key QCaret does not know is ignored.
 | `overviewFind`, `overviewSearch` | Overview strip marks of a find match and a HyperSearch match |
 | `bookmarkComment` | The gutter mark of a bookmark with a comment |
 | `diffRemoved`, `diffAdded`, `diffChanged` | Comparison window line backgrounds |
+| `rightMargin` | The right margin line |
 | `token.<role>` | Syntax colors; the role is `comment`, `string`, `escape`, `keyword`, `keyword2`, `type`, `number`, `constant`, `operator`, `delimiter`, `function`, `preprocessor`, `tag`, `attribute`, `heading`, `emphasis`, `link` or `invalid` |
 
 A theme file sets colors only: bold, italic and underline stay as built in.

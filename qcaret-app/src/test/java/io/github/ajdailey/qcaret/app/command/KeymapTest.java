@@ -85,14 +85,16 @@ class KeymapTest {
     assertEquals("", Keymap.defaults(false).reference("no such command"));
   }
 
-  /** Line transforms stay menu only, as the reference keymap proposes. */
+  /** Line transforms, Insert Date and Time and Document Statistics stay menu only. */
   private static final Set<CommandId> MENU_ONLY =
       EnumSet.of(
           CommandId.SORT_LINES_ASCENDING,
           CommandId.SORT_LINES_DESCENDING,
           CommandId.SORT_LINES_IGNORE_CASE,
           CommandId.REMOVE_DUPLICATE_LINES,
-          CommandId.TRIM_TRAILING_WHITESPACE);
+          CommandId.TRIM_TRAILING_WHITESPACE,
+          CommandId.INSERT_DATE_TIME,
+          CommandId.DOCUMENT_STATISTICS);
 
   @Test
   void everyEditingCommandHasAKey() {
