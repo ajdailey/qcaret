@@ -2,6 +2,9 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -189,6 +192,31 @@ final class ToolIcons {
 
   private static final boolean GTK = "gtk".equals(SWT.getPlatform());
 
+  /** SWT's {@code ToolItem.imageHandle}, the item's GtkPicture; null off GTK 4. */
+  private static final Field PICTURE;
+
+  /** SWT's internal {@code GTK4.gtk_picture_set_can_shrink}; null off GTK 4. */
+  private static final Method CAN_SHRINK;
+
+  static {
+    Field picture = null;
+    Method canShrink = null;
+    if (GTK && "1".equals(System.getenv("SWT_GTK4"))) {
+      try {
+        picture = ToolItem.class.getDeclaredField("imageHandle");
+        picture.setAccessible(true);
+        canShrink =
+            Class.forName("org.eclipse.swt.internal.gtk4.GTK4")
+                .getMethod("gtk_picture_set_can_shrink", long.class, boolean.class);
+      } catch (ReflectiveOperationException | SecurityException | InaccessibleObjectException e) {
+        picture = null;
+        canShrink = null;
+      }
+    }
+    PICTURE = picture;
+    CAN_SHRINK = canShrink;
+  }
+
   private final Display display;
   private final Control owner;
   private final Map<String, Image> images = new HashMap<String, Image>();
@@ -256,6 +284,7 @@ final class ToolIcons {
     if (image == null) {
       return false;
     }
+    keepIconSize(item);
     item.setImage(image);
     items.put(item, name);
     return true;
@@ -431,6 +460,25 @@ final class ToolIcons {
     Image image = get(GTK && darkBackground && !button.getEnabled() ? name + FADED : name);
     if (button.getImage() != image) {
       button.setImage(image);
+    }
+  }
+
+  /**
+   * Gives a GTK 4 item's picture the icon's size as its minimum. GTK 4 SWT wraps the GtkPicture in
+   * a box that measures 0 high for any width under GTK 4.14, so the tool bar lays the item out at
+   * its padding and draws no icon. Without the SWT internals this names, the item stays blank.
+   */
+  private static void keepIconSize(ToolItem item) {
+    if (CAN_SHRINK == null) {
+      return;
+    }
+    try {
+      long picture = PICTURE.getLong(item);
+      if (picture != 0) {
+        CAN_SHRINK.invoke(null, picture, false);
+      }
+    } catch (ReflectiveOperationException | IllegalArgumentException e) {
+      // The item keeps SWT's layout.
     }
   }
 

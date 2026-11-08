@@ -115,6 +115,14 @@ editor menu, through a `ToolIcons` of the window's own. `ToolIcons.button`
 makes the workspace browser's icon push buttons, inked from the button row's
 background like the toolbar.
 
+On GTK 4, `ToolIcons.apply` turns off shrinking on a tool item's GtkPicture
+through SWT internals (`ToolItem.imageHandle`, `GTK4.gtk_picture_set_can_shrink`).
+SWT 3.135.0 wraps that picture in a box that measures 0 high for any width under
+GTK 4.14, so the tool bar lays an image-only item out at its padding, 12 px, and
+shows no icon. If an SWT upgrade renames either internal, the items fall back to
+that layout and `ToolbarAndMenusTest.everyButtonIsWideEnoughForItsIcon` fails in
+the GTK 4 lane.
+
 | Platform | Item image | Ink | Items without an icon |
 |---|---|---|---|
 | GTK 3 | `MenuItem.setImage` | Same reading as the toolbar, live switch included | Hold `ToolIcons.blank` in a menu with an icon, because GTK 3 SWT reserves no image column and the label would move 22 px |

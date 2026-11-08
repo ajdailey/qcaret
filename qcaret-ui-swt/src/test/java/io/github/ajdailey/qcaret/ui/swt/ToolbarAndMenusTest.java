@@ -296,6 +296,25 @@ class ToolbarAndMenusTest {
     assertEquals(shownTop, window.tabs().toDisplay(0, 0).y);
   }
 
+  /**
+   * GTK 4 SWT 3.135.0 laid out an image-only item at its padding alone, 12 px wide, and drew no
+   * icon: its picture measures 0 high for any width under GTK 4.14.
+   */
+  @Test
+  void everyButtonIsWideEnoughForItsIcon() {
+    for (CommandId command : MainToolBar.COMMANDS) {
+      if (command != null) {
+        ToolItem item = button(command);
+        Image image = item.getImage();
+        assertNotNull(image, command.name());
+        assertTrue(
+            item.getBounds().width > image.getBounds().width
+                && item.getBounds().height > image.getBounds().height,
+            command.name() + " " + item.getBounds());
+      }
+    }
+  }
+
   @Test
   void theButtonsTakeTheOtherInkOnADarkBackground() {
     // Hidden, the ink comes from getBackground on every platform: GTK 4 draws no set color.
