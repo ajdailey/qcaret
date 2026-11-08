@@ -14,7 +14,6 @@ import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.TabInput;
-import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
@@ -26,9 +25,7 @@ import io.github.ajdailey.qcaret.core.document.Anchor;
 import io.github.ajdailey.qcaret.core.document.Bias;
 import io.github.ajdailey.qcaret.core.document.BinaryFileException;
 import io.github.ajdailey.qcaret.core.document.Document;
-import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
-import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
@@ -194,141 +191,13 @@ public final class DocumentController {
   private boolean defaultInsertSpaces;
   private long opens;
   private final DocumentSettings declared;
-
-  /** One open document and its tab. */
-  private final class OpenDocument implements DocumentListener, DocumentSettings.Tab {
-    final Document document;
-    final String bufferId;
-    String untitled;
-    TabInput input;
-
-    /** The file link; a tab move shares it with the entry that takes over. */
-    final OpenFile file;
-
-    long reserved;
-    EditorController editor;
-    final List<EditorController> editors;
-    boolean sideBySide;
-    TabView tab;
-    Bookmarks bookmarks;
-    CancellationToken converting;
-    boolean binary;
-    boolean closed;
-    SyntaxHighlighter syntax;
-    String grammar = GrammarSet.PLAIN;
-    boolean manualGrammar;
-    int detecting;
-
-    /** The running reopen of this document, or null. */
-    Open reopen;
-
-    /** The number of the newest open whose callback reached this tab. */
-    long landed;
-
-    final DocumentSettings.State settings = new DocumentSettings.State();
-
-    OpenDocument(Document document, Path path, FileStamp baseline, long reserved) {
-      this.document = document;
-      this.file = new OpenFile(path, baseline);
-      this.reserved = reserved;
-      this.editors = new ArrayList<EditorController>(2);
-      this.untitled = path == null ? UiText.TAB_UNTITLED.format(untitledNumber()) : null;
-      this.bufferId = "b" + bufferNumber();
-    }
-
-    /**
-     * Takes over a tab from another window. The list of editors is shared: the highlighter's
-     * repaint reaches them through it.
-     */
-    OpenDocument(OpenDocument from) {
-      this.document = from.document;
-      this.bufferId = from.bufferId;
-      this.file = from.file;
-      this.reserved = from.reserved;
-      this.editors = from.editors;
-      this.untitled = from.untitled;
-      this.editor = from.editor;
-      this.sideBySide = from.sideBySide;
-      this.bookmarks = from.bookmarks;
-      this.binary = from.binary;
-      this.syntax = from.syntax;
-      this.grammar = from.grammar;
-      this.manualGrammar = from.manualGrammar;
-      this.settings.settings = from.settings.settings;
-    }
-
-    String name() {
-      Path name = file.path == null ? null : file.path.getFileName();
-      return name == null ? untitled : name.toString();
-    }
-
-    void updateTitle() {
-      if (!closed) {
-        String name = name();
-        String title = (document.isDirty() ? "*" : "") + name;
-        if (binary) {
-          title = UiText.TAB_BINARY.format(title);
-        } else if (document.isReadOnly()) {
-          title = UiText.TAB_READ_ONLY.format(title);
+  private final Supplier<OpenDocument> selected =
+      new Supplier<OpenDocument>() {
+        @Override
+        public OpenDocument get() {
+          return active;
         }
-        if (file.missing) {
-          title = UiText.TAB_MISSING.format(title);
-        }
-        tab.setTitle(
-            title,
-            DocumentSettings.toolTip(file.path == null ? name : file.path.toString(), settings));
-      }
-    }
-
-    @Override
-    public Document document() {
-      return document;
-    }
-
-    @Override
-    public OpenFile file() {
-      return file;
-    }
-
-    @Override
-    public boolean closed() {
-      return closed;
-    }
-
-    @Override
-    public SelectionModel selections() {
-      return editor.selections();
-    }
-
-    @Override
-    public DocumentSettings.State declared() {
-      return settings;
-    }
-
-    @Override
-    public void setTabSettings(int tabWidth, boolean insertSpaces) {
-      DocumentController.this.setTabSettings(this, tabWidth, insertSpaces);
-    }
-
-    @Override
-    public void settingsChanged() {
-      updateTitle();
-      view.documentStateChanged();
-    }
-
-    @Override
-    public void textChanged(DocumentChange change) {
-      if (this == active) {
-        view.editStateChanged();
-      }
-    }
-
-    @Override
-    public void dirtyChanged(boolean dirty) {
-      updateTitle();
-      view.documentStateChanged();
-    }
-  }
+      };
 
   /**
    * One open on its way through the opener, created per {@link DocumentOpener#open} and holding
@@ -337,7 +206,7 @@ public final class DocumentController {
    * window does not close during a restore. A retry without the remembered encoding reuses the
    * object, so its callback, restore and given path survive.
    */
-  private final class Open implements DocumentOpener.Listener {
+  final class Open implements DocumentOpener.Listener {
     private final long number = ++opens;
 
     /** Receives the tab's focused editor once the document shows, or null. */
@@ -996,7 +865,15 @@ public final class DocumentController {
       boolean binary) {
     document.setTabWidth(defaultTabWidth);
     document.setInsertSpaces(defaultInsertSpaces);
-    final OpenDocument d = new OpenDocument(document, path, baseline, reserved);
+    final OpenDocument d =
+        new OpenDocument(
+            document,
+            new OpenFile(path, baseline),
+            reserved,
+            path == null ? UiText.TAB_UNTITLED.format(untitledNumber()) : null,
+            "b" + bufferNumber(),
+            view,
+            selected);
     d.binary = binary;
     d.syntax = highlighter(d);
     d.syntax.setRegionsListener(
@@ -3214,10 +3091,18 @@ public final class DocumentController {
               changes,
               closedPaths,
               view,
-              new Supplier<List<DocumentsUnder.Tab>>() {
+              documents,
+              new DocumentsUnder.Moved() {
                 @Override
-                public List<DocumentsUnder.Tab> get() {
-                  return tabs();
+                public void moved(OpenDocument d, boolean renamed) {
+                  if (renamed) {
+                    detect(d);
+                  }
+                  declared.readForMove(d);
+                  if (bufferMoved != null) {
+                    bufferMoved.accept(d.bufferId);
+                  }
+                  d.updateTitle();
                 }
               },
               new Runnable() {
@@ -3233,42 +3118,6 @@ public final class DocumentController {
   /** Sets what receives a buffer's id when a rename moved its file. */
   void setBufferMoved(Consumer<String> listener) {
     bufferMoved = listener;
-  }
-
-  private List<DocumentsUnder.Tab> tabs() {
-    List<DocumentsUnder.Tab> tabs = new ArrayList<DocumentsUnder.Tab>(documents.size());
-    for (final OpenDocument d : documents) {
-      tabs.add(
-          new DocumentsUnder.Tab() {
-            @Override
-            public OpenFile file() {
-              return d.file;
-            }
-
-            @Override
-            public boolean dirty() {
-              return d.document.isDirty();
-            }
-
-            @Override
-            public String name() {
-              return d.name();
-            }
-
-            @Override
-            public void moved(boolean renamed) {
-              if (renamed) {
-                detect(d);
-              }
-              declared.readForMove(d);
-              if (bufferMoved != null) {
-                bufferMoved.accept(d.bufferId);
-              }
-              d.updateTitle();
-            }
-          });
-    }
-    return tabs;
   }
 
   /** Selects a document's tab in the window holding it, raises that window, returns the editor. */
@@ -3366,7 +3215,7 @@ public final class DocumentController {
   }
 
   private void adopt(OpenDocument from, FileBaseline baseline, final int[] rows, int index) {
-    final OpenDocument d = new OpenDocument(from);
+    final OpenDocument d = new OpenDocument(from, view, selected);
     d.input = tabInput(d);
     EditorController focused = from.editor;
     for (EditorController e : d.editors) {
@@ -3530,16 +3379,6 @@ public final class DocumentController {
     opener.open(path, tab.binary() ? options.asBinary() : options, open);
   }
 
-  private void setTabSettings(OpenDocument d, int tabWidth, boolean insertSpaces) {
-    if (d.document.tabWidth() != tabWidth) {
-      d.document.setTabWidth(tabWidth);
-      for (EditorController e : d.editors) {
-        e.tabWidthChanged();
-      }
-    }
-    d.document.setInsertSpaces(insertSpaces);
-  }
-
   /**
    * Reads the settings files declare from these sources from now on; the first call turns the
    * reading on. Open documents keep theirs.
@@ -3575,7 +3414,7 @@ public final class DocumentController {
     if (state == null) {
       return;
     }
-    setTabSettings(d, state.tabWidth(), state.insertSpaces());
+    d.setTabSettings(state.tabWidth(), state.insertSpaces());
     restoreGrammar(d, state.language());
     SelectionSet set = SessionText.selections(state.selections(), d.document.text().length());
     d.editor.restoreView(set, state.top(), new int[0]);
@@ -3583,7 +3422,7 @@ public final class DocumentController {
   }
 
   private void applyTab(OpenDocument d, Session.Tab tab) {
-    setTabSettings(d, tab.tabWidth(), tab.insertSpaces());
+    d.setTabSettings(tab.tabWidth(), tab.insertSpaces());
     restoreGrammar(d, tab.language());
     int lines = d.document.text().lineCount();
     for (int line : SessionText.numbers(tab.bookmarks())) {

@@ -7,7 +7,6 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
-import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
@@ -18,41 +17,12 @@ import java.util.function.Consumer;
 /**
  * One window's per-file settings: what each document's file declares, applied over the defaults and
  * the remembered state, and the {@link SaveCleanup} a save runs with them. {@link
- * DocumentController} owns the documents and the saves, supplies each document as a {@link Tab} and
- * continues a write once {@link #prepareSave} hands it back. Confined to the UI thread.
+ * DocumentController} owns the documents and the saves, and continues a write once {@link
+ * #prepareSave} hands it back. Confined to the UI thread.
  */
 final class DocumentSettings {
   /** Cleanups dropped because the document changed meanwhile before a write goes on without one. */
   static final int CLEANUP_ATTEMPTS = 3;
-
-  /** One open document as this class sees it. */
-  interface Tab {
-    /** Returns the document. */
-    Document document();
-
-    /** Returns the document's file link. */
-    OpenFile file();
-
-    /** Reports whether the tab is closed. */
-    boolean closed();
-
-    /** Returns the selections a cleanup's edit maps. */
-    SelectionModel selections();
-
-    /** Returns the document's declared settings and save state. */
-    State declared();
-
-    /**
-     * Sets the document's tab width and indentation, telling its editors of a new width.
-     *
-     * @param tabWidth columns per tab stop
-     * @param insertSpaces true to indent with spaces
-     */
-    void setTabSettings(int tabWidth, boolean insertSpaces);
-
-    /** Shows the new settings: the tab's title and tool tip and the document state. */
-    void settingsChanged();
-  }
 
   /** A document's declared settings and the progress of its save's cleanup. */
   static final class State {
@@ -121,9 +91,9 @@ final class DocumentSettings {
    * @param d the document
    * @param s the settings
    */
-  void apply(Tab d, FileSettings s) {
-    d.declared().settings = s;
-    Document document = d.document();
+  void apply(OpenDocument d, FileSettings s) {
+    d.settings.settings = s;
+    Document document = d.document;
     if (s.tabWidth() > 0 || s.insertSpaces() != null) {
       d.setTabSettings(
           s.tabWidth() > 0 ? s.tabWidth() : document.tabWidth(),
@@ -142,7 +112,7 @@ final class DocumentSettings {
    * @param d the document
    * @param path the file
    */
-  void readForNewFile(final Tab d, Path path) {
+  void readForNewFile(final OpenDocument d, Path path) {
     if (reader == null) {
       return;
     }
@@ -151,7 +121,7 @@ final class DocumentSettings {
         ui,
         reader,
         path,
-        d.document().text(),
+        d.document.text(),
         new Consumer<FileSettings>() {
           @Override
           public void accept(FileSettings found) {
@@ -160,11 +130,11 @@ final class DocumentSettings {
         });
   }
 
-  private void newFile(Tab d, FileSettings found) {
-    if (d.closed() || !found.any()) {
+  private void newFile(OpenDocument d, FileSettings found) {
+    if (d.closed || !found.any()) {
       return;
     }
-    Document document = d.document();
+    Document document = d.document;
     TextEncoding encoding = found.encoding();
     if (encoding != null
         && document.text().length() == 0
@@ -182,8 +152,8 @@ final class DocumentSettings {
    *
    * @param d the document
    */
-  void readForMove(final Tab d) {
-    final Path path = d.file().path;
+  void readForMove(final OpenDocument d) {
+    final Path path = d.file.path;
     if (reader == null || path == null) {
       return;
     }
@@ -192,11 +162,11 @@ final class DocumentSettings {
         ui,
         reader,
         path,
-        d.document().text(),
+        d.document.text(),
         new Consumer<FileSettings>() {
           @Override
           public void accept(FileSettings found) {
-            if (!d.closed() && path.equals(d.file().path)) {
+            if (!d.closed && path.equals(d.file.path)) {
               apply(d, found);
             }
           }
@@ -214,9 +184,9 @@ final class DocumentSettings {
    * @param stop ends the save unwritten
    * @return true when the write continues from the worker's result
    */
-  boolean prepareSave(final Tab d, final Runnable write, final Runnable stop) {
-    final State state = d.declared();
-    final Document document = d.document();
+  boolean prepareSave(final OpenDocument d, final Runnable write, final Runnable stop) {
+    final State state = d.settings;
+    final Document document = d.document;
     FileSettings saving = state.pending != null ? state.pending : state.settings;
     boolean editable = !document.isReadOnly() && state.attempts < CLEANUP_ATTEMPTS;
     if (state.prepared || !editable || !SaveCleanup.wanted(saving)) {
@@ -231,7 +201,7 @@ final class DocumentSettings {
             ? saving.lineEnding()
             : document.lineEnding();
     final CancellationToken token = new CancellationToken();
-    d.file().saving = token;
+    d.file.saving = token;
     boolean started =
         SaveCleanup.start(
             workers,
@@ -252,7 +222,7 @@ final class DocumentSettings {
               }
             });
     if (!started) {
-      d.file().saving = null;
+      d.file.saving = null;
       state.pending = null;
       stop.run();
     }
@@ -264,10 +234,10 @@ final class DocumentSettings {
    * before an edit leaves the write unready, so it is computed again.
    */
   private static boolean prepared(
-      Tab d, CancellationToken token, long revision, EditBatch cleanup) {
-    State state = d.declared();
-    OpenFile file = d.file();
-    if (file.saving != token || d.closed()) {
+      OpenDocument d, CancellationToken token, long revision, EditBatch cleanup) {
+    State state = d.settings;
+    OpenFile file = d.file;
+    if (file.saving != token || d.closed) {
       if (file.saving == token) {
         file.saving = null;
       }
@@ -276,14 +246,14 @@ final class DocumentSettings {
       return false;
     }
     file.saving = null;
-    Document document = d.document();
+    Document document = d.document;
     if (cleanup != null && document.revision() != revision) {
       state.attempts++;
       return true;
     }
     if (cleanup != null && !document.isReadOnly()) {
       document.clearPreedit();
-      document.apply(cleanup, d.selections(), null);
+      document.apply(cleanup, d.editor.selections(), null);
     }
     state.prepared = true;
     return true;

@@ -24,6 +24,7 @@ of a file without write permission skip where the user writes every file.
 | `WindowSetTest` | What the windows share, handoff targets, the one-buffer rule, close and quit |
 | `WindowSessionTest` | Launches handed during a restore (tabs, `-n`, `--diff`, a quit) and while the recovery dialog shows; a two-window restore, the capture before a quit's first close, Cancel and a process end at a quit prompt, a moved buffer's recovery file, a snapshot over two windows, the display state, Clear History in every window and in the session file |
 | `TabMoveTest` | The round-trip guard and a missing file moving with the tab; a canceled save's writer ending after the move with the target's state and its running save untouched; the state a move carries; refusals; close and quit around a move; a line transform or replace run delivered after the move. The budget returning to its start shows each document released once |
+| `DocumentLifecycleTest` | An `OpenDocument` entry across windows: declared settings, untitled name, buffer id and chosen grammar carried by a move; a reopen in the target window; a rename from another window's browser holding Save with the target's notice, then moving the document and reading its new settings; a close during the save cleanup writing nothing |
 | `QuitPromptsTest` | Answers before saves, Cancel, each way a save ends the quit, an edit during a save or after Don't Save, an untitled document saved at a prompt, Compare at a save conflict followed by Overwrite or Cancel |
 
 ### Sessions, recovery and settings
