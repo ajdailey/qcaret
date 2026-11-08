@@ -171,6 +171,9 @@ apply (measured on Linux, one million lines):
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+
+![The editor with the right margin, indent guides and modified-line marks](images/guide/guides.png)
+
 - View > Right Margin draws a line after column 80 in every editor, also with
   word wrap on; Preferences, Editor sets another column. The choice is saved.
 - View > Indent Guides draws a faint line at each indent level of a line's
@@ -433,6 +436,8 @@ A save that finds the file changed asks: Overwrite, Reload, Compare or Cancel.
 Preferences, Files sets the interval and can make a clean document ask too.
 
 ## Workspace
+
+![The workspace browser with a filter, the Size and Modified columns and a row's menu](images/guide/browser.png)
 
 File > Set Workspace Folder gives each window one folder, the scope of
 HyperSearch's Workspace folder and of Quick Open's file list. View > Workspace

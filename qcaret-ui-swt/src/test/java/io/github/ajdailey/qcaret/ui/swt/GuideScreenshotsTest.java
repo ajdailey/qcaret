@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -38,12 +39,17 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeItem;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -51,9 +57,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Writes the user guide's images to {@code -Dqcaret.guide.shots=<dir>} ({@code
- * tools/screenshots.sh}), each painted through {@code Shell.print} from generated mock files. The
- * files are written to {@code -Dqcaret.screenshots.files=<dir>} when given, so the status bar and
- * the dialogs show that path.
+ * tools/screenshots.sh}) from generated mock files, each painted through {@code Shell.print} except
+ * the browser's, which is copied from the screen so its pop-up menu shows. The files are written to
+ * {@code -Dqcaret.screenshots.files=<dir>} when given, so the status bar and the dialogs show that
+ * path.
  */
 @Tag("swt")
 @EnabledIfSystemProperty(named = "qcaret.guide.shots", matches = ".+")
@@ -185,6 +192,7 @@ class GuideScreenshotsTest {
           }
         });
     controller.execute(CommandId.WORKSPACE_BROWSER);
+    window.setSideWeights(new int[] {1, 2});
     controller
         .search()
         .run(
@@ -275,6 +283,25 @@ class GuideScreenshotsTest {
     settle();
     saveDialog("compare.png");
 
+    String edited = editor.document().text().toString();
+    int limit = edited.indexOf("0x40");
+    editor.selections().set(SelectionSet.of(List.of(Selection.of(limit, limit + 4)), 0));
+    editor.type("0x80");
+    editor.goTo(13, 5);
+    controller.execute(CommandId.RIGHT_MARGIN);
+    controller.execute(CommandId.INDENT_GUIDES);
+    controller.execute(CommandId.LINE_CHANGES);
+    final EditorController marked = editor;
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.activeEditor().lineChanges().revision() == marked.document().revision();
+          }
+        });
+    settle();
+    save(window.shell(), "guides.png");
+
     controller.execute(CommandId.PREFERENCES);
     Shell preferences = dialog("preferences.png");
     TabFolder tabs = find(preferences, TabFolder.class);
@@ -282,6 +309,119 @@ class GuideScreenshotsTest {
     tabs.setSelection(1);
     settle();
     saveDialog("preferences.png");
+
+    shootBrowser(project);
+  }
+
+  /** Saves the browser with a filter, both columns and the row menu open on a file. */
+  private void shootBrowser(Path project) throws IOException {
+    controller.execute(CommandId.WORKSPACE_BROWSER);
+    window.setSideWeights(new int[] {2, 3});
+    final WorkspaceDock dock = window.workspaceDock();
+    dock.bar().filter().setText("*.java;*.yaml");
+    dock.bar().filter().notifyListeners(SWT.DefaultSelection, new Event());
+    final WorkspaceNode src =
+        new WorkspaceNode(project.toRealPath().resolve("src"), "src", WorkspaceNode.Kind.DIRECTORY);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return dock.texts(null).contains("src/") && !dock.texts(null).contains("notes.txt");
+          }
+        });
+    dock.expand(src);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return dock.texts(src).contains("Shelf.java");
+          }
+        });
+    settle();
+    Tree tree = dock.tree();
+    TreeItem shelf = item(tree.getItems(), "Shelf.java");
+    assertNotNull(shelf);
+    tree.setSelection(shelf);
+    Event detect = new Event();
+    detect.detail = SWT.MENU_KEYBOARD;
+    tree.notifyListeners(SWT.MenuDetect, detect);
+    Menu menu = tree.getMenu();
+    assertNotNull(menu);
+    assertTrue(menu.getItem(menu.getItemCount() - 1).getEnabled());
+    Rectangle row = shelf.getBounds();
+    menu.setLocation(
+        tree.toDisplay(row.x + row.width + 8, row.y + tree.getHeaderHeight() + row.height / 2));
+    menu.setVisible(true);
+    settle();
+    capture("browser.png");
+    menu.setVisible(false);
+    settle();
+  }
+
+  /** Returns the row with a text at any depth. */
+  private static TreeItem item(TreeItem[] items, String text) {
+    for (TreeItem item : items) {
+      if (item.getText().equals(text)) {
+        return item;
+      }
+      TreeItem found = item(item.getItems(), text);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Copies the main window's area of the screen to a PNG, so an open pop-up menu shows, without the
+   * black rows and columns the shell's estimated trim adds past the window.
+   */
+  private void capture(String name) {
+    Rectangle bounds = window.shell().getBounds();
+    Image image = new Image(display, bounds.width, bounds.height);
+    GC gc = new GC(display);
+    try {
+      gc.copyArea(image, bounds.x, bounds.y);
+    } finally {
+      gc.dispose();
+    }
+    try {
+      ImageData data = image.getImageData();
+      int height = contentHeight(data);
+      int width = contentWidth(data);
+      Image cut = new Image(display, width, height);
+      GC cutGc = new GC(cut);
+      try {
+        cutGc.drawImage(image, 0, 0, width, height, 0, 0, width, height);
+        ImageLoader loader = new ImageLoader();
+        loader.data = new ImageData[] {cut.getImageData()};
+        loader.save(out.resolve(name).toString(), SWT.IMAGE_PNG);
+      } finally {
+        cutGc.dispose();
+        cut.dispose();
+      }
+    } finally {
+      image.dispose();
+    }
+  }
+
+  /** Returns the image's width without the columns at its right that match its last column. */
+  private static int contentWidth(ImageData data) {
+    int[] last = column(data, data.width - 1);
+    for (int x = data.width - 2; x > 0; x--) {
+      if (!Arrays.equals(last, column(data, x))) {
+        return x + 2;
+      }
+    }
+    return data.width;
+  }
+
+  private static int[] column(ImageData data, int x) {
+    int[] pixels = new int[data.height];
+    for (int y = 0; y < data.height; y++) {
+      pixels[y] = data.getPixel(x, y);
+    }
+    return pixels;
   }
 
   private void open(Path file, final int count) {

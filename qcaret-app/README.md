@@ -15,16 +15,16 @@ is that toolkit and `qcaret-launcher` composes the two.
 | Package | Contents | Detail |
 |---|---|---|
 | `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `Version` | [Views and commands](docs/views-and-commands.md) |
-| `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types, `StatusFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
+| `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
 | `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `CommandPalette` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
 | `app.controller` | `WindowSet`, `ApplicationController`, quit, tab moves | [Windows and tabs](docs/windows-and-tabs.md) |
-| `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`, `SaveAndReload`: open, load, save, reload, encodings, split views; printing | [Documents](docs/documents.md) |
+| `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`, `SaveAndReload`: open, load, save, reload, encodings, split views; `DocumentSettings`, `FileSettingsReader`, `SaveCleanup`: per-file settings; `DocumentsUnder`: open documents under a browser entry; printing | [Documents](docs/documents.md) |
 | `app.controller` | `ExternalChanges`, reload, change prompts, `CompareController` | [External changes](docs/external-changes.md) |
 | `app.controller`, `app.search` | Find bar, HyperSearch, result sets, replace across files | [Search](docs/search.md) |
-| `app.controller` | Workspace folder and browser, file index, Quick Open, navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |
-| `app.controller` | `EditorController`: edits, carets, folding, bookmarks, completion; overview strip; Bookmarks list | [Editor](docs/editor.md) |
-| `app.editor` | `DisplayProjection`, `FoldLayer`, `HighlightComposer`, `TokenCache`, `SmartIndent`, `ColumnMetrics`, `Bookmarks` | [Display projection](docs/display-projection.md) |
+| `app.controller` | Workspace folder and browser (`WorkspaceBrowse`, `BrowserRows`, `BrowserWindows`, `WorkspaceFiles`, `BrowserPath`, `PathMove`, `WorkspaceFollow`), file index, Quick Open, Go to Symbol (`DocumentSymbols`, `SymbolRows`), navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |
+| `app.controller` | `EditorController`: edits, carets, folding, bookmarks, completion; `SelectionCommands`, `SelectionHistory`, `DateTimeInsert`, `StatisticsController`, `EditorAids`, `LineChangesUpdater`, `RecoveredBaseline`; overview strip; Bookmarks list | [Editor](docs/editor.md) |
+| `app.editor` | `DisplayProjection`, `FoldLayer`, `HighlightComposer`, `TokenCache`, `SmartIndent`, `ColumnMetrics`, `Bookmarks`, `MergedFoldSource`, `LineChanges`, `TextStatistics` | [Display projection](docs/display-projection.md) |
 | `app.controller` | `GrammarLibrary`, grammar detection, Syntax menu, `SyntaxHighlighter` | [Highlighting](docs/highlighting.md) |
 | `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys | [Settings](docs/settings.md) |
 | `app.session`, `app.recovery` | Session file, per-file state, recovery files, quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
