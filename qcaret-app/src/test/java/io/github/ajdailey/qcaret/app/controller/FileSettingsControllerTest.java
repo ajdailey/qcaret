@@ -119,7 +119,9 @@ class FileSettingsControllerTest {
 
   @Test
   void editorConfigSetsIndentationAndTheToolTipNamesIt() throws Exception {
-    Path project = temp.resolve("p");
+    // The tool tip names real paths: macOS temp is under a /var link, Windows temp may be a short
+    // name.
+    Path project = temp.toRealPath().resolve("p");
     Path ec = config(project, "[*.c]\nindent_style = space\nindent_size = 2\n");
     Document d = open(Files.writeString(project.resolve("a.c"), "int x;\n"));
     assertEquals(2, d.tabWidth());
