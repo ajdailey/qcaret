@@ -4,17 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Resolves {@code ui.theme} to a {@link Palette} and pushes a change to the views. {@link
- * ThemeMode#SYSTEM} follows {@link ThemeService#systemDark} and its change events. Each mode
- * change, and each system change in {@link ThemeMode#SYSTEM}, also sets {@link
- * ThemeService#preferDark}, so native controls match the palette; the startup setting is the
- * launcher's. {@link #setColors} lays a theme file's colors over the palette of every mode.
- * Confined to the UI thread.
+ * Resolves {@code ui.theme} and {@code ui.editorColors} to a {@link Palette} and pushes a change to
+ * the views. {@link ThemeMode#SYSTEM} follows {@link ThemeService#systemDark} and its change
+ * events. Each mode change, and each system change in {@link ThemeMode#SYSTEM}, also sets {@link
+ * ThemeService#preferDark} from {@code ui.theme} alone, so native controls follow the theme while
+ * {@link EditorSchemes} picks the palette; the startup setting is the launcher's. {@link
+ * #setColors} lays a theme file's colors over the palette of every mode. Confined to the UI thread.
  */
 public final class ThemeController {
   private final List<PaletteListener> listeners = new ArrayList<PaletteListener>();
   private final ThemeService service;
   private ThemeMode mode;
+  private String editorColors;
   private boolean systemDark;
   private Palette palette;
   private ThemeColors colors = ThemeColors.NONE;
@@ -24,12 +25,14 @@ public final class ThemeController {
    *
    * @param service the system setting
    * @param mode the setting at startup
+   * @param editorColors the {@link EditorSchemes} name at startup
    */
-  public ThemeController(ThemeService service, ThemeMode mode) {
+  public ThemeController(ThemeService service, ThemeMode mode, String editorColors) {
     this.service = service;
     this.mode = mode;
+    this.editorColors = editorColors;
     this.systemDark = service.systemDark();
-    this.palette = resolve(mode, systemDark);
+    this.palette = EditorSchemes.palette(editorColors, mode, systemDark);
     service.addListener(
         new ThemeListener() {
           @Override
@@ -38,7 +41,7 @@ public final class ThemeController {
             if (ThemeController.this.mode == ThemeMode.SYSTEM) {
               ThemeController.this.service.preferDark(dark);
             }
-            apply(colors.over(resolve(ThemeController.this.mode, dark)));
+            apply(colors.over(builtIn()));
           }
         });
   }
@@ -86,10 +89,30 @@ public final class ThemeController {
    */
   public boolean setMode(ThemeMode next) {
     mode = next;
-    Palette resolved = colors.over(resolve(next, systemDark));
-    service.preferDark(resolved.dark());
-    apply(resolved);
-    return service.showsNow(resolved.dark());
+    boolean dark = resolve(next, systemDark).dark();
+    service.preferDark(dark);
+    apply(colors.over(builtIn()));
+    return service.showsNow(dark);
+  }
+
+  /**
+   * Returns the editor color scheme.
+   *
+   * @return the {@link EditorSchemes} name
+   */
+  public String editorColors() {
+    return editorColors;
+  }
+
+  /**
+   * Changes the editor color scheme and pushes the palette when it changes; native controls keep
+   * theirs.
+   *
+   * @param next the {@link EditorSchemes} name
+   */
+  public void setEditorColors(String next) {
+    editorColors = next;
+    apply(colors.over(builtIn()));
   }
 
   /**
@@ -99,7 +122,7 @@ public final class ThemeController {
    */
   public void setColors(ThemeColors next) {
     colors = next;
-    apply(next.over(resolve(mode, systemDark)));
+    apply(next.over(builtIn()));
   }
 
   /**
@@ -118,6 +141,10 @@ public final class ThemeController {
    */
   public void removeListener(PaletteListener listener) {
     listeners.remove(listener);
+  }
+
+  private Palette builtIn() {
+    return EditorSchemes.palette(editorColors, mode, systemDark);
   }
 
   private void apply(Palette next) {

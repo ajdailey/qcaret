@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.config;
 
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 final class PreferenceKeys {
   static final String THEME = "ui.theme";
   static final String THEME_FILE = "ui.themeFile";
+  static final String EDITOR_COLORS = "ui.editorColors";
   static final String FONT_FAMILY = "editor.fontFamily";
   static final String TOOLBAR = "ui.toolbar";
   static final String WINDOW_X = "window.x";
@@ -85,6 +87,7 @@ final class PreferenceKeys {
     keys.put(THEME, p.theme().key());
     keys.put(THEME_FILE, p.appearance().themeFile());
     keys.put(FONT_FAMILY, p.appearance().fontFamily());
+    keys.put(EDITOR_COLORS, p.appearance().editorColors());
     WindowState window = p.window();
     putOptional(keys, WINDOW_X, window.x());
     putOptional(keys, WINDOW_Y, window.y());
@@ -196,7 +199,12 @@ final class PreferenceKeys {
       invalid(FONT_FAMILY, file);
       family = "";
     }
-    return new Appearance(themeFile, family);
+    String scheme = p.getProperty(EDITOR_COLORS, EditorSchemes.FOLLOW).strip();
+    if (!EditorSchemes.known(scheme)) {
+      invalid(EDITOR_COLORS, file);
+      scheme = EditorSchemes.FOLLOW;
+    }
+    return new Appearance(themeFile, family, scheme);
   }
 
   private static Options options(Properties p, Path file) {

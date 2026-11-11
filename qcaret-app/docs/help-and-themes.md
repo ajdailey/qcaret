@@ -66,10 +66,18 @@ commonmark and its tables extension, which `maven-dependency-plugin` copies to
 
 ## Themes
 
-`ThemeMode` is `ui.theme`: light, dark or system. `ThemeController` resolves it
-to a `Palette` (system follows `ThemeService.systemDark` and its change
-events), calls `ThemeService.preferDark` so native controls match, and pushes a
-changed palette to its `PaletteListener`s.
+`ThemeMode` is `ui.theme`: light, dark or system. `ui.editorColors` names an
+editor color scheme; `EditorSchemes` holds each scheme's name, Preferences label
+and palette (follow, light, dark), and a new scheme is an entry there.
+`ThemeController` resolves the `Palette` through `EditorSchemes.palette`: follow
+takes `ui.theme`'s side, system following `ThemeService.systemDark` and its
+change events, and an unknown name resolves as follow. It pushes a changed
+palette to its `PaletteListener`s.
+
+`ThemeService.preferDark` takes `ui.theme`'s side only. `setEditorColors`
+changes the palette and never native controls, so it shows no restart notice;
+under the light or dark scheme a system change moves native controls and leaves
+the palette.
 
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection, current line, gutter and line numbers, caret, whitespace
@@ -98,9 +106,12 @@ match (`PaletteTest`).
 - `over` lays the colors on a built-in palette and returns that palette itself
   for a side with no colors, so `Palette.LIGHT` and `Palette.DARK` stay the
   values in use without a file.
+- The side applied is the palette's, so the dark scheme under a light
+  `ui.theme` takes the `dark.*` lines.
 
-`Gui` reads the chosen file before the Display, so the first paint has its
-colors. After that `WindowSet.loadTheme` reads it on a `qcaret-io-` worker when
+`Gui` reads the chosen file before the Display and resolves the first palette
+from both settings, so the first paint has its colors. After that
+`WindowSet.loadTheme` reads it on a `qcaret-io-` worker when
 `ui.themeFile` changes and on each Preferences apply that keeps it, and
 `ThemeController.setColors` pushes the palette if it differs; a read that a
 newer one replaced is dropped.

@@ -87,7 +87,8 @@ final class PreferencesController implements PreferencesInput {
         Integer.toString(o.rightMargin()),
         o.dateFormat(),
         o.editorConfig(),
-        o.modelines());
+        o.modelines(),
+        p.appearance().editorColors());
   }
 
   @Override
@@ -209,7 +210,8 @@ final class PreferencesController implements PreferencesInput {
             .current()
             .withTheme(form.theme())
             .withShortcuts(form.shortcuts())
-            .withAppearance(new Appearance(form.themeFile(), form.fontFamily()))
+            .withAppearance(
+                new Appearance(form.themeFile(), form.fontFamily(), form.editorColors()))
             .withOptions(
                 new Options(
                     completion.value(),

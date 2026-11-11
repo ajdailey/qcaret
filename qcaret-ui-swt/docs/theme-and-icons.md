@@ -56,9 +56,9 @@ and field's colors to the current appearance, at the change, at `SWT.Show` of a
 shell and at `SWT.Skin` of a new control, since the docks replace their tables
 while open. It follows the system appearance, not `ui.theme`.
 
-- A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor and
-  compare `StyledText` and the tab strip, which the palette owns and nothing
-  would restore.
+- A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor,
+  compare and replace preview `StyledText` and the tab strip, which the palette
+  owns and nothing would restore.
 - `ReplaceDialog` marks its computing note with a style range, because
   `setForeground(null)` returns a field to the startup color.
 
@@ -68,6 +68,20 @@ while open. It follows the system appearance, not `ui.theme`.
 marks (margin, indent guides, modified-line marks) and the tab strip, then
 re-inks its `ToolIcons` on the next UI turn, after native controls have
 restyled.
+
+`ui.editorColors` can put the palette on the other side from native controls,
+so every surface takes its colors from one of the two, never a mix:
+
+| Colors from | Surfaces |
+|---|---|
+| `Palette` | Editor text, gutter, caret, overview strip, tab strip, compare window views, replace preview |
+| Native theme | Menus, toolbar and its icons, docks, find bar, status bar, dialogs, title bars, About logo |
+
+The replace preview takes the palette's text and background, because its
+removed and added tints derive from the palette background: under native colors
+the other side's text lands on them. The one palette color on a native
+background is the Search Results match mark, `findMatch` with `text` over it, a
+pair `PaletteTest` holds at 4.5.
 
 `ToolIcons` picks dark or light ink from the owner control's background
 luminance, not from the palette, and `reink` swaps every applied item's image

@@ -29,6 +29,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param dateFormat Insert Date and Time's first format
  * @param editorConfig the box making documents take {@code .editorconfig} settings
  * @param modelines the box making documents take modeline settings
+ * @param editorColors the editor color scheme's name
  */
 public record PreferencesForm(
     String completionChars,
@@ -52,7 +53,8 @@ public record PreferencesForm(
     String rightMargin,
     String dateFormat,
     boolean editorConfig,
-    boolean modelines) {
+    boolean modelines,
+    String editorColors) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

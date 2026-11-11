@@ -117,7 +117,8 @@ class PreferencesControllerTest {
         field.equals("rightMargin") ? value : f.rightMargin(),
         field.equals("dateFormat") ? value : f.dateFormat(),
         f.editorConfig(),
-        f.modelines());
+        f.modelines(),
+        field.equals("editorColors") ? value : f.editorColors());
   }
 
   @Test
@@ -149,7 +150,8 @@ class PreferencesControllerTest {
                 f.rightMargin(),
                 f.dateFormat(),
                 f.editorConfig(),
-                f.modelines()));
+                f.modelines(),
+                f.editorColors()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -175,7 +177,8 @@ class PreferencesControllerTest {
                 f.rightMargin(),
                 f.dateFormat(),
                 f.editorConfig(),
-                f.modelines())));
+                f.modelines(),
+                f.editorColors())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -273,8 +276,21 @@ class PreferencesControllerTest {
                 f.rightMargin(),
                 f.dateFormat(),
                 f.editorConfig(),
-                f.modelines())));
+                f.modelines(),
+                f.editorColors())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
+  }
+
+  @Test
+  void editorColorsApplyAtOnceWithoutANoticeAndKeepTheTheme() throws Exception {
+    PreferencesInput input = input();
+    assertEquals("follow", input.form().editorColors());
+    assertNull(input.apply(with(input.form(), "editorColors", "dark")));
+    assertEquals(Palette.DARK, harness.application.theme().palette());
+    assertEquals(ThemeMode.LIGHT, harness.application.theme().mode());
+    assertEquals("dark", file(fileHas("ui.editorColors=dark")).appearance().editorColors());
+    assertEquals(List.of(), harness.view.notices);
+    assertEquals(List.of(), harness.view.infos);
   }
 
   @Test
@@ -385,7 +401,8 @@ class PreferencesControllerTest {
                 f.rightMargin(),
                 f.dateFormat(),
                 f.editorConfig(),
-                f.modelines())));
+                f.modelines(),
+                f.editorColors())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);

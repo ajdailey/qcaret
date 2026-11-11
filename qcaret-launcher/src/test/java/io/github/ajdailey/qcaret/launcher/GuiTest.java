@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -264,9 +265,10 @@ class GuiTest {
   }
 
   @Test
-  void aSavedThemeFileColorsTheWindowBeforeItOpens() throws Exception {
+  void aSavedThemeFileColorsTheWindowBeforeItOpensOnTheEditorColorsSide() throws Exception {
     Path themes = Files.createDirectory(temp.resolve("settings").resolve("themes"));
-    Files.writeString(themes.resolve("mock.theme"), "light.background = #123456\n");
+    Files.writeString(
+        themes.resolve("mock.theme"), "light.background = #123456\ndark.background = #654321\n");
     final List<Palette> palettes = new ArrayList<Palette>();
     Gui.Observer observer =
         new Gui.Observer() {
@@ -288,11 +290,13 @@ class GuiTest {
           }
         };
     Preferences preferences =
-        Preferences.DEFAULTS.withTheme(ThemeMode.LIGHT).withAppearance(new Appearance("mock", ""));
+        Preferences.DEFAULTS
+            .withTheme(ThemeMode.LIGHT)
+            .withAppearance(new Appearance("mock", "", EditorSchemes.DARK));
     PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
     StartupRequest request = request(List.of(), null, null, null, null, true);
     assertEquals(0, new Gui(request, config(), preferences, err, observer, LogFiles.NONE).run());
-    assertEquals(new Rgb(0x12, 0x34, 0x56), palettes.get(0).background());
+    assertEquals(new Rgb(0x65, 0x43, 0x21), palettes.get(0).background());
   }
 
   @Test

@@ -217,6 +217,10 @@ apply (measured on Linux, one million lines):
   at the next start, and on macOS they follow the system appearance, also
   while QCaret runs. On Linux a GTK theme with no dark variant keeps native
   controls light; the editor and tabs still change.
+- Editor colors, on the Editor tab of Edit > Preferences, chooses Follow theme
+  (the default), Light or Dark for the editors, the tab strip, comparison
+  windows and the replace preview, as a terminal profile colors only its text
+  area. Menus, docks, dialogs and title bars keep following View > Theme.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
   name.
 
@@ -583,7 +587,7 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, editor colors |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, theme file, editor font |
@@ -607,7 +611,8 @@ comparison windows, the replace preview and the log and license windows.
 
 A theme file changes colors of the light and dark themes. Put a file named
 `<name>.theme` in the `themes` folder of the settings directory, then choose it
-under Theme file. View > Theme still picks light or dark. To see an edit to the
+under Theme file. Editor colors, or View > Theme while editor colors follow the
+theme, picks which side's lines apply. To see an edit to the
 chosen file, press Apply. A name holds letters, digits, `.`, `_` and `-`, and a
 file is at most 64 KiB.
 

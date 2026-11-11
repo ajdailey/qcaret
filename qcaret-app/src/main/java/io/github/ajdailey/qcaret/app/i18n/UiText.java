@@ -294,6 +294,14 @@ public enum UiText {
   /** Theme choice. */
   PREFERENCES_THEME_SYSTEM,
   /** Preferences field. */
+  PREFERENCES_EDITOR_COLORS,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_FOLLOW,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_LIGHT,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_DARK,
+  /** Preferences field. */
   PREFERENCES_FONT_SIZE,
   /** Preferences field. */
   PREFERENCES_THEME_FILE,

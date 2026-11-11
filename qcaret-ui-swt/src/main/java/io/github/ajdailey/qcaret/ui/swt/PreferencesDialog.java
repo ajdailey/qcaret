@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
@@ -68,6 +69,7 @@ final class PreferencesDialog {
   private Text searchMaxLineChars;
   private Text excludedDirectories;
   private Combo theme;
+  private Combo editorColors;
   private Text fontSize;
   private Combo themeFile;
   private Combo fontFamily;
@@ -176,6 +178,11 @@ final class PreferencesDialog {
     dateFormat = field(page, UiText.PREFERENCES_DATE_FORMAT);
     editorConfig = check(page, UiText.PREFERENCES_EDITOR_CONFIG);
     modelines = check(page, UiText.PREFERENCES_MODELINES);
+    new Label(page, SWT.NONE).setText(UiText.PREFERENCES_EDITOR_COLORS.text());
+    editorColors = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    for (String scheme : EditorSchemes.names()) {
+      editorColors.add(EditorSchemes.label(scheme));
+    }
   }
 
   private void files(Composite page) {
@@ -385,6 +392,7 @@ final class PreferencesDialog {
     searchMaxLineChars.setText(form.searchMaxLineChars());
     excludedDirectories.setText(form.excludedDirectories());
     theme.select(form.theme().ordinal());
+    editorColors.select(Math.max(0, EditorSchemes.names().indexOf(form.editorColors())));
     fontSize.setText(form.fontSize());
     selectChoice(themeFile, form.themeFile());
     selectChoice(fontFamily, form.fontFamily());
@@ -417,7 +425,8 @@ final class PreferencesDialog {
         rightMargin.getText(),
         dateFormat.getText(),
         editorConfig.getSelection(),
-        modelines.getSelection());
+        modelines.getSelection(),
+        EditorSchemes.names().get(editorColors.getSelectionIndex()));
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -579,6 +588,10 @@ final class PreferencesDialog {
 
   Combo theme() {
     return theme;
+  }
+
+  Combo editorColors() {
+    return editorColors;
   }
 
   Combo themeFile() {

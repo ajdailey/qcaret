@@ -8,6 +8,8 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.program.Program;
@@ -34,8 +36,12 @@ final class AboutDialog {
   /** Width of the text column, in pixels. */
   private static final int TEXT_WIDTH = 420;
 
+  /** Most re-fits after the window manager resizes the dialog. */
+  private static final int MAX_FITS = 3;
+
   private final Shell shell;
   private final Label heading;
+  private int fits;
 
   AboutDialog(
       Shell parent,
@@ -134,6 +140,39 @@ final class AboutDialog {
 
   void open() {
     Dialogs.open(shell, SWT.DEFAULT, SWT.DEFAULT);
+    fit();
+    shell.addListener(
+        SWT.Resize,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (fits < MAX_FITS) {
+              fit();
+            }
+          }
+        });
+  }
+
+  /**
+   * Grows the dialog where its client area is smaller than its content needs. {@code pack} sizes
+   * the window from the toolkit's frame estimate; the window manager reports the real frame only
+   * once the shell shows, so each {@code SWT.Resize} measures again, up to {@value #MAX_FITS}
+   * times.
+   */
+  void fit() {
+    if (shell.isDisposed()) {
+      return;
+    }
+    Rectangle area = shell.getClientArea();
+    Point outer = shell.computeSize(SWT.DEFAULT, SWT.DEFAULT, true);
+    Rectangle trim = shell.computeTrim(0, 0, 0, 0);
+    int width = Math.max(0, outer.x - trim.width - area.width);
+    int height = Math.max(0, outer.y - trim.height - area.height);
+    if (width > 0 || height > 0) {
+      fits++;
+      Point size = shell.getSize();
+      shell.setSize(size.x + width, size.y + height);
+    }
   }
 
   Shell shell() {

@@ -67,7 +67,7 @@ class ThemeControllerTest {
   @Test
   void systemModeFollowsTheSystemAndListenersSeeEachChange() {
     FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.SYSTEM);
+    ThemeController theme = new ThemeController(system, ThemeMode.SYSTEM, EditorSchemes.FOLLOW);
     final List<Palette> seen = new ArrayList<Palette>();
     theme.addListener(
         new PaletteListener() {
@@ -89,7 +89,7 @@ class ThemeControllerTest {
   @Test
   void nativeControlsFollowEachModeChangeAndTheSystemOnlyInSystemMode() {
     FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT);
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
     assertEquals(List.of(), system.preferred);
     theme.setMode(ThemeMode.DARK);
     system.flip(true);
@@ -103,7 +103,7 @@ class ThemeControllerTest {
   @Test
   void setModeReportsWhetherNativeControlsChangeNow() {
     FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT);
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
     assertTrue(theme.setMode(ThemeMode.DARK));
     system.live = false;
     assertFalse(theme.setMode(ThemeMode.LIGHT));
@@ -112,7 +112,7 @@ class ThemeControllerTest {
   @Test
   void themeColorsApplyToEachModeAndPushOnlyAChange() {
     FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT);
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
     final List<Palette> seen = new ArrayList<Palette>();
     theme.addListener(
         new PaletteListener() {
@@ -136,6 +136,83 @@ class ThemeControllerTest {
     assertEquals(Rgb.of(2), theme.palette().text());
     theme.setColors(ThemeColors.NONE);
     assertSame(Palette.DARK, theme.palette());
+  }
+
+  @Test
+  void editorColorsPickThePaletteSideAndTheThemePicksNativeControls() {
+    for (ThemeMode mode : ThemeMode.values()) {
+      for (boolean osDark : new boolean[] {false, true}) {
+        for (String side : EditorSchemes.names()) {
+          FakeSystem system = new FakeSystem();
+          system.dark = osDark;
+          ThemeController theme = new ThemeController(system, mode, side);
+          boolean chromeDark = mode == ThemeMode.DARK || (mode == ThemeMode.SYSTEM && osDark);
+          boolean paletteDark =
+              side.equals(EditorSchemes.FOLLOW) ? chromeDark : side.equals(EditorSchemes.DARK);
+          String at = mode + " " + osDark + " " + side;
+          assertSame(paletteDark ? Palette.DARK : Palette.LIGHT, theme.palette(), at);
+          theme.setMode(mode);
+          assertEquals(List.of(chromeDark), system.preferred, at);
+          assertSame(paletteDark ? Palette.DARK : Palette.LIGHT, theme.palette(), at);
+        }
+      }
+    }
+  }
+
+  @Test
+  void aSystemChangeWithFixedEditorColorsMovesOnlyNativeControls() {
+    FakeSystem system = new FakeSystem();
+    ThemeController theme = new ThemeController(system, ThemeMode.SYSTEM, EditorSchemes.DARK);
+    final List<Palette> seen = new ArrayList<Palette>();
+    theme.addListener(
+        new PaletteListener() {
+          @Override
+          public void paletteChanged(Palette palette) {
+            seen.add(palette);
+          }
+        });
+    system.flip(true);
+    system.flip(false);
+    assertEquals(List.of(true, false), system.preferred);
+    assertEquals(List.of(), seen);
+    assertSame(Palette.DARK, theme.palette());
+    theme.setEditorColors(EditorSchemes.FOLLOW);
+    assertEquals(List.of(Palette.LIGHT), seen);
+    system.flip(true);
+    assertEquals(List.of(Palette.LIGHT, Palette.DARK), seen);
+  }
+
+  @Test
+  void setEditorColorsLeavesNativeControlsAlone() {
+    FakeSystem system = new FakeSystem();
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
+    theme.setEditorColors(EditorSchemes.DARK);
+    assertSame(Palette.DARK, theme.palette());
+    assertEquals(EditorSchemes.DARK, theme.editorColors());
+    theme.setEditorColors(EditorSchemes.LIGHT);
+    assertSame(Palette.LIGHT, theme.palette());
+    assertEquals(List.of(), system.preferred);
+  }
+
+  @Test
+  void aThemeFileAppliesItsSideOfTheEditorColors() {
+    FakeSystem system = new FakeSystem();
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.DARK);
+    theme.setColors(ThemeColors.parse("light.text=#000001\ndark.text=#000002", "mock"));
+    assertEquals(Rgb.of(2), theme.palette().text());
+    assertTrue(theme.palette().dark());
+    theme.setMode(ThemeMode.DARK);
+    theme.setEditorColors(EditorSchemes.LIGHT);
+    assertEquals(Rgb.of(1), theme.palette().text());
+    assertEquals(List.of(true), system.preferred);
+  }
+
+  @Test
+  void editorSchemesListFollowFirstAndResolveAnUnknownNameAsFollow() {
+    assertEquals(List.of("follow", "light", "dark"), EditorSchemes.names());
+    assertFalse(EditorSchemes.known("navy"));
+    assertSame(Palette.DARK, EditorSchemes.palette("navy", ThemeMode.DARK, false));
+    assertSame(Palette.LIGHT, EditorSchemes.palette("navy", ThemeMode.SYSTEM, false));
   }
 
   @Test

@@ -221,7 +221,8 @@ public final class WindowSet {
     this.budget = budget;
     this.rememberWindow = rememberWindow;
     this.settings = new Settings(config, workers, ui, preferences);
-    this.theme = new ThemeController(system, preferences.theme());
+    this.theme =
+        new ThemeController(system, preferences.theme(), preferences.appearance().editorColors());
     this.defaultKeymap = keymap;
     this.keymap = keymap.withOverrides(preferences.shortcuts());
     this.grammars =
@@ -282,6 +283,9 @@ public final class WindowSet {
     }
     if (!after.appearance().themeFile().equals(before.appearance().themeFile())) {
       loadTheme();
+    }
+    if (!after.appearance().editorColors().equals(before.appearance().editorColors())) {
+      theme.setEditorColors(after.appearance().editorColors());
     }
   }
 

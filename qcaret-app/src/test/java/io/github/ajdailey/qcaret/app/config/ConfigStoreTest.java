@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -52,20 +53,22 @@ class ConfigStoreTest {
   }
 
   @Test
-  void theThemeFileAndFontFamilyRoundTrip() {
+  void theThemeFileFontFamilyAndEditorColorsRoundTrip() {
     ConfigStore store = store(temp);
     Preferences loaded = store.load();
-    Preferences next = loaded.withAppearance(new Appearance("harbor", "Mock Mono"));
+    Preferences next =
+        loaded.withAppearance(new Appearance("harbor", "Mock Mono", EditorSchemes.DARK));
     assertTrue(store.save(loaded, next));
-    assertEquals(new Appearance("harbor", "Mock Mono"), store(temp).load().appearance());
+    assertEquals(
+        new Appearance("harbor", "Mock Mono", EditorSchemes.DARK), store(temp).load().appearance());
   }
 
   @Test
-  void anInvalidThemeFileOrFontFamilyFallsBackToEmpty() throws Exception {
+  void anInvalidThemeFileFontFamilyOrEditorColorsFallsBackToTheDefault() throws Exception {
     Files.createDirectories(temp);
     Files.writeString(
         temp.resolve(SettingsLocation.MARKER),
-        "ui.themeFile=../up\neditor.fontFamily=" + "x".repeat(129) + "\n",
+        "ui.themeFile=../up\nui.editorColors=navy\neditor.fontFamily=" + "x".repeat(129) + "\n",
         StandardCharsets.ISO_8859_1);
     assertEquals(Appearance.DEFAULTS, store(temp).load().appearance());
   }

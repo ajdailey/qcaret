@@ -19,10 +19,10 @@ log file at the next start), `Options` (the Preferences dialog's settings),
 `UiState` (search toggles, histories, recent grammars, dialog sizes, the
 toolbar, right margin, indent guide and modified-line mark choices, the last
 date format), `ShortcutOverrides`
-and `Appearance` (`ui.themeFile`, `editor.fontFamily`). `PreferenceKeys` maps
-them to and from `qcaret.conf`. A new setting is a record component and its
-lines in `PreferenceKeys`, plus a `PreferencesForm` field when the dialog shows
-it.
+and `Appearance` (`ui.themeFile`, `editor.fontFamily`, `ui.editorColors`).
+`PreferenceKeys` maps them to and from `qcaret.conf`. A new setting is a record
+component and its lines in `PreferenceKeys`, plus a `PreferencesForm` field when
+the dialog shows it.
 
 ## Settings file
 
@@ -102,6 +102,7 @@ Shortcuts.
 | Key | Values | Default | Set from |
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
+| `ui.editorColors` | An editor color scheme: `follow`, `light`, `dark`. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. An unknown name reads as `follow` with one warning | `follow` | Edit > Preferences, Editor |
 | `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
 | `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |

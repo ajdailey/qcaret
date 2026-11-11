@@ -12,9 +12,9 @@ import io.github.ajdailey.qcaret.app.log.EventLoopWatchdog;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeColors;
-import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -183,7 +183,9 @@ final class Gui {
       ThemeColors colors) {
     final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
     final Palette palette =
-        colors.over(ThemeController.resolve(preferences.theme(), system.systemDark()));
+        colors.over(
+            EditorSchemes.palette(
+                preferences.appearance().editorColors(), preferences.theme(), system.systemDark()));
     if (server != null && logFiles instanceof FileLog fileLog && fileLog.attached()) {
       pruneLogs(workers, fileLog);
     }

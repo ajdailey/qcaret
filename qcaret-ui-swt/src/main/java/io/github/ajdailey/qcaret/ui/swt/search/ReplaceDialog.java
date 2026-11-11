@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.PreviewLine;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
+import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
@@ -13,6 +14,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -32,8 +34,9 @@ import org.eclipse.swt.widgets.Text;
  * The replace preview: the replacement text, the files and the selected file's matches as check
  * lists, the selected file's before and after view, a summary, and Apply. Modal and resizable,
  * opened without a nested event loop. Both lists are virtual tables, so a file with 100,000 matches
- * costs its visible rows. Removed lines show over a red tint of the editor background, added lines
- * over a green one.
+ * costs its visible rows. The before and after view takes the palette's text and background, so the
+ * tints keep their contrast when native controls show the other theme: removed lines show over a
+ * red tint of the editor background, added lines over a green one.
  */
 public final class ReplaceDialog {
   private static final Rgb RED = Rgb.of(0xe5484d);
@@ -103,6 +106,9 @@ public final class ReplaceDialog {
     preview =
         new StyledText(lower, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
     preview.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    preview.setData(EditorPane.PALETTE_COLORED, Boolean.TRUE);
+    preview.setForeground(color(palette.text()));
+    preview.setBackground(color(palette.background()));
     this.fontSize = fontSize;
     font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
     preview.setFont(font);
@@ -356,6 +362,15 @@ public final class ReplaceDialog {
    */
   public String previewText() {
     return preview.getText();
+  }
+
+  /**
+   * Returns the before and after view's background, for tests.
+   *
+   * @return the color
+   */
+  public RGB previewBackground() {
+    return preview.getBackground().getRGB();
   }
 
   /**

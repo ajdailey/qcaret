@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.FontFiles;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -354,7 +355,7 @@ class FontFamilyTest {
             controller
                 .settings()
                 .current()
-                .withAppearance(new Appearance("", "QCaret Mock Absent")));
+                .withAppearance(new Appearance("", "QCaret Mock Absent", EditorSchemes.FOLLOW)));
     assertEquals(Dialogs.monospaceName(), editorFamily());
     controller.execute(CommandId.PREFERENCES);
     await(
