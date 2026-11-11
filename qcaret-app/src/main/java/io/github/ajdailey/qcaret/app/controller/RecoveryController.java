@@ -483,15 +483,17 @@ final class RecoveryController implements RecoveryInput {
       name = h.path().isEmpty() ? h.title() : h.path();
     }
     String state =
-        entry.damaged()
-            ? UiText.RECOVERY_DAMAGED.text()
-            : switch (entry.original()) {
-              case NONE -> UiText.RECOVERY_NO_FILE.text();
-              case UNCHANGED -> UiText.RECOVERY_UNCHANGED.text();
-              case CHANGED -> UiText.RECOVERY_CHANGED.text();
-              case MISSING -> UiText.RECOVERY_MISSING.text();
-              case UNREADABLE -> UiText.RECOVERY_UNREADABLE.text();
-            };
+        entry.unreadable()
+            ? UiText.RECOVERY_FILE_UNREADABLE.text()
+            : entry.damaged()
+                ? UiText.RECOVERY_DAMAGED.text()
+                : switch (entry.original()) {
+                  case NONE -> UiText.RECOVERY_NO_FILE.text();
+                  case UNCHANGED -> UiText.RECOVERY_UNCHANGED.text();
+                  case CHANGED -> UiText.RECOVERY_CHANGED.text();
+                  case MISSING -> UiText.RECOVERY_MISSING.text();
+                  case UNREADABLE -> UiText.RECOVERY_UNREADABLE.text();
+                };
     return new RecoveryRow(name, time(h), state, entry.damaged());
   }
 

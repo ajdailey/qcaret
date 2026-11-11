@@ -80,6 +80,49 @@ class LineTransformsTest {
   }
 
   @Test
+  void aSortThatJoinsACrAndAnLfLeavesTheBlock() {
+    Marked m = new Marked("x\ry\n\n\nz|");
+    LineEditsTest.assertUnchanged(
+        5,
+        LineTransforms.sort(
+            m.document.text(), m.model.selections(), LineTransforms.Order.ASCENDING, TOKEN));
+  }
+
+  @Test
+  void aDuplicateWhoseRemovalJoinsACrAndAnLfStays() {
+    Marked m = new Marked("x\rx\n\ny\ny|");
+    Edit edit = LineTransforms.removeDuplicates(m.document.text(), m.model.selections(), TOKEN);
+    assertEquals(1, edit.unchanged());
+    assertEquals("x\rx\n\ny|", m.apply(edit).marked());
+  }
+
+  @Test
+  void blanksWhoseRemovalJoinsACrAndAnLfStay() {
+    Marked m = new Marked("a\r  \nb |\r  \n");
+    Edit edit = LineTransforms.trimTrailing(m.document.text(), m.model.selections(), TOKEN);
+    assertEquals(2, edit.unchanged());
+    assertEquals("a\r  \nb|\r  \n", m.apply(edit).marked());
+  }
+
+  @Test
+  void aTransformThatJoinsNothingCountsNoLine() {
+    Marked m = new Marked("b\ra\n\nc |");
+    Edit sorted =
+        LineTransforms.sort(
+            m.document.text(), m.model.selections(), LineTransforms.Order.DESCENDING, TOKEN);
+    assertEquals(0, sorted.unchanged());
+    Edit trimmed = LineTransforms.trimTrailing(m.document.text(), m.model.selections(), TOKEN);
+    assertEquals(0, trimmed.unchanged());
+    assertEquals(0, unchangedByDedupe("a\na\r\rb|"));
+  }
+
+  private static int unchangedByDedupe(String marked) {
+    Marked m = new Marked(marked);
+    return LineTransforms.removeDuplicates(m.document.text(), m.model.selections(), TOKEN)
+        .unchanged();
+  }
+
+  @Test
   void eachTransformIsOneCommandStep() {
     Marked m = new Marked("b \na \nb |");
     Edit sorted =

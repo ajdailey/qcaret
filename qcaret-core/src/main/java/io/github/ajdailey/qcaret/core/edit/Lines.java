@@ -50,6 +50,15 @@ final class Lines {
     return out;
   }
 
+  /** Returns the number of lines in the blocks. */
+  static int lineCount(List<int[]> blocks) {
+    int lines = 0;
+    for (int[] block : blocks) {
+      lines += block[1] - block[0] + 1;
+    }
+    return lines;
+  }
+
   /** Returns the index of the block holding a line. */
   static int blockOf(List<int[]> blocks, int line) {
     for (int i = 0; i < blocks.size(); i++) {
@@ -84,5 +93,51 @@ final class Lines {
   static Selection map(List<Replacement> sorted, Selection s) {
     return new Selection(
         map(sorted, s.anchor(), true), map(sorted, s.caret(), true), s.preferredColumn());
+  }
+
+  /**
+   * Reports whether sorted, non-overlapping replacements put a CR directly before an LF, which
+   * joins two line breaks into one. No CR LF pair may cross a range's edge before the edit.
+   */
+  static boolean joinsBreaks(TextContent text, List<Replacement> sorted) {
+    for (int i = 0; i < sorted.size(); i++) {
+      Replacement r = sorted.get(i);
+      StringBuilder result = new StringBuilder(r.text());
+      int before = charBefore(text, sorted, i);
+      if (before >= 0) {
+        result.insert(0, (char) before);
+      }
+      boolean beforeNext = i + 1 < sorted.size() && r.end() == sorted.get(i + 1).offset();
+      if (!beforeNext && r.end() < text.length()) {
+        result.append(text.charAt(r.end()));
+      }
+      if (crLfCount(result) > crLfCount(text.subSequence(r.offset(), r.end()))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Returns the char the result holds before replacement {@code i}, or -1 at the text's start. */
+  private static int charBefore(TextContent text, List<Replacement> sorted, int i) {
+    int at = sorted.get(i).offset();
+    for (int j = i - 1; j >= 0 && sorted.get(j).end() == at; j--) {
+      String previous = sorted.get(j).text();
+      if (!previous.isEmpty()) {
+        return previous.charAt(previous.length() - 1);
+      }
+      at = sorted.get(j).offset();
+    }
+    return at > 0 ? text.charAt(at - 1) : -1;
+  }
+
+  private static int crLfCount(CharSequence s) {
+    int count = 0;
+    for (int i = 1; i < s.length(); i++) {
+      if (s.charAt(i - 1) == '\r' && s.charAt(i) == '\n') {
+        count++;
+      }
+    }
+    return count;
   }
 }

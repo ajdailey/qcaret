@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.document.Document;
-import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
+import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -26,10 +26,10 @@ class SaveCleanupTest {
 
   private static String cleaned(String text, boolean trim, boolean newline, LineEnding ending) {
     Document d = document(text);
-    EditBatch batch =
+    Edit edit =
         SaveCleanup.edits(d.text(), settings(trim, newline), ending, new CancellationToken());
-    if (batch != null) {
-      d.apply(batch);
+    if (edit != null) {
+      d.apply(edit.batch());
     }
     return d.text().toString();
   }

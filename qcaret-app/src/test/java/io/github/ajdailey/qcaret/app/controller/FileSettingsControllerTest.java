@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -181,6 +182,30 @@ class FileSettingsControllerTest {
     assertFalse(d.isDirty());
     documents.activeEditor().undo();
     assertEquals("xone  \r\ntwo\t\r\nthree ", d.text().toString());
+  }
+
+  @Test
+  void aSaveTrimThatWouldJoinTwoBreaksNamesTheLineItLeft() throws Exception {
+    Path dir = temp.resolve("j");
+    config(dir, "[*]\ntrim_trailing_whitespace = true\n");
+    Path file = Files.writeString(dir.resolve("a.txt"), "a\r  \nb \n");
+    open(file);
+    documents.activeEditor().type("x");
+    save();
+    assertEquals("xa\r  \nb\n", Files.readString(file));
+    assertEquals(List.of(UiText.LINES_UNCHANGED_ONE.format(1)), view.notices);
+  }
+
+  @Test
+  void aSaveTrimThatJoinsNothingShowsNoNotice() throws Exception {
+    Path dir = temp.resolve("n");
+    config(dir, "[*]\ntrim_trailing_whitespace = true\n");
+    Path file = Files.writeString(dir.resolve("a.txt"), "a \r\nb \n");
+    open(file);
+    documents.activeEditor().type("x");
+    save();
+    assertEquals("xa\r\nb\n", Files.readString(file));
+    assertEquals(List.of(), view.notices);
   }
 
   @Test

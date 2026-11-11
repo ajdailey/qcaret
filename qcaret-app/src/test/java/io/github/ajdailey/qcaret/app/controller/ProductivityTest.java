@@ -293,6 +293,55 @@ class ProductivityTest {
     assertEquals(List.of(true, true, false), tab.shown.busy);
   }
 
+  /** Runs a line command on the marked text and returns the notices it left. */
+  private List<String> noticesOf(String marked, CommandId command, String expected)
+      throws InterruptedException {
+    if (editor != null) {
+      editor.dispose();
+    }
+    open(marked);
+    editor.execute(command);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return tab.shown.busy.isEmpty() || !tab.shown.busy.get(tab.shown.busy.size() - 1);
+          }
+        },
+        "the command ended");
+    assertEquals(expected, document.text().toString());
+    return new ArrayList<String>(notices);
+  }
+
+  @Test
+  void aLineCommandThatWouldJoinTwoBreaksNamesTheLinesItLeft() throws InterruptedException {
+    String one = UiText.LINES_UNCHANGED_ONE.format(1);
+    assertEquals("Left 1 line unchanged: it would merge two line breaks", one);
+    assertEquals(List.of(one), noticesOf("a\rx|\n\nb", CommandId.DELETE_LINE, "a\rx\n\nb"));
+    notices.clear();
+    assertEquals(List.of(one), noticesOf("p\rx\n|\ny", CommandId.MOVE_LINES_UP, "p\rx\n\ny"));
+    notices.clear();
+    assertEquals(
+        List.of(UiText.LINES_UNCHANGED.format(5)),
+        noticesOf("x\ry\n\n\nz|", CommandId.SORT_LINES_ASCENDING, "x\ry\n\n\nz"));
+    notices.clear();
+    assertEquals(
+        List.of(one), noticesOf("x\rx\n\ny\ny|", CommandId.REMOVE_DUPLICATE_LINES, "x\rx\n\ny"));
+    notices.clear();
+    assertEquals(
+        List.of(UiText.LINES_UNCHANGED.format(2)),
+        noticesOf("a\r  \nb |\r  \n", CommandId.TRIM_TRAILING_WHITESPACE, "a\r  \nb\r  \n"));
+  }
+
+  @Test
+  void aLineCommandThatJoinsNothingShowsNoNotice() throws InterruptedException {
+    assertEquals(List.of(), noticesOf("a\rx|\nb", CommandId.DELETE_LINE, "a\rb"));
+    assertEquals(List.of(), noticesOf("a\rb\nc|", CommandId.MOVE_LINES_UP, "a\rc\nb"));
+    assertEquals(List.of(), noticesOf("b\ra\nc|", CommandId.SORT_LINES_ASCENDING, "a\rb\nc"));
+    assertEquals(List.of(), noticesOf("a\ra\nb|", CommandId.REMOVE_DUPLICATE_LINES, "a\rb"));
+    assertEquals(List.of(), noticesOf("a \r\nb |", CommandId.TRIM_TRAILING_WHITESPACE, "a\r\nb"));
+  }
+
   @Test
   void bookmarksToggleAtEachCaretAndFollowEdits() {
     open("a|\nb\nc|\nd");

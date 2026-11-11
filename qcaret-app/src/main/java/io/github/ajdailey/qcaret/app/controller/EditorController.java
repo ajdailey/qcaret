@@ -1573,11 +1573,16 @@ public final class EditorController implements EditorInput {
 
   /** Applies an edit from {@code core.edit}; null or a read-only document does nothing. */
   private void applyEdit(Edit edit) {
-    if (edit == null || document.isReadOnly() || edit.batch().replacements().isEmpty()) {
+    if (edit == null || document.isReadOnly()) {
       return;
     }
-    document.apply(edit.batch(), selections, edit.after());
-    showCaret();
+    if (!edit.batch().replacements().isEmpty()) {
+      document.apply(edit.batch(), selections, edit.after());
+      showCaret();
+    }
+    if (edit.unchanged() > 0) {
+      notice(UnchangedLines.notice(edit.unchanged()));
+    }
   }
 
   /** Applies a block edit; with nothing to replace, only the block moves. */
@@ -2042,7 +2047,7 @@ public final class EditorController implements EditorInput {
     }
     document.clearPreedit();
     boolean moved = !set.equals(selections.selections());
-    applyEdit(moved ? new Edit(edit.batch(), null) : edit);
+    applyEdit(moved ? new Edit(edit.batch(), null, edit.unchanged()) : edit);
   }
 
   // Bookmarks.

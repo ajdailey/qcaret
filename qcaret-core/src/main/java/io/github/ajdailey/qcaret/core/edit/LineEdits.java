@@ -74,9 +74,9 @@ public final class LineEdits {
 
   /**
    * Moves each block of touched lines one line up or down, past the neighboring line; blocks that
-   * touch move together. Nothing moves when a block is at the top (up) or bottom (down), or when
-   * the move would put a CR and an LF side by side, which joins two breaks into one. The selections
-   * move with their lines.
+   * touch move together. Nothing moves when a block is at the top (up) or bottom (down). When the
+   * move would put a CR and an LF side by side, which joins two breaks into one, the edit has no
+   * replacements and counts the touched lines as unchanged. The selections move with their lines.
    *
    * @param text the text
    * @param set the selections
@@ -120,8 +120,8 @@ public final class LineEdits {
             };
       }
     }
-    if (joinsBreaks(text, out)) {
-      return null;
+    if (Lines.joinsBreaks(text, out)) {
+      return Edit.unchanged(Lines.lineCount(blocks));
     }
     List<Selection> after = new ArrayList<Selection>(set.size());
     for (Selection s : set.selections()) {
@@ -139,7 +139,8 @@ public final class LineEdits {
 
   /**
    * Deletes every touched line with its break; the last line takes the break before it. Each block
-   * leaves a caret at the start of the line that takes its place.
+   * leaves a caret at the start of the line that takes its place. When a CR and an LF would become
+   * neighbors, the edit has no replacements and counts the touched lines as unchanged.
    *
    * @param text the text
    * @param set the selections
@@ -172,6 +173,9 @@ public final class LineEdits {
       out.add(new Replacement(from, to - from, ""));
       after.add(Selection.caret(caret - removed));
       removed += to - from;
+    }
+    if (Lines.joinsBreaks(text, out)) {
+      return Edit.unchanged(Lines.lineCount(blocks));
     }
     return new Edit(
         EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, primaryBlock));
@@ -369,42 +373,6 @@ public final class LineEdits {
     String both = out.get(n - 2).text() + out.get(n - 1).text();
     merged.add(new Replacement(out.get(n - 1).offset(), 0, both));
     return merged;
-  }
-
-  /**
-   * Reports whether sorted replacements that rearrange whole lines leave more CR LF pairs than they
-   * remove. A range starts and ends at a line boundary, so no pair crosses one before the edit.
-   */
-  private static boolean joinsBreaks(TextContent text, List<Replacement> sorted) {
-    for (int i = 0; i < sorted.size(); i++) {
-      Replacement r = sorted.get(i);
-      boolean afterPrevious = i > 0 && sorted.get(i - 1).end() == r.offset();
-      boolean beforeNext = i + 1 < sorted.size() && r.end() == sorted.get(i + 1).offset();
-      StringBuilder result = new StringBuilder(r.text());
-      if (afterPrevious) {
-        String previous = sorted.get(i - 1).text();
-        result.insert(0, previous.charAt(previous.length() - 1));
-      } else if (r.offset() > 0) {
-        result.insert(0, text.charAt(r.offset() - 1));
-      }
-      if (!beforeNext && r.end() < text.length()) {
-        result.append(text.charAt(r.end()));
-      }
-      if (crLfCount(result) > crLfCount(slice(text, r.offset(), r.end()))) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static int crLfCount(CharSequence s) {
-    int count = 0;
-    for (int i = 1; i < s.length(); i++) {
-      if (s.charAt(i - 1) == '\r' && s.charAt(i) == '\n') {
-        count++;
-      }
-    }
-    return count;
   }
 
   /**

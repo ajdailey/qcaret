@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
+import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -169,9 +170,10 @@ final class SaveCopy {
   @WorkerThread
   static DocumentSnapshot cleaned(
       DocumentSnapshot snapshot, FileSettings cleanup, LineEnding ending, CancellationToken token) {
-    EditBatch edit =
+    Edit cleanupEdit =
         cleanup == null ? null : SaveCleanup.edits(snapshot.text(), cleanup, ending, token);
-    if (edit == null) {
+    EditBatch edit = cleanupEdit == null ? null : cleanupEdit.batch();
+    if (edit == null || edit.replacements().isEmpty()) {
       return snapshot;
     }
     RopeStorage text = RopeStorage.from(snapshot.text());

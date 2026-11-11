@@ -219,6 +219,35 @@ class RecoveryStoreTest {
   }
 
   @Test
+  void anUnreadableRecoveryFileHidesNoOtherFile() throws IOException {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    RecoveryStore dead = new RecoveryStore(temp, "dead");
+    dead.open();
+    dead.write(header("b1", "", -1, ""), text("one"));
+    dead.write(header("b2", "", -1, ""), text("two"));
+    dead.close(true);
+    Path file = temp.resolve(RecoveryStore.DIRECTORY).resolve("dead").resolve("b1.qcr");
+    Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("---------"));
+    RecoveryStore own = own();
+    try {
+      assumeFalse(Files.isReadable(file), "running as root");
+      List<RecoveryStore.Claim> claims = own.claimDead(0);
+      assertEquals(1, claims.size());
+      List<RecoveryStore.Entry> entries = claims.get(0).entries();
+      assertEquals(2, entries.size());
+      assertTrue(entries.get(0).unreadable());
+      assertNull(entries.get(0).header());
+      assertFalse(entries.get(1).unreadable());
+      assertEquals("b2", entries.get(1).header().id());
+      claims.get(0).close();
+      assertTrue(Files.exists(file));
+    } finally {
+      own.close(false);
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+    }
+  }
+
+  @Test
   void anOrderedCloseDeletesTheDirectoryAndAKeptCloseLeavesIt() throws IOException {
     RecoveryStore store = own();
     store.write(header("b1", "", -1, ""), text("mock"));

@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -700,6 +701,50 @@ class DocumentControllerTest {
     await(noLoad());
     settle();
     assertEquals(0, view.tabs.size(), "a reopen outlived the closed tab");
+  }
+
+  @Test
+  void aReopenThroughALinkKeepsTheLink() throws Exception {
+    Path link = link("link.txt", file("a.txt", "mock\n"));
+    documents.open(List.of(link));
+    await(tabs(1));
+    settle();
+    Document before = documents.activeDocument();
+    documents.reopenWithEncoding(StandardCharsets.ISO_8859_1);
+    await(noLoad());
+    settle();
+    assertNotSame(before, documents.activeDocument());
+    assertEquals(link.toAbsolutePath().normalize(), documents.activeOpenedPath());
+  }
+
+  @Test
+  void aReopenReplacesItsOwnTabWhenAnotherHoldsThePath() throws Exception {
+    GatedCharset gate = gatedSaves();
+    Path a = openOne("a.txt", "mock\n");
+    documents.open(List.of(file("b.txt", "mock\n")));
+    await(tabs(2));
+    documents.activeEditor().type("x");
+    gate.armEncoder();
+    documents.saveAs();
+    view.saveChooser.accept(a.toRealPath());
+    await(held(gate));
+    documents.select(0);
+    documents.activeEditor().type("y");
+    view.unsaved = null;
+    gate.release();
+    settle();
+    assertNotNull(view.unsaved, "no second tab holds the path");
+    documents.select(1);
+    Document before = documents.activeDocument();
+    documents.reopenWithEncoding(StandardCharsets.ISO_8859_1);
+    await(noLoad());
+    settle();
+    assertEquals(2, view.tabs.size());
+    documents.select(1);
+    assertNotSame(before, documents.activeDocument(), "the reopen looked at the other tab");
+    assertEquals(StandardCharsets.ISO_8859_1, documents.activeDocument().encoding().charset());
+    documents.select(0);
+    assertEquals("ymock\n", documents.activeDocument().text().toString());
   }
 
   /** Starts a reopen with every byte of the budget taken, so the load is refused. */

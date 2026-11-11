@@ -39,8 +39,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * pairs, wrapped on every third seed, with block selections, compositions and a second view,
  * checked after every step: the change events replay to the text, no selection sits inside a CR LF
  * or a surrogate pair, no surrogate is split, line ending counts and display rows match a fresh
- * count, and undo and redo walk the whole history. Seeds and the coalescing clock are fixed. {@code
- * -Dqcaret.editor.seed=N} runs one seed; a failure names its seed and step.
+ * count, no line command joins a CR and an LF, and undo and redo walk the whole history. Seeds and
+ * the coalescing clock are fixed. {@code -Dqcaret.editor.seed=N} runs one seed, {@code
+ * -Dqcaret.editor.seeds=N} the first N; a failure names its seed and step.
  */
 class EditorRandomTest {
   private static final int SEEDS = 1000;
@@ -120,7 +121,8 @@ class EditorRandomTest {
     if (one != null) {
       seeds.add(Long.parseLong(one));
     } else {
-      for (long s = 1; s <= SEEDS; s++) {
+      long count = Long.getLong("qcaret.editor.seeds", SEEDS);
+      for (long s = 1; s <= count; s++) {
         seeds.add(s);
       }
     }
@@ -268,19 +270,30 @@ class EditorRandomTest {
       }
     } else if (choice < 40) {
       document.clearPreedit();
+      CommandId command = TRANSFORMS[random.nextInt(TRANSFORMS.length)];
+      long pairs = document.lineEndings().crLf();
+      int lines = document.text().lineCount();
       Edit edit =
           EditorController.lineEdit(
-              TRANSFORMS[random.nextInt(TRANSFORMS.length)],
-              document.text(),
-              selections.selections(),
-              new CancellationToken());
+              command, document.text(), selections.selections(), new CancellationToken());
       if (edit != null) {
         document.apply(edit.batch(), selections, edit.after());
+      }
+      assertTrue(document.lineEndings().crLf() <= pairs, "joined breaks, " + where);
+      if (command != CommandId.REMOVE_DUPLICATE_LINES) {
+        assertEquals(lines, document.text().lineCount(), "line count, " + where);
       }
     } else if (choice < 48) {
       compose(random, document, selections, editor, where);
     } else {
-      editor.execute(COMMANDS[random.nextInt(COMMANDS.length)]);
+      CommandId command = COMMANDS[random.nextInt(COMMANDS.length)];
+      long pairs = document.lineEndings().crLf();
+      editor.execute(command);
+      if (command == CommandId.DELETE_LINE
+          || command == CommandId.MOVE_LINES_UP
+          || command == CommandId.MOVE_LINES_DOWN) {
+        assertTrue(document.lineEndings().crLf() <= pairs, "joined breaks, " + where);
+      }
     }
   }
 

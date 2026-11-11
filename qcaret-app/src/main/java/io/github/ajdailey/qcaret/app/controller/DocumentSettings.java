@@ -6,7 +6,7 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
-import io.github.ajdailey.qcaret.core.document.EditBatch;
+import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
@@ -208,9 +208,9 @@ final class DocumentSettings {
             saving,
             ending,
             token,
-            new Consumer<EditBatch>() {
+            new Consumer<Edit>() {
               @Override
-              public void accept(EditBatch cleanup) {
+              public void accept(Edit cleanup) {
                 if (prepared(d, token, snapshot.revision(), cleanup)) {
                   write.run();
                 } else {
@@ -231,7 +231,7 @@ final class DocumentSettings {
    * before an edit leaves the write unready, so it is computed again.
    */
   private static boolean prepared(
-      OpenDocument d, CancellationToken token, long revision, EditBatch cleanup) {
+      OpenDocument d, CancellationToken token, long revision, Edit cleanup) {
     State state = d.settings;
     OpenFile file = d.file;
     if (file.saving != token || d.closed) {
@@ -250,7 +250,10 @@ final class DocumentSettings {
     }
     if (cleanup != null && !document.isReadOnly()) {
       document.clearPreedit();
-      document.apply(cleanup, d.editor.selections(), null);
+      document.apply(cleanup.batch(), d.editor.selections(), null);
+      if (cleanup.unchanged() > 0) {
+        d.editor.notice(UnchangedLines.notice(cleanup.unchanged()));
+      }
     }
     state.prepared = true;
     return true;

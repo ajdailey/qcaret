@@ -269,14 +269,23 @@ public final class DocumentController {
 
     private void loaded(
         Path path, LoadedFile file, DisplayProjection.Layout layout, long reserved) {
-      if (reopened != null && !path.equals(reopened.file.path)) {
-        budget.release(reserved);
-        return;
-      }
       int index = documents.size();
-      for (OpenDocument d : documents) {
-        if (path.equals(d.file.path)) {
-          if (reopened == null || d.document.revision() != revision || d.document.isDirty()) {
+      if (reopened != null) {
+        if (!path.equals(reopened.file.path) || !documents.contains(reopened)) {
+          budget.release(reserved);
+          return;
+        }
+        if (reopened.document.revision() != revision || reopened.document.isDirty()) {
+          budget.release(reserved);
+          reopened.tab.select();
+          landed(path, reopened);
+          return;
+        }
+        index = documents.indexOf(reopened);
+        discard(reopened);
+      } else {
+        for (OpenDocument d : documents) {
+          if (path.equals(d.file.path)) {
             budget.release(reserved);
             d.tab.select();
             landed(path, d);
@@ -285,9 +294,6 @@ public final class DocumentController {
             }
             return;
           }
-          index = documents.indexOf(d);
-          discard(d);
-          break;
         }
       }
       Document document = file.document();
@@ -1728,6 +1734,7 @@ public final class DocumentController {
   private void reopen(LoadOptions with, boolean detect) {
     Open open = new Open();
     open.reopened = active;
+    open.given = active.file.given;
     open.revision = active.document.revision();
     open.detect = detect;
     active.reopen = open;

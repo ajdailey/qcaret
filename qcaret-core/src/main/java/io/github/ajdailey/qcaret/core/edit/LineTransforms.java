@@ -18,7 +18,9 @@ import java.util.concurrent.CancellationException;
  * Sort, duplicate removal and trailing-blank trim over line blocks: the lines each selection
  * touches, as {@link LineEdits} counts them, or every line but an empty last one when every
  * selection is a caret. Each function returns one {@link EditBatch.Kind#COMMAND} edit, or null when
- * nothing changes, and runs on a worker for a large text.
+ * nothing changes, and runs on a worker for a large text. A block, run or line whose change would
+ * put a CR directly before an LF, joining two line breaks, is left as it is, and the edit counts
+ * its lines as unchanged; when that leaves nothing to change, the edit has no replacements.
  */
 public final class LineTransforms {
   /** Lines between cancellation checks. */
@@ -51,6 +53,7 @@ public final class LineTransforms {
       TextContent text, SelectionSet set, Order order, CancellationToken token) {
     Comparator<String> comparator = comparator(order);
     List<Replacement> out = new ArrayList<Replacement>();
+    int unchanged = 0;
     for (int[] block : blocks(text, set)) {
       List<String> lines = lines(text, block, token);
       List<String> sorted = new ArrayList<String>(lines);
@@ -67,9 +70,15 @@ public final class LineTransforms {
         }
       }
       int start = start(text, block);
-      out.add(new Replacement(start, Lines.end(text, block[1]) - start, joined.toString()));
+      Replacement r = new Replacement(start, Lines.end(text, block[1]) - start, joined.toString());
+      if (!add(text, out, r)) {
+        unchanged += block[1] - block[0] + 1;
+      }
     }
-    return out.isEmpty() ? null : new Edit(EditBatch.of(EditBatch.Kind.COMMAND, out), set);
+    if (out.isEmpty()) {
+      return unchanged == 0 ? null : Edit.unchanged(unchanged);
+    }
+    return new Edit(EditBatch.of(EditBatch.Kind.COMMAND, out), set, unchanged);
   }
 
   /**
@@ -85,6 +94,7 @@ public final class LineTransforms {
    */
   public static Edit removeDuplicates(TextContent text, SelectionSet set, CancellationToken token) {
     List<Replacement> out = new ArrayList<Replacement>();
+    int unchanged = 0;
     int last = text.lineCount() - 1;
     for (int[] block : blocks(text, set)) {
       List<String> lines = lines(text, block, token);
@@ -98,12 +108,14 @@ public final class LineTransforms {
           int end = line - 1;
           int from = end < last ? text.offsetOfLine(run) : Lines.end(text, run - 1);
           int to = end < last ? text.offsetOfLine(end + 1) : text.length();
-          out.add(new Replacement(from, to - from, ""));
+          if (!add(text, out, new Replacement(from, to - from, ""))) {
+            unchanged += end - run + 1;
+          }
           run = -1;
         }
       }
     }
-    return mapped(out, set);
+    return mapped(out, set, unchanged);
   }
 
   /**
@@ -118,6 +130,7 @@ public final class LineTransforms {
    */
   public static Edit trimTrailing(TextContent text, SelectionSet set, CancellationToken token) {
     List<Replacement> out = new ArrayList<Replacement>();
+    int unchanged = 0;
     for (int[] block : blocks(text, set)) {
       for (int line = block[0]; line <= block[1]; line++) {
         if ((line - block[0]) % CHECK_LINES == 0) {
@@ -129,24 +142,35 @@ public final class LineTransforms {
         while (at > start && (text.charAt(at - 1) == ' ' || text.charAt(at - 1) == '\t')) {
           at--;
         }
-        if (at < end) {
-          out.add(new Replacement(at, end - at, ""));
+        if (at < end && !add(text, out, new Replacement(at, end - at, ""))) {
+          unchanged++;
         }
       }
     }
-    return mapped(out, set);
+    return mapped(out, set, unchanged);
   }
 
-  private static Edit mapped(List<Replacement> out, SelectionSet set) {
+  /** Adds a replacement unless it joins two line breaks; returns false when it does. */
+  private static boolean add(TextContent text, List<Replacement> out, Replacement r) {
+    if (Lines.joinsBreaks(text, Collections.singletonList(r))) {
+      return false;
+    }
+    out.add(r);
+    return true;
+  }
+
+  private static Edit mapped(List<Replacement> out, SelectionSet set, int unchanged) {
     if (out.isEmpty()) {
-      return null;
+      return unchanged == 0 ? null : Edit.unchanged(unchanged);
     }
     List<Selection> after = new ArrayList<Selection>(set.size());
     for (Selection s : set.selections()) {
       after.add(Lines.map(out, s));
     }
     return new Edit(
-        EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex()));
+        EditBatch.of(EditBatch.Kind.COMMAND, out),
+        SelectionSet.of(after, set.primaryIndex()),
+        unchanged);
   }
 
   /**

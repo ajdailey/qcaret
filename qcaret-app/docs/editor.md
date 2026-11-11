@@ -139,7 +139,9 @@ Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph
 compute their edit (`LineTransforms`, `ParagraphWrap`) on a `qcaret-cpu-`
 worker and apply it on the UI thread as one undo step, with the view's busy
 cursor from the command to the apply; a result for an older revision is dropped
-with a notice.
+with a notice. Lines a transform, Delete Line or Move Lines leaves as they were
+to keep a CR and an LF apart (`Edit.unchanged`) are counted in a notice through
+`EditorController.notice`; a command that skips nothing shows none.
 
 ### Wrap Paragraph
 

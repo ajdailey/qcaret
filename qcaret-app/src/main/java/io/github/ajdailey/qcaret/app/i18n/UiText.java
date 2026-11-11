@@ -269,6 +269,12 @@ public enum UiText {
   RECOVERY_UNREADABLE,
   /** Recovery row: the recovery file is damaged. */
   RECOVERY_DAMAGED,
+  /** Recovery row: the recovery file cannot be read. */
+  RECOVERY_FILE_UNREADABLE,
+  /** Notice: one line a line command left unchanged to keep two line breaks apart. */
+  LINES_UNCHANGED_ONE,
+  /** Notice: lines a line command left unchanged to keep two line breaks apart. */
+  LINES_UNCHANGED,
   /** A damaged recovery file was not restored. */
   RECOVERY_DAMAGED_KEPT,
   /** A recovered buffer does not fit the heap budget: the file's name. */

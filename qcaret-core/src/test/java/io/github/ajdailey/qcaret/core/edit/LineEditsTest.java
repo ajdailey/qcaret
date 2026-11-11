@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.edit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import org.junit.jupiter.api.Test;
@@ -44,17 +45,18 @@ class LineEditsTest {
   @Test
   void moveLinesRefusesAMoveThatJoinsACrAndAnLf() {
     Marked up = new Marked("\r  fo|o\n  ");
-    assertNull(LineEdits.moveLines(up.document.text(), up.model.selections(), true));
+    assertUnchanged(1, LineEdits.moveLines(up.document.text(), up.model.selections(), true));
     Marked down = new Marked("|\r  foo\n  ");
-    assertNull(LineEdits.moveLines(down.document.text(), down.model.selections(), false));
+    assertUnchanged(1, LineEdits.moveLines(down.document.text(), down.model.selections(), false));
     Marked neighbor = new Marked("p\rx\n|\ny");
-    assertNull(LineEdits.moveLines(neighbor.document.text(), neighbor.model.selections(), true));
+    assertUnchanged(
+        1, LineEdits.moveLines(neighbor.document.text(), neighbor.model.selections(), true));
   }
 
   @Test
   void moveLinesRefusesAJoinBetweenTwoMovedBlocks() {
     Marked m = new Marked("a\nb|\rc\n|\nz");
-    assertNull(LineEdits.moveLines(m.document.text(), m.model.selections(), true));
+    assertUnchanged(2, LineEdits.moveLines(m.document.text(), m.model.selections(), true));
   }
 
   @Test
@@ -82,6 +84,23 @@ class LineEditsTest {
     Marked all = new Marked("o|ne");
     all.apply(LineEdits.deleteLines(all.document.text(), all.model.selections()));
     assertEquals("|", all.marked());
+  }
+
+  /** Asserts an edit that changes nothing and counts the lines it left. */
+  static void assertUnchanged(int lines, Edit edit) {
+    assertTrue(edit.batch().replacements().isEmpty(), "replacements");
+    assertEquals(lines, edit.unchanged());
+  }
+
+  @Test
+  void deleteLinesRefusesADeleteThatJoinsACrAndAnLf() {
+    Marked m = new Marked("a\rx|\n\nb");
+    assertUnchanged(1, LineEdits.deleteLines(m.document.text(), m.model.selections()));
+    Marked kept = new Marked("a\rx|\nb");
+    Edit deleted = LineEdits.deleteLines(kept.document.text(), kept.model.selections());
+    assertEquals(0, deleted.unchanged());
+    kept.apply(deleted);
+    assertEquals("a\r|b", kept.marked());
   }
 
   @Test

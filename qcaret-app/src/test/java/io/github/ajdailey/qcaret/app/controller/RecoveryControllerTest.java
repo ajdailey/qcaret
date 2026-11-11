@@ -436,6 +436,50 @@ class RecoveryControllerTest {
   }
 
   @Test
+  void anUnreadableRecoveryFileIsListedBesideTheOthers() throws Exception {
+    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Path a = file("a.txt", "alpha\n");
+    Path b = file("b.txt", "beta\n");
+    Harness first = start(false);
+    first.open(a);
+    edit(first, "x");
+    first.open(b);
+    edit(first, "y");
+    end(first);
+    List<Path> files = recoveryFiles();
+    assertEquals(2, files.size());
+    Path locked = files.get(0);
+    Files.setPosixFilePermissions(locked, PosixFilePermissions.fromString("---------"));
+    try {
+      assumeFalse(Files.isReadable(locked), "running as root");
+      Harness second = start(false);
+      second.await(offered(second), "the dialog");
+      List<RecoveryRow> rows = second.view.recovery.rows();
+      assertEquals(2, rows.size());
+      int bad = rows.get(0).state().equals(UiText.RECOVERY_FILE_UNREADABLE.text()) ? 0 : 1;
+      assertEquals(UiText.RECOVERY_FILE_UNREADABLE.text(), rows.get(bad).state());
+      assertEquals(String.valueOf(locked.getFileName()), rows.get(bad).name());
+      assertEquals(UiText.RECOVERY_UNCHANGED.text(), rows.get(1 - bad).state());
+      second.view.recovery.restore(new int[] {bad});
+      second.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return second.view.notices.contains(
+                  UiText.RECOVERY_READ_FAILED.format(locked.getFileName()));
+            }
+          },
+          "the read failure");
+      assertEquals(2, second.view.recovery.rows().size());
+      second.view.recovery.later();
+      awaitIdle(second);
+      assertTrue(Files.exists(locked));
+    } finally {
+      Files.setPosixFilePermissions(locked, PosixFilePermissions.fromString("rw-------"));
+    }
+  }
+
+  @Test
   void aCleanTabGivesWayToItsRecoveredBuffer() throws Exception {
     Path a = file("a.txt", "alpha\n");
     Harness first = start(false);

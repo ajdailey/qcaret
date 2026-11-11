@@ -60,8 +60,8 @@ and tests of a read-only file skip where the user writes read-only files.
 
 | Class | Covers |
 |---|---|
-| `LineEditsTest`, `BlockEditsTest`, `MovesTest` | Each command at one and several selections with the selections it leaves, padding into virtual space, one undo step per block typing run, a canceled search |
-| `LineTransformsTest` | Mixed breaks staying in place through a sort, the final break staying last, duplicates per range, a caret in trimmed blanks, one undo step each |
+| `LineEditsTest`, `BlockEditsTest`, `MovesTest` | Each command at one and several selections with the selections it leaves, padding into virtual space, one undo step per block typing run, a canceled search, Delete Line and Move Lines refusing a change that joins a CR and an LF and counting the lines left |
+| `LineTransformsTest` | Mixed breaks staying in place through a sort, the final break staying last, duplicates per range, a caret in trimmed blanks, one undo step each; a sort, duplicate removal and trim that would join a CR and an LF leaving that part and counting its lines, and none counted when nothing joins |
 | `AutoCloseTest` | The insert, type-over and pair-delete rules per caret |
 | `BracketsTest` | Nesting, unmatched brackets, the bounds |
 | `WordIndexTest` | The word rules, prefix lookup, whole-word occurrences |

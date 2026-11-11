@@ -64,8 +64,14 @@ public final class RecoveryStore {
    * @param header its header; null when the header does not parse
    * @param damaged true when the file is not complete or its trailer digest does not match
    * @param original how the original file stands
+   * @param unreadable true when the recovery file cannot be read; header is then null
    */
-  public record Entry(Path file, RecoveryFile.Header header, boolean damaged, Original original) {}
+  public record Entry(
+      Path file,
+      RecoveryFile.Header header,
+      boolean damaged,
+      Original original,
+      boolean unreadable) {}
 
   /** A dead instance's directory, locked until {@link #close}, with the files it holds. */
   public static final class Claim implements AutoCloseable {
@@ -193,7 +199,9 @@ public final class RecoveryStore {
   /**
    * Finds the directories of dead instances: each whose {@code owner.lock} can be acquired. Files
    * older than the limit are deleted; a directory left without files goes too. The others are read
-   * and the directory stays locked until its claim closes, so a second start lists it only then.
+   * and the directory stays locked until its claim closes, so a second start lists it only then. A
+   * file that cannot be read is listed as unreadable and logged; the directory's other files are
+   * listed as usual.
    *
    * @param oldest the modification time, in milliseconds, before which a file is deleted
    * @return the claims
@@ -233,10 +241,9 @@ public final class RecoveryStore {
       hold(directory);
       List<Entry> entries = new ArrayList<Entry>();
       for (Path file : recoveryFiles(directory)) {
-        if (Files.getLastModifiedTime(file).toMillis() < oldest) {
-          Files.deleteIfExists(file);
-        } else {
-          entries.add(entry(file));
+        Entry entry = entry(file, oldest);
+        if (entry != null) {
+          entries.add(entry);
         }
       }
       Claim claim = new Claim(directory, taken, entries);
@@ -252,11 +259,33 @@ public final class RecoveryStore {
     }
   }
 
+  /** Returns a file's entry, or null when it is past the limit and deleted. */
+  @WorkerThread
+  private static Entry entry(Path file, long oldest) {
+    try {
+      if (Files.getLastModifiedTime(file).toMillis() >= oldest) {
+        return entry(file);
+      }
+    } catch (IOException e) {
+      LOG.warn(
+          "Cannot read recovery file {}: {}",
+          LogText.oneLine(file.getFileName()),
+          LogText.oneLine(e.getMessage()));
+      return new Entry(file, null, false, Original.NONE, true);
+    }
+    try {
+      Files.deleteIfExists(file);
+    } catch (IOException e) {
+      LOG.warn("Cannot delete an expired recovery file: {}", LogText.oneLine(e.getMessage()));
+    }
+    return null;
+  }
+
   @WorkerThread
   private static Entry entry(Path file) throws IOException {
     try {
       RecoveryFile.Header header = RecoveryFile.check(file);
-      return new Entry(file, header, false, original(header));
+      return new Entry(file, header, false, original(header), false);
     } catch (RecoveryFile.DamagedException e) {
       LOG.warn(
           "Damaged recovery file {}: {}",
@@ -268,7 +297,7 @@ public final class RecoveryStore {
       } catch (RecoveryFile.DamagedException unreadable) {
         header = null;
       }
-      return new Entry(file, header, true, Original.NONE);
+      return new Entry(file, header, true, Original.NONE, false);
     }
   }
 

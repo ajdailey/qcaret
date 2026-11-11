@@ -110,7 +110,9 @@ worker.
   document, its revision and the load's token: closing the tab cancels the
   load, and an edit or a Save As during the load keeps the document and drops
   the load. A plain open of the file meanwhile selects the tab unread. One
-  reopen of a document runs at a time.
+  reopen of a document runs at a time. The load replaces its own tab, not
+  another tab on the same path, and keeps the path the file was opened by, so
+  a file opened through a link keeps the link.
 - `reopenWithDetection` does the same with detection, past a remembered
   charset, and leaves the document's `forced` charset null, so the file state
   and the session hold none.
@@ -166,7 +168,8 @@ edit as one undo step and the write takes the snapshot after it, so the bytes
 written are the text shown. An edit made while the cleanup ran drops it and
 computes it again, up to 3 times; then the write goes on without it. Esc or a
 close during the cleanup ends the save unwritten. `false`, a missing property
-and a read-only document leave the text alone.
+and a read-only document leave the text alone. Blanks whose removal would join a
+CR and an LF stay, and the editor's notice counts their lines.
 
 ## Saving
 

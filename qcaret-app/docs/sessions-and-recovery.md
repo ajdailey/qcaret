@@ -117,6 +117,7 @@ last.
 | Restore in the dialog | New file written first, then the old one deleted; a failed write keeps the old one until a retry succeeds or the buffer needs no recovery |
 | Rename from the workspace browser | Written again at the next interval with the new path, whatever its revision |
 | Damaged file | Listed, not restorable, kept; Discard is the user's choice |
+| Recovery file cannot be read | Listed as "Recovery file cannot be read" with a WARN, kept; Restore reads it again; the directory's other files are listed as usual |
 | Original cannot be read | Listed as `UNREADABLE`, restorable; the other files of the instance are unaffected |
 | `recovery.keepDays` | Older files in dead directories go at start |
 

@@ -249,9 +249,12 @@ the grammar's rules.
 
 Edit > Sort Lines, Remove Duplicate Lines and Trim Trailing Whitespace act on
 the selected lines, or every line. Each is one undo step, and `Esc` stops one
-still computing, as it stops a running comparison. Edit > Tab Width (any width
-from 1 to 16 through Other), Indent with Spaces and Read-Only apply to the
-selected document. Preferences, Editor sets the width and the indentation a
+still computing, as it stops a running comparison. In a file mixing CR and LF
+line endings, these commands, Delete Line, Move Lines and the trim at Save leave
+alone any line whose change would merge a CR and an LF into one CR LF line
+ending, and the status bar names how many lines they left. Edit > Tab Width
+(any width from 1 to 16 through Other), Indent with Spaces and Read-Only apply
+to the selected document. Preferences, Editor sets the width and the indentation a
 document without saved settings starts with. The bracket
 beside the caret and the other occurrences of the word at the caret are
 highlighted.
@@ -542,6 +545,9 @@ buffers with the state of each original file:
   alone. When the original cannot be read, the next save asks first.
 - Discard deletes the recovery file.
 - Later keeps it for the next start.
+
+A recovery file that cannot be read is listed as such and kept, and the other
+buffers are listed as usual.
 
 Recovery files left by a crash are kept for 30 days. With Preferences, Files,
 Quit without asking on, Exit asks nothing and the next start restores unsaved

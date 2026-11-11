@@ -49,7 +49,7 @@ final class SaveCleanup {
       final FileSettings settings,
       final LineEnding ending,
       final CancellationToken token,
-      final Consumer<EditBatch> done) {
+      final Consumer<Edit> done) {
     activity.setActive();
     boolean started =
         workers.tryStart(
@@ -57,13 +57,13 @@ final class SaveCleanup {
             new Runnable() {
               @Override
               public void run() {
-                EditBatch edit = null;
+                Edit edit = null;
                 try {
                   edit = edits(text, settings, ending, token);
                 } catch (CancellationException e) {
                   // Esc or a close: done finds the save ended.
                 } finally {
-                  final EditBatch cleanup = edit;
+                  final Edit cleanup = edit;
                   ui.asyncExec(
                       new Runnable() {
                         @Override
@@ -101,16 +101,19 @@ final class SaveCleanup {
    * @param settings the document's settings
    * @param ending the break a final newline appends
    * @param token checked as {@link LineTransforms#trimTrailing} reads
-   * @return the edit in the text's coordinates, or null when the text needs none
+   * @return the edit in the text's coordinates with the lines trim left unchanged, or null when the
+   *     text needs none
    * @throws java.util.concurrent.CancellationException when canceled
    */
-  static EditBatch edits(
+  static Edit edits(
       TextContent text, FileSettings settings, LineEnding ending, CancellationToken token) {
     List<Replacement> out = new ArrayList<Replacement>();
+    int unchanged = 0;
     if (settings.trimTrailing()) {
       Edit trim = LineTransforms.trimTrailing(text, SelectionSet.caret(0), token);
       if (trim != null) {
         out.addAll(trim.batch().replacements());
+        unchanged = trim.unchanged();
       }
     }
     int length = text.length();
@@ -127,6 +130,9 @@ final class SaveCleanup {
         }
       }
     }
-    return out.isEmpty() ? null : EditBatch.of(EditBatch.Kind.COMMAND, out);
+    if (out.isEmpty() && unchanged == 0) {
+      return null;
+    }
+    return new Edit(EditBatch.of(EditBatch.Kind.COMMAND, out), null, unchanged);
   }
 }
