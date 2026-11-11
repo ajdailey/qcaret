@@ -17,6 +17,8 @@ public enum CommandId {
   SAVE(CommandGroup.FILE, UiText.COMMAND_SAVE, true, false, null),
   /** Save the selected document to a chosen file. */
   SAVE_AS(CommandGroup.FILE, UiText.COMMAND_SAVE_AS, false, false, null),
+  /** Write the selected document's text to a chosen file; the document keeps its own. */
+  SAVE_COPY_AS(CommandGroup.FILE, UiText.COMMAND_SAVE_COPY_AS, false, false, null),
   /** Save every document with unsaved changes; an untitled one asks for a file. */
   SAVE_ALL(CommandGroup.FILE, UiText.COMMAND_SAVE_ALL, false, false, null),
   /** Close the selected document. */
@@ -25,6 +27,9 @@ public enum CommandId {
   CLOSE_ALL(CommandGroup.FILE, UiText.COMMAND_CLOSE_ALL, false, false, null),
   /** Open the file of the tab closed last again. */
   REOPEN_CLOSED(CommandGroup.FILE, UiText.COMMAND_REOPEN_CLOSED, false, false, null),
+  /** Open every file of File > Recently Closed. */
+  OPEN_ALL_CLOSED(
+      CommandGroup.FILE, UiText.COMMAND_OPEN_ALL_CLOSED, false, false, UiText.MENU_RECENTLY_CLOSED),
   /** Empty File > Recently Closed; the menu lists the files above it. */
   CLEAR_CLOSED_FILES(
       CommandGroup.FILE,
@@ -40,9 +45,12 @@ public enum CommandId {
   QUICK_OPEN(CommandGroup.FILE, UiText.COMMAND_QUICK_OPEN, false, false, null),
   /** Print the selected document, or its selection, on a printer chosen in a dialog. */
   PRINT(CommandGroup.FILE, UiText.COMMAND_PRINT, true, false, null),
+  /** Open every file of File > Recent Files. */
+  OPEN_ALL_RECENT(
+      CommandGroup.FILE, UiText.COMMAND_OPEN_ALL_RECENT, true, false, UiText.MENU_RECENT_FILES),
   /** Empty File > Recent Files; the menu lists the files above it. */
   CLEAR_RECENT_FILES(
-      CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, true, false, UiText.MENU_RECENT_FILES),
+      CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, false, false, UiText.MENU_RECENT_FILES),
   /** Close every window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, true, false, null),
   /** Undo in the selected editor. */

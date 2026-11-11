@@ -196,10 +196,7 @@ final class DocumentSettings {
     }
     document.clearPreedit();
     final DocumentSnapshot snapshot = document.snapshot();
-    LineEnding ending =
-        noBreaks(document) && saving.lineEnding() != null
-            ? saving.lineEnding()
-            : document.lineEnding();
+    LineEnding ending = cleanupEnding(document, saving);
     final CancellationToken token = new CancellationToken();
     d.file.saving = token;
     boolean started =
@@ -257,6 +254,15 @@ final class DocumentSettings {
     }
     state.prepared = true;
     return true;
+  }
+
+  /**
+   * Returns the break a save's final newline appends: the declared one in a text without breaks.
+   */
+  static LineEnding cleanupEnding(Document document, FileSettings saving) {
+    return noBreaks(document) && saving.lineEnding() != null
+        ? saving.lineEnding()
+        : document.lineEnding();
   }
 
   private static boolean noBreaks(Document document) {

@@ -31,6 +31,20 @@ public final class RopeStorage implements TextStorage {
   }
 
   /**
+   * Builds a storage starting at a snapshot. It shares the nodes of a {@code RopeStorage} snapshot
+   * and copies any other; an edit to the storage leaves the snapshot unchanged.
+   *
+   * @param snapshot the initial text
+   * @return the storage
+   */
+  public static RopeStorage from(TextSnapshot snapshot) {
+    if (snapshot instanceof Text text) {
+      return new RopeStorage(text.root);
+    }
+    return of(snapshot);
+  }
+
+  /**
    * Builds a storage from text appended in pieces. It holds the finished leaves and one leaf's
    * chars, never a second copy of the text. A leaf is {@value #LEAF_MAX} chars, the last one fewer.
    */

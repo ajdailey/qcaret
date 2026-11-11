@@ -162,6 +162,7 @@ public final class DocumentController {
   private long opens;
   private final DocumentSettings declared;
   private final SaveAndReload files;
+  private final SaveCopy copies;
   private final Supplier<OpenDocument> selected =
       new Supplier<OpenDocument>() {
         @Override
@@ -524,6 +525,27 @@ public final class DocumentController {
                 if (bufferCleaned != null) {
                   bufferCleaned.accept(bufferId);
                 }
+              }
+            });
+    this.copies =
+        new SaveCopy(
+            workers,
+            ui,
+            view,
+            files,
+            new SaveCopy.Window() {
+              @Override
+              public void copied(OpenDocument d, Path real) {
+                OpenDocument other = holderOfFile(d, real);
+                if (other != null) {
+                  holderOf(other.document).checkFile(real);
+                }
+                fileOpened(real);
+              }
+
+              @Override
+              public DocumentsUnder under() {
+                return DocumentController.this.under();
               }
             });
     this.completion =
@@ -1080,6 +1102,13 @@ public final class DocumentController {
     }
   }
 
+  /** Writes the selected document's text to a file the user picks; the document stays as it is. */
+  public void saveCopyAs() {
+    if (active != null) {
+      copies.saveCopy(active);
+    }
+  }
+
   /** Cancels a running save of the selected document. */
   public void cancelSave() {
     if (active != null) {
@@ -1402,7 +1431,8 @@ public final class DocumentController {
   }
 
   /**
-   * Sets what runs when a file opens or an open one is selected by opening it; it gets the path.
+   * Sets what runs when a file opens, an open one is selected by opening it or Save a Copy As
+   * writes one; it gets the path.
    */
   void setOpenListener(Consumer<Path> listener) {
     openListener = listener;
@@ -1877,6 +1907,30 @@ public final class DocumentController {
       closedPaths.remove(paths.get(index));
       open(paths.get(index), options);
     }
+  }
+
+  /**
+   * Opens every readable file of a list, in list order, and names the others in a notice.
+   *
+   * @param paths the files
+   * @param opened receives the files opened, or null
+   */
+  void openAll(List<Path> paths, Consumer<List<Path>> opened) {
+    OpenAll.open(workers, ui, view, this, paths, opened);
+  }
+
+  /** Opens every file of File > Recently Closed; the opened ones leave the list. */
+  public void openAllClosed() {
+    openAll(
+        new ArrayList<Path>(closedPaths),
+        new Consumer<List<Path>>() {
+          @Override
+          public void accept(List<Path> opened) {
+            closedPaths.removeAll(opened);
+            view.documentStateChanged();
+            sessionChanged();
+          }
+        });
   }
 
   /** Empties File > Recently Closed. */

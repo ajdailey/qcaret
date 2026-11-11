@@ -656,6 +656,9 @@ public final class ApplicationController {
       case OPEN -> documents.open();
       case SAVE -> documents.save();
       case SAVE_AS -> documents.saveAs();
+      case SAVE_COPY_AS -> documents.saveCopyAs();
+      case OPEN_ALL_CLOSED -> documents.openAllClosed();
+      case OPEN_ALL_RECENT -> recentFiles.openAll();
       case SAVE_ALL -> documents.saveAll();
       case REOPEN_CLOSED -> documents.reopenClosed();
       case CLEAR_CLOSED_FILES -> documents.clearClosed();

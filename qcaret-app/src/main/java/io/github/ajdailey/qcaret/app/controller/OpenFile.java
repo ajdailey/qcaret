@@ -55,6 +55,9 @@ final class OpenFile {
   /** Cancels the running save, or null. Cleared by a cancel while the writer still runs. */
   CancellationToken saving;
 
+  /** Cancels the running Save a Copy As, or null. */
+  CancellationToken copying;
+
   /** Cancels the running reload, or null. */
   CancellationToken reloading;
 

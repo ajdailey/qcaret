@@ -68,6 +68,11 @@ final class RecentFiles {
     }
   }
 
+  /** Opens every listed file; each one opened moves to the top as any open does. */
+  void openAll() {
+    documents.openAll(paths, null);
+  }
+
   /** Empties the list. */
   void clear() {
     paths.clear();

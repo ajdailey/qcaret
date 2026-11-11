@@ -198,6 +198,25 @@ worker while editing goes on, then calls `markSaved`.
   the write ends; Cancel leaves two tabs on the file, and the external-change
   check applies to the edited one.
 
+### Save a Copy As
+
+`SaveCopy` writes the document's snapshot through `DocumentFiles.save` on a
+`qcaret-io-` worker, with no baseline. The copy takes the document's encoding,
+BOM and line breaks; when the document's declared settings ask for the save
+cleanup, `SaveCleanup.edits` is applied to a `RopeStorage.from` copy of the
+snapshot, so the document's text, undo history and dirty state are untouched.
+The document keeps its path, file check and session entry, and the copy is not
+opened.
+
+- A target whose real path is the document's file runs Save.
+- A written copy is checked at once in the tab holding that file, in any
+  window, which takes it as an external change, and goes to the top of Recent
+  Files.
+- A failed write leaves the target unchanged and shows `SAVE_FAILED` with the
+  target's name. Esc and closing the tab cancel the write
+  (`OpenFile.copying`); a second copy of the same document while one runs
+  shows a notice.
+
 Close asks Save, Don't Save or Cancel for a dirty document. Save closes once
 the save succeeds, and an edit made during the write asks again, with the tab
 and its recovery file kept. A closed document disposes its editor and releases
@@ -207,6 +226,12 @@ its heap reservation.
 
 - Save All saves every dirty document in tab order.
 - Reopen Closed Tab opens the file of the last of up to 20 closed tabs again.
+- Open All in Recent Files and Recently Closed (`OpenAll`) checks the listed
+  files on a `qcaret-io-` worker and passes the readable regular files, in list
+  order, to `open(List)`, which selects a file already open. The others are
+  named in one status notice and get no tab, where a single open of a missing
+  file opens an empty tab for it. Recently Closed drops the files it opened and
+  keeps the skipped ones.
 - Read-Only, the tab width and indentation with spaces are per document.
 - Go to Line asks for `line`, `line:column` or `line,column`, from 1; other
   input shows a notice.

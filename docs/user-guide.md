@@ -33,7 +33,9 @@ Open files with File > Open (`Ctrl+O`), File > Recent Files (the last 20),
 opens in its own tab; a file already open selects its tab, in any window. File >
 New (`Ctrl+N`) opens an untitled document. File > Reopen Closed Tab
 (`Ctrl+Shift+T`) opens the last closed tab's file again, up to 20 back, where
-the caret was; File > Recently Closed lists those files to choose from.
+the caret was; File > Recently Closed lists those files to choose from. Open All
+in either list opens every listed file; a missing or unreadable one is skipped
+and named in the status bar.
 
 A load still running after 0.3 seconds shows a row above the status bar with its
 progress and Cancel. The window stays usable. Cancel or `Esc` stops every
@@ -98,6 +100,14 @@ no write permission for is not saved, and a message says so. A file with hard
 links, or in a folder you cannot write to, is written directly; once that write
 has begun, `Esc` does not stop it. Save As onto a file open
 in another tab closes that tab, after asking when the tab has unsaved changes.
+
+File > Save a Copy As writes the current text, unsaved changes included, to
+another file and leaves the document as it was: same file, same unsaved
+changes, same Undo history. The copy is saved as Save would save it, in the
+document's encoding and line endings with the trimming and final newline its
+`.editorconfig` asks for, and is added to Recent Files. Choosing the document's
+own file saves it. A copy written over a file open in another tab reaches that
+tab as a change made by another program.
 
 ### Printing
 

@@ -43,6 +43,8 @@ import java.util.Set;
  * disabled menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor
  * bindings, not accelerators, so they stay live in the editor and in text fields whatever the items
  * show.
+ *
+ * <p>Open All in Recent Files and in Recently Closed needs a listed file.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -77,6 +79,7 @@ public final class CommandStates {
           CommandId.TOOLBAR,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
+          CommandId.OPEN_ALL_RECENT,
           CommandId.CLEAR_RECENT_FILES,
           CommandId.NEW_WINDOW,
           CommandId.WORKSPACE_BROWSER,
@@ -224,7 +227,9 @@ public final class CommandStates {
    * @return true unless the command needs a document, a file or a state the document lacks
    */
   public boolean enabled(CommandId command) {
-    if (command == CommandId.REOPEN_CLOSED || command == CommandId.CLEAR_CLOSED_FILES) {
+    if (command == CommandId.REOPEN_CLOSED
+        || command == CommandId.CLEAR_CLOSED_FILES
+        || command == CommandId.OPEN_ALL_CLOSED) {
       return application.documents().canReopenClosed();
     }
     if (WINDOW_COMMANDS.contains(command) || command.group() == CommandGroup.HELP) {
@@ -232,7 +237,7 @@ public final class CommandStates {
         case ZOOM_IN -> application.fontPoints() < Options.MAX_FONT_SIZE;
         case ZOOM_OUT -> application.fontPoints() > Options.MIN_FONT_SIZE;
         case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
-        case CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
+        case OPEN_ALL_RECENT, CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
         case GO_BACK -> application.history().canBack();
         case GO_FORWARD -> application.history().canForward();
         default -> true;
@@ -262,7 +267,7 @@ public final class CommandStates {
     return switch (command) {
       case COPY -> selected(documents);
       case SAVE -> !binary && !documents.activeRefusesSave();
-      case SAVE_AS, READ_ONLY -> !binary;
+      case SAVE_AS, SAVE_COPY_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS, COMPARE_DOCUMENTS -> documents.count() > 1;
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;

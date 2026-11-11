@@ -819,6 +819,16 @@ public enum UiText {
   /** Recent Files entry: its number and path. */
   RECENT_FILE,
   /** Command label. */
+  COMMAND_SAVE_COPY_AS,
+  /** Notice: a copy was written; takes the document's name and the copy's path. */
+  SAVE_COPY_DONE,
+  /** Command label. */
+  COMMAND_OPEN_ALL_RECENT,
+  /** Command label. */
+  COMMAND_OPEN_ALL_CLOSED,
+  /** Notice: Open All skipped files; takes their names. */
+  OPEN_ALL_SKIPPED,
+  /** Command label. */
   COMMAND_WORKSPACE_BROWSER,
   /** Command label. */
   COMMAND_GO_BACK,

@@ -320,6 +320,23 @@ class DocumentBehaviorSurfaceTest {
   }
 
   @Test
+  void recentlyClosedOpenAllSitsAboveClearAndOpensEveryFile() throws Exception {
+    openFile("a.txt", "a\n");
+    openFile("b.txt", "b\n");
+    controller.execute(CommandId.CLOSE_ALL);
+    drain();
+    window.menuBar().sync(CommandGroup.FILE);
+    MenuItem openAll = window.menuBar().item(CommandId.OPEN_ALL_CLOSED);
+    MenuItem[] items = openAll.getParent().getItems();
+    assertEquals(5, items.length);
+    assertEquals(openAll, items[3]);
+    assertEquals(window.menuBar().item(CommandId.CLEAR_CLOSED_FILES), items[4]);
+    assertTrue(openAll.getEnabled());
+    openAll.notifyListeners(SWT.Selection, new Event());
+    await(tabs(2), "every closed file");
+  }
+
+  @Test
   void automaticDetectionLeadsReopenWithEncoding() throws Exception {
     Path file = openFile("a.txt", "café\n");
     controller.reopenWithEncoding(StandardCharsets.ISO_8859_1);

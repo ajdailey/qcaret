@@ -344,11 +344,15 @@ final class SaveAndReload {
     return true;
   }
 
-  /** Cancels a document's running save. */
+  /** Cancels a document's running save and Save a Copy As. */
   void cancelSave(OpenDocument d) {
     if (d.file.saving != null) {
       d.file.saving.cancel();
       d.file.saving = null;
+    }
+    if (d.file.copying != null) {
+      d.file.copying.cancel();
+      d.file.copying = null;
     }
   }
 

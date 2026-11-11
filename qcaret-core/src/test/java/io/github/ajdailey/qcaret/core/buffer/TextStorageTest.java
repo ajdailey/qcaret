@@ -276,4 +276,16 @@ class TextStorageTest {
     assertEquals(0, built.length());
     assertEquals(1, built.lineCount());
   }
+
+  @Test
+  void aStorageFromASnapshotLeavesTheSnapshotAlone() {
+    String text = "x".repeat(RopeStorage.LEAF_MAX * 3) + "\r\nend";
+    TextSnapshot snapshot = RopeStorage.of(text).snapshot();
+    RopeStorage copy = RopeStorage.from(snapshot);
+    copy.replace(text.length() - 3, 3, "tail\n");
+    copy.replace(0, 1, "");
+    assertEquals(text, snapshot.toString());
+    assertEquals(text.substring(1, text.length() - 3) + "tail\n", copy.toString());
+    assertEquals(3, copy.lineCount());
+  }
 }
