@@ -1455,7 +1455,11 @@ public enum UiText {
   /** A count of symbols other than one, for {@link #count}. */
   COUNT_SYMBOLS,
   /** Notice: a delete took the workspace folder; takes its path. */
-  WORKSPACE_DELETED;
+  WORKSPACE_DELETED,
+  /** Tool tip and accessible name of the tab strip's list button. */
+  TAB_LIST,
+  /** {@link #TAB_LIST} while tabs are hidden; takes the hidden count. */
+  TAB_LIST_HIDDEN;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

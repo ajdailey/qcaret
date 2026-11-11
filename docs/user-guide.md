@@ -179,6 +179,13 @@ apply (measured on Linux, one million lines):
   dragging moves it. A tab's menu offers Close, Close Others, Close to the Left,
   Close to the Right, Close All, Move to New Window, Copy Path, Copy File Name
   and Open Containing Folder.
+- Three buttons end the tab row. `+` opens a new document and `x` closes the
+  selected one, asking first about unsaved changes. The arrow between them
+  lists every tab, with the number of tabs that do not fit in the row beside
+  it; separators set the tabs shown in the row apart from the others, and the
+  selected one is checked. Choosing a tab selects it and brings it into the
+  row. The mouse wheel over the row scrolls it one tab at a time and keeps the
+  selected tab in view.
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.

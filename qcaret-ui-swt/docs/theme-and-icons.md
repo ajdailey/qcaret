@@ -107,6 +107,10 @@ of the visible owner through `Control.print`; a hidden toolbar re-inks when it
 shows. GTK's disabled effect brightens an icon on a dark background, so there
 `showState` gives a disabled item a copy at 40% opacity.
 
+The tab strip's buttons (`TabStripButtons`) sit on the palette's `gutter`, not a
+native background, so their `ToolIcons` has a fixed ink that `applyPalette`
+sets through `setDarkBackground` from the gutter's luminance.
+
 About picks its logo the same way from the dialog background
 (`MainWindow.logoVariant`): native chrome can differ from the palette on cocoa,
 on win32 before a restart and on a GTK theme with no dark variant.

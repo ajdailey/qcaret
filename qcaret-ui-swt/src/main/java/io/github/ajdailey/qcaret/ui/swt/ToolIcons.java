@@ -176,6 +176,18 @@ final class ToolIcons {
   /** Hides a side panel. */
   static final String HIDE = "hide";
 
+  /** Opens a new tab, at the end of the tab strip. */
+  static final String TAB_NEW = "tab-new";
+
+  /** Closes the selected tab, at the end of the tab strip. */
+  static final String TAB_CLOSE = "tab-close";
+
+  /** Lists every tab, at the end of the tab strip; a down arrow. */
+  static final String TAB_LIST_DOWN = "tab-list-down";
+
+  /** Lists every tab, at the end of the tab strip; a right arrow. */
+  static final String TAB_LIST_RIGHT = "tab-list-right";
+
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 

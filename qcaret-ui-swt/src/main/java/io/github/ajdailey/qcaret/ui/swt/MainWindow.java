@@ -200,6 +200,7 @@ public final class MainWindow implements MainView {
   private ApplicationController controller;
   private MainMenuBar menuBar;
   private MainToolBar mainToolBar;
+  private TabStripButtons tabButtons;
   private EditorMenu editorMenu;
   private final ToolBar toolBar;
   private boolean lineNumbersShown = true;
@@ -675,6 +676,17 @@ public final class MainWindow implements MainView {
           }
         });
     listenToTabs();
+    tabButtons =
+        new TabStripButtons(
+            tabs,
+            palette,
+            new Consumer<CommandId>() {
+              @Override
+              public void accept(CommandId command) {
+                controller.execute(command);
+              }
+            });
+    tabButtons.setKeymap(keymap);
     dispatchWindowKeys();
     findBar = new FindBar(shell, owner.find());
     findBar.control().moveAbove(statusBar);
@@ -810,6 +822,9 @@ public final class MainWindow implements MainView {
   private void applyPalette(Palette next) {
     palette = next;
     colorTabs(next);
+    if (tabButtons != null) {
+      tabButtons.setPalette(next);
+    }
     if (resultsDock != null) {
       resultsDock.setPalette(next);
     }
@@ -967,6 +982,15 @@ public final class MainWindow implements MainView {
    */
   MainToolBar mainToolBar() {
     return mainToolBar;
+  }
+
+  /**
+   * Returns the buttons at the end of the tab strip.
+   *
+   * @return the buttons, or null before {@link #attach}
+   */
+  TabStripButtons tabButtons() {
+    return tabButtons;
   }
 
   @Override
@@ -2196,6 +2220,7 @@ public final class MainWindow implements MainView {
     keymap = bindings;
     menuBar.build(bindings);
     mainToolBar.setKeymap(bindings);
+    tabButtons.setKeymap(bindings);
     editorMenu.setKeymap(bindings);
     for (CTabItem item : tabs.getItems()) {
       if (item.getData() instanceof Tab tab) {

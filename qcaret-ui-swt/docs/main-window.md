@@ -55,6 +55,43 @@ The shell's data names its `MainWindow`. A moved tab is a new `Tab` with new
 `EditorPane`s over the same projection and selections; widgets do not cross
 shells.
 
+### Tab strip buttons
+
+`TabStripButtons` is the folder's top-right control: New, the tab list and
+Close, always shown. Each is a `Canvas` painting a `ToolIcons` image
+(`tab-new`, `tab-list-down` or `tab-list-right`, `tab-close`) on the palette's
+`gutter`, in the ink of the palette (see
+[Theme and icons](theme-and-icons.md#palette-application)). New and Close run `NEW` and `CLOSE` through
+`ApplicationController.execute`, so Close asks about unsaved changes; their
+tool tips name the keys. Close is faded and inert without a tab.
+
+- The list button shows the count of hidden tabs (`CTabItem.isShowing`) beside
+  its arrow, read on each strip paint; a count of another width resizes the
+  group and the folder lays out again. Its tool tip and accessible name are
+  Show All Tabs, with the hidden count when any. It has no key.
+- `TabList` fills the list menu on each show: every tab in strip order,
+  labeled as the tab, the selected one checked. Separators set the run shown
+  in the strip apart from the hidden tabs on either side. Tabs sharing a name
+  add their folder. A choice runs `CTabFolder.setSelection` and sends the
+  folder `Selection`, the path a tab click takes.
+- `ListGlyph` picks the arrow; the down arrow is the default.
+
+SWT's chevron cannot be hidden through public API. `TabStripButtons` sets a
+`CTabFolderRenderer` that draws nothing for it and holds its `ToolBar` at zero
+width on each resize, so no second list control shows. The strip still reserves
+the chevron's width, 34 px on GTK 3 and 43 px on GTK 4 (measured). Do not
+shrink the chevron through the renderer: with a 1 px chevron GTK 4 left the
+selected last tab out of the strip after New (measured; the cause in
+`CTabFolder` is not traced). A `showList` request opens the list menu.
+
+The mouse wheel over the strip or the buttons moves the run of shown tabs one
+tab per notch without changing the selection. `CTabFolder.showItem` moves the
+run only in MRU mode; otherwise the folder keeps the run that holds the
+selection. `TabList.scroll` turns MRU mode on, shows the tabs from the last down to the
+new first, lays the folder out through a `Resize` event and turns MRU mode
+off, which starts the run at that tab. The selected tab never leaves the strip
+(measured on GTK 3 and GTK 4): the run stops with the selection at either end.
+
 ## Menus
 
 `MainMenuBar` builds one menu per `CommandGroup` from `MenuTable` and applies
