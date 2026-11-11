@@ -45,8 +45,14 @@ class ScreenProbeTest {
     display.dispose();
   }
 
+  /**
+   * GTK 3 only: on win32 the probe read through a covering shell (windows-2025 runner), and GTK 4
+   * reads white.
+   */
   @Test
   void aCoveringShellSkips() {
+    assumeTrue("gtk".equals(SWT.getPlatform()), "win32 reads the probe through a covering shell");
+    assumeTrue(!"1".equals(System.getenv("SWT_GTK4")), "GC.copyArea reads white on GTK 4");
     Shell cover = new Shell(display, SWT.NO_TRIM | SWT.ON_TOP);
     cover.setBackground(new Color(COVER));
     cover.setBounds(shell.getBounds());
