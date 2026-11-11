@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
@@ -33,7 +34,7 @@ final class Dialogs {
   }
 
   /**
-   * Creates a dialog shell with a given style.
+   * Creates a dialog shell with a given style, carrying its owner's icons.
    *
    * @param parent the owning shell
    * @param title the title
@@ -43,12 +44,28 @@ final class Dialogs {
   static Shell shell(Shell parent, String title, int style) {
     Shell shell = new Shell(parent, style);
     shell.setText(title);
+    inheritIcons(shell, parent);
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 12;
     layout.marginHeight = 12;
     layout.verticalSpacing = 8;
     shell.setLayout(layout);
     return shell;
+  }
+
+  /**
+   * Gives a shell its owner's images when the owner has any. A dialog opened from a dialog takes
+   * them from the owning dialog. The images stay owned by the shell that loaded them: the caller
+   * never disposes them.
+   *
+   * @param shell the new shell
+   * @param owner the shell that owns it
+   */
+  static void inheritIcons(Shell shell, Shell owner) {
+    Image[] images = owner.getImages();
+    if (images.length > 0) {
+      shell.setImages(images);
+    }
   }
 
   /**

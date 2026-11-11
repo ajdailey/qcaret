@@ -21,6 +21,7 @@ import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolItem;
 
 /** View classes that each break one architecture rule; never instantiated. */
@@ -101,6 +102,13 @@ final class ViewViolations {
           && controller.theme().mode() == ThemeMode.DARK
           && controller.documents().wrap()
           && document.isReadOnly();
+    }
+  }
+
+  /** Creates an owned shell without its owner's icons. */
+  static final class CreatesShell {
+    Shell create(Shell parent) {
+      return new Shell(parent);
     }
   }
 }

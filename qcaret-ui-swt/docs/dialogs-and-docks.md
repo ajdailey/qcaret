@@ -15,6 +15,29 @@ Four calls do run a nested event loop, so code around them must tolerate
 re-entrant events: `FileDialog.open`, `ColorDialog.open`, `PrintDialog.open`,
 and `Clipboard.getContents` on GTK, which `MainWindow.clipboardText` uses.
 
+## Window icons
+
+Every dialog and tool window shows the main window's icon set.
+`Dialogs.inheritIcons(shell, owner)` copies `owner`'s images when it has any,
+so a dialog opened from a dialog takes them from the owning dialog.
+`Dialogs.shell` calls it, and `DiffWindow` calls it for the shell it builds
+itself. `ReportWindow`,
+`RunChooser` and `ReplaceDialog` sit in `ui.swt.search`, which cannot reach
+`Dialogs` without a package cycle, so `MainWindow` builds their shells with
+`Dialogs.shell` and passes them in. The images stay owned by `MainWindow`, which
+disposes them; a dialog never disposes them. `ArchitectureTest` fails a code
+unit that creates an owned `Shell` without calling `inheritIcons`; the main
+window's top-level shell and the borderless `CompletionPopup` are exempt.
+
+GTK 3 also copies a transient parent's icon to a shell that has none; GTK 4
+does not, so there a shell built without `inheritIcons` has no `_NET_WM_ICON`.
+
+Native dialogs (`FileDialog`, `DirectoryDialog`, `MessageBox`, `PrintDialog`,
+`FontDialog`) take no images through SWT's API, so their icon is the
+platform's. Measured under Xvfb: on GTK 3 the file, folder, print and font
+dialogs carry the owner's icon through the transient parent; on GTK 4 the font
+dialog carries none.
+
 ## Prompts
 
 | Class | Behavior |

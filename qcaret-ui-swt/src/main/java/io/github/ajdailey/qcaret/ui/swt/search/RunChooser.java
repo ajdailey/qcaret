@@ -7,7 +7,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -28,19 +27,13 @@ public final class RunChooser {
   /**
    * Creates the dialog.
    *
-   * @param parent the main window
+   * @param shell the dialog's empty shell, owned by the main window and laid out as one grid column
    * @param runs one line per run
    * @param chosen receives the chosen run's index
    */
-  public RunChooser(Shell parent, List<String> runs, Consumer<Integer> chosen) {
+  public RunChooser(Shell shell, List<String> runs, Consumer<Integer> chosen) {
     this.chosen = chosen;
-    shell = new Shell(parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
-    shell.setText(UiText.RESTORE_CHOOSE_TITLE.text());
-    GridLayout layout = new GridLayout(1, false);
-    layout.marginWidth = 12;
-    layout.marginHeight = 12;
-    layout.verticalSpacing = 8;
-    shell.setLayout(layout);
+    this.shell = shell;
     Label label = new Label(shell, SWT.WRAP);
     label.setText(UiText.RESTORE_CHOOSE_LABEL.text());
     GridData labelData = new GridData(SWT.FILL, SWT.CENTER, true, false);

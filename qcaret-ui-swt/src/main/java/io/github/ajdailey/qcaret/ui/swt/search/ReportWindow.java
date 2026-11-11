@@ -7,7 +7,6 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -39,18 +38,12 @@ public final class ReportWindow {
   /**
    * Creates the window.
    *
-   * @param parent the main window
+   * @param shell the window's empty shell, owned by the main window and laid out as one grid column
    * @param input the report
    */
-  public ReportWindow(Shell parent, ReportInput input) {
+  public ReportWindow(Shell shell, ReportInput input) {
     this.input = input;
-    shell = new Shell(parent, SWT.SHELL_TRIM);
-    shell.setText(input.title().replace("&", "&&"));
-    GridLayout layout = new GridLayout(1, false);
-    layout.marginWidth = 12;
-    layout.marginHeight = 12;
-    layout.verticalSpacing = 8;
-    shell.setLayout(layout);
+    this.shell = shell;
     summary = new Label(shell, SWT.WRAP);
     summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     table = new Table(shell, SWT.VIRTUAL | SWT.SINGLE | SWT.FULL_SELECTION | SWT.BORDER);

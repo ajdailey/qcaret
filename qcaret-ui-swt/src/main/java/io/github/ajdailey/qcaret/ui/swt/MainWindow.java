@@ -2548,7 +2548,14 @@ public final class MainWindow implements MainView {
     if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
       replaceDialog.shell().dispose();
     }
-    replaceDialog = new ReplaceDialog(shell, input, palette, fontName, Dialogs.monospaceSize());
+    replaceDialog =
+        new ReplaceDialog(
+            Dialogs.shell(
+                shell, UiText.REPLACE_TITLE.text(), SWT.SHELL_TRIM | SWT.APPLICATION_MODAL),
+            input,
+            palette,
+            fontName,
+            Dialogs.monospaceSize());
     replaceDialog.open();
     rememberSize(replaceDialog.shell(), "replace");
   }
@@ -2574,7 +2581,9 @@ public final class MainWindow implements MainView {
     if (shell.isDisposed()) {
       return;
     }
-    ReportWindow window = new ReportWindow(shell, input);
+    ReportWindow window =
+        new ReportWindow(
+            Dialogs.shell(shell, input.title().replace("&", "&&"), SWT.SHELL_TRIM), input);
     reportWindows.add(window);
     window.open();
     rememberSize(window.shell(), "report");
@@ -2610,7 +2619,12 @@ public final class MainWindow implements MainView {
   @Override
   public void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen) {
     if (!shell.isDisposed()) {
-      new RunChooser(shell, runs, chosen).open();
+      Shell dialog =
+          Dialogs.shell(
+              shell,
+              UiText.RESTORE_CHOOSE_TITLE.text(),
+              SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
+      new RunChooser(dialog, runs, chosen).open();
     }
   }
 

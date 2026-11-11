@@ -73,6 +73,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -828,6 +830,57 @@ class ArchitectureTest {
         .callMethodWhere(callNamed("org.eclipse.swt.custom.CTabItem", "setImage"));
   }
 
+  /**
+   * A code unit that creates an owned shell calls {@code Dialogs.inheritIcons}, so every dialog
+   * carries the main window's icons. The main window creates the one top-level shell and sets the
+   * images; the completion popup is borderless and shows no icon.
+   */
+  @Test
+  void ownedShellsInheritIcons() {
+    ownedShellsInheritIconsRule().check(classes);
+  }
+
+  private static ArchRule ownedShellsInheritIconsRule() {
+    return classes()
+        .should(
+            new ArchCondition<JavaClass>("call Dialogs.inheritIcons where they create a Shell") {
+              @Override
+              public void check(JavaClass type, ConditionEvents events) {
+                if (type.getName().equals(ROOT + ".ui.swt.editor.CompletionPopup")) {
+                  return;
+                }
+                for (JavaCodeUnit unit : type.getCodeUnits()) {
+                  for (JavaConstructorCall call : unit.getConstructorCallsFromSelf()) {
+                    if (call.getTargetOwner().isAssignableTo(Shell.class)
+                        && !topLevelInMainWindow(call)
+                        && !callsInheritIcons(unit)) {
+                      events.add(
+                          SimpleConditionEvent.violated(
+                              call,
+                              "new Shell without Dialogs.inheritIcons in "
+                                  + call.getDescription()));
+                    }
+                  }
+                }
+              }
+            });
+  }
+
+  private static boolean topLevelInMainWindow(JavaConstructorCall call) {
+    return call.getOriginOwner().getName().equals(ROOT + ".ui.swt.MainWindow")
+        && call.getTarget().getRawParameterTypes().get(0).isAssignableTo(Display.class);
+  }
+
+  private static boolean callsInheritIcons(JavaCodeUnit unit) {
+    for (JavaMethodCall call : unit.getMethodCallsFromSelf()) {
+      if (call.getTarget().getName().equals("inheritIcons")
+          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.Dialogs")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Each rule reports the fixture class that breaks it.
 
   private static final String VIEW_FIXTURES = ROOT + ".ui.swt.archfixture.ViewViolations$";
@@ -981,6 +1034,8 @@ class ArchitectureTest {
         "DocumentController.wrap",
         "Document.isReadOnly",
         "!palette");
+    assertViolations(
+        ownedShellsInheritIconsRule(), VIEW_FIXTURES + "CreatesShell", "new Shell without");
   }
 
   /**

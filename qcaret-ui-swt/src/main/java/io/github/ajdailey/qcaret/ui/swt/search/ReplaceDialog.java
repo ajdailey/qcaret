@@ -61,25 +61,20 @@ public final class ReplaceDialog {
   /**
    * Creates the dialog.
    *
-   * @param parent the main window
+   * @param shell the dialog's empty shell, owned by the main window and laid out as a grid
    * @param input the preview's model
    * @param palette the colors the tints derive from
    * @param fontName the monospace font family
    * @param fontSize its size in points
    */
   public ReplaceDialog(
-      Shell parent, ReplaceInput input, Palette palette, String fontName, int fontSize) {
+      Shell shell, ReplaceInput input, Palette palette, String fontName, int fontSize) {
     this.input = input;
     removed = color(mix(palette.background(), RED));
     added = color(mix(palette.background(), GREEN));
     note = color(palette.lineNumbers());
-    shell = new Shell(parent, SWT.SHELL_TRIM | SWT.APPLICATION_MODAL);
-    shell.setText(UiText.REPLACE_TITLE.text());
-    GridLayout layout = new GridLayout(2, false);
-    layout.marginWidth = 12;
-    layout.marginHeight = 12;
-    layout.verticalSpacing = 8;
-    shell.setLayout(layout);
+    this.shell = shell;
+    ((GridLayout) shell.getLayout()).numColumns = 2;
     Label header = new Label(shell, SWT.NONE);
     header.setText(input.title().replace("&", "&&"));
     header.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
