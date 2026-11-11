@@ -580,10 +580,7 @@ class EditingSurfaceTest {
       Point at = display.map(text, null, text.getCaret().getLocation());
       final int x = at.x;
       final int y = at.y + text.getLineHeight() / 2;
-      // A runner desktop can cover the window (the windows-11-arm image shows its privacy setup
-      // screen on top): the current line's color at the row's right end proves the window shows.
-      Point lineEnd = display.map(text, null, new Point(text.getClientArea().width - 4, 0));
-      assumeTrue(near(line, screenPixel(lineEnd.x, y)), "the test window is covered on the screen");
+      ScreenProbe.assumeShows(text.getShell());
       final RGB[] seen = new RGB[1];
       // The caret blinks; poll the screen until it shows.
       boolean shown =

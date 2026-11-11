@@ -14,6 +14,13 @@ run.
   sleep.
 - No test opens a popup under a pump: a win32 popup would block.
 - A pixel check skips when `Control.print` returns false.
+- A test that reads screen pixels calls `ScreenProbe.assumeShows` first: a
+  probe child of a known color must read back through `GC.copyArea`, or the
+  test aborts with the platform in the reason. A covering window (the
+  `windows-11-arm` runner's first-run screen) and GTK 4 fail the read. A print
+  read checks a known color in the image with `ScreenProbe.assumeDrawn`.
+  `ScreenProbeTest` opens a covering shell. Screenshot-only copies are
+  unguarded.
 - A test that posts a press through `notifyListeners` and dispatches events
   before the release drops real `MouseMove` events in a Display filter added
   before the window opens, so it runs before `EditorGestures`' filter, as
@@ -87,7 +94,7 @@ checks that need them skip there.
 | Class | Covers |
 |---|---|
 | `ThemeAndDialogsTest` | The theme switched from the View menu, tool icons re-inked on a dark background, `showsNow` per platform, the About logo by background, a text window over a modal dialog, Licenses over About, the menu bar without an application menu; `CocoaChrome` on any platform (control colors following an appearance change, palette-colored controls keeping theirs, a control created during a change colored, `refresh` reporting one change once) |
-| `TabColorsGuiTest` | The tab strip's screen pixels through `GC.copyArea` in light, dark, light and dark, light, dark order, with focus outside and inside the folder: contrast of at least 4.5 and a strip of the theme's lightness. On GTK the status bar and its Warnings link take the same check and the About logo must match the theme. A probe child of a known color checks that a screen read shows the window (the `windows-11-arm` runner's desktop lies under a first-run page); when it does not, win32 reads through `Control.print` and other platforms fail. Skips on GTK 4 |
+| `TabColorsGuiTest` | The tab strip's screen pixels through `GC.copyArea` in light, dark, light and dark, light, dark order, with focus outside and inside the folder: contrast of at least 4.5 and a strip of the theme's lightness. On GTK the status bar and its Warnings link take the same check and the About logo must match the theme. When `ScreenProbe` finds the window covered, win32 reads through `Control.print` and other platforms skip. Skips on GTK 4 |
 | `LightOnlyThemeTest` | On a missing GTK theme: the dark palette with light chrome, dark ink and the light logo |
 
 ### Resources

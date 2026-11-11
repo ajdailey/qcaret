@@ -69,6 +69,7 @@ class LightOnlyThemeTest {
     assumeTrue(!"1".equals(System.getenv("SWT_GTK4")), "the settings file is GTK 3's");
     open();
     settle();
+    ScreenProbe.assumeShows(window.shell());
     check("dark start", true);
     controller.setTheme(ThemeMode.LIGHT);
     settle();

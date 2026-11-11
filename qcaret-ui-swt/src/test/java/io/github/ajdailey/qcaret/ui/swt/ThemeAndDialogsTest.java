@@ -176,6 +176,14 @@ class ThemeAndDialogsTest {
     CTabItem other = tabs.getItem(tabs.getSelectionIndex() == 0 ? 1 : 0);
     tabs.notifyListeners(SWT.Activate, new Event());
     ImageData focused = printed(tabs);
+    // The print read black on the windows-11-arm runner, whose desktop is covered.
+    Rectangle last = tabs.getItem(tabs.getItemCount() - 1).getBounds();
+    ScreenProbe.assumeDrawn(
+        focused,
+        last.x + last.width + 8,
+        last.y + last.height / 2,
+        tabs.getBackground().getRGB(),
+        "the folder's print right of the last tab");
     assertTab(focused, selected, palette.selection(), true);
     assertTab(focused, other, palette.gutter(), false);
     tabs.notifyListeners(SWT.Deactivate, new Event());

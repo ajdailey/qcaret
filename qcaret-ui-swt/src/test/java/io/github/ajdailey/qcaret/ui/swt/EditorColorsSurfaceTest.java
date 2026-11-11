@@ -359,13 +359,31 @@ class EditorColorsSurfaceTest {
   private void assertPainted(Palette palette) {
     StyledText text = window.activeText();
     Rectangle area = text.getClientArea();
-    assertNear(palette.background(), pixel(text, area.width - 4, area.height - 4), "editor");
+    int ex = area.width - 4;
+    int ey = area.height - 4;
+    // A print on a covered desktop (windows-11-arm) reads black: require the editor's own
+    // background first, so a missing palette call still fails the assertion below.
+    ScreenProbe.assumeDrawn(
+        printed(text), ex, ey, text.getBackground().getRGB(), "the editor's print");
+    assertNear(palette.background(), pixel(text, ex, ey), "editor");
     CTabFolder tabs = window.tabs();
     CTabItem last = tabs.getItem(tabs.getItemCount() - 1);
     Rectangle tab = last.getBounds();
     assertTrue(tab.x + tab.width + 4 < tabs.getSize().x, "no strip right of the last tab");
     assertNear(
         palette.gutter(), pixel(tabs, tab.x + tab.width + 4, tab.y + tab.height / 2), "tabs");
+  }
+
+  private static ImageData printed(Control control) {
+    Image image = new Image(control.getDisplay(), control.getSize().x, control.getSize().y);
+    GC gc = new GC(image);
+    try {
+      assumeTrue(control.print(gc), "Control.print not supported here");
+      return image.getImageData();
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
   }
 
   private static RGB pixel(Control control, int x, int y) {
