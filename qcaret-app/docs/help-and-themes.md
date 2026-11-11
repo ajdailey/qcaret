@@ -37,8 +37,8 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
   `MainView.setIndentGuides` and `MainView.setLineChangesShown` at start and on
   a change, and runs Edit > Wrap Paragraph at `editor.rightMargin`.
 - `PreferencesInput.loadChoices` lists the theme files and the monospace
-  families on a `qcaret-io-` worker; the dialog fills its lists when they
-  arrive.
+  families on a `qcaret-io-` worker; the dialog appends the files to Editor
+  colors and fills the font list when they arrive.
 
 ## UI text, About and logs
 
@@ -67,8 +67,9 @@ commonmark and its tables extension, which `maven-dependency-plugin` copies to
 ## Themes
 
 `ThemeMode` is `ui.theme`: light, dark or system. `ui.editorColors` names an
-editor color scheme; `EditorSchemes` holds each scheme's name, Preferences label
-and palette (follow, light, dark), and a new scheme is an entry there.
+editor color scheme or a theme file (`Appearance.colors`); `EditorSchemes` holds
+each scheme's name, Preferences label and palette, in list order: follow, light,
+dark, then the nine `BundledSchemes`. A new scheme is an entry in both.
 `ThemeController` resolves the `Palette` through `EditorSchemes.palette`: follow
 takes `ui.theme`'s side, system following `ThemeService.systemDark` and its
 change events, and an unknown name resolves as follow. It pushes a changed
@@ -87,11 +88,26 @@ marks, the find-match background, the comparison window's row backgrounds
 (`indentGuide`), the modified-line marks (`lineAdded`, `lineChanged`,
 `lineRemoved`, each at a contrast ratio of 3 on the background and the current
 line), and a `TokenStyle` (color,
-bold, italic, underline) for every `TokenRole`; a grammar token type paints
-with the role of the same name. The light and dark defaults derive from the
-brand navy `#1B2E44`, cyan `#56C1F0` and amber `#F3B65B`; every token color
-reaches a contrast ratio of 4.5 on the background, the current line and a find
-match (`PaletteTest`).
+bold, italic, underline) for every `TokenRole`; a grammar names token types,
+never colors, and `TokenCache` paints each type with the role of the same name,
+so a scheme colors every grammar. The light and dark defaults derive from the
+brand navy `#1B2E44`, cyan `#56C1F0` and amber `#F3B65B`.
+
+`PaletteTest` holds every scheme to these ratios:
+
+| Colors | On | Ratio |
+|---|---|---|
+| Text, every token | Background, current line, find match, occurrence, bracket | 4.5 |
+| Selected text | Selection, gutter | 4.5 |
+| Unselected tab label | Gutter | 4.5 |
+| Text | Comparison rows | 4.5 |
+| Line numbers, bookmark mark | Gutter | 3 |
+| Caret | Background | 3 |
+| Modified-line marks | Background, current line | 3 |
+
+`BundledSchemes` start from published terminal palettes and plain pairs; a
+color below its floor moves toward black on a light background or white on a
+dark one, only as far as the floor needs. No palette file is copied.
 
 ### Theme files
 
@@ -106,15 +122,18 @@ match (`PaletteTest`).
 - `over` lays the colors on a built-in palette and returns that palette itself
   for a side with no colors, so `Palette.LIGHT` and `Palette.DARK` stay the
   values in use without a file.
-- The side applied is the palette's, so the dark scheme under a light
-  `ui.theme` takes the `dark.*` lines.
+- A file is chosen in place of a scheme (`Appearance` holds it with follow), so
+  the side applied is the one `ui.theme` resolves to.
+- `ThemeColors.list` leaves out a file named like a scheme in any case, since
+  `ui.editorColors` reads a scheme name as the scheme.
 
 `Gui` reads the chosen file before the Display and resolves the first palette
 from both settings, so the first paint has its colors. After that
-`WindowSet.loadTheme` reads it on a `qcaret-io-` worker when
-`ui.themeFile` changes and on each Preferences apply that keeps it, and
+`WindowSet.loadTheme` reads it on a `qcaret-io-` worker when the chosen file
+changes and on each Preferences apply that keeps it, and
 `ThemeController.setColors` pushes the palette if it differs; a read that a
-newer one replaced is dropped.
+newer one replaced is dropped. Choosing a scheme clears the file's colors on the
+UI thread before the scheme applies.
 
 ## Font discovery
 

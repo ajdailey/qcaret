@@ -23,10 +23,10 @@ straight after a job can lose it, and a delivery error reaches no notice.
 `PrintJob` draws from the `PrintTarget.Page` rows at 10 points in the editor
 font's family, placing each span at its column times the measured advance, with
 0.75 inch margins from the paper's edge (`computeTrim`). Colors are
-`Palette.LIGHT` on white whatever the window's theme; plain text and the header
-are black. A device depth of 1 prints all black. GTK reports depth 0 and macOS
-the screen's depth, so there the print system converts color for a monochrome
-printer.
+`Palette.LIGHT` on white whatever the window's theme and Editor colors, a
+bundled scheme or a theme file included; plain text and the header are black. A
+device depth of 1 prints all black. GTK reports depth 0 and macOS the screen's
+depth, so there the print system converts color for a monochrome printer.
 
 ## Copies and ranges
 

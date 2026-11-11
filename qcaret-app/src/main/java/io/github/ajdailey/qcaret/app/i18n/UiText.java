@@ -381,12 +381,26 @@ public enum UiText {
   PREFERENCES_EDITOR_COLORS_LIGHT,
   /** Editor colors choice. */
   PREFERENCES_EDITOR_COLORS_DARK,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_SANDSTONE,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_NIGHTWATER,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_GARDEN_LIGHT,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_GARDEN_DARK,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_LEGAL_PAD,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_PAPER,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_MIDNIGHT,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_PHOSPHOR,
+  /** Editor colors choice. */
+  PREFERENCES_EDITOR_COLORS_GRAPHITE,
   /** Preferences field. */
   PREFERENCES_FONT_SIZE,
-  /** Preferences field. */
-  PREFERENCES_THEME_FILE,
-  /** Theme file choice: the built-in colors. */
-  PREFERENCES_THEME_FILE_NONE,
   /** Preferences field. */
   PREFERENCES_FONT_FAMILY,
   /** Font family choice: the platform's monospace font. */

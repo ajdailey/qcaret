@@ -40,8 +40,9 @@ import org.eclipse.swt.widgets.Text;
  * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at
  * once, whatever OK, Apply or Cancel do afterwards. The Keys tab edits overrides on top of the
  * default keymap: the key field records one stroke, Add refuses a stroke that types or that another
- * command holds, Default Keys returns the selected command to its defaults. The theme file and font
- * family lists fill when a worker has listed them. Modeless; it returns at once.
+ * command holds, Default Keys returns the selected command to its defaults. The theme files in
+ * Editor colors and the font family list fill when a worker has listed them. Modeless; it returns
+ * at once.
  */
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
@@ -69,9 +70,8 @@ final class PreferencesDialog {
   private Text searchMaxLineChars;
   private Text excludedDirectories;
   private Combo theme;
-  private Combo editorColors;
+  private EditorColorsChoice editorColors;
   private Text fontSize;
-  private Combo themeFile;
   private Combo fontFamily;
   private Text filter;
   private Table commands;
@@ -132,7 +132,7 @@ final class PreferencesDialog {
           @Override
           public void accept(AppearanceChoices choices) {
             if (!shell.isDisposed()) {
-              fillChoices(themeFile, choices.themeFiles());
+              editorColors.setFiles(choices.themeFiles());
               fillChoices(
                   fontFamily, EditorFonts.listed(shell.getDisplay(), choices.fontFamilies()));
             }
@@ -179,10 +179,7 @@ final class PreferencesDialog {
     editorConfig = check(page, UiText.PREFERENCES_EDITOR_CONFIG);
     modelines = check(page, UiText.PREFERENCES_MODELINES);
     new Label(page, SWT.NONE).setText(UiText.PREFERENCES_EDITOR_COLORS.text());
-    editorColors = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
-    for (String scheme : EditorSchemes.names()) {
-      editorColors.add(EditorSchemes.label(scheme));
-    }
+    editorColors = new EditorColorsChoice(page);
   }
 
   private void files(Composite page) {
@@ -231,7 +228,6 @@ final class PreferencesDialog {
     theme.add(UiText.PREFERENCES_THEME_DARK.text());
     theme.add(UiText.PREFERENCES_THEME_SYSTEM.text());
     fontSize = field(page, UiText.PREFERENCES_FONT_SIZE);
-    themeFile = choice(page, UiText.PREFERENCES_THEME_FILE, UiText.PREFERENCES_THEME_FILE_NONE);
     fontFamily =
         choice(page, UiText.PREFERENCES_FONT_FAMILY, UiText.PREFERENCES_FONT_FAMILY_DEFAULT);
   }
@@ -392,9 +388,8 @@ final class PreferencesDialog {
     searchMaxLineChars.setText(form.searchMaxLineChars());
     excludedDirectories.setText(form.excludedDirectories());
     theme.select(form.theme().ordinal());
-    editorColors.select(Math.max(0, EditorSchemes.names().indexOf(form.editorColors())));
+    editorColors.select(form.themeFile().isEmpty() ? form.editorColors() : form.themeFile());
     fontSize.setText(form.fontSize());
-    selectChoice(themeFile, form.themeFile());
     selectChoice(fontFamily, form.fontFamily());
     setOverrides(form.shortcuts());
     for (TableColumn column : commands.getColumns()) {
@@ -403,6 +398,8 @@ final class PreferencesDialog {
   }
 
   private PreferencesForm form() {
+    String colors = editorColors.selected();
+    boolean scheme = EditorSchemes.known(colors);
     return new PreferencesForm(
         completionChars.getText(),
         autoClose.getSelection(),
@@ -420,13 +417,13 @@ final class PreferencesDialog {
         THEMES[theme.getSelectionIndex()],
         fontSize.getText(),
         overrides,
-        chosen(themeFile),
+        scheme ? "" : colors,
         chosen(fontFamily),
         rightMargin.getText(),
         dateFormat.getText(),
         editorConfig.getSelection(),
         modelines.getSelection(),
-        EditorSchemes.names().get(editorColors.getSelectionIndex()));
+        scheme ? colors : EditorSchemes.FOLLOW);
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -591,11 +588,7 @@ final class PreferencesDialog {
   }
 
   Combo editorColors() {
-    return editorColors;
-  }
-
-  Combo themeFile() {
-    return themeFile;
+    return editorColors.combo();
   }
 
   Combo fontFamily() {

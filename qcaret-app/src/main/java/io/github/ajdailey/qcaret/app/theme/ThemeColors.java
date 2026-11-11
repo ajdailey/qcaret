@@ -106,7 +106,8 @@ public final class ThemeColors {
    *
    * @param settings the settings directory
    * @return the names without {@value #SUFFIX}, sorted, at most {@value #MAX_FILES}; a file whose
-   *     name is not {@linkplain #validName valid} is left out
+   *     name is not {@linkplain #validName valid} or is an {@link EditorSchemes} name in any case
+   *     is left out
    */
   public static List<String> list(Path settings) {
     List<String> names = new ArrayList<String>();
@@ -118,7 +119,9 @@ public final class ThemeColors {
       for (Path file : listing) {
         String fileName = String.valueOf(file.getFileName());
         String name = fileName.substring(0, fileName.length() - SUFFIX.length());
-        if (validName(name) && names.size() < MAX_FILES) {
+        if (validName(name)
+            && !EditorSchemes.known(name.toLowerCase(Locale.ROOT))
+            && names.size() < MAX_FILES) {
           names.add(name);
         }
       }

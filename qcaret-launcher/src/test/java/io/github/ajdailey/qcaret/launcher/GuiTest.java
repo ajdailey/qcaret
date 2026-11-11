@@ -265,7 +265,7 @@ class GuiTest {
   }
 
   @Test
-  void aSavedThemeFileColorsTheWindowBeforeItOpensOnTheEditorColorsSide() throws Exception {
+  void aSavedThemeFileColorsTheWindowBeforeItOpensOnTheThemeSide() throws Exception {
     Path themes = Files.createDirectory(temp.resolve("settings").resolve("themes"));
     Files.writeString(
         themes.resolve("mock.theme"), "light.background = #123456\ndark.background = #654321\n");
@@ -291,8 +291,8 @@ class GuiTest {
         };
     Preferences preferences =
         Preferences.DEFAULTS
-            .withTheme(ThemeMode.LIGHT)
-            .withAppearance(new Appearance("mock", "", EditorSchemes.DARK));
+            .withTheme(ThemeMode.DARK)
+            .withAppearance(new Appearance("mock", "", EditorSchemes.FOLLOW));
     PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
     StartupRequest request = request(List.of(), null, null, null, null, true);
     assertEquals(0, new Gui(request, config(), preferences, err, observer, LogFiles.NONE).run());

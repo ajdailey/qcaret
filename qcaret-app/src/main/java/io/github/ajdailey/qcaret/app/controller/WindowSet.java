@@ -290,10 +290,17 @@ public final class WindowSet {
     }
   }
 
-  /** Reads the chosen theme file on a worker and pushes its colors; a newer read drops this one. */
+  /**
+   * Reads the chosen theme file on a worker and pushes its colors; a newer read drops this one. No
+   * file clears the colors at once, so a scheme chosen in its place never shows them.
+   */
   void loadTheme() {
     final long started = ++themeGeneration;
     final String name = settings.current().appearance().themeFile();
+    if (name.isEmpty()) {
+      theme.setColors(ThemeColors.NONE);
+      return;
+    }
     final Path directory = config.location().directory();
     boolean running =
         workers.tryStart(

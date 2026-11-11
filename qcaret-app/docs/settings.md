@@ -19,7 +19,8 @@ log file at the next start), `Options` (the Preferences dialog's settings),
 `UiState` (search toggles, histories, recent grammars, dialog sizes, the
 toolbar, right margin, indent guide and modified-line mark choices, the last
 date format), `ShortcutOverrides`
-and `Appearance` (`ui.themeFile`, `editor.fontFamily`, `ui.editorColors`).
+and `Appearance` (`editor.fontFamily`, and `ui.editorColors` as a scheme or a
+theme file).
 `PreferenceKeys` maps them to and from `qcaret.conf`. A new setting is a record
 component and its lines in `PreferenceKeys`, plus a `PreferencesForm` field when
 the dialog shows it.
@@ -102,7 +103,7 @@ Shortcuts.
 | Key | Values | Default | Set from |
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
-| `ui.editorColors` | An editor color scheme: `follow`, `light`, `dark`. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. An unknown name reads as `follow` with one warning | `follow` | Edit > Preferences, Editor |
+| `ui.editorColors` | An editor color scheme (`follow`, `light`, `dark`, `sandstone`, `nightwater`, `garden-light`, `garden-dark`, `legal-pad`, `paper`, `midnight`, `phosphor`, `graphite`), or the name of a file in `themes/` without `.theme`, laid over `follow`'s palette. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. Any other value reads as `follow` with one warning. While it is missing or `follow`, a `ui.themeFile` line names the theme file, and the next save replaces that line with `ui.editorColors` | `follow` | Edit > Preferences, Editor |
 | `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
 | `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
@@ -121,7 +122,6 @@ Shortcuts.
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Edit > Preferences, Editor |
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
 | `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
-| `ui.themeFile` | A file in `themes/` in the settings directory, without `.theme`; empty for the built-in colors | empty | Edit > Preferences, Appearance |
 | `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
 | `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
 | `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |

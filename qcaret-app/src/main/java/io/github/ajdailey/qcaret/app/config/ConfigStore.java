@@ -114,8 +114,9 @@ public final class ConfigStore {
 
   /**
    * Writes the keys that differ between two settings over the file's current keys, atomically,
-   * creating a per-user directory first. Does nothing when no key differs and the file is valid.
-   * Blocking.
+   * creating a per-user directory first, and replaces a legacy {@code ui.themeFile} line with
+   * {@code ui.editorColors}. Does nothing when no key differs, the file is valid and holds no
+   * legacy line. Blocking.
    *
    * @param before the settings the change started from
    * @param after the settings to save
@@ -137,7 +138,7 @@ public final class ConfigStore {
       if (properties == null) {
         properties = new Properties();
         changed.putAll(PreferenceKeys.write(after));
-      } else if (changed.isEmpty()) {
+      } else if (!PreferenceKeys.dropLegacy(properties, after) && changed.isEmpty()) {
         return true;
       }
       for (Map.Entry<String, String> entry : changed.entrySet()) {

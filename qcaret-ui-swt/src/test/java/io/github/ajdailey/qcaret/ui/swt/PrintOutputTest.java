@@ -16,28 +16,43 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.theme.TokenRole;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.contentstream.operator.color.SetNonStrokingColor;
+import org.apache.pdfbox.contentstream.operator.color.SetNonStrokingColorN;
+import org.apache.pdfbox.contentstream.operator.color.SetNonStrokingColorSpace;
+import org.apache.pdfbox.contentstream.operator.color.SetNonStrokingDeviceGrayColor;
+import org.apache.pdfbox.contentstream.operator.color.SetNonStrokingDeviceRGBColor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.printing.Printer;
 import org.eclipse.swt.printing.PrinterData;
 import org.eclipse.swt.widgets.Display;
@@ -219,6 +234,100 @@ class PrintOutputTest {
       assertTrue(all.indexOf("mock line " + i + "\n") >= 0, "line " + i);
     }
     assertEquals(lines, all.toString().split("mock line ", -1).length - 1);
+  }
+
+  @Test
+  void aBundledSchemePrintsBlackOnWhiteWithTheLightTokenColors() throws Exception {
+    PrinterData data = requirePrinter();
+    controller.loadGrammars();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return controller.grammars().set() != null;
+          }
+        },
+        "grammars");
+    controller.theme().setEditorColors(EditorSchemes.NIGHTWATER);
+    assertTrue(window.palette().dark());
+    openFile("class Mock {\n  int total;\n}\n");
+    final Rgb shown =
+        EditorSchemes.palette(EditorSchemes.NIGHTWATER, ThemeMode.LIGHT, false)
+            .style(TokenRole.KEYWORD)
+            .foreground();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            EditorPane pane = window.activeEditor();
+            StyleRange[] styles = pane == null ? new StyleRange[0] : pane.rowStyles(0);
+            return styles.length > 0
+                && styles[0].start == 0
+                && styles[0].foreground != null
+                && styles[0].foreground.getRed() == shown.red()
+                && styles[0].foreground.getGreen() == shown.green()
+                && styles[0].foreground.getBlue() == shown.blue();
+          }
+        },
+        "the keyword in the scheme's color");
+    print(data);
+    awaitOutput();
+    Map<String, Integer> colors = textColors();
+    Rgb keyword = Palette.LIGHT.style(TokenRole.KEYWORD).foreground();
+    assertEquals(Integer.valueOf(packed(keyword)), colors.get("class"), colors.toString());
+    Set<Integer> light = new HashSet<Integer>();
+    light.add(0);
+    light.add(packed(Palette.LIGHT.lineNumbers()));
+    for (TokenRole role : TokenRole.values()) {
+      light.add(packed(Palette.LIGHT.style(role).foreground()));
+    }
+    assertTrue(light.containsAll(colors.values()), colors.toString());
+  }
+
+  private static int packed(Rgb rgb) {
+    return (rgb.red() << 16) | (rgb.green() << 8) | rgb.blue();
+  }
+
+  /**
+   * Returns the fill color, as {@code 0xRRGGBB}, of each char's first glyph on page 1, and of the
+   * first {@code class} under that key.
+   */
+  private Map<String, Integer> textColors() throws IOException {
+    final Map<String, Integer> colors = new HashMap<String, Integer>();
+    final StringBuilder word = new StringBuilder();
+    try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
+      PDFTextStripper stripper =
+          new PDFTextStripper() {
+            {
+              addOperator(new SetNonStrokingColorSpace(this));
+              addOperator(new SetNonStrokingColor(this));
+              addOperator(new SetNonStrokingColorN(this));
+              addOperator(new SetNonStrokingDeviceRGBColor(this));
+              addOperator(new SetNonStrokingDeviceGrayColor(this));
+            }
+
+            @Override
+            protected void processTextPosition(TextPosition text) {
+              super.processTextPosition(text);
+              int rgb;
+              try {
+                rgb = getGraphicsState().getNonStrokingColor().toRGB();
+              } catch (IOException e) {
+                rgb = -1;
+              }
+              String glyph = text.getUnicode();
+              colors.putIfAbsent(glyph, rgb);
+              word.append(glyph);
+              if (word.toString().endsWith("class")) {
+                colors.putIfAbsent("class", rgb);
+              }
+            }
+          };
+      stripper.setStartPage(1);
+      stripper.setEndPage(1);
+      stripper.getText(document);
+    }
+    return colors;
   }
 
   @Test

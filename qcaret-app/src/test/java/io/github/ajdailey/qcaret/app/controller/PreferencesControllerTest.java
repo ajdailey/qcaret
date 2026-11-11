@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeColors;
@@ -315,11 +316,16 @@ class PreferencesControllerTest {
     final PreferencesInput input = input();
     assertNull(input.apply(with(input.form(), "themeFile", "harbor")));
     harness.await(background(0x102030), "theme file applied");
-    assertEquals("harbor", file(fileHas("ui.themeFile=harbor")).appearance().themeFile());
+    assertEquals("harbor", file(fileHas("ui.editorColors=harbor")).appearance().themeFile());
     Files.writeString(file, "light.background = #203040\n");
     assertNull(input.apply(input.form()));
     harness.await(background(0x203040), "edit applied");
-    assertNull(input.apply(with(input.form(), "themeFile", "")));
+    assertNull(input.apply(with(with(input.form(), "themeFile", ""), "editorColors", "paper")));
+    assertEquals(
+        EditorSchemes.palette(EditorSchemes.PAPER, ThemeMode.LIGHT, false),
+        harness.application.theme().palette());
+    assertEquals("paper", file(fileHas("ui.editorColors=paper")).appearance().editorColors());
+    assertNull(input.apply(with(input.form(), "editorColors", "follow")));
     harness.await(background(0xffffff), "built-in colors back");
   }
 

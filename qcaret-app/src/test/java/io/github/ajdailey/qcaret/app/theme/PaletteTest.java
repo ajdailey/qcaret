@@ -5,12 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
-/** The default palettes are complete and readable (WCAG 2 contrast ratios). */
+/** The built-in and bundled palettes are complete and readable (WCAG 2 contrast ratios). */
 class PaletteTest {
   private static double luminance(Rgb rgb) {
     return 0.2126 * channel(rgb.red())
@@ -29,9 +32,29 @@ class PaletteTest {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   }
 
+  /** Returns the palette of every scheme but follow, which resolves to light or dark. */
+  private static List<Palette> schemes() {
+    List<Palette> palettes = new ArrayList<Palette>();
+    for (String name : EditorSchemes.names()) {
+      if (!name.equals(EditorSchemes.FOLLOW)) {
+        palettes.add(EditorSchemes.palette(name, ThemeMode.LIGHT, false));
+      }
+    }
+    return palettes;
+  }
+
+  @Test
+  void everySchemeIsItsOwnPaletteAndDarkWhenItsBackgroundIs() {
+    List<Palette> palettes = schemes();
+    assertEquals(EditorSchemes.names().size() - 1, new HashSet<Palette>(palettes).size());
+    for (Palette palette : palettes) {
+      assertEquals(luminance(palette.background()) < 0.2, palette.dark(), palette.toString());
+    }
+  }
+
   @Test
   void tokensAndTextAreReadableOnEveryBackground() {
-    for (Palette palette : new Palette[] {Palette.LIGHT, Palette.DARK}) {
+    for (Palette palette : schemes()) {
       for (Rgb back :
           new Rgb[] {
             palette.background(),

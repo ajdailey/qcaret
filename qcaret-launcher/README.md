@@ -27,7 +27,7 @@ every mode, it sets `org.eclipse.swt.browser.EdgeDataDir` to
 `<settings>/cache/webview2`, so an embedded WebView2 browser keeps its data in
 the settings directory. With `-l` it attaches the debug log file.
 
-`Gui` reads `qcaret_session.conf` and the theme file `ui.themeFile` names before
+`Gui` reads `qcaret_session.conf` and the theme file `ui.editorColors` names before
 the Display. Without `-m`, a start
 `StartupRequest.restoresSession` accepts (no file or `--diff`, or `--session`)
 takes `SessionLock`, then restores the session and owns it; otherwise, or when

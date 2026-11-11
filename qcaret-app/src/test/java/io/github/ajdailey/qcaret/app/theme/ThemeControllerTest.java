@@ -147,13 +147,15 @@ class ThemeControllerTest {
           system.dark = osDark;
           ThemeController theme = new ThemeController(system, mode, side);
           boolean chromeDark = mode == ThemeMode.DARK || (mode == ThemeMode.SYSTEM && osDark);
-          boolean paletteDark =
-              side.equals(EditorSchemes.FOLLOW) ? chromeDark : side.equals(EditorSchemes.DARK);
+          Palette expected =
+              side.equals(EditorSchemes.FOLLOW)
+                  ? (chromeDark ? Palette.DARK : Palette.LIGHT)
+                  : EditorSchemes.palette(side, ThemeMode.LIGHT, false);
           String at = mode + " " + osDark + " " + side;
-          assertSame(paletteDark ? Palette.DARK : Palette.LIGHT, theme.palette(), at);
+          assertSame(expected, theme.palette(), at);
           theme.setMode(mode);
           assertEquals(List.of(chromeDark), system.preferred, at);
-          assertSame(paletteDark ? Palette.DARK : Palette.LIGHT, theme.palette(), at);
+          assertSame(expected, theme.palette(), at);
         }
       }
     }
@@ -195,21 +197,53 @@ class ThemeControllerTest {
   }
 
   @Test
-  void aThemeFileAppliesItsSideOfTheEditorColors() {
+  void aThemeFileAppliesTheSideTheThemeResolves() {
     FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.DARK);
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
     theme.setColors(ThemeColors.parse("light.text=#000001\ndark.text=#000002", "mock"));
+    assertEquals(Rgb.of(1), theme.palette().text());
+    theme.setMode(ThemeMode.DARK);
     assertEquals(Rgb.of(2), theme.palette().text());
     assertTrue(theme.palette().dark());
-    theme.setMode(ThemeMode.DARK);
-    theme.setEditorColors(EditorSchemes.LIGHT);
-    assertEquals(Rgb.of(1), theme.palette().text());
     assertEquals(List.of(true), system.preferred);
   }
 
   @Test
   void editorSchemesListFollowFirstAndResolveAnUnknownNameAsFollow() {
-    assertEquals(List.of("follow", "light", "dark"), EditorSchemes.names());
+    assertEquals(
+        List.of(
+            "follow",
+            "light",
+            "dark",
+            "sandstone",
+            "nightwater",
+            "garden-light",
+            "garden-dark",
+            "legal-pad",
+            "paper",
+            "midnight",
+            "phosphor",
+            "graphite"),
+        EditorSchemes.names());
+    List<String> labels = new ArrayList<String>();
+    for (String name : EditorSchemes.names()) {
+      labels.add(EditorSchemes.label(name));
+    }
+    assertEquals(
+        List.of(
+            "Follow theme",
+            "Light",
+            "Dark",
+            "Sandstone",
+            "Nightwater",
+            "Garden Light",
+            "Garden Dark",
+            "Legal Pad",
+            "Paper",
+            "Midnight",
+            "Phosphor",
+            "Graphite"),
+        labels);
     assertFalse(EditorSchemes.known("navy"));
     assertSame(Palette.DARK, EditorSchemes.palette("navy", ThemeMode.DARK, false));
     assertSame(Palette.LIGHT, EditorSchemes.palette("navy", ThemeMode.SYSTEM, false));

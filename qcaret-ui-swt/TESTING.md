@@ -69,7 +69,7 @@ checks that need them skip there.
 | `SyntaxPaneTest` | A Java file's keyword in its palette color and bold, a number keeping its color under a find match, Java checked in the Programming Languages A-M cascade, Python chosen from N-Z listed first on the next show, a switch to Plain Text clearing the styles and the status field |
 | `FoldingSurfaceTest` | Fold marker clicks with the widget's lines against the projection's rows, a caret moved by key over a collapsed region, one split view folded and typed in with the other unchanged, Enter after an opener |
 | `ProductivitySurfaceTest` | A command run from the palette's filter, a word completed from the editor's keys, the bracket and occurrence backgrounds and a bookmark bar left of the fold marker column in pixels, the marks toggled |
-| `FontFamilyTest` | Installed families from the scan: bold keyword rows keeping every column in two families, a family change measuring the gutter again at a size where two families' number columns round apart, a missing or proportional family falling back, the family and the zoom keeping each other, an open log window following, a family the toolkit lacks not offered, the Appearance tab listing, applying and restoring a theme file and a family. Its two-family cases skip on a host with fewer, and the gutter case on a host where no size separates them |
+| `FontFamilyTest` | Installed families from the scan: bold keyword rows keeping every column in two families, a family change measuring the gutter again at a size where two families' number columns round apart, a missing or proportional family falling back, the family and the zoom keeping each other, an open log window following, a family the toolkit lacks not offered, the Preferences dialog listing, applying and restoring a theme file in Editor colors and a family on the Appearance tab. Its two-family cases skip on a host with fewer, and the gutter case on a host where no size separates them |
 | `EditorLayoutGridTest` | A row forced off the grid to reach the measured path; every family measured on the Linux host has equal regular and bold advances |
 | `CaretInkTest` | The caret image color under each operator for both palettes |
 
@@ -89,7 +89,7 @@ checks that need them skip there.
 | `PreferencesSurfaceTest` | A refused field keeping the dialog open on its tab, Restore Defaults applying nothing, the Keys tab refusing a typing or taken key and a free one reaching the menu item's accelerator, Clear History's prompt declining and clearing with an open find bar following, a theme switch leaving it working, a new size remembered |
 | `RecoverySurfaceTest` | The recovery dialog and a restored split on a real window, with the top line of a tab shown later and a fold in one view |
 | `GuideWindowTest` | User Guide to its window or fallback, GTK 4's notice, the locations `allowed` takes, a result arriving after the window closed, a throwing browser factory, `LoadBound`. A real browser's outcome is never raced against a short timer: cocoa and GTK resolve that race opposite ways |
-| `PrintOutputTest` | A print through a real window and `Printer` to a PDF, read back with PDFBox: page count, header, every line, wrap, a range, a selection, copies, Cancel. The dialog's answer comes through `MainWindow.setPrinterChooser`; it uses only GTK's Print to File or a Windows printer named PDF, never a physical printer, and skips when neither exists |
+| `PrintOutputTest` | A print through a real window and `Printer` to a PDF, read back with PDFBox: page count, header, every line, wrap, a range, a selection, copies, Cancel, and the Light token colors under the Nightwater scheme, read from the PDF's fill colors. The dialog's answer comes through `MainWindow.setPrinterChooser`; it uses only GTK's Print to File or a Windows printer named PDF, never a physical printer, and skips when neither exists |
 
 ### Theme
 
@@ -109,7 +109,10 @@ checks that need them skip there.
 
 `GuideScreenshotsTest` runs only with `-Dqcaret.guide.shots=<dir>`
 (`tools/screenshots.sh`) and writes the user guide's images from generated mock
-files. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
+files; `EditorSchemeShotsTest` writes `editor-colors.png` there, and with
+`-Dqcaret.scheme.shots=<dir>` one PNG per editor color scheme of a Java,
+Markdown, XML and shell file. With `-Dqcaret.screenshots=<dir>` these tests
+also save PNGs:
 
 | Class | Files |
 |---|---|

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.config;
 
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
+import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -85,9 +86,8 @@ final class PreferenceKeys {
   static Map<String, String> write(Preferences p) {
     Map<String, String> keys = new TreeMap<String, String>();
     keys.put(THEME, p.theme().key());
-    keys.put(THEME_FILE, p.appearance().themeFile());
     keys.put(FONT_FAMILY, p.appearance().fontFamily());
-    keys.put(EDITOR_COLORS, p.appearance().editorColors());
+    keys.put(EDITOR_COLORS, p.appearance().colors());
     WindowState window = p.window();
     putOptional(keys, WINDOW_X, window.x());
     putOptional(keys, WINDOW_Y, window.y());
@@ -188,23 +188,45 @@ final class PreferenceKeys {
         .withAppearance(appearance(p, file));
   }
 
+  /**
+   * Reads {@code ui.editorColors}: a scheme, else a theme file's name. A legacy {@code
+   * ui.themeFile} stands in while {@code ui.editorColors} is missing or {@code follow}.
+   */
   private static Appearance appearance(Properties p, Path file) {
-    String themeFile = p.getProperty(THEME_FILE, "").strip();
-    if (!Appearance.validThemeFile(themeFile)) {
-      invalid(THEME_FILE, file);
-      themeFile = "";
-    }
     String family = p.getProperty(FONT_FAMILY, "").strip();
     if (!Appearance.validFamily(family)) {
       invalid(FONT_FAMILY, file);
       family = "";
     }
-    String scheme = p.getProperty(EDITOR_COLORS, EditorSchemes.FOLLOW).strip();
-    if (!EditorSchemes.known(scheme)) {
-      invalid(EDITOR_COLORS, file);
-      scheme = EditorSchemes.FOLLOW;
+    String colors = p.getProperty(EDITOR_COLORS, EditorSchemes.FOLLOW).strip();
+    String legacy = p.getProperty(THEME_FILE, "").strip();
+    if (colors.equals(EditorSchemes.FOLLOW) && !legacy.isEmpty()) {
+      if (ThemeColors.validName(legacy) && !EditorSchemes.known(legacy)) {
+        colors = legacy;
+      } else {
+        invalid(THEME_FILE, file);
+      }
     }
-    return new Appearance(themeFile, family, scheme);
+    if (!EditorSchemes.known(colors) && !ThemeColors.validName(colors)) {
+      invalid(EDITOR_COLORS, file);
+      colors = EditorSchemes.FOLLOW;
+    }
+    return new Appearance("", family, EditorSchemes.FOLLOW).withColors(colors);
+  }
+
+  /**
+   * Replaces a legacy {@code ui.themeFile} line with {@code ui.editorColors}.
+   *
+   * @param properties the file's keys, changed in place
+   * @param after the settings being saved
+   * @return true when the file held the legacy key
+   */
+  static boolean dropLegacy(Properties properties, Preferences after) {
+    if (properties.remove(THEME_FILE) == null) {
+      return false;
+    }
+    properties.setProperty(EDITOR_COLORS, after.appearance().colors());
+    return true;
   }
 
   private static Options options(Properties p, Path file) {

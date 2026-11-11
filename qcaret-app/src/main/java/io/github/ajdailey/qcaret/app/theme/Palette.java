@@ -305,7 +305,7 @@ public record Palette(
   }
 
   /** Maps the styles, given in {@link TokenRole} declaration order. */
-  private static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
+  static Map<TokenRole, TokenStyle> tokens(TokenStyle... styles) {
     TokenRole[] roles = TokenRole.values();
     if (styles.length != roles.length) {
       throw new IllegalArgumentException(styles.length + " styles for " + roles.length + " roles");

@@ -130,6 +130,23 @@ class EditorColorsSurfaceTest {
   }
 
   @Test
+  void everyBundledSchemePaintsTheEditorAndLeavesNativeControlsAlone() {
+    RGB shell = window.shell().getBackground().getRGB();
+    PreferencesDialog dialog = dialog();
+    RGB dialogShell = dialog.shell().getBackground().getRGB();
+    for (String name : EditorSchemes.names()) {
+      Palette palette = EditorSchemes.palette(name, ThemeMode.LIGHT, false);
+      scheme(dialog, name);
+      assertSame(palette, window.palette(), name);
+      assertEquals(name, controller.preferences().appearance().editorColors());
+      assertPainted(palette);
+      assertEquals(shell, window.shell().getBackground().getRGB(), name);
+      assertEquals(dialogShell, dialog.shell().getBackground().getRGB(), name);
+    }
+    dialog.shell().dispose();
+  }
+
+  @Test
   void lightEditorColorsKeepTheEditorLightInTheDarkTheme() {
     PreferencesDialog dialog = dialog();
     scheme(dialog, EditorSchemes.LIGHT);

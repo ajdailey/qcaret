@@ -53,14 +53,47 @@ class ConfigStoreTest {
   }
 
   @Test
-  void theThemeFileFontFamilyAndEditorColorsRoundTrip() {
+  void theThemeFileFontFamilyAndEditorColorsRoundTrip() throws Exception {
     ConfigStore store = store(temp);
     Preferences loaded = store.load();
-    Preferences next =
-        loaded.withAppearance(new Appearance("harbor", "Mock Mono", EditorSchemes.DARK));
-    assertTrue(store.save(loaded, next));
-    assertEquals(
-        new Appearance("harbor", "Mock Mono", EditorSchemes.DARK), store(temp).load().appearance());
+    for (Appearance appearance :
+        new Appearance[] {
+          new Appearance("harbor", "Mock Mono", EditorSchemes.FOLLOW),
+          new Appearance("", "Mock Mono", EditorSchemes.GARDEN_DARK)
+        }) {
+      Preferences next = loaded.withAppearance(appearance);
+      assertTrue(store.save(loaded, next));
+      assertEquals(appearance, store(temp).load().appearance());
+      loaded = next;
+    }
+    String text = Files.readString(conf(), StandardCharsets.UTF_8);
+    assertTrue(text.contains("ui.editorColors=garden-dark\n"), text);
+    assertFalse(text.contains("ui.themeFile"), text);
+  }
+
+  @Test
+  void aSavedThemeFileMovesToEditorColorsAtTheNextSave() throws Exception {
+    Files.createDirectories(temp);
+    Files.writeString(
+        conf(), "ui.themeFile=harbor\nui.editorColors=follow\n", StandardCharsets.ISO_8859_1);
+    ConfigStore store = store(temp);
+    Preferences loaded = store.load();
+    assertEquals(new Appearance("harbor", "", EditorSchemes.FOLLOW), loaded.appearance());
+    assertTrue(store.save(loaded, loaded.withTheme(ThemeMode.DARK)));
+    String text = Files.readString(conf(), StandardCharsets.UTF_8);
+    assertTrue(text.contains("ui.editorColors=harbor\n"), text);
+    assertFalse(text.contains("ui.themeFile"), text);
+    assertEquals("harbor", store(temp).load().appearance().themeFile());
+  }
+
+  @Test
+  void aSavedSchemeOutranksASavedThemeFileAndASchemeNameIsNoThemeFile() throws Exception {
+    Files.createDirectories(temp);
+    Files.writeString(
+        conf(), "ui.themeFile=harbor\nui.editorColors=paper\n", StandardCharsets.ISO_8859_1);
+    assertEquals(new Appearance("", "", EditorSchemes.PAPER), store(temp).load().appearance());
+    Files.writeString(conf(), "ui.themeFile=midnight\n", StandardCharsets.ISO_8859_1);
+    assertEquals(Appearance.DEFAULTS, store(temp).load().appearance());
   }
 
   @Test
@@ -68,7 +101,7 @@ class ConfigStoreTest {
     Files.createDirectories(temp);
     Files.writeString(
         temp.resolve(SettingsLocation.MARKER),
-        "ui.themeFile=../up\nui.editorColors=navy\neditor.fontFamily=" + "x".repeat(129) + "\n",
+        "ui.themeFile=../up\nui.editorColors=../navy\neditor.fontFamily=" + "x".repeat(129) + "\n",
         StandardCharsets.ISO_8859_1);
     assertEquals(Appearance.DEFAULTS, store(temp).load().appearance());
   }

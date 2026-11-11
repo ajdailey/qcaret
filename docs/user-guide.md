@@ -117,10 +117,10 @@ File > Print opens the system print dialog; it has no default key, because
 printer, the copies, and all pages, a page range or the selection. A job prints
 the document as it stood when you chose the command, folded text included and
 word wrap ignored: a line wider than the page wraps at the column. Each page
-has the file name and Page N of M at the top, line numbers, and the light
-theme's syntax colors on white in the editor's font at 10 points. A row above
-the status bar shows the progress with Cancel, and you can keep editing. One
-window runs one print job at a time; closing the window cancels it.
+has the file name and Page N of M at the top, line numbers, and Light's syntax
+colors on white whatever Editor colors shows, in the editor's font at 10
+points. A row above the status bar shows the progress with Cancel, and you can
+keep editing. One window runs one print job at a time; closing the window cancels it.
 
 ### Large files
 
@@ -225,10 +225,10 @@ apply (measured on Linux, one million lines):
   at the next start, and on macOS they follow the system appearance, also
   while QCaret runs. On Linux a GTK theme with no dark variant keeps native
   controls light; the editor and tabs still change.
-- Editor colors, on the Editor tab of Edit > Preferences, chooses Follow theme
-  (the default), Light or Dark for the editors, the tab strip, comparison
-  windows and the replace preview, as a terminal profile colors only its text
-  area. Menus, docks, dialogs and title bars keep following View > Theme.
+- Editor colors, on the Editor tab of Edit > Preferences, colors the editors,
+  the tab strip, comparison windows and the replace preview, as a terminal
+  profile colors only its text area; see [Editor colors](#editor-colors). Menus,
+  docks, dialogs and title bars keep following View > Theme.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
   name.
 
@@ -633,7 +633,7 @@ running windows without a restart.
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, editor colors |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
-| Appearance | Theme, editor font size, theme file, editor font |
+| Appearance | Theme, editor font size, editor font |
 | Keys | Every command's keys: Add, Remove, Default Keys |
 
 Add refuses a key that types text or that another command holds, and names that
@@ -652,14 +652,37 @@ family is uninstalled, QCaret logs a warning and uses the platform's font until
 it returns. The font applies to every editor, the
 comparison windows, the replace preview and the log and license windows.
 
+### Editor colors
+
+![The Editor colors list](images/guide/editor-colors.png)
+
+Editor colors lists Follow theme (the default), Light, Dark, the bundled schemes
+and then your theme files. A choice applies at once.
+
+| Choice | Colors |
+|---|---|
+| Follow theme | Light or Dark, as View > Theme resolves |
+| Light, Dark | Navy text on white; light text on navy |
+| Sandstone, Nightwater | Muted accents on warm cream; the same accents on deep teal |
+| Garden Light, Garden Dark | Clear accents on light gray; bright accents on charcoal |
+| Legal Pad | Black on light yellow |
+| Paper | Black on white |
+| Midnight | White on black |
+| Phosphor | Green on black |
+| Graphite | Gray on black |
+
+Every scheme keeps syntax colors at a contrast ratio of at least 4.5 to 1 on
+the background, the current line and the find and bracket highlights.
+
 ### Theme files
 
-A theme file changes colors of the light and dark themes. Put a file named
-`<name>.theme` in the `themes` folder of the settings directory, then choose it
-under Theme file. Editor colors, or View > Theme while editor colors follow the
-theme, picks which side's lines apply. To see an edit to the
-chosen file, press Apply. A name holds letters, digits, `.`, `_` and `-`, and a
-file is at most 64 KiB.
+A theme file changes colors of Light or Dark. Put a file named `<name>.theme` in
+the `themes` folder of the settings directory, then choose it under Editor
+colors. Its `light.*` lines apply while View > Theme resolves to light and its
+`dark.*` lines while it resolves to dark, as Follow theme does. To see an edit
+to the chosen file, press Apply. A name holds letters, digits, `.`, `_` and
+`-`, and a file is at most 64 KiB; a file named like a scheme, such as
+`paper.theme`, is not listed.
 
 ```text
 # Harbor. A line starting with # is a comment.

@@ -190,13 +190,15 @@ class ThemeColorsTest {
   }
 
   @Test
-  void theListHoldsValidNamesSorted() throws Exception {
+  void theListHoldsValidNamesThatAreNoSchemeSorted() throws Exception {
     Path themes = themes();
     Files.writeString(themes.resolve("b.theme"), "");
     Files.writeString(themes.resolve("a-1.theme"), "");
     Files.writeString(themes.resolve("with space.theme"), "");
     Files.writeString(themes.resolve(".hidden.theme"), "");
     Files.writeString(themes.resolve("notes.txt"), "");
+    Files.writeString(themes.resolve("Paper.theme"), "");
+    Files.writeString(themes.resolve("garden-dark.theme"), "");
     assertEquals(List.of("a-1", "b"), ThemeColors.list(temp));
   }
 

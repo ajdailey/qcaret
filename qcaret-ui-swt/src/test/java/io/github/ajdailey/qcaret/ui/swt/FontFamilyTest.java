@@ -318,9 +318,11 @@ class FontFamilyTest {
         "choices listed");
     final PreferencesDialog dialog = window.preferencesDialog();
     assertEquals(0, dialog.fontFamily().getSelectionIndex());
-    Combo themeFile = dialog.themeFile();
-    assertEquals("harbor", themeFile.getItem(1));
-    themeFile.select(1);
+    Combo colors = dialog.editorColors();
+    int file = EditorSchemes.names().size();
+    assertEquals(file + 1, colors.getItemCount());
+    assertEquals("harbor", colors.getItem(file));
+    colors.select(file);
     dialog.fontFamily().select(dialog.fontFamily().indexOf(families.get(0)));
     assertTrue(dialog.apply());
     assertEquals(families.get(0), editorFamily());
@@ -333,7 +335,7 @@ class FontFamilyTest {
         },
         "theme file applied");
     dialog.restoreDefaults();
-    assertEquals(0, dialog.themeFile().getSelectionIndex());
+    assertEquals(0, dialog.editorColors().getSelectionIndex());
     assertTrue(dialog.apply());
     assertEquals(Dialogs.monospaceName(), editorFamily());
     await(
