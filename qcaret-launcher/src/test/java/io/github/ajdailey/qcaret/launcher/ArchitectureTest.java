@@ -36,6 +36,8 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
+import io.github.ajdailey.qcaret.app.session.SessionLock;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -538,6 +540,8 @@ class ArchitectureTest {
           new Blocking(SafePaths.class, ".*"),
           new Blocking(ConfigStore.class, "load|save"),
           new Blocking(SessionStore.class, "load|save"),
+          new Blocking(SessionLock.class, ".*"),
+          new Blocking(SessionRewrite.class, "withoutSearches"),
           new Blocking(RecoveryStore.class, ".*"),
           new Blocking(RecoveryFile.class, ".*"),
           new Blocking(AboutInfo.class, "collect|licenseText"),

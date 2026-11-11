@@ -65,13 +65,37 @@ lists every tab and the file an untitled document was saved to at a prompt; the
 Recent Files and the LRU are read at the end and hold what the closes added. A
 process end during a prompt captures the live windows.
 
+### Session lock
+
+Only the holder of `SessionLock` (`qcaret_session.lock`, a `ProcessLock`)
+writes `qcaret_session.conf`. `Gui` takes it before a start that would restore
+and holds it until `run` returns, after the quit's last save. A start that
+finds it held for 1 s runs as `BESIDE` does: Recent Files only, no restore, no
+save, no window placement, one INFO line. This covers every launch that runs
+alone (`Handoff.ALONE`) while another instance owns the session. A lock file
+that cannot be created or locked, as in a read-only settings directory, leaves
+the start restoring and owning the session, with one WARN. Until `close`,
+`SafePaths.holdLock` makes every open and save of the lock file fail with
+`SESSION_LOCK_REFUSED`.
+
 ### Clear History
 
 Clear History leaves the result sets in the dock for the run and keeps them out
 of every capture (`SearchController.forgetHistory`). `forgetSearches` removes
 them from the file at once: an owner writes a new capture, and any other
-instance loads the file and rewrites it without searches. A failed write shows
-the Clear History notice.
+instance rewrites it without searches through `SessionRewrite`, which holds
+the session lock for the rewrite. While another instance holds the lock, the
+non-owner writes nothing and the owner's last save stands, retained searches
+included.
+
+| `SessionRewrite.Result` | Notice |
+|---|---|
+| `REMOVED` | None |
+| `FAILED` | `PREFERENCES_HISTORY_NOT_REMOVED` |
+| `OWNED_ELSEWHERE` | `PREFERENCES_HISTORY_SESSION_OWNED`: close the owning instance and clear again |
+
+Clear History during a restore also reaches the saved windows not restored yet:
+`SessionController` restores them without their searches.
 
 A launch that failed its handoff to a live primary gets Recent Files alone from
 `Session.recentOnly`, so it restores nothing and no file state applies.

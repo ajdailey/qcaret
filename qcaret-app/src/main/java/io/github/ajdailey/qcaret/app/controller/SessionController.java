@@ -3,6 +3,8 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionLock;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.session.SessionText;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -42,6 +44,9 @@ import org.slf4j.LoggerFactory;
  * the last answer and before the first close ({@link #quitAnswered}), so the last save lists every
  * tab and a file an untitled document was saved to at a prompt. A Cancel ({@link #quitCanceled})
  * returns to the live state.
+ *
+ * <p>Only the holder of {@link SessionLock} writes the file. The launcher takes it for an instance
+ * that restores; any other instance takes it for the one rewrite of {@link #forgetSearches}.
  *
  * <p>The per-file LRU holds {@value SessionStore#MAX_FILES} entries keyed by the opened document's
  * real path. Confined to the UI thread apart from {@link #write}.
@@ -118,6 +123,7 @@ final class SessionController implements DocumentController.FileMemory {
   private boolean closed;
   private long captured;
   private boolean held;
+  private boolean searchesForgotten;
   private List<Session.Window> quitWindows;
   private ApplicationController first;
   private Runnable after =
@@ -211,7 +217,7 @@ final class SessionController implements DocumentController.FileMemory {
     browse.restoreFolders(
         saved.workspace(), saved.browse().folder(), saved.browser(), paths(saved.expanded()));
     setWeights(window.view(), saved);
-    window.search().restore(saved.searches(), saved.results());
+    window.search().restore(searchesForgotten ? List.of() : saved.searches(), saved.results());
     window.documents().restoreClosed(saved.closed());
     window.documents().restoreDisplay(saved.display());
     window.bookmarkList().restore(saved.display().bookmarks());
@@ -463,11 +469,16 @@ final class SessionController implements DocumentController.FileMemory {
 
   /**
    * Removes the retained searches from the session file now: an owner writes a new capture, which
-   * {@link SearchController#forgetHistory} left them out of; any other instance rewrites the file.
+   * {@link SearchController#forgetHistory} left them out of, and restores the windows still to come
+   * without theirs; any other instance goes through {@link SessionRewrite}.
    *
-   * @param done receives on the UI thread whether the file holds no retained search
+   * @param done receives the result on the UI thread
    */
-  void forgetSearches(final Consumer<Boolean> done) {
+  void forgetSearches(final Consumer<SessionRewrite.Result> done) {
+    if (restoring) {
+      searchesForgotten = true;
+    }
+    final boolean own = owner;
     final Capture capture = owner && !restoring && !closed ? capture(false) : null;
     boolean started =
         workers.tryStart(
@@ -475,33 +486,35 @@ final class SessionController implements DocumentController.FileMemory {
             new Runnable() {
               @Override
               public void run() {
-                final boolean ok = capture == null ? removeSearches() : write(capture);
+                final SessionRewrite.Result result =
+                    capture == null ? removeSearches(own) : written(write(capture));
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
-                        done.accept(ok);
+                        done.accept(result);
                       }
                     });
               }
             });
     if (!started) {
       LOG.debug("Session searches not removed: workers are closed");
-      done.accept(false);
+      done.accept(SessionRewrite.Result.FAILED);
     }
   }
 
-  /** Rewrites the file without its searches; a file without any is left as it is. */
+  private static SessionRewrite.Result written(boolean ok) {
+    return ok ? SessionRewrite.Result.REMOVED : SessionRewrite.Result.FAILED;
+  }
+
   @WorkerThread
-  private boolean removeSearches() {
+  private SessionRewrite.Result removeSearches(boolean own) {
     saveLock.lock();
     try {
-      if (store == null) {
-        return true;
-      }
-      Session file = store.load();
-      Session cleared = file.withoutSearches();
-      return cleared.equals(file) || store.save(cleared);
+      SessionStore sessions = store;
+      return sessions == null
+          ? SessionRewrite.Result.REMOVED
+          : SessionRewrite.withoutSearches(sessions, own);
     } finally {
       saveLock.unlock();
     }

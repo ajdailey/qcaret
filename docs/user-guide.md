@@ -547,8 +547,10 @@ shows disabled, with the reason in its tool tip.
 
 - Generate shows the hash of the text you type, encoded in UTF-8, with Copy.
 - Generate from Files hashes the files you choose into a list in the
-  `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. Copy
-  and Save As take the list.
+  `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. When
+  two files share a name, names include their folders below the common folder,
+  such as `a/x.txt`. Copy and Save As take the list; saved in that common
+  folder, the list verifies with Verify Checksums.
 - Generate from Selection into Clipboard copies the hash of the selected
   text as the document saves it: in the document's encoding, without a byte
   order mark, line breaks as the document holds them. Several selections join
@@ -609,9 +611,12 @@ A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
 Launches at the same moment queue, and each file becomes a tab in the one
 instance. `-m` runs an independent instance that saves no window placement or
-session. QCaret refuses to open or replace `instance.lock` in the settings
-folder, the file that identifies the running instance, and each `owner.lock` it
-holds under `recovery`.
+session. One instance at a time keeps the session: a launch that cannot hand
+its files over while another instance keeps it opens a window without the
+session and saves none. QCaret refuses to open or replace `instance.lock` in
+the settings folder, the file that identifies the running instance,
+`qcaret_session.lock`, held by the instance that keeps the session, and each
+`owner.lock` it holds under `recovery`.
 
 File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 `register-associations.cmd`; the macOS bundle declares its document types itself.
@@ -633,7 +638,9 @@ running windows without a restart.
 
 Add refuses a key that types text or that another command holds, and names that
 command. Clear History removes the saved search texts, replacements, directories
-and masks, and the searches kept in the session.
+and masks, and the searches kept in the session. When another QCaret window owns
+the session, its saved searches stay and a notice says so: close that window,
+then press Clear History again.
 
 ### Editor font
 

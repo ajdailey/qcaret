@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.app.log.EventLoopWatchdog;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionLock;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -24,6 +25,7 @@ import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,16 +50,18 @@ import org.slf4j.LoggerFactory;
  * window it lists, the first included, and {@code qcaret.conf} places the first window of any other
  * start. A {@code --window-*} option wins over both. File arguments open in tabs, after the
  * restore; a window left without a tab opens an untitled document. The session file is read before
- * the Display, like the settings. A launch whose handoff failed while a primary runs reads Recent
- * Files from it, and restores and saves no session. At {@code -d 2} and above an {@link
- * EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the
- * quit when the process is ended without it. On the primary instance with the debug log file
- * attached, other processes' old log files are deleted on a lifecycle worker ({@link
- * FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs from the start of {@link
- * #run} and, once the first window is open and the session started, delivers handed launches to
- * {@link WindowSet#openHandoff}; quit closes it before the workers, and so does a run that ends
- * before the first window. The loop ends when every main window is disposed, then the Display is
- * disposed and {@link #run} returns.
+ * the Display, like the settings. A start that would restore first takes {@link SessionLock} and
+ * holds it until {@link #run} returns, after the last session save; when another instance holds it,
+ * and for a launch whose handoff failed while a primary runs, the start reads Recent Files from the
+ * file, and restores and saves no session. A lock file that cannot be created or locked leaves the
+ * start restoring, with a WARN. At {@code -d 2} and above an {@link EventLoopWatchdog} logs
+ * UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is
+ * ended without it. On the primary instance with the debug log file attached, other processes' old
+ * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
+ * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
+ * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
+ * closes it before the workers, and so does a run that ends before the first window. The loop ends
+ * when every main window is disposed, then the Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -82,6 +86,7 @@ final class Gui {
   private final LogFiles logFiles;
   private final InstanceServer server;
   private final boolean beside;
+  private SessionLock sessionLock;
   private final List<Shell> shells = new ArrayList<Shell>();
 
   /**
@@ -150,7 +155,21 @@ final class Gui {
         LOG.debug("Handoff listener not started: workers are closed");
       }
       SessionStore sessions = new SessionStore(config.location());
-      Session session = beside ? sessions.load().recentOnly() : sessions.load();
+      boolean without = beside;
+      if (!beside && !request.multi() && request.restoresSession()) {
+        try {
+          sessionLock = SessionLock.acquire(sessions.location());
+          without = sessionLock == null;
+        } catch (IOException e) {
+          LOG.warn(
+              "Session lock unavailable; restoring without it: {}",
+              LogText.oneLine(e.getMessage()));
+        }
+        if (without) {
+          LOG.info("Another instance owns the session; this one runs without it");
+        }
+      }
+      Session session = without ? sessions.load().recentOnly() : sessions.load();
       ThemeColors colors =
           ThemeColors.read(config.location().directory(), preferences.appearance().themeFile());
       Display.setAppName("QCaret");
@@ -161,7 +180,7 @@ final class Gui {
         LOG.debug("SWT failed to start", e);
         return Launcher.EXIT_SWT;
       }
-      runWindows(display, workers, sessions, session, colors);
+      runWindows(display, workers, sessions, session, colors, without);
       return 0;
     } finally {
       if (server != null) {
@@ -171,6 +190,18 @@ final class Gui {
       if (display != null) {
         display.dispose();
       }
+      releaseSession();
+    }
+  }
+
+  private void releaseSession() {
+    if (sessionLock == null) {
+      return;
+    }
+    try {
+      sessionLock.close();
+    } catch (IOException e) {
+      LOG.warn("Cannot release the session lock: {}", LogText.oneLine(e.getMessage()));
     }
   }
 
@@ -180,7 +211,8 @@ final class Gui {
       Workers workers,
       SessionStore sessions,
       Session session,
-      ThemeColors colors) {
+      ThemeColors colors,
+      boolean without) {
     final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
     final Palette palette =
         colors.over(
@@ -190,7 +222,7 @@ final class Gui {
       pruneLogs(workers, fileLog);
     }
     final SwtUiDispatcher ui = new SwtUiDispatcher(display);
-    boolean remember = !request.multi() && !beside && !request.placesWindow();
+    boolean remember = !request.multi() && !without && !request.placesWindow();
     final WindowSet set =
         new WindowSet(
             workers,
@@ -230,7 +262,7 @@ final class Gui {
     window.attach(controller);
     shells.add(window.shell());
     controller.loadGrammars();
-    boolean restore = !request.multi() && !beside && request.restoresSession();
+    boolean restore = !request.multi() && !without && request.restoresSession();
     WindowState remembered =
         restore && !session.windows().isEmpty()
             ? session.windows().get(0).bounds()

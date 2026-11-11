@@ -13,9 +13,12 @@ import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.WindowState;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryTexts;
 import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionLockMain;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
@@ -47,11 +50,11 @@ class WindowSessionTest {
 
   @TempDir Path temp;
 
-  private static final Consumer<Boolean> IGNORED =
-      new Consumer<Boolean>() {
+  private static final Consumer<SessionRewrite.Result> IGNORED =
+      new Consumer<SessionRewrite.Result>() {
         @Override
-        public void accept(Boolean removed) {
-          assertTrue(removed);
+        public void accept(SessionRewrite.Result removed) {
+          assertEquals(SessionRewrite.Result.REMOVED, removed);
         }
       };
 
@@ -918,6 +921,85 @@ class WindowSessionTest {
     assertEquals(1, store().load().windows().size());
   }
 
+  @Test
+  void clearHistoryDuringARestoreReachesTheWindowsNotRestoredYet() throws Exception {
+    Path a = file("a.txt", "a\n");
+    Windows before = start(true);
+    ApplicationController first = before.first();
+    first.documents().closeAll(null);
+    before.open(first, a);
+    ApplicationController second = before.second();
+    runSearch(first);
+    runSearch(second);
+    before.settle("search");
+    quit(before);
+    Session saved = store().load();
+    assertEquals(2, saved.windows().size());
+    assertEquals(1, saved.windows().get(1).searches().size());
+
+    Windows windows = windows(true);
+    SessionStore store = store();
+    windows.first().startSession(store, store.load(), true);
+    assertTrue(windows.set.session().restoring());
+    assertEquals(1, windows.controllers.size());
+
+    windows.set.forgetHistory(IGNORED);
+    awaitRestore(windows);
+
+    assertEquals(2, windows.controllers.size());
+    assertEquals(0, windows.controllers.get(1).search().setCount());
+    for (Session.Window window : captured(windows).windows()) {
+      assertEquals(List.of(), window.searches());
+    }
+    quit(windows);
+    assertFalse(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
+  }
+
+  /** Runs Clear History and waits for its session-file result. */
+  private static SessionRewrite.Result forget(Windows windows) throws InterruptedException {
+    final AtomicReference<SessionRewrite.Result> removed =
+        new AtomicReference<SessionRewrite.Result>();
+    windows.set.forgetHistory(removed::set);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return removed.get() != null;
+          }
+        },
+        "the session write ended");
+    return removed.get();
+  }
+
+  @Test
+  void clearHistoryBesideALiveOwnerLeavesTheFileUntilTheOwnerEnds() throws Exception {
+    Windows owner = start(true);
+    saveSessionWithSearch(owner);
+    quit(owner);
+    Path file = settings.resolve(SessionStore.FILE);
+    String owned = Files.readString(file);
+    assertTrue(owned.contains(".search."));
+
+    Windows windows = windows(true);
+    SessionStore store = store();
+    windows.first().startSession(store, store.load(), false);
+    windows.settle("start");
+    try (SessionLockMain.Child child = new SessionLockMain.Child(settings)) {
+      assertEquals(SessionLockMain.HOLDING, child.said());
+      assertEquals(SessionRewrite.Result.OWNED_ELSEWHERE, forget(windows));
+      assertEquals(owned, Files.readString(file));
+    }
+
+    // Windows releases a killed process's lock shortly after it ends.
+    long deadline = System.nanoTime() + Harness.BOUND.toNanos();
+    SessionRewrite.Result removed = forget(windows);
+    while (removed != SessionRewrite.Result.REMOVED && System.nanoTime() < deadline) {
+      removed = forget(windows);
+    }
+    assertEquals(SessionRewrite.Result.REMOVED, removed);
+    assertFalse(Files.readString(file).contains(".search."));
+  }
+
   /** A debounced save may land between the two steps; a directory stops every later one. */
   private static void replaceWithDirectory(Path file) throws IOException {
     for (int attempt = 0; attempt < 1000; attempt++) {
@@ -938,8 +1020,9 @@ class WindowSessionTest {
     saveSessionWithSearch(windows);
     Path session = settings.resolve(SessionStore.FILE);
     replaceWithDirectory(session);
-    final AtomicReference<Boolean> removed = new AtomicReference<Boolean>();
-    Consumer<Boolean> done = removed::set;
+    final AtomicReference<SessionRewrite.Result> removed =
+        new AtomicReference<SessionRewrite.Result>();
+    Consumer<SessionRewrite.Result> done = removed::set;
     windows.set.forgetHistory(done);
     windows.await(
         new BooleanSupplier() {
@@ -949,7 +1032,7 @@ class WindowSessionTest {
           }
         },
         "the write ended");
-    assertFalse(removed.get());
+    assertEquals(SessionRewrite.Result.FAILED, removed.get());
 
     Files.delete(session);
     removed.set(null);
@@ -962,8 +1045,68 @@ class WindowSessionTest {
           }
         },
         "the second write ended");
-    assertTrue(removed.get());
+    assertEquals(SessionRewrite.Result.REMOVED, removed.get());
     awaitNoSearchInFile(windows);
+  }
+
+  /** Opens Preferences in a window and returns the window's view, which shows the notices. */
+  private static FakeView openPreferences(Windows windows, ApplicationController window)
+      throws InterruptedException {
+    window.execute(CommandId.PREFERENCES);
+    final FakeView view = windows.view(window);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.preferences != null;
+          }
+        },
+        "the dialog");
+    return view;
+  }
+
+  private static void awaitNotice(Windows windows, final FakeView view, final UiText notice)
+      throws InterruptedException {
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return view.notices.contains(notice.text());
+          }
+        },
+        notice.name());
+  }
+
+  @Test
+  void clearHistoryBesideALiveOwnerShowsWhyTheFileKeepsTheSearches() throws Exception {
+    Windows owner = start(true);
+    saveSessionWithSearch(owner);
+    quit(owner);
+    Windows windows = windows(true);
+    SessionStore store = store();
+    windows.first().startSession(store, store.load(), false);
+    windows.settle("start");
+    FakeView view = openPreferences(windows, windows.first());
+    try (SessionLockMain.Child child = new SessionLockMain.Child(settings)) {
+      assertEquals(SessionLockMain.HOLDING, child.said());
+      view.preferences.clearHistory();
+      awaitNotice(windows, view, UiText.PREFERENCES_HISTORY_SESSION_OWNED);
+    }
+    assertFalse(view.notices.contains(UiText.PREFERENCES_HISTORY_NOT_REMOVED.text()));
+    assertTrue(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
+  }
+
+  @Test
+  void aFailedSessionWriteAtClearHistoryShowsTheNotRemovedNotice() throws Exception {
+    Windows windows = start(true);
+    saveSessionWithSearch(windows);
+    Path session = settings.resolve(SessionStore.FILE);
+    replaceWithDirectory(session);
+    FakeView view = openPreferences(windows, windows.first());
+    view.preferences.clearHistory();
+    awaitNotice(windows, view, UiText.PREFERENCES_HISTORY_NOT_REMOVED);
+    assertFalse(view.notices.contains(UiText.PREFERENCES_HISTORY_SESSION_OWNED.text()));
+    Files.delete(session);
   }
 
   private static void runSearch(ApplicationController window) {

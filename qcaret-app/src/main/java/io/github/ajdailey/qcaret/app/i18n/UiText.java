@@ -411,6 +411,8 @@ public enum UiText {
   PREFERENCES_CLEAR_HISTORY_MESSAGE,
   /** Notice when the search histories stay in the settings file. */
   PREFERENCES_HISTORY_NOT_REMOVED,
+  /** Clear History in an instance beside the one that owns the session. */
+  PREFERENCES_HISTORY_SESSION_OWNED,
   /** Button. */
   BUTTON_CLEAR_HISTORY,
   /** Button. */
@@ -712,6 +714,8 @@ public enum UiText {
   INSTANCE_LOCK_REFUSED,
   /** The file is a recovery directory's lock, held by this process. */
   RECOVERY_LOCK_REFUSED,
+  /** The file is the session file's lock, held by this process. */
+  SESSION_LOCK_REFUSED,
   /** Opened read-only: the file name and the charset. */
   OPEN_READ_ONLY,
   /**

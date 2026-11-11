@@ -30,8 +30,11 @@ the settings directory. With `-l` it attaches the debug log file.
 `Gui` reads `qcaret_session.conf` and the theme file `ui.themeFile` names before
 the Display. Without `-m`, a start
 `StartupRequest.restoresSession` accepts (no file or `--diff`, or `--session`)
-restores the session and owns it; otherwise only Recent Files and per-file state
-apply. It runs on the calling thread, which becomes the
+takes `SessionLock`, then restores the session and owns it; otherwise, or when
+another instance holds the lock, only Recent Files and per-file state apply
+([session lock](../qcaret-app/docs/sessions-and-recovery.md#session-lock)).
+`run` releases the lock after the Display is disposed, so the quit's last
+save comes first. It runs on the calling thread, which becomes the
 UI thread:
 
 1. `Display.setAppName("QCaret")`, then the Display.
@@ -64,7 +67,8 @@ Before the Display, without `-m`, `Launcher` claims the instance lock
 ([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
 the launch over and exits 0, before `-l` attaches a log file. A settings
 directory another user owns or can write, or a failure to take the lock, logs
-one WARN and runs on alone, as with `-m`. A JDK where `flock` cannot be linked
+one WARN and runs on alone (`Handoff.ALONE`); it restores only if it takes the
+session lock. A JDK where `flock` cannot be linked
 ([`ProcessLock`](../qcaret-core/docs/files-and-encodings.md#process-lock)) is
 such a failure; `RecoveryController` then also logs `Recovery files are off`.
 
@@ -196,6 +200,7 @@ classes, so the rules over the main classes never see them.
 | `SigtermTest` (tag `swt`, Linux) | `Main` with `-l` as a child process, SIGTERM (`Process.destroy`) after the window line: the process ends within the hook's bound, saved the placement and logged the hook's INFO line to the file. Windows has no SIGTERM; `destroy` there terminates without hooks |
 | `WindowsGuiTest` (tag `swt`) | A second window through the composed application, a file handed over a real loopback exchange, the endpoint gone after quit; a start over a two-window session (`--no-session` opens one window with an untitled document, a plain start opens both saved windows). It does not assert which window takes the file: a late `SWT.Activate` moves the target under load without a window manager, and `WindowSetTest` in `qcaret-app` pins the target |
 | `AbnormalShutdownTest` (tag `swt`) | `CrashChild` types into the untitled document, waits for its recovery file and is killed with `destroyForcibly`; `Gui` started again offers the buffer and restores it dirty |
+| `BesideRunTest` (tag `swt`, Linux) | `Main` as a child process whose handoff fails under a held `instance.lock`, and one in a group-writable settings directory (`ALONE`) while this JVM holds `SessionLock`: each opens a window and, after SIGTERM, has left the session file and the placement unchanged |
 | `StoreFaultsTest` (tag `swt`) | A start over a malformed, oversized and unknown-version session file, and a remembered charset the runtime lacks |
 | `ScreenshotsTest` (tag `swt`) | Runs only with `-Dqcaret.screenshots=<dir>` (`tools/screenshots.sh`): the README screenshots from generated mock files, in the light and the dark theme |
 | `ShutdownHookTest` | The hook's task run directly |

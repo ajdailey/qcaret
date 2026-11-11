@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.theme.FontFiles;
 import io.github.ajdailey.qcaret.app.theme.ThemeColors;
@@ -550,9 +551,9 @@ public final class WindowSet {
    * Drops HyperSearch's last run and retained searches in every window and removes the searches
    * from the session file now; Clear History.
    *
-   * @param done receives on the UI thread whether the session file holds no retained search
+   * @param done receives the session file's result on the UI thread
    */
-  void forgetHistory(Consumer<Boolean> done) {
+  void forgetHistory(Consumer<SessionRewrite.Result> done) {
     for (ApplicationController window : windows) {
       window.search().forgetHistory();
     }

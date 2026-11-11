@@ -22,7 +22,7 @@ of a file without write permission skip where the user writes every file.
 |---|---|
 | `HandoffTest` | Client and server over loopback in one JVM: options, `-n`, geometry and `--diff` carried; a wrong token, a peer without the token and a listener without the token; a stale endpoint with and without a live lock; a child JVM killed by `destroyForcibly` releasing the lock; 16 launches against a primary before and after its first window; arrival order; `ERR` at `close` and at `WINDOW_BOUND`; a listener that never answers |
 | `WindowSetTest` | What the windows share, handoff targets, the one-buffer rule, close and quit |
-| `WindowSessionTest` | Launches handed during a restore (tabs, `-n`, `--diff`, a quit) and while the recovery dialog shows; a two-window restore, the capture before a quit's first close, Cancel and a process end at a quit prompt, a moved buffer's recovery file, a snapshot over two windows, the display state, Clear History in every window and in the session file |
+| `WindowSessionTest` | Launches handed during a restore (tabs, `-n`, `--diff`, a quit) and while the recovery dialog shows; a two-window restore, the capture before a quit's first close, Cancel and a process end at a quit prompt, a moved buffer's recovery file, a snapshot over two windows, the display state, Clear History in every window, in the session file, in windows a running restore has not reached, and beside a child process holding the session lock; the notices of a failed write and of a session another instance owns |
 | `TabMoveTest` | The round-trip guard and a missing file moving with the tab; a canceled save's writer ending after the move with the target's state and its running save untouched; the state a move carries; refusals; close and quit around a move; a line transform or replace run delivered after the move. The budget returning to its start shows each document released once |
 | `DocumentLifecycleTest` | An `OpenDocument` entry across windows: declared settings, untitled name, buffer id and chosen grammar carried by a move; a reopen in the target window; a rename from another window's browser holding Save with the target's notice, then moving the document and reading its new settings; a close during the save cleanup writing nothing |
 | `QuitPromptsTest` | Answers before saves, Cancel, each way a save ends the quit, an edit during a save or after Don't Save, an untitled document saved at a prompt, Compare at a save conflict followed by Overwrite or Cancel |
@@ -32,6 +32,7 @@ of a file without write permission skip where the user writes every file.
 | Class | Covers |
 |---|---|
 | `SessionStoreTest` | Round trip, the limits, the `droppedComments` count, malformed, oversized and unknown-version files |
+| `SessionLockTest` | The session lock held by a child JVM and by this one, a second acquire in the JVM, the held file refused as a user file, a per-user directory created first |
 | `SessionControllerTest` | Restore through real files, the comment count shown and cleared, debounced and shutdown saves on racing workers |
 | `RecoveryFileTest` | Round trip of a text over every buffer size, surrogates, damage |
 | `RecoveryStoreTest` | Liveness by lock, a live child process that read its `owner.lock`, age limits, the original file's state, an unreadable original or recovery file hiding no buffer |
@@ -53,7 +54,7 @@ of a file without write permission skip where the user writes every file.
 | `KeymapTest` | No stroke bound twice on any platform; the platform key choices (Add Caret, F6, Go Back and Go Forward); the Quick Open keys; the reference filter; the accelerator, editor and window-filter lookups |
 | `CommandPaletteTest` | `Fuzzy`, every menu command listed in menu order, cascade titles, keys and enabled state, running only an enabled command |
 | `MenuTableTest` | Mnemonics unique per menu |
-| `ChecksumToolsTest` | Generate as typed and Copy; Generate from Files with repeated names as full paths, a file past the read buffer, an unreadable file, Copy and Save As; a canceled run whose late lines are dropped; Verify over the open document (OK, FAILED, MISSING, unreadable, a `*` line, a bad line) and over a chosen list; selection bytes in UTF-16LE with CRLF joins, and a char the charset cannot encode; an algorithm the probe leaves out |
+| `ChecksumToolsTest` | Generate as typed and Copy; Generate from Files with repeated names relative to the common folder (also on Windows-shaped elements), a file past the read buffer, an unreadable file, Copy, Save As and the saved list verified; a canceled run whose late lines are dropped; Verify over the open document (OK, FAILED, MISSING, unreadable, a `*` line, a bad line) and over a chosen list; selection bytes in UTF-16LE with CRLF joins, and a char the charset cannot encode; an algorithm the probe leaves out |
 
 ### Documents
 

@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.config.Appearance;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
@@ -23,7 +24,7 @@ final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
   private final Keymap defaults;
-  private final Consumer<Consumer<Boolean>> forgetHistory;
+  private final Consumer<Consumer<SessionRewrite.Result>> forgetHistory;
   private final WindowSet set;
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
@@ -33,7 +34,7 @@ final class PreferencesController implements PreferencesInput {
       Settings settings,
       MainView view,
       Keymap defaults,
-      Consumer<Consumer<Boolean>> forgetHistory,
+      Consumer<Consumer<SessionRewrite.Result>> forgetHistory,
       WindowSet set) {
     this.settings = settings;
     this.view = view;
@@ -252,11 +253,13 @@ final class PreferencesController implements PreferencesInput {
   @Override
   public void clearHistory() {
     forgetHistory.accept(
-        new Consumer<Boolean>() {
+        new Consumer<SessionRewrite.Result>() {
           @Override
-          public void accept(Boolean removed) {
-            if (!removed) {
+          public void accept(SessionRewrite.Result result) {
+            if (result == SessionRewrite.Result.FAILED) {
               view.showNotice(UiText.PREFERENCES_HISTORY_NOT_REMOVED.text());
+            } else if (result == SessionRewrite.Result.OWNED_ELSEWHERE) {
+              view.showNotice(UiText.PREFERENCES_HISTORY_SESSION_OWNED.text());
             }
           }
         });

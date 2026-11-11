@@ -102,6 +102,15 @@ public final class SessionStore {
   }
 
   /**
+   * Returns the settings directory the file lives in.
+   *
+   * @return the location
+   */
+  public SettingsLocation location() {
+    return location;
+  }
+
+  /**
    * Reads the session. Blocking.
    *
    * @return the session; {@link Session#EMPTY} when the file is missing or malformed

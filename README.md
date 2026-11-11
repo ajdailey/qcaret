@@ -244,6 +244,7 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
 | `recovery/` | Recovery files of unsaved buffers, one directory per running instance |
 | `snapshot/` | Unsaved buffers a quit wrote when Quit without asking is on |
 | `instance.lock`, `instance.endpoint` | Single-instance lock and handoff endpoint |
+| `qcaret_session.lock` | Held by the instance that restores and saves the session |
 | `logs/` | Debug log files |
 | `cache/` | The user guide's copy; with `--settings` or in portable mode, the SWT natives; on Windows, the guide browser's data in `cache\webview2` |
 | `grammars/` | User grammars |
