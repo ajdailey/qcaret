@@ -14,6 +14,12 @@ run.
   sleep.
 - No test opens a popup under a pump: a win32 popup would block.
 - A pixel check skips when `Control.print` returns false.
+- A test that posts a press through `notifyListeners` and dispatches events
+  before the release drops real `MouseMove` events in a Display filter added
+  before the window opens, so it runs before `EditorGestures`' filter, as
+  `EditingSurfaceTest` does: a real pointer over the window sends motion
+  without `BUTTON1`, which ends the posted drag. A press and release posted
+  with no dispatch between them needs no filter.
 - `-Dqcaret.screenshots=<dir>` makes the surface tests write PNGs of their
   windows; `-Dqcaret.shots=<dir>` does the same for `TabMoveGuiTest`.
 
