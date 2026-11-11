@@ -20,9 +20,10 @@ import java.util.function.LongConsumer;
 
 /**
  * Tools > Generate from Files: hashes chosen files one after another into {@code sha256sum} lines,
- * {@code <hex> <name>}, each shown as its file ends. A name is the file name, or the full path
- * where two chosen files share a name. A file that cannot be read gets no line; the status line
- * counts it and names the first one. Choose Files starts a new run.
+ * {@code <hex> <name>}, each shown as its file ends ({@link #names} gives the names). Save As
+ * starts in the files' common folder, where Verify Checksums resolves the names. A file that cannot
+ * be read gets no line; the status line counts it and names the first one. Choose Files starts a
+ * new run.
  */
 final class FileChecksums extends ChecksumRun<FileChecksums.Request> {
   private final ChecksumAlgorithm algorithm;
@@ -55,35 +56,78 @@ final class FileChecksums extends ChecksumRun<FileChecksums.Request> {
   }
 
   private void run(List<Path> files) {
-    Path parent = files.get(0).toAbsolutePath().getParent();
+    Path common = files.get(0).toAbsolutePath().getParent();
     for (Path file : files) {
-      if (parent != null && !parent.equals(file.toAbsolutePath().getParent())) {
-        parent = null;
+      while (common != null && !file.toAbsolutePath().startsWith(common)) {
+        common = common.getParent();
       }
     }
+    List<List<String>> elements = new ArrayList<List<String>>(files.size());
+    for (Path file : files) {
+      elements.add(elements(file.toAbsolutePath()));
+    }
     start(
-        parent == null ? "" : parent.toString(),
-        files.get(0).toAbsolutePath().getParent(),
-        new Request(algorithm, List.copyOf(files), names(files)));
+        common == null ? "" : common.toString(),
+        common == null ? files.get(0).toAbsolutePath().getParent() : common,
+        new Request(algorithm, List.copyOf(files), names(elements)));
+  }
+
+  /** Returns a path's root, or an empty string without one, then each name element. */
+  private static List<String> elements(Path path) {
+    List<String> out = new ArrayList<String>();
+    Path root = path.getRoot();
+    out.add(root == null ? "" : root.toString());
+    for (Path name : path) {
+      out.add(name.toString());
+    }
+    return out;
   }
 
   /**
-   * Returns each file's name in the list: its file name, or its full path where names repeat.
+   * Returns each file's name in the list. Where every file name is unique, the name is the file
+   * name. Otherwise each name is the path below the files' common folder, its elements joined by
+   * {@code /} on every platform; files with no common folder (two Windows drives) keep the root and
+   * every element.
    *
-   * @param files the files
+   * @param elements each file's root, then its name elements, as absolute paths
    * @return the names, in order
    */
-  static List<String> names(List<Path> files) {
+  static List<String> names(List<List<String>> elements) {
     Map<String, Integer> counts = new HashMap<String, Integer>();
-    for (Path file : files) {
-      counts.merge(String.valueOf(file.getFileName()), 1, Integer::sum);
+    for (List<String> file : elements) {
+      counts.merge(file.get(file.size() - 1), 1, Integer::sum);
     }
-    List<String> out = new ArrayList<String>(files.size());
-    for (Path file : files) {
-      String name = String.valueOf(file.getFileName());
-      out.add(counts.get(name) > 1 ? file.toAbsolutePath().toString() : name);
+    boolean repeats = false;
+    for (int count : counts.values()) {
+      repeats |= count > 1;
+    }
+    List<String> out = new ArrayList<String>(elements.size());
+    if (!repeats) {
+      for (List<String> file : elements) {
+        out.add(file.get(file.size() - 1));
+      }
+      return out;
+    }
+    int common = commonPrefix(elements);
+    for (List<String> file : elements) {
+      String joined = String.join("/", file.subList(Math.max(common, 1), file.size()));
+      out.add(common == 0 ? file.get(0) + joined : joined);
     }
     return out;
+  }
+
+  /** Returns how many leading elements, root included, every file shares, short of a file name. */
+  private static int commonPrefix(List<List<String>> elements) {
+    List<String> first = elements.get(0);
+    int common = first.size() - 1;
+    for (List<String> file : elements) {
+      int n = 0;
+      while (n < common && n < file.size() - 1 && file.get(n).equals(first.get(n))) {
+        n++;
+      }
+      common = n;
+    }
+    return common;
   }
 
   @Override

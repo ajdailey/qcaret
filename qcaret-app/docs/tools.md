@@ -37,11 +37,20 @@ that algorithm reports unreadable. Not tested on a FIPS runtime.
 - Blank lines are skipped. Any other line that does not parse, or is over 64 Ki
   chars, counts as bad; the first 1,000 bad line numbers are kept.
 
-Generate from Files writes `<lowercase hex>  <name>` per file as it ends. The
-name is the file name, or the absolute path where two chosen files share a
-name. A file that cannot be read gets no line; the status line counts it and
-names the first. Save As writes UTF-8 with LF breaks; the default name is
-`MD5SUMS`, `SHA1SUMS`, `SHA256SUMS` or `SHA512SUMS`.
+Generate from Files writes `<lowercase hex>  <name>` per file as it ends
+(`FileChecksums.names`):
+
+- Where every chosen file name is unique, the name is the file name.
+- Where two share a name, every name is the path below the files' common
+  folder, joined with `/` on every platform: `a/x.txt`, `b/x.txt`. Files on two
+  Windows drives have no common folder and keep the root.
+- The GNU escape applies only to a name holding a backslash or a line break,
+  which leaves real backslashes in Linux and macOS names.
+
+Save As starts in the common folder, so a list saved there verifies. It writes
+UTF-8 with LF breaks; the default name is `MD5SUMS`, `SHA1SUMS`, `SHA256SUMS`
+or `SHA512SUMS`. A file that cannot be read gets no line; the status line
+counts it and names the first.
 
 ## Verify
 

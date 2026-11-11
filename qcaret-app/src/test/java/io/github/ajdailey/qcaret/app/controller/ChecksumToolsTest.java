@@ -87,7 +87,8 @@ class ChecksumToolsTest {
   }
 
   /**
-   * Two files share a name, so both show their full paths; the third spans several read buffers.
+   * Two files share a name, so every name is relative to the common folder; the third spans several
+   * read buffers. The list saved in the common folder verifies.
    */
   @Test
   void generateFromFilesWritesSha256sumLinesAndSaves() throws Exception {
@@ -109,8 +110,8 @@ class ChecksumToolsTest {
     assertEquals(UiText.BUTTON_CHOOSE_FILES.text(), shown.chooseLabel);
     List<String> expected =
         List.of(
-            ABC_SHA256 + "  " + a.toAbsolutePath(),
-            sha256(new byte[0]) + "  " + b.toAbsolutePath(),
+            ABC_SHA256 + "  a/x.txt",
+            sha256(new byte[0]) + "  b/x.txt",
             sha256(bytes) + "  big.bin");
     assertEquals(expected, shown.lines);
     assertEquals(UiText.CHECKSUM_FILES_DONE.format(3, 0), shown.status);
@@ -133,6 +134,32 @@ class ChecksumToolsTest {
           }
         },
         "saved text");
+    harness.application.execute(CommandId.VERIFY_CHECKSUMS);
+    FakeView.Checksums verified = harness.view.checksums;
+    verified.status = null;
+    verified.input.choose();
+    harness.view.openChooser.accept(List.of(saved));
+    finished();
+    assertEquals(List.of("a/x.txt: OK", "b/x.txt: OK", "big.bin: OK"), verified.lines);
+  }
+
+  /**
+   * Windows-shaped elements (a drive root token and a short folder name): repeated names are the
+   * path below the common folder joined with {@code /}; unique names stay bare; two drives keep the
+   * root.
+   */
+  @Test
+  void repeatedNamesAreRelativeToTheCommonFolder() {
+    List<String> a = List.of("C:", "Users", "RUNNER~1", "a", "x.txt");
+    List<String> b = List.of("C:", "Users", "RUNNER~1", "b", "x.txt");
+    List<String> c = List.of("C:", "Users", "RUNNER~1", "c.bin");
+    List<String> deep = List.of("C:", "Users", "RUNNER~1", "a", "d", "c.bin");
+    assertEquals(List.of("a/x.txt", "b/x.txt", "c.bin"), FileChecksums.names(List.of(a, b, c)));
+    assertEquals(List.of("x.txt", "c.bin"), FileChecksums.names(List.of(a, c)));
+    assertEquals(List.of("c.bin", "a/d/c.bin"), FileChecksums.names(List.of(c, deep)));
+    List<String> other = List.of("D:", "a", "x.txt");
+    assertEquals(
+        List.of("C:Users/RUNNER~1/a/x.txt", "D:a/x.txt"), FileChecksums.names(List.of(a, other)));
   }
 
   @Test
@@ -192,7 +219,8 @@ class ChecksumToolsTest {
     harness.open(file);
     harness.application.execute(CommandId.VERIFY_CHECKSUMS);
     FakeView.Checksums shown = finished();
-    assertEquals(UiText.CHECKSUM_LIST.format(file), shown.source);
+    // The document holds the real path: /private/var on macOS, the long user name on Windows.
+    assertEquals(UiText.CHECKSUM_LIST.format(file.toRealPath()), shown.source);
     assertEquals(6, shown.lines.size(), shown.lines.toString());
     assertEquals("good.txt: OK", shown.lines.get(0));
     assertEquals("bad.txt: FAILED", shown.lines.get(1));
