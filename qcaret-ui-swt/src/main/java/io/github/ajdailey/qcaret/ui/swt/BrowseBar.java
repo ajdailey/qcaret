@@ -15,21 +15,22 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.swt.widgets.ToolItem;
 
 /**
  * The workspace browser's navigation and filter controls over a {@link WorkspaceBrowseInput}: the
- * Parent, Home, Favorites and Workspace icon buttons, the path field showing the shown folder
- * (Enter shows the typed folder), the filter field (Enter applies it) and the Hidden check box. The
- * path field's tool tip says whether it shows the workspace folder; the Workspace button is enabled
- * only when it does not. Favorites opens a menu of the favorite folders with Add Shown Folder and
- * Remove Shown Folder, built at each opening.
+ * Parent, Home, Favorites and Workspace icon tool bar items, the path field showing the shown
+ * folder (Enter shows the typed folder), the filter field (Enter applies it) and the Hidden check
+ * box. The path field's tool tip says whether it shows the workspace folder; the Workspace item is
+ * enabled only when it does not. Favorites opens a menu of the favorite folders with Add Shown
+ * Folder and Remove Shown Folder, built at each opening.
  */
 final class BrowseBar {
   private final Composite root;
-  private final Button parent;
-  private final Button home;
-  private final Button favorites;
-  private final Button workspace;
+  private final ToolItem parent;
+  private final ToolItem home;
+  private final ToolItem favorites;
+  private final ToolItem workspace;
   private final Text path;
   private final Text filter;
   private final Button hidden;
@@ -42,14 +43,14 @@ final class BrowseBar {
    * Creates the controls.
    *
    * @param container the dock
-   * @param buttons the dock's button row
-   * @param icons the buttons' icons
+   * @param row the dock's icon row
+   * @param icons the row's icons
    */
-  BrowseBar(Composite container, Composite buttons, ToolIcons icons) {
-    parent = icons.button(buttons, ToolIcons.PARENT, UiText.BROWSE_PARENT.text());
-    home = icons.button(buttons, ToolIcons.HOME, UiText.BROWSE_HOME.text());
-    favorites = icons.button(buttons, ToolIcons.FAVORITES, UiText.BROWSE_FAVORITES.text());
-    workspace = icons.button(buttons, ToolIcons.WORKSPACE, UiText.BROWSE_WORKSPACE.text());
+  BrowseBar(Composite container, Composite row, ToolIcons icons) {
+    parent = icons.item(row, ToolIcons.PARENT, UiText.BROWSE_PARENT.text());
+    home = icons.item(row, ToolIcons.HOME, UiText.BROWSE_HOME.text());
+    favorites = icons.item(row, ToolIcons.FAVORITES, UiText.BROWSE_FAVORITES.text());
+    workspace = icons.item(row, ToolIcons.WORKSPACE, UiText.BROWSE_WORKSPACE.text());
     this.icons = icons;
     root = new Composite(container, SWT.NONE);
     GridLayout layout = new GridLayout(2, false);
@@ -72,9 +73,10 @@ final class BrowseBar {
             act(event.widget);
           }
         };
-    for (Button button : new Button[] {parent, home, favorites, workspace, hidden}) {
-      button.addListener(SWT.Selection, listener);
+    for (ToolItem item : new ToolItem[] {parent, home, favorites, workspace}) {
+      item.addListener(SWT.Selection, listener);
     }
+    hidden.addListener(SWT.Selection, listener);
     path.addListener(SWT.DefaultSelection, listener);
     filter.addListener(SWT.DefaultSelection, listener);
     update();
@@ -113,10 +115,11 @@ final class BrowseBar {
       return;
     }
     boolean on = input != null;
-    for (Button button : new Button[] {parent, home, favorites, workspace, hidden}) {
-      button.setEnabled(on && (button != workspace || input.browsing()));
-      icons.showState(button);
+    for (ToolItem item : new ToolItem[] {parent, home, favorites, workspace}) {
+      item.setEnabled(on && (item != workspace || input.browsing()));
+      icons.showState(item);
     }
+    hidden.setEnabled(on);
     path.setEnabled(on);
     filter.setEnabled(on);
     String shown = on ? input.shownFolder() : "";
@@ -148,7 +151,7 @@ final class BrowseBar {
       input.back();
     } else if (widget == favorites) {
       Rectangle at = favorites.getBounds();
-      showFavorites(root.toDisplay(at.x, at.y + at.height));
+      showFavorites(favorites.getParent().toDisplay(at.x, at.y + at.height));
     } else if (widget == hidden) {
       input.setHiddenShown(hidden.getSelection());
     } else if (widget == path) {
@@ -258,24 +261,24 @@ final class BrowseBar {
   }
 
   /**
-   * Presses a button, for tests.
+   * Presses a tool bar item, for tests.
    *
-   * @param label the button's label
+   * @param label the item's label
    */
   void press(UiText label) {
-    for (Button button : new Button[] {parent, home, favorites, workspace}) {
-      if (label.text().equals(button.getToolTipText())) {
-        act(button);
+    for (ToolItem item : new ToolItem[] {parent, home, favorites, workspace}) {
+      if (label.text().equals(item.getToolTipText())) {
+        act(item);
       }
     }
   }
 
   /**
-   * Returns the Workspace button, for tests.
+   * Returns the Workspace item, for tests.
    *
-   * @return the button
+   * @return the item
    */
-  Button workspaceButton() {
+  ToolItem workspaceItem() {
     return workspace;
   }
 }

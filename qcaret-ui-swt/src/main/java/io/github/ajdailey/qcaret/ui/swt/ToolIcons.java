@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -21,26 +22,26 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 
 /**
- * The toolbar, toggle, button and menu icons, rendered at build time from the SVG set into {@code
+ * The toolbar, toggle and menu icons, rendered at build time from the SVG set into {@code
  * icons/tool/NAME-light-16.png} (dark ink) and {@code NAME-dark-16.png} (light ink), each with a 32
- * px copy for 200% zoom. The ink follows the native widget background, not the QCaret palette,
- * because toolbars and buttons are native. GTK refreshes {@code getBackground} and sends {@code
- * SWT.Settings} only on the first {@code Display.sleep} after {@code setDarkThemePreferred}, so on
- * GTK a visible ink source is read from a drawn pixel. GTK's disabled effect lightens an image,
- * which on a dark background brightens it, so there {@link #showState} shows a disabled item a
- * faded copy. SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha,
- * so the same faded copy serves menu items. Images are created on first use on the UI thread and
- * disposed with the owner control.
+ * px copy for 200% zoom. No other class sets an item's or button's image. The ink follows the
+ * native background of tool bars and menus, or the palette for a surface QCaret paints ({@link
+ * #follow}). GTK refreshes {@code getBackground} and sends {@code SWT.Settings} only on the first
+ * {@code Display.sleep} after {@code setDarkThemePreferred}, so on GTK a visible ink source is read
+ * from a drawn pixel. GTK's disabled effect lightens an image, which on a dark background brightens
+ * it, so there {@link #showState} shows a disabled item a faded copy. SWT's disabled copy of a GTK
+ * menu image brightens the same way and keeps the alpha, so the same faded copy serves menu items.
+ * Images are created on first use on the UI thread and disposed with the owner control.
  */
 final class ToolIcons {
   /** Opens files. */
@@ -223,7 +224,6 @@ final class ToolIcons {
   private final Map<String, Image> images = new HashMap<String, Image>();
   private final Map<ToolItem, String> items = new LinkedHashMap<ToolItem, String>();
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
-  private final Map<Button, String> buttons = new LinkedHashMap<Button, String>();
   private final boolean fixedInk;
   private Image blank;
   private boolean darkBackground;
@@ -259,6 +259,17 @@ final class ToolIcons {
    */
   ToolIcons(Control owner, boolean dark) {
     this(owner, owner, true, dark);
+  }
+
+  /**
+   * Creates the set for a surface QCaret paints from the palette, such as the tab strip; {@link
+   * #follow} changes the ink with the palette. The images are disposed with the owner.
+   *
+   * @param owner the control that disposes the images
+   * @param palette the palette the surface is painted with
+   */
+  ToolIcons(Control owner, Palette palette) {
+    this(owner, owner, true, palette.dark());
   }
 
   private ToolIcons(Control owner, Control source, boolean fixedInk, boolean dark) {
@@ -331,22 +342,23 @@ final class ToolIcons {
   }
 
   /**
-   * Creates a push button showing an icon, with the label as its tool tip and accessible name; the
-   * button shows the label instead when the icon's PNG is missing.
+   * Creates a flat tool bar of one push item showing an icon, with the label as its tool tip and
+   * accessible name; the item shows the label instead when the icon's PNG is missing. A tool bar
+   * draws the native tool bar background on every platform, where a push button draws its own face.
    *
-   * @param parent the button's parent
+   * @param parent the tool bar's parent
    * @param name one of the name constants
    * @param label the tool tip and accessible name
-   * @return the button
+   * @return the item
    */
-  Button button(Composite parent, String name, final String label) {
-    Button button = new Button(parent, SWT.PUSH);
-    if (!apply(button, name)) {
-      button.setText(label.replace("&", "&&"));
+  ToolItem item(Composite parent, String name, final String label) {
+    ToolBar bar = new ToolBar(parent, SWT.FLAT);
+    ToolItem item = new ToolItem(bar, SWT.PUSH);
+    if (!apply(item, name)) {
+      item.setText(label.replace("&", "&&"));
     }
-    button.setToolTipText(label);
-    button
-        .getAccessible()
+    item.setToolTipText(label);
+    bar.getAccessible()
         .addAccessibleListener(
             new AccessibleAdapter() {
               @Override
@@ -354,23 +366,16 @@ final class ToolIcons {
                 event.result = label;
               }
             });
-    return button;
+    return item;
   }
 
   /**
-   * Shows an icon on a push button and keeps it in the owner's ink across {@link #reink}.
+   * Shows the transparent image on a menu item, so its label lines up with items that show icons.
    *
-   * @param button the button
-   * @param name one of the name constants
-   * @return false when the PNG is missing from the jar and the button shows no image
+   * @param item the item
    */
-  boolean apply(Button button, String name) {
-    if (get(name) == null) {
-      return false;
-    }
-    buttons.put(button, name);
-    showState(button);
-    return true;
+  void applyBlank(MenuItem item) {
+    item.setImage(blank());
   }
 
   /**
@@ -404,11 +409,27 @@ final class ToolIcons {
     if (fixedInk || owner.isDisposed() || source.isDisposed()) {
       return;
     }
-    boolean now = dark(background());
-    if (now == darkBackground) {
+    swap(dark(background()));
+  }
+
+  /**
+   * Takes the ink of a palette's background, for icons on a surface QCaret paints from the palette;
+   * call when the palette changes.
+   *
+   * @param palette the palette
+   */
+  void follow(Palette palette) {
+    if (!owner.isDisposed()) {
+      swap(palette.dark());
+    }
+  }
+
+  /** Replaces the image of every applied item when the ink changes. */
+  private void swap(boolean dark) {
+    if (dark == darkBackground) {
       return;
     }
-    darkBackground = now;
+    darkBackground = dark;
     List<Image> old = new ArrayList<Image>(images.values());
     images.clear();
     for (ToolItem item : items.keySet()) {
@@ -416,9 +437,6 @@ final class ToolIcons {
     }
     for (MenuItem item : menuItems.keySet()) {
       showState(item);
-    }
-    for (Button button : buttons.keySet()) {
-      showState(button);
     }
     for (Image image : old) {
       if (image != null) {
@@ -458,23 +476,6 @@ final class ToolIcons {
     Image image = get(GTK && darkBackground && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
-    }
-  }
-
-  /**
-   * Shows the image of a button's enabled state; call after changing it. A button not given to
-   * {@link #apply} keeps its image.
-   *
-   * @param button the button
-   */
-  void showState(Button button) {
-    String name = buttons.get(button);
-    if (name == null || button.isDisposed()) {
-      return;
-    }
-    Image image = get(GTK && darkBackground && !button.getEnabled() ? name + FADED : name);
-    if (button.getImage() != image) {
-      button.setImage(image);
     }
   }
 

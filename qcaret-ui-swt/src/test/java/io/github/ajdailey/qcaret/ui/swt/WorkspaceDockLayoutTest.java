@@ -37,6 +37,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
@@ -306,7 +307,7 @@ class WorkspaceDockLayoutTest {
       Rectangle bounds = display.map(control.getParent(), top, control.getBounds());
       String name = control + " " + control.getToolTipText() + " " + bounds;
       assertTrue(bounds.x >= 0 && bounds.x + bounds.width <= width, name + " in " + width);
-      if (control instanceof Button) {
+      if (control instanceof Button || control instanceof ToolBar) {
         assertTrue(
             bounds.width >= control.computeSize(SWT.DEFAULT, SWT.DEFAULT).x, name + " clipped");
       }

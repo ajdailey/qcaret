@@ -27,10 +27,10 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,9 +39,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The Workspace Browser's icon buttons take the main toolbar's ink when QCaret starts dark, after a
- * theme switch either way and after the browser is hidden and shown again. GTK only: elsewhere the
- * ink comes from {@code getBackground}, which needs no drawn pixel and no event-loop turn.
+ * The Workspace Browser's icon tool bars take the main toolbar's ink when QCaret starts dark, after
+ * a theme switch either way and after the browser is hidden and shown again. GTK only: elsewhere
+ * the ink comes from {@code getBackground}, which needs no drawn pixel and no event-loop turn.
  */
 @Tag("swt")
 class WorkspaceInkTest {
@@ -123,15 +123,15 @@ class WorkspaceInkTest {
 
   /** Runs the event loop until every browser button shows the ink, then checks each one. */
   private void assertBrowserInk(final boolean light, String when) {
-    final List<Button> buttons = new ArrayList<Button>();
+    final List<ToolItem> buttons = new ArrayList<ToolItem>();
     collect(window.workspaceDock().control(), buttons);
-    assertFalse(buttons.isEmpty(), "no icon buttons");
+    assertFalse(buttons.isEmpty(), "no icon items");
     EventLoop.runUntil(
         display,
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            for (Button button : buttons) {
+            for (ToolItem button : buttons) {
               if (lightInk(button.getImage()) != light) {
                 return false;
               }
@@ -140,7 +140,7 @@ class WorkspaceInkTest {
           }
         },
         BOUND);
-    for (Button button : buttons) {
+    for (ToolItem button : buttons) {
       assertTrue(
           lightInk(button.getImage()) == light,
           button.getToolTipText() + (light ? " has dark ink " : " has light ink ") + when);
@@ -161,10 +161,14 @@ class WorkspaceInkTest {
     };
   }
 
-  private static void collect(Composite parent, List<Button> buttons) {
+  private static void collect(Composite parent, List<ToolItem> buttons) {
     for (Control child : parent.getChildren()) {
-      if (child instanceof Button button && button.getImage() != null) {
-        buttons.add(button);
+      if (child instanceof ToolBar bar) {
+        for (ToolItem item : bar.getItems()) {
+          if (item.getImage() != null) {
+            buttons.add(item);
+          }
+        }
       } else if (child instanceof Composite composite) {
         collect(composite, buttons);
       }

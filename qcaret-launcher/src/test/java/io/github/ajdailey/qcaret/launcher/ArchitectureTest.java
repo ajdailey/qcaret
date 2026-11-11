@@ -788,6 +788,42 @@ class ArchitectureTest {
         .because("CommandStates computes menu and status state");
   }
 
+  /** Icons come from {@code ToolIcons}, which picks the ink for the background they show on. */
+  @Test
+  void iconsOnlyThroughToolIcons() {
+    iconsOnlyThroughToolIconsRule().check(classes);
+  }
+
+  @Test
+  void iconRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        iconsOnlyThroughToolIconsRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$SetsIcon",
+        "ToolItem.setImage",
+        "Button.setImage");
+  }
+
+  private static ArchRule iconsOnlyThroughToolIconsRule() {
+    String widgets = "org.eclipse.swt.widgets.";
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(ROOT + ".ui.swt.ToolIcons")
+        .should()
+        .callMethodWhere(callNamed(widgets + "ToolItem", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed(widgets + "MenuItem", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed(widgets + "Button", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed(widgets + "TableItem", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed(widgets + "TreeItem", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed(widgets + "Item", "setImage"))
+        .orShould()
+        .callMethodWhere(callNamed("org.eclipse.swt.custom.CTabItem", "setImage"));
+  }
+
   // Each rule reports the fixture class that breaks it.
 
   private static final String VIEW_FIXTURES = ROOT + ".ui.swt.archfixture.ViewViolations$";

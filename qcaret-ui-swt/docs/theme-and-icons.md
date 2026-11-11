@@ -12,7 +12,7 @@
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
 | GTK | `setDarkThemePreferred` before the first Shell for light and dark, and at every switch | Applies at once. The system setting is read once at Display creation, so a desktop change applies at the next start |
-| win32 | `setDarkThemePreferred` before the first Shell; controls read it only when created | Native controls change at the next start; `showsNow` is false and the controller shows a notice. Buttons, combo lists and checkboxes stay light |
+| win32 | `setDarkThemePreferred` before the first Shell; controls read it only when created | Native controls change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark; see [win32](#win32) |
 | cocoa | Never set: always the system appearance | Only the text view and tab strip recolor; a system appearance change recolors the rest through `CocoaChrome` |
 
 DO NOT PIN THE COCOA APPEARANCE, live or at startup. Cocoa SWT reads its widget
@@ -46,6 +46,21 @@ Under a dark startup setting win32 draws check box labels near-white while
 dialog pages stay light, so every check box comes from `SwtThemeService.check`,
 which creates it with the theme off. A `MenuItem` or `Table` with `SWT.CHECK`
 has no such label and does not use it.
+
+Measured on `windows-2025` with SWT 3.135.0 under a dark startup setting
+(`Win32DarkInkTest` saves the window and the readings to
+`target/diagnostics/win32-dark/`):
+
+| Drawn dark | Drawn light |
+|---|---|
+| Title bar, menu bar (`#303030`), push button faces (`#333333`) with white labels, read-only `Combo` | `ToolBar`, `Composite`, `Label`, `Link`, `Group`, check box and radio button panels, `Text` and a drop-down `Combo`'s field (white), `List`, `Table`, `Tree`, `Spinner`, `ProgressBar` |
+
+`getBackground` reports the light window color for a push button as well, so an
+icon inked from it is dark on dark. Icons therefore sit only on tool bars,
+which draw light like the window; the main toolbar and the workspace browser's
+row read `#f0f0f0`. `Text.setBackground` and `setForeground` do color a field
+under the dark setting, its hint and disabled state included, but QCaret keeps
+fields native: the dock, tree and toolbar around them stay light.
 
 ### cocoa
 
@@ -125,9 +140,19 @@ fill) and no child overrides it; `MenuIconsTest` fails on a difference.
 
 `MenuIcons.icon` maps a command to its icon, for the toolbar and the menus.
 `MenuIcons.decorate` shows the icons on the push items of the menu bar and the
-editor menu, through a `ToolIcons` of the window's own. `ToolIcons.button`
-makes the workspace browser's icon push buttons, inked from the button row's
-background like the toolbar.
+editor menu, through a `ToolIcons` of the window's own. `ToolIcons.item`
+makes the workspace browser's icons, each a push item alone on a flat
+`ToolBar`, inked from the main toolbar's background.
+
+Every tool and menu icon comes from `ToolIcons`:
+`ArchitectureTest.iconsOnlyThroughToolIcons` fails on a `setImage` call on a
+tool item, menu item, button, table or tree item or `CTabItem` anywhere else. A
+set takes its ink from one of two sources:
+
+| Source | Constructor | Ink changes |
+|---|---|---|
+| Native background of a tool bar or menu | `ToolIcons(owner)`, `ToolIcons(owner, source)`; win32 menus `ToolIcons(owner, nativeDark)` | `reink`, on `SWT.Settings` and after a palette change |
+| Palette, for a surface QCaret paints | `ToolIcons(owner, palette)` | `follow(palette)` |
 
 On GTK 4, `ToolIcons.apply` turns off shrinking on a tool item's GtkPicture
 through SWT internals (`ToolItem.imageHandle`, `GTK4.gtk_picture_set_can_shrink`).

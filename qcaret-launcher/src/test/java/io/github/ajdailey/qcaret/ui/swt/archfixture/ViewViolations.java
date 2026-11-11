@@ -18,7 +18,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import org.eclipse.swt.custom.StyledTextContent;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.ToolItem;
 
 /** View classes that each break one architecture rule; never instantiated. */
 final class ViewViolations {
@@ -80,6 +83,14 @@ final class ViewViolations {
       document.apply(EditBatch.replace(0, 0, "x"), model, null);
       document.undo(model);
       document.redo(model);
+    }
+  }
+
+  /** Sets icon images without {@code ToolIcons}. */
+  static final class SetsIcon {
+    void set(ToolItem item, Button button, Image image) {
+      item.setImage(image);
+      button.setImage(image);
     }
   }
 

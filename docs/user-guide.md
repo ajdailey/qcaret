@@ -458,8 +458,9 @@ Preferences, Files sets the interval and can make a clean document ask too.
 
 File > Set Workspace Folder gives each window one folder, the scope of
 HyperSearch's Workspace folder and of Quick Open's file list. View > Workspace
-Browser shows its tree. Enter or a double click opens a file. The buttons above
-the tree show icons; hover over one for its name. Refresh lists the folder
+Browser shows its tree. Enter or a double click opens a file. The icons above
+the tree show their names when you hover over them. Tab reaches each icon and
+Space runs it. Refresh lists the folder
 again, Reveal Active File selects the current document's file, and Hide Browser
 hides the browser. A
 row's menu offers Open in Default Application, Set as Workspace Folder and Copy

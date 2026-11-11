@@ -16,19 +16,19 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
-import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 
 /**
- * The workspace browser dock: a wrapping row of icon buttons ({@link BrowseBar}'s four, then
+ * The workspace browser dock: a wrapping row of icon tool bars ({@link BrowseBar}'s four, then
  * Refresh, Reveal Active File and Hide) and the {@link BrowseBar}'s fields over a {@link Tree} of a
  * {@link WorkspaceInput}'s rows with Name, Size and Modified columns. Size and Modified are as wide
  * as their header and widest text shown, Modified shows the date with the date and time as the
@@ -276,8 +276,8 @@ final class WorkspaceDock {
   }
 
   private void button(Composite parent, String icon, UiText label, final Action action) {
-    Button button = icons.button(parent, icon, label.text());
-    button.addListener(
+    ToolItem item = icons.item(parent, icon, label.text());
+    item.addListener(
         SWT.Selection,
         new Listener() {
           @Override
@@ -610,7 +610,7 @@ final class WorkspaceDock {
       case RENAME -> input.files().rename(node);
       case DELETE -> input.files().delete(node);
       default -> {
-        // The buttons act without a row.
+        // The tool bar items act without a row.
       }
     }
   }

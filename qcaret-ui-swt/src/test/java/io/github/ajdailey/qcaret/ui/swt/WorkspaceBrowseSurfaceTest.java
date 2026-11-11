@@ -190,12 +190,12 @@ class WorkspaceBrowseSurfaceTest {
     BrowseBar bar = dock.bar();
     assertEquals(root.toString(), bar.path().getText());
     assertEquals(UiText.BROWSE_PATH_WORKSPACE.text(), bar.path().getToolTipText());
-    assertFalse(bar.workspaceButton().getEnabled());
+    assertFalse(bar.workspaceItem().getEnabled());
     enter(bar.path(), "docs");
     awaitRows(dock, List.of("drafts/", "guide.txt"));
     assertEquals(root.resolve("docs").toString(), bar.path().getText());
     assertEquals(UiText.BROWSE_PATH_OTHER.format(root.toString()), bar.path().getToolTipText());
-    assertTrue(bar.workspaceButton().getEnabled());
+    assertTrue(bar.workspaceItem().getEnabled());
     bar.press(UiText.BROWSE_PARENT);
     awaitRows(dock, List.of("docs/", "build.xml", "README.txt"));
     bar.press(UiText.BROWSE_PARENT);

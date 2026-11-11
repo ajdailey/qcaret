@@ -4,7 +4,6 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -116,9 +115,8 @@ final class MenuIcons {
       }
     }
     if (any && aligns) {
-      Image blank = icons.blank();
       for (MenuItem item : plain) {
-        item.setImage(blank);
+        icons.applyBlank(item);
       }
     }
   }

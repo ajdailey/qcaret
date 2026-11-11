@@ -80,17 +80,21 @@ the dialog cancels a running match.
 
 ## Workspace browser
 
-`WorkspaceDock` is the workspace browser: a row of icon buttons, the
+`WorkspaceDock` is the workspace browser: a row of icon tool bars, the
 `BrowseBar` fields and a `Tree` with Name, Size and Modified columns.
 
-- The buttons are Parent, Home, Favorites, Workspace, Refresh, Reveal Active
-  File and Hide, each an icon from `ToolIcons.button` with its name as the tool
-  tip and accessible name. The row is a wrapping `RowLayout`, so a dock too
+- The icons are Parent, Home, Favorites, Workspace, Refresh, Reveal Active
+  File and Hide, each a push item alone on a flat `ToolBar` from
+  `ToolIcons.item`, with its name as the tool tip and accessible name; a push
+  button draws a dark face under the win32 dark theme
+  ([theme and icons](theme-and-icons.md#win32)). Each tool bar is a tab stop
+  (`ToolIconsTest`); Space runs its item, measured on GTK 3 and win32 x86_64,
+  and Enter also does on win32. The row is a wrapping `RowLayout`, so a dock too
   narrow for one row puts the rest on a second; at the default window size and
   side weights the seven fit one row (`WorkspaceDockLayoutTest`). The row is
   the icons' `ToolIcons` owner; `MainWindow` re-inks it after a theme change
   and when the dock shows.
-- `BrowseBar` holds the first four buttons, the path field, the filter field
+- `BrowseBar` holds the first four icons, the path field, the filter field
   and the Hidden check box (`SwtThemeService.check`). The path field shows the
   shown folder; its tool tip says whether that is the workspace folder, and
   Workspace is enabled only when it is not. Both fields ask for no width of
