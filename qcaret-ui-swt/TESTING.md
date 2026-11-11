@@ -19,7 +19,8 @@ run.
   test aborts with the platform in the reason. A covering window (the
   `windows-11-arm` runner's first-run screen) and GTK 4 fail the read. A print
   read checks a known color in the image with `ScreenProbe.assumeDrawn`.
-  `ScreenProbeTest` opens a covering shell. Screenshot-only copies are
+  `ScreenProbeTest` opens a covering shell on GTK 3 only: on win32 the probe
+  reads through a covering shell. Screenshot-only copies are
   unguarded.
 - A test that posts a press through `notifyListeners` and dispatches events
   before the release drops real `MouseMove` events in a Display filter added
@@ -56,6 +57,7 @@ checks that need them skip there.
 | `TabMoveGuiTest` | The menu items and tab drags over real shells, with a `PointerProbe` naming the control under the release |
 | `DocumentBehaviorSurfaceTest` | The drop target's one transfer, `dropped` over an open editor and with a name that does not parse, the load row with Esc and Cancel, the title, Mod+drag and the small move of a Mod+click, the docks' weights, Recently Closed, Automatic Detection, the tab width and reload prompts, `AppMenu.open`'s guards. A real drag is not simulated |
 | `SwtUiDispatcherTest` | A canceled timer does not run; cancel after dispose does nothing |
+| `ChecksumSurfaceTest` | Tools before Window with four enabled cascades of three items; Generate hashing as typed and Esc; Verify Checksums over the open list; with `qcaret.rm.out`, both dialogs in light and dark |
 
 ### Editor
 

@@ -9,9 +9,13 @@ import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
+import io.github.ajdailey.qcaret.app.view.ChecksumDisplay;
+import io.github.ajdailey.qcaret.app.view.ChecksumInput;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
+import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
@@ -560,6 +564,85 @@ final class FakeView implements MainView {
   }
 
   Statistics statistics;
+
+  /** A Tools > Generate dialog. */
+  static final class HashText implements HashTextDisplay {
+    final String title;
+    final String note;
+    final HashTextInput input;
+    String hex;
+
+    HashText(String title, String note, HashTextInput input) {
+      this.title = title;
+      this.note = note;
+      this.input = input;
+    }
+
+    @Override
+    public void showHash(String value) {
+      hex = value;
+    }
+  }
+
+  /** A checksum list dialog. */
+  static final class Checksums implements ChecksumDisplay {
+    final String title;
+    final String note;
+    final String chooseLabel;
+    final ChecksumInput input;
+    final List<String> lines = new ArrayList<String>();
+    final List<String> progress = new ArrayList<String>();
+    String source;
+    String status;
+
+    Checksums(String title, String note, String chooseLabel, ChecksumInput input) {
+      this.title = title;
+      this.note = note;
+      this.chooseLabel = chooseLabel;
+      this.input = input;
+    }
+
+    @Override
+    public void clear(String value) {
+      source = value;
+      lines.clear();
+      status = null;
+    }
+
+    @Override
+    public void addLines(List<String> values) {
+      lines.addAll(values);
+    }
+
+    @Override
+    public void showProgress(String text, int percent) {
+      progress.add(text);
+    }
+
+    @Override
+    public void showStatus(String text) {
+      status = text;
+    }
+  }
+
+  HashText hashText;
+  Checksums checksums;
+
+  @Override
+  public HashTextDisplay showHashText(String title, String note, HashTextInput input) {
+    ui.checkUiThread();
+    hashText = new HashText(title, note, input);
+    return hashText;
+  }
+
+  @Override
+  public ChecksumDisplay showChecksums(
+      String title, String note, String chooseLabel, ChecksumInput input) {
+    ui.checkUiThread();
+    checksums = new Checksums(title, note, chooseLabel, input);
+    return checksums;
+  }
+
   List<String> dateRows;
   int dateSelected = -1;
   Consumer<Integer> dateChooser;

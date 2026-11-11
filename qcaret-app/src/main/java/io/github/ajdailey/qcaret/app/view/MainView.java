@@ -180,6 +180,30 @@ public interface MainView
   StatisticsDisplay showStatistics(StatisticsInput input);
 
   /**
+   * Opens a modeless Tools > Generate dialog: a text field, its hash and Copy. The dialog calls
+   * {@link HashTextInput#closed} once it closes.
+   *
+   * @param title the dialog title
+   * @param note what the hash covers, and for MD5 or SHA-1 that it is no security check
+   * @param input receives the field's text and the buttons
+   * @return the dialog
+   */
+  HashTextDisplay showHashText(String title, String note, HashTextInput input);
+
+  /**
+   * Opens a modeless checksum list dialog: the lines, progress with Cancel, a status line and the
+   * buttons Choose, Copy, Save As and Close. The dialog calls {@link ChecksumInput#closed} once it
+   * closes.
+   *
+   * @param title the dialog title
+   * @param note shown above the lines, or empty
+   * @param chooseLabel the Choose button's label
+   * @param input runs the buttons
+   * @return the dialog
+   */
+  ChecksumDisplay showChecksums(String title, String note, String chooseLabel, ChecksumInput input);
+
+  /**
    * Asks which date and time format Insert Date and Time inserts.
    *
    * @param rows each format with the current time in it

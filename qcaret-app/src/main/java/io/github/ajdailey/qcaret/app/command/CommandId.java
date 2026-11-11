@@ -267,6 +267,40 @@ public enum CommandId {
   INSERT_DATE_TIME(CommandGroup.EDIT, UiText.COMMAND_INSERT_DATE_TIME, true, false, null),
   /** Count the lines, words, chars and bytes of the selected document and its selections. */
   DOCUMENT_STATISTICS(CommandGroup.EDIT, UiText.COMMAND_DOCUMENT_STATISTICS, false, false, null),
+  /** Show the MD5 of a typed text. */
+  MD5_TEXT(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_TEXT, false, false, UiText.MENU_MD5),
+  /** Hash chosen files with MD5 into a list. */
+  MD5_FILES(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_FILES, false, false, UiText.MENU_MD5),
+  /** Copy the MD5 of the selections' bytes. */
+  MD5_SELECTION(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_SELECTION, false, false, UiText.MENU_MD5),
+  /** Show the SHA-1 of a typed text. */
+  SHA1_TEXT(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_TEXT, false, false, UiText.MENU_SHA_1),
+  /** Hash chosen files with SHA-1 into a list. */
+  SHA1_FILES(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_FILES, false, false, UiText.MENU_SHA_1),
+  /** Copy the SHA-1 of the selections' bytes. */
+  SHA1_SELECTION(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_SELECTION, false, false, UiText.MENU_SHA_1),
+  /** Show the SHA-256 of a typed text. */
+  SHA256_TEXT(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_TEXT, false, false, UiText.MENU_SHA_256),
+  /** Hash chosen files with SHA-256 into a list. */
+  SHA256_FILES(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_FILES, false, false, UiText.MENU_SHA_256),
+  /** Copy the SHA-256 of the selections' bytes. */
+  SHA256_SELECTION(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_SELECTION, false, false, UiText.MENU_SHA_256),
+  /** Show the SHA-512 of a typed text. */
+  SHA512_TEXT(CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_TEXT, false, false, UiText.MENU_SHA_512),
+  /** Hash chosen files with SHA-512 into a list. */
+  SHA512_FILES(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_FILES, false, false, UiText.MENU_SHA_512),
+  /** Copy the SHA-512 of the selections' bytes. */
+  SHA512_SELECTION(
+      CommandGroup.TOOLS, UiText.COMMAND_CHECKSUM_SELECTION, false, false, UiText.MENU_SHA_512),
+  /**
+   * Check the files of a {@code sha256sum}-style list: the selected document's file or one chosen.
+   */
+  VERIFY_CHECKSUMS(CommandGroup.TOOLS, UiText.COMMAND_VERIFY_CHECKSUMS, true, false, null),
   /** Mark spaces and tabs in the window's editors. */
   SHOW_WHITESPACE(CommandGroup.VIEW, UiText.COMMAND_SHOW_WHITESPACE, true, true, null),
   /** Mark each line break in the window's editors with its kind. */
@@ -442,6 +476,16 @@ public enum CommandId {
   public String title() {
     String plain = label().replace("&", "");
     return plain.endsWith("...") ? plain.substring(0, plain.length() - 3) : plain;
+  }
+
+  /**
+   * Returns the title after its cascade's title when it sits in one, for lists that show commands
+   * outside their menus.
+   *
+   * @return for example {@code SHA-256: Generate}
+   */
+  public String qualifiedTitle() {
+    return submenu == null ? title() : submenu.text().replace("&", "") + ": " + title();
   }
 
   /**

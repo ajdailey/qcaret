@@ -227,6 +227,9 @@ public final class CommandStates {
    * @return true unless the command needs a document, a file or a state the document lacks
    */
   public boolean enabled(CommandId command) {
+    if (command.group() == CommandGroup.TOOLS) {
+      return application.checksums().enabled(command);
+    }
     if (command == CommandId.REOPEN_CLOSED
         || command == CommandId.CLEAR_CLOSED_FILES
         || command == CommandId.OPEN_ALL_CLOSED) {
@@ -286,6 +289,16 @@ public final class CommandStates {
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canRedo();
       default -> true;
     };
+  }
+
+  /**
+   * Returns why a Tools command's algorithm is disabled, for its cascade's tool tip.
+   *
+   * @param command any command
+   * @return the reason, or null when the command's algorithm is available or it has none
+   */
+  public String unavailable(CommandId command) {
+    return application.checksums().unavailable(command);
   }
 
   /**

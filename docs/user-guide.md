@@ -19,6 +19,7 @@ Preferences, Keys changes them.
 - [Workspace](#workspace)
 - [Quick Open](#quick-open)
 - [Compare](#compare)
+- [Checksums](#checksums)
 - [Sessions and recovery](#sessions-and-recovery)
 - [Windows and the running instance](#windows-and-the-running-instance)
 - [Preferences](#preferences)
@@ -529,6 +530,29 @@ command line.
 The comparison is a read-only window with the two sides scrolling together. `F7`
 and `Shift+F7` step through the differences, and `Esc` closes it. A side over
 100,000 lines or 16 Mi chars gets a notice instead.
+
+## Checksums
+
+The Tools menu has a submenu for each of MD5, SHA-1, SHA-256 and SHA-512. MD5
+and SHA-1 detect accidental changes only; use SHA-256 or SHA-512 where someone
+could alter a file on purpose. An algorithm your Java runtime does not offer
+shows disabled, with the reason in its tool tip.
+
+- Generate shows the hash of the text you type, encoded in UTF-8, with Copy.
+- Generate from Files hashes the files you choose into a list in the
+  `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. Copy
+  and Save As take the list.
+- Generate from Selection into Clipboard copies the hash of the selected
+  text as the document saves it: in the document's encoding, without a byte
+  order mark, line breaks as the document holds them. Several selections join
+  with the document's line ending, as Copy joins them. The notice shows the
+  encoding, the line ending and the hash.
+
+Tools > Verify Checksums checks a `sha256sum`-style list: the selected
+document, when it has a file, or a list chosen with Choose List. A line may use
+`*` before the name. Names are relative to the list's folder. Each file shows
+OK, FAILED, MISSING or unreadable, lines that are not checksum lines are listed,
+and the totals end the list.
 
 ## Sessions and recovery
 

@@ -91,6 +91,7 @@ declaration order.
 | Search | Find, Find Next, Find Previous, Replace, HyperSearch, Next and Previous Result, Search Results |
 | View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip, Line Numbers, Right Margin, Indent Guides, Modified Line Marks |
 | Encoding | The line-ending conversions; the view adds the charset cascades |
+| Tools | A cascade per checksum algorithm with Generate, Generate from Files and Generate from Selection into Clipboard; Verify Checksums ([Tools](tools.md)) |
 | Window | Next and previous tab, Close Others; the view lists the documents |
 | Help | Help commands |
 

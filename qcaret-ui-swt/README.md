@@ -12,7 +12,7 @@ fragment, and uses public SWT API only.
 | Package | Contents | Detail |
 |---|---|---|
 | `ui.swt` | `MainWindow`, `MainMenuBar`, `MainToolBar`, `EditorMenu`, `AppMenu`, status bar, `ProgressRow`, file drop | [Main window](docs/main-window.md) |
-| `ui.swt` | Prompts, `ShortcutsWindow`, `PreferencesDialog`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowseBar`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `DateFormatChooser`, `FindBar`, `SearchDialog`, `BookmarksDock`, `ChangeDialog`, `DiffWindow`, `GuideWindow` | [Dialogs and docks](docs/dialogs-and-docks.md) |
+| `ui.swt` | Prompts, `ShortcutsWindow`, `PreferencesDialog`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowseBar`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `HashTextDialog`, `ChecksumDialog`, `DateFormatChooser`, `FindBar`, `SearchDialog`, `BookmarksDock`, `ChangeDialog`, `DiffWindow`, `GuideWindow` | [Dialogs and docks](docs/dialogs-and-docks.md) |
 | `ui.swt.search` | `ResultsDock`, `ResultRows`, `ReplaceDialog`, `ReportWindow`, `RunChooser` | [Dialogs and docks](docs/dialogs-and-docks.md#results-dock) |
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
 | `ui.swt` | `PrintJob` and the printer calls | [Printing](docs/printing.md) |

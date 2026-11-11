@@ -53,6 +53,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `ProcessLockTest` | A second acquire in the JVM and in a child JVM, close, a killed holder, a read of the held file, a non-ASCII path, 16 racing threads, a link that fails on a missing, changed or refusing API |
 | `SafeSaveTest` | Permissions, a new file, an external change, a cancel, a symbolic link, a hard link, the held lock file |
 | `DigestsTest` | A file past the block size |
+| `ChecksumsTest` | Known vectors for all four algorithms (empty, `abc`), the million-`a` SHA-256 through file and text buffers, a generated file past three buffers, a cancel mid-file, a surrogate pair split across pieces in UTF-16LE, a char the charset cannot encode |
+| `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
 | `SafePathsTest` | The path rules, including the Windows device forms on every OS |
 | `AtomicFilesTest`, `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 

@@ -29,6 +29,8 @@ and `Clipboard.getContents` on GTK, which `MainWindow.clipboardText` uses.
 | `DocumentChooser` | Asks for the document Compare Documents compares with |
 | `DateFormatChooser` | Edit > Insert Date and Time: a modal list of formats with the current time; Insert, Enter or a double click inserts the selected one |
 | `StatisticsDialog` | Edit > Document Statistics: modeless; the document and selection counts, the percent read or a message, Refresh and Close; Esc closes it and closing cancels the count |
+| `HashTextDialog` | Tools > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
+| `ChecksumDialog` | Tools > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |
 | `BookmarkCommentDialog` | A modal one-line field limited to the comment length, starting with the current comment selected; OK answers its text, and Cancel, Esc and closing answer null |
 
 ## Shortcuts and Preferences

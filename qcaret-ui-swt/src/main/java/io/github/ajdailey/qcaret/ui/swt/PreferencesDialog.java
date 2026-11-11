@@ -522,8 +522,8 @@ final class PreferencesDialog {
         }
         String title =
             overrides.strokes(command) == null
-                ? command.title()
-                : UiText.PREFERENCES_KEY_CHANGED.format(command.title());
+                ? command.qualifiedTitle()
+                : UiText.PREFERENCES_KEY_CHANGED.format(command.qualifiedTitle());
         String[] row = {group.title(), title, current.keysText(command)};
         if (String.join(" ", row).toLowerCase(Locale.ROOT).contains(needle)) {
           new TableItem(commands, SWT.NONE).setText(row);

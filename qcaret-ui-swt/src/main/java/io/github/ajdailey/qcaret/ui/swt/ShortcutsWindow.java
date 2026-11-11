@@ -78,7 +78,7 @@ final class ShortcutsWindow {
         if (command.group() != group || keys.isEmpty()) {
           continue;
         }
-        String[] row = {group.title(), command.title(), keys};
+        String[] row = {group.title(), command.qualifiedTitle(), keys};
         if (String.join(" ", row).toLowerCase(Locale.ROOT).contains(needle)) {
           new TableItem(table, SWT.NONE).setText(row);
         }

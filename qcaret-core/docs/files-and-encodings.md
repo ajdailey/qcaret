@@ -1,7 +1,7 @@
 # Files and encodings
 
-Paths, locks, atomic and safe writes (`core.io`), encodings, line endings and
-bounded text reads (`core.text`), and utilities (`core.util`), of
+Paths, locks, atomic and safe writes and checksums (`core.io`), encodings, line
+endings and bounded text reads (`core.text`), and utilities (`core.util`), of
 [qcaret-core](../README.md).
 
 ## Paths
@@ -94,6 +94,16 @@ a worker.
 `BinaryDetector` calls a file binary when its first 64 KiB hold a NUL byte
 (unless the encoding is UTF-16 or UTF-32) or more than 10% C0 controls other
 than tab, LF, FF and CR.
+
+## Checksums
+
+`ChecksumAlgorithm` names MD5, SHA-1, SHA-256 and SHA-512 with their hex
+lengths. `Checksums.ofFile` digests a file 64 KiB at a time, checking the
+cancel token before each read; `Checksums.TextDigester` encodes text pieces
+into a digest and fails on a char the charset cannot encode. `ChecksumList`
+parses and writes `sha256sum` lines, and `ChecksumCheck` checks one line
+against its file. The Tools menu built on them is in
+[qcaret-app Tools](../../qcaret-app/docs/tools.md).
 
 ## Encodings
 

@@ -111,6 +111,80 @@ public enum UiText {
   STATISTICS_CHANGED,
   /** Document Statistics without a document. */
   STATISTICS_NO_DOCUMENT,
+  /** Tools menu. */
+  GROUP_TOOLS,
+  /** Tools cascade. */
+  MENU_MD5,
+  /** Tools cascade. */
+  MENU_SHA_1,
+  /** Tools cascade. */
+  MENU_SHA_256,
+  /** Tools cascade. */
+  MENU_SHA_512,
+  /** Command label, in each algorithm's cascade. */
+  COMMAND_CHECKSUM_TEXT,
+  /** Command label, in each algorithm's cascade. */
+  COMMAND_CHECKSUM_FILES,
+  /** Command label, in each algorithm's cascade. */
+  COMMAND_CHECKSUM_SELECTION,
+  /** Command label. */
+  COMMAND_VERIFY_CHECKSUMS,
+  /** Tool tip of a disabled algorithm cascade: the algorithm. */
+  CHECKSUM_UNAVAILABLE,
+  /** Note for MD5 and SHA-1: the algorithm. */
+  CHECKSUM_WEAK,
+  /** Generate dialog title: the algorithm. */
+  CHECKSUM_TEXT_TITLE,
+  /** Generate dialog note on what is hashed. */
+  CHECKSUM_TEXT_NOTE,
+  /** Generate from Files dialog title: the algorithm. */
+  CHECKSUM_FILES_TITLE,
+  /** Verify Checksums dialog title. */
+  CHECKSUM_VERIFY_TITLE,
+  /** Running hash: the file name, the percent of all bytes read. */
+  CHECKSUM_HASHING,
+  /** Generate from Files totals: files hashed, files not read. */
+  CHECKSUM_FILES_DONE,
+  /** Generate from Files, a file not read: the name, the reason. */
+  CHECKSUM_NOT_READ,
+  /** Verify Checksums source line: the list's path. */
+  CHECKSUM_LIST,
+  /** Verify line: the name. */
+  CHECKSUM_OK,
+  /** Verify line: the name. */
+  CHECKSUM_FAILED,
+  /** Verify line: the name. */
+  CHECKSUM_MISSING,
+  /** Verify line: the name, the reason. */
+  CHECKSUM_UNREADABLE,
+  /** Verify line for a list line whose algorithm is unavailable: the name, the algorithm. */
+  CHECKSUM_NO_ALGORITHM,
+  /** Verify line for a list line that does not parse: the line number. */
+  CHECKSUM_BAD_LINE,
+  /** Verify line after the listed bad lines: the count of bad lines not listed. */
+  CHECKSUM_MORE_BAD_LINES,
+  /** Verify totals: OK, FAILED, MISSING, unreadable, lines not parsed. */
+  CHECKSUM_VERIFY_DONE,
+  /** Status after Cancel. */
+  CHECKSUM_CANCELED,
+  /** Status after a run ended on an unexpected exception. */
+  CHECKSUM_RUN_FAILED,
+  /** Verify Checksums without a saved document. */
+  CHECKSUM_NO_LIST,
+  /** The chosen list could not be read: the reason. */
+  CHECKSUM_LIST_UNREADABLE,
+  /** Notice: the algorithm, the charset, the line ending, the digest. */
+  CHECKSUM_SELECTION_COPIED,
+  /** Notice: the charset. */
+  CHECKSUM_SELECTION_UNENCODABLE,
+  /** Notice: the reason. */
+  CHECKSUM_SAVE_FAILED,
+  /** Button choosing files to hash. */
+  BUTTON_CHOOSE_FILES,
+  /** Button choosing a list to verify. */
+  BUTTON_CHOOSE_LIST,
+  /** Button saving to a chosen file. */
+  BUTTON_SAVE_AS,
   /** Button counting again. */
   BUTTON_REFRESH,
   /** Command label. */

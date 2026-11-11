@@ -17,7 +17,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 |---|---|---|---|
 | `core.util` | 1 | `Checks`, `Streams`; depends on no other QCaret package | [Files and encodings](docs/files-and-encodings.md#utilities) |
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `WorkerThread`, `MemoryBudget` | [Threads and memory](docs/threads-and-memory.md) |
-| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `ProcessLock`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles` | [Files and encodings](docs/files-and-encodings.md) |
+| `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `ProcessLock`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles`; checksums: `ChecksumAlgorithm`, `Checksums`, `ChecksumList`, `ChecksumCheck` | [Files and encodings](docs/files-and-encodings.md) |
 | `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars`; `EditorConfig`, `EditorConfigFile`, `EditorConfigGlob`, `Modelines`, `Modeline`, `FileSettings` | [Files and encodings](docs/files-and-encodings.md#encodings) |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` | [Documents](docs/documents.md#text-storage) |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles`, `TextModelines` | [Documents](docs/documents.md#document-model) |

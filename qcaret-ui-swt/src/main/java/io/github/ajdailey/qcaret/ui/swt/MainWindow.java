@@ -20,10 +20,14 @@ import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
+import io.github.ajdailey.qcaret.app.view.ChecksumDisplay;
+import io.github.ajdailey.qcaret.app.view.ChecksumInput;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
+import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
@@ -203,6 +207,8 @@ public final class MainWindow implements MainView {
   private boolean indentGuides;
   private boolean lineChangesShown;
   private StatisticsDialog statisticsDialog;
+  private HashTextDialog hashTextDialog;
+  private ChecksumDialog checksumDialog;
   private DateFormatChooser dateFormatChooser;
   private Keymap keymap;
   private PreferencesDialog preferencesDialog;
@@ -1034,6 +1040,45 @@ public final class MainWindow implements MainView {
     statisticsDialog = new StatisticsDialog(shell, input);
     statisticsDialog.open();
     return statisticsDialog;
+  }
+
+  @Override
+  public HashTextDisplay showHashText(String title, String note, HashTextInput input) {
+    if (shell.isDisposed()) {
+      return HashTextDialog.NONE;
+    }
+    hashTextDialog = new HashTextDialog(shell, title, note, input);
+    hashTextDialog.open();
+    return hashTextDialog;
+  }
+
+  @Override
+  public ChecksumDisplay showChecksums(
+      String title, String note, String chooseLabel, ChecksumInput input) {
+    if (shell.isDisposed()) {
+      return ChecksumDialog.NONE;
+    }
+    checksumDialog = new ChecksumDialog(shell, title, note, chooseLabel, input);
+    checksumDialog.open();
+    return checksumDialog;
+  }
+
+  /**
+   * Returns the newest Tools > Generate dialog.
+   *
+   * @return the dialog, or null before one opened
+   */
+  HashTextDialog hashTextDialog() {
+    return hashTextDialog;
+  }
+
+  /**
+   * Returns the newest checksum list dialog.
+   *
+   * @return the dialog, or null before one opened
+   */
+  ChecksumDialog checksumDialog() {
+    return checksumDialog;
   }
 
   @Override

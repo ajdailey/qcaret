@@ -226,6 +226,11 @@ final class MainMenuBar {
           }
           MenuItem holder = new MenuItem(menu, SWT.CASCADE);
           holder.setText(submenu);
+          String unavailable = states.unavailable(command);
+          if (unavailable != null) {
+            holder.setEnabled(false);
+            holder.setToolTipText(unavailable);
+          }
           target = new Menu(shell, SWT.DROP_DOWN);
           holder.setMenu(target);
           cascade = submenu;

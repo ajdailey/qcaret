@@ -85,6 +85,7 @@ public final class ApplicationController {
   private final GrammarLibrary grammars;
   private final PreferencesController preferences;
   private final StatisticsController statistics;
+  private final ChecksumTools checksums;
   private final DateTimeInsert dateTime;
   private final EditorAids aids;
   private final Settings.Listener settingsListener =
@@ -224,6 +225,7 @@ public final class ApplicationController {
     this.preferences =
         new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory, set);
     this.statistics = new StatisticsController(documents, workers, ui, view);
+    this.checksums = new ChecksumTools(documents, workers, ui, view);
     this.dateTime =
         new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
     view.setRightMargin(rightMarginColumn());
@@ -413,6 +415,11 @@ public final class ApplicationController {
    */
   public BookmarkList bookmarkList() {
     return bookmarkList;
+  }
+
+  /** Returns the Tools menu's checksum commands; for {@link CommandStates}. */
+  ChecksumTools checksums() {
+    return checksums;
   }
 
   /** Returns Go Back and Go Forward's positions; for {@link CommandStates}. */
@@ -807,6 +814,20 @@ public final class ApplicationController {
       case WRAP_PARAGRAPH -> aids.wrapParagraph();
       case INSERT_DATE_TIME -> dateTime.choose();
       case DOCUMENT_STATISTICS -> statistics.open();
+      case MD5_TEXT,
+          MD5_FILES,
+          MD5_SELECTION,
+          SHA1_TEXT,
+          SHA1_FILES,
+          SHA1_SELECTION,
+          SHA256_TEXT,
+          SHA256_FILES,
+          SHA256_SELECTION,
+          SHA512_TEXT,
+          SHA512_FILES,
+          SHA512_SELECTION,
+          VERIFY_CHECKSUMS ->
+          checksums.execute(command);
       case LINE_ENDING_CRLF -> documents.convertLineEndings(LineEnding.CRLF);
       case LINE_ENDING_LF -> documents.convertLineEndings(LineEnding.LF);
       case LINE_ENDING_CR -> documents.convertLineEndings(LineEnding.CR);

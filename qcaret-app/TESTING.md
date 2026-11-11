@@ -53,6 +53,7 @@ of a file without write permission skip where the user writes every file.
 | `KeymapTest` | No stroke bound twice on any platform; the platform key choices (Add Caret, F6, Go Back and Go Forward); the Quick Open keys; the reference filter; the accelerator, editor and window-filter lookups |
 | `CommandPaletteTest` | `Fuzzy`, every menu command listed in menu order, cascade titles, keys and enabled state, running only an enabled command |
 | `MenuTableTest` | Mnemonics unique per menu |
+| `ChecksumToolsTest` | Generate as typed and Copy; Generate from Files with repeated names as full paths, a file past the read buffer, an unreadable file, Copy and Save As; a canceled run whose late lines are dropped; Verify over the open document (OK, FAILED, MISSING, unreadable, a `*` line, a bad line) and over a chosen list; selection bytes in UTF-16LE with CRLF joins, and a char the charset cannot encode; an algorithm the probe leaves out |
 
 ### Documents
 
