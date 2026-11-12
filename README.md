@@ -252,7 +252,10 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
 | `replace-backups/` | Original bytes of the files a replace run rewrote |
 
 - In explicit and portable mode on Linux, `user.home` is the settings
-  directory, so GTK's `.swt/trims.prefs` lands there too.
+  directory, so GTK's `.swt/trims.prefs` lands there too, and User Guide opens
+  in the system's HTML application, since WebKitGTK writes under the home
+  directory. The one write outside is an empty `~/.config/ibus/bus` from the
+  GTK input method module.
 - On Linux and macOS a launch hands its files over only when the settings
   directory belongs to the current user and no one else can write it; otherwise
   every launch opens its own window.

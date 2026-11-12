@@ -40,7 +40,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Help > User Guide: the window or its fallback, the locations the browser may load, a browser
  * exception and the load bound. A real browser's outcome is never raced against a short timer; each
- * outcome has its own deterministic test.
+ * outcome has its own deterministic test. The settings are per-user: in explicit mode on Linux,
+ * User Guide skips the window and launches the system's HTML application.
  */
 @Tag("swt")
 class GuideWindowTest {
@@ -75,7 +76,7 @@ class GuideWindowTest {
             workers,
             new SwtUiDispatcher(display),
             window,
-            new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("conf"))),
+            new ConfigStore(new SettingsLocation(SettingsMode.PER_USER, temp.resolve("conf"))),
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),

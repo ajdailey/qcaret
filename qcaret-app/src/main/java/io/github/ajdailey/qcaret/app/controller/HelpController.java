@@ -262,7 +262,9 @@ final class HelpController {
 
   /**
    * Writes the user guide to the settings cache folder on a worker, then shows it in a browser
-   * window, else as {@link #showGuideElsewhere}.
+   * window, else as {@link #showGuideElsewhere}. When the settings location is {@link
+   * SettingsLocation#confined() confined}, it opens the copy as {@link #showGuideElsewhere} without
+   * a browser window.
    */
   void showGuide() {
     final Path settings = location.directory();
@@ -287,7 +289,7 @@ final class HelpController {
                   public void run() {
                     if (guide == null) {
                       view.showNotice(notice);
-                    } else if (!view.showGuide(guide)) {
+                    } else if (location.confined() || !view.showGuide(guide)) {
                       showGuideElsewhere(guide);
                     }
                   }

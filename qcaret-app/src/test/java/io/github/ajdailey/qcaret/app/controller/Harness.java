@@ -95,6 +95,10 @@ final class Harness {
       };
 
   Harness(Path temp) {
+    this(temp, SettingsMode.EXPLICIT);
+  }
+
+  Harness(Path temp, SettingsMode mode) {
     workers =
         new Workers(
             2,
@@ -110,7 +114,7 @@ final class Harness {
             workers,
             ui,
             view,
-            new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings"))),
+            new ConfigStore(new SettingsLocation(mode, temp.resolve("settings"))),
             Preferences.DEFAULTS,
             LIGHT_SYSTEM,
             new MemoryBudget(1L << 30, 60),

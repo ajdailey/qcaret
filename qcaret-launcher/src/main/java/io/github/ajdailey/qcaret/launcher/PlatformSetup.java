@@ -1,7 +1,6 @@
 package io.github.ajdailey.qcaret.launcher;
 
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
-import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
@@ -35,7 +34,7 @@ final class PlatformSetup {
    * @param settings the settings directory
    */
   static void apply(String osName, SettingsLocation settings) {
-    if (settings.mode() != SettingsMode.PER_USER && "Linux".equals(osName)) {
+    if (settings.confined(osName)) {
       if (System.getProperty(HomeFolder.PROPERTY) == null) {
         System.setProperty(HomeFolder.PROPERTY, System.getProperty("user.home", ""));
       }

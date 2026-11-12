@@ -245,7 +245,7 @@ guide's file, with or without an anchor, and `about:blank`.
 
 | Platform | Behavior |
 |---|---|
-| GTK 3 | WebKitGTK; without it `Browser` creation fails and the fallback runs |
+| GTK 3 | WebKitGTK; without it `Browser` creation fails and the fallback runs. In explicit and portable mode `HelpController` does not call `showGuide` |
 | GTK 4 (`SWT_GTK4=1`) | `MainWindow.showGuide` shows a notice naming the file and creates no `Browser`: WebKitGTK 6.0 aborts the JVM ("Failed to fully launch dbus-proxy"). DO NOT CREATE ONE THERE |
 | cocoa | WebKit opens a modal "Page Load Failed" alert for a missing page, so the page is written before the load. An SWT timer runs inside any nested run loop a native call spins, so a bound that expires during this window's own `setUrl` or `Shell.open` closes the window after the call returns (`calls`, `deferredFailure`) |
 | win32 | WebView2 creation can stall; its data folder is `<settings>/cache/webview2` (`PlatformSetup`), inside the settings directory in every mode |

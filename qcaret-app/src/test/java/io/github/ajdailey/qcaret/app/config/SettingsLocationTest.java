@@ -58,4 +58,18 @@ class SettingsLocationTest {
         temp.resolve("Library").resolve("Application Support").resolve("QCaret"),
         resolve(null, null, "Mac OS X", Map.of()).directory());
   }
+
+  @Test
+  void onlyExplicitAndPortableModeOnLinuxAreConfined() {
+    String[] systems = {"Linux", "Windows 11", "Mac OS X"};
+    for (SettingsMode mode : SettingsMode.values()) {
+      SettingsLocation location = new SettingsLocation(mode, temp);
+      for (String os : systems) {
+        assertEquals(
+            mode != SettingsMode.PER_USER && os.equals("Linux"),
+            location.confined(os),
+            mode + " " + os);
+      }
+    }
+  }
 }

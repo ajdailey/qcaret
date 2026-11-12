@@ -12,7 +12,7 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 |---|---|
 | Keyboard Shortcuts | Opens the view's filtered table of the `Keymap` |
 | Command-Line Options | Shows the usage text |
-| User Guide | Copies the guide page from the jar to `<settings>/cache/guide.html` on a worker and calls `MainView.showGuide`. When the view has no browser, or closes its window after a browser failure (`showGuideElsewhere`), the system's HTML application opens the copy, else a notice names the file |
+| User Guide | Copies the guide page from the jar to `<settings>/cache/guide.html` on a worker and calls `MainView.showGuide`. When the view has no browser, or closes its window after a browser failure (`showGuideElsewhere`), the system's HTML application opens the copy, else a notice names the file. When `SettingsLocation.confined` holds (explicit and portable mode on Linux), it skips `showGuide` and runs `showGuideElsewhere`: WebKitGTK writes `~/.cache/QCaret` and `~/.local/share/QCaret` and Mesa `~/.cache/mesa_shader_cache` outside the settings directory |
 | Show Log | Shows the `RecentLog` lines and clears the status-bar marker, which a WARN or ERROR line on any thread shows through one posted task at a time |
 | Debug Log File | Attaches or detaches the log file on a worker and saves `log.debugFile`; its check follows `LogFiles.attached` |
 | Open Log Folder, Open Settings Folder | Create the folder owner-only when missing |

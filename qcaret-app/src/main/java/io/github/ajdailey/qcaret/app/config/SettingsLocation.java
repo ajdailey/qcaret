@@ -72,6 +72,27 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
     return new SettingsLocation(SettingsMode.PER_USER, dir);
   }
 
+  /**
+   * Reports whether QCaret keeps its files out of the user's home directory: explicit and portable
+   * mode on Linux. There {@code user.home} is the settings directory and the user guide opens
+   * outside the process, since WebKitGTK writes under the XDG cache and data directories.
+   *
+   * @param osName the {@code os.name} property
+   * @return true in explicit and portable mode on Linux
+   */
+  public boolean confined(String osName) {
+    return mode != SettingsMode.PER_USER && "Linux".equals(osName);
+  }
+
+  /**
+   * Reports {@link #confined(String)} for this process's {@code os.name}.
+   *
+   * @return true in explicit and portable mode on Linux
+   */
+  public boolean confined() {
+    return confined(System.getProperty("os.name", ""));
+  }
+
   /** Returns the value as a path when it is a non-empty absolute path, else null. */
   private static Path absolute(String value) {
     if (value == null || value.isEmpty() || value.indexOf('\0') >= 0) {
