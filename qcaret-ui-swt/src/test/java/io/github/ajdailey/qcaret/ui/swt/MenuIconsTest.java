@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -196,7 +197,7 @@ class MenuIconsTest {
   @Test
   void cocoaItemsShowNoImage() {
     Menu menu = menu();
-    new MenuIcons(bar, "cocoa").decorate(menu);
+    new MenuIcons(bar, PlatformTraits.of("cocoa", false)).decorate(menu);
     for (MenuItem item : menu.getItems()) {
       assertNull(item.getImage());
     }
@@ -206,7 +207,7 @@ class MenuIconsTest {
   void gtkMenusAlignTheirItemsWithTheBlankImage() {
     assumeFalse(gtk4(), "GTK 4 SWT ignores MenuItem.setImage");
     Menu menu = menu();
-    MenuIcons icons = new MenuIcons(bar, "gtk");
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("gtk", false));
     icons.decorate(menu);
     Image blank = icons.icons().blank();
     MenuItem[] items = menu.getItems();
@@ -223,7 +224,7 @@ class MenuIconsTest {
   void win32LeavesCheckAndPlainItemsBare() {
     assumeFalse(gtk4(), "GTK 4 SWT ignores MenuItem.setImage");
     Menu menu = menu();
-    MenuIcons icons = new MenuIcons(bar, "win32");
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false));
     icons.decorate(menu);
     MenuItem[] items = menu.getItems();
     assertSame(icons.icons().get(ToolIcons.SAVE), items[0].getImage());
@@ -236,7 +237,7 @@ class MenuIconsTest {
   @Test
   void win32InkKeepsTheStartupSetting() {
     bar.setBackground(new Color(240, 240, 240));
-    MenuIcons icons = new MenuIcons(bar, "win32");
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false));
     assertFalse(icons.icons().darkBackground());
     bar.setBackground(new Color(30, 30, 30));
     icons.reink();

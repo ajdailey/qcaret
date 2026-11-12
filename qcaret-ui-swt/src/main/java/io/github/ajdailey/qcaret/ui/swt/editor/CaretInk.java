@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt.editor;
 
-import org.eclipse.swt.SWT;
+import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.graphics.RGB;
 
 /**
@@ -20,29 +21,15 @@ import org.eclipse.swt.graphics.RGB;
  * takes the nearest value it can show.
  */
 public final class CaretInk {
-  /** How the platform draws a caret image over the text. */
-  public enum Blend {
-    /** Per channel {@code |background - image|}. */
-    DIFFERENCE,
-    /** Per channel {@code background ^ image}. */
-    XOR,
-    /** The image replaces the background. */
-    OVER
-  }
-
   private CaretInk() {}
 
   /**
-   * Returns this platform's caret operator. GTK 4 is the {@code SWT_GTK4=1} environment SWT reads.
+   * Returns this platform's caret operator.
    *
    * @return the operator
    */
-  public static Blend platform() {
-    return switch (SWT.getPlatform()) {
-      case "gtk" -> "1".equals(System.getenv("SWT_GTK4")) ? Blend.OVER : Blend.DIFFERENCE;
-      case "win32" -> Blend.XOR;
-      default -> Blend.DIFFERENCE;
-    };
+  public static CaretBlend platform() {
+    return PlatformTraits.PLATFORM.caretBlend();
   }
 
   /**
@@ -53,7 +40,7 @@ public final class CaretInk {
    * @param blend the operator
    * @return the image color
    */
-  public static RGB source(RGB background, RGB caret, Blend blend) {
+  public static RGB source(RGB background, RGB caret, CaretBlend blend) {
     return new RGB(
         channel(background.red, caret.red, blend),
         channel(background.green, caret.green, blend),
@@ -68,7 +55,7 @@ public final class CaretInk {
    * @param blend the operator
    * @return the color on screen
    */
-  public static RGB shown(RGB background, RGB image, Blend blend) {
+  public static RGB shown(RGB background, RGB image, CaretBlend blend) {
     return switch (blend) {
       case DIFFERENCE ->
           new RGB(
@@ -84,7 +71,7 @@ public final class CaretInk {
     };
   }
 
-  private static int channel(int background, int caret, Blend blend) {
+  private static int channel(int background, int caret, CaretBlend blend) {
     return switch (blend) {
       case DIFFERENCE -> {
         if (background + caret <= 255) {

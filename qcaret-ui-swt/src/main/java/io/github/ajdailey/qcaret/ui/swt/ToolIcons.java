@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -16,12 +17,10 @@ import org.eclipse.swt.SWTException;
 import org.eclipse.swt.accessibility.AccessibleAdapter;
 import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.graphics.PaletteData;
-import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -37,11 +36,12 @@ import org.eclipse.swt.widgets.ToolItem;
  * px copy for 200% zoom. No other class sets an item's or button's image. The ink follows the
  * native background of tool bars and menus, or the palette for a surface QCaret paints ({@link
  * #follow}). GTK refreshes {@code getBackground} and sends {@code SWT.Settings} only on the first
- * {@code Display.sleep} after {@code setDarkThemePreferred}, so on GTK a visible ink source is read
- * from a drawn pixel. GTK's disabled effect lightens an image, which on a dark background brightens
- * it, so there {@link #showState} shows a disabled item a faded copy. SWT's disabled copy of a GTK
- * menu image brightens the same way and keeps the alpha, so the same faded copy serves menu items.
- * Images are created on first use on the UI thread and disposed with the owner control.
+ * {@code Display.sleep} after {@code setDarkThemePreferred}, so a native ink source is read through
+ * {@link PlatformTraits#shownBackground}, a drawn pixel on GTK. GTK's disabled effect lightens an
+ * image, which on a dark background brightens it, so there {@link #showState} shows a disabled item
+ * a faded copy. SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha,
+ * so the same faded copy serves menu items. Images are created on first use on the UI thread and
+ * disposed with the owner control.
  */
 final class ToolIcons {
   /** Opens files. */
@@ -191,9 +191,6 @@ final class ToolIcons {
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 
-  /** Side of the image a visible ink source is drawn into; the corner holds no item. */
-  private static final int SAMPLE = 2;
-
   /** Suffix of a faded copy's key in the image cache. */
   private static final String FADED = "#faded";
 
@@ -202,8 +199,6 @@ final class ToolIcons {
 
   /** Side of an icon at 100% zoom. */
   private static final int SIDE = 16;
-
-  private static final boolean GTK = "gtk".equals(SWT.getPlatform());
 
   /** SWT's {@code ToolItem.imageHandle}, the item's GtkPicture; null off GTK 4. */
   private static final Field PICTURE;
@@ -214,7 +209,7 @@ final class ToolIcons {
   static {
     Field picture = null;
     Method canShrink = null;
-    if (GTK && "1".equals(System.getenv("SWT_GTK4"))) {
+    if (PlatformTraits.PLATFORM.sizesToolPictures()) {
       try {
         picture = ToolItem.class.getDeclaredField("imageHandle");
         picture.setAccessible(true);
@@ -237,6 +232,7 @@ final class ToolIcons {
   private final Map<ToolItem, String> items = new LinkedHashMap<ToolItem, String>();
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
   private final boolean fixedInk;
+  private final boolean faded = PlatformTraits.PLATFORM.fadesDisabledIcons();
   private Image blank;
   private boolean darkBackground;
 
@@ -421,7 +417,7 @@ final class ToolIcons {
     if (fixedInk || owner.isDisposed() || source.isDisposed()) {
       return;
     }
-    swap(dark(background()));
+    swap(dark(PlatformTraits.PLATFORM.shownBackground(source)));
   }
 
   /**
@@ -468,7 +464,7 @@ final class ToolIcons {
     if (name == null || item.isDisposed()) {
       return;
     }
-    Image image = get(GTK && darkBackground && !item.getEnabled() ? name + FADED : name);
+    Image image = get(faded && darkBackground && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
     }
@@ -485,7 +481,7 @@ final class ToolIcons {
     if (name == null || item.isDisposed()) {
       return;
     }
-    Image image = get(GTK && darkBackground && !item.getEnabled() ? name + FADED : name);
+    Image image = get(faded && darkBackground && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
     }
@@ -507,26 +503,6 @@ final class ToolIcons {
       }
     } catch (ReflectiveOperationException | IllegalArgumentException e) {
       // The item keeps SWT's layout.
-    }
-  }
-
-  /** Returns the color the ink source shows now. */
-  private Color background() {
-    if (!GTK || !source.isVisible()) {
-      return source.getBackground();
-    }
-    Image image = new Image(display, SAMPLE, SAMPLE);
-    GC gc = new GC(image);
-    try {
-      if (!source.print(gc)) {
-        return source.getBackground();
-      }
-      ImageData data = image.getImageData();
-      RGB rgb = data.palette.getRGB(data.getPixel(SAMPLE - 1, SAMPLE - 1));
-      return new Color(rgb);
-    } finally {
-      gc.dispose();
-      image.dispose();
     }
   }
 

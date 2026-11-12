@@ -26,6 +26,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -1081,7 +1082,7 @@ public final class EditorPane implements EditorView {
             && character != SWT.DEL
             && (mods == 0
                 || mods == (SWT.CTRL | SWT.ALT)
-                || ("cocoa".equals(SWT.getPlatform()) && mods == SWT.ALT));
+                || (PlatformTraits.PLATFORM.typesWithAlt() && mods == SWT.ALT));
     if (typed || (character == '\t' && mods == 0)) {
       input.type(String.valueOf(character));
       return true;

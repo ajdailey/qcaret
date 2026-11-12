@@ -178,6 +178,54 @@ class ArchitectureTest {
         .because("SWT internals differ per platform; only these classes reach them");
   }
 
+  /**
+   * The view classes that read the SWT platform or the environment: the {@code PlatformTraits}
+   * package, plus classes whose subject is the platform.
+   */
+  private static final String[] PLATFORM_READERS = {
+    ROOT + ".ui.swt.WindowStacking", ROOT + ".ui.swt.editor.SwtKeys"
+  };
+
+  /** Platform checks in the view layer go through {@code PlatformTraits}. */
+  @Test
+  void platformOnlyInTraits() {
+    platformOnlyInTraitsRule().check(classes);
+  }
+
+  @Test
+  void platformRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        platformOnlyInTraitsRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$ReadsPlatform",
+        "SWT.getPlatform",
+        "System.getenv");
+  }
+
+  private static ArchRule platformOnlyInTraitsRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
+        .and()
+        .doNotHaveFullyQualifiedName(PLATFORM_READERS[0])
+        .and()
+        .doNotHaveFullyQualifiedName(PLATFORM_READERS[1])
+        .should()
+        .callMethodWhere(callNamed("org.eclipse.swt.SWT", "getPlatform"))
+        .orShould()
+        .callMethodWhere(
+            new DescribedPredicate<JavaMethodCall>("call System.getenv in ui.swt or launcher") {
+              @Override
+              public boolean test(JavaMethodCall call) {
+                return call.getTarget().getName().equals("getenv")
+                    && call.getTarget().getOwner().isEquivalentTo(System.class)
+                    && call.getOriginOwner()
+                        .getPackageName()
+                        .matches(".*\\.(ui\\.swt|launcher)(\\..*)?");
+              }
+            })
+        .because("each view-layer platform difference is a PlatformTraits method");
+  }
+
   @Test
   void layering() {
     for (ArchRule rule : layeringRules()) {

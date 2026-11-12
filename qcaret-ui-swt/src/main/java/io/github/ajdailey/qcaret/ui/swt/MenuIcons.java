@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -32,20 +33,20 @@ final class MenuIcons {
    * @param owner the control whose background the theme shows; the images are disposed with it
    */
   MenuIcons(Control owner) {
-    this(owner, SWT.getPlatform());
+    this(owner, PlatformTraits.PLATFORM);
   }
 
   /**
    * Creates the icons of a platform.
    *
    * @param owner the control whose background the theme shows; the images are disposed with it
-   * @param platform an {@link SWT#getPlatform} value
+   * @param platform the platform's traits
    */
-  MenuIcons(Control owner, String platform) {
-    images = !"cocoa".equals(platform);
-    aligns = "gtk".equals(platform);
+  MenuIcons(Control owner, PlatformTraits platform) {
+    images = platform.menuImages();
+    aligns = platform.padsMenuImages();
     icons =
-        "win32".equals(platform)
+        platform.fixedMenuInk()
             ? new ToolIcons(owner, SwtThemeService.nativeDark(owner.getDisplay()))
             : new ToolIcons(owner);
   }

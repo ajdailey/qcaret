@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
@@ -176,11 +177,7 @@ final class Dialogs {
    * @return Consolas on Windows, Menlo on macOS, Monospace on Linux
    */
   static String monospaceName() {
-    return switch (SWT.getPlatform()) {
-      case "win32" -> "Consolas";
-      case "cocoa" -> "Menlo";
-      default -> "Monospace";
-    };
+    return PlatformTraits.PLATFORM.monospaceFamily();
   }
 
   /**
@@ -189,6 +186,6 @@ final class Dialogs {
    * @return points
    */
   static int monospaceSize() {
-    return "cocoa".equals(SWT.getPlatform()) ? 12 : 10;
+    return PlatformTraits.PLATFORM.monospaceSize();
   }
 }

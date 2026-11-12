@@ -1,8 +1,9 @@
 # Main window
 
 `MainWindow` and the controls around the editors: layout, tabs and tab moves,
-menus, the toolbar, the status bar, fonts, placement, Always on Top, file drop
-and the macOS application menu, in `ui.swt` of [qcaret-ui-swt](../README.md).
+menus, the toolbar, the status bar, fonts, placement, Always on Top, file drop,
+the macOS application menu and the platform traits, in `ui.swt` of
+[qcaret-ui-swt](../README.md).
 
 ## Layout
 
@@ -251,6 +252,51 @@ jar. `ArchitectureTest.reflectionOnlyInSanctionedViews` allows reflection in
   stacks above. Only GTK on X11 is measured.
 - When unsupported on GTK 3 the item's tool tip names the window manager's
   window menu. SWT drops menu item tool tips on GTK 4.
+
+## Platform traits
+
+Every platform difference in the view layer is a method of `PlatformTraits`
+(`ui.swt.platform`), answered by `Win32Traits`, `CocoaTraits`, `Gtk3Traits` and
+`Gtk4Traits`; the GTK pair share `GtkTraits`. `PlatformTraits.PLATFORM` is chosen from `SWT.getPlatform()` and
+`SWT_GTK4=1` when the interface is first used. `PlatformTraits.of` builds any
+platform's traits, so `PlatformTraitsTest` checks all four tables on Linux.
+`ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call
+outside that package, `WindowStacking` and `SwtKeys`, and on a `System.getenv`
+call in `ui.swt` or the launcher outside the same classes.
+
+| Method | win32 | cocoa | GTK 3 | GTK 4 | Caller |
+|---|---|---|---|---|---|
+| `name` | `win32` | `cocoa` | `gtk` | `gtk` | `MainWindow.toolkitDescription` |
+| `monospaceFamily`, `monospaceSize` | Consolas 10 | Menlo 12 | Monospace 10 | Monospace 10 | `Dialogs.monospaceName`, `monospaceSize` |
+| `caretBlend` | XOR | difference | difference | over | `CaretInk.platform` |
+| `typesWithAlt` | - | yes | - | - | `EditorPane.route`: Option and a key types the character |
+| `systemAppMenu` | - | yes | - | - | `AppMenu.present` |
+| `checksPrinterList` | yes | yes | - | - | `MainWindow.choosePrinter`: an empty list shows a notice |
+| `opensBrowser` | yes | yes | yes | - | `MainWindow.showGuide`: otherwise a notice names the guide's file |
+| `positionsWindows` | yes | yes | X11 only | - | `MainWindow` placement |
+| `remeasuresTrim` | yes | - | - | - | `MainWindow` placement: places again with the measured trim |
+| `launchesByExtension` | yes | - | - | - | `MainWindow.launchesByExtension` |
+| `explainsUnsupportedStacking` | - | - | yes | yes | `MainMenuBar`: Always on Top tool tip |
+| `menuImages`, `padsMenuImages`, `fixedMenuInk` | yes, -, yes | -, -, - | yes, yes, - | yes, yes, - | `MenuIcons` |
+| `shownBackground` | `getBackground` | `getBackground` | A drawn pixel of a visible control | As GTK 3 | `ToolIcons.reink` |
+| `fadesDisabledIcons` | - | - | yes | yes | `ToolIcons.showState` |
+| `sizesToolPictures` | - | - | - | yes | `ToolIcons.apply` (see [Icons](theme-and-icons.md#icons)) |
+| `switchesThemeLive` | - | - | yes | yes | `SwtThemeService.preferDark`, `showsNow` |
+| `followsSystemAppearance` | - | yes | - | - | `SwtThemeService`: `CocoaChrome` and polling, `open`, `showsNow` |
+| `raisesLinkContrast` | - | - | yes | yes | `SwtThemeService.colorLink` and its `SWT.Settings` recolor |
+| `lightChecksUnderDark` | yes | - | - | - | `SwtThemeService.check` |
+| `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
+
+The platform is the subject of these classes, which read it themselves:
+
+- `WindowStacking`: picks the stacking class (see [Always on Top](#always-on-top)).
+- `SwtKeys`: macOS and Linux key names and the keymap's platform.
+- `PlatformSetup` (launcher): `user.home` on Linux and the WebView2 folder on
+  Windows, set before the Display.
+- `Launcher`: passes `os.name` to `PlatformSetup`.
+- `Boot`, `Target` (bootstrap): the running target, before the launcher loads.
+- `SettingsLocation`, `AboutInfo` (app): the settings directory per OS, and the
+  OS line About shows.
 
 ## File drop and the load row
 

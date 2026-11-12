@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -39,9 +40,7 @@ import org.eclipse.swt.widgets.Shell;
  * under the dark palette.
  */
 public final class SwtThemeService implements ThemeService {
-  private static final boolean GTK = "gtk".equals(SWT.getPlatform());
-  private static final boolean COCOA = "cocoa".equals(SWT.getPlatform());
-  private static final boolean WIN32 = "win32".equals(SWT.getPlatform());
+  private static final PlatformTraits PLATFORM = PlatformTraits.PLATFORM;
 
   /** Display data key: true when controls start with the dark native theme. */
   private static final String NATIVE_DARK = SwtThemeService.class.getName() + ".nativeDark";
@@ -100,14 +99,14 @@ public final class SwtThemeService implements ThemeService {
           @Override
           public void handleEvent(Event event) {
             refresh();
-            if (GTK) {
+            if (PLATFORM.raisesLinkContrast()) {
               for (Shell shell : display.getShells()) {
                 recolorLinks(shell);
               }
             }
           }
         });
-    if (COCOA) {
+    if (PLATFORM.followsSystemAppearance()) {
       chrome = new CocoaChrome(display, dark);
       final SwtUiDispatcher timers = new SwtUiDispatcher(display);
       timers.timerExec(
@@ -147,7 +146,7 @@ public final class SwtThemeService implements ThemeService {
    * @return the service
    */
   public static SwtThemeService open(Display display, ThemeMode mode) {
-    if (mode == ThemeMode.SYSTEM || COCOA) {
+    if (mode == ThemeMode.SYSTEM || PLATFORM.followsSystemAppearance()) {
       return new SwtThemeService(display);
     }
     boolean value = ThemeController.resolve(mode, Display.isSystemDarkTheme()).dark();
@@ -179,7 +178,7 @@ public final class SwtThemeService implements ThemeService {
   static Button check(Composite parent) {
     Display display = parent.getDisplay();
     boolean light =
-        WIN32
+        PLATFORM.lightChecksUnderDark()
             && Boolean.TRUE.equals(display.getData(NATIVE_DARK))
             && !DialogSurfaces.platform().colored(parent);
     if (light) {
@@ -216,7 +215,7 @@ public final class SwtThemeService implements ThemeService {
    * @param link the link
    */
   static void colorLink(Link link) {
-    if (GTK) {
+    if (PLATFORM.raisesLinkContrast()) {
       RGB theme = link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND).getRGB();
       link.setLinkForeground(new Color(readable(theme, link.getBackground().getRGB())));
     }
@@ -283,7 +282,7 @@ public final class SwtThemeService implements ThemeService {
 
   @Override
   public void preferDark(boolean value) {
-    if (GTK && !display.isDisposed()) {
+    if (PLATFORM.switchesThemeLive() && !display.isDisposed()) {
       display.setDarkThemePreferred(value);
     }
   }
@@ -291,6 +290,8 @@ public final class SwtThemeService implements ThemeService {
   @Override
   public boolean showsNow(boolean value) {
     // cocoa controls follow the system at every start, so a restart changes nothing.
-    return GTK || COCOA || value == nativeDark;
+    return PLATFORM.switchesThemeLive()
+        || PLATFORM.followsSystemAppearance()
+        || value == nativeDark;
   }
 }

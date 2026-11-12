@@ -145,8 +145,9 @@ pair `PaletteTest` holds at 4.5.
 luminance, not from the palette, and `reink` swaps every applied item's image
 when that changes. It also listens to `SWT.Settings`, from the Display or from
 `CocoaChrome` on the owner. On GTK `getBackground` is stale until that event,
-and `MainWindow`'s `reink` runs on the turn before it, so `reink` reads a pixel
-of the visible owner through `Control.print`; a hidden toolbar re-inks when it
+and `MainWindow`'s `reink` runs on the turn before it, so `reink` reads the
+background through `PlatformTraits.shownBackground`, which on GTK prints the
+visible owner and reads a pixel; a hidden toolbar re-inks when it
 shows. GTK's disabled effect brightens an icon on a dark background, so there
 `showState` gives a disabled item a copy at 40% opacity.
 

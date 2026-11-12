@@ -18,6 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Button;
@@ -120,6 +121,13 @@ final class ViewViolations {
   static final class CreatesShell {
     Shell create(Shell parent) {
       return new Shell(parent);
+    }
+  }
+
+  /** Reads the SWT platform and the GTK 4 environment outside {@code PlatformTraits}. */
+  static final class ReadsPlatform {
+    boolean gtk4() {
+      return "gtk".equals(SWT.getPlatform()) && System.getenv("SWT_GTK4") != null;
     }
   }
 }

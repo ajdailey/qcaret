@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.controller.SyntaxMenu;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -259,7 +260,7 @@ final class MainMenuBar {
             });
         items.put(command, item);
         if (command == CommandId.ALWAYS_ON_TOP
-            && "gtk".equals(SWT.getPlatform())
+            && PlatformTraits.PLATFORM.explainsUnsupportedStacking()
             && !states.enabled(command)) {
           item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
         }

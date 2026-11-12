@@ -54,6 +54,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
@@ -154,7 +155,7 @@ public final class MainWindow implements MainView {
   private static final Logger LOG = LoggerFactory.getLogger(MainWindow.class);
 
   /** System property SWT sets on GTK to {@code x11}, {@code wayland} or {@code unknown}. */
-  static final String GDK_BACKEND = "org.eclipse.swt.internal.gdk.backend";
+  static final String GDK_BACKEND = PlatformTraits.GDK_BACKEND;
 
   /** System property SWT sets on GTK to the GTK version. */
   static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
@@ -1497,8 +1498,7 @@ public final class MainWindow implements MainView {
     PrinterData data;
     Printer printer;
     try {
-      // On GTK the list waits for every print backend, and Print to File is always there.
-      if (!"gtk".equals(SWT.getPlatform()) && Printer.getPrinterList().length == 0) {
+      if (PlatformTraits.PLATFORM.checksPrinterList() && Printer.getPrinterList().length == 0) {
         showNotice(UiText.PRINT_NO_PRINTER.text());
         return;
       }
@@ -1641,16 +1641,15 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Shows the user guide in a {@link GuideWindow}. Under GTK 4 ({@code SWT_GTK4=1}) it shows a
-   * notice naming the file instead and never creates a {@code Browser}: WebKitGTK 6.0 aborts the
-   * JVM when the browser starts ("Failed to fully launch dbus-proxy").
+   * Shows the user guide in a {@link GuideWindow}. Where {@link PlatformTraits#opensBrowser} is
+   * false (GTK 4) it shows a notice naming the file instead and never creates a {@code Browser}.
    */
   @Override
   public boolean showGuide(Path file) {
     if (shell.isDisposed()) {
       return true;
     }
-    if (gtk4()) {
+    if (!PlatformTraits.PLATFORM.opensBrowser()) {
       showNotice(UiText.NOTICE_GUIDE_AT.format(file));
       return true;
     }
@@ -1668,10 +1667,6 @@ public final class MainWindow implements MainView {
       rememberSize(created.shell(), "guide");
     }
     return true;
-  }
-
-  private static boolean gtk4() {
-    return "gtk".equals(SWT.getPlatform()) && "1".equals(System.getenv("SWT_GTK4"));
   }
 
   private void guideFailed(Path file) {
@@ -1900,7 +1895,7 @@ public final class MainWindow implements MainView {
     }
     WindowGeometry.Screen primary = screen(display.getPrimaryMonitor());
     Rectangle trim = shell.computeTrim(0, 0, 100, 100);
-    boolean positionSupported = !"wayland".equals(System.getProperty(GDK_BACKEND)) && !gtk4();
+    boolean positionSupported = PlatformTraits.PLATFORM.positionsWindows();
     WindowGeometry.Placement placement =
         WindowGeometry.place(
             request,
@@ -1911,9 +1906,7 @@ public final class MainWindow implements MainView {
             trim.height - 100,
             positionSupported);
     apply(placement);
-    // On win32, computeTrim overstates the height once a menu bar is set; place again with the
-    // trim measured from the sized shell.
-    if ("win32".equals(SWT.getPlatform())) {
+    if (PlatformTraits.PLATFORM.remeasuresTrim()) {
       Point size = shell.getSize();
       Rectangle client = shell.getClientArea();
       int trimWidth = size.x - client.width;
@@ -2105,7 +2098,7 @@ public final class MainWindow implements MainView {
     return "SWT "
         + SWT.getVersion()
         + " "
-        + SWT.getPlatform()
+        + PlatformTraits.PLATFORM.name()
         + (gtk == null ? "" : " (GTK " + gtk + ")");
   }
 
@@ -2400,7 +2393,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public boolean launchesByExtension() {
-    return "win32".equals(SWT.getPlatform());
+    return PlatformTraits.PLATFORM.launchesByExtension();
   }
 
   /**

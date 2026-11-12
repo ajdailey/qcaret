@@ -31,6 +31,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
@@ -557,7 +558,7 @@ class EditingSurfaceTest {
     window.shell().forceActive();
     text.setFocus();
     drain();
-    CaretInk.Blend blend = CaretInk.platform();
+    CaretBlend blend = CaretInk.platform();
     Palette[] palettes = {Palette.LIGHT, Palette.DARK};
     for (final Palette palette : palettes) {
       controller.execute(palette.dark() ? CommandId.THEME_DARK : CommandId.THEME_LIGHT);
@@ -774,6 +775,20 @@ class EditingSurfaceTest {
     }
     assertTrue(dialog.isDisposed());
     assertEquals(SelectionSet.caret(10), editor().selections().selections());
+  }
+
+  /** Option and a key types its character on macOS; Alt and a key types nothing elsewhere. */
+  @Test
+  void altAndAKeyTypesOnlyOnCocoa() throws Exception {
+    openFile("alt.txt", "");
+    StyledText text = window.activeText();
+    Event event = new Event();
+    event.character = 'ü';
+    event.stateMask = SWT.ALT;
+    text.notifyListeners(SWT.KeyDown, event);
+    drain();
+    String typed = "cocoa".equals(SWT.getPlatform()) ? "ü" : "";
+    assertEquals(typed, editor().document().text().toString());
   }
 
   @Test

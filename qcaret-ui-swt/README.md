@@ -15,6 +15,7 @@ fragment, and uses public SWT API only.
 | `ui.swt` | Prompts, `ShortcutsWindow`, `PreferencesDialog`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowseBar`, `BrowserRowTip`, `BrowserDrag`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `HashTextDialog`, `ChecksumDialog`, `DateFormatChooser`, `FindBar`, `SearchDialog`, `BookmarksDock`, `ChangeDialog`, `DiffWindow`, `GuideWindow` | [Dialogs and docks](docs/dialogs-and-docks.md) |
 | `ui.swt.search` | `ResultsDock`, `ResultRows`, `ReplaceDialog`, `ReportWindow`, `RunChooser` | [Dialogs and docks](docs/dialogs-and-docks.md#results-dock) |
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
+| `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes | [Main window](docs/main-window.md#platform-traits) |
 | `ui.swt` | `PrintJob` and the printer calls | [Printing](docs/printing.md) |
 | `ui.swt` | `SwtThemeService`, `CocoaChrome`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 

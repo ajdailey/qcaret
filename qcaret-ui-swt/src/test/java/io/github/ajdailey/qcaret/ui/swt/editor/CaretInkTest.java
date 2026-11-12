@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
 import org.eclipse.swt.graphics.RGB;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ class CaretInkTest {
     for (Palette palette : new Palette[] {Palette.LIGHT, Palette.DARK}) {
       RGB line = rgb(palette.currentLine());
       RGB caret = rgb(palette.caret());
-      for (CaretInk.Blend blend : new CaretInk.Blend[] {CaretInk.Blend.XOR, CaretInk.Blend.OVER}) {
+      for (CaretBlend blend : new CaretBlend[] {CaretBlend.XOR, CaretBlend.OVER}) {
         assertEquals(caret, CaretInk.shown(line, CaretInk.source(line, caret, blend), blend));
       }
     }
@@ -28,7 +29,7 @@ class CaretInkTest {
   /** Light amber over a light line is exact; over navy, red 0xf3 cannot show over 0x22. */
   @Test
   void differenceShowsTheNearestReachableColor() {
-    CaretInk.Blend blend = CaretInk.Blend.DIFFERENCE;
+    CaretBlend blend = CaretBlend.DIFFERENCE;
     RGB light = rgb(Palette.LIGHT.currentLine());
     RGB lightCaret = rgb(Palette.LIGHT.caret());
     assertEquals(

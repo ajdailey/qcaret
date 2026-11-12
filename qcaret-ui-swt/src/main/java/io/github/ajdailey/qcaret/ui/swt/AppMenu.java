@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import org.eclipse.swt.SWT;
@@ -37,7 +38,7 @@ public final class AppMenu {
    * @return true on cocoa
    */
   public static boolean present(Display display) {
-    return "cocoa".equals(SWT.getPlatform()) && display.getSystemMenu() != null;
+    return PlatformTraits.PLATFORM.systemAppMenu() && display.getSystemMenu() != null;
   }
 
   /**

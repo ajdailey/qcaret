@@ -1,6 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import org.eclipse.swt.SWT;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
@@ -40,7 +40,7 @@ interface DialogSurfaces {
    * @return the win32 colors on Windows, otherwise native colors
    */
   static DialogSurfaces platform() {
-    return "win32".equals(SWT.getPlatform())
+    return PlatformTraits.PLATFORM.colorsDialogs()
         ? Win32DialogSurfaces.INSTANCE
         : NativeDialogSurfaces.INSTANCE;
   }
