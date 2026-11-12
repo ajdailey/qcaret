@@ -199,6 +199,8 @@ public enum CommandId {
   COMMAND_LINE_OPTIONS(CommandGroup.HELP, UiText.COMMAND_COMMAND_LINE_OPTIONS, false, false, null),
   /** Show the offline user guide. */
   USER_GUIDE(CommandGroup.HELP, UiText.COMMAND_USER_GUIDE, false, false, null),
+  /** Show the Tip of the Day dialog, or bring it to the front. */
+  TIP_OF_THE_DAY(CommandGroup.HELP, UiText.COMMAND_TIP_OF_THE_DAY, false, false, null),
   /** Show the recent log lines. */
   SHOW_LOG(CommandGroup.HELP, UiText.COMMAND_SHOW_LOG, true, false, null),
   /** Write the log at DEBUG to a file in the settings folder. */

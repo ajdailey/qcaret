@@ -448,6 +448,88 @@ public enum UiText {
   /** Command label. */
   COMMAND_USER_GUIDE,
   /** Command label. */
+  COMMAND_TIP_OF_THE_DAY,
+  /** Tip of the Day dialog title. */
+  TIP_TITLE,
+  /** Tip of the Day heading above the tip. */
+  TIP_HEADING,
+  /** Tip of the Day check box: {@code help.tipsOnStartup}. */
+  TIP_ON_STARTUP,
+  /** Button: shows the next tip. */
+  BUTTON_NEXT_TIP,
+  /** A tip's key after its menu path: the key text. */
+  TIP_KEY,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_QUICK_OPEN,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_GO_TO_SYMBOL,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_QUICK_OPEN_SYMBOL,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SWITCH_DOCUMENT,
+  /** A tip without a key. */
+  TIP_TAB_LIST,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COMMAND_PALETTE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_HYPERSEARCH,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_REPLACE_IN_RESULTS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_ADD_NEXT_OCCURRENCE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SELECT_ALL_OCCURRENCES,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_ADD_CARET,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SPLIT_INTO_LINES,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COLUMN_MODE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_EXPAND_SELECTION,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_UNDO_SELECTION,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_FOLD_ALL,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_TOGGLE_BOOKMARK,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_BOOKMARKS_LIST,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COMPARE_DOCUMENTS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COMPARE_WITH_DISK,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_CHECKSUM_FILES,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_VERIFY_CHECKSUMS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_EDITOR_COLORS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_ALWAYS_ON_TOP,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SAVE_COPY_AS,
+  /** A tip without a key. */
+  TIP_PER_FILE_SETTINGS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_WORKSPACE_BROWSER,
+  /** A tip without a key. */
+  TIP_BROWSER_DRAG,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_MOVE_TAB,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SPLIT,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_GO_BACK,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_REOPEN_CLOSED,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_TOGGLE_LINE_COMMENT,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COMPLETE_WORD,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_KEYBOARD_SHORTCUTS,
+  /** Command label. */
   COMMAND_SHOW_LOG,
   /** Command label. */
   COMMAND_DEBUG_LOG_FILE,

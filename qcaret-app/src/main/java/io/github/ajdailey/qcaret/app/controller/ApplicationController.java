@@ -90,6 +90,7 @@ public final class ApplicationController {
   private final DateTimeInsert dateTime;
   private final EditorAids aids;
   private final DroppedFiles dropped;
+  private final TipOfTheDay tips;
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -245,6 +246,17 @@ public final class ApplicationController {
         new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
     view.setRightMargin(rightMarginColumn());
     this.aids = new EditorAids(settings, view, documents);
+    this.tips =
+        new TipOfTheDay(
+            set,
+            view,
+            ui,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return quitting;
+              }
+            });
     settings.addListener(settingsListener);
     set.register(this);
     if (set.recent() != null) {
@@ -444,6 +456,11 @@ public final class ApplicationController {
    */
   public AlwaysOnTop alwaysOnTop() {
     return alwaysOnTop;
+  }
+
+  /** Returns the Tip of the Day dialog's controller; for tests. */
+  TipOfTheDay tips() {
+    return tips;
   }
 
   /** Returns Go Back and Go Forward's positions; for {@link CommandStates}. */
@@ -862,6 +879,7 @@ public final class ApplicationController {
       case KEYBOARD_SHORTCUTS -> help.showShortcuts();
       case COMMAND_LINE_OPTIONS -> help.showCommandLine();
       case USER_GUIDE -> help.showGuide();
+      case TIP_OF_THE_DAY -> tips.open();
       case SHOW_LOG -> help.showLog();
       case DEBUG_LOG_FILE -> setDebugLogFile(!help.debugLogFile());
       case OPEN_LOG_FOLDER -> help.openLogFolder();
@@ -1004,6 +1022,7 @@ public final class ApplicationController {
             if (restore && documents.count() == 0) {
               documents.newDocument();
             }
+            tips.startup();
           }
         });
   }
@@ -1027,6 +1046,7 @@ public final class ApplicationController {
           @Override
           public void run() {
             open(request, true);
+            tips.startup();
           }
         });
   }

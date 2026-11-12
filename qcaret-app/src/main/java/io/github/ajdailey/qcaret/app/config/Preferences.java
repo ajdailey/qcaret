@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param state remembered UI state
  * @param shortcuts {@code shortcut.*}: keys set in place of commands' defaults
  * @param appearance the theme file and the font family
+ * @param tips {@code help.*}: Tip of the Day's startup choice and next tip
  */
 public record Preferences(
     ThemeMode theme,
@@ -21,7 +22,8 @@ public record Preferences(
     Options options,
     UiState state,
     ShortcutOverrides shortcuts,
-    Appearance appearance) {
+    Appearance appearance,
+    TipSettings tips) {
   /** The settings when the file is missing or malformed. */
   public static final Preferences DEFAULTS =
       new Preferences(
@@ -31,7 +33,8 @@ public record Preferences(
           Options.DEFAULTS,
           UiState.DEFAULTS,
           ShortcutOverrides.NONE,
-          Appearance.DEFAULTS);
+          Appearance.DEFAULTS,
+          TipSettings.DEFAULTS);
 
   /** Checks the components. */
   public Preferences {
@@ -40,7 +43,8 @@ public record Preferences(
         || options == null
         || state == null
         || shortcuts == null
-        || appearance == null) {
+        || appearance == null
+        || tips == null) {
       throw new IllegalArgumentException("every component is required");
     }
   }
@@ -52,7 +56,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withTheme(ThemeMode mode) {
-    return new Preferences(mode, window, debugLogFile, options, state, shortcuts, appearance);
+    return new Preferences(mode, window, debugLogFile, options, state, shortcuts, appearance, tips);
   }
 
   /**
@@ -62,7 +66,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withWindow(WindowState value) {
-    return new Preferences(theme, value, debugLogFile, options, state, shortcuts, appearance);
+    return new Preferences(theme, value, debugLogFile, options, state, shortcuts, appearance, tips);
   }
 
   /**
@@ -72,7 +76,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withDebugLogFile(boolean on) {
-    return new Preferences(theme, window, on, options, state, shortcuts, appearance);
+    return new Preferences(theme, window, on, options, state, shortcuts, appearance, tips);
   }
 
   /**
@@ -82,7 +86,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withOptions(Options value) {
-    return new Preferences(theme, window, debugLogFile, value, state, shortcuts, appearance);
+    return new Preferences(theme, window, debugLogFile, value, state, shortcuts, appearance, tips);
   }
 
   /**
@@ -92,7 +96,8 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withState(UiState value) {
-    return new Preferences(theme, window, debugLogFile, options, value, shortcuts, appearance);
+    return new Preferences(
+        theme, window, debugLogFile, options, value, shortcuts, appearance, tips);
   }
 
   /**
@@ -102,7 +107,7 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withShortcuts(ShortcutOverrides value) {
-    return new Preferences(theme, window, debugLogFile, options, state, value, appearance);
+    return new Preferences(theme, window, debugLogFile, options, state, value, appearance, tips);
   }
 
   /**
@@ -112,6 +117,17 @@ public record Preferences(
    * @return the copy
    */
   public Preferences withAppearance(Appearance value) {
-    return new Preferences(theme, window, debugLogFile, options, state, shortcuts, value);
+    return new Preferences(theme, window, debugLogFile, options, state, shortcuts, value, tips);
+  }
+
+  /**
+   * Returns a copy with other Tip of the Day settings.
+   *
+   * @param value the settings
+   * @return the copy
+   */
+  public Preferences withTips(TipSettings value) {
+    return new Preferences(
+        theme, window, debugLogFile, options, state, shortcuts, appearance, value);
   }
 }

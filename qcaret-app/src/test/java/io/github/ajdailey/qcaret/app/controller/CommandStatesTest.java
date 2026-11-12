@@ -113,6 +113,7 @@ class CommandStatesTest {
           "KEYBOARD_SHORTCUTS -e -e -e",
           "COMMAND_LINE_OPTIONS -e -e -e",
           "USER_GUIDE -e -e -e",
+          "TIP_OF_THE_DAY -e -e -e",
           "SHOW_LOG -e -e -e",
           "DEBUG_LOG_FILE -e -e -e",
           "OPEN_LOG_FOLDER -e -e -e",

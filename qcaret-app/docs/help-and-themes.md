@@ -6,13 +6,14 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 
 ## Help commands
 
-`HelpController` runs the Help commands.
+`HelpController` runs the Help commands; `TipOfTheDay` runs Tip of the Day.
 
 | Command | Effect |
 |---|---|
 | Keyboard Shortcuts | Opens the view's filtered table of the `Keymap` |
 | Command-Line Options | Shows the usage text |
 | User Guide | Copies the guide page from the jar to `<settings>/cache/guide.html` on a worker and calls `MainView.showGuide`. When the view has no browser, or closes its window after a browser failure (`showGuideElsewhere`), the system's HTML application opens the copy, else a notice names the file. When `SettingsLocation.confined` holds (explicit and portable mode on Linux), it skips `showGuide` and runs `showGuideElsewhere`: WebKitGTK writes `~/.cache/QCaret` and `~/.local/share/QCaret` and Mesa `~/.cache/mesa_shader_cache` outside the settings directory |
+| Tip of the Day | Opens one modeless dialog per window, or raises it. `TipList` holds the tips as `UiText` patterns, each with the command it names; the command's first key comes from the window set's `Keymap` at show time, and a command without a key shows none. Each tip shown saves `help.nextTip`, wrapping, so the next show in any window continues the list. With `help.tipsOnStartup` on, the dialog opens after the session restore, once `RecoveryController.afterOffer` reports the recovery offer ended, and waits while `MainView.promptShown` reports a modal dialog in any window, checking every 500 ms. A launch that hands its files to a running instance opens no window, so it shows no tip |
 | Show Log | Shows the `RecentLog` lines and clears the status-bar marker, which a WARN or ERROR line on any thread shows through one posted task at a time |
 | Debug Log File | Attaches or detaches the log file on a worker and saves `log.debugFile`; its check follows `LogFiles.attached` |
 | Open Log Folder, Open Settings Folder | Create the folder owner-only when missing |

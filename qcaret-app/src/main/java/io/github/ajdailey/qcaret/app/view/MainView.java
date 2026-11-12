@@ -282,4 +282,19 @@ public interface MainView
    * @param onTop true to keep it above
    */
   void setOnTop(boolean onTop);
+
+  /**
+   * Opens the modeless Tip of the Day dialog, which calls {@link TipInput#closed} once it closes.
+   *
+   * @param input runs its check box and Next Tip
+   * @return the dialog
+   */
+  TipDisplay showTips(TipInput input);
+
+  /**
+   * Reports whether a modal dialog shows over the window.
+   *
+   * @return true while one shows
+   */
+  boolean promptShown();
 }

@@ -24,6 +24,7 @@ toolbar, right margin, indent guide and modified-line mark choices, the last
 date format), `ShortcutOverrides`
 and `Appearance` (`editor.fontFamily`, and `ui.editorColors` as a scheme or a
 theme file).
+`TipSettings` holds `help.tipsOnStartup` and `help.nextTip`.
 `PreferenceKeys` maps them to and from `qcaret.conf`. A new setting is a record
 component and its lines in `PreferenceKeys`, plus a `PreferencesForm` field when
 the dialog shows it.
@@ -118,6 +119,8 @@ Shortcuts.
 | `ui.lastDateFormat` | The pattern Insert Date and Time used last, selected first in its list | none | Edit > Insert Date and Time |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
+| `help.tipsOnStartup` | `true`, `false`: Tip of the Day opens at start, after the session restore and the recovery prompt | `false` | Help > Tip of the Day, Show tips on startup |
+| `help.nextTip` | 0 to 9999: the tip shown next; past the last tip it wraps | 0 | Each tip shown |
 | `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
 | `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Edit > Preferences, Editor |
 | `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |

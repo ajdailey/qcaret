@@ -143,6 +143,8 @@ final class RecoveryController implements RecoveryInput {
   private boolean started;
   private boolean closing;
   private volatile boolean keep;
+  private final List<Runnable> afterOffer = new ArrayList<Runnable>();
+  private boolean offerEnded;
 
   RecoveryController(
       WindowSet set,
@@ -371,30 +373,26 @@ final class RecoveryController implements RecoveryInput {
 
   @WorkerThread
   private void claimDead(long oldest) {
-    if (store == null) {
-      return;
-    }
+    final List<Row> found = new ArrayList<Row>();
     try {
-      claims.addAll(store.claimDead(oldest));
+      if (store != null) {
+        claims.addAll(store.claimDead(oldest));
+      }
     } catch (IOException e) {
       LOG.warn("Cannot list recovery files: {}", LogText.oneLine(e.getMessage()));
-      return;
     }
-    final List<Row> found = new ArrayList<Row>();
     for (RecoveryStore.Claim claim : claims) {
       for (RecoveryStore.Entry entry : claim.entries()) {
         found.add(new Row(entry));
       }
     }
-    if (!found.isEmpty()) {
-      ui.asyncExec(
-          new Runnable() {
-            @Override
-            public void run() {
-              offer(found);
-            }
-          });
-    }
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            offer(found);
+          }
+        });
   }
 
   /** Writes a buffer's file, then deletes the file it replaces; a failed write deletes nothing. */
@@ -458,10 +456,37 @@ final class RecoveryController implements RecoveryInput {
 
   private void offer(List<Row> found) {
     ApplicationController window = set.target();
-    if (!closing && window != null) {
+    if (!closing && window != null && !found.isEmpty()) {
       rows.addAll(found);
       dialog = window.view();
       dialog.showRecovery(this);
+    } else {
+      offerEnded();
+    }
+  }
+
+  /**
+   * Runs a task on the UI thread once {@link #start}'s offer has ended: no buffer was found, or the
+   * dialog's rows are all handled, or Later was pressed. Runs it now when the offer has ended.
+   *
+   * @param task the task
+   */
+  void afterOffer(Runnable task) {
+    if (offerEnded) {
+      task.run();
+    } else {
+      afterOffer.add(task);
+    }
+  }
+
+  private void offerEnded() {
+    if (!offerEnded) {
+      offerEnded = true;
+      List<Runnable> tasks = new ArrayList<Runnable>(afterOffer);
+      afterOffer.clear();
+      for (Runnable task : tasks) {
+        task.run();
+      }
     }
   }
 
@@ -612,12 +637,14 @@ final class RecoveryController implements RecoveryInput {
   public void later() {
     rows.clear();
     releaseClaims();
+    offerEnded();
   }
 
   private void rowsChanged() {
     dialog.recoveryChanged();
     if (rows.isEmpty()) {
       releaseClaims();
+      offerEnded();
     }
   }
 

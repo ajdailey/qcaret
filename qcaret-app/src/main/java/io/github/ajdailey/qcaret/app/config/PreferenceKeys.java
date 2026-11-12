@@ -69,6 +69,8 @@ final class PreferenceKeys {
   static final String DIALOG = "dialog.";
   static final String WIDTH = ".width";
   static final String HEIGHT = ".height";
+  static final String TIPS_ON_STARTUP = "help.tipsOnStartup";
+  static final String NEXT_TIP = "help.nextTip";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -142,6 +144,8 @@ final class PreferenceKeys {
       keys.put(key + HEIGHT, Integer.toString(dialog.getValue().height()));
     }
     keys.putAll(p.shortcuts().keys());
+    keys.put(TIPS_ON_STARTUP, Boolean.toString(p.tips().onStartup()));
+    keys.put(NEXT_TIP, Integer.toString(p.tips().next()));
     return keys;
   }
 
@@ -187,7 +191,11 @@ final class PreferenceKeys {
         .withOptions(options(p, file))
         .withState(state(p, file))
         .withShortcuts(shortcuts(p, file))
-        .withAppearance(appearance(p, file));
+        .withAppearance(appearance(p, file))
+        .withTips(
+            new TipSettings(
+                flag(p, TIPS_ON_STARTUP, false, file),
+                number(p, NEXT_TIP, 0, TipSettings.MAX_NEXT, 0, file)));
   }
 
   /**

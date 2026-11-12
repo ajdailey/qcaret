@@ -32,6 +32,8 @@ import io.github.ajdailey.qcaret.app.view.StatisticsInput;
 import io.github.ajdailey.qcaret.app.view.StatisticsReport;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
+import io.github.ajdailey.qcaret.app.view.TipDisplay;
+import io.github.ajdailey.qcaret.app.view.TipInput;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -1246,5 +1248,55 @@ final class FakeView implements MainView {
   public void setOnTop(boolean onTop) {
     ui.checkUiThread();
     onTopCalls.add(onTop);
+  }
+
+  /** The open Tip of the Day dialog's state. */
+  static final class Tips implements TipDisplay {
+    final TipInput input;
+    final List<String> shown = new ArrayList<String>();
+    boolean onStartup;
+    int fronted;
+
+    Tips(TipInput input) {
+      this.input = input;
+    }
+
+    @Override
+    public void showTip(String text, boolean startup) {
+      shown.add(text);
+      onStartup = startup;
+    }
+
+    @Override
+    public void toFront() {
+      fronted++;
+    }
+  }
+
+  /** The newest Tip of the Day dialog, or null before one opened. */
+  Tips tips;
+
+  /** The tab count when {@link #showTips} last ran. */
+  int tabsAtTips = -1;
+
+  /** Dialogs {@link #showTips} opened. */
+  int tipDialogs;
+
+  /** What {@link #promptShown} reports. */
+  boolean prompt;
+
+  @Override
+  public TipDisplay showTips(TipInput input) {
+    ui.checkUiThread();
+    tips = new Tips(input);
+    tipDialogs++;
+    tabsAtTips = tabs.size();
+    return tips;
+  }
+
+  @Override
+  public boolean promptShown() {
+    ui.checkUiThread();
+    return prompt;
   }
 }
