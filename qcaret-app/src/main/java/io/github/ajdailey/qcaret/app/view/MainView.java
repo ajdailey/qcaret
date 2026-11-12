@@ -267,4 +267,19 @@ public interface MainView
 
   /** Hides the print row. */
   void hidePrintProgress();
+
+  /**
+   * Reports whether {@link #setOnTop} takes effect on this platform.
+   *
+   * @return false where the window system or toolkit offers no way, or after a call failed
+   */
+  boolean onTopSupported();
+
+  /**
+   * Keeps the window above other windows, or returns it to normal stacking, without moving or
+   * activating it. Does nothing where unsupported.
+   *
+   * @param onTop true to keep it above
+   */
+  void setOnTop(boolean onTop);
 }

@@ -1068,6 +1068,10 @@ public enum UiText {
   COMMAND_LINE_NUMBERS,
   /** Command label. */
   COMMAND_TOOLBAR,
+  /** Command label. */
+  COMMAND_ALWAYS_ON_TOP,
+  /** Tool tip of a disabled Always on Top item on GTK 3. */
+  ALWAYS_ON_TOP_UNSUPPORTED,
   /** Tab menu item. */
   TAB_CLOSE_LEFT,
   /** Tab menu item. */

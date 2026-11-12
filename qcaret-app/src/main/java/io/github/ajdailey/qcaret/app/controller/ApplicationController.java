@@ -78,6 +78,7 @@ public final class ApplicationController {
   private final SearchController search;
   private final ReplaceController replace;
   private final BookmarkList bookmarkList;
+  private final AlwaysOnTop alwaysOnTop;
   private final NavigationHistory history;
   private final RecentFiles recentFiles;
   private final CompareController compare;
@@ -190,6 +191,7 @@ public final class ApplicationController {
             options.backupDays());
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
+    this.alwaysOnTop = new AlwaysOnTop(view, documents);
     this.compare = new CompareController(documents, workers, ui, view, budget);
     this.print = new PrintController(documents, workers, ui, view);
     documents.setCompare(compare);
@@ -420,6 +422,15 @@ public final class ApplicationController {
   /** Returns the Tools menu's checksum commands; for {@link CommandStates}. */
   ChecksumTools checksums() {
     return checksums;
+  }
+
+  /**
+   * Returns the window's Always on Top state.
+   *
+   * @return the state
+   */
+  public AlwaysOnTop alwaysOnTop() {
+    return alwaysOnTop;
   }
 
   /** Returns Go Back and Go Forward's positions; for {@link CommandStates}. */
@@ -808,6 +819,7 @@ public final class ApplicationController {
       case OVERVIEW_STRIP -> documents.toggleOverview();
       case LINE_NUMBERS -> documents.toggleLineNumbers();
       case TOOLBAR -> toggleToolbar();
+      case ALWAYS_ON_TOP -> alwaysOnTop.toggle();
       case RIGHT_MARGIN -> toggleRightMargin();
       case INDENT_GUIDES -> aids.toggleIndentGuides();
       case LINE_CHANGES -> aids.toggleLineChanges();

@@ -60,6 +60,12 @@ final class FakeView implements MainView {
   /** What the print row's Cancel runs. */
   Runnable printCancel;
 
+  /** What {@link #onTopSupported} reports. */
+  boolean onTopSupported = true;
+
+  /** Each {@link #setOnTop} call's argument, in order. */
+  final List<Boolean> onTopCalls = new ArrayList<Boolean>();
+
   /** The highlights, bookmarks, marks and completion list a view was given. */
   static final class Shown {
     int[] brackets = new int[0];
@@ -1228,5 +1234,17 @@ final class FakeView implements MainView {
   public void hidePrintProgress() {
     ui.checkUiThread();
     printRow = null;
+  }
+
+  @Override
+  public boolean onTopSupported() {
+    ui.checkUiThread();
+    return onTopSupported;
+  }
+
+  @Override
+  public void setOnTop(boolean onTop) {
+    ui.checkUiThread();
+    onTopCalls.add(onTop);
   }
 }

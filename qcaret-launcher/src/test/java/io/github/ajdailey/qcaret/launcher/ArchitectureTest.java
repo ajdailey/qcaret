@@ -48,6 +48,7 @@ import io.github.ajdailey.qcaret.core.io.SafeSave;
 import java.beans.XMLDecoder;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.AccessibleObject;
 import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
@@ -141,6 +142,40 @@ class ArchitectureTest {
         .should()
         .dependOnClassesThat()
         .resideInAPackage("org.eclipse.swt.internal..");
+  }
+
+  /** The view classes sanctioned to reach SWT internals by reflection, which no import shows. */
+  private static final String[] SWT_REFLECTION = {
+    ROOT + ".ui.swt.ToolIcons",
+    ROOT + ".ui.swt.Win32Stacking",
+    ROOT + ".ui.swt.CocoaStacking",
+    ROOT + ".ui.swt.GtkX11Stacking"
+  };
+
+  /** Only the sanctioned view classes load classes by name or open members by reflection. */
+  @Test
+  void reflectionOnlyInSanctionedViews() {
+    reflectionOnlyInSanctionedViewsRule().check(classes);
+  }
+
+  private static ArchRule reflectionOnlyInSanctionedViewsRule() {
+    return noClasses()
+        .that()
+        .resideInAnyPackage(ROOT + ".ui.swt..", LAUNCHER)
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[0])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[1])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[2])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[3])
+        .should()
+        .callMethodWhere(
+            call(Class.class, "forName|getDeclaredField|getDeclaredMethod|getField|getMethod"))
+        .orShould()
+        .callMethodWhere(call(AccessibleObject.class, "setAccessible|trySetAccessible"))
+        .because("SWT internals differ per platform; only these classes reach them");
   }
 
   @Test
@@ -897,6 +932,11 @@ class ArchitectureTest {
         noSwtInternalsRule(),
         VIEW_FIXTURES + "UsesSwtInternals",
         "org.eclipse.swt.internal.Library");
+    assertViolations(
+        reflectionOnlyInSanctionedViewsRule(),
+        VIEW_FIXTURES + "ReflectsIntoSwt",
+        "Class.forName",
+        "Field.setAccessible");
     List<ArchRule> layering = layeringRules();
     assertViolations(layering.get(0), ROOT + ".core.archfixture.CoreViolations$UsesApp", "UiText");
     assertViolations(layering.get(1), CONTROLLER_FIXTURES + "UsesView", "SwtKeys");

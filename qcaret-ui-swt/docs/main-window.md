@@ -1,8 +1,8 @@
 # Main window
 
 `MainWindow` and the controls around the editors: layout, tabs and tab moves,
-menus, the toolbar, the status bar, fonts, placement, file drop and the macOS
-application menu, in `ui.swt` of [qcaret-ui-swt](../README.md).
+menus, the toolbar, the status bar, fonts, placement, Always on Top, file drop
+and the macOS application menu, in `ui.swt` of [qcaret-ui-swt](../README.md).
 
 ## Layout
 
@@ -209,6 +209,42 @@ list lacks, so OK does not drop it.
   a size that changed when the window closes.
 - The window icon is the `qcaret-*.png` set at 16 to 256 px
   (`Icons.Variant.DARK`).
+
+## Always on Top
+
+View > Always on Top runs `AlwaysOnTop` in app, which calls
+`MainView.setOnTop` and reads `onTopSupported`; `MainWindow` passes both to
+`WindowStacking.PLATFORM`, one implementation chosen on first use, after the
+Display exists. SWT has no public call, so each implementation reaches SWT
+internals by reflection and the product compiles against every platform's SWT
+jar. `ArchitectureTest.reflectionOnlyInSanctionedViews` allows reflection in
+`ui.swt` and the launcher only in these classes and `ToolIcons`;
+`noSwtInternals` is unchanged.
+
+| Platform | Class | Call | Verified |
+|---|---|---|---|
+| win32 | `Win32Stacking` | `OS.SetWindowPos` on `Control.handle` with `HWND_TOPMOST` or `HWND_NOTOPMOST`, no move, size or activation | In CI: `WS_EX_TOPMOST` each way |
+| cocoa | `CocoaStacking` | `NSWindow.setLevel` on `Shell.window`, floating (3) or normal (0), also on the window's dialogs | In CI: the window's level and a dialog's, each way |
+| GTK 3 on X11 | `GtkX11Stacking` | `GTK3.gtk_window_set_keep_above` on `Shell.shellHandle` | Under Xvfb: `_NET_WM_STATE_ABOVE` set and cleared when the window maps |
+| GTK 3 on Wayland, GTK 4 | `WindowStacking.NONE` | None | Item disabled |
+
+- A member that does not resolve, or a call that fails, logs one WARN and
+  leaves the stacking unsupported (`PlatformStacking`); nothing throws to the
+  caller, and the item is disabled at the next menu sync.
+- `WindowStackingTest` fails on its platform when an SWT upgrade removes a
+  reflected member.
+- On a mapped GTK window the toggle is a request to the window manager; Xvfb
+  has none, so a live toggle is unverified here.
+- Dialogs stay above the window: on GTK a dialog is transient for its parent
+  (`WM_TRANSIENT_FOR` measured) and the find bar's combo list is an
+  override-redirect popup; win32 makes a topmost window's owned windows topmost.
+  On cocoa a Display `SWT.Show` filter in `CocoaStacking` raises each shell
+  opened under a floating window, at any depth, to the floating level, and
+  returns it to normal with the window; an `SWT.ON_TOP` shell keeps its level.
+  Native file and message dialogs are sheets or modal panels, which AppKit
+  stacks above. Only GTK on X11 is measured.
+- When unsupported on GTK 3 the item's tool tip names the window manager's
+  window menu. SWT drops menu item tool tips on GTK 4.
 
 ## File drop and the load row
 

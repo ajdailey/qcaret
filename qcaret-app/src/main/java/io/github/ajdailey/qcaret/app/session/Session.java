@@ -76,6 +76,7 @@ public record Session(
    * @param display what the window's editors show
    * @param resultsWeights the results and Bookmarks docks, {@code a,b}; empty when unknown
    * @param browse the browser's shown folder, filter and hidden entries
+   * @param onTop true when the window stays above other windows
    */
   public record Window(
       WindowState bounds,
@@ -91,7 +92,8 @@ public record Session(
       List<String> closed,
       Display display,
       String resultsWeights,
-      Browse browse) {
+      Browse browse,
+      boolean onTop) {
     /** Copies the lists. */
     public Window {
       tabs = List.copyOf(tabs);
@@ -152,6 +154,57 @@ public record Session(
     }
 
     /**
+     * Creates a window that is not on top.
+     *
+     * @param bounds its normal bounds and maximized state
+     * @param tabs its tabs, in order
+     * @param active the selected tab, -1 when none is known
+     * @param workspace the workspace folder, empty for none
+     * @param browser true when the workspace browser shows
+     * @param sideWeights the browser and the editors, {@code a,b}; empty when unknown
+     * @param expanded the browser's expanded directories, parents first
+     * @param results true when the results dock shows
+     * @param dockWeights the editors and the docks, {@code a,b}; empty when unknown
+     * @param searches the retained HyperSearch requests, newest first
+     * @param closed Reopen Closed Tab's files, newest first
+     * @param display what the window's editors show
+     * @param resultsWeights the results and Bookmarks docks, {@code a,b}; empty when unknown
+     * @param browse the browser's shown folder, filter and hidden entries
+     */
+    public Window(
+        WindowState bounds,
+        List<Tab> tabs,
+        int active,
+        String workspace,
+        boolean browser,
+        String sideWeights,
+        List<String> expanded,
+        boolean results,
+        String dockWeights,
+        List<Search> searches,
+        List<String> closed,
+        Display display,
+        String resultsWeights,
+        Browse browse) {
+      this(
+          bounds,
+          tabs,
+          active,
+          workspace,
+          browser,
+          sideWeights,
+          expanded,
+          results,
+          dockWeights,
+          searches,
+          closed,
+          display,
+          resultsWeights,
+          browse,
+          false);
+    }
+
+    /**
      * Returns a copy without its retained searches.
      *
      * @return the copy
@@ -171,7 +224,8 @@ public record Session(
           closed,
           display,
           resultsWeights,
-          browse);
+          browse,
+          onTop);
     }
   }
 

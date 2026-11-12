@@ -319,6 +319,8 @@ public enum CommandId {
   LINE_CHANGES(CommandGroup.VIEW, UiText.COMMAND_LINE_CHANGES, false, true, null),
   /** Show the main toolbar in every window; checked while shown. */
   TOOLBAR(CommandGroup.VIEW, UiText.COMMAND_TOOLBAR, false, true, null),
+  /** Keep the window above other windows; checked while on top, disabled where unsupported. */
+  ALWAYS_ON_TOP(CommandGroup.VIEW, UiText.COMMAND_ALWAYS_ON_TOP, false, true, null),
   /** Find and run a command by name. */
   COMMAND_PALETTE(CommandGroup.VIEW, UiText.COMMAND_COMMAND_PALETTE, true, false, null),
   /** Show or hide the workspace folder's tree. */

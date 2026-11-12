@@ -77,6 +77,7 @@ public final class CommandStates {
           CommandId.INDENT_GUIDES,
           CommandId.LINE_CHANGES,
           CommandId.TOOLBAR,
+          CommandId.ALWAYS_ON_TOP,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
           CommandId.OPEN_ALL_RECENT,
@@ -214,6 +215,7 @@ public final class CommandStates {
       case INDENT_GUIDES -> application.preferences().state().indentGuides();
       case LINE_CHANGES -> application.preferences().state().lineChanges();
       case TOOLBAR -> application.toolbarShown();
+      case ALWAYS_ON_TOP -> application.alwaysOnTop().shown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();
       default -> false;
@@ -243,6 +245,7 @@ public final class CommandStates {
         case OPEN_ALL_RECENT, CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
         case GO_BACK -> application.history().canBack();
         case GO_FORWARD -> application.history().canForward();
+        case ALWAYS_ON_TOP -> application.alwaysOnTop().supported();
         default -> true;
       };
     }

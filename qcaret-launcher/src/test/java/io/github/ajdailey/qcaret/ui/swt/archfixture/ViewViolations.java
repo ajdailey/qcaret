@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.concurrent.BlockingQueue;
@@ -32,6 +33,16 @@ final class ViewViolations {
   static final class UsesSwtInternals {
     String version() {
       return org.eclipse.swt.internal.Library.getVersionString();
+    }
+  }
+
+  /** Reaches an SWT internal by reflection, outside the sanctioned classes. */
+  static final class ReflectsIntoSwt {
+    Object handle(Display display) throws ReflectiveOperationException {
+      Class.forName("org.eclipse.swt.internal.Library");
+      Field field = Display.class.getDeclaredField("mock");
+      field.setAccessible(true);
+      return field.get(display);
     }
   }
 

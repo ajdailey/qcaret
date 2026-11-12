@@ -2756,4 +2756,14 @@ public final class MainWindow implements MainView {
   List<DiffWindow> diffWindows() {
     return new ArrayList<DiffWindow>(diffWindows);
   }
+
+  @Override
+  public boolean onTopSupported() {
+    return WindowStacking.PLATFORM.supported();
+  }
+
+  @Override
+  public void setOnTop(boolean onTop) {
+    WindowStacking.PLATFORM.setOnTop(shell, onTop);
+  }
 }

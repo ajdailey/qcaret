@@ -258,6 +258,11 @@ final class MainMenuBar {
               }
             });
         items.put(command, item);
+        if (command == CommandId.ALWAYS_ON_TOP
+            && "gtk".equals(SWT.getPlatform())
+            && !states.enabled(command)) {
+          item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
+        }
       }
       icons.decorate(menu);
       menu.addListener(
