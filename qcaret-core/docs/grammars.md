@@ -111,9 +111,10 @@ groups.
   name is cut at 200 chars.
 - `scanAll` returns a `SymbolScan`: the result, the tokenizer state at the start
   of a line every 1,024 lines or more, the skipped lines and the scan's
-  `Tokenizer`, whose interned state ids no other tokenizer reads. `rescan`
-  consumes one after edits, given the chars they left unchanged at the start
-  and the end. It scans from the last checkpoint at or before the line above
+  `Tokenizer`, whose interned state ids no other tokenizer reads;
+  `SymbolScan.bytes` is the heap the app charges to the `MemoryBudget` while it
+  keeps the scan. `rescan` consumes one after edits, given the chars they left
+  unchanged at the start and the end. It scans from the last checkpoint at or before the line above
   the first changed line; past the changed lines, at a checkpoint where the
   state equals the recorded one, it takes the rest with the lines shifted
   unless that reaches the count. A truncated scan is never taken: the rescan

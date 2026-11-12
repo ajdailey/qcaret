@@ -292,15 +292,14 @@ call in `ui.swt` or the launcher outside the same classes.
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 
-The platform is the subject of these classes, which read it themselves:
-
-- `WindowStacking`: picks the stacking class (see [Always on Top](#always-on-top)).
-- `PlatformSetup` (launcher): `user.home` on Linux and the WebView2 folder on
-  Windows, set before the Display.
-- `Launcher`: passes `os.name` to `PlatformSetup`.
-- `Boot`, `Target` (bootstrap): the running target, before the launcher loads.
-- `SettingsLocation`, `AboutInfo` (app): the settings directory per OS, and the
-  OS line About shows.
+`WindowStacking` reads the platform itself to pick the stacking class (see
+[Always on Top](#always-on-top)). Operating-system checks outside the views go
+through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
+`user.home` on Linux and the WebView2 folder on Windows before the Display, and
+`SettingsLocation` and `AboutInfo` (app) take the settings directory and
+About's OS line from it. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
+`os.name` to that package; `Target` (bootstrap) reads it before the launcher
+loads.
 
 ## File drop and the load row
 

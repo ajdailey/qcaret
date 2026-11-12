@@ -29,15 +29,16 @@ search results" width="880"> </picture>
 | Search and HyperSearch | Find bar with incremental find and history; HyperSearch over a document, a selection, the open documents, the workspace folder or a directory tree, into a results dock that keeps ten sets and marks stale matches | [Search](docs/user-guide.md#search-and-hypersearch) |
 | Replace across files | Replace in a finished result set with a preview, a report per file, backups and a restore | [Replace](docs/user-guide.md#replace) |
 | Bookmarks and navigation | Bookmarks with comments and a Bookmarks list, Go Back and Go Forward, Go to Line, the overview strip | [Bookmarks](docs/user-guide.md#bookmarks), [Main window](docs/user-guide.md#the-main-window) |
-| Workspace and Quick Open | A workspace folder per window; a browser that shows any folder, with favorites, a filter, Size and Modified columns, Search in Folder, New File, New Folder, Rename and Delete; Quick Open over the open documents, the folder's files and Recent Files; Switch Document; Go to Symbol | [Workspace](docs/user-guide.md#workspace), [Quick Open](docs/user-guide.md#quick-open) |
+| Workspace and Quick Open | A workspace folder per window; a browser that shows any folder, with favorites, a filter, Size and Modified columns, several rows selected at once, drag to open or copy, Search in Folder, New File, New Folder, Rename and Delete; Quick Open over the open documents, the folder's files and Recent Files; Switch Document; Go to Symbol | [Workspace](docs/user-guide.md#workspace), [Quick Open](docs/user-guide.md#quick-open) |
+| Checksums | MD5, SHA-1, SHA-256 and SHA-512 of typed text, files or the selection; Verify Checksums over a `sha256sum` list | [Checksums](docs/user-guide.md#checksums) |
 | Compare | Side-by-side read-only comparison of two documents, a document and its file, or two files from the command line | [Compare](docs/user-guide.md#compare) |
 | Printing | Page ranges, copies, the selection, line numbers and syntax colors, in the background | [Printing](docs/user-guide.md#printing) |
 | External changes | Each open file checked on a poll and on window activation; a clean document reloads, a dirty one asks: Keep Mine, Reload or Compare | [External changes](docs/user-guide.md#external-changes) |
 | Sessions and recovery | Session restore of windows, tabs, carets, splits, folds, bookmarks and docks; per-file state; recovery files for unsaved buffers after a crash | [Sessions](docs/user-guide.md#sessions-and-recovery) |
-| Windows and single instance | Several windows with live tab moves; a second launch hands its files to the running instance; file associations | [Windows](docs/user-guide.md#windows-and-the-running-instance) |
+| Windows and single instance | Several windows with live tab moves; Always on Top per window; a second launch hands its files to the running instance; file associations | [Windows](docs/user-guide.md#windows-and-the-running-instance) |
 | Large files | Loads with progress and Cancel; a file must fit the heap; no file over 2 GiB opens | [Large files](docs/user-guide.md#large-files) |
-| Preferences and themes | Preferences applied without a restart, key bindings, editor font, light, dark and system themes, theme files | [Preferences](docs/user-guide.md#preferences) |
-| Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Show Log with a warning marker, debug log file, Report an Issue, About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
+| Preferences and themes | Preferences applied without a restart, key bindings, editor font, light, dark and system themes, bundled editor color schemes, theme files | [Preferences](docs/user-guide.md#preferences) |
+| Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Tip of the Day, Show Log with a warning marker, debug log file, Report an Issue, About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
 
 Every key binding is listed under Help > Keyboard Shortcuts.
 
@@ -202,7 +203,7 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `-v`, `--version` | Print `qcaret <version>` and exit 0 |
 | `-d`, `--debug <level>` | stderr log level: `1` INFO, `2` DEBUG, `3` and above TRACE, or `error`, `warn`, `info`, `debug`, `trace`; WARN when absent. Show Log (INFO) and the `-l` file (DEBUG) take it when finer. It applies to QCaret's own loggers; the Java runtime's stay at INFO |
 | `-l`, `--log` | Also write the log at DEBUG to `logs/qcaret.log` in the settings directory, for this run; a process other than the running instance writes `logs/qcaret-<pid>.log` |
-| `-m`, `--multi` | Run as an independent instance: no handoff, and the window placement is not saved |
+| `-m`, `--multi` | Run as an independent instance: no handoff, no session, and the window placement is not saved |
 | `-n`, `--new-window` | Open in a new window of the running instance, placed by any `--window-*` option |
 | `-r`, `--read-only` | Open the following files read-only; also applies to a file already open |
 | `-e`, `--encoding <name>` | Open the following files in this encoding; a file already open keeps its own |

@@ -76,10 +76,10 @@ takes `ui.theme`'s side, system following `ThemeService.systemDark` and its
 change events, and an unknown name resolves as follow. It pushes a changed
 palette to its `PaletteListener`s.
 
-`ThemeService.preferDark` takes `ui.theme`'s side only. `setEditorColors`
-changes the palette and never native controls, so it shows no restart notice;
-under the light or dark scheme a system change moves native controls and leaves
-the palette.
+`ThemeService.preferDark` takes `ui.theme`'s side only.
+`ThemeController.setEditorColors` changes the palette and never native
+controls, so it shows no restart notice; under the light or dark scheme a
+system change moves native controls and leaves the palette.
 
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection, current line, gutter and line numbers, caret, whitespace

@@ -26,6 +26,8 @@ of a file without write permission skip where the user writes every file.
 | `TabMoveTest` | The round-trip guard and a missing file moving with the tab; a canceled save's writer ending after the move with the target's state and its running save untouched; the state a move carries; refusals; close and quit around a move; a line transform or replace run delivered after the move. The budget returning to its start shows each document released once |
 | `DocumentLifecycleTest` | An `OpenDocument` entry across windows: declared settings, untitled name, buffer id and chosen grammar carried by a move; a reopen in the target window; a rename from another window's browser holding Save with the target's notice, then moving the document and reading its new settings; a close during the save cleanup writing nothing |
 | `QuitPromptsTest` | Answers before saves, Cancel, each way a save ends the quit, an edit during a save or after Don't Save, an untitled document saved at a prompt, Compare at a save conflict followed by Overwrite or Cancel |
+| `LastTabTest` | Closing the only tab opening a selected untitled document, after the unsaved prompt too; a lone empty untitled document kept, and by Close All; Reopen Closed Tab after the last close; a tab moved out, a window close and a quit opening none; `tabs.closeWindowWithLastTab` closing the window, and quitting after the prompt for the last one; the untitled document left out of the session |
+| `AlwaysOnTopTest` | The toggle reaching the view, the item disabled where unsupported, the state saved and restored per window, the saved flag kept by an unsupported start |
 
 ### Sessions, recovery and settings
 
@@ -40,6 +42,7 @@ of a file without write permission skip where the user writes every file.
 | `ConfigStoreTest` | Two stores merging on one directory, a save that changes nothing, unknown keys, every key's round trip, invalid values, defaults, malformed and other-version files, the `.invalid` copy, the 1 MiB cap with four full histories of escaped text under half of it, a read-only directory, owner-only creation |
 | `SettingsTest` | The ordered queue and `refresh`, including a change made during one, a read-only directory, `setFrom` |
 | `PreferencesControllerTest` | `PreferencesInput` driving each setting's effect on the running window; Clear History in the file, after Apply, over another process's entries, for HyperSearch's last run and on a read-only directory. The remaining effects sit with their area (`ExternalChangeTest`, `SyntaxHighlighterTest`, `SearchControllerTest`, `ReplaceControllerTest`, `FileMonitorTest`) |
+| `TipSettingsTest` | `help.tipsOnStartup` and `help.nextTip`: defaults, round trip, invalid values, the index check |
 
 ### Commands and Help
 
@@ -54,8 +57,10 @@ of a file without write permission skip where the user writes every file.
 | `LicenseNoticesTest` | The Licenses text names every bundled component at the versions the parent POM pins |
 | `KeymapTest` | No stroke bound twice on any platform; the platform key choices (Add Caret, F6, Go Back and Go Forward, Exit on Ctrl+Q off macOS, Cmd+G shown for Find Next on macOS); the Quick Open keys; the reference filter; the accelerator, editor and window-filter lookups |
 | `CommandPaletteTest` | `Fuzzy`, every menu command listed in menu order, cascade titles, keys and enabled state, running only an enabled command |
-| `MenuTableTest` | Every menu command placed once in its own menu, each cascade adjacent, radio items only on check commands, and unique mnemonics in the menu bar titles, each menu and cascade with and without the macOS application menu, and the editor, tab and row menus |
+| `MenuTableTest` | Every menu command placed once in its own menu, each cascade adjacent, radio items only on check commands, the macOS application menu taking About, Exit and Preferences, Close to the Left and Right without keys, and unique mnemonics in the menu bar titles, each menu and cascade with and without the macOS application menu, and the editor, tab and row menus |
 | `ChecksumToolsTest` | Generate as typed and Copy; Generate from Files with repeated names relative to the common folder (also on Windows-shaped elements), a file past the read buffer, an unreadable file, Copy, Save As and the saved list verified; a canceled run whose late lines are dropped; Verify over the open document (OK, FAILED, MISSING, unreadable, a `*` line, a bad line) and over a chosen list; selection bytes in UTF-16LE with CRLF joins, and a char the charset cannot encode; an algorithm the probe leaves out |
+| `TipOfTheDayTest` | The menu command showing and advancing the tip, raising an open dialog, wrapping, a saved index past the list, the check box; the startup show off by default, after the restore, the recovery dialog and a modal dialog, and none when turned off meanwhile |
+| `TipListTest` | Each tip's key from the platform keymap and the user's overrides, none for an unbound command, distinct tips |
 
 ### Documents
 
@@ -71,6 +76,10 @@ of a file without write permission skip where the user writes every file.
 | `EncodingChoicesTest`, `LineConversionTest` | The charset list; the line-ending conversion |
 | `FileSettingsControllerTest` | `.editorconfig` and modeline settings through open, the tool tip, the precedence table over remembered state and Preferences, the save cleanup as one undo step and recomputed after an edit, its unchanged-lines notice and none without a join, Esc during it, `false` values, a forced windows-1252 file past three read blocks trimmed and saved, CR, LF, CR LF, mixed and break-free files with `end_of_line`, a BOM over `charset`, a new UTF-16LE CR LF file, Save As to another directory and Reopen with Encoding reading again, each switch off |
 | `SaveCleanupTest` | The trim and final-newline table, a text needing no edit |
+| `SaveCopyTest` | Save a Copy As: unsaved edits left dirty on the document's file, the copy's bytes equal to Save As, a copy over another tab's file reaching it as an external change, the document's own file running Save, a failed and a canceled copy leaving the target |
+| `OpenAllTest` | Open All in Recent Files and Recently Closed over an open, a missing and a closed file: one tab for the open one, a notice naming the missing one, Recently Closed keeping only the skipped file |
+| `PrintControllerTest` | Print with no default key; a job on a platform worker reporting its pages, colored by the grammar; a canceled dialog, no document, an edit during a job, Cancel, a failure at start or on a page, a second job refused, a page range, a range past the end, the selection and an empty one, a window close canceling the job |
+| `PrintLayoutTest` | Page breaks, empty lines, long lines wrapped and numbered once, tabs, wide chars, selections with document line numbers, texts and lines larger than every block, cancel, token state across lines, pages and wrapped rows |
 
 ### External changes
 
@@ -92,6 +101,9 @@ after the change.
 | `EditorRandomTest` | 1,000 fixed seeds of 300 random commands, compositions and block selections on mixed line endings and surrogate pairs, on a fake clock, with wrap on every third seed and a second view: the change events replayed and selections, surrogates, line ending counts and display rows checked after each step, no line command or transform joining a CR and an LF, then everything undone and redone. `-Dqcaret.editor.seed=N` runs one seed, `-Dqcaret.editor.seeds=N` the first N |
 | `SplitViewTest` | Two views with their own selections over one text, the arrangement switch, focus, Unsplit keeping the focused view, both views stopped with the tab and reached by word wrap |
 | `ProductivityTest` | Typed pairs, type-over and pair delete at two carets; a block typing plainly; a sort on a worker as one undo step with the view busy until it applies; a line transform dropped with a notice after an edit; the unchanged-lines notice and its count for Delete Line, Move Lines, Sort, Remove Duplicates and Trim, and none when nothing is left; bookmarks following an inserted break with wrap-around navigation; Go to and Select to Matching Bracket at every caret, past the UI-thread bound and through a scroll; the bracket and occurrence highlights with their stale results dropped; completion (words of another open document, the list narrowing, arrows, Esc, Enter, the single-word insert, the automatic trigger) |
+| `SelectionCommandsTest` | Select All Occurrences from a caret and a range, past the limit, on a worker with a stale result dropped and Esc; Skip Occurrence; Expand Selection, with a bracket past the scan sought on a worker; Select Line; the selection history's entries, extension, clearing and limit; word deletes, case commands and Transpose at every caret as one undo step; combining marks kept with their word; a read-only document |
+| `EditorAdditionsTest` | Right Margin's toggle and saved choice; Document Statistics with a BOM, selections, UTF-16, an edit during the count, a close canceling it, no document; Insert Date and Time at every selection as one undo step, the preference format first, a read-only document, the common formats valid |
+| `EditorAidsTest` | Indent Guides reaching the view and saved; modified-line marks through insert, change, delete, undo, save and reload; Wrap Paragraph at the right margin as one undo step |
 | `BookmarksTest` | Bookmarks and comments through edits: an insert above, a deleted line and last line restored by undo and removed again by redo, a join keeping the upper bookmark, a cleared line, moved and sorted lines, coalesced deletes undone; the comment bounds, wrap-around, `LineEnds` |
 | `BookmarkListTest` | Edit Bookmark Comment (cleaned text, an empty answer, a cancel, a refusal, the prompt's line followed through an edit); the list following an insert, undo, a tab change and close; Go To into a collapsed region; Edit Comment and Remove from the list; the row limit, text cut and a budget refusal |
 | `OverviewTest`, `OverviewMarksTest` | Find, HyperSearch and bookmark marks recomputed after an edit, a hidden strip computing nothing; the line and row mapping |
@@ -107,6 +119,7 @@ after the change.
 | `MergedFoldSourceTest` | Two sources merged; null while either has no regions |
 | `GrammarFoldingTest` | Python's indentation regions merged with a docstring span; Fold All over 110,000 lines of Markdown sections and fences through the commands |
 | `ColumnMetricsTest` | Column 150 at a 7.22 px advance |
+| `LineChangesTest`, `TextStatisticsTest` | Modified-line marks from a line diff (added, changed, removed above and below, CR LF, the line limit); the statistics counts, surrogates, a text past every block, split pieces, progress, cancel and sums |
 
 ### Syntax highlighting
 
@@ -126,6 +139,7 @@ after the change.
 | `SearchControllerTest` | Every scope; a dirty buffer searched as edited inside a tree search; the dock's rows; opening a match in an open document and in a closed file; an edit moving a match and one marking it stale; a file changed on disk; Next and Previous Result wrapping; a stopped rerun keeping the finished set and a done one replacing it; the retained limit with a pin; the dialog's seed and history; the refused requests; the workspace folder; a tree searched through a symbolic link reading the open buffer once |
 | `HyperSearchTest` | Documents and a folder in one set, the match limit, a refused reservation, a cancel, a regex overflow on its group, a document group following edits |
 | `HyperSearchWorkTest` | The memory charge of a set, a long line charged by its snippets, the memory and match limits, the UI posts per search |
+| `SearchStaleCheckTest` | A file group's stale check past the digest's first block: an unchanged stamp read nothing, other bytes a change, a canceled check no change |
 | `ReplaceControllerTest` | A selection replaced as one undo step; open documents with one changed since the search skipped; a tree replace with an unchecked match and file; a CRLF file; a file changed between the preview and Apply; a read-only file; a file opened after the search edited as its buffer; Restore Run refusing a file changed since and restoring the others; a restore reloading a clean open document; Stop between 300 files leaving the rest untouched; Rerun File on a stale group; Save As onto a dirty file open in another tab |
 
 ### Workspace and navigation
@@ -134,6 +148,8 @@ after the change.
 |---|---|
 | `WorkspaceControllerTest` | A directory listed when it expands, Refresh keeping the old rows until a new file arrives, 1,200 entries shown 500 at a time, Reveal Active File's chain and a file outside the folder, the index's charge across a folder change and its return on dispose, Open in Default Application by extension and by the executable bit (POSIX only) |
 | `BrowserListingsTest` | Through `WorkspaceController`: a hidden browser listing nothing until shown, the empty and unreadable rows, Reveal Active File past the first page and on a hidden file, an excluded directory listed and indexed again, a row operation dropping the listings under a removed folder and selecting the new row, restored directories expanding once their parent is listed, a listing ending after dispose dropped |
+| `WorkspaceBrowseTest` | Browsing away from and back to the workspace folder, a typed folder outside it, path and filter refusals, favorites, the filter and Hidden, Size and Modified with their units and sort, a listing canceled by a new folder, the session round trip, another window following a rename and a Refresh, the workspace folder following a rename and cleared by a delete |
+| `WorkspaceSelectionTest` | The row menu over several rows: the actions that apply, Open and Open in Default Application on every file with the prompt above ten, Copy Path one per line, the focused row's New File and Set as Workspace Folder, one delete prompt with folder counts and the first ten names, an entry under another left out, an empty selection standing for the shown folder |
 | `QuickOpenTest` | `:line` and `:line:column` parsing, name matches before path matches and shorter paths first, an open document listed once and first, a file opened at a line and column, Switch Document, an index over 2,000 files matched on a worker |
 | `SymbolCacheTest` | A request at the kept revision returning the scan; an edit missing and the next scan listing it; a scan an edit outdated delivered to both callers and not kept as current; the document's close dropping the scan and its charge; a closed popup's scan kept; Go to Symbol reopened listing without a scan |
 | `GoToSymbolTest` | `@` and `file@symbol` parsing, Go to Symbol's rows, filter and jump with its history entry, a scan of an older revision dropped and run again, plain text and a grammar without rules, `file@symbol` opening at the best match and a notice without one |
@@ -146,4 +162,5 @@ after the change.
 `CommandLineParserTest`, `SettingsLocationTest`, `WindowGeometryTest`,
 `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest`
 (generated sfnt files), `AboutInfoTest`, `UiTextTest`, `RecentLogTest` and
-`EventLoopWatchdogTest` cover the rest.
+`EventLoopWatchdogTest` cover the rest, and `ManualUiDispatcherTest` the
+harness dispatcher.

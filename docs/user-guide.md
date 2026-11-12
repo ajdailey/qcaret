@@ -29,15 +29,17 @@ Preferences, Keys changes them.
 ## Opening files
 
 Open files with File > Open (`Ctrl+O`), File > Recent Files (the last 20),
-[Quick Open](#quick-open), the workspace browser, the
-[command line](#command-line), or by dropping them on the window, where a
-dropped folder is ignored. Each file
-opens in its own tab; a file already open selects its tab, in any window. File >
-New (`Ctrl+N`) opens an untitled document. File > Reopen Closed Tab
-(`Ctrl+Shift+T`) opens the last closed tab's file again, up to 20 back, where
-the caret was; File > Recently Closed lists those files to choose from. Open All
-in either list opens every listed file; a missing or unreadable one is skipped
-and named in the status bar.
+[Quick Open](#quick-open), the workspace browser, the [command
+line](#command-line), or by dropping them on the window, where a dropped folder
+is ignored; on Linux with GTK 4 (`SWT_GTK4=1`) a file dropped from another
+program does not open. Each file opens in its own tab; a file already open
+selects its tab, in any window. File > New (`Ctrl+N`) opens an untitled
+document. File > Reopen Closed Tab (`Ctrl+Shift+T`) opens the file of the
+window's last closed tab again, up to 20 back, where the caret was; File >
+Recently Closed lists those files to choose from. Open All in either list opens
+every listed file; a missing or unreadable one is skipped and named in the
+status bar. Clear Recent Files empties Recent Files in every window, and Clear
+Recently Closed empties the window's Recently Closed.
 
 A load still running after 0.3 seconds shows a row above the status bar with its
 progress and Cancel. The window stays usable. Cancel or `Esc` stops every
@@ -334,11 +336,12 @@ An edit starts the history again. Select All Occurrences selects nothing past
 
 ### Find bar
 
-Search > Find (`Ctrl+F`) opens the find bar, with a selection on one line as its
-text. Typing finds as you type and every match in view is highlighted. `F3`,
-`Shift+F3`, or Enter and `Shift+Enter` in the bar move between matches and wrap
-at the ends with a notice. Match case, Whole word and Regex are toggles. `Esc`
-closes the bar. Both fields keep a history.
+Search > Find (`Ctrl+F`) opens the find bar, with a selection on one line as
+its text. Typing finds as you type and every match in view is highlighted. `F3`
+and `Shift+F3` (also `Cmd+G` and `Cmd+Shift+G` on macOS), or Enter and
+`Shift+Enter` in the bar, move between matches and wrap at the ends with a
+notice. Match case, Whole word and Regex are toggles. `Esc` closes the bar.
+Both fields keep a history.
 
 ### HyperSearch
 
@@ -485,20 +488,18 @@ another program copies the file. Hover over a row for its full path, size and
 modified date and time. The icons above the tree show their names when you
 hover over them. Tab reaches each icon and Space runs it. Refresh lists the folder
 again, Reveal Active File selects the current document's file, and Hide Browser
-hides the browser. A
-row's menu offers Open in Default Application, Set as Workspace Folder and Copy
-Path. Open in Default Application refuses a file the system would run.
-
-The row menu also changes files; right-click empty space in the browser to act
-on the shown folder itself.
+hides the browser. A row's menu offers Open, Open in Default Application, New
+File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
+Workspace Folder; right-click empty space in the browser to act on the shown
+folder itself. Open in Default Application refuses a file the system would run.
 
 Ctrl-click (Cmd-click on macOS) adds or removes a row, and Shift-click selects
 a range. With several rows selected, Open, Open in Default Application and
-dragging take every selected file, and Open in Default Application asks first
-for more than 10 files; Copy Path copies every path, one per line;
-Delete deletes every selected file and folder after one prompt. New File, New
-Folder, Set as Workspace Folder and Enter act on the row you clicked last.
-Search in Folder and Rename take one row.
+dragging take every selected file (on GTK 4 a drag takes only the row pressed),
+and Open in Default Application asks first for more than 10 files; Copy Path
+copies every path, one per line; Delete deletes every selected file and folder
+after one prompt. New File, New Folder, Set as Workspace Folder and Enter act
+on the row you clicked last. Search in Folder and Rename take one row.
 
 The browser can show any folder without changing the workspace folder, which
 stays the scope of Quick Open and HyperSearch. The path field shows the shown
@@ -508,9 +509,11 @@ folder. Parent Folder and Home Folder move up and home; Workspace Folder shows
 the workspace folder again. Favorites lists your favorite folders and adds or
 removes the shown one. The filter field takes patterns such as `*.java;*.md`
 and applies to files, not folders; it ignores case on Windows and macOS. Hidden
-lists hidden entries. Modified shows the date. Click
-a column header to sort by name, size or modified time, and again to reverse.
-Each window keeps its shown folder, filter and Hidden setting in the session. A change made in one window's browser shows in every window's.
+lists hidden entries. The Modified column shows the date; the row's tool tip
+adds the time. Click a column header to sort by name, size or modified time,
+and again to reverse. Each window keeps its shown folder, filter and Hidden
+setting in the session. A change made in one window's browser shows in every
+window's.
 
 | Command | Effect |
 |---|---|

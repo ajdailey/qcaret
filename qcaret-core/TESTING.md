@@ -56,7 +56,7 @@ and tests of a read-only file skip where the user writes read-only files.
 | `ChecksumsTest` | Known vectors for all four algorithms (empty, `abc`), the million-`a` SHA-256 through file and text buffers, a generated file past three buffers, a cancel mid-file, a surrogate pair split across pieces in UTF-16LE, a char the charset cannot encode |
 | `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
 | `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only |
-| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings and font folders per system |
+| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings and font folders per system, the description, `EnvPaths.absolute` |
 | `AtomicFilesTest`, `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 
 ### Editing commands
@@ -69,6 +69,11 @@ and tests of a read-only file skip where the user writes read-only files.
 | `BracketsTest` | Nesting, unmatched brackets, the bounds |
 | `WordIndexTest` | The word rules, prefix lookup, whole-word occurrences |
 | `CommentEditsTest` | Line and block comment toggles |
+| `CaseEditsTest` | Title case per word of a range and the word at each caret, combining marks and surrogate pairs kept in their word, swap case, one step for every selection, null when nothing changes |
+| `WordDeletesTest` | Back and forward spans at each caret, a line break alone and a CR LF as one, a selection deleted whole, overlapping spans deleted once, clusters kept whole, one step, null when nothing to delete |
+| `TransposeTest` | A caret swapping its neighbors, no swap across a line break, clusters moved whole, adjacent carets swapping once, two or more selections rotating, one selection alone changing nothing |
+| `SelectionExpansionTest` | Expansion from word to quotes, brackets, line and text, each selection on its own, escaped quotes and filtered brackets not enclosing, the scan bound returning null, Select Line, `Occurrences.all` without overlap up to the maximum |
+| `ParagraphWrapTest` | Filling to the column, an overlong word on its own line, the first line's indent and comment prefix, comment and code lines as separate paragraphs, blank lines ending a paragraph, selections, unchanged text, one undo step, a cancel |
 
 ### Grammars
 
@@ -101,6 +106,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `FailedReplaceTest` | A replace and a restore in a JVM under `ulimit -f`, where `bash` and the `unix` view exist: a failed in-place replace keeps a backup that restores (regression: the backup was deleted with the file cut), a failed atomic replace drops its backup, a restore that fails partway can be retried. Direct calls to `writeFailed` cover the same outcomes on every platform |
 | `LineDiffTest` | 400 seeded random edits against a dynamic-programming longest common subsequence: each script rebuilds both lists, keeps a longest common subsequence and lists removed lines first; hunks keep their context; the edit bound |
 | `WorkspaceWalkTest` | A temp tree listed and indexed: the listing order, hidden and excluded entries, a link to an ancestor listed as a cycle and not indexed, the index's charge, its file limit, a refused reservation, a canceled build returning its charge, an unreadable root |
+| `ListingOptionsTest` | `NameFilter` globs and case, case ignored on Windows and macOS, `HomeFolder`, the filter leaving directories, hidden entries only when asked, size and time on each entry and the sort by either |
+| `FileOperationsTest` | Create and rename refusing a taken name, a case-only rename, a name taken in other case where case matters, a counted tree delete, a link to an outside directory deleted without its target, a failing delete reporting what remains, a missing entry, `FileIndex.withChange` |
 
 ### External change detection
 

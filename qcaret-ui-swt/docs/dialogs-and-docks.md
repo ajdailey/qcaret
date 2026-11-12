@@ -12,8 +12,9 @@ visible modal dialog when one is open, because GTK gives input only to the
 newest modal shell; Licenses opened from About therefore stays usable.
 
 Four calls do run a nested event loop, so code around them must tolerate
-re-entrant events: `FileDialog.open`, `ColorDialog.open`, `PrintDialog.open`,
-and `Clipboard.getContents` on GTK, which `MainWindow.clipboardText` uses.
+re-entrant events: `FileDialog.open`, `DirectoryDialog.open`,
+`PrintDialog.open`, and `Clipboard.getContents` on GTK, which
+`MainWindow.clipboardText` uses.
 
 ## Window icons
 
@@ -32,21 +33,22 @@ window's top-level shell and the borderless `CompletionPopup` are exempt.
 GTK 3 also copies a transient parent's icon to a shell that has none; GTK 4
 does not, so there a shell built without `inheritIcons` has no `_NET_WM_ICON`.
 
-Native dialogs (`FileDialog`, `DirectoryDialog`, `MessageBox`, `PrintDialog`,
-`FontDialog`) take no images through SWT's API, so their icon is the
-platform's. Measured under Xvfb: on GTK 3 the file, folder, print and font
-dialogs carry the owner's icon through the transient parent; on GTK 4 the font
-dialog carries none.
+Native dialogs (`FileDialog`, `DirectoryDialog`, `PrintDialog`) take no images
+through SWT's API, so their icon is the platform's. Measured under Xvfb on GTK
+3: the file, folder and print dialogs carry the owner's icon through the
+transient parent.
 
 ## Prompts
 
 | Class | Behavior |
 |---|---|
 | `FileDialog` (native) | Open and Save As; runs a nested event loop |
-| `DirectoryDialog` (native) | File > Set Workspace Folder and the HyperSearch dialog's Browse |
+| `DirectoryDialog` (native) | File > Set Workspace Folder and the HyperSearch dialog's Browse; runs a nested event loop |
 | `UnsavedDialog` | Save, Don't Save and Cancel answer through a callback; closing it answers Cancel |
 | `BinaryDialog` | Opens the read-only view on Open Read-Only; Cancel is the default and closing it declines |
 | `GoToDialog` | Search > Go to Line; modal, without a nested event loop |
+| `TabWidthDialog` | Edit > Tab Width > Other: a modal width field; OK answers it, Cancel and Esc close without an answer |
+| `ReloadDialog` | Asks before Reload from Disk replaces unsaved changes; modal, Cancel is the default |
 | `ReplaceOpenDialog` | Asks before Save As replaces a file another tab holds with unsaved changes |
 | `ClearHistoryDialog` | Asks before Clear History |
 | `DocumentChooser` | Asks for the document Compare Documents compares with |
@@ -54,6 +56,7 @@ dialog carries none.
 | `StatisticsDialog` | Tools > Document Statistics: modeless; the document and selection counts, the percent read or a message, Refresh and Close; Esc closes it and closing cancels the count |
 | `HashTextDialog` | Tools > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
 | `ChecksumDialog` | Tools > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |
+| `TipDialog` | Help > Tip of the Day: modeless; the tip in a read-only text area, the Show tips on startup check box, Next Tip and Close; Esc closes it and closing calls `TipInput.closed` |
 | `BookmarkCommentDialog` | A modal one-line field limited to the comment length, starting with the current comment selected; OK answers its text, and Cancel, Esc and closing answer null |
 
 ## Shortcuts and Preferences
@@ -67,6 +70,9 @@ Tools > Preferences (the application menu on macOS) opens `PreferencesDialog`, a
 modeless window with one tab per `PreferencesForm.Group`, over
 `PreferencesInput`.
 
+- The Editor tab's Editor colors list (`EditorColorsChoice`) holds the bundled
+  schemes, then the theme files a worker lists; a saved theme file missing from
+  the list is added so it stays chosen.
 - OK and Apply pass the fields to the controller; a refused field shows its
   message above the buttons, selects its tab and keeps the dialog open.
 - Restore Defaults fills every tab and applies nothing until OK or Apply.
@@ -138,7 +144,6 @@ the dialog cancels a running match.
   within a row.
 - A column header click calls `sort` with the column, descending when it
   already sorts ascending; the tree shows the sort column and direction.
-
 - A directory row holds an empty placeholder child until it first expands,
   which asks `WorkspaceInput.expand` to list it; the listed rows replace the
   placeholder on `workspaceChanged`, and a refill keeps the expansion of rows
@@ -167,8 +172,9 @@ the dialog cancels a running match.
   (`KeymapTest`), so the `MainWindow` key filter does not take them, and the
   editor runs its own F2 binding only with the focus in the editor.
 - `FileNameDialog` asks a name for New File, New Folder and Rename, the old
-  name selected up to its extension. `DeleteDialog` asks before a delete with
-  Cancel as the default button and the focus.
+  name selected up to its extension. `DeleteDialog` asks before a delete, and
+  `OpenManyDialog` before Open in Default Application on more than 10 files,
+  each with Cancel as the default button and the focus.
 - The tree is not virtual: GTK's virtual `Tree` is quadratic in a node's child
   count (measured), and a directory shows 500 rows at a time.
 

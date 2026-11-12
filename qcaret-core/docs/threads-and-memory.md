@@ -50,5 +50,5 @@ methods or tasks submitted to `Workers` (`ArchitectureTest` in
 `MemoryBudget` is the share of `Runtime.maxMemory()` that open documents hold,
 `DOCUMENT_PERCENT` (60%). `reserve` is lock-free and refuses, reserving
 nothing, what the share cannot hold; the holder calls `release` when the
-document closes. Loads, result sets, the file index and the Bookmarks list
-charge it.
+document closes. Loads, search reads, replaces, result sets, the file index,
+Go to Symbol scans and the Bookmarks list charge it.

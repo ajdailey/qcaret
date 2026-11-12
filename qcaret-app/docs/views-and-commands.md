@@ -148,12 +148,14 @@ Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
 Occurrences Alt+Enter, Skip Occurrence Mod+K, Expand Selection Mod+Shift+Space,
 as editor bindings.
 
-Menu only: the split commands, Toggle Fold, Sort, Remove Duplicate Lines, Trim
-Trailing Whitespace, Wrap Paragraph, Clear Bookmarks, Bookmarks List, Show
-Whitespace and Line Endings, Set Workspace Folder, Search Results, Overview
-Strip, Workspace Browser, Clear Recent Files, Right Margin, Indent Guides,
-Modified Line Marks, Insert Date and Time, Document Statistics, Title Case, Swap
-Case, Undo Selection and Redo Selection. User overrides are in
+Commands with no default key include the split commands, Toggle Fold, Sort,
+Remove Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Title Case,
+Swap Case, Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
+Results, the View display toggles, Workspace Browser, Always on Top, Set
+Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Close Others,
+Close to the Left and Right, Open All and the Clear items of Recent Files and
+Recently Closed, Undo Selection, Redo Selection, and every Tools command but
+Preferences (Mod+,). User overrides are in
 [Settings](settings.md#key-binding-overrides).
 
 ## Menu and status state
@@ -167,14 +169,14 @@ enabled state from the same call.
 
 | Condition | Enabled |
 |---|---|
-| No document | Only the window commands, zoom, theme, HyperSearch and Help |
+| No document | `WINDOW_COMMANDS` (zoom, theme, HyperSearch and Preferences among them), Help, and the checksum commands but Generate from Selection |
 | Read-only document | Not the edits or the line-ending conversions; Copy stays. Save is off while its file's bytes do not encode back |
-| Binary file's view | Also not Save, Save As or either encoding cascade |
+| Binary file's view | Also not Save, Save As, Save a Copy As, Read-Only or either encoding cascade |
 | Undo, Redo | A step in the document's history |
 | Cut, Copy | A selection (`EditorController.hasSelection` walks the carets, never the text) |
 | Next and Previous Result | A match in a retained set |
 | Go Back, Go Forward | A position that way |
-| Clear Recent Files, Clear Recently Closed | A file, a closed file |
+| Open All, Clear Recent Files, Clear Recently Closed | A listed file |
 | Reload from Disk | A file on the document |
 | Close to the Left, Close to the Right | A tab on that side of the selected one |
 

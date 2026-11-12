@@ -9,7 +9,8 @@ run.
   `META-INF/services`: a test still running after 120 s
   (`qcaret.test.hangSeconds`) prints every thread's stack and halts the test
   JVM 5 s later, so a native call that blocks the main thread ends the CI job
-  with a stack.
+  with a stack. `HangWatchdogTest` checks that the dump names the test and
+  holds the calling thread's stack.
 - `EventLoop.runUntil` dispatches events until a condition holds, with no fixed
   sleep.
 - No test opens a popup under a pump: a win32 popup would block.
@@ -29,7 +30,8 @@ run.
   without `BUTTON1`, which ends the posted drag. A press and release posted
   with no dispatch between them needs no filter.
 - `-Dqcaret.screenshots=<dir>` makes the surface tests write PNGs of their
-  windows; `-Dqcaret.shots=<dir>` does the same for `TabMoveGuiTest`.
+  windows; `-Dqcaret.shots=<dir>` does the same for `TabMoveGuiTest` and
+  `TabStripButtonsTest`.
 
 ### GTK theme
 
@@ -56,6 +58,12 @@ image with a Paint event over the client area where `Control.print` fails.
 | `ToolbarAndMenusTest` | The toolbar's order, icons and tool tips, its buttons against `CommandStates`, View > Toolbar with the choice in the settings file, a live theme switch's ink and faded buttons, a narrow window; posted Ctrl+X, Ctrl+V, Ctrl+C and Ctrl+Z in the find field with the items disabled and Ctrl+C in a read-only view, on GTK 3; the editor menu's selection rule, keyboard request, commands, split-view target and key change; the tab menu's side closes; no repeated mnemonic in any built menu, cascade (Encoding's charsets and View > Syntax included) or the editor and tab menus; View > Line Numbers in existing and later views; the menu items' icons with a theme switch both ways |
 | `MenuIconsTest` | The command-to-icon table, both inks at both sizes, the shared root element, `MenuIcons` per platform |
 | `TabMoveGuiTest` | The menu items and tab drags over real shells, with a `PointerProbe` naming the control under the release |
+| `TabStripButtonsTest` | With 30 tabs in a 700 px window: the three buttons and SWT's chevron at zero width, the hidden count, the list menu with a choice selecting and showing its tab and a duplicate name's folder, the wheel showing a hidden tab and keeping the selected one shown, New showing its tab at every width, Close asking about unsaved changes, the icon ink across a theme switch |
+| `AlwaysOnTopWindowTest` | View > Always on Top's check item enabled where `WindowStacking` supports it, its GTK 3 tool tip where not, and the command toggling the check |
+| `WindowStackingTest` | Each platform's reflected SWT members resolving; on win32 `WS_EX_TOPMOST` and on cocoa the window level each way, with a dialog opened while on top raised; GTK 4 and Wayland unsupported; on GTK 3 under X11 `_NET_WM_STATE_ABOVE` each way, a dialog transient for the window and the combo list override-redirect |
+| `WindowIconsTest` | Every dialog carrying the main window's images, a nested dialog taking its owner's and never disposing them, and on GTK under X11 a dialog's `_NET_WM_ICON` (skips without `xprop` and `xwininfo`) |
+| `PlatformTraitsTest` | Every answer of all four `PlatformTraits` classes on any host, GTK 3 positioning except under Wayland, the running platform's class, an unknown platform refused |
+| `PlatformBehaviorTest` | Each view-layer platform branch on the running platform against a value worked out from `SWT.getPlatform` and `SWT_GTK4`: monospace defaults, caret blend, application menu, the main window's answers, the restart for a native theme, dialog colors, menu ink, faded disabled icons |
 | `DocumentBehaviorSurfaceTest` | The drop target's one transfer, `dropped` over an open editor and with a name that does not parse, the load row with Esc and Cancel, the title, Mod+drag and the small move of a Mod+click, the docks' weights, Recently Closed, Automatic Detection, the tab width and reload prompts, `AppMenu.open`'s guards. A real drag is not simulated |
 | `SwtUiDispatcherTest` | A canceled timer does not run; cancel after dispose does nothing |
 | `ChecksumSurfaceTest` | Tools before Window with four enabled cascades of three items; Generate hashing as typed and Esc; Verify Checksums over the open list; with `qcaret.rm.out`, both dialogs in light and dark |
@@ -70,9 +78,12 @@ image with a Paint event over the client area where `Control.print` fails.
 | `SyntaxPaneTest` | A Java file's keyword in its palette color and bold, a number keeping its color under a find match, Java checked in the Programming Languages A-M cascade, Python chosen from N-Z listed first on the next show, a switch to Plain Text clearing the styles and the status field |
 | `FoldingSurfaceTest` | Fold marker clicks with the widget's lines against the projection's rows, a caret moved by key over a collapsed region, one split view folded and typed in with the other unchanged, Enter after an opener |
 | `ProductivitySurfaceTest` | A command run from the palette's filter, a word completed from the editor's keys, the bracket and occurrence backgrounds and a bookmark bar left of the fold marker column in pixels, the marks toggled |
-| `FontFamilyTest` | Installed families from the scan: bold keyword rows keeping every column in two families, a family change measuring the gutter again at a size where two families' number columns round apart, a missing or proportional family falling back, the family and the zoom keeping each other, an open log window following, a family the toolkit lacks not offered, the Preferences dialog listing, applying and restoring a theme file in Editor colors and a family on the Appearance tab. Its two-family cases skip on a host with fewer, and the gutter case on a host where no size separates them |
+| `FontFamilyTest` | Installed families from the scan: bold keyword rows keeping every column in two families, a family change measuring the gutter again at a size where two families' number columns round apart, a missing or proportional family falling back, the family and the zoom keeping each other, an open log window following, a family the toolkit lacks not offered, the Preferences dialog listing, applying and restoring a theme file in Editor colors (Editor tab) and a family (Appearance tab), a saved family the scan lacks staying selected. Its two-family cases skip on a host with fewer, and the gutter case on a host where no size separates them |
 | `EditorLayoutGridTest` | A row forced off the grid to reach the measured path; every family measured on the Linux host has equal regular and bold advances |
 | `CaretInkTest` | The caret image color under each operator for both palettes |
+| `EditorAdditionsSurfaceTest` | The right margin line at its column through a scroll, zoom, word wrap and a theme switch, in a split view and a later tab; Document Statistics counting a selection and refreshing; the date format chooser inserting the chosen format |
+| `EditorAidsSurfaceTest` | Indent guides at each level with spaces and tabs at several tab widths and on a wrapped line's first row only; modified-line marks after an edit and cleared by a save; the gutter tooltip of a document over the mark limit |
+| `EditorColorsSurfaceTest` | Editor colors from Preferences in printed pixels: a dark scheme in the light theme painting the editor and tab strip and switching back live, every bundled scheme leaving native controls alone, a light scheme in the dark theme, the replace preview taking the palette |
 
 ### Docks and dialogs
 
@@ -83,8 +94,13 @@ image with a Paint event over the client area where `Control.print` fails.
 | `ReplaceSurfaceTest` | The preview opened from the dock over a tree search, a typed replacement, an unchecked match, Apply, the report's rows and the files, the run restored from the report |
 | `BookmarksSurfaceTest` | A plain bookmark's bar and a commented bookmark's flag in pixels, by color and by x range, in both themes; the tooltip over the gutter and its absence elsewhere; the comment prompt; the list's cells, Go To, Edit Comment, Remove and Hide; both docks shown at once |
 | `WorkspaceSurfaceTest` | Browser rows expanded, a file opened with Enter, a path copied, the active file revealed, a Quick Open match chosen at `:2`, the Recent Files entry, an empty Quick Open (the open document in bold, then a closed recent file) |
-| `WorkspaceDockLayoutTest` | At the default window size and side weights: two directories expanded by clicks on their expanders, posted with `Display.post` on GTK 3 and through XTest from `python3` on GTK 4 (which has no `Display.post`; skips without it), each listing 1,000 entries so the loading row shows first; every button, field and the Hidden check box inside the dock and no button narrower than its preferred width; the three columns inside the tree and Size and Modified wider than each cell text; a row's tool tip for a file and a folder, unchanged within a row and cleared on exit; the drag source's Copy-only `FileTransfer`, its data for a folder (none) and a file, and that data opening through `MainWindow.dropped`; a file dragged from the tree onto the editor and onto the tab strip by an XTest gesture from a `python3` process on GTK 3 and GTK 4, since SWT's drag detection runs on the UI thread and needs the pointer to move meanwhile (skips without `python3` and libXtst; GTK only) |
-| `WorkspaceInkTest` | GTK only. Starts dark and checks each browser button's icon ink against the toolbar's, after a switch to light and back, and after hiding and showing the browser; skips when the toolbar never draws dark (a GTK theme without a dark variant). Regression: the button row draws no background, so its GTK print read white and the buttons kept the dark ink on a dark window |
+| `WorkspaceBrowseSurfaceTest` | The path field and its tool tip, Parent and Workspace, the filter field and Hidden check box listing again, the Favorites menu adding, listing, opening and removing, Size and Modified with a header click sorting |
+| `WorkspaceFilesSurfaceTest` | The row menu's file operations with row edits left off the root, F2 renaming a row with an open document following, Delete asking with Cancel as the default before deleting a folder |
+| `WorkspaceMultiSelectTest` | Shift and Ctrl clicks posted through XTest, the row menu over several rows, Open and Copy Path on every selected row, Enter on the focused row only, Delete of several after one prompt, the open-many prompt's Cancel default, a drag of several files carrying and opening them all, two files dragged onto the editor |
+| `WorkspaceDockLayoutTest` | At the default window size and side weights: two directories expanded by clicks on their expanders, posted with `Display.post` on GTK 3 and through XTest from `python3` on GTK 4 (which has no `Display.post`; skips without it), each listing 1,000 entries so the loading row shows first; every tool bar, field and the Hidden check box inside the dock and no tool bar narrower than its preferred width; the three columns inside the tree and Size and Modified wider than each cell text; a row's tool tip for a file and a folder, unchanged within a row and cleared on exit; the drag source's Copy-only `FileTransfer`, its data for a folder (none) and a file, and that data opening through `MainWindow.dropped`; a file dragged from the tree onto the editor and onto the tab strip by an XTest gesture from a `python3` process on GTK 3 and GTK 4, since SWT's drag detection runs on the UI thread and needs the pointer to move meanwhile (skips without `python3` and libXtst; GTK only) |
+| `WorkspaceInkTest` | GTK only. Starts dark and checks each browser icon's ink against the toolbar's, after a switch to light and back, and after hiding and showing the browser; skips when the toolbar never draws dark (a GTK theme without a dark variant). Regression: the icon row draws no background, so its GTK print read white and the icons kept the dark ink on a dark window |
+| `TipDialogSurfaceTest` | Tip of the Day's Next Tip, check box, single dialog and Esc; an open modal dialog counting as a prompt |
+| `AboutFitTest` | About holding its content and every label line after a live theme switch each way, and growing back when it shows smaller. Regression: About opened after Theme System to Dark on a GTK desktop showed too small, its text cut off |
 | `GoToSymbolSurfaceTest` | Go to Symbol's field starting with `@`, the rows and the detail column heading, a filtered row chosen with Enter moving the caret |
 | `CompareSurfaceTest` | A dirty document's file changed and the window activated until the prompt shows; Compare from it with both sides' rows, Next, Previous and Shift+F7 with wrapping, the other side following a scroll, the dark palette's background after a theme switch; Reload from the prompt loading the file |
 | `PreferencesSurfaceTest` | A refused field keeping the dialog open on its tab, Restore Defaults applying nothing, the Keys tab refusing a typing or taken key and a free one reaching the menu item's accelerator, Clear History's prompt declining and clearing with an open find bar following, a clear the file refuses (a directory at `qcaret.conf`) showing the notice and keeping the other settings, and a retry clearing the file, a theme switch leaving it working, a new size remembered |
@@ -100,6 +116,11 @@ image with a Paint event over the client area where `Control.print` fails.
 | `ThemeAndDialogsTest` | The theme switched from the View menu, tool icons re-inked on a dark background, `showsNow` per platform, the About logo by background, a text window over a modal dialog, Licenses over About, the menu bar without an application menu; `CocoaChrome` on any platform (control colors following an appearance change, palette-colored controls keeping theirs, a control created during a change colored, `refresh` reporting one change once) |
 | `TabColorsGuiTest` | The tab strip's screen pixels through `GC.copyArea` in light, dark, light and dark, light, dark order, with focus outside and inside the folder: contrast of at least 4.5 and a strip of the theme's lightness. On GTK the status bar and its Warnings link take the same check and the About logo must match the theme. When `ScreenProbe` finds the window covered, win32 reads through `Control.print` and other platforms skip. Skips on GTK 4 |
 | `LightOnlyThemeTest` | On a missing GTK theme: the dark palette with light chrome, dark ink and the light logo |
+| `ToolIconsTest` | A browser icon alone on a flat tool bar, Tab reaching each tool bar, a palette set taking the palette's ink |
+| `LinkContrastTest` | `SwtThemeService.readable` lightening an unreadable link on a dark ground, darkening one on a light ground and keeping a readable one |
+| `DialogSurfacesTest` | Native dialog colors off win32; the win32 class's colors per control class under a dark start, on a control created after the dialog shows and none under a light start, read back through public API on any platform but cocoa |
+| `Win32DarkInkTest` | win32 only, from screen pixels: the main toolbar's and the browser's icons standing out under a dark start, after a live switch and under a light start |
+| `Win32DarkDialogsTest` | win32 only, from screen pixels: every control class of a `Dialogs.shell` dialog, About and each Preferences page on the dark body under a dark start, and About and Preferences under a light start |
 
 ### Resources
 
@@ -113,8 +134,11 @@ image with a Paint event over the client area where `Control.print` fails.
 (`tools/screenshots.sh`) and writes the user guide's images from generated mock
 files; `EditorSchemeShotsTest` writes `editor-colors.png` there, and with
 `-Dqcaret.scheme.shots=<dir>` one PNG per editor color scheme of a Java,
-Markdown, XML and shell file. With `-Dqcaret.screenshots=<dir>` these tests
-also save PNGs:
+Markdown, XML and shell file. With `-Dqcaret.rm.out=<dir>`,
+`EditorAdditionsShotsTest`, `EditorAidsShotsTest`, `SelectionCommandsShotsTest`
+and `TipShotsTest` write their feature's windows in light and dark, and the
+first two also time page scrolls on a 1,000,000-line file with the feature
+shown and hidden. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
 
 | Class | Files |
 |---|---|
@@ -123,6 +147,9 @@ also save PNGs:
 | `ProductivitySurfaceTest` | The marks with a bookmark and occurrences, the open palette, a Java file with a collapsed region, occurrences and a matched bracket (`merge.png`) |
 | `BookmarksSurfaceTest` | `bookmark-tooltip.png` (the whole screen, so the tooltip shows), `bookmarks-list.png` |
 | `WorkspaceSurfaceTest` | `workspace-browser.png`, `quick-open-empty.png`, `quick-open.png` |
+| `WorkspaceBrowseSurfaceTest`, `WorkspaceFilesSurfaceTest`, `WorkspaceMultiSelectTest` | The browser with a filter and a size sort, the row menu, the rename dialog and delete prompts, in light and dark |
+| `SearchSurfaceTest` | `find-history.png` |
+| `EditorColorsSurfaceTest` | Both mixed theme and editor color combinations |
 | `GoToSymbolSurfaceTest` | `go-to-symbol-light.png`, `go-to-symbol-dark.png` |
 | `CompareSurfaceTest` | `change-prompt.png`, `diff-view.png` (the whole screen) |
 | `ReplaceSurfaceTest` | `replace-preview.png`, `replace-report.png` |

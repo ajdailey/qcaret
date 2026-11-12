@@ -165,9 +165,11 @@ size or modified time, ascending or descending, ties by name; directories sort
 by name under the size order. Each entry carries its size and modified time; a
 link to a file carries its target's. The `NameFilter` (`;`-separated globs
 with `*`, `?`, `[...]`, `[!...]` and `{a,b}`) applies to files only; a
-directory always lists. With `hidden` on, hidden entries list and excluded
-directory names stay out (`WalkRules.excludes`). It reads at most 50,000
-entries, in directory order, and reports the cut. A link to a directory lists
+directory always lists. The app parses it ignoring case where file names do
+(`NameFilter.PLATFORM_IGNORES_CASE`: Windows and macOS). With `hidden` on,
+hidden entries list and excluded directory names stay out
+(`WalkRules.excludes`). It reads at most 50,000 entries, in directory order,
+and reports the cut. A link to a directory lists
 as a directory unless its target contains the link (`CYCLE`, never listed
 further); a link to a file and a broken link list as files.
 
@@ -178,3 +180,17 @@ char from the `MemoryBudget`; the walk stops at its file limit (`MAX_FILES`,
 200,000) or at a refused reservation and reports which (`Cut`). A cancel throws
 `CancellationException` with nothing left charged; the owner returns
 `charged()` when it drops the index. An unreadable directory is skipped.
+`withChange` returns a copy with one file taken out and one put in, for a
+file created, renamed or deleted below the root, charging the added path; it
+returns null for a cut or full index, a path outside the root or a refused
+reservation, and the caller builds the index again.
+
+`FileOperations` creates, renames, counts and permanently deletes browser
+entries on a worker. None follows a symbolic link or a Windows junction: a link
+is renamed, counted and deleted as the link itself. A rename to a name that
+differs only in case goes through a temporary name, since `Files.move` returns
+without renaming when source and target are the same file. `delete` removes a
+directory's tree children first, stops at the first entry it cannot delete or
+at a cancel, and reports that entry with the counts left. `HomeFolder.find` is
+the browser's Home: `qcaret.userHome` where the launcher set it before moving
+`user.home` to the settings directory, else `user.home`.
