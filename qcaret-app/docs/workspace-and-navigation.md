@@ -13,9 +13,9 @@ as its real path (`WorkspaceController`). The index and the browser leave out
 hidden entries and `workspace.excludedDirectories`; a change of
 `workspace.excludedDirectories` lists and indexes the folder again.
 
-- View > Workspace Browser shows the folder's tree. A directory is listed on a
-  `qcaret-io-` worker the first time it expands (`DirectoryListing`), 500
-  entries at a time behind a "Show N more" row. A link to a directory that
+- View > Workspace Browser shows the shown folder's tree (`BrowserListings`).
+  A directory is listed on a `qcaret-io-` worker the first time it expands
+  (`DirectoryListing`), 500 entries at a time behind a "Show N more" row. A link to a directory that
   contains it lists as a row that does not expand.
 - Each row carries its Size and Modified texts, built with the listing on the
   worker (`BrowserRows`), so no row reads the disk on the UI thread: a file's

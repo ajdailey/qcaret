@@ -59,13 +59,13 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
 
   @Override
   public String shownFolder() {
-    Path top = workspace.shownFolder();
+    Path top = workspace.listings().shownFolder();
     return top == null ? "" : top.toString();
   }
 
   @Override
   public boolean browsing() {
-    return workspace.browsed() != null;
+    return workspace.listings().browsed() != null;
   }
 
   @Override
@@ -93,7 +93,7 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
       return home.resolve(text.substring(2)).normalize();
     }
     Path path = Path.of(text);
-    Path top = workspace.shownFolder();
+    Path top = workspace.listings().shownFolder();
     if (path.isAbsolute()) {
       return path.normalize();
     }
@@ -102,7 +102,7 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
 
   @Override
   public void parent() {
-    Path top = workspace.shownFolder();
+    Path top = workspace.listings().shownFolder();
     if (top != null && top.getParent() != null) {
       show(top.getParent());
     }

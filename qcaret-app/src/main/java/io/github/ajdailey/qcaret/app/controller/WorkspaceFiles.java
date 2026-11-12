@@ -113,7 +113,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
   }
 
   boolean below(WorkspaceNode node) {
-    Path root = workspace.shownFolder();
+    Path root = workspace.listings().shownFolder();
     return root != null && node.path().startsWith(root) && !node.path().equals(root);
   }
 

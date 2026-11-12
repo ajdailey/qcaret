@@ -355,6 +355,7 @@ class WorkspaceBrowseTest {
     final AtomicBoolean first = new AtomicBoolean(true);
     final AtomicBoolean timedOut = new AtomicBoolean();
     workspace()
+        .listings()
         .setBeforeList(
             new Runnable() {
               @Override
@@ -420,12 +421,13 @@ class WorkspaceBrowseTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return outside.equals(restored.shownFolder()) && root.equals(restored.root());
+            return outside.equals(restored.listings().shownFolder())
+                && root.equals(restored.root());
           }
         },
         "restored");
     assertEquals(List.of("other.txt"), names(listed(restored, restored.rootNode())));
-    assertEquals(outside, restored.browsed());
+    assertEquals(outside, restored.listings().browsed());
     restored.dispose();
   }
 

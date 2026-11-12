@@ -570,7 +570,7 @@ final class SessionController implements DocumentController.FileMemory {
         workspace.root() == null ? "" : workspace.root().toString(),
         workspace.shown(),
         SessionText.numbers(view.sideWeights()),
-        workspace.expandedDirectories(),
+        workspace.listings().expandedDirectories(),
         search.resultsShown(),
         SessionText.numbers(view.dockWeights()),
         search.retained(),
@@ -578,7 +578,7 @@ final class SessionController implements DocumentController.FileMemory {
         documents.sessionDisplay(window.bookmarkList().shown()),
         SessionText.numbers(view.resultsWeights()),
         new Session.Browse(
-            workspace.browsed() == null ? "" : workspace.browsed().toString(),
+            workspace.listings().browsed() == null ? "" : workspace.listings().browsed().toString(),
             workspace.browse().options().filter().text(),
             workspace.browse().options().hidden()),
         window.alwaysOnTop().saved());

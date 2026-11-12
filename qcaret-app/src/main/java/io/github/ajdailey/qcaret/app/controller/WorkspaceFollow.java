@@ -43,14 +43,14 @@ final class WorkspaceFollow {
    */
   void follow(PathMove move) {
     Path root = workspace.root();
-    Path browsed = workspace.browsed();
+    Path browsed = workspace.listings().browsed();
     Path nextRoot = move.real(root);
     Path nextBrowsed = move.real(browsed);
     if (workspace.disposed() || (nextRoot == root && nextBrowsed == browsed)) {
       return;
     }
     List<Path> expanded = new ArrayList<Path>();
-    for (String directory : workspace.expandedDirectories()) {
+    for (String directory : workspace.listings().expandedDirectories()) {
       expanded.add(move.real(Path.of(directory)));
     }
     if (nextRoot != root) {
@@ -82,7 +82,7 @@ final class WorkspaceFollow {
    */
   void clearUnder(BrowserPath entry) {
     Path root = workspace.root();
-    Path browsed = workspace.browsed();
+    Path browsed = workspace.listings().browsed();
     if (workspace.disposed()
         || !(BrowserPath.under(root, entry.real()) || BrowserPath.under(root, entry.path()))) {
       return;

@@ -152,8 +152,8 @@ class WorkspaceControllerTest {
     WorkspaceNode dir = child(listed(workspace().rootNode()), "big");
     workspace().expand(dir);
     List<WorkspaceNode> rows = listed(dir);
-    assertEquals(WorkspaceController.PAGE + 1, rows.size());
-    WorkspaceNode more = rows.get(WorkspaceController.PAGE);
+    assertEquals(BrowserListings.PAGE + 1, rows.size());
+    WorkspaceNode more = rows.get(BrowserListings.PAGE);
     assertEquals(WorkspaceNode.Kind.MORE, more.kind());
     assertEquals("Show 500 more of 700", more.name());
     workspace().activate(more);
