@@ -1,8 +1,8 @@
 # qcaret-bench
 
 JMH benchmarks of `RopeStorage` in `core.buffer`, `DisplayProjection` and
-HyperSearch, latency and heap harnesses for the storage and for search, and a
-startup harness for the shipped application. Not shipped and not scanned by
+HyperSearch, latency and heap harnesses for the storage, for search and for Go
+to Symbol, and a startup harness for the shipped application. Not shipped and not scanned by
 SpotBugs. Input is generated, never read from the repository.
 
 ## Map
@@ -20,6 +20,7 @@ SpotBugs. Input is generated, never read from the repository.
 | `SearchTree` | Seeded tree in a temporary directory: 20,000 files of 2 KiB and 4 of 16 MiB; the four `Query` values, literal and regex, few and many hits |
 | `SearchBenchmark` | Time to complete, `fileSearch` into a counting sink and `hyperSearch` into a `ResultSet` |
 | `SearchHarness` | Time to first result, cancel latency, and a finished set's live heap against its charge |
+| `SymbolHarness` | Go to Symbol on generated 1,000,000-line `JAVA` (a definition every 7 lines), `JAVA_SPARSE` (every 200) and `MARKDOWN` (a heading every 120): the first scan, the filter and sort a cached list leaves, `rescan` and a whole scan after one-line edits at lines 1,006 and 500,006, clear of the Markdown fences, with their results compared, and a `SymbolScan`'s live heap against its charge |
 
 ## Running
 
@@ -36,6 +37,8 @@ java -jar qcaret-bench/target/benchmarks.jar ProjectionBenchmark
 java -jar qcaret-bench/target/benchmarks.jar SearchBenchmark
 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SearchHarness [first cancel heap]
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.SymbolHarness [JAVA JAVA_SPARSE MARKDOWN]
 ```
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
@@ -46,7 +49,7 @@ reproduce.
 
 ### Heap
 
-`StorageHarness` and `SearchHarness` run at the shipped launchers'
+`StorageHarness`, `SearchHarness` and `SymbolHarness` run at the shipped launchers'
 `-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
 harness with it, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;

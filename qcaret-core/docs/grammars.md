@@ -109,6 +109,17 @@ groups.
 - The caller sets the line limit and the count: Go to Symbol skips lines over
   10,000 chars, keeping the tokenizer's state, and stops at 10,000 symbols. A
   name is cut at 200 chars.
+- `scanAll` returns a `SymbolScan`: the result, the tokenizer state at the start
+  of a line every 1,024 lines or more, the skipped lines and the scan's
+  `Tokenizer`, whose interned state ids no other tokenizer reads. `rescan`
+  consumes one after edits, given the chars they left unchanged at the start
+  and the end. It scans from the last checkpoint at or before the line above
+  the first changed line; past the changed lines, at a checkpoint where the
+  state equals the recorded one, it takes the rest with the lines shifted
+  unless that reaches the count. A truncated scan is never taken: the rescan
+  reads on to the end or the count, or returns it unchanged when every edit
+  follows the line it stopped in. The result equals `scanAll` of the edited
+  text.
 - A rule sees one line. A definition whose name follows its keyword on a later
   line is not found, nor is a Markdown setext heading. C, C++ and Objective-C
   functions are found when defined at column 0 with the name and `(` on one

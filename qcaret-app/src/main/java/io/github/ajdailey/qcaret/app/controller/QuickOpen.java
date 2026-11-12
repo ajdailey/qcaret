@@ -162,8 +162,6 @@ final class QuickOpen implements QuickOpenInput {
         new SymbolRows(
             documents,
             grammars,
-            workers,
-            ui,
             view,
             new Runnable() {
               @Override

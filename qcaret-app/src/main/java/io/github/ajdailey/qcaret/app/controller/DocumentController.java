@@ -145,6 +145,7 @@ public final class DocumentController {
   private GrammarLibrary grammars;
   private Consumer<GrammarSet> grammarListener;
   private final WordCompletion completion;
+  private final SymbolCache symbols;
   private boolean showWhitespace;
   private boolean showLineEndings;
   private int completionChars;
@@ -564,6 +565,7 @@ public final class DocumentController {
                 return openDocuments();
               }
             });
+    this.symbols = new SymbolCache(workers, ui, budget);
     this.opener =
         new DocumentOpener(
             workers,
@@ -1391,6 +1393,7 @@ public final class DocumentController {
    */
   private void detach(OpenDocument d, Runnable release) {
     completion.documentClosed(d.document);
+    symbols.documentClosed(d.document);
     if (d.file.watch != null) {
       changes.unwatch(d.file.watch);
     }
@@ -1503,6 +1506,11 @@ public final class DocumentController {
   EditorController editorOf(Document document) {
     OpenDocument d = entry(document);
     return d == null ? null : d.editor;
+  }
+
+  /** Returns the window's Go to Symbol scans. */
+  SymbolCache symbolCache() {
+    return symbols;
   }
 
   /** Selects an open document's tab and returns its focused editor; null when closed. */

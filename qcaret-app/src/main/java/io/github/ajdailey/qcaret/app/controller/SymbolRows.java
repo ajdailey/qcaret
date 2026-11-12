@@ -4,10 +4,7 @@ import io.github.ajdailey.qcaret.app.command.Fuzzy;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.QuickOpenRow;
-import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
-import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
-import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.syntax.SymbolScanner;
 import java.util.ArrayList;
@@ -18,15 +15,15 @@ import java.util.function.Consumer;
 /**
  * Quick Open's symbol rows: after {@code @}, the selected document's symbols that {@link Fuzzy}
  * matches on their names, best first and by line among equals, at most {@value #MAX_ROWS}; an empty
- * symbol query lists them by line. The document is scanned once per popup by {@link
- * DocumentSymbols}; a result read at an older revision than the document's is dropped and the scan
- * starts again, at most {@value #ATTEMPTS} times. A row's detail is the kind and the line. Choosing
- * a row records the caret in the navigation history and moves it to the name's start, the line and
+ * symbol query lists them by line. The symbols come from the window's {@link SymbolCache}, kept or
+ * scanned; a result read at an older revision than the document's is dropped and requested again,
+ * at most {@value #ATTEMPTS} times per popup. A row's detail is the kind and the line. Choosing a
+ * row records the caret in the navigation history and moves it to the name's start, the line and
  * column clamped to the current text. Confined to the UI thread.
  *
- * <p>{@link #jumpToBest} serves {@code file@symbol}: it scans the document opened for the file and
- * moves the caret to the best match. The jump is dropped when the document changed, the caret moved
- * or the editor closed during the scan.
+ * <p>{@link #jumpToBest} serves {@code file@symbol}: it requests the symbols of the document opened
+ * for the file and moves the caret to the best match. The jump is dropped when the document
+ * changed, the caret moved or the editor closed during the scan.
  */
 final class SymbolRows {
   /** Most rows listed. */
@@ -37,12 +34,10 @@ final class SymbolRows {
 
   private final DocumentController documents;
   private final GrammarLibrary grammars;
-  private final Workers workers;
-  private final UiDispatcher ui;
   private final MainView view;
   private final Runnable changed;
   private EditorController editor;
-  private CancellationToken running;
+  private Object running;
   private int attempts;
   private DocumentSymbols.Scan scan;
   private String query = "";
@@ -51,16 +46,9 @@ final class SymbolRows {
   private boolean closed;
 
   SymbolRows(
-      DocumentController documents,
-      GrammarLibrary grammars,
-      Workers workers,
-      UiDispatcher ui,
-      MainView view,
-      Runnable changed) {
+      DocumentController documents, GrammarLibrary grammars, MainView view, Runnable changed) {
     this.documents = documents;
     this.grammars = grammars;
-    this.workers = workers;
-    this.ui = ui;
     this.view = view;
     this.changed = changed;
   }
@@ -74,7 +62,7 @@ final class SymbolRows {
     query = text;
     EditorController active = documents.activeEditor();
     if (active != editor) {
-      cancel();
+      running = null;
       editor = active;
       scan = null;
       attempts = 0;
@@ -87,39 +75,41 @@ final class SymbolRows {
 
   private void startScan() {
     attempts++;
-    final CancellationToken[] token = new CancellationToken[1];
-    token[0] =
-        DocumentSymbols.start(
-            workers,
-            ui,
-            editor,
-            grammars,
-            documents.pathOf(editor.document()),
-            new Consumer<DocumentSymbols.Scan>() {
-              @Override
-              public void accept(DocumentSymbols.Scan result) {
-                scanned(token[0], result);
-              }
-            });
-    running = token[0];
+    final Object ticket = new Object();
+    running = ticket;
+    DocumentSymbols.Scan kept =
+        documents
+            .symbolCache()
+            .request(
+                editor,
+                grammars,
+                documents.pathOf(editor.document()),
+                new Consumer<DocumentSymbols.Scan>() {
+                  @Override
+                  public void accept(DocumentSymbols.Scan result) {
+                    scanned(ticket, result);
+                  }
+                });
+    if (kept != null) {
+      running = null;
+      scan = kept;
+    }
   }
 
-  private void scanned(CancellationToken token, DocumentSymbols.Scan result) {
-    if (closed || token != running) {
+  private void scanned(Object ticket, DocumentSymbols.Scan result) {
+    if (closed || ticket != running) {
       return;
     }
     running = null;
     if (editor.disposed()) {
       return;
     }
-    if (result.revision() != editor.document().revision()) {
-      if (attempts < ATTEMPTS) {
-        startScan();
-      }
-    } else {
+    if (result.revision() == editor.document().revision()) {
       scan = result;
-      match();
+    } else if (attempts < ATTEMPTS) {
+      startScan();
     }
+    match();
     changed.run();
   }
 
@@ -229,12 +219,7 @@ final class SymbolRows {
     final Document document = target.document();
     final long revision = document.revision();
     final int caret = target.selections().selections().primary().caret();
-    DocumentSymbols.start(
-        workers,
-        ui,
-        target,
-        grammars,
-        documents.pathOf(document),
+    Consumer<DocumentSymbols.Scan> done =
         new Consumer<DocumentSymbols.Scan>() {
           @Override
           public void accept(DocumentSymbols.Scan result) {
@@ -250,7 +235,12 @@ final class SymbolRows {
               jump(target, best);
             }
           }
-        });
+        };
+    DocumentSymbols.Scan kept =
+        documents.symbolCache().request(target, grammars, documents.pathOf(document), done);
+    if (kept != null) {
+      done.accept(kept);
+    }
   }
 
   /** Returns the highest-scoring symbol, the first among equals, or null when none matches. */
@@ -278,16 +268,12 @@ final class SymbolRows {
     }
   }
 
-  /** Cancels a running scan; the popup closed. A later {@link #jumpToBest} still runs. */
+  /**
+   * Stops taking results; the popup closed. A running scan goes on into the cache, and a later
+   * {@link #jumpToBest} still runs.
+   */
   void close() {
     closed = true;
-    cancel();
-  }
-
-  private void cancel() {
-    if (running != null) {
-      running.cancel();
-      running = null;
-    }
+    running = null;
   }
 }

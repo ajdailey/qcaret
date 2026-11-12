@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
+import io.github.ajdailey.qcaret.core.syntax.SymbolScan;
 import io.github.ajdailey.qcaret.core.syntax.SymbolScanner;
 import io.github.ajdailey.qcaret.core.syntax.Syntax;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
@@ -20,8 +21,9 @@ import java.util.function.Consumer;
  * SymbolScanner}: the document's grammar, or, while it has none, the grammar {@link
  * GrammarSet#detect} picks from the file name and first line. Lines over {@link
  * SyntaxEngine#DEFAULT_MAX_LINE_CHARS} are skipped and the scan stops at {@link
- * SymbolScanner#MAX_SYMBOLS}. The result reaches the UI thread unless its token was canceled; the
- * caller compares its revision with the document's.
+ * SymbolScanner#MAX_SYMBOLS}. Given a {@link Resume}, the scan resumes the previous one with {@link
+ * SymbolScanner#rescan}. The result reaches the UI thread unless its token was canceled; the caller
+ * compares its revision with the document's.
  */
 final class DocumentSymbols {
   /**
@@ -32,13 +34,24 @@ final class DocumentSymbols {
    * @param grammar the grammar's name, or null for plain text
    * @param result the symbols
    * @param rules false when the grammar has no symbol rules
+   * @param scan what a later scan resumes, or null for plain text
    */
   record Scan(
       Document document,
       long revision,
       String grammar,
       SymbolScanner.Result result,
-      boolean rules) {}
+      boolean rules,
+      SymbolScan scan) {}
+
+  /**
+   * A previous scan to resume and the text its edits left unchanged.
+   *
+   * @param previous the scan, consumed
+   * @param prefixChars chars at the start unchanged since it
+   * @param suffixChars chars at the end unchanged since it
+   */
+  record Resume(SymbolScan previous, int prefixChars, int suffixChars) {}
 
   private static final SymbolScanner.Result NONE = new SymbolScanner.Result(List.of(), false, 0);
 
@@ -52,6 +65,7 @@ final class DocumentSymbols {
    * @param editor the editor whose document is scanned
    * @param grammars detects a grammar for a document without one, or null
    * @param path the document's file, or null
+   * @param resume the scan to resume, or null to scan from the first line
    * @param done takes the result on the UI thread
    * @return the token that cancels the scan, or null when the workers are closed
    */
@@ -61,6 +75,7 @@ final class DocumentSymbols {
       EditorController editor,
       GrammarLibrary grammars,
       Path path,
+      final Resume resume,
       final Consumer<Scan> done) {
     final Document document = editor.document();
     final TextSnapshot text = document.text();
@@ -83,19 +98,30 @@ final class DocumentSymbols {
                   String id = set.detect(fileName, text.subSequence(0, length), token);
                   syntax = GrammarSet.PLAIN.equals(id) ? null : set.syntax(id);
                 }
-                scan =
-                    syntax == null
-                        ? new Scan(document, revision, null, NONE, false)
-                        : new Scan(
-                            document,
-                            revision,
-                            syntax.grammar().name(),
-                            new SymbolScanner(
-                                    syntax,
-                                    SyntaxEngine.DEFAULT_MAX_LINE_CHARS,
-                                    SymbolScanner.MAX_SYMBOLS)
-                                .scan(text, token),
-                            !syntax.grammar().symbols().isEmpty());
+                if (syntax == null) {
+                  scan = new Scan(document, revision, null, NONE, false, null);
+                } else {
+                  SymbolScanner scanner =
+                      new SymbolScanner(
+                          syntax, SyntaxEngine.DEFAULT_MAX_LINE_CHARS, SymbolScanner.MAX_SYMBOLS);
+                  SymbolScan symbols =
+                      resume == null
+                          ? scanner.scanAll(text, token)
+                          : scanner.rescan(
+                              text,
+                              resume.previous(),
+                              resume.prefixChars(),
+                              resume.suffixChars(),
+                              token);
+                  scan =
+                      new Scan(
+                          document,
+                          revision,
+                          syntax.grammar().name(),
+                          symbols.result(),
+                          !syntax.grammar().symbols().isEmpty(),
+                          symbols);
+                }
               } catch (CancellationException e) {
                 return;
               }

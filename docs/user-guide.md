@@ -523,7 +523,9 @@ Edit > Go to Symbol (`Ctrl+R`, `Cmd+R` on macOS) lists the functions, classes,
 headings and other definitions of the document, found by its language; typing
 narrows the list, and Enter moves the caret to the one selected. In Quick Open,
 `@` followed by a name does the same, and `Shop@total` opens `Shop.java` at
-`total`. Definitions inside comments and strings are left out.
+`total`. Definitions inside comments and strings are left out. The list of a
+document unchanged since it was last shown opens at once; after an edit, the
+document is read again from the edited lines.
 
 ## Compare
 
@@ -594,6 +596,11 @@ Window > New Window opens another window. Settings, the theme, key bindings,
 grammars and Recent Files are shared; each window has its own tabs, find bar,
 workspace folder and search results. A document is open in one tab of one window
 at a time.
+
+View > Always on Top keeps a window above other applications' windows, with its
+dialogs above it; the session restores it per window. It has no default key. On
+Linux it needs GTK 3 on X11; under Wayland or GTK 4 the item is disabled, and
+the window manager's window menu (`Alt+Space` on most desktops) offers the same.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
 window's tab strip to dock it there; Window > Move to New Window and the tab
@@ -728,6 +735,12 @@ Settings are in `qcaret.conf`, in the first of these that applies:
 | Portable | `qcaret.conf` exists in the installation directory | The installation directory |
 | Per-user | Otherwise | Linux `~/.config/qcaret`, Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
+In explicit and portable mode on Linux, User Guide opens the guide in the
+system's HTML application instead of its own window, because the embedded
+browser writes under `~/.cache` and `~/.local/share`. The one write left outside
+the settings directory is an empty `~/.config/ibus/bus`, which the GTK input
+method module creates.
+
 ## Help and logs
 
 - Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy.
@@ -736,7 +749,8 @@ Settings are in `qcaret.conf`, in the first of these that applies:
   the page written to the settings directory, holding its own images, with
   JavaScript off. Under GTK 4 a
   notice names the guide's file instead; open that file in a browser. Without a
-  working embedded browser the guide opens in the system's HTML application.
+  working embedded browser, and in explicit and portable mode on Linux, the
+  guide opens in the system's HTML application, else a notice names the file.
 - Show Log shows the recent log lines and clears the Warnings link.
 - Debug Log File writes the log at DEBUG to `logs/` in the settings directory
   until turned off. Open Log Folder and Open Settings Folder open those folders.

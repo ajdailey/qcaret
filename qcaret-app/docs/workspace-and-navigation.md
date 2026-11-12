@@ -2,7 +2,7 @@
 
 The workspace folder and browser, Quick Open, Go to Symbol, navigation history
 and Recent Files: `WorkspaceController`, `QuickOpen`, `SymbolRows`,
-`NavigationHistory` and `RecentFiles` in `app.controller` of
+`SymbolCache`, `NavigationHistory` and `RecentFiles` in `app.controller` of
 [qcaret-app](../README.md). The listing and index walks are in [qcaret-core
 search](../../qcaret-core/docs/search.md#workspace-folder).
 
@@ -178,14 +178,26 @@ them by line. The detail column is the kind and the line.
   `SymbolScanner` ([Symbol rules](../../qcaret-core/docs/grammars.md#symbol-rules)).
   A document whose highlighter has no grammar, plain text or one still being
   detected, is scanned with the grammar `GrammarSet.detect` picks for it.
-- The popup scans once and its close cancels the scan. A result read at an
-  older revision than the document's is dropped and the scan runs again, at
-  most three times; the summary then says the document kept changing.
+- `SymbolCache`, one per window (`DocumentController.symbolCache`), keeps each
+  open document's last finished scan. A request at its revision and grammar
+  lists it without a scan. Any other request resumes it with
+  `SymbolScanner.rescan` from the first line its edits changed, the unchanged
+  start and end counted by a `DocumentListener`; a grammar change scans from
+  the first line. A request for the running scan's grammar joins it; one for
+  another grammar cancels it. Closing the popup does not cancel a scan, so the
+  next request finds it kept.
+- The kept scan is charged to the `MemoryBudget` at `SymbolScan.bytes`; one the
+  budget refuses is listed and not kept. Closing or moving the document
+  cancels its scan and releases the charge.
+- A result read at an older revision than the document's is dropped and
+  requested again, at most three times per popup; the summary then says the
+  document kept changing.
 - Choosing a row records the caret for Go Back (`EditorController.jumping`) and
   moves it to the name's start, the line and column clamped to the current
   text.
-- `file@symbol` scans after the file opens. The jump is dropped when the
-  document changed, the caret moved or the editor closed during the scan.
+- `file@symbol` requests the symbols after the file opens. The jump is dropped
+  when the document changed, the caret moved or the editor closed during the
+  scan.
 
 ## Navigation history
 
