@@ -732,6 +732,8 @@ class ToolbarAndMenusTest {
     }
     assertTrue(window.menuBar().item(CommandId.RELOAD_GRAMMARS).getParent().getItemCount() > 2);
     assertMnemonics("menu bar", window.shell().getMenuBar());
+    Menu windows = window.menuBar().menu(CommandGroup.WINDOW);
+    assertTrue(windows.getItem(windows.getItemCount() - 1).getText().startsWith("&1 "));
     assertMnemonics("editor menu", rightClick(window.activeText(), 1));
     Menu tab = window.showTabMenu(0);
     tab.setVisible(false);

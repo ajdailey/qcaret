@@ -242,6 +242,7 @@ public final class MainWindow implements MainView {
   private final SashForm body;
   private final SashForm side;
   private WorkspaceDock workspaceDock;
+  private BrowserSideWidth browserWidth;
   private QuickOpenWindow quickOpen;
   private SashForm docks;
   private ResultsDock resultsDock;
@@ -707,7 +708,7 @@ public final class MainWindow implements MainView {
     body.setMaximizedControl(tabs);
     workspaceDock = new WorkspaceDock(side, toolBar);
     workspaceDock.control().moveAbove(body);
-    side.setWeights(new int[] {1, 3});
+    browserWidth = new BrowserSideWidth(side, workspaceDock.buttons());
     side.setMaximizedControl(body);
     shell.addListener(
         SWT.Activate,
@@ -2188,6 +2189,7 @@ public final class MainWindow implements MainView {
     }
     workspaceDock.setInput(input);
     side.setMaximizedControl(shown ? null : body);
+    browserWidth.fit();
     side.layout(true);
     if (shown) {
       workspaceDock.reink();
@@ -2208,7 +2210,11 @@ public final class MainWindow implements MainView {
 
   @Override
   public void setSideWeights(int[] weights) {
-    side.setWeights(weights);
+    if (browserWidth == null) {
+      side.setWeights(weights);
+    } else {
+      browserWidth.restore(weights);
+    }
   }
 
   @Override

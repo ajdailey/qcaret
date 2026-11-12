@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -37,6 +38,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
@@ -137,6 +139,12 @@ class WorkspaceSurfaceTest {
     }
   }
 
+  private void drain() {
+    while (display.readAndDispatch()) {
+      // Runs queued work.
+    }
+  }
+
   private void await(BooleanSupplier condition, String what) {
     assertTrue(EventLoop.runUntil(display, condition, BOUND), what);
   }
@@ -171,6 +179,36 @@ class WorkspaceSurfaceTest {
           }
         },
         "rows of " + dir.getFileName());
+  }
+
+  @Test
+  void theBrowserButtonsShowInOneRowAtTheDefaultWidth() {
+    window.place(new WindowGeometry.Request(0, 0, 960, 600), null);
+    WorkspaceDock dock = browser();
+    drain();
+    assertEquals(1, rows(dock));
+    window.place(new WindowGeometry.Request(0, 0, 640, 600), null);
+    drain();
+    assertEquals(1, rows(dock));
+    window.setSideWeights(new int[] {1, 9});
+    drain();
+    assertTrue(rows(dock) > 1);
+    Rectangle row = dock.buttons().getClientArea();
+    for (Control bar : dock.buttons().getChildren()) {
+      Rectangle bounds = bar.getBounds();
+      assertEquals(bounds, row.intersection(bounds));
+    }
+  }
+
+  /** Returns the number of rows the browser's tool bars take. */
+  private static int rows(WorkspaceDock dock) {
+    List<Integer> tops = new ArrayList<Integer>();
+    for (Control bar : dock.buttons().getChildren()) {
+      if (!tops.contains(bar.getLocation().y)) {
+        tops.add(bar.getLocation().y);
+      }
+    }
+    return tops.size();
   }
 
   @Test

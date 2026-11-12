@@ -43,6 +43,7 @@ import org.eclipse.swt.widgets.TreeItem;
  */
 final class WorkspaceDock {
   private final Composite root;
+  private final Composite buttons;
   private final ToolIcons icons;
   private final BrowseBar browseBar;
   private final Tree tree;
@@ -81,6 +82,7 @@ final class WorkspaceDock {
     layout.verticalSpacing = 0;
     root.setLayout(layout);
     Composite bar = new Composite(root, SWT.NONE);
+    buttons = bar;
     RowLayout barLayout = new RowLayout(SWT.HORIZONTAL);
     barLayout.wrap = true;
     barLayout.spacing = 2;
@@ -311,6 +313,15 @@ final class WorkspaceDock {
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */
   void reink() {
     icons.reink();
+  }
+
+  /**
+   * Returns the row of icon tool bars.
+   *
+   * @return the row
+   */
+  Composite buttons() {
+    return buttons;
   }
 
   /**

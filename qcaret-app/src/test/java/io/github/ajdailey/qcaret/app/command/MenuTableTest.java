@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Menu contents with and without the macOS application menu, the placement of every command, and
  * mnemonics per menu: the menu bar titles, every menu and cascade, and the editor, tab and row
- * context menus. The view-built Encoding and Syntax cascades are walked in {@code
- * ToolbarAndMenusTest}.
+ * context menus. Every item has a mnemonic, unique in its menu. The view-built Encoding and Syntax
+ * cascades are walked in {@code ToolbarAndMenusTest}.
  */
 class MenuTableTest {
   @Test
@@ -124,6 +124,44 @@ class MenuTableTest {
     }
     assertDistinct("row menu", row);
     assertEquals(WorkspaceSelectionInput.Action.values().length, row.size());
+  }
+
+  @Test
+  void everyItemHasAMnemonic() {
+    Map<String, List<String>> menus = new LinkedHashMap<String, List<String>>();
+    for (CommandGroup group : CommandGroup.values()) {
+      menus.putAll(menus(group, false));
+    }
+    List<String> editor = new ArrayList<String>();
+    for (CommandId command : MenuTable.EDITOR_MENU) {
+      if (command != null) {
+        editor.add(command.label());
+      }
+    }
+    menus.put("editor menu", editor);
+    List<String> tab = new ArrayList<String>();
+    for (UiText label : MenuTable.TAB_MENU) {
+      if (label != null) {
+        tab.add(label.text());
+      }
+    }
+    menus.put("tab menu", tab);
+    List<String> row = new ArrayList<String>();
+    for (WorkspaceSelectionInput.Action action : WorkspaceSelectionInput.MENU) {
+      if (action != null) {
+        row.add(action.label().text());
+      }
+    }
+    menus.put("row menu", row);
+    List<String> missing = new ArrayList<String>();
+    for (Map.Entry<String, List<String>> menu : menus.entrySet()) {
+      for (String label : menu.getValue()) {
+        if (mnemonic(label) == null) {
+          missing.add(menu.getKey() + " > " + label);
+        }
+      }
+    }
+    assertEquals(new ArrayList<String>(), missing);
   }
 
   @Test

@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -181,7 +182,7 @@ class SyntaxPaneTest {
     view.notifyListeners(SWT.Show, null);
     Menu syntax = window.menuBar().item(CommandId.RELOAD_GRAMMARS).getParent();
     MenuItem plain = syntax.getItem(0);
-    assertEquals("Plain Text", plain.getText());
+    assertEquals(UiText.MENU_SYNTAX_PLAIN.text(), plain.getText());
     MenuItem java = item(cascade(syntax, "&Programming Languages A-M"), "Java");
     assertTrue(java != null && java.getSelection());
     MenuItem python = item(cascade(syntax, "Programming Languages &N-Z"), "Python");
@@ -193,7 +194,7 @@ class SyntaxPaneTest {
     assertTrue(syntax.getItem(0).getSelection());
     assertEquals(SWT.SEPARATOR, syntax.getItem(1).getStyle() & SWT.SEPARATOR);
     plain = syntax.getItem(2);
-    assertEquals("Plain Text", plain.getText());
+    assertEquals(UiText.MENU_SYNTAX_PLAIN.text(), plain.getText());
     plain.setSelection(true);
     plain.notifyListeners(SWT.Selection, null);
     await(

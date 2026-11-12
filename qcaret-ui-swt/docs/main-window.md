@@ -122,9 +122,10 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
   rebuilds the menus. Reopen with Encoding starts with Automatic Detection,
   which calls `ApplicationController.reopenWithDetection`.
 - The Window menu lists the windows, when there are several, and the open
-  documents. File > Recent Files lists the recent files above Clear Recent
-  Files, and File > Recently Closed the closed files above Clear Recently
-  Closed, each rebuilt when its menu shows; a path's `&` is doubled.
+  documents, numbered in that order, the first nine as mnemonics. File >
+  Recent Files lists the recent files above Clear Recent Files, and File >
+  Recently Closed the closed files above Clear Recently Closed, each rebuilt
+  when its menu shows; a path's `&` is doubled.
 - The View menu's Syntax cascade and the status bar's language popup show the
   app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain Text,
   then one cascade per category. `MainMenuBar` rebuilds the cascade's entries

@@ -326,17 +326,21 @@ final class MainMenuBar {
     }
   }
 
-  /** Lists the windows of the instance when there are several. */
-  private void syncWindows(Menu menu) {
+  /**
+   * Lists the windows of the instance when there are several.
+   *
+   * @return the number of windows listed
+   */
+  private int syncWindows(Menu menu) {
     List<CommandStates.OpenedDocument> windows = states.openedWindows();
     if (windows.size() < 2) {
-      return;
+      return 0;
     }
     new MenuItem(menu, SWT.SEPARATOR).setData(LISTED);
     for (int i = 0; i < windows.size(); i++) {
       final int index = i;
       MenuItem item = new MenuItem(menu, SWT.CHECK);
-      item.setText(windows.get(i).text().replace("&", "&&"));
+      item.setText(listed(i, windows.get(i).text()));
       item.setData(LISTED);
       item.setSelection(windows.get(i).shown());
       item.addListener(
@@ -348,6 +352,7 @@ final class MainMenuBar {
             }
           });
     }
+    return windows.size();
   }
 
   /** Lists the recent files above Clear Recent Files, the first nine numbered as mnemonics. */
@@ -381,6 +386,12 @@ final class MainMenuBar {
     if (!paths.isEmpty()) {
       new MenuItem(menu, SWT.SEPARATOR, paths.size()).setData(RECENT);
     }
+  }
+
+  /** Returns a Window menu entry numbered from 1, the first nine as mnemonics. */
+  private static String listed(int index, String text) {
+    String numbered = UiText.RECENT_FILE.format(index + 1, text.replace("&", "&&"));
+    return index < 9 ? numbered : numbered.substring(1);
   }
 
   /** Lists the closed files above Clear Recently Closed, the first nine numbered as mnemonics. */
@@ -452,7 +463,7 @@ final class MainMenuBar {
       new MenuItem(menu, SWT.SEPARATOR, index++).setData(SYNTAX);
     }
     if (model.plain() != null) {
-      syntaxItem(menu, index++, model.plain());
+      syntaxItem(menu, index++, model.plain()).setText(UiText.MENU_SYNTAX_PLAIN.text());
     }
     for (SyntaxMenu.Category category : model.categories()) {
       MenuItem holder = new MenuItem(menu, SWT.CASCADE, index++);
@@ -468,7 +479,7 @@ final class MainMenuBar {
     return index;
   }
 
-  private void syntaxItem(Menu menu, int index, final CommandStates.SyntaxChoice choice) {
+  private MenuItem syntaxItem(Menu menu, int index, final CommandStates.SyntaxChoice choice) {
     MenuItem item = new MenuItem(menu, SWT.RADIO, index);
     item.setText(choice.name().replace("&", "&&"));
     item.setSelection(choice.checked());
@@ -483,6 +494,7 @@ final class MainMenuBar {
             }
           }
         });
+    return item;
   }
 
   /**
@@ -542,7 +554,10 @@ final class MainMenuBar {
     saveAs.sync(states.saveEncodingEnabled(), states.saveEncoding());
   }
 
-  /** Lists the open documents after the Window commands, the selected one checked. */
+  /**
+   * Lists the open documents after the Window commands, the selected one checked. The windows and
+   * then the documents are numbered, the first nine as mnemonics.
+   */
   private void syncDocuments() {
     Menu menu = menus.get(CommandGroup.WINDOW);
     if (menu == null || menu.isDisposed()) {
@@ -553,7 +568,7 @@ final class MainMenuBar {
         item.dispose();
       }
     }
-    syncWindows(menu);
+    int windows = syncWindows(menu);
     List<CommandStates.OpenedDocument> documents = states.openedDocuments();
     if (!documents.isEmpty()) {
       new MenuItem(menu, SWT.SEPARATOR).setData(LISTED);
@@ -561,7 +576,7 @@ final class MainMenuBar {
     for (int i = 0; i < documents.size(); i++) {
       final int index = i;
       MenuItem item = new MenuItem(menu, SWT.RADIO);
-      item.setText(documents.get(i).text().replace("&", "&&"));
+      item.setText(listed(windows + i, documents.get(i).text()));
       item.setSelection(documents.get(i).shown());
       item.setData(LISTED);
       item.addListener(

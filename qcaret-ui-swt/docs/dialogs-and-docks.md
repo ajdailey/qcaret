@@ -121,8 +121,10 @@ the dialog cancels a running match.
   ([theme and icons](theme-and-icons.md#win32)). Each tool bar is a tab stop
   (`ToolIconsTest`); Space runs its item, measured on GTK 3 and win32 x86_64,
   and Enter also does on win32. The row is a wrapping `RowLayout`, so a dock too
-  narrow for one row puts the rest on a second; at the default window size and
-  side weights the seven fit one row (`WorkspaceDockLayoutTest`). The row is
+  narrow for one row puts the rest on a second. `BrowserSideWidth` sets the
+  dock's default width: a quarter of the window, widened to the row's one-row
+  width, up to half. The default follows each resize until session weights are
+  restored or a sash drag changes them (`WorkspaceSurfaceTest`). The row is
   the icons' `ToolIcons` owner; `MainWindow` re-inks it after a theme change
   and when the dock shows.
 - `BrowseBar` holds the first four icons, the path field, the filter field

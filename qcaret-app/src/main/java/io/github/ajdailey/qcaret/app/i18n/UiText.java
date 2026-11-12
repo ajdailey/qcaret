@@ -916,6 +916,8 @@ public enum UiText {
   MENU_SYNTAX_BUILD,
   /** Syntax submenu of the user grammars without a known category. */
   MENU_SYNTAX_USER,
+  /** View > Syntax entry of the Plain Text grammar. */
+  MENU_SYNTAX_PLAIN,
   /** View submenu of the fold commands. */
   MENU_FOLDING,
   /** Command label. */
