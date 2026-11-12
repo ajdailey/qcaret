@@ -131,6 +131,8 @@ class WorkspaceSelectionTest {
 
   @Test
   void openInDefaultApplicationLaunchesEverySelectedFile() throws Exception {
+    // Decide by extension on every host: Files.isExecutable is true for any file on Windows.
+    harness.view.windows = true;
     selection()
         .run(
             Action.OPEN_DEFAULT, List.of(file("notes.txt"), folder("src"), file("todo.txt")), null);
@@ -148,6 +150,8 @@ class WorkspaceSelectionTest {
 
   @Test
   void openInDefaultApplicationAsksFirstAboveTenFiles() throws Exception {
+    // Decide by extension on every host: Files.isExecutable is true for any file on Windows.
+    harness.view.windows = true;
     final List<WorkspaceNode> rows = new ArrayList<WorkspaceNode>();
     for (int i = 0; i < WorkspaceSelection.OPEN_UNASKED; i++) {
       String name = "f" + i + ".txt";
