@@ -24,6 +24,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import java.nio.charset.StandardCharsets;
@@ -114,8 +115,7 @@ class FontFamilyTest {
   private List<String> families() {
     List<String> usable = new ArrayList<String>();
     List<Path> folders =
-        FontFiles.directories(
-            System.getProperty("os.name"), System.getenv(), System.getProperty("user.home"));
+        OsTraits.current().fontDirectories(System.getenv(), System.getProperty("user.home"));
     for (String family : FontFiles.monospaceFamilies(folders)) {
       if (EditorFonts.family(display, family).equals(family)) {
         usable.add(family);

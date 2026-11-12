@@ -1,12 +1,12 @@
 package io.github.ajdailey.qcaret.core.io;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -21,10 +21,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * could both hold the file. {@link #tryAcquire} throws instead.
  */
 public final class ProcessLock implements AutoCloseable {
-  private static final boolean WINDOWS =
-      System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows");
+  private static final OsTraits.LockKind KIND = OsTraits.current().fileLock();
 
-  /** What linking {@link Flock} gave, once per process; never loaded on Windows. */
+  /** What linking {@link Flock} gave, once per process; never loaded for a channel lock. */
   private static final class Linked {
     private static final Flock FLOCK;
     private static final IOException FAILURE;
@@ -33,8 +32,7 @@ public final class ProcessLock implements AutoCloseable {
       Flock linked = null;
       IOException failure = null;
       try {
-        linked =
-            Flock.bind(Flock.FOREIGN, Flock.Constants.of(System.getProperty("os.name", "unknown")));
+        linked = Flock.bind(Flock.FOREIGN, Flock.Constants.of(KIND));
       } catch (IOException e) {
         failure = e;
       }
@@ -67,7 +65,7 @@ public final class ProcessLock implements AutoCloseable {
    *     on this JDK
    */
   public static ProcessLock tryAcquire(Path file) throws IOException {
-    if (WINDOWS) {
+    if (KIND == OsTraits.LockKind.CHANNEL) {
       return onChannel(file);
     }
     if (Linked.FAILURE != null) {

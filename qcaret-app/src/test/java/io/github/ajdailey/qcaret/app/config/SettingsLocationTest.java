@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +15,7 @@ class SettingsLocationTest {
 
   private SettingsLocation resolve(Path explicit, Path home, String os, Map<String, String> env) {
     return SettingsLocation.resolve(
-        explicit, home == null ? null : home.toString(), os, env, temp.toString());
+        explicit, home == null ? null : home.toString(), OsTraits.of(os), env, temp.toString());
   }
 
   @Test
@@ -67,7 +68,7 @@ class SettingsLocationTest {
       for (String os : systems) {
         assertEquals(
             mode != SettingsMode.PER_USER && os.equals("Linux"),
-            location.confined(os),
+            location.confined(OsTraits.of(os)),
             mode + " " + os);
       }
     }

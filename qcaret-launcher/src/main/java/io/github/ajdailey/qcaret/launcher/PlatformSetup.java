@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.launcher;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.IOException;
 import org.slf4j.Logger;
@@ -30,17 +31,17 @@ final class PlatformSetup {
    * mode, sets {@link #EDGE_DATA_DIR} to {@code <settings>/cache/webview2}, so an embedded WebView2
    * browser writes its data inside the settings directory.
    *
-   * @param osName the {@code os.name} property
+   * @param os the system
    * @param settings the settings directory
    */
-  static void apply(String osName, SettingsLocation settings) {
-    if (settings.confined(osName)) {
+  static void apply(OsTraits os, SettingsLocation settings) {
+    if (settings.confined(os)) {
       if (System.getProperty(HomeFolder.PROPERTY) == null) {
         System.setProperty(HomeFolder.PROPERTY, System.getProperty("user.home", ""));
       }
       System.setProperty("user.home", settings.directory().toString());
     }
-    if (osName.startsWith("Windows")) {
+    if (os.webView2()) {
       try {
         System.setProperty(
             EDGE_DATA_DIR,

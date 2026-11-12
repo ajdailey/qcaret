@@ -217,3 +217,25 @@ removing CR and LF.
 |---|---|
 | `Checks` | `atLeast` and `notNegative` throw `IllegalArgumentException` naming the argument |
 | `Streams` | `readLimited` reads a stream to its end and throws `IOException` once it passes the limit, so an oversized file is refused rather than truncated |
+
+### Operating system
+
+`OsTraits` answers each question whose answer differs by operating system, one
+class per system. `OsTraits.current()` is chosen once from `os.name`: a name
+starting `Windows` or `Mac`, ignoring case, picks that system, and any other
+name picks Linux. Only `core.util.os` reads `os.name` in core, app and the
+launcher (`ArchitectureTest.osNameOnlyInTheOsSeam`); tests take another
+system's answers from `OsTraits.of(name)`.
+
+| Method | Caller | Windows | macOS | Linux |
+|---|---|---|---|---|
+| `fileNamesIgnoreCase` | `NameFilter.PLATFORM_IGNORES_CASE` | true | true | false |
+| `fileLock` | `ProcessLock`, `Flock.Constants` | `CHANNEL` | `FLOCK_MACOS` | `FLOCK_LINUX` |
+| `opensDeviceNames` | `SafePaths` device-form check | true | false | false |
+| `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret` |
+| `confinesToSettings` | `SettingsLocation.confined` | false | false | true |
+| `webView2` | `PlatformSetup` | true | false | false |
+| `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
+
+`OsTraits.description()` is the About dialog's OS line. `EnvPaths.absolute`
+accepts a variable's value only as a non-empty absolute path.

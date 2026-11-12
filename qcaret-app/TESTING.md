@@ -144,5 +144,5 @@ after the change.
 
 `CommandLineParserTest`, `SettingsLocationTest`, `WindowGeometryTest`,
 `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest`
-(generated sfnt files), `UiTextTest`, `RecentLogTest` and
+(generated sfnt files), `AboutInfoTest`, `UiTextTest`, `RecentLogTest` and
 `EventLoopWatchdogTest` cover the rest.

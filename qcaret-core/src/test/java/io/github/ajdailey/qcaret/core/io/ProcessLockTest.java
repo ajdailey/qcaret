@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -263,8 +264,8 @@ class ProcessLockTest {
 
   @Test
   void theConstantsFollowTheSystem() throws IOException {
-    assertEquals(Flock.Constants.LINUX, Flock.Constants.of("Linux"));
-    assertEquals(Flock.Constants.MACOS, Flock.Constants.of("Mac OS X"));
+    assertEquals(Flock.Constants.LINUX, Flock.Constants.of(OsTraits.of("Linux").fileLock()));
+    assertEquals(Flock.Constants.MACOS, Flock.Constants.of(OsTraits.of("Mac OS X").fileLock()));
     assertEquals(0x1000202, Flock.Constants.MACOS.open());
     assertEquals(0x80042, Flock.Constants.LINUX.open());
     assertFalse(Flock.Constants.LINUX.wouldBlock() == Flock.Constants.MACOS.wouldBlock());
@@ -273,7 +274,7 @@ class ProcessLockTest {
         new Executable() {
           @Override
           public void execute() throws IOException {
-            Flock.Constants.of("Plan 9");
+            Flock.Constants.of(OsTraits.of("Windows 11").fileLock());
           }
         });
   }

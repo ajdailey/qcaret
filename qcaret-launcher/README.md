@@ -192,6 +192,8 @@ classes, so the rules over the main classes never see them.
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
 | `DocumentBuilderFactory`, `SAXParserFactory` and `XMLInputFactory` only in `core.syntax` | Grammar files are the only XML parsed |
+| The string `os.name` only in `core.util.os` | Operating system questions go through `OsTraits`; the check reads each class file's constant pool, since ArchUnit does not see call arguments |
+| No `SWT.getPlatform()` or string `SWT_GTK4` in `core`, `app` or `launcher` | Toolkit platform questions stay in the view layer |
 
 ## Testing
 

@@ -11,8 +11,9 @@ instead of failing with `UnsupportedClassVersionError`. It reaches `Boot`
 through reflection, because a Java 8 compilation cannot link to Java 21
 bytecode. `Boot.start` then:
 
-1. Maps `os.name` and `os.arch` to a `Target`; any other platform prints one
-   line and exits 2.
+1. Maps `os.name` and `os.arch` to a `Target` (`Target.current`, the only
+   bootstrap reader of `os.name`); any other platform prints one line and
+   exits 2.
 2. On macOS without `-XstartOnFirstThread`, relaunches (`MacRelaunch`).
 3. Reads `META-INF/qcaret/index.properties` and prepares the natives
    (`Natives`).
@@ -100,8 +101,8 @@ the first process are not carried over.
 | Class | Covers |
 |---|---|
 | `MainTest` | Java 21 and later accepted, the message naming the running Java, `Main` compiled as Java 8 bytecode; `java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary `-Dqcaret.test.java8=<path to java>` names and skips without it |
-| `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named |
+| `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named, `current` matching this JVM |
 | `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
 | `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
 | `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |
-| `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`; each rule shown to fail on a fixture class |
+| `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`, the string `os.name` only in `Target`; each rule shown to fail on a fixture class |

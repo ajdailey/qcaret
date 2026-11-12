@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.io;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Array;
@@ -41,20 +42,18 @@ final class Flock {
     static final Constants MACOS = new Constants(2 | 0x200 | 0x1000000, 35);
 
     /**
-     * Returns the constants of a system.
+     * Returns the constants of a {@code flock} lock kind.
      *
-     * @param osName the {@code os.name} property
+     * @param kind the system's lock kind
      * @return the constants
-     * @throws IOException when the system is neither Linux nor macOS
+     * @throws IOException for {@link OsTraits.LockKind#CHANNEL}, which has none
      */
-    static Constants of(String osName) throws IOException {
-      if (osName.startsWith("Linux")) {
-        return LINUX;
-      }
-      if (osName.startsWith("Mac")) {
-        return MACOS;
-      }
-      throw new IOException("No file lock for " + osName);
+    static Constants of(OsTraits.LockKind kind) throws IOException {
+      return switch (kind) {
+        case FLOCK_LINUX -> LINUX;
+        case FLOCK_MACOS -> MACOS;
+        case CHANNEL -> throw new IOException("No flock constants for a channel lock");
+      };
     }
   }
 

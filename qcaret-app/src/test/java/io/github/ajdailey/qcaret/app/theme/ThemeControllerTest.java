@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -256,7 +257,7 @@ class ThemeControllerTest {
         SettingsLocation.resolve(
             null,
             temp.toString(),
-            "Linux",
+            OsTraits.of("Linux"),
             Map.<String, String>of(),
             temp.resolve("home").toString());
     assertEquals(SettingsMode.PORTABLE, location.mode());

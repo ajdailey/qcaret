@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -51,12 +52,16 @@ class PortableRunTest {
     Path home = Files.createDirectories(temp.resolve("home"));
     SettingsLocation location =
         SettingsLocation.resolve(
-            null, bundle.toString(), "Linux", Map.<String, String>of(), home.toString());
+            null,
+            bundle.toString(),
+            OsTraits.of("Linux"),
+            Map.<String, String>of(),
+            home.toString());
     assertEquals(SettingsMode.PORTABLE, location.mode());
     Map<Path, Long> before = files(temp);
     String userHome = System.getProperty("user.home");
     try {
-      PlatformSetup.apply("Linux", location);
+      PlatformSetup.apply(OsTraits.of("Linux"), location);
       assertEquals(ThemeMode.LIGHT, run(location, true));
       assertEquals(ThemeMode.DARK, run(location, false));
     } finally {

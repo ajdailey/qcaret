@@ -1,7 +1,8 @@
 package io.github.ajdailey.qcaret.app.config;
 
+import io.github.ajdailey.qcaret.core.util.os.EnvPaths;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -28,7 +29,7 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
     return resolve(
         explicit,
         System.getProperty("qcaret.home"),
-        System.getProperty("os.name"),
+        OsTraits.current(),
         System.getenv(),
         System.getProperty("user.home"));
   }
@@ -38,38 +39,21 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
    *
    * @param explicit the validated {@code --settings} directory, or null
    * @param home the {@code qcaret.home} property, or null outside a packaged run
-   * @param osName the {@code os.name} property
+   * @param os the system
    * @param env the process environment
    * @param userHome the {@code user.home} property
    * @return the location
    */
   public static SettingsLocation resolve(
-      Path explicit, String home, String osName, Map<String, String> env, String userHome) {
+      Path explicit, String home, OsTraits os, Map<String, String> env, String userHome) {
     if (explicit != null) {
       return new SettingsLocation(SettingsMode.EXPLICIT, explicit);
     }
-    Path installed = absolute(home);
+    Path installed = EnvPaths.absolute(home);
     if (installed != null && Files.isRegularFile(installed.resolve(MARKER))) {
       return new SettingsLocation(SettingsMode.PORTABLE, installed);
     }
-    Path user = Path.of(userHome);
-    Path dir;
-    if (osName.startsWith("Windows")) {
-      Path appData = absolute(env.get("APPDATA"));
-      if (appData == null) {
-        appData = user.resolve("AppData").resolve("Roaming");
-      }
-      dir = appData.resolve("QCaret");
-    } else if (osName.startsWith("Mac")) {
-      dir = user.resolve("Library").resolve("Application Support").resolve("QCaret");
-    } else {
-      Path xdg = absolute(env.get("XDG_CONFIG_HOME"));
-      if (xdg == null) {
-        xdg = user.resolve(".config");
-      }
-      dir = xdg.resolve("qcaret");
-    }
-    return new SettingsLocation(SettingsMode.PER_USER, dir);
+    return new SettingsLocation(SettingsMode.PER_USER, os.userSettings(env, Path.of(userHome)));
   }
 
   /**
@@ -77,32 +61,19 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
    * mode on Linux. There {@code user.home} is the settings directory and the user guide opens
    * outside the process, since WebKitGTK writes under the XDG cache and data directories.
    *
-   * @param osName the {@code os.name} property
+   * @param os the system
    * @return true in explicit and portable mode on Linux
    */
-  public boolean confined(String osName) {
-    return mode != SettingsMode.PER_USER && "Linux".equals(osName);
+  public boolean confined(OsTraits os) {
+    return mode != SettingsMode.PER_USER && os.confinesToSettings();
   }
 
   /**
-   * Reports {@link #confined(String)} for this process's {@code os.name}.
+   * Reports {@link #confined(OsTraits)} for this process's system.
    *
    * @return true in explicit and portable mode on Linux
    */
   public boolean confined() {
-    return confined(System.getProperty("os.name", ""));
-  }
-
-  /** Returns the value as a path when it is a non-empty absolute path, else null. */
-  private static Path absolute(String value) {
-    if (value == null || value.isEmpty() || value.indexOf('\0') >= 0) {
-      return null;
-    }
-    try {
-      Path path = Path.of(value);
-      return path.isAbsolute() ? path.normalize() : null;
-    } catch (InvalidPathException e) {
-      return null;
-    }
+    return confined(OsTraits.current());
   }
 }

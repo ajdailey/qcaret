@@ -1,7 +1,6 @@
 package io.github.ajdailey.qcaret.app.theme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -10,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -270,31 +268,5 @@ class FontFilesTest {
   @Test
   void aMissingFolderIsSkipped() {
     assertEquals(List.of(), FontFiles.monospaceFamilies(List.of(temp.resolve("absent"))));
-  }
-
-  @Test
-  void eachPlatformHasItsFolders() {
-    assertEquals(
-        List.of(Path.of("C:/Windows", "Fonts"), Path.of("C:/Local", "Microsoft/Windows/Fonts")),
-        FontFiles.directories(
-            "Windows 11", Map.of("WINDIR", "C:/Windows", "LOCALAPPDATA", "C:/Local"), "C:/home"));
-    assertEquals(
-        List.of(
-            Path.of("/System/Library/Fonts"),
-            Path.of("/Library/Fonts"),
-            Path.of("/home/mock/Library/Fonts")),
-        FontFiles.directories("Mac OS X", Map.<String, String>of(), "/home/mock"));
-    assertEquals(
-        List.of(
-            Path.of("/home/mock/.fonts"),
-            Path.of("/home/mock/.local/share/fonts"),
-            Path.of("/usr/local/share/fonts"),
-            Path.of("/usr/share/fonts")),
-        FontFiles.directories("Linux", Map.<String, String>of(), "/home/mock"));
-    List<Path> xdg =
-        FontFiles.directories(
-            "Linux", Map.of("XDG_DATA_HOME", "/d", "XDG_DATA_DIRS", "/a:/b"), "/home/mock");
-    assertTrue(xdg.containsAll(List.of(Path.of("/d/fonts"), Path.of("/a/fonts"))));
-    assertTrue(xdg.contains(Path.of("/b/fonts")));
   }
 }

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -169,6 +171,37 @@ class SafePathsTest {
     for (String path : List.of("C:\\docs\\console.txt", "context", "COM10", "notes.txt")) {
       assertFalse(SafePaths.windowsDevice(path), path);
     }
+  }
+
+  @Test
+  void deviceNamesAreRefusedOnlyOnWindows() throws IOException {
+    boolean windows = File.separatorChar == '\\';
+    for (String name : List.of("nul.txt", "COM1")) {
+      try {
+        assertEquals(temp.toRealPath().resolve(name), SafePaths.userFile(temp.resolve(name)));
+        assertFalse(windows, name);
+      } catch (IOException e) {
+        assertTrue(windows, name + ": " + e);
+        assertEquals("Path names a Windows device", e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  void deviceFormsAreCheckedWhereNamesOpenDevices() throws IOException {
+    final OsTraits windows = OsTraits.of("Windows 11");
+    IOException refused =
+        assertThrows(
+            IOException.class,
+            new Executable() {
+              @Override
+              public void execute() throws IOException {
+                SafePaths.checkForm("C:\\logs\\COM1", windows);
+              }
+            });
+    assertEquals("Path names a Windows device", refused.getMessage());
+    SafePaths.checkForm("C:\\logs\\COM1", OsTraits.of("Linux"));
+    SafePaths.checkForm("COM1", OsTraits.of("Mac OS X"));
   }
 
   @Test

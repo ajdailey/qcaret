@@ -1,6 +1,6 @@
 package io.github.ajdailey.qcaret.core.io;
 
-import java.io.File;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -195,13 +195,24 @@ public final class SafePaths {
   }
 
   private static void checkForm(String path) throws IOException {
+    checkForm(path, OsTraits.current());
+  }
+
+  /**
+   * Rejects an empty path, a NUL character, and a Windows device form where names open devices.
+   *
+   * @param path the path text
+   * @param os the system the path is for
+   * @throws IOException naming the reason
+   */
+  static void checkForm(String path, OsTraits os) throws IOException {
     if (path == null || path.isEmpty()) {
       throw new IOException("Empty path");
     }
     if (path.indexOf('\0') >= 0) {
       throw new IOException("Path contains a NUL character");
     }
-    if (File.separatorChar == '\\' && windowsDevice(path)) {
+    if (os.opensDeviceNames() && windowsDevice(path)) {
       throw new IOException("Path names a Windows device");
     }
   }

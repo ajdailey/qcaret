@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.bootstrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -33,5 +34,13 @@ class TargetTest {
         "QCaret supports Linux, Windows and macOS on x86_64 and aarch64; this Java reports"
             + " os.name=Linux, os.arch=riscv64.",
         Target.unsupportedMessage(osName, osArch));
+  }
+
+  @Test
+  void theCurrentTargetFollowsThisJvm() {
+    String osName = System.getProperty("os.name");
+    String osArch = System.getProperty("os.arch");
+    assertEquals(Target.of(osName, osArch), Target.current());
+    assertEquals(Target.unsupportedMessage(osName, osArch), Target.unsupportedMessage());
   }
 }

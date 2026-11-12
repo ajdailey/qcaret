@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.ipc.InstanceClient;
 import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -122,14 +123,16 @@ class LauncherTest {
     String home = System.getProperty("user.home");
     String saved = System.clearProperty(HomeFolder.PROPERTY);
     try {
-      PlatformSetup.apply("Windows 11", new SettingsLocation(SettingsMode.EXPLICIT, temp));
-      PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.PER_USER, temp));
+      PlatformSetup.apply(
+          OsTraits.of("Windows 11"), new SettingsLocation(SettingsMode.EXPLICIT, temp));
+      PlatformSetup.apply(OsTraits.of("Linux"), new SettingsLocation(SettingsMode.PER_USER, temp));
       assertEquals(home, System.getProperty("user.home"));
       assertNull(System.getProperty(HomeFolder.PROPERTY));
-      PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.EXPLICIT, temp));
+      PlatformSetup.apply(OsTraits.of("Linux"), new SettingsLocation(SettingsMode.EXPLICIT, temp));
       assertEquals(temp.toString(), System.getProperty("user.home"));
       Path portable = temp.resolve("portable");
-      PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.PORTABLE, portable));
+      PlatformSetup.apply(
+          OsTraits.of("Linux"), new SettingsLocation(SettingsMode.PORTABLE, portable));
       assertEquals(portable.toString(), System.getProperty("user.home"));
       assertEquals(home, System.getProperty(HomeFolder.PROPERTY));
     } finally {
@@ -147,13 +150,13 @@ class LauncherTest {
     String home = System.getProperty("user.home");
     try {
       System.clearProperty(PlatformSetup.EDGE_DATA_DIR);
-      PlatformSetup.apply("Linux", new SettingsLocation(SettingsMode.PER_USER, temp));
+      PlatformSetup.apply(OsTraits.of("Linux"), new SettingsLocation(SettingsMode.PER_USER, temp));
       assertNull(System.getProperty(PlatformSetup.EDGE_DATA_DIR));
 
       Path roaming = temp.resolve("roaming");
       SettingsLocation perUser =
           SettingsLocation.resolve(
-              null, null, "Windows 11", Map.of("APPDATA", roaming.toString()), home);
+              null, null, OsTraits.of("Windows 11"), Map.of("APPDATA", roaming.toString()), home);
       assertEquals(SettingsMode.PER_USER, perUser.mode());
       assertWebView2(roaming.resolve("QCaret"), perUser);
 
@@ -163,7 +166,7 @@ class LauncherTest {
           SettingsLocation.resolve(
               null,
               installed.toString(),
-              "Windows 11",
+              OsTraits.of("Windows 11"),
               Map.of("APPDATA", roaming.toString()),
               home);
       assertEquals(SettingsMode.PORTABLE, portable.mode());
@@ -182,7 +185,7 @@ class LauncherTest {
   }
 
   private static void assertWebView2(Path settings, SettingsLocation location) {
-    PlatformSetup.apply("Windows 11", location);
+    PlatformSetup.apply(OsTraits.of("Windows 11"), location);
     assertEquals(
         settings.resolve("cache").resolve("webview2").toString(),
         System.getProperty(PlatformSetup.EDGE_DATA_DIR));

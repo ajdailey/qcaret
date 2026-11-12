@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +41,7 @@ public final class PortableGuideMain {
    * @param args the bundle directory, which holds {@code qcaret.conf}
    */
   public static void main(String[] args) {
-    String os = System.getProperty("os.name");
+    OsTraits os = OsTraits.current();
     SettingsLocation location =
         SettingsLocation.resolve(
             null, args[0], os, System.getenv(), System.getProperty("user.home"));

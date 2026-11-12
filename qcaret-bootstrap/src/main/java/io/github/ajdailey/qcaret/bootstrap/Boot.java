@@ -43,11 +43,9 @@ public final class Boot {
    * @throws Exception when the launcher fails with an exception it does not handle
    */
   public static int start(String[] args) throws Exception {
-    String osName = System.getProperty("os.name");
-    String osArch = System.getProperty("os.arch");
-    Target target = Target.of(osName, osArch);
+    Target target = Target.current();
     if (target == null) {
-      System.err.println(Target.unsupportedMessage(osName, osArch));
+      System.err.println(Target.unsupportedMessage());
       return EXIT_UNSUPPORTED;
     }
     Path jar = ownJar();

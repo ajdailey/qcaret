@@ -55,7 +55,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `DigestsTest` | A file past the block size |
 | `ChecksumsTest` | Known vectors for all four algorithms (empty, `abc`), the million-`a` SHA-256 through file and text buffers, a generated file past three buffers, a cancel mid-file, a surrogate pair split across pieces in UTF-16LE, a char the charset cannot encode |
 | `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
-| `SafePathsTest` | The path rules, including the Windows device forms on every OS |
+| `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only |
+| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings and font folders per system |
 | `AtomicFilesTest`, `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 
 ### Editing commands

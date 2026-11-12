@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.ipc.InstanceClient;
 import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -92,7 +93,7 @@ public final class Launcher {
       }
     }
     SettingsLocation location = SettingsLocation.fromSystem(settings);
-    PlatformSetup.apply(System.getProperty("os.name"), location);
+    PlatformSetup.apply(OsTraits.current(), location);
     if (LOG.isInfoEnabled()) {
       LOG.info(
           "QCaret {} on Java {} from {}",

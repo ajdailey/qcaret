@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.util.Streams;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -49,13 +50,13 @@ public record AboutInfo(
   public static AboutInfo collect(String toolkit, SettingsLocation settings) {
     String java =
         System.getProperty("java.version") + " (" + System.getProperty("java.vendor") + ")";
-    String os =
-        System.getProperty("os.name")
-            + " "
-            + System.getProperty("os.version")
-            + " "
-            + System.getProperty("os.arch");
-    return new AboutInfo(Version.get(), java, os, toolkit, settings.directory(), settings.mode());
+    return new AboutInfo(
+        Version.get(),
+        java,
+        OsTraits.description(),
+        toolkit,
+        settings.directory(),
+        settings.mode());
   }
 
   /**

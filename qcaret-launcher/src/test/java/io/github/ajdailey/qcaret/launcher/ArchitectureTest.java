@@ -46,18 +46,23 @@ import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
 import java.beans.XMLDecoder;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.UncheckedIOException;
 import java.lang.reflect.AccessibleObject;
 import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -74,6 +79,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.junit.jupiter.api.BeforeAll;
@@ -1174,6 +1180,85 @@ class ArchitectureTest {
         ownedShellsTakeDialogColorsRule(),
         VIEW_FIXTURES + "CreatesShell",
         "new Shell without DialogSurfaces.apply");
+  }
+
+  // Operating system checks.
+
+  /**
+   * {@code os.name} is read only in {@code core.util.os}, whose {@code OsTraits} answers for it.
+   */
+  @Test
+  void osNameOnlyInTheOsSeam() {
+    osNameOnlyInTheOsSeamRule().check(classes);
+  }
+
+  private static ArchRule osNameOnlyInTheOsSeamRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackage(ROOT + ".core.util.os..")
+        .should(holdTheString("os.name"));
+  }
+
+  /** Core, app and the launcher ask no toolkit platform question. */
+  @Test
+  void noToolkitPlatformChecksOutsideTheViews() {
+    noToolkitPlatformChecksOutsideTheViewsRule().check(classes);
+  }
+
+  private static ArchRule noToolkitPlatformChecksOutsideTheViewsRule() {
+    return noClasses()
+        .that()
+        .resideInAnyPackage(CORE, APP, LAUNCHER)
+        .should()
+        .callMethod(SWT.class, "getPlatform")
+        .orShould(holdTheString("SWT_GTK4"));
+  }
+
+  @Test
+  void osRulesFailOnTheirFixtures() throws ClassNotFoundException {
+    assertViolations(osNameOnlyInTheOsSeamRule(), CONTROLLER_FIXTURES + "ReadsPlatform", "os.name");
+    assertViolations(
+        noToolkitPlatformChecksOutsideTheViewsRule(),
+        ROOT + ".launcher.archfixture.ToolkitChecks",
+        "SWT.getPlatform",
+        "SWT_GTK4");
+  }
+
+  /**
+   * Matches a class whose constant pool holds the text as a {@code CONSTANT_Utf8} entry: a string
+   * literal, or a constant inlined from another class.
+   */
+  private static ArchCondition<JavaClass> holdTheString(final String text) {
+    byte[] utf8 = text.getBytes(StandardCharsets.UTF_8);
+    final byte[] entry = new byte[utf8.length + 3];
+    entry[0] = 1;
+    entry[1] = (byte) (utf8.length >> 8);
+    entry[2] = (byte) utf8.length;
+    System.arraycopy(utf8, 0, entry, 3, utf8.length);
+    return new ArchCondition<JavaClass>("hold the string \"" + text + "\"") {
+      @Override
+      public void check(JavaClass type, ConditionEvents events) {
+        String file = type.getName().replace('.', '/') + ".class";
+        byte[] bytes;
+        try (InputStream in = ArchitectureTest.class.getClassLoader().getResourceAsStream(file)) {
+          if (in == null) {
+            throw new AssertionError("No class file " + file);
+          }
+          bytes = in.readAllBytes();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+        boolean holds = false;
+        for (int i = 0; !holds && i + entry.length <= bytes.length; i++) {
+          holds = Arrays.equals(bytes, i, i + entry.length, entry, 0, entry.length);
+        }
+        events.add(
+            new SimpleConditionEvent(
+                type,
+                holds,
+                type.getName() + (holds ? " holds" : " does not hold") + " \"" + text + "\""));
+      }
+    };
   }
 
   /**

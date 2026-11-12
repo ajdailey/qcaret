@@ -1,8 +1,8 @@
 package io.github.ajdailey.qcaret.core.workspace;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  */
 public final class NameFilter {
   /** True on Windows and macOS, whose default file systems ignore case. */
-  public static final boolean PLATFORM_IGNORES_CASE = ignoresCase(System.getProperty("os.name"));
+  public static final boolean PLATFORM_IGNORES_CASE = OsTraits.current().fileNamesIgnoreCase();
 
   /** Matches every name. */
   public static final NameFilter ALL = new NameFilter("", false, List.of());
@@ -26,17 +26,6 @@ public final class NameFilter {
     this.text = text;
     this.ignoreCase = ignoreCase;
     this.globs = globs;
-  }
-
-  /**
-   * Reports whether a platform's file names ignore case.
-   *
-   * @param osName the {@code os.name} property, or null
-   * @return true for Windows and macOS
-   */
-  static boolean ignoresCase(String osName) {
-    String name = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
-    return name.startsWith("windows") || name.startsWith("mac");
   }
 
   /**

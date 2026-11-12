@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,10 +103,11 @@ class ListingOptionsTest {
 
   @Test
   void windowsAndMacosIgnoreCase() {
-    assertTrue(NameFilter.ignoresCase("Windows 11"));
-    assertTrue(NameFilter.ignoresCase("Mac OS X"));
-    assertFalse(NameFilter.ignoresCase("Linux"));
-    assertFalse(NameFilter.ignoresCase(null));
+    assertTrue(OsTraits.of("Windows 11").fileNamesIgnoreCase());
+    assertTrue(OsTraits.of("Mac OS X").fileNamesIgnoreCase());
+    assertFalse(OsTraits.of("Linux").fileNamesIgnoreCase());
+    assertFalse(OsTraits.of(null).fileNamesIgnoreCase());
+    assertEquals(OsTraits.current().fileNamesIgnoreCase(), NameFilter.PLATFORM_IGNORES_CASE);
   }
 
   @Test

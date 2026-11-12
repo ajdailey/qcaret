@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.theme;
 
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -16,7 +17,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +49,6 @@ public final class FontFiles {
   static final int MAX_FAMILY_CHARS = 128;
 
   private static final Logger LOG = LoggerFactory.getLogger(FontFiles.class);
-  private static final String MAC_LIBRARIES = "/System/Library:/Library";
   private static final int TTC = 0x74746366;
   private static final int TRUE_TYPE = 0x00010000;
   private static final int APPLE_TRUE_TYPE = 0x74727565;
@@ -72,53 +71,6 @@ public final class FontFiles {
   private FontFiles() {}
 
   /**
-   * Returns the folders the platform keeps fonts in.
-   *
-   * @param osName the {@code os.name} property
-   * @param env the environment
-   * @param home the user's home directory
-   * @return the folders, which need not exist
-   */
-  public static List<Path> directories(String osName, Map<String, String> env, String home) {
-    List<Path> folders = new ArrayList<Path>();
-    String os = osName.toLowerCase(Locale.ROOT);
-    if (os.startsWith("windows")) {
-      addFolder(folders, env.get("WINDIR"), "Fonts");
-      addFolder(folders, env.get("LOCALAPPDATA"), "Microsoft/Windows/Fonts");
-    } else if (os.startsWith("mac")) {
-      for (String dir : MAC_LIBRARIES.split(":")) {
-        addFolder(folders, dir, "Fonts");
-      }
-      addFolder(folders, home, "Library/Fonts");
-    } else {
-      addFolder(folders, home, ".fonts");
-      String dataHome = env.get("XDG_DATA_HOME");
-      if (dataHome == null || dataHome.isEmpty()) {
-        addFolder(folders, home, ".local/share/fonts");
-      } else {
-        addFolder(folders, dataHome, "fonts");
-      }
-      String dataDirs = env.get("XDG_DATA_DIRS");
-      if (dataDirs == null || dataDirs.isEmpty()) {
-        dataDirs = "/usr/local/share:/usr/share";
-      }
-      for (String dir : dataDirs.split(":")) {
-        addFolder(folders, dir, "fonts");
-      }
-    }
-    return folders;
-  }
-
-  private static void addFolder(List<Path> folders, String base, String child) {
-    if (base != null && !base.isEmpty()) {
-      Path folder = Path.of(base).resolve(child);
-      if (!folders.contains(folder)) {
-        folders.add(folder);
-      }
-    }
-  }
-
-  /**
    * Scans this platform's font folders for monospace families.
    *
    * @return the family names, sorted, without duplicates
@@ -126,10 +78,7 @@ public final class FontFiles {
   @WorkerThread
   public static List<String> installedFamilies() {
     return monospaceFamilies(
-        directories(
-            System.getProperty("os.name", ""),
-            System.getenv(),
-            System.getProperty("user.home", "")));
+        OsTraits.current().fontDirectories(System.getenv(), System.getProperty("user.home", "")));
   }
 
   /**

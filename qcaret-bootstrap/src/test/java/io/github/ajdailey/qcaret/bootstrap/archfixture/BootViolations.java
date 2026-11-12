@@ -22,6 +22,13 @@ final class BootViolations {
     }
   }
 
+  /** Reads the OS name outside {@code Target}. */
+  static final class ReadsOsName {
+    String os() {
+      return System.getProperty("os.name");
+    }
+  }
+
   /** Ends the JVM. */
   static final class Exits {
     void exit() {

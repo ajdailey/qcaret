@@ -22,6 +22,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
@@ -491,8 +492,7 @@ class ResourceLeakTest {
   private void fontFamilies() {
     window.showLog("mock log");
     List<Path> folders =
-        FontFiles.directories(
-            System.getProperty("os.name"), System.getenv(), System.getProperty("user.home"));
+        OsTraits.current().fontDirectories(System.getenv(), System.getProperty("user.home"));
     for (String family : FontFiles.monospaceFamilies(folders)) {
       window.setFontFamily(family);
       break;
