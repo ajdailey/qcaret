@@ -73,6 +73,8 @@ class DialogSurfacesTest {
 
   @Test
   void win32ColorsEachControlClassUnderADarkStart() {
+    // cocoa reads a Shell background back as the system color whatever was set.
+    assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa reads back system colors");
     Shell owner = owner(ThemeMode.DARK);
     Shell dialog = new Shell(owner, SWT.DIALOG_TRIM);
     Win32DialogSurfaces.INSTANCE.apply(dialog);
@@ -112,6 +114,8 @@ class DialogSurfacesTest {
   /** Quick Open and the command palette fill their tables while open. */
   @Test
   void win32ColorsAControlCreatedAfterTheDialogShows() {
+    // cocoa reads a Shell background back as the system color whatever was set.
+    assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa reads back system colors");
     Shell dialog = new Shell(owner(ThemeMode.DARK), SWT.DIALOG_TRIM);
     Win32DialogSurfaces.INSTANCE.apply(dialog);
     dialog.open();
