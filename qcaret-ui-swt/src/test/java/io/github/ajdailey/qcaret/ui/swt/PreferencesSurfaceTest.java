@@ -17,11 +17,14 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -182,6 +185,73 @@ class PreferencesSurfaceTest {
     assertEquals(List.of(), controller.settings().current().state().directories());
     assertEquals(List.of(), controller.settings().current().state().masks());
     assertEquals(List.of(), controller.settings().current().state().replacements());
+  }
+
+  private boolean fileHasHistory() {
+    try {
+      Path conf = temp.resolve("qcaret.conf");
+      return Files.exists(conf) && Files.readString(conf).contains("search.history.text.0=needle");
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
+  /**
+   * A directory at {@code qcaret.conf} fails the read and the write without making the settings
+   * directory read-only, which would turn saving off for the process.
+   */
+  @Test
+  void aClearHistoryTheFileRefusesSaysSoKeepsTheSettingsAndARetryClearsIt() throws Exception {
+    Preferences current = controller.settings().current();
+    controller
+        .settings()
+        .set(
+            current
+                .withOptions(current.options().withCompletionChars(3))
+                .withState(current.state().withHistory(List.of("needle"), List.of(), List.of())));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return fileHasHistory();
+          }
+        });
+    PreferencesDialog dialog = dialog();
+    Path conf = temp.resolve("qcaret.conf");
+    byte[] saved = Files.readAllBytes(conf);
+    Files.delete(conf);
+    Path blocker = Files.createDirectory(conf).resolve("blocker");
+    Files.writeString(blocker, "x");
+    dialog.askClearHistory().clear();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return UiText.PREFERENCES_HISTORY_NOT_REMOVED.text().equals(window.noticeText());
+          }
+        });
+    assertEquals(3, controller.preferences().options().completionChars());
+    assertEquals(List.of(), controller.settings().current().state().texts());
+    Files.delete(blocker);
+    Files.delete(conf);
+    Files.write(conf, saved);
+    window.showNotice("");
+    dialog.askClearHistory().clear();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !fileHasHistory();
+          }
+        });
+    assertEquals(List.of(), controller.settings().current().state().texts());
+    assertEquals(3, controller.preferences().options().completionChars());
+    assertEquals("", window.noticeText());
+    dialog.shell().dispose();
+  }
+
+  private void await(BooleanSupplier condition) {
+    assertTrue(EventLoop.runUntil(display, condition, BOUND), window.noticeText());
   }
 
   @Test

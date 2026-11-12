@@ -26,6 +26,12 @@ import org.slf4j.LoggerFactory;
 public final class Settings {
   private static final Logger LOG = LoggerFactory.getLogger(Settings.class);
 
+  /**
+   * What a refresh read: the file's settings, null when they cannot be used, and whether the file
+   * could not be read or parsed while saving is on.
+   */
+  private record Read(Preferences settings, boolean invalid) {}
+
   /** Called on the UI thread after the settings changed. */
   public interface Listener {
     /**
@@ -53,6 +59,12 @@ public final class Settings {
   private boolean behind;
 
   private Preferences current;
+
+  /** A refresh found the file unreadable or malformed and no caller took it yet; UI thread. */
+  private boolean unreadable;
+
+  /** {@link #takeUnreadable} has answered true once this run; UI thread. */
+  private boolean unreadableTaken;
 
   Settings(ConfigStore config, Workers workers, UiDispatcher ui, Preferences initial) {
     this.config = config;
@@ -212,8 +224,8 @@ public final class Settings {
 
   /**
    * Saves what is queued, reads the file on a worker and takes up what another process changed; the
-   * listeners hear of it like any change. A failed save or a read-only directory keeps the running
-   * settings, which the file lags.
+   * listeners hear of it like any change. A failed save, a read-only directory or a file that
+   * cannot be read or parsed keeps the running settings, which the file lags.
    *
    * @param done runs on the UI thread at the end, also when the workers are closed
    */
@@ -225,12 +237,13 @@ public final class Settings {
             new Runnable() {
               @Override
               public void run() {
-                final Preferences read = read();
+                final Read read = read();
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
-                        adopt(requested, read);
+                        unreadable |= read.invalid();
+                        adopt(requested, read.settings());
                         done.run();
                       }
                     });
@@ -241,14 +254,31 @@ public final class Settings {
     }
   }
 
-  /** Returns the file's settings once the queue is written, or null when they cannot be used. */
+  /**
+   * Reports, once per run, that a refresh found the file unreadable or malformed while saving is
+   * on.
+   *
+   * @return true the first time after such a refresh
+   */
+  boolean takeUnreadable() {
+    if (!unreadable || unreadableTaken) {
+      return false;
+    }
+    unreadableTaken = true;
+    return true;
+  }
+
+  /** Reads the file once the queue is written. */
   @WorkerThread
-  private Preferences read() {
+  private Read read() {
     saveLock.lock();
     try {
       drain();
-      Preferences read = config.load();
-      return behind || config.saveDisabled() ? null : read;
+      Preferences read = config.reload();
+      if (config.saveDisabled()) {
+        return new Read(null, false);
+      }
+      return new Read(behind ? null : read, read == null);
     } finally {
       saveLock.unlock();
     }

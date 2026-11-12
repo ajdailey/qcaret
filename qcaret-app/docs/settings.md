@@ -36,6 +36,7 @@ thread, apart from the first load before the Display:
 | Call | Effect |
 |---|---|
 | `load()` | Reads the file |
+| `reload()` | As `load`, but null for a file that cannot be read or parsed |
 | `save(before, after)` | Re-reads the file and writes only the keys that differ between the two settings, so another process's newer values and unknown keys stay. No difference writes nothing. A missing or malformed file gets every key of `after` |
 
 `merge(base, theirs, mine)` applies the keys that differ from `base` to
@@ -69,7 +70,10 @@ that brings each running window in line, whatever the change's source.
 
 `refresh` drains the queue, loads the file on a worker and takes up what
 another process changed; a change made meanwhile survives through `merge`. A
-failed save or a read-only directory keeps the running settings.
+failed save, a read-only directory or a file that cannot be read or parsed
+keeps the running settings. `takeUnreadable` is true once per run after a
+refresh found the file unreadable while saving is on; `PreferencesController`
+then shows a notice when Preferences opens or Clear History runs.
 
 ## Preferences dialog
 

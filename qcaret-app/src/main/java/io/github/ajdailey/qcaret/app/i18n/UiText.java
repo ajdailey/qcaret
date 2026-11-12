@@ -427,6 +427,8 @@ public enum UiText {
   PREFERENCES_HISTORY_NOT_REMOVED,
   /** Clear History in an instance beside the one that owns the session. */
   PREFERENCES_HISTORY_SESSION_OWNED,
+  /** Notice, once per run, when a refresh finds the settings file unreadable or malformed. */
+  PREFERENCES_FILE_UNREADABLE,
   /** Button. */
   BUTTON_CLEAR_HISTORY,
   /** Button. */
@@ -1012,6 +1014,10 @@ public enum UiText {
   WORKSPACE_RENAME,
   /** Workspace browser menu item. */
   WORKSPACE_DELETE,
+  /** Workspace browser row tool tip line; the file's size. */
+  WORKSPACE_TIP_SIZE,
+  /** Workspace browser row tool tip line; the modified date and time. */
+  WORKSPACE_TIP_MODIFIED,
   /** New File window title. */
   NEW_FILE_TITLE,
   /** New Folder window title. */

@@ -30,7 +30,8 @@ Preferences, Keys changes them.
 
 Open files with File > Open (`Ctrl+O`), File > Recent Files (the last 20),
 [Quick Open](#quick-open), the workspace browser, the
-[command line](#command-line), or by dropping them on the window. Each file
+[command line](#command-line), or by dropping them on the window, where a
+dropped folder is ignored. Each file
 opens in its own tab; a file already open selects its tab, in any window. File >
 New (`Ctrl+N`) opens an untitled document. File > Reopen Closed Tab
 (`Ctrl+Shift+T`) opens the last closed tab's file again, up to 20 back, where
@@ -466,9 +467,11 @@ Preferences, Files sets the interval and can make a clean document ask too.
 
 File > Set Workspace Folder gives each window one folder, the scope of
 HyperSearch's Workspace folder and of Quick Open's file list. View > Workspace
-Browser shows its tree. Enter or a double click opens a file. The icons above
-the tree show their names when you hover over them. Tab reaches each icon and
-Space runs it. Refresh lists the folder
+Browser shows its tree. Enter or a double click opens a file, and so does
+dragging it onto the editor, the tabs or anywhere on a QCaret window; a drag to
+another program copies the file. Hover over a row for its full path, size and
+modified date and time. The icons above the tree show their names when you
+hover over them. Tab reaches each icon and Space runs it. Refresh lists the folder
 again, Reveal Active File selects the current document's file, and Hide Browser
 hides the browser. A
 row's menu offers Open in Default Application, Set as Workspace Folder and Copy
@@ -485,7 +488,7 @@ folder. Parent Folder and Home Folder move up and home; Workspace Folder shows
 the workspace folder again. Favorites lists your favorite folders and adds or
 removes the shown one. The filter field takes patterns such as `*.java;*.md`
 and applies to files, not folders; it ignores case on Windows and macOS. Hidden
-lists hidden entries. Modified shows the date; hover over it for the time. Click
+lists hidden entries. Modified shows the date. Click
 a column header to sort by name, size or modified time, and again to reverse.
 Each window keeps its shown folder, filter and Hidden setting in the session. A change made in one window's browser shows in every window's.
 
@@ -740,6 +743,10 @@ system's HTML application instead of its own window, because the embedded
 browser writes under `~/.cache` and `~/.local/share`. The one write left outside
 the settings directory is an empty `~/.config/ibus/bus`, which the GTK input
 method module creates.
+
+When Preferences or Clear History finds `qcaret.conf` unreadable or not valid,
+the running settings stay and a notice says so once per run. The next save
+first copies the file to `qcaret.conf.invalid` in the same directory.
 
 ## Help and logs
 

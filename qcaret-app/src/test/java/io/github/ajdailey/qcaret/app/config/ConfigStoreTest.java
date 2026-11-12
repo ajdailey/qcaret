@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.config;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -214,6 +215,19 @@ class ConfigStoreTest {
     assertEquals(Preferences.DEFAULTS, store.load());
     assertTrue(store.save(Preferences.DEFAULTS, Preferences.DEFAULTS));
     assertTrue(Files.exists(invalid()));
+  }
+
+  @Test
+  void aReloadGivesNullForAFileItCannotReadOrParse() throws IOException {
+    ConfigStore store = store(temp);
+    assertEquals(Preferences.DEFAULTS, store.reload());
+    Files.writeString(conf(), "version=1\nui.theme=dark\n");
+    assertEquals(DARK.theme(), store.reload().theme());
+    Files.writeString(conf(), "version=2\nui.theme=dark\n");
+    assertNull(store.reload());
+    Files.delete(conf());
+    Files.writeString(Files.createDirectory(conf()).resolve("mock"), "x");
+    assertNull(store.reload());
   }
 
   @Test

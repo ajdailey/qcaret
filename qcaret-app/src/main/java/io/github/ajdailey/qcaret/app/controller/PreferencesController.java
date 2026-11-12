@@ -49,6 +49,7 @@ final class PreferencesController implements PreferencesInput {
         new Runnable() {
           @Override
           public void run() {
+            noticeUnreadable();
             view.showPreferences(PreferencesController.this);
           }
         });
@@ -267,9 +268,16 @@ final class PreferencesController implements PreferencesInput {
         new Runnable() {
           @Override
           public void run() {
+            noticeUnreadable();
             removeHistory();
           }
         });
+  }
+
+  private void noticeUnreadable() {
+    if (settings.takeUnreadable()) {
+      view.showNotice(UiText.PREFERENCES_FILE_UNREADABLE.text());
+    }
   }
 
   private void removeHistory() {

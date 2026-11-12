@@ -615,6 +615,35 @@ class PreferencesControllerTest {
     }
   }
 
+  private int unreadableNotices() {
+    int count = 0;
+    for (String notice : harness.view.notices) {
+      if (notice.equals(UiText.PREFERENCES_FILE_UNREADABLE.text())) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  @Test
+  void aMalformedFileKeepsTheSettingsAndShowsOneNoticePerRun() throws Exception {
+    Preferences mine = harness.application.settings().current();
+    Files.writeString(temp.resolve("settings").resolve("qcaret.conf"), "version=2\n");
+    input();
+    assertEquals(1, unreadableNotices());
+    assertEquals(mine, harness.application.settings().current());
+    input();
+    assertEquals(1, unreadableNotices());
+  }
+
+  @Test
+  void aMissingFileShowsNoUnreadableNotice() throws Exception {
+    assertFalse(Files.exists(temp.resolve("settings").resolve("qcaret.conf")));
+    input();
+    input();
+    assertEquals(0, unreadableNotices());
+  }
+
   @Test
   void clearingNothingOnAReadOnlyDirectoryShowsNoNotice() throws Exception {
     assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");

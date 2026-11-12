@@ -113,6 +113,21 @@ public final class ConfigStore {
   }
 
   /**
+   * Reads the settings again, as {@link #load}, for a process that already runs on them. Blocking.
+   *
+   * @return the settings; defaults when the file is missing, null when it cannot be read or parsed
+   */
+  public Preferences reload() {
+    lock.lock();
+    try {
+      Preferences read = load();
+      return keepInvalid ? null : read;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /**
    * Writes the keys that differ between two settings over the file's current keys, atomically,
    * creating a per-user directory first, and replaces a legacy {@code ui.themeFile} line with
    * {@code ui.editorColors}. Does nothing when no key differs, the file is valid and holds no

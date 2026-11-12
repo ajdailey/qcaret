@@ -293,23 +293,17 @@ class EditingSurfaceTest {
     assertEquals(
         String.join("\n", List.of("012345", "", "012345", "", "012345", "", "012345")),
         window.clipboardText().replace("\r\n", "\n"));
+    // GTK 4 keeps the 700-pixel window: scroll column 150 to the middle of the view.
     text.setHorizontalIndex(0);
     drain();
-    Point at = text.getLocationAtOffset(150);
-    assumeTrue(at.x + 60 < text.getClientArea().width, "column 150 is off screen");
-    Point size = text.getSize();
-    Image image = new Image(display, size.x, size.y);
-    GC gc = new GC(image);
-    boolean printed;
-    try {
-      printed = text.print(gc);
-    } finally {
-      gc.dispose();
+    int width = text.getClientArea().width;
+    if (text.getLocationAtOffset(150).x + 60 >= width) {
+      text.setHorizontalPixel(text.getLocationAtOffset(150).x - width / 2);
+      drain();
     }
-    // Control.print returns false under GTK 4 (SWT issue 2819: no offscreen draw of a control).
-    assumeTrue(printed, "Control.print not supported here");
-    ImageData data = image.getImageData();
-    image.dispose();
+    Point at = text.getLocationAtOffset(150);
+    assertTrue(at.x + 60 < width, "column 150 at " + at.x + " of " + width);
+    ImageData data = print(text);
     Rgb back = Palette.LIGHT.selection();
     RGB selection = new RGB(back.red(), back.green(), back.blue());
     ColumnMetrics metrics = pane.metrics();
@@ -325,7 +319,7 @@ class EditingSurfaceTest {
     assertEquals(selection, data.palette.getRGB(data.getPixel(inside, shortRow + half)));
     // A resize and a horizontal scroll keep the block and its painting past the line ends.
     window.shell().setSize(980, 420);
-    text.setHorizontalPixel(Math.max(0, at.x - 620));
+    text.setHorizontalPixel(Math.max(0, at.x + text.getHorizontalPixel() - 620));
     screenshot("block-selection");
     drain();
     assertEquals(new BlockSelection(0, 150, 6, 156), editor().selections().block());
@@ -334,18 +328,34 @@ class EditingSurfaceTest {
     assertEquals(selection, scrolled.palette.getRGB(scrolled.getPixel(x, shortRow + half)));
   }
 
+  /**
+   * Paints the widget into an image. Where {@code Control.print} fails (GTK 4, SWT issue 2819), a
+   * Paint event over the client area runs the widget's own painting and the editor's paint
+   * listeners on the image instead.
+   */
   private ImageData print(StyledText text) {
     Point size = text.getSize();
     Image image = new Image(display, size.x, size.y);
-    GC gc = new GC(image);
     try {
-      text.print(gc);
+      GC gc = new GC(image);
+      try {
+        if (!text.print(gc)) {
+          Rectangle area = text.getClientArea();
+          Event paint = new Event();
+          paint.gc = gc;
+          paint.x = area.x;
+          paint.y = area.y;
+          paint.width = area.width;
+          paint.height = area.height;
+          text.notifyListeners(SWT.Paint, paint);
+        }
+      } finally {
+        gc.dispose();
+      }
+      return image.getImageData();
     } finally {
-      gc.dispose();
+      image.dispose();
     }
-    ImageData data = image.getImageData();
-    image.dispose();
-    return data;
   }
 
   private static int firstSelected(ImageData data, RGB color, int y, int from, int to) {
