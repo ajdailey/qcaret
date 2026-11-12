@@ -486,6 +486,14 @@ Path. Open in Default Application refuses a file the system would run.
 The row menu also changes files; right-click empty space in the browser to act
 on the shown folder itself.
 
+Ctrl-click (Cmd-click on macOS) adds or removes a row, and Shift-click selects
+a range. With several rows selected, Open, Open in Default Application and
+dragging take every selected file, and Open in Default Application asks first
+for more than 10 files; Copy Path copies every path, one per line;
+Delete deletes every selected file and folder after one prompt. New File, New
+Folder, Set as Workspace Folder and Enter act on the row you clicked last.
+Search in Folder and Rename take one row.
+
 The browser can show any folder without changing the workspace folder, which
 stays the scope of Quick Open and HyperSearch. The path field shows the shown
 folder; hover over it to see whether that is the workspace folder. Type a path

@@ -49,6 +49,14 @@ public interface WorkspaceView {
   void askDelete(String message, Runnable delete);
 
   /**
+   * Asks before opening many files in their default applications, with Cancel the default.
+   *
+   * @param count the files
+   * @param open runs when the user confirms
+   */
+  void askOpenMany(int count, Runnable open);
+
+  /**
    * Shows the Quick Open popup: a filter field over the rows {@link QuickOpenInput#rows} returns.
    *
    * @param input the popup's controller

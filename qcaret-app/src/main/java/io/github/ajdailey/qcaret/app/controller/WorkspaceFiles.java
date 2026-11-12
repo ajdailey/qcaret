@@ -22,7 +22,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
 /**
@@ -34,17 +33,12 @@ import java.util.function.Consumer;
  * <p>Rename moves every open document under the entry, in every window, through {@link PathMove},
  * and the Recent Files entries and the remembered state of closed files with them. From the moment
  * the name is accepted until the move lands or fails, {@link DocumentsUnder#hold} keeps Save, Save
- * As onto the entry and reload from writing or reading the source path. Delete is permanent: the
- * prompt names the entry, counts a folder's contents first and lists the open documents under it
- * with unsaved changes; afterwards those documents are checked, which marks a deleted file missing.
- * The workspace folder follows a rename and is cleared by a finished delete ({@link
- * WorkspaceController#moved}, {@link WorkspaceController#deleted}). Rename and Delete refuse while
- * a save, a reload or a change prompt holds a document under the entry.
+ * As onto the entry and reload from writing or reading the source path. The workspace folder
+ * follows a rename ({@link WorkspaceController#moved}). Delete of one entry or several runs in
+ * {@link SelectionDelete}. Rename and Delete refuse while a save, a reload or a change prompt holds
+ * a document under the entry.
  */
 final class WorkspaceFiles implements WorkspaceFilesInput {
-  /** Unsaved document names the delete prompt lists before "and N more". */
-  static final int LISTED_NAMES = 10;
-
   private final WorkspaceController workspace;
   private final MainView view;
   private final Workers workers;
@@ -54,12 +48,10 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
   private final SessionController session;
   private final SearchController search;
   private final CancellationToken token = new CancellationToken();
+  private final SelectionDelete many;
 
   /** Runs on the worker just before a rename moves the entry; a test seam, null otherwise. */
   private volatile Runnable beforeRename;
-
-  /** What a worker found about an entry before a rename or a delete. */
-  record Found(BrowserPath entry, boolean folder, FileOperations.Counts counts) {}
 
   WorkspaceFiles(
       WorkspaceController workspace,
@@ -78,6 +70,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     this.recent = recent;
     this.session = session;
     this.search = search;
+    this.many = new SelectionDelete(this, workspace, view, workers, ui, token);
   }
 
   void setBeforeRename(Runnable hook) {
@@ -107,7 +100,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
   }
 
   /** Returns this window and every other window holding a document. */
-  private List<DocumentController> windows() {
+  List<DocumentController> windows() {
     List<DocumentController> holders = new ArrayList<DocumentController>();
     holders.add(documents);
     for (Document document : documents.documentsAnywhere()) {
@@ -119,12 +112,12 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     return holders;
   }
 
-  private boolean below(WorkspaceNode node) {
+  boolean below(WorkspaceNode node) {
     Path root = workspace.shownFolder();
     return root != null && node.path().startsWith(root) && !node.path().equals(root);
   }
 
-  private static boolean entry(WorkspaceNode node) {
+  static boolean entry(WorkspaceNode node) {
     return node.kind() == WorkspaceNode.Kind.FILE
         || node.kind() == WorkspaceNode.Kind.DIRECTORY
         || node.kind() == WorkspaceNode.Kind.CYCLE;
@@ -352,7 +345,10 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     return entry.toRealPath();
   }
 
-  private boolean busy(BrowserPath entry) {
+  /**
+   * Shows a notice and returns true while a save, a reload or a prompt holds a document under it.
+   */
+  boolean busy(BrowserPath entry) {
     for (DocumentController window : windows()) {
       if (window.under().busyUnder(entry)) {
         view.showNotice(UiText.FILE_BUSY.format(entry.path().getFileName()));
@@ -366,145 +362,17 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
 
   @Override
   public void delete(WorkspaceNode node) {
-    if (token.isCanceled() || !entry(node) || !below(node)) {
-      return;
-    }
-    final Path path = node.path();
-    view.setActive();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                Found found = null;
-                String error = null;
-                try {
-                  Path real = realUnlessLink(path);
-                  boolean folder = real != null && FileOperations.plainDirectory(path);
-                  found =
-                      new Found(
-                          new BrowserPath(path, real),
-                          folder,
-                          folder ? FileOperations.count(path, token) : null);
-                } catch (IOException e) {
-                  error = LogText.oneLine(e.getMessage());
-                } catch (CancellationException e) {
-                  error = null;
-                }
-                final Found result = found;
-                final String failure = error;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        view.setIdle();
-                        counted(path, result, failure);
-                      }
-                    });
-              }
-            });
-    if (!started) {
-      view.setIdle();
-    }
+    deleteAll(List.of(node));
   }
 
-  private void counted(Path path, final Found found, String error) {
-    if (token.isCanceled()) {
-      return;
-    }
-    if (found == null) {
-      if (error != null) {
-        view.showInfo(
-            UiText.DELETE_TITLE.text(), UiText.DELETE_UNREADABLE.format(path.getFileName(), error));
-      }
-      return;
-    }
-    if (busy(found.entry())) {
-      return;
-    }
-    List<String> dirty = new ArrayList<String>();
-    for (DocumentController window : windows()) {
-      dirty.addAll(window.under().dirtyUnder(found.entry()));
-    }
-    view.askDelete(
-        question(found, dirty),
-        new Runnable() {
-          @Override
-          public void run() {
-            deleteNow(found);
-          }
-        });
-  }
-
-  /** Returns the delete prompt: what goes, that it cannot be undone, the unsaved documents. */
-  static String question(Found found, List<String> dirty) {
-    String name = String.valueOf(found.entry().path().getFileName());
-    String text;
-    if (found.folder()) {
-      text =
-          UiText.DELETE_FOLDER_MESSAGE.format(
-              name, found.counts().files(), found.counts().folders());
-    } else if (found.entry().real() == null) {
-      text = UiText.DELETE_LINK_MESSAGE.format(name);
-    } else {
-      text = UiText.DELETE_FILE_MESSAGE.format(name);
-    }
-    if (dirty.isEmpty()) {
-      return text;
-    }
-    List<String> shown = dirty.subList(0, Math.min(LISTED_NAMES, dirty.size()));
-    String names = String.join(", ", shown);
-    if (dirty.size() > shown.size()) {
-      names += ", +" + (dirty.size() - shown.size());
-    }
-    return text + "\n\n" + UiText.DELETE_UNSAVED.format(names);
-  }
-
-  private void deleteNow(final Found found) {
-    final Path path = found.entry().path();
-    view.setActive();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final FileOperations.Deleted result = FileOperations.delete(path, token);
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        view.setIdle();
-                        deleted(found, result);
-                      }
-                    });
-              }
-            });
-    if (!started) {
-      view.setIdle();
-    }
-  }
-
-  private void deleted(Found found, FileOperations.Deleted result) {
-    for (DocumentController window : windows()) {
-      window.under().deleted(found.entry());
-    }
-    if (result.done()) {
-      workspace.following().deleted(found.entry());
-    }
-    Path path = found.entry().path();
-    boolean folder = found.folder() || found.entry().real() == null;
-    workspace.changed(path.getParent(), path, null, folder, null);
-    if (!result.done() && !token.isCanceled()) {
-      view.showInfo(
-          UiText.DELETE_TITLE.text(),
-          UiText.DELETE_FAILED.format(
-              path.getFileName(),
-              result.failed(),
-              LogText.oneLine(result.error()),
-              result.remaining().files(),
-              result.remaining().folders()));
+  /**
+   * Asks once, then deletes entries permanently; see {@link SelectionDelete}.
+   *
+   * @param nodes file or directory rows below the shown folder
+   */
+  void deleteAll(List<WorkspaceNode> nodes) {
+    if (!token.isCanceled()) {
+      many.delete(nodes);
     }
   }
 }

@@ -1000,6 +1000,16 @@ final class FakeView implements MainView {
     deleteAccept = delete;
   }
 
+  int openManyAsked;
+  Runnable openManyAccept;
+
+  @Override
+  public void askOpenMany(int count, Runnable open) {
+    ui.checkUiThread();
+    openManyAsked = count;
+    openManyAccept = open;
+  }
+
   @Override
   public void showQuickOpen(QuickOpenInput input) {
     ui.checkUiThread();

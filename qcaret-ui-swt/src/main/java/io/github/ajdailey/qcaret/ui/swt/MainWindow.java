@@ -249,6 +249,7 @@ public final class MainWindow implements MainView {
   private BookmarkCommentDialog commentDialog;
   private FileNameDialog fileNameDialog;
   private DeleteDialog deleteDialog;
+  private OpenManyDialog openManyDialog;
   private SearchDialog searchDialog;
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
@@ -2520,6 +2521,23 @@ public final class MainWindow implements MainView {
       deleteDialog = new DeleteDialog(shell, message, delete);
       deleteDialog.open();
     }
+  }
+
+  @Override
+  public void askOpenMany(int count, Runnable open) {
+    if (!shell.isDisposed()) {
+      openManyDialog = new OpenManyDialog(shell, count, open);
+      openManyDialog.open();
+    }
+  }
+
+  /**
+   * Returns the last Open in Default Application prompt for many files.
+   *
+   * @return the dialog, or null before one opened
+   */
+  OpenManyDialog openManyDialog() {
+    return openManyDialog;
   }
 
   @Override

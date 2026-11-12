@@ -82,6 +82,13 @@ public interface WorkspaceInput {
    */
   WorkspaceBrowseInput browse();
 
+  /**
+   * Returns the row menu and keys over the selected rows.
+   *
+   * @return what enables and runs them
+   */
+  WorkspaceSelectionInput selection();
+
   /** Lists the selected document's directories and selects its row. */
   void revealActive();
 

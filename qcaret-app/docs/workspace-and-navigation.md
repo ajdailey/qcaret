@@ -38,6 +38,32 @@ hidden entries and `workspace.excludedDirectories`; a change of
   by extension (`Files.isExecutable` is true for every readable file there),
   elsewhere by the executable bit, read on a worker.
 
+## Several selected rows
+
+`WorkspaceSelection` enables and runs the row menu and keys over the rows the
+view reports selected, with the focused row; an empty selection stands for the
+shown folder.
+
+| Action | Several rows selected |
+|---|---|
+| Open, Open in Default Application | every selected file; folders are left out; Open in Default Application asks first above 10 files (`OPEN_UNASKED`) |
+| Copy Path | every selected file and folder path, one per line (`System.lineSeparator()`) |
+| Search in Folder, Rename | disabled |
+| New File, New Folder, Set as Workspace Folder | the focused row, when it is a directory |
+| Delete | every selected entry below the shown folder, after one prompt (`SelectionDelete`) |
+| Enter, double click | the focused row |
+| Drag | every selected file (`BrowserDrag`) |
+
+`SelectionDelete` runs Delete for one entry or several and leaves out an entry
+under another selected entry. A worker reads each entry and counts each
+folder's contents; an entry that cannot be read refuses the whole delete. For
+several entries the prompt names the count, the first ten names then `+N`, the
+folders' contents ("alpha holds 1 file.", "The 2 folders hold 3 files and 1
+folder.", a zero part left out), that links go as links, and the unsaved open
+documents under any entry. A second worker deletes the entries in order; an
+entry that stops partway does not stop the others, and one message reports
+every stop. Each entry then settles as described under Delete below.
+
 ## Browsing other folders
 
 `WorkspaceBrowse` shows another folder in the tree without changing the
@@ -75,8 +101,8 @@ operation under the workspace folder.
 
 ## Browser file operations
 
-`WorkspaceFiles` runs the row menu's Search in Folder, New File, New Folder,
-Rename and Delete. Rename and Delete apply to a row below the shown folder,
+`WorkspaceFiles` runs the row menu's Search in Folder, New File, New Folder and
+Rename, and `SelectionDelete` runs Delete. Rename and Delete apply to a row below the shown folder,
 New File and New Folder to a directory row or the shown folder itself (the menu
 over empty space). Names are checked on the UI thread, files are touched on
 `qcaret-io-` workers (`FileOperations` in qcaret-core), and no operation follows a symbolic

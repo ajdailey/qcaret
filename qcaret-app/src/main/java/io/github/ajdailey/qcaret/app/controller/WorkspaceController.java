@@ -39,10 +39,11 @@ import java.util.function.Consumer;
  * shows {@value #PAGE} entries at a time behind a "more" row. Refresh, and a filter, hidden or sort
  * change, list every listed directory again, keeping the old rows until the new ones arrive;
  * Refresh also rebuilds the index. A new shown folder drops every listing, so a listing still
- * running is canceled and its result dropped. The row menu's file operations run in {@link
- * WorkspaceFiles}; after one, or a Refresh, every other window's browser lists the directories it
- * shows again ({@link BrowserWindows}). A rename of the workspace folder or a parent moves the
- * workspace in every window ({@link #follow}); a delete of either clears it ({@link #clearUnder}).
+ * running is canceled and its result dropped. The row menu over the selected rows runs through
+ * {@link WorkspaceSelection}, its file operations in {@link WorkspaceFiles}; after one, or a
+ * Refresh, every other window's browser lists the directories it shows again ({@link
+ * BrowserWindows}). A rename of the workspace folder or a parent moves the workspace in every
+ * window ({@link #follow}); a delete of either clears it ({@link #clearUnder}).
  *
  * <p>The file index ({@link FileIndex}, at most {@link FileIndex#MAX_FILES} files, charged to the
  * {@link MemoryBudget}) is built on a {@code qcaret-search-} worker whenever the folder changes and
@@ -81,6 +82,7 @@ public final class WorkspaceController implements WorkspaceInput {
   private WorkspaceBrowse browse;
   private BrowserWindows peers;
   private final WorkspaceFollow following;
+  private final WorkspaceSelection selection;
 
   /** The folder the browser shows instead of the workspace folder; null for the workspace. */
   private Path browsed;
@@ -118,6 +120,7 @@ public final class WorkspaceController implements WorkspaceInput {
     this.documents = documents;
     this.budget = budget;
     this.following = new WorkspaceFollow(this, view);
+    this.selection = new WorkspaceSelection(this, view, documents);
   }
 
   /**
@@ -247,6 +250,11 @@ public final class WorkspaceController implements WorkspaceInput {
   @Override
   public WorkspaceBrowse browse() {
     return browse;
+  }
+
+  @Override
+  public WorkspaceSelection selection() {
+    return selection;
   }
 
   /** Joins the windows whose browsers follow each other's changes. */

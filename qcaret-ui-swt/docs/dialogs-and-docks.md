@@ -143,20 +143,26 @@ the dialog cancels a running match.
   which asks `WorkspaceInput.expand` to list it; the listed rows replace the
   placeholder on `workspaceChanged`, and a refill keeps the expansion of rows
   that remain.
-- Enter or a double click opens a file, shows more entries on a "more" row and
-  toggles a directory.
+- The tree is `SWT.MULTI`: Ctrl-click (Cmd-click on macOS) toggles a row and
+  Shift-click selects a range. `BrowserSelection` passes the selected rows and
+  the focused row to `WorkspaceSelectionInput`, which enables and runs the row
+  menu and keys; the focused row is the one the last selection event named, or
+  the selected row a right click opened the menu on, else the first selected.
+- Enter or a double click acts on the focused row: it opens a file, shows more
+  entries on a "more" row and toggles a directory.
 - `BrowserDrag` makes the tree a `FileTransfer` `DragSource` offering Copy
   only, with the selected file rows' paths; folders are left out and a
   selection without a file starts no drag. A drop on a QCaret window reaches the
   shell's [file drop](main-window.md#file-drop-and-the-load-row) target. The
   source handles no `dragFinished`, so the file stays when a target reports
-  Move, which a GTK 3 target can (measured).
+  Move, which a GTK 3 target can (measured). A press on one of several
+  selected rows drags them all on GTK 3; GTK 4 SWT selects the pressed row
+  alone first, so one file goes (measured).
 - One context menu, built on the first `MenuDetect`, serves every row; a
   right click over empty space clears the selection and the menu acts on the
-  shown folder. Each item's enablement comes from the row kind, and the shown
-  folder takes no Rename or Delete, and Set as Workspace Folder only while it
-  is not the workspace folder.
-- Plain Delete and F2 delete and rename the selected row from a `KeyDown`
+  shown folder. `WorkspaceSelectionInput.enabled` sets each item from the
+  selection before the menu shows.
+- Plain Delete and F2 delete and rename the selected rows from a `KeyDown`
   listener on the tree. No default window binding uses either key
   (`KeymapTest`), so the `MainWindow` key filter does not take them, and the
   editor runs its own F2 binding only with the focus in the editor.
