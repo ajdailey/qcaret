@@ -409,7 +409,7 @@ class GuideScreenshotsTest {
     int[] last = column(data, data.width - 1);
     for (int x = data.width - 2; x > 0; x--) {
       if (!Arrays.equals(last, column(data, x))) {
-        return x + 2;
+        return x + 1;
       }
     }
     return data.width;
@@ -507,7 +507,7 @@ class GuideScreenshotsTest {
 
   /**
    * Paints a shell into an image through the public print API and writes a PNG, without the blank
-   * rows the shell's estimated trim leaves below its content.
+   * rows and columns the shell's estimated trim leaves below and right of its content.
    */
   private void save(Shell shell, String name) {
     while (display.readAndDispatch()) {
@@ -518,11 +518,13 @@ class GuideScreenshotsTest {
     GC gc = new GC(image);
     try {
       shell.print(gc);
-      int height = contentHeight(image.getImageData());
-      Image cut = new Image(display, size.x, height);
+      ImageData data = image.getImageData();
+      int width = contentWidth(data);
+      int height = contentHeight(data);
+      Image cut = new Image(display, width, height);
       GC cutGc = new GC(cut);
       try {
-        cutGc.drawImage(image, 0, 0, size.x, height, 0, 0, size.x, height);
+        cutGc.drawImage(image, 0, 0, width, height, 0, 0, width, height);
         ImageLoader loader = new ImageLoader();
         loader.data = new ImageData[] {cut.getImageData()};
         loader.save(out.resolve(name).toString(), SWT.IMAGE_PNG);
@@ -544,7 +546,7 @@ class GuideScreenshotsTest {
     for (int y = data.height - 2; y > 0; y--) {
       data.getPixels(0, y, data.width, row, 0);
       if (!Arrays.equals(last, row)) {
-        return y + 2;
+        return y + 1;
       }
     }
     return data.height;

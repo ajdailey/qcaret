@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.eclipse.swt.SWT;
@@ -244,7 +245,10 @@ class ScreenshotsTest {
     return root.toRealPath();
   }
 
-  /** Paints the shell into an image through the public print API and writes a PNG. */
+  /**
+   * Paints the shell into an image through the public print API and writes a PNG, without the blank
+   * rows and columns the shell's estimated trim adds below and right of the window.
+   */
   private static void save(MainWindow window, Path png) {
     Display display = window.shell().getDisplay();
     while (display.readAndDispatch()) {
@@ -256,12 +260,55 @@ class ScreenshotsTest {
     try {
       window.shell().print(gc);
       ImageData data = image.getImageData();
-      ImageLoader loader = new ImageLoader();
-      loader.data = new ImageData[] {data};
-      loader.save(png.toString(), SWT.IMAGE_PNG);
+      int width = contentWidth(data);
+      int height = contentHeight(data);
+      Image cut = new Image(display, width, height);
+      GC cutGc = new GC(cut);
+      try {
+        cutGc.drawImage(image, 0, 0, width, height, 0, 0, width, height);
+        ImageLoader loader = new ImageLoader();
+        loader.data = new ImageData[] {cut.getImageData()};
+        loader.save(png.toString(), SWT.IMAGE_PNG);
+      } finally {
+        cutGc.dispose();
+        cut.dispose();
+      }
     } finally {
       gc.dispose();
       image.dispose();
     }
+  }
+
+  /** Returns the image's height without the rows at its bottom that match its last row. */
+  private static int contentHeight(ImageData data) {
+    int[] last = new int[data.width];
+    int[] row = new int[data.width];
+    data.getPixels(0, data.height - 1, data.width, last, 0);
+    for (int y = data.height - 2; y > 0; y--) {
+      data.getPixels(0, y, data.width, row, 0);
+      if (!Arrays.equals(last, row)) {
+        return y + 1;
+      }
+    }
+    return data.height;
+  }
+
+  /** Returns the image's width without the columns at its right that match its last column. */
+  private static int contentWidth(ImageData data) {
+    int[] last = column(data, data.width - 1);
+    for (int x = data.width - 2; x > 0; x--) {
+      if (!Arrays.equals(last, column(data, x))) {
+        return x + 1;
+      }
+    }
+    return data.width;
+  }
+
+  private static int[] column(ImageData data, int x) {
+    int[] pixels = new int[data.height];
+    for (int y = 0; y < data.height; y++) {
+      pixels[y] = data.getPixel(x, y);
+    }
+    return pixels;
   }
 }
