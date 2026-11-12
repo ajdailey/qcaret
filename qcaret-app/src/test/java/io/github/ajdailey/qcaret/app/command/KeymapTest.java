@@ -340,4 +340,26 @@ class KeymapTest {
       }
     }
   }
+
+  /**
+   * Exit is a window key off macOS, held by no other default on Linux or Windows; macOS leaves Quit
+   * to the application menu. The macOS menu items of Find Next and Find Previous show Command+G.
+   */
+  @Test
+  void exitAndMacFindKeys() {
+    KeyStroke q = KeyStroke.of(KeyStroke.PRIMARY, 'q');
+    for (boolean linux : new boolean[] {false, true}) {
+      Keymap keymap = Keymap.defaults(false, linux);
+      assertEquals(q, keymap.accelerator(CommandId.QUIT));
+      assertNull(keymap.holder(q, CommandId.QUIT));
+      assertEquals(List.of(), keymap.duplicates());
+    }
+    Keymap mac = Keymap.defaults(true);
+    assertEquals("", mac.keysText(CommandId.QUIT));
+    assertNull(mac.holder(q, CommandId.QUIT));
+    assertEquals("Cmd+G", mac.menuKeyText(CommandId.FIND_NEXT));
+    assertEquals("Cmd+Shift+G", mac.menuKeyText(CommandId.FIND_PREVIOUS));
+    assertEquals("Cmd+G, F3", mac.keysText(CommandId.FIND_NEXT));
+    assertEquals(CommandId.FIND_NEXT, mac.windowCommand(new KeyStroke(0, KeyStroke.F1 + 2)));
+  }
 }

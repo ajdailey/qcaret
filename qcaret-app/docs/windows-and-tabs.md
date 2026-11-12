@@ -90,7 +90,9 @@ closes `Workers`, runs the finish listeners and posts the disposals. With
 
 - Close to the Left and Close to the Right (`TabInput.closeSideRequested`)
   close that side's tabs in tab order, asking for each dirty one; Cancel stops
-  there, and the clicked tab is selected only when the selected tab closed.
+  there, and the clicked tab is selected only when the selected tab closed. The
+  `CLOSE_LEFT` and `CLOSE_RIGHT` commands of File > Close Multiple Tabs
+  (`DocumentController.closeSide`) do the same from the selected tab.
 - Close All and Close Others ask for each dirty document in tab order and stop
   at Cancel. Next and Previous Tab wrap around.
 - Open Containing Folder checks the folder on a worker and shows a notice when

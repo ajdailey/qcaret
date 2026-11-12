@@ -332,6 +332,26 @@ class ShellCommandsTest {
     assertEquals("c", active().text().toString());
   }
 
+  /** File > Close Multiple Tabs acts on the selected tab, as the tab menu does on its own. */
+  @Test
+  void closeLeftAndRightCommandsActOnTheSelectedTab() throws Exception {
+    harness.open(Files.writeString(temp.resolve("a.txt"), "a"));
+    harness.open(Files.writeString(temp.resolve("b.txt"), "b"));
+    harness.open(Files.writeString(temp.resolve("c.txt"), "c"));
+    harness.open(Files.writeString(temp.resolve("d.txt"), "d"));
+    documents().select(1);
+    CommandStates states = new CommandStates(harness.application);
+    assertTrue(states.enabled(CommandId.CLOSE_LEFT));
+    harness.application.execute(CommandId.CLOSE_RIGHT);
+    assertEquals(2, documents().count());
+    assertEquals("b", active().text().toString());
+    assertFalse(states.enabled(CommandId.CLOSE_RIGHT));
+    harness.application.execute(CommandId.CLOSE_LEFT);
+    assertEquals(1, documents().count());
+    assertEquals("b", active().text().toString());
+    assertFalse(states.enabled(CommandId.CLOSE_LEFT));
+  }
+
   @Test
   void openContainingFolderLaunchesTheFoldersThatExist() throws Exception {
     Path folder = Files.createDirectory(temp.resolve("held"));

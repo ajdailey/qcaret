@@ -6,7 +6,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 
 /**
  * View > Indent Guides and View > Modified Line Marks, saved as {@code ui.indentGuides} and {@code
- * ui.lineChanges} and passed to the window's view, and Edit > Wrap Paragraph at {@code
+ * ui.lineChanges} and passed to the window's view, and Edit > Line > Wrap Paragraph at {@code
  * editor.rightMargin}. Confined to the UI thread.
  */
 final class EditorAids {

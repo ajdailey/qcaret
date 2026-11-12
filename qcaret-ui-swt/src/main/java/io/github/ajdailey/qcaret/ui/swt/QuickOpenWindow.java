@@ -21,8 +21,8 @@ import org.eclipse.swt.widgets.Text;
 /**
  * File > Quick Open and Window > Switch Document: a modal dialog with a filter field over a table
  * of names and paths and a summary line; an open document's row is in bold. The field starts with
- * {@link QuickOpenInput#initialQuery}, {@code @} for Edit > Go to Symbol. Each change of the field
- * calls {@link QuickOpenInput#filter}; the table refills then and on each {@link #changed},
+ * {@link QuickOpenInput#initialQuery}, {@code @} for Search > Go to Symbol. Each change of the
+ * field calls {@link QuickOpenInput#filter}; the table refills then and on each {@link #changed},
  * selecting its first row. Up, Down, Page Up and Page Down in the field move the selection; Enter
  * or a double click closes the dialog and passes the row to {@link QuickOpenInput#choose} on the
  * next UI turn. Esc closes the dialog; closing it calls {@link QuickOpenInput#close}.

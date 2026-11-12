@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
@@ -34,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -587,7 +589,7 @@ class ToolbarAndMenusTest {
     StyledText text = window.activeText();
     select(0, 3);
     Menu menu = rightClick(text, 1);
-    assertEquals(EditorMenu.COMMANDS.length, menu.getItemCount());
+    assertEquals(MenuTable.EDITOR_MENU.size(), menu.getItemCount());
     MenuItem copy = entry(menu, CommandId.COPY);
     assertTrue(copy.getText().endsWith("\t" + controller.keymap().menuKeyText(CommandId.COPY)));
     copy.notifyListeners(SWT.Selection, new Event());
@@ -695,6 +697,70 @@ class ToolbarAndMenusTest {
     Menu menu = window.showTabMenu(0);
     menu.setVisible(false);
     assertFalse(tabEntry(menu, UiText.TAB_OPEN_FOLDER).getEnabled());
+  }
+
+  /**
+   * The built menus, walked with every top menu shown once: the menu bar titles, each menu and
+   * cascade, including Encoding's charset cascades and View > Syntax, and the editor and tab menus.
+   * No two items of one menu share a mnemonic; no menu is exempt.
+   */
+  @Test
+  void noBuiltMenuRepeatsAMnemonic() throws Exception {
+    controller.loadGrammars();
+    openFile("letters.java", "class A {}\n");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !window.menuBar().states().syntaxMenu().isEmpty();
+          }
+        },
+        "grammars listed");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.menuBar().otherEncodings(true).getEnabled();
+          }
+        },
+        "charsets listed");
+    for (CommandGroup group : CommandGroup.values()) {
+      Menu menu = window.menuBar().menu(group);
+      if (menu != null) {
+        menu.notifyListeners(SWT.Show, new Event());
+      }
+    }
+    assertTrue(window.menuBar().item(CommandId.RELOAD_GRAMMARS).getParent().getItemCount() > 2);
+    assertMnemonics("menu bar", window.shell().getMenuBar());
+    assertMnemonics("editor menu", rightClick(window.activeText(), 1));
+    Menu tab = window.showTabMenu(0);
+    tab.setVisible(false);
+    assertMnemonics("tab menu", tab);
+  }
+
+  private static void assertMnemonics(String name, Menu menu) {
+    List<Character> seen = new ArrayList<Character>();
+    for (MenuItem item : menu.getItems()) {
+      if ((item.getStyle() & SWT.SEPARATOR) != 0) {
+        continue;
+      }
+      String text = item.getText();
+      int tab = text.indexOf('\t');
+      String label = tab < 0 ? text : text.substring(0, tab);
+      if (item.getMenu() != null) {
+        assertMnemonics(name + " > " + label, item.getMenu());
+      }
+      for (int i = 0; i < label.length() - 1; i++) {
+        if (label.charAt(i) == '&' && label.charAt(i + 1) == '&') {
+          i++;
+        } else if (label.charAt(i) == '&') {
+          char key = Character.toLowerCase(label.charAt(i + 1));
+          assertFalse(seen.contains(key), name + ": '" + key + "' again in " + label);
+          seen.add(key);
+          break;
+        }
+      }
+    }
   }
 
   @Test

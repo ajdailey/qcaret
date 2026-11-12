@@ -10,7 +10,7 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
 /**
- * Edit > Go to Line: a modal prompt for a line or {@code line:column}. OK passes the text to the
+ * Search > Go to Line: a modal prompt for a line or {@code line:column}. OK passes the text to the
  * answer and closes; Cancel and Esc close without an answer. Opens without a nested event loop.
  */
 final class GoToDialog {

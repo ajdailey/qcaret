@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongConsumer;
 
 /**
- * Edit > Document Statistics: counts the selected document and its non-empty selections ({@link
+ * Tools > Document Statistics: counts the selected document and its non-empty selections ({@link
  * TextStatistics}) on a {@code qcaret-cpu-} worker from a text snapshot, while the dialog shows the
  * percent read. Refresh counts again, canceling a running count; closing the dialog cancels it. A
  * result shows only while the document is still at the snapshot's revision; otherwise the dialog

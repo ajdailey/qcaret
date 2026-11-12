@@ -104,7 +104,6 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
@@ -218,7 +217,7 @@ public final class MainWindow implements MainView {
   private TipDialog tipDialog;
   private Keymap keymap;
   private PreferencesDialog preferencesDialog;
-  private Menu tabMenu;
+  private TabMenu tabMenu;
   private TextWindow logWindow;
   private GuideWindow guide;
   private ShortcutsWindow shortcuts;
@@ -638,9 +637,6 @@ public final class MainWindow implements MainView {
               controller.theme().removeListener(paletteListener);
             }
             font.dispose();
-            if (tabMenu != null) {
-              tabMenu.dispose();
-            }
             for (Image image : icons) {
               image.dispose();
             }
@@ -662,6 +658,7 @@ public final class MainWindow implements MainView {
     controller = owner;
     keymap = owner.keymap();
     menuBar = new MainMenuBar(shell, owner, menuIcons);
+    tabMenu = new TabMenu(shell, owner, menuBar.states());
     menuBar.build(keymap);
     mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusEditor);
     mainToolBar.setKeymap(keymap);
@@ -1305,8 +1302,7 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Opens a tab's context menu: the close items, Move to New Window, then the path items. One menu
-   * serves every tab; each call replaces its items.
+   * Opens a tab's context menu.
    *
    * @param tab the tab
    * @param x display x
@@ -1314,113 +1310,7 @@ public final class MainWindow implements MainView {
    * @return the menu, already visible
    */
   Menu showTabMenu(final Tab tab, int x, int y) {
-    if (tabMenu == null || tabMenu.isDisposed()) {
-      tabMenu = new Menu(shell, SWT.POP_UP);
-    }
-    for (MenuItem old : tabMenu.getItems()) {
-      old.dispose();
-    }
-    CommandStates.TabItems state = menuBar.states().tabItems(tab.input);
-    tabMenuItem(
-        UiText.COMMAND_CLOSE,
-        true,
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.closeRequested();
-          }
-        });
-    tabMenuItem(
-        UiText.COMMAND_CLOSE_OTHERS,
-        state.closeOthers(),
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.closeOthersRequested();
-          }
-        });
-    tabMenuItem(
-        UiText.TAB_CLOSE_LEFT,
-        state.closeLeft(),
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.closeSideRequested(true);
-          }
-        });
-    tabMenuItem(
-        UiText.TAB_CLOSE_RIGHT,
-        state.closeRight(),
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.closeSideRequested(false);
-          }
-        });
-    tabMenuItem(
-        UiText.COMMAND_CLOSE_ALL,
-        true,
-        new Runnable() {
-          @Override
-          public void run() {
-            controller.execute(CommandId.CLOSE_ALL);
-          }
-        });
-    new MenuItem(tabMenu, SWT.SEPARATOR);
-    tabMenuItem(
-        UiText.COMMAND_MOVE_TO_NEW_WINDOW,
-        true,
-        new Runnable() {
-          @Override
-          public void run() {
-            controller.moveTabToNewWindow(tab.input, null, null);
-          }
-        });
-    new MenuItem(tabMenu, SWT.SEPARATOR);
-    tabMenuItem(
-        UiText.TAB_COPY_PATH,
-        state.file(),
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.copyPathRequested(false);
-          }
-        });
-    tabMenuItem(
-        UiText.TAB_COPY_FILE_NAME,
-        state.file(),
-        new Runnable() {
-          @Override
-          public void run() {
-            tab.input.copyPathRequested(true);
-          }
-        });
-    tabMenuItem(
-        UiText.TAB_OPEN_FOLDER,
-        state.file(),
-        new Runnable() {
-          @Override
-          public void run() {
-            controller.openContainingFolder(tab.input);
-          }
-        });
-    tabMenu.setLocation(x, y);
-    tabMenu.setVisible(true);
-    return tabMenu;
-  }
-
-  private void tabMenuItem(UiText label, boolean enabled, final Runnable action) {
-    MenuItem item = new MenuItem(tabMenu, SWT.PUSH);
-    item.setText(label.text());
-    item.setEnabled(enabled);
-    item.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            action.run();
-          }
-        });
+    return tabMenu.show(tab.input, x, y);
   }
 
   /**

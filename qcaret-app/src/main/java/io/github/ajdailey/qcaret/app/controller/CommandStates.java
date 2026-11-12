@@ -39,10 +39,10 @@ import java.util.Set;
  * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
  * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
  * Compare Documents needs a second document, Compare with File on Disk and Reload from Disk a file.
- * Undo Selection and Redo Selection need an entry in the focused view's selection history. A
- * disabled menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor
- * bindings, not accelerators, so they stay live in the editor and in text fields whatever the items
- * show.
+ * Close to the Left and Close to the Right need a tab on that side of the selected one. Undo
+ * Selection and Redo Selection need an entry in the focused view's selection history. A disabled
+ * menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor bindings,
+ * not accelerators, so they stay live in the editor and in text fields whatever the items show.
  *
  * <p>Open All in Recent Files and in Recently Closed needs a listed file.
  */
@@ -229,7 +229,9 @@ public final class CommandStates {
    * @return true unless the command needs a document, a file or a state the document lacks
    */
   public boolean enabled(CommandId command) {
-    if (command.group() == CommandGroup.TOOLS) {
+    if (command.group() == CommandGroup.TOOLS
+        && command != CommandId.DOCUMENT_STATISTICS
+        && command != CommandId.PREFERENCES) {
       return application.checksums().enabled(command);
     }
     if (command == CommandId.REOPEN_CLOSED
@@ -276,6 +278,8 @@ public final class CommandStates {
       case SAVE_AS, SAVE_COPY_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();
       case NEXT_TAB, PREVIOUS_TAB, CLOSE_OTHERS, COMPARE_DOCUMENTS -> documents.count() > 1;
+      case CLOSE_LEFT -> documents.activeIndex() > 0;
+      case CLOSE_RIGHT -> documents.activeIndex() < documents.count() - 1;
       case UNSPLIT, FOCUS_OTHER_VIEW -> documents.activeSplit() != DocumentController.Split.NONE;
       case FOLD, TOGGLE_FOLD, FOLD_ALL ->
           documents.activeEditor() != null

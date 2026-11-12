@@ -111,7 +111,7 @@ Shortcuts.
 | Key | Values | Default | Set from |
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
-| `ui.editorColors` | An editor color scheme (`follow`, `light`, `dark`, `sandstone`, `nightwater`, `garden-light`, `garden-dark`, `legal-pad`, `paper`, `midnight`, `phosphor`, `graphite`), or the name of a file in `themes/` without `.theme`, laid over `follow`'s palette. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. Any other value reads as `follow` with one warning. While it is missing or `follow`, a `ui.themeFile` line names the theme file, and the next save replaces that line with `ui.editorColors` | `follow` | Edit > Preferences, Editor |
+| `ui.editorColors` | An editor color scheme (`follow`, `light`, `dark`, `sandstone`, `nightwater`, `garden-light`, `garden-dark`, `legal-pad`, `paper`, `midnight`, `phosphor`, `graphite`), or the name of a file in `themes/` without `.theme`, laid over `follow`'s palette. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. Any other value reads as `follow` with one warning. While it is missing or `follow`, a `ui.themeFile` line names the theme file, and the next save replaces that line with `ui.editorColors` | `follow` | Tools > Preferences, Editor |
 | `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
 | `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
@@ -121,27 +121,27 @@ Shortcuts.
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
 | `help.tipsOnStartup` | `true`, `false`: Tip of the Day opens at start, after the session restore and the recovery prompt | `false` | Help > Tip of the Day, Show tips on startup |
 | `help.nextTip` | 0 to 9999: the tip shown next; past the last tip it wraps | 0 | Each tip shown |
-| `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Edit > Preferences, Editor |
-| `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Edit > Preferences, Editor |
-| `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Edit > Preferences, Editor |
-| `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Edit > Preferences, Editor |
-| `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Edit > Preferences, Editor |
-| `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of, and the widest line Wrap Paragraph makes | 80 | Edit > Preferences, Editor |
-| `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Edit > Preferences, Editor |
-| `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Edit > Preferences, Editor |
-| `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Edit > Preferences, Editor |
-| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom, Edit > Preferences, Appearance |
-| `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Edit > Preferences, Appearance |
-| `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Edit > Preferences, Files |
-| `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
-| `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |
-| `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Edit > Preferences, Files |
-| `tabs.closeWindowWithLastTab` | `true`, `false`: closing a window's last tab closes the window, and the last window quits; off, an untitled document takes the tab's place | `false` | Edit > Preferences, Files |
-| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Edit > Preferences, Files |
-| `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Edit > Preferences, Search and Workspace |
-| `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Edit > Preferences, Search and Workspace |
-| `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Edit > Preferences, Search and Workspace |
-| `shortcut.<COMMAND>` | Keys separated by spaces, such as `Mod+Alt+K F7`; `Mod` is Ctrl, or Command on macOS, and `Control` is the macOS Control key; empty for no key | The command's default keys | Edit > Preferences, Keys |
+| `editor.completionChars` | 0 to 20: word chars typed before completion opens, 0 for never | 0 | Tools > Preferences, Editor |
+| `editor.autoClose` | `true`, `false`: typing an opener inserts its closer | `true` | Tools > Preferences, Editor |
+| `editor.maxHighlightLineChars` | 1,000 to 1,000,000: a longer line shows without syntax colors | 10000 | Tools > Preferences, Editor |
+| `editor.tabWidth` | 1 to 16: columns per tab stop of a document without saved settings | 4 | Tools > Preferences, Editor |
+| `editor.insertSpaces` | `true`, `false`: such a document indents with spaces | `false` | Tools > Preferences, Editor |
+| `editor.rightMargin` | 1 to 1000: the column the right margin line sits left of, and the widest line Wrap Paragraph makes | 80 | Tools > Preferences, Editor |
+| `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Tools > Preferences, Editor |
+| `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Tools > Preferences, Editor |
+| `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Tools > Preferences, Editor |
+| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom In, Zoom Out and Reset Zoom; Tools > Preferences, Appearance |
+| `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Tools > Preferences, Appearance |
+| `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Tools > Preferences, Files |
+| `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Tools > Preferences, Files |
+| `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Tools > Preferences, Files |
+| `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Tools > Preferences, Files |
+| `tabs.closeWindowWithLastTab` | `true`, `false`: closing a window's last tab closes the window, and the last window quits; off, an untitled document takes the tab's place | `false` | Tools > Preferences, Files |
+| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Tools > Preferences, Files |
+| `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Tools > Preferences, Search and Workspace |
+| `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Tools > Preferences, Search and Workspace |
+| `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Tools > Preferences, Search and Workspace |
+| `shortcut.<COMMAND>` | Keys separated by spaces, such as `Mod+Alt+K F7`; `Mod` is Ctrl, or Command on macOS, and `Control` is the macOS Control key; empty for no key | The command's default keys | Tools > Preferences, Keys |
 | `search.regex`, `.caseSensitive`, `.wholeWord`, `.hiddenFiles` | The find bar's and HyperSearch's toggles | `false` | The find bar, HyperSearch |
 | `search.history.text.N`, `.directory.N`, `.mask.N`, `.replace.N` | Search texts of the find bar and HyperSearch, HyperSearch's directories and include masks, the find bar's replacements; newest first, 20 each | none | The find bar, HyperSearch |
 | `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |

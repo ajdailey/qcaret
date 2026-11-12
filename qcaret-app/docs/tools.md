@@ -2,9 +2,10 @@
 
 The Tools menu sits before Window. It holds one cascade per algorithm (MD5,
 SHA-1, SHA-256, SHA-512), each with Generate, Generate from Files and Generate
-from Selection into Clipboard, then Verify Checksums. No command has a default
-key. `ChecksumTools` dispatches the commands and answers `CommandStates` for
-them; the digest, list and check code is in `core.io`.
+from Selection into Clipboard, then Verify Checksums, Document Statistics
+([Editor](editor.md)) and, off macOS, Preferences. No checksum command has a
+default key. `ChecksumTools` dispatches the commands and answers
+`CommandStates` for them; the digest, list and check code is in `core.io`.
 
 | Command | Controller | Runs on |
 |---|---|---|

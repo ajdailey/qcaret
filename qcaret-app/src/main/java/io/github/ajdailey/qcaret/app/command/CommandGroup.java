@@ -16,7 +16,7 @@ public enum CommandGroup {
   VIEW(UiText.GROUP_VIEW, true),
   /** Encoding menu; the menu adds the charset cascades. */
   ENCODING(UiText.GROUP_ENCODING, true),
-  /** Tools menu: checksums. */
+  /** Tools menu: checksums, Document Statistics and Preferences. */
   TOOLS(UiText.GROUP_TOOLS, true),
   /** Window menu; the menu lists the open documents after its commands. */
   WINDOW(UiText.GROUP_WINDOW, true),

@@ -50,7 +50,9 @@ public final class Keymap {
    * have no keys on Linux, where IBus takes Ctrl+Shift+U. On macOS, where Option+Shift with Left or
    * Right selects words, the block selection keys add Command, and Add Caret Above and Below take
    * Control+Shift. Select Line and Transpose take Control on macOS, where Command+L is Go to Line;
-   * Delete Word Back and Forward take Option there, as word moves do.
+   * Delete Word Back and Forward take Option there, as word moves do. Exit is Ctrl+Q off macOS,
+   * where the application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
+   * Command+Shift+G first there, so their menu items show them.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -90,14 +92,17 @@ public final class Keymap {
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);
     window(b, CommandId.FOCUS_OTHER_VIEW, 0, F6);
     window(b, CommandId.FIND, P, 'f');
-    window(b, CommandId.FIND_NEXT, 0, F3);
-    window(b, CommandId.FIND_PREVIOUS, S, F3);
     if (mac) {
       window(b, CommandId.FIND_NEXT, P, 'g');
       window(b, CommandId.FIND_PREVIOUS, P | S, 'g');
+    }
+    window(b, CommandId.FIND_NEXT, 0, F3);
+    window(b, CommandId.FIND_PREVIOUS, S, F3);
+    if (mac) {
       window(b, CommandId.REPLACE, P | KeyStroke.ALT, 'f');
     } else {
       window(b, CommandId.REPLACE, P, 'h');
+      window(b, CommandId.QUIT, P, 'q');
     }
     window(b, CommandId.HYPERSEARCH, P | S, 'f');
     window(b, CommandId.REPLACE_IN_RESULTS, P | S, 'h');

@@ -346,7 +346,7 @@ class GuideScreenshotsTest {
     tree.notifyListeners(SWT.MenuDetect, detect);
     Menu menu = tree.getMenu();
     assertNotNull(menu);
-    assertTrue(menu.getItem(menu.getItemCount() - 1).getEnabled());
+    assertTrue(menu.getItem(0).getEnabled());
     Rectangle row = shelf.getBounds();
     menu.setLocation(
         tree.toDisplay(row.x + row.width + 8, row.y + tree.getHeaderHeight() + row.height / 2));

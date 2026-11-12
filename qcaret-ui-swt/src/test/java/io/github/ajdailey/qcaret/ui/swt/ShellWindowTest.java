@@ -205,7 +205,7 @@ class ShellWindowTest {
     assertSame(shown, window.activeEditor());
     assertEquals("two.txt", window.tabs().getItem(0).getText());
     // Copy File Name on the dragged tab.
-    again.getItem(9).notifyListeners(SWT.Selection, new Event());
+    again.getItem(7).notifyListeners(SWT.Selection, new Event());
     assertEquals("two.txt", window.clipboardText());
   }
 

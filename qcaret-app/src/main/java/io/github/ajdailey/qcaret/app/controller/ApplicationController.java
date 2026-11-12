@@ -876,6 +876,8 @@ public final class ApplicationController {
       case NEXT_TAB -> documents.selectNext(true);
       case PREVIOUS_TAB -> documents.selectNext(false);
       case CLOSE_OTHERS -> documents.closeOthers();
+      case CLOSE_LEFT -> documents.closeSide(true);
+      case CLOSE_RIGHT -> documents.closeSide(false);
       case KEYBOARD_SHORTCUTS -> help.showShortcuts();
       case COMMAND_LINE_OPTIONS -> help.showCommandLine();
       case USER_GUIDE -> help.showGuide();

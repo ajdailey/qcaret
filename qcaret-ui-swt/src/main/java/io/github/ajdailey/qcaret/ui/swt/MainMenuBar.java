@@ -28,10 +28,10 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * The main window's menu bar: one menu per {@link CommandGroup} with its {@link MenuTable}
- * commands, the Encoding menu's Reopen with Encoding and Save with Encoding cascades, and the
- * Window menu's open documents. Item state comes from {@link CommandStates}; this class only
- * applies it.
+ * The main window's menu bar: one menu per {@link CommandGroup} with its {@link MenuTable} entries,
+ * a {@link MenuTable#RADIO} command as a radio item that runs on selection only, the Encoding
+ * menu's Reopen with Encoding and Save with Encoding cascades, and the Window menu's open
+ * documents. Item state comes from {@link CommandStates}; this class only applies it.
  *
  * <p>Showing a top menu, or running one of its items, syncs that menu only. Enablement of every
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
@@ -216,13 +216,14 @@ final class MainMenuBar {
       }
       Menu target = menu;
       String cascade = null;
-      for (final CommandId command : MenuTable.commands(group, appMenu)) {
+      for (MenuTable.Entry entry : MenuTable.entries(group, appMenu)) {
+        final CommandId command = entry.command();
         String submenu = command.submenu();
         if (submenu == null) {
           target = menu;
           cascade = null;
         } else if (!submenu.equals(cascade)) {
-          if (command.separatorBefore() && menu.getItemCount() > 0) {
+          if (entry.separatorBefore() && menu.getItemCount() > 0) {
             new MenuItem(menu, SWT.SEPARATOR);
           }
           MenuItem holder = new MenuItem(menu, SWT.CASCADE);
@@ -236,10 +237,12 @@ final class MainMenuBar {
           holder.setMenu(target);
           cascade = submenu;
         }
-        if (command.separatorBefore() && target.getItemCount() > 0) {
+        if (entry.separatorBefore() && target.getItemCount() > 0) {
           new MenuItem(target, SWT.SEPARATOR);
         }
-        MenuItem item = new MenuItem(target, command.check() ? SWT.CHECK : SWT.PUSH);
+        final boolean radio = MenuTable.RADIO.contains(command);
+        MenuItem item =
+            new MenuItem(target, radio ? SWT.RADIO : command.check() ? SWT.CHECK : SWT.PUSH);
         item.setData(command);
         String keys = keymap.menuKeyText(command);
         item.setText(keys.isEmpty() ? command.label() : command.label() + "\t" + keys);
@@ -252,6 +255,9 @@ final class MainMenuBar {
             new Listener() {
               @Override
               public void handleEvent(Event event) {
+                if (radio && !((MenuItem) event.widget).getSelection()) {
+                  return;
+                }
                 controller.execute(command);
                 if (!shell.isDisposed()) {
                   sync(group);

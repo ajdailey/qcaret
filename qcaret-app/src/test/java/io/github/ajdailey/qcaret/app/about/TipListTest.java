@@ -41,7 +41,7 @@ class TipListTest {
     int goToSymbol = indexOf(UiText.TIP_GO_TO_SYMBOL);
     assertTrue(
         TipList.text(goToSymbol, Keymap.defaults(true, false))
-            .startsWith("Edit > Go to Symbol (Cmd+R) lists"));
+            .startsWith("Search > Go to Symbol (Cmd+R) lists"));
   }
 
   @Test
@@ -78,7 +78,7 @@ class TipListTest {
             .startsWith("File > Quick Open (Ctrl+Alt+K) finds"));
     assertTrue(
         TipList.text(indexOf(UiText.TIP_GO_TO_SYMBOL), keymap)
-            .startsWith("Edit > Go to Symbol lists"));
+            .startsWith("Search > Go to Symbol lists"));
   }
 
   @Test

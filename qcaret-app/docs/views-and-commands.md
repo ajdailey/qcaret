@@ -79,26 +79,31 @@ it ignores a position (Wayland) only the size applies.
 
 ## Commands and menus
 
-`CommandId` lists every command with its group (`CommandGroup`), label, check
-state and cascade. `MenuTable.commands` returns a menu's commands in
-declaration order.
+`CommandId` lists every command with its group (`CommandGroup`, the menu that
+lists it), label, check state and cascade. `MenuTable` lays out the menus: each
+menu's commands in order with its separators, the editor and tab context menus,
+and the check commands shown as radio items (Theme, Tab Width, Line Endings).
+Consecutive commands with one cascade form that cascade; a separator before a
+cascade's first command sits in the parent menu. No two items of one menu,
+cascade or context menu share a mnemonic (`MenuTableTest`,
+`ToolbarAndMenusTest`).
 
-| Menu | Holds |
+| Menu | Holds, `\|` between groups |
 |---|---|
-| File | File commands; Set Workspace Folder |
-| Edit | Also the line commands, Wrap Paragraph, case, indent, tab width with Other for 1 to `Document.MAX_TAB_WIDTH`, indent with spaces, Go to Line, Go to Symbol, Read-Only, Insert Date and Time, Document Statistics, Delete Word Back and Forward, Title Case, Swap Case, Transpose |
-| Selection | Add caret above and below, add next occurrence, split into lines, column selection mode, Select to Matching Bracket, Select All Occurrences, Skip Occurrence, Expand Selection, Select Line, Undo and Redo Selection |
-| Search | Find, Find Next, Find Previous, Replace, HyperSearch, Next and Previous Result, Search Results |
-| View | Word wrap, zoom, theme, the Split and Folding cascades, Overview Strip, Line Numbers, Right Margin, Indent Guides, Modified Line Marks |
-| Encoding | The line-ending conversions; the view adds the charset cascades |
-| Tools | A cascade per checksum algorithm with Generate, Generate from Files and Generate from Selection into Clipboard; Verify Checksums ([Tools](tools.md)) |
-| Window | Next and previous tab, Close Others; the view lists the documents |
-| Help | Help commands |
+| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print \| Exit |
+| Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines and Convert Case cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Transpose, Delete Word Back and Forward \| Read-Only |
+| Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
+| Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Workspace Browser, Always on Top \| Command Palette |
+| Encoding | The view's charset cascades \| Line Endings |
+| Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
+| Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
+| Help | User Guide, Keyboard Shortcuts, Command-Line Options, Tip of the Day \| logs and folders \| Report an Issue \| About |
 
 The `EDITOR` group holds the caret moves, block selection keys, Tab, Enter,
 Backspace, Delete and Esc, which have no menu. Where the system supplies an
-application menu (macOS), About and Exit sit there and are left out of Help and
-File.
+application menu (macOS), About, Exit and Preferences sit there and are left
+out of Help, File and Tools.
 
 ## Key bindings
 
@@ -123,7 +128,8 @@ Platform choices in the defaults, with the conflict each avoids:
 | Redo `Ctrl+Y`, Insert and Delete clipboard keys | Off macOS only | - |
 | Upper and lower case | None on Linux | IBus takes Ctrl+Shift+U |
 | Block selection | Alt+Shift with an arrow key; Command+Option+Shift on macOS | macOS Option+Shift with Left or Right selects words |
-| Find Next, Find Previous | F3, Shift+F3; macOS adds Cmd+G and Cmd+Shift+G | - |
+| Find Next, Find Previous | F3, Shift+F3; on macOS Cmd+G and Cmd+Shift+G first, so the menu shows them | - |
+| Exit | Ctrl+Q off macOS | macOS Quit is the application menu's Command+Q |
 | Replace | Mod+H; Cmd+Option+F on macOS | Cmd+H hides the application |
 | Add Caret Above and Below | Ctrl+Shift+Up and Down on every platform | Linux desktops take Ctrl+Alt+Up and Down, and GNOME Ctrl+Alt+Shift+Up and Down, for workspaces |
 | Edit Bookmark Comment | Mod+Shift+F2 | Alt+F2 opens the GNOME and KDE run dialogs; Ctrl+F2 focuses the macOS menu bar |
@@ -170,6 +176,7 @@ enabled state from the same call.
 | Go Back, Go Forward | A position that way |
 | Clear Recent Files, Clear Recently Closed | A file, a closed file |
 | Reload from Disk | A file on the document |
+| Close to the Left, Close to the Right | A tab on that side of the selected one |
 
 Undo, Redo, Cut and Copy are `EDIT_STATE`: their keys are editor bindings, not
 accelerators, so a disabled item leaves them live in the editor and in native

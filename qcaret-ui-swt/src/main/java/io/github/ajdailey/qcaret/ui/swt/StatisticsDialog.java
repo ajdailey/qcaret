@@ -15,7 +15,7 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Edit > Document Statistics: a modeless window with the counts of the document and of its
+ * Tools > Document Statistics: a modeless window with the counts of the document and of its
  * selections in two columns, a status line for the percent read or a message, Refresh and Close.
  * Esc closes it; closing calls {@link StatisticsInput#closed}.
  */

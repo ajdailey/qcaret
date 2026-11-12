@@ -1229,6 +1229,18 @@ public final class DocumentController {
     closeNext(kept, lastClosed);
   }
 
+  /**
+   * Closes the tabs on one side of the selected one in tab order, asking for each dirty one; Cancel
+   * stops.
+   *
+   * @param left true for the tabs to its left
+   */
+  public void closeSide(boolean left) {
+    if (active != null) {
+      closeSide(active, left);
+    }
+  }
+
   /** Closes the tabs on one side of a tab in tab order, asking for each dirty one; Cancel stops. */
   private void closeSide(OpenDocument from, boolean left) {
     int at = documents.indexOf(from);

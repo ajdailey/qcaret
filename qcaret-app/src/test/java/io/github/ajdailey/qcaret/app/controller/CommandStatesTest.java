@@ -210,6 +210,8 @@ class CommandStatesTest {
           "DELETE_BACK -- -e --",
           "DELETE_FORWARD -- -e --",
           "CANCEL -- -e -e",
+          "CLOSE_LEFT -- -- -e",
+          "CLOSE_RIGHT -- -- --",
           "reopen - e -",
           "saveEncoding - e -");
 

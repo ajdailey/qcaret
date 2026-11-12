@@ -36,7 +36,7 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 - `EditorAids` holds View > Indent Guides (`ui.indentGuides`) and View >
   Modified Line Marks (`ui.lineChanges`), passed through
   `MainView.setIndentGuides` and `MainView.setLineChangesShown` at start and on
-  a change, and runs Edit > Wrap Paragraph at `editor.rightMargin`.
+  a change, and runs Edit > Line > Wrap Paragraph at `editor.rightMargin`.
 - `PreferencesInput.loadChoices` lists the theme files and the monospace
   families on a `qcaret-io-` worker; the dialog appends the files to Editor
   colors and fills the font list when they arrive.

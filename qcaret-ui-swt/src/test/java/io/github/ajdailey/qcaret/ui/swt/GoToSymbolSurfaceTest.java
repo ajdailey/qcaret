@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Edit > Go to Symbol in the window: the popup opens with {@code @}, lists the document's symbols
+ * Search > Go to Symbol in the window: the popup opens with {@code @}, lists the document's symbols
  * and moves the caret on Enter; with {@code -Dqcaret.screenshots=<dir>} it saves the popup in both
  * themes.
  */

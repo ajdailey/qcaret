@@ -29,11 +29,11 @@ and a status bar.
 
 ## Tabs
 
-One context menu serves every tab: each right click disposes its items and adds
-Close, Close Others, Close to the Left, Close to the Right, Close All, Move to
-New Window, Copy Path, Copy File Name and Open Containing Folder for that tab,
-enabled from `CommandStates.tabItems`. A tab's close button and a middle click
-ask the `DocumentController` to close it.
+`TabMenu` is the one context menu of every tab: each right click disposes its
+items and adds `MenuTable.TAB_MENU` for that tab, enabled from
+`CommandStates.tabItems`. Its items act on the tab clicked; File > Close
+Multiple Tabs runs the same closes on the selected tab. A tab's close button
+and a middle click ask the `DocumentController` to close it.
 
 Dragging a tab within the strip moves it: an item cannot change position, so
 the move disposes and recreates it, and the `Selection` that `CTabFolder` sends
@@ -113,6 +113,9 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
   checks.
 - A Display key filter runs window bindings that are not accelerators (Ctrl
   plus keypad +), when enabled.
+- A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
+  item it deselects too, so the listener runs the command only for the item
+  selected.
 - The Encoding menu holds Reopen with Encoding and Save with Encoding cascades:
   the common charsets from the start, and an Other cascade disabled until
   `EncodingChoices` arrives from a worker, filled again when a keymap change
@@ -129,14 +132,14 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
 
 ### Editor context menu
 
-`EditorMenu` is the context menu of the text views: one popup per window, built
-on its first show (building one per view stalled a file open under GTK 4 in
-QLogg) and again after a key change. `SWT.MenuDetect` on each view's
-`StyledText` makes that view the tab's focused view; a pointer request calls
-`EditorInput.menuFromView`, and a keyboard request opens below the caret and
-moves nothing. An item runs through that view's `EditorInput.execute`, so in a
-split it acts on the view clicked. The popup holds the view weakly, so it does
-not keep a closed document.
+`EditorMenu` is the context menu of the text views, `MenuTable.EDITOR_MENU`:
+one popup per window, built on its first show (building one per view stalled a
+file open under GTK 4 in QLogg) and again after a key change. `SWT.MenuDetect`
+on each view's `StyledText` makes that view the tab's focused view; a pointer
+request calls `EditorInput.menuFromView`, and a keyboard request opens below
+the caret and moves nothing. An item runs through that view's
+`EditorInput.execute`, so in a split it acts on the view clicked. The popup
+holds the view weakly, so it does not keep a closed document.
 
 ### macOS application menu
 

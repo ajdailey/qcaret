@@ -1180,9 +1180,9 @@ public enum UiText {
   COMMAND_ALWAYS_ON_TOP,
   /** Tool tip of a disabled Always on Top item on GTK 3. */
   ALWAYS_ON_TOP_UNSUPPORTED,
-  /** Tab menu item. */
+  /** Tab menu item and command label. */
   TAB_CLOSE_LEFT,
-  /** Tab menu item. */
+  /** Tab menu item and command label. */
   TAB_CLOSE_RIGHT,
   /** Tab menu item. */
   TAB_OPEN_FOLDER,
@@ -1593,7 +1593,15 @@ public enum UiText {
   /** {@link #TAB_LIST} while tabs are hidden; takes the hidden count. */
   TAB_LIST_HIDDEN,
   /** Preferences box making a window close with its last tab. */
-  PREFERENCES_CLOSE_WINDOW_WITH_LAST_TAB;
+  PREFERENCES_CLOSE_WINDOW_WITH_LAST_TAB,
+  /** Edit menu cascade of the line commands. */
+  MENU_LINE,
+  /** Edit menu cascade of the case conversions. */
+  MENU_CONVERT_CASE,
+  /** File menu cascade of Close Others, Close to the Left and Close to the Right. */
+  MENU_CLOSE_MULTIPLE,
+  /** Tab menu item closing every tab; File > Close All has its own mnemonic. */
+  TAB_CLOSE_ALL;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

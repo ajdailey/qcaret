@@ -35,7 +35,7 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 
 /**
- * Edit > Preferences: one tab per {@link PreferencesForm.Group}. OK and Apply hand the fields to
+ * Tools > Preferences: one tab per {@link PreferencesForm.Group}. OK and Apply hand the fields to
  * the {@link PreferencesInput}; a refused field shows its message above the buttons, selects its
  * tab and keeps the dialog open. Restore Defaults fills every tab and changes nothing until OK or
  * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at

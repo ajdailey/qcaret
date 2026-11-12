@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import java.lang.ref.WeakReference;
@@ -13,26 +14,13 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * The context menu of a window's text views. One popup, built on its first show and again after a
- * key change, serves every view, because building a menu per view stalls a file open under GTK 4.
- * Each item runs its command in the view the menu opened over. The view is held weakly so the popup
- * does not keep a closed document. Call on the UI thread.
+ * The context menu of a window's text views, laid out by {@link MenuTable#EDITOR_MENU}. One popup,
+ * built on its first show and again after a key change, serves every view, because building a menu
+ * per view stalls a file open under GTK 4. Each item runs its command in the view the menu opened
+ * over. The view is held weakly so the popup does not keep a closed document. Call on the UI
+ * thread.
  */
 final class EditorMenu {
-  /** The items in order; null is a separator. */
-  static final CommandId[] COMMANDS = {
-    CommandId.CUT,
-    CommandId.COPY,
-    CommandId.PASTE,
-    null,
-    CommandId.SELECT_ALL,
-    null,
-    CommandId.TOGGLE_BOOKMARK,
-    CommandId.EDIT_BOOKMARK_COMMENT,
-    null,
-    CommandId.TOGGLE_FOLD
-  };
-
   private final Shell shell;
   private final CommandStates states;
   private final MenuIcons icons;
@@ -103,7 +91,7 @@ final class EditorMenu {
 
   private Menu build() {
     Menu popup = new Menu(shell, SWT.POP_UP);
-    for (final CommandId command : COMMANDS) {
+    for (final CommandId command : MenuTable.EDITOR_MENU) {
       if (command == null) {
         new MenuItem(popup, SWT.SEPARATOR);
         continue;

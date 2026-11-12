@@ -37,9 +37,8 @@ import org.eclipse.swt.widgets.TreeItem;
  * expanded state of rows that remain. The tree selects several rows ({@link BrowserSelection}).
  * Enter or a double click opens a file, shows more entries on a "more" row, and expands or
  * collapses a directory, for the focused row. One context menu, built on the first right click,
- * offers Open, Open in Default Application, Set as Workspace Folder, Copy Path, Search in Folder,
- * New File, New Folder, Rename and Delete for the selected rows, or for the workspace folder over
- * empty space; {@link WorkspaceSelectionInput} enables and runs them. Delete and F2 delete and
+ * offers {@link WorkspaceSelectionInput#MENU} for the selected rows, or for the workspace folder
+ * over empty space; {@link WorkspaceSelectionInput} enables and runs them. Delete and F2 delete and
  * rename the selected rows while the tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
@@ -517,11 +516,12 @@ final class WorkspaceDock {
   private void showMenu() {
     if (menu == null) {
       menu = new Menu(tree);
-      for (WorkspaceSelectionInput.Action action : WorkspaceSelectionInput.Action.values()) {
-        if (action == WorkspaceSelectionInput.Action.SEARCH_FOLDER) {
+      for (WorkspaceSelectionInput.Action action : WorkspaceSelectionInput.MENU) {
+        if (action == null) {
           new MenuItem(menu, SWT.SEPARATOR);
+        } else {
+          menuItem(action);
         }
-        menuItem(action);
       }
       tree.setMenu(menu);
     }
@@ -536,7 +536,7 @@ final class WorkspaceDock {
 
   private void menuItem(final WorkspaceSelectionInput.Action action) {
     MenuItem item = new MenuItem(menu, SWT.PUSH);
-    item.setText(labelOf(action).text());
+    item.setText(action.label().text());
     item.setData(action);
     item.addListener(
         SWT.Selection,
@@ -580,7 +580,7 @@ final class WorkspaceDock {
       }
     }
     for (WorkspaceSelectionInput.Action action : WorkspaceSelectionInput.Action.values()) {
-      if (labelOf(action) == label) {
+      if (action.label() == label) {
         TreeItem item = node == null ? null : find(tree.getItems(), node);
         if (item == null) {
           tree.deselectAll();
@@ -597,20 +597,6 @@ final class WorkspaceDock {
       case REFRESH -> UiText.WORKSPACE_REFRESH;
       case REVEAL -> UiText.WORKSPACE_REVEAL;
       case HIDE -> UiText.WORKSPACE_HIDE;
-    };
-  }
-
-  private static UiText labelOf(WorkspaceSelectionInput.Action action) {
-    return switch (action) {
-      case OPEN -> UiText.WORKSPACE_OPEN;
-      case OPEN_DEFAULT -> UiText.WORKSPACE_OPEN_DEFAULT;
-      case SET_FOLDER -> UiText.WORKSPACE_SET_FOLDER;
-      case COPY_PATH -> UiText.WORKSPACE_COPY_PATH;
-      case SEARCH_FOLDER -> UiText.WORKSPACE_SEARCH_FOLDER;
-      case NEW_FILE -> UiText.WORKSPACE_NEW_FILE;
-      case NEW_FOLDER -> UiText.WORKSPACE_NEW_FOLDER;
-      case RENAME -> UiText.WORKSPACE_RENAME;
-      case DELETE -> UiText.WORKSPACE_DELETE;
     };
   }
 

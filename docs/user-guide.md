@@ -3,7 +3,7 @@
 QCaret is a programmer's text editor. It never connects to another computer; a
 second launch hands its files to the running QCaret over a local-only
 connection. On macOS, `Ctrl` in this guide is `Cmd` unless a key is named for
-macOS; Help > Keyboard Shortcuts lists every key for your platform and Edit >
+macOS; Help > Keyboard Shortcuts lists every key for your platform and Tools >
 Preferences, Keys changes them.
 
 - [Opening files](#opening-files)
@@ -89,7 +89,7 @@ as one Undo step, so the file holds what the window shows.
 
 The tab's tool tip names the files and the modeline a document's settings came
 from. Save As to another folder, a rename in the workspace browser, Reload and
-Reopen with Encoding read them again. Edit > Preferences, Editor, turns each
+Reopen with Encoding read them again. Tools > Preferences, Editor, turns each
 source off.
 
 ### Saving
@@ -160,7 +160,7 @@ apply (measured on Linux, one million lines):
 
 | Operation | Time |
 |---|---|
-| Theme switch or font change (View > Zoom, Preferences) | About 1 s per view; a split document has two |
+| Theme switch or font change (View > Zoom In, Zoom Out, Reset Zoom; Preferences) | About 1 s per view; a split document has two |
 | Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the new text replaces the document's, with a busy cursor | Sort: 1.2-2.0 s after the sorted text is computed in the background; the others not measured |
 
 ## The main window
@@ -181,8 +181,10 @@ apply (measured on Linux, one million lines):
 - The tab row holds one tab per document. A dirty document's tab is marked, and
   so is a file missing on disk. A middle click or the close button closes a tab;
   dragging moves it. A tab's menu offers Close, Close Others, Close to the Left,
-  Close to the Right, Close All, Move to New Window, Copy Path, Copy File Name
-  and Open Containing Folder.
+  Close to the Right, Close All, Copy Full Path, Copy File Name, Open
+  Containing Folder and Move to New Window, for that tab. File > Close Multiple
+  Tabs runs Close Others, Close to the Left and Close to the Right on the
+  selected tab.
 - Three buttons end the tab row. `+` opens a new document and `x` closes the
   selected one, asking first about unsaved changes. The arrow between them
   lists every tab, with the number of tabs that do not fit in the row beside
@@ -191,10 +193,11 @@ apply (measured on Linux, one million lines):
   row. The mouse wheel over the row scrolls it one tab at a time and keeps the
   selected tab in view.
 - Closing a window's last tab opens an empty Untitled document in its place. An
-  empty Untitled document with no unsaved changes stays open when it is the only
-  tab. Preferences, Files, "Close the window with its last tab" closes the window
-  instead; with the last window, QCaret quits as File > Exit does. A tab dragged
-  or moved to another window leaves its window empty.
+  empty Untitled document with no unsaved changes stays open when it is the
+  only tab. Preferences, Files, "Close the window with its last tab" closes the
+  window instead; with the last window, QCaret quits as File > Exit (`Ctrl+Q`;
+  Quit in the application menu on macOS) does. A tab dragged or moved to
+  another window leaves its window empty.
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
@@ -212,13 +215,13 @@ apply (measured on Linux, one million lines):
   marked against its file on disk. Saving clears the marks, and so does
   undoing back to the saved text. A document or saved text over 100,000 lines
   shows no marks; the gutter's tooltip says so. Both choices are saved.
-- Edit > Wrap Paragraph rewraps the selected lines, or the paragraph at the
-  caret, to the right margin column. Every line keeps the first line's indent,
-  and a comment paragraph keeps its comment marker, such as `//` or `#`. A
-  blank line ends a paragraph. Undo restores the text in one step.
-- A right click in the text opens Cut, Copy, Paste, Select All, Toggle Bookmark,
-  Edit Bookmark Comment and Toggle Fold for that view. A click in a selection
-  keeps it; a click elsewhere moves the caret there first.
+- Edit > Line > Wrap Paragraph rewraps the selected lines, or the paragraph at
+  the caret, to the right margin column. Every line keeps the first line's
+  indent, and a comment paragraph keeps its comment marker, such as `//` or
+  `#`. A blank line ends a paragraph. Undo restores the text in one step.
+- A right click in the text opens Undo, Redo, Cut, Copy, Paste, Select All,
+  Toggle Bookmark, Edit Bookmark Comment and Toggle Fold for that view. A click
+  in a selection keeps it; a click elsewhere moves the caret there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
   matches and bookmarks across the whole document; a click or drag scrolls
   there.
@@ -235,7 +238,7 @@ apply (measured on Linux, one million lines):
   fields and toolbar stay light. On macOS they follow the system appearance, also
   while QCaret runs. On Linux a GTK theme with no dark variant keeps native
   controls light; the editor and tabs still change.
-- Editor colors, on the Editor tab of Edit > Preferences, colors the editors,
+- Editor colors, on the Editor tab of Tools > Preferences, colors the editors,
   the tab strip, comparison windows and the replace preview, as a terminal
   profile colors only its text area; see [Editor colors](#editor-colors). Menus,
   docks, dialogs and title bars keep following View > Theme.
@@ -255,7 +258,7 @@ the grammar's rules.
 | `Ctrl+Shift+L` | Delete the line |
 | `Alt+Up`, `Alt+Down` | Move the lines up or down |
 | `Ctrl+J` | Join lines |
-| `Ctrl+Shift+U`, `Ctrl+U` | Upper case, lower case (Edit menu only on Linux) |
+| `Ctrl+Shift+U`, `Ctrl+U` | Upper case, lower case (Edit > Convert Case only on Linux) |
 | `Ctrl+Backspace`, `Ctrl+Delete` (`Option` on macOS) | Delete the word before or after each caret |
 | `Ctrl+T` (`Control+T` on macOS) | Transpose: swap the characters around each caret, or rotate the texts of two or more selections |
 | `Ctrl+]`, `Ctrl+[`, `Shift+Tab` | Indent, outdent |
@@ -265,30 +268,30 @@ the grammar's rules.
 | `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column` |
 | `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
-Edit > Sort Lines, Remove Duplicate Lines and Trim Trailing Whitespace act on
-the selected lines, or every line. Each is one undo step, and `Esc` stops one
-still computing, as it stops a running comparison. In a file mixing CR and LF
-line endings, these commands, Delete Line, Move Lines and the trim at Save leave
-alone any line whose change would merge a CR and an LF into one CR LF line
-ending, and the status bar names how many lines they left. Edit > Tab Width
-(any width from 1 to 16 through Other), Indent with Spaces and Read-Only apply
-to the selected document. Preferences, Editor sets the width and the indentation a
-document without saved settings starts with. The bracket
+Edit > Sort Lines, and Remove Duplicate Lines and Trim Trailing Whitespace in
+Edit > Line, act on the selected lines, or every line. Each is one undo step,
+and `Esc` stops one still computing, as it stops a running comparison. In a
+file mixing CR and LF line endings, these commands, Delete Line, Move Lines and
+the trim at Save leave alone any line whose change would merge a CR and an LF
+into one CR LF line ending, and the status bar names how many lines they left.
+Edit > Tab Width (any width from 1 to 16 through Other), Indent with Spaces and
+Read-Only apply to the selected document. Preferences, Editor sets the width
+and the indentation a document without saved settings starts with. The bracket
 beside the caret and the other occurrences of the word at the caret are
 highlighted.
 
 Completion opens on its key, or by itself after the number of word chars set in
 Preferences. Up, Down, Enter, Tab and `Esc` work in the list; typing narrows it.
 
-Edit > Title Case capitalizes each word of the selections, or the word at each
-caret; Edit > Swap Case swaps upper and lower case.
+Edit > Convert Case > Title Case capitalizes each word of the selections, or
+the word at each caret; Swap Case swaps upper and lower case.
 
 Edit > Insert Date and Time lists formats with the current time in each:
 the one set in Preferences, Editor (a Java `DateTimeFormatter` pattern such as
 `yyyy-MM-dd HH:mm`) first, the format used last selected. The chosen one
 replaces every selection, as one undo step.
 
-Edit > Document Statistics shows the selected document's lines, words,
+Tools > Document Statistics shows the selected document's lines, words,
 characters, characters without spaces and bytes in its encoding, and the same
 for the selections. A word is a run of characters that are not spaces, tabs or
 line breaks; a character is a Unicode code point, so an emoji counts once. A
@@ -539,7 +542,7 @@ query's letters match in order and need not be adjacent. A query ending in
 documents and Recent Files. Window > Switch Document (`Ctrl+Shift+O`) is the same
 list over the open documents.
 
-Edit > Go to Symbol (`Ctrl+R`, `Cmd+R` on macOS) lists the functions, classes,
+Search > Go to Symbol (`Ctrl+R`, `Cmd+R` on macOS) lists the functions, classes,
 headings and other definitions of the document, found by its language; typing
 narrows the list, and Enter moves the caret to the one selected. In Quick Open,
 `@` followed by a name does the same, and `Shop@total` opens `Shop.java` at
@@ -629,10 +632,11 @@ history, unsaved changes, carets, scroll, folds, bookmarks and its recovery file
 go with it. A tab with a save, reload or conversion running does not move.
 Search results stay in their window and still lead to the moved tab.
 
-File > Exit asks about unsaved documents in every window before anything closes;
-Cancel leaves everything as it was, and a save that fails stops the quit. Closing
-a window asks about its own documents; closing the last one quits. A document
-edited while its save from a close prompt runs stays open and asks again.
+File > Exit (Quit in the application menu on macOS) asks about unsaved documents
+in every window before anything closes; Cancel leaves everything as it was, and
+a save that fails stops the quit. Closing a window asks about its own documents;
+closing the last one quits. A document edited while its save from a close
+prompt runs stays open and asks again.
 
 A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
@@ -652,7 +656,7 @@ File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 
 ![Preferences on the Files tab](images/guide/preferences.png)
 
-Edit > Preferences (`Ctrl+,`; the application menu on macOS) applies to the
+Tools > Preferences (`Ctrl+,`; the application menu on macOS) applies to the
 running windows without a restart.
 
 | Tab | Holds |
@@ -767,14 +771,14 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
 
 ## Help and logs
 
-- Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy.
-- Command-Line Options shows the usage text.
 - User Guide shows this guide in a window that loads nothing else: a copy of
   the page written to the settings directory, holding its own images, with
   JavaScript off. Under GTK 4 a
   notice names the guide's file instead; open that file in a browser. Without a
   working embedded browser, and in explicit and portable mode on Linux, the
   guide opens in the system's HTML application, else a notice names the file.
+- Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy.
+- Command-Line Options shows the usage text.
 - Tip of the Day shows a short tip about a feature, with its menu path and
   key. Next Tip shows the next one, and the next show, in any window,
   continues the list. Show tips on startup opens it at each start, after the

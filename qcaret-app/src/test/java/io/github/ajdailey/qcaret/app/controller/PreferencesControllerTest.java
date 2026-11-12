@@ -41,7 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Edit > Preferences and each setting's effect on the running window. */
+/** Tools > Preferences and each setting's effect on the running window. */
 class PreferencesControllerTest {
   @TempDir Path temp;
 

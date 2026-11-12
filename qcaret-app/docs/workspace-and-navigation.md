@@ -31,9 +31,10 @@ hidden entries and `workspace.excludedDirectories`; a change of
   `ApplicationController.openDropped`, where `DroppedFiles` leaves out every
   directory, following links, on a `qcaret-io-` worker and opens the rest; a
   missing or special path stays in, so the open reports it.
-- A file row opens on activation; the row menu offers Open in Default
-  Application, Set as Workspace Folder and Copy Path, then the file operations
-  below.
+- A file row opens on activation. The row menu is
+  `WorkspaceSelectionInput.MENU`: Open and Open in Default Application, the
+  file operations below, then Copy Path, Search in Folder and Set as Workspace
+  Folder.
 - Open in Default Application refuses a file the system would run: on Windows
   by extension (`Files.isExecutable` is true for every readable file there),
   elsewhere by the executable bit, read on a worker.
@@ -199,7 +200,7 @@ Window > Switch Document is the same popup over the open documents only.
 
 ## Go to Symbol
 
-Edit > Go to Symbol (Mod+R) opens Quick Open with `@` typed (`initialQuery`).
+Search > Go to Symbol (Mod+R) opens Quick Open with `@` typed (`initialQuery`).
 `SymbolRows` lists the selected document's symbols that `Fuzzy` matches on the
 name, best first and by line among equals, at most 500; an empty query lists
 them by line. The detail column is the kind and the line.

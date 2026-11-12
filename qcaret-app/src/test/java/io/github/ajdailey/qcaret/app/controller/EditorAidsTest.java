@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** View > Indent Guides, View > Modified Line Marks and Edit > Wrap Paragraph. */
+/** View > Indent Guides, View > Modified Line Marks and Edit > Line > Wrap Paragraph. */
 class EditorAidsTest {
   @TempDir Path temp;
 

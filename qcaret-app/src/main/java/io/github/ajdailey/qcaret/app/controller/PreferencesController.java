@@ -15,7 +15,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import java.util.function.Consumer;
 
 /**
- * Edit > Preferences: {@link #open} reads {@code qcaret.conf} on a worker through {@link
+ * Tools > Preferences: {@link #open} reads {@code qcaret.conf} on a worker through {@link
  * Settings#refresh} and then shows the dialog; {@link #apply} checks its fields and hands them to
  * {@link Settings}, which saves on a worker. An apply that keeps the theme file reads the file
  * again, so an edit to it shows without a restart. Confined to the UI thread.

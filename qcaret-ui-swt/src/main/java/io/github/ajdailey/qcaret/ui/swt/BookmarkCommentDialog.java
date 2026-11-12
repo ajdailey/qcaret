@@ -12,9 +12,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
 /**
- * Edit > Edit Bookmark Comment: a modal one-line field holding the current comment, limited to the
- * comment length. OK passes the text to the answer; Cancel, Esc and closing pass null. The answer
- * runs once. Opens without a nested event loop.
+ * Search > Bookmarks > Edit Bookmark Comment: a modal one-line field holding the current comment,
+ * limited to the comment length. OK passes the text to the answer; Cancel, Esc and closing pass
+ * null. The answer runs once. Opens without a nested event loop.
  */
 final class BookmarkCommentDialog {
   private final Shell shell;

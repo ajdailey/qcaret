@@ -145,9 +145,9 @@ to keep a CR and an LF apart (`Edit.unchanged`) are counted in a notice through
 
 ### Wrap Paragraph
 
-Edit > Wrap Paragraph hard-wraps at `editor.rightMargin`: with a selection,
-every paragraph in the lines it touches; with carets only, the paragraph at
-each caret. `ParagraphWrap` defines the rest:
+Edit > Line > Wrap Paragraph hard-wraps at `editor.rightMargin`: with a
+selection, every paragraph in the lines it touches; with carets only, the
+paragraph at each caret. `ParagraphWrap` defines the rest:
 
 - A paragraph is a run of lines that are not blank and that all start, after
   their indent, with the grammar's line comment, or none of which does. A line
@@ -218,7 +218,7 @@ time; the Preferences dialog refuses an invalid one, and an invalid one in
 
 ## Document statistics
 
-`StatisticsController` runs Edit > Document Statistics in a modeless dialog.
+`StatisticsController` runs Tools > Document Statistics in a modeless dialog.
 It counts the selected document's text snapshot and its non-empty selections
 on a `qcaret-cpu-` worker, posting each new whole percent read; Refresh counts
 again and closing the dialog cancels the count through its token. A result

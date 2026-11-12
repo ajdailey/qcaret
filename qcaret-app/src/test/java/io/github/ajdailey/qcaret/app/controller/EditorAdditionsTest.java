@@ -28,7 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** View > Right Margin, Edit > Document Statistics and Edit > Insert Date and Time. */
+/** View > Right Margin, Tools > Document Statistics and Edit > Insert Date and Time. */
 class EditorAdditionsTest {
   @TempDir Path temp;
 
