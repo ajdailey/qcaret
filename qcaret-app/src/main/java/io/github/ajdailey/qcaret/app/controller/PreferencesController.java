@@ -90,7 +90,8 @@ final class PreferencesController implements PreferencesInput {
         o.dateFormat(),
         o.editorConfig(),
         o.modelines(),
-        p.appearance().editorColors());
+        p.appearance().editorColors(),
+        o.closeWindowWithLastTab());
   }
 
   @Override
@@ -233,7 +234,8 @@ final class PreferencesController implements PreferencesInput {
                     margin.value(),
                     dateFormat,
                     form.editorConfig(),
-                    form.modelines()));
+                    form.modelines(),
+                    form.closeWindowWithLastTab()));
     boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,

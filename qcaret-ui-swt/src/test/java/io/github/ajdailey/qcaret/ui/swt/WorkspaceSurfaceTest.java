@@ -280,9 +280,9 @@ class WorkspaceSurfaceTest {
 
   @Test
   void anEmptyQuickOpenListsOpenDocumentsInBoldThenRecentFiles() {
-    openFile("README.txt", 1);
-    controller.documents().closeActive();
     openFile("src/main/java/mock/Totals.java", 1);
+    openFile("README.txt", 2);
+    controller.documents().closeActive();
     controller.execute(CommandId.QUICK_OPEN);
     QuickOpenWindow popup = window.quickOpen();
     Table table = popup.table();
@@ -308,9 +308,9 @@ class WorkspaceSurfaceTest {
     expand(dock, root.resolve("src/main"), List.of("java/"));
     expand(dock, root.resolve("src/main/java"), List.of("mock/"));
     expand(dock, root.resolve("src/main/java/mock"), List.of("Report.java", "Totals.java"));
-    openFile("README.txt", 1);
-    controller.documents().closeActive();
     openFile("docs/guide.txt", 1);
+    openFile("README.txt", 2);
+    controller.documents().closeActive();
     openFile("src/main/java/mock/Totals.java", 2);
     dock.press(null, UiText.WORKSPACE_REVEAL);
     capture(dir, "workspace-browser", window.shell().getBounds());

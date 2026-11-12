@@ -132,7 +132,8 @@ class EditorAdditionsTest {
         format,
         f.editorConfig(),
         f.modelines(),
-        f.editorColors());
+        f.editorColors(),
+        false);
   }
 
   // Document statistics.

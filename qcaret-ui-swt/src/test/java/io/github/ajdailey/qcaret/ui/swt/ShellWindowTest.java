@@ -164,7 +164,7 @@ class ShellWindowTest {
     assertTrue(item(CommandId.SAVE_AS).getText().contains("\t"));
     controller.execute(CommandId.CLOSE_ALL);
     drain();
-    assertFalse(item(CommandId.SAVE).getEnabled());
+    assertFalse(item(CommandId.NEXT_TAB).getEnabled());
   }
 
   @Test

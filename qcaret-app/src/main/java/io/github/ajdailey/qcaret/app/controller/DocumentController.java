@@ -156,6 +156,16 @@ public final class DocumentController {
   private boolean lineNumbersShown = true;
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
+  private LastTab lastTab;
+  private final Runnable lastClosed =
+      new Runnable() {
+        @Override
+        public void run() {
+          if (documents.isEmpty() && !disposing && lastTab != null) {
+            lastTab.emptied(DocumentController.this);
+          }
+        }
+      };
   private final ExternalChanges changes;
   private CompareController compare;
   private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
@@ -1045,7 +1055,7 @@ public final class DocumentController {
     return new TabInput() {
       @Override
       public void closeRequested() {
-        close(d, null);
+        closeByUser(d);
       }
 
       @Override
@@ -1143,8 +1153,23 @@ public final class DocumentController {
   /** Closes the selected document, asking first when it has unsaved changes. */
   public void closeActive() {
     if (active != null) {
-      close(active, null);
+      closeByUser(active);
     }
+  }
+
+  private void closeByUser(OpenDocument d) {
+    if (!keepsLast(d)) {
+      close(d, lastClosed);
+    }
+  }
+
+  private boolean keepsLast(OpenDocument d) {
+    return lastTab != null && documents.size() == 1 && documents.get(0) == d && lastTab.keeps(d);
+  }
+
+  /** Close All: {@link #closeAll} as a user's close, so the last tab follows {@link LastTab}. */
+  public void closeAllTabs() {
+    closeNext(null, lastClosed);
   }
 
   /**
@@ -1169,6 +1194,10 @@ public final class DocumentController {
         next = d;
         break;
       }
+    }
+    if (next != null && then == lastClosed && keepsLast(next)) {
+      next.tab.select();
+      return;
     }
     if (next == null) {
       if (kept != null && !kept.closed) {
@@ -1197,7 +1226,7 @@ public final class DocumentController {
   }
 
   private void closeOthers(OpenDocument kept) {
-    closeNext(kept, null);
+    closeNext(kept, lastClosed);
   }
 
   /** Closes the tabs on one side of a tab in tab order, asking for each dirty one; Cancel stops. */
@@ -1521,6 +1550,11 @@ public final class DocumentController {
     }
     d.tab.select();
     return d.editor;
+  }
+
+  /** Sets what a user's close of the last tab does; without one the window stays empty. */
+  void setLastTab(LastTab rule) {
+    lastTab = rule;
   }
 
   /** Sets what runs as each document closes, before it releases its text. */

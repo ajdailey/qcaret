@@ -147,7 +147,7 @@ class FileCommandsTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return documents().count() == 1;
+            return documents().count() == 2;
           }
         },
         "the file open");
@@ -160,7 +160,7 @@ class FileCommandsTest {
     assertFalse(states.enabled(CommandId.REOPEN_CLOSED));
     harness.application.openClosed(0);
     harness.awaitIdle("no entry");
-    assertEquals(1, documents().count());
+    assertEquals(2, documents().count());
   }
 
   private void reopen(final Runnable command, final String text) throws InterruptedException {
@@ -251,7 +251,8 @@ class FileCommandsTest {
                     Options.DEFAULTS.rightMargin(),
                     Options.DEFAULTS.dateFormat(),
                     Options.DEFAULTS.editorConfig(),
-                    Options.DEFAULTS.modelines())));
+                    Options.DEFAULTS.modelines(),
+                    false)));
   }
 
   @Test

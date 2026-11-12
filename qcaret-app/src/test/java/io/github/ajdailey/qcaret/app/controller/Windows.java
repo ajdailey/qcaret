@@ -94,7 +94,7 @@ final class Windows {
   ApplicationController second() {
     set.newWindow();
     ApplicationController window = controllers.get(controllers.size() - 1);
-    window.documents().closeActive();
+    window.documents().closeAll(null);
     return window;
   }
 

@@ -1487,7 +1487,9 @@ public enum UiText {
   /** Tool tip and accessible name of the tab strip's list button. */
   TAB_LIST,
   /** {@link #TAB_LIST} while tabs are hidden; takes the hidden count. */
-  TAB_LIST_HIDDEN;
+  TAB_LIST_HIDDEN,
+  /** Preferences box making a window close with its last tab. */
+  PREFERENCES_CLOSE_WINDOW_WITH_LAST_TAB;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

@@ -108,7 +108,7 @@ class SplitViewTest {
     second.type("z");
     harness.application.execute(CommandId.CLOSE);
     harness.view.unsaved.accept(UnsavedChoice.DISCARD);
-    assertEquals(0, documents.count());
+    assertFalse(documents.isOpen(first.document()));
     first.document().apply(EditBatch.replace(0, 0, "w"));
     assertEquals(length + 1, first.projection().modelLength());
     assertEquals(length + 1, second.projection().modelLength());

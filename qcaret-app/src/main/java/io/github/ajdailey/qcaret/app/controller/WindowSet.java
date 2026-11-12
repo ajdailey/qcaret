@@ -763,6 +763,15 @@ public final class WindowSet {
   }
 
   /**
+   * Reports whether a quit is asking, writing its snapshot or has begun.
+   *
+   * @return true from the quit request on, until a Cancel or a failed save ends it
+   */
+  boolean quitRunning() {
+    return quitting || snapshotting || prompts != null;
+  }
+
+  /**
    * Adds code to run after quit has saved and before it closes {@link Workers}, such as closing a
    * listener whose thread {@link Workers#close} would otherwise wait for and whose lock a new
    * primary must not take before the session file is written. Runs on the UI thread when the

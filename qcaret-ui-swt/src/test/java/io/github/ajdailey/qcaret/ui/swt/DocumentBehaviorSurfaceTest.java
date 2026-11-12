@@ -43,6 +43,7 @@ import org.eclipse.swt.dnd.DropTarget;
 import org.eclipse.swt.dnd.FileTransfer;
 import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
@@ -315,8 +316,25 @@ class DocumentBehaviorSurfaceTest {
     assertTrue(items[0].getText().contains("b.txt"), items[0].getText());
     assertTrue(items[1].getText().contains("a.txt"), items[1].getText());
     items[1].notifyListeners(SWT.Selection, new Event());
-    await(tabs(1), "the chosen file");
-    assertEquals("a.txt", window.tabs().getItem(0).getText());
+    await(tabs(2), "the chosen file");
+    assertEquals("a.txt", window.tabs().getItem(1).getText());
+  }
+
+  @Test
+  void aMiddleClickOnTheLastTabLeavesASelectedUntitledTab() throws Exception {
+    openFile("a.txt", "a\n");
+    Rectangle bounds = window.tabs().getItem(0).getBounds();
+    Event click = new Event();
+    click.button = 2;
+    click.x = bounds.x + bounds.width / 2;
+    click.y = bounds.y + bounds.height / 2;
+    window.tabs().notifyListeners(SWT.MouseUp, click);
+    drain();
+    assertEquals(1, window.tabs().getItemCount());
+    assertEquals(UiText.TAB_UNTITLED.format(1), window.tabs().getItem(0).getText());
+    assertEquals(window.tabs().getItem(0), window.tabs().getSelection());
+    controller.execute(CommandId.REOPEN_CLOSED);
+    await(tabs(2), "the reopened file");
   }
 
   @Test
@@ -333,7 +351,7 @@ class DocumentBehaviorSurfaceTest {
     assertEquals(window.menuBar().item(CommandId.CLEAR_CLOSED_FILES), items[4]);
     assertTrue(openAll.getEnabled());
     openAll.notifyListeners(SWT.Selection, new Event());
-    await(tabs(2), "every closed file");
+    await(tabs(3), "every closed file");
   }
 
   @Test

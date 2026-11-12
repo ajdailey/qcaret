@@ -98,6 +98,21 @@ closes `Workers`, runs the finish listeners and posts the disposals. With
 - `EditorInput.menuFromView` keeps the selections when a right click lands in a
   non-empty one, ends included, and otherwise leaves one caret at the click.
 
+## Last tab
+
+`LastTab` applies to a user's close of a window's last tab: File > Close, the
+tab's close button or middle click, Close All and Close Others. With
+`tabs.closeWindowWithLastTab` off, an untitled document opens in the window,
+selected. An untitled document with no text and no unsaved changes stays open
+when it is the only tab, so closing it does nothing and Close All keeps it when
+it comes last. With the option on, the window closes through `requestClose`,
+and the last window quits.
+
+A tab move, a window close and a quit close documents without `LastTab`. A
+window left by a move stays open, empty. No untitled document opens while a quit
+asks, writes its snapshot or runs (`WindowSet.quitRunning`), so none reaches the
+session.
+
 ## Tab moves
 
 `WindowSet.moveDocument` moves a tab with its live `Document` to another window

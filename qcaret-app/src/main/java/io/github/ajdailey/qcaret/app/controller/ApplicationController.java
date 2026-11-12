@@ -236,6 +236,7 @@ public final class ApplicationController {
           }
         });
     workspace.setExcludedDirectories(options.excludedDirectories());
+    documents.setLastTab(new LastTab(settings, set, this));
     this.preferences =
         new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory, set);
     this.statistics = new StatisticsController(documents, workers, ui, view);
@@ -695,7 +696,7 @@ public final class ApplicationController {
       case RELOAD -> documents.reloadFromDisk();
       case PRINT -> print.print();
       case CLOSE -> documents.closeActive();
-      case CLOSE_ALL -> documents.closeAll(null);
+      case CLOSE_ALL -> documents.closeAllTabs();
       case QUIT -> requestQuit();
       case NEW_WINDOW -> set.newWindow();
       case MOVE_TO_NEW_WINDOW -> moveActiveToNewWindow();

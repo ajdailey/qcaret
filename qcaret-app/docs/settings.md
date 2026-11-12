@@ -133,6 +133,7 @@ Shortcuts.
 | `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Edit > Preferences, Files |
 | `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Edit > Preferences, Files |
 | `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Edit > Preferences, Files |
+| `tabs.closeWindowWithLastTab` | `true`, `false`: closing a window's last tab closes the window, and the last window quits; off, an untitled document takes the tab's place | `false` | Edit > Preferences, Files |
 | `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Edit > Preferences, Files |
 | `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Edit > Preferences, Search and Workspace |
 | `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Edit > Preferences, Search and Workspace |

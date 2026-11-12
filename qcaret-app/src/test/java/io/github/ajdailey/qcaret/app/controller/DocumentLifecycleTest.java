@@ -212,7 +212,7 @@ class DocumentLifecycleTest {
     view.unsaved.accept(UnsavedChoice.DISCARD);
     windows.settle("the cleanup");
     assertEquals("a  \n", Files.readString(root.resolve("c.txt")));
-    assertEquals(0, first.documents().count());
+    assertFalse(first.documents().isOpen(document));
     assertEquals("xa  \n", document.text().toString());
   }
 }

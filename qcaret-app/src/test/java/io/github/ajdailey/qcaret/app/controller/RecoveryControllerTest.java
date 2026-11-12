@@ -727,7 +727,8 @@ class RecoveryControllerTest {
         Options.DEFAULTS.rightMargin(),
         Options.DEFAULTS.dateFormat(),
         Options.DEFAULTS.editorConfig(),
-        Options.DEFAULTS.modelines());
+        Options.DEFAULTS.modelines(),
+        false);
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

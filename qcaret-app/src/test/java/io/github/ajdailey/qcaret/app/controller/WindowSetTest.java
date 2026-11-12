@@ -384,7 +384,8 @@ class WindowSetTest {
     assertTrue(windows.view(second).raised > 0);
     second.documents().closeActive();
     windows.view(second).unsaved.accept(UnsavedChoice.DISCARD);
-    assertEquals(0, second.documents().count());
+    assertEquals(1, second.documents().count());
+    assertNull(second.documents().activePath());
   }
 
   @Test

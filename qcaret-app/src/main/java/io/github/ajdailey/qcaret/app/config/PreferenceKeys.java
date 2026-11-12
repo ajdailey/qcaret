@@ -49,6 +49,7 @@ final class PreferenceKeys {
   static final String RECOVERY_SECONDS = "recovery.intervalSeconds";
   static final String RECOVERY_DAYS = "recovery.keepDays";
   static final String SESSION_SNAPSHOT = "session.snapshot";
+  static final String CLOSE_WINDOW_WITH_LAST_TAB = "tabs.closeWindowWithLastTab";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
   static final String SEARCH_WORD = "search.wholeWord";
@@ -114,6 +115,7 @@ final class PreferenceKeys {
     keys.put(DATE_FORMAT, o.dateFormat());
     keys.put(EDITOR_CONFIG, Boolean.toString(o.editorConfig()));
     keys.put(MODELINES, Boolean.toString(o.modelines()));
+    keys.put(CLOSE_WINDOW_WITH_LAST_TAB, Boolean.toString(o.closeWindowWithLastTab()));
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -290,7 +292,8 @@ final class PreferenceKeys {
         number(p, RIGHT_MARGIN, 1, Options.MAX_RIGHT_MARGIN, d.rightMargin(), file),
         dateFormat(p, DATE_FORMAT, d.dateFormat(), file),
         flag(p, EDITOR_CONFIG, d.editorConfig(), file),
-        flag(p, MODELINES, d.modelines(), file));
+        flag(p, MODELINES, d.modelines(), file),
+        flag(p, CLOSE_WINDOW_WITH_LAST_TAB, d.closeWindowWithLastTab(), file));
   }
 
   private static UiState state(Properties p, Path file) {

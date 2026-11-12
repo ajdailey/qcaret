@@ -174,7 +174,9 @@ class SymbolCacheTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return harness.application.documents().count() == 0;
+            // Closing the last tab opens a fresh Untitled in its place.
+            return harness.application.documents().count() == 1
+                && harness.application.documents().activeDocument() != document;
           }
         },
         "document closed");

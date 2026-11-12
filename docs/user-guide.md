@@ -187,6 +187,11 @@ apply (measured on Linux, one million lines):
   selected one is checked. Choosing a tab selects it and brings it into the
   row. The mouse wheel over the row scrolls it one tab at a time and keeps the
   selected tab in view.
+- Closing a window's last tab opens an empty Untitled document in its place. An
+  empty Untitled document with no unsaved changes stays open when it is the only
+  tab. Preferences, Files, "Close the window with its last tab" closes the window
+  instead; with the last window, QCaret quits as File > Exit does. A tab dragged
+  or moved to another window leaves its window empty.
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
@@ -641,7 +646,7 @@ running windows without a restart.
 | Tab | Holds |
 |---|---|
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, editor colors |
-| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking |
+| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, editor font |
 | Keys | Every command's keys: Add, Remove, Default Keys |

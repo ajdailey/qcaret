@@ -119,7 +119,8 @@ class PreferencesControllerTest {
         field.equals("dateFormat") ? value : f.dateFormat(),
         f.editorConfig(),
         f.modelines(),
-        field.equals("editorColors") ? value : f.editorColors());
+        field.equals("editorColors") ? value : f.editorColors(),
+        false);
   }
 
   @Test
@@ -152,7 +153,8 @@ class PreferencesControllerTest {
                 f.dateFormat(),
                 f.editorConfig(),
                 f.modelines(),
-                f.editorColors()));
+                f.editorColors(),
+                false));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -179,7 +181,8 @@ class PreferencesControllerTest {
                 f.dateFormat(),
                 f.editorConfig(),
                 f.modelines(),
-                f.editorColors())));
+                f.editorColors(),
+                false)));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -278,7 +281,8 @@ class PreferencesControllerTest {
                 f.dateFormat(),
                 f.editorConfig(),
                 f.modelines(),
-                f.editorColors())));
+                f.editorColors(),
+                false)));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -408,7 +412,8 @@ class PreferencesControllerTest {
                 f.dateFormat(),
                 f.editorConfig(),
                 f.modelines(),
-                f.editorColors())));
+                f.editorColors(),
+                false)));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -447,7 +452,8 @@ class PreferencesControllerTest {
         Options.DEFAULTS.rightMargin(),
         Options.DEFAULTS.dateFormat(),
         Options.DEFAULTS.editorConfig(),
-        Options.DEFAULTS.modelines());
+        Options.DEFAULTS.modelines(),
+        false);
   }
 
   @Test

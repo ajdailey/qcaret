@@ -37,6 +37,8 @@ import java.time.format.DateTimeFormatter;
  * @param editorConfig {@code editor.editorConfig}: documents take the settings of {@code
  *     .editorconfig} files
  * @param modelines {@code editor.modelines}: documents take the settings of vim and Emacs modelines
+ * @param closeWindowWithLastTab {@code tabs.closeWindowWithLastTab}: closing a window's last tab
+ *     closes the window
  */
 public record Options(
     int completionChars,
@@ -56,7 +58,8 @@ public record Options(
     int rightMargin,
     String dateFormat,
     boolean editorConfig,
-    boolean modelines) {
+    boolean modelines,
+    boolean closeWindowWithLastTab) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -135,7 +138,8 @@ public record Options(
           80,
           "yyyy-MM-dd HH:mm",
           true,
-          true);
+          true,
+          false);
 
   /** Checks the components. */
   public Options {
@@ -234,7 +238,8 @@ public record Options(
         rightMargin,
         dateFormat,
         editorConfig,
-        modelines);
+        modelines,
+        closeWindowWithLastTab);
   }
 
   /**
@@ -262,6 +267,7 @@ public record Options(
         rightMargin,
         dateFormat,
         editorConfig,
-        modelines);
+        modelines,
+        closeWindowWithLastTab);
   }
 }
