@@ -1,6 +1,6 @@
 # Theme and icons
 
-`SwtThemeService`, `CocoaChrome`, tab colors, `ToolIcons` and `MenuIcons` in
+`SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, tab colors, `ToolIcons` and `MenuIcons` in
 `ui.swt` of [qcaret-ui-swt](../README.md). The palette and theme modes are in
 [qcaret-app help and themes](../../qcaret-app/docs/help-and-themes.md#themes).
 
@@ -12,7 +12,7 @@
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
 | GTK | `setDarkThemePreferred` before the first Shell for light and dark, and at every switch | Applies at once. The system setting is read once at Display creation, so a desktop change applies at the next start |
-| win32 | `setDarkThemePreferred` before the first Shell; controls read it only when created | Native controls change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark; see [win32](#win32) |
+| win32 | `setDarkThemePreferred` before the first Shell; controls read it only when created | Native controls change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark, and `DialogSurfaces` colors dialogs; see [win32](#win32) |
 | cocoa | Never set: always the system appearance | Only the text view and tab strip recolor; a system appearance change recolors the rest through `CocoaChrome` |
 
 DO NOT PIN THE COCOA APPEARANCE, live or at startup. Cocoa SWT reads its widget
@@ -42,10 +42,11 @@ because both read the native background.
 
 ### win32
 
-Under a dark startup setting win32 draws check box labels near-white while
-dialog pages stay light, so every check box comes from `SwtThemeService.check`,
-which creates it with the theme off. A `MenuItem` or `Table` with `SWT.CHECK`
-has no such label and does not use it.
+Under a dark startup setting win32 draws check box labels near-white while the
+main window's docks and bars stay light, so every check box comes from
+`SwtThemeService.check`, which creates it with the theme off outside a dialog
+`DialogSurfaces` colored. A `MenuItem` or `Table` with `SWT.CHECK` has no such
+label and does not use it.
 
 Measured on `windows-2025` with SWT 3.135.0 under a dark startup setting
 (`Win32DarkInkTest` saves the window and the readings to
@@ -59,8 +60,50 @@ Measured on `windows-2025` with SWT 3.135.0 under a dark startup setting
 icon inked from it is dark on dark. Icons therefore sit only on tool bars,
 which draw light like the window; the main toolbar and the workspace browser's
 row read `#f0f0f0`. `Text.setBackground` and `setForeground` do color a field
-under the dark setting, its hint and disabled state included, but QCaret keeps
-fields native: the dock, tree and toolbar around them stay light.
+under the dark setting, its hint and a disabled field's background included
+(disabled text stays system gray), but QCaret keeps
+the main window's fields native: the dock, tree and toolbar around them stay
+light.
+
+#### Dialog colors
+
+`DialogSurfaces.apply` runs on every dialog shell: `Dialogs.shell` calls it
+beside `inheritIcons`, and `ArchitectureTest.ownedShellsTakeDialogColors` fails
+on a `new Shell` elsewhere without it. The main window and the completion popup
+keep native colors. GTK and cocoa (`NativeDialogSurfaces`) change nothing.
+
+Under a dark startup setting `Win32DialogSurfaces` sets the colors below, forces
+the body color onto children so push button corners match, and colors controls
+created after the shell shows from `SWT.Skin`. A control with
+`EditorPane.PALETTE_COLORED` keeps the palette. `Dialogs.background` returns the
+body color, so About picks the dark logo.
+
+| Control | Background | Text |
+|---|---|---|
+| Shell, `Composite`, `Label`, `Link`, `Group`, check box, radio button, `TabFolder` page | `#202020`, the title bar | White; link color raised to 4.5 contrast |
+| `Text`, drop-down `Combo`, `List`, `Table` and its header, `Tree`, `Spinner` | `#2b2b2b` | White |
+| Read-only `Combo` | `#333333`, the push button face | White |
+| Push button | Native `#333333` face | Native white |
+| `ProgressBar` | `#202020` | Native bar color |
+
+A forced background makes a read-only combo draw its own text in the
+foreground color, black by default, so it gets explicit colors. Measured on
+`windows-2025` by `Win32DarkDialogsTest`, which saves each dialog to
+`target/diagnostics/win32-dialogs/`; the `windows-11-arm` runner shows another
+window over the desktop and skips it.
+
+Public API leaves these light or gray:
+
+- `TabFolder`'s tab strip and frame (Preferences): the native tab control draws
+  them.
+- `Table` grid lines and header dividers (the Keys page).
+- `Spinner` arrow buttons.
+- Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
+  field (2.7 contrast), `#808080` on the body.
+- The Guide's page, which its HTML colors.
+
+The colors follow the startup setting, as native controls do: after a live
+switch an open dialog and a newly opened one keep them until the next start.
 
 ### cocoa
 

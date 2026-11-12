@@ -52,6 +52,7 @@ final class DiffWindow {
     this.palette = palette;
     shell = new Shell(parent, SWT.SHELL_TRIM);
     Dialogs.inheritIcons(shell, parent);
+    DialogSurfaces.platform().apply(shell);
     shell.setText(
         UiText.COMPARE_WINDOW_TITLE.format(comparison.leftTitle(), comparison.rightTitle()));
     GridLayout layout = new GridLayout(4, false);

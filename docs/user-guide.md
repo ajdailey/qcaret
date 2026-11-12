@@ -228,7 +228,8 @@ apply (measured on Linux, one million lines):
   chooses a grammar. A Warnings link appears when QCaret logs a warning and opens
   Help > Show Log.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
-  at the next start, and on macOS they follow the system appearance, also
+  at the next start; under Dark, dialogs are dark while the main window's docks,
+  fields and toolbar stay light. On macOS they follow the system appearance, also
   while QCaret runs. On Linux a GTK theme with no dark variant keeps native
   controls light; the editor and tabs still change.
 - Editor colors, on the Editor tab of Edit > Preferences, colors the editors,
@@ -763,6 +764,11 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
   notice names the guide's file instead; open that file in a browser. Without a
   working embedded browser, and in explicit and portable mode on Linux, the
   guide opens in the system's HTML application, else a notice names the file.
+- Tip of the Day shows a short tip about a feature, with its menu path and
+  key. Next Tip shows the next one, and the next show, in any window,
+  continues the list. Show tips on startup opens it at each start, after the
+  session has restored and the recovery prompt, if any, is answered. It is off
+  by default.
 - Show Log shows the recent log lines and clears the Warnings link.
 - Debug Log File writes the log at DEBUG to `logs/` in the settings directory
   until turned off. Open Log Folder and Open Settings Folder open those folders.

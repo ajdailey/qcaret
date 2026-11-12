@@ -916,6 +916,52 @@ class ArchitectureTest {
     return false;
   }
 
+  /**
+   * A code unit that creates an owned shell calls {@code DialogSurfaces.apply}, so every dialog
+   * takes the platform's dialog colors. The main window and the completion popup keep native
+   * colors.
+   */
+  @Test
+  void ownedShellsTakeDialogColors() {
+    ownedShellsTakeDialogColorsRule().check(classes);
+  }
+
+  private static ArchRule ownedShellsTakeDialogColorsRule() {
+    return classes()
+        .should(
+            new ArchCondition<JavaClass>("call DialogSurfaces.apply where they create a Shell") {
+              @Override
+              public void check(JavaClass type, ConditionEvents events) {
+                if (type.getName().equals(ROOT + ".ui.swt.editor.CompletionPopup")) {
+                  return;
+                }
+                for (JavaCodeUnit unit : type.getCodeUnits()) {
+                  for (JavaConstructorCall call : unit.getConstructorCallsFromSelf()) {
+                    if (call.getTargetOwner().isAssignableTo(Shell.class)
+                        && !topLevelInMainWindow(call)
+                        && !callsDialogSurfaces(unit)) {
+                      events.add(
+                          SimpleConditionEvent.violated(
+                              call,
+                              "new Shell without DialogSurfaces.apply in "
+                                  + call.getDescription()));
+                    }
+                  }
+                }
+              }
+            });
+  }
+
+  private static boolean callsDialogSurfaces(JavaCodeUnit unit) {
+    for (JavaMethodCall call : unit.getMethodCallsFromSelf()) {
+      if (call.getTarget().getName().equals("apply")
+          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.DialogSurfaces")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Each rule reports the fixture class that breaks it.
 
   private static final String VIEW_FIXTURES = ROOT + ".ui.swt.archfixture.ViewViolations$";
@@ -1076,6 +1122,10 @@ class ArchitectureTest {
         "!palette");
     assertViolations(
         ownedShellsInheritIconsRule(), VIEW_FIXTURES + "CreatesShell", "new Shell without");
+    assertViolations(
+        ownedShellsTakeDialogColorsRule(),
+        VIEW_FIXTURES + "CreatesShell",
+        "new Shell without DialogSurfaces.apply");
   }
 
   /**

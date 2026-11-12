@@ -43,6 +43,8 @@ import io.github.ajdailey.qcaret.app.view.StatisticsInput;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
+import io.github.ajdailey.qcaret.app.view.TipDisplay;
+import io.github.ajdailey.qcaret.app.view.TipInput;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -211,6 +213,7 @@ public final class MainWindow implements MainView {
   private HashTextDialog hashTextDialog;
   private ChecksumDialog checksumDialog;
   private DateFormatChooser dateFormatChooser;
+  private TipDialog tipDialog;
   private Keymap keymap;
   private PreferencesDialog preferencesDialog;
   private Menu tabMenu;
@@ -2081,7 +2084,7 @@ public final class MainWindow implements MainView {
             controller.showLicenses();
           }
         };
-    new AboutDialog(shell, info, logoVariant(shell.getBackground()), licenses, this).open();
+    new AboutDialog(shell, info, logoVariant(Dialogs.background(shell)), licenses, this).open();
   }
 
   /**
@@ -2765,5 +2768,29 @@ public final class MainWindow implements MainView {
   @Override
   public void setOnTop(boolean onTop) {
     WindowStacking.PLATFORM.setOnTop(shell, onTop);
+  }
+
+  @Override
+  public TipDisplay showTips(TipInput input) {
+    if (shell.isDisposed()) {
+      return TipDialog.NONE;
+    }
+    tipDialog = new TipDialog(shell, input);
+    tipDialog.open();
+    return tipDialog;
+  }
+
+  /**
+   * Returns the newest Tip of the Day dialog.
+   *
+   * @return the dialog, or null before one opened
+   */
+  TipDialog tipDialog() {
+    return tipDialog;
+  }
+
+  @Override
+  public boolean promptShown() {
+    return !shell.isDisposed() && modalOwner() != shell;
   }
 }

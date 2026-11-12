@@ -167,17 +167,21 @@ public final class SwtThemeService implements ThemeService {
   }
 
   /**
-   * Creates a check box readable on a light page. win32's dark native theme draws a check box label
-   * near-white, or light gray when disabled, and dialog pages stay light; {@code setForeground}
-   * reaches only an enabled box. The theme applies to a control when it is created, so under a dark
-   * startup setting the box is created with the theme off.
+   * Creates a check box readable on its page. win32's dark native theme draws a check box label
+   * near-white, or light gray when disabled, and the main window's docks and bars stay light;
+   * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
+   * created, so under a dark startup setting a box outside a {@link DialogSurfaces} dialog is
+   * created with the theme off.
    *
    * @param parent the parent
    * @return the check box
    */
   static Button check(Composite parent) {
     Display display = parent.getDisplay();
-    boolean light = WIN32 && Boolean.TRUE.equals(display.getData(NATIVE_DARK));
+    boolean light =
+        WIN32
+            && Boolean.TRUE.equals(display.getData(NATIVE_DARK))
+            && !DialogSurfaces.platform().colored(parent);
     if (light) {
       display.setDarkThemePreferred(false);
     }

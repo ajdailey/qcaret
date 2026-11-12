@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -34,7 +35,8 @@ final class Dialogs {
   }
 
   /**
-   * Creates a dialog shell with a given style, carrying its owner's icons.
+   * Creates a dialog shell with a given style, carrying its owner's icons and the platform's {@link
+   * DialogSurfaces} colors.
    *
    * @param parent the owning shell
    * @param title the title
@@ -45,6 +47,7 @@ final class Dialogs {
     Shell shell = new Shell(parent, style);
     shell.setText(title);
     inheritIcons(shell, parent);
+    DialogSurfaces.platform().apply(shell);
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 12;
     layout.marginHeight = 12;
@@ -66,6 +69,17 @@ final class Dialogs {
     if (images.length > 0) {
       shell.setImages(images);
     }
+  }
+
+  /**
+   * Returns the background of a dialog owned by a shell, which on win32 under a dark startup
+   * setting differs from the owner's.
+   *
+   * @param owner the owning shell
+   * @return the color
+   */
+  static Color background(Shell owner) {
+    return DialogSurfaces.platform().background(owner);
   }
 
   /**
