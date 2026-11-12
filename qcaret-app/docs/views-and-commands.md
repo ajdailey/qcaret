@@ -138,9 +138,10 @@ Platform choices in the defaults, with the conflict each avoids:
 | Select Line, Transpose | Ctrl+L, Ctrl+T; Control+L and Control+T on macOS | Command+L is Go to Line on macOS |
 | Delete Word Back and Forward | Ctrl+Backspace, Ctrl+Delete; Option on macOS | The word-move modifier of each platform |
 | Title Case, Swap Case | None | Ctrl+Alt+letter is AltGr on Windows and types a char on many layouts |
+| Fold All, Unfold All | Alt+[ and Alt+]; Cmd+Option+[ and ] on macOS | Windows delivers AltGr as Ctrl+Alt, and AltGr+[ types a char on layouts such as US-International |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
-Mod+Shift+[ and ], Fold All and Unfold All Mod+Alt+[ and ], as editor bindings;
+Mod+Shift+[ and ], as editor bindings;
 bookmarks Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and Select
 to Matching Bracket Mod+B and Mod+Shift+B; Command Palette Mod+Shift+P;
 HyperSearch Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Quick Open
@@ -153,8 +154,8 @@ Remove Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Title Case,
 Swap Case, Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Always on Top, Set
 Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Close Others,
-Close to the Left and Right, Open All and the Clear items of Recent Files and
-Recently Closed, Undo Selection, Redo Selection, and every Tools command but
+Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
+Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in
 [Settings](settings.md#key-binding-overrides).
 
@@ -176,7 +177,7 @@ enabled state from the same call.
 | Cut, Copy | A selection (`EditorController.hasSelection` walks the carets, never the text) |
 | Next and Previous Result | A match in a retained set |
 | Go Back, Go Forward | A position that way |
-| Open All, Clear Recent Files, Clear Recently Closed | A listed file |
+| Open All, Clean Up, Clear Recent Files, Clear Recently Closed | A listed file |
 | Reload from Disk | A file on the document |
 | Close to the Left, Close to the Right | A tab on that side of the selected one |
 

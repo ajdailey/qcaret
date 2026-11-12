@@ -156,8 +156,10 @@ given number of context lines.
 ## Workspace folder
 
 `WalkRules` leaves out hidden entries (`HiddenFiles`: a name starting with `.`,
-or the DOS hidden attribute on Windows) and directories with an excluded name,
-with their trees. `FileSearch` applies the same hidden rule.
+or `OsTraits.hidden`) and directories with an excluded name, with their trees.
+`FileSearch` applies the same hidden rule. On Windows `OsTraits.hidden` reads
+the entry's own DOS attributes: `Files.isHidden` follows a junction to its
+target, so the hidden junction `My Documents` would list as a plain folder.
 
 `DirectoryListing.read` lists one directory for the browser with its
 `ListingOptions`: directories first, then files, each by name ignoring case,

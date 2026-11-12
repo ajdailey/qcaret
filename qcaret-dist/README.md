@@ -41,6 +41,10 @@ the jnilib bytes, so the bootstrap extracts the natives from the jar into the
 user cache on first start, with Eclipse's signatures intact. The SWT notices
 are in `Resources/swt/`.
 
+A `qcaret.conf` in `qcaret/` selects portable mode on Linux and Windows; on
+Linux one in `qcaret/bin/`, beside the script, also does, and `qcaret/` wins
+when both exist. Modes are in the root `README.md` under "Settings directory".
+
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 (Temurin 21.0.12+8, downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with

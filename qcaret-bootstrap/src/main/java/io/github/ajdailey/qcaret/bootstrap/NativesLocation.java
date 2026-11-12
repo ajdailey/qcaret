@@ -11,8 +11,9 @@ import java.util.Map;
  * <ol>
  *   <li>a bundle's {@code <qcaret.home>/lib/swt}, verified and never written;
  *   <li>{@code <settings>/cache/swt/<swt version>-<target>} for {@code --settings <dir>}, or with
- *       {@code <qcaret.home>} as the settings directory when {@code <qcaret.home>/qcaret.conf}
- *       exists (portable mode);
+ *       the portable settings directory: {@code <qcaret.home>} when {@code
+ *       <qcaret.home>/qcaret.conf} exists, else on Linux {@code <qcaret.home>/bin} when {@code
+ *       qcaret.conf} exists there;
  *   <li>the per-user cache: {@code ${XDG_CACHE_HOME:-~/.cache}/qcaret/swt} on Linux, {@code
  *       %LOCALAPPDATA%\QCaret\cache\swt} on Windows, {@code
  *       ~/Library/Caches/io.github.ajdailey.qcaret/swt} on macOS, each with a {@code <swt
@@ -49,10 +50,29 @@ record NativesLocation(Path dir, boolean writable) {
     if (settings != null) {
       return new NativesLocation(settings.resolve("cache").resolve("swt").resolve(leaf), true);
     }
-    if (Files.isRegularFile(home.resolve("qcaret.conf"))) {
-      return new NativesLocation(home.resolve("cache").resolve("swt").resolve(leaf), true);
+    Path portable = portable(home, target);
+    if (portable != null) {
+      return new NativesLocation(portable.resolve("cache").resolve("swt").resolve(leaf), true);
     }
     return new NativesLocation(userCache(target, env, userHome).resolve(leaf), true);
+  }
+
+  /**
+   * Returns the portable settings directory: {@code <home>} when it holds {@code qcaret.conf}, else
+   * on Linux {@code <home>/bin} when that holds one; null otherwise. Follows {@code
+   * SettingsLocation}, which the bootstrap cannot load.
+   */
+  private static Path portable(Path home, Target target) {
+    if (Files.isRegularFile(home.resolve("qcaret.conf"))) {
+      return home;
+    }
+    if (!target.isWindows() && !target.isMac()) {
+      Path bin = home.resolve("bin");
+      if (Files.isRegularFile(bin.resolve("qcaret.conf"))) {
+        return bin;
+      }
+    }
+    return null;
   }
 
   private static Path userCache(Target target, Map<String, String> env, String userHome) {

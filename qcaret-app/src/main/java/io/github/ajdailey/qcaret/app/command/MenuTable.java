@@ -137,6 +137,7 @@ public final class MenuTable {
             CommandId.RELOAD,
             null,
             CommandId.OPEN_ALL_RECENT,
+            CommandId.CLEAN_UP_RECENT,
             CommandId.CLEAR_RECENT_FILES,
             CommandId.REOPEN_CLOSED,
             CommandId.OPEN_ALL_CLOSED,

@@ -84,7 +84,7 @@ final class SelectionDelete {
                   }
                   unread = null;
                 } catch (IOException e) {
-                  error = LogText.oneLine(e.getMessage());
+                  error = LogText.oneLine(ChecksumRun.reason(e));
                 } catch (CancellationException e) {
                   found = null;
                 }

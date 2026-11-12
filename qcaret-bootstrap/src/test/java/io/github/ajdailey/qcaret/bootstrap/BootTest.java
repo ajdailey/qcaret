@@ -67,6 +67,21 @@ class BootTest {
         settings.resolve("cache").resolve("swt").resolve("3.135.0-linux-x86_64"),
         NativesLocation.resolve(home, settings, Target.LINUX_X86_64, "3.135.0", env, "/u").dir());
 
+    // On Linux, a marker beside bin/qcaret; the installation directory's wins.
+    Path bin = Files.createDirectory(home.resolve("bin"));
+    Files.createFile(bin.resolve("qcaret.conf"));
+    assertEquals(
+        bin.resolve("cache").resolve("swt").resolve("3.135.0-linux-x86_64"),
+        NativesLocation.resolve(home, null, Target.LINUX_X86_64, "3.135.0", env, "/u").dir());
+    assertEquals(
+        Path.of(
+            "/u", "Library", "Caches", "io.github.ajdailey.qcaret", "swt", "3.135.0-macos-aarch64"),
+        NativesLocation.resolve(home, null, Target.MACOS_AARCH64, "3.135.0", env, "/u").dir());
+    assertEquals(
+        Path.of("/u", "AppData", "Local", "QCaret", "cache", "swt", "3.135.0-windows-x86_64"),
+        NativesLocation.resolve(home, null, Target.WINDOWS_X86_64, "3.135.0", Map.of(), "/u")
+            .dir());
+
     Files.createFile(home.resolve("qcaret.conf"));
     assertEquals(
         home.resolve("cache").resolve("swt").resolve("3.135.0-linux-x86_64"),

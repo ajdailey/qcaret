@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.core.util.os;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -97,6 +99,16 @@ public interface OsTraits {
   Path userSettings(Map<String, String> env, Path userHome);
 
   /**
+   * Returns the launcher's directory, whose {@code qcaret.conf} also selects portable mode when the
+   * installation directory has none.
+   *
+   * @param home the installation directory, the parent of {@code lib/}
+   * @return {@code <home>/bin}, beside the {@code bin/qcaret} script, on Linux; null elsewhere,
+   *     where the launcher sits in the installation directory or a sealed bundle
+   */
+  Path launcherDirectory(Path home);
+
+  /**
    * Reports whether explicit and portable mode keep QCaret's files out of the user's home: the
    * toolkit writes under {@code user.home} and the embedded browser under the XDG directories, so
    * {@code user.home} moves to the settings directory and the user guide opens outside the process.
@@ -120,4 +132,14 @@ public interface OsTraits {
    * @return the folders, which need not exist, without duplicates
    */
   List<Path> fontDirectories(Map<String, String> env, String home);
+
+  /**
+   * Reports whether the system marks an entry hidden.
+   *
+   * @param path the file or directory
+   * @return on Windows the entry's own DOS hidden attribute, so a junction or link answers for
+   *     itself and not its target; {@link Files#isHidden} elsewhere
+   * @throws IOException when the attributes cannot be read
+   */
+  boolean hidden(Path path) throws IOException;
 }

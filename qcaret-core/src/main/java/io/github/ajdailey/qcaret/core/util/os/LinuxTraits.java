@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.core.util.os;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +40,11 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
+  public Path launcherDirectory(Path home) {
+    return home.resolve("bin");
+  }
+
+  @Override
   public boolean confinesToSettings() {
     return true;
   }
@@ -65,5 +72,10 @@ final class LinuxTraits implements OsTraits {
       EnvPaths.addFolder(folders, dir, "fonts");
     }
     return folders;
+  }
+
+  @Override
+  public boolean hidden(Path path) throws IOException {
+    return Files.isHidden(path);
   }
 }

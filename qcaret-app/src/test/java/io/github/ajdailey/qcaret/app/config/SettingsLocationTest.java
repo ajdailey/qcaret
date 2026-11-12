@@ -31,6 +31,21 @@ class SettingsLocationTest {
   }
 
   @Test
+  void onLinuxAMarkerBesideTheLauncherScriptSelectsPortable() throws IOException {
+    Path home = Files.createDirectory(temp.resolve("home"));
+    Path bin = Files.createDirectory(home.resolve("bin"));
+    Files.createFile(bin.resolve("qcaret.conf"));
+    assertEquals(
+        new SettingsLocation(SettingsMode.PORTABLE, bin), resolve(null, home, "Linux", Map.of()));
+    assertEquals(SettingsMode.PER_USER, resolve(null, home, "Windows 11", Map.of()).mode());
+    assertEquals(SettingsMode.PER_USER, resolve(null, home, "Mac OS X", Map.of()).mode());
+    // With both markers, the installation directory wins.
+    Files.createFile(home.resolve("qcaret.conf"));
+    assertEquals(
+        new SettingsLocation(SettingsMode.PORTABLE, home), resolve(null, home, "Linux", Map.of()));
+  }
+
+  @Test
   void withoutTheMarkerTheDirectoryIsPerUser() throws IOException {
     Path home = Files.createDirectory(temp.resolve("home"));
     Files.createDirectory(home.resolve("qcaret.conf"));

@@ -173,7 +173,7 @@ public final class ApplicationController {
     this.find = new FindController(documents, workers, ui, settings);
     this.workspace = new WorkspaceController(view, workers, ui, documents, budget);
     this.history = new NavigationHistory(documents, workers, ui, view);
-    this.recentFiles = new RecentFiles(documents, view, set.recentPaths());
+    this.recentFiles = new RecentFiles(documents, view, set.recentPaths(), workers, ui);
     Options options = preferences.options();
     HyperSearch.Limits limits =
         HyperSearch.Limits.DEFAULTS.withMaxLineChars(options.searchMaxLineChars());
@@ -807,6 +807,7 @@ public final class ApplicationController {
       case SWITCH_DOCUMENT -> view.showQuickOpen(quickOpen(true, ""));
       case GO_TO_SYMBOL -> view.showQuickOpen(quickOpen(false, "@"));
       case CLEAR_RECENT_FILES -> recentFiles.clear();
+      case CLEAN_UP_RECENT -> recentFiles.cleanUp();
       case WORKSPACE_BROWSER -> workspace.toggle();
       case GO_BACK -> history.back();
       case GO_FORWARD -> history.forward();
@@ -1235,6 +1236,7 @@ public final class ApplicationController {
     bookmarkList.dispose();
     workspace.dispose();
     history.dispose();
+    recentFiles.dispose();
     compare.dispose();
     print.dispose();
     documents.dispose();

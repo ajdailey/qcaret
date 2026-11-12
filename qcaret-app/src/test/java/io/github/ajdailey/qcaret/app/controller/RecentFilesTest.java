@@ -9,14 +9,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** File > Recent Files: newest first, one entry per real path, bounded, cleared. */
+/** File > Recent Files: newest first, one entry per real path, bounded, cleared, cleaned up. */
 class RecentFilesTest {
   @TempDir Path temp;
 
@@ -101,5 +105,112 @@ class RecentFilesTest {
     assertEquals(RecentFiles.LIMIT, paths.size());
     assertEquals(file("f" + (RecentFiles.LIMIT + 2) + ".txt"), paths.get(0));
     assertEquals(file("f3.txt"), paths.get(RecentFiles.LIMIT - 1));
+  }
+
+  /** Runs Clean Up and waits for its notice. */
+  private String cleanUp() throws InterruptedException {
+    int before = harness.view.notices.size();
+    harness.application.execute(CommandId.CLEAN_UP_RECENT);
+    return cleanUpNotice(before);
+  }
+
+  @Test
+  void cleanUpDropsOnlyFilesThatNoLongerExist() throws Exception {
+    Path kept = file("kept.txt");
+    Path deleted = file("deleted.txt");
+    Path folder = file("folder.txt");
+    assertFalse(states.enabled(CommandId.CLEAN_UP_RECENT));
+    harness.open(kept);
+    harness.open(deleted);
+    harness.open(folder);
+    harness.application.documents().closeAll(null);
+    harness.awaitIdle("close");
+    Files.delete(deleted);
+    Files.delete(folder);
+    Files.createDirectory(folder);
+
+    assertTrue(states.enabled(CommandId.CLEAN_UP_RECENT));
+    assertEquals("Removed 2 files from Recent Files", cleanUp());
+    assertEquals(List.of(kept), recent());
+    assertEquals("Every file in Recent Files exists", cleanUp());
+    assertEquals(List.of(kept), recent());
+
+    Files.delete(kept);
+    assertEquals("Removed 1 file from Recent Files", cleanUp());
+    assertEquals(List.of(), recent());
+    assertFalse(states.enabled(CommandId.CLEAN_UP_RECENT));
+  }
+
+  /** Skipped where the platform refuses links (Windows without the privilege). */
+  @Test
+  void aDanglingLinkIsGone() throws Exception {
+    Path link = temp.resolve("dangling.txt");
+    try {
+      Files.createSymbolicLink(link, temp.resolve("absent.txt"));
+    } catch (UnsupportedOperationException | IOException e) {
+      Assumptions.abort("symbolic links unavailable: " + e);
+    }
+    assertTrue(RecentFiles.isGone(link));
+    assertTrue(RecentFiles.isGone(temp.resolve("absent").resolve("a.txt")));
+    assertFalse(RecentFiles.isGone(file("present.txt")));
+  }
+
+  /**
+   * A check that blocks, as on an unreachable share, holds a worker and not the UI thread; a second
+   * Clean Up meanwhile starts nothing, and the files stay listed until the check ends.
+   */
+  @Test
+  void aBlockedCheckLeavesTheUiThreadFree() throws Exception {
+    Path a = file("a.txt");
+    Path b = file("b.txt");
+    harness.open(a);
+    harness.open(b);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    final List<String> threads = new CopyOnWriteArrayList<String>();
+    harness
+        .application
+        .recentFiles()
+        .setProbe(
+            new Predicate<Path>() {
+              @Override
+              public boolean test(Path path) {
+                threads.add(Thread.currentThread().getName());
+                entered.countDown();
+                try {
+                  release.await(Harness.BOUND.toMillis(), TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return path.getFileName().toString().equals("a.txt");
+              }
+            });
+    int before = harness.view.notices.size();
+    harness.application.execute(CommandId.CLEAN_UP_RECENT);
+    assertTrue(entered.await(Harness.BOUND.toMillis(), TimeUnit.MILLISECONDS));
+    harness.application.execute(CommandId.CLEAN_UP_RECENT);
+    harness.ui.runPending();
+    assertEquals(List.of(b, a), recent());
+    assertEquals(before, harness.view.notices.size());
+    release.countDown();
+    assertEquals("Removed 1 file from Recent Files", cleanUpNotice(before));
+    assertEquals(List.of(b), recent());
+    assertEquals(2, threads.size());
+    for (String name : threads) {
+      assertTrue(name.startsWith("qcaret-io-"), name);
+    }
+  }
+
+  /** Waits for the notice after the first {@code before}. */
+  private String cleanUpNotice(final int before) throws InterruptedException {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.notices.size() > before;
+          }
+        },
+        "Clean Up notice");
+    return harness.view.notices.get(before);
   }
 }

@@ -9,7 +9,9 @@ binding overrides, in `app.config` and `app.controller` of
 
 `SettingsLocation` picks the settings directory: `--settings <dir>` (explicit),
 the installation directory `qcaret.home` when it holds `qcaret.conf`
-(portable), else the per-user directory of the OS. The bootstrap applies the
+(portable), else on Linux `<qcaret.home>/bin` when `qcaret.conf` sits beside
+the `bin/qcaret` script (portable, `OsTraits.launcherDirectory`), else the
+per-user directory of the OS. The bootstrap applies the
 same order to the SWT native cache. `SettingsLocation.confined` is true in
 explicit and portable mode on Linux; there `PlatformSetup` sets `user.home` to
 the settings directory and User Guide opens without the embedded browser

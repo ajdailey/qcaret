@@ -17,6 +17,11 @@ hidden entries and `workspace.excludedDirectories`; a change of
   A directory is listed on a `qcaret-io-` worker the first time it expands
   (`DirectoryListing`), 500 entries at a time behind a "Show N more" row. A link to a directory that
   contains it lists as a row that does not expand.
+- A directory that cannot be listed shows one error row (`BrowserListings.failure`):
+  `Access denied: <folder>` for an `AccessDeniedException`, else `Cannot list:`
+  and the exception's message, never its class name. On Windows the legacy
+  junctions in a profile, such as `My Documents` and `Application Data`, deny
+  listing; they are hidden and system, so they show only with Hidden checked.
 - Each row carries its Size and Modified texts, built with the listing on the
   worker (`BrowserRows`), so no row reads the disk on the UI thread: a file's
   size in B, or KiB, MiB or GiB with one decimal, and the date in the default
@@ -256,3 +261,11 @@ menu), at most 100.
 `RecentFiles` is File > Recent Files: the last 20 files opened, newest first,
 once each by real path, so a file opened through a link and through its target
 is one entry. The session file keeps it. Clear Recent Files empties it.
+
+Clean Up (`RecentFiles.cleanUp`) reads each listed path's attributes on a
+`qcaret-io-` worker and drops a path that is gone (`NoSuchFileException`,
+which covers a dangling link) or now a folder; a path whose read fails
+otherwise, such as access denied or an unreachable share, stays. A blocked
+check holds only the worker, and a Clean Up while one runs does nothing. The
+result applies on the UI thread, with a notice of the count, unless the window
+has closed.

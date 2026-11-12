@@ -1,10 +1,12 @@
 package io.github.ajdailey.qcaret.core.util.os;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -93,6 +95,13 @@ class OsTraitsTest {
   }
 
   @Test
+  void onlyLinuxHasALauncherDirectory(@TempDir Path temp) {
+    assertEquals(temp.resolve("bin"), LINUX.launcherDirectory(temp));
+    assertNull(WINDOWS.launcherDirectory(temp));
+    assertNull(MAC.launcherDirectory(temp));
+  }
+
+  @Test
   void eachSystemHasItsFontFolders() {
     assertEquals(
         List.of(Path.of("C:/Windows", "Fonts"), Path.of("C:/Local", "Microsoft/Windows/Fonts")),
@@ -137,5 +146,18 @@ class OsTraitsTest {
             + " "
             + System.getProperty("os.arch"),
         OsTraits.description());
+  }
+
+  @Test
+  void hiddenReadsTheEntryItself(@TempDir Path temp) throws Exception {
+    Path plain = Files.createDirectory(temp.resolve("plain"));
+    assertFalse(OsTraits.current().hidden(plain));
+    if (OsTraits.current() == WINDOWS) {
+      Files.setAttribute(plain, "dos:hidden", true);
+      assertTrue(OsTraits.current().hidden(plain));
+    } else {
+      Path dot = Files.createDirectory(temp.resolve(".dot"));
+      assertTrue(OsTraits.current().hidden(dot));
+    }
   }
 }

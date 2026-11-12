@@ -233,9 +233,10 @@ QCaret keeps its files in the first directory that applies:
 |---|---|---|
 | Explicit | `--settings <dir>` | `<dir>` |
 | Portable | `qcaret.conf` exists in the installation directory, the parent of `lib/` | The installation directory |
+| Portable (Linux) | `qcaret.conf` exists beside the `bin/qcaret` script and not in the installation directory | `bin/` |
 | Per-user | Otherwise | Linux `$XDG_CONFIG_HOME/qcaret` (default `~/.config/qcaret`), Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
-An empty `qcaret.conf` in the installation directory selects portable mode. The
+An empty `qcaret.conf` in either place selects portable mode. The
 macOS bundle is sealed, so portable use there goes through `--settings`.
 
 | File | Contents |

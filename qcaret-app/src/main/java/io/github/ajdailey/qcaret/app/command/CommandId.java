@@ -46,6 +46,9 @@ public enum CommandId {
   /** Empty File > Recent Files; the menu lists the files above it. */
   CLEAR_RECENT_FILES(
       CommandGroup.FILE, UiText.COMMAND_CLEAR_RECENT_FILES, false, UiText.MENU_RECENT_FILES),
+  /** Drop the files of File > Recent Files that no longer exist. */
+  CLEAN_UP_RECENT(
+      CommandGroup.FILE, UiText.COMMAND_CLEAN_UP_RECENT, false, UiText.MENU_RECENT_FILES),
   /** Close every window, asking about unsaved documents. */
   QUIT(CommandGroup.FILE, UiText.COMMAND_QUIT, false, null),
   /** Undo in the selected editor. */

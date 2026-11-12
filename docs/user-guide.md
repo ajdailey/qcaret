@@ -39,7 +39,9 @@ window's last closed tab again, up to 20 back, where the caret was; File >
 Recently Closed lists those files to choose from. Open All in either list opens
 every listed file; a missing or unreadable one is skipped and named in the
 status bar. Clear Recent Files empties Recent Files in every window, and Clear
-Recently Closed empties the window's Recently Closed.
+Recently Closed empties the window's Recently Closed. Recent Files > Clean Up
+removes the files that no longer exist and names the count in the status bar;
+a file on a drive or share that cannot be read stays listed.
 
 A load still running after 0.3 seconds shows a row above the status bar with its
 progress and Cancel. The window stays usable. Cancel or `Esc` stops every
@@ -96,7 +98,8 @@ source off.
 
 ### Saving
 
-Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Ctrl+Alt+S`) write on a
+Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Cmd+Option+S` on macOS,
+no default key elsewhere, since AltGr arrives as Ctrl+Alt on Windows) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
 as it was. A save writes a temporary file and moves it over the target, keeps
 the file's permissions and group, and follows a symbolic link. A file you have
@@ -435,7 +438,7 @@ TypeScript, Java and Kotlin, each closed by its `endregion` line.
 | Keys | Action |
 |---|---|
 | `Ctrl+Shift+[`, `Ctrl+Shift+]` | Fold, unfold |
-| `Ctrl+Alt+[`, `Ctrl+Alt+]` | Fold all, unfold all |
+| `Alt+[`, `Alt+]` (`Cmd+Option+[`, `Cmd+Option+]` on macOS) | Fold all, unfold all |
 | View > Folding > Toggle Fold | Either, at the caret |
 
 An edit inside a collapsed region expands it. A command that puts the caret in
@@ -541,6 +544,11 @@ Hidden entries and the excluded directories (`.git`, `.svn`, `.hg`, `target`,
 `node_modules` and `build` by default) stay out of the browser, Quick Open and
 folder searches; the browser lists hidden entries with Hidden checked.
 Preferences, Search and Workspace changes the list.
+
+A folder the browser cannot list shows one row saying why, such as
+`Access denied: My Documents`. On Windows, `My Documents`, `Application Data`
+and the other compatibility links in your profile deny listing; Windows marks
+them hidden and system, so they show only with Hidden checked.
 
 ## Quick Open
 
@@ -769,6 +777,7 @@ Settings are in `qcaret.conf`, in the first of these that applies:
 |---|---|---|
 | Explicit | `--settings <dir>` | `<dir>` |
 | Portable | `qcaret.conf` exists in the installation directory | The installation directory |
+| Portable (Linux) | `qcaret.conf` exists in `bin/`, beside the `qcaret` script, and not in the installation directory | `bin/` |
 | Per-user | Otherwise | Linux `~/.config/qcaret`, Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
 In explicit and portable mode on Linux, User Guide opens the guide in the

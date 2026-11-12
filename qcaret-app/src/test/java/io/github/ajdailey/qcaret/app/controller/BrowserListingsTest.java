@@ -3,11 +3,13 @@ package io.github.ajdailey.qcaret.app.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -133,7 +135,7 @@ class BrowserListingsTest {
     rows = listed(gone);
     assertEquals(1, rows.size());
     assertEquals(WorkspaceNode.Kind.ERROR, rows.get(0).kind());
-    assertTrue(rows.get(0).name().startsWith("Cannot list: "), rows.get(0).name());
+    assertEquals("Cannot list: " + root.resolve("gone"), rows.get(0).name());
   }
 
   @Test
@@ -307,5 +309,18 @@ class BrowserListingsTest {
     assertFalse(timedOut.get());
     assertEquals(changes, harness.view.workspaceChanges.size());
     assertEquals(List.of(), workspace.children(workspace.rootNode()));
+  }
+
+  @Test
+  void aFailedListingNamesTheFolderOrTheMessageAndNoClass() {
+    Path dir = root.resolve("denied");
+    assertEquals(
+        "Access denied: denied",
+        BrowserListings.failure(dir, new AccessDeniedException(dir.toString())));
+    assertEquals(
+        "Cannot list: " + dir + ": The device is not ready",
+        BrowserListings.failure(
+            dir, new FileSystemException(dir.toString(), null, "The device is not ready")));
+    assertEquals("Cannot list: denied", BrowserListings.failure(dir, new IOException()));
   }
 }

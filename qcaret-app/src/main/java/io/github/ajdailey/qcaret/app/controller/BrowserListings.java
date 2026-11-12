@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.core.workspace.DirectoryListing;
 import io.github.ajdailey.qcaret.core.workspace.ListingOptions;
 import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -256,7 +257,7 @@ final class BrowserListings {
               read = DirectoryListing.read(dir, walk, how, token);
               rows = BrowserRows.rows(dir, read, Locale.getDefault(), ZoneId.systemDefault());
             } catch (IOException e) {
-              error = UiText.WORKSPACE_UNREADABLE.format(LogText.oneLine(String.valueOf(e)));
+              error = failure(dir, e);
             } catch (CancellationException e) {
               error = null;
             } finally {
@@ -273,6 +274,24 @@ final class BrowserListings {
             }
           }
         });
+  }
+
+  /**
+   * Returns a failed listing's row text: {@code Access denied: <folder>} for a denied listing, else
+   * the exception's message, never its class name.
+   *
+   * @param dir the directory
+   * @param e the failure
+   * @return the text
+   */
+  static String failure(Path dir, IOException e) {
+    Path name = dir.getFileName();
+    String folder = name == null ? dir.toString() : name.toString();
+    if (e instanceof AccessDeniedException) {
+      return UiText.WORKSPACE_ACCESS_DENIED.format(LogText.oneLine(folder));
+    }
+    String message = e.getMessage();
+    return UiText.WORKSPACE_UNREADABLE.format(LogText.oneLine(message == null ? folder : message));
   }
 
   private void listed(

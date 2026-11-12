@@ -1012,6 +1012,12 @@ public enum UiText {
   MENU_RECENT_FILES,
   /** Command label. */
   COMMAND_CLEAR_RECENT_FILES,
+  /** Command label. */
+  COMMAND_CLEAN_UP_RECENT,
+  /** Notice: Clean Up removed files; takes the count with its noun. */
+  RECENT_CLEANED,
+  /** Notice: Clean Up found every file. */
+  RECENT_CLEAN_NONE,
   /** Recent Files entry: its number and path. */
   RECENT_FILE,
   /** Command label. */
@@ -1615,7 +1621,9 @@ public enum UiText {
   /** File menu cascade of Close Others, Close to the Left and Close to the Right. */
   MENU_CLOSE_MULTIPLE,
   /** Tab menu item closing every tab; File > Close All has its own mnemonic. */
-  TAB_CLOSE_ALL;
+  TAB_CLOSE_ALL,
+  /** Browser row for a folder whose listing is denied; the folder's name. */
+  WORKSPACE_ACCESS_DENIED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

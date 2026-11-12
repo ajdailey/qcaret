@@ -52,7 +52,9 @@ public final class Keymap {
    * Control+Shift. Select Line and Transpose take Control on macOS, where Command+L is Go to Line;
    * Delete Word Back and Forward take Option there, as word moves do. Exit is Ctrl+Q off macOS,
    * where the application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
-   * Command+Shift+G first there, so their menu items show them.
+   * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
+   * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
+   * macOS.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -116,15 +118,18 @@ public final class Keymap {
     editor(b, CommandId.CANCEL, 0, KeyStroke.ESCAPE);
     editor(b, CommandId.FOLD, P | S, '[');
     editor(b, CommandId.UNFOLD, P | S, ']');
-    editor(b, CommandId.FOLD_ALL, P | KeyStroke.ALT, '[');
-    editor(b, CommandId.UNFOLD_ALL, P | KeyStroke.ALT, ']');
+    int foldAll = mac ? P | KeyStroke.ALT : KeyStroke.ALT;
+    editor(b, CommandId.FOLD_ALL, foldAll, '[');
+    editor(b, CommandId.UNFOLD_ALL, foldAll, ']');
     return new Keymap(b, mac);
   }
 
   /** Adds the editing, selection and caret-move bindings. */
   private static void editing(List<Binding> b, boolean mac, boolean linux) {
     int a = KeyStroke.ALT;
-    window(b, CommandId.SAVE_ALL, P | a, 's');
+    if (mac) {
+      window(b, CommandId.SAVE_ALL, P | a, 's');
+    }
     window(b, CommandId.REOPEN_CLOSED, P | S, 't');
     window(b, CommandId.GO_TO_LINE, P, mac ? 'l' : 'g');
     window(b, CommandId.GO_TO_SYMBOL, P, 'r');

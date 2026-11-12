@@ -1,7 +1,7 @@
 package io.github.ajdailey.qcaret.core.io;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** The hidden-file rule of the directory walks. */
@@ -9,8 +9,9 @@ public final class HiddenFiles {
   private HiddenFiles() {}
 
   /**
-   * Reports whether a file or directory is hidden: its name starts with {@code .}, or the platform
-   * marks it hidden (on Windows the DOS attribute, read from disk).
+   * Reports whether a file or directory is hidden: its name starts with {@code .}, or the system
+   * marks the entry itself hidden ({@link OsTraits#hidden}). On Windows a hidden junction such as
+   * {@code My Documents} is hidden although its target is not.
    *
    * @param path the file or directory
    * @return true when hidden; false when the attribute cannot be read
@@ -21,7 +22,7 @@ public final class HiddenFiles {
       return true;
     }
     try {
-      return Files.isHidden(path);
+      return OsTraits.current().hidden(path);
     } catch (IOException e) {
       return false;
     }

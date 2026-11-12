@@ -123,7 +123,8 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
   which calls `ApplicationController.reopenWithDetection`.
 - The Window menu lists the windows, when there are several, and the open
   documents, numbered in that order, the first nine as mnemonics. File >
-  Recent Files lists the recent files above Clear Recent Files, and File >
+  Recent Files lists the recent files above Open All, Clean Up and Clear
+  Recent Files, and File >
   Recently Closed the closed files above Clear Recently Closed, each rebuilt
   when its menu shows; a path's `&` is doubled.
 - The View menu's Syntax cascade and the status bar's language popup show the

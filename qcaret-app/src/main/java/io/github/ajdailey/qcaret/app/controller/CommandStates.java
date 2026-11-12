@@ -82,6 +82,7 @@ public final class CommandStates {
           CommandId.QUICK_OPEN,
           CommandId.OPEN_ALL_RECENT,
           CommandId.CLEAR_RECENT_FILES,
+          CommandId.CLEAN_UP_RECENT,
           CommandId.NEW_WINDOW,
           CommandId.WORKSPACE_BROWSER,
           CommandId.GO_BACK,
@@ -244,7 +245,8 @@ public final class CommandStates {
         case ZOOM_IN -> application.fontPoints() < Options.MAX_FONT_SIZE;
         case ZOOM_OUT -> application.fontPoints() > Options.MIN_FONT_SIZE;
         case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
-        case OPEN_ALL_RECENT, CLEAR_RECENT_FILES -> !application.recentFiles().paths().isEmpty();
+        case OPEN_ALL_RECENT, CLEAR_RECENT_FILES, CLEAN_UP_RECENT ->
+            !application.recentFiles().paths().isEmpty();
         case GO_BACK -> application.history().canBack();
         case GO_FORWARD -> application.history().canForward();
         case ALWAYS_ON_TOP -> application.alwaysOnTop().supported();

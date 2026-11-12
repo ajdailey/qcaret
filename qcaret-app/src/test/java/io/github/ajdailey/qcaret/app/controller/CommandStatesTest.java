@@ -43,6 +43,7 @@ class CommandStatesTest {
           "PRINT -- -e -e",
           "OPEN_ALL_RECENT -- -e -e",
           "CLEAR_RECENT_FILES -- -e -e",
+          "CLEAN_UP_RECENT -- -e -e",
           "QUIT -e -e -e",
           "UNDO -- -- --",
           "REDO -- -- --",

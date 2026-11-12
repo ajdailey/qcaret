@@ -8,9 +8,11 @@ import java.util.Map;
 
 /**
  * The settings directory and how it was chosen. In order of precedence: {@code --settings <dir>};
- * {@code <qcaret.home>} when {@code <qcaret.home>/qcaret.conf} exists (portable); the per-user
- * directory: {@code $XDG_CONFIG_HOME/qcaret} (default {@code ~/.config/qcaret}) on Linux, {@code
- * %APPDATA%\QCaret} on Windows, {@code ~/Library/Application Support/QCaret} on macOS.
+ * {@code <qcaret.home>} when {@code <qcaret.home>/qcaret.conf} exists (portable); on Linux, {@code
+ * <qcaret.home>/bin} when {@code qcaret.conf} exists beside the {@code bin/qcaret} script
+ * (portable); the per-user directory: {@code $XDG_CONFIG_HOME/qcaret} (default {@code
+ * ~/.config/qcaret}) on Linux, {@code %APPDATA%\QCaret} on Windows, {@code ~/Library/Application
+ * Support/QCaret} on macOS.
  *
  * @param mode how the directory was chosen
  * @param directory the directory; a per-user directory may not exist yet
@@ -50,8 +52,14 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
       return new SettingsLocation(SettingsMode.EXPLICIT, explicit);
     }
     Path installed = EnvPaths.absolute(home);
-    if (installed != null && Files.isRegularFile(installed.resolve(MARKER))) {
-      return new SettingsLocation(SettingsMode.PORTABLE, installed);
+    if (installed != null) {
+      if (Files.isRegularFile(installed.resolve(MARKER))) {
+        return new SettingsLocation(SettingsMode.PORTABLE, installed);
+      }
+      Path launcher = os.launcherDirectory(installed);
+      if (launcher != null && Files.isRegularFile(launcher.resolve(MARKER))) {
+        return new SettingsLocation(SettingsMode.PORTABLE, launcher);
+      }
     }
     return new SettingsLocation(SettingsMode.PER_USER, os.userSettings(env, Path.of(userHome)));
   }

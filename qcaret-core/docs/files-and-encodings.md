@@ -233,9 +233,11 @@ system's answers from `OsTraits.of(name)`.
 | `fileLock` | `ProcessLock`, `Flock.Constants` | `CHANNEL` | `FLOCK_MACOS` | `FLOCK_LINUX` |
 | `opensDeviceNames` | `SafePaths` device-form check | true | false | false |
 | `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret` |
+| `launcherDirectory` | `SettingsLocation` portable marker beside `bin/qcaret` | null | null | `<qcaret.home>/bin` |
 | `confinesToSettings` | `SettingsLocation.confined` | false | false | true |
 | `webView2` | `PlatformSetup` | true | false | false |
 | `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
+| `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
 
 `OsTraits.description()` is the About dialog's OS line. `EnvPaths.absolute`
 accepts a variable's value only as a non-empty absolute path.

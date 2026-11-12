@@ -362,4 +362,30 @@ class KeymapTest {
     assertEquals("Cmd+G, F3", mac.keysText(CommandId.FIND_NEXT));
     assertEquals(CommandId.FIND_NEXT, mac.windowCommand(new KeyStroke(0, KeyStroke.F1 + 2)));
   }
+
+  /**
+   * Windows delivers AltGr as Ctrl+Alt, so a Ctrl+Alt key fires while a user types the AltGr char
+   * of that key. Fold All and Unfold All take Alt off macOS, and Save All has no key there; no
+   * default binding off macOS holds Ctrl+Alt.
+   */
+  @Test
+  void foldAllKeysAvoidAltGr() {
+    for (boolean linux : new boolean[] {false, true}) {
+      Keymap keymap = Keymap.defaults(false, linux);
+      assertEquals("Alt+[", keymap.keysText(CommandId.FOLD_ALL));
+      assertEquals("Alt+]", keymap.keysText(CommandId.UNFOLD_ALL));
+      List<String> ctrlAlt = new ArrayList<String>();
+      for (Binding binding : keymap.bindings()) {
+        int modifiers = binding.stroke().modifiers();
+        if ((modifiers & KeyStroke.PRIMARY) != 0 && (modifiers & KeyStroke.ALT) != 0) {
+          ctrlAlt.add(binding.text(false));
+        }
+      }
+      assertEquals(List.of(), ctrlAlt);
+      assertEquals("", keymap.keysText(CommandId.SAVE_ALL));
+    }
+    Keymap mac = Keymap.defaults(true);
+    assertEquals("Cmd+Option+[", mac.keysText(CommandId.FOLD_ALL));
+    assertEquals("Cmd+Option+]", mac.keysText(CommandId.UNFOLD_ALL));
+  }
 }
