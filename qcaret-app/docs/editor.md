@@ -39,7 +39,8 @@ undo and redo restore that model. A read-only document ignores edits.
   follow `BlockEdits`, and the block stays a block.
 - Add Next Occurrence selects the word at a primary caret, else searches a
   snapshot for the primary's text on a `qcaret-cpu-` worker and adds the match
-  as the new primary; a result for another revision is dropped.
+  as the new primary, apart from a selection it touches
+  (`SelectionSet.apart`); a result for another revision is dropped.
 - Esc cancels a running save and comparison through one `Runnable`, a line
   transform through the `lineWork` token and a selection search through
   `SelectionCommands`, and drops the secondary selections and the block; with
@@ -53,8 +54,9 @@ passes them the command.
 - Select All Occurrences selects every occurrence of the primary selection's
   text (`Occurrences.all`), or every whole-word occurrence of the word at a
   primary caret (`Occurrences.words`); the occurrence at the old primary stays
-  primary. Past `SelectionCommands.MAX_OCCURRENCES` (10,000) it selects
-  nothing and shows a notice.
+  primary. Occurrences that touch stay separate selections, so typing over
+  `ab` twice in `abab` gives `xx`. Past `SelectionCommands.MAX_OCCURRENCES`
+  (10,000) it selects nothing and shows a notice.
 - Skip Occurrence drops the primary, which Add Next Occurrence added last, and
   selects the next occurrence of its text, wrapping, as the new primary. When
   that occurrence is already selected, it becomes the primary. At a caret it
@@ -232,7 +234,7 @@ for an older revision is dropped and the dialog says the document changed.
 | Characters | Code points, line breaks included: a surrogate pair is one, CR LF two |
 | Characters without spaces | Code points that are not `Character.isWhitespace`; a no-break space counts |
 | Words | Maximal runs of such code points |
-| Bytes | The text encoded in the document's charset, plus its BOM for the document; an unencodable char or a lone surrogate counts as the charset's replacement bytes |
+| Bytes | The text encoded in the document's charset, plus its BOM for the document; an unencodable char or a lone surrogate counts as the charset's replacement bytes. `UNKNOWN_BYTES` (shown as unknown) in a charset with no encoder |
 
 Selections are counted one by one and summed, so a word cut by two selections
 counts twice. `TextStatistics.Counter` reads `TextContent.readChunks` and

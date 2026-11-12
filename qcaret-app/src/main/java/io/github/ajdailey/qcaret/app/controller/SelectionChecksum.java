@@ -32,7 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
  *       included.
  *   <li>Line breaks inside a selection hash as the document holds them.
  *   <li>The text is encoded in the document's charset without a byte order mark. A char the charset
- *       cannot encode copies nothing and says so.
+ *       cannot encode, or a charset with no encoder, copies nothing and says so.
  * </ul>
  *
  * A newer run cancels an older one. Confined to the UI thread.
@@ -73,6 +73,11 @@ final class SelectionChecksum {
       return;
     }
     Document document = editor.document();
+    Charset charset = document.encoding().charset();
+    if (!charset.canEncode()) {
+      view.showNotice(UiText.CHECKSUM_SELECTION_NO_ENCODER.format(charset.name()));
+      return;
+    }
     BlockSelection block = editor.selections().block();
     List<Selection> list = editor.selections().selections().selections();
     List<Integer> ranges = new ArrayList<Integer>();
@@ -96,7 +101,7 @@ final class SelectionChecksum {
             block,
             document.tabWidth(),
             document.lineEnding().text(),
-            document.encoding().charset(),
+            charset,
             document.lineEnding().name());
     if (running != null) {
       running.cancel();

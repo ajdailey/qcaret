@@ -12,11 +12,12 @@ import java.util.Locale;
 
 /**
  * Transpose. With two or more non-empty selections, the selected texts rotate: each takes the text
- * of the one before it and the first takes the last one's. Otherwise each caret swaps the
- * characters on either side of it and moves past both; at a line end it swaps the two before it and
- * stays; at a line start it does nothing. A character is a grapheme cluster ({@link
- * BreakIterator#getCharacterInstance}), so a surrogate pair or a base char with its combining marks
- * moves whole, and no swap crosses a line break.
+ * of the one before it and the first takes the last one's. A rotation that would put a CR directly
+ * before an LF, joining two line breaks, changes nothing and counts the lines the ranges touch as
+ * unchanged. Otherwise each caret swaps the characters on either side of it and moves past both; at
+ * a line end it swaps the two before it and stays; at a line start it does nothing. A character is
+ * a grapheme cluster ({@link BreakIterator#getCharacterInstance}), so a surrogate pair or a base
+ * char with its combining marks moves whole, and no swap crosses a line break.
  */
 public final class Transpose {
   /** Chars on each side of a caret the cluster boundaries are read from. */
@@ -30,7 +31,7 @@ public final class Transpose {
    *
    * @param text the text
    * @param set the selections
-   * @return the edit, or null when nothing changes
+   * @return the edit, or null when nothing changes and no line is counted unchanged
    */
   public static Edit transpose(TextContent text, SelectionSet set) {
     int ranges = 0;
@@ -58,6 +59,9 @@ public final class Transpose {
       moved.add(part);
       out.add(new Replacement(to.start(), to.end() - to.start(), part));
     }
+    if (Lines.joinsBreaks(text, out)) {
+      return Edit.unchanged(lines(text, ranges));
+    }
     List<Selection> after = new ArrayList<Selection>(set.size());
     int shift = 0;
     int next = 0;
@@ -75,6 +79,18 @@ public final class Transpose {
     return batch.replacements().isEmpty()
         ? null
         : new Edit(batch, SelectionSet.of(after, set.primaryIndex()));
+  }
+
+  /** Returns the lines the ranges touch. */
+  private static int lines(TextContent text, List<Selection> ranges) {
+    int count = 0;
+    int last = -1;
+    for (Selection s : ranges) {
+      int first = Math.max(text.lineAt(s.start()), last + 1);
+      last = text.lineAt(s.end() - 1);
+      count += Math.max(0, last - first + 1);
+    }
+    return count;
   }
 
   private static Edit swapAtCarets(TextContent text, SelectionSet set) {

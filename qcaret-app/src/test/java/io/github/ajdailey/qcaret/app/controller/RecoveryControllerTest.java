@@ -863,6 +863,48 @@ class RecoveryControllerTest {
     assertEveryBufferRestores();
   }
 
+  /**
+   * During the snapshot write A closes with Don't Save and B, at A's list position, reaches A's
+   * revision: B is written again, not taken as A.
+   */
+  @Test
+  void aBufferReplacingAnotherDuringTheSnapshotWriteIsRestored() throws Exception {
+    Harness first = start(true);
+    setSnapshot(first);
+    DocumentController documents = first.application.documents();
+    edit(first, "mock one");
+    Document a = documents.activeDocument();
+    documents.newDocument();
+    first.ui.runPending();
+    Document b = documents.activeDocument();
+    documents.select(0);
+    first.ui.runPending();
+    first.application.requestQuit();
+    documents.closeActive();
+    assertNotNull(first.view.unsaved, "the close asks");
+    first.view.unsaved.accept(UnsavedChoice.DISCARD);
+    assertEquals(b, documents.activeDocument());
+    edit(first, "mock two");
+    assertEquals(a.revision(), b.revision());
+    awaitQuit(first);
+
+    final Harness second = start(true);
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !second.application.windowSet().session().restoring();
+          }
+        },
+        "the restore");
+    second.awaitIdle("restore");
+    List<String> texts = new ArrayList<String>();
+    for (Document document : second.application.documents().openDocuments()) {
+      texts.add(document.text().toString());
+    }
+    assertEquals(List.of("mock two"), texts);
+  }
+
   @Test
   void aSnapshotInstanceThatDoesNotOwnTheSessionAsks() throws Exception {
     Harness harness = start(false);

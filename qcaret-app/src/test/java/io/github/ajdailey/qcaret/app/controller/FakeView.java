@@ -1309,4 +1309,31 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     return prompt;
   }
+
+  /** The targets {@link #askUnfinishedCopies} last named, or null. */
+  List<String> unfinishedCopies;
+
+  /** The Quit and Wait answers of the open unfinished-copies dialog, null once it closes. */
+  Runnable unfinishedQuit;
+
+  Runnable unfinishedWait;
+
+  /** Unfinished-copies dialogs opened. */
+  int unfinishedAsked;
+
+  @Override
+  public Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait) {
+    ui.checkUiThread();
+    unfinishedCopies = targets;
+    unfinishedQuit = quit;
+    unfinishedWait = wait;
+    unfinishedAsked++;
+    return new Runnable() {
+      @Override
+      public void run() {
+        unfinishedQuit = null;
+        unfinishedWait = null;
+      }
+    };
+  }
 }

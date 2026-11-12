@@ -140,8 +140,11 @@ final class OpenFile {
     return clean;
   }
 
-  /** Reports whether a save, a reload or a change prompt holds this file. */
+  /**
+   * Reports whether a save, a Save a Copy As, a reload or a change prompt holds this file; a tab
+   * move and a workspace Rename or Delete refuse while it does.
+   */
   boolean running() {
-    return saving != null || reloading != null || changePrompt;
+    return saving != null || copying != null || reloading != null || changePrompt;
   }
 }

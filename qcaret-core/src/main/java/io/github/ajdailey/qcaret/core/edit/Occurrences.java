@@ -8,7 +8,8 @@ import java.util.concurrent.CancellationException;
 
 /**
  * Literal occurrences: the next one of a selection's text, for Add Next Occurrence, every one, and
- * the whole words in a range, for the occurrence highlight and Select All Occurrences.
+ * the whole words in a range, for the occurrence highlight and Select All Occurrences. A match that
+ * starts or ends between the CR and the LF of a CR LF is not an occurrence.
  */
 public final class Occurrences {
   /** Chars scanned between cancellation checks. */
@@ -107,7 +108,10 @@ public final class Occurrences {
     return ranges;
   }
 
-  /** Returns the first occurrence starting in {@code [from, to - needle length]}, or -1. */
+  /**
+   * Returns the first occurrence starting in {@code [from, to - needle length]} that splits no CR
+   * LF, or -1.
+   */
   private static int scan(
       TextContent text, String needle, int from, int to, CancellationToken token) {
     char first = needle.charAt(0);
@@ -123,10 +127,17 @@ public final class Occurrences {
       while (k < needle.length() && text.charAt(i + k) == needle.charAt(k)) {
         k++;
       }
-      if (k == needle.length()) {
+      if (k == needle.length() && !insideCrLf(text, i) && !insideCrLf(text, i + k)) {
         return i;
       }
     }
     return -1;
+  }
+
+  private static boolean insideCrLf(TextContent text, int offset) {
+    return offset > 0
+        && offset < text.length()
+        && text.charAt(offset - 1) == '\r'
+        && text.charAt(offset) == '\n';
   }
 }

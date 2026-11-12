@@ -126,7 +126,9 @@ link or a Windows junction.
   Files entries, and the remembered state of closed files (caret, encoding,
   grammar).
   The baseline and the unsaved changes stay, and the session is saved. A failed
-  rename changes nothing.
+  rename changes nothing. The hold ends in every window it was taken in and
+  every window holding a document at the end, so a tab moved meanwhile leaves
+  no hold behind.
 - A rename of the workspace folder or a parent moves the workspace folder and
   a folder browsed to under the entry in every window
   (`WorkspaceFollow.follow`), with a notice: the index is built again
@@ -151,8 +153,8 @@ link or a Windows junction.
   a parent clears the workspace folder in every window with a notice
   (`WorkspaceFollow.clearUnder`), and a folder browsed to under the entry
   with it; a delete that stops partway leaves the workspace folder set.
-- Rename and Delete refuse, with a notice, while a save, a reload or a change
-  prompt holds a document under the entry.
+- Rename and Delete refuse, with a notice, while a save, a Save a Copy As, a
+  reload or a change prompt holds a document under the entry.
 - After each operation the directory is listed again, the listings under a
   removed folder are dropped, and the new row is selected. The same happens in
   every other window's browser that lists the directory, without the

@@ -426,6 +426,32 @@ class DocumentTest {
   }
 
   @Test
+  void setMovesAnOffsetInsideACrLfOrASurrogatePairToThePairStart() {
+    Document doc = document("a\r\nb\uD835\uDC00c");
+    SelectionModel model = doc.newSelectionModel();
+    model.set(SelectionSet.of(List.of(Selection.of(2, 5), Selection.caret(6)), 1));
+    assertEquals(
+        SelectionSet.of(List.of(Selection.of(1, 4), Selection.caret(6)), 1), model.selections());
+    model.set(SelectionSet.caret(2));
+    assertEquals(SelectionSet.caret(1), model.selections());
+  }
+
+  @Test
+  void anApartSetKeepsTouchingRangesThroughAChange() {
+    List<Selection> touching = List.of(Selection.of(0, 2), Selection.of(2, 4), Selection.caret(4));
+    assertEquals(1, SelectionSet.of(touching, 0).size());
+    SelectionSet apart = SelectionSet.apart(touching, 1);
+    assertEquals(List.of(Selection.of(0, 2), Selection.of(2, 4)), apart.selections());
+    assertEquals(1, apart.primaryIndex());
+    Document doc = document("abab x");
+    SelectionModel mine = doc.newSelectionModel();
+    SelectionModel other = doc.newSelectionModel();
+    other.set(apart);
+    doc.apply(EditBatch.replace(5, 0, "y"), mine, SelectionSet.caret(6));
+    assertEquals(apart, other.selections());
+  }
+
+  @Test
   void aBlockSelectionPadsShortLinesAndCountsTabsAndWideChars() {
     Document doc = document("a\tb\nxy\n中文z");
     BlockSelection block = new BlockSelection(0, 1, 2, 4);

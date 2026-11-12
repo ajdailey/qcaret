@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.editor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
@@ -164,5 +165,16 @@ class TextStatisticsTest {
   void sumsAddEachCount() {
     TextStatistics a = new TextStatistics(1, 2, 3, 4, 5);
     assertEquals(new TextStatistics(2, 4, 6, 8, 13), a.plus(a).withExtraBytes(3));
+  }
+
+  /** x-JISAutoDetect decodes but has no encoder. */
+  @Test
+  void aCharsetWithNoEncoderCountsUnknownBytes() {
+    Charset auto = Charset.forName("x-JISAutoDetect");
+    assumeFalse(auto.canEncode());
+    TextStatistics s = count("one two\n", auto);
+    assertEquals(new TextStatistics(2, 2, 8, 6, TextStatistics.UNKNOWN_BYTES), s.withExtraBytes(3));
+    assertEquals(TextStatistics.UNKNOWN_BYTES, s.plus(count("x", StandardCharsets.UTF_8)).bytes());
+    assertEquals(TextStatistics.UNKNOWN_BYTES, count("x", StandardCharsets.UTF_8).plus(s).bytes());
   }
 }

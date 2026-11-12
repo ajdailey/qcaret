@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -779,6 +780,90 @@ class TabMoveTest {
     assertFalse(document.isDirty());
     assertEquals("xtext\n", Files.readString(temp.resolve("late.txt")));
     assertTrue(windows.view(target).changePrompts.isEmpty(), "the save found a conflict");
+  }
+
+  /** Starts Save a Copy As of the active document of a window, held in its encoder. */
+  private GatedCharset startCopy(final ApplicationController window, Path target) throws Exception {
+    final GatedCharset gate = new GatedCharset();
+    window.documents().reopenWithEncoding(gate);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.documents().activeDocument().encoding().charset().equals(gate);
+          }
+        },
+        "reopened");
+    windows.settle("reopen");
+    gate.armEncoder();
+    window.execute(CommandId.SAVE_COPY_AS);
+    windows.view(window).saveChooser.accept(target);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return gate.held();
+          }
+        },
+        "the copy started");
+    return gate;
+  }
+
+  private void awaitFile(final Path file, final String text) throws InterruptedException {
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            try {
+              return Files.exists(file) && Files.readString(file).equals(text);
+            } catch (IOException e) {
+              return false;
+            }
+          }
+        },
+        "the copy written");
+    windows.settle("copy");
+  }
+
+  @Test
+  void aTabDoesNotMoveWhileItsCopyRuns() throws Exception {
+    open(first, "a.txt", "one\n");
+    ApplicationController second = windows.second();
+    Path copy = temp.resolve("copy.txt");
+    GatedCharset gate = startCopy(first, copy);
+    Document document = first.documents().activeDocument();
+    try {
+      assertNull(set.moveDocument(first, document, second, END));
+      assertTrue(
+          windows.view(first).notices.contains(UiText.NOTICE_MOVE_BUSY.format("a.txt")),
+          windows.view(first).notices.toString());
+    } finally {
+      gate.release();
+    }
+    awaitFile(copy, "one\n");
+    assertTrue(
+        windows.view(first).notices.contains(UiText.SAVE_COPY_DONE.format("a.txt", copy)),
+        windows.view(first).notices.toString());
+    assertNotNull(set.moveDocument(first, document, second, END));
+  }
+
+  @Test
+  void aCopyWhoseWindowClosedReportsInTheActiveWindow() throws Exception {
+    ApplicationController second = windows.second();
+    open(second, "a.txt", "one\n");
+    Path copy = temp.resolve("copy.txt");
+    GatedCharset gate = startCopy(second, copy);
+    try {
+      set.requestClose(second);
+      windows.ui.runPending();
+      assertFalse(set.windows().contains(second), "the window closed");
+    } finally {
+      gate.release();
+    }
+    awaitFile(copy, "one\n");
+    assertTrue(
+        windows.view(first).notices.contains(UiText.SAVE_COPY_DONE.format("a.txt", copy)),
+        windows.view(first).notices.toString());
   }
 
   @Test

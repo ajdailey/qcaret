@@ -176,7 +176,13 @@ final class StatisticsDialog implements StatisticsDisplay {
               counts.lines(), counts.words(), counts.chars(), counts.nonSpaceChars(), counts.bytes()
             };
     for (int i = 0; i < column.length; i++) {
-      column[i].setText(values == null ? "" : String.format("%,d", values[i]));
+      if (values == null) {
+        column[i].setText("");
+      } else if (values[i] == TextStatistics.UNKNOWN_BYTES) {
+        column[i].setText(UiText.STATISTICS_BYTES_UNKNOWN.text());
+      } else {
+        column[i].setText(String.format("%,d", values[i]));
+      }
     }
   }
 

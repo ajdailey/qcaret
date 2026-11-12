@@ -63,6 +63,11 @@ The controller saves the placement at quit only when neither `-m` nor a
 only. The loop ends when every main window is disposed; then the Display is
 disposed and `run` returns 0.
 
+A `RuntimeException` out of `Display.readAndDispatch` costs one event: `Gui`
+logs it at ERROR with its stack and the loop continues. The 10th failure within
+one second (`LoopFailures`) logs an ERROR and leaves `run` with the exception,
+which ends the process without the quit prompts.
+
 Before the Display, without `-m`, `Launcher` claims the instance lock
 ([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
 the launch over and exits 0, before `-l` attaches a log file. A settings
@@ -201,7 +206,8 @@ classes, so the rules over the main classes never see them.
 
 | Class | Covers |
 |---|---|
-| `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts |
+| `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts; a listener that throws costs one event and the loop runs the next one |
+| `LoopFailuresTest` | The 10th failure within one second ends the loop; failures spread wider continue |
 | `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |
 | `PortableGuideTest` (tag `swt`, Linux, GTK 3) | A child JVM with its own `HOME`, no XDG base directory variables and system data directories without `applications` runs User Guide in a portable run: the main window names the guide's copy in a notice, no second shell opens, and the home holds no `.cache/QCaret`, `.local/share/QCaret` or `.cache/mesa_shader_cache`. GLib reads `HOME` from the environment, hence the separate process |
 | `SigtermTest` (tag `swt`, Linux) | `Main` with `-l` as a child process, SIGTERM (`Process.destroy`) after the window line: the process ends within the hook's bound, saved the placement and logged the hook's INFO line to the file. Windows has no SIGTERM; `destroy` there terminates without hooks |

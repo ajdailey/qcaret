@@ -200,6 +200,78 @@ class DocumentLifecycleTest {
     assertEquals("x notes\n", Files.readString(renamed));
   }
 
+  /** A window whose tab moves out during a rename holds nothing once the rename lands. */
+  @Test
+  void aTabMovedOutDuringARenameLeavesNoHoldInTheWindowItLeft() throws Exception {
+    final Path notes = Files.writeString(root.resolve("notes.txt"), "notes\n");
+    final WorkspaceController workspace = first.workspace();
+    workspace.set(root);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return root.equals(workspace.root()) && workspace.index() != null;
+          }
+        },
+        "workspace set and indexed");
+    first.execute(CommandId.WORKSPACE_BROWSER);
+    windows.open(first, notes);
+    final Document document = first.documents().activeDocument();
+    final ApplicationController target = move(document);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    workspace
+        .files()
+        .setBeforeRename(
+            new Runnable() {
+              @Override
+              public void run() {
+                entered.countDown();
+                try {
+                  release.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              }
+            });
+    workspace.files().rename(new WorkspaceNode(notes, "notes.txt", WorkspaceNode.Kind.FILE));
+    windows.view(first).fileNameAnswer.accept("notes.c");
+    final Path renamed = root.resolve("notes.c");
+    try {
+      assertTrue(entered.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "rename started");
+      assertNotNull(windows.set.moveDocument(target, document, first, END), "the tab moves back");
+    } finally {
+      release.countDown();
+    }
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return renamed.equals(first.documents().pathOf(document));
+          }
+        },
+        "the rename landed");
+    target.documents().newDocument();
+    target.documents().activeEditor().type("y");
+    final FakeView view = windows.view(target);
+    final int infos = view.infos.size();
+    view.saveChooser = null;
+    target.documents().saveAs();
+    assertNotNull(view.saveChooser, "Save As asks for a file");
+    view.saveChooser.accept(notes);
+    windows.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return Files.exists(notes) || view.infos.size() > infos;
+          }
+        },
+        "the Save As wrote or reported");
+    windows.settle("save as");
+    assertEquals(infos, view.infos.size(), view.infos.toString());
+    assertEquals("y", Files.readString(notes, StandardCharsets.UTF_8));
+  }
+
   @Test
   void closingTheTabDuringItsSaveCleanupWritesNothing() throws Exception {
     editorConfig("[*]\ntrim_trailing_whitespace = true\n");

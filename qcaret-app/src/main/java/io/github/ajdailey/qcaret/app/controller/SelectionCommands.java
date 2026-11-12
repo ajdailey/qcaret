@@ -27,7 +27,8 @@ import java.util.concurrent.RejectedExecutionException;
  * <ul>
  *   <li>Select All Occurrences selects every occurrence of the primary selection's text, or every
  *       whole-word occurrence of the word at a primary caret. Past {@value #MAX_OCCURRENCES} it
- *       selects nothing and shows a notice.
+ *       selects nothing and shows a notice. Occurrences that touch stay separate selections ({@link
+ *       SelectionSet#apart}), here and in Skip Occurrence.
  *   <li>Skip Occurrence drops the primary selection, which Add Next Occurrence added last, and
  *       selects the next occurrence of its text as the new primary; at a caret it selects the word.
  *   <li>Expand Selection follows {@link SelectionExpansion#expand}, with brackets in strings and
@@ -166,7 +167,7 @@ final class SelectionCommands {
         primary = i;
       }
     }
-    show(SelectionSet.of(list, primary));
+    show(SelectionSet.apart(list, primary));
   }
 
   private void skipOccurrence() {
@@ -204,12 +205,12 @@ final class SelectionCommands {
     for (int i = 0; i < list.size(); i++) {
       Selection s = list.get(i);
       if (s.start() < next.end() && next.start() < s.end()) {
-        show(SelectionSet.of(list, i));
+        show(SelectionSet.apart(list, i));
         return;
       }
     }
     list.add(next);
-    show(SelectionSet.of(list, list.size() - 1));
+    show(SelectionSet.apart(list, list.size() - 1));
   }
 
   private void expand() {

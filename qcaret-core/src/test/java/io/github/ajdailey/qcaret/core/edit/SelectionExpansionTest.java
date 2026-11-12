@@ -115,4 +115,16 @@ class SelectionExpansionTest {
     assertArrayEquals(new int[] {0, 2, 2, 4}, Occurrences.all(text, "aa", 2, token));
     assertArrayEquals(new int[0], Occurrences.all(text, "b", 10, token));
   }
+
+  @Test
+  void noOccurrenceStartsOrEndsInsideACrLf() {
+    TextContent text = new Marked("a\rb\r\nc\rd\ne").document.text();
+    CancellationToken token = new CancellationToken();
+    assertArrayEquals(new int[] {1, 2, 6, 7}, Occurrences.all(text, "\r", 10, token));
+    assertArrayEquals(new int[] {8, 9}, Occurrences.all(text, "\n", 10, token));
+    assertArrayEquals(new int[] {3, 5}, Occurrences.all(text, "\r\n", 10, token));
+    assertEquals(6, Occurrences.next(text, "\r", 2, token));
+    assertEquals(8, Occurrences.next(text, "\n", 0, token));
+    assertEquals(-1, Occurrences.next(text, "\nc", 0, token));
+  }
 }

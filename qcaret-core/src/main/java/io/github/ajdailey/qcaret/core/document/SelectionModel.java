@@ -6,9 +6,9 @@ import java.util.List;
 
 /**
  * One view's carets and selections in a {@link Document}, or a rectangular block. The document maps
- * them through every change, so a change from any source leaves them valid: an offset a change
- * leaves inside a CR LF or a surrogate pair moves to the pair's start. Use it on the document's
- * thread.
+ * them through every change, so a change from any source leaves them valid. An offset a change or
+ * {@link #set} leaves inside a CR LF or a surrogate pair moves to the pair's start. Use it on the
+ * document's thread.
  */
 public final class SelectionModel {
   private final Document document;
@@ -50,8 +50,9 @@ public final class SelectionModel {
   }
 
   /**
-   * Sets the selections after a caret move or a selection by the user, leaving block mode. Typing
-   * that follows starts a new undo step.
+   * Sets the selections after a caret move or a selection by the user, leaving block mode. An
+   * offset inside a CR LF or a surrogate pair moves to the pair's start. Typing that follows starts
+   * a new undo step.
    *
    * @param set the selections, inside the text
    * @throws IndexOutOfBoundsException when a selection ends past the text
@@ -61,7 +62,7 @@ public final class SelectionModel {
     checkBounds(set);
     document.breakCoalescing();
     block = null;
-    update(set);
+    update(onBoundaries(set, document.text()));
   }
 
   /**
@@ -169,7 +170,7 @@ public final class SelectionModel {
       moved |= anchor != s.anchor() || caret != s.caret();
       out.add(new Selection(anchor, caret, s.preferredColumn()));
     }
-    return moved ? SelectionSet.of(out, set.primaryIndex()) : set;
+    return moved ? set.rebuild(out) : set;
   }
 
   private static int boundary(TextSnapshot text, int offset) {

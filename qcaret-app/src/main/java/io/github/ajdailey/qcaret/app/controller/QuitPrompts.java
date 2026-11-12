@@ -11,15 +11,16 @@ import java.util.function.Consumer;
 /**
  * One Quit that asks. Windows go most recently activated first, each dirty document in tab order:
  * every document is asked about while nothing closes or saves, then the Save answers run in the
- * same order, then the session takes its windows, every document closes and {@link WindowSet#quit}
- * runs. Until then each dirty buffer stays open and keeps its recovery file.
+ * same order, then the run waits for every running Save a Copy As ({@link RunningCopies}) and reads
+ * the windows again, then the session takes its windows, every document closes and {@link
+ * WindowSet#quit} runs. Until then each dirty buffer stays open and keeps its recovery file.
  *
  * <p>Each step reads the windows again, so a tab moved, a file handed or an edit made meanwhile is
  * covered: an answer belongs to the {@link Document}, a document dirty without one is asked about,
  * and Don't Save stands only for the revision it was given on. A Cancel selects the tabs selected
  * at the start again and raises the window that was in front. A save that writes no file (a
- * failure, a canceled chooser, a declined prompt) stops the quit with that tab selected and the
- * documents not yet saved still open. Confined to the UI thread.
+ * failure, a canceled chooser, a declined prompt) or a failed copy stops the quit with that tab
+ * selected and the documents not yet saved still open. Confined to the UI thread.
  */
 final class QuitPrompts {
   /** What the user said about a document at a revision. */
@@ -78,6 +79,10 @@ final class QuitPrompts {
           return;
         }
       }
+    }
+    if (set.copies().any()) {
+      set.copies().await(this::next, this::stop);
+      return;
     }
     finish(windows);
   }

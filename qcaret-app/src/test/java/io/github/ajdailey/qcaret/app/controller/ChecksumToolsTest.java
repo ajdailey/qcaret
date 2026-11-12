@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -249,6 +250,37 @@ class ChecksumToolsTest {
     assertEquals(UiText.CHECKSUM_VERIFY_DONE.format(1, 0, 0, 0, 0), shown.status);
   }
 
+  /** Windows tools write a UTF-8 list with a byte order mark; the first line still verifies. */
+  @Test
+  void verifyReadsAChosenListWithAByteOrderMark() throws Exception {
+    Path folder = Files.createDirectory(temp.resolve("lists"));
+    Files.writeString(folder.resolve("good.txt"), "abc", StandardCharsets.US_ASCII);
+    Path list = folder.resolve("SHA256SUMS");
+    Files.writeString(list, "\uFEFF" + ABC_SHA256 + "  good.txt\n", StandardCharsets.UTF_8);
+    harness.application.execute(CommandId.VERIFY_CHECKSUMS);
+    FakeView.Checksums shown = harness.view.checksums;
+    shown.status = null;
+    shown.input.choose();
+    harness.view.openChooser.accept(List.of(list));
+    finished();
+    assertEquals(List.of("good.txt: OK"), shown.lines);
+    assertEquals(UiText.CHECKSUM_VERIFY_DONE.format(1, 0, 0, 0, 0), shown.status);
+  }
+
+  /** The editor keeps CR-only breaks, so the document's text ends each list line at CR. */
+  @Test
+  void verifyReadsADocumentListWithCrBreaks() throws Exception {
+    Files.writeString(temp.resolve("a.txt"), "abc", StandardCharsets.US_ASCII);
+    Files.writeString(temp.resolve("b.txt"), "abc", StandardCharsets.US_ASCII);
+    Path list = temp.resolve("SHA256SUMS");
+    Files.writeString(
+        list, ABC_SHA256 + "  a.txt\r" + ABC_SHA256 + "  b.txt\r", StandardCharsets.US_ASCII);
+    harness.open(list);
+    harness.application.execute(CommandId.VERIFY_CHECKSUMS);
+    FakeView.Checksums shown = finished();
+    assertEquals(List.of("a.txt: OK", "b.txt: OK"), shown.lines);
+  }
+
   /**
    * Two selections of a UTF-16LE document with CRLF breaks: the bytes are the selections joined by
    * CRLF, encoded without the byte order mark.
@@ -305,6 +337,39 @@ class ChecksumToolsTest {
           }
         },
         "refused");
+    assertNull(harness.view.clipboard);
+  }
+
+  /** x-JISAutoDetect decodes but has no encoder: the command says so instead of hashing. */
+  @Test
+  void aSelectionInACharsetWithNoEncoderCopiesNothing() throws Exception {
+    final Charset auto = Charset.forName("x-JISAutoDetect");
+    assumeFalse(auto.canEncode());
+    harness.open(Files.writeString(temp.resolve("a.txt"), "one\n"));
+    harness.application.documents().reopenWithEncoding(auto);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness
+                .application
+                .documents()
+                .activeDocument()
+                .encoding()
+                .charset()
+                .equals(auto);
+          }
+        },
+        "reopened");
+    harness.awaitIdle("reopen");
+    EditorController editor = harness.application.documents().activeEditor();
+    editor.selections().set(SelectionSet.of(List.of(Selection.of(0, 3)), 0));
+    harness.view.clipboard = null;
+    harness.application.execute(CommandId.SHA256_SELECTION);
+    harness.awaitIdle("hash");
+    assertEquals(
+        UiText.CHECKSUM_SELECTION_NO_ENCODER.format(auto.name()),
+        harness.view.notices.get(harness.view.notices.size() - 1));
     assertNull(harness.view.clipboard);
   }
 

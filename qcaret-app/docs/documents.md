@@ -216,9 +216,20 @@ opened.
   window, which takes it as an external change, and goes to the top of Recent
   Files.
 - A failed write leaves the target unchanged and shows `SAVE_FAILED` with the
-  target's name. Esc and closing the tab cancel the write
-  (`OpenFile.copying`); a second copy of the same document while one runs
-  shows a notice.
+  target's name. Only Esc cancels the write (`SaveCopy.cancel`); a second copy
+  of the same document while one runs shows a notice.
+- Closing the tab, Don't Save and closing the window leave the write running,
+  so a copy followed by Don't Save keeps the edits in the copy. The result
+  shows in the tab's window while it is open, otherwise in the active window.
+  The tab does not move to another window while the copy runs
+  (`OpenFile.running`).
+- Quit waits for every running copy, the snapshot quit included
+  (`RunningCopies`). A failed copy stops the quit, as a failed save does.
+  After `RunningCopies.BOUND` (30 s) a modal prompt in the active window
+  (`MainView.askUnfinishedCopies`) names each copy still running. Quit goes on
+  and logs the copies at WARN; they may be incomplete. Wait, Esc and the close
+  button wait another bound. A copy ending while the prompt shows closes it and
+  the quit goes on, or stops on a failure, as before.
 
 Close asks Save, Don't Save or Cancel for a dirty document. Save closes once
 the save succeeds, and an edit made during the write asks again, with the tab

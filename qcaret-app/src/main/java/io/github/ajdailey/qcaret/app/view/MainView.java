@@ -297,4 +297,15 @@ public interface MainView
    * @return true while one shows
    */
   boolean promptShown();
+
+  /**
+   * Asks whether a quit goes on while Save a Copy As writes run; modal. Wait is the default; Esc
+   * and the close button answer Wait.
+   *
+   * @param targets the files still being written
+   * @param quit runs when the user chooses Quit
+   * @param wait runs when the user chooses Wait
+   * @return closes the dialog without running either answer
+   */
+  Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait);
 }

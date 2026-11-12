@@ -111,6 +111,8 @@ public enum UiText {
   STATISTICS_CHANGED,
   /** Document Statistics without a document. */
   STATISTICS_NO_DOCUMENT,
+  /** Document Statistics byte count in a charset with no encoder. */
+  STATISTICS_BYTES_UNKNOWN,
   /** Tools menu. */
   GROUP_TOOLS,
   /** Tools cascade. */
@@ -177,6 +179,8 @@ public enum UiText {
   CHECKSUM_SELECTION_COPIED,
   /** Notice: the charset. */
   CHECKSUM_SELECTION_UNENCODABLE,
+  /** Generate from Selection in a charset with no encoder: the charset name. */
+  CHECKSUM_SELECTION_NO_ENCODER,
   /** Notice: the reason. */
   CHECKSUM_SAVE_FAILED,
   /** Button choosing files to hash. */
@@ -1014,6 +1018,14 @@ public enum UiText {
   COMMAND_SAVE_COPY_AS,
   /** Notice: a copy was written; takes the document's name and the copy's path. */
   SAVE_COPY_DONE,
+  /** Title of the prompt when a quit's wait for Save a Copy As writes runs out. */
+  SAVE_COPY_UNFINISHED_TITLE,
+  /** That prompt's message; the files follow it. */
+  SAVE_COPY_UNFINISHED,
+  /** Button label: quit without waiting for the copies. */
+  BUTTON_QUIT,
+  /** Button label: keep waiting for the copies. */
+  BUTTON_WAIT,
   /** Command label. */
   COMMAND_OPEN_ALL_RECENT,
   /** Command label. */

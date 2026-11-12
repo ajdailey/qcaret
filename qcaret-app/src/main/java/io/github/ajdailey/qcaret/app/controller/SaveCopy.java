@@ -26,8 +26,9 @@ import java.util.function.Consumer;
  * {@link DocumentFiles#save} on a {@code qcaret-io-} worker. The copy takes the document's
  * encoding, BOM and line breaks, and the save cleanup its declared settings ask for, applied to the
  * copy only. The document keeps its path, dirty state, undo history and file check. A target whose
- * real path is the document's file runs Save instead. Esc and a close cancel the write through
- * {@link SaveAndReload#cancelSave}. Confined to the UI thread.
+ * real path is the document's file runs Save instead. Only Esc cancels the write ({@link #cancel}).
+ * A close and Don't Save let it finish, and its result shows in a live window; a quit waits for it
+ * ({@link RunningCopies}). Confined to the UI thread.
  */
 final class SaveCopy {
   /** What a copy reaches of its window and the other windows. */
@@ -43,6 +44,12 @@ final class SaveCopy {
 
     /** Returns the window's documents as the workspace browser's Rename and Delete reach them. */
     DocumentsUnder under();
+
+    /** Returns the view a result shows in: this window's while open, else the active window's. */
+    MainView report();
+
+    /** Returns the copies running in every window, or null for a window outside a set. */
+    RunningCopies copies();
   }
 
   private final Workers workers;
@@ -57,6 +64,14 @@ final class SaveCopy {
     this.view = view;
     this.files = files;
     this.window = window;
+  }
+
+  /** Cancels a document's running copy; the target stays as it was. Esc runs it. */
+  static void cancel(OpenDocument d) {
+    if (d.file.copying != null) {
+      d.file.copying.cancel();
+      d.file.copying = null;
+    }
   }
 
   /** Asks for a file and writes the document's text to it. */
@@ -163,6 +178,8 @@ final class SaveCopy {
     if (!started) {
       d.file.copying = null;
       view.setIdle();
+    } else if (window.copies() != null) {
+      window.copies().started(target);
     }
   }
 
@@ -195,14 +212,18 @@ final class SaveCopy {
     if (d.file.copying == token) {
       d.file.copying = null;
     }
+    MainView shown = window.report();
     if (real != null) {
       window.copied(d, real);
-      view.showNotice(UiText.SAVE_COPY_DONE.format(d.name(), target));
+      shown.showNotice(UiText.SAVE_COPY_DONE.format(d.name(), target));
     } else if (error != null) {
-      view.showInfo(
+      shown.showInfo(
           UiText.SAVE_TITLE.text(),
           UiText.SAVE_FAILED.format(
               String.valueOf(target.getFileName()), LogText.oneLine(error.getMessage())));
+    }
+    if (window.copies() != null) {
+      window.copies().ended(target, error != null);
     }
   }
 }

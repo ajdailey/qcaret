@@ -564,6 +564,18 @@ public final class DocumentController {
               public DocumentsUnder under() {
                 return DocumentController.this.under();
               }
+
+              @Override
+              public MainView report() {
+                return elsewhere == null
+                    ? view
+                    : elsewhere.copies().live(DocumentController.this).view;
+              }
+
+              @Override
+              public RunningCopies copies() {
+                return elsewhere == null ? null : elsewhere.copies();
+              }
             });
     this.completion =
         new WordCompletion(
@@ -978,6 +990,7 @@ public final class DocumentController {
       @Override
       public void run() {
         files.cancelSave(d);
+        SaveCopy.cancel(d);
         if (compare != null) {
           compare.cancelRunning();
         }
@@ -1127,10 +1140,11 @@ public final class DocumentController {
     }
   }
 
-  /** Cancels a running save of the selected document. */
+  /** Cancels a running save and Save a Copy As of the selected document, as Esc does. */
   public void cancelSave() {
     if (active != null) {
       files.cancelSave(active);
+      SaveCopy.cancel(active);
     }
   }
 
@@ -2357,6 +2371,9 @@ public final class DocumentController {
 
     /** Returns the number of the next buffer of the instance; a recovery file is named by it. */
     int nextBuffer();
+
+    /** Returns the Save a Copy As writes running in every window. */
+    RunningCopies copies();
   }
 
   /** Connects this window to the other windows of its instance. */

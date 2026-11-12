@@ -1481,7 +1481,7 @@ public final class EditorController implements EditorInput {
 
   /**
    * Selects the word at a primary caret; with a primary range, adds its next occurrence after it as
-   * the new primary. The search runs on a worker.
+   * the new primary, apart from one it touches. The search runs on a worker.
    */
   private void addNextOccurrence() {
     final SelectionSet set = selections.selections();
@@ -1545,7 +1545,7 @@ public final class EditorController implements EditorInput {
       }
     }
     list.add(next);
-    selections.set(SelectionSet.of(list, list.size() - 1));
+    selections.set(SelectionSet.apart(list, list.size() - 1));
     showCaret();
   }
 

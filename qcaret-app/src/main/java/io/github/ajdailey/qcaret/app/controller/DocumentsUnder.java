@@ -65,7 +65,7 @@ final class DocumentsUnder {
     return names;
   }
 
-  /** Reports whether a save, a reload or a change prompt holds a document under an entry. */
+  /** Reports whether {@link OpenFile#running} holds a document under an entry. */
   boolean busyUnder(BrowserPath entry) {
     for (OpenDocument d : documents) {
       if (entry.covers(d.file) && d.file.running()) {

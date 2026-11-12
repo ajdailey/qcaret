@@ -111,7 +111,12 @@ changes, same Undo history. The copy is saved as Save would save it, in the
 document's encoding and line endings with the trimming and final newline its
 `.editorconfig` asks for, and is added to Recent Files. Choosing the document's
 own file saves it. A copy written over a file open in another tab reaches that
-tab as a change made by another program.
+tab as a change made by another program. `Esc` cancels a running copy. Closing
+the tab, Don't Save and closing the window let it finish and report; Exit waits
+for it, and a failed copy stops the Exit. After 30 seconds Exit names each copy
+still being written and asks: Quit exits and may leave those files incomplete,
+Wait waits another 30 seconds. The tab cannot move to another
+window until the copy ends.
 
 ### Printing
 
@@ -273,8 +278,8 @@ the grammar's rules.
 Edit > Sort Lines, and Remove Duplicate Lines and Trim Trailing Whitespace in
 Edit > Line, act on the selected lines, or every line. Each is one undo step,
 and `Esc` stops one still computing, as it stops a running comparison. In a
-file mixing CR and LF line endings, these commands, Delete Line, Move Lines and
-the trim at Save leave alone any line whose change would merge a CR and an LF
+file mixing CR and LF line endings, these commands, Delete Line, Move Lines,
+Transpose and the trim at Save leave alone any line whose change would merge a CR and an LF
 into one CR LF line ending, and the status bar names how many lines they left.
 Edit > Tab Width (any width from 1 to 16 through Other), Indent with Spaces and
 Read-Only apply to the selected document. Preferences, Editor sets the width
@@ -298,6 +303,8 @@ characters, characters without spaces and bytes in its encoding, and the same
 for the selections. A word is a run of characters that are not spaces, tabs or
 line breaks; a character is a Unicode code point, so an emoji counts once. A
 large document shows the percent counted; Refresh counts again after an edit.
+In an encoding that can only be read, such as `x-JISAutoDetect`, bytes show as
+unknown.
 
 ## Multiple carets and block selection
 
@@ -330,7 +337,8 @@ key select a block.
 Selection > Undo Selection and Redo Selection step back and forward through the
 caret and selection changes of the view, up to 100, without changing the text.
 An edit starts the history again. Select All Occurrences selects nothing past
-10,000 occurrences.
+10,000 occurrences. Occurrences that touch, such as `ab` twice in `abab`, stay
+separate selections.
 
 ## Search and HyperSearch
 
@@ -589,7 +597,8 @@ Tools > Verify Checksums checks a `sha256sum`-style list: the selected
 document, when it has a file, or a list chosen with Choose List. A line may use
 `*` before the name. Names are relative to the list's folder. Each file shows
 OK, FAILED, MISSING or unreadable, lines that are not checksum lines are listed,
-and the totals end the list.
+and the totals end the list. Lines may end in LF, CR LF or CR, and a chosen
+list may start with a UTF-8 byte order mark.
 
 ## Sessions and recovery
 

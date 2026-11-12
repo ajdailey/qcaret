@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +64,59 @@ class ChecksumListTest {
     }
     assertEquals(ChecksumList.parse(text), parser.finish());
     assertEquals(2, parser.finish().entries().size());
+  }
+
+  @Test
+  void aLineEndsAtLfCrLfOrCr() {
+    String text = ABC_MD5 + "  a\r" + ABC_MD5 + "  b\r\n\r" + ABC_MD5 + "  c\n" + ABC_MD5 + "  d\r";
+    ChecksumList list = ChecksumList.parse(text);
+    assertEquals(
+        List.of(
+            new ChecksumList.Entry(1, ChecksumAlgorithm.MD5, ABC_MD5, "a", false),
+            new ChecksumList.Entry(2, ChecksumAlgorithm.MD5, ABC_MD5, "b", false),
+            new ChecksumList.Entry(4, ChecksumAlgorithm.MD5, ABC_MD5, "c", false),
+            new ChecksumList.Entry(5, ChecksumAlgorithm.MD5, ABC_MD5, "d", false)),
+        list.entries());
+    assertEquals(0, list.badCount());
+  }
+
+  /** Verify reads a chosen list in 8 KiB pieces, so a CR LF pair can straddle two of them. */
+  @Test
+  void aCrLfPairSplitBetweenPiecesIsOneBreak() {
+    StringBuilder b = new StringBuilder();
+    int lines = 0;
+    while (b.length() < 5 * 8192) {
+      b.append(ABC_SHA256).append("  file").append(lines++).append("\r\n");
+    }
+    String text = b.toString();
+    ChecksumList whole = ChecksumList.parse(text);
+    assertEquals(lines, whole.entries().size());
+    assertEquals(0, whole.badCount());
+    int splits = 0;
+    for (int shift = 0; shift < 80; shift++) {
+      ChecksumList.Parser parser = new ChecksumList.Parser();
+      int at = 0;
+      for (int end = 8192 - shift; end < text.length(); end += 8192) {
+        if (text.charAt(end - 1) == '\r') {
+          splits++;
+        }
+        parser.add(text, at, end);
+        at = end;
+      }
+      parser.add(text, at, text.length());
+      assertEquals(whole, parser.finish());
+    }
+    assertTrue(splits > 0);
+  }
+
+  @Test
+  void oneLeadingByteOrderMarkIsSkipped() {
+    ChecksumList.Parser parser = new ChecksumList.Parser();
+    parser.add("\uFEFF", 0, 1);
+    parser.add(ABC_MD5 + "  a\n", 0, ABC_MD5.length() + 4);
+    assertEquals("a", parser.finish().entries().get(0).name());
+    ChecksumList twice = ChecksumList.parse("\uFEFF\uFEFF" + ABC_MD5 + "  a\n");
+    assertEquals(List.of(1), twice.badLines());
   }
 
   @Test

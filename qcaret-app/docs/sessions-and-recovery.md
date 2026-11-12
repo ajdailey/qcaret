@@ -154,12 +154,16 @@ the row stays. Any other buffer opens in the window activated last.
 
 ## Quit snapshot
 
-With `session.snapshot` on and this instance owning the session, a quit writes
-every window's dirty buffers to `<settings>/snapshot/`, again when one changed
-meanwhile, and asks nothing; a failed write falls back to the prompts. The tabs
-name their buffers, and the next start opens them dirty. The write deletes
-every snapshot it does not name, and a restored buffer takes a new id, so a
-Quit during a restore waits for `WindowSet.restoreEnded`, called at the end of
+With `session.snapshot` on and this instance owning the session, a quit
+(`SnapshotQuit`) writes every window's dirty buffers to `<settings>/snapshot/`
+and asks about no document; a failed write falls back to the prompts. The
+write runs again when the dirty buffers then differ from those written,
+matched by buffer id and revision, not by position. The quit then waits for
+every running Save a Copy As as the prompted quit does, with the same prompt
+after `RunningCopies.BOUND`, and a failed copy stops it. The tabs name their
+buffers, and the next start opens them dirty. The write deletes every snapshot
+it does not name, and a restored buffer takes a new id, so a Quit during a
+restore waits for `WindowSet.restoreEnded`, called at the end of
 `SessionController.finish`. Canceling the running load ends that tab's restore.
 Without an owner the quit prompts. A shutdown hook quit goes through recovery
 files and the dialog instead.

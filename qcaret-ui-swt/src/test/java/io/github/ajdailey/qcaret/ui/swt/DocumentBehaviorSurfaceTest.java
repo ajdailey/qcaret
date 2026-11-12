@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
@@ -42,12 +44,20 @@ import org.eclipse.swt.dnd.DND;
 import org.eclipse.swt.dnd.DropTarget;
 import org.eclipse.swt.dnd.FileTransfer;
 import org.eclipse.swt.dnd.Transfer;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Shell;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -56,8 +66,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * File and document behavior in a real window: the drop target, the load row with Esc and Cancel,
- * the title, Mod+drag, the docks' sash, the Recently Closed and Automatic Detection entries and the
- * guards of the application menu's document event.
+ * the title, Mod+drag, the docks' sash, the Recently Closed and Automatic Detection entries, the
+ * guards of the application menu's document event and the quit's unfinished-copies prompt. With
+ * {@code -Dqcaret.screenshots=<dir>}, {@code unfinished-copies-light.png} and {@code -dark.png}.
  */
 @Tag("swt")
 class DocumentBehaviorSurfaceTest {
@@ -420,5 +431,103 @@ class DocumentBehaviorSurfaceTest {
     Path a = file("a.txt", "a\n");
     AppMenu.open(controller.windowSet(), a.toString());
     await(tabs(1), "the named file");
+  }
+
+  /** Returns the open unfinished-copies dialog, or null. */
+  private Shell unfinishedCopies() {
+    for (Shell shell : window.shell().getShells()) {
+      if (!shell.isDisposed() && shell.getText().equals(UiText.SAVE_COPY_UNFINISHED_TITLE.text())) {
+        return shell;
+      }
+    }
+    return null;
+  }
+
+  private Button button(Shell shell, String text) {
+    for (Control row : shell.getChildren()) {
+      if (row instanceof Composite composite) {
+        for (Control child : composite.getChildren()) {
+          if (child instanceof Button button && button.getText().equals(text)) {
+            return button;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private Runnable ask(final AtomicInteger quit, final AtomicInteger wait) {
+    return window.askUnfinishedCopies(
+        List.of("/mock/out/a.txt", "/mock/out/b & c.txt"),
+        quit::incrementAndGet,
+        wait::incrementAndGet);
+  }
+
+  @Test
+  void theUnfinishedCopiesPromptAnswersQuitAndWait() throws Exception {
+    AtomicInteger quit = new AtomicInteger();
+    AtomicInteger wait = new AtomicInteger();
+    ask(quit, wait);
+    Shell shell = unfinishedCopies();
+    assertNotNull(shell, "the prompt shows");
+    assertEquals(UiText.BUTTON_WAIT.text(), shell.getDefaultButton().getText());
+    assertEquals(window.shell().getImages().length, shell.getImages().length);
+    button(shell, UiText.BUTTON_QUIT.text()).notifyListeners(SWT.Selection, new Event());
+    drain();
+    assertEquals(1, quit.get());
+    assertEquals(0, wait.get());
+    assertNull(unfinishedCopies());
+
+    ask(quit, wait);
+    unfinishedCopies().close();
+    drain();
+    assertEquals(1, quit.get());
+    assertEquals(1, wait.get(), "the close button answers Wait");
+
+    Runnable close = ask(quit, wait);
+    close.run();
+    drain();
+    assertNull(unfinishedCopies());
+    assertEquals(1, quit.get());
+    assertEquals(1, wait.get(), "closing from the controller answers nothing");
+  }
+
+  @Test
+  void unfinishedCopiesScreenshotsWhenAsked() throws Exception {
+    String dir = System.getProperty("qcaret.screenshots");
+    assumeTrue(dir != null, "qcaret.screenshots not set");
+    AtomicInteger answers = new AtomicInteger();
+    Runnable close = ask(answers, answers);
+    capture(unfinishedCopies(), Path.of(dir, "unfinished-copies-light.png"));
+    close.run();
+    controller.execute(CommandId.THEME_DARK);
+    drain();
+    close = ask(answers, answers);
+    capture(unfinishedCopies(), Path.of(dir, "unfinished-copies-dark.png"));
+    close.run();
+  }
+
+  private void capture(Shell shell, Path file) {
+    final long until = System.nanoTime() + 1_000_000_000L;
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return System.nanoTime() > until;
+          }
+        },
+        "settled");
+    Point size = shell.getSize();
+    Image image = new Image(display, size.x, size.y);
+    GC gc = new GC(image);
+    try {
+      shell.print(gc);
+      ImageLoader loader = new ImageLoader();
+      loader.data = new ImageData[] {image.getImageData()};
+      loader.save(file.toString(), SWT.IMAGE_PNG);
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
   }
 }

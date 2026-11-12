@@ -2713,4 +2713,28 @@ public final class MainWindow implements MainView {
   public boolean promptShown() {
     return !shell.isDisposed() && modalOwner() != shell;
   }
+
+  @Override
+  public Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait) {
+    if (shell.isDisposed()) {
+      quit.run();
+      return NO_PROMPT;
+    }
+    final UnfinishedCopiesDialog dialog = new UnfinishedCopiesDialog(shell, targets, quit, wait);
+    dialog.open();
+    return new Runnable() {
+      @Override
+      public void run() {
+        dialog.close();
+      }
+    };
+  }
+
+  private static final Runnable NO_PROMPT =
+      new Runnable() {
+        @Override
+        public void run() {
+          // Nothing shows.
+        }
+      };
 }

@@ -4,11 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.Options;
+import io.github.ajdailey.qcaret.app.config.SettingsLocation;
+import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
@@ -31,7 +37,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * File > Save a Copy As: the document keeps its file, dirty state and history; the copy's bytes
  * match a Save As of the same text; a copy over another tab's file reaches that tab as an external
- * change; a failed write leaves the target as it was.
+ * change; a failed write leaves the target as it was. Esc cancels a running copy; a close, Don't
+ * Save and a quit let it finish; after {@link RunningCopies#BOUND} the quit asks Quit or Wait.
  */
 class SaveCopyTest {
   /** ISO-8859-1 whose next encoder request, once armed, blocks until released. */
@@ -230,11 +237,9 @@ class SaveCopyTest {
     assertEquals(List.of(a), harness.application.recentFiles().paths());
   }
 
-  @Test
-  void aCanceledCopyLeavesTheTargetAndTheDocumentAsTheyWere() throws Exception {
-    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
-    Path b = Files.writeString(dir.resolve("b.txt"), "old\n");
-    harness.open(a);
+  /** Opens a file in a gate charset, so a copy's write can be held. */
+  private Gate openGated(Path file) throws Exception {
+    harness.open(file);
     final Gate gate = new Gate();
     documents().reopenWithEncoding(gate);
     harness.await(
@@ -246,13 +251,16 @@ class SaveCopyTest {
         },
         "reopened");
     harness.awaitIdle("reopen");
-    documents().activeEditor().type("mine ");
-    Document document = documents().activeDocument();
-    int infos = harness.view.infos.size();
-    int notices = harness.view.notices.size();
+    return gate;
+  }
+
+  /** Starts Save a Copy As onto {@code target} and waits until the gate holds its write. */
+  private void startCopy(final Gate gate, Path target) throws InterruptedException {
     gate.armed.set(true);
+    harness.view.saveChooser = null;
     harness.application.execute(CommandId.SAVE_COPY_AS);
-    harness.view.saveChooser.accept(b);
+    assertNotNull(harness.view.saveChooser);
+    harness.view.saveChooser.accept(target);
     harness.await(
         new BooleanSupplier() {
           @Override
@@ -261,7 +269,19 @@ class SaveCopyTest {
           }
         },
         "the write started");
-    documents().cancelSave();
+  }
+
+  @Test
+  void aCanceledCopyLeavesTheTargetAndTheDocumentAsTheyWere() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Path b = Files.writeString(dir.resolve("b.txt"), "old\n");
+    Gate gate = openGated(a);
+    documents().activeEditor().type("mine ");
+    Document document = documents().activeDocument();
+    int infos = harness.view.infos.size();
+    int notices = harness.view.notices.size();
+    startCopy(gate, b);
+    documents().activeEditor().cancel();
     gate.released.countDown();
     harness.awaitIdle("canceled copy");
     assertEquals("old\n", Files.readString(b));
@@ -270,5 +290,191 @@ class SaveCopyTest {
     assertEquals(infos, harness.view.infos.size(), harness.view.infos.toString());
     assertEquals(notices, harness.view.notices.size(), harness.view.notices.toString());
     assertEquals(List.of(a), harness.application.recentFiles().paths());
+  }
+
+  /** Save a Copy As, then Don't Save at the close, keeps the edits in the copy. */
+  @Test
+  void dontSaveOnTheTabLetsItsRunningCopyFinishAndReport() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Gate gate = openGated(a);
+    documents().activeEditor().type("mine ");
+    Path b = dir.resolve("b.txt");
+    startCopy(gate, b);
+    documents().closeActive();
+    assertNotNull(harness.view.unsaved, "the close asks");
+    harness.view.unsaved.accept(UnsavedChoice.DISCARD);
+    gate.released.countDown();
+    harness.awaitIdle("copy after close");
+    assertEquals("mine one\n", Files.readString(b));
+    assertEquals("one\n", Files.readString(a));
+    assertTrue(
+        harness.view.notices.contains(UiText.SAVE_COPY_DONE.format("a.txt", b)),
+        harness.view.notices.toString());
+  }
+
+  @Test
+  void quitWaitsForARunningCopyAndReportsIt() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Gate gate = openGated(a);
+    Path b = dir.resolve("b.txt");
+    startCopy(gate, b);
+    harness.application.requestQuit();
+    harness.ui.runPending();
+    assertFalse(harness.application.isQuitting(), "the quit did not wait for the copy");
+    gate.released.countDown();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.disposed;
+          }
+        },
+        "quit");
+    assertEquals("one\n", Files.readString(b));
+    assertTrue(
+        harness.view.notices.contains(UiText.SAVE_COPY_DONE.format("a.txt", b)),
+        harness.view.notices.toString());
+  }
+
+  @Test
+  void aCopyFailingDuringQuitStopsTheQuitAndReports() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Gate gate = openGated(a);
+    Path out = Files.createDirectory(dir.resolve("out"));
+    startCopy(gate, out.resolve("b.txt"));
+    harness.application.requestQuit();
+    harness.ui.runPending();
+    Files.delete(out);
+    final int infos = harness.view.infos.size();
+    gate.released.countDown();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.infos.size() > infos;
+          }
+        },
+        "the failure");
+    harness.awaitIdle("failed copy");
+    assertTrue(
+        harness.view.infos.get(infos).contains(UiText.SAVE_FAILED.format("b.txt", "")),
+        harness.view.infos.toString());
+    assertFalse(harness.application.isQuitting());
+    assertFalse(harness.view.disposed);
+    assertEquals(1, documents().count());
+  }
+
+  @Test
+  void quitAtTheUnfinishedCopyPromptGoesOn() throws Exception {
+    quitPastTheBound(true);
+  }
+
+  @Test
+  void waitAtTheUnfinishedCopyPromptWaitsAnotherBound() throws Exception {
+    quitPastTheBound(false);
+  }
+
+  @Test
+  void quitAtTheUnfinishedCopyPromptGoesOnInASnapshotQuit() throws Exception {
+    snapshotSession();
+    quitPastTheBound(true);
+  }
+
+  @Test
+  void waitAtTheUnfinishedCopyPromptWaitsAnotherBoundInASnapshotQuit() throws Exception {
+    snapshotSession();
+    quitPastTheBound(false);
+  }
+
+  /** Owns a session with {@code session.snapshot} on, so a quit writes a snapshot. */
+  private void snapshotSession() throws Exception {
+    SessionStore store =
+        new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings")));
+    harness.application.startSession(store, store.load(), false);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.application.recovery().idle();
+          }
+        },
+        "started");
+    harness.awaitIdle("start");
+    Settings running = harness.application.settings();
+    Options o = running.current().options();
+    running.set(
+        running
+            .current()
+            .withOptions(
+                new Options(
+                    o.completionChars(),
+                    o.autoClose(),
+                    o.maxHighlightLineChars(),
+                    o.fontSize(),
+                    o.pollSeconds(),
+                    o.autoReloadClean(),
+                    o.backupDays(),
+                    o.searchMaxLineChars(),
+                    o.excludedDirectories(),
+                    o.recoveryIntervalSeconds(),
+                    o.recoveryKeepDays(),
+                    true,
+                    o.tabWidth(),
+                    o.insertSpaces(),
+                    o.rightMargin(),
+                    o.dateFormat(),
+                    o.editorConfig(),
+                    o.modelines(),
+                    o.closeWindowWithLastTab())));
+  }
+
+  /**
+   * Quits while a copy's write is held. The quit waits on a {@link RunningCopies#BOUND} timer; when
+   * it fires, the prompt names the copy. Quit goes on at once; Wait arms the timer again, which
+   * asks again, and the copy then ending closes the prompt and completes the quit.
+   */
+  private void quitPastTheBound(boolean quit) throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Gate gate = openGated(a);
+    Path b = dir.resolve("b.txt");
+    startCopy(gate, b);
+    try {
+      harness.application.requestQuit();
+      harness.ui.runPending();
+      assertFalse(harness.application.isQuitting(), "the quit did not wait for the copy");
+      assertEquals(0, harness.view.unfinishedAsked);
+      harness.ui.runLongTimers();
+      assertEquals(1, harness.view.unfinishedAsked);
+      assertEquals(List.of(b.toString()), harness.view.unfinishedCopies);
+      assertFalse(harness.application.isQuitting());
+      if (quit) {
+        harness.view.unfinishedQuit.run();
+        assertTrue(harness.application.isQuitting(), "Quit went on");
+      } else {
+        harness.view.unfinishedWait.run();
+        harness.ui.runPending();
+        assertFalse(harness.application.isQuitting(), "Wait kept waiting");
+        harness.ui.runLongTimers();
+        assertEquals(2, harness.view.unfinishedAsked, "Wait armed the bound again");
+        assertFalse(harness.application.isQuitting());
+      }
+    } finally {
+      gate.released.countDown();
+    }
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.disposed;
+          }
+        },
+        "quit");
+    if (!quit) {
+      assertNull(harness.view.unfinishedWait, "the copy ending closed the prompt");
+      assertEquals("one\n", Files.readString(b));
+      assertTrue(
+          harness.view.notices.contains(UiText.SAVE_COPY_DONE.format("a.txt", b)),
+          harness.view.notices.toString());
+    }
   }
 }

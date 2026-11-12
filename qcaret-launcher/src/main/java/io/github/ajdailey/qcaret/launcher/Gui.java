@@ -60,8 +60,10 @@ import org.slf4j.LoggerFactory;
  * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
  * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
  * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
- * closes it before the workers, and so does a run that ends before the first window. The loop ends
- * when every main window is disposed, then the Display is disposed and {@link #run} returns.
+ * closes it before the workers, and so does a run that ends before the first window. A {@link
+ * RuntimeException} from one event is logged with its stack and the loop continues, up to the bound
+ * in {@link LoopFailures}, past which the exception leaves {@link #run}. The loop ends when every
+ * main window is disposed, then the Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -302,9 +304,18 @@ final class Gui {
       if (observer != null) {
         observer.opened(window, controller, workers);
       }
+      LoopFailures failures = new LoopFailures();
       while (anyOpen()) {
-        if (!display.readAndDispatch()) {
-          display.sleep();
+        try {
+          if (!display.readAndDispatch()) {
+            display.sleep();
+          }
+        } catch (Exception e) {
+          if (!failures.tolerate(System.nanoTime())) {
+            LOG.error("Event loop ends: {} events failed within a second", LoopFailures.LIMIT);
+            throw e;
+          }
+          LOG.error("An event failed; the event loop continues", e);
         }
       }
     } finally {

@@ -37,8 +37,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -138,6 +141,50 @@ class GuiTest {
     assertEquals(
         0, new Gui(request, config(), Preferences.DEFAULTS, err, observer, LogFiles.NONE).run());
     assertEquals(UNTITLED, title[0]);
+  }
+
+  @Test
+  void aListenerThatThrowsCostsOneEventAndTheLoopContinues() {
+    final List<String> ran = new ArrayList<String>();
+    Gui.Observer observer =
+        new Gui.Observer() {
+          @Override
+          public void opened(
+              final MainWindow window, final ApplicationController controller, Workers owned) {
+            window
+                .shell()
+                .addListener(
+                    SWT.Help,
+                    new Listener() {
+                      @Override
+                      public void handleEvent(Event event) {
+                        ran.add("listener");
+                        throw new IllegalStateException("mock listener failure");
+                      }
+                    });
+            Display display = window.shell().getDisplay();
+            display.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    window.shell().notifyListeners(SWT.Help, new Event());
+                  }
+                });
+            display.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    ran.add("next");
+                    controller.quit();
+                  }
+                });
+          }
+        };
+    PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+    StartupRequest request = request(List.of(), 600, 400, 0, 0, true);
+    assertEquals(
+        0, new Gui(request, config(), Preferences.DEFAULTS, err, observer, LogFiles.NONE).run());
+    assertEquals(List.of("listener", "next"), ran);
   }
 
   /** ISO-8859-1 whose first decoder request after {@link #arm} blocks until {@link #release}. */

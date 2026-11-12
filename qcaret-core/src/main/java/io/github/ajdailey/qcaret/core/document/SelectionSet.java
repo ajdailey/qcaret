@@ -7,16 +7,19 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Immutable carets and selections, sorted by start, with one primary. Selections that overlap or
- * touch are merged when the set is built, so the set never holds two that share an offset.
+ * Immutable carets and selections, sorted by start, with one primary. Selections that overlap are
+ * merged when the set is built, and so are those that touch, except two non-empty ones in a set
+ * built by {@link #apart}. A caret never shares an offset with another selection.
  */
 public final class SelectionSet {
   private final List<Selection> selections;
   private final int primary;
+  private final boolean apart;
 
-  private SelectionSet(List<Selection> selections, int primary) {
+  private SelectionSet(List<Selection> selections, int primary, boolean apart) {
     this.selections = selections;
     this.primary = primary;
+    this.apart = apart;
   }
 
   /**
@@ -28,6 +31,23 @@ public final class SelectionSet {
    * @return the set; the primary is the merged selection holding the given one
    */
   public static SelectionSet of(List<Selection> selections, int primary) {
+    return build(selections, primary, false);
+  }
+
+  /**
+   * Builds a set as {@link #of} does, but keeps two non-empty selections that only touch apart, so
+   * each occurrence of a match stays its own selection. Mapping the set through a change keeps the
+   * rule.
+   *
+   * @param selections at least one selection, in any order
+   * @param primary the index in {@code selections} of the primary
+   * @return the set; the primary is the merged selection holding the given one
+   */
+  public static SelectionSet apart(List<Selection> selections, int primary) {
+    return build(selections, primary, true);
+  }
+
+  private static SelectionSet build(List<Selection> selections, int primary, boolean apart) {
     if (selections.isEmpty()) {
       throw new IllegalArgumentException("no selection");
     }
@@ -48,7 +68,9 @@ public final class SelectionSet {
     boolean holdsPrimary = current == chosen;
     for (int i = 1; i < sorted.size(); i++) {
       Selection next = sorted.get(i);
-      if (next.start() <= current.end()) {
+      boolean touchApart =
+          apart && next.start() == current.end() && !current.isEmpty() && !next.isEmpty();
+      if (next.start() <= current.end() && !touchApart) {
         int end = Math.max(current.end(), next.end());
         if (end != current.end()) {
           current =
@@ -70,7 +92,7 @@ public final class SelectionSet {
       primaryOut = out.size();
     }
     out.add(current);
-    return new SelectionSet(Collections.unmodifiableList(out), primaryOut);
+    return new SelectionSet(Collections.unmodifiableList(out), primaryOut, apart);
   }
 
   /**
@@ -80,7 +102,7 @@ public final class SelectionSet {
    * @return the set
    */
   public static SelectionSet caret(int offset) {
-    return new SelectionSet(List.of(Selection.caret(offset)), 0);
+    return new SelectionSet(List.of(Selection.caret(offset)), 0, false);
   }
 
   /**
@@ -119,13 +141,18 @@ public final class SelectionSet {
     return selections.get(primary);
   }
 
-  /** Maps every selection through a change and merges those that come to touch. */
+  /** Maps every selection through a change and merges as the set was built. */
   SelectionSet map(ChangeMap map) {
     List<Selection> out = new ArrayList<Selection>(selections.size());
     for (Selection s : selections) {
       out.add(s.map(map));
     }
-    return of(out, primary);
+    return rebuild(out);
+  }
+
+  /** Builds a set from one replacement per selection, with this primary and merge rule. */
+  SelectionSet rebuild(List<Selection> replaced) {
+    return build(replaced, primary, apart);
   }
 
   @Override

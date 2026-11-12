@@ -35,8 +35,8 @@ import java.util.function.Consumer;
  * the name is accepted until the move lands or fails, {@link DocumentsUnder#hold} keeps Save, Save
  * As onto the entry and reload from writing or reading the source path. The workspace folder
  * follows a rename ({@link WorkspaceController#moved}). Delete of one entry or several runs in
- * {@link SelectionDelete}. Rename and Delete refuse while a save, a reload or a change prompt holds
- * a document under the entry.
+ * {@link SelectionDelete}. Rename and Delete refuse while {@link OpenFile#running} holds a document
+ * under the entry.
  */
 final class WorkspaceFiles implements WorkspaceFilesInput {
   private final WorkspaceController workspace;
@@ -266,7 +266,8 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     if (busy(listed)) {
       return;
     }
-    for (DocumentController window : windows()) {
+    final List<DocumentController> held = windows();
+    for (DocumentController window : held) {
       window.under().hold(listed);
     }
     final WalkRules rules = workspace.rules();
@@ -307,16 +308,31 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
                 new Runnable() {
                   @Override
                   public void run() {
-                    renamed(listed, move, folder, indexedName, failure);
+                    renamed(listed, held, move, folder, indexedName, failure);
                   }
                 });
           }
         });
   }
 
+  /**
+   * Applies a rename's result. The hold ends in every window it was taken in and every window
+   * holding a document now, so a window a held tab moved out of keeps no hold.
+   */
   private void renamed(
-      BrowserPath listed, PathMove move, boolean folder, boolean indexed, String error) {
-    for (DocumentController window : windows()) {
+      BrowserPath listed,
+      List<DocumentController> held,
+      PathMove move,
+      boolean folder,
+      boolean indexed,
+      String error) {
+    List<DocumentController> holders = windows();
+    for (DocumentController window : held) {
+      if (!holders.contains(window)) {
+        holders.add(window);
+      }
+    }
+    for (DocumentController window : holders) {
       if (move != null) {
         window.under().moved(move);
       }
@@ -345,9 +361,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     return entry.toRealPath();
   }
 
-  /**
-   * Shows a notice and returns true while a save, a reload or a prompt holds a document under it.
-   */
+  /** Shows a notice and returns true while {@link OpenFile#running} holds a document under it. */
   boolean busy(BrowserPath entry) {
     for (DocumentController window : windows()) {
       if (window.under().busyUnder(entry)) {

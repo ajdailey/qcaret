@@ -29,7 +29,7 @@ and tests of a read-only file skip where the user writes read-only files.
 |---|---|
 | `TextStorageTest` | 2,000 seeded random inserts, deletes and replacements on the rope (400 on documents above 128 Ki chars, with a CR LF across a leaf boundary), on text with random, CR LF only and mixed line endings, compared with a `StringBuilder`: content, every line and line view, every offset's line, forward and backward cursor walks, chunk reads, earlier snapshots. A case is named by its endings and seed; `-Dqcaret.storage.seed=N` runs one seed |
 | `DocumentRandomTest` | 1,500 random steps per seed over text with surrogate pairs (batches, typing runs, groups, undo, redo, selection moves, saves, new anchors, block selections, compositions), checking after each: the text against a replay of the change events, revisions one apart, each event's removed text and start line, anchors and `PositionMap` against a step-by-step mapping, an undo state always holding the same text, a clean document holding the saved text, the line ending counts, every selection set sorted, disjoint, in bounds and outside any CR LF or surrogate pair, and a block's lines and rows. A composition must leave the text, undo state and selections as it found them. It ends by undoing every step and redoing them. `-Dqcaret.document.seed=N` runs one seed |
-| `DocumentTest` | Change events, coalescing rules, groups, redo discard, dirty state, the undo bounds, refused edits, anchors, the position map bound, selection mapping, block rows |
+| `DocumentTest` | Change events, coalescing rules, groups, redo discard, dirty state, the undo bounds, refused edits, anchors, the position map bound, selection mapping, block rows, `set` moving an offset inside a CR LF or a surrogate pair, an `apart` set keeping touching ranges through a change |
 | `PreeditTest` | Composition text outside undo and the dirty state, undo removing it, an update replacing only the composition, a new composition after a clear, a selection surviving one, `applyInBlock`, the tab settings |
 
 ### Loading and saving
@@ -71,8 +71,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `CommentEditsTest` | Line and block comment toggles |
 | `CaseEditsTest` | Title case per word of a range and the word at each caret, combining marks and surrogate pairs kept in their word, swap case, one step for every selection, null when nothing changes |
 | `WordDeletesTest` | Back and forward spans at each caret, a line break alone and a CR LF as one, a selection deleted whole, overlapping spans deleted once, clusters kept whole, one step, null when nothing to delete |
-| `TransposeTest` | A caret swapping its neighbors, no swap across a line break, clusters moved whole, adjacent carets swapping once, two or more selections rotating, one selection alone changing nothing |
-| `SelectionExpansionTest` | Expansion from word to quotes, brackets, line and text, each selection on its own, escaped quotes and filtered brackets not enclosing, the scan bound returning null, Select Line, `Occurrences.all` without overlap up to the maximum |
+| `TransposeTest` | A caret swapping its neighbors, no swap across a line break, clusters moved whole, adjacent carets swapping once, two or more selections rotating, one selection alone changing nothing, a rotation that would join a CR and an LF refused |
+| `SelectionExpansionTest` | Expansion from word to quotes, brackets, line and text, each selection on its own, escaped quotes and filtered brackets not enclosing, the scan bound returning null, Select Line, `Occurrences.all` without overlap up to the maximum, no occurrence starting or ending inside a CR LF |
 | `ParagraphWrapTest` | Filling to the column, an overlong word on its own line, the first line's indent and comment prefix, comment and code lines as separate paragraphs, blank lines ending a paragraph, selections, unchanged text, one undo step, a cancel |
 
 ### Grammars

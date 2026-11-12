@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.edit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,15 @@ class TransposeTest {
   void twoOrMoreSelectionsRotateTheirTexts() {
     assertEquals("[two] [one]", transpose("[one] [two]"));
     assertEquals("[c] [a] >bb<* |", transpose("[a] [bb] >c<* |"));
+  }
+
+  @Test
+  void aRotationThatWouldJoinACrAndAnLfChangesNothing() {
+    Marked m = new Marked("[X\r]m[Y]\n");
+    Edit edit = Transpose.transpose(m.document.text(), m.model.selections());
+    assertTrue(edit.batch().replacements().isEmpty());
+    assertEquals(2, edit.unchanged());
+    assertEquals("[Y]m[X\r]z\n", transpose("[X\r]m[Y]z\n"));
   }
 
   @Test

@@ -13,12 +13,14 @@ import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
+import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.document.TextEdit;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.edit.Edit;
+import io.github.ajdailey.qcaret.core.edit.ParagraphWrap;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
@@ -35,13 +37,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Random editing commands through the controller on text with mixed line endings and surrogate
- * pairs, wrapped on every third seed, with block selections, compositions and a second view,
- * checked after every step: the change events replay to the text, no selection sits inside a CR LF
- * or a surrogate pair, no surrogate is split, line ending counts and display rows match a fresh
- * count, no line command joins a CR and an LF, and undo and redo walk the whole history. Seeds and
- * the coalescing clock are fixed. {@code -Dqcaret.editor.seed=N} runs one seed, {@code
- * -Dqcaret.editor.seeds=N} the first N; a failure names its seed and step.
+ * Random editing commands through the controller on text with mixed line endings, surrogate pairs
+ * and combining marks, wrapped on every third seed, with block selections, compositions, Wrap
+ * Paragraph and a second view, checked after every step: the change events replay to the text, no
+ * selection sits inside a CR LF or a surrogate pair, no surrogate is split, line ending counts and
+ * display rows match a fresh count, no line command, Wrap Paragraph, Transpose or case command
+ * joins a CR and an LF, and undo and redo walk the whole history. Seeds and the coalescing clock
+ * are fixed. {@code -Dqcaret.editor.seed=N} runs one seed, {@code -Dqcaret.editor.seeds=N} the
+ * first N; a failure names its seed and step.
  */
 class EditorRandomTest {
   private static final int SEEDS = 1000;
@@ -49,8 +52,31 @@ class EditorRandomTest {
   private static final long STEP_NANOS = 400_000_000L;
 
   private static final String[] TOKENS = {
-    "a", "b", "foo", "bar", " ", "  ", "\t", "\n", "\r\n", "\r", "中", "😀", "(", ")", "{", "}",
-    "\"", "x1", "é"
+    "a",
+    "b",
+    "foo",
+    "bar",
+    " ",
+    "  ",
+    "\t",
+    "\n",
+    "\r\n",
+    "\r",
+    "中",
+    "😀",
+    "(",
+    ")",
+    "{",
+    "}",
+    "\"",
+    "x1",
+    "é",
+    "e\u0301",
+    "\u0301",
+    "\u0301\u0301",
+    "Ab",
+    "'",
+    "\ud83d\udc4d\ud83c\udffd"
   };
   private static final CommandId[] COMMANDS = {
     CommandId.UNDO,
@@ -102,7 +128,20 @@ class EditorRandomTest {
     CommandId.TOGGLE_LINE_COMMENT,
     CommandId.TOGGLE_BLOCK_COMMENT,
     CommandId.SELECT_ALL,
-    CommandId.CANCEL
+    CommandId.CANCEL,
+    CommandId.DELETE_WORD_BACK,
+    CommandId.DELETE_WORD_FORWARD,
+    CommandId.TITLE_CASE,
+    CommandId.SWAP_CASE,
+    CommandId.TRANSPOSE,
+    CommandId.TRANSPOSE,
+    CommandId.SELECT_ALL_OCCURRENCES,
+    CommandId.SKIP_OCCURRENCE,
+    CommandId.ADD_NEXT_OCCURRENCE,
+    CommandId.EXPAND_SELECTION,
+    CommandId.SELECT_LINE,
+    CommandId.UNDO_SELECTION,
+    CommandId.REDO_SELECTION
   };
   private static final CommandId[] TRANSFORMS = {
     CommandId.SORT_LINES_ASCENDING,
@@ -268,6 +307,24 @@ class EditorRandomTest {
       for (char c : typed.toCharArray()) {
         editor.type(c == '\n' || c == '\r' ? "z" : String.valueOf(c));
       }
+    } else if (choice < 37) {
+      document.clearPreedit();
+      Edit edit =
+          ParagraphWrap.wrap(
+              document.text(),
+              selections.selections(),
+              1 + random.nextInt(12),
+              random.nextBoolean() ? "//" : null,
+              document.tabWidth(),
+              document.lineEnding().text(),
+              new CancellationToken());
+      if (edit != null) {
+        assertFalse(joins(document.text().toString(), edit), "joined breaks, wrap, " + where);
+        document.apply(edit.batch(), selections, edit.after());
+      }
+    } else if (choice < 38) {
+      String token = TOKENS[random.nextInt(TOKENS.length)];
+      editor.insertText(token.replace('\n', 'z').replace('\r', 'z'));
     } else if (choice < 40) {
       document.clearPreedit();
       CommandId command = TRANSFORMS[random.nextInt(TRANSFORMS.length)];
@@ -291,7 +348,10 @@ class EditorRandomTest {
       editor.execute(command);
       if (command == CommandId.DELETE_LINE
           || command == CommandId.MOVE_LINES_UP
-          || command == CommandId.MOVE_LINES_DOWN) {
+          || command == CommandId.MOVE_LINES_DOWN
+          || command == CommandId.TRANSPOSE
+          || command == CommandId.TITLE_CASE
+          || command == CommandId.SWAP_CASE) {
         assertTrue(document.lineEndings().crLf() <= pairs, "joined breaks, " + where);
       }
     }
@@ -375,8 +435,12 @@ class EditorRandomTest {
   private static void check(Document document, SelectionModel model, String where) {
     CharSequence text = document.text();
     int previous = -1;
+    boolean range = false;
     for (Selection s : model.selections().selections()) {
-      assertTrue(s.start() > previous, "sorted and disjoint, " + where);
+      assertTrue(
+          s.start() > previous || (s.start() == previous && range && !s.isEmpty()),
+          "sorted and disjoint, " + where);
+      range = !s.isEmpty();
       assertTrue(s.end() <= text.length(), "bounds, " + where);
       assertTrue(legal(text, s.anchor()) && legal(text, s.caret()), "inside a pair, " + where);
       previous = s.end();
@@ -387,6 +451,21 @@ class EditorRandomTest {
           Math.max(block.anchorLine(), block.caretLine()) < document.text().lineCount(),
           "block lines, " + where);
     }
+  }
+
+  /** Reports whether a replacement puts a CR directly before an LF at one of its edges. */
+  private static boolean joins(String text, Edit edit) {
+    for (Replacement r : edit.batch().replacements()) {
+      String in = r.text();
+      char before = r.offset() > 0 ? text.charAt(r.offset() - 1) : 0;
+      char after = r.end() < text.length() ? text.charAt(r.end()) : 0;
+      char first = in.isEmpty() ? after : in.charAt(0);
+      char last = in.isEmpty() ? before : in.charAt(in.length() - 1);
+      if ((before == '\r' && first == '\n') || (last == '\r' && after == '\n')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static String text(SplittableRandom random, int tokens) {

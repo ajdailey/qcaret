@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
@@ -15,6 +16,7 @@ import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -174,6 +176,46 @@ class EditorAdditionsTest {
     FakeView.Statistics shown = counted();
     assertEquals("UTF-16LE", shown.report.encoding());
     assertEquals(new TextStatistics(1, 2, 3, 2, 8), shown.report.document());
+  }
+
+  /** x-JISAutoDetect decodes but has no encoder: every count but the bytes is shown. */
+  @Test
+  void statisticsInACharsetWithNoEncoderShowUnknownBytes() throws Exception {
+    final Charset auto = Charset.forName("x-JISAutoDetect");
+    assumeFalse(auto.canEncode());
+    open("a.txt", "one two\n".getBytes(StandardCharsets.US_ASCII));
+    harness.application.documents().reopenWithEncoding(auto);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness
+                .application
+                .documents()
+                .activeDocument()
+                .encoding()
+                .charset()
+                .equals(auto);
+          }
+        },
+        "reopened");
+    harness.awaitIdle("reopen");
+    select(harness.application.documents().activeEditor(), Selection.of(0, 3));
+    harness.application.execute(CommandId.DOCUMENT_STATISTICS);
+    final FakeView.Statistics shown = harness.view.statistics;
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return shown.report != null || shown.message != null || !harness.failures.isEmpty();
+          }
+        },
+        "counted");
+    assertTrue(harness.failures.isEmpty(), harness.failures.toString());
+    assertEquals(
+        new TextStatistics(2, 2, 8, 6, TextStatistics.UNKNOWN_BYTES), shown.report.document());
+    assertEquals(
+        new TextStatistics(1, 1, 3, 3, TextStatistics.UNKNOWN_BYTES), shown.report.selection());
   }
 
   @Test

@@ -13,9 +13,12 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
+import io.github.ajdailey.qcaret.app.editor.TextStatistics;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.StatisticsReport;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -286,6 +289,27 @@ class EditorAdditionsSurfaceTest {
     escape.detail = SWT.TRAVERSE_ESCAPE;
     dialog.shell().notifyListeners(SWT.Traverse, escape);
     assertTrue(dialog.shell().isDisposed());
+  }
+
+  @Test
+  void theStatisticsDialogShowsUnknownBytes() throws Exception {
+    openFile("a.txt", "one\n");
+    controller.execute(CommandId.DOCUMENT_STATISTICS);
+    final StatisticsDialog dialog = window.statisticsDialog();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !dialog.values()[0].isEmpty();
+          }
+        },
+        "counted");
+    TextStatistics counts = new TextStatistics(2, 1, 4, 3, TextStatistics.UNKNOWN_BYTES);
+    dialog.showReport(new StatisticsReport("a.txt", "x-JISAutoDetect", counts, counts));
+    assertEquals(
+        List.of("2", "1", "4", "3", UiText.STATISTICS_BYTES_UNKNOWN.text()),
+        List.of(dialog.values()).subList(0, 5));
+    assertEquals(UiText.STATISTICS_BYTES_UNKNOWN.text(), dialog.values()[9]);
   }
 
   @Test

@@ -9,8 +9,8 @@ import java.util.List;
  *
  * @param batch the replacements, in the coordinates of the text the edit was computed from
  * @param after the selections after the batch, or null to map the current ones through it
- * @param unchanged the lines a line command left as they were because changing them would put a CR
- *     directly before an LF, joining two line breaks
+ * @param unchanged the lines a line command or Transpose left as they were because changing them
+ *     would put a CR directly before an LF, joining two line breaks
  */
 public record Edit(EditBatch batch, SelectionSet after, int unchanged) {
   /**

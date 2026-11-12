@@ -97,6 +97,8 @@ public final class WindowSet {
   private final RecoveryController recovery;
   private final SessionController session;
   private final BrowserWindows browsers = new BrowserWindows();
+  private final RunningCopies copies;
+  private final SnapshotQuit snapshot;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
@@ -114,8 +116,6 @@ public final class WindowSet {
   private long themeGeneration;
   private int nextUntitled = 1;
   private int nextBuffer = 1;
-  private boolean snapshotting;
-  private boolean snapshotWritten;
   private QuitPrompts prompts;
   private volatile boolean quitting;
   private boolean quitAfterRestore;
@@ -193,6 +193,11 @@ public final class WindowSet {
         public int nextBuffer() {
           return nextBuffer++;
         }
+
+        @Override
+        public RunningCopies copies() {
+          return copies;
+        }
       };
 
   /**
@@ -251,6 +256,8 @@ public final class WindowSet {
             options.recoveryIntervalSeconds(),
             options.recoveryKeepDays());
     this.session = new SessionController(this, recovery, workers, ui);
+    this.copies = new RunningCopies(this, ui);
+    this.snapshot = new SnapshotQuit(this, recovery, copies);
     moveListeners.add(session::changed);
     settings.addListener(
         new Settings.Listener() {
@@ -691,9 +698,9 @@ public final class WindowSet {
    * source window shows its next tab, or stays open and empty. The target window shows the tab and
    * comes to the front. Call on the UI thread.
    *
-   * <p>Nothing moves while quitting, while the tab's save, reload or conversion runs or its change
-   * prompt shows (a notice says so), when the target holds the same file (a notice says so), or
-   * when no new window could be created.
+   * <p>Nothing moves while quitting, while the tab's save, copy, reload or conversion runs or its
+   * change prompt shows (a notice says so), when the target holds the same file (a notice says so),
+   * or when no new window could be created.
    *
    * @param source the window the tab is in
    * @param document the tab's document
@@ -768,7 +775,7 @@ public final class WindowSet {
    * @return true from the quit request on, until a Cancel or a failed save ends it
    */
   boolean quitRunning() {
-    return quitting || snapshotting || prompts != null;
+    return quitting || snapshot.running() || prompts != null;
   }
 
   /**
@@ -872,14 +879,14 @@ public final class WindowSet {
    * snapshots of buffers not restored yet. A request while a quit asks does nothing.
    */
   public void requestQuit() {
-    if (quitting || snapshotting || prompts != null) {
+    if (quitting || snapshot.running() || prompts != null) {
       return;
     }
     if (session.owner() && settings.current().options().sessionSnapshot()) {
       if (session.restoring()) {
         quitAfterRestore = true;
       } else {
-        writeSnapshot();
+        snapshot.start();
       }
     } else {
       closeAndQuit();
@@ -894,7 +901,8 @@ public final class WindowSet {
     }
   }
 
-  private void closeAndQuit() {
+  /** Starts the quit that asks about every dirty document. */
+  void closeAndQuit() {
     if (quitting) {
       return;
     }
@@ -911,50 +919,9 @@ public final class WindowSet {
     prompts.start();
   }
 
-  /** Writes the dirty buffers, again when one changed meanwhile, then quits. */
-  private void writeSnapshot() {
-    snapshotting = true;
-    final List<DocumentController.Buffer> buffers = dirtyBuffers();
-    recovery.writeSnapshot(
-        buffers,
-        new Consumer<Boolean>() {
-          @Override
-          public void accept(Boolean ok) {
-            snapshotWritten(buffers, ok);
-          }
-        });
-  }
-
-  private void snapshotWritten(List<DocumentController.Buffer> buffers, boolean ok) {
-    snapshotting = false;
-    if (quitting) {
-      return;
-    }
-    if (!ok) {
-      ApplicationController window = target();
-      if (window != null) {
-        window.showNotice(UiText.SESSION_SNAPSHOT_FAILED.text());
-      }
-      closeAndQuit();
-    } else if (unchanged(buffers, dirtyBuffers())) {
-      snapshotWritten = true;
-      quit();
-    } else {
-      writeSnapshot();
-    }
-  }
-
-  private static boolean unchanged(
-      List<DocumentController.Buffer> written, List<DocumentController.Buffer> now) {
-    if (written.size() != now.size()) {
-      return false;
-    }
-    for (int i = 0; i < now.size(); i++) {
-      if (written.get(i).snapshot().revision() != now.get(i).snapshot().revision()) {
-        return false;
-      }
-    }
-    return true;
+  /** Returns the Save a Copy As writes running in every window, which a quit waits for. */
+  RunningCopies copies() {
+    return copies;
   }
 
   /** Starts quitting every window without asking; a second call does nothing. */
@@ -971,8 +938,8 @@ public final class WindowSet {
       recent.setWarningListener(null);
     }
     ApplicationController last = target();
-    final SessionController.Capture capture = session.close(snapshotWritten);
-    recovery.quitting(snapshotWritten ? List.of() : dirtyBuffers());
+    final SessionController.Capture capture = session.close(snapshot.written());
+    recovery.quitting(snapshot.written() ? List.of() : dirtyBuffers());
     final List<ApplicationController> closing = new ArrayList<ApplicationController>(windows);
     for (ApplicationController window : closing) {
       window.stop();

@@ -8,8 +8,9 @@ import java.util.Locale;
  * A checksum list in the {@code sha256sum} format, one {@code <hex> <marker><name>} line per file:
  * the marker is a space, or {@code *} for a binary-mode line. The algorithm follows from the hex
  * length (32, 40, 64 or 128 digits; either case). A line starting with {@code \} carries a name
- * escaped as GNU coreutils writes it ({@code \\}, {@code \n}, {@code \r}). Blank lines are skipped;
- * any other line that does not parse is counted as bad.
+ * escaped as GNU coreutils writes it ({@code \\}, {@code \n}, {@code \r}). A line ends at LF, CR LF
+ * or CR, and one leading U+FEFF is skipped. Blank lines are skipped; any other line that does not
+ * parse is counted as bad.
  *
  * @param entries the parsed lines, in list order
  * @param badCount the lines that did not parse
@@ -142,7 +143,10 @@ public record ChecksumList(List<Entry> entries, int badCount, List<Integer> badL
     return out.toString();
   }
 
-  /** Parses consecutive pieces of a list. Use once; not thread-safe. */
+  /**
+   * Parses consecutive pieces of a list. A CR LF pair split between two pieces is one line break.
+   * Use once; not thread-safe.
+   */
   public static final class Parser {
     private final List<Entry> entries = new ArrayList<Entry>();
     private final List<Integer> badLines = new ArrayList<Integer>();
@@ -150,6 +154,8 @@ public record ChecksumList(List<Entry> entries, int badCount, List<Integer> badL
     private int number;
     private int badCount;
     private boolean overlong;
+    private boolean started;
+    private boolean afterCr;
 
     /**
      * Parses the next piece.
@@ -161,8 +167,23 @@ public record ChecksumList(List<Entry> entries, int badCount, List<Integer> badL
     public void add(CharSequence text, int start, int end) {
       for (int i = start; i < end; i++) {
         char c = text.charAt(i);
+        if (!started) {
+          started = true;
+          if (c == '\uFEFF') {
+            continue;
+          }
+        }
+        if (afterCr) {
+          afterCr = false;
+          if (c == '\n') {
+            continue;
+          }
+        }
         if (c == '\n') {
           endLine();
+        } else if (c == '\r') {
+          endLine();
+          afterCr = true;
         } else if (line.length() < MAX_LINE_CHARS) {
           line.append(c);
         } else {
@@ -185,10 +206,6 @@ public record ChecksumList(List<Entry> entries, int badCount, List<Integer> badL
 
     private void endLine() {
       number++;
-      int length = line.length();
-      if (length > 0 && line.charAt(length - 1) == '\r') {
-        line.setLength(length - 1);
-      }
       String text = line.toString();
       line.setLength(0);
       boolean wasOverlong = overlong;

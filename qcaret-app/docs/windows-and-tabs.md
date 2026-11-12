@@ -67,7 +67,11 @@ restore it waits for the restore's end. Otherwise `QuitPrompts` runs:
    prompt) stops the quit with that tab selected: the windows stay open, and
    documents already saved stay saved. Compare leaves that prompt open, and the
    quit waits for its next answer.
-3. Selects the tabs selected at the start, captures the session, closes every
+3. Waits for every running Save a Copy As, in any window or of a closed tab,
+   then reads the documents again. A failed copy stops the quit. After
+   `RunningCopies.BOUND` a prompt names each copy still running: Quit goes on,
+   Wait waits another bound.
+4. Selects the tabs selected at the start, captures the session, closes every
    document and calls `quit`.
 
 Cancel at any prompt selects those tabs again, raises the window that was in
@@ -137,8 +141,9 @@ save and reload. A late result of the source's entry compares its token and
 move leaves the target's state alone. `discard` and `moveTo` take the entry out
 through one `detach`. A window left without a tab stays open, empty.
 
-The move is refused with a notice while the tab's save, conversion or reload
-runs, or its change prompt shows, because each delivers to the source's entry;
+The move is refused with a notice while the tab's save, Save a Copy As,
+conversion or reload runs, or its change prompt shows, because each delivers to
+the source's window;
 and when the target holds the same file. Nothing moves while quitting.
 `addMoveListener` runs once per move; `SessionController.changed` is one
 listener.

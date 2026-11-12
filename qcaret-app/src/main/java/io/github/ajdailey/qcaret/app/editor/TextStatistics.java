@@ -21,21 +21,24 @@ import java.util.function.LongConsumer;
  *       false; a no-break space is not whitespace.
  *   <li>Words: maximal runs of such code points.
  *   <li>Bytes: the text encoded in a charset, a char it cannot encode and a lone surrogate counted
- *       as the charset's replacement bytes.
+ *       as the charset's replacement bytes; {@link #UNKNOWN_BYTES} for a charset with no encoder.
  * </ul>
  *
  * @param lines line breaks plus one
  * @param words runs of non-whitespace code points
  * @param chars code points
  * @param nonSpaceChars code points that are not whitespace
- * @param bytes encoded bytes
+ * @param bytes encoded bytes, or {@link #UNKNOWN_BYTES}
  */
 public record TextStatistics(long lines, long words, long chars, long nonSpaceChars, long bytes) {
   /** Nothing counted. */
   public static final TextStatistics NONE = new TextStatistics(0, 0, 0, 0, 0);
 
+  /** The byte count of a text in a charset that has no encoder. */
+  public static final long UNKNOWN_BYTES = -1;
+
   /**
-   * Returns the sums of two counts.
+   * Returns the sums of two counts. The bytes are unknown when either count's bytes are.
    *
    * @param other the other counts
    * @return the sums
@@ -46,16 +49,19 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
         words + other.words,
         chars + other.chars,
         nonSpaceChars + other.nonSpaceChars,
-        bytes + other.bytes);
+        bytes < 0 || other.bytes < 0 ? UNKNOWN_BYTES : bytes + other.bytes);
   }
 
   /**
-   * Returns a copy with more bytes, for a byte order mark.
+   * Returns a copy with more bytes, for a byte order mark. Unknown bytes stay unknown.
    *
    * @param extra the bytes added
    * @return the copy
    */
   public TextStatistics withExtraBytes(long extra) {
+    if (bytes < 0) {
+      return this;
+    }
     return new TextStatistics(lines, words, chars, nonSpaceChars, bytes + extra);
   }
 
@@ -65,7 +71,7 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
    * @param text the text
    * @param start the first offset
    * @param end the offset after the last char
-   * @param charset counts the bytes
+   * @param charset counts the bytes; without an encoder they are {@link #UNKNOWN_BYTES}
    * @param token checked before each chunk
    * @param progress receives the chars read so far after each chunk
    * @return the counts
@@ -123,14 +129,16 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
     /**
      * Creates a counter.
      *
-     * @param charset counts the bytes
+     * @param charset counts the bytes; without an encoder they are {@link #UNKNOWN_BYTES}
      */
     public Counter(Charset charset) {
       encoder =
-          charset
-              .newEncoder()
-              .onMalformedInput(CodingErrorAction.REPLACE)
-              .onUnmappableCharacter(CodingErrorAction.REPLACE);
+          charset.canEncode()
+              ? charset
+                  .newEncoder()
+                  .onMalformedInput(CodingErrorAction.REPLACE)
+                  .onUnmappableCharacter(CodingErrorAction.REPLACE)
+              : null;
     }
 
     /**
@@ -144,6 +152,9 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
       for (int i = start; i < end; i++) {
         char c = text.charAt(i);
         scan(c);
+        if (encoder == null) {
+          continue;
+        }
         pending.put(c);
         if (!pending.hasRemaining()) {
           encode(false);
@@ -160,6 +171,9 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
       if (hasHigh) {
         codePoint(high);
         hasHigh = false;
+      }
+      if (encoder == null) {
+        return new TextStatistics(breaks + 1, words, chars, nonSpace, UNKNOWN_BYTES);
       }
       encode(true);
       while (encoder.flush(encoded).isOverflow()) {

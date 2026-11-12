@@ -218,6 +218,36 @@ class SelectionCommandsTest {
   }
 
   @Test
+  void occurrenceCommandsSkipAMatchInsideACrLf() throws InterruptedException {
+    open("a[\r]b\r\nc\rd");
+    run(CommandId.SELECT_ALL_OCCURRENCES);
+    assertEquals("a[\r]b\r\nc[\r]d", marked());
+    open("a[\r]b\r\nc\rd");
+    run(CommandId.SKIP_OCCURRENCE);
+    assertEquals("a\rb\r\nc[\r]d", marked());
+    open("a[\n]b\r\nc\nd");
+    run(CommandId.ADD_NEXT_OCCURRENCE);
+    awaitSelections(2);
+    assertEquals("a[\n]b\r\nc[\n]*d", marked());
+  }
+
+  @Test
+  void touchingOccurrencesStaySeparateSelections() throws InterruptedException {
+    open("[ab]ab");
+    run(CommandId.SELECT_ALL_OCCURRENCES);
+    assertEquals("[ab][ab]", marked());
+    editor.type("x");
+    assertEquals("x|x|", marked());
+    open("[ab]ab");
+    run(CommandId.ADD_NEXT_OCCURRENCE);
+    awaitSelections(2);
+    assertEquals("[ab][ab]*", marked());
+    open("[ab]ab");
+    run(CommandId.SELECT_ALL_OCCURRENCES, CommandId.SELECT_RIGHT);
+    assertEquals(1, selections.selections().size());
+  }
+
+  @Test
   void selectAllOccurrencesPastTheLimitSelectsNothing() {
     open("|x " + "x ".repeat(SelectionCommands.MAX_OCCURRENCES));
     run(CommandId.SELECT_ALL_OCCURRENCES);

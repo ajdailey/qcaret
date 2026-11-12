@@ -69,9 +69,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The editing core in a real window: keys move every caret, Alt+drag and Mod+click from the mouse,
- * a block painted into virtual space at column 150, composition text from the widget, Go to Line
- * and the Keyboard Shortcuts window. With {@code -Dqcaret.screenshots=<dir>} the multi-caret and
- * block tests save a screenshot of the window there.
+ * a block painted into virtual space at column 150, composition text from the widget, Go to Line,
+ * the Keyboard Shortcuts window, and selections from occurrence commands and regex Find over CR LF
+ * text reaching the widget. With {@code -Dqcaret.screenshots=<dir>} the multi-caret and block tests
+ * save a screenshot of the window there.
  */
 @Tag("swt")
 class EditingSurfaceTest {
@@ -757,6 +758,81 @@ class EditingSurfaceTest {
     controller.execute(CommandId.UNDO);
     drain();
     assertEquals("ab", text.getText());
+  }
+
+  /** Asserts the primary selection and that the widget shows it. */
+  private void assertPrimary(Selection expected) {
+    Selection primary = editor().selections().selections().primary();
+    assertEquals(expected, primary);
+    Point widget = window.activeText().getSelection();
+    assertEquals(
+        new Point(
+            editor().projection().toDisplay(primary.start()),
+            editor().projection().toDisplay(primary.end())),
+        widget);
+  }
+
+  @Test
+  void skipOccurrenceOfACrPassesTheCrOfACrLf() throws Exception {
+    openFile("mixed.txt", "a\rb\r\nc\rd\n");
+    editor().selections().set(SelectionSet.of(List.of(Selection.of(1, 2)), 0));
+    drain();
+    editor().execute(CommandId.SKIP_OCCURRENCE);
+    drain();
+    assertPrimary(Selection.of(6, 7));
+  }
+
+  @Test
+  void theSkipOccurrenceKeyPassesTheCrOfACrLf() throws Exception {
+    openFile("mixed.txt", "a\rb\r\nc\rd\n");
+    editor().selections().set(SelectionSet.of(List.of(Selection.of(1, 2)), 0));
+    drain();
+    Event event = new Event();
+    event.keyCode = 'k';
+    event.character = 'k';
+    event.stateMask = SWT.MOD1;
+    window.activeText().notifyListeners(SWT.KeyDown, event);
+    drain();
+    assertPrimary(Selection.of(6, 7));
+  }
+
+  @Test
+  void addNextOccurrenceOfACrPassesTheCrOfACrLf() throws Exception {
+    openFile("mixed.txt", "a\rb\r\nc\rd\n");
+    editor().selections().set(SelectionSet.of(List.of(Selection.of(1, 2)), 0));
+    drain();
+    editor().execute(CommandId.ADD_NEXT_OCCURRENCE);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return editor().selections().selections().size() == 2;
+          }
+        },
+        "second selection");
+    drain();
+    assertPrimary(Selection.of(6, 7));
+  }
+
+  @Test
+  void aRegexFindOfAnLfInACrLfFileSelectsTheWholeBreak() throws Exception {
+    openFile("crlf.txt", "a\r\nb\r\n");
+    editor().selections().set(SelectionSet.caret(0));
+    drain();
+    controller.find().open(false);
+    controller.find().setOptions(false, false, true);
+    controller.find().setText("\\n");
+    controller.find().findNext();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !editor().selections().selections().primary().isEmpty();
+          }
+        },
+        "a match selected");
+    drain();
+    assertPrimary(Selection.of(1, 3));
   }
 
   @Test

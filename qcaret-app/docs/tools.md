@@ -35,6 +35,8 @@ that algorithm reports unreadable. Not tested on a FIPS runtime.
 - A line starting with `\` carries a name escaped as GNU coreutils writes it:
   `\\`, `\n`, `\r`. `ChecksumList.line` writes that form for a name holding a
   backslash or a line break.
+- A line ends at LF, CR LF or CR. One leading U+FEFF (a byte order mark) is
+  skipped.
 - Blank lines are skipped. Any other line that does not parse, or is over 64 Ki
   chars, counts as bad; the first 1,000 bad line numbers are kept.
 
@@ -82,6 +84,8 @@ in the saved file:
 - Line breaks inside a selection hash as the document holds them.
 - The text is encoded in the document's charset without a byte order mark. A
   character the charset cannot encode copies nothing; the notice says so.
+- A charset with no encoder (`Charset.canEncode()` false, such as
+  `x-JISAutoDetect`) copies nothing; the notice says so.
 
 The notice names the algorithm, the charset, the document's line ending and the
 digest. The command is disabled without a selection.
