@@ -19,6 +19,7 @@ import org.eclipse.swt.widgets.MenuItem;
 final class TabList {
   private final CTabFolder tabs;
   private Menu menu;
+  private CTabItem repaired;
 
   /**
    * Creates the list over a folder; the menu is disposed with the folder.
@@ -127,6 +128,27 @@ final class TabList {
     Event event = new Event();
     event.item = tab;
     tabs.notifyListeners(SWT.Selection, event);
+  }
+
+  /**
+   * Shows the selected tab when the folder left it hidden, once per tab.
+   *
+   * <p>{@code CTabFolder} puts a new last item at the end of its show order. When the selected new
+   * tab fits beside the run already shown, the folder keeps that order, measures no width for the
+   * tab and does not show it. Ending MRU mode rebuilds the order from the first tab shown, and the
+   * next layout measures the tab.
+   */
+  void showSelection() {
+    CTabItem selected = tabs.getSelection();
+    if (selected == null || selected.isShowing()) {
+      repaired = null;
+      return;
+    }
+    if (selected != repaired) {
+      repaired = selected;
+      tabs.setMRUVisible(true);
+      tabs.setMRUVisible(false);
+    }
   }
 
   /**

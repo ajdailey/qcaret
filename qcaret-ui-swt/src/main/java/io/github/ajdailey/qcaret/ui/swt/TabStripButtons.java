@@ -378,6 +378,7 @@ final class TabStripButtons {
       return;
     }
     hideChevron();
+    tabList.showSelection();
     int count = 0;
     for (CTabItem item : tabs.getItems()) {
       if (!item.isShowing()) {

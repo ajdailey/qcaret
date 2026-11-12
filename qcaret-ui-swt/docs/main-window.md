@@ -79,17 +79,23 @@ tool tips name the keys. Close is faded and inert without a tab.
 SWT's chevron cannot be hidden through public API. `TabStripButtons` sets a
 `CTabFolderRenderer` that draws nothing for it and holds its `ToolBar` at zero
 width on each resize, so no second list control shows. The strip still reserves
-the chevron's width, 34 px on GTK 3 and 43 px on GTK 4 (measured). Do not
-shrink the chevron through the renderer: with a 1 px chevron GTK 4 left the
-selected last tab out of the strip after New (measured; the cause in
-`CTabFolder` is not traced). A `showList` request opens the list menu.
+the chevron's width, 34 px on GTK 3 and 43 px on GTK 4 (measured). A
+`showList` request opens the list menu.
+
+`CTabFolder` can leave a selected new last tab hidden: it appends the item to
+the end of its show order, keeps that order when the tab fits beside the run
+already shown, and measures no width for it. Measured on GTK 3 at most window
+widths from 600 to 720 px after a close and New, and on the macOS x86_64
+runner at 700 px. On each strip paint `TabList.showSelection` turns MRU mode
+on and off once for a hidden selected tab; ending MRU mode rebuilds the order
+from the first tab shown.
 
 The mouse wheel over the strip or the buttons moves the run of shown tabs one
 tab per notch without changing the selection. `CTabFolder.showItem` moves the
 run only in MRU mode; otherwise the folder keeps the run that holds the
-selection. `TabList.scroll` turns MRU mode on, shows the tabs from the last down to the
-new first, lays the folder out through a `Resize` event and turns MRU mode
-off, which starts the run at that tab. The selected tab never leaves the strip
+selection. `TabList.scroll` turns MRU mode on, shows the tabs from the last
+down to the new first, lays the folder out through a `Resize` event and turns
+MRU mode off, which starts the run at that tab. The selected tab never leaves the strip
 (measured on GTK 3 and GTK 4): the run stops with the selection at either end.
 
 ## Menus

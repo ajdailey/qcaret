@@ -312,8 +312,11 @@ class TabStripButtonsTest {
       }
     }
     assertEquals(2, duplicates.size());
-    assertTrue(duplicates.contains("file-100.txt  (" + temp + ")"), duplicates.toString());
-    assertTrue(duplicates.contains("file-100.txt  (" + other + ")"), duplicates.toString());
+    // The tab tool tip shows the opened document's real path.
+    Path real = other.toRealPath();
+    assertTrue(
+        duplicates.contains("file-100.txt  (" + real.getParent() + ")"), duplicates.toString());
+    assertTrue(duplicates.contains("file-100.txt  (" + real + ")"), duplicates.toString());
   }
 
   @Test
@@ -385,6 +388,50 @@ class TabStripButtonsTest {
             + tabs.getSelection().isShowing()
             + " at "
             + tabs.getSelectionIndex());
+  }
+
+  /**
+   * A new tab is shown at every window width. {@code CTabFolder} appends a new item last in its
+   * show order; when the selected new tab fits the run already shown, the folder kept that order,
+   * measured no width for the tab and left it hidden (macOS CI at 700 px).
+   */
+  @Test
+  void aNewTabShowsAtEveryWidth() {
+    Point size = window.shell().getSize();
+    List<Integer> hiddenAt = new ArrayList<Integer>();
+    for (int width = 600; width <= 720; width += 3) {
+      window.shell().setSize(width, size.y);
+      controller.execute(CommandId.NEW);
+      final int expected = TABS + 1;
+      runUntil(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return tabs.getItemCount() == expected;
+            }
+          });
+      EventLoop.runUntil(
+          display,
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return tabs.getSelection().isShowing();
+            }
+          },
+          Duration.ofSeconds(2));
+      if (!tabs.getSelection().isShowing()) {
+        hiddenAt.add(width);
+      }
+      controller.execute(CommandId.CLOSE);
+      runUntil(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return tabs.getItemCount() == TABS;
+            }
+          });
+    }
+    assertTrue(hiddenAt.isEmpty(), "new tab hidden at widths " + hiddenAt);
   }
 
   @Test
