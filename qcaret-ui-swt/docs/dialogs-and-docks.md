@@ -130,8 +130,12 @@ the dialog cancels a running match.
   `favorites()`.
 - Size and Modified start as wide as their headers and widen to the widest
   text a fill adds; Name takes the rest of the tree's width at each resize,
-  down to its header's width. Modified shows the date; a `MouseMove` over the
-  cell sets the tree's tool tip to the date and time.
+  down to its header's width. Modified shows the date.
+- `BrowserRowTip` sets the tree's tool tip to the row under the pointer: the
+  full path, then `Size:` for a file and `Modified:` with the date and time, one
+  per line, from the row's `WorkspaceNode`. It sets the tip only when the
+  pointer reaches another row or leaves the rows, so the tip does not flicker
+  within a row.
 - A column header click calls `sort` with the column, descending when it
   already sorts ascending; the tree shows the sort column and direction.
 
@@ -141,6 +145,12 @@ the dialog cancels a running match.
   that remain.
 - Enter or a double click opens a file, shows more entries on a "more" row and
   toggles a directory.
+- `BrowserDrag` makes the tree a `FileTransfer` `DragSource` offering Copy
+  only, with the selected file rows' paths; folders are left out and a
+  selection without a file starts no drag. A drop on a QCaret window reaches the
+  shell's [file drop](main-window.md#file-drop-and-the-load-row) target. The
+  source handles no `dragFinished`, so the file stays when a target reports
+  Move, which a GTK 3 target can (measured).
 - One context menu, built on the first `MenuDetect`, serves every row; a
   right click over empty space clears the selection and the menu acts on the
   shown folder. Each item's enablement comes from the row kind, and the shown

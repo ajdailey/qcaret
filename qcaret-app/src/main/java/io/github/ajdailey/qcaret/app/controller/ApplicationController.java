@@ -89,6 +89,7 @@ public final class ApplicationController {
   private final ChecksumTools checksums;
   private final DateTimeInsert dateTime;
   private final EditorAids aids;
+  private final DroppedFiles dropped;
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -143,6 +144,17 @@ public final class ApplicationController {
     MemoryBudget budget = set.budget();
     Preferences preferences = settings.current();
     this.documents = new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS);
+    this.dropped =
+        new DroppedFiles(
+            workers,
+            ui,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return quitting;
+              }
+            },
+            documents::open);
     this.help =
         new HelpController(
             workers,
@@ -485,13 +497,13 @@ public final class ApplicationController {
   }
 
   /**
-   * Opens files dropped on the window on workers, a tab each.
+   * Opens the files dropped on the window on workers, a tab each, and ignores the folders.
    *
    * @param paths the dropped paths, not yet validated
    */
   public void openDropped(List<Path> paths) {
     if (!quitting) {
-      documents.open(paths);
+      dropped.open(paths);
     }
   }
 

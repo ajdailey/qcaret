@@ -311,6 +311,25 @@ class FileCommandsTest {
     assertNotNull(documents().documentAt(b.toRealPath()));
   }
 
+  /** Regression: a dropped folder reached the open, which reported it as not a regular file. */
+  @Test
+  void aDropOpensItsFilesAndIgnoresItsFolders() throws Exception {
+    Path folder = Files.createDirectory(temp.resolve("folder"));
+    final Path a = file("a.txt", "a\n");
+    harness.application.openDropped(List.of(folder, a, temp));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents().count() == 1 && documents().loading() == 0;
+          }
+        },
+        "the dropped file");
+    harness.awaitIdle("drop");
+    assertNotNull(documents().documentAt(a.toRealPath()));
+    assertEquals(List.of(), harness.view.infos);
+  }
+
   @Test
   void escStopsALineTransform() throws Exception {
     harness.open(file("a.txt", "b\na\n"));

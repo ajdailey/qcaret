@@ -21,12 +21,16 @@ hidden entries and `workspace.excludedDirectories`; a change of
   worker (`BrowserRows`), so no row reads the disk on the UI thread: a file's
   size in B, or KiB, MiB or GiB with one decimal, and the date in the default
   locale's short date format and the default time zone, with the short date
-  and time as the cell's tool tip (`WorkspaceNode.modifiedTime`). A directory
+  and time for the row's tool tip (`WorkspaceNode.modifiedTime`). A directory
   has no size.
 - Refresh lists every listed directory again, keeping the old rows until the
   new ones arrive, and rebuilds the index.
 - Reveal Active File lists each directory down to the selected document's file,
   shows enough entries to hold it and selects it.
+- A drop on a window, from the browser or another program, goes to
+  `ApplicationController.openDropped`, where `DroppedFiles` leaves out every
+  directory, following links, on a `qcaret-io-` worker and opens the rest; a
+  missing or special path stays in, so the open reports it.
 - A file row opens on activation; the row menu offers Open in Default
   Application, Set as Workspace Folder and Copy Path, then the file operations
   below.

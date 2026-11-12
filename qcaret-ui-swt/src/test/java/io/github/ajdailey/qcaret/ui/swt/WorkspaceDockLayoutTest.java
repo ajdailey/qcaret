@@ -1,8 +1,10 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -13,6 +15,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -25,10 +28,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.dnd.DND;
+import org.eclipse.swt.dnd.FileTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -49,8 +59,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The workspace browser at the default window size and side weights: two directories expanded by
- * posted clicks on their expanders, controls and columns that fit the dock, and the Modified cell's
- * tool tip.
+ * posted clicks on their expanders, controls and columns that fit the dock, the rows' tool tip, and
+ * the tree's file drag, by its data and by posted drags onto the editor and the tab strip.
  */
 @Tag("swt")
 class WorkspaceDockLayoutTest {
@@ -113,7 +123,9 @@ class WorkspaceDockLayoutTest {
   private void write(String relative, int bytes) throws IOException {
     Path file = root.resolve(relative);
     Files.createDirectories(file.getParent());
-    Files.write(file, new byte[bytes]);
+    byte[] text = new byte[bytes];
+    Arrays.fill(text, (byte) 'a');
+    Files.write(file, text);
   }
 
   @AfterEach
@@ -334,18 +346,183 @@ class WorkspaceDockLayoutTest {
   }
 
   @Test
-  void theModifiedCellShowsTheDateAndTimeAsItsToolTip() {
+  void aRowsToolTipIsItsPathSizeAndModifiedTimeAndChangesWithTheRow() {
     assumePostedClicks();
     WorkspaceDock dock = browser();
     Tree tree = dock.tree();
     TreeItem notes = row(dock, "notes.txt");
-    WorkspaceNode node = (WorkspaceNode) notes.getData();
-    assertTrue(node.modifiedTime().startsWith(node.modified()), node.toString());
-    assertTrue(node.modifiedTime().length() > node.modified().length(), node.toString());
-    move(tree, notes.getBounds(2));
-    assertEquals(node.modifiedTime(), tree.getToolTipText());
+    WorkspaceNode file = (WorkspaceNode) notes.getData();
+    assertTrue(file.modifiedTime().length() > file.modified().length(), file.toString());
     move(tree, notes.getBounds(0));
+    String tip = tree.getToolTipText();
+    assertEquals(
+        file.path()
+            + "\n"
+            + UiText.WORKSPACE_TIP_SIZE.format(file.size())
+            + "\n"
+            + UiText.WORKSPACE_TIP_MODIFIED.format(file.modifiedTime()),
+        tip);
+    move(tree, notes.getBounds(2));
+    assertSame(tip, tree.getToolTipText(), "set again within the row");
+    TreeItem alpha = row(dock, "alpha/");
+    WorkspaceNode folder = (WorkspaceNode) alpha.getData();
+    move(tree, alpha.getBounds(1));
+    assertEquals(
+        folder.path() + "\n" + UiText.WORKSPACE_TIP_MODIFIED.format(folder.modifiedTime()),
+        tree.getToolTipText());
+    tree.notifyListeners(SWT.MouseExit, new Event());
     assertNull(tree.getToolTipText());
+  }
+
+  @Test
+  void onlyEntriesHaveATip() {
+    Path file = root.resolve("a.txt");
+    assertEquals(
+        file + "\nSize: 12 B\nModified: 2026-11-11 10:00",
+        BrowserRowTip.text(
+            new WorkspaceNode(
+                file, "a.txt", WorkspaceNode.Kind.FILE, "12 B", "2026-11-11", "2026-11-11 10:00")));
+    assertNull(BrowserRowTip.text(new WorkspaceNode(root, "more", WorkspaceNode.Kind.MORE)));
+    assertNull(BrowserRowTip.text(new WorkspaceNode(root, "denied", WorkspaceNode.Kind.ERROR)));
+  }
+
+  @Test
+  void aDragCarriesTheSelectedFileCopyOnlyAndAFolderStartsNone() throws Exception {
+    WorkspaceDock dock = browser();
+    Tree tree = dock.tree();
+    BrowserDrag drag = dock.drag();
+    assertEquals(
+        DND.DROP_COPY, drag.source().getStyle() & (DND.DROP_COPY | DND.DROP_MOVE | DND.DROP_LINK));
+    assertArrayEquals(new Transfer[] {FileTransfer.getInstance()}, drag.source().getTransfer());
+    tree.setSelection(row(dock, "alpha/"));
+    assertArrayEquals(new String[0], drag.data());
+    TreeItem notes = row(dock, "notes.txt");
+    tree.setSelection(notes);
+    String[] data = drag.data();
+    assertArrayEquals(new String[] {root.resolve("notes.txt").toString()}, data);
+    window.dropped(data);
+    awaitTab("notes.txt");
+  }
+
+  @Test
+  void aFileDraggedFromTheTreeOpensOverTheEditor() throws Exception {
+    assumePostedClicks();
+    WorkspaceDock dock = browser();
+    controller.documents().newDocument();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.tabs().getItemCount() == 1 && window.activeText() != null;
+          }
+        },
+        "the untitled tab");
+    StyledText text = window.activeText();
+    Rectangle area = text.getClientArea();
+    dragRow(dock, "notes.txt", text.toDisplay(area.width / 2, area.height / 2));
+    awaitTab("notes.txt");
+  }
+
+  @Test
+  void aFileDraggedFromTheTreeOpensOverTheTabStrip() throws Exception {
+    assumePostedClicks();
+    WorkspaceDock dock = browser();
+    controller.documents().newDocument();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.tabs().getItemCount() == 1 && window.activeText() != null;
+          }
+        },
+        "the untitled tab");
+    CTabFolder tabs = window.tabs();
+    int height = tabs.getTabHeight();
+    dragRow(dock, "notes.txt", tabs.toDisplay(tabs.getItem(0).getBounds().x + 10, height / 2));
+    awaitTab("notes.txt");
+  }
+
+  private void awaitTab(final String name) {
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            for (CTabItem item : window.tabs().getItems()) {
+              if (item.getText().equals(name)) {
+                return true;
+              }
+            }
+            return false;
+          }
+        },
+        "a tab " + name);
+  }
+
+  private static final String XTEST_DRAG =
+      """
+      import ctypes, sys, time
+      x11 = ctypes.CDLL("libX11.so.6")
+      xtst = ctypes.CDLL("libXtst.so.6")
+      x11.XOpenDisplay.restype = ctypes.c_void_p
+      d = ctypes.c_void_p(x11.XOpenDisplay(None))
+      x0, y0, x1, y1 = (int(v) for v in sys.argv[1:5])
+      def move(x, y):
+          xtst.XTestFakeMotionEvent(d, -1, x, y, 0)
+          x11.XFlush(d)
+          time.sleep(0.03)
+      move(x0, y0)
+      xtst.XTestFakeButtonEvent(d, 1, True, 0)
+      x11.XFlush(d)
+      time.sleep(0.1)
+      for step in range(1, 21):
+          move(x0 + (x1 - x0) * step // 20, y0 + (y1 - y0) * step // 20)
+      time.sleep(0.3)
+      move(x1 + 1, y1)
+      xtst.XTestFakeButtonEvent(d, 1, False, 0)
+      x11.XFlush(d)
+      x11.XCloseDisplay(d)
+      """;
+
+  /**
+   * Drags a top-level row's name to a display point through XTest from a separate process, so the
+   * pointer keeps moving while the UI thread runs SWT's drag detection.
+   */
+  private void dragRow(WorkspaceDock dock, String name, Point to) throws Exception {
+    TreeItem item = row(dock, name);
+    assertNotNull(item, name);
+    Rectangle bounds = item.getBounds(0);
+    int header = gtk4() ? dock.tree().getHeaderHeight() : 0;
+    Point from =
+        dock.tree().toDisplay(bounds.x + bounds.width / 2, header + bounds.y + bounds.height / 2);
+    Process python;
+    try {
+      python =
+          new ProcessBuilder(
+                  "python3",
+                  "-I",
+                  "-c",
+                  XTEST_DRAG,
+                  String.valueOf(from.x),
+                  String.valueOf(from.y),
+                  String.valueOf(to.x),
+                  String.valueOf(to.y))
+              .redirectErrorStream(true)
+              .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+              .start();
+    } catch (IOException e) {
+      python = null;
+    }
+    assumeTrue(python != null, "no python3 for a posted drag");
+    final Process gesture = python;
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !gesture.isAlive();
+          }
+        },
+        "the posted drag");
+    assumeTrue(gesture.exitValue() == 0, "no python3 with libXtst for a posted drag");
   }
 
   private static void move(Tree tree, Rectangle cell) {

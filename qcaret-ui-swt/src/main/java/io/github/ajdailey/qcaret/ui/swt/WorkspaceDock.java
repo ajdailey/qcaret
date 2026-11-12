@@ -7,12 +7,9 @@ import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
@@ -31,22 +28,25 @@ import org.eclipse.swt.widgets.TreeItem;
  * The workspace browser dock: a wrapping row of icon tool bars ({@link BrowseBar}'s four, then
  * Refresh, Reveal Active File and Hide) and the {@link BrowseBar}'s fields over a {@link Tree} of a
  * {@link WorkspaceInput}'s rows with Name, Size and Modified columns. Size and Modified are as wide
- * as their header and widest text shown, Modified shows the date with the date and time as the
- * cell's tool tip, and Name takes the rest of the tree's width. A click on a column header sorts by
- * it, a second click reverses the order. A directory row holds an empty placeholder child until it
- * first expands, which asks the input to list it; its rows replace the placeholder when the input
- * reports the change. A refill keeps the expanded state of rows that remain. Enter or a double
- * click opens a file, shows more entries on a "more" row, and expands or collapses a directory. One
- * context menu, built on the first right click, offers Open, Open in Default Application, Set as
- * Workspace Folder, Copy Path, Search in Folder, New File, New Folder, Rename and Delete for the
- * row under the pointer, or for the workspace folder over empty space. Delete and F2 delete and
- * rename the selected row while the tree has focus; the editor never sees them.
+ * as their header and widest text shown, Modified shows the date, and Name takes the rest of the
+ * tree's width. A row's tool tip is its {@link BrowserRowTip}, and a drag of the selected files is
+ * a {@link BrowserDrag}. A click on a column header sorts by it, a second click reverses the order.
+ * A directory row holds an empty placeholder child until it first expands, which asks the input to
+ * list it; its rows replace the placeholder when the input reports the change. A refill keeps the
+ * expanded state of rows that remain. Enter or a double click opens a file, shows more entries on a
+ * "more" row, and expands or collapses a directory. One context menu, built on the first right
+ * click, offers Open, Open in Default Application, Set as Workspace Folder, Copy Path, Search in
+ * Folder, New File, New Folder, Rename and Delete for the row under the pointer, or for the
+ * workspace folder over empty space. Delete and F2 delete and rename the selected row while the
+ * tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
   private final Composite root;
   private final ToolIcons icons;
   private final BrowseBar browseBar;
   private final Tree tree;
+  private final BrowserRowTip rowTip;
+  private final BrowserDrag drag;
   private final TreeColumn[] columns = new TreeColumn[3];
   private int nameMinimum;
   private Menu menu;
@@ -110,14 +110,8 @@ final class WorkspaceDock {
             fitNameColumn();
           }
         });
-    tree.addListener(
-        SWT.MouseMove,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            showModifiedTip(event.x, event.y);
-          }
-        });
+    rowTip = new BrowserRowTip(tree);
+    drag = new BrowserDrag(tree);
     tree.addListener(
         SWT.Expand,
         new Listener() {
@@ -235,24 +229,6 @@ final class WorkspaceDock {
   }
 
   /**
-   * Shows a Modified cell's date and time as the tree's tool tip while the pointer is on it. Only x
-   * is compared with the cell: GTK 4 item bounds start below the header.
-   */
-  private void showModifiedTip(int x, int y) {
-    Point at = new Point(x, y);
-    TreeItem item = tree.getItem(at);
-    WorkspaceNode node = item == null ? null : node(item);
-    Rectangle cell = item == null ? null : item.getBounds(2);
-    String tip =
-        node != null && x >= cell.x && x < cell.x + cell.width && !node.modifiedTime().isEmpty()
-            ? node.modifiedTime()
-            : null;
-    if (!Objects.equals(tip, tree.getToolTipText())) {
-      tree.setToolTipText(tip);
-    }
-  }
-
-  /**
    * Sorts by a column, reversing the order when it already sorts by it.
    *
    * @param column the column
@@ -303,6 +279,24 @@ final class WorkspaceDock {
    */
   Tree tree() {
     return tree;
+  }
+
+  /**
+   * Returns the rows' tool tip, for tests.
+   *
+   * @return the tip
+   */
+  BrowserRowTip rowTip() {
+    return rowTip;
+  }
+
+  /**
+   * Returns the tree's drag source, for tests.
+   *
+   * @return the drag
+   */
+  BrowserDrag drag() {
+    return drag;
   }
 
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */

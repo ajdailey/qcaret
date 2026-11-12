@@ -255,13 +255,14 @@ platforms pass a drop over a child to the nearest target above it.
 - Every drop is a copy, also after the user changes the operation mid-drag:
   accepting a move has the source delete the file.
 - `dropped` parses the names and calls `ApplicationController.openDropped`; a
-  name that does not parse shows the open failure and the rest open.
+  name that does not parse shows the open failure and the rest open. A dropped
+  folder is ignored ([workspace folder and browser](../../qcaret-app/docs/workspace-and-navigation.md#workspace-folder-and-browser)).
 - The editor has no `DragSource`: a drag in the text selects.
 
 | Platform | Drop |
 |---|---|
-| GTK 3 | Measured with a real XDND source in another process: a drop over an empty window and over the `StyledText` opens a tab with a copy, and a text drag is refused |
-| GTK 4 (`SWT_GTK4=1`) | A drop reaches no target |
+| GTK 3 | Measured with a real XDND source in another process: a drop over an empty window and over the `StyledText` opens a tab with a copy, and a text drag is refused. A drag from the workspace browser opens over the `StyledText` and the tab strip (`WorkspaceDockLayoutTest`) |
+| GTK 4 (`SWT_GTK4=1`) | A drop from another process reaches no target. A drag from the workspace browser opens over the `StyledText` and the tab strip (`WorkspaceDockLayoutTest`) |
 | win32, cocoa | Unverified |
 
 A `ProgressRow` shows what `DocumentsView.showLoadProgress` passes, above the
