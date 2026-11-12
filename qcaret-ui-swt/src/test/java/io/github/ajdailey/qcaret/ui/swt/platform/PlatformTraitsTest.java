@@ -38,7 +38,10 @@ class PlatformTraitsTest {
     "followsSystemAppearance",
     "raisesLinkContrast",
     "lightChecksUnderDark",
-    "colorsDialogs"
+    "colorsDialogs",
+    "macKeys",
+    "linuxKeys",
+    "opensPrintDialog"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -65,6 +68,9 @@ class PlatformTraitsTest {
     answers.add(traits.raisesLinkContrast());
     answers.add(traits.lightChecksUnderDark());
     answers.add(traits.colorsDialogs());
+    answers.add(traits.macKeys());
+    answers.add(traits.linuxKeys());
+    answers.add(traits.opensPrintDialog());
     return answers;
   }
 
@@ -100,6 +106,9 @@ class PlatformTraitsTest {
         false,
         false,
         true,
+        true,
+        false,
+        false,
         true);
   }
 
@@ -128,7 +137,10 @@ class PlatformTraitsTest {
         true,
         false,
         false,
-        false);
+        false,
+        true,
+        false,
+        true);
   }
 
   @Test
@@ -157,7 +169,10 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        false);
+        false,
+        false,
+        true,
+        true);
   }
 
   @Test
@@ -185,6 +200,9 @@ class PlatformTraitsTest {
         false,
         true,
         false,
+        false,
+        false,
+        true,
         false);
   }
 
@@ -213,6 +231,20 @@ class PlatformTraitsTest {
     assertEquals(SWT.getPlatform(), PlatformTraits.PLATFORM.name());
     assertEquals(
         PlatformTraits.of(SWT.getPlatform(), gtk4).getClass(), PlatformTraits.PLATFORM.getClass());
+  }
+
+  @Test
+  void keyNamesFollowCocoaAndTheKeymapFollowsGtk() {
+    String[] platforms = {"win32", "cocoa", "gtk"};
+    for (String platform : platforms) {
+      for (boolean gtk4 : new boolean[] {false, true}) {
+        PlatformTraits traits = PlatformTraits.of(platform, gtk4);
+        assertEquals("cocoa".equals(platform), traits.macKeys(), platform);
+        assertEquals("gtk".equals(platform), traits.linuxKeys(), platform);
+      }
+    }
+    assertEquals("cocoa".equals(SWT.getPlatform()), PlatformTraits.PLATFORM.macKeys());
+    assertEquals("gtk".equals(SWT.getPlatform()), PlatformTraits.PLATFORM.linuxKeys());
   }
 
   @Test

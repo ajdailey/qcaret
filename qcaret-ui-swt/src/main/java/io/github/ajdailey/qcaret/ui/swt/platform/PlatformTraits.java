@@ -209,4 +209,26 @@ public interface PlatformTraits {
    * @return true on win32
    */
   boolean colorsDialogs();
+
+  /**
+   * Reports whether key names follow macOS.
+   *
+   * @return true on cocoa
+   */
+  boolean macKeys();
+
+  /**
+   * Reports whether the keymap follows Linux, where IBus takes Ctrl+Shift+U.
+   *
+   * @return true on GTK
+   */
+  boolean linuxKeys();
+
+  /**
+   * Reports whether SWT's {@code PrintDialog} opens. On GTK 4 SWT 3.135's {@code PrintDialog.open}
+   * throws {@code UnsatisfiedLinkError} for {@code gtk_dialog_run}.
+   *
+   * @return false on GTK 4
+   */
+  boolean opensPrintDialog();
 }

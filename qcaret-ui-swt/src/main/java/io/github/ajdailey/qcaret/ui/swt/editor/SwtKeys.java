@@ -37,24 +37,6 @@ public final class SwtKeys {
   private SwtKeys() {}
 
   /**
-   * Reports whether key names follow macOS.
-   *
-   * @return true on cocoa
-   */
-  public static boolean mac() {
-    return "cocoa".equals(SWT.getPlatform());
-  }
-
-  /**
-   * Reports whether the keymap follows Linux, where IBus takes Ctrl+Shift+U.
-   *
-   * @return true on GTK
-   */
-  public static boolean linux() {
-    return "gtk".equals(SWT.getPlatform());
-  }
-
-  /**
    * Converts a key press.
    *
    * @param stateMask the event's modifiers

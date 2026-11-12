@@ -23,7 +23,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -92,7 +92,7 @@ class ThemeAndDialogsTest {
             Preferences.DEFAULTS,
             system,
             new MemoryBudget(1L << 30, 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     controller.documents().newDocument();

@@ -22,7 +22,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -97,7 +97,7 @@ class WorkspaceDockLayoutTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     window.place(

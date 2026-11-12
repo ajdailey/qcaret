@@ -21,4 +21,9 @@ final class Gtk3Traits extends GtkTraits {
   public boolean sizesToolPictures() {
     return false;
   }
+
+  @Override
+  public boolean opensPrintDialog() {
+    return true;
+  }
 }

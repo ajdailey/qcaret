@@ -119,4 +119,19 @@ final class Win32Traits implements PlatformTraits {
   public boolean colorsDialogs() {
     return true;
   }
+
+  @Override
+  public boolean macKeys() {
+    return false;
+  }
+
+  @Override
+  public boolean linuxKeys() {
+    return false;
+  }
+
+  @Override
+  public boolean opensPrintDialog() {
+    return true;
+  }
 }

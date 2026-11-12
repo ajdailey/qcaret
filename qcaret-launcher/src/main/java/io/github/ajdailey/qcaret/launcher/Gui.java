@@ -24,7 +24,7 @@ import io.github.ajdailey.qcaret.ui.swt.AppMenu;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.time.Instant;
@@ -231,7 +231,7 @@ final class Gui {
             preferences,
             system,
             MemoryBudget.fromRuntime(),
-            Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys(), PlatformTraits.PLATFORM.linuxKeys()),
             remember);
     set.theme().setColors(colors);
     set.setLogging(LogConfigurator.RECENT, logFiles);

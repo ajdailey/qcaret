@@ -169,7 +169,7 @@ classes, so the rules over the main classes never see them.
 | SWT only in `ui.swt` and `launcher` | Model and controllers test without a display |
 | No dependency on `org.eclipse.swt.internal` | Public SWT API only, so GTK3 and GTK4 behave the same |
 | In `ui.swt` and `launcher`, `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `ToolIcons`, `Win32Stacking`, `CocoaStacking` and `GtkX11Stacking` | SWT internals differ per platform; only these classes reach them by reflection |
-| `SWT.getPlatform()` only in `ui.swt.platform`, `WindowStacking` and `SwtKeys`; `System.getenv` in `ui.swt` and `launcher` only in the same classes | Each view-layer platform difference is a `PlatformTraits` method |
+| `SWT.getPlatform()` only in `ui.swt.platform` and `WindowStacking`; `System.getenv` in `ui.swt` and `launcher` only in the same classes | Each view-layer platform difference is a `PlatformTraits` method |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
 | `app.view` not on `app.{controller, search, config, session, recovery, cli, ipc}`; `app.editor` not on `app.controller`; `ui.swt` not on `core.{concurrent, io, buffer, edit, syntax, search, diff, watch, workspace}` or `app.{config, session, recovery, cli, ipc}` | Layering |
 | Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |

@@ -4,8 +4,8 @@ The SWT side of File > Print: `MainWindow.choosePrinter` and `PrintJob` in
 `ui.swt` of [qcaret-ui-swt](../README.md). Pagination and the job lifecycle are
 in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
 
-`MainWindow.choosePrinter` opens `PrintDialog` and creates the `Printer` on the
-UI thread; `PrintJob` does the rest on the job's worker. A `ProgressRow` shows
+`MainWindow.choosePrinter` opens `PrintDialog`, or on GTK 4 a PDF save dialog
+(see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob` does the rest on the job's worker. A `ProgressRow` shows
 the progress and Cancel above the status bar. It takes no Esc, since the window
 stays usable.
 
@@ -36,3 +36,16 @@ DEVMODE; macOS in the print info). QCaret does not loop, which would multiply
 them. GTK's Print to File writes one copy; Microsoft Print to PDF writes every
 copy into the file, collated. The page range is applied by `PrintController`;
 GTK does not also pass it to CUPS for a `GtkPrintJob`.
+
+## GTK 4
+
+SWT 3.135's `PrintDialog.open` throws `UnsatisfiedLinkError`
+(`GTK3.gtk_dialog_run`) on GTK 4, so `PlatformTraits.opensPrintDialog` is false
+there and `choosePrinter` uses `PdfPrinter`: a `FileDialog` titled Print to PDF
+names the file, and `PdfPrinter.printer` returns GTK's Print to File printer
+(driver `GtkPrintBackendFile`) set to write it. The job prints every page, one
+copy; there is no printer, range or selection choice. A print system without a
+Print to File printer shows the no-printer notice.
+
+The save dialog is the `FileDialog` Save As uses; under Xvfb on GTK 4 it opens no
+X window, so `PrintOutputTest` replaces it through `MainWindow.setPdfChooser`.

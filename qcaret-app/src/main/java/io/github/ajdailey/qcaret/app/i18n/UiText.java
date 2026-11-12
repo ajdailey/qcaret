@@ -1490,6 +1490,8 @@ public enum UiText {
   PRINT_NO_PAGES,
   /** Notice after a failed job; takes the document name. */
   PRINT_FAILED,
+  /** Save dialog title where File > Print writes a PDF file. */
+  PRINT_TO_PDF,
   /** Tab tool tip line naming where the settings came from; takes the sources. */
   SETTINGS_FROM,
   /** A modeline as a settings source; takes its kind. */

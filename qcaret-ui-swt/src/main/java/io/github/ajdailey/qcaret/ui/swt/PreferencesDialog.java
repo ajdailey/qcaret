@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -454,7 +455,7 @@ final class PreferencesDialog {
   /** Shows a stroke in the key field. */
   void record(KeyStroke stroke) {
     captured = stroke;
-    capture.setText(stroke.text(SwtKeys.mac()));
+    capture.setText(stroke.text(PlatformTraits.PLATFORM.macKeys()));
   }
 
   private Keymap working() {
@@ -473,7 +474,7 @@ final class PreferencesDialog {
     if (command == null || captured == null) {
       return;
     }
-    String keyText = captured.text(SwtKeys.mac());
+    String keyText = captured.text(PlatformTraits.PLATFORM.macKeys());
     Keymap current = working();
     CommandId holder = current.holder(captured, command);
     if (captured.types() || holder != null) {
@@ -543,7 +544,7 @@ final class PreferencesDialog {
     CommandId command = selected();
     if (command != null) {
       for (KeyStroke stroke : working().strokes(command)) {
-        keys.add(stroke.text(SwtKeys.mac()));
+        keys.add(stroke.text(PlatformTraits.PLATFORM.macKeys()));
       }
     }
   }

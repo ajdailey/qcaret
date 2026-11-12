@@ -123,6 +123,9 @@ colors on white whatever Editor colors shows, in the editor's font at 10
 points. A row above the status bar shows the progress with Cancel, and you can
 keep editing. One window runs one print job at a time; closing the window cancels it.
 
+On Linux with GTK 4 (`SWT_GTK4=1`) the print dialog does not open: File > Print
+asks for a PDF file name and writes the whole document to it, one copy.
+
 ### Large files
 
 A file opens only when its memory cost fits the 60% of the Java heap that open

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
@@ -27,7 +28,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -104,7 +105,7 @@ class PrintOutputTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     controller.setLogging(new RecentLog(50, 200), LogFiles.NONE);
     window.attach(controller);
@@ -432,5 +433,39 @@ class PrintOutputTest {
         },
         Duration.ofMillis(300));
     assertFalse(Files.exists(pdf) && Files.size(pdf) > 0);
+  }
+
+  private void choosePdf(final String file) {
+    window.setPdfChooser(
+        new Supplier<String>() {
+          @Override
+          public String get() {
+            return file;
+          }
+        });
+  }
+
+  /** GTK 4, where SWT's PrintDialog throws UnsatisfiedLinkError. */
+  @Test
+  void withoutAPrintDialogPrintWritesThePdfASaveDialogNames() throws Exception {
+    assumeFalse(PlatformTraits.PLATFORM.opensPrintDialog(), "PrintDialog opens here");
+    requirePrinter();
+    openFile(numbered(3));
+    choosePdf(pdf.toString());
+    controller.execute(CommandId.PRINT);
+    awaitOutput();
+    assertEquals(1, pages());
+    assertTrue(pageText(1).contains("sample.java"), pageText(1));
+    assertTrue(pageText(1).contains("mock line 3"), pageText(1));
+  }
+
+  @Test
+  void aCanceledPdfSaveDialogPrintsNothing() throws Exception {
+    assumeFalse(PlatformTraits.PLATFORM.opensPrintDialog(), "PrintDialog opens here");
+    openFile(numbered(3));
+    choosePdf(null);
+    controller.execute(CommandId.PRINT);
+    assertFalse(window.printBar().shown());
+    assertFalse(Files.exists(pdf));
   }
 }

@@ -23,7 +23,7 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,7 +87,7 @@ class SplitAndFindTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     window.place(new WindowGeometry.Request(null, null, 700, 500), null);

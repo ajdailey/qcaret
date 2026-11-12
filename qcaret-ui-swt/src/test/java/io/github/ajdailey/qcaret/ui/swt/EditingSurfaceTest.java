@@ -30,8 +30,8 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
@@ -121,7 +121,7 @@ class EditingSurfaceTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys(), PlatformTraits.PLATFORM.linuxKeys()),
             false);
     controller.setLogging(new RecentLog(50, 200), LogFiles.NONE);
     window.attach(controller);
@@ -238,11 +238,11 @@ class EditingSurfaceTest {
     openFile("carets.txt", "alpha one\nbeta two\ngamma three\n");
     StyledText text = window.activeText();
     editor().selections().set(SelectionSet.caret(0));
-    int addCaret = SwtKeys.mac() ? SWT.MOD4 | SWT.MOD2 : SWT.MOD1 | SWT.MOD2;
+    int addCaret = PlatformTraits.PLATFORM.macKeys() ? SWT.MOD4 | SWT.MOD2 : SWT.MOD1 | SWT.MOD2;
     key(text, SWT.ARROW_DOWN, addCaret);
     key(text, SWT.ARROW_DOWN, addCaret);
     assertEquals(3, editor().selections().selections().size());
-    int word = SwtKeys.mac() ? SWT.MOD3 : SWT.MOD1;
+    int word = PlatformTraits.PLATFORM.macKeys() ? SWT.MOD3 : SWT.MOD1;
     key(text, SWT.ARROW_RIGHT, word);
     key(text, SWT.ARROW_RIGHT, word | SWT.MOD2);
     assertEquals(

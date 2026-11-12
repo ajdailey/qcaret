@@ -188,9 +188,7 @@ class ArchitectureTest {
    * The view classes that read the SWT platform or the environment: the {@code PlatformTraits}
    * package, plus classes whose subject is the platform.
    */
-  private static final String[] PLATFORM_READERS = {
-    ROOT + ".ui.swt.WindowStacking", ROOT + ".ui.swt.editor.SwtKeys"
-  };
+  private static final String[] PLATFORM_READERS = {ROOT + ".ui.swt.WindowStacking"};
 
   /** Platform checks in the view layer go through {@code PlatformTraits}. */
   @Test
@@ -213,8 +211,6 @@ class ArchitectureTest {
         .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
         .and()
         .doNotHaveFullyQualifiedName(PLATFORM_READERS[0])
-        .and()
-        .doNotHaveFullyQualifiedName(PLATFORM_READERS[1])
         .should()
         .callMethodWhere(callNamed("org.eclipse.swt.SWT", "getPlatform"))
         .orShould()

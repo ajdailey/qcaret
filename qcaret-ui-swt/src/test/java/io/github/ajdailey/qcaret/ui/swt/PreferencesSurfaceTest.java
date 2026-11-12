@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,7 +85,7 @@ class PreferencesSurfaceTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(1L << 30, 60),
-            Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys(), PlatformTraits.PLATFORM.linuxKeys()),
             false);
     window.attach(controller);
     controller.documents().newDocument();
@@ -280,7 +281,8 @@ class PreferencesSurfaceTest {
     assertEquals(free, controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     MenuItem item = window.menuBar().item(CommandId.COMPARE_DOCUMENTS);
     assertEquals(SwtKeys.accelerator(free), item.getAccelerator());
-    assertTrue(item.getText().contains(free.text(SwtKeys.mac())), item.getText());
+    assertTrue(
+        item.getText().contains(free.text(PlatformTraits.PLATFORM.macKeys())), item.getText());
     dialog.select(CommandId.COMPARE_DOCUMENTS);
     dialog.selectKey(0);
     dialog.removeSelected();

@@ -38,8 +38,8 @@ final class ControllerViolations {
 
   /** Uses the SWT view module. */
   static final class UsesView {
-    boolean mac() {
-      return SwtKeys.mac();
+    int accelerator() {
+      return SwtKeys.accelerator(null);
     }
   }
 

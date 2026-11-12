@@ -20,7 +20,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -77,7 +77,7 @@ class WindowIconsTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     window.open();

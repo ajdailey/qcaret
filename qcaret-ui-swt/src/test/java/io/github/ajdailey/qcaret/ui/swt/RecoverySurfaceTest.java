@@ -26,7 +26,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -93,7 +93,7 @@ class RecoverySurfaceTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(1L << 30, 60),
-            Keymap.defaults(SwtKeys.mac(), SwtKeys.linux()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys(), PlatformTraits.PLATFORM.linuxKeys()),
             false);
     window.attach(controller);
     window.place(

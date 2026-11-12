@@ -186,6 +186,7 @@ public final class MainWindow implements MainView {
   private final Composite statusBar;
   private ProgressRow printBar;
   private Supplier<PrinterData> printerChooser;
+  private Supplier<String> pdfChooser;
   private final Label position;
   private final Label selection;
   private final Label encoding;
@@ -1503,7 +1504,14 @@ public final class MainWindow implements MainView {
         showNotice(UiText.PRINT_NO_PRINTER.text());
         return;
       }
-      data = printerChooser != null ? printerChooser.get() : new PrintDialog(shell).open();
+      if (printerChooser != null) {
+        data = printerChooser.get();
+      } else if (PlatformTraits.PLATFORM.opensPrintDialog()) {
+        data = new PrintDialog(shell).open();
+      } else {
+        String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell);
+        data = file == null ? null : PdfPrinter.printer(file);
+      }
       if (data == null) {
         return;
       }
@@ -1520,6 +1528,11 @@ public final class MainWindow implements MainView {
   /** Replaces the print dialog; the supplier returns what the dialog would. */
   void setPrinterChooser(Supplier<PrinterData> chooser) {
     printerChooser = chooser;
+  }
+
+  /** Replaces the PDF save dialog where {@code PrintDialog} does not open. */
+  void setPdfChooser(Supplier<String> chooser) {
+    pdfChooser = chooser;
   }
 
   @Override

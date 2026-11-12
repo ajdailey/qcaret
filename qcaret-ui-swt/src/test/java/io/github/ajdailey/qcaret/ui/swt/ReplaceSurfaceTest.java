@@ -21,7 +21,7 @@ import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
@@ -88,7 +88,7 @@ class ReplaceSurfaceTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     window.place(new WindowGeometry.Request(null, null, 900, 600), null);

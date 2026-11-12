@@ -261,7 +261,7 @@ Every platform difference in the view layer is a method of `PlatformTraits`
 `SWT_GTK4=1` when the interface is first used. `PlatformTraits.of` builds any
 platform's traits, so `PlatformTraitsTest` checks all four tables on Linux.
 `ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call
-outside that package, `WindowStacking` and `SwtKeys`, and on a `System.getenv`
+outside that package and `WindowStacking`, and on a `System.getenv`
 call in `ui.swt` or the launcher outside the same classes.
 
 | Method | win32 | cocoa | GTK 3 | GTK 4 | Caller |
@@ -286,11 +286,12 @@ call in `ui.swt` or the launcher outside the same classes.
 | `raisesLinkContrast` | - | - | yes | yes | `SwtThemeService.colorLink` and its `SWT.Settings` recolor |
 | `lightChecksUnderDark` | yes | - | - | - | `SwtThemeService.check` |
 | `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
+| `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
+| `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 
 The platform is the subject of these classes, which read it themselves:
 
 - `WindowStacking`: picks the stacking class (see [Always on Top](#always-on-top)).
-- `SwtKeys`: macOS and Linux key names and the keymap's platform.
 - `PlatformSetup` (launcher): `user.home` on Linux and the WebView2 folder on
   Windows, set before the Display.
 - `Launcher`: passes `os.name` to `PlatformSetup`.

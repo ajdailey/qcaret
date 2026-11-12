@@ -24,7 +24,7 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import java.io.IOException;
@@ -112,7 +112,7 @@ class ResourceLeakTest {
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(1L << 30, 60),
-            Keymap.defaults(SwtKeys.mac()),
+            Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
     window.attach(controller);
     window.place(new WindowGeometry.Request(0, 0, 800, 400), null);

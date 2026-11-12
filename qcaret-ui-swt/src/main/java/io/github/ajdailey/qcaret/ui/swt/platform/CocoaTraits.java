@@ -119,4 +119,19 @@ final class CocoaTraits implements PlatformTraits {
   public boolean colorsDialogs() {
     return false;
   }
+
+  @Override
+  public boolean macKeys() {
+    return true;
+  }
+
+  @Override
+  public boolean linuxKeys() {
+    return false;
+  }
+
+  @Override
+  public boolean opensPrintDialog() {
+    return true;
+  }
 }
