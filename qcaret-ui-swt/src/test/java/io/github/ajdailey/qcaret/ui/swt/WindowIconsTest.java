@@ -156,8 +156,9 @@ class WindowIconsTest {
   void aDialogHasTheMainWindowsIconPropertyOnX11() throws Exception {
     // GTK 3 also copies a transient parent's icon; GTK 4 does not, so only GTK 4 fails without
     // Dialogs.inheritIcons.
-    assumeTrue("gtk".equals(SWT.getPlatform()) && System.getenv("DISPLAY") != null);
-    assumeFalse("wayland".equals(System.getenv("GDK_BACKEND")));
+    assumeTrue(
+        "gtk".equals(SWT.getPlatform()) && System.getenv("DISPLAY") != null, "_NET_WM_ICON: X11");
+    assumeFalse("wayland".equals(System.getenv("GDK_BACKEND")), "_NET_WM_ICON: X11");
     assumeTrue(Files.isExecutable(Path.of("/usr/bin/xprop")), "xprop");
     assumeTrue(Files.isExecutable(Path.of("/usr/bin/xwininfo")), "xwininfo");
     final String mainTitle = "QCaret icon owner " + System.nanoTime();

@@ -2,7 +2,9 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -186,6 +188,30 @@ class ProductivitySurfaceTest {
     drain();
     assertEquals(List.of(), pane.completionWords());
     assertTrue(pane.text().getText().endsWith("\nalpine"), pane.text().getText());
+  }
+
+  /** Zoom disposes the old editor font; win32 would draw the list with the deleted HFONT. */
+  @Test
+  void zoomWithTheCompletionListShownGivesTheListTheNewFont() {
+    final EditorPane pane = pane();
+    pane.text().setFocus();
+    pane.text().setSelection(pane.text().getCharCount());
+    drain();
+    key(pane, 'a', 'a');
+    controller.execute(CommandId.COMPLETE_WORD);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !pane.completionWords().isEmpty();
+          }
+        },
+        "list shown");
+    controller.execute(CommandId.ZOOM_IN);
+    drain();
+    assertEquals(List.of("alpha", "alpine"), pane.completionWords());
+    assertSame(window.editorFont(), pane.completionFont(), "the list kept the old font");
+    assertFalse(pane.completionFont().isDisposed());
   }
 
   @Test

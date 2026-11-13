@@ -169,7 +169,8 @@ public final class ApplicationController {
                 return quitting;
               }
             },
-            set);
+            set::newWarnings,
+            set::warningsSeen);
     this.find = new FindController(documents, workers, ui, settings);
     this.workspace = new WorkspaceController(view, workers, ui, documents, budget);
     this.history = new NavigationHistory(documents, workers, ui, view);
@@ -201,7 +202,8 @@ public final class ApplicationController {
             budget,
             limits,
             config.location().directory().resolve(ReplaceBackups.DIRECTORY),
-            options.backupDays());
+            options.backupDays(),
+            Clock.systemDefaultZone());
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
     this.alwaysOnTop = new AlwaysOnTop(view, documents);
@@ -238,9 +240,24 @@ public final class ApplicationController {
           }
         });
     workspace.setExcludedDirectories(options.excludedDirectories());
-    documents.setLastTab(new LastTab(settings, set, this));
+    documents.setLastTab(
+        new LastTab(
+            settings,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return set.quitRunning() || isQuitting();
+              }
+            },
+            this::closeWindow));
     this.preferences =
-        new PreferencesController(settings, view, set.defaultKeymap(), set::forgetHistory, set);
+        new PreferencesController(
+            settings,
+            view,
+            set.defaultKeymap(),
+            set::forgetHistory,
+            set::loadChoices,
+            set::loadTheme);
     this.statistics = new StatisticsController(documents, workers, ui, view);
     this.checksums = new ChecksumTools(documents, workers, ui, view);
     this.dateTime =

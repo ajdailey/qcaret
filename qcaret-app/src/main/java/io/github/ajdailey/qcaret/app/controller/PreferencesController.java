@@ -25,7 +25,8 @@ final class PreferencesController implements PreferencesInput {
   private final MainView view;
   private final Keymap defaults;
   private final Consumer<Consumer<SessionRewrite.Result>> forgetHistory;
-  private final WindowSet set;
+  private final Consumer<Consumer<AppearanceChoices>> loadChoices;
+  private final Runnable loadTheme;
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
   private Preferences uncleared;
@@ -35,12 +36,14 @@ final class PreferencesController implements PreferencesInput {
       MainView view,
       Keymap defaults,
       Consumer<Consumer<SessionRewrite.Result>> forgetHistory,
-      WindowSet set) {
+      Consumer<Consumer<AppearanceChoices>> loadChoices,
+      Runnable loadTheme) {
     this.settings = settings;
     this.view = view;
     this.defaults = defaults;
     this.forgetHistory = forgetHistory;
-    this.set = set;
+    this.loadChoices = loadChoices;
+    this.loadTheme = loadTheme;
   }
 
   /** Shows the dialog once the file is read. */
@@ -97,7 +100,7 @@ final class PreferencesController implements PreferencesInput {
 
   @Override
   public void loadChoices(Consumer<AppearanceChoices> done) {
-    set.loadChoices(done);
+    loadChoices.accept(done);
   }
 
   @Override
@@ -250,7 +253,7 @@ final class PreferencesController implements PreferencesInput {
           }
         });
     if (sameThemeFile) {
-      set.loadTheme();
+      loadTheme.run();
     }
     return null;
   }

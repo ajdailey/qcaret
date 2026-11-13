@@ -190,7 +190,7 @@ class TabColorsGuiTest {
 
   /** Native chrome follows a switch on GTK only; win32 waits for a restart and cocoa the system. */
   private void checkChrome(String step, boolean dark) {
-    assumeTrue("gtk".equals(SWT.getPlatform()));
+    assumeTrue("gtk".equals(SWT.getPlatform()), "native chrome follows a switch on GTK only");
     window.shell().forceActive();
     settle();
     window.showWarningMarker(true);

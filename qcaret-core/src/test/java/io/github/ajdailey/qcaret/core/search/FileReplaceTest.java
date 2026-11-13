@@ -2,12 +2,14 @@ package io.github.ajdailey.qcaret.core.search;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -284,6 +286,13 @@ class FileReplaceTest {
     assertEquals(1, ReplaceBackups.prune(root, ReplaceBackups.DEFAULT_DAYS, now));
     assertEquals(2, ReplaceBackups.list(root).size());
     assertTrue(Files.isDirectory(root.resolve("not-a-run")));
+  }
+
+  @Test
+  void aDecodeOnlyCharsetEncodesNothing() {
+    TextEncoding auto = TextEncoding.of(Charset.forName("x-JISAutoDetect"), false);
+    assertFalse(FileReplace.encodable(List.of(new Replacement(0, 1, "mock")), auto));
+    assertFalse(FileReplace.holds("mock", auto, new byte[32]));
   }
 
   @Test

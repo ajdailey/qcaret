@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
@@ -22,8 +23,8 @@ import java.util.function.Predicate;
  * qcaret-io-} worker.
  */
 final class RecentFiles {
-  /** Files kept. */
-  static final int LIMIT = 20;
+  /** Files kept: as many as the session saves. */
+  static final int LIMIT = SessionStore.MAX_RECENT;
 
   private final DocumentController documents;
   private final MainView view;

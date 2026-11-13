@@ -45,6 +45,12 @@ public class SearchBenchmark {
     @Param({"LITERAL_FEW", "LITERAL_MANY", "REGEX_FEW", "REGEX_MANY"})
     public SearchTree.Query query;
 
+    /** Files of 2 KiB. */
+    int smallFiles = SearchTree.SMALL_FILES;
+
+    /** Chars of each large file. */
+    int largeChars = SearchTree.LARGE_CHARS;
+
     SearchTree tree;
     Workers workers;
     MemoryBudget budget;
@@ -56,8 +62,7 @@ public class SearchBenchmark {
      */
     @Setup
     public void open() throws IOException {
-      tree =
-          SearchTree.create(SearchTree.SMALL_FILES, SearchTree.LARGE_FILES, SearchTree.LARGE_CHARS);
+      tree = SearchTree.create(smallFiles, SearchTree.LARGE_FILES, largeChars);
       workers = SearchHarness.workers();
       budget = MemoryBudget.fromRuntime();
     }

@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.io.ChecksumAlgorithm;
 import io.github.ajdailey.qcaret.core.io.Checksums;
+import io.github.ajdailey.qcaret.core.io.Encoders;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -74,7 +75,7 @@ final class SelectionChecksum {
     }
     Document document = editor.document();
     Charset charset = document.encoding().charset();
-    if (!charset.canEncode()) {
+    if (!Encoders.writable(charset)) {
       view.showNotice(UiText.CHECKSUM_SELECTION_NO_ENCODER.format(charset.name()));
       return;
     }

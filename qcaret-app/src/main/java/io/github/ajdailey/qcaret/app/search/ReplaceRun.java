@@ -18,7 +18,7 @@ import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -201,6 +201,7 @@ public final class ReplaceRun {
    * @param budget charged while a file is replaced
    * @param buffers edits open documents
    * @param listener called on the UI thread
+   * @param clock dates the backups and the prune before the run
    * @return the running replace
    */
   public static ReplaceRun replace(
@@ -214,7 +215,8 @@ public final class ReplaceRun {
       UiDispatcher ui,
       final MemoryBudget budget,
       Buffers buffers,
-      Listener listener) {
+      Listener listener,
+      final Clock clock) {
     final ReplaceRun run = new ReplaceRun(ui, buffers, listener);
     for (Item item : items) {
       run.rows.add(new Row(item.name(), item.path(), Status.NOT_ATTEMPTED, null, 0, null));
@@ -226,7 +228,15 @@ public final class ReplaceRun {
               @Override
               public void run() {
                 run.replaceAll(
-                    workers, items, matcher, template, backupRoot, backupDays, limits, budget);
+                    workers,
+                    items,
+                    matcher,
+                    template,
+                    backupRoot,
+                    backupDays,
+                    limits,
+                    budget,
+                    clock);
               }
             });
     if (!started) {
@@ -326,10 +336,11 @@ public final class ReplaceRun {
       Path backupRoot,
       int backupDays,
       final HyperSearch.Limits limits,
-      final MemoryBudget budget) {
+      final MemoryBudget budget,
+      Clock clock) {
     final Semaphore writers = new Semaphore(WRITERS);
     try {
-      ReplaceBackups.prune(backupRoot, backupDays, Instant.now());
+      ReplaceBackups.prune(backupRoot, backupDays, clock.instant());
       for (int i = 0; i < items.size() && !token.isCanceled(); i++) {
         final int index = i;
         final Item item = items.get(i);
@@ -349,7 +360,7 @@ public final class ReplaceRun {
         }
         if (backups == null) {
           try {
-            backups = ReplaceBackups.start(backupRoot, Instant.now());
+            backups = ReplaceBackups.start(backupRoot, clock.instant());
           } catch (IOException e) {
             queue(index, failed(item, LogText.oneLine(String.valueOf(e.getMessage()))));
             continue;

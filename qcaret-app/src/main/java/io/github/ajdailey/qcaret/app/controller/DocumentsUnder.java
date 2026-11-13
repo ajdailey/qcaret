@@ -65,10 +65,10 @@ final class DocumentsUnder {
     return names;
   }
 
-  /** Reports whether {@link OpenFile#running} holds a document under an entry. */
+  /** Reports whether any {@link OpenFile.Work} is in flight on a document under an entry. */
   boolean busyUnder(BrowserPath entry) {
     for (OpenDocument d : documents) {
-      if (entry.covers(d.file) && d.file.running()) {
+      if (entry.covers(d.file) && !d.file.inFlight().isEmpty()) {
         return true;
       }
     }
@@ -167,5 +167,20 @@ final class DocumentsUnder {
       view.showNotice(UiText.RENAME_RUNNING.format(name));
     }
     return file.renaming;
+  }
+
+  /**
+   * Reports whether a rename holds a folder at or above a path.
+   *
+   * @param target a file another tool writes
+   * @return true when the write must not start
+   */
+  boolean holds(Path target) {
+    for (BrowserPath entry : held) {
+      if (BrowserPath.under(target, entry.path()) || BrowserPath.under(target, entry.real())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

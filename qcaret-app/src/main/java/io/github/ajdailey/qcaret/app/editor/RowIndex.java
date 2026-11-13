@@ -7,8 +7,9 @@ import java.util.Arrays;
  * line without an entry is one row. Entry {@code j} holds the breaks {@code breaks[first[j]]} up to
  * {@code breaks[first[j + 1]]}, so {@code first[j]} is also the number of virtual breaks in the
  * lines before entry {@code j}. Edits replace a line range and shift the entries after it: O(log
- * entries) when the number of entries and breaks is unchanged, else one array copy of the tail.
- * Confined to one thread.
+ * entries) when the line count and the number of entries and breaks are unchanged, else a pass over
+ * the tail. {@link #replaceAll} applies several ranges in one pass over all entries. Confined to
+ * one thread.
  */
 final class RowIndex {
   private int size;
@@ -222,5 +223,61 @@ final class RowIndex {
         first[j + 1] += breakShift;
       }
     }
+  }
+
+  /**
+   * Applies {@link #replace} for each range in one pass over the entries, for a many-caret edit
+   * whose sequential replaces would each shift every later entry. Range {@code i} is {@code
+   * [from[i], oldEnd[i])}, its replacement's lines lie in {@code [from[i], newEnd[i])}, and both
+   * are in the line numbers before every range is applied; the ranges ascend and do not overlap.
+   */
+  void replaceAll(int[] from, int[] oldEnd, int[] newEnd, Builder[] replacements) {
+    int n = from.length;
+    int[] j0 = new int[n];
+    int[] j1 = new int[n];
+    int outSize = size;
+    int outTotal = first[size];
+    for (int i = 0; i < n; i++) {
+      j0[i] = lowerBound(from[i]);
+      j1[i] = lowerBound(oldEnd[i]);
+      Builder b = replacements[i];
+      outSize += b.size - (j1[i] - j0[i]);
+      outTotal += b.first[b.size] - (first[j1[i]] - first[j0[i]]);
+    }
+    int[] outLines = new int[Math.max(8, outSize)];
+    int[] outFirst = new int[outLines.length + 1];
+    int[] outBreaks = new int[Math.max(8, outTotal)];
+    int at = 0;
+    int written = 0;
+    int j = 0;
+    int delta = 0;
+    for (int i = 0; i <= n; i++) {
+      int end = i < n ? j0[i] : size;
+      int kept = first[end] - first[j];
+      System.arraycopy(breaks, first[j], outBreaks, written, kept);
+      int shift = written - first[j];
+      for (; j < end; j++) {
+        outLines[at] = lines[j] + delta;
+        outFirst[at++] = first[j] + shift;
+      }
+      written += kept;
+      if (i == n) {
+        break;
+      }
+      Builder b = replacements[i];
+      System.arraycopy(b.breaks, 0, outBreaks, written, b.first[b.size]);
+      for (int r = 0; r < b.size; r++) {
+        outLines[at] = b.lines[r] + delta;
+        outFirst[at++] = written + b.first[r];
+      }
+      written += b.first[b.size];
+      j = j1[i];
+      delta += newEnd[i] - oldEnd[i];
+    }
+    outFirst[at] = written;
+    lines = outLines;
+    first = outFirst;
+    breaks = outBreaks;
+    size = at;
   }
 }

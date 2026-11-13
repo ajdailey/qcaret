@@ -43,15 +43,18 @@ that algorithm reports unreadable. Not tested on a FIPS runtime.
 Generate from Files writes `<lowercase hex>  <name>` per file as it ends
 (`FileChecksums.names`):
 
-- Where every chosen file name is unique, the name is the file name.
-- Where two share a name, every name is the path below the files' common
-  folder, joined with `/` on every platform: `a/x.txt`, `b/x.txt`. Files on two
-  Windows drives have no common folder and keep the root.
+- Every name is the path below the files' common folder, joined with `/` on
+  every platform: `a/x.txt`, `b/y.txt`. Files in one folder get their file
+  names. Files on two Windows drives have no common folder and keep the root.
 - The GNU escape applies only to a name holding a backslash or a line break,
   which leaves real backslashes in Linux and macOS names.
 
 Save As starts in the common folder, so a list saved there verifies. It writes
-UTF-8 with LF breaks; the default name is `MD5SUMS`, `SHA1SUMS`, `SHA256SUMS`
+UTF-8 with LF breaks through `SafeSave`, as a document save does: a held lock
+file is refused, and a failed write leaves an existing list whole unless
+`SafeSave` writes it in place (a hard-linked list, a folder that is not
+writable). A target under a folder a Workspace Browser rename holds
+(`DocumentsUnder.holds`) is refused with a notice. The default name is `MD5SUMS`, `SHA1SUMS`, `SHA256SUMS`
 or `SHA512SUMS`. A file that cannot be read gets no line; the status line
 counts it and names the first.
 
@@ -67,8 +70,8 @@ bad line, then the totals.
 |---|---|
 | OK | The digest matches |
 | FAILED | The digest differs |
-| MISSING | No file at the name, a broken link included |
-| unreadable | The file exists and the read failed (a folder, access denied), the name is not a valid path here, or the algorithm is unavailable |
+| MISSING | The open reports no file at the name (`NoSuchFileException`), a broken link included |
+| unreadable | Any other open or read failure (a folder, access denied, a folder on the way without search permission), the name is not a valid path here, or the algorithm is unavailable |
 
 A list written on Windows with backslash separators resolves on Linux and
 macOS as one name holding backslashes, so its entries report MISSING.

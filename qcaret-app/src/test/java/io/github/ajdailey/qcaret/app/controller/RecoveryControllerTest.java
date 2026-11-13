@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryTexts;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.RecoveryRow;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import java.io.IOException;
@@ -29,6 +30,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -153,6 +158,103 @@ class RecoveryControllerTest {
     harness.application.documents().save();
     awaitFiles(harness, 0);
     assertEquals("mock alpha\n", Files.readString(a));
+  }
+
+  /** A controller in the harness's window set over its own settings directory, on a clock. */
+  private static RecoveryController controller(
+      Harness harness, Path directory, int keepDays, Clock clock) {
+    return new RecoveryController(
+        harness.application.windowSet(),
+        harness.workers,
+        harness.ui,
+        new MemoryBudget(1L << 30, 60),
+        directory,
+        30,
+        keepDays,
+        clock);
+  }
+
+  /** Leaves one recovery file under a directory, as an instance that ended with a dirty buffer. */
+  private static void endDirty(Harness harness, Path directory, Clock clock) {
+    RecoveryController dead = controller(harness, directory, 7, clock);
+    dead.open();
+    harness.application.documents().newDocument();
+    edit(harness, "mock");
+    dead.quitting(harness.application.windowSet().dirtyBuffers());
+    dead.finish();
+  }
+
+  /** Starts a controller and waits until its offer ended or showed the dialog. */
+  private static void offer(final Harness harness, final RecoveryController next)
+      throws InterruptedException {
+    harness.view.recovery = null;
+    next.open();
+    next.start();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return next.idle();
+          }
+        },
+        "the claim");
+    harness.ui.runPending();
+  }
+
+  private static void close(RecoveryController controller) {
+    controller.quitting(List.of());
+    controller.finish();
+  }
+
+  @Test
+  void anInstanceOpenedInTheSameClockTickOffersTheDeadInstancesBuffer() throws Exception {
+    Harness harness = new Harness(temp);
+    open.add(harness);
+    Path directory = Files.createDirectories(temp.resolve("tick"));
+    Clock tick = Clock.fixed(Instant.now(), ZoneOffset.UTC);
+    endDirty(harness, directory, tick);
+    RecoveryController next = controller(harness, directory, 7, tick);
+    offer(harness, next);
+    assertNotNull(harness.view.recovery);
+    assertEquals(1, harness.view.recovery.rows().size());
+    next.later();
+    close(next);
+  }
+
+  @Test
+  void theStartPrunesExactlyTheFilesOlderThanKeepDaysByItsClock() throws Exception {
+    Harness harness = new Harness(temp);
+    open.add(harness);
+    Path directory = Files.createDirectories(temp.resolve("days"));
+    endDirty(harness, directory, Clock.systemUTC());
+    List<Path> files = new ArrayList<Path>();
+    try (DirectoryStream<Path> runs =
+        Files.newDirectoryStream(directory.resolve(RecoveryStore.DIRECTORY))) {
+      for (Path run : runs) {
+        try (DirectoryStream<Path> found = Files.newDirectoryStream(run, "*.qcr")) {
+          for (Path file : found) {
+            files.add(file);
+          }
+        }
+      }
+    }
+    assertEquals(1, files.size());
+    Instant limit = Files.getLastModifiedTime(files.get(0)).toInstant().plus(Duration.ofDays(7));
+
+    RecoveryController kept =
+        controller(harness, directory, 7, Clock.fixed(limit.minusSeconds(1), ZoneOffset.UTC));
+    offer(harness, kept);
+    assertNotNull(harness.view.recovery);
+    kept.later();
+    close(kept);
+    assertTrue(Files.exists(files.get(0)));
+
+    RecoveryController pruned =
+        controller(harness, directory, 7, Clock.fixed(limit.plusSeconds(1), ZoneOffset.UTC));
+    offer(harness, pruned);
+    assertNull(harness.view.recovery);
+    close(pruned);
+    assertFalse(Files.exists(files.get(0)));
   }
 
   @Test

@@ -12,9 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 
@@ -37,8 +35,14 @@ final class FileChecksums extends ChecksumRun<FileChecksums.Request> {
    */
   record Request(ChecksumAlgorithm algorithm, List<Path> files, List<String> names) {}
 
-  FileChecksums(ChecksumAlgorithm algorithm, Workers workers, UiDispatcher ui, MainView view) {
-    super(workers, ui, view);
+  FileChecksums(
+      ChecksumAlgorithm algorithm,
+      Workers workers,
+      UiDispatcher ui,
+      MainView view,
+      DocumentsUnder under,
+      RunningWrites writes) {
+    super(workers, ui, view, under, writes);
     this.algorithm = algorithm;
   }
 
@@ -84,30 +88,15 @@ final class FileChecksums extends ChecksumRun<FileChecksums.Request> {
   }
 
   /**
-   * Returns each file's name in the list. Where every file name is unique, the name is the file
-   * name. Otherwise each name is the path below the files' common folder, its elements joined by
-   * {@code /} on every platform; files with no common folder (two Windows drives) keep the root and
-   * every element.
+   * Returns each file's name in the list: the path below the files' common folder, which Save As
+   * offers, its elements joined by {@code /} on every platform. Files in one folder get their file
+   * names. Files with no common folder (two Windows drives) keep the root and every element.
    *
    * @param elements each file's root, then its name elements, as absolute paths
    * @return the names, in order
    */
   static List<String> names(List<List<String>> elements) {
-    Map<String, Integer> counts = new HashMap<String, Integer>();
-    for (List<String> file : elements) {
-      counts.merge(file.get(file.size() - 1), 1, Integer::sum);
-    }
-    boolean repeats = false;
-    for (int count : counts.values()) {
-      repeats |= count > 1;
-    }
     List<String> out = new ArrayList<String>(elements.size());
-    if (!repeats) {
-      for (List<String> file : elements) {
-        out.add(file.get(file.size() - 1));
-      }
-      return out;
-    }
     int common = commonPrefix(elements);
     for (List<String> file : elements) {
       String joined = String.join("/", file.subList(Math.max(common, 1), file.size()));

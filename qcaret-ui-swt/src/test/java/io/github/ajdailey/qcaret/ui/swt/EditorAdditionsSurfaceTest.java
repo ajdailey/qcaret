@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -35,8 +36,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
-import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
@@ -147,18 +146,7 @@ class EditorAdditionsSurfaceTest {
   /** Paints the widget into an image; null where Control.print fails (GTK 4, SWT issue 2819). */
   private ImageData print(StyledText text) {
     flush();
-    Image image = new Image(display, text.getSize().x, text.getSize().y);
-    GC gc = new GC(image);
-    try {
-      if (!text.print(gc)) {
-        return null;
-      }
-    } finally {
-      gc.dispose();
-    }
-    ImageData data = image.getImageData();
-    image.dispose();
-    return data;
+    return ControlPrint.of(display, text);
   }
 
   /** Counts the rows below the first line whose pixel at x has a color. */
@@ -202,6 +190,7 @@ class EditorAdditionsSurfaceTest {
     assertTrue(Math.abs(pane.rightMarginX() - glyph) <= 1, pane.rightMarginX() + " vs " + glyph);
     assertEquals(expectedX(pane, 150), pane.rightMarginX());
     data = print(text);
+    assertNotNull(data, "scrolled print");
     assertTrue(
         inked(data, pane.rightMarginX(), lineHeight, Palette.LIGHT.rightMargin()) > data.height / 2,
         "scrolled line");
@@ -229,6 +218,7 @@ class EditorAdditionsSurfaceTest {
     controller.execute(CommandId.THEME_DARK);
     flush();
     data = print(text);
+    assertNotNull(data, "dark print");
     if (pane.rightMarginX() < data.width) {
       assertTrue(
           inked(data, pane.rightMarginX(), lineHeight, Palette.DARK.rightMargin())

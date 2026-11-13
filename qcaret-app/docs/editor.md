@@ -223,10 +223,11 @@ time; the Preferences dialog refuses an invalid one, and an invalid one in
 ## Document statistics
 
 `StatisticsController` runs Tools > Document Statistics in a modeless dialog.
-It counts the selected document's text snapshot and its non-empty selections
-on a `qcaret-cpu-` worker, posting each new whole percent read; Refresh counts
-again and closing the dialog cancels the count through its token. A result
-for an older revision is dropped and the dialog says the document changed.
+It counts the selected document's text snapshot and its non-empty selections,
+in the encoding read with the snapshot on the UI thread, on a `qcaret-cpu-`
+worker, posting each new whole percent read; Refresh counts again and closing
+the dialog cancels the count through its token. A result for an older revision
+is dropped and the dialog says the document changed.
 
 `TextStatistics` defines the counts:
 

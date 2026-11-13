@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
@@ -200,9 +201,12 @@ class DocumentLifecycleTest {
     assertEquals("x notes\n", Files.readString(renamed));
   }
 
-  /** A window whose tab moves out during a rename holds nothing once the rename lands. */
+  /**
+   * A tab held by a rename does not move: the rename paused its file check in its window only. The
+   * window holds nothing once the rename lands.
+   */
   @Test
-  void aTabMovedOutDuringARenameLeavesNoHoldInTheWindowItLeft() throws Exception {
+  void aTabDoesNotMoveDuringARenameAndTheRenameLeavesNoHold() throws Exception {
     final Path notes = Files.writeString(root.resolve("notes.txt"), "notes\n");
     final WorkspaceController workspace = first.workspace();
     workspace.set(root);
@@ -239,7 +243,10 @@ class DocumentLifecycleTest {
     final Path renamed = root.resolve("notes.c");
     try {
       assertTrue(entered.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "rename started");
-      assertNotNull(windows.set.moveDocument(target, document, first, END), "the tab moves back");
+      assertNull(windows.set.moveDocument(target, document, first, END), "the tab moved back");
+      assertTrue(
+          windows.view(target).notices.contains(UiText.NOTICE_MOVE_BUSY.format("notes.txt")),
+          windows.view(target).notices.toString());
     } finally {
       release.countDown();
     }
@@ -247,7 +254,7 @@ class DocumentLifecycleTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return renamed.equals(first.documents().pathOf(document));
+            return renamed.equals(target.documents().pathOf(document));
           }
         },
         "the rename landed");

@@ -37,7 +37,8 @@ final class HelpController {
   private final SettingsLocation location;
   private Keymap keymap;
   private final BooleanSupplier closing;
-  private final WindowSet set;
+  private final BooleanSupplier newWarnings;
+  private final Runnable warningsSeen;
   private RecentLog recent;
   private LogFiles files = LogFiles.NONE;
 
@@ -50,7 +51,8 @@ final class HelpController {
    * @param location the settings directory
    * @param keymap the bindings Keyboard Shortcuts lists
    * @param closing true once the window is closing; results arriving later are dropped
-   * @param set holds which warnings Show Log has shown
+   * @param newWarnings true when a warning arrived after Show Log last opened
+   * @param warningsSeen records that Show Log shows every warning so far
    */
   HelpController(
       Workers workers,
@@ -59,14 +61,16 @@ final class HelpController {
       SettingsLocation location,
       Keymap keymap,
       BooleanSupplier closing,
-      WindowSet set) {
+      BooleanSupplier newWarnings,
+      Runnable warningsSeen) {
     this.workers = workers;
     this.ui = ui;
     this.view = view;
     this.location = location;
     this.keymap = keymap;
     this.closing = closing;
-    this.set = set;
+    this.newWarnings = newWarnings;
+    this.warningsSeen = warningsSeen;
   }
 
   /** Sets the bindings Keyboard Shortcuts lists. */
@@ -91,7 +95,7 @@ final class HelpController {
    * @return true when the marker shows
    */
   boolean newWarnings() {
-    return set.newWarnings();
+    return newWarnings.getAsBoolean();
   }
 
   /**
@@ -116,7 +120,7 @@ final class HelpController {
   /** Shows the recent log lines and clears the warning marker. */
   void showLog() {
     List<String> lines = recent == null ? List.of() : recent.snapshot();
-    set.warningsSeen();
+    warningsSeen.run();
     view.showLog(
         lines.isEmpty()
             ? UiText.SHOW_LOG_EMPTY.text()

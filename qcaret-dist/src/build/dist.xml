@@ -35,9 +35,10 @@
        unused), java.logging, java.naming and java.xml; jdk.zipfs serves the bootstrap's
        nested-jar loader; jdk.charsets holds the legacy encodings (Big5, EUC-JP,
        EUC-KR, GBK, Shift_JIS, windows-31j and more) that java.base lacks on
-       Windows and macOS. -->
+       Windows and macOS; jdk.localedata holds the date and number formats of
+       every locale but English. -->
   <property name="modules"
-      value="java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.unsupported,jdk.zipfs"/>
+      value="java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs"/>
 
   <!-- Every jar and zip entry carries project.build.outputTimestamp. Ant
        writes zip entry times in the host time zone, so archive.time is that

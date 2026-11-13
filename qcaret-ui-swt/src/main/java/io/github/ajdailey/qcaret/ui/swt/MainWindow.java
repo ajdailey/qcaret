@@ -182,6 +182,12 @@ public final class MainWindow implements MainView {
   private final ToolIcons toolIcons;
   private final MenuIcons menuIcons;
   private final SwtUiDispatcher dispatcher;
+
+  /**
+   * Disposes a closed tab's widgets after the close; GTK widget teardown dominates a bulk close.
+   */
+  private final DeferredDisposal closedTabs;
+
   private final Composite statusBar;
   private ProgressRow printBar;
   private Supplier<PrinterData> printerChooser;
@@ -483,11 +489,9 @@ public final class MainWindow implements MainView {
         }
       }
       for (EditorPane p : panes) {
-        p.dispose();
+        p.release();
       }
-      if (!sash.isDisposed()) {
-        sash.dispose();
-      }
+      closedTabs.dispose(sash);
       CTabItem next = tabs.getSelection();
       if (next != null && next.getData() instanceof Tab shown) {
         shown.pane.focus();
@@ -554,6 +558,7 @@ public final class MainWindow implements MainView {
   public MainWindow(Display display, Palette palette) {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
+    this.closedTabs = new DeferredDisposal(dispatcher);
     shell = new Shell(display, SWT.SHELL_TRIM);
     shell.setData(WINDOW, this);
     shell.setText(UiText.WINDOW_TITLE.text());

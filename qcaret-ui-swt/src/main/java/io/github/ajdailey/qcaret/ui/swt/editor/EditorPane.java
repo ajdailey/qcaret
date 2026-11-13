@@ -442,7 +442,8 @@ public final class EditorPane implements EditorView {
 
   /**
    * Changes the font in place: the widget keeps its content, caret and scroll position, and the
-   * gutter and wrap width follow the new advance. Costs O(rows) in the widget.
+   * gutter and wrap width follow the new advance. A shown completion list takes the font and moves
+   * under the caret, so the caller can dispose the old font. Costs O(rows) in the widget.
    *
    * @param next the font, owned by the caller
    */
@@ -454,6 +455,9 @@ public final class EditorPane implements EditorView {
     text.setFont(next);
     measure();
     text.redraw();
+    if (completion.visible()) {
+      showCompletions(completion.words(), completion.selected());
+    }
   }
 
   /**
@@ -611,14 +615,22 @@ public final class EditorPane implements EditorView {
 
   /** Disposes the widget and the caret image and stops following the model. */
   public void dispose() {
+    release();
+    if (!frame.isDisposed()) {
+      frame.dispose();
+    }
+  }
+
+  /**
+   * Stops following the model and leaves the widget to its parent's dispose. The widget's text
+   * stops following the document, so the caller keeps the widget hidden until it is disposed.
+   */
+  public void release() {
     selections.removeListener(modelListener);
     if (bookmarks != null) {
       bookmarks.removeListener(bookmarksChanged);
     }
     content.dispose();
-    if (!frame.isDisposed()) {
-      frame.dispose();
-    }
   }
 
   @Override
@@ -1487,6 +1499,15 @@ public final class EditorPane implements EditorView {
    */
   public List<String> completionWords() {
     return completion.words();
+  }
+
+  /**
+   * Returns the font the completion list draws with.
+   *
+   * @return the font, or null while the list is hidden
+   */
+  public Font completionFont() {
+    return completion.font();
   }
 
   /**

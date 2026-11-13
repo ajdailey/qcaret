@@ -3,9 +3,12 @@ package io.github.ajdailey.qcaret.ui.swt;
 import java.time.Duration;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Monitor;
 
 /** Drives an SWT event loop in tests until a condition holds, with no fixed sleep. */
 public final class EventLoop {
+  private static boolean screenLogged;
+
   private EventLoop() {}
 
   /**
@@ -18,6 +21,7 @@ public final class EventLoop {
    * @return true when the condition held
    */
   public static boolean runUntil(final Display display, BooleanSupplier condition, Duration bound) {
+    logScreen(display);
     long deadline = System.nanoTime() + bound.toNanos();
     final boolean[] stop = new boolean[1];
     Runnable wake =
@@ -42,6 +46,25 @@ public final class EventLoop {
       return true;
     } finally {
       stop[0] = true;
+    }
+  }
+
+  /**
+   * Prints the primary monitor's bounds and client area once per test JVM, so a run's log shows the
+   * screen its size-dependent tests had.
+   */
+  private static void logScreen(Display display) {
+    if (screenLogged) {
+      return;
+    }
+    screenLogged = true;
+    Monitor primary = display.getPrimaryMonitor();
+    if (primary != null) {
+      System.out.println(
+          "Screen: primary monitor "
+              + primary.getBounds()
+              + ", client area "
+              + primary.getClientArea());
     }
   }
 }

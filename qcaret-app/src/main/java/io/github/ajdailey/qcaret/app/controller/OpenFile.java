@@ -6,6 +6,8 @@ import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -140,11 +142,43 @@ final class OpenFile {
     return clean;
   }
 
+  /** Work that holds this file until it ends. */
+  enum Work {
+    /** A save, Save As or save cleanup: {@link #saving}. */
+    SAVE,
+    /** A Save a Copy As: {@link #copying}. */
+    COPY,
+    /** A reload: {@link #reloading}. */
+    RELOAD,
+    /** A change or Reload from Disk prompt: {@link #changePrompt}. */
+    CHANGE_PROMPT,
+    /** A workspace browser rename: {@link #renaming}. */
+    RENAME
+  }
+
   /**
-   * Reports whether a save, a Save a Copy As, a reload or a change prompt holds this file; a tab
-   * move and a workspace Rename or Delete refuse while it does.
+   * Returns the work in flight on this file. A tab move and a workspace Rename or Delete refuse
+   * while any is.
+   *
+   * @return the work, empty when none runs
    */
-  boolean running() {
-    return saving != null || copying != null || reloading != null || changePrompt;
+  Set<Work> inFlight() {
+    Set<Work> work = EnumSet.noneOf(Work.class);
+    if (saving != null) {
+      work.add(Work.SAVE);
+    }
+    if (copying != null) {
+      work.add(Work.COPY);
+    }
+    if (reloading != null) {
+      work.add(Work.RELOAD);
+    }
+    if (changePrompt) {
+      work.add(Work.CHANGE_PROMPT);
+    }
+    if (renaming) {
+      work.add(Work.RENAME);
+    }
+    return work;
   }
 }

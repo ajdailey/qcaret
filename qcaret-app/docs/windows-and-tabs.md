@@ -69,7 +69,9 @@ restore it waits for the restore's end. Otherwise `QuitPrompts` runs:
    chooser, a declined replace prompt, Reload or Cancel at the save conflict
    prompt) stops the quit with that tab selected: the windows stay open, and
    documents already saved stay saved. Compare leaves that prompt open, and the
-   quit waits for its next answer.
+   quit waits for its next answer. A document closed before its save ends (a
+   tab close, or a window close's save that ran past this save's cancel)
+   counts as saved.
 3. Waits for every running Save a Copy As, in any window or of a closed tab,
    then reads the documents again. A failed copy stops the quit. After
    `RunningCopies.BOUND` (30 s) a prompt names each copy still running: Quit goes on,
@@ -80,7 +82,8 @@ restore it waits for the restore's end. Otherwise `QuitPrompts` runs:
 Cancel at any prompt selects those tabs again, raises the window that was in
 front and leaves every document as it was. Until a step closes it, a dirty
 buffer keeps its recovery file. A second Quit or a window close during the run
-does nothing.
+does nothing; `requestClose` checks `quitRunning`, so the same holds during a
+snapshot write.
 
 A window's close button runs `requestClose`, which asks about that window's
 documents and closes it alone; the last window quits instead, and a further
@@ -121,6 +124,11 @@ during a tab move, and the controller selects the next tab after the dispose.
 Without that, `CTabFolder`'s own choice (the item before, or in MRU mode the one
 selected last) activates first and wins. `TabList` turns MRU mode on only
 within one strip repair or scroll.
+
+A closed tab's panes stop following their models at the close
+(`EditorPane.release`), and `DeferredDisposal` hides the tab's widgets and
+disposes them in later UI tasks of at most 20 ms each, so a bulk close's
+widget teardown, most of its cost on GTK, stays out of the command's UI task.
 
 Close All, Close Others and Close to the Left or Right close the shown tab last
 while it is clean (`TabUse.nextToClose`), and show the kept tab before closing
@@ -165,10 +173,11 @@ save and reload. A late result of the source's entry compares its token and
 move leaves the target's state alone. `discard` and `moveTo` take the entry out
 through one `detach`. A window left without a tab stays open, empty.
 
-The move is refused with a notice while the tab's save, Save a Copy As,
-conversion or reload runs, or its change prompt shows, because each delivers to
-the source's window;
-and when the target holds the same file. Nothing moves while quitting.
+The move is refused with a notice while any `OpenFile.Work` is in flight on the
+tab's file (save, Save a Copy As, reload, change prompt, workspace rename) or
+its conversion runs: each delivers to the source's window, and a rename's
+pause of the file check holds only there. It is also refused when the target
+holds the same file. Nothing moves while quitting.
 `addMoveListener` runs once per move; `SessionController.changed` is one
 listener.
 

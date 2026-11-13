@@ -325,9 +325,26 @@ class EditingSurfaceTest {
     screenshot("block-selection");
     drain();
     assertEquals(new BlockSelection(0, 150, 6, 156), editor().selections().block());
-    ImageData scrolled = print(text);
-    int x = text.getLocationAtOffset(150).x + metrics.x(3);
-    assertEquals(selection, scrolled.palette.getRGB(scrolled.getPixel(x, shortRow + half)));
+    // On win32 the first print after the resize and scroll can paint the block a few pixels from
+    // where the widget then reports column 150 (4 px, measured on both Windows runners); poll.
+    final StyledText shown = text;
+    final RGB inBlock = selection;
+    final int y = shortRow + half;
+    final int inside3 = metrics.x(3);
+    final RGB[] seen = new RGB[1];
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            ImageData scrolled = print(shown);
+            int x = shown.getLocationAtOffset(150).x + inside3;
+            seen[0] = scrolled.palette.getRGB(scrolled.getPixel(x, y));
+            return inBlock.equals(seen[0]);
+          }
+        },
+        BOUND);
+    assertEquals(selection, seen[0]);
   }
 
   /**

@@ -47,8 +47,11 @@ Every key binding is listed under Help > Keyboard Shortcuts.
 Build with JDK 21 and the Maven wrapper:
 
 ```sh
-xvfb-run -a ./mvnw clean verify
+xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw clean verify
 ```
+
+CI runs the GUI tests on a 1280x1024 screen; `qcaret-ui-swt/TESTING.md` names
+the ones a 640x480 screen fails.
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
 rules and every test, and builds the universal jar and the bundle for the build

@@ -145,18 +145,20 @@ class ChecksumToolsTest {
   }
 
   /**
-   * Windows-shaped elements (a drive root token and a short folder name): repeated names are the
-   * path below the common folder joined with {@code /}; unique names stay bare; two drives keep the
-   * root.
+   * Windows-shaped elements (a drive root token and a short folder name): names are the path below
+   * the common folder joined with {@code /}; files in one folder keep their file names; two drives
+   * keep the root.
    */
   @Test
-  void repeatedNamesAreRelativeToTheCommonFolder() {
+  void namesAreRelativeToTheCommonFolder() {
     List<String> a = List.of("C:", "Users", "RUNNER~1", "a", "x.txt");
     List<String> b = List.of("C:", "Users", "RUNNER~1", "b", "x.txt");
     List<String> c = List.of("C:", "Users", "RUNNER~1", "c.bin");
     List<String> deep = List.of("C:", "Users", "RUNNER~1", "a", "d", "c.bin");
+    List<String> y = List.of("C:", "Users", "RUNNER~1", "a", "y.txt");
     assertEquals(List.of("a/x.txt", "b/x.txt", "c.bin"), FileChecksums.names(List.of(a, b, c)));
-    assertEquals(List.of("x.txt", "c.bin"), FileChecksums.names(List.of(a, c)));
+    assertEquals(List.of("a/x.txt", "c.bin"), FileChecksums.names(List.of(a, c)));
+    assertEquals(List.of("x.txt", "y.txt"), FileChecksums.names(List.of(a, y)));
     assertEquals(List.of("c.bin", "a/d/c.bin"), FileChecksums.names(List.of(c, deep)));
     List<String> other = List.of("D:", "a", "x.txt");
     assertEquals(

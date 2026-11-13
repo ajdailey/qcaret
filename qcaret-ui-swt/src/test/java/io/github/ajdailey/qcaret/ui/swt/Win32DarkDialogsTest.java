@@ -78,6 +78,9 @@ import org.junit.jupiter.api.io.TempDir;
 class Win32DarkDialogsTest {
   private static final Duration BOUND = Duration.ofSeconds(10);
 
+  /** Longest wait for a control that reads wrong to read right. */
+  private static final Duration RETRY = Duration.ofSeconds(2);
+
   /** Pixels cut from each edge of a control before reading it, past the border. */
   private static final int INSET = 3;
 
@@ -248,15 +251,31 @@ class Win32DarkDialogsTest {
    * Checks that a control draws on a ground of the dialog's side and, when its text must read, that
    * its strongest ink reaches the text contrast.
    */
-  private void check(String label, Control control, boolean text, java.util.List<String> bad) {
-    Reading reading = measure(label, control);
-    if (reading == null) {
-      return;
+  private void check(
+      final String label, final Control control, final boolean text, java.util.List<String> bad) {
+    final Reading[] reading = {measure(label, control)};
+    if (reading[0] != null && !reads(reading[0], text)) {
+      // The screen can show a newly opened page's first frame for a moment: read again.
+      EventLoop.runUntil(
+          display,
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              reading[0] = measure(label, control);
+              return reading[0] == null || reads(reading[0], text);
+            }
+          },
+          RETRY);
     }
-    if (ToolIcons.dark(new Color(reading.ground())) != dark
-        || (text && reading.contrast() < TEXT_CONTRAST)) {
+    if (reading[0] != null && !reads(reading[0], text)) {
       bad.add(label);
     }
+  }
+
+  /** Reports whether a reading has the dialog's side for a ground and, for text, its contrast. */
+  private boolean reads(Reading reading, boolean text) {
+    return ToolIcons.dark(new Color(reading.ground())) == dark
+        && (!text || reading.contrast() >= TEXT_CONTRAST);
   }
 
   private void dialogs(ThemeMode mode, String name) {

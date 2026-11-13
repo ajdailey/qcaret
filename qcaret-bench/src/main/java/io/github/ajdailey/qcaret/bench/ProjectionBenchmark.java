@@ -78,19 +78,25 @@ public class ProjectionBenchmark {
     }
   }
 
-  /** A document, its projection, and a line away from any collapsed region. */
+  /**
+   * A document, its projection, and a line away from any collapsed region; {@code divisor} divides
+   * the shape's chars and lines.
+   */
   static final class Projected {
     final Document document;
     final DisplayProjection projection;
     final int columns;
     final int editOffset;
+    final int lines;
 
-    Projected(Shape shape) {
+    Projected(Shape shape, int divisor) {
       columns = shape.columns;
+      lines = LINE_COUNT / divisor;
       Corpus corpus = shape.oneLine() ? Corpus.LONGLINE : Corpus.ASCII;
+      int chars = shape.oneLine() ? shape.chars / divisor : lines * 80 - 1;
       document =
           Document.of(
-              corpus.generate(shape.chars, Workloads.SEED),
+              corpus.generate(chars, Workloads.SEED),
               TextEncoding.of(StandardCharsets.UTF_8, false),
               LineEnding.LF,
               UndoLimits.DEFAULTS);
@@ -103,15 +109,13 @@ public class ProjectionBenchmark {
         projection.foldAll();
       }
       editOffset =
-          shape.oneLine()
-              ? shape.chars / 2
-              : document.text().offsetOfLine(LINE_COUNT / 2 + REGION_LINES - 1);
+          shape.oneLine() ? chars / 2 : document.text().offsetOfLine(lines / 2 + REGION_LINES - 1);
     }
 
     /** Offers a region of the first nine lines of every {@value #REGION_LINES}. */
     void offerRegions() {
-      List<int[]> regions = new ArrayList<int[]>(LINE_COUNT / REGION_LINES);
-      for (int line = 0; line + REGION_LINES < LINE_COUNT; line += REGION_LINES) {
+      List<int[]> regions = new ArrayList<int[]>(lines / REGION_LINES);
+      for (int line = 0; line + REGION_LINES < lines; line += REGION_LINES) {
         regions.add(new int[] {line, line + REGION_LINES - 2});
       }
       projection.setFoldRegions(regions);
@@ -129,12 +133,15 @@ public class ProjectionBenchmark {
     @Param({"LINES", "LINES_WRAP", "LONGLINE", "LONGLINE_WRAP"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
 
     /** Generates the document. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
     }
 
     /** Stops following the document. */
@@ -151,13 +158,16 @@ public class ProjectionBenchmark {
     @Param({"LINES_WRAP", "LONGLINE_WRAP"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
     int columns;
 
     /** Generates the document. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
       columns = NARROW;
     }
 
@@ -175,17 +185,20 @@ public class ProjectionBenchmark {
     @Param({"LINES", "LINES_FOLDS"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
     int line;
 
     /** Generates the document and expands the region folded. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
       if (shape == Shape.LINES) {
         projected.offerRegions();
       }
-      line = LINE_COUNT / 2;
+      line = projected.lines / 2;
       projected.projection.unfold(line);
     }
 
@@ -199,12 +212,15 @@ public class ProjectionBenchmark {
   /** Offered regions, none collapsed between runs. */
   @State(Scope.Benchmark)
   public static class Expanded {
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
 
     /** Generates the document. */
     @Setup
     public void open() {
-      projected = new Projected(Shape.LINES);
+      projected = new Projected(Shape.LINES, divisor);
       projected.offerRegions();
     }
 
@@ -222,6 +238,9 @@ public class ProjectionBenchmark {
     @Param({"LINES", "LINES_WRAP", "LINES_FOLDS", "LONGLINE_WRAP"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
     int[] model = new int[LOOKUPS];
     int[] display = new int[LOOKUPS];
@@ -229,7 +248,7 @@ public class ProjectionBenchmark {
     /** Generates the document and draws the offsets. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
       SplittableRandom random = new SplittableRandom(Workloads.SEED);
       for (int i = 0; i < LOOKUPS; i++) {
         model[i] = random.nextInt(projected.projection.modelLength() + 1);
@@ -251,12 +270,15 @@ public class ProjectionBenchmark {
     @Param({"LINES", "LINES_WRAP", "LINES_FOLDS", "LONGLINE", "LONGLINE_WRAP"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
 
     /** Generates the document. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
     }
 
     /** Stops following the document. */
@@ -273,12 +295,15 @@ public class ProjectionBenchmark {
     @Param({"LINES_WRAP", "LINES_FOLDS"})
     public Shape shape;
 
+    /** Divides the shape's chars and lines. */
+    int divisor = 1;
+
     Projected projected;
 
     /** Generates the document. */
     @Setup
     public void open() {
-      projected = new Projected(shape);
+      projected = new Projected(shape, divisor);
     }
 
     /** Stops following the document. */

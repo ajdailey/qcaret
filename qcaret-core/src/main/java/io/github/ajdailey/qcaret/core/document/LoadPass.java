@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.document;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.io.Digests;
+import io.github.ajdailey.qcaret.core.io.Encoders;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -158,15 +159,10 @@ final class LoadPass {
   }
 
   private void startEncoder(int block) {
-    if (!encoding.charset().canEncode()) {
+    if (!Encoders.writable(encoding.charset())) {
       return;
     }
-    encoder =
-        encoding
-            .charset()
-            .newEncoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
+    encoder = Encoders.reporting(encoding.charset());
     encoded = ByteBuffer.allocate(Math.max(block, MIN_ENCODED_BYTES));
     unmatched = ByteBuffer.allocate(2 * block + MIN_ENCODED_BYTES);
     unmatched.flip();

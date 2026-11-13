@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
@@ -17,6 +18,7 @@ import io.github.ajdailey.qcaret.app.session.SessionStore;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
@@ -212,6 +214,34 @@ class SaveCopyTest {
         "saved");
     harness.awaitIdle("save");
     assertEquals("mine one\n", Files.readString(a));
+  }
+
+  /** A hard link names the document's file under another path: Save runs, not a copy. */
+  @Test
+  void aHardLinkOfTheDocumentsFileRunsSave() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    Path link = dir.resolve("link.txt");
+    try {
+      Files.createLink(link, a);
+    } catch (UnsupportedOperationException | IOException e) {
+      assumeTrue(false, "no hard links here: " + e);
+    }
+    harness.open(a);
+    documents().activeEditor().type("mine ");
+    final Document document = documents().activeDocument();
+    harness.application.execute(CommandId.SAVE_COPY_AS);
+    harness.view.saveChooser.accept(link);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !document.isDirty();
+          }
+        },
+        "saved");
+    harness.awaitIdle("save");
+    assertEquals("mine one\n", Files.readString(a));
+    assertEquals(a, documents().activePath());
   }
 
   @Test

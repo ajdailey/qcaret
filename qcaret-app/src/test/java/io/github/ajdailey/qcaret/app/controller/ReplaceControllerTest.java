@@ -5,19 +5,26 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.search.HyperSearch;
 import io.github.ajdailey.qcaret.app.view.PreviewLine;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -232,6 +239,39 @@ class ReplaceControllerTest {
     } finally {
       readOnly(locked, false);
     }
+  }
+
+  @Test
+  void restoreReplaceRunPrunesExactlyTheRunsOlderThanTheBackupDaysByItsClock() throws Exception {
+    Path root = temp.resolve("runs");
+    Instant now = Instant.parse("2026-11-05T10:00:00Z");
+    Duration days = Duration.ofDays(ReplaceBackups.DEFAULT_DAYS);
+    ReplaceBackups.start(root, now.minus(days).minus(Duration.ofHours(1)));
+    ReplaceBackups kept = ReplaceBackups.start(root, now.minus(days).plus(Duration.ofHours(1)));
+    ReplaceController fixed =
+        new ReplaceController(
+            harness.application.documents(),
+            harness.workers,
+            harness.ui,
+            harness.view,
+            new MemoryBudget(1L << 30, 60),
+            HyperSearch.Limits.DEFAULTS,
+            root,
+            ReplaceBackups.DEFAULT_DAYS,
+            Clock.fixed(now, ZoneOffset.UTC));
+    fixed.chooseRun();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.runChooser != null;
+          }
+        },
+        "runs listed");
+    assertEquals(1, harness.view.runChoices.size());
+    List<ReplaceBackups.Run> left = ReplaceBackups.list(root);
+    assertEquals(1, left.size());
+    assertEquals(kept.id(), left.get(0).id());
   }
 
   @Test

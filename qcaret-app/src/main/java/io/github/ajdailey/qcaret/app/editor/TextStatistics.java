@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.io.Encoders;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -133,7 +134,7 @@ public record TextStatistics(long lines, long words, long chars, long nonSpaceCh
      */
     public Counter(Charset charset) {
       encoder =
-          charset.canEncode()
+          Encoders.writable(charset)
               ? charset
                   .newEncoder()
                   .onMalformedInput(CodingErrorAction.REPLACE)

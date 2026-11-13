@@ -194,7 +194,8 @@ The completion list (`CompletionPopup`) is a shell that takes no focus, below
 the primary caret, created on show and disposed on hide; the editor keeps the
 keys, which the controller routes to the list. A double click chooses a word.
 When the editor loses focus to another control, the list closes on the next UI
-turn.
+turn. `EditorPane.setFont` shows a shown list again in the new font before the
+window disposes the old one.
 
 ## Overview strip and scroll bar
 

@@ -130,9 +130,12 @@ indentation the file declares replaces the remembered and session tab settings
 streamed in chunks. A text with an unpaired surrogate goes as UTF-16BE, one
 char at a time, because the JDK's coders replace such a char.
 
-`RecoveryStore` holds `<settings>/recovery/<instance>/`. `owner.lock`, held
-through a `ProcessLock`, decides liveness; `claimDead` gets null for this
-process's own directory. `claimDead` locks each dead directory until its claim
+`RecoveryStore` holds `<settings>/recovery/<instance>/`, where `<instance>` is
+the process id, the start time in milliseconds and a count of the instance
+directories the process opened. `owner.lock`, held through a `ProcessLock`,
+decides liveness; `claimDead` gets null for this process's own directory, so two
+window sets of one JVM (tests) opening in one clock tick would skip each other's
+buffers without the count. `claimDead` locks each dead directory until its claim
 closes, so two starts cannot list one buffer. On a JDK without `flock`, `open`
 fails and recovery files are off. While the lock is held, `SafePaths.holdLock`
 makes every open and save of that `owner.lock` fail with

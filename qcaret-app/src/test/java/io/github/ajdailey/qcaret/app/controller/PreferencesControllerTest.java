@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
@@ -17,6 +18,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -122,6 +124,38 @@ class PreferencesControllerTest {
         field.equals("editorColors") ? value : f.editorColors(),
         false,
         false);
+  }
+
+  @Test
+  void theDialogLoadsChoicesAndRereadsTheThemeFileThroughItsLoaders() {
+    final int[] loads = new int[2];
+    PreferencesController preferences =
+        new PreferencesController(
+            harness.application.settings(),
+            harness.view,
+            Keymap.defaults(false),
+            new Consumer<Consumer<SessionRewrite.Result>>() {
+              @Override
+              public void accept(Consumer<SessionRewrite.Result> done) {
+                // Not cleared here.
+              }
+            },
+            new Consumer<Consumer<AppearanceChoices>>() {
+              @Override
+              public void accept(Consumer<AppearanceChoices> done) {
+                loads[0]++;
+              }
+            },
+            new Runnable() {
+              @Override
+              public void run() {
+                loads[1]++;
+              }
+            });
+    preferences.loadChoices(null);
+    assertNull(preferences.apply(preferences.form()));
+    assertEquals(1, loads[0]);
+    assertEquals(1, loads[1]);
   }
 
   @Test

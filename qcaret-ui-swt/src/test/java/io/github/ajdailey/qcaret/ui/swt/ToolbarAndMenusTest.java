@@ -335,7 +335,9 @@ class ToolbarAndMenusTest {
   /** Items for Undo, Cut and Copy stay disabled here: their keys are not accelerators. */
   @Test
   void editKeysWorkInEveryFocusWhateverTheItemsShow() throws Exception {
-    assumeTrue("gtk".equals(SWT.getPlatform()) && !"1".equals(System.getenv("SWT_GTK4")));
+    assumeTrue(
+        "gtk".equals(SWT.getPlatform()) && !"1".equals(System.getenv("SWT_GTK4")),
+        "keys posted through Display.post: GTK 3 only");
     openFile("keys.txt", "alpha\n");
     final StyledText text = window.activeText();
     window.shell().forceActive();
@@ -429,7 +431,7 @@ class ToolbarAndMenusTest {
 
   @Test
   void aThemeSwitchReinksFromTheDrawnBackgroundAndFadesDisabledButtons() {
-    assumeTrue("gtk".equals(SWT.getPlatform()));
+    assumeTrue("gtk".equals(SWT.getPlatform()), "a theme switch re-inks on GTK only");
     final ToolIcons icons = window.toolIcons();
     assertFalse(icons.darkBackground());
     assertSame(icons.get(ToolIcons.SAVE), button(CommandId.SAVE).getImage());
@@ -505,7 +507,7 @@ class ToolbarAndMenusTest {
 
   @Test
   void aThemeSwitchReinksMenuItemsBothWaysAndFadesDisabledOnes() {
-    assumeTrue("gtk".equals(SWT.getPlatform()) && !gtk4());
+    assumeTrue("gtk".equals(SWT.getPlatform()) && !gtk4(), "menu images: GTK 3 only");
     final ToolIcons icons = window.menuIcons().icons();
     assertFalse(icons.darkBackground());
     Image light = item(CommandId.NEW).getImage();

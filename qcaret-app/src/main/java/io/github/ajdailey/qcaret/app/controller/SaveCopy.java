@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -26,9 +27,9 @@ import java.util.function.Consumer;
  * {@link DocumentFiles#save} on a {@code qcaret-io-} worker. The copy takes the document's
  * encoding, BOM and line breaks, and the save cleanup its declared settings ask for, applied to the
  * copy only. The document keeps its path, dirty state, undo history and file check. A target whose
- * real path is the document's file runs Save instead. Only Esc cancels the write ({@link #cancel}).
- * A close and Don't Save let it finish, and its result shows in a live window; a quit waits for it
- * ({@link RunningCopies}). Confined to the UI thread.
+ * real path is the document's file, or a hard link of it, runs Save instead. Only Esc cancels the
+ * write ({@link #cancel}). A close and Don't Save let it finish, and its result shows in a live
+ * window; a quit waits for it ({@link RunningCopies}). Confined to the UI thread.
  */
 final class SaveCopy {
   /** What a copy reaches of its window and the other windows. */
@@ -50,6 +51,9 @@ final class SaveCopy {
 
     /** Returns the copies running in every window, or null for a window outside a set. */
     RunningCopies copies();
+
+    /** Returns the targets of the writes running in every window. */
+    RunningWrites writes();
   }
 
   private final Workers workers;
@@ -106,14 +110,15 @@ final class SaveCopy {
     return false;
   }
 
-  /** Resolves the target's real path on a worker. */
+  /** Resolves the target's real path on a worker; the document's path for the same file. */
   private void resolve(final OpenDocument d, final Path target) {
+    final Path own = d.file.path;
     workers.tryStart(
         Workers.Kind.IO,
         new Runnable() {
           @Override
           public void run() {
-            final Path real = SaveAndReload.realFile(target);
+            final Path real = sameFile(target, own) ? own : SaveAndReload.realFile(target);
             ui.asyncExec(
                 new Runnable() {
                   @Override
@@ -178,8 +183,24 @@ final class SaveCopy {
     if (!started) {
       d.file.copying = null;
       view.setIdle();
-    } else if (window.copies() != null) {
+      return;
+    }
+    window.writes().started(target);
+    if (window.copies() != null) {
       window.copies().started(target);
+    }
+  }
+
+  /** Reports whether a target is the document's file under another name, as a hard link is. */
+  @WorkerThread
+  private static boolean sameFile(Path target, Path own) {
+    if (own == null) {
+      return false;
+    }
+    try {
+      return Files.isSameFile(target, own);
+    } catch (IOException e) {
+      return false;
     }
   }
 
@@ -212,6 +233,7 @@ final class SaveCopy {
     if (d.file.copying == token) {
       d.file.copying = null;
     }
+    window.writes().ended(target);
     MainView shown = window.report();
     if (real != null) {
       window.copied(d, real);

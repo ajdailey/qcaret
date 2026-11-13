@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.core.io;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -18,9 +17,12 @@ public final class ChecksumCheck {
     OK,
     /** The file's digest differs. */
     FAILED,
-    /** No file has the name. */
+    /** No file has the name: the lookup reported it absent. */
     MISSING,
-    /** The file exists and could not be read, or the name is not a valid path. */
+    /**
+     * The file could not be read or looked up (a folder on the way denies search), or the name is
+     * not a valid path.
+     */
     UNREADABLE
   }
 
@@ -71,9 +73,7 @@ public final class ChecksumCheck {
     } catch (InvalidPathException e) {
       return new Result(entry, Status.UNREADABLE, e);
     }
-    if (!Files.exists(file)) {
-      return new Result(entry, Status.MISSING, null);
-    }
+    // Not Files.exists: it reports false when a folder on the way denies search.
     try {
       String actual = Checksums.ofFile(file, digest, token, progress);
       return new Result(entry, actual.equals(entry.hex()) ? Status.OK : Status.FAILED, null);

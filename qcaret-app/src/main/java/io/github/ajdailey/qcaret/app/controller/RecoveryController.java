@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -45,6 +46,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -74,6 +76,13 @@ final class RecoveryController implements RecoveryInput {
   private static final DateTimeFormatter TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
+  /**
+   * Instance directories opened in this process. The directory name ends with the count, so two
+   * window sets of one JVM that open within one clock tick take different directories; a set given
+   * the other's directory skips it in {@code claimDead} as its own.
+   */
+  private static final AtomicLong OPENED = new AtomicLong();
+
   /** One buffer in the dialog. */
   private static final class Row {
     RecoveryStore.Entry entry;
@@ -89,6 +98,7 @@ final class RecoveryController implements RecoveryInput {
   private final UiDispatcher ui;
   private final MemoryBudget budget;
   private final Path settings;
+  private final Clock clock;
   private final LoadOptions options = LoadOptions.DEFAULTS;
   private final Queue<Runnable> queue = new ConcurrentLinkedQueue<Runnable>();
 
@@ -153,7 +163,8 @@ final class RecoveryController implements RecoveryInput {
       MemoryBudget budget,
       Path settings,
       int intervalSeconds,
-      int keepDays) {
+      int keepDays,
+      Clock clock) {
     this.set = set;
     this.workers = workers;
     this.ui = ui;
@@ -161,6 +172,7 @@ final class RecoveryController implements RecoveryInput {
     this.settings = settings;
     this.intervalSeconds = intervalSeconds;
     this.keepDays = keepDays;
+    this.clock = clock;
   }
 
   /** Follows a new window's buffers. */
@@ -199,7 +211,7 @@ final class RecoveryController implements RecoveryInput {
       return;
     }
     started = true;
-    final long oldest = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(keepDays);
+    final long oldest = clock.millis() - TimeUnit.DAYS.toMillis(keepDays);
     submit(
         new Runnable() {
           @Override
@@ -280,7 +292,7 @@ final class RecoveryController implements RecoveryInput {
   }
 
   private RecoveryFile.Header header(DocumentController.Buffer b) {
-    String now = Instant.now().toString();
+    String now = clock.instant().toString();
     String first = created.get(b.id());
     if (first == null) {
       first = now;
@@ -362,7 +374,8 @@ final class RecoveryController implements RecoveryInput {
   @WorkerThread
   private void openStore() {
     try {
-      String instance = ProcessHandle.current().pid() + "-" + System.currentTimeMillis();
+      String instance =
+          ProcessHandle.current().pid() + "-" + clock.millis() + "-" + OPENED.incrementAndGet();
       RecoveryStore opened = new RecoveryStore(settings, instance);
       opened.open();
       store = opened;

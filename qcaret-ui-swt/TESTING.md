@@ -14,7 +14,9 @@ run.
 - `EventLoop.runUntil` dispatches events until a condition holds, with no fixed
   sleep.
 - No test opens a popup under a pump: a win32 popup would block.
-- A pixel check skips when `Control.print` returns false.
+- `ControlPrint.of` retries a failed `Control.print` for up to 5 s while
+  dispatching events: GTK 4 prints the widget's last drawn frame and fails while
+  a redraw is queued. A pixel check skips when no print succeeds.
 - A test that reads screen pixels calls `ScreenProbe.assumeShows` first: a
   probe child of a known color must read back through `GC.copyArea`, or the
   test aborts with the platform in the reason. A covering window (the
@@ -47,6 +49,23 @@ nothing (SWT issue 2819) and `GC.copyArea` from the Display reads white, so the
 checks that need them skip there. `EditingSurfaceTest` paints the text into an
 image with a Paint event over the client area where `Control.print` fails.
 
+### Screen size
+
+CI runs Xvfb at `-screen 0 1280x1024x24`. The first `EventLoop.runUntil` in a
+test JVM (`UiLoop.runUntil` in `qcaret-launcher`) prints `Screen: primary
+monitor` with the bounds and client area. On a 640x480 screen these fail for
+want of room: `MainWindowTest.opensAtTheRequestedClientSizeAndLocation`,
+`PreferencesSurfaceTest.aNewSizeIsRememberedAtClose`,
+`ToolbarAndMenusTest.viewToolbarHidesTheRowAndSavesTheChoice`,
+`WorkspaceSurfaceTest.theBrowserButtonsShowInOneRowAtTheDefaultWidth`,
+`EditorAdditionsSurfaceTest.theLineSitsAtItsColumnThroughScrollZoomWrapAndThemes`,
+and four placement cases of the launcher's `GuiTest`.
+
+### Skips
+
+Every assumption names its reason, which surefire's XML records in the skipped
+test case.
+
 ## Coverage
 
 ### Main window, menus and toolbar
@@ -74,7 +93,7 @@ image with a Paint event over the client area where `Control.print` fails.
 | Class | Covers |
 |---|---|
 | `EditorSurfaceTest` | Typing, Enter, undo and redo by key events, an edit the widget makes itself (`insert`), and Save, all checked in the model and the file; word wrap on a generated 200,000-line file with no gap over 1 s between 10 ms timer ticks on the UI thread; the unsaved prompt's Cancel and Don't Save, from Close and from Exit; a dragged tab that keeps its document shown; the double click past a wrapped row's edge; a pixel check of a secondary caret after CJK text at its measured position and of gutter ink |
-| `EditingSurfaceTest` | Add Caret Below, every caret moved and extended by key, a caret added with Mod+click and dropped with Esc; an Alt drag from column 150 across long and short lines, scrolling the widget between press and drag, with the block, its copy, and in a print of the widget the block's left edge on a short line within 1 px of the measured column 150 on a long line, the virtual part painted after a resize and a horizontal scroll; composition text through the content kept out of undo; `IME` events for a composition over a selection and past column 0 with the commit's key events (a cancel keeps the selection, a commit replaces it as one undo step, the `IME`'s offset stays on the composition); Go to Line through its dialog; Keyboard Shortcuts filtered and copied; Skip Occurrence by command and by Mod+K, Add Next Occurrence and a regex Find of `\n` over CR LF text, each selection matching the widget's (`StyledText.setSelectionRange` throws for an offset inside a line delimiter); a block drag held below, right, left and above the view scrolling until release, focus loss and tab close; the primary caret's image color and size and, polled while the caret blinks, its screen pixel in both themes. Every mouse event is posted; a filter drops real pointer motion, which on GTK 4 reached the text from a pointer an earlier test left there and ended a posted drag |
+| `EditingSurfaceTest` | Add Caret Below, every caret moved and extended by key, a caret added with Mod+click and dropped with Esc; an Alt drag from column 150 across long and short lines, scrolling the widget between press and drag, with the block, its copy, and in a print of the widget the block's left edge on a short line within 1 px of the measured column 150 on a long line, the virtual part painted after a resize and a horizontal scroll (polled: on win32 the first print after them can paint the block 4 px off); composition text through the content kept out of undo; `IME` events for a composition over a selection and past column 0 with the commit's key events (a cancel keeps the selection, a commit replaces it as one undo step, the `IME`'s offset stays on the composition); Go to Line through its dialog; Keyboard Shortcuts filtered and copied; Skip Occurrence by command and by Mod+K, Add Next Occurrence and a regex Find of `\n` over CR LF text, each selection matching the widget's (`StyledText.setSelectionRange` throws for an offset inside a line delimiter); a block drag held below, right, left and above the view scrolling until release, focus loss and tab close; the primary caret's image color and size and, polled while the caret blinks, its screen pixel in both themes. Every mouse event is posted; a filter drops real pointer motion, which on GTK 4 reached the text from a pointer an earlier test left there and ended a posted drag |
 | `SplitAndFindTest` | Typing in one of two views with the text and both carets checked, the arrangement switch, unsplit; the find bar's selected match, the matches in both views, the match background in pixels in the light and the dark theme, Escape closing the bar and clearing the matches, Esc in the editor dropping an extra caret before it closes the bar; the Focus Other View item showing F6 and switching views |
 | `SyntaxPaneTest` | A Java file's keyword in its palette color and bold, a number keeping its color under a find match, Java checked in the Programming Languages A-M cascade, Python chosen from N-Z listed first on the next show, a switch to Plain Text clearing the styles and the status field |
 | `FoldingSurfaceTest` | Fold marker clicks with the widget's lines against the projection's rows, a caret moved by key over a collapsed region, one split view folded and typed in with the other unchanged, Enter after an opener |
@@ -121,7 +140,7 @@ image with a Paint event over the client area where `Control.print` fails.
 | `LinkContrastTest` | `SwtThemeService.readable` lightening an unreadable link on a dark ground, darkening one on a light ground and keeping a readable one |
 | `DialogSurfacesTest` | Native dialog colors off win32; the win32 class's colors per control class under a dark start, on a control created after the dialog shows and none under a light start, read back through public API on any platform but cocoa |
 | `Win32DarkInkTest` | win32 only, from screen pixels: the main toolbar's and the browser's icons standing out under a dark start, after a live switch and under a light start |
-| `Win32DarkDialogsTest` | win32 only, from screen pixels: every control class of a `Dialogs.shell` dialog, About and each Preferences page on the dark body under a dark start, and About and Preferences under a light start |
+| `Win32DarkDialogsTest` | win32 only, from screen pixels: every control class of a `Dialogs.shell` dialog, About and each Preferences page on the dark body under a dark start, and About and Preferences under a light start. A control that reads wrong is read again for up to 2 s, since the screen can show a newly selected page's first frame |
 
 ### Resources
 

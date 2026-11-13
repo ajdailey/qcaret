@@ -35,8 +35,8 @@ import java.util.function.Consumer;
  * the name is accepted until the move lands or fails, {@link DocumentsUnder#hold} keeps Save, Save
  * As onto the entry and reload from writing or reading the source path. The workspace folder
  * follows a rename ({@link WorkspaceController#moved}). Delete of one entry or several runs in
- * {@link SelectionDelete}. Rename and Delete refuse while {@link OpenFile#running} holds a document
- * under the entry.
+ * {@link SelectionDelete}. Rename and Delete refuse while any {@link OpenFile.Work} is in flight on
+ * a document under the entry, or a {@link RunningWrites} target lies under it.
  */
 final class WorkspaceFiles implements WorkspaceFilesInput {
   private final WorkspaceController workspace;
@@ -361,15 +361,19 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
     return entry.toRealPath();
   }
 
-  /** Shows a notice and returns true while {@link OpenFile#running} holds a document under it. */
+  /**
+   * Shows a notice and returns true while any {@link OpenFile.Work} is in flight on a document
+   * under an entry, or a running write's target lies under it.
+   */
   boolean busy(BrowserPath entry) {
+    boolean busy = documents.writes().under(entry);
     for (DocumentController window : windows()) {
-      if (window.under().busyUnder(entry)) {
-        view.showNotice(UiText.FILE_BUSY.format(entry.path().getFileName()));
-        return true;
-      }
+      busy |= window.under().busyUnder(entry);
     }
-    return false;
+    if (busy) {
+      view.showNotice(UiText.FILE_BUSY.format(entry.path().getFileName()));
+    }
+    return busy;
   }
 
   // Delete.

@@ -38,8 +38,9 @@ document. File > Reopen Closed Tab (`Ctrl+Shift+T`) opens the file of the
 window's last closed tab again, up to 20 back, where the caret was; File >
 Recently Closed lists those files to choose from. Open All in either list opens
 every listed file; a missing or unreadable one is skipped and named in the
-status bar. Clear Recent Files empties Recent Files in every window, and Clear
-Recently Closed empties the window's Recently Closed. Recent Files > Clean Up
+status bar. A file Open All could not open stays in Recently Closed. Clear
+Recent Files empties Recent Files in every window, and Clear Recently Closed
+empties the window's Recently Closed. Recent Files > Clean Up
 removes the entries whose path holds no file, or holds a folder, and names the
 count in the status bar. A file under an unmounted mount point counts as
 missing and is removed. A file on a share that cannot be reached, or one access
@@ -115,9 +116,9 @@ another file and leaves the document as it was: same file, same unsaved
 changes, same Undo history. The copy is saved as Save would save it, in the
 document's encoding and line endings with the trimming and final newline its
 `.editorconfig` asks for, and is added to Recent Files. Choosing the document's
-own file saves it. A copy written over a file open in another tab reaches that
-tab as a change made by another program. `Esc` cancels a running copy. Closing
-the tab, Don't Save and closing the window let it finish and report; Exit waits
+own file, or a hard link of it, saves it. A copy written over a file open in
+another tab reaches that tab as a change made by another program. `Esc` cancels
+a running copy. Closing the tab, Don't Save and closing the window let it finish and report; Exit waits
 for it, and a failed copy stops the Exit. After 30 seconds Exit names each copy
 still being written and asks: Quit exits and may leave those files incomplete,
 Wait waits another 30 seconds. The tab cannot move to another
@@ -313,7 +314,8 @@ the word at each caret; Swap Case swaps upper and lower case.
 Edit > Insert Date and Time lists formats with the current time in each:
 the one set in Preferences, Editor (a Java `DateTimeFormatter` pattern such as
 `yyyy-MM-dd HH:mm`) first, the format used last selected. The chosen one
-replaces every selection, as one undo step.
+replaces every selection, as one undo step. Month and day names follow the
+system's language.
 
 Tools > Document Statistics shows the selected document's lines, words,
 characters, characters without spaces and bytes in its encoding, and the same
@@ -548,7 +550,9 @@ window's.
 | Delete (Delete key) | Asks first, naming what goes and how many files and folders a folder holds, then deletes permanently: there is no trash and no undo |
 
 A name must be a single file or folder name, and a name already in use is
-refused. A link is renamed or deleted as the link; its target stays. Open
+refused. A link is renamed or deleted as the link; its target stays. Rename
+and Delete refuse with a notice while a file in the entry is being saved, copied,
+reloaded or renamed, or a save writes into it. Open
 documents under a deleted entry stay open, marked missing, and Save writes them
 again. A folder delete that fails partway stops and says what is left. Renaming
 the workspace folder or a folder above it moves the workspace folder in every
@@ -608,10 +612,10 @@ shows disabled, with the reason in its tool tip.
 
 - Generate shows the hash of the text you type, encoded in UTF-8, with Copy.
 - Generate from Files hashes the files you choose into a list in the
-  `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. When
-  two files share a name, names include their folders below the common folder,
-  such as `a/x.txt`. Copy and Save As take the list; saved in that common
-  folder, the list verifies with Verify Checksums.
+  `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. Files
+  from several folders are named by their path below the common folder, such
+  as `a/x.txt`. Copy and Save As take the list; saved in that common folder,
+  the list verifies with Verify Checksums.
 - Generate from Selection into Clipboard copies the hash of the selected
   text as the document saves it: in the document's encoding, without a byte
   order mark, line breaks as the document holds them. Several selections join
@@ -621,7 +625,8 @@ shows disabled, with the reason in its tool tip.
 Tools > Verify Checksums checks a `sha256sum`-style list: the selected
 document, when it has a file, or a list chosen with Choose List. A line may use
 `*` before the name. Names are relative to the list's folder. Each file shows
-OK, FAILED, MISSING or unreadable, lines that are not checksum lines are listed,
+OK, FAILED, MISSING or unreadable (a file behind a folder you cannot open is
+unreadable, not MISSING), lines that are not checksum lines are listed,
 and the totals end the list. Lines may end in LF, CR LF or CR, and a chosen
 list may start with a UTF-8 byte order mark.
 
@@ -673,7 +678,8 @@ Drag a tab out of every QCaret window to open it in a new window, or onto anothe
 window's tab strip to dock it there; Window > Move to New Window and the tab
 menu do the first. The document moves live and nothing is read again: undo
 history, unsaved changes, carets, scroll, folds, bookmarks and its recovery file
-go with it. A tab with a save, reload or conversion running does not move.
+go with it. A tab with a save, copy, reload, conversion or Workspace Browser
+rename running does not move.
 Search results stay in their window and still lead to the moved tab.
 
 File > Exit (Quit in the application menu on macOS) asks about unsaved documents

@@ -537,11 +537,7 @@ public final class DisplayProjection implements DocumentListener {
             oldRows - oldHiddenRows,
             oldRows + lineDelta + breakDelta - newHiddenRows);
     fireChanging(display);
-    for (int i = groups.size() - 1; i >= 0; i--) {
-      int[] g = groups.get(i);
-      int newEndLine = g[0] + (g[3] - g[2]) + 1;
-      index.replace(g[0], g[1] + 1, newEndLine, builders.get(i));
-    }
+    replaceRows(groups, builders);
     next.place(after, index, n0, n1);
     shiftRegions(before, after, change.edits(), head[0], tail[1]);
     text = after;
@@ -554,6 +550,26 @@ public final class DisplayProjection implements DocumentListener {
         rewrapHook.run();
       }
     }
+  }
+
+  /** Replaces each group's lines in the row index, one pass for several groups. */
+  private void replaceRows(List<int[]> groups, List<RowIndex.Builder> builders) {
+    int n = groups.size();
+    if (n == 1) {
+      int[] g = groups.get(0);
+      index.replace(g[0], g[1] + 1, g[0] + (g[3] - g[2]) + 1, builders.get(0));
+      return;
+    }
+    int[] from = new int[n];
+    int[] oldEnd = new int[n];
+    int[] newEnd = new int[n];
+    for (int i = 0; i < n; i++) {
+      int[] g = groups.get(i);
+      from[i] = g[0];
+      oldEnd[i] = g[1] + 1;
+      newEnd[i] = g[0] + (g[3] - g[2]) + 1;
+    }
+    index.replaceAll(from, oldEnd, newEnd, builders.toArray(new RowIndex.Builder[0]));
   }
 
   @Override

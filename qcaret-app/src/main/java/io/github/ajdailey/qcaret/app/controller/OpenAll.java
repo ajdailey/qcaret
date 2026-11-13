@@ -12,10 +12,10 @@ import java.util.function.Consumer;
 
 /**
  * Open All in File > Recent Files and File > Recently Closed. A {@code qcaret-io-} worker keeps the
- * listed paths that are readable regular files; the UI thread passes those, in list order, to
- * {@link DocumentController#open(List)}, which selects a file already open, and names the others
- * once in a status notice. A missing file is skipped rather than opened as a new empty tab, as a
- * single open of it does.
+ * listed paths that are readable regular files; the UI thread opens those in list order, selecting
+ * a file already open, and names the others once in a status notice. A missing file is skipped
+ * rather than opened as a new empty tab, as a single open of it does. A file whose load then fails
+ * or is canceled is not reported as opened.
  */
 final class OpenAll {
   private OpenAll() {}
@@ -28,7 +28,7 @@ final class OpenAll {
    * @param view shows the notice
    * @param documents opens the files
    * @param paths the listed files, in list order
-   * @param opened receives the files passed to the open, on the UI thread, or null
+   * @param opened receives each file once its tab shows, on the UI thread, or null
    */
   static void open(
       Workers workers,
@@ -36,7 +36,7 @@ final class OpenAll {
       final MainView view,
       final DocumentController documents,
       List<Path> paths,
-      final Consumer<List<Path>> opened) {
+      final Consumer<Path> opened) {
     final List<Path> listed = List.copyOf(paths);
     workers.tryStart(
         Workers.Kind.IO,
@@ -56,9 +56,19 @@ final class OpenAll {
                 new Runnable() {
                   @Override
                   public void run() {
-                    documents.open(readable);
-                    if (opened != null) {
-                      opened.accept(readable);
+                    if (opened == null) {
+                      documents.open(readable);
+                    } else {
+                      for (final Path path : readable) {
+                        documents.open(
+                            path,
+                            new Consumer<EditorController>() {
+                              @Override
+                              public void accept(EditorController editor) {
+                                opened.accept(path);
+                              }
+                            });
+                      }
                     }
                     if (!skipped.isEmpty()) {
                       view.showNotice(UiText.OPEN_ALL_SKIPPED.format(String.join(", ", skipped)));

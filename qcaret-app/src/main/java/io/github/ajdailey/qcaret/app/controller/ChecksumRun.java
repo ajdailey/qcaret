@@ -8,11 +8,13 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.io.ContentWriter;
+import io.github.ajdailey.qcaret.core.io.SafeSave;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,8 +27,9 @@ import java.util.function.Consumer;
  * One checksum list dialog's controller: the shown lines, the running run, Copy, Save As and
  * Cancel. A run's {@link #work} runs on a {@code qcaret-io-} worker and posts lines and progress
  * through a {@link Feed}; a post from a canceled or replaced run is dropped. Save As writes the
- * lines in UTF-8 with LF breaks on a {@code qcaret-io-} worker. Confined to the UI thread except
- * {@link #work}.
+ * lines in UTF-8 with LF breaks through {@link SafeSave} on a {@code qcaret-io-} worker, and
+ * refuses a target under a folder a workspace browser rename holds. Confined to the UI thread
+ * except {@link #work}.
  *
  * @param <R> what a run reads, taken on the UI thread; immutable
  */
@@ -34,15 +37,20 @@ abstract class ChecksumRun<R> implements ChecksumInput {
   final Workers workers;
   final UiDispatcher ui;
   final MainView view;
+  private final DocumentsUnder under;
+  private final RunningWrites writes;
   private final List<String> lines = new ArrayList<String>();
   private ChecksumDisplay display;
   private CancellationToken running;
   private Path folder;
 
-  ChecksumRun(Workers workers, UiDispatcher ui, MainView view) {
+  ChecksumRun(
+      Workers workers, UiDispatcher ui, MainView view, DocumentsUnder under, RunningWrites writes) {
     this.workers = workers;
     this.ui = ui;
     this.view = view;
+    this.under = under;
+    this.writes = writes;
   }
 
   /**
@@ -129,7 +137,12 @@ abstract class ChecksumRun<R> implements ChecksumInput {
         new Consumer<Path>() {
           @Override
           public void accept(Path target) {
-            if (target != null) {
+            if (target == null) {
+              return;
+            }
+            if (under.holds(target)) {
+              view.showNotice(UiText.CHECKSUM_SAVE_RENAMING.text());
+            } else {
               save(target, saved);
             }
           }
@@ -143,32 +156,52 @@ abstract class ChecksumRun<R> implements ChecksumInput {
           new Runnable() {
             @Override
             public void run() {
-              final String failure = write(target, saved);
-              if (failure != null) {
+              String reason = null;
+              try {
+                reason = write(target, saved);
+              } finally {
+                final String failure = reason;
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
-                        view.showNotice(UiText.CHECKSUM_SAVE_FAILED.format(failure));
+                        writes.ended(target);
+                        if (failure != null) {
+                          view.showNotice(UiText.CHECKSUM_SAVE_FAILED.format(failure));
+                        }
                       }
                     });
               }
             }
           });
+      writes.started(target);
     } catch (RejectedExecutionException e) {
       // Shutting down.
     }
   }
 
-  /** Writes lines in UTF-8, each ended by LF; returns why it failed, or null. */
+  /**
+   * Writes lines in UTF-8, each ended by LF; returns why it failed, or null. A failed write leaves
+   * the target as it was, except where {@link SafeSave} writes in place.
+   */
   @WorkerThread
   private static String write(Path target, List<String> saved) {
     StringBuilder text = new StringBuilder();
     for (String line : saved) {
       text.append(line).append('\n');
     }
+    final byte[] bytes = text.toString().getBytes(StandardCharsets.UTF_8);
     try {
-      Files.writeString(target, text, StandardCharsets.UTF_8);
+      SafeSave.save(
+          target,
+          null,
+          new ContentWriter() {
+            @Override
+            public void write(OutputStream out) throws IOException {
+              out.write(bytes);
+            }
+          },
+          new CancellationToken());
       return null;
     } catch (IOException e) {
       return reason(e);

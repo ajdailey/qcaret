@@ -35,6 +35,9 @@ public class ReadBenchmark {
     @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
+    /** Input size. */
+    int sizeMiB = 10;
+
     TextSnapshot text;
     LineView view = new LineView();
     int[] offsets = new int[LOOKUPS];
@@ -43,7 +46,7 @@ public class ReadBenchmark {
     /** Builds the document, applies W3 and draws the lookups. */
     @Setup
     public void build() {
-      text = Workloads.afterW3(corpus, 10).snapshot();
+      text = Workloads.afterW3(corpus, sizeMiB).snapshot();
       SplittableRandom random = new SplittableRandom(Workloads.SEED);
       for (int i = 0; i < LOOKUPS; i++) {
         offsets[i] = random.nextInt(text.length() + 1);
@@ -59,12 +62,15 @@ public class ReadBenchmark {
     @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
+    /** Input size. */
+    int sizeMiB = 100;
+
     TextSnapshot text;
 
     /** Builds the document and applies W3. */
     @Setup
     public void build() {
-      text = Workloads.afterW3(corpus, 100).snapshot();
+      text = Workloads.afterW3(corpus, sizeMiB).snapshot();
     }
   }
 

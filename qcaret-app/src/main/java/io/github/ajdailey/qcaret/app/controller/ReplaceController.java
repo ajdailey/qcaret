@@ -34,7 +34,7 @@ import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -85,6 +85,7 @@ public final class ReplaceController implements ReplaceInput {
   private HyperSearch.Limits limits;
   private final Path backupRoot;
   private int backupDays;
+  private final Clock clock;
   private final List<Report> reports = new ArrayList<Report>();
   private final List<PlanFile> files = new ArrayList<PlanFile>();
   private String replacement = "";
@@ -135,6 +136,7 @@ public final class ReplaceController implements ReplaceInput {
    * @param limits the largest file read
    * @param backupRoot {@code <settings>/replace-backups}
    * @param backupDays the days a run's backups are kept
+   * @param clock dates replace runs and prunes their backups
    */
   public ReplaceController(
       DocumentController documents,
@@ -144,7 +146,8 @@ public final class ReplaceController implements ReplaceInput {
       MemoryBudget budget,
       HyperSearch.Limits limits,
       Path backupRoot,
-      int backupDays) {
+      int backupDays,
+      Clock clock) {
     this.documents = documents;
     this.workers = workers;
     this.ui = ui;
@@ -153,6 +156,7 @@ public final class ReplaceController implements ReplaceInput {
     this.limits = limits;
     this.backupRoot = backupRoot;
     this.backupDays = backupDays;
+    this.clock = clock;
   }
 
   // Preview.
@@ -595,7 +599,8 @@ public final class ReplaceController implements ReplaceInput {
                 return applyToDocument(item, replacements);
               }
             },
-            report));
+            report,
+            clock));
     return true;
   }
 
@@ -720,7 +725,7 @@ public final class ReplaceController implements ReplaceInput {
     String failure = null;
     List<String> labels = new ArrayList<String>();
     try {
-      ReplaceBackups.prune(root, days, Instant.now());
+      ReplaceBackups.prune(root, days, clock.instant());
       runs = ReplaceBackups.list(root);
       ZoneId zone = ZoneId.systemDefault();
       for (ReplaceBackups.Run r : runs) {

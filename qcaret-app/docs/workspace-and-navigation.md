@@ -158,8 +158,10 @@ link or a Windows junction.
   a parent clears the workspace folder in every window with a notice
   (`WorkspaceFollow.clearUnder`), and a folder browsed to under the entry
   with it; a delete that stops partway leaves the workspace folder set.
-- Rename and Delete refuse, with a notice, while a save, a Save a Copy As, a
-  reload or a change prompt holds a document under the entry.
+- Rename and Delete refuse, with `FILE_BUSY`, while any `OpenFile.Work` (save,
+  Save a Copy As, reload, change prompt, rename) is in flight on a document
+  under the entry, or a `RunningWrites` target lies under it: a Save As, Save
+  a Copy As or checksum list Save As writing into the folder.
 - After each operation the directory is listed again, the listings under a
   removed folder are dropped, and the new row is selected. The same happens in
   every other window's browser that lists the directory, without the

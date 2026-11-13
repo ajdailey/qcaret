@@ -25,7 +25,10 @@ row.
   at most `MAX_ROW_CHARS` chars. Columns count from the row start (tab stops,
   wide chars 2), and a surrogate pair is never split.
 - `RowIndex` keeps only the lines with breaks, sorted, with their breaks in one
-  array; edits replace a line range and shift the tail.
+  array; edits replace a line range and shift the tail. A batch with several
+  line groups goes through `replaceAll`, one pass over all entries, since a
+  replace per group shifts the tail once per group: on a wrapped document that
+  shifting is most of a 10,000-caret keystroke (profiled).
 - A document change recomputes the changed lines' rows on the UI thread. A
   change over 1 Mi chars with wrap on gets only the long-line splits there, and
   the projection asks its owner for a rewrap.

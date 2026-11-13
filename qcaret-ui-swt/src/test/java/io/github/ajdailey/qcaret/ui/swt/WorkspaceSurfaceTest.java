@@ -186,6 +186,7 @@ class WorkspaceSurfaceTest {
     window.place(new WindowGeometry.Request(0, 0, 960, 600), null);
     WorkspaceDock dock = browser();
     drain();
+    assertTrue(window.shell().getSize().x >= 960, "a 960 px window on this screen");
     assertEquals(1, rows(dock));
     window.place(new WindowGeometry.Request(0, 0, 640, 600), null);
     drain();

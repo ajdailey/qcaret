@@ -8,18 +8,24 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,32 +59,92 @@ class LastTabTest {
   }
 
   private void closeWindowWithLastTab() {
-    Preferences current = set.settings().current();
+    closeWindowWithLastTab(set.settings());
+  }
+
+  private static void closeWindowWithLastTab(Settings settings) {
+    Preferences current = settings.current();
     Options o = current.options();
-    set.settings()
-        .set(
-            current.withOptions(
-                new Options(
-                    o.completionChars(),
-                    o.autoClose(),
-                    o.maxHighlightLineChars(),
-                    o.fontSize(),
-                    o.pollSeconds(),
-                    o.autoReloadClean(),
-                    o.backupDays(),
-                    o.searchMaxLineChars(),
-                    o.excludedDirectories(),
-                    o.recoveryIntervalSeconds(),
-                    o.recoveryKeepDays(),
-                    o.sessionSnapshot(),
-                    o.tabWidth(),
-                    o.insertSpaces(),
-                    o.rightMargin(),
-                    o.dateFormat(),
-                    o.editorConfig(),
-                    o.modelines(),
-                    true,
-                    false)));
+    settings.set(
+        current.withOptions(
+            new Options(
+                o.completionChars(),
+                o.autoClose(),
+                o.maxHighlightLineChars(),
+                o.fontSize(),
+                o.pollSeconds(),
+                o.autoReloadClean(),
+                o.backupDays(),
+                o.searchMaxLineChars(),
+                o.excludedDirectories(),
+                o.recoveryIntervalSeconds(),
+                o.recoveryKeepDays(),
+                o.sessionSnapshot(),
+                o.tabWidth(),
+                o.insertSpaces(),
+                o.rightMargin(),
+                o.dateFormat(),
+                o.editorConfig(),
+                o.modelines(),
+                true,
+                false)));
+  }
+
+  @Test
+  void theRuleNeedsTheSettingsTheQuitStateAndTheWindowClose() throws Exception {
+    ManualUiDispatcher ui = new ManualUiDispatcher();
+    final boolean[] quitting = new boolean[1];
+    final int[] closes = new int[1];
+    final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
+    Thread.UncaughtExceptionHandler failures =
+        new Thread.UncaughtExceptionHandler() {
+          @Override
+          public void uncaughtException(Thread thread, Throwable error) {
+            failure.set(error);
+          }
+        };
+    try (Workers workers = new Workers(1, failures)) {
+      Settings settings =
+          new Settings(
+              new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("unit"))),
+              workers,
+              ui,
+              Preferences.DEFAULTS);
+      DocumentController documents =
+          new DocumentController(
+              workers, ui, new FakeView(ui), new MemoryBudget(1L << 30, 60), LoadOptions.DEFAULTS);
+      documents.setLastTab(
+          new LastTab(
+              settings,
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return quitting[0];
+                }
+              },
+              new Runnable() {
+                @Override
+                public void run() {
+                  closes[0]++;
+                }
+              }));
+      documents.newDocument();
+      documents.closeActive();
+      assertEquals(1, documents.count());
+      closeWindowWithLastTab(settings);
+      quitting[0] = true;
+      documents.closeActive();
+      ui.runPending();
+      assertEquals(0, documents.count());
+      assertEquals(0, closes[0]);
+      quitting[0] = false;
+      documents.newDocument();
+      documents.closeActive();
+      ui.runPending();
+      assertEquals(1, closes[0]);
+      documents.dispose();
+    }
+    assertNull(failure.get());
   }
 
   @Test

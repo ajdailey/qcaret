@@ -99,6 +99,9 @@ public final class FindController implements DocumentController.ViewListener {
   private int anchor;
   private boolean disposed;
 
+  /** Runs on the worker before each search; a test seam, null otherwise. */
+  private volatile Runnable beforeFind;
+
   /**
    * Creates the controller and starts following the window's views.
    *
@@ -581,9 +584,14 @@ public final class FindController implements DocumentController.ViewListener {
         });
   }
 
+  void setBeforeFind(Runnable hook) {
+    beforeFind = hook;
+  }
+
   /**
    * Runs a search on a worker, canceling the one before. The result applies on the UI thread while
-   * its generation is current.
+   * its generation is current; an unchecked failure posts {@link UiText#FIND_FAILED} from {@code
+   * finally}, so the bar stops showing the search as running.
    */
   private void run(final Task task) {
     cancelFind();
@@ -597,37 +605,50 @@ public final class FindController implements DocumentController.ViewListener {
             @Override
             public void run() {
               Runnable apply = null;
-              String failure = null;
+              String failure = UiText.FIND_FAILED.text();
+              boolean canceled = false;
               try {
+                Runnable hook = beforeFind;
+                if (hook != null) {
+                  hook.run();
+                }
                 apply = task.compute(token);
+                failure = null;
               } catch (CancellationException e) {
-                return;
+                canceled = true;
               } catch (PatternTooComplexException e) {
                 failure = UiText.FIND_TOO_COMPLEX.text();
+              } finally {
+                if (!canceled) {
+                  post(current, apply, failure);
+                }
               }
-              final Runnable result = apply;
-              final String failed = failure;
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (current != generation || disposed) {
-                        return;
-                      }
-                      finding = null;
-                      if (failed != null) {
-                        report(failed, true);
-                      } else {
-                        result.run();
-                        changed();
-                      }
-                    }
-                  });
             }
           });
     } catch (RejectedExecutionException e) {
       finding = null;
     }
+  }
+
+  /** Posts a search's result, or its failure when {@code failed} is not null. */
+  @WorkerThread
+  private void post(final long current, final Runnable result, final String failed) {
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (current != generation || disposed) {
+              return;
+            }
+            finding = null;
+            if (failed != null) {
+              report(failed, true);
+            } else {
+              result.run();
+              changed();
+            }
+          }
+        });
   }
 
   private void cancelFind() {

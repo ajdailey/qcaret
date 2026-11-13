@@ -1,8 +1,9 @@
 # qcaret-bench
 
-JMH benchmarks of `RopeStorage` in `core.buffer`, `DisplayProjection` and
-HyperSearch, latency and heap harnesses for the storage, for search and for Go
-to Symbol, and a startup harness for the shipped application. Not shipped and not scanned by
+JMH benchmarks of `RopeStorage` in `core.buffer`, `DisplayProjection`,
+HyperSearch, many-caret typing, undo, highlighting and workspace navigation;
+latency and heap harnesses for the storage, for search and for Go to Symbol; and
+a startup harness for the shipped application. Not shipped and not scanned by
 SpotBugs. Input is generated, never read from the repository.
 
 ## Map
@@ -20,6 +21,10 @@ SpotBugs. Input is generated, never read from the repository.
 | `SearchTree` | Seeded tree in a temporary directory: 20,000 files of 2 KiB and 4 of 16 MiB; the four `Query` values, literal and regex, few and many hits |
 | `SearchBenchmark` | Time to complete, `fileSearch` into a counting sink and `hyperSearch` into a `ResultSet` |
 | `SearchHarness` | Time to first result, cancel latency, and a finished set's live heap against its charge |
+| `MultiCaretBenchmark` | One keystroke at 1,000 and 10,000 carets on 10 MiB, unwrapped and wrapped: `Document.apply` of a `TYPING` batch with a `DisplayProjection` following; sampled, so p50 and p99 per keystroke |
+| `UndoBenchmark` | Undo and redo of one 100,000-replacement Replace All step and of Sort Lines on 200,000 lines, with a projection following |
+| `HighlightBenchmark` | `SyntaxEngine` on the 1,000,000-line `JAVA` text: `typeChar` and `openComment` run an edit to idle and fold regions; `installRegions` is the UI thread's copy and `DisplayProjection.setFoldRegions` of the region list |
+| `WorkspaceBenchmark` | Quick Open index build of 100,000 files, a 50,000-entry Workspace Browser listing, and `Fuzzy` scoring over the whole index and over the 2,000 paths matched on the UI thread |
 | `SymbolHarness` | Go to Symbol on generated 1,000,000-line `JAVA` (a definition every 7 lines), `JAVA_SPARSE` (every 200) and `MARKDOWN` (a heading every 120): the first scan, the filter and sort a cached list leaves, `rescan` and a whole scan after one-line edits at lines 1,006 and 500,006, clear of the Markdown fences, with their results compared, and a `SymbolScan`'s live heap against its charge |
 
 ## Running
@@ -35,6 +40,10 @@ xvfb-run -a env GDK_BACKEND=x11 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.StartupHarness TARGET FILE SETTINGS [RUNS]
 java -jar qcaret-bench/target/benchmarks.jar ProjectionBenchmark
 java -jar qcaret-bench/target/benchmarks.jar SearchBenchmark
+java -jar qcaret-bench/target/benchmarks.jar MultiCaretBenchmark
+java -jar qcaret-bench/target/benchmarks.jar UndoBenchmark
+java -jar qcaret-bench/target/benchmarks.jar HighlightBenchmark
+java -jar qcaret-bench/target/benchmarks.jar WorkspaceBenchmark
 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SearchHarness [first cancel heap]
 java -cp qcaret-bench/target/benchmarks.jar \
@@ -86,11 +95,17 @@ The scripts use `$JAVA_HOME/bin/java` when set; build `qcaret-bench` first.
 `TabsProbe` in `qcaret-ui-swt` opens, for each count in `qcaret.bench.tabs`,
 that many files of `qcaret.bench.lines` lines (2,000 by default), shows the
 first tab and times Close All: `task` is the command's UI task, `withQueued`
-adds the UI work it queued.
+adds the UI work it queued, and `longestQueued` is the longest of those queued
+tasks. `qcaret.bench.repeat` (1 by default) repeats each count. A thread samples
+the UI thread's stack every millisecond during each `task` and prints, per
+count, the innermost frames (`top`), the innermost QCaret frame with its line
+(`own`), the innermost five QCaret frames (`chain`) and the innermost eight
+frames (`leaf`).
 
 ```sh
 xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=TabsProbe \
-  -Dsurefire.failIfNoSpecifiedTests=false -Dqcaret.bench.tabs=25,100
+  -Dsurefire.failIfNoSpecifiedTests=false -Dqcaret.bench.tabs=25,100 \
+  -Dqcaret.bench.repeat=3
 ```
 
 ## Workload notes
@@ -118,4 +133,5 @@ xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=TabsProbe \
 | Class | Covers |
 |---|---|
 | `StorageHarnessTest` | Which JVM options count as heap options, so the harness runs in place instead of relaunching |
+| `BenchmarkSetupTest` | Every JMH benchmark's setup at a small size through its package-private size field, and one call of each benchmark method, without JMH |
 | `SearchTreeTest` | The rare word in every hundredth file and each large file of `SearchTree`, and the tree deleted afterwards |

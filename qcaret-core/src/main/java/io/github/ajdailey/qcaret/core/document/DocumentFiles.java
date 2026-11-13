@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.BinaryDetector;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
 import io.github.ajdailey.qcaret.core.io.Digests;
+import io.github.ajdailey.qcaret.core.io.Encoders;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
@@ -21,7 +22,6 @@ import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -412,7 +412,7 @@ public final class DocumentFiles {
       Path file, final DocumentSnapshot snapshot, FileStamp baseline, final CancellationToken token)
       throws IOException {
     final TextEncoding encoding = snapshot.encoding();
-    if (!encoding.charset().canEncode()) {
+    if (!Encoders.writable(encoding.charset())) {
       throw new IOException("The encoding " + encoding.charset().name() + " cannot be written");
     }
     encode(snapshot.text(), encoding, null, token);
@@ -444,12 +444,7 @@ public final class DocumentFiles {
   private static void encode(
       TextSnapshot text, TextEncoding encoding, OutputStream out, CancellationToken token)
       throws IOException {
-    CharsetEncoder encoder =
-        encoding
-            .charset()
-            .newEncoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
+    CharsetEncoder encoder = Encoders.reporting(encoding.charset());
     TextCursor cursor = text.cursor(0);
     CharBuffer in = CharBuffer.allocate(BLOCK_CHARS);
     ByteBuffer bytes = ByteBuffer.allocate(BLOCK_CHARS * 4);

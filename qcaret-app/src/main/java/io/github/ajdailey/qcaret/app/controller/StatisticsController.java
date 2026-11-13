@@ -38,7 +38,12 @@ final class StatisticsController implements StatisticsInput {
 
   /** What a count reads, taken on the UI thread. */
   private record Request(
-      String name, Document document, TextSnapshot text, long revision, int[] ranges) {}
+      String name,
+      Document document,
+      TextSnapshot text,
+      long revision,
+      int[] ranges,
+      TextEncoding encoding) {}
 
   StatisticsController(
       DocumentController documents, Workers workers, UiDispatcher ui, MainView view) {
@@ -85,7 +90,8 @@ final class StatisticsController implements StatisticsInput {
             document,
             document.text(),
             document.revision(),
-            Arrays.copyOf(ranges, n));
+            Arrays.copyOf(ranges, n),
+            document.encoding());
     final CancellationToken token = new CancellationToken();
     running = token;
     display.showProgress(0);
@@ -191,7 +197,7 @@ final class StatisticsController implements StatisticsInput {
             }
           }
         };
-    TextEncoding encoding = request.document().encoding();
+    TextEncoding encoding = request.encoding();
     TextStatistics whole =
         TextStatistics.count(text, 0, text.length(), encoding.charset(), token, progress)
             .withExtraBytes(encoding.bomBytes().length);

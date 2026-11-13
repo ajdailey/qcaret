@@ -466,6 +466,7 @@ final class FakeView implements MainView {
   Consumer<List<Path>> openChooser;
   Consumer<Path> saveChooser;
   String saveName;
+  Path saveDirectory;
   Consumer<UnsavedChoice> unsaved;
   String unsavedName;
   final ManualUiDispatcher ui;
@@ -856,6 +857,7 @@ final class FakeView implements MainView {
     ui.checkUiThread();
     saveName = name;
     saveChooser = chosen;
+    saveDirectory = directory;
   }
 
   @Override

@@ -66,14 +66,19 @@ public final class SymbolHarness {
 
     /** Returns the text: {@link #LINES} lines, a definition starting every {@code every}. */
     String generate() {
-      StringBuilder out = new StringBuilder(LINES * 32);
+      return generate(LINES);
+    }
+
+    /** Returns the text: {@code lines} lines, a definition starting every {@code every}. */
+    String generate(int lines) {
+      StringBuilder out = new StringBuilder(lines * 32);
       int line = 0;
       int n = 0;
-      while (line < LINES) {
+      while (line < lines) {
         if (grammar.equals("markdown")) {
-          line += markdown(out, n, Math.min(every, LINES - line));
+          line += markdown(out, n, Math.min(every, lines - line));
         } else {
-          line += java(out, n, Math.min(every, LINES - line));
+          line += java(out, n, Math.min(every, lines - line));
         }
         n++;
       }

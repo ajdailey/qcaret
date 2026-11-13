@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.core.io.SafePaths;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,7 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Open All in File > Recent Files and File > Recently Closed, over an open, a missing and a closed
- * file: the open one keeps its one tab, the missing one is named in a notice and gets no tab.
+ * file: the open one keeps its one tab, the missing one is named in a notice and gets no tab. A
+ * Recently Closed file whose load fails stays listed.
  */
 class OpenAllTest {
   @TempDir Path temp;
@@ -94,5 +96,28 @@ class OpenAllTest {
     assertEquals(List.of(missing.toString(), closed.toString()), documents().closedFiles());
     openAll(CommandId.OPEN_ALL_CLOSED);
     assertEquals(List.of(missing.toString()), documents().closedFiles());
+  }
+
+  /** The check passes a held lock file, a readable regular file, and its load then refuses it. */
+  @Test
+  void recentlyClosedOpenAllKeepsAFileWhoseLoadFails() throws Exception {
+    final int infos = harness.view.infos.size();
+    SafePaths.holdLock(closed, "held by this process");
+    try {
+      harness.application.execute(CommandId.OPEN_ALL_CLOSED);
+      harness.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return harness.view.infos.size() > infos;
+            }
+          },
+          "the failed load");
+      harness.awaitIdle("Open All");
+    } finally {
+      SafePaths.releaseLock(closed);
+    }
+    assertEquals(1, documents().count());
+    assertEquals(List.of(missing.toString(), closed.toString()), documents().closedFiles());
   }
 }

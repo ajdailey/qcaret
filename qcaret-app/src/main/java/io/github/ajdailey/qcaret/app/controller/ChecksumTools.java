@@ -214,7 +214,9 @@ final class ChecksumTools {
             @Override
             public void accept(List<Path> files) {
               if (!files.isEmpty()) {
-                new FileChecksums(algorithm, workers, ui, view).open(files);
+                new FileChecksums(
+                        algorithm, workers, ui, view, documents.under(), documents.writes())
+                    .open(files);
               }
             }
           });

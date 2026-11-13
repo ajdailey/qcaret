@@ -36,8 +36,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
-import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
@@ -144,18 +142,7 @@ class EditorAidsSurfaceTest {
   /** Paints the widget into an image; null where Control.print fails (GTK 4, SWT issue 2819). */
   private ImageData print(StyledText text) {
     flush();
-    Image image = new Image(display, text.getSize().x, text.getSize().y);
-    GC gc = new GC(image);
-    try {
-      if (!text.print(gc)) {
-        return null;
-      }
-    } finally {
-      gc.dispose();
-    }
-    ImageData data = image.getImageData();
-    image.dispose();
-    return data;
+    return ControlPrint.of(display, text);
   }
 
   /** Counts the pixels of a column, within a row band, that have a color. */

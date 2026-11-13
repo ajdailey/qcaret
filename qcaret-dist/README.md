@@ -48,11 +48,14 @@ when both exist. Modes are in the root `README.md` under "Settings directory".
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 (Temurin 21.0.12+8, downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with
-`java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.unsupported,jdk.zipfs`,
+`java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs`,
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.
 `jdk.charsets` carries the legacy encodings (Big5, EUC-JP, EUC-KR, GBK,
 Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
-macOS. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so it is
+macOS. `jdk.localedata` carries the date and number formats of every locale
+but English, used by the Workspace Browser's Size and Modified texts and Insert
+Date and Time; it adds 28.8 MB to the linux-x86_64 runtime (68.4 to 97.2 MB,
+measured). `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so it is
 left out. `--strip-debug` is not used: it runs the host `objcopy` on target
 binaries and fails across targets.
 
@@ -135,7 +138,7 @@ not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
 
 | Class | Covers |
 |---|---|
-| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets` |
+| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets` and `jdk.localedata` |
 | `CharsetProbe` | Run by the bundle's `java`; fails unless every encoding in `SmokeTest.ENCODINGS` is supported |
 
 ### CI bundle check
@@ -146,7 +149,7 @@ The CI `bundle` job runs each archive on its own runner through
 
 | Check | Linux, macOS | Windows |
 |---|---|---|
-| Runtime | `os.arch`, `jdk.charsets`, `java.xml` | The same, plus the `javaw.exe` child's image and PE machine |
+| Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml` | The same, plus the `javaw.exe` child's image and PE machine |
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
 | Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` does not report the child's status (assumed from launch4j's `gui` header) |

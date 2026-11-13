@@ -10,7 +10,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
@@ -75,17 +74,13 @@ public final class Checksums {
     /**
      * Creates a digester.
      *
-     * @param charset encodes the text; a char it cannot encode fails {@link #add} or {@link
-     *     #finish}
+     * @param charset encodes the text, {@link Encoders#writable}; a char it cannot encode fails
+     *     {@link #add} or {@link #finish}
      * @param digest a fresh digest
      */
     public TextDigester(Charset charset, MessageDigest digest) {
       this.digest = digest;
-      encoder =
-          charset
-              .newEncoder()
-              .onMalformedInput(CodingErrorAction.REPORT)
-              .onUnmappableCharacter(CodingErrorAction.REPORT);
+      encoder = Encoders.reporting(charset);
     }
 
     /**

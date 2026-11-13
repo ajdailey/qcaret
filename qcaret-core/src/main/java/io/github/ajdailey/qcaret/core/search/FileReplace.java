@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.io.BinaryDetector;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
+import io.github.ajdailey.qcaret.core.io.Encoders;
 import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
@@ -240,7 +241,10 @@ public final class FileReplace {
    * @return false when a replacement has a char the charset cannot write
    */
   public static boolean encodable(List<Replacement> replacements, TextEncoding encoding) {
-    CharsetEncoder encoder = encoding.charset().newEncoder();
+    if (!Encoders.writable(encoding.charset())) {
+      return false;
+    }
+    CharsetEncoder encoder = Encoders.reporting(encoding.charset());
     for (Replacement r : replacements) {
       if (!encoder.canEncode(r.text())) {
         return false;
@@ -381,15 +385,12 @@ public final class FileReplace {
     return new Outcome(skip, 0, 0, null);
   }
 
-  /** Encodes a text with its BOM. */
+  /** Encodes a text with its BOM; a charset that is not writable fails as an unencodable char. */
   static byte[] encode(CharSequence text, TextEncoding encoding) throws CharacterCodingException {
-    ByteBuffer body =
-        encoding
-            .charset()
-            .newEncoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .encode(CharBuffer.wrap(text));
+    if (!Encoders.writable(encoding.charset())) {
+      throw new CharacterCodingException();
+    }
+    ByteBuffer body = Encoders.reporting(encoding.charset()).encode(CharBuffer.wrap(text));
     byte[] bom = encoding.bomBytes();
     byte[] out = new byte[bom.length + body.remaining()];
     System.arraycopy(bom, 0, out, 0, bom.length);

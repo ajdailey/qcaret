@@ -19,7 +19,8 @@ import org.eclipse.swt.widgets.TableItem;
  * virtual one-column table that creates only the rows it shows, as wide as the longest word in the
  * monospace editor font; the editor keeps the keyboard. A double click or Enter on a row goes to
  * {@link EditorInput#completionChosen}. Each {@link #show} with no words disposes the shell, so it
- * holds no handle while hidden.
+ * holds no handle while hidden. The table uses the editor font it was last shown with, so the owner
+ * shows the list again before it disposes that font.
  */
 final class CompletionPopup {
   /** Rows shown at most before the table scrolls. */
@@ -128,6 +129,24 @@ final class CompletionPopup {
    */
   List<String> words() {
     return visible() ? shown : List.of();
+  }
+
+  /**
+   * Returns the selected row.
+   *
+   * @return the row, or -1 while hidden
+   */
+  int selected() {
+    return visible() ? table.getSelectionIndex() : -1;
+  }
+
+  /**
+   * Returns the table's font.
+   *
+   * @return the font, or null while hidden
+   */
+  Font font() {
+    return visible() ? table.getFont() : null;
   }
 
   /**

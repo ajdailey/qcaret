@@ -30,6 +30,9 @@ public class EditBenchmark {
     @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
+    /** Input size. */
+    int sizeMiB = 10;
+
     String text;
     Workloads.Edit[] edits;
     TextStorage storage;
@@ -37,7 +40,7 @@ public class EditBenchmark {
     /** Generates the input and the W3 edits. */
     @Setup(Level.Trial)
     public void generate() {
-      text = corpus.generate(10 * Corpus.MIB, Workloads.SEED);
+      text = corpus.generate(sizeMiB * Corpus.MIB, Workloads.SEED);
       edits = Workloads.w3(text.length());
     }
 
@@ -55,6 +58,9 @@ public class EditBenchmark {
     @Param({"ASCII", "MIXED", "CRLF", "MIXED_EOL"})
     public Corpus corpus;
 
+    /** Input size. */
+    int sizeMiB = 10;
+
     Workloads.Edit[] edits;
     String[] removed;
     TextStorage storage;
@@ -62,7 +68,7 @@ public class EditBenchmark {
     /** Builds the document and applies W3. */
     @Setup(Level.Iteration)
     public void build() {
-      String text = corpus.generate(10 * Corpus.MIB, Workloads.SEED);
+      String text = corpus.generate(sizeMiB * Corpus.MIB, Workloads.SEED);
       edits = Workloads.w3(text.length());
       removed = new String[edits.length];
       storage = RopeStorage.of(text);

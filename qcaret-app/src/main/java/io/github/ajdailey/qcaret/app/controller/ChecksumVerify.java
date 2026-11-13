@@ -42,7 +42,7 @@ final class ChecksumVerify extends ChecksumRun<ChecksumVerify.Request> {
   record Request(Path folder, TextSnapshot text, Path file) {}
 
   ChecksumVerify(DocumentController documents, Workers workers, UiDispatcher ui, MainView view) {
-    super(workers, ui, view);
+    super(workers, ui, view, documents.under(), documents.writes());
     this.documents = documents;
   }
 

@@ -28,7 +28,8 @@ The find bar, HyperSearch and replace across files: `FindController`,
 - Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
   request cancels the running one. A result carries its generation and revision
   and is dropped when either is stale. An invalid regex, a stack overflow and
-  an invalid replacement end with a notice in the bar.
+  an invalid replacement end with a notice in the bar. Any other failure posts
+  `FIND_FAILED` from `finally`, so the bar never stays searching.
 
 ### Search history
 

@@ -11,10 +11,13 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 
 /** Event-loop and widget helpers for tests that drive the composed application. */
 final class UiLoop {
+  private static boolean screenLogged;
+
   private UiLoop() {}
 
   /**
@@ -24,6 +27,7 @@ final class UiLoop {
    * @return true when the condition held
    */
   static boolean runUntil(final Display display, BooleanSupplier condition, Duration bound) {
+    logScreen(display);
     long deadline = System.nanoTime() + bound.toNanos();
     final boolean[] stop = new boolean[1];
     Runnable wake =
@@ -90,5 +94,24 @@ final class UiLoop {
       }
     }
     return text.toString();
+  }
+
+  /**
+   * Prints the primary monitor's bounds and client area once per test JVM, so a run's log shows the
+   * screen its size-dependent tests had.
+   */
+  private static void logScreen(Display display) {
+    if (screenLogged) {
+      return;
+    }
+    screenLogged = true;
+    Monitor primary = display.getPrimaryMonitor();
+    if (primary != null) {
+      System.out.println(
+          "Screen: primary monitor "
+              + primary.getBounds()
+              + ", client area "
+              + primary.getClientArea());
+    }
   }
 }

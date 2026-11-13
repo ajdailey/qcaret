@@ -546,6 +546,11 @@ public final class DocumentController {
                   bufferCleaned.accept(bufferId);
                 }
               }
+
+              @Override
+              public RunningWrites writes() {
+                return DocumentController.this.writes();
+              }
             });
     this.copies =
         new SaveCopy(
@@ -578,6 +583,11 @@ public final class DocumentController {
               @Override
               public RunningCopies copies() {
                 return elsewhere == null ? null : elsewhere.copies();
+              }
+
+              @Override
+              public RunningWrites writes() {
+                return DocumentController.this.writes();
               }
             });
     this.completion =
@@ -2025,18 +2035,18 @@ public final class DocumentController {
    * @param paths the files
    * @param opened receives the files opened, or null
    */
-  void openAll(List<Path> paths, Consumer<List<Path>> opened) {
+  void openAll(List<Path> paths, Consumer<Path> opened) {
     OpenAll.open(workers, ui, view, this, paths, opened);
   }
 
-  /** Opens every file of File > Recently Closed; the opened ones leave the list. */
+  /** Opens every file of File > Recently Closed; each leaves the list once its tab shows. */
   public void openAllClosed() {
     openAll(
         new ArrayList<Path>(closedPaths),
-        new Consumer<List<Path>>() {
+        new Consumer<Path>() {
           @Override
-          public void accept(List<Path> opened) {
-            closedPaths.removeAll(opened);
+          public void accept(Path opened) {
+            closedPaths.remove(opened);
             view.documentStateChanged();
             sessionChanged();
           }
@@ -2409,6 +2419,9 @@ public final class DocumentController {
 
     /** Returns the Save a Copy As writes running in every window. */
     RunningCopies copies();
+
+    /** Returns the targets of the writes running in every window. */
+    RunningWrites writes();
   }
 
   /** Connects this window to the other windows of its instance. */
@@ -2422,6 +2435,13 @@ public final class DocumentController {
 
   private int bufferNumber() {
     return elsewhere == null ? nextBuffer++ : elsewhere.nextBuffer();
+  }
+
+  private final RunningWrites writes = new RunningWrites();
+
+  /** Returns the targets of the writes running in every window, or in this one outside a set. */
+  RunningWrites writes() {
+    return elsewhere == null ? writes : elsewhere.writes();
   }
 
   /**
@@ -2608,12 +2628,13 @@ public final class DocumentController {
   }
 
   /**
-   * Reports whether an open document's tab can move: no worker or prompt holds its entry here. Its
-   * save, conversion and reload deliver to this window, and so does a change prompt's answer.
+   * Reports whether an open document's tab can move: no {@link OpenFile.Work} is in flight on its
+   * file and no conversion or reopen runs. Their results and a change prompt's answer deliver to
+   * this window, and a rename's pause of the file check holds only here.
    */
   boolean canMove(Document document) {
     OpenDocument d = entry(document);
-    return d != null && !d.file.running() && d.converting == null && d.reopen == null;
+    return d != null && d.file.inFlight().isEmpty() && d.converting == null && d.reopen == null;
   }
 
   /**
@@ -2965,17 +2986,28 @@ public final class DocumentController {
   }
 
   /**
-   * Selects an open document's tab and saves it, in place of a save that runs.
+   * Selects an open document's tab and saves it, in place of a save that runs. A document closed
+   * before the save ends runs {@code saved}: the close that ended it asked about its changes, or
+   * saved them through a window close's save that ran past this save's cancel.
    *
    * @param document the document
-   * @param saved runs once the file is written
+   * @param saved runs once the file is written, or once the document closed
    * @param stopped runs when no file was written: a failure, or a canceled chooser or prompt
    */
-  void saveForQuit(Document document, Runnable saved, Runnable stopped) {
-    OpenDocument d = entry(document);
+  void saveForQuit(Document document, final Runnable saved, final Runnable stopped) {
+    final OpenDocument d = entry(document);
     files.cancelSave(d);
     d.tab.select();
-    files.save(d, new SaveAndReload.SaveEnd(saved, stopped));
+    files.save(
+        d,
+        new SaveAndReload.SaveEnd(
+            saved,
+            new Runnable() {
+              @Override
+              public void run() {
+                (d.closed ? saved : stopped).run();
+              }
+            }));
   }
 
   /** Selects an open document's tab; a closed document selects nothing. */

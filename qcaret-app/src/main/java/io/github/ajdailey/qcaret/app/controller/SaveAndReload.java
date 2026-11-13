@@ -72,6 +72,9 @@ final class SaveAndReload {
 
     /** A save left the buffer clean. */
     void cleaned(String bufferId);
+
+    /** Returns the targets of the writes running in every window. */
+    RunningWrites writes();
   }
 
   /**
@@ -375,6 +378,7 @@ final class SaveAndReload {
     d.document.clearPreedit();
     final DocumentSnapshot snapshot = d.document.snapshot();
     final CancellationToken token = new CancellationToken();
+    final RunningWrites writes = window.writes();
     d.file.saving = token;
     if (d.file.watch != null) {
       changes.pause(d.file.watch);
@@ -389,41 +393,45 @@ final class SaveAndReload {
                 FileBaseline stamp = null;
                 IOException error = null;
                 Path written = target;
+                // A canceled in-place write runs to its end. The next save of the file waits for
+                // it, and its result reaches the UI thread after that write's result.
+                d.file.writing.lock();
                 try {
-                  FileStamp expected = sameFile(target, known) ? baseline : null;
-                  // A canceled in-place write runs to its end; the next save must not interleave.
-                  d.file.writing.lock();
                   try {
+                    FileStamp expected = sameFile(target, known) ? baseline : null;
                     stamp = DocumentFiles.save(target, snapshot, expected, token);
-                  } finally {
-                    d.file.writing.unlock();
-                  }
-                  try {
-                    written = target.toRealPath();
+                    try {
+                      written = target.toRealPath();
+                    } catch (IOException e) {
+                      // Saved; the path as named stands.
+                    }
                   } catch (IOException e) {
-                    // Saved; the path as named stands.
+                    error = e;
+                  } catch (CancellationException e) {
+                    // Canceled: the target is unchanged.
+                  } finally {
+                    final FileBaseline saved = stamp;
+                    final IOException failure = error;
+                    final Path file = written;
+                    ui.asyncExec(
+                        new Runnable() {
+                          @Override
+                          public void run() {
+                            writes.ended(target);
+                            saved(d, token, target, file, snapshot, saved, failure, end);
+                          }
+                        });
+                    // After the post: an idle view has no result on its way.
+                    view.setIdle();
                   }
-                } catch (IOException e) {
-                  error = e;
-                } catch (CancellationException e) {
-                  // Canceled: the target is unchanged.
                 } finally {
-                  final FileBaseline saved = stamp;
-                  final IOException failure = error;
-                  final Path file = written;
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          saved(d, token, target, file, snapshot, saved, failure, end);
-                        }
-                      });
-                  // After the post: an idle view has no result on its way.
-                  view.setIdle();
+                  d.file.writing.unlock();
                 }
               }
             });
-    if (!started) {
+    if (started) {
+      writes.started(target);
+    } else {
       d.file.saving = null;
       d.settings.pending = null;
       resumeWatch(d);
@@ -514,8 +522,13 @@ final class SaveAndReload {
       return;
     }
     resumeWatch(d);
-    if (error instanceof ExternalModificationException) {
-      askConflict(d, end);
+    if (error instanceof ExternalModificationException conflict) {
+      if (conflict.current().equals(d.file.baseline)) {
+        // The file holds what a canceled save of this document wrote in place.
+        write(d, named, d.file.path, d.file.baseline, end);
+      } else {
+        askConflict(d, end);
+      }
       return;
     }
     if (error != null) {

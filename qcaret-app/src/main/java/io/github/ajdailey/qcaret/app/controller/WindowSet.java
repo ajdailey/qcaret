@@ -25,6 +25,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,6 +99,7 @@ public final class WindowSet {
   private final SessionController session;
   private final BrowserWindows browsers = new BrowserWindows();
   private final RunningCopies copies;
+  private final RunningWrites writes = new RunningWrites();
   private final SnapshotQuit snapshot;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
@@ -198,6 +200,11 @@ public final class WindowSet {
         public RunningCopies copies() {
           return copies;
         }
+
+        @Override
+        public RunningWrites writes() {
+          return writes;
+        }
       };
 
   /**
@@ -254,7 +261,8 @@ public final class WindowSet {
             budget,
             config.location().directory(),
             options.recoveryIntervalSeconds(),
-            options.recoveryKeepDays());
+            options.recoveryKeepDays(),
+            Clock.systemDefaultZone());
     this.session = new SessionController(this, recovery, workers, ui);
     this.copies = new RunningCopies(this, ui);
     this.snapshot = new SnapshotQuit(this, recovery, copies);
@@ -823,12 +831,13 @@ public final class WindowSet {
 
   /**
    * Closes one window, asking about its unsaved documents; a Cancel keeps it open. The last open
-   * window quits instead. Nothing closes while the session restores: the restore holds the window.
+   * window quits instead. Nothing closes while the session restores (the restore holds the window)
+   * or while a quit asks, writes its snapshot or runs.
    *
    * @param window the window
    */
   void requestClose(final ApplicationController window) {
-    if (quitting || prompts != null || !windows.contains(window)) {
+    if (quitRunning() || !windows.contains(window)) {
       return;
     }
     if (windows.size() == 1) {

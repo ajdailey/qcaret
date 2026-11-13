@@ -114,6 +114,13 @@ name this Java lacks, so a remembered encoding the runtime does not have reads
 as none. `TextEncoding.MENU` lists the Encoding menu's charsets; the
 distribution smoke test checks that every bundle runtime has them.
 
+`Encoders.writable` reports whether a charset has an encoder; a decode-only
+charset such as `x-JISAutoDetect` has none, and `Charset.newEncoder` throws for
+it. Every encoder user checks it first: Save refuses the charset, Replace in
+Files skips the file as unencodable, Document Statistics counts unknown bytes and
+a selection checksum shows a notice. `Encoders.reporting` returns an encoder
+that reports a malformed or unmappable char instead of replacing it.
+
 `EncodingDetector.detect` examines the whole file, in this order; `candidates`
 lists the same choices from the file's first 64 KiB alone, for a caller that
 tries each over the file (`DocumentFiles.load`):

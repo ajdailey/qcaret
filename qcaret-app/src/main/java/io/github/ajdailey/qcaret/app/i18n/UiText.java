@@ -183,6 +183,8 @@ public enum UiText {
   CHECKSUM_SELECTION_NO_ENCODER,
   /** Notice: the reason. */
   CHECKSUM_SAVE_FAILED,
+  /** Notice: Save As into a folder a workspace browser rename holds. */
+  CHECKSUM_SAVE_RENAMING,
   /** Button choosing files to hash. */
   BUTTON_CHOOSE_FILES,
   /** Button choosing a list to verify. */
@@ -912,6 +914,8 @@ public enum UiText {
   /** Find bar notice: Replace All dropped its result because the document changed. */
   FIND_REPLACE_ALL_STALE,
   FIND_REPLACE_STALE,
+  /** Find bar notice: the search stopped on an unchecked failure. */
+  FIND_FAILED,
   /** Command label. */
   COMMAND_TOGGLE_LINE_COMMENT,
   /** Command label. */
@@ -1148,7 +1152,7 @@ public enum UiText {
   FILE_NAME_INVALID,
   /** Refusal: the name is taken; the name. */
   FILE_EXISTS,
-  /** Refusal: a save, reload or change prompt holds an open document under the entry. */
+  /** Refusal: work is in flight on an open document under the entry, or a write targets it. */
   FILE_BUSY,
   /** Create failed; the name, then the reason. */
   CREATE_FAILED,

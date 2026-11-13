@@ -1,28 +1,29 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * What a user's close of a window's last tab does. With {@code tabs.closeWindowWithLastTab} on, the
- * window closes through {@link WindowSet#requestClose}, so the last window quits. Otherwise an
- * untitled document opens in the window, and an untitled document with no text and no unsaved
- * changes stays open instead of closing. Nothing happens once a quit has begun. Confined to the UI
- * thread.
+ * window closes, so the last window quits. Otherwise an untitled document opens in the window, and
+ * an untitled document with no text and no unsaved changes stays open instead of closing. Nothing
+ * happens once a quit has begun. Confined to the UI thread.
  */
 final class LastTab {
   private final Settings settings;
-  private final WindowSet set;
-  private final ApplicationController window;
+  private final BooleanSupplier quitting;
+  private final Runnable closeWindow;
 
   /**
    * Creates the rule for one window.
    *
    * @param settings the running settings
-   * @param set the windows of the instance
-   * @param window the window
+   * @param quitting true once the instance or the window has begun to quit
+   * @param closeWindow closes the window through {@link WindowSet#requestClose}
    */
-  LastTab(Settings settings, WindowSet set, ApplicationController window) {
+  LastTab(Settings settings, BooleanSupplier quitting, Runnable closeWindow) {
     this.settings = settings;
-    this.set = set;
-    this.window = window;
+    this.quitting = quitting;
+    this.closeWindow = closeWindow;
   }
 
   /**
@@ -46,11 +47,11 @@ final class LastTab {
    * @param documents the window's documents
    */
   void emptied(DocumentController documents) {
-    if (set.quitRunning() || window.isQuitting()) {
+    if (quitting.getAsBoolean()) {
       return;
     }
     if (closesWindow()) {
-      window.closeWindow();
+      closeWindow.run();
     } else {
       documents.newDocument();
     }

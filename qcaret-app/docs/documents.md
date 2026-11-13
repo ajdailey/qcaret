@@ -185,8 +185,13 @@ worker while editing goes on, then calls `markSaved`.
   same document shows a notice instead.
 - Esc in the editor and closing the tab cancel a running save. A cancel before
   the move leaves the target unchanged; an in-place write that has begun runs
-  to its end and reports saved.
+  to its end and reports saved. The next save of the file waits for it
+  (`OpenFile.writing`) and its result follows that write's; a conflict whose
+  stamp is the one that write recorded writes again without asking.
 - A file without write permission fails with `SAVE_FAILED`.
+- Each running Save, Save As, Save a Copy As and checksum list Save As lists
+  its target in `RunningWrites` until its result reaches the UI thread; a
+  workspace Rename or Delete of a folder holding one refuses.
 - Save writes through the path the user opened, so a symbolic link is followed
   at each save.
 - A target changed on disk since the load, the last save or the last reload is
@@ -211,7 +216,10 @@ snapshot, so the document's text, undo history and dirty state are untouched.
 The document keeps its path, file check and session entry, and the copy is not
 opened.
 
-- A target whose real path is the document's file runs Save.
+- A target whose real path is the document's file runs Save, and so does a
+  hard link of it (`Files.isSameFile`, on the resolving worker): a copy would
+  write the document's own inode in place, outside `OpenFile.writing` and with
+  its file check running.
 - A written copy is checked at once in the tab holding that file, in any
   window, which takes it as an external change, and goes to the top of Recent
   Files.
@@ -222,7 +230,7 @@ opened.
   so a copy followed by Don't Save keeps the edits in the copy. The result
   shows in the tab's window while it is open, otherwise in the active window.
   The tab does not move to another window while the copy runs
-  (`OpenFile.running`).
+  (`OpenFile.inFlight`).
 - Quit waits for every running copy, the snapshot quit included
   (`RunningCopies`). A failed copy stops the quit, as a failed save does.
   After `RunningCopies.BOUND` (30 s) a modal prompt in the active window
@@ -242,10 +250,11 @@ its heap reservation.
 - Reopen Closed Tab opens the file of the last of up to 20 closed tabs again.
 - Open All in Recent Files and Recently Closed (`OpenAll`) checks the listed
   files on a `qcaret-io-` worker and passes the readable regular files, in list
-  order, to `open(List)`, which selects a file already open. The others are
+  order, to the open, which selects a file already open. The others are
   named in one status notice and get no tab, where a single open of a missing
-  file opens an empty tab for it. Recently Closed drops the files it opened and
-  keeps the skipped ones.
+  file opens an empty tab for it. Recently Closed drops each file once its tab
+  shows (`open(Path, Consumer)`), so a skipped file and one whose load fails or
+  is canceled stay listed.
 - Read-Only, the tab width and indentation with spaces are per document.
 - Go to Line asks for `line`, `line:column` or `line,column`, from 1; other
   input shows a notice.

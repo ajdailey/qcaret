@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Unpacks the $TARGET bundle from dist/, verifies a macOS bundle's signature,
-# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets
-# and java.xml, and starts the bundle's launcher until the main window opens
+# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets,
+# jdk.localedata and java.xml, and starts the bundle's launcher until the main window opens
 # and the grammars are read, with no unhandled failure. A second launch then
 # hands a file to the running bundle and exits 0. Neither launch prints the
 # JDK's native-access warning. The same run follows with the
@@ -36,6 +36,8 @@ if [ "$(uname -s)" = Darwin ]; then
 fi
 "$runtime/bin/java" --list-modules | grep '^jdk\.charsets@' >/dev/null \
   || { echo "FAIL: runtime lacks jdk.charsets" >&2; exit 1; }
+"$runtime/bin/java" --list-modules | grep '^jdk\.localedata@' >/dev/null \
+  || { echo "FAIL: runtime lacks jdk.localedata" >&2; exit 1; }
 "$runtime/bin/java" --list-modules | grep '^java\.xml@' >/dev/null \
   || { echo "FAIL: runtime lacks java.xml" >&2; exit 1; }
 
