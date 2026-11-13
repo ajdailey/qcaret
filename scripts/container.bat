@@ -31,7 +31,7 @@ rem The first remaining argument names the command; the rest pass through.
 rem An empty command runs compose.yaml's own.
 set "TOK=%~1"
 if /i "!TOK!"=="build" set "TOK="
-if /i "!TOK!"=="check" set "TOK=xvfb-run -a ./mvnw -B clean verify"
+if /i "!TOK!"=="check" set "TOK=xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B clean verify"
 rem dist is a mount source: empty it, never remove it.
 if /i "!TOK!"=="clean" set TOK=sh -c "./mvnw -B clean && find dist -mindepth 1 -delete"
 if /i "!TOK!"=="shell" set "TOK=bash"

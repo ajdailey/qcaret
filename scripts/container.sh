@@ -18,7 +18,7 @@ usage: container.sh [--rebuild] [--out DIR] [command]
 
   (no command)   clean package -Pall-targets: the seven archives into dist/
   build          same as no command
-  check          xvfb-run ./mvnw clean verify: every test, SWT included
+  check          xvfb-run ./mvnw clean verify at 1280x1024: every test, SWT included
   clean          ./mvnw clean, and empty dist/
   shell          an interactive shell in the build image
   <anything>     run verbatim inside the image at the repository root
@@ -67,7 +67,7 @@ CMD=()
 case "$SUB" in
   # Empty: compose.yaml's command runs.
   build) ;;
-  check) CMD=(xvfb-run -a ./mvnw -B clean verify) ;;
+  check) CMD=(xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B clean verify) ;;
   # dist/ is a mount source: empty it, never remove it.
   clean) CMD=(sh -c './mvnw -B clean && find dist -mindepth 1 -delete') ;;
   shell) CMD=(bash); INTERACTIVE=1 ;;
