@@ -14,10 +14,11 @@ bytecode. `Boot.start` then:
 1. Maps `os.name` and `os.arch` to a `Target` (`Target.current`, the only
    bootstrap reader of `os.name`); any other platform prints one line and
    exits 2.
-2. On macOS without `-XstartOnFirstThread`, relaunches (`MacRelaunch`).
-3. Reads `META-INF/qcaret/index.properties` and prepares the natives
+2. A class path without `qcaret.jar` prints one line and exits 2.
+3. On macOS without `-XstartOnFirstThread`, relaunches (`MacRelaunch`).
+4. Reads `META-INF/qcaret/index.properties` and prepares the natives
    (`Natives`).
-4. Sets `swt.library.path` and `qcaret.home`, builds a `NestedJarClassLoader`
+5. Sets `swt.library.path` and `qcaret.home`, builds a `NestedJarClassLoader`
    over the target's SWT fragment and the application jars, makes it the
    context class loader, and runs `io.github.ajdailey.qcaret.launcher.Main`.
 

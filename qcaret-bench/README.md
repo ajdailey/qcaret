@@ -81,6 +81,18 @@ on macOS the bootstrap relaunch of a `.jar` target drops the heap option.
 
 The scripts use `$JAVA_HOME/bin/java` when set; build `qcaret-bench` first.
 
+### Tab close
+
+`TabsProbe` in `qcaret-ui-swt` opens, for each count in `qcaret.bench.tabs`,
+that many files of `qcaret.bench.lines` lines (2,000 by default), shows the
+first tab and times Close All: `task` is the command's UI task, `withQueued`
+adds the UI work it queued.
+
+```sh
+xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=TabsProbe \
+  -Dsurefire.failIfNoSpecifiedTests=false -Dqcaret.bench.tabs=25,100
+```
+
 ## Workload notes
 
 - The harness reads the live heap after three `System.gc()` calls, which are

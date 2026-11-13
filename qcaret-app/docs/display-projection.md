@@ -108,8 +108,8 @@ indented no deeper; blank lines stay outside.
 - After a block-ending statement (`IndentRules.dedentNext`, Python's `return`
   and `pass`) the new line takes one level less.
 - A closer typed after only whitespace outdents the line to the previous
-  non-blank line's indentation, one level less unless that line opens one, and
-  never indents it further.
+  non-blank line's indentation, within 1,000 lines, one level less unless that
+  line opens one, and never indents it further.
 
 ## Column metrics
 

@@ -58,6 +58,7 @@ image with a Paint event over the client area where `Control.print` fails.
 | `ToolbarAndMenusTest` | The toolbar's order, icons and tool tips, its buttons against `CommandStates`, View > Toolbar with the choice in the settings file, a live theme switch's ink and faded buttons, a narrow window; posted Ctrl+X, Ctrl+V, Ctrl+C and Ctrl+Z in the find field with the items disabled and Ctrl+C in a read-only view, on GTK 3; the editor menu's selection rule, keyboard request, commands, split-view target and key change; the tab menu's side closes; no repeated mnemonic in any built menu, cascade (Encoding's charsets and View > Syntax included) or the editor and tab menus, and the Window menu's document entry numbered `&1`; View > Line Numbers in existing and later views; the menu items' icons with a theme switch both ways |
 | `MenuIconsTest` | The command-to-icon table, both inks at both sizes, the shared root element, `MenuIcons` per platform |
 | `TabMoveGuiTest` | The menu items and tab drags over real shells, with a `PointerProbe` naming the control under the release |
+| `TabCloseSurfaceTest` | Closing the shown tab in a real `CTabFolder` showing the tab after it, else the one before, in the folder, the controller and the text; the same after `TabList` scrolls and repairs the strip and while the folder is in MRU mode, where its own reselection differs. Fails when `MainWindow` acts on the `Selection` a dispose fires |
 | `TabStripButtonsTest` | With 30 tabs in a 700 px window: the three buttons and SWT's chevron at zero width, the hidden count, the list menu with a choice selecting and showing its tab and a duplicate name's folder, the wheel showing a hidden tab and keeping the selected one shown, New showing its tab at every width, Close asking about unsaved changes, the icon ink across a theme switch |
 | `AlwaysOnTopWindowTest` | View > Always on Top's check item enabled where `WindowStacking` supports it, its GTK 3 tool tip where not, and the command toggling the check |
 | `WindowStackingTest` | Each platform's reflected SWT members resolving; on win32 `WS_EX_TOPMOST` and on cocoa the window level each way, with a dialog opened while on top raised; GTK 4 and Wayland unsupported; on GTK 3 under X11 `_NET_WM_STATE_ABOVE` each way, a dialog transient for the window and the combo list override-redirect |
@@ -154,6 +155,7 @@ shown and hidden. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
 | `CompareSurfaceTest` | `change-prompt.png`, `diff-view.png` (the whole screen) |
 | `ReplaceSurfaceTest` | `replace-preview.png`, `replace-report.png` |
 | `RecoverySurfaceTest`, `PreferencesSurfaceTest` | The recovery dialog and the restored split; each Preferences group |
+| `DocumentBehaviorSurfaceTest` | `unfinished-copies-light.png`, `unfinished-copies-dark.png` |
 
 ## IBus test
 

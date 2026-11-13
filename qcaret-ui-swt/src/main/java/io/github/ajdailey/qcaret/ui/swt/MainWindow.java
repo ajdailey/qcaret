@@ -230,6 +230,8 @@ public final class MainWindow implements MainView {
   private WindowGeometry.Request normalBounds = new WindowGeometry.Request(null, null, null, null);
   private CTabItem dragged;
   private boolean movingTab;
+  // Tab close: the controller picks the tab shown next.
+  private boolean removingTab;
   private PointerProbe pointer =
       new PointerProbe() {
         @Override
@@ -473,7 +475,12 @@ public final class MainWindow implements MainView {
         model.removeListener(this);
       }
       if (!item.isDisposed()) {
-        item.dispose();
+        removingTab = true;
+        try {
+          item.dispose();
+        } finally {
+          removingTab = false;
+        }
       }
       for (EditorPane p : panes) {
         p.dispose();
@@ -1202,7 +1209,10 @@ public final class MainWindow implements MainView {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if (!movingTab && event.item != null && event.item.getData() instanceof Tab tab) {
+            if (!movingTab
+                && !removingTab
+                && event.item != null
+                && event.item.getData() instanceof Tab tab) {
               tab.pane.focus();
               tab.input.activated();
               scheduleStatus();

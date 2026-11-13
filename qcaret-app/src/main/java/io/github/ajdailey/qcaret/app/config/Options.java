@@ -39,6 +39,8 @@ import java.time.format.DateTimeFormatter;
  * @param modelines {@code editor.modelines}: documents take the settings of vim and Emacs modelines
  * @param closeWindowWithLastTab {@code tabs.closeWindowWithLastTab}: closing a window's last tab
  *     closes the window
+ * @param closeShowsLastUsed {@code tabs.closeShowsLastUsed}: closing the shown tab shows the most
+ *     recently used tab, not the one after it
  */
 public record Options(
     int completionChars,
@@ -59,7 +61,8 @@ public record Options(
     String dateFormat,
     boolean editorConfig,
     boolean modelines,
-    boolean closeWindowWithLastTab) {
+    boolean closeWindowWithLastTab,
+    boolean closeShowsLastUsed) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -139,6 +142,7 @@ public record Options(
           "yyyy-MM-dd HH:mm",
           true,
           true,
+          false,
           false);
 
   /** Checks the components. */
@@ -239,7 +243,8 @@ public record Options(
         dateFormat,
         editorConfig,
         modelines,
-        closeWindowWithLastTab);
+        closeWindowWithLastTab,
+        closeShowsLastUsed);
   }
 
   /**
@@ -268,6 +273,7 @@ public record Options(
         dateFormat,
         editorConfig,
         modelines,
-        closeWindowWithLastTab);
+        closeWindowWithLastTab,
+        closeShowsLastUsed);
   }
 }

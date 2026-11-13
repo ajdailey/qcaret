@@ -11,8 +11,8 @@ module except the bootstrap, so it holds the architecture rules.
 
 | Status | Cause |
 |---|---|
-| 0 | Help, version, or the window closed |
-| 1 | Bad command line, or a `--settings` path that cannot be a directory |
+| 0 | Help, version, a launch handed to the running instance, or the window closed |
+| 1 | Bad command line, a `--settings` path that cannot be a directory, or an `IOException` out of the log or GUI setup |
 | 3 | SWT failed to load (`UnsatisfiedLinkError` or `SWTError` from `new Display()`), typically missing GTK 3 libraries |
 
 `Main` calls `System.exit` only for a nonzero status, which arises only before
@@ -25,7 +25,8 @@ portable mode on Linux, `PlatformSetup` then sets `user.home` to the settings
 directory, so GTK SWT writes its `.swt/trims.prefs` there. On Windows, in
 every mode, it sets `org.eclipse.swt.browser.EdgeDataDir` to
 `<settings>/cache/webview2`, so an embedded WebView2 browser keeps its data in
-the settings directory. With `-l` it attaches the debug log file.
+the settings directory. With `-l` or `log.debugFile` it attaches the debug log
+file.
 
 `Gui` reads `qcaret_session.conf` and the theme file `ui.editorColors` names before
 the Display. Without `-m`, a start
@@ -38,7 +39,7 @@ save comes first. It runs on the calling thread, which becomes the
 UI thread:
 
 1. `Display.setAppName("QCaret")`, then the Display.
-2. `Workers`, then `SwtThemeService.open`, before the first Shell: for light
+2. `SwtThemeService.open`, before the first Shell: for light
    and dark it sets the native controls' theme (system leaves them to the OS);
    on macOS native controls always follow the OS.
 3. The `WindowSet`, whose documents draw on `MemoryBudget.fromRuntime()`, and

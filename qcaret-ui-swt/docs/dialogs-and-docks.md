@@ -42,7 +42,7 @@ transient parent.
 
 | Class | Behavior |
 |---|---|
-| `FileDialog` (native) | Open and Save As; runs a nested event loop |
+| `FileDialog` (native) | Open, Save As, Save a Copy As, the checksum file choices and Print to PDF (GTK 4); runs a nested event loop |
 | `DirectoryDialog` (native) | File > Set Workspace Folder and the HyperSearch dialog's Browse; runs a nested event loop |
 | `UnsavedDialog` | Save, Don't Save and Cancel answer through a callback; closing it answers Cancel |
 | `BinaryDialog` | Opens the read-only view on Open Read-Only; Cancel is the default and closing it declines |
@@ -54,8 +54,8 @@ transient parent.
 | `DocumentChooser` | Asks for the document Compare Documents compares with |
 | `DateFormatChooser` | Edit > Insert Date and Time: a modal list of formats with the current time; Insert, Enter or a double click inserts the selected one |
 | `StatisticsDialog` | Tools > Document Statistics: modeless; the document and selection counts, the percent read or a message, Refresh and Close; Esc closes it and closing cancels the count |
-| `HashTextDialog` | Tools > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
-| `ChecksumDialog` | Tools > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |
+| `HashTextDialog` | Tools > *algorithm* > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
+| `ChecksumDialog` | Tools > *algorithm* > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |
 | `TipDialog` | Help > Tip of the Day: modeless; the tip in a read-only text area, the Show tips on startup check box, Next Tip and Close; Esc closes it and closing calls `TipInput.closed` |
 | `BookmarkCommentDialog` | A modal one-line field limited to the comment length, starting with the current comment selected; OK answers its text, and Cancel, Esc and closing answer null |
 

@@ -155,6 +155,13 @@ class RecentFilesTest {
     assertFalse(RecentFiles.isGone(file("present.txt")));
   }
 
+  /** An unmounted mount point is an empty folder, so a file listed under it reads as missing. */
+  @Test
+  void aFileUnderAnUnmountedMountPointIsGone() throws Exception {
+    Path mountPoint = Files.createDirectory(temp.resolve("mnt"));
+    assertTrue(RecentFiles.isGone(mountPoint.resolve("disk").resolve("a.txt")));
+  }
+
   /**
    * A check that blocks, as on an unreachable share, holds a worker and not the UI thread; a second
    * Clean Up meanwhile starts nothing, and the files stay listed until the check ends.

@@ -77,7 +77,8 @@ class LastTabTest {
                     o.dateFormat(),
                     o.editorConfig(),
                     o.modelines(),
-                    true)));
+                    true,
+                    false)));
   }
 
   @Test

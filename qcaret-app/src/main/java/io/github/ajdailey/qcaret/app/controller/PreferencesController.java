@@ -91,7 +91,8 @@ final class PreferencesController implements PreferencesInput {
         o.editorConfig(),
         o.modelines(),
         p.appearance().editorColors(),
-        o.closeWindowWithLastTab());
+        o.closeWindowWithLastTab(),
+        o.closeShowsLastUsed());
   }
 
   @Override
@@ -235,7 +236,8 @@ final class PreferencesController implements PreferencesInput {
                     dateFormat,
                     form.editorConfig(),
                     form.modelines(),
-                    form.closeWindowWithLastTab()));
+                    form.closeWindowWithLastTab(),
+                    form.closeShowsLastUsed()));
     boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,

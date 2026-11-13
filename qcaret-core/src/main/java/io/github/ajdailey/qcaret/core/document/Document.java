@@ -106,7 +106,7 @@ public final class Document {
    *
    * @param text the initial text, which the undo history cannot go back past
    * @param encoding the encoding a save writes
-   * @param empty the line ending of a text without breaks ({@code newFile.lineEnding})
+   * @param empty the line ending of a text without breaks
    * @param limits the undo history bounds
    * @return the document, clean, at revision 0
    */

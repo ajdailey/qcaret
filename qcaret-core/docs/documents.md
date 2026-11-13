@@ -102,9 +102,9 @@ The text keeps every CR, LF and CR LF as read, and a save writes them back
 unchanged. `lineEndings()` counts each kind, updated per change from the
 replaced range and one char on either side; `isMixed()` drives the status bar's
 "Mixed". `lineEnding()`, what Enter inserts, is the most frequent kind at load,
-the first seen on a tie, or `newFile.lineEnding` for a file without breaks.
-`setEncoding` changes what the next save writes and makes the document dirty
-until then.
+the first seen on a tie, or `LoadOptions.empty` (LF in `LoadOptions.DEFAULTS`)
+for a file without breaks. `setEncoding` changes what the next save writes and
+makes the document dirty until then.
 
 ## Loading and saving
 

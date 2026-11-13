@@ -229,6 +229,7 @@ public final class ApplicationController {
     documents.setMaxHighlightLineChars(options.maxHighlightLineChars());
     documents.setPollSeconds(options.pollSeconds());
     documents.setAutoReloadClean(options.autoReloadClean());
+    documents.setCloseShowsLastUsed(options.closeShowsLastUsed());
     documents.setGrammarChosen(
         new Consumer<String>() {
           @Override
@@ -291,6 +292,7 @@ public final class ApplicationController {
     if (now.autoReloadClean() != old.autoReloadClean()) {
       documents.setAutoReloadClean(now.autoReloadClean());
     }
+    documents.setCloseShowsLastUsed(now.closeShowsLastUsed());
     if (now.backupDays() != old.backupDays()) {
       replace.setBackupDays(now.backupDays());
     }

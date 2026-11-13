@@ -83,6 +83,7 @@ class SearchControllerTest {
                     Options.DEFAULTS.dateFormat(),
                     Options.DEFAULTS.editorConfig(),
                     Options.DEFAULTS.modelines(),
+                    false,
                     false)));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();

@@ -104,7 +104,8 @@ final class RecentFiles {
 
   /**
    * Drops the files that no longer exist. The check runs on a worker, so a slow or unreachable path
-   * holds only that worker; a Clean Up while one runs does nothing. A notice reports the count.
+   * holds only that worker; a Clean Up in this window while one runs does nothing. A notice reports
+   * the count.
    */
   void cleanUp() {
     if (cleaning || disposed) {
@@ -153,8 +154,9 @@ final class RecentFiles {
   }
 
   /**
-   * Reports whether a file is gone: nothing at the path, a dangling link, or a folder. A path whose
-   * check fails otherwise, such as one denied or unreachable, stays listed.
+   * Reports whether a file is gone: nothing at the path, which includes a path under an unmounted
+   * mount point, a dangling link, or a folder. A path whose check fails otherwise, such as one
+   * denied or unreachable, stays listed.
    */
   @WorkerThread
   static boolean isGone(Path path) {

@@ -96,6 +96,8 @@ import org.slf4j.LoggerFactory;
  *       Disk reads the file on demand, asking first when the document is dirty.
  *   <li>Closing a dirty document asks Save, Don't Save or Cancel; Save closes once the save
  *       succeeds. {@link #closeAll} asks for each dirty document in tab order and stops at Cancel.
+ *       {@link TabUse} picks the tab shown after a close and closes the shown tab last in a bulk
+ *       close.
  *   <li>A closed document releases its {@link MemoryBudget} reservation. The paths of the last
  *       {@value #REOPEN_LIMIT} closed files are kept for Reopen Closed Tab and File > Recently
  *       Closed, newest first; each file's caret, top line, tab settings, forced charset and chosen
@@ -112,7 +114,7 @@ import org.slf4j.LoggerFactory;
  *       on a {@code qcaret-cpu-} worker from the file name and the first line when the document
  *       opens, when a save gives it another name and when the grammars are read again, unless the
  *       user chose one ({@link #setSyntax}). The last {@value UiState#MAX_RECENT_GRAMMARS} grammars
- *       chosen, Plain Text aside, are saved in {@code syntax.recent}.
+ *       chosen, Plain Text included, are saved in {@code syntax.recent}.
  *   <li>Bookmarks are per document, shared by its views. Word completion ({@link WordCompletion})
  *       reads every open document. Show Whitespace, Show Line Endings and the completion trigger
  *       apply to every editor of the window.
@@ -157,6 +159,7 @@ public final class DocumentController {
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
   private LastTab lastTab;
+  private final TabUse use = new TabUse();
   private final Runnable lastClosed =
       new Runnable() {
         @Override
@@ -799,6 +802,16 @@ public final class DocumentController {
     files.setAutoReloadClean(on);
   }
 
+  /**
+   * Sets whether closing the shown tab shows the most recently used tab ({@code
+   * tabs.closeShowsLastUsed}) instead of the tab after it, else the one before.
+   *
+   * @param on true for the most recently used tab
+   */
+  public void setCloseShowsLastUsed(boolean on) {
+    use.setLastUsed(on);
+  }
+
   /** Sets what receives a grammar's id when the user chooses it with {@link #setSyntax}. */
   void setGrammarChosen(Consumer<String> listener) {
     grammarChosen = listener;
@@ -1200,15 +1213,15 @@ public final class DocumentController {
     closeNext(null, then);
   }
 
-  /** Closes the first document other than {@code kept}, asking when dirty, then the next. */
+  /**
+   * Closes the next document other than {@code kept} as {@link TabUse#nextToClose} orders them,
+   * asking when dirty, then the next.
+   */
   private void closeNext(final OpenDocument kept, final Runnable then) {
-    OpenDocument next = null;
-    for (OpenDocument d : documents) {
-      if (d != kept) {
-        next = d;
-        break;
-      }
-    }
+    List<OpenDocument> candidates = new ArrayList<OpenDocument>(documents);
+    candidates.remove(kept);
+    OpenDocument next = TabUse.nextToClose(candidates, active);
+    showKeptBefore(next, kept);
     if (next != null && then == lastClosed && keepsLast(next)) {
       next.tab.select();
       return;
@@ -1261,29 +1274,42 @@ public final class DocumentController {
     List<OpenDocument> side =
         new ArrayList<OpenDocument>(
             left ? documents.subList(0, at) : documents.subList(at + 1, documents.size()));
-    closeEach(side, 0, from, active);
+    closeEach(side, from, active);
   }
 
-  /** Closes a list from an index on; {@code kept} is selected once {@code selected} has closed. */
+  /**
+   * Closes a list in {@link TabUse#nextToClose} order; {@code kept} is selected once {@code
+   * selected} has closed.
+   */
   private void closeEach(
-      final List<OpenDocument> list,
-      final int index,
-      final OpenDocument kept,
-      final OpenDocument selected) {
-    if (index == list.size()) {
+      final List<OpenDocument> list, final OpenDocument kept, final OpenDocument selected) {
+    OpenDocument next = TabUse.nextToClose(list, active);
+    if (next == null) {
       if (selected.closed && !kept.closed) {
         kept.tab.select();
       }
       return;
     }
+    showKeptBefore(next, kept);
     close(
-        list.get(index),
+        next,
         new Runnable() {
           @Override
           public void run() {
-            closeEach(list, index + 1, kept, selected);
+            closeEach(list, kept, selected);
           }
         });
+  }
+
+  /** Shows {@code kept} before a bulk close closes the clean shown tab, so no other tab shows. */
+  private void showKeptBefore(OpenDocument next, OpenDocument kept) {
+    if (next != null
+        && next == active
+        && !next.document.isDirty()
+        && kept != null
+        && !kept.closed) {
+      kept.tab.select();
+    }
   }
 
   /**
@@ -1454,11 +1480,17 @@ public final class DocumentController {
     }
     d.document.removeListener(d);
     release.run();
+    int index = documents.indexOf(d);
     documents.remove(d);
-    if (active == d) {
-      active = documents.isEmpty() ? null : documents.get(documents.size() - 1);
+    use.removed(d);
+    boolean shown = active == d;
+    if (shown) {
+      active = use.successor(documents, index);
     }
     d.tab.close();
+    if (shown && active != null) {
+      active.tab.select();
+    }
     view.documentStateChanged();
     viewsChanged();
   }
@@ -1677,6 +1709,9 @@ public final class DocumentController {
   }
 
   private void viewsChanged() {
+    if (active != null) {
+      use.shown(active);
+    }
     sessionChanged();
     if (viewListener != null) {
       viewListener.viewsChanged();

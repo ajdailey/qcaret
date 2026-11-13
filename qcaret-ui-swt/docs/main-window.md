@@ -38,7 +38,9 @@ and a middle click ask the `DocumentController` to close it.
 Dragging a tab within the strip moves it: an item cannot change position, so
 the move disposes and recreates it, and the `Selection` that `CTabFolder` sends
 for a neighbor while the selected item is disposed is ignored, so the moved tab
-stays shown.
+stays shown. A tab close ignores that `Selection` too, and the controller
+selects the tab shown next (see
+[Windows and tabs](../../qcaret-app/docs/windows-and-tabs.md#tab-close)).
 
 ### Tab moves between windows
 
@@ -126,7 +128,8 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
   Recent Files lists the recent files above Open All, Clean Up and Clear
   Recent Files, and File >
   Recently Closed the closed files above Clear Recently Closed, each rebuilt
-  when its menu shows; a path's `&` is doubled.
+  when its menu shows and numbered as the Window menu is; a path's `&` is
+  doubled.
 - The View menu's Syntax cascade and the status bar's language popup show the
   app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain Text,
   then one cascade per category. `MainMenuBar` rebuilds the cascade's entries

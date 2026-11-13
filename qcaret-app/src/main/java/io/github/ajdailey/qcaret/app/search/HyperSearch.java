@@ -43,8 +43,8 @@ public final class HyperSearch {
   /**
    * The search's bounds.
    *
-   * @param maxResults the most matches a set holds ({@code search.maxResults})
-   * @param maxFileBytes the largest file read ({@code search.maxFileBytes})
+   * @param maxResults the most matches a set holds
+   * @param maxFileBytes the largest file read
    * @param maxLineChars the longest line searched
    * @param fallback the charset encoding detection falls back to
    */

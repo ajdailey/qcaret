@@ -208,11 +208,17 @@ public final class InstanceServer implements AutoCloseable {
     return held.size();
   }
 
-  private void accept(Workers workers) {
+  /**
+   * Accepts connections until {@link #close}, an accept failure or an interrupt, which stays set.
+   *
+   * @param workers starts a {@code qcaret-ipc-} thread per connection
+   */
+  void accept(Workers workers) {
     while (true) {
       try {
         slots.acquire();
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         LOG.debug("Handoff listener interrupted");
         return;
       }
@@ -280,17 +286,20 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Queues a request, waits for {@link #deliverTo}, then delivers everything queued, in order.
+   * Queues a request, waits for {@link #deliverTo}, then delivers everything queued, in order. An
+   * interrupt ends the wait as the window's end does and stays set.
    *
+   * @param request the authenticated request
    * @return true when the receiver took the launch
    */
-  private boolean hand(StartupRequest request) {
+  boolean hand(StartupRequest request) {
     Held entry = new Held(request);
     held.add(entry);
     boolean open = false;
     try {
       open = released.await(windowDeadline - System.nanoTime(), TimeUnit.NANOSECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       LOG.debug("Held handoff interrupted");
     }
     // A request already polled is in a delivery; the lock in deliverHeld waits for its outcome.

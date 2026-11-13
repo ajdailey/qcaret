@@ -84,8 +84,9 @@ lists it), label, check state and cascade. `MenuTable` lays out the menus: each
 menu's commands in order with its separators, the editor and tab context menus,
 and the check commands shown as radio items (Theme, Tab Width, Line Endings).
 Consecutive commands with one cascade form that cascade; a separator before a
-cascade's first command sits in the parent menu. No two items of one menu,
-cascade or context menu share a mnemonic (`MenuTableTest`,
+cascade's first command sits in the parent menu. Every item of a menu, cascade
+and the editor, tab and row context menus has a mnemonic (`&` before the letter,
+`&&` a literal ampersand), and no two in one menu share one (`MenuTableTest`,
 `ToolbarAndMenusTest`).
 
 | Menu | Holds, `\|` between groups |
@@ -139,6 +140,7 @@ Platform choices in the defaults, with the conflict each avoids:
 | Delete Word Back and Forward | Ctrl+Backspace, Ctrl+Delete; Option on macOS | The word-move modifier of each platform |
 | Title Case, Swap Case | None | Ctrl+Alt+letter is AltGr on Windows and types a char on many layouts |
 | Fold All, Unfold All | Alt+[ and Alt+]; Cmd+Option+[ and ] on macOS | Windows delivers AltGr as Ctrl+Alt, and AltGr+[ types a char on layouts such as US-International |
+| Save All | Cmd+Option+S on macOS only | Ctrl+Alt+S off macOS is AltGr+S on Windows |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;

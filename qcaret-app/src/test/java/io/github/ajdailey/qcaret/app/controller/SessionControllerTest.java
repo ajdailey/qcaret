@@ -23,9 +23,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -593,5 +598,53 @@ class SessionControllerTest {
         },
         "the debounced save");
     assertEquals(a.toString(), store().load().windows().get(0).tabs().get(0).path());
+  }
+
+  @Test
+  void aSavePastTheLimitsWarnsAndShowsOneNoticePerRun() throws Exception {
+    final List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
+    Handler capture =
+        new Handler() {
+          @Override
+          public void publish(LogRecord entry) {
+            if (entry.getLevel().intValue() >= Level.WARNING.intValue()) {
+              warnings.add(entry.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    Logger logger = Logger.getLogger(SessionLimitNotice.class.getName());
+    logger.addHandler(capture);
+    try {
+      List<String> recent = new ArrayList<String>();
+      for (int i = 0; i < SessionStore.MAX_RECENT + 3; i++) {
+        recent.add("/mock/r" + i);
+      }
+      Harness harness = start(true);
+      SessionController session = harness.application.sessionController();
+      final String notice = UiText.SESSION_LIMITS.format(UiText.SESSION_LIMIT_RECENT.format(3));
+      session.write(new SessionController.Capture(100, new Session(List.of(), recent, List.of())));
+      recent.add("/mock/more");
+      session.write(new SessionController.Capture(101, new Session(List.of(), recent, List.of())));
+      harness.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return harness.view.notices.contains(notice);
+            }
+          },
+          "the limits notice");
+      harness.ui.runPending();
+      assertEquals(1, count(harness.view.notices, notice), harness.view.notices.toString());
+      assertEquals(1, warnings.size(), warnings.toString());
+      assertEquals(SessionStore.MAX_RECENT, store().load().recent().size());
+    } finally {
+      logger.removeHandler(capture);
+    }
   }
 }

@@ -19,7 +19,10 @@ public interface TabView {
   /** Scrolls that view so its primary caret shows. */
   void showCaret();
 
-  /** Removes the tab and disposes its views. */
+  /**
+   * Removes the tab and disposes its views. A selection the toolkit moves to another tab is not
+   * reported through {@link TabInput#activated}; the caller selects the tab shown next.
+   */
   void close();
 
   // Split views.

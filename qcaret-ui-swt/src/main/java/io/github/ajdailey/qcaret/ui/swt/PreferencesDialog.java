@@ -68,6 +68,7 @@ final class PreferencesDialog {
   private Text recoveryKeepDays;
   private Button sessionSnapshot;
   private Button closeWindowWithLastTab;
+  private Button closeShowsLastUsed;
   private Text backupDays;
   private Text searchMaxLineChars;
   private Text excludedDirectories;
@@ -191,6 +192,7 @@ final class PreferencesDialog {
     recoveryKeepDays = field(page, UiText.PREFERENCES_RECOVERY_DAYS);
     sessionSnapshot = check(page, UiText.PREFERENCES_SESSION_SNAPSHOT);
     closeWindowWithLastTab = check(page, UiText.PREFERENCES_CLOSE_WINDOW_WITH_LAST_TAB);
+    closeShowsLastUsed = check(page, UiText.PREFERENCES_CLOSE_SHOWS_LAST_USED);
   }
 
   private void search(Composite page) {
@@ -388,6 +390,7 @@ final class PreferencesDialog {
     recoveryKeepDays.setText(form.recoveryKeepDays());
     sessionSnapshot.setSelection(form.sessionSnapshot());
     closeWindowWithLastTab.setSelection(form.closeWindowWithLastTab());
+    closeShowsLastUsed.setSelection(form.closeShowsLastUsed());
     backupDays.setText(form.backupDays());
     searchMaxLineChars.setText(form.searchMaxLineChars());
     excludedDirectories.setText(form.excludedDirectories());
@@ -428,7 +431,8 @@ final class PreferencesDialog {
         editorConfig.getSelection(),
         modelines.getSelection(),
         scheme ? colors : EditorSchemes.FOLLOW,
-        closeWindowWithLastTab.getSelection());
+        closeWindowWithLastTab.getSelection(),
+        closeShowsLastUsed.getSelection());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */

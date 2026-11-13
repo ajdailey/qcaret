@@ -317,6 +317,20 @@ public enum UiText {
   SESSION_COMMENTS_DROPPED,
   /** Snapshot write failed; the quit asks about each buffer. */
   SESSION_SNAPSHOT_FAILED,
+  /** A session save past its limits: the joined counts left out. */
+  SESSION_LIMITS,
+  /** Windows a session save left out. */
+  SESSION_LIMIT_WINDOWS,
+  /** Tabs a session save left out. */
+  SESSION_LIMIT_TABS,
+  /** Retained searches a session save left out. */
+  SESSION_LIMIT_SEARCHES,
+  /** Expanded folders a session save left out. */
+  SESSION_LIMIT_EXPANDED,
+  /** Recent Files entries a session save left out. */
+  SESSION_LIMIT_RECENT,
+  /** Closed files a session save left out. */
+  SESSION_LIMIT_CLOSED,
   /** Note on a restored search set. */
   SEARCH_RESTORED,
   /** Recovery dialog title. */
@@ -1623,7 +1637,9 @@ public enum UiText {
   /** Tab menu item closing every tab; File > Close All has its own mnemonic. */
   TAB_CLOSE_ALL,
   /** Browser row for a folder whose listing is denied; the folder's name. */
-  WORKSPACE_ACCESS_DENIED;
+  WORKSPACE_ACCESS_DENIED,
+  /** Preferences box making a close of the shown tab show the most recently used tab. */
+  PREFERENCES_CLOSE_SHOWS_LAST_USED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

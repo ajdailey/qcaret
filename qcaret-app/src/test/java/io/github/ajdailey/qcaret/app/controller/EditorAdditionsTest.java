@@ -135,6 +135,7 @@ class EditorAdditionsTest {
         f.editorConfig(),
         f.modelines(),
         f.editorColors(),
+        false,
         false);
   }
 

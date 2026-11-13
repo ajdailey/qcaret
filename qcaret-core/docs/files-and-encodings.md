@@ -131,8 +131,8 @@ tries each over the file (`DocumentFiles.load`):
 4. Configured: the caller's EditorConfig charset (`LoadOptions.configured`),
    under the same strict-decode condition.
 5. The whole file is valid UTF-8 (an empty file is).
-6. The fallback (`encoding.fallback`, windows-1252 by default), or ISO-8859-1
-   when the fallback does not decode the file strictly.
+6. The fallback (`LoadOptions.fallback`, windows-1252 in `LoadOptions.DEFAULTS`),
+   or ISO-8859-1 when the fallback does not decode the file strictly.
 
 A BOM or the UTF-16 pattern leaves no other candidate, so a BOM wins over a
 declared or configured charset.
@@ -232,7 +232,7 @@ system's answers from `OsTraits.of(name)`.
 | `fileNamesIgnoreCase` | `NameFilter.PLATFORM_IGNORES_CASE` | true | true | false |
 | `fileLock` | `ProcessLock`, `Flock.Constants` | `CHANNEL` | `FLOCK_MACOS` | `FLOCK_LINUX` |
 | `opensDeviceNames` | `SafePaths` device-form check | true | false | false |
-| `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret` |
+| `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret`, else `~/.config/qcaret` |
 | `launcherDirectory` | `SettingsLocation` portable marker beside `bin/qcaret` | null | null | `<qcaret.home>/bin` |
 | `confinesToSettings` | `SettingsLocation.confined` | false | false | true |
 | `webView2` | `PlatformSetup` | true | false | false |

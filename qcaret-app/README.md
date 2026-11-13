@@ -34,7 +34,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 ## Controller threading
 
 Every controller is confined to the UI thread and never blocks it.
-`ArchitectureTest` rejects `Future.get`, `Thread.join`, `Thread.sleep` and
+`ArchitectureTest` in `qcaret-launcher` rejects `Future.get`, `Thread.join`, `Thread.sleep` and
 `CountDownLatch.await` in `app.controller` and `app.command`. Controllers read
 no system property; platform facts come from the caller.
 

@@ -31,6 +31,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param modelines the box making documents take modeline settings
  * @param editorColors the editor color scheme's name
  * @param closeWindowWithLastTab the box making a window close with its last tab
+ * @param closeShowsLastUsed the box making a close of the shown tab show the last used tab
  */
 public record PreferencesForm(
     String completionChars,
@@ -56,7 +57,8 @@ public record PreferencesForm(
     boolean editorConfig,
     boolean modelines,
     String editorColors,
-    boolean closeWindowWithLastTab) {
+    boolean closeWindowWithLastTab,
+    boolean closeShowsLastUsed) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

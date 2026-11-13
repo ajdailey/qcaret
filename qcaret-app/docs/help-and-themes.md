@@ -44,8 +44,8 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 ## UI text, About and logs
 
 `UiText` names every string the UI shows; the English bundle
-`messages.properties` holds them, and `ArchitectureTest.everyUiTextIsUsed`
-fails on a constant nothing reads. `AboutInfo` collects the version, Java, OS,
+`messages.properties` holds them, and `ArchitectureTest.everyUiTextIsUsed` in
+`qcaret-launcher` fails on a constant nothing reads. `AboutInfo` collects the version, Java, OS,
 toolkit and settings directory for About and Copy Details.
 
 `RecentLog` keeps the last log lines for the launcher's `RecentHandler`,
@@ -82,8 +82,10 @@ controls, so it shows no restart notice; under the light or dark scheme a
 system change moves native controls and leaves the palette.
 
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
-background, selection, current line, gutter and line numbers, caret, whitespace
-marks, the find-match background, the comparison window's row backgrounds
+background, selection and selected text, current line, gutter and line numbers,
+caret, whitespace marks, the find-match, occurrence and bracket backgrounds, the
+overview strip's find and HyperSearch marks, the commented-bookmark mark, the
+comparison window's row backgrounds
 (`diffRemoved`, `diffAdded`, `diffChanged`), the unselected tab label
 (`tabText`), the right margin line (`rightMargin`), the indent guides
 (`indentGuide`), the modified-line marks (`lineAdded`, `lineChanged`,
@@ -125,7 +127,8 @@ dark one, only as far as the floor needs. No palette file is copied.
   values in use without a file.
 - A file is chosen in place of a scheme (`Appearance` holds it with follow), so
   the side applied is the one `ui.theme` resolves to.
-- `ThemeColors.list` leaves out a file named like a scheme in any case, since
+- `ThemeColors.list` returns at most 256 names, sorted. It leaves out a name
+  over 64 chars, and a file named like a scheme in any case, since
   `ui.editorColors` reads a scheme name as the scheme.
 
 `Gui` reads the chosen file before the Display and resolves the first palette

@@ -711,6 +711,7 @@ class WindowSessionTest {
                     Options.DEFAULTS.dateFormat(),
                     Options.DEFAULTS.editorConfig(),
                     Options.DEFAULTS.modelines(),
+                    false,
                     false)));
     edit(first, "left");
     ApplicationController second = before.second();

@@ -425,7 +425,8 @@ class SaveCopyTest {
                     o.dateFormat(),
                     o.editorConfig(),
                     o.modelines(),
-                    o.closeWindowWithLastTab())));
+                    o.closeWindowWithLastTab(),
+                    false)));
   }
 
   /**

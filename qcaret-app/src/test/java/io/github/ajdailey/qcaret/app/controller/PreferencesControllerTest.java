@@ -120,6 +120,7 @@ class PreferencesControllerTest {
         f.editorConfig(),
         f.modelines(),
         field.equals("editorColors") ? value : f.editorColors(),
+        false,
         false);
   }
 
@@ -154,6 +155,7 @@ class PreferencesControllerTest {
                 f.editorConfig(),
                 f.modelines(),
                 f.editorColors(),
+                false,
                 false));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
@@ -182,6 +184,7 @@ class PreferencesControllerTest {
                 f.editorConfig(),
                 f.modelines(),
                 f.editorColors(),
+                false,
                 false)));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
@@ -282,6 +285,7 @@ class PreferencesControllerTest {
                 f.editorConfig(),
                 f.modelines(),
                 f.editorColors(),
+                false,
                 false)));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
@@ -413,6 +417,7 @@ class PreferencesControllerTest {
                 f.editorConfig(),
                 f.modelines(),
                 f.editorColors(),
+                false,
                 false)));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
@@ -453,6 +458,7 @@ class PreferencesControllerTest {
         Options.DEFAULTS.dateFormat(),
         Options.DEFAULTS.editorConfig(),
         Options.DEFAULTS.modelines(),
+        false,
         false);
   }
 

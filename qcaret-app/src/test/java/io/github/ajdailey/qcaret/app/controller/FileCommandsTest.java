@@ -252,6 +252,7 @@ class FileCommandsTest {
                     Options.DEFAULTS.dateFormat(),
                     Options.DEFAULTS.editorConfig(),
                     Options.DEFAULTS.modelines(),
+                    false,
                     false)));
   }
 

@@ -141,7 +141,7 @@ result to the UI thread.
 |---|---|
 | Charset | A charset the user forced (Reopen with Encoding, `-e`, Save with Encoding, the one remembered for the file or the session tab); a BOM; a modeline or in-file declaration; EditorConfig; detection |
 | Width, spaces or tabs | Modeline; EditorConfig; the remembered file state or session tab; `editor.tabWidth` and `editor.insertSpaces` |
-| Ending Enter inserts | Modeline or EditorConfig, only while the text has no line break; the most frequent ending; `newFile.lineEnding` |
+| Ending Enter inserts | Modeline or EditorConfig, only while the text has no line break; the most frequent ending; LF |
 
 `end_of_line` converts no existing ending, so a CR LF file in an `lf` project
 stays CR LF and Enter inserts CR LF. A file that does not exist yet takes the

@@ -15,7 +15,9 @@ and `addFinishListener`. Each window is an `ApplicationController` over its own
 
 `ApplicationController` runs one window's commands and owns its
 `DocumentController`, `HelpController`, `FindController`, `SearchController`,
-`WorkspaceController`, `NavigationHistory` and `RecentFiles`. It is confined to
+`ReplaceController`, `WorkspaceController`, `ThemeController`,
+`CompareController`, `PrintController`, `PreferencesController`,
+`StatisticsController`, `NavigationHistory` and `RecentFiles`, among others. It is confined to
 the UI thread; settings writes run on `qcaret-lifecycle-` workers. Edit
 commands from the menu go to the selected editor's `EditorController`. Once the
 window stops, `execute` does nothing.
@@ -24,7 +26,8 @@ window stops, `execute` does nothing.
   theme once; then each window's `apply` updates its own controllers and view.
   A closed window leaves `Settings` and `GrammarLibrary`.
 - Window menu: New Window (an untitled document, the remembered size), Move to
-  New Window, and with several windows one entry each. A window's activation
+  New Window, Next and Previous Tab, Switch Document, and with several windows
+  one entry each. A window's activation
   makes it the target of handed files.
 
 ## Handed launches
@@ -69,7 +72,7 @@ restore it waits for the restore's end. Otherwise `QuitPrompts` runs:
    quit waits for its next answer.
 3. Waits for every running Save a Copy As, in any window or of a closed tab,
    then reads the documents again. A failed copy stops the quit. After
-   `RunningCopies.BOUND` a prompt names each copy still running: Quit goes on,
+   `RunningCopies.BOUND` (30 s) a prompt names each copy still running: Quit goes on,
    Wait waits another bound.
 4. Selects the tabs selected at the start, captures the session, closes every
    document and calls `quit`.
@@ -103,6 +106,27 @@ closes `Workers`, runs the finish listeners and posts the disposals. With
   it is gone; unlike Open Settings Folder it creates nothing.
 - `EditorInput.menuFromView` keeps the selections when a right click lands in a
   non-empty one, ends included, and otherwise leaves one caret at the click.
+
+## Tab close
+
+Closing the shown tab shows the tab after it, else the one before
+(`TabUse.successor`). With `tabs.closeShowsLastUsed` on it shows the open tab
+shown most recently instead. `TabUse` keeps each window's use order: a tab
+moves to its front when it is shown, opened, reopened or moved in, and leaves
+it when it closes or moves out. A tab moved out leaves its source
+window showing the next tab by the same rule.
+
+`MainWindow` ignores the folder's `Selection` while it disposes an item, as
+during a tab move, and the controller selects the next tab after the dispose.
+Without that, `CTabFolder`'s own choice (the item before, or in MRU mode the one
+selected last) activates first and wins. `TabList` turns MRU mode on only
+within one strip repair or scroll.
+
+Close All, Close Others and Close to the Left or Right close the shown tab last
+while it is clean (`TabUse.nextToClose`), and show the kept tab before closing
+it, so no other tab is shown and laid out on the way. A dirty tab keeps its
+place, so the unsaved prompts come in tab order, each showing its tab. Cancel
+stops the run; a clean shown tab not yet closed stays open.
 
 ## Last tab
 
@@ -158,7 +182,8 @@ Search results stay in the source's dock: `DocumentController.holderOf` finds
 the window holding a result's document, so a result selects the tab there and
 raises that window, and Replace reaches the document in any window. A document
 that closes in any window detaches its result groups in all of them
-(`SearchController.documentClosed`). A folder search reads the disk copy of a
-file another window holds, as it reads a file no window holds. Navigation
+(`SearchController.documentClosed`). A folder search reads a file another
+window holds from that window's buffer
+([Search](search.md#open-documents-in-folder-scopes)). Navigation
 history entries of a moved document turn into file positions, which then lead
 to its tab through the one-buffer rule.

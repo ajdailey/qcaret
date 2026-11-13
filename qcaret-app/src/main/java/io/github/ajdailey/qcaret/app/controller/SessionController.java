@@ -88,6 +88,7 @@ final class SessionController implements DocumentController.FileMemory {
   private final List<String> skipped = new ArrayList<String>();
   private final List<Restored> restored = new ArrayList<Restored>();
   private final List<WindowState> placements = new ArrayList<WindowState>();
+  private final SessionLimitNotice limits;
   private final Runnable changes =
       new Runnable() {
         @Override
@@ -139,6 +140,7 @@ final class SessionController implements DocumentController.FileMemory {
     this.recovery = recovery;
     this.workers = workers;
     this.ui = ui;
+    this.limits = new SessionLimitNotice(set, ui);
   }
 
   /** Follows a new window's documents. */
@@ -605,6 +607,7 @@ final class SessionController implements DocumentController.FileMemory {
       if (!capture.session().equals(lastWritten)) {
         if (store.save(capture.session())) {
           lastWritten = capture.session();
+          limits.check(capture.session());
         } else {
           writeFailed = true;
         }

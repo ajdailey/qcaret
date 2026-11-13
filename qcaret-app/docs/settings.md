@@ -149,5 +149,6 @@ Shortcuts.
 | `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
 | `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
 | `workspace.favorite.N` | The workspace browser's favorite folders in the order added, 20 at most | none | The browser's Favorites menu |
+| `tabs.closeShowsLastUsed` | `true`, `false`: closing the shown tab shows the open tab used most recently; off, the tab after it, else the one before | `false` | Tools > Preferences, Files |
 
 A value out of range falls back to its default with one warning naming the key.

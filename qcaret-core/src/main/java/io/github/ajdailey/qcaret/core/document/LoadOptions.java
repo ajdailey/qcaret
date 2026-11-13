@@ -8,8 +8,8 @@ import java.nio.charset.StandardCharsets;
  * How {@link DocumentFiles#load} opens a file.
  *
  * @param forced the charset the user chose, or null to detect one
- * @param fallback the charset detection falls back to ({@code encoding.fallback})
- * @param empty the line ending of a file without breaks ({@code newFile.lineEnding})
+ * @param fallback the charset detection falls back to
+ * @param empty the line ending of a file without breaks
  * @param limits the undo history bounds
  * @param allowBinary true to open a binary file instead of failing
  * @param configured the EditorConfig charset, tried after a declared one and before UTF-8, or null

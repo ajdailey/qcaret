@@ -85,7 +85,8 @@ class FilePollSurfaceTest {
         o.dateFormat(),
         o.editorConfig(),
         o.modelines(),
-        o.closeWindowWithLastTab());
+        o.closeWindowWithLastTab(),
+        false);
   }
 
   private MainWindow open(Preferences preferences) {

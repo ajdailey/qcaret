@@ -15,7 +15,7 @@ hidden entries and `workspace.excludedDirectories`; a change of
 
 - View > Workspace Browser shows the shown folder's tree (`BrowserListings`).
   A directory is listed on a `qcaret-io-` worker the first time it expands
-  (`DirectoryListing`), 500 entries at a time behind a "Show N more" row. A link to a directory that
+  (`DirectoryListing`), 500 entries at a time behind a "Show N more of M" row. A link to a directory that
   contains it lists as a row that does not expand.
 - A directory that cannot be listed shows one error row (`BrowserListings.failure`):
   `Access denied: <folder>` for an `AccessDeniedException`, else `Cannot list:`
@@ -264,8 +264,10 @@ is one entry. The session file keeps it. Clear Recent Files empties it.
 
 Clean Up (`RecentFiles.cleanUp`) reads each listed path's attributes on a
 `qcaret-io-` worker and drops a path that is gone (`NoSuchFileException`,
-which covers a dangling link) or now a folder; a path whose read fails
-otherwise, such as access denied or an unreachable share, stays. A blocked
-check holds only the worker, and a Clean Up while one runs does nothing. The
+which covers a dangling link) or now a folder. A path under an unmounted mount
+point raises `NoSuchFileException` and is dropped. A path whose read fails
+otherwise, such as access denied or an unreachable share, stays; the share case
+is not run on Windows. A blocked check holds only the worker, and a second
+Clean Up in the same window while one runs does nothing. The
 result applies on the UI thread, with a notice of the count, unless the window
 has closed.

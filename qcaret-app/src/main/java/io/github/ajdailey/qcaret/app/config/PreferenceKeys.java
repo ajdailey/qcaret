@@ -71,6 +71,7 @@ final class PreferenceKeys {
   static final String HEIGHT = ".height";
   static final String TIPS_ON_STARTUP = "help.tipsOnStartup";
   static final String NEXT_TIP = "help.nextTip";
+  static final String CLOSE_SHOWS_LAST_USED = "tabs.closeShowsLastUsed";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -118,6 +119,7 @@ final class PreferenceKeys {
     keys.put(EDITOR_CONFIG, Boolean.toString(o.editorConfig()));
     keys.put(MODELINES, Boolean.toString(o.modelines()));
     keys.put(CLOSE_WINDOW_WITH_LAST_TAB, Boolean.toString(o.closeWindowWithLastTab()));
+    keys.put(CLOSE_SHOWS_LAST_USED, Boolean.toString(o.closeShowsLastUsed()));
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -301,7 +303,8 @@ final class PreferenceKeys {
         dateFormat(p, DATE_FORMAT, d.dateFormat(), file),
         flag(p, EDITOR_CONFIG, d.editorConfig(), file),
         flag(p, MODELINES, d.modelines(), file),
-        flag(p, CLOSE_WINDOW_WITH_LAST_TAB, d.closeWindowWithLastTab(), file));
+        flag(p, CLOSE_WINDOW_WITH_LAST_TAB, d.closeWindowWithLastTab(), file),
+        flag(p, CLOSE_SHOWS_LAST_USED, d.closeShowsLastUsed(), file));
   }
 
   private static UiState state(Properties p, Path file) {

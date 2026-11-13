@@ -359,12 +359,11 @@ final class FakeView implements MainView {
     public void close() {
       ui.checkUiThread();
       closed = true;
+      int index = tabs.indexOf(this);
       tabs.remove(this);
       if (selected == this) {
-        selected = tabs.isEmpty() ? null : tabs.get(tabs.size() - 1);
-        if (selected != null) {
-          selected.input.activated();
-        }
+        // As CTabFolder: the tab before, else the first, selected without a report.
+        selected = tabs.isEmpty() ? null : tabs.get(Math.max(0, index - 1));
       }
     }
 

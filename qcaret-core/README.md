@@ -41,8 +41,8 @@ The layer 7 packages do not use each other.
   the revision it read.
 - Every path from outside the process goes through `SafePaths`, and every user
   file save through `SafeSave`.
-- A load, a search read, a replace, a result set, the file index and a Go to
-  Symbol scan reserve their heap from `MemoryBudget` before they hold it, and
+- A load, a search read, a replace, a result set, the file index, a Go to
+  Symbol scan and the Bookmarks list reserve their heap from `MemoryBudget` before they hold it, and
   release it when they drop it.
 - A value that did not originate in QCaret's code reaches a logger through
   `LogText.oneLine`.

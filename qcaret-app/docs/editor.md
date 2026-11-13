@@ -63,8 +63,8 @@ passes them the command.
   runs Add Next Occurrence.
 - Expand Selection widens each selection to the smallest longer range of
   `SelectionExpansion.expand` that holds it: the word, the inside of the
-  quotes around it on its line (`"`, `'`, `` ` ``; a backslash escapes), the
-  quotes too, the inside of the innermost bracket pair, the brackets too, its
+  quotes around it on its line (`"`, `'`, `` ` ``; a backslash escapes; on the
+  UI thread a line over 16 Ki chars offers none), the quotes too, the inside of the innermost bracket pair, the brackets too, its
   lines without the last break, the whole text. Brackets pair and skip strings
   and comments as bracket matching does, within 16 Ki chars on the UI thread.
   A line wrapped inside a bracket pair is smaller than the pair, so the line
@@ -191,16 +191,18 @@ changes nothing. An anchor follows the line while the prompt shows.
   UI thread within the visible range and 16 Ki chars on each side, else on a
   worker) and the whole-word occurrences of the word at the primary caret in
   the visible range (on a worker, at most 2,000, shown when there are two or
-  more). An edit shifts both at once; a result for an older revision is
-  dropped. A moved tab's new view shows both at once and computes them again.
+  more). An edit shifts both at once; a result for an older revision, or a
+  bracket result after the primary caret moved, is dropped. A moved tab's new view shows both at once and computes them again.
 
 ## Word completion
 
-Complete Word looks up the word chars before the primary caret in every open
-document (`WordCompletion`); one match is inserted at once, more show the
-view's list. With `editor.completionChars` above 0 the list also opens after
-that many word chars are typed. While it shows, Up, Down, Page Up and Page Down
-move in it, Enter and Tab replace the typed prefix at every caret that ends
+Complete Word looks up the word chars before the primary caret, at most 100,
+in the window's open documents, the current one first (`WordCompletion`); one
+match is inserted at once, more show the view's list. The list holds at most
+`WordCompletion.MAX_WORDS` (200) words, those starting with the typed prefix
+first. With `editor.completionChars` above 0 the list also opens after
+that many word chars are typed. While it shows, Up and Down move in it, Page Up
+and Page Down by 8 rows, Enter and Tab replace the typed prefix at every caret that ends
 with it, Esc closes it, typing narrows it, and any other command or a caret
 moving off the word closes it.
 
@@ -210,7 +212,7 @@ moving off the word closes it.
 `editor.dateFormat` first, then six common `DateTimeFormatter` patterns
 (`DateTimeInsert.COMMON`), each with the current time, and selects
 `ui.lastDateFormat`. The rows are formatted on a `qcaret-cpu-` worker: the first
-format of a zoned time loads the time-zone rules (13 ms measured in QLogg).
+format of a zoned time loads the time-zone rules.
 The chosen format, in the default locale at the time of the choice, goes to
 `EditorController.insertText`, which replaces every selection as one undo step
 (a block takes it on every row, as typed text) and does nothing on a read-only

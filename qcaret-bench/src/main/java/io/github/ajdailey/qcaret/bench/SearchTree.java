@@ -31,7 +31,7 @@ public final class SearchTree implements Closeable {
   /** Large files of the benchmarks' tree. */
   static final int LARGE_FILES = 4;
 
-  /** Chars of a large file: under the default {@code search.maxFileBytes}. */
+  /** Chars of a large file: under the 64 MiB of {@code HyperSearch.Limits.DEFAULTS}. */
   static final int LARGE_CHARS = 16 * Corpus.MIB;
 
   /** The word no generated text holds by chance. */

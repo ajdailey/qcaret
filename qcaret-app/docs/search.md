@@ -80,13 +80,15 @@ Each run is an `app.search.HyperSearch` filling a `ResultSet`:
   files by path, once the search ends.
 - At most 100,000 matches per set (`HyperSearch.Limits`): the group crossing
   the limit is cut, and a source left unsearched for lack of room ends the set
-  truncated. So does a group whose heap (`FileResult.bytes`, 96 bytes per match
-  plus its snippet) the `MemoryBudget` refuses. A dropped set returns its
+  truncated. So does a group whose heap (`FileResult.bytes`: 256 bytes a group,
+  plus 96 bytes and two bytes per snippet char a match) the `MemoryBudget`
+  refuses. A dropped set returns its
   reservation, groups that arrived after the drop included.
 - Files over 64 MiB, binary files and unreadable files are skipped and counted;
   a line over `search.maxLineChars` (1,000,000 chars by default) is skipped and
   counted. A regex stack overflow ends that source and names its line in its
-  group row.
+  group row. A file's charset is detected; an undetected one reads as
+  windows-1252 (`HyperSearch.Limits.DEFAULTS`).
 - Stop ends a set canceled with what arrived. Rerun runs the request again
   while the set shows its results; they are replaced when the rerun ends done
   or truncated, and kept, with a notice, when it is stopped.

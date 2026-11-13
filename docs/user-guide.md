@@ -40,8 +40,10 @@ Recently Closed lists those files to choose from. Open All in either list opens
 every listed file; a missing or unreadable one is skipped and named in the
 status bar. Clear Recent Files empties Recent Files in every window, and Clear
 Recently Closed empties the window's Recently Closed. Recent Files > Clean Up
-removes the files that no longer exist and names the count in the status bar;
-a file on a drive or share that cannot be read stays listed.
+removes the entries whose path holds no file, or holds a folder, and names the
+count in the status bar. A file under an unmounted mount point counts as
+missing and is removed. A file on a share that cannot be reached, or one access
+is denied to, stays listed (not run on Windows).
 
 A load still running after 0.3 seconds shows a row above the status bar with its
 progress and Cancel. The window stays usable. Cancel or `Esc` stops every
@@ -159,7 +161,11 @@ x86_64 (the non-ASCII text has a CJK char in every line):
 The launchers set the maximum heap to half of the physical memory. To raise it,
 run the jar with the bundle's runtime:
 `runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`.
-On Windows add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`.
+On Windows add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`. On
+macOS the runtime and jar sit inside the bundle, and `-XstartOnFirstThread` is
+required, since without it QCaret restarts Java and drops `-Xmx8g` (not run on
+macOS):
+`QCaret.app/Contents/runtime/Contents/Home/bin/java -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -Xmx8g -jar QCaret.app/Contents/app/lib/qcaret.jar`.
 
 A reload holds only the text between the first and last change. A file at these
 limits reloads a change of about 19 MiB of text at most; a larger one leaves
@@ -190,11 +196,18 @@ apply (measured on Linux, one million lines):
   changes, and its path.
 - The tab row holds one tab per document. A dirty document's tab is marked, and
   so is a file missing on disk. A middle click or the close button closes a tab;
-  dragging moves it. A tab's menu offers Close, Close Others, Close to the Left,
+  dragging moves it. `Ctrl+W` closes the selected tab and `Ctrl+Shift+W`
+  closes all; `Ctrl+PageDown` and `Ctrl+PageUp` select the next and previous
+  tab. A tab's menu offers Close, Close Others, Close to the Left,
   Close to the Right, Close All, Copy Full Path, Copy File Name, Open
   Containing Folder and Move to New Window, for that tab. File > Close Multiple
   Tabs runs Close Others, Close to the Left and Close to the Right on the
   selected tab.
+- Closing the selected tab selects the tab after it, or the one before when it
+  was last. Preferences, Files, "After closing the shown tab, show the last used
+  tab" selects the tab used most recently instead. Close All, Close Others and
+  Close to the Left or Right close the selected tab last, so no other tab shows
+  on the way; tabs with unsaved changes ask in tab order.
 - Three buttons end the tab row. `+` opens a new document and `x` closes the
   selected one, asking first about unsaved changes. The arrow between them
   lists every tab, with the number of tabs that do not fit in the row beside
@@ -224,7 +237,7 @@ apply (measured on Linux, one million lines):
   triangle where lines were removed. A document restored after a crash is
   marked against its file on disk. Saving clears the marks, and so does
   undoing back to the saved text. A document or saved text over 100,000 lines
-  shows no marks; the gutter's tooltip says so. Both choices are saved.
+  or 16 Mi chars shows no marks; the gutter's tooltip says so. Both choices are saved.
 - Edit > Line > Wrap Paragraph rewraps the selected lines, or the paragraph at
   the caret, to the right margin column. Every line keeps the first line's
   indent, and a comment paragraph keeps its comment marker, such as `//` or
@@ -264,6 +277,7 @@ the grammar's rules.
 
 | Keys | Action |
 |---|---|
+| `Shift+Delete`, `Ctrl+Insert`, `Shift+Insert` (not on macOS) | Cut, copy, paste, beside `Ctrl+X`, `Ctrl+C`, `Ctrl+V` |
 | `Ctrl+D` | Duplicate the selection, or the line |
 | `Ctrl+Shift+L` | Delete the line |
 | `Alt+Up`, `Alt+Down` | Move the lines up or down |
@@ -465,7 +479,7 @@ User grammars are XML files in `grammars/` in the settings directory, read at
 startup. One with a built-in grammar's id replaces it, and its `category`
 attribute picks its Syntax submenu (User without one). View > Syntax > Reload
 Grammars reads them again, and an invalid file is skipped with a notice. The
-format is in the project documentation, `qcaret-core/docs/grammars.md`.
+format is in `qcaret-core/docs/grammars.md` in the QCaret source repository.
 
 ## External changes
 
@@ -545,7 +559,8 @@ Hidden entries and the excluded directories (`.git`, `.svn`, `.hg`, `target`,
 folder searches; the browser lists hidden entries with Hidden checked.
 Preferences, Search and Workspace changes the list.
 
-A folder the browser cannot list shows one row saying why, such as
+A folder lists its first 50,000 entries. A folder the browser cannot list
+shows one row saying why, such as
 `Access denied: My Documents`. On Windows, `My Documents`, `Application Data`
 and the other compatibility links in your profile deny listing; Windows marks
 them hidden and system, so they show only with Hidden checked.
@@ -580,7 +595,9 @@ command line.
 
 The comparison is a read-only window with the two sides scrolling together. `F7`
 and `Shift+F7` step through the differences, and `Esc` closes it. A side over
-100,000 lines or 16 Mi chars gets a notice instead.
+100,000 lines or 16 Mi chars gets a notice instead. Past 1,000 inserted and
+removed lines, the rest of a comparison shows as removed, then added. A line
+over 10,000 chars shows cut, with a notice.
 
 ## Checksums
 
@@ -615,6 +632,13 @@ with its tabs, carets, scroll, splits, folds, bookmarks, read-only state, view
 options, workspace and dock contents. A file that does not open is named and
 skipped. Search results return as requests, and Rerun fills them. A closed file
 keeps its caret, tab settings, encoding and grammar for when it opens again.
+
+The session holds at most 32 windows, 256 tabs over all windows and 20 Recent
+Files; each window keeps at most 32 retained searches, 1,000 expanded folders
+and 20 Recently Closed files. A save past a limit leaves the rest out, and the
+first such save in a run names what in the status bar. Bookmark comments past
+1,000 are left out and reported at the next start. The remembered state of
+closed files keeps the last 500.
 
 While a document has unsaved changes, QCaret writes it to `recovery/` in the
 settings directory every 30 seconds. After a crash the next start lists those
@@ -682,13 +706,14 @@ running windows without a restart.
 | Tab | Holds |
 |---|---|
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, editor colors |
-| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab |
+| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, editor font |
-| Keys | Every command's keys: Add, Remove, Default Keys |
+| Keys | Every command's keys, with a filter: Add, Remove, Default Keys |
 
-Add refuses a key that types text or that another command holds, and names that
-command. Clear History removes the saved search texts, replacements, directories
+Restore Defaults fills every tab with the default values; nothing changes until
+OK or Apply. Add refuses a key that types text or that another command holds,
+and names that command. Clear History removes the saved search texts, replacements, directories
 and masks, and the searches kept in the session. When another QCaret window owns
 the session, its saved searches stay and a notice says so: close that window,
 then press Clear History again.
@@ -778,7 +803,7 @@ Settings are in `qcaret.conf`, in the first of these that applies:
 | Explicit | `--settings <dir>` | `<dir>` |
 | Portable | `qcaret.conf` exists in the installation directory | The installation directory |
 | Portable (Linux) | `qcaret.conf` exists in `bin/`, beside the `qcaret` script, and not in the installation directory | `bin/` |
-| Per-user | Otherwise | Linux `~/.config/qcaret`, Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
+| Per-user | Otherwise | Linux `$XDG_CONFIG_HOME/qcaret` (default `~/.config/qcaret`), Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
 In explicit and portable mode on Linux, User Guide opens the guide in the
 system's HTML application instead of its own window, because the embedded
@@ -824,14 +849,14 @@ qcaret [options] [[+<line>[:<column>]] file]...
 |---|---|
 | `-h`, `--help` | Print usage and exit |
 | `-v`, `--version` | Print the version and exit |
-| `-d`, `--debug <level>` | Log level on stderr: `1` info, `2` debug, `3` trace, or a level name |
+| `-d`, `--debug <level>` | Log level on stderr: `1` info, `2` debug, `3` and above trace, or a level name |
 | `-l`, `--log` | Also write the log to `logs/` in the settings directory, for this run |
-| `-m`, `--multi` | Run as an independent instance |
-| `-n`, `--new-window` | Open in a new window of the running instance |
+| `-m`, `--multi` | Run as an independent instance: no handoff and no session |
+| `-n`, `--new-window` | Open in a new window of the running instance; cannot be combined with `-m` |
 | `-r`, `--read-only` | Open the following files read-only |
 | `-e`, `--encoding <name>` | Open the following files in this encoding |
 | `+<line>[:<column>]` | Place the caret in the next file |
-| `--session`, `--no-session` | Restore the previous session also with files, or skip it |
+| `--session`, `--no-session` | Restore the previous session also with files, or skip it; a launch handed to the running instance ignores both |
 | `--diff <a> <b>` | Open the comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
 | `--window-x <px>`, `--window-y <px>` | Window position, for this run |
@@ -839,8 +864,9 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `--` | End of options |
 
 A missing file opens an empty document that saves to that path. Options combine:
-`-ml`, `--opt=value`, `-d2`. An unknown option or a bad value exits 1; an SWT
-start failure, such as missing GTK libraries, exits 3.
+`-ml`, `--opt=value`, `-d2`. An unknown option or a bad value exits 1; a Java
+older than 21 or an unsupported platform exits 2; an SWT start failure, such as
+missing GTK libraries, exits 3.
 
 ```text
 qcaret +120:8 src/Mock.java -r notes.txt

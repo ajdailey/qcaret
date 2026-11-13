@@ -204,7 +204,7 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `-d`, `--debug <level>` | stderr log level: `1` INFO, `2` DEBUG, `3` and above TRACE, or `error`, `warn`, `info`, `debug`, `trace`; WARN when absent. Show Log (INFO) and the `-l` file (DEBUG) take it when finer. It applies to QCaret's own loggers; the Java runtime's stay at INFO |
 | `-l`, `--log` | Also write the log at DEBUG to `logs/qcaret.log` in the settings directory, for this run; a process other than the running instance writes `logs/qcaret-<pid>.log` |
 | `-m`, `--multi` | Run as an independent instance: no handoff, no session, and the window placement is not saved |
-| `-n`, `--new-window` | Open in a new window of the running instance, placed by any `--window-*` option |
+| `-n`, `--new-window` | Open in a new window of the running instance, placed by any `--window-*` option; cannot be combined with `-m` |
 | `-r`, `--read-only` | Open the following files read-only; also applies to a file already open |
 | `-e`, `--encoding <name>` | Open the following files in this encoding; a file already open keeps its own |
 | `+<line>[:<column>]` | Place the caret in the next file, counting from 1; also applies to a file already open |
@@ -217,8 +217,9 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `file` | Opened in a tab; a missing file opens an empty document that saves to that path. Without a file, an untitled document opens |
 
 Options combine: `-ml`, `--opt=value`, `-d2`. An unknown option or a bad value
-prints a message to stderr and exits 1; an SWT start failure, such as missing
-GTK libraries, exits 3. After `--`, a `+<line>` is a file name.
+prints a message to stderr and exits 1; a Java older than 21 or an unsupported
+platform exits 2; an SWT start failure, such as missing GTK libraries, exits 3.
+After `--`, a `+<line>` is a file name.
 
 Without `-m`, a launch hands its files to the instance running on the same
 settings directory and exits 0; any failure opens the files in the launch's own

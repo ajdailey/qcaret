@@ -38,7 +38,8 @@ process holds no lock and does not refuse the file.
 waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
 channels against one 35 s deadline (`LineChannel`), because the ArchUnit rules
 ban `java.net.Socket` and its timeouts. Lines are printable ASCII, at most 16
-KiB, 256 `OPEN` lines and 1 MiB per connection.
+KiB, 256 `OPEN` lines and 1 MiB per connection. A launch naming more than 256
+files is not handed off; it opens its own window as a failed handoff does.
 
 ```text
 C: QCARET 1 HELLO nonceC
@@ -80,7 +81,7 @@ delivers the queue in arrival order under a lock the UI thread never takes.
 | `close` | Refused | `ERR` |
 | `WINDOW_BOUND` (30 s from `claim`) with no `deliverTo` | Refused; a later `deliverTo` takes later handoffs | `ERR` |
 | Primary process dies | Lost with the connection | Connection error |
-| Primary accepts and never answers | None | Time-out at `EXCHANGE_BOUND` (35 s) |
+| Primary accepts and never answers | None | Time-out at `InstanceClient.EXCHANGE_BOUND` (35 s) |
 
 `InstanceClient.EXCHANGE_BOUND` must exceed `WINDOW_BOUND`, so a client reads
 the `ERR` instead of timing out. `OK` means the running instance holds the

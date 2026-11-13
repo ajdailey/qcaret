@@ -15,6 +15,19 @@ Recent Files and the per-file LRU. `Gui` reads the file before the Display.
 | A bad value | Falls back |
 | A tab without a path or buffer | Skipped |
 
+### Save limits
+
+`SessionStore` saves at most 32 windows, 256 tabs over all windows, 20 Recent
+Files and 500 per-file entries, and per window 32 retained searches, 1,000
+expanded directories and 20 closed files (`MAX_*`); a save drops the entries
+past a limit from the end of each list. `SessionController` hands each written
+session to `SessionLimitNotice`: the first save of a run that drops any of
+these, the per-file entries aside, logs one WARN with every `SessionOverflow`
+count and shows one notice naming the kinds in the window activated last.
+Later saves report nothing; when the first is the quit's save, only the WARN
+is written. A window past the limit counts as one window; its tabs and lists
+are not counted. The per-file LRU evicts its oldest entry with no notice.
+
 ### Bookmark comment limit
 
 A session keeps 1,000 bookmark comments over all tabs, while one document may
@@ -44,7 +57,7 @@ instance started with `restore` true saves, so `-m` never replaces the session.
 |---|---|
 | Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
 | Per view | Selections, top line (kept through the rewraps of a wrapped window), collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
-| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, bookmarks and comments, read-only state |
+| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, binary view, bookmarks and comments, read-only state |
 | Per window | Workspace folder, browser visibility, the browser's shown folder, filter and Hidden state, sash, expanded directories, results dock and its sash, the sash between the results and Bookmarks docks, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks list visibility, Always on Top (`AlwaysOnTop`; kept as saved, not applied, where the platform is unsupported) |
 | Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
 
@@ -102,7 +115,8 @@ A launch that failed its handoff to a live primary gets Recent Files alone from
 
 ## Per-file state
 
-`DocumentController.FileMemory` is the LRU: 500 entries keyed by the opened
+`SessionController` keeps the per-file LRU (`FileLru`, `SessionStore.MAX_FILES`,
+500 entries) behind `DocumentController.FileMemory`, keyed by the opened
 document's real path (caret, top line, tab settings, forced charset, chosen
 grammar). A closing file's state goes in; an opening file's comes out, in
 `DocumentOpener.Listener.options` for the charset and after the load for the
