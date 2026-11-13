@@ -41,8 +41,9 @@ final class FileChecksums extends ChecksumRun<FileChecksums.Request> {
       UiDispatcher ui,
       MainView view,
       DocumentsUnder under,
-      RunningWrites writes) {
-    super(workers, ui, view, under, writes);
+      RunningWrites writes,
+      Consumer<Path> written) {
+    super(workers, ui, view, under, writes, written);
     this.algorithm = algorithm;
   }
 

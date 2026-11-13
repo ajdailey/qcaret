@@ -615,7 +615,8 @@ shows disabled, with the reason in its tool tip.
   `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. Files
   from several folders are named by their path below the common folder, such
   as `a/x.txt`. Copy and Save As take the list; saved in that common folder,
-  the list verifies with Verify Checksums.
+  the list verifies with Verify Checksums. A list saved over a file open in a
+  tab reaches that tab as a change made by another program.
 - Generate from Selection into Clipboard copies the hash of the selected
   text as the document saves it: in the document's encoding, without a byte
   order mark, line breaks as the document holds them. Several selections join

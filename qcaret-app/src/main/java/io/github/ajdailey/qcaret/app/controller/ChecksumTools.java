@@ -215,7 +215,13 @@ final class ChecksumTools {
             public void accept(List<Path> files) {
               if (!files.isEmpty()) {
                 new FileChecksums(
-                        algorithm, workers, ui, view, documents.under(), documents.writes())
+                        algorithm,
+                        workers,
+                        ui,
+                        view,
+                        documents.under(),
+                        documents.writes(),
+                        documents::checkWritten)
                     .open(files);
               }
             }

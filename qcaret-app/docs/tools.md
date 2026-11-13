@@ -54,7 +54,10 @@ UTF-8 with LF breaks through `SafeSave`, as a document save does: a held lock
 file is refused, and a failed write leaves an existing list whole unless
 `SafeSave` writes it in place (a hard-linked list, a folder that is not
 writable). A target under a folder a Workspace Browser rename holds
-(`DocumentsUnder.holds`) is refused with a notice. The default name is `MD5SUMS`, `SHA1SUMS`, `SHA256SUMS`
+(`DocumentsUnder.holds`) is refused with a notice. A list written over a file
+open in a tab, in any window, reaches that tab at once as a change by another
+program (`DocumentController.checkWritten`, as Save a Copy As), without waiting
+for a directory event or the poll. The default name is `MD5SUMS`, `SHA1SUMS`, `SHA256SUMS`
 or `SHA512SUMS`. A file that cannot be read gets no line; the status line
 counts it and names the first.
 

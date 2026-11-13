@@ -28,8 +28,9 @@ import java.util.function.Consumer;
  * Cancel. A run's {@link #work} runs on a {@code qcaret-io-} worker and posts lines and progress
  * through a {@link Feed}; a post from a canceled or replaced run is dropped. Save As writes the
  * lines in UTF-8 with LF breaks through {@link SafeSave} on a {@code qcaret-io-} worker, and
- * refuses a target under a folder a workspace browser rename holds. Confined to the UI thread
- * except {@link #work}.
+ * refuses a target under a folder a workspace browser rename holds; a tab holding the written file,
+ * in any window, is checked at once, as Save a Copy As does. Confined to the UI thread except
+ * {@link #work}.
  *
  * @param <R> what a run reads, taken on the UI thread; immutable
  */
@@ -39,18 +40,26 @@ abstract class ChecksumRun<R> implements ChecksumInput {
   final MainView view;
   private final DocumentsUnder under;
   private final RunningWrites writes;
+  private final Consumer<Path> written;
   private final List<String> lines = new ArrayList<String>();
   private ChecksumDisplay display;
   private CancellationToken running;
   private Path folder;
 
+  /** {@code written} receives a saved list's real path, to check a tab holding it. */
   ChecksumRun(
-      Workers workers, UiDispatcher ui, MainView view, DocumentsUnder under, RunningWrites writes) {
+      Workers workers,
+      UiDispatcher ui,
+      MainView view,
+      DocumentsUnder under,
+      RunningWrites writes,
+      Consumer<Path> written) {
     this.workers = workers;
     this.ui = ui;
     this.view = view;
     this.under = under;
     this.writes = writes;
+    this.written = written;
   }
 
   /**
@@ -157,15 +166,23 @@ abstract class ChecksumRun<R> implements ChecksumInput {
             @Override
             public void run() {
               String reason = null;
+              Path real = null;
               try {
                 reason = write(target, saved);
+                if (reason == null) {
+                  real = SaveAndReload.realFile(target);
+                }
               } finally {
                 final String failure = reason;
+                final Path file = real;
                 ui.asyncExec(
                     new Runnable() {
                       @Override
                       public void run() {
                         writes.ended(target);
+                        if (file != null) {
+                          written.accept(file);
+                        }
                         if (failure != null) {
                           view.showNotice(UiText.CHECKSUM_SAVE_FAILED.format(failure));
                         }

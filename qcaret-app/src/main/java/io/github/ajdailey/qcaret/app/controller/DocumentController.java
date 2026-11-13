@@ -561,10 +561,7 @@ public final class DocumentController {
             new SaveCopy.Window() {
               @Override
               public void copied(OpenDocument d, Path real) {
-                OpenDocument other = holderOfFile(d, real);
-                if (other != null) {
-                  holderOf(other.document).checkFile(real);
-                }
+                checkWritten(real);
                 fileOpened(real);
               }
 
@@ -1171,7 +1168,20 @@ public final class DocumentController {
     }
   }
 
-  /** Returns the tab of a file other than {@code d}, this window first, or null. */
+  /**
+   * Checks the tab holding a file that Save a Copy As or a checksum list wrote, in any window, now,
+   * as a change by another program.
+   *
+   * @param real the file's real path
+   */
+  void checkWritten(Path real) {
+    OpenDocument holder = holderOfFile(null, real);
+    if (holder != null) {
+      holderOf(holder.document).checkFile(real);
+    }
+  }
+
+  /** Returns the tab of a file other than {@code d} (null for none), this window first, or null. */
   private OpenDocument holderOfFile(OpenDocument d, Path real) {
     for (OpenDocument o : documents) {
       if (o != d && o.file.path != null && o.file.path.equals(real)) {
@@ -1179,7 +1189,7 @@ public final class DocumentController {
       }
     }
     Document document = elsewhere == null ? null : elsewhere.documentAt(real);
-    if (document == null || document == d.document) {
+    if (document == null || d != null && document == d.document) {
       return null;
     }
     return holderOf(document).entry(document);
