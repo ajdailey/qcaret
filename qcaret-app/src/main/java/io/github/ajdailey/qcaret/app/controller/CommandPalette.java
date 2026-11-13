@@ -38,7 +38,7 @@ final class CommandPalette implements PaletteInput {
         if (command.group() != group || command == CommandId.COMMAND_PALETTE) {
           continue;
         }
-        String title = title(command);
+        String title = command.qualifiedTitle();
         int score = Fuzzy.score(query, title);
         if (score < 0) {
           score = Fuzzy.score(query, group.title() + " " + title);
@@ -65,14 +65,5 @@ final class CommandPalette implements PaletteInput {
     if (states.enabled(command)) {
       application.execute(command);
     }
-  }
-
-  /** Returns a command's title, after its cascade's title when it sits in one. */
-  static String title(CommandId command) {
-    String submenu = command.submenu();
-    if (submenu == null) {
-      return command.title();
-    }
-    return submenu.replace("&", "") + ": " + command.title();
   }
 }

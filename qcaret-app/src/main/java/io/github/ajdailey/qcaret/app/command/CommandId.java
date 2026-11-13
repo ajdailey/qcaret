@@ -463,12 +463,20 @@ public enum CommandId {
 
   /**
    * Returns the title after its cascade's title when it sits in one, for lists that show commands
-   * outside their menus.
+   * outside their menus. A title that starts with the cascade's title as a whole word stands alone.
    *
-   * @return for example {@code SHA-256: Generate}
+   * @return for example {@code SHA-256: Generate}, or {@code Split Horizontally} in Split
    */
   public String qualifiedTitle() {
-    return submenu == null ? title() : submenu.text().replace("&", "") + ": " + title();
+    String title = title();
+    if (submenu == null) {
+      return title;
+    }
+    String cascade = submenu.text().replace("&", "");
+    if (title.equals(cascade) || title.startsWith(cascade + " ")) {
+      return title;
+    }
+    return cascade + ": " + title;
   }
 
   /**

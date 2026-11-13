@@ -195,3 +195,8 @@ menu command with its menu, keys and enabled state, filtered with `Fuzzy` on
 its title, then on its menu and title. `Fuzzy` scores the query's chars in
 order, ignoring case, more for runs and word starts. Choosing an enabled row
 runs the command.
+
+The palette, Keyboard Shortcuts and the Preferences Keys tab show
+`CommandId.qualifiedTitle`: the cascade title, a colon and the item title
+(`SHA-256: Generate`), or the item title alone when it starts with the cascade
+title as a whole word (`Split Horizontally`).

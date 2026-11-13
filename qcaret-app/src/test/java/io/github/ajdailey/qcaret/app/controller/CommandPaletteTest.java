@@ -77,6 +77,20 @@ class CommandPaletteTest {
   }
 
   @Test
+  void aTitleThatStartsWithItsCascadeWordShowsOnceAndTheCascadeWordStillMatches() {
+    harness.application.execute(CommandId.COMMAND_PALETTE);
+    String found = null;
+    for (PaletteEntry entry : harness.view.palette.filter("split")) {
+      if (entry.command() == CommandId.SPLIT_HORIZONTAL) {
+        found = entry.title();
+      }
+    }
+    assertEquals("Split Horizontally", found);
+    assertEquals("Split: Unsplit", first("split unsplit").title());
+    assertEquals("Bookmarks List", first("bookmarks list").title());
+  }
+
+  @Test
   void runExecutesOnlyAnEnabledCommand() throws Exception {
     harness.application.execute(CommandId.COMMAND_PALETTE);
     harness.view.palette.run(CommandId.SPLIT_VERTICAL);
