@@ -119,7 +119,7 @@ moves to its front when it is shown, opened, reopened or moved in, and leaves
 it when it closes or moves out. A tab moved out leaves its source
 window showing the next tab by the same rule.
 
-`MainWindow` ignores the folder's `Selection` while it disposes an item, as
+`TabStrip` ignores the folder's `Selection` while it disposes an item, as
 during a tab move, and the controller selects the next tab after the dispose.
 Without that, `CTabFolder`'s own choice (the item before, or in MRU mode the one
 selected last) activates first and wins. `TabList` turns MRU mode on only

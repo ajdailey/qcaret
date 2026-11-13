@@ -45,7 +45,9 @@ and the owner asks again.
 
 `setFoldRegions` gives the regions a view offers, one per start line; `fold`,
 `foldAt`, `unfold`, `foldAll`, `unfoldAll` and `reveal` change the collapsed
-set, each as one display change over the lines it affects.
+set, each as one display change over the lines it affects. `ProjectionFolds`
+holds a projection's collapsed and offered regions, runs these commands and
+maps offsets and rows between the unfolded and folded display.
 
 `FoldLayer` holds the collapsed regions, sorted by start line, and the hidden
 spans they merge into: region `(a, b)` hides lines `a + 1` to `b`, and line `a`
@@ -140,11 +142,11 @@ in the coordinates before the edit:
 | Joins its line to a bookmarked line above | Removed; the upper one stays |
 | Anything else | Follows its anchor |
 
-A removed bookmark is kept with the removed text's length and hash and two
-anchors around the inserted text, for the newest 1,000 such edits. An undo or
-redo that puts the same text back between those anchors (at the start or the
-end of the span, so coalesced deletes match too) restores the bookmark with its
-comment. Toggle, Clear and Remove are not undoable, and Clear drops the kept
-ones.
+`RemovedBookmarks` keeps a removed bookmark with the removed text's length and
+hash and two anchors around the inserted text, for the newest 1,000 such edits.
+An undo or redo that puts the same text back between those anchors (at the
+start or the end of the span, so coalesced deletes match too) restores the
+bookmark with its comment. Toggle, Clear and Remove are not undoable, and Clear
+drops the kept ones.
 
 `LineEnds` names the break after a line for the line-ending marks.

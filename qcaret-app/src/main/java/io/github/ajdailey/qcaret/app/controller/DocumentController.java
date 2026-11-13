@@ -26,7 +26,6 @@ import io.github.ajdailey.qcaret.core.document.BinaryFileException;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
-import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.document.LoadedFile;
@@ -38,8 +37,6 @@ import io.github.ajdailey.qcaret.core.document.TextCodingException;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
-import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
-import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -55,8 +52,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -144,31 +139,21 @@ public final class DocumentController {
   private int nextUntitled = 1;
   private Elsewhere elsewhere;
   private boolean wrap;
-  private GrammarLibrary grammars;
-  private Consumer<GrammarSet> grammarListener;
+  private final DocumentGrammars grammars;
+  private final DocumentEncodings encodings;
+  private final TabClosing closing;
+  private final DocumentSessions sessions;
   private final WordCompletion completion;
   private final SymbolCache symbols;
   private boolean showWhitespace;
   private boolean showLineEndings;
   private int completionChars;
   private boolean autoClose = true;
-  private int maxHighlightLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
-  private Consumer<String> grammarChosen;
   private boolean overviewShown = true;
   private boolean lineNumbersShown = true;
   private OverviewSources overviewSources;
   private Consumer<Document> closeListener;
-  private LastTab lastTab;
   private final TabUse use = new TabUse();
-  private final Runnable lastClosed =
-      new Runnable() {
-        @Override
-        public void run() {
-          if (documents.isEmpty() && !disposing && lastTab != null) {
-            lastTab.emptied(DocumentController.this);
-          }
-        }
-      };
   private final ExternalChanges changes;
   private CompareController compare;
   private int defaultTabWidth = Document.DEFAULT_TAB_WIDTH;
@@ -255,7 +240,7 @@ public final class DocumentController {
       if (detect) {
         return requested;
       }
-      Session.FileState state = memory == null ? null : memory.state(path);
+      Session.FileState state = sessions.state(path);
       String name =
           restoring != null ? restoring.tab().encoding() : state == null ? "" : state.encoding();
       if (name.isEmpty()) {
@@ -304,7 +289,7 @@ public final class DocumentController {
             d.tab.select();
             landed(path, d);
             if (restoring != null) {
-              applyTab(d, restoring.tab());
+              sessions.applyTab(d, restoring.tab());
             }
             return;
           }
@@ -314,8 +299,8 @@ public final class DocumentController {
       OpenDocument d = add(document, path, file.stamp(), reserved, layout, index, file.binary());
       d.file.forced = forced;
       files.watch(d, given == null ? path : given, file.baseline());
-      if (reopened == null && memory != null && restoring == null) {
-        applyFile(d, memory.state(path));
+      if (reopened == null && restoring == null) {
+        sessions.applyFile(d, path);
       }
       landed(path, d);
       if (file.binary()) {
@@ -332,7 +317,7 @@ public final class DocumentController {
         view.documentStateChanged();
       }
       if (restoring != null) {
-        applyTab(d, restoring.tab());
+        sessions.applyTab(d, restoring.tab());
       }
       if (file.settings().any()) {
         declared.apply(d, file.settings());
@@ -487,6 +472,9 @@ public final class DocumentController {
     this.budget = budget;
     this.options = options;
     this.declared = new DocumentSettings(workers, ui, view);
+    this.grammars = new DocumentGrammars(workers, ui, view, documents);
+    this.encodings = new DocumentEncodings(workers, ui, view);
+    this.sessions = new DocumentSessions(this, documents, selected, view, grammars, closedPaths);
     this.changes =
         new ExternalChanges(
             workers,
@@ -514,7 +502,7 @@ public final class DocumentController {
             new SaveAndReload.Window() {
               @Override
               public void renamed(OpenDocument d) {
-                detect(d);
+                grammars.detect(d);
               }
 
               @Override
@@ -528,7 +516,7 @@ public final class DocumentController {
                 if (holder == null) {
                   ended.run();
                 } else if (ask) {
-                  holder.close(holder.entry(held), ended, ended);
+                  holder.closing.close(holder.entry(held), ended, ended);
                 } else {
                   holder.discard(holder.entry(held));
                   ended.run();
@@ -552,6 +540,7 @@ public final class DocumentController {
                 return DocumentController.this.writes();
               }
             });
+    this.closing = new TabClosing(this, documents, selected, view, files);
     this.copies =
         new SaveCopy(
             workers,
@@ -784,10 +773,7 @@ public final class DocumentController {
    * @param chars lines longer than this stay plain ({@code editor.maxHighlightLineChars})
    */
   public void setMaxHighlightLineChars(int chars) {
-    maxHighlightLineChars = chars;
-    for (OpenDocument d : documents) {
-      d.syntax.setMaxLineChars(chars);
-    }
+    grammars.setMaxLineChars(chars);
   }
 
   /**
@@ -821,7 +807,7 @@ public final class DocumentController {
 
   /** Sets what receives a grammar's id when the user chooses it with {@link #setSyntax}. */
   void setGrammarChosen(Consumer<String> listener) {
-    grammarChosen = listener;
+    grammars.setChosen(listener);
   }
 
   /** Returns the open documents in tab order. */
@@ -963,7 +949,7 @@ public final class DocumentController {
             view,
             selected);
     d.binary = binary;
-    d.syntax = highlighter(d);
+    d.syntax = grammars.highlighter(d);
     d.syntax.setRegionsListener(
         new Runnable() {
           @Override
@@ -990,7 +976,7 @@ public final class DocumentController {
     }
     view.documentStateChanged();
     viewsChanged();
-    detect(d);
+    grammars.detect(d);
     return d;
   }
 
@@ -1001,7 +987,7 @@ public final class DocumentController {
     connect(d, editor);
     d.editors.add(editor);
     editor.setSyntax(d.syntax);
-    editor.setGrammar(grammar(d));
+    editor.setGrammar(grammars.editorGrammar(d));
     return editor;
   }
 
@@ -1088,7 +1074,7 @@ public final class DocumentController {
     return new TabInput() {
       @Override
       public void closeRequested() {
-        closeByUser(d);
+        closing.closeByUser(d);
       }
 
       @Override
@@ -1108,12 +1094,12 @@ public final class DocumentController {
 
       @Override
       public void closeOthersRequested() {
-        closeOthers(d);
+        closing.closeOthers(d);
       }
 
       @Override
       public void closeSideRequested(boolean left) {
-        closeSide(d, left);
+        closing.closeSide(d, left);
       }
 
       @Override
@@ -1200,23 +1186,13 @@ public final class DocumentController {
   /** Closes the selected document, asking first when it has unsaved changes. */
   public void closeActive() {
     if (active != null) {
-      closeByUser(active);
+      closing.closeByUser(active);
     }
-  }
-
-  private void closeByUser(OpenDocument d) {
-    if (!keepsLast(d)) {
-      close(d, lastClosed);
-    }
-  }
-
-  private boolean keepsLast(OpenDocument d) {
-    return lastTab != null && documents.size() == 1 && documents.get(0) == d && lastTab.keeps(d);
   }
 
   /** Close All: {@link #closeAll} as a user's close, so the last tab follows {@link LastTab}. */
   public void closeAllTabs() {
-    closeNext(null, lastClosed);
+    closing.closeAllTabs();
   }
 
   /**
@@ -1226,54 +1202,14 @@ public final class DocumentController {
    * @param then runs once every document is closed
    */
   public void closeAll(Runnable then) {
-    closeNext(then);
-  }
-
-  private void closeNext(final Runnable then) {
-    closeNext(null, then);
-  }
-
-  /**
-   * Closes the next document other than {@code kept} as {@link TabUse#nextToClose} orders them,
-   * asking when dirty, then the next.
-   */
-  private void closeNext(final OpenDocument kept, final Runnable then) {
-    List<OpenDocument> candidates = new ArrayList<OpenDocument>(documents);
-    candidates.remove(kept);
-    OpenDocument next = TabUse.nextToClose(candidates, active);
-    showKeptBefore(next, kept);
-    if (next != null && then == lastClosed && keepsLast(next)) {
-      next.tab.select();
-      return;
-    }
-    if (next == null) {
-      if (kept != null && !kept.closed) {
-        kept.tab.select();
-      }
-      if (then != null) {
-        then.run();
-      }
-      return;
-    }
-    close(
-        next,
-        new Runnable() {
-          @Override
-          public void run() {
-            closeNext(kept, then);
-          }
-        });
+    closing.closeAll(then);
   }
 
   /** Closes every document but the selected one, asking for each dirty one; Cancel stops. */
   public void closeOthers() {
     if (active != null) {
-      closeOthers(active);
+      closing.closeOthers(active);
     }
-  }
-
-  private void closeOthers(OpenDocument kept) {
-    closeNext(kept, lastClosed);
   }
 
   /**
@@ -1284,51 +1220,7 @@ public final class DocumentController {
    */
   public void closeSide(boolean left) {
     if (active != null) {
-      closeSide(active, left);
-    }
-  }
-
-  /** Closes the tabs on one side of a tab in tab order, asking for each dirty one; Cancel stops. */
-  private void closeSide(OpenDocument from, boolean left) {
-    int at = documents.indexOf(from);
-    List<OpenDocument> side =
-        new ArrayList<OpenDocument>(
-            left ? documents.subList(0, at) : documents.subList(at + 1, documents.size()));
-    closeEach(side, from, active);
-  }
-
-  /**
-   * Closes a list in {@link TabUse#nextToClose} order; {@code kept} is selected once {@code
-   * selected} has closed.
-   */
-  private void closeEach(
-      final List<OpenDocument> list, final OpenDocument kept, final OpenDocument selected) {
-    OpenDocument next = TabUse.nextToClose(list, active);
-    if (next == null) {
-      if (selected.closed && !kept.closed) {
-        kept.tab.select();
-      }
-      return;
-    }
-    showKeptBefore(next, kept);
-    close(
-        next,
-        new Runnable() {
-          @Override
-          public void run() {
-            closeEach(list, kept, selected);
-          }
-        });
-  }
-
-  /** Shows {@code kept} before a bulk close closes the clean shown tab, so no other tab shows. */
-  private void showKeptBefore(OpenDocument next, OpenDocument kept) {
-    if (next != null
-        && next == active
-        && !next.document.isDirty()
-        && kept != null
-        && !kept.closed) {
-      kept.tab.select();
+      closing.closeSide(active, left);
     }
   }
 
@@ -1360,9 +1252,7 @@ public final class DocumentController {
   /** Cancels running loads and closes every document without asking. */
   public void dispose() {
     disposing = true;
-    if (grammars != null) {
-      grammars.removeListener(grammarListener);
-    }
+    grammars.close();
     opener.close();
     changes.close();
     completion.cancel();
@@ -1371,78 +1261,17 @@ public final class DocumentController {
     }
   }
 
-  private void close(OpenDocument d, Runnable then) {
-    close(d, then, null);
+  /** Reports whether {@link #dispose} has begun. */
+  boolean disposing() {
+    return disposing;
   }
 
-  /**
-   * Closes a document, asking first when it has unsaved changes. Save closes it once the file is
-   * written, unless an edit arrived during the write: that asks again.
-   *
-   * @param d the document
-   * @param then runs once it closed
-   * @param kept runs instead when the tab stays: a Cancel or a save that wrote no file
-   */
-  private void close(final OpenDocument d, final Runnable then, final Runnable kept) {
-    files.cancelSave(d);
-    if (!d.document.isDirty()) {
-      discard(d);
-      if (then != null) {
-        then.run();
-      }
-      return;
-    }
-    d.tab.select();
-    view.askUnsaved(
-        d.name(),
-        new Consumer<UnsavedChoice>() {
-          @Override
-          public void accept(UnsavedChoice choice) {
-            if (d.closed) {
-              if (kept != null) {
-                kept.run();
-              }
-              return;
-            }
-            final Runnable done =
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    discard(d);
-                    if (then != null) {
-                      then.run();
-                    }
-                  }
-                };
-            Runnable written =
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    if (d.document.isDirty()) {
-                      close(d, then, kept);
-                    } else {
-                      done.run();
-                    }
-                  }
-                };
-            switch (choice) {
-              case SAVE -> files.save(d, new SaveAndReload.SaveEnd(written, kept));
-              case DISCARD -> done.run();
-              case CANCEL -> {
-                if (kept != null) {
-                  kept.run();
-                }
-              }
-            }
-          }
-        });
-  }
-
-  private void discard(final OpenDocument d) {
+  /** Closes an entry without asking; its unsaved changes are lost. */
+  void discard(final OpenDocument d) {
     if (d.closed) {
       return;
     }
-    rememberClosed(d);
+    sessions.rememberClosed(d);
     d.closed = true;
     if (closeListener != null) {
       closeListener.accept(d.document);
@@ -1632,7 +1461,7 @@ public final class DocumentController {
 
   /** Sets what a user's close of the last tab does; without one the window stays empty. */
   void setLastTab(LastTab rule) {
-    lastTab = rule;
+    closing.setLastTab(rule);
   }
 
   /** Sets what runs as each document closes, before it releases its text. */
@@ -1776,7 +1605,8 @@ public final class DocumentController {
     }
   }
 
-  private void split(OpenDocument d, boolean sideBySide) {
+  /** {@link #split(boolean)} for a document. */
+  void split(OpenDocument d, boolean sideBySide) {
     d.sideBySide = sideBySide;
     if (d.editors.size() > 1) {
       d.tab.setSideBySide(sideBySide);
@@ -1880,15 +1710,8 @@ public final class DocumentController {
    * @param charset the charset
    */
   public void saveWithEncoding(Charset charset) {
-    if (active == null || active.binary) {
-      return;
-    }
-    active.file.forced = charset;
-    TextEncoding current = active.document.encoding();
-    if (!current.charset().equals(charset)) {
-      active.document.setEncoding(TextEncoding.of(charset, false));
-      active.updateTitle();
-      view.documentStateChanged();
+    if (active != null) {
+      encodings.saveWith(active, charset);
     }
   }
 
@@ -1900,96 +1723,10 @@ public final class DocumentController {
    *
    * @param ending the ending
    */
-  public void convertLineEndings(final LineEnding ending) {
-    final OpenDocument d = active;
-    if (d == null || d.document.isReadOnly()) {
-      return;
+  public void convertLineEndings(LineEnding ending) {
+    if (active != null) {
+      encodings.convert(active, ending);
     }
-    if (!d.document.lineEndings().isMixed()
-        && d.document.lineEndings().dominant(ending) == ending) {
-      d.document.setLineEnding(ending);
-      view.documentStateChanged();
-      return;
-    }
-    if (d.converting != null) {
-      d.converting.cancel();
-    }
-    final CancellationToken token = new CancellationToken();
-    d.converting = token;
-    d.document.clearPreedit();
-    final DocumentSnapshot snapshot = d.document.snapshot();
-    final long revision = d.document.revision();
-    final int caret = d.editor.selections().selections().primary().caret();
-    view.setActive();
-    busy(d, true);
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              LineConversion converted = null;
-              try {
-                converted = LineConversion.convert(snapshot.text(), ending, caret, token);
-              } catch (CancellationException e) {
-                // Closed or replaced by a newer conversion.
-              } finally {
-                final LineConversion result = converted;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        try {
-                          converted(d, token, revision, ending, result);
-                        } finally {
-                          view.setIdle();
-                          if (d.converting == null) {
-                            busy(d, false);
-                          }
-                        }
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      d.converting = null;
-      view.setIdle();
-      busy(d, false);
-    }
-  }
-
-  /** Shows or clears the busy cursor over every view of a document. */
-  private static void busy(OpenDocument d, boolean on) {
-    for (EditorController e : d.editors) {
-      if (e.view() != null) {
-        e.view().setBusy(on);
-      }
-    }
-  }
-
-  private void converted(
-      OpenDocument d,
-      CancellationToken token,
-      long revision,
-      LineEnding ending,
-      LineConversion result) {
-    if (d.converting != token) {
-      return;
-    }
-    d.converting = null;
-    if (result == null
-        || d.closed
-        || d.document.isReadOnly()
-        || d.document.revision() != revision) {
-      return;
-    }
-    d.document.apply(
-        EditBatch.of(EditBatch.Kind.COMMAND, List.of(result.replacement())),
-        d.editor.selections(),
-        SelectionSet.caret(result.caret()));
-    d.document.setLineEnding(ending);
-    d.tab.showCaret();
-    view.documentStateChanged();
   }
 
   // Editing settings and commands.
@@ -2204,22 +1941,7 @@ public final class DocumentController {
    * @param library the grammars
    */
   public void setGrammars(GrammarLibrary library) {
-    grammars = library;
-    grammarListener =
-        new Consumer<GrammarSet>() {
-          @Override
-          public void accept(GrammarSet set) {
-            for (OpenDocument d : documents) {
-              if (d.manualGrammar && set.get(d.grammar) != null) {
-                applyGrammar(d, d.grammar, set);
-              } else {
-                d.manualGrammar = false;
-                detect(d);
-              }
-            }
-          }
-        };
-    library.addListener(grammarListener);
+    grammars.setLibrary(library);
   }
 
   /**
@@ -2228,26 +1950,19 @@ public final class DocumentController {
    * @param id the grammar's id; an unknown id does nothing
    */
   public void setSyntax(String id) {
-    GrammarSet set = grammars == null ? null : grammars.set();
-    if (active != null && set != null && set.get(id) != null) {
-      active.manualGrammar = true;
-      applyGrammar(active, id, set);
-      if (grammarChosen != null) {
-        grammarChosen.accept(id);
-      }
+    if (active != null) {
+      grammars.choose(active, id);
     }
   }
 
   /** Returns the selected document's grammar, or null without a document or before the read. */
   Grammar activeGrammar() {
-    GrammarSet set = grammars == null ? null : grammars.set();
-    return active == null || set == null ? null : set.get(active.grammar);
+    return active == null ? null : grammars.grammarOf(active);
   }
 
   /** Returns the grammars, plain text first, then by name; empty before they are read. */
   List<Grammar> grammarChoices() {
-    GrammarSet set = grammars == null ? null : grammars.set();
-    return set == null ? List.of() : set.byName();
+    return grammars.choices();
   }
 
   /**
@@ -2257,79 +1972,6 @@ public final class DocumentController {
    */
   public FoldRegionSource activeFoldRegions() {
     return active == null ? null : active.syntax;
-  }
-
-  private SyntaxHighlighter highlighter(final OpenDocument d) {
-    return new SyntaxHighlighter(
-        d.document,
-        workers,
-        ui,
-        new Runnable() {
-          @Override
-          public void run() {
-            for (EditorController e : d.editors) {
-              if (e.view() != null) {
-                e.view().redrawHighlights();
-              }
-            }
-          }
-        },
-        maxHighlightLineChars);
-  }
-
-  /** Picks the document's grammar on a worker from its file name and first line. */
-  private void detect(final OpenDocument d) {
-    final GrammarSet set = grammars == null ? null : grammars.set();
-    if (set == null || d.manualGrammar || d.closed) {
-      return;
-    }
-    Path file = d.file.path == null ? null : d.file.path.getFileName();
-    final String name = file == null ? null : file.toString();
-    final TextSnapshot text = d.document.text();
-    final CancellationToken token = new CancellationToken();
-    d.detecting++;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              int length = Math.min(text.lineLength(0), GrammarSet.FIRST_LINE_CHARS);
-              final String id = set.detect(name, text.subSequence(0, length), token);
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      d.detecting--;
-                      if (!d.closed && !d.manualGrammar && currentGrammars() == set) {
-                        applyGrammar(d, id, set);
-                      }
-                    }
-                  });
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      d.detecting--;
-      LOG.debug("Syntax not detected: workers are closed");
-    }
-  }
-
-  private void applyGrammar(OpenDocument d, String id, GrammarSet set) {
-    d.grammar = id;
-    d.syntax.setSyntax(GrammarSet.PLAIN.equals(id) ? null : set.syntax(id));
-    for (EditorController e : d.editors) {
-      e.setGrammar(grammar(d));
-    }
-    view.documentStateChanged();
-  }
-
-  private GrammarSet currentGrammars() {
-    return grammars == null ? null : grammars.set();
-  }
-
-  /** Returns the document's grammar, or null for plain text and before the grammars are read. */
-  private Grammar grammar(OpenDocument d) {
-    GrammarSet set = grammars == null ? null : grammars.set();
-    return set == null || GrammarSet.PLAIN.equals(d.grammar) ? null : set.get(d.grammar);
   }
 
   private static double mebibytes(long bytes) {
@@ -2560,7 +2202,7 @@ public final class DocumentController {
                 @Override
                 public void moved(OpenDocument d, boolean renamed) {
                   if (renamed) {
-                    detect(d);
+                    grammars.detect(d);
                   }
                   declared.readForMove(d);
                   if (bufferMoved != null) {
@@ -2623,7 +2265,7 @@ public final class DocumentController {
         active.document.tabWidth(),
         lineNumbersShown,
         active.syntax == null ? null : active.syntax.syntax(),
-        maxHighlightLineChars);
+        grammars.maxLineChars());
   }
 
   /** Returns the selected document's tab name, or null without a document. */
@@ -2711,7 +2353,7 @@ public final class DocumentController {
     view.documentStateChanged();
     viewsChanged();
     if (from.detecting > 0) {
-      detect(d);
+      grammars.detect(d);
     }
     ui.asyncExec(
         new Runnable() {
@@ -2790,7 +2432,6 @@ public final class DocumentController {
   private record Restoring(Session.Tab tab, Consumer<String> failed, Runnable done) {}
 
   private int nextBuffer = 1;
-  private FileMemory memory;
   private Consumer<String> bufferCleaned;
   private Runnable sessionListener;
   private final SelectionListener sessionSelections =
@@ -2803,7 +2444,7 @@ public final class DocumentController {
 
   /** Sets where file state is kept. */
   void setFileMemory(FileMemory value) {
-    memory = value;
+    sessions.setMemory(value);
   }
 
   /** Sets what receives a buffer's id when it has no unsaved changes left or it closes. */
@@ -2855,125 +2496,6 @@ public final class DocumentController {
     FileSettingsReader created = declared.setSources(editorConfig, modelines);
     if (created != null) {
       opener.setSettings(created);
-    }
-  }
-
-  /** Uses a remembered grammar; a grammar the library lacks falls back to detection. */
-  private void restoreGrammar(OpenDocument d, String id) {
-    if (id.isEmpty()) {
-      return;
-    }
-    GrammarSet set = currentGrammars();
-    d.manualGrammar = true;
-    d.grammar = id;
-    if (set != null && set.get(id) != null) {
-      applyGrammar(d, id, set);
-    } else if (set != null) {
-      d.manualGrammar = false;
-      d.grammar = GrammarSet.PLAIN;
-      detect(d);
-    }
-  }
-
-  private void applyFile(OpenDocument d, Session.FileState state) {
-    if (state == null) {
-      return;
-    }
-    d.setTabSettings(state.tabWidth(), state.insertSpaces());
-    restoreGrammar(d, state.language());
-    SelectionSet set = SessionText.selections(state.selections(), d.document.text().length());
-    d.editor.restoreView(set, state.top(), new int[0]);
-    view.documentStateChanged();
-  }
-
-  private void applyTab(OpenDocument d, Session.Tab tab) {
-    d.setTabSettings(tab.tabWidth(), tab.insertSpaces());
-    restoreGrammar(d, tab.language());
-    int lines = d.document.text().lineCount();
-    for (int line : SessionText.numbers(tab.bookmarks())) {
-      if (line < lines && !d.bookmarks.contains(line)) {
-        d.bookmarks.toggle(line);
-      }
-    }
-    for (Session.Comment comment : tab.comments()) {
-      if (comment.line() < lines) {
-        d.bookmarks.setComment(comment.line(), comment.text());
-      }
-    }
-    if (tab.views().size() > 1) {
-      if (active != d) {
-        d.tab.select();
-      }
-      split(d, tab.sideBySide());
-      int[] weights = SessionText.numbers(tab.weights());
-      if (weights.length == 2 && weights[0] > 0 && weights[1] > 0) {
-        d.tab.setSplitWeights(weights);
-      }
-    }
-    for (int i = 0; i < Math.min(tab.views().size(), d.editors.size()); i++) {
-      Session.View saved = tab.views().get(i);
-      SelectionSet set = SessionText.selections(saved.selections(), d.document.text().length());
-      d.editors.get(i).restoreView(set, saved.top(), SessionText.numbers(saved.folds()));
-    }
-    if (d.editors.size() > 1) {
-      d.editor = d.editors.get(Math.min(tab.focused(), d.editors.size() - 1));
-      d.editor.view().focus();
-    }
-    if (tab.readOnly() && !d.document.isReadOnly()) {
-      d.document.clearPreedit();
-      d.document.setReadOnly(true);
-      d.updateTitle();
-    }
-    view.documentStateChanged();
-  }
-
-  private Session.Tab tab(OpenDocument d, String buffer) {
-    List<Session.View> views = new ArrayList<Session.View>(2);
-    for (EditorController e : d.editors) {
-      views.add(
-          new Session.View(
-              SessionText.selections(e.selections().selections()),
-              e.topLine(),
-              SessionText.numbers(e.projection().collapsedLines())));
-    }
-    List<Session.Comment> comments = new ArrayList<Session.Comment>();
-    for (int line : d.bookmarks.commentedLines()) {
-      comments.add(new Session.Comment(line, d.bookmarks.comment(line)));
-    }
-    Path file = d.file.target();
-    return new Session.Tab(
-        file == null ? "" : file.toString(),
-        d.untitled == null ? "" : d.untitled,
-        buffer,
-        d.file.forced == null ? "" : d.file.forced.name(),
-        d.manualGrammar ? d.grammar : "",
-        d.binary,
-        d.document.tabWidth(),
-        d.document.insertSpaces(),
-        views,
-        Math.max(0, d.editors.indexOf(d.editor)),
-        d.sideBySide,
-        d.editors.size() > 1 ? SessionText.numbers(d.tab.splitWeights()) : "",
-        SessionText.numbers(d.bookmarks.lines()),
-        comments,
-        d.document.isReadOnly());
-  }
-
-  private void rememberClosed(OpenDocument d) {
-    if (d.file.path == null) {
-      return;
-    }
-    if (memory != null && !d.binary && !disposing) {
-      EditorController e = d.editor;
-      memory.remember(
-          new Session.FileState(
-              d.file.path.toString(),
-              d.file.forced == null ? "" : d.file.forced.name(),
-              d.manualGrammar ? d.grammar : "",
-              d.document.tabWidth(),
-              d.document.insertSpaces(),
-              SessionText.selections(e.selections().selections()),
-              e.topLine()));
     }
   }
 
@@ -3043,28 +2565,12 @@ public final class DocumentController {
    * @return the tabs
    */
   List<Session.Tab> sessionTabs(boolean buffers) {
-    List<Session.Tab> tabs = new ArrayList<Session.Tab>();
-    for (OpenDocument d : documents) {
-      boolean snapshot = buffers && d.document.isDirty() && !d.binary;
-      if (d.file.path != null || snapshot) {
-        tabs.add(tab(d, snapshot ? d.bufferId : ""));
-      }
-    }
-    return tabs;
+    return sessions.tabs(buffers);
   }
 
   /** Returns the selected tab's index in {@link #sessionTabs}, -1 when it is not there. */
   int sessionActive(boolean buffers) {
-    int index = 0;
-    for (OpenDocument d : documents) {
-      if (d == active) {
-        return d.file.path != null || (buffers && d.document.isDirty()) ? index : -1;
-      }
-      if (d.file.path != null || (buffers && d.document.isDirty() && !d.binary)) {
-        index++;
-      }
-    }
-    return -1;
+    return sessions.activeIndex(buffers);
   }
 
   /** Returns the window's display state; the Bookmarks list is {@link BookmarkList}'s. */
@@ -3094,24 +2600,12 @@ public final class DocumentController {
 
   /** Returns Reopen Closed Tab's files, newest first. */
   List<String> closedFiles() {
-    List<String> list = new ArrayList<String>();
-    for (Path path : closedPaths) {
-      list.add(path.toString());
-    }
-    return list;
+    return sessions.closedFiles();
   }
 
   /** Sets Reopen Closed Tab's files, newest first; a path that does not parse is left out. */
   void restoreClosed(List<String> files) {
-    for (String file : files) {
-      try {
-        if (closedPaths.size() < REOPEN_LIMIT) {
-          closedPaths.addLast(Path.of(file));
-        }
-      } catch (InvalidPathException e) {
-        LOG.debug("A closed file's path does not parse");
-      }
-    }
+    sessions.restoreClosed(files);
   }
 
   /**
@@ -3120,22 +2614,7 @@ public final class DocumentController {
    * @return the buffers, each with a snapshot taken now
    */
   List<Buffer> dirtyBuffers() {
-    List<Buffer> buffers = new ArrayList<Buffer>();
-    for (OpenDocument d : documents) {
-      if (d.document.isDirty() && !d.binary) {
-        Path file = d.file.target();
-        buffers.add(
-            new Buffer(
-                d.bufferId,
-                d.document.snapshot(),
-                file,
-                d.untitled,
-                d.file.watch == null ? null : d.file.watch.baseline(),
-                d.manualGrammar ? d.grammar : "",
-                SessionText.selections(d.editor.selections().selections())));
-      }
-    }
-    return buffers;
+    return sessions.dirtyBuffers();
   }
 
   /**
@@ -3179,10 +2658,10 @@ public final class DocumentController {
     document.markUnsaved();
     d.updateTitle();
     if (tab != null) {
-      applyTab(d, tab);
+      sessions.applyTab(d, tab);
       d.file.forced = tab.encoding().isEmpty() ? null : document.encoding().charset();
     } else {
-      restoreGrammar(d, header.language());
+      grammars.restore(d, header.language());
       SelectionSet set = SessionText.selections(header.selection(), document.text().length());
       d.editor.restoreView(set, 0, new int[0]);
       d.tab.showCaret();

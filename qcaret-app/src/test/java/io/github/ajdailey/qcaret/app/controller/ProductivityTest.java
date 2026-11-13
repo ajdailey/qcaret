@@ -637,4 +637,128 @@ class ProductivityTest {
         },
         "list");
   }
+
+  /** Opens the marked text and waits for Complete Word's list of {@code size} words. */
+  private void listOf(String marked, final int size) throws InterruptedException {
+    open(marked);
+    editor.execute(CommandId.COMPLETE_WORD);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return tab.shown.completions.size() == size;
+          }
+        },
+        "list");
+  }
+
+  @Test
+  void theListPagesClampsAndTakesAChosenRow() throws InterruptedException {
+    listOf("ab1 ab2 ab3 ab4 ab5 ab6 ab7 ab8 ab9 ab0 a|", 10);
+    editor.execute(CommandId.PAGE_DOWN);
+    assertEquals(8, tab.shown.completionSelected);
+    editor.execute(CommandId.PAGE_DOWN);
+    assertEquals(9, tab.shown.completionSelected);
+    editor.execute(CommandId.CARET_UP);
+    assertEquals(8, tab.shown.completionSelected);
+    editor.execute(CommandId.PAGE_UP);
+    assertEquals(0, tab.shown.completionSelected);
+    editor.execute(CommandId.CARET_UP);
+    assertEquals(0, tab.shown.completionSelected);
+    String chosen = tab.shown.completions.get(2);
+    editor.completionChosen(-1);
+    editor.completionChosen(10);
+    assertEquals(10, tab.shown.completions.size());
+    editor.completionChosen(2);
+    assertEquals(List.of(), tab.shown.completions);
+    assertTrue(marked().endsWith(" " + chosen + "|"), marked());
+    editor.completionChosen(0);
+    assertTrue(marked().endsWith(" " + chosen + "|"), marked());
+  }
+
+  @Test
+  void backspaceNarrowsTheListAndClosesItPastThePrefix() throws InterruptedException {
+    listOf("alpha alpine al|", 2);
+    editor.type("p");
+    assertEquals(List.of("alpha", "alpine"), tab.shown.completions);
+    editor.execute(CommandId.DELETE_BACK);
+    assertEquals("alpha alpine al|", marked());
+    assertEquals(List.of("alpha", "alpine"), tab.shown.completions);
+    editor.execute(CommandId.DELETE_BACK);
+    assertEquals(List.of(), tab.shown.completions);
+  }
+
+  @Test
+  void typingAWordNoListedWordStartsWithClosesTheList() throws InterruptedException {
+    listOf("alpha alpine al|", 2);
+    editor.type("x");
+    assertEquals(List.of(), tab.shown.completions);
+    assertEquals("alpha alpine alx|", marked());
+  }
+
+  @Test
+  void completeWordIgnoresADigitPrefixAndARange() throws InterruptedException {
+    open("a1 1a 1|");
+    editor.execute(CommandId.COMPLETE_WORD);
+    drainWorker();
+    ui.runPending();
+    assertEquals(List.of(), tab.shown.completions);
+    editor.dispose();
+    open("alpha <al>");
+    editor.execute(CommandId.COMPLETE_WORD);
+    drainWorker();
+    ui.runPending();
+    assertEquals(List.of(), tab.shown.completions);
+    assertEquals("alpha <al>", marked());
+  }
+
+  @Test
+  void aCompletionForAnOlderRevisionShowsNoList() throws InterruptedException {
+    open("alpha alpine al|");
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.COMPLETE_WORD);
+    editor.type("p");
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertEquals(List.of(), tab.shown.completions);
+    assertEquals("alpha alpine alp|", marked());
+  }
+
+  @Test
+  void escCancelsARunningLineTransform() throws InterruptedException {
+    open("c\nb\na|");
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.SORT_LINES_ASCENDING);
+    editor.cancel();
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertEquals("c\nb\na", document.text().toString());
+    assertEquals(List.of(true, false), tab.shown.busy);
+    assertEquals(List.of(), notices);
+  }
+
+  @Test
+  void aLineTransformAppliesAfterACaretMoveAtTheSameRevision() throws InterruptedException {
+    open("c\nb\na|");
+    CountDownLatch gate = holdWorker();
+    editor.execute(CommandId.SORT_LINES_ASCENDING);
+    selections.set(SelectionSet.caret(1));
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertEquals("a\nb\nc", document.text().toString());
+    assertEquals(List.of(true, false), tab.shown.busy);
+  }
+
+  @Test
+  void aReadOnlyDocumentRunsNoLineTransform() {
+    open("c\nb\na|");
+    document.setReadOnly(true);
+    editor.execute(CommandId.SORT_LINES_ASCENDING);
+    ui.runPending();
+    assertEquals("c\nb\na", document.text().toString());
+    assertEquals(List.of(), tab.shown.busy);
+  }
 }

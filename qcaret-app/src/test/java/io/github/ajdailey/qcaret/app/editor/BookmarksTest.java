@@ -154,6 +154,89 @@ class BookmarksTest {
   }
 
   @Test
+  void oneEditRemovingTwoBookmarkedLinesRestoresBothOnUndo() {
+    Document document = document("a\nb\nc\nd");
+    Bookmarks bookmarks = new Bookmarks(document);
+    bookmarks.setComment(1, "on b");
+    bookmarks.setComment(2, "on c");
+    document.apply(EditBatch.replace(2, 4, ""));
+    assertArrayEquals(new int[0], bookmarks.lines());
+    document.undo(null);
+    assertArrayEquals(new int[] {1, 2}, bookmarks.lines());
+    assertEquals("on b", bookmarks.comment(1));
+    assertEquals("on c", bookmarks.comment(2));
+  }
+
+  @Test
+  void anUndoPuttingBackOtherTextKeepsTheRemovedBookmarkForALaterUndo() {
+    Document document = document("a\nb\nc");
+    Bookmarks bookmarks = new Bookmarks(document);
+    bookmarks.setComment(1, "on b");
+    document.apply(EditBatch.replace(2, 2, ""));
+    document.apply(EditBatch.replace(2, 0, "q\n"));
+    document.apply(EditBatch.replace(2, 2, ""));
+    document.undo(null);
+    assertEquals("a\nq\nc", document.text().toString());
+    assertArrayEquals(new int[0], bookmarks.lines());
+    document.undo(null);
+    document.undo(null);
+    assertEquals("a\nb\nc", document.text().toString());
+    assertEquals("on b", bookmarks.comment(1));
+  }
+
+  @Test
+  void aRestoredBookmarkLeavesItsCommentOutAtTheCommentLimit() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i <= Bookmarks.MAX_COMMENTS; i++) {
+      text.append(i).append('\n');
+    }
+    Document document = document(text.toString());
+    Bookmarks bookmarks = new Bookmarks(document);
+    bookmarks.setComment(0, "removed");
+    document.apply(EditBatch.replace(0, 2, ""));
+    for (int i = 0; i < Bookmarks.MAX_COMMENTS; i++) {
+      assertEquals(Bookmarks.Result.DONE, bookmarks.setComment(i, "c" + i));
+    }
+    document.undo(null);
+    assertEquals(true, bookmarks.contains(0));
+    assertEquals(null, bookmarks.comment(0));
+    assertEquals(Bookmarks.MAX_COMMENTS, bookmarks.commentCount());
+  }
+
+  @Test
+  void onlyTheNewestRemovingEditsCanRestoreTheirBookmarks() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i <= Bookmarks.MAX_REMOVED + 1; i++) {
+      text.append(i).append('\n');
+    }
+    Document document = document(text.toString());
+    Bookmarks bookmarks = new Bookmarks(document);
+    for (int i = 0; i <= Bookmarks.MAX_REMOVED; i++) {
+      bookmarks.toggle(0);
+      document.apply(EditBatch.replace(0, document.text().offsetOfLine(1), ""));
+    }
+    assertArrayEquals(new int[0], bookmarks.lines());
+    for (int i = 0; i <= Bookmarks.MAX_REMOVED; i++) {
+      document.undo(null);
+    }
+    assertEquals(Bookmarks.MAX_REMOVED, bookmarks.lines().length);
+    assertEquals(false, bookmarks.contains(0));
+    assertEquals(true, bookmarks.contains(1));
+  }
+
+  @Test
+  void clearDropsTheRemovedBookmarksAnUndoWouldRestore() {
+    Document document = document("a\nb\nc");
+    Bookmarks bookmarks = new Bookmarks(document);
+    bookmarks.toggle(1);
+    document.apply(EditBatch.replace(2, 2, ""));
+    bookmarks.clear();
+    document.undo(null);
+    assertEquals("a\nb\nc", document.text().toString());
+    assertArrayEquals(new int[0], bookmarks.lines());
+  }
+
+  @Test
   void commentsAreBoundedInLengthAndCount() {
     StringBuilder text = new StringBuilder();
     for (int i = 0; i <= Bookmarks.MAX_COMMENTS; i++) {

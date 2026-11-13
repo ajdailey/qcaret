@@ -29,6 +29,9 @@ and a status bar.
 
 ## Tabs
 
+`TabStrip` owns the `CTabFolder` and its listeners; an `EditorTab` per
+document is the item's data and the controller's `TabView`.
+
 `TabMenu` is the one context menu of every tab: each right click disposes its
 items and adds `MenuTable.TAB_MENU` for that tab, enabled from
 `CommandStates.tabItems`. Its items act on the tab clicked; File > Close
@@ -54,7 +57,7 @@ control under the point:
 - no QCaret control and a point outside the source shell opens a new window
   with its corner at the point, which GTK 4 and Wayland place themselves.
 
-The shell's data names its `MainWindow`. A moved tab is a new `Tab` with new
+The shell's data names its `TabStrip`. A moved tab is a new `EditorTab` with new
 `EditorPane`s over the same projection and selections; widgets do not cross
 shells.
 
@@ -218,7 +221,7 @@ list lacks, so OK does not drop it.
   from the sized shell.
 - Every unmaximized move and resize records the normal bounds, which
   `windowBounds` returns for the quit to save.
-- `MainWindow.rememberSize` gives the resizable windows (`preferences`,
+- `WindowDialogs.rememberSize` gives the resizable windows (`preferences`,
   `shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`, `guide`)
   their last size, within the monitor's client area, after they open, and keeps
   a size that changed when the window closes.

@@ -200,9 +200,10 @@ or a `StackOverflowError`, leaves the rest of the line plain.
 - The frontier returns the lines of each view range (`setViewport`) as it
   passes them; a requested line beyond it is tokenized from a stored state, or
   from the initial state, and returned again when the frontier passes.
-- At the end it computes the fold regions ([Folding](#folding)) from the
-  counts and the line states, and counts the lines over the limit. A `sections`
-  grammar's fold counts hold the line's header level and its blank flag.
+- At the end `FoldRegionPass` computes the fold regions
+  ([Folding](#folding)) from the counts and the line states, and the engine
+  counts the lines over the limit. A `sections` grammar's fold counts hold the
+  line's header level and its blank flag.
 
 ## Grammar set and detection
 

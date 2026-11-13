@@ -23,7 +23,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` | [Documents](docs/documents.md#text-storage) |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles`, `TextModelines` | [Documents](docs/documents.md#document-model) |
 | `core.edit` | 7 | `LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`, `CaseEdits`, `WordDeletes`, `Transpose`, `SelectionExpansion`, `ParagraphWrap` | [Documents](docs/documents.md#editing-commands) |
-| `core.syntax` | 7 | Grammar reader, compiler, `Tokenizer`, `SyntaxEngine`, `GrammarSet`, `FoldRegions`, `SymbolScanner`, `SymbolScan`, `SymbolKind` | [Grammars](docs/grammars.md) |
+| `core.syntax` | 7 | Grammar reader, compiler, `Tokenizer`, `SyntaxEngine`, `FoldRegionPass`, `GrammarSet`, `FoldRegions`, `SymbolScanner`, `SymbolScan`, `SymbolKind` | [Grammars](docs/grammars.md) |
 | `core.search` | 7 | `TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups` | [Search](docs/search.md) |
 | `core.diff` | 7 | `LineDiff` | [Search](docs/search.md#line-diff) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |

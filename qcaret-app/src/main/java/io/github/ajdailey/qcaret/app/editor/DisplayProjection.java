@@ -11,7 +11,6 @@ import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.TextEdit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -137,10 +136,7 @@ public final class DisplayProjection implements DocumentListener {
   private int pendingTabWidth;
   private Runnable rewrapHook;
   private boolean disposed;
-  private FoldLayer folds = FoldLayer.NONE;
-  private int[] regionStarts = new int[0];
-  private int[] regionEnds = new int[0];
-  private long foldOps;
+  private final ProjectionFolds folding;
   private long linesVisited;
   private long linesMeasured;
 
@@ -164,6 +160,30 @@ public final class DisplayProjection implements DocumentListener {
     this.appliedTabWidth = layout.tabWidth;
     this.wrap = layout.wrapColumns > 0;
     this.viewColumns = layout.wrapColumns;
+    this.folding =
+        new ProjectionFolds(
+            new ProjectionFolds.Host() {
+              @Override
+              public TextSnapshot text() {
+                return text;
+              }
+
+              @Override
+              public RowIndex rows() {
+                return index;
+              }
+
+              @Override
+              public void changing(DisplayChange change) {
+                fireChanging(change);
+              }
+
+              @Override
+              public void changed(DisplayChange change) {
+                rowCache.clear();
+                fireChanged(change);
+              }
+            });
     document.addListener(this);
   }
 
@@ -451,13 +471,13 @@ public final class DisplayProjection implements DocumentListener {
     }
     int oldLength = length();
     int oldRows = rowCount();
-    FoldLayer measured = folds.remeasured(text, result.index);
+    FoldLayer measured = folding.layer().remeasured(text, result.index);
     int newRows = text.lineCount() + result.index.totalBreaks() - measured.totalRows();
     int newLength = text.length() + result.index.totalBreaks() - measured.totalChars();
     DisplayChange change = new DisplayChange(0, oldLength, newLength, oldRows - 1, newRows - 1);
     fireChanging(change);
     index = result.index;
-    folds = measured;
+    folding.setLayer(measured);
     appliedColumns = result.wrapColumns;
     appliedTabWidth = result.tabWidth;
     rowCache.clear();
@@ -470,6 +490,7 @@ public final class DisplayProjection implements DocumentListener {
   public void textChanged(DocumentChange change) {
     TextSnapshot before = text;
     TextSnapshot after = document.text();
+    FoldLayer folds = folding.layer();
     List<int[]> groups = groups(before, after, change.edits());
     int columns = appliedColumns;
     boolean deferred = false;
@@ -539,9 +560,9 @@ public final class DisplayProjection implements DocumentListener {
     fireChanging(display);
     replaceRows(groups, builders);
     next.place(after, index, n0, n1);
-    shiftRegions(before, after, change.edits(), head[0], tail[1]);
+    folding.shiftRegions(before, after, change.edits(), head[0], tail[1]);
     text = after;
-    folds = next;
+    folding.setLayer(next);
     rowCache.clear();
     fireChanged(display);
     if (deferred) {
@@ -650,59 +671,7 @@ public final class DisplayProjection implements DocumentListener {
    *     is past the text is skipped, and of pairs with one start line the longest is kept
    */
   public void setFoldRegions(List<int[]> regions) {
-    List<int[]> sorted = regions;
-    for (int i = 1; i < regions.size(); i++) {
-      if (regions.get(i)[0] < regions.get(i - 1)[0]) {
-        sorted = new ArrayList<int[]>(regions);
-        sorted.sort(
-            new Comparator<int[]>() {
-              @Override
-              public int compare(int[] a, int[] b) {
-                return Integer.compare(a[0], b[0]);
-              }
-            });
-        break;
-      }
-    }
-    int last = text.lineCount() - 1;
-    int[] starts = new int[sorted.size()];
-    int[] ends = new int[sorted.size()];
-    int count = 0;
-    for (int[] r : sorted) {
-      if (r[0] < 0 || r[1] <= r[0] || r[1] > last) {
-        continue;
-      }
-      if (count > 0 && starts[count - 1] == r[0]) {
-        ends[count - 1] = Math.max(ends[count - 1], r[1]);
-      } else {
-        starts[count] = r[0];
-        ends[count++] = r[1];
-      }
-    }
-    regionStarts = Arrays.copyOf(starts, count);
-    regionEnds = Arrays.copyOf(ends, count);
-    int n = folds.regionCount();
-    int[] keptStarts = new int[n];
-    int[] keptEnds = new int[n];
-    int kept = 0;
-    int lo = Integer.MAX_VALUE;
-    int hi = -1;
-    for (int i = 0; i < n; i++) {
-      int a = folds.regionStart(i);
-      int b = folds.regionEnd(i);
-      int j = Arrays.binarySearch(regionStarts, a);
-      if (j < 0 || regionEnds[j] != b) {
-        lo = Math.min(lo, a);
-        hi = Math.max(hi, j < 0 ? b : Math.max(b, regionEnds[j]));
-      }
-      if (j >= 0) {
-        keptStarts[kept] = a;
-        keptEnds[kept++] = regionEnds[j];
-      }
-    }
-    if (hi >= 0) {
-      applyFolds(Arrays.copyOf(keptStarts, kept), Arrays.copyOf(keptEnds, kept), lo, hi);
-    }
+    folding.setFoldRegions(regions);
   }
 
   /**
@@ -711,6 +680,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the zero-based lines, ascending
    */
   public int[] collapsedLines() {
+    FoldLayer folds = folding.layer();
     return Arrays.copyOf(folds.starts(), folds.regionCount());
   }
 
@@ -720,7 +690,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return regions from the last {@link #setFoldRegions}, moved by the edits since
    */
   public int foldRegionCount() {
-    return regionStarts.length;
+    return folding.regionCount();
   }
 
   /**
@@ -730,12 +700,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the region's end line, or -1 when no region starts there
    */
   public int foldEnd(int line) {
-    int i = folds.regionAt(line);
-    if (i >= 0) {
-      return folds.regionEnd(i);
-    }
-    int j = Arrays.binarySearch(regionStarts, line);
-    return j >= 0 ? regionEnds[j] : -1;
+    return folding.foldEnd(line);
   }
 
   /**
@@ -745,7 +710,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return true for a collapsed region's first line
    */
   public boolean collapsed(int line) {
-    return folds.regionAt(line) >= 0;
+    return folding.layer().regionAt(line) >= 0;
   }
 
   /**
@@ -754,7 +719,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return collapsed regions, nested ones included
    */
   public int collapsedCount() {
-    return folds.regionCount();
+    return folding.layer().regionCount();
   }
 
   /**
@@ -764,7 +729,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return true when the line has no rows
    */
   public boolean hidden(int line) {
-    return folds.spanHiding(line) >= 0;
+    return folding.layer().spanHiding(line) >= 0;
   }
 
   /**
@@ -776,15 +741,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return a model offset on a shown line
    */
   public int visibleOffset(int offset, boolean forward) {
-    int k = folds.spanHiding(text.lineAt(offset));
-    if (k < 0) {
-      return offset;
-    }
-    int after = folds.last(k) + 1;
-    if (forward && after < text.lineCount()) {
-      return text.offsetOfLine(after);
-    }
-    return FoldLayer.lineEnd(text, folds.head(k));
+    return folding.visibleOffset(offset, forward);
   }
 
   /**
@@ -794,14 +751,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when no expanded region holds the line
    */
   public boolean fold(int line) {
-    int j = Arrays.binarySearch(regionStarts, line);
-    for (j = j >= 0 ? j : -j - 2; j >= 0; j--) {
-      if (regionEnds[j] >= line && folds.regionAt(regionStarts[j]) < 0) {
-        collapse(regionStarts[j], regionEnds[j]);
-        return true;
-      }
-    }
-    return false;
+    return folding.fold(line);
   }
 
   /**
@@ -811,12 +761,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when no expanded region starts there
    */
   public boolean foldAt(int line) {
-    int j = Arrays.binarySearch(regionStarts, line);
-    if (j < 0 || folds.regionAt(line) >= 0) {
-      return false;
-    }
-    collapse(line, regionEnds[j]);
-    return true;
+    return folding.foldAt(line);
   }
 
   /**
@@ -826,19 +771,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when no collapsed region starts there
    */
   public boolean unfold(int line) {
-    int i = folds.regionAt(line);
-    if (i < 0) {
-      return false;
-    }
-    int n = folds.regionCount();
-    int[] starts = new int[n - 1];
-    int[] ends = new int[n - 1];
-    System.arraycopy(folds.starts(), 0, starts, 0, i);
-    System.arraycopy(folds.starts(), i + 1, starts, i, n - 1 - i);
-    System.arraycopy(folds.ends(), 0, ends, 0, i);
-    System.arraycopy(folds.ends(), i + 1, ends, i, n - 1 - i);
-    applyFolds(starts, ends, line, folds.regionEnd(i));
-    return true;
+    return folding.unfold(line);
   }
 
   /**
@@ -847,42 +780,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when every region was collapsed
    */
   public boolean foldAll() {
-    int[][] merged = foldAllRegions();
-    if (merged.length == 0) {
-      return false;
-    }
-    applyFolds(merged[0], merged[1], 0, text.lineCount() - 1);
-    return true;
-  }
-
-  /**
-   * Returns the collapsed regions plus every offered one as {starts, ends}, or an empty array when
-   * no offered one is new.
-   */
-  private int[][] foldAllRegions() {
-    int n = regionStarts.length;
-    int m = folds.regionCount();
-    int[] starts = new int[n + m];
-    int[] ends = new int[n + m];
-    int count = 0;
-    int i = 0;
-    int j = 0;
-    while (i < n || j < m) {
-      if (j >= m || (i < n && regionStarts[i] < folds.regionStart(j))) {
-        starts[count] = regionStarts[i];
-        ends[count++] = regionEnds[i++];
-      } else {
-        if (i < n && regionStarts[i] == folds.regionStart(j)) {
-          i++;
-        }
-        starts[count] = folds.regionStart(j);
-        ends[count++] = folds.regionEnd(j++);
-      }
-    }
-    if (count == m) {
-      return new int[0][];
-    }
-    return new int[][] {Arrays.copyOf(starts, count), Arrays.copyOf(ends, count)};
+    return folding.foldAll();
   }
 
   /** What became of a {@link FoldAll} at {@link #installFoldAll}. */
@@ -939,12 +837,19 @@ public final class DisplayProjection implements DocumentListener {
    * @return the request, or null when every region is collapsed
    */
   public FoldAll foldAllRequest() {
-    int[][] merged = foldAllRegions();
+    int[][] merged = folding.foldAllRegions();
     if (merged.length == 0) {
       return null;
     }
     return new FoldAll(
-        document.revision(), foldOps, text, index, folds, regionStarts, merged[0], merged[1]);
+        document.revision(),
+        folding.ops(),
+        text,
+        index,
+        folding.layer(),
+        folding.offered(),
+        merged[0],
+        merged[1]);
   }
 
   /**
@@ -966,16 +871,16 @@ public final class DisplayProjection implements DocumentListener {
    * @return the outcome
    */
   public FoldAllOutcome installFoldAll(FoldAll request) {
-    if (disposed || request.result == null || request.ops != foldOps) {
+    if (disposed || request.result == null || request.ops != folding.ops()) {
       return FoldAllOutcome.DROPPED;
     }
     if (request.revision != document.revision()
         || request.live != index
-        || request.reuse != folds
-        || request.offered != regionStarts) {
+        || request.reuse != folding.layer()
+        || request.offered != folding.offered()) {
       return FoldAllOutcome.STALE;
     }
-    applyFolds(request.result, 0, text.lineCount() - 1);
+    folding.apply(request.result, 0, text.lineCount() - 1);
     return FoldAllOutcome.APPLIED;
   }
 
@@ -985,11 +890,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when none was collapsed
    */
   public boolean unfoldAll() {
-    if (folds.regionCount() == 0) {
-      return false;
-    }
-    applyFolds(new int[0], new int[0], 0, text.lineCount() - 1);
-    return true;
+    return folding.unfoldAll();
   }
 
   /**
@@ -999,234 +900,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return false when no region hides it
    */
   public boolean reveal(int line) {
-    if (folds.spanHiding(line) < 0) {
-      return false;
-    }
-    int n = folds.regionCount();
-    int[] starts = new int[n];
-    int[] ends = new int[n];
-    int count = 0;
-    int lo = line;
-    int hi = line;
-    for (int i = 0; i < n; i++) {
-      int a = folds.regionStart(i);
-      int b = folds.regionEnd(i);
-      if (a < line && line <= b) {
-        lo = Math.min(lo, a);
-        hi = Math.max(hi, b);
-      } else {
-        starts[count] = a;
-        ends[count++] = b;
-      }
-    }
-    applyFolds(Arrays.copyOf(starts, count), Arrays.copyOf(ends, count), lo, hi);
-    return true;
-  }
-
-  private void collapse(int start, int end) {
-    int n = folds.regionCount();
-    int at = -Arrays.binarySearch(folds.starts(), start) - 1;
-    int[] starts = new int[n + 1];
-    int[] ends = new int[n + 1];
-    System.arraycopy(folds.starts(), 0, starts, 0, at);
-    System.arraycopy(folds.ends(), 0, ends, 0, at);
-    starts[at] = start;
-    ends[at] = end;
-    System.arraycopy(folds.starts(), at, starts, at + 1, n - at);
-    System.arraycopy(folds.ends(), at, ends, at + 1, n - at);
-    applyFolds(starts, ends, start, end);
-  }
-
-  /**
-   * Installs collapsed regions that differ from the current ones only within lines {@code [lo,
-   * hi]}: one display change from the start of {@code lo} to the end of {@code hi}, each moved out
-   * of any hidden span of either state.
-   */
-  private void applyFolds(int[] starts, int[] ends, int lo, int hi) {
-    applyFolds(FoldLayer.of(starts, ends, text, index, folds), lo, hi);
-  }
-
-  private void applyFolds(FoldLayer next, int lo, int hi) {
-    foldOps++;
-    int last = text.lineCount() - 1;
-    boolean moved = true;
-    while (moved) {
-      moved = false;
-      for (FoldLayer layer : new FoldLayer[] {folds, next}) {
-        int k = layer.spanHiding(lo);
-        if (k >= 0) {
-          lo = layer.head(k);
-          moved = true;
-        }
-        k = hi < last ? layer.spanHiding(hi + 1) : -1;
-        if (k >= 0) {
-          hi = layer.last(k);
-          moved = true;
-        }
-      }
-    }
-    int start = toFolded(folds, text.offsetOfLine(lo) + index.breaksBefore(lo));
-    int startRow = rowToFolded(folds, lo + index.breaksBefore(lo));
-    int[] old = rangeEnd(folds, hi);
-    int[] now = rangeEnd(next, hi);
-    DisplayChange change =
-        new DisplayChange(
-            start, old[0] - start, now[0] - start, old[1] - startRow, now[1] - startRow);
-    fireChanging(change);
-    folds = next;
-    rowCache.clear();
-    fireChanged(change);
-  }
-
-  /**
-   * Returns {display offset, row} where line {@code hi} ends in a fold state: the next line's
-   * start, or the text's end and its last row.
-   */
-  private int[] rangeEnd(FoldLayer layer, int hi) {
-    if (hi == text.lineCount() - 1) {
-      return new int[] {
-        text.length() + index.totalBreaks() - layer.totalChars(),
-        text.lineCount() + index.totalBreaks() - layer.totalRows() - 1
-      };
-    }
-    return new int[] {
-      toFolded(layer, text.offsetOfLine(hi + 1) + index.breaksBefore(hi + 1)),
-      rowToFolded(layer, hi + 1 + index.breaksBefore(hi + 1))
-    };
-  }
-
-  /**
-   * Moves the offered regions through a change: by the line delta after line {@code last}, and
-   * through the edits inside {@code [first, last]}; a region left without lines is dropped.
-   */
-  private void shiftRegions(
-      TextSnapshot before, TextSnapshot after, List<TextEdit> edits, int first, int last) {
-    int n = regionStarts.length;
-    if (n == 0) {
-      return;
-    }
-    int delta = after.lineCount() - before.lineCount();
-    int lastLine = after.lineCount() - 1;
-    FoldLayer.EditMap map = null;
-    int[] starts = new int[n];
-    int[] ends = new int[n];
-    int count = 0;
-    for (int i = 0; i < n; i++) {
-      int a = regionStarts[i];
-      int b = regionEnds[i];
-      if (a > last) {
-        a += delta;
-        b += delta;
-      } else if (b >= first) {
-        if (map == null) {
-          map = new FoldLayer.EditMap(before, edits);
-        }
-        a = a < first ? a : after.lineAt(map.map(before.offsetOfLine(a)));
-        b = b > last ? b + delta : after.lineAt(map.map(before.offsetOfLine(b)));
-      }
-      if (b <= a || b > lastLine) {
-        continue;
-      }
-      if (count > 0 && starts[count - 1] >= a) {
-        ends[count - 1] = Math.max(ends[count - 1], b);
-      } else {
-        starts[count] = a;
-        ends[count++] = b;
-      }
-    }
-    regionStarts = Arrays.copyOf(starts, count);
-    regionEnds = Arrays.copyOf(ends, count);
-  }
-
-  // Unfolded and folded display coordinates.
-
-  private static int spanStart(FoldLayer layer, int k) {
-    return layer.hiddenStart(k);
-  }
-
-  private static int spanRow(FoldLayer layer, int k) {
-    return layer.hiddenRow(k);
-  }
-
-  /** Maps an unfolded display offset; one in hidden text maps to the end of its span's head. */
-  private int toFolded(FoldLayer layer, int offset) {
-    int lo = 0;
-    int hi = layer.spans() - 1;
-    int k = -1;
-    while (lo <= hi) {
-      int mid = (lo + hi) >>> 1;
-      if (spanStart(layer, mid) < offset) {
-        k = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    if (k < 0) {
-      return offset;
-    }
-    int start = spanStart(layer, k);
-    if (offset <= start + layer.charsBefore(k + 1) - layer.charsBefore(k)) {
-      return start - layer.charsBefore(k);
-    }
-    return offset - layer.charsBefore(k + 1);
-  }
-
-  /** Maps a folded display offset; the end of a span's head maps to the head's end. */
-  private int toUnfolded(FoldLayer layer, int offset) {
-    int lo = 0;
-    int hi = layer.spans() - 1;
-    int k = -1;
-    while (lo <= hi) {
-      int mid = (lo + hi) >>> 1;
-      if (spanStart(layer, mid) - layer.charsBefore(mid) < offset) {
-        k = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return k < 0 ? offset : offset + layer.charsBefore(k + 1);
-  }
-
-  /** Maps an unfolded row; a hidden row maps to the last row of its span's head. */
-  private int rowToFolded(FoldLayer layer, int row) {
-    int lo = 0;
-    int hi = layer.spans() - 1;
-    int k = -1;
-    while (lo <= hi) {
-      int mid = (lo + hi) >>> 1;
-      if (spanRow(layer, mid) <= row) {
-        k = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    if (k < 0) {
-      return row;
-    }
-    int first = spanRow(layer, k);
-    if (row < first + layer.rowsBefore(k + 1) - layer.rowsBefore(k)) {
-      return first - layer.rowsBefore(k) - 1;
-    }
-    return row - layer.rowsBefore(k + 1);
-  }
-
-  private int rowToUnfolded(FoldLayer layer, int row) {
-    int lo = 0;
-    int hi = layer.spans() - 1;
-    int k = -1;
-    while (lo <= hi) {
-      int mid = (lo + hi) >>> 1;
-      if (spanRow(layer, mid) - layer.rowsBefore(mid) <= row) {
-        k = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return k < 0 ? row : row + layer.rowsBefore(k + 1);
+    return folding.reveal(line);
   }
 
   // Queries, for the text last reported.
@@ -1237,7 +911,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return model chars plus virtual breaks, less the hidden ones
    */
   public int length() {
-    return text.length() + index.totalBreaks() - folds.totalChars();
+    return text.length() + index.totalBreaks() - folding.layer().totalChars();
   }
 
   /**
@@ -1246,7 +920,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return model lines plus virtual breaks, less the hidden ones
    */
   public int rowCount() {
-    return text.lineCount() + index.totalBreaks() - folds.totalRows();
+    return text.lineCount() + index.totalBreaks() - folding.layer().totalRows();
   }
 
   /**
@@ -1265,7 +939,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the model line
    */
   public int lineOfRow(int row) {
-    return unfoldedLineOfRow(rowToUnfolded(folds, row));
+    return unfoldedLineOfRow(folding.rowToUnfolded(row));
   }
 
   private int unfoldedLineOfRow(int row) {
@@ -1287,7 +961,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return 0 for a line's first row
    */
   public int subRow(int row) {
-    return unfoldedSubRow(rowToUnfolded(folds, row));
+    return unfoldedSubRow(folding.rowToUnfolded(row));
   }
 
   private int unfoldedSubRow(int row) {
@@ -1309,7 +983,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the display row
    */
   public int rowOfLine(int line) {
-    return rowToFolded(folds, line + index.breaksBefore(line));
+    return folding.rowToFolded(line + index.breaksBefore(line));
   }
 
   /**
@@ -1319,7 +993,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the display offset
    */
   public int rowStart(int row) {
-    return toFolded(folds, unfoldedRowStart(rowToUnfolded(folds, row)));
+    return folding.toFolded(unfoldedRowStart(folding.rowToUnfolded(row)));
   }
 
   private int unfoldedRowStart(int row) {
@@ -1344,7 +1018,7 @@ public final class DisplayProjection implements DocumentListener {
     if (cached != null) {
       return cached;
     }
-    int unfolded = rowToUnfolded(folds, row);
+    int unfolded = folding.rowToUnfolded(row);
     int line = unfoldedLineOfRow(unfolded);
     int sub = unfoldedSubRow(unfolded);
     String value = text.subSequence(rowModelStart(line, sub), rowModelEnd(line, sub)).toString();
@@ -1378,7 +1052,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the row
    */
   public int rowAt(int offset) {
-    return rowToFolded(folds, unfoldedRowAt(toUnfolded(folds, offset)));
+    return folding.rowToFolded(unfoldedRowAt(folding.toUnfolded(offset)));
   }
 
   private int unfoldedRowAt(int offset) {
@@ -1428,7 +1102,7 @@ public final class DisplayProjection implements DocumentListener {
    * @return the model offset
    */
   public int toModel(int offset) {
-    int unfolded = toUnfolded(folds, offset);
+    int unfolded = folding.toUnfolded(offset);
     int row = unfoldedRowAt(unfolded);
     int line = unfoldedLineOfRow(row);
     int sub = unfoldedSubRow(row);
@@ -1455,7 +1129,7 @@ public final class DisplayProjection implements DocumentListener {
         breaks++;
       }
     }
-    return toFolded(folds, offset + breaks);
+    return folding.toFolded(offset + breaks);
   }
 
   /**
@@ -1500,6 +1174,7 @@ public final class DisplayProjection implements DocumentListener {
     if (row + 1 < rowCount() && lineOfRow(row + 1) == line) {
       return "\n";
     }
+    FoldLayer folds = folding.layer();
     int k = folds.spanWithHead(line);
     int modelEnd = k >= 0 ? FoldLayer.lineEnd(text, folds.last(k)) : rowModelEnd(line, subRow(row));
     return text.subSequence(modelEnd, modelEnd + (nextRowStart - rowEnd)).toString();
@@ -1567,7 +1242,7 @@ public final class DisplayProjection implements DocumentListener {
 
   /** Returns the collapsed regions, for tests. */
   FoldLayer folds() {
-    return folds;
+    return folding.layer();
   }
 
   /** Returns the lines document changes have read so far, measured or only scanned, for tests. */

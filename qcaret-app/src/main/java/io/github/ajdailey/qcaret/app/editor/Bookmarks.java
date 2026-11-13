@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.app.editor;
 
-import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.document.Anchor;
 import io.github.ajdailey.qcaret.core.document.Bias;
@@ -8,11 +7,9 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.TextEdit;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,34 +72,9 @@ public final class Bookmarks implements DocumentListener {
     }
   }
 
-  /**
-   * The bookmarks one edit removed: anchors around the text the edit inserted, the removed text's
-   * length and hash, and each bookmark's offset in the removed text.
-   */
-  private static final class Removed {
-    final Anchor start;
-    final Anchor end;
-    final int length;
-    final int hash;
-    final List<int[]> offsets = new ArrayList<int[]>();
-    final List<String> comments = new ArrayList<String>();
-
-    Removed(Anchor start, Anchor end, String text) {
-      this.start = start;
-      this.end = end;
-      this.length = text.length();
-      this.hash = text.hashCode();
-    }
-
-    void dispose() {
-      start.dispose();
-      end.dispose();
-    }
-  }
-
   private final Document document;
   private final List<Entry> entries = new ArrayList<Entry>();
-  private final Deque<Removed> removed = new ArrayDeque<Removed>();
+  private final RemovedBookmarks removals;
   private final List<Runnable> listeners = new ArrayList<Runnable>();
   private int comments;
 
@@ -113,6 +85,7 @@ public final class Bookmarks implements DocumentListener {
    */
   public Bookmarks(Document document) {
     this.document = document;
+    this.removals = new RemovedBookmarks(document);
     document.addListener(this);
   }
 
@@ -322,7 +295,7 @@ public final class Bookmarks implements DocumentListener {
 
   /** Removes every bookmark and comment; an undo restores none of them. */
   public void clear() {
-    if (!entries.isEmpty() || !removed.isEmpty()) {
+    if (!entries.isEmpty() || !removals.isEmpty()) {
       boolean any = !entries.isEmpty();
       release();
       if (any) {
@@ -407,8 +380,7 @@ public final class Bookmarks implements DocumentListener {
       joins |= edit.removedLines() > 0;
     }
     int beforeLength = document.text().length() - shift;
-    List<Removed> added = new ArrayList<Removed>();
-    Removed[] groups = new Removed[edits.size()];
+    removals.startChange(edits.size());
     List<List<Entry>> replaced = new ArrayList<List<Entry>>(edits.size());
     for (int i = 0; i < edits.size(); i++) {
       replaced.add(null);
@@ -437,7 +409,7 @@ public final class Bookmarks implements DocumentListener {
     List<Entry> kept = new ArrayList<Entry>(entries.size());
     for (Entry e : entries) {
       if (e.gone) {
-        keep(edits, shifts, groups, added, editAt(edits, starts, e.before), e);
+        keep(edits, shifts, editAt(edits, starts, e.before), e);
         changed = true;
       } else {
         kept.add(e);
@@ -446,15 +418,9 @@ public final class Bookmarks implements DocumentListener {
     entries.clear();
     entries.addAll(kept);
     if (joins && entries.size() > 1) {
-      changed |= removeJoined(edits, starts, shifts, groups, added);
+      changed |= removeJoined(edits, starts, shifts);
     }
-    for (Removed r : added) {
-      removed.addLast(r);
-      while (removed.size() > MAX_REMOVED) {
-        Removed oldest = removed.removeFirst();
-        oldest.dispose();
-      }
-    }
+    removals.endChange();
     return changed;
   }
 
@@ -543,8 +509,7 @@ public final class Bookmarks implements DocumentListener {
   }
 
   /** Keeps the upper of the bookmarks that share a line; true when any was removed. */
-  private boolean removeJoined(
-      List<TextEdit> edits, int[] starts, int[] shifts, Removed[] groups, List<Removed> added) {
+  private boolean removeJoined(List<TextEdit> edits, int[] starts, int[] shifts) {
     TextSnapshot text = document.text();
     List<Entry> sorted = new ArrayList<Entry>(entries);
     int[] lines = new int[sorted.size()];
@@ -565,7 +530,7 @@ public final class Bookmarks implements DocumentListener {
         Entry e = sorted.get(i);
         int at = editAt(edits, starts, e.before);
         if (at >= 0) {
-          keep(edits, shifts, groups, added, at, e);
+          keep(edits, shifts, at, e);
         } else {
           releaseEntry(e);
         }
@@ -579,22 +544,8 @@ public final class Bookmarks implements DocumentListener {
   }
 
   /** Moves a removed bookmark into the record of the edit that removed it. */
-  private void keep(
-      List<TextEdit> edits, int[] shifts, Removed[] groups, List<Removed> added, int at, Entry e) {
-    TextEdit edit = edits.get(at);
-    Removed group = groups[at];
-    if (group == null) {
-      int start = edit.offset() + shifts[at];
-      group =
-          new Removed(
-              document.anchor(start, Bias.BEFORE),
-              document.anchor(start + edit.inserted().length(), Bias.AFTER),
-              edit.removed());
-      groups[at] = group;
-      added.add(group);
-    }
-    group.offsets.add(new int[] {e.before - edit.offset()});
-    group.comments.add(e.comment);
+  private void keep(List<TextEdit> edits, int[] shifts, int at, Entry e) {
+    removals.keep(edits.get(at), at, shifts[at], e.before, e.comment);
     releaseEntry(e);
   }
 
@@ -633,40 +584,14 @@ public final class Bookmarks implements DocumentListener {
 
   /** Restores the bookmarks of each kept edit whose removed text an undo or redo put back. */
   private boolean restore() {
-    if (removed.isEmpty()) {
+    if (removals.isEmpty()) {
       return false;
     }
-    TextSnapshot text = document.text();
-    boolean changed = false;
-    List<Removed> done = new ArrayList<Removed>();
-    for (Removed r : removed) {
-      int start = r.start.offset();
-      int span = r.end.offset() - start;
-      if (span < r.length) {
-        continue;
-      }
-      int at = -1;
-      if (hash(text, start, r.length) == r.hash) {
-        at = start;
-      } else if (span > r.length && hash(text, start + span - r.length, r.length) == r.hash) {
-        at = start + span - r.length;
-      }
-      if (at >= 0) {
-        for (int i = 0; i < r.offsets.size(); i++) {
-          restore(text, at + r.offsets.get(i)[0], r.comments.get(i));
-        }
-        done.add(r);
-        changed = true;
-      }
-    }
-    for (Removed r : done) {
-      removed.remove(r);
-      r.dispose();
-    }
-    return changed;
+    return removals.restore(document.text(), this);
   }
 
-  private void restore(TextSnapshot text, int offset, String comment) {
+  /** Restores one removed bookmark with its comment, when the comment limit allows. */
+  void restore(TextSnapshot text, int offset, String comment) {
     int line = text.lineAt(Math.min(offset, text.length()));
     Entry e = entry(line);
     if (e == null) {
@@ -675,25 +600,6 @@ public final class Bookmarks implements DocumentListener {
     if (comment != null && e.comment == null && comments < MAX_COMMENTS) {
       setComment(e, comment);
     }
-  }
-
-  /** {@link String#hashCode} of a range of the text. */
-  private static int hash(TextSnapshot text, int start, int length) {
-    final int[] h = new int[1];
-    text.readChunks(
-        start,
-        start + length,
-        new ChunkVisitor() {
-          @Override
-          public void chunk(CharSequence chunk, int from, int to) {
-            int value = h[0];
-            for (int i = from; i < to; i++) {
-              value = 31 * value + chunk.charAt(i);
-            }
-            h[0] = value;
-          }
-        });
-    return h[0];
   }
 
   private Entry entry(int line) {
@@ -738,10 +644,7 @@ public final class Bookmarks implements DocumentListener {
       releaseEntry(e);
     }
     entries.clear();
-    for (Removed r : removed) {
-      r.dispose();
-    }
-    removed.clear();
+    removals.clear();
   }
 
   private void fire() {

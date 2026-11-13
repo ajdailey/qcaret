@@ -8,15 +8,10 @@ import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
-import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
-import io.github.ajdailey.qcaret.app.editor.LineChanges;
-import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
-import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
-import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -25,7 +20,6 @@ import io.github.ajdailey.qcaret.app.view.ChecksumInput;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
-import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -46,11 +40,9 @@ import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.TipDisplay;
 import io.github.ajdailey.qcaret.app.view.TipInput;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
-import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
-import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
@@ -58,7 +50,6 @@ import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
-import io.github.ajdailey.qcaret.ui.swt.search.RunChooser;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -70,8 +61,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
 import org.eclipse.swt.custom.CTabFolder;
-import org.eclipse.swt.custom.CTabFolder2Adapter;
-import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyledText;
@@ -111,22 +100,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The main window: a tab per document, each holding one {@link EditorPane} or two in a {@link
- * SashForm}, over the {@link ResultsDock}, hidden until a HyperSearch shows it, beside the {@link
- * BookmarksDock}, hidden until Bookmarks List shows it, with the {@link WorkspaceDock} on the left,
- * hidden until View > Workspace Browser shows it; the {@link MainMenuBar} built from {@link
- * MenuTable} and the {@link Keymap}, the {@link MainToolBar} above the rest, the {@link FindBar}
- * and a status bar. Every editor shares the {@link EditorMenu}. The editors take their colors from
- * the {@link Palette}; native controls follow {@link SwtThemeService}. {@link ToolIcons} owned by
- * the window re-ink on the UI turn after a palette change, once native controls have restyled.
+ * The main window: the {@link TabStrip}, one tab per document, over the {@link ResultsDock}, hidden
+ * until a HyperSearch shows it, beside the {@link BookmarksDock}, hidden until Bookmarks List shows
+ * it, with the {@link WorkspaceDock} on the left, hidden until View > Workspace Browser shows it;
+ * the {@link MainMenuBar} built from {@link MenuTable} and the {@link Keymap}, the {@link
+ * MainToolBar} above the rest, the {@link FindBar} and a status bar. Every editor shares the {@link
+ * EditorMenu}. The editors take their colors from the {@link Palette}; native controls follow
+ * {@link SwtThemeService}. {@link ToolIcons} owned by the window re-ink on the UI turn after a
+ * palette change, once native controls have restyled.
  *
- * <p>Tab close buttons and a middle click ask the controller to close; dragging a tab within the
- * strip moves it, and a release off the strip moves it to another window ({@link #dropTab}). A
- * tab's item cannot change position, so a move disposes and recreates it, and the {@code Selection}
- * that {@code CTabFolder} sends for a neighbor while the selected item is disposed is ignored
- * (QLogg UI-14). One context menu serves every tab; each right click replaces its items. The file
- * choosers are native dialogs and run a nested event loop; the unsaved-changes and binary-file
- * prompts do not.
+ * <p>{@link WindowDialogs} opens the prompts and dialogs. The file choosers are native dialogs and
+ * run a nested event loop; the unsaved-changes and binary-file prompts do not.
  *
  * <p>Menu enablement syncs on {@link #documentStateChanged} and when the shell is activated, so an
  * accelerator works without a menu having been shown; {@link CommandStates#EDIT_STATE} also syncs
@@ -162,9 +146,6 @@ public final class MainWindow implements MainView {
   /** How long a notice stays in the status bar. */
   static final int NOTICE_MILLIS = 8000;
 
-  /** Shell data naming the shell's main window, for a tab dropped on it. */
-  private static final String WINDOW = "qcaret.window";
-
   /** Finds the control under a released tab drag. */
   interface PointerProbe {
     /**
@@ -182,11 +163,6 @@ public final class MainWindow implements MainView {
   private final ToolIcons toolIcons;
   private final MenuIcons menuIcons;
   private final SwtUiDispatcher dispatcher;
-
-  /**
-   * Disposes a closed tab's widgets after the close; GTK widget teardown dominates a bulk close.
-   */
-  private final DeferredDisposal closedTabs;
 
   private final Composite statusBar;
   private ProgressRow printBar;
@@ -206,6 +182,8 @@ public final class MainWindow implements MainView {
   private int fontPoints;
   private String fontName;
   private Font font;
+  private final TabStrip tabStrip;
+  private final WindowDialogs dialogs;
   private ApplicationController controller;
   private MainMenuBar menuBar;
   private MainToolBar mainToolBar;
@@ -220,334 +198,25 @@ public final class MainWindow implements MainView {
   private HashTextDialog hashTextDialog;
   private ChecksumDialog checksumDialog;
   private DateFormatChooser dateFormatChooser;
-  private TipDialog tipDialog;
   private Keymap keymap;
-  private PreferencesDialog preferencesDialog;
   private TabMenu tabMenu;
   private TextWindow logWindow;
   private GuideWindow guide;
-  private ShortcutsWindow shortcuts;
-  private CommandPaletteWindow commandPalette;
   private boolean statusPending;
   private long noticeGeneration;
   private PaletteListener paletteListener;
   private Palette palette;
   private Clipboard clipboard;
   private WindowGeometry.Request normalBounds = new WindowGeometry.Request(null, null, null, null);
-  private CTabItem dragged;
-  private boolean movingTab;
-  // Tab close: the controller picks the tab shown next.
-  private boolean removingTab;
-  private PointerProbe pointer =
-      new PointerProbe() {
-        @Override
-        public Control controlAt(Point point) {
-          return shell.getDisplay().getCursorControl();
-        }
-      };
   private FindBar findBar;
   private ProgressRow loadBar;
   private final SashForm body;
   private final SashForm side;
   private WorkspaceDock workspaceDock;
   private BrowserSideWidth browserWidth;
-  private QuickOpenWindow quickOpen;
   private SashForm docks;
   private ResultsDock resultsDock;
   private BookmarksDock bookmarksDock;
-  private BookmarkCommentDialog commentDialog;
-  private FileNameDialog fileNameDialog;
-  private DeleteDialog deleteDialog;
-  private OpenManyDialog openManyDialog;
-  private SearchDialog searchDialog;
-  private ReplaceDialog replaceDialog;
-  private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
-  private ChangeDialog changeDialog;
-  private RecoveryDialog recoveryDialog;
-  private DocumentChooser documentChooser;
-  private final List<DiffWindow> diffWindows = new ArrayList<DiffWindow>();
-
-  /**
-   * One document tab: its item, which a move recreates, and one or two editor views in a {@link
-   * SashForm}, one above the other or side by side.
-   */
-  private final class Tab implements TabView, SelectionListener {
-    final SashForm sash;
-    final List<EditorPane> panes = new ArrayList<EditorPane>(2);
-    final List<View> views = new ArrayList<View>(2);
-    final List<SelectionModel> models = new ArrayList<SelectionModel>(2);
-    final TabInput input;
-    EditorPane pane;
-    String title = "";
-    String toolTip = "";
-    CTabItem item;
-
-    /** A view as its controller sees it; focusing it makes it the tab's focused view. */
-    private final class View implements EditorView {
-      final EditorPane editor;
-
-      View(EditorPane editor) {
-        this.editor = editor;
-      }
-
-      @Override
-      public void showCaret() {
-        editor.showCaret();
-      }
-
-      @Override
-      public int topRow() {
-        return editor.topRow();
-      }
-
-      @Override
-      public void scrollToRow(int row) {
-        editor.scrollToRow(row);
-      }
-
-      @Override
-      public void focus() {
-        pane = editor;
-        editor.focus();
-      }
-
-      @Override
-      public void showMatches(int[] ranges) {
-        editor.showMatches(ranges);
-      }
-
-      @Override
-      public ViewLayout layout() {
-        return editor.layout();
-      }
-
-      @Override
-      public void setTabWidth(int columns) {
-        editor.setTabWidth(columns);
-      }
-
-      @Override
-      public void setColumnMode(boolean on) {
-        editor.setColumnMode(on);
-      }
-
-      @Override
-      public void setSyntax(TokenSource tokens) {
-        editor.setSyntax(tokens);
-      }
-
-      @Override
-      public void redrawHighlights() {
-        editor.redrawHighlights();
-      }
-
-      @Override
-      public void showBrackets(int[] ranges) {
-        editor.showBrackets(ranges);
-      }
-
-      @Override
-      public void showOccurrences(int[] ranges) {
-        editor.showOccurrences(ranges);
-      }
-
-      @Override
-      public void setBookmarks(Bookmarks bookmarks) {
-        editor.setBookmarks(bookmarks);
-      }
-
-      @Override
-      public void setMarks(boolean whitespace, boolean lineEndings) {
-        editor.setMarks(whitespace, lineEndings);
-      }
-
-      @Override
-      public void setBusy(boolean busy) {
-        editor.setBusy(busy);
-      }
-
-      @Override
-      public void showCompletions(List<String> words, int selected) {
-        editor.showCompletions(words, selected);
-      }
-
-      @Override
-      public void showOverview(OverviewMarks marks) {
-        editor.showOverview(marks);
-      }
-
-      @Override
-      public void setOverviewShown(boolean shown) {
-        editor.setOverviewShown(shown);
-      }
-
-      @Override
-      public void showLineChanges(LineChanges changes) {
-        editor.showLineChanges(changes);
-      }
-    }
-
-    Tab(SashForm sash, TabInput input, int index) {
-      this.sash = sash;
-      this.input = input;
-      this.item = newItem(this, index);
-    }
-
-    /** Adds a view; its focus selects it as the tab's focused view. */
-    EditorPane add(
-        DisplayProjection projection, SelectionModel selections, final EditorInput editor) {
-      final EditorPane added =
-          new EditorPane(
-              sash,
-              projection,
-              selections,
-              editor,
-              keymap,
-              font,
-              palette,
-              dispatcher,
-              lineNumbersShown);
-      added.setRightMargin(rightMargin);
-      added.setIndentGuides(indentGuides);
-      added.setLineChangesShown(lineChangesShown);
-      added
-          .text()
-          .addListener(
-              SWT.MenuDetect,
-              new Listener() {
-                @Override
-                public void handleEvent(Event event) {
-                  event.doit = false;
-                  showEditorMenu(Tab.this, added, editor, event);
-                }
-              });
-      added
-          .text()
-          .addListener(
-              SWT.FocusIn,
-              new Listener() {
-                @Override
-                public void handleEvent(Event event) {
-                  if (pane != added && panes.contains(added)) {
-                    pane = added;
-                    input.viewFocused(editor);
-                  }
-                }
-              });
-      panes.add(added);
-      views.add(new View(added));
-      models.add(selections);
-      selections.addListener(this);
-      if (pane == null) {
-        pane = added;
-      }
-      return added;
-    }
-
-    @Override
-    public void selectionsChanged(SelectionModel model) {
-      if (!item.isDisposed() && tabs.getSelection() == item) {
-        scheduleStatus();
-      }
-    }
-
-    @Override
-    public void setTitle(String value, String tip) {
-      title = value;
-      toolTip = tip;
-      if (!item.isDisposed()) {
-        item.setText(value.replace("&", "&&"));
-        item.setToolTipText(tip.replace("&", "&&"));
-      }
-    }
-
-    @Override
-    public void select() {
-      if (!item.isDisposed()) {
-        tabs.setSelection(item);
-        pane.focus();
-        input.activated();
-      }
-    }
-
-    @Override
-    public void showCaret() {
-      pane.showCaret();
-    }
-
-    @Override
-    public void close() {
-      for (SelectionModel model : models) {
-        model.removeListener(this);
-      }
-      if (!item.isDisposed()) {
-        removingTab = true;
-        try {
-          item.dispose();
-        } finally {
-          removingTab = false;
-        }
-      }
-      for (EditorPane p : panes) {
-        p.release();
-      }
-      closedTabs.dispose(sash);
-      CTabItem next = tabs.getSelection();
-      if (next != null && next.getData() instanceof Tab shown) {
-        shown.pane.focus();
-      }
-    }
-
-    @Override
-    public EditorView firstView() {
-      return views.get(0);
-    }
-
-    @Override
-    public EditorView split(
-        DisplayProjection projection,
-        SelectionModel selections,
-        EditorInput editor,
-        boolean sideBySide) {
-      sash.setOrientation(sideBySide ? SWT.HORIZONTAL : SWT.VERTICAL);
-      add(projection, selections, editor);
-      sash.setWeights(new int[] {1, 1});
-      sash.layout(true);
-      View added = views.get(views.size() - 1);
-      added.focus();
-      return added;
-    }
-
-    @Override
-    public void setSideBySide(boolean sideBySide) {
-      sash.setOrientation(sideBySide ? SWT.HORIZONTAL : SWT.VERTICAL);
-    }
-
-    @Override
-    public int[] splitWeights() {
-      return sash.getWeights();
-    }
-
-    @Override
-    public void setSplitWeights(int[] weights) {
-      sash.setWeights(weights);
-      sash.layout(true);
-    }
-
-    @Override
-    public void unsplit(EditorView kept) {
-      for (int i = panes.size() - 1; i >= 0; i--) {
-        if (views.get(i) != kept) {
-          models.remove(i).removeListener(this);
-          views.remove(i);
-          panes.remove(i).dispose();
-        }
-      }
-      pane = panes.get(0);
-      sash.layout(true);
-      pane.focus();
-    }
-  }
 
   /**
    * Creates the window, not yet visible.
@@ -558,9 +227,7 @@ public final class MainWindow implements MainView {
   public MainWindow(Display display, Palette palette) {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
-    this.closedTabs = new DeferredDisposal(dispatcher);
     shell = new Shell(display, SWT.SHELL_TRIM);
-    shell.setData(WINDOW, this);
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
@@ -574,8 +241,72 @@ public final class MainWindow implements MainView {
     side = new SashForm(shell, SWT.HORIZONTAL);
     side.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     body = new SashForm(side, SWT.VERTICAL);
-    tabs = new CTabFolder(body, SWT.TOP | SWT.FLAT);
-    tabs.setData(EditorPane.PALETTE_COLORED, Boolean.TRUE);
+    tabStrip =
+        new TabStrip(
+            body,
+            dispatcher,
+            new TabStrip.Host() {
+              @Override
+              public EditorPane newPane(
+                  SashForm sash,
+                  DisplayProjection projection,
+                  SelectionModel selections,
+                  EditorInput editor) {
+                // The current palette; the constructor's palette parameter is the first one.
+                EditorPane added =
+                    new EditorPane(
+                        sash,
+                        projection,
+                        selections,
+                        editor,
+                        keymap,
+                        font,
+                        MainWindow.this.palette,
+                        dispatcher,
+                        lineNumbersShown);
+                added.setRightMargin(rightMargin);
+                added.setIndentGuides(indentGuides);
+                added.setLineChangesShown(lineChangesShown);
+                return added;
+              }
+
+              @Override
+              public void showEditorMenu(EditorPane pane, EditorInput editor, Event event) {
+                MainWindow.this.showEditorMenu(pane, editor, event);
+              }
+
+              @Override
+              public void scheduleStatus() {
+                MainWindow.this.scheduleStatus();
+              }
+
+              @Override
+              public ApplicationController controller() {
+                return controller;
+              }
+
+              @Override
+              public TabMenu tabMenu() {
+                return tabMenu;
+              }
+            });
+    tabs = tabStrip.folder();
+    dialogs =
+        new WindowDialogs(
+            shell,
+            dispatcher,
+            this,
+            new WindowDialogs.Sizes() {
+              @Override
+              public DialogSize size(String name) {
+                return controller.dialogSize(name);
+              }
+
+              @Override
+              public void remember(String name, DialogSize size) {
+                controller.rememberDialogSize(name, size);
+              }
+            });
     baseFontSize = Dialogs.monospaceSize();
     fontPoints = baseFontSize;
     fontName = Dialogs.monospaceName();
@@ -691,7 +422,6 @@ public final class MainWindow implements MainView {
             }
           }
         });
-    listenToTabs();
     tabButtons =
         new TabStripButtons(
             tabs,
@@ -837,22 +567,16 @@ public final class MainWindow implements MainView {
 
   private void applyPalette(Palette next) {
     palette = next;
-    colorTabs(next);
+    tabStrip.colorTabs(next);
     if (tabButtons != null) {
       tabButtons.setPalette(next);
     }
     if (resultsDock != null) {
       resultsDock.setPalette(next);
     }
-    for (DiffWindow window : diffWindows) {
-      window.setPalette(next);
-    }
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        for (EditorPane pane : tab.panes) {
-          pane.setPalette(next);
-        }
-      }
+    dialogs.setPalette(next);
+    for (EditorPane pane : allPanes()) {
+      pane.setPalette(next);
     }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
     dispatcher.asyncExec(
@@ -871,23 +595,6 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Colors the tab strip. {@code CTabFolder} otherwise keeps the system list colors of its creation
-   * for the selected tab, whatever the theme. It draws the selection background only while focus is
-   * inside the folder; elsewhere the selected tab has the strip's background, and the label and
-   * close button keep the selection foreground.
-   */
-  private void colorTabs(Palette next) {
-    tabs.setBackground(color(next.gutter()));
-    tabs.setForeground(color(next.tabText()));
-    tabs.setSelectionBackground(color(next.selection()));
-    tabs.setSelectionForeground(color(next.selectionText()));
-  }
-
-  private static Color color(Rgb rgb) {
-    return new Color(rgb.red(), rgb.green(), rgb.blue());
-  }
-
-  /**
    * Returns the palette the text view paints with.
    *
    * @return the palette
@@ -902,8 +609,7 @@ public final class MainWindow implements MainView {
    * @return the editor, or null without a tab
    */
   public EditorPane activeEditor() {
-    CTabItem item = tabs.getSelection();
-    return item != null && item.getData() instanceof Tab tab ? tab.pane : null;
+    return tabStrip.activeEditor();
   }
 
   /**
@@ -932,12 +638,7 @@ public final class MainWindow implements MainView {
       EditorInput editor,
       TabInput input,
       int index) {
-    Tab tab =
-        new Tab(new SashForm(tabs, SWT.VERTICAL), input, Math.min(index, tabs.getItemCount()));
-    EditorPane pane = tab.add(projection, selections, editor);
-    tabs.setSelection(tab.item);
-    pane.focus();
-    return tab;
+    return tabStrip.addTab(projection, selections, editor, input, index);
   }
 
   @Override
@@ -970,8 +671,7 @@ public final class MainWindow implements MainView {
    * Opens the editor menu over a view. The pointer's point first places the caret, unless it lies
    * in a selection; a menu opened from the keyboard shows below the caret and moves nothing.
    */
-  private void showEditorMenu(Tab tab, EditorPane pane, EditorInput input, Event event) {
-    tab.pane = pane;
+  private void showEditorMenu(EditorPane pane, EditorInput input, Event event) {
     pane.focus();
     Point at = new Point(event.x, event.y);
     if (event.detail == SWT.MENU_KEYBOARD) {
@@ -1024,24 +724,16 @@ public final class MainWindow implements MainView {
   @Override
   public void setLineNumbersShown(boolean shown) {
     lineNumbersShown = shown;
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        for (EditorPane pane : tab.panes) {
-          pane.setLineNumbersShown(shown);
-        }
-      }
+    for (EditorPane pane : allPanes()) {
+      pane.setLineNumbersShown(shown);
     }
   }
 
   @Override
   public void setRightMargin(int column) {
     rightMargin = column;
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        for (EditorPane pane : tab.panes) {
-          pane.setRightMargin(column);
-        }
-      }
+    for (EditorPane pane : allPanes()) {
+      pane.setRightMargin(column);
     }
   }
 
@@ -1063,13 +755,7 @@ public final class MainWindow implements MainView {
 
   /** Returns every editor of every tab. */
   private List<EditorPane> allPanes() {
-    List<EditorPane> panes = new ArrayList<EditorPane>();
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        panes.addAll(tab.panes);
-      }
-    }
-    return panes;
+    return tabStrip.allPanes();
   }
 
   @Override
@@ -1198,135 +884,13 @@ public final class MainWindow implements MainView {
     return true;
   }
 
-  private CTabItem newItem(Tab tab, int index) {
-    CTabItem item = new CTabItem(tabs, SWT.CLOSE, index);
-    item.setControl(tab.sash);
-    item.setData(tab);
-    item.setText(tab.title.replace("&", "&&"));
-    item.setToolTipText(tab.toolTip.replace("&", "&&"));
-    return item;
-  }
-
-  /** Tab selection, close buttons, middle clicks and drags go to the controller. */
-  private void listenToTabs() {
-    tabs.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (!movingTab
-                && !removingTab
-                && event.item != null
-                && event.item.getData() instanceof Tab tab) {
-              tab.pane.focus();
-              tab.input.activated();
-              scheduleStatus();
-            }
-          }
-        });
-    tabs.addCTabFolder2Listener(
-        new CTabFolder2Adapter() {
-          @Override
-          public void close(CTabFolderEvent event) {
-            event.doit = false;
-            if (event.item.getData() instanceof Tab tab) {
-              tab.input.closeRequested();
-            }
-          }
-        });
-    tabs.addListener(
-        SWT.MouseDown,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            dragged = event.button == 1 ? tabs.getItem(new Point(event.x, event.y)) : null;
-          }
-        });
-    tabs.addListener(
-        SWT.MenuDetect,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            CTabItem item = tabs.getItem(tabs.toControl(event.x, event.y));
-            if (item != null && item.getData() instanceof Tab tab) {
-              event.doit = false;
-              showTabMenu(tab, event.x, event.y);
-            }
-          }
-        });
-    tabs.addListener(
-        SWT.MouseUp,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            CTabItem target = tabs.getItem(new Point(event.x, event.y));
-            if (event.button == 2) {
-              if (target != null && target.getData() instanceof Tab tab) {
-                tab.input.closeRequested();
-              }
-              return;
-            }
-            CTabItem source = dragged;
-            dragged = null;
-            if (source == null || source.isDisposed()) {
-              return;
-            }
-            if (target == null) {
-              Point point = tabs.toDisplay(event.x, event.y);
-              dropTab((Tab) source.getData(), point, pointer.controlAt(point));
-            } else if (target != source) {
-              moveTab(source, tabs.indexOf(target));
-            }
-          }
-        });
-  }
-
   /**
    * Sets how a released tab drag finds the control under it; for tests.
    *
    * @param probe the probe
    */
   void setPointerProbe(PointerProbe probe) {
-    pointer = probe;
-  }
-
-  /**
-   * Ends a tab drag released off this window's tabs. Over another main window the tab moves there:
-   * before the tab under the point, else after the last tab. Outside every QCaret shell and outside
-   * this window's bounds it moves to a new window with its top-left corner at the point. A release
-   * anywhere else does nothing.
-   */
-  private void dropTab(Tab tab, Point point, Control under) {
-    if (under == null) {
-      if (!shell.getBounds().contains(point)) {
-        controller.moveTabToNewWindow(tab.input, point.x, point.y);
-      }
-      return;
-    }
-    Shell other = under.getShell();
-    if (other == shell
-        || !(other.getData(WINDOW) instanceof MainWindow target)
-        || target.controller == null) {
-      return;
-    }
-    int index = target.tabs.getItemCount();
-    CTabItem item = target.tabs.getItem(target.tabs.toControl(point));
-    if (item != null) {
-      index = target.tabs.indexOf(item);
-    }
-    controller.moveTab(tab.input, target.controller, index);
-  }
-
-  /**
-   * Opens a tab's context menu.
-   *
-   * @param tab the tab
-   * @param x display x
-   * @param y display y
-   * @return the menu, already visible
-   */
-  Menu showTabMenu(final Tab tab, int x, int y) {
-    return tabMenu.show(tab.input, x, y);
+    tabStrip.setPointerProbe(probe);
   }
 
   /**
@@ -1336,31 +900,17 @@ public final class MainWindow implements MainView {
    * @return the menu
    */
   Menu showTabMenu(int index) {
-    Point at = tabs.toDisplay(0, 0);
-    return showTabMenu((Tab) tabs.getItem(index).getData(), at.x, at.y);
+    return tabStrip.showTabMenu(index);
   }
 
   /**
-   * Recreates a tab at another index. Disposing the selected item makes {@code CTabFolder} select a
-   * neighbor and send {@code Selection}; the listener ignores it while {@link #movingTab} is set.
+   * Recreates a tab at another index, as a drag within the strip does.
    *
    * @param source the dragged item
    * @param index the drop index
    */
   void moveTab(CTabItem source, int index) {
-    Tab tab = (Tab) source.getData();
-    boolean selected = tabs.getSelection() == source;
-    movingTab = true;
-    try {
-      source.dispose();
-      tab.item = newItem(tab, index);
-      if (selected) {
-        tabs.setSelection(tab.item);
-      }
-    } finally {
-      movingTab = false;
-    }
-    tab.input.moved(index);
+    tabStrip.moveTab(source, index);
   }
 
   @Override
@@ -1584,7 +1134,7 @@ public final class MainWindow implements MainView {
     guide = created;
     created.open();
     if (!created.shell().isDisposed()) {
-      rememberSize(created.shell(), "guide");
+      dialogs.rememberSize(created.shell(), "guide");
     }
     return true;
   }
@@ -1629,26 +1179,17 @@ public final class MainWindow implements MainView {
     }
     fontName = next;
     replaceFont();
-    for (DiffWindow window : diffWindows) {
-      window.setFontData(font.getFontData());
-    }
+    dialogs.setFont(next, font);
     for (TextWindow window : textWindows) {
       window.setFontName(next);
-    }
-    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
-      replaceDialog.setFontName(next);
     }
   }
 
   private void replaceFont() {
     Font old = font;
     font = new Font(shell.getDisplay(), fontName, fontPoints, SWT.NORMAL);
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        for (EditorPane pane : tab.panes) {
-          pane.setFont(font);
-        }
-      }
+    for (EditorPane pane : allPanes()) {
+      pane.setFont(font);
     }
     old.dispose();
     if (menuBar != null) {
@@ -1680,10 +1221,7 @@ public final class MainWindow implements MainView {
    * @return the views, empty without a tab
    */
   List<EditorPane> activeEditors() {
-    CTabItem item = tabs.getSelection();
-    return item != null && item.getData() instanceof Tab tab
-        ? new ArrayList<EditorPane>(tab.panes)
-        : new ArrayList<EditorPane>();
+    return tabStrip.activeEditors();
   }
 
   /**
@@ -2059,39 +1597,22 @@ public final class MainWindow implements MainView {
 
   @Override
   public void askGoToLine(int lines, Consumer<String> answer) {
-    if (!shell.isDisposed()) {
-      new GoToDialog(shell, lines, answer).open();
-    }
+    dialogs.askGoToLine(lines, answer);
   }
 
   @Override
   public void askTabWidth(int current, int max, IntConsumer answer) {
-    if (!shell.isDisposed()) {
-      new TabWidthDialog(shell, current, max, answer).open();
-    }
+    dialogs.askTabWidth(current, max, answer);
   }
 
   @Override
   public void askReload(String name, Runnable reload, Runnable declined) {
-    if (shell.isDisposed()) {
-      declined.run();
-      return;
-    }
-    new ReloadDialog(shell, name, reload, declined).open();
+    dialogs.askReload(name, reload, declined);
   }
 
   @Override
   public void showKeyboardShortcuts(Keymap bindings) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    if (shortcuts == null || shortcuts.shell().isDisposed()) {
-      shortcuts = new ShortcutsWindow(shell, bindings, this);
-      shortcuts.open();
-      rememberSize(shortcuts.shell(), "shortcuts");
-    } else {
-      shortcuts.shell().setActive();
-    }
+    dialogs.showKeyboardShortcuts(bindings);
   }
 
   /**
@@ -2100,23 +1621,14 @@ public final class MainWindow implements MainView {
    * @return the window, or null before it opened
    */
   ShortcutsWindow shortcutsWindow() {
-    return shortcuts;
+    return dialogs.shortcutsWindow();
   }
 
-  // Preferences and dialog sizes.
+  // Preferences.
 
   @Override
   public void showPreferences(PreferencesInput input) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    if (preferencesDialog != null && !preferencesDialog.shell().isDisposed()) {
-      preferencesDialog.shell().setActive();
-      return;
-    }
-    preferencesDialog = new PreferencesDialog(shell, input);
-    preferencesDialog.open();
-    rememberSize(preferencesDialog.shell(), "preferences");
+    dialogs.showPreferences(input);
   }
 
   /**
@@ -2125,7 +1637,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before it opened
    */
   PreferencesDialog preferencesDialog() {
-    return preferencesDialog;
+    return dialogs.preferencesDialog();
   }
 
   @Override
@@ -2138,52 +1650,17 @@ public final class MainWindow implements MainView {
     mainToolBar.setKeymap(bindings);
     tabButtons.setKeymap(bindings);
     editorMenu.setKeymap(bindings);
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof Tab tab) {
-        for (EditorPane pane : tab.panes) {
-          pane.setKeymap(bindings);
-        }
-      }
+    for (EditorPane pane : allPanes()) {
+      pane.setKeymap(bindings);
     }
-    if (shortcuts != null && !shortcuts.shell().isDisposed()) {
-      shortcuts.setKeymap(bindings);
-    }
-  }
-
-  /** Gives an open dialog its remembered size, within the monitor; a new size is kept at close. */
-  private void rememberSize(final Shell dialog, final String name) {
-    DialogSize size = controller.dialogSize(name);
-    if (size != null) {
-      Rectangle area = dialog.getMonitor().getClientArea();
-      dialog.setSize(Math.min(size.width(), area.width), Math.min(size.height(), area.height));
-    }
-    final Point opened = dialog.getSize();
-    dialog.addListener(
-        SWT.Dispose,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            Point closed = dialog.getSize();
-            if (!closed.equals(opened)) {
-              controller.rememberDialogSize(name, new DialogSize(closed.x, closed.y));
-            }
-          }
-        });
+    dialogs.setKeymap(bindings);
   }
 
   // Command palette.
 
   @Override
   public void showCommandPalette(PaletteInput input) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    if (commandPalette != null && !commandPalette.shell().isDisposed()) {
-      commandPalette.shell().dispose();
-    }
-    commandPalette = new CommandPaletteWindow(shell, input, dispatcher);
-    commandPalette.open();
-    rememberSize(commandPalette.shell(), "palette");
+    dialogs.showCommandPalette(input);
   }
 
   /**
@@ -2192,7 +1669,7 @@ public final class MainWindow implements MainView {
    * @return the palette, or null before it opened
    */
   CommandPaletteWindow commandPalette() {
-    return commandPalette;
+    return dialogs.commandPalette();
   }
 
   // Workspace browser and Quick Open.
@@ -2266,17 +1743,12 @@ public final class MainWindow implements MainView {
 
   @Override
   public void showRecovery(RecoveryInput input) {
-    if (!shell.isDisposed()) {
-      recoveryDialog = new RecoveryDialog(shell, input);
-      recoveryDialog.open();
-    }
+    dialogs.showRecovery(input);
   }
 
   @Override
   public void recoveryChanged() {
-    if (recoveryDialog != null) {
-      recoveryDialog.refresh();
-    }
+    dialogs.recoveryChanged();
   }
 
   /**
@@ -2285,7 +1757,7 @@ public final class MainWindow implements MainView {
    * @return the dialog last opened, or null
    */
   RecoveryDialog recoveryDialog() {
-    return recoveryDialog;
+    return dialogs.recoveryDialog();
   }
 
   @Override
@@ -2297,23 +1769,12 @@ public final class MainWindow implements MainView {
 
   @Override
   public void showQuickOpen(QuickOpenInput input) {
-    if (shell.isDisposed()) {
-      input.close();
-      return;
-    }
-    if (quickOpen != null && !quickOpen.shell().isDisposed()) {
-      quickOpen.shell().dispose();
-    }
-    quickOpen = new QuickOpenWindow(shell, input, dispatcher);
-    quickOpen.open();
-    rememberSize(quickOpen.shell(), "quickOpen");
+    dialogs.showQuickOpen(input);
   }
 
   @Override
   public void quickOpenChanged() {
-    if (quickOpen != null) {
-      quickOpen.changed();
-    }
+    dialogs.quickOpenChanged();
   }
 
   @Override
@@ -2345,21 +1806,14 @@ public final class MainWindow implements MainView {
    * @return the popup, or null before one opened
    */
   QuickOpenWindow quickOpen() {
-    return quickOpen;
+    return dialogs.quickOpen();
   }
 
   // HyperSearch.
 
   @Override
   public void showSearchDialog(SearchForm form, Consumer<SearchForm> run) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    if (searchDialog != null && !searchDialog.shell().isDisposed()) {
-      searchDialog.shell().dispose();
-    }
-    searchDialog = new SearchDialog(shell, form, run);
-    searchDialog.open();
+    dialogs.showSearchDialog(form, run);
   }
 
   /**
@@ -2368,7 +1822,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before it opened
    */
   SearchDialog searchDialog() {
-    return searchDialog;
+    return dialogs.searchDialog();
   }
 
   @Override
@@ -2422,37 +1876,23 @@ public final class MainWindow implements MainView {
 
   @Override
   public void askBookmarkComment(int line, String current, int maxLength, Consumer<String> answer) {
-    if (!shell.isDisposed()) {
-      commentDialog = new BookmarkCommentDialog(shell, line, current, maxLength, answer);
-      commentDialog.open();
-    }
+    dialogs.askBookmarkComment(line, current, maxLength, answer);
   }
 
   @Override
   public void askFileName(
       String title, String message, String name, int selectEnd, Consumer<String> answer) {
-    if (shell.isDisposed()) {
-      answer.accept(null);
-      return;
-    }
-    fileNameDialog = new FileNameDialog(shell, title, message, name, selectEnd, answer);
-    fileNameDialog.open();
+    dialogs.askFileName(title, message, name, selectEnd, answer);
   }
 
   @Override
   public void askDelete(String message, Runnable delete) {
-    if (!shell.isDisposed()) {
-      deleteDialog = new DeleteDialog(shell, message, delete);
-      deleteDialog.open();
-    }
+    dialogs.askDelete(message, delete);
   }
 
   @Override
   public void askOpenMany(int count, Runnable open) {
-    if (!shell.isDisposed()) {
-      openManyDialog = new OpenManyDialog(shell, count, open);
-      openManyDialog.open();
-    }
+    dialogs.askOpenMany(count, open);
   }
 
   /**
@@ -2461,7 +1901,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   OpenManyDialog openManyDialog() {
-    return openManyDialog;
+    return dialogs.openManyDialog();
   }
 
   @Override
@@ -2480,29 +1920,12 @@ public final class MainWindow implements MainView {
 
   @Override
   public void showReplacePreview(ReplaceInput input) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
-      replaceDialog.shell().dispose();
-    }
-    replaceDialog =
-        new ReplaceDialog(
-            Dialogs.shell(
-                shell, UiText.REPLACE_TITLE.text(), SWT.SHELL_TRIM | SWT.APPLICATION_MODAL),
-            input,
-            palette,
-            fontName,
-            Dialogs.monospaceSize());
-    replaceDialog.open();
-    rememberSize(replaceDialog.shell(), "replace");
+    dialogs.showReplacePreview(input, palette, fontName);
   }
 
   @Override
   public void replacePreviewChanged() {
-    if (replaceDialog != null && !replaceDialog.shell().isDisposed()) {
-      replaceDialog.refresh();
-    }
+    dialogs.replacePreviewChanged();
   }
 
   /**
@@ -2511,32 +1934,17 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before it opened
    */
   ReplaceDialog replaceDialog() {
-    return replaceDialog;
+    return dialogs.replaceDialog();
   }
 
   @Override
   public void showReplaceReport(ReportInput input) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    ReportWindow window =
-        new ReportWindow(
-            Dialogs.shell(shell, input.title().replace("&", "&&"), SWT.SHELL_TRIM), input);
-    reportWindows.add(window);
-    window.open();
-    rememberSize(window.shell(), "report");
+    dialogs.showReplaceReport(input);
   }
 
   @Override
   public void replaceReportChanged(ReportInput input) {
-    for (int i = reportWindows.size() - 1; i >= 0; i--) {
-      ReportWindow window = reportWindows.get(i);
-      if (window.shell().isDisposed()) {
-        reportWindows.remove(i);
-      } else if (window.input() == input) {
-        window.refresh();
-      }
-    }
+    dialogs.replaceReportChanged(input);
   }
 
   /**
@@ -2545,25 +1953,12 @@ public final class MainWindow implements MainView {
    * @return the windows
    */
   List<ReportWindow> reportWindows() {
-    List<ReportWindow> open = new ArrayList<ReportWindow>();
-    for (ReportWindow window : reportWindows) {
-      if (!window.shell().isDisposed()) {
-        open.add(window);
-      }
-    }
-    return open;
+    return dialogs.reportWindows();
   }
 
   @Override
   public void chooseReplaceRun(List<String> runs, Consumer<Integer> chosen) {
-    if (!shell.isDisposed()) {
-      Shell dialog =
-          Dialogs.shell(
-              shell,
-              UiText.RESTORE_CHOOSE_TITLE.text(),
-              SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
-      new RunChooser(dialog, runs, chosen).open();
-    }
+    dialogs.chooseReplaceRun(runs, chosen);
   }
 
   /**
@@ -2599,7 +1994,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   BookmarkCommentDialog commentDialog() {
-    return commentDialog;
+    return dialogs.commentDialog();
   }
 
   /**
@@ -2608,7 +2003,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   FileNameDialog fileNameDialog() {
-    return fileNameDialog;
+    return dialogs.fileNameDialog();
   }
 
   /**
@@ -2617,7 +2012,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   DeleteDialog deleteDialog() {
-    return deleteDialog;
+    return dialogs.deleteDialog();
   }
 
   /**
@@ -2631,41 +2026,17 @@ public final class MainWindow implements MainView {
 
   @Override
   public void askExternalChange(String name, boolean saving, Consumer<ChangeChoice> answer) {
-    if (shell.isDisposed()) {
-      answer.accept(saving ? ChangeChoice.CANCEL : ChangeChoice.KEEP);
-      return;
-    }
-    changeDialog = new ChangeDialog(shell, name, saving, answer);
-    changeDialog.open();
+    dialogs.askExternalChange(name, saving, answer);
   }
 
   @Override
   public void chooseDocument(List<String> names, Consumer<Integer> chosen) {
-    if (!shell.isDisposed()) {
-      documentChooser = new DocumentChooser(shell, names, chosen);
-      documentChooser.open();
-    }
+    dialogs.chooseDocument(names, chosen);
   }
 
   @Override
   public void showComparison(Comparison comparison) {
-    if (shell.isDisposed()) {
-      return;
-    }
-    final DiffWindow window = new DiffWindow(shell, comparison, palette, font.getFontData());
-    diffWindows.add(window);
-    window
-        .shell()
-        .addListener(
-            SWT.Dispose,
-            new Listener() {
-              @Override
-              public void handleEvent(Event event) {
-                diffWindows.remove(window);
-              }
-            });
-    window.open();
-    rememberSize(window.shell(), "compare");
+    dialogs.showComparison(comparison, palette, font);
   }
 
   /**
@@ -2674,7 +2045,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   ChangeDialog changeDialog() {
-    return changeDialog;
+    return dialogs.changeDialog();
   }
 
   /**
@@ -2683,7 +2054,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   DocumentChooser documentChooser() {
-    return documentChooser;
+    return dialogs.documentChooser();
   }
 
   /**
@@ -2692,7 +2063,7 @@ public final class MainWindow implements MainView {
    * @return the windows
    */
   List<DiffWindow> diffWindows() {
-    return new ArrayList<DiffWindow>(diffWindows);
+    return dialogs.diffWindows();
   }
 
   @Override
@@ -2707,12 +2078,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public TipDisplay showTips(TipInput input) {
-    if (shell.isDisposed()) {
-      return TipDialog.NONE;
-    }
-    tipDialog = new TipDialog(shell, input);
-    tipDialog.open();
-    return tipDialog;
+    return dialogs.showTips(input);
   }
 
   /**
@@ -2721,7 +2087,7 @@ public final class MainWindow implements MainView {
    * @return the dialog, or null before one opened
    */
   TipDialog tipDialog() {
-    return tipDialog;
+    return dialogs.tipDialog();
   }
 
   @Override
@@ -2731,25 +2097,6 @@ public final class MainWindow implements MainView {
 
   @Override
   public Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait) {
-    if (shell.isDisposed()) {
-      quit.run();
-      return NO_PROMPT;
-    }
-    final UnfinishedCopiesDialog dialog = new UnfinishedCopiesDialog(shell, targets, quit, wait);
-    dialog.open();
-    return new Runnable() {
-      @Override
-      public void run() {
-        dialog.close();
-      }
-    };
+    return dialogs.askUnfinishedCopies(targets, quit, wait);
   }
-
-  private static final Runnable NO_PROMPT =
-      new Runnable() {
-        @Override
-        public void run() {
-          // Nothing shows.
-        }
-      };
 }

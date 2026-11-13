@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
+import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.nio.file.Files;
@@ -123,6 +124,34 @@ class FoldingCommandsTest {
     harness.application.execute(CommandId.UNFOLD_ALL);
     assertEquals(0, p.collapsedCount());
     assertEquals(TEXT, shown(editor));
+  }
+
+  @Test
+  void theFoldMarginAndToggleFoldFoldAnExpandedRegion() {
+    EditorController editor = documents.activeEditor();
+    DisplayProjection p = editor.projection();
+    int headEnd = TEXT.indexOf(" {\n    one") + 2;
+    caret(editor, 2, 4);
+    editor.toggleFoldFromView(1);
+    assertTrue(p.collapsed(1));
+    assertEquals(SelectionSet.caret(headEnd), selections(editor));
+    editor.toggleFoldFromView(1);
+    assertEquals(0, p.collapsedCount());
+    // A row past the last clamps to the last line, which starts no region.
+    editor.toggleFoldFromView(99);
+    assertEquals(0, p.collapsedCount());
+
+    caret(editor, 2, 4);
+    harness.application.execute(CommandId.TOGGLE_FOLD);
+    assertTrue(p.collapsed(1));
+    assertEquals(SelectionSet.caret(headEnd), selections(editor));
+    harness.application.execute(CommandId.UNFOLD_ALL);
+
+    // A block keeps its corners in the hidden lines.
+    editor.selections().setBlock(new BlockSelection(2, 4, 3, 4), 4);
+    harness.application.execute(CommandId.FOLD);
+    assertTrue(p.collapsed(1));
+    assertEquals(new BlockSelection(2, 4, 3, 4), editor.selections().block());
   }
 
   @Test

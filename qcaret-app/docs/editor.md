@@ -23,7 +23,7 @@ undo and redo restore that model. A read-only document ignores edits.
   command each; undo restores every caret. Delete Word Back and Forward
   (`WordDeletes`), Title Case and Swap Case (`CaseEdits`) and Transpose
   (`Transpose`) are such functions too.
-- The controller runs the projection's rewraps on `qcaret-cpu-` workers, a
+- `FoldScheduling` runs the projection's rewraps on `qcaret-cpu-` workers, a
   newer request canceling the running one.
 
 ## Carets and block selection
@@ -42,7 +42,7 @@ undo and redo restore that model. A read-only document ignores edits.
   as the new primary, apart from a selection it touches
   (`SelectionSet.apart`); a result for another revision is dropped.
 - Esc cancels a running save and comparison through one `Runnable`, a line
-  transform through the `lineWork` token and a selection search through
+  transform through `LineTransformRuns` and a selection search through
   `SelectionCommands`, and drops the secondary selections and the block; with
   neither, it closes the find bar.
 
@@ -113,6 +113,9 @@ and pairs.
 
 ## Folding
 
+`FoldScheduling` holds one view's fold commands, fold region updates and the
+folds a restored session puts back.
+
 - Fold collapses the region the primary caret's line starts, else the innermost
   expanded region holding it; Unfold expands the collapsed region the line
   starts; Toggle Fold does either; Fold All and Unfold All take every region of
@@ -137,9 +140,10 @@ and pairs.
 
 ## Line transforms
 
-Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph
-compute their edit (`LineTransforms`, `ParagraphWrap`) on a `qcaret-cpu-`
-worker and apply it on the UI thread as one undo step, with the view's busy
+Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph run
+in `LineTransformRuns`: each computes its edit (`LineTransforms`,
+`ParagraphWrap`) on a `qcaret-cpu-` worker and applies it on the UI thread as
+one undo step, with the view's busy
 cursor from the command to the apply; a result for an older revision is dropped
 with a notice. Lines a transform, Delete Line or Move Lines leaves as they were
 to keep a CR and an LF apart (`Edit.unchanged`) are counted in a notice through
@@ -196,7 +200,8 @@ changes nothing. An anchor follows the line while the prompt shows.
 
 ## Word completion
 
-Complete Word looks up the word chars before the primary caret, at most 100,
+`CompletionInput` holds one view's completion list and its keys. Complete Word
+looks up the word chars before the primary caret, at most 100,
 in the window's open documents, the current one first (`WordCompletion`); one
 match is inserted at once, more show the view's list. The list holds at most
 `WordCompletion.MAX_WORDS` (200) words, those starting with the typed prefix

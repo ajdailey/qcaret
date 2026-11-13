@@ -7,8 +7,11 @@ Opening, loading, saving, encodings and printing of one window's documents:
 `DocumentController` holds the window's documents, one tab each, as
 package-private `OpenDocument` entries: the document, its `OpenFile` file link,
 editors, tab, grammar and declared settings. `DocumentSettings` (per-file
-settings) and `DocumentsUnder` (workspace browser Rename and Delete) take the
-entries directly. An entry reaches its window only through its constructor
+settings), `DocumentsUnder` (workspace browser Rename and Delete),
+`DocumentGrammars` (grammar detection and choice), `DocumentEncodings` (Save
+with Encoding, line-ending conversion), `TabClosing` (close order and the
+unsaved prompt) and `DocumentSessions` (session tabs, remembered file state,
+the closed-file list) take the entries directly. An entry reaches its window only through its constructor
 arguments, the window's `MainView` and selected entry. `add` gives
 every document `editor.tabWidth` and `editor.insertSpaces`; a remembered file
 state or a session tab then replaces them, then the file's declared settings

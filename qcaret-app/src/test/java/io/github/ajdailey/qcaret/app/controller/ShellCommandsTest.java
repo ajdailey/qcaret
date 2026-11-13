@@ -266,6 +266,46 @@ class ShellCommandsTest {
   }
 
   @Test
+  void aSecondConversionReplacesARunningOneAndACloseDropsIt() throws Exception {
+    harness.open(Files.writeString(temp.resolve("kept.txt"), "k\n"));
+    harness.open(Files.writeString(temp.resolve("mixed.txt"), "a\r\nb\nc"));
+    harness.application.execute(CommandId.LINE_ENDING_LF);
+    harness.application.execute(CommandId.LINE_ENDING_CRLF);
+    harness.awaitIdle("conversions");
+    assertEquals("a\r\nb\r\nc", active().text().toString());
+    assertEquals(LineEnding.CRLF, active().lineEnding());
+    Document converting = active();
+    harness.application.execute(CommandId.LINE_ENDING_LF);
+    documents().closeActive();
+    harness.view.unsaved.accept(UnsavedChoice.DISCARD);
+    harness.awaitIdle("closed conversion");
+    assertEquals(1, documents().count());
+    assertEquals("a\r\nb\r\nc", converting.text().toString());
+  }
+
+  @Test
+  void saveWithTheSameEncodingLeavesTheDocumentClean() throws Exception {
+    harness.open(Files.writeString(temp.resolve("same.txt"), "plain\n"));
+    harness.application.saveWithEncoding(StandardCharsets.UTF_8);
+    assertFalse(active().isDirty());
+    assertEquals("UTF-8", new CommandStates(harness.application).saveEncoding());
+  }
+
+  @Test
+  void anUnsavedAnswerAfterTheTabClosedWritesNothing() throws Exception {
+    Path file = Files.writeString(temp.resolve("late.txt"), "late\n");
+    harness.open(file);
+    documents().activeEditor().type("x");
+    documents().closeActive();
+    assertNotNull(harness.view.unsaved);
+    documents().closeForQuit();
+    harness.view.unsaved.accept(UnsavedChoice.SAVE);
+    harness.awaitIdle("late answer");
+    assertEquals(0, documents().count());
+    assertEquals("late\n", Files.readString(file));
+  }
+
+  @Test
   void tabCommandsCycleAndCloseOthers() throws Exception {
     harness.open(Files.writeString(temp.resolve("a.txt"), "a"));
     harness.open(Files.writeString(temp.resolve("b.txt"), "b"));

@@ -367,6 +367,79 @@ class SessionControllerTest {
   }
 
   @Test
+  void aRestoredTabTakesItsMarksSplitAndReadOnlyAndSkipsLinesPastTheEnd() throws Exception {
+    Path a = file("a.txt", "alpha\nbeta\ngamma\n");
+    final Harness harness = start(false);
+    final DocumentController documents = harness.application.documents();
+    documents.closeAll(null);
+    Session.Tab tab =
+        new Session.Tab(
+            a.toString(),
+            "",
+            "",
+            "",
+            "",
+            false,
+            4,
+            false,
+            List.of(new Session.View("0,0", 0, ""), new Session.View("6,6", 1, "")),
+            1,
+            false,
+            "40,60",
+            "1,9",
+            List.of(new Session.Comment(1, "mock comment"), new Session.Comment(9, "past")),
+            true);
+    documents.restore(
+        tab,
+        new java.util.function.Consumer<String>() {
+          @Override
+          public void accept(String name) {
+            throw new AssertionError("not restored: " + name);
+          }
+        },
+        new Runnable() {
+          @Override
+          public void run() {
+            // The count shows the tab.
+          }
+        });
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents.count() == 1;
+          }
+        },
+        "restored");
+    harness.awaitIdle("restore");
+    Document document = documents.activeDocument();
+    Bookmarks marks = documents.bookmarksOf(document);
+    assertArrayEquals(new int[] {1}, marks.lines());
+    assertEquals("mock comment", marks.comment(1));
+    assertEquals(DocumentController.Split.HORIZONTAL, documents.activeSplit());
+    assertEquals(40, harness.view.tabs.get(0).weights[0]);
+    assertEquals(6, editor(harness).selections().selections().primary().caret());
+    assertTrue(document.isReadOnly());
+    assertTrue(documents.sessionTabs(false).get(0).readOnly());
+  }
+
+  @Test
+  void restoredClosedFilesKeepTheLimitAndSkipAPathThatDoesNotParse() throws Exception {
+    Harness harness = start(false);
+    List<String> files = new ArrayList<String>();
+    files.add("mock\0name");
+    for (int i = 0; i < DocumentController.REOPEN_LIMIT + 1; i++) {
+      files.add(temp.resolve("closed" + i + ".txt").toString());
+    }
+    DocumentController documents = harness.application.documents();
+    documents.restoreClosed(files);
+    List<String> closed = documents.closedFiles();
+    assertEquals(DocumentController.REOPEN_LIMIT, closed.size());
+    assertEquals(files.get(1), closed.get(0));
+    assertEquals(files.get(DocumentController.REOPEN_LIMIT), closed.get(closed.size() - 1));
+  }
+
+  @Test
   void aRememberedEncodingTheRuntimeLacksDetects() throws Exception {
     Path a = file("a.txt", "mock line\n");
     writeTabWithEncoding(a, "x-mock-unknown");

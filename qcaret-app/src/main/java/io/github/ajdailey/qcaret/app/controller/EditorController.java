@@ -4,15 +4,11 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.CaretNavigation;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
-import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
-import io.github.ajdailey.qcaret.app.editor.IndentFoldSource;
 import io.github.ajdailey.qcaret.app.editor.IndentRules;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
-import io.github.ajdailey.qcaret.app.editor.MergedFoldSource;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
-import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
@@ -21,13 +17,10 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.buffer.LineView;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
-import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Columns;
 import io.github.ajdailey.qcaret.core.document.Document;
-import io.github.ajdailey.qcaret.core.document.DocumentChange;
-import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -41,11 +34,9 @@ import io.github.ajdailey.qcaret.core.edit.CaseEdits;
 import io.github.ajdailey.qcaret.core.edit.CommentEdits;
 import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.edit.LineEdits;
-import io.github.ajdailey.qcaret.core.edit.LineTransforms;
 import io.github.ajdailey.qcaret.core.edit.Moves;
 import io.github.ajdailey.qcaret.core.edit.Occurrences;
 import io.github.ajdailey.qcaret.core.edit.Pairs;
-import io.github.ajdailey.qcaret.core.edit.ParagraphWrap;
 import io.github.ajdailey.qcaret.core.edit.Transpose;
 import io.github.ajdailey.qcaret.core.edit.WordDeletes;
 import io.github.ajdailey.qcaret.core.edit.Words;
@@ -83,34 +74,25 @@ import java.util.function.Supplier;
  *       CommentEdits}), at every selection, as one undo step.
  *   <li>Enter and typed closers indent through {@link SmartIndent} and the view's {@link
  *       IndentRules}.
- *   <li>Folding: the fold commands act on the primary caret's line. Folding moves every caret out
- *       of the hidden lines, to the end of the region's first line; a primary caret placed in
- *       hidden lines by any other command, such as find or go to line, expands the regions around
- *       it. Left, Right, word and document-end moves step over hidden lines.
+ *   <li>Folding ({@link FoldScheduling}): the fold commands act on the primary caret's line. Left,
+ *       Right, word and document-end moves step over hidden lines.
  *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()} unless {@code
  *       editor.autoClose} is off.
- *   <li>Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph compute their
- *       edit on a {@code qcaret-cpu-} worker and apply it on the UI thread, with the view busy from
- *       the command to the apply; a result for an older revision is dropped with a notice.
+ *   <li>Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph run in {@link
+ *       LineTransformRuns}.
  *   <li>{@link EditorHighlights} recomputes the view's bracket and occurrence highlights after a
  *       caret move, an edit or a scroll.
- *   <li>Word completion ({@link WordCompletion}) shows its list in the view; while it shows, Up,
+ *   <li>Word completion ({@link CompletionInput}) shows its list in the view; while it shows, Up,
  *       Down, Page Up and Page Down move in the list, Enter and Tab insert the selected word at
  *       every caret, Esc closes it, and typing narrows it.
  * </ul>
  *
- * <p>The controller also schedules the projection's rewraps: each runs on a {@code qcaret-cpu-}
- * worker, and a newer request cancels the running one. Fold regions come from a {@link
- * FoldRegionSource} on a {@code qcaret-cpu-} worker, {@value #FOLD_DELAY_MILLIS} ms after the last
- * change, one run at a time; a result for an older revision is dropped and the regions requested
- * again. Confined to the UI thread.
+ * <p>{@link FoldScheduling} runs the projection's rewraps and fold region updates. Confined to the
+ * UI thread.
  */
 public final class EditorController implements EditorInput {
   /** Rows a page move takes without a view. */
   static final int DEFAULT_PAGE_ROWS = 20;
-
-  /** Milliseconds from a change to the fold region update it starts. */
-  static final int FOLD_DELAY_MILLIS = 300;
 
   private final Document document;
   private final SelectionModel selections;
@@ -120,54 +102,18 @@ public final class EditorController implements EditorInput {
   private final UiDispatcher ui;
   private Runnable cancelSave;
   private EditorView view;
-  private CancellationToken rewrap;
   private CancellationToken occurrence;
+  private final FoldScheduling folds;
   private final EditorHighlights highlights;
   private final SelectionCommands selectionCommands;
+  private final CompletionInput completions;
+  private final LineTransformRuns lineRuns;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
   private boolean disposed;
   private Grammar.Comments comments = Grammar.Comments.NONE;
-  private FoldRegionSource foldSource;
-
-  /** True when indentation regions join {@link #foldSource}'s, or stand alone without one. */
-  private boolean indentFolds = true;
-
   private IndentRules indentRules = IndentRules.BRACKETS;
-  private boolean foldsRunning;
-  private DisplayProjection.FoldAll foldAll;
-  private boolean foldsAgain;
-  private final Runnable foldTimer =
-      new Runnable() {
-        @Override
-        public void run() {
-          scheduleFolds();
-        }
-      };
-  private final SelectionListener revealer =
-      new SelectionListener() {
-        @Override
-        public void selectionsChanged(SelectionModel model) {
-          revealPrimary();
-        }
-      };
-  private final DocumentListener foldFollower =
-      new DocumentListener() {
-        @Override
-        public void textChanged(DocumentChange change) {
-          restoredFolds = null;
-          restoredTop = -1;
-          wrapTop = -1;
-          ui.cancelTimer(foldTimer);
-          ui.timerExec(FOLD_DELAY_MILLIS, foldTimer);
-        }
-
-        @Override
-        public void dirtyChanged(boolean dirty) {
-          // Fold regions do not depend on the dirty state.
-        }
-      };
 
   /**
    * Creates the controller.
@@ -194,19 +140,12 @@ public final class EditorController implements EditorInput {
     this.workers = workers;
     this.ui = ui;
     this.cancelSave = cancelSave;
-    projection.setRewrapHook(
-        new Runnable() {
-          @Override
-          public void run() {
-            scheduleRewrap();
-          }
-        });
-    selections.addListener(revealer);
-    document.addListener(foldFollower);
-    scheduleFolds();
+    folds = new FoldScheduling(this, workers, ui);
     highlights = new EditorHighlights(this, workers, ui);
+    completions = new CompletionInput(this);
     selections.addListener(selectionListener);
     selectionCommands = new SelectionCommands(this, workers, ui);
+    lineRuns = new LineTransformRuns(this, workers, ui);
     lineChanges =
         new LineChangesUpdater(
             document,
@@ -241,10 +180,7 @@ public final class EditorController implements EditorInput {
 
   /** Lets go of the view before its tab moves to another window; closes the completion list. */
   void releaseView() {
-    if (completionShown != null && completion != null) {
-      completion.cancel();
-    }
-    completionShown = null;
+    completions.release();
     view = null;
   }
 
@@ -290,15 +226,10 @@ public final class EditorController implements EditorInput {
   public void dispose() {
     if (!disposed) {
       disposed = true;
-      if (rewrap != null) {
-        rewrap.cancel();
-      }
+      folds.dispose();
       if (occurrence != null) {
         occurrence.cancel();
       }
-      ui.cancelTimer(foldTimer);
-      selections.removeListener(revealer);
-      document.removeListener(foldFollower);
       disposeProductivity();
       selectionCommands.dispose();
       if (overview != null) {
@@ -319,26 +250,23 @@ public final class EditorController implements EditorInput {
    */
   public void setWrap(boolean on) {
     projection.setWrap(on);
-    scheduleRewrap();
+    folds.scheduleRewrap();
   }
 
   @Override
   public void viewColumnsChanged(int columns) {
     projection.setViewColumns(columns);
-    scheduleRewrap();
+    folds.scheduleRewrap();
   }
 
   /** Applies the document's tab width to the rows and the view. */
   void tabWidthChanged() {
     projection.setTabWidth(document.tabWidth());
-    scheduleRewrap();
+    folds.scheduleRewrap();
     if (view != null) {
       view.setTabWidth(document.tabWidth());
     }
-    if (indentFolds) {
-      ui.cancelTimer(foldTimer);
-      ui.timerExec(0, foldTimer);
-    }
+    folds.tabWidthChanged();
   }
 
   // Viewport, for find highlights.
@@ -349,10 +277,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void viewportChanged(int start, int end) {
-    restoredTop = -1;
-    if (rewrap == null) {
-      wrapTop = -1;
-    }
+    folds.viewportChanged();
     int from = projection.toModel(start);
     int to = projection.toModel(end);
     if (from != visibleStart || to != visibleEnd) {
@@ -385,56 +310,19 @@ public final class EditorController implements EditorInput {
 
   // Session state.
 
-  /** The line {@link #restoreView} scrolled to, until the view reports its viewport. */
-  private int restoredTop = -1;
-
-  /** The line a restored view scrolls back to after each rewrap, or -1. */
-  private int wrapTop = -1;
-
-  /**
-   * The lines {@link #restoreView} collapses as regions arrive, until an edit or a fold command.
-   */
-  private int[] restoredFolds;
-
-  private int foldsTop;
-
   /**
    * Puts back a view's remembered state. The caret and top line apply now; each fold applies once a
    * region starts on its line, and the view scrolls to the top line again after it.
    *
    * @param set the selections, or null to keep them
    * @param top the zero-based first visible line
-   * @param folds the first lines of the regions to collapse
+   * @param collapsed the first lines of the regions to collapse
    */
-  void restoreView(SelectionSet set, int top, int[] folds) {
+  void restoreView(SelectionSet set, int top, int[] collapsed) {
     if (set != null) {
       selections.set(set);
     }
-    int line = Math.max(0, Math.min(top, document.text().lineCount() - 1));
-    restoredFolds = folds.length == 0 ? null : folds;
-    foldsTop = line;
-    applyRestoredFolds();
-    restoredTop = line;
-    wrapTop = line;
-    if (view != null) {
-      view.scrollToRow(projection.rowOfLine(line));
-    }
-  }
-
-  private void applyRestoredFolds() {
-    if (restoredFolds == null) {
-      return;
-    }
-    boolean folded = false;
-    for (int line : restoredFolds) {
-      folded |= !projection.collapsed(line) && projection.foldAt(line);
-    }
-    if (folded) {
-      caretsOutOfFolds();
-      if (view != null) {
-        view.scrollToRow(projection.rowOfLine(foldsTop));
-      }
-    }
+    folds.restore(Math.max(0, Math.min(top, document.text().lineCount() - 1)), collapsed);
   }
 
   /**
@@ -443,7 +331,8 @@ public final class EditorController implements EditorInput {
    * @return the zero-based line, the restored one until the view reports
    */
   int topLine() {
-    return restoredTop >= 0 ? restoredTop : document.text().lineAt(visibleStart);
+    int restored = folds.restoredTop();
+    return restored >= 0 ? restored : document.text().lineAt(visibleStart);
   }
 
   /**
@@ -464,54 +353,6 @@ public final class EditorController implements EditorInput {
     return view;
   }
 
-  /** Starts the rewrap the projection needs, canceling the running one. */
-  private void scheduleRewrap() {
-    if (disposed) {
-      return;
-    }
-    final DisplayProjection.Rewrap request = projection.rewrapRequest();
-    if (request == null) {
-      return;
-    }
-    if (rewrap != null) {
-      rewrap.cancel();
-    }
-    final CancellationToken token = new CancellationToken();
-    rewrap = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              final DisplayProjection.Layout rows;
-              try {
-                rows = DisplayProjection.compute(request, token);
-              } catch (CancellationException e) {
-                return;
-              }
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (!disposed) {
-                        projection.install(request, rows);
-                        if (rewrap == token) {
-                          rewrap = null;
-                        }
-                        scheduleRewrap();
-                        if (wrapTop >= 0 && view != null) {
-                          view.scrollToRow(projection.rowOfLine(wrapTop));
-                        }
-                      }
-                    }
-                  });
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      rewrap = null;
-    }
-  }
-
   // Commands.
 
   @Override
@@ -519,7 +360,7 @@ public final class EditorController implements EditorInput {
     if (!document.isReadOnly()) {
       document.clearPreedit();
     }
-    if (completionShown != null && completionKey(command)) {
+    if (completions.key(command)) {
       return true;
     }
     switch (command) {
@@ -599,14 +440,14 @@ public final class EditorController implements EditorInput {
           applyEdit(
               CommentEdits.toggleBlock(
                   document.text(), current(), comments.blockStart(), comments.blockEnd()));
-      case FOLD, UNFOLD, TOGGLE_FOLD, FOLD_ALL, UNFOLD_ALL -> fold(command);
+      case FOLD, UNFOLD, TOGGLE_FOLD, FOLD_ALL, UNFOLD_ALL -> folds.fold(command);
       case SORT_LINES_ASCENDING,
           SORT_LINES_DESCENDING,
           SORT_LINES_IGNORE_CASE,
           REMOVE_DUPLICATE_LINES,
           TRIM_TRAILING_WHITESPACE ->
-          transformLines(command);
-      case COMPLETE_WORD -> requestCompletion(true);
+          lineRuns.transformLines(command);
+      case COMPLETE_WORD -> completions.requestCompletion(true);
       case GO_TO_MATCHING_BRACKET -> matchingBracket(false);
       case SELECT_TO_MATCHING_BRACKET -> matchingBracket(true);
       case TOGGLE_BOOKMARK -> toggleBookmarks();
@@ -670,8 +511,7 @@ public final class EditorController implements EditorInput {
             || mode == Grammar.FoldMode.MARKERS
             || mode == Grammar.FoldMode.SECTIONS;
     boolean highlighted = grammar != null && syntax != null && syntax.syntax() != null;
-    indentFolds = !own;
-    setFoldSource(own || highlighted ? syntax : null);
+    folds.setSource(own || highlighted ? syntax : null, !own);
     indentRules =
         grammar == null
                 || (grammar.indentIncrease() == null
@@ -717,9 +557,7 @@ public final class EditorController implements EditorInput {
 
   /** Runs the fold step again when the regions come from the highlighter, which has new ones. */
   void syntaxRegionsChanged() {
-    if (foldSource != null && foldSource == syntax) {
-      scheduleFolds();
-    }
+    folds.sourceChanged(syntax);
   }
 
   /** Returns the comment delimiters; for {@link CommandStates}. */
@@ -825,7 +663,7 @@ public final class EditorController implements EditorInput {
     } else {
       replaceSelections(text, EditBatch.Kind.TYPING);
     }
-    typed(text);
+    completions.typed(text);
   }
 
   /**
@@ -999,9 +837,7 @@ public final class EditorController implements EditorInput {
   @Override
   public void cancel() {
     cancelSave.run();
-    if (lineWork != null) {
-      lineWork.cancel();
-    }
+    lineRuns.cancel();
     selectionCommands.cancel();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
@@ -1276,17 +1112,6 @@ public final class EditorController implements EditorInput {
   // Folding and indent rules.
 
   /**
-   * Sets where fold regions come from and requests them again.
-   *
-   * @param source the source, or null for indentation folding at the document's tab width
-   */
-  private void setFoldSource(FoldRegionSource source) {
-    foldSource = source;
-    ui.cancelTimer(foldTimer);
-    ui.timerExec(0, foldTimer);
-  }
-
-  /**
    * Sets the rules smart indent follows.
    *
    * @param rules the rules
@@ -1297,167 +1122,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void toggleFoldFromView(int row) {
-    restoredFolds = null;
-    int line = projection.lineOfRow(Math.max(0, Math.min(row, projection.rowCount() - 1)));
-    if (!projection.unfold(line) && projection.foldAt(line)) {
-      caretsOutOfFolds();
-    }
-  }
-
-  private void fold(CommandId command) {
-    restoredFolds = null;
-    foldAll = null;
-    if (command == CommandId.FOLD_ALL) {
-      requestFoldAll();
-      return;
-    }
-    int line = projection.lineAt(selections.selections().primary().caret());
-    boolean changed =
-        switch (command) {
-          case FOLD -> projection.fold(line);
-          case UNFOLD -> projection.unfold(line);
-          case TOGGLE_FOLD -> projection.unfold(line) || projection.fold(line);
-          default -> projection.unfoldAll();
-        };
-    if (changed) {
-      caretsOutOfFolds();
-      showCaret();
-    }
-  }
-
-  /**
-   * Measures Fold All's spans on a worker and collapses them at the same text and rows; asks again
-   * when those changed meanwhile.
-   */
-  private void requestFoldAll() {
-    final DisplayProjection.FoldAll request = projection.foldAllRequest();
-    if (request == null || disposed) {
-      return;
-    }
-    foldAll = request;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              try {
-                DisplayProjection.computeFoldAll(request);
-              } finally {
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        foldAllComputed(request);
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      foldAll = null;
-    }
-  }
-
-  private void foldAllComputed(DisplayProjection.FoldAll request) {
-    if (disposed || request != foldAll) {
-      return;
-    }
-    foldAll = null;
-    switch (projection.installFoldAll(request)) {
-      case APPLIED -> {
-        caretsOutOfFolds();
-        showCaret();
-      }
-      case STALE -> requestFoldAll();
-      default -> {
-        // A fold command since the request decides the collapsed regions.
-      }
-    }
-  }
-
-  /** Moves every caret and anchor in hidden lines to the end of the line before them. */
-  private void caretsOutOfFolds() {
-    if (selections.block() != null) {
-      return;
-    }
-    SelectionSet set = selections.selections();
-    List<Selection> out = new ArrayList<Selection>(set.size());
-    boolean moved = false;
-    for (Selection s : set.selections()) {
-      int anchor = projection.visibleOffset(s.anchor(), false);
-      int caret = projection.visibleOffset(s.caret(), false);
-      moved |= anchor != s.anchor() || caret != s.caret();
-      out.add(Selection.of(anchor, caret));
-    }
-    if (moved) {
-      selections.set(SelectionSet.of(out, set.primaryIndex()));
-    }
-  }
-
-  /** Expands the regions that hide the primary caret. */
-  private void revealPrimary() {
-    if (projection.collapsedCount() > 0) {
-      projection.reveal(projection.lineAt(selections.selections().primary().caret()));
-    }
-  }
-
-  /** Computes the fold regions on a worker, after the one running. */
-  private void scheduleFolds() {
-    if (disposed) {
-      return;
-    }
-    if (foldsRunning) {
-      foldsAgain = true;
-      return;
-    }
-    FoldRegionSource indent = new IndentFoldSource(document.tabWidth());
-    final FoldRegionSource source =
-        foldSource == null
-            ? indent
-            : indentFolds ? new MergedFoldSource(foldSource, indent) : foldSource;
-    final TextSnapshot text = document.text();
-    final long revision = document.revision();
-    foldsRunning = true;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              List<int[]> regions = null;
-              try {
-                regions = source.regions(text, revision);
-              } finally {
-                final List<int[]> result = regions;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        foldsComputed(revision, result);
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      foldsRunning = false;
-    }
-  }
-
-  /** Installs computed regions while the document is at their revision; null after a failure. */
-  private void foldsComputed(long revision, List<int[]> regions) {
-    foldsRunning = false;
-    if (disposed) {
-      return;
-    }
-    if (foldsAgain) {
-      foldsAgain = false;
-      scheduleFolds();
-      return;
-    }
-    if (regions != null && document.revision() == revision) {
-      projection.setFoldRegions(regions);
-      applyRestoredFolds();
-    }
+    folds.toggleFromView(row);
   }
 
   // Selections.
@@ -1572,7 +1237,7 @@ public final class EditorController implements EditorInput {
   }
 
   /** Applies an edit from {@code core.edit}; null or a read-only document does nothing. */
-  private void applyEdit(Edit edit) {
+  void applyEdit(Edit edit) {
     if (edit == null || document.isReadOnly()) {
       return;
     }
@@ -1722,19 +1387,11 @@ public final class EditorController implements EditorInput {
   /** Chars scanned on each side of the visible range for a bracket's partner on the UI thread. */
   static final int BRACKET_SCAN = 1 << 14;
 
-  /** Rows Page Up and Page Down move in the completion list. */
-  static final int COMPLETION_PAGE = 8;
-
-  /** Word chars before the caret a completion prefix takes at most. */
-  static final int MAX_PREFIX = 100;
-
   private final SelectionListener selectionListener =
       new SelectionListener() {
         @Override
         public void selectionsChanged(SelectionModel model) {
-          if (completionShown != null) {
-            refilterCompletion();
-          }
+          completions.selectionsChanged();
           highlights.schedule();
         }
       };
@@ -1744,17 +1401,10 @@ public final class EditorController implements EditorInput {
   private SyntaxHighlighter syntax;
   private Pairs pairs = Pairs.DEFAULT;
   private Pairs bracketPairs = Pairs.DEFAULT;
-  private WordCompletion completion;
   private Consumer<String> notices;
-  private int completionChars;
   private boolean autoClose = true;
-  private String completionPrefix;
-  private List<String> completionAll;
-  private List<String> completionShown;
-  private int completionSelected;
   private boolean marksWhitespace;
   private boolean marksLineEndings;
-  private CancellationToken lineWork;
 
   /** The selections before the last Mod+press, which a drag from there adds to. */
   private SelectionSet beforeToggle;
@@ -1808,7 +1458,7 @@ public final class EditorController implements EditorInput {
 
   /** Sets the window's word completion. */
   void setCompletion(WordCompletion value) {
-    completion = value;
+    completions.setCompletion(value);
   }
 
   /**
@@ -1817,7 +1467,12 @@ public final class EditorController implements EditorInput {
    * @param chars the count, 0 for never
    */
   void setCompletionChars(int chars) {
-    completionChars = chars;
+    completions.setCompletionChars(chars);
+  }
+
+  @Override
+  public void completionChosen(int index) {
+    completions.chosen(index);
   }
 
   /**
@@ -1914,14 +1569,11 @@ public final class EditorController implements EditorInput {
   private void disposeProductivity() {
     selections.removeListener(selectionListener);
     highlights.dispose();
-    for (CancellationToken token : new CancellationToken[] {lineWork, partnerSearch}) {
-      if (token != null) {
-        token.cancel();
-      }
+    lineRuns.cancel();
+    if (partnerSearch != null) {
+      partnerSearch.cancel();
     }
-    if (completionShown != null && completion != null) {
-      completion.cancel();
-    }
+    completions.cancelLookup();
   }
 
   /** Applies an {@link AutoClose} edit; with nothing to replace, only the carets move. */
@@ -1936,118 +1588,13 @@ public final class EditorController implements EditorInput {
 
   // Line transforms.
 
-  private int wrapColumn = 1;
-
   /**
-   * Runs Wrap Paragraph ({@link ParagraphWrap}) with the grammar's line comment, as a line
-   * transform.
+   * Runs Wrap Paragraph with the grammar's line comment, as a line transform.
    *
    * @param column the widest line, in columns
    */
   void wrapParagraph(int column) {
-    wrapColumn = column;
-    transformLines(CommandId.WRAP_PARAGRAPH);
-  }
-
-  /**
-   * Computes a sort, duplicate removal, trim or paragraph wrap on a worker and applies it at the
-   * same revision.
-   */
-  private void transformLines(final CommandId command) {
-    if (document.isReadOnly()) {
-      return;
-    }
-    final TextSnapshot text = document.text();
-    final SelectionSet set = current();
-    final long revision = document.revision();
-    if (lineWork != null) {
-      lineWork.cancel();
-    }
-    final CancellationToken token = new CancellationToken();
-    lineWork = token;
-    final String comment = comments.line();
-    final int tabWidth = document.tabWidth();
-    final String ending = document.lineEnding().text();
-    final int column = wrapColumn;
-    if (view != null) {
-      view.setBusy(true);
-    }
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              Edit edit = null;
-              try {
-                edit =
-                    command == CommandId.WRAP_PARAGRAPH
-                        ? ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token)
-                        : lineEdit(command, text, set, token);
-              } catch (CancellationException e) {
-                // Esc, a newer transform, or the view closed.
-              } finally {
-                final Edit result = edit;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        linesComputed(token, revision, set, result);
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      lineWork = null;
-      if (view != null) {
-        view.setBusy(false);
-      }
-    }
-  }
-
-  /** Returns the edit of a line transform command, or null when it changes nothing. */
-  @WorkerThread
-  static Edit lineEdit(
-      CommandId command, TextSnapshot text, SelectionSet set, CancellationToken token) {
-    return switch (command) {
-      case SORT_LINES_ASCENDING ->
-          LineTransforms.sort(text, set, LineTransforms.Order.ASCENDING, token);
-      case SORT_LINES_DESCENDING ->
-          LineTransforms.sort(text, set, LineTransforms.Order.DESCENDING, token);
-      case SORT_LINES_IGNORE_CASE ->
-          LineTransforms.sort(text, set, LineTransforms.Order.IGNORE_CASE, token);
-      case REMOVE_DUPLICATE_LINES -> LineTransforms.removeDuplicates(text, set, token);
-      default -> LineTransforms.trimTrailing(text, set, token);
-    };
-  }
-
-  private void linesComputed(CancellationToken token, long revision, SelectionSet set, Edit edit) {
-    if (token != lineWork) {
-      return;
-    }
-    lineWork = null;
-    try {
-      applyLines(revision, set, edit, token.isCanceled());
-    } finally {
-      if (view != null) {
-        view.setBusy(false);
-      }
-    }
-  }
-
-  private void applyLines(long revision, SelectionSet set, Edit edit, boolean canceled) {
-    if (disposed || edit == null || document.isReadOnly() || canceled) {
-      return;
-    }
-    if (document.revision() != revision) {
-      if (notices != null) {
-        notices.accept(UiText.LINES_STALE.text());
-      }
-      return;
-    }
-    document.clearPreedit();
-    boolean moved = !set.equals(selections.selections());
-    applyEdit(moved ? new Edit(edit.batch(), null, edit.unchanged()) : edit);
+    lineRuns.wrapParagraph(column);
   }
 
   // Bookmarks.
@@ -2198,192 +1745,6 @@ public final class EditorController implements EditorInput {
     if (moved) {
       selections.set(SelectionSet.of(out, set.primaryIndex()));
       showCaret();
-    }
-  }
-
-  // Word completion.
-
-  /** Returns the word chars before an offset, at most {@value #MAX_PREFIX}. */
-  private String prefixAt(int caret) {
-    TextSnapshot text = document.text();
-    int start = caret;
-    while (start > 0 && caret - start < MAX_PREFIX && isWordChar(text.charAt(start - 1))) {
-      start--;
-    }
-    return text.subSequence(start, caret).toString();
-  }
-
-  private static boolean isWordChar(char c) {
-    return Character.isLetterOrDigit(c) || c == '_';
-  }
-
-  /** Opens the completion list after a typed word char once enough of the word is typed. */
-  private void typed(String text) {
-    if (completionChars > 0
-        && completionShown == null
-        && text.length() == 1
-        && isWordChar(text.charAt(0))
-        && prefixAt(current().primary().caret()).length() >= completionChars) {
-      requestCompletion(false);
-    }
-  }
-
-  /**
-   * Looks up the words completing the one before the primary caret. An explicit request with one
-   * word inserts it at once; otherwise the list shows.
-   */
-  private void requestCompletion(final boolean explicit) {
-    Selection primary = current().primary();
-    if (completion == null || selections.block() != null || !primary.isEmpty()) {
-      return;
-    }
-    final String prefix = prefixAt(primary.caret());
-    if (prefix.isEmpty() || Character.isDigit(prefix.charAt(0))) {
-      return;
-    }
-    final long revision = document.revision();
-    final int caret = primary.caret();
-    completion.request(
-        document,
-        prefix,
-        new Consumer<List<String>>() {
-          @Override
-          public void accept(List<String> words) {
-            completed(explicit, prefix, revision, caret, words);
-          }
-        });
-  }
-
-  private void completed(
-      boolean explicit, String prefix, long revision, int caret, List<String> words) {
-    Selection primary = current().primary();
-    if (disposed
-        || words.isEmpty()
-        || document.revision() != revision
-        || !primary.isEmpty()
-        || primary.caret() != caret) {
-      return;
-    }
-    completionPrefix = prefix;
-    completionAll = words;
-    completionShown = words;
-    completionSelected = 0;
-    if (explicit && words.size() == 1) {
-      acceptCompletion(0);
-    } else if (view != null) {
-      view.showCompletions(completionShown, 0);
-    }
-  }
-
-  /** Narrows the list to the word now before the primary caret, or closes it. */
-  private void refilterCompletion() {
-    Selection primary = current().primary();
-    String prefix =
-        primary.isEmpty() && selections.block() == null ? prefixAt(primary.caret()) : "";
-    if (prefix.length() < completionPrefix.length()
-        || !prefix.regionMatches(true, 0, completionPrefix, 0, completionPrefix.length())) {
-      closeCompletion();
-      return;
-    }
-    List<String> shown = new ArrayList<String>();
-    for (String word : completionAll) {
-      if (word.regionMatches(true, 0, prefix, 0, prefix.length()) && !word.equals(prefix)) {
-        shown.add(word);
-      }
-    }
-    if (shown.isEmpty()) {
-      closeCompletion();
-      return;
-    }
-    if (!shown.equals(completionShown)) {
-      completionShown = shown;
-      completionSelected = 0;
-    }
-    if (view != null) {
-      view.showCompletions(completionShown, completionSelected);
-    }
-  }
-
-  /** Runs a command against the open list; returns false for a command the list ignores. */
-  private boolean completionKey(CommandId command) {
-    switch (command) {
-      case CARET_UP -> selectCompletion(completionSelected - 1);
-      case CARET_DOWN -> selectCompletion(completionSelected + 1);
-      case PAGE_UP -> selectCompletion(completionSelected - COMPLETION_PAGE);
-      case PAGE_DOWN -> selectCompletion(completionSelected + COMPLETION_PAGE);
-      case NEWLINE, INSERT_TAB -> acceptCompletion(completionSelected);
-      case CANCEL -> closeCompletion();
-      case DELETE_BACK, COMPLETE_WORD -> {
-        return false;
-      }
-      default -> {
-        closeCompletion();
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private void selectCompletion(int index) {
-    completionSelected = Math.max(0, Math.min(completionShown.size() - 1, index));
-    if (view != null) {
-      view.showCompletions(completionShown, completionSelected);
-    }
-  }
-
-  @Override
-  public void completionChosen(int index) {
-    if (completionShown != null && index >= 0 && index < completionShown.size()) {
-      acceptCompletion(index);
-    }
-  }
-
-  /**
-   * Replaces the typed prefix before every caret that ends with it, ignoring case, with a listed
-   * word, as one undo step, and closes the list.
-   */
-  private void acceptCompletion(int index) {
-    String word = completionShown.get(index);
-    String prefix = prefixAt(current().primary().caret());
-    closeCompletion();
-    if (document.isReadOnly()) {
-      return;
-    }
-    document.clearPreedit();
-    TextSnapshot text = document.text();
-    SelectionSet set = current();
-    int n = prefix.length();
-    List<Replacement> out = new ArrayList<Replacement>();
-    List<Selection> after = new ArrayList<Selection>(set.size());
-    int shift = 0;
-    int lastEnd = 0;
-    for (Selection s : set.selections()) {
-      int at = s.caret();
-      if (s.isEmpty()
-          && at - n >= lastEnd
-          && prefix.regionMatches(true, 0, text.subSequence(at - n, at).toString(), 0, n)) {
-        out.add(new Replacement(at - n, n, word));
-        shift += word.length() - n;
-        after.add(Selection.caret(at + shift));
-        lastEnd = at;
-      } else {
-        after.add(new Selection(s.anchor() + shift, s.caret() + shift, s.preferredColumn()));
-      }
-    }
-    applyEdit(
-        new Edit(
-            EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex())));
-  }
-
-  private void closeCompletion() {
-    if (completionShown == null) {
-      return;
-    }
-    completionShown = null;
-    completionAll = null;
-    completionPrefix = null;
-    if (view != null) {
-      view.showCompletions(List.of(), 0);
     }
   }
 

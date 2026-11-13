@@ -1,7 +1,7 @@
 # Syntax highlighting
 
 Grammar loading, detection, the Syntax menu and the background highlighter:
-`GrammarLibrary`, `DocumentController` and `SyntaxHighlighter` in
+`GrammarLibrary`, `DocumentGrammars` and `SyntaxHighlighter` in
 `app.controller` of [qcaret-app](../README.md). The grammar format, tokenizer
 and engine are in [qcaret-core grammars](../../qcaret-core/docs/grammars.md).
 
@@ -16,14 +16,14 @@ id replaces it.
 
 ## Grammar choice
 
-`DocumentController` gives each document a `SyntaxHighlighter` and picks its
+`DocumentGrammars` gives each document a `SyntaxHighlighter` and picks its
 grammar on a `qcaret-cpu-` worker with `GrammarSet.detect` (file name,
 extension, then the first 1,000 chars of the first line) when it opens, when a
 save gives it another name and when the grammars are read again. View > Syntax
 or a click on the status bar's language field sets one for the document
-(`setSyntax`); that choice survives a reload while the grammar exists. Each
-grammar switch, the reload included, passes the grammar to every view's
-`EditorController.setGrammar`.
+(`DocumentController.setSyntax`); that choice survives a reload while the
+grammar exists. Each grammar switch, the reload included, passes the grammar to
+every view's `EditorController.setGrammar`.
 
 `CommandStates.syntaxMenu` builds the `SyntaxMenu` both lists show: the last
 five grammars chosen with `setSyntax`, saved in `syntax.recent`

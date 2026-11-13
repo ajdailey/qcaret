@@ -358,6 +358,55 @@ class FoldingTest {
   }
 
   @Test
+  void badOfferedRegionsAreSkippedAndHiddenLinesMapToTheShownLine() {
+    Document document = document("a\n b\n c\nd\n e");
+    DisplayProjection p = projection(document, 0);
+    StringBuilder mirror = mirror(p);
+    p.setFoldRegions(
+        List.of(
+            new int[] {-1, 2},
+            new int[] {1, 1},
+            new int[] {2, 9},
+            new int[] {0, 2},
+            new int[] {3, 4}));
+    assertEquals(2, p.foldRegionCount());
+    assertEquals(-1, p.foldEnd(1));
+    assertEquals(4, p.foldEnd(3));
+    assertTrue(p.foldAt(3));
+    assertTrue(p.foldAt(0));
+    assertArrayEquals(new int[] {0, 3}, p.collapsedLines());
+    assertEquals(0, p.rowOfLine(1));
+    assertEquals(1, p.rowOfLine(4));
+    // Moving forward past hidden lines that end the text gives the end of the shown line.
+    int hidden = document.text().offsetOfLine(4);
+    assertEquals(document.text().offsetOfLine(3) + 1, p.visibleOffset(hidden, true));
+    check(p, document.text().toString(), 0);
+    assertEquals(mirror.toString(), p.textRange(0, p.length()));
+  }
+
+  @Test
+  void anOfferedRegionLeftWithoutLinesIsDroppedAndFoldAllChecksItsRequest() {
+    Document document = document("a\n b\nc\n d\n");
+    DisplayProjection p = projection(document, 0);
+    p.setFoldRegions(List.of(new int[] {0, 1}, new int[] {2, 3}));
+    document.apply(EditBatch.replace(1, 3, ""));
+    assertEquals("a\nc\n d\n", document.text().toString());
+    assertEquals(1, p.foldRegionCount());
+    assertEquals(2, p.foldEnd(1));
+
+    DisplayProjection.FoldAll request = p.foldAllRequest();
+    assertEquals(DisplayProjection.FoldAllOutcome.DROPPED, p.installFoldAll(request));
+    DisplayProjection.computeFoldAll(request);
+    p.setFoldRegions(List.of(new int[] {1, 2}));
+    assertEquals(DisplayProjection.FoldAllOutcome.STALE, p.installFoldAll(request));
+    request = p.foldAllRequest();
+    DisplayProjection.computeFoldAll(request);
+    p.dispose();
+    assertEquals(DisplayProjection.FoldAllOutcome.DROPPED, p.installFoldAll(request));
+    assertEquals(0, p.collapsedCount());
+  }
+
+  @Test
   void indentationRegionsEndOnTheLastNonBlankLine() {
     Document document = document("a\n  b\n\n  c\n\nd\n\te\n        f\n");
     List<int[]> regions = new IndentFoldSource(8).regions(document.text(), 0);

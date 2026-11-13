@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
@@ -13,8 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,6 +113,102 @@ class SyntaxControllerTest {
     harness.application.documents().saveAs();
     harness.view.saveChooser.accept(temp.resolve("Mock.java"));
     awaitLanguage("Java");
+  }
+
+  private static Session.Tab tab(Path file, String language) {
+    return new Session.Tab(
+        file.toString(),
+        "",
+        "",
+        "",
+        language,
+        false,
+        4,
+        false,
+        List.of(new Session.View("0,0", 0, "")),
+        0,
+        false,
+        "",
+        "",
+        List.of(),
+        false);
+  }
+
+  private void restore(Path file, String language) throws InterruptedException {
+    final DocumentController documents = harness.application.documents();
+    final int before = documents.count();
+    documents.restore(
+        tab(file, language),
+        new Consumer<String>() {
+          @Override
+          public void accept(String name) {
+            throw new AssertionError("not restored: " + name);
+          }
+        },
+        new Runnable() {
+          @Override
+          public void run() {
+            // The count shows the tab.
+          }
+        });
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents.count() == before + 1;
+          }
+        },
+        "restored " + file.getFileName());
+    harness.awaitIdle("restore");
+  }
+
+  @Test
+  void aSessionGrammarAppliesAndOneTheLibraryLacksDetects() throws Exception {
+    loadGrammars();
+    restore(Files.writeString(temp.resolve("notes"), "plain words\n"), "python");
+    awaitLanguage("Python");
+    restore(Files.writeString(temp.resolve("Mock.java"), "class Mock {}\n"), "mock-missing");
+    awaitLanguage("Java");
+    List<Session.Tab> tabs = harness.application.documents().sessionTabs(false);
+    assertEquals("python", tabs.get(0).language());
+    assertEquals("", tabs.get(1).language());
+  }
+
+  @Test
+  void aClosedFileKeepsItsChosenGrammarForTheNextOpen() throws Exception {
+    final Map<String, Session.FileState> kept = new HashMap<String, Session.FileState>();
+    DocumentController documents = harness.application.documents();
+    documents.setFileMemory(
+        new DocumentController.FileMemory() {
+          @Override
+          public Session.FileState state(Path path) {
+            return kept.get(path.toString());
+          }
+
+          @Override
+          public void remember(Session.FileState state) {
+            kept.put(state.path(), state);
+          }
+        });
+    loadGrammars();
+    open("other.txt", "other\n");
+    open("notes", "plain words\n");
+    awaitLanguage("Plain Text");
+    harness.application.setSyntax("python");
+    documents.closeActive();
+    harness.awaitIdle("close");
+    assertEquals(1, kept.size());
+    assertEquals("python", kept.values().iterator().next().language());
+    documents.reopenClosed();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents.count() == 2;
+          }
+        },
+        "reopened");
+    awaitLanguage("Python");
   }
 
   @Test

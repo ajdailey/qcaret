@@ -162,7 +162,7 @@ on win32 before a restart and on a GTK theme with no dark variant.
 
 ## Tab colors
 
-`MainWindow.colorTabs` sets all four `CTabFolder` colors, because the folder
+`TabStrip.colorTabs` sets all four `CTabFolder` colors, because the folder
 otherwise keeps the system list colors of its creation: a white selected tab in
 the dark theme, and a white label on a Display created under a dark system
 setting.

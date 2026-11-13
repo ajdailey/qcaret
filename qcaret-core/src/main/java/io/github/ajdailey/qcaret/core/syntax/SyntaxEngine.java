@@ -45,14 +45,14 @@ public final class SyntaxEngine {
   /** Default line length above which a line stays plain. */
   public static final int DEFAULT_MAX_LINE_CHARS = 10_000;
 
-  private static final int OPEN_MASK = 0x7fff;
-  private static final int CLOSE_SHIFT = 15;
-  private static final int OVERLONG = 1 << 30;
+  static final int OPEN_MASK = 0x7fff;
+  static final int CLOSE_SHIFT = 15;
+  static final int OVERLONG = 1 << 30;
   private static final int BLOCK_LINES = 256;
   private static final int BLOCK_CHARS = 1 << 18;
-  private static final int LEVEL_MASK = 0x3f;
-  private static final int PREVIOUS = 1 << 6;
-  private static final int BLANK = 1 << 7;
+  static final int LEVEL_MASK = 0x3f;
+  static final int PREVIOUS = 1 << 6;
+  static final int BLANK = 1 << 7;
 
   private final Tokenizer tokenizer;
   private final Grammar.Folding folding;
@@ -365,7 +365,8 @@ public final class SyntaxEngine {
     int overLong = 0;
     if (frontier >= lineCount && !regionsDone) {
       regionsDone = true;
-      regions = regions();
+      regions =
+          new FoldRegionPass(tokenizer, folding.mode(), states, folds, marks, lineCount).regions();
       for (int i = 0; i < lineCount; i++) {
         if ((folds[i] & OVERLONG) != 0) {
           overLong++;
@@ -615,137 +616,6 @@ public final class SyntaxEngine {
 
   private static boolean code(TokenType type) {
     return type != TokenType.COMMENT && type != TokenType.STRING && type != TokenType.ESCAPE;
-  }
-
-  /** Computes the regions of every source and merges them. */
-  private List<int[]> regions() {
-    List<int[]> main =
-        switch (folding.mode()) {
-          case BRACKETS, MARKERS -> pairs(folds);
-          case SECTIONS -> sections();
-          default -> List.of();
-        };
-    List<int[]> out = FoldRegions.merge(main, spans());
-    return marks == null ? out : FoldRegions.merge(out, pairs(marks));
-  }
-
-  /**
-   * Pairs packed open and close counts into regions: one per start line, the largest, spanning at
-   * least two lines.
-   */
-  private List<int[]> pairs(int[] counts) {
-    int[] open = new int[64];
-    int depth = 0;
-    int[] endOf = new int[lineCount];
-    Arrays.fill(endOf, -1);
-    for (int line = 0; line < lineCount; line++) {
-      int f = counts[line];
-      if ((f & OVERLONG) != 0) {
-        continue;
-      }
-      int closes = (f >>> CLOSE_SHIFT) & OPEN_MASK;
-      for (int j = 0; j < closes && depth > 0; j++) {
-        int start = open[--depth];
-        if (line > start && line > endOf[start]) {
-          endOf[start] = line;
-        }
-      }
-      int opens = f & OPEN_MASK;
-      for (int j = 0; j < opens; j++) {
-        if (depth == open.length) {
-          open = Arrays.copyOf(open, depth * 2);
-        }
-        open[depth++] = line;
-      }
-    }
-    return ascending(endOf);
-  }
-
-  /**
-   * Returns the folding spans covering two or more lines: from the line ending inside a span to the
-   * line ending outside it. A span left open runs to the last line.
-   */
-  private List<int[]> spans() {
-    List<int[]> out = new ArrayList<int[]>();
-    int openLine = -1;
-    int openKey = 0;
-    for (int line = 0; line < lineCount; line++) {
-      int key = tokenizer.foldSpan(states[line + 1]);
-      if (openLine >= 0 && key != openKey) {
-        out.add(new int[] {openLine, line});
-        openLine = -1;
-      }
-      if (key != 0 && openLine < 0) {
-        openLine = line;
-        openKey = key;
-      }
-    }
-    if (openLine >= 0 && openLine < lineCount - 1) {
-      out.add(new int[] {openLine, lineCount - 1});
-    }
-    return out;
-  }
-
-  /**
-   * Returns the sections: each header runs to the line before the next header of the same or a
-   * higher level, or to the last non-blank line. A previous-line rule makes the line above it the
-   * header when that line is not blank, not a header and not inside a span.
-   */
-  private List<int[]> sections() {
-    byte[] level = new byte[lineCount];
-    int last = -1;
-    for (int line = 0; line < lineCount; line++) {
-      int f = folds[line];
-      if ((f & OVERLONG) != 0 || (f & BLANK) == 0) {
-        last = line;
-      }
-      if ((f & OVERLONG) != 0 || (f & LEVEL_MASK) == 0) {
-        continue;
-      }
-      int header = line;
-      if ((f & PREVIOUS) != 0) {
-        header = line - 1;
-        if (header < 0
-            || (folds[header] & (BLANK | LEVEL_MASK | OVERLONG)) != 0
-            || tokenizer.inSpan(states[header])) {
-          continue;
-        }
-      }
-      level[header] = (byte) (f & LEVEL_MASK);
-    }
-    int[] endOf = new int[lineCount];
-    Arrays.fill(endOf, -1);
-    int[] open = new int[LEVEL_MASK + 1];
-    int depth = 0;
-    for (int line = 0; line < lineCount; line++) {
-      if (level[line] == 0) {
-        continue;
-      }
-      while (depth > 0 && level[open[depth - 1]] >= level[line]) {
-        int start = open[--depth];
-        endOf[start] = line - 1;
-      }
-      if (depth == open.length) {
-        open = Arrays.copyOf(open, depth * 2);
-      }
-      open[depth++] = line;
-    }
-    while (depth > 0) {
-      int start = open[--depth];
-      endOf[start] = last;
-    }
-    return ascending(endOf);
-  }
-
-  /** Returns {@code {line, endOf[line]}} for each line whose end lies below it, ascending. */
-  private static List<int[]> ascending(int[] endOf) {
-    List<int[]> out = new ArrayList<int[]>();
-    for (int line = 0; line < endOf.length; line++) {
-      if (endOf[line] > line) {
-        out.add(new int[] {line, endOf[line]});
-      }
-    }
-    return out;
   }
 
   private void ensure(int capacity) {

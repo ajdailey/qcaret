@@ -24,7 +24,7 @@ so a dialog opened from a dialog takes them from the owning dialog.
 `Dialogs.shell` calls it, and `DiffWindow` calls it for the shell it builds
 itself. `ReportWindow`,
 `RunChooser` and `ReplaceDialog` sit in `ui.swt.search`, which cannot reach
-`Dialogs` without a package cycle, so `MainWindow` builds their shells with
+`Dialogs` without a package cycle, so `WindowDialogs` builds their shells with
 `Dialogs.shell` and passes them in. The images stay owned by `MainWindow`, which
 disposes them; a dialog never disposes them. `ArchitectureTest` fails a code
 unit that creates an owned `Shell` without calling `inheritIcons`; the main

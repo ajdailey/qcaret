@@ -378,4 +378,32 @@ class SyntaxEngineTest {
     assertEquals(1, regions.size());
     assertArrayEquals(new int[] {0, 3}, regions.get(0));
   }
+
+  @Test
+  void bracketFoldingNestsDeeperThanTheInitialStackAndSkipsAnUnmatchedClose() {
+    StringBuilder java = new StringBuilder("}\n");
+    for (int i = 0; i < 70; i++) {
+      java.append("{\n");
+    }
+    for (int i = 0; i < 70; i++) {
+      java.append("}\n");
+    }
+    SyntaxEngine engine =
+        new SyntaxEngine(Tokens.BUILT_IN.syntax("java"), document(java.toString()).text(), 10_000);
+    List<int[]> regions = finish(engine);
+    assertEquals(70, regions.size());
+    assertArrayEquals(new int[] {1, 140}, regions.get(0));
+    assertArrayEquals(new int[] {70, 71}, regions.get(69));
+  }
+
+  @Test
+  void sectionsSkipAnUnderlineOnTheFirstLineAndCountAnOverLongLineAsText() {
+    String markdown = "===\n# A\ntext\n" + "x".repeat(50) + "\n## B\nmore\n\n";
+    SyntaxEngine engine =
+        new SyntaxEngine(Tokens.BUILT_IN.syntax("markdown"), document(markdown).text(), 40);
+    List<int[]> regions = finish(engine);
+    assertEquals(2, regions.size());
+    assertArrayEquals(new int[] {1, 5}, regions.get(0));
+    assertArrayEquals(new int[] {4, 5}, regions.get(1));
+  }
 }

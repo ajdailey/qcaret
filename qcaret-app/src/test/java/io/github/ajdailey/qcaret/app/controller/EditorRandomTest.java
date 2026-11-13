@@ -331,7 +331,7 @@ class EditorRandomTest {
       long pairs = document.lineEndings().crLf();
       int lines = document.text().lineCount();
       Edit edit =
-          EditorController.lineEdit(
+          LineTransformRuns.lineEdit(
               command, document.text(), selections.selections(), new CancellationToken());
       if (edit != null) {
         document.apply(edit.batch(), selections, edit.after());
