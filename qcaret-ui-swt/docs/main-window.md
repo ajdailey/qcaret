@@ -45,6 +45,12 @@ stays shown. A tab close ignores that `Selection` too, and the controller
 selects the tab shown next (see
 [Windows and tabs](../../qcaret-app/docs/windows-and-tabs.md#tab-close)).
 
+A closed tab's panes stop following their models at the close
+(`EditorPane.release`). `TabStrip` hands the tab's control to
+`DeferredDisposal`, which hides it at once and disposes it in later UI tasks of
+at most 20 ms each, so a bulk close's widget teardown, most of its cost on GTK,
+stays out of the command's UI task.
+
 ### Tab moves between windows
 
 A tab drag uses the strip's `MouseDown` and `MouseUp`, no `DragSource`. A

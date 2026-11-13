@@ -94,9 +94,11 @@ window stays open while the session restores.
 
 `quit` asks nothing and runs once: it captures the session, queues the last
 recovery writes, stops every window, records the normal bounds and maximized
-state of the window activated last, hides the windows, then on a worker runs
-the quit listeners, saves the settings and the session, finishes recovery,
-closes `Workers`, runs the finish listeners and posts the disposals. With
+state of the window activated last, hides the windows, then on a
+`qcaret-lifecycle-` worker saves the settings and the session, finishes
+recovery, runs the quit listeners, closes `Workers`, runs the finish listeners
+and posts the disposals. With `Workers` already closed it runs only the listeners
+and the disposals, on the calling thread. With
 `rememberWindow` false (a `--window-*` option or `-m`) it records nothing.
 
 ## Tab commands
@@ -127,11 +129,6 @@ during a tab move, and the controller selects the next tab after the dispose.
 Without that, `CTabFolder`'s own choice (the item before, or in MRU mode the one
 selected last) activates first and wins. `TabList` turns MRU mode on only
 within one strip repair or scroll.
-
-A closed tab's panes stop following their models at the close
-(`EditorPane.release`), and `DeferredDisposal` hides the tab's widgets and
-disposes them in later UI tasks of at most 20 ms each, so a bulk close's
-widget teardown, most of its cost on GTK, stays out of the command's UI task.
 
 Close All, Close Others and Close to the Left or Right close the shown tab last
 while it is clean (`TabUse.nextToClose`), and show the kept tab before closing

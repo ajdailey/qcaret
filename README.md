@@ -97,7 +97,7 @@ holds the mounts and environment and runs the same `./mvnw`.
 
 ```sh
 scripts/container.sh               # clean package -Pall-targets: seven archives into dist/
-scripts/container.sh check         # xvfb-run ./mvnw clean verify, SWT tests included
+scripts/container.sh check         # xvfb-run ./mvnw clean verify at 1280x1024, SWT tests included
 scripts/container.sh clean         # ./mvnw clean, and empty dist/
 scripts/container.sh shell         # a shell in the build image
 scripts/container.sh --rebuild     # rebuild the build image first

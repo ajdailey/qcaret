@@ -537,8 +537,8 @@ the workspace folder again. Favorites lists your favorite folders and adds or
 removes the shown one. The filter field takes patterns such as `*.java;*.md`
 and applies to files, not folders; it ignores case on Windows and macOS. Hidden
 lists hidden entries. The Modified column shows the date; the row's tool tip
-adds the time. Click a column header to sort by name, size or modified time,
-and again to reverse. Each window keeps its shown folder, filter and Hidden
+adds the time. Sizes, dates and times follow the system's language. Click a
+column header to sort by name, size or modified time, and again to reverse. Each window keeps its shown folder, filter and Hidden
 setting in the session. A change made in one window's browser shows in every
 window's.
 
@@ -552,7 +552,8 @@ window's.
 A name must be a single file or folder name, and a name already in use is
 refused. A link is renamed or deleted as the link; its target stays. Rename
 and Delete refuse with a notice while a file in the entry is being saved, copied,
-reloaded or renamed, or a save writes into it. Open
+reloaded or renamed or has a change question open, or while a save, a copy or a
+checksum list is being written into it. Open
 documents under a deleted entry stay open, marked missing, and Save writes them
 again. A folder delete that fails partway stops and says what is left. Renaming
 the workspace folder or a folder above it moves the workspace folder in every
@@ -615,8 +616,10 @@ shows disabled, with the reason in its tool tip.
   `sha256sum` format, `<hash>  <name>`, with a progress bar and Cancel. Files
   from several folders are named by their path below the common folder, such
   as `a/x.txt`. Copy and Save As take the list; saved in that common folder,
-  the list verifies with Verify Checksums. A list saved over a file open in a
-  tab reaches that tab as a change made by another program.
+  the list verifies with Verify Checksums. Save As writes the list as Save
+  writes a file and refuses, with a notice, a folder the workspace browser is
+  renaming. A list saved over a file open in a tab reaches that tab as a change
+  made by another program.
 - Generate from Selection into Clipboard copies the hash of the selected
   text as the document saves it: in the document's encoding, without a byte
   order mark, line breaks as the document holds them. Several selections join
@@ -679,15 +682,17 @@ Drag a tab out of every QCaret window to open it in a new window, or onto anothe
 window's tab strip to dock it there; Window > Move to New Window and the tab
 menu do the first. The document moves live and nothing is read again: undo
 history, unsaved changes, carets, scroll, folds, bookmarks and its recovery file
-go with it. A tab with a save, copy, reload, conversion or Workspace Browser
-rename running does not move.
+go with it. A tab with a save, copy, reload, conversion, Reopen with Encoding or
+workspace browser rename running, or with a change question open, does not move,
+and a notice says so.
 Search results stay in their window and still lead to the moved tab.
 
 File > Exit (Quit in the application menu on macOS) asks about unsaved documents
 in every window before anything closes; Cancel leaves everything as it was, and
 a save that fails stops the quit. Closing a window asks about its own documents;
-closing the last one quits. A document edited while its save from a close
-prompt runs stays open and asks again.
+closing the last one quits. While Exit runs, closing a window does nothing. A
+document edited while its save from a close prompt runs stays open and asks
+again.
 
 A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
@@ -858,7 +863,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `-v`, `--version` | Print the version and exit |
 | `-d`, `--debug <level>` | Log level on stderr: `1` info, `2` debug, `3` and above trace, or a level name |
 | `-l`, `--log` | Also write the log to `logs/` in the settings directory, for this run |
-| `-m`, `--multi` | Run as an independent instance: no handoff and no session |
+| `-m`, `--multi` | Run as an independent instance: no handoff, no session, and the window placement is not saved |
 | `-n`, `--new-window` | Open in a new window of the running instance; cannot be combined with `-m` |
 | `-r`, `--read-only` | Open the following files read-only |
 | `-e`, `--encoding <name>` | Open the following files in this encoding |

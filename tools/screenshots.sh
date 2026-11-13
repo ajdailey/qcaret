@@ -16,7 +16,7 @@ cd "$root"
 trap 'rm -rf "$files"' EXIT
 XDG_CONFIG_HOME="$root/qcaret-ui-swt/src/test/resources/gtk-config/adwaita"
 export XDG_CONFIG_HOME
-xvfb-run -a -s "-screen 0 1280x800x24" ./mvnw -q package -pl qcaret-launcher -am \
+xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -q package -pl qcaret-launcher -am \
     -Dtest='ScreenshotsTest,GuideScreenshotsTest,EditorSchemeShotsTest' -Dsurefire.failIfNoSpecifiedTests=false \
     -Dqcaret.screenshots="$root/docs/images" -Dqcaret.guide.shots="$root/docs/images/guide" \
     -Dqcaret.screenshots.files="$files"

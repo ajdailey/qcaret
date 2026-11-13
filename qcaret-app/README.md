@@ -28,7 +28,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 | `app.controller` | `GrammarLibrary`, `DocumentGrammars`: grammar detection; Syntax menu, `SyntaxHighlighter` | [Highlighting](docs/highlighting.md) |
 | `app.controller` | Tools menu: `ChecksumTools`, `TextChecksum`, `FileChecksums`, `SelectionChecksum`, `ChecksumVerify`, `ChecksumRun` | [Tools](docs/tools.md) |
 | `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys | [Settings](docs/settings.md) |
-| `app.session`, `app.recovery` | Session file, per-file state, recovery files (`RecoveryController`, `RecoveryOffer`), quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
+| `app.session`, `app.recovery`, `app.controller` | Session file, per-file state, recovery files (`RecoveryController`, `RecoveryOffer`), quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
 | `app.about`, `app.i18n`, `app.log`, `app.theme` | Help commands, the user guide build, `UiText`, About, the log ring; themes, theme files, font discovery | [Help and themes](docs/help-and-themes.md) |
 
 ## Controller threading
@@ -39,7 +39,7 @@ Every controller is confined to the UI thread and never blocks it.
 no system property; platform facts come from the caller.
 
 A blocking call in `app.controller` (the list is `BLOCKING` in
-`ArchitectureTest`: `DocumentFiles` loads and saves, `SafeSave`, `Files`,
+`ArchitectureTest`: `DocumentFiles` estimates, loads and saves, `SafeSave`, `Files`,
 `FileChannel`, `Path.toRealPath`, `Charset.availableCharsets`, `AtomicFiles`,
 `SafePaths`, `ConfigStore.load` and `save`, and others) is allowed only:
 
@@ -59,7 +59,7 @@ Controllers run work on these `Workers` pools:
 |---|---|
 | `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Document Statistics, Insert Date and Time rows, text and selection checksums |
 | `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks |
-| `qcaret-search-` | Folder walks of HyperSearch, the workspace file index |
+| `qcaret-search-` | Folder walks of HyperSearch, the workspace file index, a replace run or restore across files |
 | `qcaret-watch-` | External change checks |
 | `qcaret-lifecycle-` | Settings and session writes, the end of a quit, Help commands: the guide copy, About, licenses, the debug log file |
 | `qcaret-ipc-` | The handoff server's accept and connection tasks |
