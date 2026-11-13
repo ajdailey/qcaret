@@ -30,18 +30,13 @@ import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.search.TextSearch;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LineEndingStats;
-import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
@@ -74,9 +69,6 @@ public final class ReplaceController implements ReplaceInput {
         }
       };
 
-  private static final DateTimeFormatter RUN_TIME =
-      DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
-
   private final DocumentController documents;
   private final Workers workers;
   private final UiDispatcher ui;
@@ -86,6 +78,7 @@ public final class ReplaceController implements ReplaceInput {
   private final Path backupRoot;
   private int backupDays;
   private final Clock clock;
+  private final ReplaceRestore restores;
   private final List<Report> reports = new ArrayList<Report>();
   private final List<PlanFile> files = new ArrayList<PlanFile>();
   private String replacement = "";
@@ -157,6 +150,7 @@ public final class ReplaceController implements ReplaceInput {
     this.backupRoot = backupRoot;
     this.backupDays = backupDays;
     this.clock = clock;
+    this.restores = new ReplaceRestore(this, workers, ui, view, clock);
   }
 
   // Preview.
@@ -703,74 +697,11 @@ public final class ReplaceController implements ReplaceInput {
       view.showNotice(UiText.REPLACE_RUNNING.text());
       return;
     }
-    final Path root = backupRoot;
-    final int days = backupDays;
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                listRuns(root, days);
-              }
-            });
-    if (!started) {
-      view.showNotice(UiText.REPLACE_RUNNING.text());
-    }
-  }
-
-  @WorkerThread
-  private void listRuns(Path root, int days) {
-    List<ReplaceBackups.Run> runs = null;
-    String failure = null;
-    List<String> labels = new ArrayList<String>();
-    try {
-      ReplaceBackups.prune(root, days, clock.instant());
-      runs = ReplaceBackups.list(root);
-      ZoneId zone = ZoneId.systemDefault();
-      for (ReplaceBackups.Run r : runs) {
-        labels.add(
-            UiText.RESTORE_RUN_ROW.format(
-                RUN_TIME.format(r.started().atZone(zone)),
-                UiText.count(r.files(), UiText.COUNT_FILE, UiText.COUNT_FILES)));
-      }
-    } catch (IOException e) {
-      failure = LogText.oneLine(String.valueOf(e.getMessage()));
-    }
-    final List<ReplaceBackups.Run> found = runs;
-    final String failed = failure;
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            listed(found, labels, failed);
-          }
-        });
-  }
-
-  private void listed(final List<ReplaceBackups.Run> runs, List<String> labels, String failure) {
-    if (disposed) {
-      return;
-    }
-    if (failure != null) {
-      view.showInfo(UiText.RESTORE_CHOOSE_TITLE.text(), UiText.RESTORE_LIST_FAILED.format(failure));
-    } else if (runs.isEmpty()) {
-      view.showInfo(UiText.RESTORE_CHOOSE_TITLE.text(), UiText.RESTORE_NO_RUNS.text());
-    } else {
-      view.chooseReplaceRun(
-          labels,
-          new Consumer<Integer>() {
-            @Override
-            public void accept(Integer index) {
-              ReplaceBackups.Run run = runs.get(index);
-              restore(run.directory(), run.id());
-            }
-          });
-    }
+    restores.choose(backupRoot, backupDays);
   }
 
   /** Starts restoring a run's backups in a report of its own. */
-  private void restore(Path directory, String id) {
+  void restore(Path directory, String id) {
     if (disposed) {
       return;
     }
@@ -805,6 +736,7 @@ public final class ReplaceController implements ReplaceInput {
   /** Stops every run; a file in progress finishes or is left untouched. */
   public void dispose() {
     disposed = true;
+    restores.dispose();
     closed();
     for (Report r : reports) {
       if (r.run != null) {

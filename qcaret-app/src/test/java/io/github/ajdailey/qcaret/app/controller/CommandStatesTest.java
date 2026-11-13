@@ -6,6 +6,8 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
+import io.github.ajdailey.qcaret.core.document.Selection;
+import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -331,6 +333,26 @@ class CommandStatesTest {
     assertEquals(UiText.STATUS_CRLF.text(), fields.lineEnding());
     assertEquals(UiText.STATUS_PLAIN_TEXT.text(), fields.language());
     assertEquals("", fields.readOnly());
+  }
+
+  @Test
+  void statusFieldsShowCaretsBomEndingsAndReadOnly() throws Exception {
+    byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF, 'a', 'b', '\r', 'c', 'd', '\r'};
+    harness.open(Files.write(temp.resolve("bom.txt"), bom));
+    harness
+        .application
+        .documents()
+        .activeEditor()
+        .selections()
+        .set(SelectionSet.of(List.of(Selection.of(0, 1), Selection.of(3, 5)), 0));
+    harness.application.execute(CommandId.READ_ONLY);
+    StatusFields fields = states.status();
+    assertEquals(UiText.STATUS_SELECTION_CARETS.format(3L, 2), fields.selection());
+    assertEquals(UiText.STATUS_BOM.format("UTF-8"), fields.encoding());
+    assertEquals(UiText.STATUS_CR.text(), fields.lineEnding());
+    assertEquals(UiText.STATUS_READ_ONLY.text(), fields.readOnly());
+    harness.open(Files.writeString(temp.resolve("mixed.txt"), "a\r\nb\nc\n"));
+    assertEquals(UiText.STATUS_MIXED.text(), states.status().lineEnding());
   }
 
   @Test

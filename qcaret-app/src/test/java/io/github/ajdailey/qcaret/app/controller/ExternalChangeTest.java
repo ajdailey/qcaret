@@ -539,6 +539,44 @@ class ExternalChangeTest {
   }
 
   @Test
+  void aDeletedFileReturningWithOtherBytesClearsTheMarkAndReloads() throws Exception {
+    Path file = write("a.txt", "one\n");
+    final Document document = open(file);
+    Files.delete(file);
+    documents.checkFiles();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return document.isDirty();
+          }
+        },
+        "marked missing");
+    write("a.txt", "two\n");
+    checkUntilText(document, "two\n");
+    assertFalse(document.isDirty());
+    assertEquals("a.txt", view.selected.title);
+    assertTrue(view.changePrompts.isEmpty());
+  }
+
+  @Test
+  void reloadFromDiskAsksOnceForADirtyDocument() throws Exception {
+    Path file = write("a.txt", "one\n");
+    Document document = open(file);
+    documents.activeEditor().type("m");
+    documents.reloadFromDisk();
+    assertEquals("a.txt", view.reloadName);
+    Runnable accept = view.reloadAccept;
+    view.reloadName = null;
+    documents.reloadFromDisk();
+    assertNull(view.reloadName);
+    accept.run();
+    idle();
+    assertEquals("one\n", document.text().toString());
+    assertFalse(document.isDirty());
+  }
+
+  @Test
   void aMissingFileIsWrittenBySaveWithoutAPrompt() throws Exception {
     Path file = write("a.txt", "one\n");
     final Document document = open(file);

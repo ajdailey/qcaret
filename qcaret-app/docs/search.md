@@ -15,7 +15,7 @@ The find bar, HyperSearch and replace across files: `FindController`,
 - Find Next and Previous search from the focused view's selection to the end
   (start), then wrap with a notice; with no text they open the bar.
 - While the bar is open, each view of the selected document highlights the
-  matches in its visible range, at most 5,000. A text change shifts the shown
+  matches in its visible range, at most 5,000 (`FindHighlights`). A text change shifts the shown
   highlights at once, dropping those it touches, and recomputes them.
 - Replace replaces the selection when the query matches exactly that range,
   then finds the next match; Replace All replaces every match. Each is one undo
@@ -42,7 +42,8 @@ bar when another source changes them.
 ## HyperSearch
 
 `SearchController` runs HyperSearch (Search > HyperSearch) and is the results
-dock's `ResultsInput`. The dialog opens with a one-line selection of up to
+dock's `ResultsInput`, forwarding the dock's labels and commands to
+`ResultsDockModel` and the navigation to a match to `ResultsNavigation`. The dialog opens with a one-line selection of up to
 1,000 chars as its text, or the selection scope for a selection over several
 lines, and the last run's options. Texts, directories and include masks are
 kept in `UiState`, 20 each, up to 1,000 chars an entry; the texts and the
@@ -146,6 +147,7 @@ newest set with matches). Every scope goes through the same preview and run.
   the error, or not attempted. When the run ends, each file group it changed is
   marked stale.
 - No undo spans files: Restore Run in the report, or Search > Restore Replace
-  Run, writes a run's backups back, refusing a file changed since the run. An
-  open document whose file a restore wrote is checked at once: a clean one
-  reloads, a dirty one asks.
+  Run (`ReplaceRestore` lists the kept runs on a worker), writes a run's
+  backups back (`app.search.RunRestore`), refusing a file changed since the
+  run. An open document whose file a restore wrote is checked at once: a clean
+  one reloads, a dirty one asks.

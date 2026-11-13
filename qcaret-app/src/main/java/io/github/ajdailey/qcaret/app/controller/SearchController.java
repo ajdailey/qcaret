@@ -4,10 +4,8 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SearchToggles;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.app.search.FileRerun;
 import io.github.ajdailey.qcaret.app.search.FileResult;
 import io.github.ajdailey.qcaret.app.search.HyperSearch;
-import io.github.ajdailey.qcaret.app.search.ReplaceRun;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -17,36 +15,27 @@ import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
-import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
-import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
-import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import io.github.ajdailey.qcaret.core.io.Digests;
-import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
-import io.github.ajdailey.qcaret.core.search.FileSearch;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
-import io.github.ajdailey.qcaret.core.search.TextSearch;
-import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import java.util.regex.PatternSyntaxException;
 
 /**
  * HyperSearch: the dialog, the runs, the retained result sets, the results dock's model and the
- * navigation to a result. Confined to the UI thread; each run is a {@link HyperSearch}.
+ * navigation to a result. Confined to the UI thread; each run is a {@link HyperSearch}. The dock's
+ * labels and commands are in {@link ResultsDockModel}, the navigation in {@link ResultsNavigation}.
  *
  * <ul>
  *   <li>Sets are listed newest first. At most {@value #RETAINED} unpinned sets are kept; a new set
@@ -89,15 +78,12 @@ public final class SearchController implements ResultsInput {
   private SearchForm last;
   private int resolving;
   private long nextId = 1;
-  private boolean shown;
-  private final CancellationToken checks = new CancellationToken();
   private boolean disposed;
-  private long cursorSet = -1;
-  private int cursorFile;
-  private int cursorMatch = -1;
+  private final ResultsNavigation navigation;
+  private final ResultsDockModel dock;
 
   /** One retained set, its running search and a rerun in progress. */
-  private static final class Entry {
+  static final class Entry {
     ResultSet set;
     HyperSearch run;
     HyperSearch rerun;
@@ -137,11 +123,14 @@ public final class SearchController implements ResultsInput {
     this.budget = budget;
     this.limits = limits;
     this.settings = settings;
+    this.navigation = new ResultsNavigation(this, entries, documents, workers, ui, view);
+    this.dock =
+        new ResultsDockModel(this, entries, navigation, documents, workers, ui, view, budget);
     documents.setCloseListener(
         new Consumer<Document>() {
           @Override
           public void accept(Document closed) {
-            detach(closed);
+            navigation.detach(closed);
           }
         });
   }
@@ -349,7 +338,7 @@ public final class SearchController implements ResultsInput {
    *
    * @return false when the request was refused with a message
    */
-  private boolean start(SearchRequest request, Entry rerunOf) {
+  boolean start(SearchRequest request, Entry rerunOf) {
     if (request.text().isEmpty()) {
       view.showInfo(UiText.SEARCH_TITLE.text(), UiText.SEARCH_EMPTY.text());
       return false;
@@ -421,8 +410,8 @@ public final class SearchController implements ResultsInput {
       entry.run = started[0];
       entries.add(0, entry);
       evict();
-      if (!shown) {
-        setShown(true);
+      if (!dock.resultsShown()) {
+        dock.setShown(true);
       }
     } else {
       entry.rerun = started[0];
@@ -521,7 +510,7 @@ public final class SearchController implements ResultsInput {
   }
 
   /** Drops the oldest unpinned sets beyond {@link #RETAINED}. */
-  private void evict() {
+  void evict() {
     int unpinned = 0;
     for (int i = 0; i < entries.size(); i++) {
       Entry e = entries.get(i);
@@ -535,7 +524,7 @@ public final class SearchController implements ResultsInput {
     }
   }
 
-  private void drop(Entry e) {
+  void drop(Entry e) {
     if (e.run != null) {
       e.run.cancel();
     }
@@ -544,9 +533,7 @@ public final class SearchController implements ResultsInput {
       e.rerun.set().release();
     }
     e.set.release();
-    if (cursorSet == e.set.id()) {
-      cursorSet = -1;
-    }
+    navigation.forget(e.set.id());
   }
 
   /**
@@ -562,9 +549,7 @@ public final class SearchController implements ResultsInput {
         result.setPinned(entry.set.pinned());
         entry.set.release();
         entry.set = result;
-        if (cursorSet == result.id()) {
-          cursorMatch = -1;
-        }
+        navigation.restart(result.id());
       } else {
         result.release();
         view.showNotice(UiText.SEARCH_RERUN_KEPT.text());
@@ -584,14 +569,44 @@ public final class SearchController implements ResultsInput {
   /** Stops every search and returns every set's heap. */
   public void dispose() {
     disposed = true;
-    checks.cancel();
+    navigation.dispose();
     for (Entry e : entries) {
       drop(e);
     }
     entries.clear();
   }
 
-  // Results dock.
+  /** Reports whether the controller is disposed. */
+  boolean disposed() {
+    return disposed;
+  }
+
+  /** Reports whether a folder is being resolved for a search. */
+  boolean resolving() {
+    return resolving > 0;
+  }
+
+  /** Returns a new set id. */
+  long newId() {
+    return nextId++;
+  }
+
+  /** Returns the search bounds. */
+  HyperSearch.Limits limits() {
+    return limits;
+  }
+
+  /** Returns where Replace sends a set, or null. */
+  ReplaceController replaceController() {
+    return replace;
+  }
+
+  /** Returns a set's file group. */
+  FileResult group(int set, int file) {
+    return entries.get(set).set.files().get(file);
+  }
+
+  // Results dock: ResultsDockModel.
 
   /**
    * Reports whether the results dock shows.
@@ -599,19 +614,12 @@ public final class SearchController implements ResultsInput {
    * @return true while shown
    */
   boolean resultsShown() {
-    return shown;
+    return dock.resultsShown();
   }
 
   /** Shows the results dock, or hides it. */
   public void toggleResults() {
-    setShown(!shown);
-  }
-
-  private void setShown(boolean value) {
-    shown = value;
-    view.showResults(this, value);
-    view.documentStateChanged();
-    documents.sessionChanged();
+    dock.toggleResults();
   }
 
   /**
@@ -621,13 +629,7 @@ public final class SearchController implements ResultsInput {
    * @return the requests
    */
   List<Session.Search> retained() {
-    List<Session.Search> list = new ArrayList<Session.Search>();
-    for (Entry e : entries) {
-      if (e.saved && e.set.request().text().length() <= UiState.MAX_ENTRY_CHARS) {
-        list.add(new Session.Search(e.set.request(), e.set.pinned()));
-      }
-    }
-    return list;
+    return dock.retained();
   }
 
   /**
@@ -637,17 +639,7 @@ public final class SearchController implements ResultsInput {
    * @param show true to show the dock
    */
   void restore(List<Session.Search> searches, boolean show) {
-    for (int i = searches.size() - 1; i >= 0; i--) {
-      Session.Search search = searches.get(i);
-      entries.add(0, new Entry(ResultSet.restored(nextId++, search.request(), search.pinned())));
-    }
-    evict();
-    if (show) {
-      setShown(true);
-    }
-    if (!searches.isEmpty()) {
-      view.resultsChanged(true);
-    }
+    dock.restore(searches, show);
   }
 
   /**
@@ -656,12 +648,7 @@ public final class SearchController implements ResultsInput {
    * @return true when any set has matches
    */
   boolean hasResults() {
-    for (Entry e : entries) {
-      if (e.set.matches() > 0) {
-        return true;
-      }
-    }
-    return false;
+    return dock.hasResults();
   }
 
   /**
@@ -670,11 +657,7 @@ public final class SearchController implements ResultsInput {
    * @return the sets
    */
   List<ResultSet> sets() {
-    List<ResultSet> list = new ArrayList<ResultSet>();
-    for (Entry e : entries) {
-      list.add(e.set);
-    }
-    return list;
+    return dock.sets();
   }
 
   /**
@@ -683,15 +666,7 @@ public final class SearchController implements ResultsInput {
    * @return true while any runs
    */
   boolean running() {
-    if (resolving > 0) {
-      return true;
-    }
-    for (Entry e : entries) {
-      if (e.run != null || e.rerun != null) {
-        return true;
-      }
-    }
-    return false;
+    return dock.running();
   }
 
   @Override
@@ -706,59 +681,7 @@ public final class SearchController implements ResultsInput {
 
   @Override
   public ResultLabel set(int set) {
-    Entry e = entries.get(set);
-    ResultSet r = e.set;
-    SearchRequest q = r.request();
-    String scope = q.scope().label() + (q.folder() == null ? "" : " " + q.folder());
-    StringBuilder text =
-        new StringBuilder(
-            UiText.SEARCH_SET.format(
-                q.text(),
-                scope,
-                UiText.count(r.matches(), UiText.COUNT_MATCH, UiText.COUNT_MATCHES),
-                UiText.count(r.files().size(), UiText.COUNT_FILE, UiText.COUNT_FILES)));
-    List<String> notes = new ArrayList<String>();
-    switch (r.state()) {
-      case RUNNING ->
-          notes.add(
-              UiText.SEARCH_RUNNING.format(
-                  r.searched(), r.total() < 0 ? "?" : String.valueOf(r.total())));
-      case CANCELED -> notes.add(UiText.SEARCH_CANCELED.text());
-      case TRUNCATED ->
-          notes.add(
-              r.noMemory()
-                  ? UiText.SEARCH_NO_MEMORY.text()
-                  : UiText.SEARCH_TRUNCATED.format(r.matches()));
-      case RESTORED -> notes.add(UiText.SEARCH_RESTORED.text());
-      case DONE -> {
-        // No note.
-      }
-    }
-    if (e.rerun != null) {
-      notes.add(UiText.SEARCH_RERUNNING.text());
-    }
-    List<String> skipped = new ArrayList<String>();
-    count(skipped, UiText.SEARCH_SKIPPED_BINARY, r.binary());
-    count(skipped, UiText.SEARCH_SKIPPED_LARGE, r.tooLarge());
-    count(skipped, UiText.SEARCH_SKIPPED_UNREADABLE, r.unreadable());
-    count(skipped, UiText.SEARCH_SKIPPED_LINES, r.skippedLines());
-    count(skipped, UiText.SEARCH_SKIPPED_COMPLEX, r.tooComplex());
-    if (!skipped.isEmpty()) {
-      notes.add(UiText.SEARCH_SKIPPED.format(String.join(", ", skipped)));
-    }
-    if (r.pinned()) {
-      notes.add(UiText.SEARCH_PINNED.text());
-    }
-    for (String note : notes) {
-      text.append("; ").append(note);
-    }
-    return ResultLabel.plain(text.toString(), false);
-  }
-
-  private static void count(List<String> parts, UiText label, int count) {
-    if (count > 0) {
-      parts.add(label.format(count));
-    }
+    return dock.set(set);
   }
 
   @Override
@@ -768,23 +691,7 @@ public final class SearchController implements ResultsInput {
 
   @Override
   public ResultLabel file(int set, int file) {
-    FileResult f = group(set, file);
-    f.rebase();
-    Path parent = f.path() == null ? null : f.path().getParent();
-    StringBuilder text =
-        new StringBuilder(
-            UiText.SEARCH_FILE.format(
-                f.name(), parent == null ? "" : parent.toString(), f.matchCount()));
-    if (f.tooComplexLine() >= 0) {
-      text.append("; ").append(UiText.SEARCH_FILE_COMPLEX.format(f.tooComplexLine() + 1));
-    }
-    if (f.skippedLines() > 0) {
-      text.append("; ").append(UiText.SEARCH_FILE_LINES.format(f.skippedLines()));
-    }
-    if (f.stale()) {
-      text.append("; ").append(UiText.SEARCH_CHANGED.text());
-    }
-    return ResultLabel.plain(text.toString(), f.stale());
+    return dock.file(set, file);
   }
 
   @Override
@@ -794,27 +701,12 @@ public final class SearchController implements ResultsInput {
 
   @Override
   public ResultLabel match(int set, int file, int match) {
-    FileResult f = group(set, file);
-    f.rebase();
-    TextSearch.Hit hit = f.hit(match);
-    String prefix = (f.line(match) + 1) + ": ";
-    return new ResultLabel(
-        prefix + hit.snippet(),
-        prefix.length() + hit.snippetStart(),
-        prefix.length() + hit.snippetEnd(),
-        f.stale(match));
-  }
-
-  private FileResult group(int set, int file) {
-    return entries.get(set).set.files().get(file);
+    return dock.match(set, file, match);
   }
 
   @Override
   public void expanded(int set, int file) {
-    FileResult f = group(set, file);
-    if (f.document() == null && f.stamp() != null && !f.stale()) {
-      check(f, null);
-    }
+    dock.expanded(set, file);
   }
 
   /**
@@ -823,124 +715,32 @@ public final class SearchController implements ResultsInput {
    */
   @Override
   public void rerun(int set) {
-    Entry e = entries.get(set);
-    if (e.run != null) {
-      e.run.cancel();
-    }
-    if (e.rerun != null) {
-      e.rerun.cancel();
-    }
-    start(e.set.request(), e);
+    dock.rerun(set);
   }
 
   @Override
-  public void rerunFile(final int set, int file) {
-    final Entry e = entries.get(set);
-    if (e.run != null || e.rerun != null) {
-      view.showNotice(UiText.SEARCH_NOT_FINISHED.text());
-      return;
-    }
-    if (e.set.request().scope() == SearchScope.SELECTION) {
-      rerun(set);
-      return;
-    }
-    final FileResult group = e.set.files().get(file);
-    Document document = group.document();
-    if (document != null && documents.holderOf(document) == null) {
-      group.detach();
-      document = null;
-    }
-    if (document == null && group.path() != null) {
-      document = documents.documentAnywhere(group.path());
-    }
-    if (document == null && group.path() == null) {
-      view.showNotice(UiText.SEARCH_CLOSED.text());
-      return;
-    }
-    final String name =
-        document == null ? group.name() : documents.holderOf(document).nameOf(document);
-    final ResultSet results = e.set;
-    FileRerun.start(
-        results,
-        group,
-        results.request().query().compile(),
-        document,
-        group.path(),
-        name,
-        limits,
-        workers,
-        ui,
-        budget,
-        new FileRerun.Listener() {
-          @Override
-          public void finished(int matches, FileSearch.Skip skip) {
-            if (disposed) {
-              return;
-            }
-            if (skip != null) {
-              view.showNotice(
-                  UiText.SEARCH_RERUN_FILE_SKIPPED.format(
-                      name, ReplaceController.reasonText(ReplaceRun.Reason.valueOf(skip.name()))));
-            } else if (matches == 0) {
-              view.showNotice(UiText.SEARCH_RERUN_FILE_EMPTY.format(name));
-            }
-            if (cursorSet == results.id()) {
-              cursorMatch = -1;
-            }
-            view.resultsChanged(true);
-            documents.refreshOverview();
-            view.documentStateChanged();
-          }
-        });
+  public void rerunFile(int set, int file) {
+    dock.rerunFile(set, file);
   }
 
   @Override
   public void replace(int set) {
-    Entry e = entries.get(set);
-    if (e.run != null || e.rerun != null) {
-      view.showNotice(UiText.SEARCH_NOT_FINISHED.text());
-      return;
-    }
-    if (replace != null) {
-      replace.preview(e.set);
-    }
+    dock.replace(set);
   }
 
   /** Opens the replace preview for the set last navigated, or else the newest set with matches. */
   public void replaceInResults() {
-    int set = indexOf(cursorSet);
-    if (set < 0 || entries.get(set).set.matches() == 0) {
-      set = -1;
-      for (int i = 0; i < entries.size() && set < 0; i++) {
-        if (entries.get(i).set.matches() > 0) {
-          set = i;
-        }
-      }
-    }
-    if (set < 0) {
-      view.showNotice(UiText.SEARCH_NO_RESULTS.text());
-      return;
-    }
-    replace(set);
+    dock.replaceInResults();
   }
 
   @Override
   public void stop(int set) {
-    Entry e = entries.get(set);
-    if (e.run != null) {
-      e.run.cancel();
-    }
-    if (e.rerun != null) {
-      e.rerun.cancel();
-    }
+    dock.stop(set);
   }
 
   @Override
   public void togglePin(int set) {
-    ResultSet r = entries.get(set).set;
-    r.setPinned(!r.pinned());
-    evict();
-    view.resultsChanged(true);
+    dock.togglePin(set);
   }
 
   @Override
@@ -956,31 +756,20 @@ public final class SearchController implements ResultsInput {
 
   @Override
   public void clear(int set) {
-    drop(entries.remove(set));
-    view.resultsChanged(true);
-    documents.refreshOverview();
-    view.documentStateChanged();
+    dock.clear(set);
   }
 
   @Override
   public void clearAll() {
-    for (Entry e : entries) {
-      drop(e);
-    }
-    entries.clear();
-    view.resultsChanged(true);
-    documents.refreshOverview();
-    view.documentStateChanged();
+    dock.clearAll();
   }
 
   @Override
   public void hide() {
-    if (shown) {
-      setShown(false);
-    }
+    dock.hide();
   }
 
-  // Navigation.
+  // Navigation: ResultsNavigation.
 
   /**
    * Opens the next match, or the previous one, of the set last navigated or else the newest set
@@ -989,213 +778,17 @@ public final class SearchController implements ResultsInput {
    * @param forward true for the next match
    */
   public void next(boolean forward) {
-    int set = indexOf(cursorSet);
-    if (set < 0 || entries.get(set).set.matches() == 0) {
-      set = -1;
-      for (int i = 0; i < entries.size() && set < 0; i++) {
-        if (entries.get(i).set.matches() > 0) {
-          set = i;
-        }
-      }
-      if (set < 0) {
-        view.showNotice(UiText.SEARCH_NO_RESULTS.text());
-        return;
-      }
-      cursorSet = entries.get(set).set.id();
-      cursorFile = 0;
-      cursorMatch = -1;
-    }
-    List<FileResult> files = entries.get(set).set.files();
-    int file = Math.min(cursorFile, files.size() - 1);
-    int match = cursorMatch;
-    if (match < 0) {
-      file = forward ? 0 : files.size() - 1;
-      while (files.get(file).matchCount() == 0) {
-        file = (file + (forward ? 1 : files.size() - 1)) % files.size();
-      }
-      match = forward ? 0 : files.get(file).matchCount() - 1;
-    } else {
-      match += forward ? 1 : -1;
-      while (match < 0 || match >= files.get(file).matchCount()) {
-        file = (file + (forward ? 1 : files.size() - 1)) % files.size();
-        match = forward ? 0 : files.get(file).matchCount() - 1;
-      }
-    }
-    open(set, file, match);
-  }
-
-  private int indexOf(long id) {
-    for (int i = 0; i < entries.size(); i++) {
-      if (entries.get(i).set.id() == id) {
-        return i;
-      }
-    }
-    return -1;
+    navigation.next(forward);
   }
 
   @Override
-  public void open(int set, final int file, final int match) {
-    final ResultSet r = entries.get(set).set;
-    final FileResult f = r.files().get(file);
-    cursorSet = r.id();
-    cursorFile = file;
-    cursorMatch = match;
-    view.revealResult(set, file, match);
-    Document document = f.document();
-    if (document != null) {
-      if (documents.holderOf(document) == null) {
-        f.detach();
-      } else {
-        f.rebase();
-        select(documents.showAnywhere(document), f, match);
-        return;
-      }
-    }
-    Path path = f.path();
-    if (path == null) {
-      view.showNotice(UiText.SEARCH_CLOSED.text());
-      return;
-    }
-    Document opened = documents.documentAt(path);
-    if (opened != null) {
-      select(documents.show(opened), f, match);
-      return;
-    }
-    if (f.stamp() != null && !f.stale()) {
-      check(
-          f,
-          new Runnable() {
-            @Override
-            public void run() {
-              openFile(f, match);
-            }
-          });
-    } else {
-      openFile(f, match);
-    }
+  public void open(int set, int file, int match) {
+    navigation.open(set, file, match);
   }
 
-  private void openFile(final FileResult f, final int match) {
-    documents.open(
-        f.path(),
-        new Consumer<EditorController>() {
-          @Override
-          public void accept(EditorController editor) {
-            select(editor, f, match);
-          }
-        });
-  }
-
-  /**
-   * Selects a match in an editor when the text there is the text searched; otherwise marks it stale
-   * and moves the caret to its line.
-   */
-  private void select(EditorController editor, FileResult f, int match) {
-    if (editor == null || disposed) {
-      return;
-    }
-    editor.jumping();
-    Document document = editor.document();
-    TextSnapshot text = document.text();
-    int start = f.start(match);
-    int end = f.end(match);
-    boolean same =
-        !f.stale(match)
-            && end <= text.length()
-            && text.subSequence(start, end).toString().hashCode() == f.hit(match).hash();
-    if (same) {
-      if (f.document() == null) {
-        f.attach(document);
-      }
-      editor.selections().set(SelectionSet.of(List.of(Selection.of(start, end)), 0));
-    } else {
-      f.markStale(match);
-      int line = Math.min(f.line(match), text.lineCount() - 1);
-      editor.selections().set(SelectionSet.caret(text.offsetOfLine(line)));
-      view.showNotice(UiText.SEARCH_STALE.format(line + 1));
-      view.resultsChanged(true);
-    }
-    if (editor.view() != null) {
-      editor.view().showCaret();
-    }
-    documents.refreshOverview();
-  }
-
-  /**
-   * Checks a file group's file on a {@code qcaret-io-} worker: a changed stamp whose bytes have
-   * another SHA-256 marks the group stale. Then runs {@code then} on the UI thread, if given.
-   */
-  private void check(final FileResult f, final Runnable then) {
-    final Path path = f.path();
-    final FileStamp stamp = f.stamp();
-    final byte[] digest = f.digest();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final boolean changed = changed(path, stamp, digest, checks);
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        checked(f, changed, then);
-                      }
-                    });
-              }
-            });
-    if (!started && then != null) {
-      then.run();
-    }
-  }
-
-  private void checked(FileResult f, boolean changed, Runnable then) {
-    if (disposed) {
-      return;
-    }
-    if (changed && !f.stale()) {
-      f.markStale();
-      view.resultsChanged(true);
-    }
-    if (then != null) {
-      then.run();
-    }
-  }
-
-  /** Reports whether a file differs from the bytes searched. */
-  @WorkerThread
-  static boolean changed(Path path, FileStamp stamp, byte[] digest, CancellationToken token) {
-    try {
-      FileStamp now = FileStamp.read(path);
-      if (stamp.equals(now)) {
-        return false;
-      }
-      if (now == null || digest == null) {
-        return true;
-      }
-      return !MessageDigest.isEqual(digest, Digests.bytesOf(path, token));
-    } catch (IOException e) {
-      return true;
-    } catch (CancellationException e) {
-      return false;
-    }
-  }
-
-  /** A document closed in another window; see {@link #detach}. */
+  /** A document closed in another window: its groups keep their offsets and open the file. */
   void documentClosed(Document closed) {
-    detach(closed);
-  }
-
-  /** A document closed: its groups keep their offsets and open the file from then on. */
-  private void detach(Document closed) {
-    for (Entry e : entries) {
-      for (FileResult f : e.set.files()) {
-        if (f.document() == closed) {
-          f.detach();
-        }
-      }
-    }
+    navigation.detach(closed);
   }
 
   /**
@@ -1206,24 +799,6 @@ public final class SearchController implements ResultsInput {
    * @return model offsets
    */
   int[] offsets(Document document) {
-    int set = indexOf(cursorSet);
-    if (set < 0) {
-      set = entries.isEmpty() ? -1 : 0;
-    }
-    if (set < 0) {
-      return new int[0];
-    }
-    int[] out = new int[0];
-    for (FileResult f : entries.get(set).set.files()) {
-      if (f.document() == document && !f.stale()) {
-        f.rebase();
-        int at = out.length;
-        out = Arrays.copyOf(out, at + f.matchCount());
-        for (int i = 0; i < f.matchCount(); i++) {
-          out[at + i] = f.start(i);
-        }
-      }
-    }
-    return out;
+    return navigation.offsets(document);
   }
 }

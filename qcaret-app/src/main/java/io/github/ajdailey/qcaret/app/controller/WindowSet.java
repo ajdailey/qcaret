@@ -7,7 +7,6 @@ import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.WindowState;
-import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -29,7 +28,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -46,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * restore and the command line's files; a quit first drops them with a WARN. An open that resolves
  * to a file another window holds selects that tab and raises the window, so an instance holds one
  * buffer per file. New Window opens a window through the {@link Factory}. {@link #moveDocument}
- * moves a tab with its live document.
+ * moves a tab with its live document, through {@link TabTransfer}.
  *
  * <p>Closing a window that is not the last asks about its unsaved documents and closes them.
  * Closing the last one, or Quit from any window, runs {@link QuitPrompts}: every dirty document of
@@ -57,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * next start), stop every window and record the placement of the window activated last on the UI
  * thread, hide the windows, on a {@code qcaret-lifecycle-} worker save, finish recovery, run the
  * quit listeners, close {@link Workers} and run the finish listeners, and dispose the windows on
- * the UI thread, which ends the event loop.
+ * the UI thread, which ends the event loop. {@link QuitSequence} runs window close and quit.
  */
 public final class WindowSet {
   /** Creates and opens a main window. */
@@ -100,15 +98,12 @@ public final class WindowSet {
   private final BrowserWindows browsers = new BrowserWindows();
   private final RunningCopies copies;
   private final RunningWrites writes = new RunningWrites();
-  private final SnapshotQuit snapshot;
+  private final QuitSequence quitSequence;
+  private final TabTransfer transfer;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
-  private final List<Runnable> quitListeners = new CopyOnWriteArrayList<Runnable>();
-  private final List<Runnable> finishListeners = new CopyOnWriteArrayList<Runnable>();
-  private final List<Runnable> moveListeners = new ArrayList<Runnable>();
   private final List<StartupRequest> handed = new ArrayList<StartupRequest>();
-  private final AtomicBoolean finished = new AtomicBoolean();
   private final AtomicBoolean warningPosted = new AtomicBoolean();
   private Keymap keymap;
   private Factory factory;
@@ -118,9 +113,6 @@ public final class WindowSet {
   private long themeGeneration;
   private int nextUntitled = 1;
   private int nextBuffer = 1;
-  private QuitPrompts prompts;
-  private volatile boolean quitting;
-  private boolean quitAfterRestore;
 
   private final DocumentController.Elsewhere elsewhere =
       new DocumentController.Elsewhere() {
@@ -265,8 +257,9 @@ public final class WindowSet {
             Clock.systemDefaultZone());
     this.session = new SessionController(this, recovery, workers, ui);
     this.copies = new RunningCopies(this, ui);
-    this.snapshot = new SnapshotQuit(this, recovery, copies);
-    moveListeners.add(session::changed);
+    this.quitSequence = new QuitSequence(this, session, recovery, copies, settings, workers, ui);
+    this.transfer = new TabTransfer(this);
+    transfer.addMoveListener(session::changed);
     settings.addListener(
         new Settings.Listener() {
           @Override
@@ -631,8 +624,9 @@ public final class WindowSet {
     }
   }
 
-  private ApplicationController openWindow(WindowGeometry.Request at, boolean maximized) {
-    if (quitting || factory == null) {
+  /** Opens a window through the factory; null while quitting or when none was created. */
+  ApplicationController openWindow(WindowGeometry.Request at, boolean maximized) {
+    if (isQuitting() || factory == null) {
       return null;
     }
     ApplicationController window = factory.create(this, at, maximized);
@@ -653,7 +647,7 @@ public final class WindowSet {
    * @param request the files and their options, {@code -n}, the geometry and {@code --diff}
    */
   public void openHandoff(StartupRequest request) {
-    if (quitting) {
+    if (isQuitting()) {
       logDropped(request);
       return;
     }
@@ -721,40 +715,7 @@ public final class WindowSet {
       Document document,
       ApplicationController target,
       Placement placement) {
-    if (quitting
-        || target == source
-        || !windows.contains(source)
-        || !source.documents().isOpen(document)
-        || (target != null && !windows.contains(target))) {
-      return null;
-    }
-    String name = source.documents().nameOf(document);
-    if (!source.documents().canMove(document)) {
-      source.showNotice(UiText.NOTICE_MOVE_BUSY.format(name));
-      return null;
-    }
-    Path path = source.documents().pathOf(document);
-    if (target != null && path != null && target.documents().documentAt(path) != null) {
-      source.showNotice(UiText.NOTICE_MOVE_SHOWN.format(name));
-      return null;
-    }
-    ApplicationController destination = target;
-    if (destination == null) {
-      destination =
-          openWindow(new WindowGeometry.Request(placement.x(), placement.y(), null, null), false);
-      if (destination == null) {
-        return null;
-      }
-    }
-    source.documents().moveTo(document, destination.documents(), placement.index());
-    if (target != null) {
-      activated(target);
-      target.toFront();
-    }
-    for (Runnable listener : new ArrayList<Runnable>(moveListeners)) {
-      listener.run();
-    }
-    return destination;
+    return transfer.moveDocument(source, document, target, placement);
   }
 
   /**
@@ -763,7 +724,7 @@ public final class WindowSet {
    * @param listener runs on the UI thread
    */
   public void addMoveListener(Runnable listener) {
-    moveListeners.add(listener);
+    transfer.addMoveListener(listener);
   }
 
   // Window close and quit.
@@ -774,7 +735,7 @@ public final class WindowSet {
    * @return true once quitting
    */
   public boolean isQuitting() {
-    return quitting;
+    return quitSequence.isQuitting();
   }
 
   /**
@@ -783,7 +744,7 @@ public final class WindowSet {
    * @return true from the quit request on, until a Cancel or a failed save ends it
    */
   boolean quitRunning() {
-    return quitting || snapshot.running() || prompts != null;
+    return quitSequence.quitRunning();
   }
 
   /**
@@ -795,13 +756,7 @@ public final class WindowSet {
    * @param listener the code; must not block for long
    */
   public void addQuitListener(Runnable listener) {
-    quitListeners.add(listener);
-  }
-
-  private void runQuitListeners() {
-    for (Runnable listener : quitListeners) {
-      listener.run();
-    }
+    quitSequence.addQuitListener(listener);
   }
 
   /**
@@ -812,21 +767,7 @@ public final class WindowSet {
    * @param listener the code; must not block
    */
   public void addFinishListener(Runnable listener) {
-    finishListeners.add(listener);
-    if (finished.get() && finishListeners.remove(listener)) {
-      listener.run();
-    }
-  }
-
-  private void finish() {
-    if (!finished.compareAndSet(false, true)) {
-      return;
-    }
-    for (Runnable listener : finishListeners) {
-      if (finishListeners.remove(listener)) {
-        listener.run();
-      }
-    }
+    quitSequence.addFinishListener(listener);
   }
 
   /**
@@ -836,49 +777,8 @@ public final class WindowSet {
    *
    * @param window the window
    */
-  void requestClose(final ApplicationController window) {
-    if (quitRunning() || !windows.contains(window)) {
-      return;
-    }
-    if (windows.size() == 1) {
-      requestQuit();
-      return;
-    }
-    if (session.restoring()) {
-      return;
-    }
-    window
-        .documents()
-        .closeAll(
-            new Runnable() {
-              @Override
-              public void run() {
-                close(window);
-              }
-            });
-  }
-
-  private void close(final ApplicationController window) {
-    if (quitting || !windows.contains(window)) {
-      return;
-    }
-    if (windows.size() == 1) {
-      requestQuit();
-      return;
-    }
-    windows.remove(window);
-    activations.remove(window);
-    window.rememberWindow();
-    window.stop();
-    window.hide();
-    session.changed();
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            window.disposeView();
-          }
-        });
+  void requestClose(ApplicationController window) {
+    quitSequence.requestClose(window);
   }
 
   /**
@@ -888,44 +788,17 @@ public final class WindowSet {
    * snapshots of buffers not restored yet. A request while a quit asks does nothing.
    */
   public void requestQuit() {
-    if (quitting || snapshot.running() || prompts != null) {
-      return;
-    }
-    if (session.owner() && settings.current().options().sessionSnapshot()) {
-      if (session.restoring()) {
-        quitAfterRestore = true;
-      } else {
-        snapshot.start();
-      }
-    } else {
-      closeAndQuit();
-    }
+    quitSequence.requestQuit();
   }
 
   /** Runs a Quit requested during the restore, which has ended. */
   void restoreEnded() {
-    if (quitAfterRestore) {
-      quitAfterRestore = false;
-      requestQuit();
-    }
+    quitSequence.restoreEnded();
   }
 
   /** Starts the quit that asks about every dirty document. */
   void closeAndQuit() {
-    if (quitting) {
-      return;
-    }
-    prompts =
-        new QuitPrompts(
-            this,
-            session,
-            new Runnable() {
-              @Override
-              public void run() {
-                prompts = null;
-              }
-            });
-    prompts.start();
+    quitSequence.closeAndQuit();
   }
 
   /** Returns the Save a Copy As writes running in every window, which a quit waits for. */
@@ -935,10 +808,14 @@ public final class WindowSet {
 
   /** Starts quitting every window without asking; a second call does nothing. */
   public void quit() {
-    if (quitting) {
-      return;
-    }
-    quitting = true;
+    quitSequence.quit();
+  }
+
+  /**
+   * Drops the launches waiting for the restore with a WARN and stops the warning marker; the quit
+   * has begun.
+   */
+  void quitStarted() {
     for (StartupRequest request : handed) {
       logDropped(request);
     }
@@ -946,58 +823,18 @@ public final class WindowSet {
     if (recent != null) {
       recent.setWarningListener(null);
     }
-    ApplicationController last = target();
-    final SessionController.Capture capture = session.close(snapshot.written());
-    recovery.quitting(snapshot.written() ? List.of() : dirtyBuffers());
-    final List<ApplicationController> closing = new ArrayList<ApplicationController>(windows);
-    for (ApplicationController window : closing) {
-      window.stop();
-    }
-    if (last != null) {
-      last.rememberWindow();
-    }
-    windows.clear();
-    activations.clear();
-    for (ApplicationController window : closing) {
-      window.hide();
-    }
-    Runnable end =
-        new Runnable() {
-          @Override
-          public void run() {
-            settings.flush();
-            if (capture != null) {
-              session.write(capture);
-            }
-            recovery.finish();
-            runQuitListeners();
-            if (!workers.close(Workers.CLOSE_BOUND)) {
-              LOG.warn(
-                  "Worker threads still running after {}: {}",
-                  Workers.CLOSE_BOUND,
-                  LogText.oneLine(workers.liveThreadNames()));
-            }
-            finish();
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    disposeViews(closing);
-                  }
-                });
-          }
-        };
-    if (!workers.tryStart(Workers.Kind.LIFECYCLE, end)) {
-      runQuitListeners();
-      finish();
-      disposeViews(closing);
-    }
   }
 
-  private static void disposeViews(List<ApplicationController> closing) {
-    for (ApplicationController window : closing) {
-      window.disposeView();
-    }
+  /** Takes a closing window out of the open windows. */
+  void remove(ApplicationController window) {
+    windows.remove(window);
+    activations.remove(window);
+  }
+
+  /** Takes every window out of the open windows; the quit has stopped them. */
+  void removeAll() {
+    windows.clear();
+    activations.clear();
   }
 
   /** Reports whether a window records its placement when it closes. */

@@ -12,10 +12,7 @@ import io.github.ajdailey.qcaret.app.controller.SyntaxMenu;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.swt.SWT;
@@ -35,15 +32,13 @@ import org.eclipse.swt.widgets.Shell;
  *
  * <p>Showing a top menu, or running one of its items, syncs that menu only. Enablement of every
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
- * change, because a disabled item's accelerator does not fire. Each encoding cascade holds {@link
- * EncodingChoices#commonCharsets()} from the start and an Other cascade, disabled and empty until
- * {@link #encodingsLoaded} fills it; {@link #build} refills it for a new keymap. The View menu's
- * Syntax cascade holds the {@link SyntaxMenu} entries above Reload Grammars, rebuilt each time the
- * View menu shows; {@link #showSyntaxMenu} pops up the same entries. The File menu's Recent Files
- * cascade lists the recent files above Clear Recent Files, and its Recently Closed cascade the
- * closed files above Clear Recently Closed, both rebuilt each time the File menu shows. Reopen with
- * Encoding starts with Automatic Detection. {@link MenuIcons} gives the command items their icons;
- * the listing cascades carry none. Call on the UI thread.
+ * change, because a disabled item's accelerator does not fire. Each encoding cascade is an {@link
+ * EncodingCascade}, whose Other cascade {@link #encodingsLoaded} fills and {@link #build} refills
+ * for a new keymap. The View menu's Syntax cascade holds the {@link SyntaxMenu} entries above
+ * Reload Grammars, rebuilt each time the View menu shows; {@link #showSyntaxMenu} pops up the same
+ * entries. {@link RecentMenus} rebuilds the File menu's Recent Files and Recently Closed listings
+ * each time the File menu shows. {@link MenuIcons} gives the command items their icons; the listing
+ * cascades carry none. Call on the UI thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
@@ -51,12 +46,6 @@ final class MainMenuBar {
 
   /** Widget data of the Syntax cascade's grammar entries. */
   private static final String SYNTAX = "qcaret.syntax";
-
-  /** Widget data of the Recent Files cascade's file entries. */
-  private static final String RECENT = "qcaret.recent";
-
-  /** Widget data of the Recently Closed cascade's file entries. */
-  private static final String CLOSED = "qcaret.closed";
 
   /** The last language popup; replaced by the next and disposed with the shell. */
   private Menu syntaxPopup;
@@ -67,105 +56,10 @@ final class MainMenuBar {
   private final MenuIcons icons;
   private final Map<CommandId, MenuItem> items = new EnumMap<CommandId, MenuItem>(CommandId.class);
   private final Map<CommandGroup, Menu> menus = new EnumMap<CommandGroup, Menu>(CommandGroup.class);
-  private final EncodingCascade reopen = new EncodingCascade(true);
-  private final EncodingCascade saveAs = new EncodingCascade(false);
+  private final EncodingCascade reopen;
+  private final EncodingCascade saveAs;
+  private final RecentMenus recent;
   private EncodingChoices encodings;
-
-  /** One encoding cascade: the common charsets, then Other. */
-  private final class EncodingCascade {
-    final boolean reopens;
-    final Map<String, MenuItem> byName = new HashMap<String, MenuItem>();
-    final List<MenuItem> radios = new ArrayList<MenuItem>();
-    MenuItem holder;
-    MenuItem other;
-    boolean loaded;
-
-    EncodingCascade(boolean reopens) {
-      this.reopens = reopens;
-    }
-
-    void build(Menu menu, UiText label) {
-      byName.clear();
-      radios.clear();
-      loaded = false;
-      holder = new MenuItem(menu, SWT.CASCADE);
-      holder.setText(label.text());
-      Menu cascade = new Menu(shell, SWT.DROP_DOWN);
-      holder.setMenu(cascade);
-      if (reopens) {
-        MenuItem automatic = new MenuItem(cascade, SWT.PUSH);
-        automatic.setText(UiText.MENU_ENCODING_AUTO.text());
-        automatic.addListener(
-            SWT.Selection,
-            new Listener() {
-              @Override
-              public void handleEvent(Event event) {
-                controller.reopenWithDetection();
-              }
-            });
-        new MenuItem(cascade, SWT.SEPARATOR);
-      }
-      for (Charset charset : EncodingChoices.commonCharsets()) {
-        item(cascade, charset);
-      }
-      new MenuItem(cascade, SWT.SEPARATOR);
-      other = new MenuItem(cascade, SWT.CASCADE);
-      other.setText(UiText.MENU_ENCODING_OTHER.text());
-      other.setEnabled(false);
-      other.setMenu(new Menu(shell, SWT.DROP_DOWN));
-    }
-
-    void fill(EncodingChoices choices) {
-      if (loaded || other == null || other.isDisposed()) {
-        return;
-      }
-      Menu all = other.getMenu();
-      for (Charset charset : choices.other()) {
-        if (!byName.containsKey(charset.name())) {
-          item(all, charset);
-        }
-      }
-      loaded = true;
-      other.setEnabled(true);
-    }
-
-    private void item(Menu menu, final Charset charset) {
-      MenuItem item = new MenuItem(menu, reopens ? SWT.PUSH : SWT.RADIO);
-      item.setText(charset.name().replace("&", "&&"));
-      item.addListener(
-          SWT.Selection,
-          new Listener() {
-            @Override
-            public void handleEvent(Event event) {
-              if (reopens) {
-                controller.reopenWithEncoding(charset);
-              } else if (((MenuItem) event.widget).getSelection()) {
-                controller.saveWithEncoding(charset);
-              }
-            }
-          });
-      byName.put(charset.name(), item);
-      if (!reopens) {
-        radios.add(item);
-      }
-    }
-
-    /** Enables the cascade and, for Save with Encoding, checks the next save's charset. */
-    void sync(boolean enabled, String checked) {
-      if (holder == null || holder.isDisposed()) {
-        return;
-      }
-      setEnabled(holder, enabled);
-      for (MenuItem item : radios) {
-        if (!item.isDisposed()) {
-          boolean selected = item == byName.get(checked);
-          if (item.getSelection() != selected) {
-            item.setSelection(selected);
-          }
-        }
-      }
-    }
-  }
 
   /**
    * Creates the menu bar's owner; {@link #build} creates the menus.
@@ -178,6 +72,9 @@ final class MainMenuBar {
     this.controller = controller;
     this.icons = icons;
     this.states = new CommandStates(controller);
+    reopen = new EncodingCascade(this, shell, controller, true);
+    saveAs = new EncodingCascade(this, shell, controller, false);
+    recent = new RecentMenus(controller, states);
   }
 
   /**
@@ -321,8 +218,8 @@ final class MainMenuBar {
       syncSyntax();
     }
     if (group == CommandGroup.FILE) {
-      syncRecent();
-      syncClosed();
+      recent.syncRecent(items.get(CommandId.CLEAR_RECENT_FILES));
+      recent.syncClosed(items.get(CommandId.CLEAR_CLOSED_FILES));
     }
   }
 
@@ -355,76 +252,10 @@ final class MainMenuBar {
     return windows.size();
   }
 
-  /** Lists the recent files above Clear Recent Files, the first nine numbered as mnemonics. */
-  private void syncRecent() {
-    MenuItem clear = items.get(CommandId.CLEAR_RECENT_FILES);
-    if (clear == null || clear.isDisposed()) {
-      return;
-    }
-    Menu menu = clear.getParent();
-    for (MenuItem item : menu.getItems()) {
-      if (RECENT.equals(item.getData())) {
-        item.dispose();
-      }
-    }
-    List<String> paths = states.recentFiles();
-    for (int i = 0; i < paths.size(); i++) {
-      final int index = i;
-      MenuItem item = new MenuItem(menu, SWT.PUSH, i);
-      String text = UiText.RECENT_FILE.format(i + 1, paths.get(i).replace("&", "&&"));
-      item.setText(i < 9 ? text : text.substring(1));
-      item.setData(RECENT);
-      item.addListener(
-          SWT.Selection,
-          new Listener() {
-            @Override
-            public void handleEvent(Event event) {
-              controller.openRecent(index);
-            }
-          });
-    }
-    if (!paths.isEmpty()) {
-      new MenuItem(menu, SWT.SEPARATOR, paths.size()).setData(RECENT);
-    }
-  }
-
   /** Returns a Window menu entry numbered from 1, the first nine as mnemonics. */
   private static String listed(int index, String text) {
     String numbered = UiText.RECENT_FILE.format(index + 1, text.replace("&", "&&"));
     return index < 9 ? numbered : numbered.substring(1);
-  }
-
-  /** Lists the closed files above Clear Recently Closed, the first nine numbered as mnemonics. */
-  private void syncClosed() {
-    MenuItem clear = items.get(CommandId.CLEAR_CLOSED_FILES);
-    if (clear == null || clear.isDisposed()) {
-      return;
-    }
-    Menu menu = clear.getParent();
-    for (MenuItem item : menu.getItems()) {
-      if (CLOSED.equals(item.getData())) {
-        item.dispose();
-      }
-    }
-    List<String> paths = states.closedFiles();
-    for (int i = 0; i < paths.size(); i++) {
-      final int index = i;
-      MenuItem item = new MenuItem(menu, SWT.PUSH, i);
-      String text = UiText.RECENT_FILE.format(i + 1, paths.get(i).replace("&", "&&"));
-      item.setText(i < 9 ? text : text.substring(1));
-      item.setData(CLOSED);
-      item.addListener(
-          SWT.Selection,
-          new Listener() {
-            @Override
-            public void handleEvent(Event event) {
-              controller.openClosed(index);
-            }
-          });
-    }
-    if (!paths.isEmpty()) {
-      new MenuItem(menu, SWT.SEPARATOR, paths.size()).setData(CLOSED);
-    }
   }
 
   /** Lists the {@link SyntaxMenu} entries above Reload Grammars. */
@@ -533,9 +364,9 @@ final class MainMenuBar {
         setEnabled(entry.getValue(), states.enabled(entry.getKey()));
       }
     }
-    if (reopen.holder != null && !reopen.holder.isDisposed()) {
-      setEnabled(reopen.holder, states.reopenEnabled());
-      setEnabled(saveAs.holder, states.saveEncodingEnabled());
+    if (reopen.holder() != null && !reopen.holder().isDisposed()) {
+      setEnabled(reopen.holder(), states.reopenEnabled());
+      setEnabled(saveAs.holder(), states.saveEncodingEnabled());
     }
   }
 
@@ -604,7 +435,8 @@ final class MainMenuBar {
     syncEncodings();
   }
 
-  private void setEnabled(MenuItem item, boolean enabled) {
+  /** Enables or disables an item and shows its icon in that state, when it changes. */
+  void setEnabled(MenuItem item, boolean enabled) {
     if (item.getEnabled() != enabled) {
       item.setEnabled(enabled);
       icons.showState(item);
@@ -638,6 +470,6 @@ final class MainMenuBar {
    * @return the cascade item
    */
   MenuItem otherEncodings(boolean reopens) {
-    return reopens ? reopen.other : saveAs.other;
+    return reopens ? reopen.other() : saveAs.other();
   }
 }

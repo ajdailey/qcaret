@@ -12,6 +12,8 @@ and `RecoveryController`. It is confined to the UI thread, except `isQuitting`
 and `addFinishListener`. Each window is an `ApplicationController` over its own
 `MainView`, created through `WindowSet.Factory`, implemented in the launcher.
 `ApplicationController`'s other constructor makes a set of its own.
+Window close and quit run in `QuitSequence` and tab moves in `TabTransfer`,
+behind the `WindowSet` methods named below.
 
 `ApplicationController` runs one window's commands and owns its
 `DocumentController`, `HelpController`, `FindController`, `SearchController`,
@@ -20,7 +22,8 @@ and `addFinishListener`. Each window is an `ApplicationController` over its own
 `StatisticsController`, `NavigationHistory` and `RecentFiles`, among others. It is confined to
 the UI thread; settings writes run on `qcaret-lifecycle-` workers. Edit
 commands from the menu go to the selected editor's `EditorController`. Once the
-window stops, `execute` does nothing.
+window stops, `execute` does nothing. `WindowCommands` holds a window's command
+line opens, tab moves out, Window menu list and placement record.
 
 - Settings: `WindowSet` hears a change first and updates the keymap and the
   theme once; then each window's `apply` updates its own controllers and view.

@@ -80,8 +80,8 @@ final class EditorHighlights implements DocumentListener {
   @Override
   public void textChanged(DocumentChange change) {
     if (editor.view() != null && (occurrences.length > 0 || brackets.length > 0)) {
-      occurrences = FindController.shifted(occurrences, change.edits());
-      brackets = FindController.shifted(brackets, change.edits());
+      occurrences = FindHighlights.shifted(occurrences, change.edits());
+      brackets = FindHighlights.shifted(brackets, change.edits());
       editor.view().showOccurrences(occurrences);
       editor.view().showBrackets(brackets);
     }

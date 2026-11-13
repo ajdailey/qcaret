@@ -23,6 +23,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.BlockSelection;
+import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -31,12 +33,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -278,6 +283,103 @@ class EditorAidsSurfaceTest {
         "cleared");
     controller.execute(CommandId.LINE_CHANGES);
     assertEquals(LineChanges.NONE, pane.lineChanges());
+  }
+
+  /** Counts the pixels of a row, from x0 to x1 inclusive, that have a color. */
+  private static int inkedRow(ImageData data, int y, int x0, int x1, Rgb color) {
+    RGB ink = new RGB(color.red(), color.green(), color.blue());
+    int count = 0;
+    for (int x = Math.max(0, x0); x <= Math.min(data.width - 1, x1); x++) {
+      if (ink.equals(data.palette.getRGB(data.getPixel(x, y)))) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private static String lines(int count) {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < count; i++) {
+      text.append("line ").append(i).append('\n');
+    }
+    return text.toString();
+  }
+
+  @Test
+  void elevenSelectionsOnOneRowStyleEachSecondaryOne() throws Exception {
+    openFile(write("a.txt", "abcdefghijklmnopqrstuvwxyz\n"));
+    EditorPane pane = window.activeEditor();
+    EditorController editor = controller.documents().activeEditor();
+    List<Selection> list = new ArrayList<Selection>();
+    for (int i = 0; i < 11; i++) {
+      list.add(Selection.of(2 * i, 2 * i + 1));
+    }
+    editor.selections().set(SelectionSet.of(list, 0));
+    flush();
+    Rgb selection = Palette.LIGHT.selection();
+    RGB back = new RGB(selection.red(), selection.green(), selection.blue());
+    int styled = 0;
+    for (StyleRange style : pane.rowStyles(0)) {
+      if (style.background != null && back.equals(style.background.getRGB())) {
+        assertEquals(1, style.length);
+        assertEquals(0, style.start % 2);
+        styled++;
+      }
+    }
+    assertEquals(10, styled);
+  }
+
+  @Test
+  void whitespaceMarksDrawAnArrowAcrossATab() throws Exception {
+    openFile(write("a.txt", "a\tb\n"));
+    StyledText text = window.activeEditor().text();
+    int y = text.getLinePixel(0) + text.getLineHeight() / 2;
+    int x0 = text.getLocationAtOffset(1).x + 2;
+    int x1 = text.getLocationAtOffset(2).x - 2;
+    assertTrue(x1 > x0, x0 + ".." + x1);
+    ImageData hidden = print(text);
+    assumeTrue(hidden != null, "Control.print not supported here");
+    assertEquals(0, inkedRow(hidden, y, x0, x1, Palette.LIGHT.whitespace()));
+    controller.execute(CommandId.SHOW_WHITESPACE);
+    ImageData shown = print(text);
+    int inked = inkedRow(shown, y, x0, x1, Palette.LIGHT.whitespace());
+    // GTK 3 inks all but the two end pixels of the line in the whitespace color.
+    assertTrue(inked >= x1 - x0 - 1, inked + " of " + (x1 - x0 + 1));
+  }
+
+  @Test
+  void secondaryCaretsAndABlockPaintOnlyTheVisibleRows() throws Exception {
+    openFile(write("a.txt", lines(200)));
+    EditorPane pane = window.activeEditor();
+    StyledText text = pane.text();
+    EditorController editor = controller.documents().activeEditor();
+    DisplayProjection projection = editor.projection();
+    int visible = projection.lineStart(112) + 2;
+    editor
+        .selections()
+        .set(
+            SelectionSet.of(
+                List.of(
+                    Selection.of(projection.lineStart(101), projection.lineStart(60)),
+                    Selection.caret(projection.lineStart(110)),
+                    Selection.caret(visible),
+                    Selection.caret(projection.lineStart(190))),
+                1));
+    pane.scrollToRow(100);
+    flush();
+    assertEquals(100, text.getTopIndex());
+    int lineHeight = text.getLineHeight();
+    Rgb caret = Palette.LIGHT.caret();
+    ImageData data = print(text);
+    assumeTrue(data != null, "Control.print not supported here");
+    Point at = text.getLocationAtOffset(projection.toDisplay(visible));
+    assertEquals(lineHeight, inked(data, at.x, at.y, lineHeight, caret));
+
+    editor.selections().setBlock(new BlockSelection(105, 2, 190, 5), 4);
+    pane.scrollToRow(100);
+    data = print(text);
+    at = text.getLocationAtOffset(projection.toDisplay(projection.lineStart(106) + 5));
+    assertEquals(lineHeight, inked(data, at.x, at.y, lineHeight, caret));
   }
 
   @Test

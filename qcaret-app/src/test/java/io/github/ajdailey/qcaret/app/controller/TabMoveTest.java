@@ -299,6 +299,18 @@ class TabMoveTest {
   }
 
   @Test
+  void aMoveFromOrToAClosedWindowDoesNothing() throws Exception {
+    Document document = open(first, "stays.txt", "stays\n");
+    ApplicationController closed = windows.second();
+    Document other = open(closed, "other.txt", "other\n");
+    closed.closeWindow();
+    windows.ui.runPending();
+    assertNull(set.moveDocument(first, document, closed, END));
+    assertNull(set.moveDocument(closed, other, first, END));
+    assertEquals(List.of(document), first.documents().openDocuments());
+  }
+
+  @Test
   void aPromptOfTheSourceAnsweredAfterTheMoveDropsOut() throws Exception {
     Document document = open(first, "prompt.txt", "one\ntwo\n");
     first.execute(CommandId.GO_TO_LINE);

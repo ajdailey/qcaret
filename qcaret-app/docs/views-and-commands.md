@@ -165,7 +165,7 @@ Preferences (Mod+,). User overrides are in
 
 `CommandStates` computes every menu item's checked and enabled state, the
 Window menu's document list, a tab menu's state and the status bar's
-`StatusFields`, reading the controllers on each call. Views read this state
+`StatusFields` (built by `StatusBarText`), reading the controllers on each call. Views read this state
 there and never from controller getters (ArchUnit
 `viewsTakeCheckStateFromCommandStates`). The main toolbar's buttons take their
 enabled state from the same call.

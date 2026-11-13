@@ -391,6 +391,56 @@ class DocumentBehaviorSurfaceTest {
         "detection " + file.getFileName());
   }
 
+  private static MenuItem named(Menu menu, String text) {
+    for (MenuItem item : menu.getItems()) {
+      if (text.equals(item.getText())) {
+        return item;
+      }
+    }
+    throw new AssertionError("no item " + text);
+  }
+
+  @Test
+  void anEncodingEntryReopensOrSetsTheNextSaveCharset() throws Exception {
+    openFile("a.txt", "café\n");
+    MenuItem reopenHolder = window.menuBar().otherEncodings(true).getParent().getParentItem();
+    named(reopenHolder.getMenu(), "ISO-8859-1").notifyListeners(SWT.Selection, new Event());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.activeText() != null && window.activeText().getText().startsWith("cafÃ");
+          }
+        },
+        "the chosen charset");
+    MenuItem saveHolder = window.menuBar().otherEncodings(false).getParent().getParentItem();
+    MenuItem utf16 = named(saveHolder.getMenu(), "UTF-16LE");
+    utf16.setSelection(false);
+    utf16.notifyListeners(SWT.Selection, new Event());
+    assertEquals("ISO-8859-1", editor().document().encoding().charset().name());
+    utf16.setSelection(true);
+    utf16.notifyListeners(SWT.Selection, new Event());
+    assertEquals("UTF-16LE", editor().document().encoding().charset().name());
+    window.menuBar().sync(CommandGroup.ENCODING);
+    assertTrue(utf16.getSelection());
+    assertFalse(named(saveHolder.getMenu(), "ISO-8859-1").getSelection());
+  }
+
+  @Test
+  void aRecentFilesEntryOpensItsFile() throws Exception {
+    openFile("a.txt", "a\n");
+    openFile("b.txt", "b\n");
+    controller.execute(CommandId.CLOSE_ALL);
+    drain();
+    window.menuBar().sync(CommandGroup.FILE);
+    MenuItem[] items = window.menuBar().item(CommandId.CLEAR_RECENT_FILES).getParent().getItems();
+    assertTrue(items[0].getText().contains("b.txt"), items[0].getText());
+    assertTrue(items[1].getText().contains("a.txt"), items[1].getText());
+    items[1].notifyListeners(SWT.Selection, new Event());
+    await(tabs(2), "the chosen file");
+    assertEquals("a.txt", window.tabs().getItem(1).getText());
+  }
+
   @Test
   void theTabWidthPromptAnswersItsSpinner() throws Exception {
     openFile("a.txt", "\ta\n");

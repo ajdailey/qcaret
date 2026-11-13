@@ -136,9 +136,9 @@ the dialog cancels a running match.
   `workspaceChanged(null)` sets the fields, the check box and Workspace's
   enablement from it. Favorites builds its pop-up menu at each opening from
   `favorites()`.
-- Size and Modified start as wide as their headers and widen to the widest
-  text a fill adds; Name takes the rest of the tree's width at each resize,
-  down to its header's width. Modified shows the date.
+- `BrowserColumns`: Size and Modified start as wide as their headers and widen
+  to the widest text a fill adds; Name takes the rest of the tree's width at
+  each resize, down to its header's width. Modified shows the date.
 - `BrowserRowTip` sets the tree's tool tip to the row under the pointer: the
   full path, then `Size:` for a file and `Modified:` with the date and time, one
   per line, from the row's `WorkspaceNode`. It sets the tip only when the

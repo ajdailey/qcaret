@@ -121,18 +121,17 @@ MRU mode off, which starts the run at that tab. The selected tab never leaves th
 - A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
   item it deselects too, so the listener runs the command only for the item
   selected.
-- The Encoding menu holds Reopen with Encoding and Save with Encoding cascades:
-  the common charsets from the start, and an Other cascade disabled until
-  `EncodingChoices` arrives from a worker, filled again when a keymap change
-  rebuilds the menus. Reopen with Encoding starts with Automatic Detection,
-  which calls `ApplicationController.reopenWithDetection`.
+- The Encoding menu holds Reopen with Encoding and Save with Encoding cascades
+  (`EncodingCascade`): the common charsets from the start, and an Other
+  cascade disabled until `EncodingChoices` arrives from a worker, filled again
+  when a keymap change rebuilds the menus. Reopen with Encoding starts with
+  Automatic Detection, which calls `ApplicationController.reopenWithDetection`.
 - The Window menu lists the windows, when there are several, and the open
-  documents, numbered in that order, the first nine as mnemonics. File >
-  Recent Files lists the recent files above Open All, Clean Up and Clear
-  Recent Files, and File >
-  Recently Closed the closed files above Clear Recently Closed, each rebuilt
-  when its menu shows and numbered as the Window menu is; a path's `&` is
-  doubled.
+  documents, numbered in that order, the first nine as mnemonics.
+  `RecentMenus` lists in File > Recent Files the recent files above Open All,
+  Clean Up and Clear Recent Files, and in File > Recently Closed the closed
+  files above Clear Recently Closed, each rebuilt when its menu shows and
+  numbered as the Window menu is; a path's `&` is doubled.
 - The View menu's Syntax cascade and the status bar's language popup show the
   app's `SyntaxMenu`: the recently chosen grammars and a separator, Plain Text,
   then one cascade per category. `MainMenuBar` rebuilds the cascade's entries

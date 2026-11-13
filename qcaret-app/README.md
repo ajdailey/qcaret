@@ -16,19 +16,19 @@ is that toolkit and `qcaret-launcher` composes the two.
 |---|---|---|
 | `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `Version` | [Views and commands](docs/views-and-commands.md) |
 | `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
-| `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `CommandPalette` | [Views and commands](docs/views-and-commands.md) |
+| `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `StatusBarText`, `CommandPalette` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
-| `app.controller` | `WindowSet`, `ApplicationController`, quit, tab moves | [Windows and tabs](docs/windows-and-tabs.md) |
+| `app.controller` | `WindowSet`, `ApplicationController`, `WindowCommands`; quit (`QuitSequence`), tab moves (`TabTransfer`) | [Windows and tabs](docs/windows-and-tabs.md) |
 | `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`, `SaveAndReload`, `DocumentEncodings`, `TabClosing`, `DocumentSessions`: open, load, save, reload, encodings, close, session state, split views; `DocumentSettings`, `FileSettingsReader`, `SaveCleanup`: per-file settings; `DocumentsUnder`: open documents under a browser entry; printing | [Documents](docs/documents.md) |
-| `app.controller` | `ExternalChanges`, reload, change prompts, `CompareController` | [External changes](docs/external-changes.md) |
-| `app.controller`, `app.search` | Find bar, HyperSearch, result sets, replace across files | [Search](docs/search.md) |
-| `app.controller` | Workspace folder and browser (`WorkspaceBrowse`, `BrowserListings`, `BrowserRows`, `BrowserWindows`, `WorkspaceFiles`, `BrowserPath`, `PathMove`, `WorkspaceFollow`, `DroppedFiles`), file index, Quick Open, Go to Symbol (`DocumentSymbols`, `SymbolRows`, `SymbolCache`), navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |
+| `app.controller` | `ExternalChanges`, `FileReload`: reload, change prompts; `CompareController` | [External changes](docs/external-changes.md) |
+| `app.controller`, `app.search` | Find bar (`FindHighlights`), HyperSearch (`ResultsDockModel`, `ResultsNavigation`), result sets, replace across files (`ReplaceController`, `ReplaceRestore`, `ReplaceRun`, `RunRestore`) | [Search](docs/search.md) |
+| `app.controller` | Workspace folder and browser (`WorkspaceBrowse`, `BrowserListings`, `BrowserRows`, `BrowserWindows`, `WorkspaceFiles`, `BrowserPath`, `PathMove`, `WorkspaceFollow`, `DroppedFiles`), file index (`FileIndexHolder`), Quick Open, Go to Symbol (`DocumentSymbols`, `SymbolRows`, `SymbolCache`), navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |
 | `app.controller` | `EditorController`: edits, carets, folding, bookmarks, completion; `FoldScheduling`, `CompletionInput`, `LineTransformRuns`, `SelectionCommands`, `SelectionHistory`, `DateTimeInsert`, `StatisticsController`, `EditorAids`, `LineChangesUpdater`, `RecoveredBaseline`; overview strip; Bookmarks list | [Editor](docs/editor.md) |
 | `app.editor` | `DisplayProjection`, `ProjectionFolds`, `FoldLayer`, `HighlightComposer`, `TokenCache`, `SmartIndent`, `ColumnMetrics`, `Bookmarks`, `RemovedBookmarks`, `MergedFoldSource`, `LineChanges`, `TextStatistics` | [Display projection](docs/display-projection.md) |
 | `app.controller` | `GrammarLibrary`, `DocumentGrammars`: grammar detection; Syntax menu, `SyntaxHighlighter` | [Highlighting](docs/highlighting.md) |
 | `app.controller` | Tools menu: `ChecksumTools`, `TextChecksum`, `FileChecksums`, `SelectionChecksum`, `ChecksumVerify`, `ChecksumRun` | [Tools](docs/tools.md) |
 | `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys | [Settings](docs/settings.md) |
-| `app.session`, `app.recovery` | Session file, per-file state, recovery files, quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
+| `app.session`, `app.recovery` | Session file, per-file state, recovery files (`RecoveryController`, `RecoveryOffer`), quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
 | `app.about`, `app.i18n`, `app.log`, `app.theme` | Help commands, the user guide build, `UiText`, About, the log ring; themes, theme files, font discovery | [Help and themes](docs/help-and-themes.md) |
 
 ## Controller threading

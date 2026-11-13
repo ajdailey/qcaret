@@ -470,9 +470,9 @@ class FindControllerTest {
     int[] ranges = {0, 2, 5, 7, 10, 12};
     List<TextEdit> edits =
         List.of(new TextEdit(3, "", "abc", 0, 0, 0), new TextEdit(6, "x", "", 0, 0, 0));
-    assertArrayEquals(new int[] {0, 2, 12, 14}, FindController.shifted(ranges, edits));
+    assertArrayEquals(new int[] {0, 2, 12, 14}, FindHighlights.shifted(ranges, edits));
     assertArrayEquals(
         new int[] {3, 5},
-        FindController.shifted(new int[] {0, 2}, List.of(new TextEdit(0, "", "abc", 0, 0, 0))));
+        FindHighlights.shifted(new int[] {0, 2}, List.of(new TextEdit(0, "", "abc", 0, 0, 0))));
   }
 }

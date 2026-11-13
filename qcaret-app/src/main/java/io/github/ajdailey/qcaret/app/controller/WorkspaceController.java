@@ -5,7 +5,6 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
-import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -15,10 +14,8 @@ import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
 /**
@@ -37,10 +34,10 @@ import java.util.function.Consumer;
  * WorkspaceFollow#clearUnder}).
  *
  * <p>The file index ({@link FileIndex}, at most {@link FileIndex#MAX_FILES} files, charged to the
- * {@link MemoryBudget}) is built on a {@code qcaret-search-} worker whenever the folder changes and
- * on Refresh; a new build cancels the running one. A folder change drops the index at once; Refresh
- * keeps it until the new one arrives. A dropped, replaced or stale index returns its charge, and
- * {@link #dispose} cancels the build and returns the charge.
+ * {@link MemoryBudget}, held in {@link FileIndexHolder}) is built on a {@code qcaret-search-}
+ * worker whenever the folder changes and on Refresh; a new build cancels the running one. A folder
+ * change drops the index at once; Refresh keeps it until the new one arrives. A dropped, replaced
+ * or stale index returns its charge, and {@link #dispose} cancels the build and returns the charge.
  */
 public final class WorkspaceController implements WorkspaceInput {
   /** Extensions Windows runs rather than opens. */
@@ -53,22 +50,19 @@ public final class WorkspaceController implements WorkspaceInput {
   private final Workers workers;
   private final UiDispatcher ui;
   private final DocumentController documents;
-  private final MemoryBudget budget;
 
   /** The entries the browser and the index leave out ({@code workspace.excludedDirectories}). */
   private WalkRules rules = WalkRules.of(FileFilter.DEFAULT_EXCLUDED_DIRECTORIES);
 
-  private final List<Runnable> indexListeners = new ArrayList<Runnable>();
   private Path root;
   private boolean disposed;
-  private FileIndex index;
-  private CancellationToken indexing;
   private WorkspaceFiles files;
   private WorkspaceBrowse browse;
   private BrowserWindows peers;
   private final WorkspaceFollow following;
   private final WorkspaceSelection selection;
   private final BrowserListings listings;
+  private final FileIndexHolder fileIndex;
 
   /**
    * Creates the controller without a folder.
@@ -89,10 +83,10 @@ public final class WorkspaceController implements WorkspaceInput {
     this.workers = workers;
     this.ui = ui;
     this.documents = documents;
-    this.budget = budget;
     this.following = new WorkspaceFollow(this, view);
     this.selection = new WorkspaceSelection(this, view, documents);
     this.listings = new BrowserListings(this, view, workers, ui);
+    this.fileIndex = new FileIndexHolder(this, workers, ui, budget);
   }
 
   /**
@@ -183,12 +177,9 @@ public final class WorkspaceController implements WorkspaceInput {
 
   /** Drops every listing and the index, lists the root again when shown and builds the index. */
   private void reset() {
-    if (index != null) {
-      budget.release(index.charged());
-      index = null;
-    }
+    fileIndex.drop();
     listings.relist();
-    buildIndex();
+    fileIndex.build();
   }
 
   /** Sets what runs the row operations. */
@@ -265,15 +256,7 @@ public final class WorkspaceController implements WorkspaceInput {
       files.dispose();
     }
     listings.dispose();
-    if (indexing != null) {
-      indexing.cancel();
-      indexing = null;
-    }
-    if (index != null) {
-      budget.release(index.charged());
-      index = null;
-    }
-    indexListeners.clear();
+    fileIndex.dispose();
   }
 
   // The browser.
@@ -366,7 +349,7 @@ public final class WorkspaceController implements WorkspaceInput {
     }
     List<Path> listed = listings.listedDirectories();
     relisted(listed);
-    buildIndex();
+    fileIndex.build();
     if (peers != null) {
       peers.refreshed(this, listed);
     }
@@ -512,19 +495,7 @@ public final class WorkspaceController implements WorkspaceInput {
         || !(directory.startsWith(root) || (removed != null && root.startsWith(removed)))) {
       return;
     }
-    FileIndex next =
-        folder || index == null || indexing != null
-            ? null
-            : index.withChange(removed, added, budget);
-    if (next == null) {
-      buildIndex();
-    } else {
-      budget.release(index.charged());
-      index = next;
-      for (Runnable listener : new ArrayList<Runnable>(indexListeners)) {
-        listener.run();
-      }
-    }
+    fileIndex.changed(removed, added, folder);
   }
 
   /** Returns what moves or clears the folders after a rename or a delete. */
@@ -564,86 +535,25 @@ public final class WorkspaceController implements WorkspaceInput {
     documents.sessionChanged();
   }
 
-  // The file index.
+  // The file index: FileIndexHolder.
 
   /** Returns the newest finished index; null before the first build ends or without a folder. */
   FileIndex index() {
-    return index;
+    return fileIndex.index();
   }
 
   /** Reports whether an index build runs. */
   boolean indexing() {
-    return indexing != null;
+    return fileIndex.indexing();
   }
 
   /** Adds what runs after a build replaced the index. */
   void addIndexListener(Runnable listener) {
-    indexListeners.add(listener);
+    fileIndex.addIndexListener(listener);
   }
 
   /** Removes a listener {@link #addIndexListener} added. */
   void removeIndexListener(Runnable listener) {
-    indexListeners.remove(listener);
-  }
-
-  private void buildIndex() {
-    if (indexing != null) {
-      indexing.cancel();
-    }
-    if (root == null || disposed) {
-      indexing = null;
-      return;
-    }
-    final CancellationToken token = new CancellationToken();
-    indexing = token;
-    final Path folder = root;
-    final WalkRules walk = rules;
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.SEARCH,
-            new Runnable() {
-              @Override
-              public void run() {
-                FileIndex built = null;
-                try {
-                  built = FileIndex.build(folder, walk, FileIndex.MAX_FILES, budget, token);
-                } catch (CancellationException e) {
-                  built = null;
-                } finally {
-                  final FileIndex result = built;
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          indexed(token, result);
-                        }
-                      });
-                }
-              }
-            });
-    if (!started) {
-      indexing = null;
-    }
-  }
-
-  /** Keeps a finished index when it is the newest build's; returns its charge otherwise. */
-  private void indexed(CancellationToken token, FileIndex built) {
-    if (disposed || token != indexing) {
-      if (built != null) {
-        budget.release(built.charged());
-      }
-      return;
-    }
-    indexing = null;
-    if (built == null) {
-      return;
-    }
-    if (index != null) {
-      budget.release(index.charged());
-    }
-    index = built;
-    for (Runnable listener : new ArrayList<Runnable>(indexListeners)) {
-      listener.run();
-    }
+    fileIndex.removeIndexListener(listener);
   }
 }

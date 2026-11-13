@@ -17,8 +17,10 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
@@ -306,6 +308,91 @@ class ReplaceControllerTest {
         rows);
     assertEquals("key one\n", Files.readString(one));
     assertEquals("key two\n", Files.readString(two));
+  }
+
+  private void awaitRunChooser() throws Exception {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.runChooser != null;
+          }
+        },
+        "runs listed");
+  }
+
+  @Test
+  void restoreReportsAFileAlreadyBackAMissingFileAndADamagedBackup() throws Exception {
+    Path tree = Files.createDirectories(temp.resolve("tree"));
+    Path one = Files.writeString(tree.resolve("one.txt"), "key one\n");
+    Path two = Files.writeString(tree.resolve("two.txt"), "key two\n");
+    Files.writeString(tree.resolve("three.txt"), "key three\n");
+    run("key", SearchScope.DIRECTORY, tree.toString());
+    apply(preview("lock"));
+    Files.writeString(one, "key one\n");
+    Files.delete(two);
+    List<ReplaceBackups.Run> runs =
+        ReplaceBackups.list(temp.resolve("settings").resolve(ReplaceBackups.DIRECTORY));
+    assertEquals(1, runs.size());
+    Path directory = runs.get(0).directory();
+    for (ReplaceBackups.Entry entry : ReplaceBackups.entries(directory)) {
+      if (entry.file().getFileName().toString().equals("three.txt")) {
+        Files.write(
+            directory.resolve(entry.number() + ".bak"),
+            "damaged".getBytes(StandardCharsets.UTF_8),
+            StandardOpenOption.APPEND);
+      }
+    }
+    replace.chooseRun();
+    awaitRunChooser();
+    harness.view.runChooser.accept(0);
+    List<String> rows = results(awaitReport(harness.view.reports.get(1)));
+    rows.sort(null);
+    assertEquals(
+        List.of(
+            "one.txt: " + skipped(UiText.REASON_UNCHANGED),
+            "three.txt: " + UiText.REPLACE_ROW_FAILED.format("The backup is damaged"),
+            "two.txt: " + skipped(UiText.REASON_MISSING)),
+        rows);
+  }
+
+  @Test
+  void restoreRefusesWhileARunRunsAndAfterDisposeAndFailsForADeletedRun() throws Exception {
+    Path tree = Files.createDirectories(temp.resolve("tree"));
+    Files.writeString(tree.resolve("one.txt"), "key one\n");
+    run("key", SearchScope.DIRECTORY, tree.toString());
+    apply(preview("lock"));
+    Path listed =
+        ReplaceBackups.list(temp.resolve("settings").resolve(ReplaceBackups.DIRECTORY))
+            .get(0)
+            .directory();
+    replace.chooseRun();
+    awaitRunChooser();
+    run("lock", SearchScope.DIRECTORY, tree.toString());
+    ReplaceInput input = preview("key");
+    int notices = harness.view.notices.size();
+    assertTrue(input.apply());
+    replace.chooseRun();
+    harness.view.runChooser.accept(0);
+    assertEquals(
+        List.of(UiText.REPLACE_RUNNING.text(), UiText.REPLACE_RUNNING.text()),
+        harness.view.notices.subList(notices, harness.view.notices.size()));
+    assertEquals(2, harness.view.reports.size());
+    awaitReport(harness.view.reports.get(1));
+    try (DirectoryStream<Path> files = Files.newDirectoryStream(listed)) {
+      for (Path file : files) {
+        Files.delete(file);
+      }
+    }
+    Files.delete(listed);
+    harness.view.runChooser.accept(0);
+    ReportInput restore = awaitReport(harness.view.reports.get(2));
+    assertEquals(1, restore.rowCount());
+    assertTrue(restore.row(0).failed(), restore.row(0).result());
+    replace.dispose();
+    harness.view.runChooser.accept(0);
+    replace.chooseRun();
+    assertEquals(3, harness.view.reports.size());
   }
 
   @Test

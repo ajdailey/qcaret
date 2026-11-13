@@ -263,7 +263,7 @@ public final class ReplaceRun {
             new Runnable() {
               @Override
               public void run() {
-                run.restoreAll(directory);
+                RunRestore.restoreAll(run, directory);
               }
             });
     if (!started) {
@@ -316,6 +316,11 @@ public final class ReplaceRun {
   /** Stops the run after the file in progress. */
   public void cancel() {
     token.cancel();
+  }
+
+  /** Returns the token {@link #cancel} cancels. */
+  CancellationToken token() {
+    return token;
   }
 
   /**
@@ -393,7 +398,8 @@ public final class ReplaceRun {
     }
   }
 
-  private void postFinish() {
+  /** Posts {@link #finish} to the UI thread. */
+  void postFinish() {
     ui.asyncExec(
         new Runnable() {
           @Override
@@ -478,63 +484,6 @@ public final class ReplaceRun {
     }
   }
 
-  @WorkerThread
-  private void restoreAll(Path directory) {
-    try {
-      List<ReplaceBackups.Entry> entries;
-      try {
-        entries = ReplaceBackups.entries(directory);
-      } catch (IOException e) {
-        queue(
-            -1,
-            new Row(
-                String.valueOf(directory.getFileName()),
-                directory,
-                Status.FAILED,
-                null,
-                0,
-                LogText.oneLine(String.valueOf(e.getMessage()))));
-        return;
-      }
-      for (ReplaceBackups.Entry entry : entries) {
-        Path file = entry.file();
-        String name = String.valueOf(file.getFileName());
-        if (token.isCanceled()) {
-          queue(-1, new Row(name, file, Status.NOT_ATTEMPTED, null, 0, null));
-          continue;
-        }
-        ReplaceBackups.Restored restored = ReplaceBackups.restore(directory, entry, token);
-        Row row =
-            switch (restored.result()) {
-              case RESTORED -> new Row(name, file, Status.CHANGED, null, 0, null);
-              case UNCHANGED -> new Row(name, file, Status.SKIPPED, Reason.UNCHANGED, 0, null);
-              case CHANGED_SINCE ->
-                  new Row(name, file, Status.SKIPPED, Reason.CHANGED_SINCE, 0, null);
-              case MISSING -> new Row(name, file, Status.SKIPPED, Reason.MISSING, 0, null);
-              case FAILED ->
-                  new Row(
-                      name,
-                      file,
-                      Status.FAILED,
-                      null,
-                      0,
-                      LogText.oneLine(String.valueOf(restored.error().getMessage())));
-            };
-        queue(-1, row);
-      }
-    } catch (CancellationException e) {
-      // Stopped inside a write; the file is unchanged.
-    } finally {
-      ui.asyncExec(
-          new Runnable() {
-            @Override
-            public void run() {
-              finish();
-            }
-          });
-    }
-  }
-
   private static Row skipped(Item item, Reason reason) {
     return new Row(item.name(), item.path(), Status.SKIPPED, reason, 0, null);
   }
@@ -543,7 +492,8 @@ public final class ReplaceRun {
     return new Row(item.name(), item.path(), Status.FAILED, null, 0, error);
   }
 
-  private void queue(int index, Row row) {
+  /** Queues a row for the UI thread; an index below 0 appends it. */
+  void queue(int index, Row row) {
     queue.add(new Done(index, row, null, null));
     schedule();
   }

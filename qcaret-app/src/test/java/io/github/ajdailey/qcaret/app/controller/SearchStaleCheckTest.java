@@ -12,7 +12,7 @@ import java.nio.file.attribute.FileTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** {@link SearchController#changed} on a file larger than the digest's block. */
+/** {@link ResultsNavigation#changed} on a file larger than the digest's block. */
 class SearchStaleCheckTest {
   private static final CancellationToken NONE = new CancellationToken();
 
@@ -39,9 +39,9 @@ class SearchStaleCheckTest {
     byte[] bytes = bytes(1);
     Path file = searched(bytes);
     FileStamp stamp = FileStamp.read(file);
-    assertFalse(SearchController.changed(file, stamp, FileSearch.digest(bytes), NONE));
+    assertFalse(ResultsNavigation.changed(file, stamp, FileSearch.digest(bytes), NONE));
     touch(file);
-    assertFalse(SearchController.changed(file, stamp, FileSearch.digest(bytes), NONE));
+    assertFalse(ResultsNavigation.changed(file, stamp, FileSearch.digest(bytes), NONE));
   }
 
   @Test
@@ -51,7 +51,7 @@ class SearchStaleCheckTest {
     FileStamp stamp = FileStamp.read(file);
     Files.write(file, bytes(2));
     touch(file);
-    assertTrue(SearchController.changed(file, stamp, FileSearch.digest(bytes), NONE));
+    assertTrue(ResultsNavigation.changed(file, stamp, FileSearch.digest(bytes), NONE));
   }
 
   @Test
@@ -63,6 +63,6 @@ class SearchStaleCheckTest {
     touch(file);
     CancellationToken token = new CancellationToken();
     token.cancel();
-    assertFalse(SearchController.changed(file, stamp, FileSearch.digest(bytes), token));
+    assertFalse(ResultsNavigation.changed(file, stamp, FileSearch.digest(bytes), token));
   }
 }

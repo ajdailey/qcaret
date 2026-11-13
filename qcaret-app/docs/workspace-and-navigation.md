@@ -173,7 +173,7 @@ link or a Windows junction.
 ## File index
 
 The file index (`FileIndex`, at most 200,000 files, charged to the
-`MemoryBudget`) is built on a `qcaret-search-` worker when the folder is set
+`MemoryBudget`, held in `FileIndexHolder`) is built on a `qcaret-search-` worker when the folder is set
 and on Refresh; a new build cancels the running one. A folder change drops the
 old index at once; Refresh keeps it until the new one arrives. A dropped,
 replaced or stale index and window close return its charge.

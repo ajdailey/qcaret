@@ -599,6 +599,39 @@ class RecoveryControllerTest {
   }
 
   @Test
+  void choicesOutOfRangeOrOnARowBeingReadAreIgnoredAndAfterOfferRunsOnceEnded() throws Exception {
+    Path a = file("a.txt", "alpha\n");
+    Harness first = start(false);
+    first.open(a);
+    edit(first, "mine ");
+    end(first);
+
+    Harness second = start(false);
+    second.await(offered(second), "the dialog");
+    final List<String> ran = new ArrayList<String>();
+    Runnable task =
+        new Runnable() {
+          @Override
+          public void run() {
+            ran.add("after");
+          }
+        };
+    second.application.recovery().afterOffer(task);
+    second.view.recovery.restore(new int[] {-1, 5});
+    second.view.recovery.discard(new int[] {-1, 5});
+    assertEquals(1, second.view.recovery.rows().size());
+    second.view.recovery.restore(new int[] {0, 0});
+    second.view.recovery.discard(new int[] {0});
+    assertEquals(1, second.view.recovery.rows().size());
+    assertEquals(List.of(), ran);
+    second.await(rowsLeft(second, 0), "restored");
+    assertEquals(List.of("after"), ran);
+    second.application.recovery().afterOffer(task);
+    assertEquals(List.of("after", "after"), ran);
+    assertEquals("mine alpha\n", second.application.documents().activeDocument().text().toString());
+  }
+
+  @Test
   void aDirtyTabKeepsItsTextAndTheRow() throws Exception {
     Path a = file("a.txt", "alpha\n");
     Harness first = start(false);

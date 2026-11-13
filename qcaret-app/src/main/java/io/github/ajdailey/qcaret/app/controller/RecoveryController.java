@@ -6,7 +6,6 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
-import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.RecoveryRow;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -33,10 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,16 +61,15 @@ import org.slf4j.LoggerFactory;
  * unwritten, so the next interval retries, with one notice until a write succeeds.
  *
  * <p>{@link #open} takes the instance's lock; {@link #start} lists dead instances' buffers in the
- * recovery dialog, shown by the window activated last. A recovered buffer opens in the window
- * holding its file, else in the window activated last. A restored buffer's old file goes only after
- * its new file is written, or when the buffer needs no recovery any more. {@link #quitting} and
- * {@link #finish} delete the instance directory, or write the remaining dirty buffers and keep it
- * when the process ends without an ordered quit. Confined to the UI thread apart from the queue.
+ * recovery dialog ({@link RecoveryOffer}), shown by the window activated last. A recovered buffer
+ * opens in the window holding its file, else in the window activated last. A restored buffer's old
+ * file goes only after its new file is written, or when the buffer needs no recovery any more.
+ * {@link #quitting} and {@link #finish} delete the instance directory, or write the remaining dirty
+ * buffers and keep it when the process ends without an ordered quit. Confined to the UI thread
+ * apart from the queue.
  */
 final class RecoveryController implements RecoveryInput {
   private static final Logger LOG = LoggerFactory.getLogger(RecoveryController.class);
-  private static final DateTimeFormatter TIME =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
   /**
    * Instance directories opened in this process. The directory name ends with the count, so two
@@ -82,16 +77,6 @@ final class RecoveryController implements RecoveryInput {
    * the other's directory skips it in {@code claimDead} as its own.
    */
   private static final AtomicLong OPENED = new AtomicLong();
-
-  /** One buffer in the dialog. */
-  private static final class Row {
-    RecoveryStore.Entry entry;
-    boolean reading;
-
-    Row(RecoveryStore.Entry entry) {
-      this.entry = entry;
-    }
-  }
 
   private final WindowSet set;
   private final Workers workers;
@@ -119,7 +104,6 @@ final class RecoveryController implements RecoveryInput {
   /** Buffers whose file a rename moved; the next interval writes them with the new path. */
   private final Set<String> renamed = new HashSet<String>();
 
-  private final List<Row> rows = new ArrayList<Row>();
   private final Consumer<String> bufferCleaned =
       new Consumer<String>() {
         @Override
@@ -149,12 +133,10 @@ final class RecoveryController implements RecoveryInput {
 
   private int intervalSeconds;
   private int keepDays;
-  private MainView dialog;
   private boolean started;
   private boolean closing;
   private volatile boolean keep;
-  private final List<Runnable> afterOffer = new ArrayList<Runnable>();
-  private boolean offerEnded;
+  private final RecoveryOffer offers;
 
   RecoveryController(
       WindowSet set,
@@ -173,6 +155,7 @@ final class RecoveryController implements RecoveryInput {
     this.intervalSeconds = intervalSeconds;
     this.keepDays = keepDays;
     this.clock = clock;
+    this.offers = new RecoveryOffer(this, set, ui, budget);
   }
 
   /** Follows a new window's buffers. */
@@ -187,7 +170,8 @@ final class RecoveryController implements RecoveryInput {
     }
   }
 
-  private void notice(String text) {
+  /** Shows a notice in the window activated last. */
+  void notice(String text) {
     ApplicationController window = set.target();
     if (window != null) {
       window.showNotice(text);
@@ -336,6 +320,38 @@ final class RecoveryController implements RecoveryInput {
 
   // The queue.
 
+  /** Reports whether {@link #quitting} ran. */
+  boolean closing() {
+    return closing;
+  }
+
+  /** Runs a task once the offer has ended; see {@link RecoveryOffer#afterOffer}. */
+  void afterOffer(Runnable task) {
+    offers.afterOffer(task);
+  }
+
+  // The dialog's input, held by RecoveryOffer.
+
+  @Override
+  public List<RecoveryRow> rows() {
+    return offers.rows();
+  }
+
+  @Override
+  public void restore(int[] indexes) {
+    offers.restore(indexes);
+  }
+
+  @Override
+  public void discard(int[] indexes) {
+    offers.discard(indexes);
+  }
+
+  @Override
+  public void later() {
+    offers.later();
+  }
+
   /** Reports whether no task is queued or running; for tests. */
   boolean idle() {
     return queue.isEmpty() && !runLock.isLocked();
@@ -386,7 +402,7 @@ final class RecoveryController implements RecoveryInput {
 
   @WorkerThread
   private void claimDead(long oldest) {
-    final List<Row> found = new ArrayList<Row>();
+    final List<RecoveryOffer.Row> found = new ArrayList<RecoveryOffer.Row>();
     try {
       if (store != null) {
         claims.addAll(store.claimDead(oldest));
@@ -396,14 +412,14 @@ final class RecoveryController implements RecoveryInput {
     }
     for (RecoveryStore.Claim claim : claims) {
       for (RecoveryStore.Entry entry : claim.entries()) {
-        found.add(new Row(entry));
+        found.add(new RecoveryOffer.Row(entry));
       }
     }
     ui.asyncExec(
         new Runnable() {
           @Override
           public void run() {
-            offer(found);
+            offers.offer(found);
           }
         });
   }
@@ -465,155 +481,41 @@ final class RecoveryController implements RecoveryInput {
     }
   }
 
-  // The dialog.
-
-  private void offer(List<Row> found) {
-    ApplicationController window = set.target();
-    if (!closing && window != null && !found.isEmpty()) {
-      rows.addAll(found);
-      dialog = window.view();
-      dialog.showRecovery(this);
-    } else {
-      offerEnded();
-    }
-  }
-
-  /**
-   * Runs a task on the UI thread once {@link #start}'s offer has ended: no buffer was found, or the
-   * dialog's rows are all handled, or Later was pressed. Runs it now when the offer has ended.
-   *
-   * @param task the task
-   */
-  void afterOffer(Runnable task) {
-    if (offerEnded) {
-      task.run();
-    } else {
-      afterOffer.add(task);
-    }
-  }
-
-  private void offerEnded() {
-    if (!offerEnded) {
-      offerEnded = true;
-      List<Runnable> tasks = new ArrayList<Runnable>(afterOffer);
-      afterOffer.clear();
-      for (Runnable task : tasks) {
-        task.run();
-      }
-    }
-  }
-
-  @Override
-  public List<RecoveryRow> rows() {
-    List<RecoveryRow> list = new ArrayList<RecoveryRow>();
-    for (Row row : rows) {
-      list.add(row(row.entry));
-    }
-    return list;
-  }
-
-  private static RecoveryRow row(RecoveryStore.Entry entry) {
-    RecoveryFile.Header h = entry.header();
-    String name;
-    if (h == null) {
-      name = String.valueOf(entry.file().getFileName());
-    } else {
-      name = h.path().isEmpty() ? h.title() : h.path();
-    }
-    String state =
-        entry.unreadable()
-            ? UiText.RECOVERY_FILE_UNREADABLE.text()
-            : entry.damaged()
-                ? UiText.RECOVERY_DAMAGED.text()
-                : switch (entry.original()) {
-                  case NONE -> UiText.RECOVERY_NO_FILE.text();
-                  case UNCHANGED -> UiText.RECOVERY_UNCHANGED.text();
-                  case CHANGED -> UiText.RECOVERY_CHANGED.text();
-                  case MISSING -> UiText.RECOVERY_MISSING.text();
-                  case UNREADABLE -> UiText.RECOVERY_UNREADABLE.text();
-                };
-    return new RecoveryRow(name, time(h), state, entry.damaged());
-  }
-
-  private static String time(RecoveryFile.Header header) {
-    if (header == null) {
-      return "";
-    }
-    try {
-      return TIME.format(Instant.parse(header.written()).truncatedTo(ChronoUnit.SECONDS));
-    } catch (DateTimeParseException e) {
-      return header.written();
-    }
-  }
-
-  @Override
-  public void restore(int[] indexes) {
-    for (int index : indexes) {
-      if (index >= 0 && index < rows.size()) {
-        final Row row = rows.get(index);
-        if (row.entry.damaged()) {
-          notice(UiText.RECOVERY_DAMAGED_KEPT.text());
-        } else if (!row.reading) {
-          row.reading = true;
-          submit(
-              new Runnable() {
-                @Override
-                public void run() {
-                  read(row);
-                }
-              });
-        }
-      }
-    }
-  }
-
-  @WorkerThread
-  private void read(final Row row) {
-    Result result = load(row.entry.file());
-    final DocumentController.Recovered recovered = result.recovered();
-    final String problem = result.problem();
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            read(row, recovered, problem);
-          }
-        });
-  }
-
-  private void read(Row row, DocumentController.Recovered recovered, String problem) {
-    row.reading = false;
-    if (recovered == null) {
-      notice(problem);
-      dialog.recoveryChanged();
-      return;
-    }
-    ApplicationController window = set.target();
-    DocumentController.Buffer buffer =
-        closing || window == null
-            ? null
-            : receiver(recovered, window.documents()).addRecovered(recovered, null);
-    if (buffer == null) {
-      budget.release(recovered.reserved());
-      notice(UiText.RECOVERY_TAB_DIRTY.format(row(row.entry).name()));
-      return;
-    }
-    adopt(buffer, row.entry.file());
-    rows.remove(row);
-    rowsChanged();
-  }
+  // Recovered buffers and claims.
 
   /** Returns the window holding the buffer's file, else {@code preferred}. */
-  private DocumentController receiver(
+  DocumentController receiver(
       DocumentController.Recovered recovered, DocumentController preferred) {
     DocumentController holder = recovered.real() == null ? null : set.holderAt(recovered.real());
     return holder == null ? preferred : holder;
   }
 
   /** Writes a recovered buffer in this instance's directory; its old file goes after that. */
-  private void adopt(DocumentController.Buffer buffer, Path old) {
+  void adopt(DocumentController.Buffer buffer, Path old) {
     replaced.put(buffer.id(), old);
     write(buffer);
+  }
+
+  /** Queues the read of a dialog row's buffer. */
+  void submitRead(final RecoveryOffer.Row row) {
+    submit(
+        new Runnable() {
+          @Override
+          public void run() {
+            offers.read(row);
+          }
+        });
+  }
+
+  /** Queues the delete of a recovered buffer's file. */
+  void submitDelete(final Path file) {
+    submit(
+        new Runnable() {
+          @Override
+          public void run() {
+            deleteRecovered(file);
+          }
+        });
   }
 
   @WorkerThread
@@ -625,43 +527,8 @@ final class RecoveryController implements RecoveryInput {
     }
   }
 
-  @Override
-  public void discard(int[] indexes) {
-    List<Row> chosen = new ArrayList<Row>();
-    for (int index : indexes) {
-      if (index >= 0 && index < rows.size() && !rows.get(index).reading) {
-        chosen.add(rows.get(index));
-      }
-    }
-    for (final Row row : chosen) {
-      rows.remove(row);
-      submit(
-          new Runnable() {
-            @Override
-            public void run() {
-              deleteRecovered(row.entry.file());
-            }
-          });
-    }
-    rowsChanged();
-  }
-
-  @Override
-  public void later() {
-    rows.clear();
-    releaseClaims();
-    offerEnded();
-  }
-
-  private void rowsChanged() {
-    dialog.recoveryChanged();
-    if (rows.isEmpty()) {
-      releaseClaims();
-      offerEnded();
-    }
-  }
-
-  private void releaseClaims() {
+  /** Closes the claims on dead instances' directories, in the queue. */
+  void releaseClaims() {
     submit(
         new Runnable() {
           @Override
@@ -682,11 +549,11 @@ final class RecoveryController implements RecoveryInput {
   // Reading a buffer.
 
   /** A buffer read on a worker, or why it was not. */
-  private record Result(DocumentController.Recovered recovered, String problem) {}
+  record Result(DocumentController.Recovered recovered, String problem) {}
 
   /** Reserves the buffer's heap and reads its file; nothing stays reserved on a failure. */
   @WorkerThread
-  private Result load(Path file) {
+  Result load(Path file) {
     LoadReservation reservation = null;
     Path name = file.getFileName();
     try {

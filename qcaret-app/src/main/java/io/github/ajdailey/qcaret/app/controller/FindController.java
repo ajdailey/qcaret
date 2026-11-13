@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SearchToggles;
 import io.github.ajdailey.qcaret.app.config.UiState;
-import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.FindListener;
 import io.github.ajdailey.qcaret.app.view.FindState;
@@ -13,23 +12,17 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
-import io.github.ajdailey.qcaret.core.document.DocumentChange;
-import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import io.github.ajdailey.qcaret.core.document.TextEdit;
 import io.github.ajdailey.qcaret.core.search.Match;
 import io.github.ajdailey.qcaret.core.search.PatternTooComplexException;
 import io.github.ajdailey.qcaret.core.search.ReplaceTemplate;
 import io.github.ajdailey.qcaret.core.search.SearchQuery;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.PatternSyntaxException;
@@ -45,8 +38,9 @@ import java.util.regex.PatternSyntaxException;
  *       start, then from the end, for Previous); a wrap shows a notice. Typing in the bar finds
  *       from where the selection started when the bar opened or the last match was found.
  *   <li>While the bar is open, each view of the selected document highlights the matches in its
- *       visible range, at most {@value #VIEW_MATCHES}. A text change shifts the highlights at once
- *       and recomputes them. Esc in a view with one caret and no block closes the bar.
+ *       visible range, at most {@value #VIEW_MATCHES} ({@link FindHighlights}). A text change
+ *       shifts the highlights at once and recomputes them. Esc in a view with one caret and no
+ *       block closes the bar.
  *   <li>Replace replaces the focused view's selection when the query matches exactly that range,
  *       then finds the next match. Replace All replaces every match in the document. Each is one
  *       undo step; line breaks in the replacement become the document's line ending.
@@ -70,21 +64,7 @@ public final class FindController implements DocumentController.ViewListener {
   private final UiDispatcher ui;
   private final Settings settings;
   private final List<FindListener> listeners = new ArrayList<FindListener>();
-  private final Map<EditorController, CancellationToken> highlighting =
-      new IdentityHashMap<EditorController, CancellationToken>();
-  private final Map<EditorController, int[]> shown = new IdentityHashMap<EditorController, int[]>();
-  private final DocumentListener changes =
-      new DocumentListener() {
-        @Override
-        public void textChanged(DocumentChange change) {
-          shift(change);
-        }
-
-        @Override
-        public void dirtyChanged(boolean dirty) {
-          // Highlights follow the text only.
-        }
-      };
+  private final FindHighlights highlights;
   private boolean open;
   private boolean replace;
   private String text = "";
@@ -94,7 +74,6 @@ public final class FindController implements DocumentController.ViewListener {
   private TextMatcher matcher;
   private CancellationToken finding;
   private long generation;
-  private Document followed;
   private EditorController target;
   private int anchor;
   private boolean disposed;
@@ -116,6 +95,7 @@ public final class FindController implements DocumentController.ViewListener {
     this.workers = workers;
     this.ui = ui;
     this.settings = settings;
+    this.highlights = new FindHighlights(this, documents, workers, ui);
     documents.setViewListener(this);
   }
 
@@ -187,7 +167,7 @@ public final class FindController implements DocumentController.ViewListener {
       }
     }
     compile();
-    refreshHighlights();
+    highlights.refresh();
     if (seeded && matcher != null) {
       find(true, anchor, false);
     } else {
@@ -218,7 +198,7 @@ public final class FindController implements DocumentController.ViewListener {
     open = false;
     documents.refreshOverview();
     cancelFind();
-    clearHighlights(new ArrayList<EditorController>(shown.keySet()));
+    highlights.clear();
     notice = "";
     error = false;
     changed();
@@ -277,7 +257,7 @@ public final class FindController implements DocumentController.ViewListener {
 
   private void queryChanged() {
     compile();
-    refreshHighlights();
+    highlights.refresh();
     if (matcher != null && open) {
       find(true, anchor, false);
     } else {
@@ -503,11 +483,7 @@ public final class FindController implements DocumentController.ViewListener {
   public void dispose() {
     disposed = true;
     cancelFind();
-    for (CancellationToken token : highlighting.values()) {
-      token.cancel();
-    }
-    highlighting.clear();
-    follow(null);
+    highlights.dispose();
   }
 
   // Finding.
@@ -672,7 +648,22 @@ public final class FindController implements DocumentController.ViewListener {
     }
   }
 
-  // Highlights.
+  /** Reports whether the bar is open. */
+  boolean isOpen() {
+    return open;
+  }
+
+  /** Returns the compiled query, or null when the text is empty or does not compile. */
+  TextMatcher matcher() {
+    return matcher;
+  }
+
+  /** Reports whether the controller is disposed. */
+  boolean disposed() {
+    return disposed;
+  }
+
+  // Highlights: FindHighlights.
 
   @Override
   public void escapePressed() {
@@ -693,171 +684,14 @@ public final class FindController implements DocumentController.ViewListener {
         anchor = editor.selections().selections().primary().start();
       }
     }
-    refreshHighlights();
+    highlights.refresh();
     changed();
   }
 
   @Override
   public void viewportChanged(EditorController editor) {
     if (open && matcher != null && !disposed) {
-      highlight(editor);
+      highlights.highlight(editor);
     }
-  }
-
-  /** Recomputes the highlights of every view of the selected document; clears the others. */
-  private void refreshHighlights() {
-    List<EditorController> views =
-        open && matcher != null && !disposed
-            ? documents.activeEditors()
-            : new ArrayList<EditorController>();
-    List<EditorController> stale = new ArrayList<EditorController>();
-    for (EditorController e : shown.keySet()) {
-      if (!views.contains(e)) {
-        stale.add(e);
-      }
-    }
-    for (EditorController e : highlighting.keySet()) {
-      if (!views.contains(e) && !stale.contains(e)) {
-        stale.add(e);
-      }
-    }
-    clearHighlights(stale);
-    follow(views.isEmpty() ? null : views.get(0).document());
-    for (EditorController e : views) {
-      highlight(e);
-    }
-  }
-
-  private void clearHighlights(List<EditorController> editors) {
-    for (EditorController e : editors) {
-      CancellationToken token = highlighting.remove(e);
-      if (token != null) {
-        token.cancel();
-      }
-      if (shown.remove(e) != null && e.view() != null) {
-        e.view().showMatches(new int[0]);
-      }
-    }
-  }
-
-  private void follow(Document document) {
-    if (document == followed) {
-      return;
-    }
-    if (followed != null) {
-      followed.removeListener(changes);
-    }
-    followed = document;
-    if (document != null) {
-      document.addListener(changes);
-    }
-  }
-
-  /** Computes one view's visible matches on a worker. */
-  private void highlight(final EditorController editor) {
-    CancellationToken old = highlighting.get(editor);
-    if (old != null) {
-      old.cancel();
-    }
-    final int from = editor.visibleStart();
-    final int to = editor.visibleEnd();
-    final Document document = editor.document();
-    final TextSnapshot snapshot = document.text();
-    final long revision = document.revision();
-    final TextMatcher m = matcher;
-    final CancellationToken token = new CancellationToken();
-    highlighting.put(editor, token);
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              int[] ranges;
-              try {
-                ranges = visibleMatches(m, snapshot, from, to, token);
-              } catch (CancellationException e) {
-                return;
-              } catch (PatternTooComplexException e) {
-                ranges = new int[0];
-              }
-              final int[] found = ranges;
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (highlighting.get(editor) != token || document.revision() != revision) {
-                        return;
-                      }
-                      highlighting.remove(editor);
-                      if (editor.view() != null) {
-                        shown.put(editor, found);
-                        editor.view().showMatches(found);
-                      }
-                    }
-                  });
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      highlighting.remove(editor);
-    }
-  }
-
-  /** The matches starting in {@code [from, to)} and on the part of its first line before it. */
-  @WorkerThread
-  static int[] visibleMatches(
-      TextMatcher m, TextSnapshot text, int from, int to, CancellationToken token) {
-    int end = Math.min(to, text.length());
-    if (end <= from) {
-      return new int[0];
-    }
-    int lineStart = text.offsetOfLine(text.lineAt(from));
-    int start = Math.max(lineStart, from - DisplayProjection.MAX_ROW_CHARS);
-    List<Match> matches = m.all(text, start, end, VIEW_MATCHES, token);
-    int[] ranges = new int[matches.size() * 2];
-    for (int i = 0; i < matches.size(); i++) {
-      ranges[2 * i] = matches.get(i).start();
-      ranges[2 * i + 1] = matches.get(i).end();
-    }
-    return ranges;
-  }
-
-  /** Shifts the shown highlights through a change, drops those it touches, and recomputes. */
-  private void shift(DocumentChange change) {
-    List<EditorController> editors = new ArrayList<EditorController>(shown.keySet());
-    for (EditorController e : editors) {
-      int[] mappedRanges = shifted(shown.get(e), change.edits());
-      shown.put(e, mappedRanges);
-      if (e.view() != null) {
-        e.view().showMatches(mappedRanges);
-      }
-    }
-    if (open && matcher != null) {
-      for (EditorController e : documents.activeEditors()) {
-        highlight(e);
-      }
-    }
-  }
-
-  /** Maps ranges through edits given by ascending offset; a range an edit touches is dropped. */
-  static int[] shifted(int[] ranges, List<TextEdit> edits) {
-    int[] out = new int[ranges.length];
-    int n = 0;
-    int e = 0;
-    int shift = 0;
-    for (int i = 0; i + 1 < ranges.length; i += 2) {
-      int start = ranges[i];
-      int end = ranges[i + 1];
-      while (e < edits.size() && edits.get(e).offset() + edits.get(e).removed().length() <= start) {
-        TextEdit edit = edits.get(e);
-        shift += edit.inserted().length() - edit.removed().length();
-        e++;
-      }
-      boolean touched = e < edits.size() && edits.get(e).offset() < end;
-      if (!touched) {
-        out[n++] = start + shift;
-        out[n++] = end + shift;
-      }
-    }
-    return Arrays.copyOf(out, n);
   }
 }

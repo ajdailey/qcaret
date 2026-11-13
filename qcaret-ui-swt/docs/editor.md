@@ -93,9 +93,11 @@ break. A double click on a char outside a word keeps the widget's selection.
 
 ## Gutter
 
-The gutter is painted in the widget's left margin by a paint listener, with the
-line number on each line's first row; `ColumnMetrics` places the digits and
-sizes the margin.
+`PanePainter` paints the gutter in the widget's left margin from the pane's
+paint listener, with the line number on each line's first row; `ColumnMetrics`
+places the digits and sizes the margin. It also paints the collapsed-region
+boxes, the whitespace and line-ending marks and the secondary carets or block,
+and sets the gutter's tooltip.
 
 - `MainWindow.setLineNumbersShown` reaches every pane and the constructor of
   later ones, since a margin change on a loaded document costs O(rows); hidden
@@ -131,13 +133,13 @@ sizes the margin.
   are not painted. A block's part past a short line's end, and each row's caret
   there, are painted from the line end's measured position at the fractional
   advance.
-- Line styles come from the pane's `HighlightComposer`: the syntax tokens
-  (`setSyntax`), the find matches (`showMatches`), the bracket pair
-  (`showBrackets`), the word occurrences (`showOccurrences`) and the secondary
-  selections. A run takes its `TokenRole`'s palette color, bold, italic and
-  underline; on the same chars the background of a secondary selection wins
-  over a bracket, a bracket over a find match, and a find match over an
-  occurrence. `redrawHighlights` repaints after new tokens arrive.
+- Line styles come from `PaneHighlights` and its `HighlightComposer`: the
+  syntax tokens (`setSyntax`), the find matches (`showMatches`), the bracket
+  pair (`showBrackets`), the word occurrences (`showOccurrences`) and the
+  secondary selections. A run takes its `TokenRole`'s palette color, bold,
+  italic and underline; on the same chars the background of a secondary
+  selection wins over a bracket, a bracket over a find match, and a find match
+  over an occurrence. `redrawHighlights` repaints after new tokens arrive.
 - Show Whitespace paints a dot in each space and an arrow across each tab, and
   Show Line Endings the break's kind (`CRLF`, `LF`, `CR`) after each line's
   last row, in the palette's whitespace color, which a theme switch recolors.

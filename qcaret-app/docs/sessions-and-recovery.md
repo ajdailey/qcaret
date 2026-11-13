@@ -6,7 +6,8 @@ The session file, per-file state and recovery files, in `app.session`,
 ## Session file
 
 `SessionStore` reads and writes `qcaret_session.conf`: a list of windows,
-Recent Files and the per-file LRU. `Gui` reads the file before the Display.
+Recent Files and the per-file LRU. `SessionReader` and `SessionWriter` map the
+keys. `Gui` reads the file before the Display.
 
 | Case | Result |
 |---|---|
@@ -146,8 +147,8 @@ one, and a second start lists the live instance's buffers as a crash's
 `RecoveryController` runs one queue on `qcaret-io-` workers under `runLock`, so
 a write cannot land after the delete that follows it. One controller and one
 instance directory serve every window: `WindowSet.dirtyBuffers` lists them, and
-a buffer id is unique in the instance. The dialog shows in the window activated
-last.
+a buffer id is unique in the instance. `RecoveryOffer` holds the dialog's rows;
+the dialog shows in the window activated last.
 
 | Event | Effect on the buffer's file |
 |---|---|

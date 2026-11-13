@@ -8,28 +8,20 @@ import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.HighlightComposer;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
-import io.github.ajdailey.qcaret.app.editor.LineEnds;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
-import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
-import io.github.ajdailey.qcaret.app.theme.TokenRole;
-import io.github.ajdailey.qcaret.app.theme.TokenStyle;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
-import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
-import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
@@ -53,7 +45,6 @@ import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Canvas;
@@ -172,24 +163,12 @@ public final class EditorPane implements EditorView {
   private ColumnMetrics metrics;
   private int gutterWidth;
   private int gutterDigits;
-  private Color gutter;
-  private Color lineNumbers;
   private Color currentLine;
-  private Color selectionBack;
-  private Color selectionFore;
-  private Color caret;
-  private Color bookmarkComment;
-  private Color findMatch;
-  private Color[] roleColors = new Color[0];
-  private int[] roleFontStyles = new int[0];
-  private boolean[] roleUnderlines = new boolean[0];
-  private Color occurrenceBack;
-  private Color bracketBack;
-  private Color whitespace;
   private Palette palette;
   private final Caret primaryCaret;
   private Image caretImage;
-  private final HighlightComposer composer = new HighlightComposer();
+  private final PaneHighlights highlights;
+  private final PanePainter painter;
   private int pendingTop = -1;
   private int reportedStart = -1;
   private int reportedEnd = -1;
@@ -199,18 +178,6 @@ public final class EditorPane implements EditorView {
   private final EditorGestures gestures;
   private final UiDispatcher ui;
   private final CompletionPopup completion;
-  private final Runnable bookmarksChanged =
-      new Runnable() {
-        @Override
-        public void run() {
-          if (!text.isDisposed()) {
-            text.redraw();
-          }
-        }
-      };
-  private Bookmarks bookmarks;
-  private boolean markWhitespace;
-  private boolean markLineEndings;
   private boolean lineNumbersShown;
   private final MarginPainter margin = new MarginPainter();
   private final IndentGuidePainter guides = new IndentGuidePainter();
@@ -255,6 +222,8 @@ public final class EditorPane implements EditorView {
     text = new StyledText(frame, SWT.MULTI | SWT.H_SCROLL);
     text.setData(PALETTE_COLORED, Boolean.TRUE);
     text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    highlights = new PaneHighlights(projection, selections);
+    painter = new PanePainter(this, text, projection, selections);
     strip =
         new OverviewStrip(
             frame,
@@ -627,9 +596,7 @@ public final class EditorPane implements EditorView {
    */
   public void release() {
     selections.removeListener(modelListener);
-    if (bookmarks != null) {
-      bookmarks.removeListener(bookmarksChanged);
-    }
+    painter.release();
     content.dispose();
   }
 
@@ -671,30 +638,11 @@ public final class EditorPane implements EditorView {
     if (!background.equals(text.getBackground())) {
       text.setBackground(background);
     }
-    selectionBack = color(palette.selection());
-    selectionFore = color(palette.selectionText());
-    text.setSelectionBackground(selectionBack);
-    text.setSelectionForeground(selectionFore);
-    gutter = color(palette.gutter());
-    lineNumbers = color(palette.lineNumbers());
+    text.setSelectionBackground(color(palette.selection()));
+    text.setSelectionForeground(color(palette.selectionText()));
     currentLine = color(palette.currentLine());
-    caret = color(palette.caret());
-    bookmarkComment = color(palette.bookmarkComment());
-    findMatch = color(palette.findMatch());
-    TokenRole[] roles = TokenRole.values();
-    roleColors = new Color[roles.length];
-    roleFontStyles = new int[roles.length];
-    roleUnderlines = new boolean[roles.length];
-    for (TokenRole role : roles) {
-      TokenStyle style = palette.style(role);
-      roleColors[role.ordinal()] = color(style.foreground());
-      roleFontStyles[role.ordinal()] =
-          (style.bold() ? SWT.BOLD : SWT.NORMAL) | (style.italic() ? SWT.ITALIC : SWT.NORMAL);
-      roleUnderlines[role.ordinal()] = style.underline();
-    }
-    occurrenceBack = color(palette.occurrence());
-    bracketBack = color(palette.bracket());
-    whitespace = color(palette.whitespace());
+    highlights.setPalette(palette);
+    painter.setPalette(palette);
     margin.setColor(color(palette.rightMargin()));
     guides.setColor(color(palette.indentGuide()));
     lineChanges.setColors(
@@ -771,6 +719,18 @@ public final class EditorPane implements EditorView {
    */
   public int foldColumn() {
     return gutterWidth - metrics.x(FOLD_COLUMNS);
+  }
+
+  Font font() {
+    return font;
+  }
+
+  boolean lineNumbersShown() {
+    return lineNumbersShown;
+  }
+
+  EditorLayout editorLayout() {
+    return layout;
   }
 
   private void updateGutter() {
@@ -988,7 +948,7 @@ public final class EditorPane implements EditorView {
         new LineStyleListener() {
           @Override
           public void lineGetStyle(LineStyleEvent event) {
-            event.styles = styles(event.lineOffset, event.lineText.length());
+            event.styles = highlights.styles(event.lineOffset, event.lineText.length());
           }
         });
     Listener tipFollower =
@@ -996,9 +956,9 @@ public final class EditorPane implements EditorView {
           @Override
           public void handleEvent(Event event) {
             if (event.type == SWT.MouseExit) {
-              updateToolTip(-1, -1);
+              painter.updateToolTip(-1, -1);
             } else {
-              updateToolTip(event.x, event.y);
+              painter.updateToolTip(event.x, event.y);
             }
           }
         };
@@ -1008,17 +968,17 @@ public final class EditorPane implements EditorView {
         new PaintListener() {
           @Override
           public void paintControl(PaintEvent event) {
-            paintGutter(event.gc, event.y, event.height);
+            painter.paintGutter(event.gc, event.y, event.height);
             lineChanges.paint(event.gc, text, projection, gutterWidth);
-            paintCollapsed(event.gc);
-            paintBookmarks(event.gc);
+            painter.paintCollapsed(event.gc);
+            painter.paintBookmarks(event.gc);
             guides.paint(event.gc, text, projection);
-            paintMarks(event.gc);
+            painter.paintMarks(event.gc);
             margin.paint(event.gc, text, metrics, event.y, event.height);
             if (selections.block() != null) {
-              paintBlock(event.gc);
+              painter.paintBlock(event.gc);
             } else {
-              paintCarets(event.gc);
+              painter.paintCarets(event.gc);
             }
             reportViewport();
             syncScrollBar();
@@ -1102,187 +1062,6 @@ public final class EditorPane implements EditorView {
     return false;
   }
 
-  /** Returns a row's styles from the composer's runs. */
-  private StyleRange[] styles(int rowOffset, int rowLength) {
-    int from = projection.toModel(rowOffset);
-    int line = projection.lineOfRow(projection.rowAt(rowOffset));
-    int lineStart = projection.lineStart(line);
-    int[] runs =
-        composer.compose(line, lineStart, from, from + rowLength, secondaryRanges(from, rowLength));
-    StyleRange[] styles = new StyleRange[runs.length / 4];
-    int selection = HighlightComposer.Background.SELECTION.ordinal();
-    Color[] backgrounds = {selectionBack, bracketBack, findMatch, occurrenceBack};
-    for (int i = 0; i < runs.length; i += 4) {
-      int role = runs[i + 2];
-      int background = runs[i + 3];
-      StyleRange style = new StyleRange();
-      style.start = rowOffset + runs[i];
-      style.length = runs[i + 1];
-      if (role != HighlightComposer.NONE) {
-        style.foreground = roleColors[role];
-        style.fontStyle = roleFontStyles[role];
-        style.underline = roleUnderlines[role];
-      }
-      if (background == selection) {
-        style.foreground = selectionFore;
-        style.background = selectionBack;
-      } else if (background != HighlightComposer.NONE) {
-        style.background = backgrounds[background];
-      }
-      styles[i / 4] = style;
-    }
-    return styles;
-  }
-
-  /** Returns the secondary selections within one row as model offset pairs. */
-  private int[] secondaryRanges(int from, int rowLength) {
-    SelectionSet set = selections.selections();
-    if (set.size() == 1) {
-      return new int[0];
-    }
-    int to = from + rowLength;
-    int[] out = new int[16];
-    int size = 0;
-    List<Selection> list = set.selections();
-    for (int i = firstEndingAtOrAfter(list, from); i < list.size(); i++) {
-      Selection s = list.get(i);
-      if (s.start() >= to) {
-        break;
-      }
-      if (i == set.primaryIndex() || s.isEmpty()) {
-        continue;
-      }
-      int start = Math.max(s.start(), from);
-      int end = Math.min(s.end(), to);
-      if (end > start) {
-        if (size + 2 > out.length) {
-          out = Arrays.copyOf(out, out.length * 2);
-        }
-        out[size++] = start;
-        out[size++] = end;
-      }
-    }
-    return Arrays.copyOf(out, size);
-  }
-
-  /** Returns the index of the first selection whose end is at or after {@code offset}. */
-  private static int firstEndingAtOrAfter(List<Selection> list, int offset) {
-    int lo = 0;
-    int hi = list.size();
-    while (lo < hi) {
-      int mid = (lo + hi) >>> 1;
-      if (list.get(mid).end() < offset) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return lo;
-  }
-
-  private void paintGutter(GC gc, int y, int height) {
-    gc.setBackground(gutter);
-    gc.fillRectangle(0, y, gutterWidth, height);
-    gc.setForeground(lineNumbers);
-    gc.setFont(font);
-    Rectangle area = text.getClientArea();
-    int rows = projection.rowCount();
-    for (int row = text.getTopIndex(); row < rows; row++) {
-      int top = text.getLinePixel(row);
-      if (top > area.height) {
-        break;
-      }
-      if (projection.subRow(row) == 0) {
-        int line = projection.lineOfRow(row);
-        if (lineNumbersShown) {
-          String number = Integer.toString(line + 1);
-          int x = foldColumn() - GUTTER_PADDING - metrics.x(number.length());
-          gc.drawString(number, x, top, true);
-        }
-        if (projection.foldEnd(line) >= 0) {
-          paintFoldMarker(gc, top, projection.collapsed(line));
-        }
-      }
-    }
-  }
-
-  /**
-   * Draws a fold marker box in the gutter's fold column: a minus sign, or a plus when collapsed.
-   */
-  private void paintFoldMarker(GC gc, int top, boolean collapsed) {
-    int lineHeight = text.getLineHeight();
-    int size = Math.max(5, Math.min(metrics.x(FOLD_COLUMNS) - 4, lineHeight - 4)) | 1;
-    int x = foldColumn() + (metrics.x(FOLD_COLUMNS) - size) / 2;
-    int y = top + (lineHeight - size) / 2;
-    int middle = size / 2;
-    gc.drawRectangle(x, y, size - 1, size - 1);
-    gc.drawLine(x + 2, y + middle, x + size - 3, y + middle);
-    if (collapsed) {
-      gc.drawLine(x + middle, y + 2, x + middle, y + size - 3);
-    }
-  }
-
-  /** Draws an ellipsis box after the last row of each visible collapsed region's first line. */
-  private void paintCollapsed(GC gc) {
-    if (projection.collapsedCount() == 0) {
-      return;
-    }
-    Rectangle area = text.getClientArea();
-    int rows = projection.rowCount();
-    int lineHeight = text.getLineHeight();
-    gc.setForeground(lineNumbers);
-    gc.setFont(font);
-    for (int row = text.getTopIndex(); row < rows; row++) {
-      int top = text.getLinePixel(row);
-      if (top > area.height) {
-        break;
-      }
-      int line = projection.lineOfRow(row);
-      boolean lastRow = row + 1 >= rows || projection.lineOfRow(row + 1) != line;
-      if (!lastRow || !projection.collapsed(line)) {
-        continue;
-      }
-      Point end =
-          text.getLocationAtOffset(projection.rowStart(row) + projection.rowText(row).length());
-      int x = end.x + metrics.x(1);
-      if (x >= text.getLeftMargin()) {
-        gc.drawRectangle(x, top + 1, metrics.x(3) + 1, lineHeight - 3);
-        gc.drawString("...", x + 1, top, true);
-      }
-    }
-  }
-
-  private void paintCarets(GC gc) {
-    SelectionSet set = selections.selections();
-    if (set.size() == 1) {
-      return;
-    }
-    Rectangle area = text.getClientArea();
-    int top = text.getTopIndex();
-    int bottom = Math.min(projection.rowCount() - 1, text.getLineIndex(area.height));
-    int from = projection.toModel(projection.rowStart(top));
-    int to = projection.toModel(projection.rowStart(bottom) + projection.rowText(bottom).length());
-    int lineHeight = text.getLineHeight();
-    gc.setBackground(caret);
-    List<Selection> list = set.selections();
-    for (int i = firstEndingAtOrAfter(list, from); i < list.size(); i++) {
-      Selection s = list.get(i);
-      if (s.start() > to) {
-        break;
-      }
-      if (i == set.primaryIndex()
-          || s.caret() < from
-          || s.caret() > to
-          || projection.hidden(projection.lineAt(s.caret()))) {
-        continue;
-      }
-      Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
-      if (at.x >= text.getLeftMargin() - CARET_WIDTH) {
-        gc.fillRectangle(at.x, at.y, CARET_WIDTH, lineHeight);
-      }
-    }
-  }
-
   // Block selection, tab width and layout queries.
 
   /**
@@ -1317,54 +1096,11 @@ public final class EditorPane implements EditorView {
     gestures.setColumnMode(on);
   }
 
-  /**
-   * Paints a block on the visible rows: its part past each short line's end in the selection color,
-   * and each row's caret but the widget's own, past the line end at the block's caret column.
-   */
-  private void paintBlock(GC gc) {
-    BlockSelection block = selections.block();
-    SelectionSet set = selections.selections();
-    Rectangle area = text.getClientArea();
-    int top = text.getTopIndex();
-    int bottom = Math.min(projection.rowCount() - 1, text.getLineIndex(area.height));
-    int from = projection.toModel(projection.rowStart(top));
-    int to = projection.toModel(projection.rowStart(bottom) + projection.rowText(bottom).length());
-    int left = Math.min(block.anchorColumn(), block.caretColumn());
-    int right = Math.max(block.anchorColumn(), block.caretColumn());
-    int lineHeight = text.getLineHeight();
-    List<Selection> list = set.selections();
-    for (int i = firstEndingAtOrAfter(list, from); i < list.size(); i++) {
-      Selection s = list.get(i);
-      if (s.start() > to) {
-        break;
-      }
-      Point end = text.getLocationAtOffset(projection.toDisplay(s.end()));
-      int endColumn = layout.lineColumn(projection.toDisplay(s.end()));
-      if (endColumn < right) {
-        int x0 = end.x + metrics.x(Math.max(0, left - endColumn));
-        int x1 = end.x + metrics.x(right - endColumn);
-        gc.setBackground(selectionBack);
-        gc.fillRectangle(x0, end.y, x1 - x0, lineHeight);
-      }
-      int caretColumn = layout.lineColumn(projection.toDisplay(s.caret()));
-      boolean virtual = caretColumn < block.caretColumn();
-      if (i == set.primaryIndex() && !virtual) {
-        continue;
-      }
-      Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
-      int x = virtual ? at.x + metrics.x(block.caretColumn() - caretColumn) : at.x;
-      if (x >= text.getLeftMargin() - CARET_WIDTH) {
-        gc.setBackground(caret);
-        gc.fillRectangle(x, at.y, CARET_WIDTH, lineHeight);
-      }
-    }
-  }
-
   // Find matches.
 
   @Override
   public void showMatches(int[] ranges) {
-    composer.setMatches(ranges);
+    highlights.setMatches(ranges);
     if (!text.isDisposed()) {
       text.redraw();
     }
@@ -1376,14 +1112,14 @@ public final class EditorPane implements EditorView {
    * @return model offset pairs
    */
   public int[] matches() {
-    return composer.matches();
+    return highlights.matches();
   }
 
   // Syntax.
 
   @Override
   public void setSyntax(TokenSource tokens) {
-    composer.setSyntax(tokens);
+    highlights.setSyntax(tokens);
     redrawHighlights();
   }
 
@@ -1401,7 +1137,7 @@ public final class EditorPane implements EditorView {
    * @return the row's styles, offsets in the display text
    */
   public StyleRange[] rowStyles(int row) {
-    return styles(projection.rowStart(row), projection.rowText(row).length());
+    return highlights.styles(projection.rowStart(row), projection.rowText(row).length());
   }
 
   /** Reports the visible display range when it differs from the last one reported. */
@@ -1422,7 +1158,7 @@ public final class EditorPane implements EditorView {
 
   @Override
   public void showBrackets(int[] ranges) {
-    composer.setBrackets(ranges);
+    highlights.setBrackets(ranges);
     if (!text.isDisposed()) {
       text.redraw();
     }
@@ -1430,7 +1166,7 @@ public final class EditorPane implements EditorView {
 
   @Override
   public void showOccurrences(int[] ranges) {
-    composer.setOccurrences(ranges);
+    highlights.setOccurrences(ranges);
     if (!text.isDisposed()) {
       text.redraw();
     }
@@ -1438,12 +1174,7 @@ public final class EditorPane implements EditorView {
 
   @Override
   public void setBookmarks(Bookmarks value) {
-    if (bookmarks != null) {
-      bookmarks.removeListener(bookmarksChanged);
-    }
-    bookmarks = value;
-    value.addListener(bookmarksChanged);
-    bookmarksChanged.run();
+    painter.setBookmarks(value);
   }
 
   @Override
@@ -1455,12 +1186,8 @@ public final class EditorPane implements EditorView {
 
   @Override
   public void setMarks(boolean whitespaceMarks, boolean lineEndingMarks) {
-    if (markWhitespace != whitespaceMarks || markLineEndings != lineEndingMarks) {
-      markWhitespace = whitespaceMarks;
-      markLineEndings = lineEndingMarks;
-      if (!text.isDisposed()) {
-        text.redraw();
-      }
+    if (painter.setMarks(whitespaceMarks, lineEndingMarks) && !text.isDisposed()) {
+      text.redraw();
     }
   }
 
@@ -1480,7 +1207,7 @@ public final class EditorPane implements EditorView {
    * @return model offset pairs
    */
   public int[] brackets() {
-    return composer.brackets();
+    return highlights.brackets();
   }
 
   /**
@@ -1489,7 +1216,7 @@ public final class EditorPane implements EditorView {
    * @return model offset pairs
    */
   public int[] occurrences() {
-    return composer.occurrences();
+    return highlights.occurrences();
   }
 
   /**
@@ -1516,7 +1243,7 @@ public final class EditorPane implements EditorView {
    * @return {whitespace, line endings}
    */
   public boolean[] marks() {
-    return new boolean[] {markWhitespace, markLineEndings};
+    return painter.marks();
   }
 
   /** Closes the completion list one UI turn after the editor lost focus, unless it has it again. */
@@ -1533,130 +1260,5 @@ public final class EditorPane implements EditorView {
             }
           }
         });
-  }
-
-  /**
-   * Paints the bookmark column on the first row of each visible bookmarked line: a bar in the caret
-   * color, or for a commented bookmark the bar and a square at its top right in the comment color.
-   */
-  private void paintBookmarks(GC gc) {
-    if (bookmarks == null) {
-      return;
-    }
-    int[] lines = bookmarks.lines();
-    if (lines.length == 0) {
-      return;
-    }
-    int[] commented = bookmarks.commentedLines();
-    Rectangle area = text.getClientArea();
-    int rows = projection.rowCount();
-    int lineHeight = text.getLineHeight();
-    for (int row = text.getTopIndex(); row < rows; row++) {
-      int top = text.getLinePixel(row);
-      if (top > area.height) {
-        break;
-      }
-      int line = projection.lineOfRow(row);
-      if (projection.subRow(row) == 0 && Arrays.binarySearch(lines, line) >= 0) {
-        int height = Math.max(1, lineHeight - 2);
-        if (Arrays.binarySearch(commented, line) >= 0) {
-          gc.setBackground(bookmarkComment);
-          gc.fillRectangle(
-              BOOKMARK_BAR, top + 1, BOOKMARK_COLUMN - BOOKMARK_BAR - 3, Math.min(height, 7));
-        } else {
-          gc.setBackground(caret);
-        }
-        gc.fillRectangle(1, top + 1, BOOKMARK_BAR - 1, height);
-      }
-    }
-  }
-
-  /**
-   * Shows a commented bookmark's comment as the tooltip while the pointer is over the gutter left
-   * of the fold markers on its line; elsewhere left of the text, the modified-line limit notice
-   * while the marks are over the limit; no tooltip otherwise.
-   */
-  private void updateToolTip(int x, int y) {
-    String tip = null;
-    if (bookmarks != null && x >= 0 && x < foldColumn() && projection.rowCount() > 0) {
-      int row = text.getLineIndex(y);
-      int top = text.getLinePixel(row);
-      if (y >= top && y < top + text.getLineHeight()) {
-        tip = bookmarks.comment(projection.lineOfRow(row));
-      }
-    }
-    if (tip == null && x >= 0 && x < text.getLeftMargin() && lineChanges.changes().overLimit()) {
-      tip = UiText.LINE_CHANGES_OVER_LIMIT.format(LineChanges.MAX_LINES, LineChanges.MAX_CHARS);
-    }
-    if (!Objects.equals(tip, text.getToolTipText())) {
-      text.setToolTipText(tip);
-    }
-  }
-
-  /** Paints the whitespace and line-ending marks on the visible rows. */
-  private void paintMarks(GC gc) {
-    if (!markWhitespace && !markLineEndings) {
-      return;
-    }
-    Rectangle area = text.getClientArea();
-    int rows = projection.rowCount();
-    int lineHeight = text.getLineHeight();
-    gc.setForeground(whitespace);
-    gc.setBackground(whitespace);
-    gc.setFont(font);
-    for (int row = text.getTopIndex(); row < rows; row++) {
-      int top = text.getLinePixel(row);
-      if (top > area.height) {
-        break;
-      }
-      String rowText = projection.rowText(row);
-      int rowStart = projection.rowStart(row);
-      if (markWhitespace) {
-        paintBlanks(gc, rowText, rowStart, top + lineHeight / 2);
-      }
-      int line = projection.lineOfRow(row);
-      if (markLineEndings && (row + 1 == rows || projection.lineOfRow(row + 1) != line)) {
-        LineEnding ending = LineEnds.of(projection.document(), line);
-        if (ending != null) {
-          Point end = text.getLocationAtOffset(rowStart + rowText.length());
-          gc.drawString(ending.name(), end.x + metrics.x(1) / 2, top, true);
-        }
-      }
-    }
-  }
-
-  /** Paints a dot in each space and an arrow across each tab of one row. */
-  private void paintBlanks(GC gc, String rowText, int rowStart, int middle) {
-    int i = 0;
-    int length = rowText.length();
-    while (i < length) {
-      char c = rowText.charAt(i);
-      if (c == ' ') {
-        int j = i;
-        while (j < length && rowText.charAt(j) == ' ') {
-          j++;
-        }
-        int x0 = text.getLocationAtOffset(rowStart + i).x;
-        int x1 = text.getLocationAtOffset(rowStart + j).x;
-        int n = j - i;
-        for (int k = 0; k < n; k++) {
-          int x = x0 + (x1 - x0) * (2 * k + 1) / (2 * n);
-          gc.fillRectangle(x - 1, middle - 1, 2, 2);
-        }
-        i = j;
-      } else if (c == '\t') {
-        int x0 = text.getLocationAtOffset(rowStart + i).x + 2;
-        int x1 = text.getLocationAtOffset(rowStart + i + 1).x - 2;
-        if (x1 > x0) {
-          int head = Math.min(3, x1 - x0);
-          gc.drawLine(x0, middle, x1, middle);
-          gc.drawLine(x1 - head, middle - head, x1, middle);
-          gc.drawLine(x1 - head, middle + head, x1, middle);
-        }
-        i++;
-      } else {
-        i++;
-      }
-    }
   }
 }

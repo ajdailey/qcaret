@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.app.controller;
 
-import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
@@ -8,7 +7,6 @@ import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.UiState;
-import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
@@ -24,7 +22,6 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
-import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
@@ -91,6 +88,7 @@ public final class ApplicationController {
   private final EditorAids aids;
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
+  private final WindowCommands windowCommands;
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -208,6 +206,7 @@ public final class ApplicationController {
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
     this.alwaysOnTop = new AlwaysOnTop(view, documents);
     this.compare = new CompareController(documents, workers, ui, view, budget);
+    this.windowCommands = new WindowCommands(this, set, view, settings, documents, compare);
     this.print = new PrintController(documents, workers, ui, view);
     documents.setCompare(compare);
     documents.setOverviewSources(
@@ -735,7 +734,7 @@ public final class ApplicationController {
       case CLOSE_ALL -> documents.closeAllTabs();
       case QUIT -> requestQuit();
       case NEW_WINDOW -> set.newWindow();
-      case MOVE_TO_NEW_WINDOW -> moveActiveToNewWindow();
+      case MOVE_TO_NEW_WINDOW -> windowCommands.moveActiveToNewWindow();
       case UNDO,
           REDO,
           CUT,
@@ -1131,17 +1130,8 @@ public final class ApplicationController {
    * @param untitled true to open an untitled document when the window stays without one
    */
   public void open(StartupRequest request, boolean untitled) {
-    if (quitting) {
-      return;
-    }
-    for (FileRequest file : request.files()) {
-      documents.open(file);
-    }
-    if (untitled && request.files().isEmpty() && documents.count() == 0) {
-      documents.newDocument();
-    }
-    if (request.diffLeft() != null) {
-      compare.compareFiles(request.diffLeft(), request.diffRight());
+    if (!quitting) {
+      windowCommands.open(request, untitled);
     }
   }
 
@@ -1153,10 +1143,7 @@ public final class ApplicationController {
    * @param index the tab position there
    */
   public void moveTab(TabInput tab, ApplicationController target, int index) {
-    Document document = documents.documentOf(tab);
-    if (document != null) {
-      set.moveDocument(this, document, target, new WindowSet.Placement(index, null, null));
-    }
+    windowCommands.moveTab(tab, target, index);
   }
 
   /**
@@ -1167,17 +1154,7 @@ public final class ApplicationController {
    * @param y its top edge, or null
    */
   public void moveTabToNewWindow(TabInput tab, Integer x, Integer y) {
-    Document document = documents.documentOf(tab);
-    if (document != null) {
-      set.moveDocument(this, document, null, new WindowSet.Placement(0, x, y));
-    }
-  }
-
-  private void moveActiveToNewWindow() {
-    Document document = documents.activeDocument();
-    if (document != null) {
-      set.moveDocument(this, document, null, new WindowSet.Placement(0, null, null));
-    }
+    windowCommands.moveTabToNewWindow(tab, x, y);
   }
 
   /**
@@ -1186,12 +1163,7 @@ public final class ApplicationController {
    * @return each window's selected document, or its empty label, in creation order
    */
   public List<String> windowLabels() {
-    List<String> labels = new ArrayList<String>();
-    for (ApplicationController window : set.windows()) {
-      String name = window.documents.activeName();
-      labels.add(name == null ? UiText.WINDOW_EMPTY.text() : name);
-    }
-    return labels;
+    return windowCommands.windowLabels();
   }
 
   /**
@@ -1200,7 +1172,7 @@ public final class ApplicationController {
    * @return the index
    */
   public int windowIndex() {
-    return set.windows().indexOf(this);
+    return windowCommands.windowIndex();
   }
 
   /**
@@ -1209,10 +1181,7 @@ public final class ApplicationController {
    * @param index its place in {@link #windowLabels}; out of range does nothing
    */
   public void showWindow(int index) {
-    List<ApplicationController> windows = set.windows();
-    if (index >= 0 && index < windows.size()) {
-      windows.get(index).toFront();
-    }
+    windowCommands.showWindow(index);
   }
 
   void toFront() {
@@ -1230,19 +1199,7 @@ public final class ApplicationController {
 
   /** Records this window's normal bounds and maximized state unless the set saves none. */
   void rememberWindow() {
-    if (set.rememberWindow()) {
-      WindowGeometry.Request bounds = view.windowBounds();
-      settings.record(
-          settings
-              .current()
-              .withWindow(
-                  new WindowState(
-                      bounds.x(),
-                      bounds.y(),
-                      bounds.width(),
-                      bounds.height(),
-                      view.windowMaximized())));
-    }
+    windowCommands.rememberWindow();
   }
 
   /** Stops the window's controllers and closes its documents without asking. */

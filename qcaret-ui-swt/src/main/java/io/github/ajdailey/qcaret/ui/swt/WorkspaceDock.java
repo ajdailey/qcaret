@@ -10,7 +10,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
@@ -22,24 +21,22 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.swt.widgets.Tree;
-import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 
 /**
  * The workspace browser dock: a wrapping row of icon tool bars ({@link BrowseBar}'s four, then
  * Refresh, Reveal Active File and Hide) and the {@link BrowseBar}'s fields over a {@link Tree} of a
- * {@link WorkspaceInput}'s rows with Name, Size and Modified columns. Size and Modified are as wide
- * as their header and widest text shown, Modified shows the date, and Name takes the rest of the
- * tree's width. A row's tool tip is its {@link BrowserRowTip}, and a drag of the selected files is
- * a {@link BrowserDrag}. A click on a column header sorts by it, a second click reverses the order.
- * A directory row holds an empty placeholder child until it first expands, which asks the input to
- * list it; its rows replace the placeholder when the input reports the change. A refill keeps the
- * expanded state of rows that remain. The tree selects several rows ({@link BrowserSelection}).
- * Enter or a double click opens a file, shows more entries on a "more" row, and expands or
- * collapses a directory, for the focused row. One context menu, built on the first right click,
- * offers {@link WorkspaceSelectionInput#MENU} for the selected rows, or for the workspace folder
- * over empty space; {@link WorkspaceSelectionInput} enables and runs them. Delete and F2 delete and
- * rename the selected rows while the tree has focus; the editor never sees them.
+ * {@link WorkspaceInput}'s rows with Name, Size and Modified columns ({@link BrowserColumns});
+ * Modified shows the date. A row's tool tip is its {@link BrowserRowTip}, and a drag of the
+ * selected files is a {@link BrowserDrag}. A click on a column header sorts by it, a second click
+ * reverses the order. A directory row holds an empty placeholder child until it first expands,
+ * which asks the input to list it; its rows replace the placeholder when the input reports the
+ * change. A refill keeps the expanded state of rows that remain. The tree selects several rows
+ * ({@link BrowserSelection}). Enter or a double click opens a file, shows more entries on a "more"
+ * row, and expands or collapses a directory, for the focused row. One context menu, built on the
+ * first right click, offers {@link WorkspaceSelectionInput#MENU} for the selected rows, or for the
+ * workspace folder over empty space; {@link WorkspaceSelectionInput} enables and runs them. Delete
+ * and F2 delete and rename the selected rows while the tree has focus; the editor never sees them.
  */
 final class WorkspaceDock {
   private final Composite root;
@@ -50,16 +47,9 @@ final class WorkspaceDock {
   private final BrowserRowTip rowTip;
   private final BrowserDrag drag;
   private final BrowserSelection selection;
-  private final TreeColumn[] columns = new TreeColumn[3];
-  private int nameMinimum;
+  private final BrowserColumns columns;
   private Menu menu;
   private WorkspaceInput input;
-
-  /** Pixels added to a header text's width for its padding and sort arrow. */
-  private static final int HEADER_PADDING = 24;
-
-  /** Pixels added to a cell text's width for its padding. */
-  private static final int CELL_PADDING = 16;
 
   /** What a button does. */
   private enum Action {
@@ -96,15 +86,7 @@ final class WorkspaceDock {
     tree = new Tree(root, SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL | SWT.FULL_SELECTION);
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     tree.setHeaderVisible(true);
-    addColumns();
-    tree.addListener(
-        SWT.Resize,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            fitNameColumn();
-          }
-        });
+    columns = new BrowserColumns(this, tree);
     rowTip = new BrowserRowTip(tree);
     drag = new BrowserDrag(tree);
     selection = new BrowserSelection(tree);
@@ -169,67 +151,6 @@ final class WorkspaceDock {
         });
   }
 
-  /** Adds the Name, Size and Modified columns, each as wide as its header. */
-  private void addColumns() {
-    UiText[] labels = {
-      UiText.BROWSE_COLUMN_NAME, UiText.BROWSE_COLUMN_SIZE, UiText.BROWSE_COLUMN_MODIFIED
-    };
-    GC gc = new GC(tree);
-    try {
-      for (int i = 0; i < columns.length; i++) {
-        final WorkspaceBrowseInput.Column column = WorkspaceBrowseInput.Column.values()[i];
-        columns[i] = new TreeColumn(tree, i == 1 ? SWT.RIGHT : SWT.LEFT);
-        columns[i].setText(labels[i].text());
-        columns[i].setWidth(gc.textExtent(labels[i].text()).x + HEADER_PADDING);
-        columns[i].addListener(
-            SWT.Selection,
-            new Listener() {
-              @Override
-              public void handleEvent(Event event) {
-                sort(column);
-              }
-            });
-      }
-    } finally {
-      gc.dispose();
-    }
-  }
-
-  /** Gives the Name column the tree's width less Size and Modified, down to its header's width. */
-  private void fitNameColumn() {
-    if (nameMinimum == 0) {
-      nameMinimum = columns[0].getWidth();
-    }
-    int rest = tree.getClientArea().width - columns[1].getWidth() - columns[2].getWidth();
-    columns[0].setWidth(Math.max(nameMinimum, rest));
-  }
-
-  /** Widens Size and Modified to fit the rows' texts; they never narrow while the dock lives. */
-  private void widen(List<WorkspaceNode> rows) {
-    boolean wider = false;
-    GC gc = new GC(tree);
-    try {
-      for (WorkspaceNode row : rows) {
-        wider |= widen(columns[1], gc, row.size());
-        wider |= widen(columns[2], gc, row.modified());
-      }
-    } finally {
-      gc.dispose();
-    }
-    if (wider) {
-      fitNameColumn();
-    }
-  }
-
-  private static boolean widen(TreeColumn column, GC gc, String text) {
-    int width = text.isEmpty() ? 0 : gc.textExtent(text).x + CELL_PADDING;
-    if (width <= column.getWidth()) {
-      return false;
-    }
-    column.setWidth(width);
-    return true;
-  }
-
   /**
    * Sorts by a column, reversing the order when it already sorts by it.
    *
@@ -240,17 +161,6 @@ final class WorkspaceDock {
     if (browse != null) {
       browse.sort(column, browse.sortColumn() == column && !browse.descending());
     }
-  }
-
-  /** Shows the model's sort column and direction in the header. */
-  private void showSort() {
-    WorkspaceBrowseInput browse = input == null ? null : input.browse();
-    if (browse == null) {
-      tree.setSortColumn(null);
-      return;
-    }
-    tree.setSortColumn(columns[browse.sortColumn().ordinal()]);
-    tree.setSortDirection(browse.descending() ? SWT.DOWN : SWT.UP);
   }
 
   private void button(Composite parent, String icon, UiText label, final Action action) {
@@ -350,7 +260,7 @@ final class WorkspaceDock {
       return;
     }
     browseBar.update(input == null ? UiText.WORKSPACE_NONE.text() : input.title());
-    showSort();
+    columns.showSort(input == null ? null : input.browse());
     WorkspaceNode top = input == null ? null : input.rootNode();
     tree.setRedraw(false);
     try {
@@ -416,7 +326,7 @@ final class WorkspaceDock {
 
   /** Adds rows under a parent row, or at the top for null; re-expands the rows in {@code open}. */
   private void fill(TreeItem parent, List<WorkspaceNode> rows, Set<WorkspaceNode> open) {
-    widen(rows);
+    columns.widen(rows);
     for (WorkspaceNode row : rows) {
       TreeItem item =
           parent == null ? new TreeItem(tree, SWT.NONE) : new TreeItem(parent, SWT.NONE);

@@ -241,6 +241,15 @@ class WorkspaceBrowseSurfaceTest {
   }
 
   @Test
+  void aDockWithoutAWorkspaceShowsNoSortColumn() {
+    WorkspaceDock dock = browser(List.of("docs/", "build.xml", "README.txt"));
+    assertEquals(dock.tree().getColumn(0), dock.tree().getSortColumn());
+    dock.setInput(null);
+    assertNull(dock.tree().getSortColumn());
+    assertEquals(List.of(), dock.texts(null));
+  }
+
+  @Test
   void theFilterFieldAndHiddenCheckBoxListAgain() {
     final WorkspaceDock dock = browser(List.of("docs/", "build.xml", "README.txt"));
     BrowseBar bar = dock.bar();

@@ -177,9 +177,9 @@ CR and an LF stay, and the editor's notice counts their lines.
 ## Saving
 
 `DocumentController` routes Save, Save As, Save All, the quit saves and reload
-to `SaveAndReload`, one per window. `SaveAndReload` calls
-`DocumentSettings.prepareSave` for the save cleanup and `DocumentsUnder` for the
-rename hold.
+to `SaveAndReload`, one per window, which hands reload to `FileReload`.
+`SaveAndReload` calls `DocumentSettings.prepareSave` for the save cleanup and
+`DocumentsUnder` for the rename hold.
 
 Save writes a `DocumentSnapshot` through `DocumentFiles.save` on a `qcaret-io-`
 worker while editing goes on, then calls `markSaved`.

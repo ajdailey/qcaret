@@ -226,6 +226,17 @@ class SessionStoreTest {
     assertEquals(List.of(), window.searches());
   }
 
+  @Test
+  void aCommentWithoutALineOrTextIsSkipped() throws Exception {
+    Files.writeString(
+        temp.resolve(SessionStore.FILE),
+        "window.0.active=0\nwindow.0.tab.0.tabWidth=4\nwindow.0.tab.0.path=/mock/a.txt\n"
+            + "window.0.tab.0.comment.0=mock\nwindow.0.tab.0.comment.1=x mock\n"
+            + "window.0.tab.0.comment.2=3 kept\n");
+    Session.Tab tab = store().load().windows().get(0).tabs().get(0);
+    assertEquals(List.of(new Session.Comment(3, "kept")), tab.comments());
+  }
+
   private void assertDroppedCommentsRead(String value, int expected) throws Exception {
     Files.writeString(temp.resolve(SessionStore.FILE), "droppedComments=" + value + "\n");
     assertEquals(expected, store().load().droppedComments());

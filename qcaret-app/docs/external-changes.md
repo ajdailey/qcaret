@@ -1,8 +1,8 @@
 # External changes and Compare
 
-`ExternalChanges`, `SaveAndReload` (reload and the change prompts) and
-`CompareController`, in `app.controller` of [qcaret-app](../README.md). The file
-check itself is in
+`ExternalChanges`, `FileReload` (reload and the change prompts, for
+`SaveAndReload`) and `CompareController`, in `app.controller` of
+[qcaret-app](../README.md). The file check itself is in
 [qcaret-core external changes](../../qcaret-core/docs/external-changes.md).
 
 ## Checks
@@ -13,7 +13,7 @@ activation (`ApplicationController.windowActivated`), on a directory event and
 after Restore Run. It checks the path the user opened, kept per document beside
 the real path that names the tab and deduplicates opens.
 
-A result reaches `SaveAndReload` on the UI thread only when the document's
+A result reaches `FileReload` on the UI thread only when the document's
 watch generation is unchanged: a save or a reload pauses the watch and raises
 the generation, so the document's own write is never reported.
 
