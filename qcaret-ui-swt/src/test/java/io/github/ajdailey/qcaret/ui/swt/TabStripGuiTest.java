@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -189,6 +190,8 @@ class TabStripGuiTest {
 
   @Test
   void aMenuRequestOnATabTakesTheEventAndOffTheTabsLeavesIt() {
+    // The request opens the tab menu; cocoa runs a shown popup in a modal loop nothing closes.
+    assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa runs the tab menu in a modal loop");
     CTabFolder tabs = window.tabs();
     Rectangle item = tabs.getItem(0).getBounds();
     Event onTab = new Event();
