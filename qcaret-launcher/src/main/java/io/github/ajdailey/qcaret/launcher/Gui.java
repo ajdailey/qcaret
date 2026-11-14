@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.launcher;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.ErrorExitMarker;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.config.WindowState;
@@ -61,9 +62,9 @@ import org.slf4j.LoggerFactory;
  * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
  * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
  * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
- * closes it before the workers, and so does a run that ends before the first window. A {@link
- * RuntimeException} from one event is logged with its stack and the loop continues, up to the bound
- * in {@link LoopFailures}, past which the exception leaves {@link #run}. The loop ends when every
+ * closes it before the workers, and so does a run that ends before the first window. {@link
+ * UiFailures} handles a failure of a UI-thread task; its quit writes the {@link ErrorExitMarker},
+ * which the next start reads before the Display ({@link ErrorExitStart}). The loop ends when every
  * main window is disposed, then the Display is disposed and {@link #run} returns.
  */
 final class Gui {
@@ -147,7 +148,8 @@ final class Gui {
   /**
    * Runs until every main window closes.
    *
-   * @return 0, or {@link Launcher#EXIT_SWT} when the Display cannot be created
+   * @return 0, {@link Launcher#EXIT_SWT} when the Display cannot be created, or {@link
+   *     Launcher#EXIT_UI_FAILURE} when {@link UiFailures} ran the quit
    */
   int run() {
     Workers workers =
@@ -172,8 +174,18 @@ final class Gui {
           LOG.info("Another instance owns the session; this one runs without it");
         }
       }
+      final ErrorExitMarker marker = new ErrorExitMarker(config.location());
+      ErrorExitStart errorExit =
+          ErrorExitStart.begin(
+              marker,
+              !request.multi() && !without && request.restoresSession(),
+              config.location().directory(),
+              System.currentTimeMillis());
       ViewDefaults absent = preferences.state().view();
       Session session = without ? sessions.load(absent).recentOnly() : sessions.load(absent);
+      if (errorExit.skipped()) {
+        session = session.withoutWindows();
+      }
       ThemeColors colors =
           ThemeColors.read(config.location().directory(), preferences.appearance().themeFile());
       Display.setAppName("QCaret");
@@ -184,8 +196,7 @@ final class Gui {
         LOG.debug("SWT failed to start", e);
         return Launcher.EXIT_SWT;
       }
-      runWindows(display, workers, sessions, session, colors, without);
-      return 0;
+      return runWindows(display, workers, sessions, session, colors, without, marker, errorExit);
     } finally {
       if (server != null) {
         server.close();
@@ -210,13 +221,15 @@ final class Gui {
   }
 
   /** Composes the application on the Display and runs the event loop until every window closes. */
-  private void runWindows(
+  private int runWindows(
       final Display display,
       Workers workers,
       SessionStore sessions,
       Session session,
       ThemeColors colors,
-      boolean without) {
+      boolean without,
+      ErrorExitMarker marker,
+      ErrorExitStart errorExit) {
     final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
     final Palette palette =
         colors.over(
@@ -239,6 +252,9 @@ final class Gui {
             remember);
     set.theme().setColors(colors);
     set.setLogging(LogConfigurator.RECENT, logFiles);
+    final UiFailures failures = new UiFailures(System::nanoTime, set::quit, marker);
+    display.setRuntimeExceptionHandler(failures::runtime);
+    display.setErrorHandler(failures::error);
     set.setFactory(
         new WindowSet.Factory() {
           @Override
@@ -286,6 +302,9 @@ final class Gui {
             logGeometry(window.shell());
           }
         });
+    if (errorExit.notice()) {
+      controller.noticeErrorExit(errorExit.skipped());
+    }
     controller.startSession(sessions, session, restore, request);
     window.showStatusNow();
     if (EventLoopWatchdog.enabled()) {
@@ -306,20 +325,19 @@ final class Gui {
       if (observer != null) {
         observer.opened(window, controller, workers);
       }
-      LoopFailures failures = new LoopFailures();
       while (anyOpen()) {
+        // The handlers above take a task's failure; these take one SWT raises outside a task.
         try {
           if (!display.readAndDispatch()) {
             display.sleep();
           }
         } catch (Exception e) {
-          if (!failures.tolerate(System.nanoTime())) {
-            LOG.error("Event loop ends: {} events failed within a second", LoopFailures.LIMIT);
-            throw e;
-          }
-          LOG.error("An event failed; the event loop continues", e);
+          failures.runtime(e);
+        } catch (Error e) {
+          failures.error(e);
         }
       }
+      return failures.failed() ? Launcher.EXIT_UI_FAILURE : 0;
     } finally {
       removeHook(hook);
     }

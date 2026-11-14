@@ -267,4 +267,22 @@ class RecoveryStoreTest {
     assertTrue(Files.exists(RecoveryStore.snapshotFile(temp, "b2")));
     store.close(false);
   }
+
+  @Test
+  void movedSnapshotsAreClaimedAsADeadInstance() throws IOException {
+    assertEquals(0, RecoveryStore.moveSnapshotsToRecovery(temp, "moved"));
+    RecoveryStore writer = own();
+    writer.writeSnapshot(header("b1", "", -1, ""), text("one"));
+    writer.writeSnapshot(header("b2", "", -1, ""), text("two"));
+    writer.close(false);
+    assertEquals(2, RecoveryStore.moveSnapshotsToRecovery(temp, "moved"));
+    assertFalse(Files.exists(RecoveryStore.snapshotFile(temp, "b1")));
+    RecoveryStore store = own();
+    List<RecoveryStore.Claim> claims = store.claimDead(0);
+    assertEquals(1, claims.size());
+    assertEquals(2, claims.get(0).entries().size());
+    assertEquals("b1", claims.get(0).entries().get(0).header().id());
+    claims.get(0).close();
+    store.close(false);
+  }
 }

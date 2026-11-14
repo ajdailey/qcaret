@@ -333,6 +333,10 @@ public enum UiText {
   SESSION_LIMIT_RECENT,
   /** Closed files a session save left out. */
   SESSION_LIMIT_CLOSED,
+  /** Notice: the last run quit for UI-thread failures and the session's windows were skipped. */
+  SESSION_ERROR_EXIT,
+  /** Notice: the last run quit for UI-thread failures; this launch restored no session. */
+  SESSION_ERROR_EXIT_LOG,
   /** Note on a restored search set. */
   SEARCH_RESTORED,
   /** Recovery dialog title. */

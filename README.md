@@ -221,7 +221,8 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 
 Options combine: `-ml`, `--opt=value`, `-d2`. An unknown option or a bad value
 prints a message to stderr and exits 1; a Java older than 21 or an unsupported
-platform exits 2; an SWT start failure, such as missing GTK libraries, exits 3.
+platform exits 2; an SWT start failure, such as missing GTK libraries, exits 3;
+a quit after an internal error exits 4.
 After `--`, a `+<line>` is a file name.
 
 Without `-m`, a launch hands its files to the instance running on the same

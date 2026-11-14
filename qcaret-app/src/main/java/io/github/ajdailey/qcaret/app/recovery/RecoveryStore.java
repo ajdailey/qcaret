@@ -413,6 +413,34 @@ public final class RecoveryStore {
   }
 
   /**
+   * Moves every snapshot file into a new directory under {@code recovery/}, where the next {@link
+   * #claimDead} lists them as a dead instance's buffers. Does nothing when there is none.
+   *
+   * @param settings the settings directory
+   * @param directory the new directory's name, a plain file name
+   * @return the number of files moved
+   * @throws IOException when a directory cannot be listed or created, or a file cannot be moved;
+   *     the files not moved stay in {@code snapshot/}
+   */
+  public static int moveSnapshotsToRecovery(Path settings, String directory) throws IOException {
+    Path from = SafePaths.child(settings, SNAPSHOT);
+    if (!Files.isDirectory(from)) {
+      return 0;
+    }
+    List<Path> files = recoveryFiles(from);
+    if (files.isEmpty()) {
+      return 0;
+    }
+    Path to =
+        SafePaths.settingsDirectory(
+            SafePaths.child(SafePaths.child(settings, DIRECTORY), directory));
+    for (Path file : files) {
+      Files.move(file, to.resolve(file.getFileName()));
+    }
+    return files.size();
+  }
+
+  /**
    * Deletes every snapshot file but some.
    *
    * @param kept the ids to keep

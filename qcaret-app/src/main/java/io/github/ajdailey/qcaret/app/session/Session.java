@@ -60,6 +60,16 @@ public record Session(
   }
 
   /**
+   * Returns a copy without windows or a dropped-comment count: Recent Files and the per-file state
+   * only.
+   *
+   * @return the copy
+   */
+  public Session withoutWindows() {
+    return new Session(List.of(), recent, files);
+  }
+
+  /**
    * One main window.
    *
    * @param bounds its normal bounds and maximized state

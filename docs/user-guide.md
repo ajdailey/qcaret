@@ -708,6 +708,14 @@ Quit without asking on, Exit asks nothing and the next start restores unsaved
 and untitled buffers. Exit during a restore waits for the restore to end; Cancel
 on the load row ends a slow one, and that tab leaves the next session.
 
+When QCaret closes on an internal error, it asks nothing and keeps every
+unsaved buffer for the recovery list. The next start shows a status bar notice
+pointing to Help > Show Log, once. The next start that would restore the
+session opens one window without the session's windows and tabs; files named on
+the command line still open, and the recovery list offers the unsaved buffers,
+those Quit without asking kept included. Settings, Recent Files and file
+positions are kept.
+
 ## Windows and the running instance
 
 Window > New Window opens another window. Settings, the theme, key bindings,
@@ -929,7 +937,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 A missing file opens an empty document that saves to that path. Options combine:
 `-ml`, `--opt=value`, `-d2`. An unknown option or a bad value exits 1; a Java
 older than 21 or an unsupported platform exits 2; an SWT start failure, such as
-missing GTK libraries, exits 3.
+missing GTK libraries, exits 3; a quit after an internal error exits 4.
 
 ```text
 qcaret +120:8 src/Mock.java -r notes.txt

@@ -14,9 +14,10 @@ module except the bootstrap, so it holds the architecture rules.
 | 0 | Help, version, a launch handed to the running instance, or the window closed |
 | 1 | Bad command line, a `--settings` path that cannot be a directory, or an `IOException` out of the log or GUI setup |
 | 3 | SWT failed to load (`UnsatisfiedLinkError` or `SWTError` from `new Display()`), typically missing GTK 3 libraries |
+| 4 | `UiFailures` quit the application |
 
-`Main` calls `System.exit` only for a nonzero status, which arises only before
-the Display exists. After a normal close `main` returns and the JVM exits on
+`Main` calls `System.exit` only for a nonzero status, which arises before the
+Display exists or, for 4, after the quit. After a normal close `main` returns and the JVM exits on
 its own.
 
 Before the Display exists, `Launcher` resolves the settings directory
@@ -52,7 +53,9 @@ UI thread:
    and logs `Main window open: client area <w>x<h>, location <x>,<y>` at INFO.
 5. `ApplicationController.startSession` restores every saved window, then file
    arguments and `--diff` open through `ApplicationController.open`; without a
-   file, a window left empty opens an untitled document.
+   file, a window left empty opens an untitled document. After an error exit
+   the restore skips the saved windows
+   ([Error exit](../qcaret-app/docs/sessions-and-recovery.md#error-exit)).
 6. At `-d 2` and above an `EventLoopWatchdog` logs UI-thread stalls.
 7. On the primary instance `InstanceServer.deliverTo` releases the held
    launches and every later one to `WindowSet.openHandoff` on the UI thread.
@@ -63,11 +66,6 @@ The controller saves the placement at quit only when neither `-m` nor a
 `--window-*` option was given, so a command-line placement applies to that run
 only. The loop ends when every main window is disposed; then the Display is
 disposed and `run` returns 0.
-
-A `RuntimeException` out of `Display.readAndDispatch` costs one event: `Gui`
-logs it at ERROR with its stack and the loop continues. The 10th failure within
-one second (`LoopFailures`) logs an ERROR and leaves `run` with the exception,
-which ends the process without the quit prompts.
 
 Before the Display, without `-m`, `Launcher` claims the instance lock
 ([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
@@ -107,6 +105,19 @@ save and close the workers, logs the threads still running past that bound,
 and touches no widget; that quit asks nothing about unsaved documents. It then
 closes the `InstanceServer`, removing the endpoint. After an ordered quit `Gui`
 removes the hook.
+
+### UI-thread failures
+
+`UiFailures` is the Display's runtime-exception and error handler
+(`Display.setRuntimeExceptionHandler`, `setErrorHandler`), which SWT calls for a
+failure of a listener, `asyncExec` or timer task; the event loop passes it any
+failure out of `readAndDispatch` as well. Each failure is logged at ERROR with
+its stack and the loop continues. More than 10 runtime exceptions within 1 s,
+or any `Error`, writes `qcaret_error.flag` (`ErrorExitMarker`), runs
+`WindowSet.quit` once and makes `Gui.run` return 4. That quit shows no dialog:
+dirty buffers go to recovery files. A failure during the quit is logged and
+starts no second one. The marker write runs on the UI thread without SWT,
+because a dialog or a worker may not run after an `Error`.
 
 ## Logging
 
@@ -208,7 +219,9 @@ classes, so the rules over the main classes never see them.
 | Class | Covers |
 |---|---|
 | `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts; a listener that throws costs one event and the loop runs the next one |
-| `LoopFailuresTest` | The 10th failure within one second ends the loop; failures spread wider continue |
+| `UiFailuresTest` | 10 failures within 1 s keep running, the 11th quits once and later failures start no second quit, failures more than 1 s apart keep running, an `Error` quits; each quit writes the marker, and a failed write still quits |
+| `ErrorExitStartTest` | Without the marker nothing changes; a restoring start skips, shows the notice and deletes the marker; a start without the session shows the short notice once and marks it shown, and a later restoring start skips without a notice; only a skipping start moves the snapshot files to `recovery/` |
+| `ErrorExitGuiTest` (tag `swt`) | An `Error` twice from UI tasks after a restored tab is typed into: status 4, the marker written, one recovery file, the session still listing the tab. The next restoring start with a file shows the notice, opens only that file, offers the buffer and deletes the marker; the start after it restores that file without a notice. A start with a file shows the short notice once; a later restoring start skips the saved tab. A skipped session's snapshot buffer is offered for recovery |
 | `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |
 | `PortableGuideTest` (tag `swt`, Linux, GTK 3) | A child JVM with its own `HOME`, no XDG base directory variables and system data directories without `applications` runs User Guide in a portable run: the main window names the guide's copy in a notice, no second shell opens, and the home holds no `.cache/QCaret`, `.local/share/QCaret` or `.cache/mesa_shader_cache`. GLib reads `HOME` from the environment, hence the separate process |
 | `SigtermTest` (tag `swt`, Linux) | `Main` with `-l` as a child process, SIGTERM (`Process.destroy`) after the window line: the process ends within the hook's bound, saved the placement and logged the hook's INFO line to the file. Windows has no SIGTERM; `destroy` there terminates without hooks |

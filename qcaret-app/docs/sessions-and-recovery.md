@@ -119,6 +119,39 @@ the start restoring and owning the session, with one WARN. Until `close`,
 `SafePaths.holdLock` makes every open and save of the lock file fail with
 `SESSION_LOCK_REFUSED`.
 
+### Error exit
+
+`ErrorExitMarker` is `qcaret_error.flag` beside the session file. The
+launcher's `UiFailures` writes it empty through `AtomicFiles` before its quit
+([UI-thread failures](../../qcaret-launcher/README.md#ui-thread-failures)),
+outside `SessionStore`, so it is written after the store disabled saving too; a
+failed write logs one WARN and the quit runs. That quit is `WindowSet.quit`: no
+prompt, the dirty buffers' recovery files written and kept, and the session
+saved unless the restore was running.
+
+`ErrorExitStart` reads the marker in `Gui` before the Display:
+
+| Start | Session | Notice, when the marker is empty | Marker afterwards |
+|---|---|---|---|
+| Restores and owns the session | `Session.withoutWindows`: Recent Files and per-file state | `SESSION_ERROR_EXIT` | Deleted |
+| Any other: files without `--session`, `-m`, `BESIDE`, the session lock held elsewhere | Restores none, as usual | `SESSION_ERROR_EXIT_LOG` | `noticeShown` |
+
+A marker holding `noticeShown` shows no notice. `-m` never restores, so no
+start both skips and keeps the marker. A start that skips the windows opens one
+window as a start over a session without windows does: placed from
+`qcaret.conf`, display toggles from the `ui.*` keys, `workspace.default` from
+`WorkspaceDefault`. Command-line files open in it. Before the Display it moves
+every file in `snapshot/` to `recovery/snapshot-<ms>/`
+(`RecoveryStore.moveSnapshotsToRecovery`), where the recovery dialog lists
+them: only the skipped tabs named those buffers, and the next snapshot quit
+would delete them. It owns the session, so the save its restore arms replaces
+the skipped windows 2 s after the start.
+
+The notice goes to the first window's status bar before the restore. The
+recovery dialog, modeless, opens in the same window once `RecoveryController`
+has listed the dead directories on a worker; the notice clears after 8 s
+whether or not the dialog is open.
+
 ### Clear History
 
 Clear History leaves the result sets in the dock for the run and keeps them out
@@ -183,7 +216,7 @@ the dialog shows in the window activated last.
 | `recovery.intervalSeconds` | Dirty buffers whose revision is not on disk are written from a snapshot; a failed write is retried at the next interval, with one notice |
 | Save, undo back to the saved text, close with discard | Deleted |
 | Ordered quit | The instance directory goes |
-| `quit` with dirty buffers (shutdown hook) | Written, directory kept, offered at the next start |
+| `quit` with dirty buffers (shutdown hook, `UiFailures`) | Written, directory kept, offered at the next start |
 | Restore in the dialog | New file written first, then the old one deleted; a failed write keeps the old one until a retry succeeds or the buffer needs no recovery |
 | Rename from the workspace browser | Written again at the next interval with the new path, whatever its revision |
 | Damaged file | Listed, not restorable, kept; Discard is the user's choice |

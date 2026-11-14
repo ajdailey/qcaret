@@ -23,7 +23,8 @@ import org.slf4j.LoggerFactory;
  * Parses the command line, configures logging, resolves the settings directory and loads the
  * settings, configures the platform, opens the debug log file with {@code -l}, then hands over to
  * {@link Gui}. All of it runs before the Display exists, so the UI thread never waits on it. Exit
- * statuses: 0 normal, 1 bad command line or settings directory, 3 SWT failed to load.
+ * statuses: 0 normal, 1 bad command line or settings directory, 3 SWT failed to load, 4 UI-thread
+ * failures quit the application ({@link UiFailures}).
  *
  * <p>Without {@code -m} the launch becomes the primary instance of its settings directory, or hands
  * its files to the running primary and exits 0. After a failed handoff it claims the lock a primary
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 public final class Launcher {
   static final int EXIT_USAGE = 1;
   static final int EXIT_SWT = 3;
+  static final int EXIT_UI_FAILURE = 4;
 
   /** Handoffs one launch tries; each one after the first needs a new primary. */
   private static final int HANDOFF_ATTEMPTS = 3;

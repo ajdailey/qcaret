@@ -1098,6 +1098,15 @@ public final class ApplicationController {
   }
 
   /**
+   * Shows the notice that the last run closed after an internal error.
+   *
+   * @param windowsSkipped true when this launch did not restore the session's windows
+   */
+  public void noticeErrorExit(boolean windowsSkipped) {
+    showNotice((windowsSkipped ? UiText.SESSION_ERROR_EXIT : UiText.SESSION_ERROR_EXIT_LOG).text());
+  }
+
+  /**
    * Sets {@code ui.theme} and applies the palette. When native controls show the theme only from
    * the next start, says so.
    *
