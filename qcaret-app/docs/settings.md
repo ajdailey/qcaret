@@ -115,8 +115,9 @@ then shows a notice when Preferences opens or Clear History runs.
 shows the file's values, and hands checked fields to `set`. A failed save shows
 a notice, and the settings stay applied for the run. Every setting applies to
 the running windows; none needs a restart. On the View tab, the six per-window
-boxes change only the defaults, and Toolbar, Right margin, Indent guides and
-Modified line marks apply to every window, as their View menu items do. Apply
+boxes change only the defaults, and Toolbar, Right margin, Indent guides,
+Modified line marks and Memory indicator apply to every window, as their View
+menu items do. Apply
 writes only the View boxes changed since the dialog opened or the last Apply
 (Restore Defaults counts), so a View menu toggle made while the dialog shows
 keeps its value. The
@@ -151,10 +152,10 @@ Shortcuts.
 |---|---|---|---|
 | `ui.theme` | `light`, `dark`, `system` | `light` | View > Theme |
 | `ui.editorColors` | An editor color scheme (`follow`, `light`, `dark`, `sandstone`, `nightwater`, `garden-light`, `garden-dark`, `legal-pad`, `paper`, `midnight`, `phosphor`, `graphite`), or the name of a file in `themes/` without `.theme`, laid over `follow`'s palette. It colors the editors, tab strip, compare windows and replace preview; `follow` takes `ui.theme`'s side. Native controls follow `ui.theme` only. Any other value reads as `follow` with one warning. While it is missing or `follow`, a `ui.themeFile` line names the theme file, and the next save replaces that line with `ui.editorColors` | `follow` | Tools > Preferences, Editor |
-| `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar |
-| `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
-| `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
-| `ui.lineChanges` | `true`, `false`: the editors mark the lines changed since the last load or save | `false` | View > Modified Line Marks |
+| `ui.toolbar` | `true`, `false`: the windows show the main toolbar | `true` | View > Toolbar; Tools > Preferences, View |
+| `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin; Tools > Preferences, View |
+| `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides; Tools > Preferences, View |
+| `ui.lineChanges` | `true`, `false`: the editors mark the lines changed since the last load or save | `false` | View > Modified Line Marks; Tools > Preferences, View |
 | `ui.memoryIndicator` | `true`, `false`: the status bars show the memory indicator | `false` | View > Memory Indicator; Tools > Preferences, View |
 | `ui.wordWrap` | `true`, `false`: a window without a session entry starts with word wrap on | `false` | View > Word Wrap; Tools > Preferences, View |
 | `ui.whitespace` | `true`, `false`: such a window starts with the whitespace marks | `false` | View > Show Whitespace; Tools > Preferences, View |
@@ -196,6 +197,6 @@ Shortcuts.
 | `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
 | `workspace.favorite.N` | The workspace browser's favorite folders in the order added, 20 at most | none | The browser's Favorites menu |
 | `tabs.closeShowsLastUsed` | `true`, `false`: closing the shown tab shows the open tab used most recently; off, the tab after it, else the one before | `false` | Tools > Preferences, Files |
-| `workspace.default` | A folder, empty for none: the workspace folder of a window not restored from the session ([Window display defaults](sessions-and-recovery.md#window-display-defaults)); a value with a control char reads as none with one warning | empty | Tools > Preferences, Search and Workspace |
+| `workspace.default` | A folder, empty for none: the workspace folder of a window not restored from the session ([Window display defaults](sessions-and-recovery.md#window-display-defaults)); a value over 4,096 chars or with a control char reads as none with one warning | empty | Tools > Preferences, Search and Workspace |
 
 A value out of range falls back to its default with one warning naming the key.

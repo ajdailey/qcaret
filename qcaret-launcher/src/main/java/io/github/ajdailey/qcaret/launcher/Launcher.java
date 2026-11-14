@@ -60,7 +60,7 @@ public final class Launcher {
   }
 
   /**
-   * Runs QCaret to completion. A nonzero status is returned only before the Display exists.
+   * Runs QCaret to completion.
    *
    * @param args the command line
    * @return the exit status

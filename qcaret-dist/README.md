@@ -139,7 +139,7 @@ not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
 
 | Class | Covers |
 |---|---|
-| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets` and `jdk.localedata` |
+| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management` |
 | `CharsetProbe` | Run by the bundle's `java`; fails unless every encoding in `SmokeTest.ENCODINGS` is supported |
 
 ### CI bundle check
@@ -150,7 +150,7 @@ The CI `bundle` job runs each archive on its own runner through
 
 | Check | Linux, macOS | Windows |
 |---|---|---|
-| Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml` | The same, plus the `javaw.exe` child's image and PE machine |
+| Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml`, `java.management` | The same, plus the `javaw.exe` child's image and PE machine |
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
 | Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` does not report the child's status (assumed from launch4j's `gui` header) |

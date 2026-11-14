@@ -74,8 +74,11 @@ modeless window with one tab per `PreferencesForm.Group`, over
   schemes, then the theme files a worker lists; a saved theme file missing from
   the list is added so it stays chosen.
 - The View tab (`PreferencesViewTab`) holds the six boxes of what a new window
-  starts with under one heading and the four boxes every window follows under
+  starts with under one heading and the five boxes every window follows under
   another.
+- The Search and Workspace tab's `WorkspaceDefaultRow` shows
+  `workspace.default` in a read-only field; Choose opens a `DirectoryDialog`
+  and Clear empties the field.
 - OK and Apply pass the fields to the controller; a refused field shows its
   message above the buttons, selects its tab and keeps the dialog open.
 - Restore Defaults fills every tab and applies nothing until OK or Apply.

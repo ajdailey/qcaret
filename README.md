@@ -36,7 +36,7 @@ search results" width="880"> </picture>
 | External changes | Each open file checked on a poll and on window activation; a clean document reloads, a dirty one asks: Keep Mine, Reload or Compare | [External changes](docs/user-guide.md#external-changes) |
 | Sessions and recovery | Session restore of windows, tabs, carets, splits, folds, bookmarks and docks; per-file state; recovery files for unsaved buffers after a crash | [Sessions](docs/user-guide.md#sessions-and-recovery) |
 | Windows and single instance | Several windows with live tab moves; Always on Top per window; a second launch hands its files to the running instance; file associations | [Windows](docs/user-guide.md#windows-and-the-running-instance) |
-| Large files | Loads with progress and Cancel; a file must fit the heap; no file over 2 GiB opens | [Large files](docs/user-guide.md#large-files) |
+| Large files | Loads with progress and Cancel; a file must fit the heap; no file over 2 GiB opens; a status bar memory indicator | [Large files](docs/user-guide.md#large-files) |
 | Preferences and themes | Preferences applied without a restart, key bindings, editor font, light, dark and system themes, bundled editor color schemes, theme files | [Preferences](docs/user-guide.md#preferences) |
 | Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Tip of the Day, Show Log with a warning marker, debug log file, Report an Issue, About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
 
@@ -252,6 +252,7 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
 | `snapshot/` | Unsaved buffers a quit wrote when Quit without asking is on |
 | `instance.lock`, `instance.endpoint` | Single-instance lock and handoff endpoint |
 | `qcaret_session.lock` | Held by the instance that restores and saves the session |
+| `qcaret_error.flag` | Written by a quit after an internal error; the next start that restores the session skips its windows ([Sessions](docs/user-guide.md#sessions-and-recovery)) |
 | `logs/` | Debug log files |
 | `cache/` | The user guide's copy; with `--settings` or in portable mode, the SWT natives; on Windows, the guide browser's data in `cache\webview2` |
 | `grammars/` | User grammars |

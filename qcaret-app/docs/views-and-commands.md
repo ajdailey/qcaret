@@ -48,7 +48,8 @@ shows its own progress; input is never blocked. `MainWindow` and each
 - `PlatformTraits.busyCursor` names the cursor per platform:
   `CURSOR_APPSTARTING` on GTK and win32, `CURSOR_WAIT` on cocoa. SWT 3.135
   cocoa shows `CURSOR_APPSTARTING` as a plain arrow and `CURSOR_WAIT` as
-  AppKit's `busyButClickableCursor`, an arrow with a spinner.
+  AppKit's `busyButClickableCursor`, an arrow with a spinner (SWT source; not
+  run on macOS).
 
 `BusyWork` raises the counter at `start` and runs `work` on a worker, then
 `finished` on the UI thread after `work` returns or throws and after every task
@@ -144,7 +145,7 @@ and the editor, tab and row context menus has a mnemonic (`&` before the letter,
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines and Convert Case cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
-| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Workspace Browser, Always on Top \| Command Palette |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
@@ -203,8 +204,8 @@ as editor bindings.
 Commands with no default key include the split commands, Toggle Fold, Sort,
 Remove Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Title Case,
 Swap Case, Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
-Results, the View display toggles, Workspace Browser, Always on Top, Set
-Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Close Others,
+Results, the View display toggles, Workspace Browser, Memory Indicator,
+Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
 Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in

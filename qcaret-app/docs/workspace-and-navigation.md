@@ -9,8 +9,11 @@ search](../../qcaret-core/docs/search.md#workspace-folder).
 ## Workspace folder and browser
 
 File > Set Workspace Folder stores one folder per window, kept by the session,
-as its real path (`WorkspaceController`). The index and the browser leave out
-hidden entries and `workspace.excludedDirectories`; a change of
+as its real path (`WorkspaceController`). A window not restored from the session
+starts with `workspace.default`
+([Window display defaults](sessions-and-recovery.md#window-display-defaults)).
+The index and the browser leave out hidden entries and
+`workspace.excludedDirectories`; a change of
 `workspace.excludedDirectories` lists and indexes the folder again.
 
 - View > Workspace Browser shows the shown folder's tree (`BrowserListings`).
