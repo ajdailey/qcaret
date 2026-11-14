@@ -1,8 +1,8 @@
 # QCaret User Guide
 
-QCaret is a programmer's text editor. It never connects to another computer; a
-second launch hands its files to the running QCaret over a local-only
-connection. On macOS, `Ctrl` in this guide is `Cmd` unless a key is named for
+QCaret is a programmer's text editor. It makes no outbound network
+connections; a second launch passes its files to the running instance over a
+loopback connection. On macOS, `Ctrl` in this guide is `Cmd` unless a key is named for
 macOS; Help > Keyboard Shortcuts lists every key for your platform and Tools >
 Preferences, Keys changes them.
 
