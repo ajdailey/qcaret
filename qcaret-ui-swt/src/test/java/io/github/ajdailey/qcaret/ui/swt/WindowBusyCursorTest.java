@@ -18,7 +18,6 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.platform.BusyCursor;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -85,7 +84,7 @@ class WindowBusyCursorTest {
     window.attach(controller);
     window.place(new WindowGeometry.Request(null, null, 800, 500), null);
     window.open();
-    busy = BusyCursor.PLATFORM.cursor(display);
+    busy = display.getSystemCursor(PlatformTraits.PLATFORM.busyCursor());
     ibeam = display.getSystemCursor(SWT.CURSOR_IBEAM);
   }
 

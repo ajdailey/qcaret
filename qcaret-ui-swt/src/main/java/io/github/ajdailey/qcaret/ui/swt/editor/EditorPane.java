@@ -19,7 +19,6 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
-import io.github.ajdailey.qcaret.ui.swt.platform.BusyCursor;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
@@ -1200,7 +1199,10 @@ public final class EditorPane implements EditorView {
 
   private void showBusy() {
     if (!text.isDisposed()) {
-      text.setCursor(busy || windowBusy ? BusyCursor.PLATFORM.cursor(text.getDisplay()) : null);
+      text.setCursor(
+          busy || windowBusy
+              ? text.getDisplay().getSystemCursor(PlatformTraits.PLATFORM.busyCursor())
+              : null);
     }
   }
 

@@ -41,7 +41,8 @@ class PlatformTraitsTest {
     "colorsDialogs",
     "macKeys",
     "linuxKeys",
-    "opensPrintDialog"
+    "opensPrintDialog",
+    "busyCursor"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -71,6 +72,7 @@ class PlatformTraitsTest {
     answers.add(traits.macKeys());
     answers.add(traits.linuxKeys());
     answers.add(traits.opensPrintDialog());
+    answers.add(traits.busyCursor());
     return answers;
   }
 
@@ -109,7 +111,8 @@ class PlatformTraitsTest {
         true,
         false,
         false,
-        true);
+        true,
+        SWT.CURSOR_APPSTARTING);
   }
 
   @Test
@@ -140,7 +143,8 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        true);
+        true,
+        SWT.CURSOR_WAIT);
   }
 
   @Test
@@ -172,7 +176,8 @@ class PlatformTraitsTest {
         false,
         false,
         true,
-        true);
+        true,
+        SWT.CURSOR_APPSTARTING);
   }
 
   @Test
@@ -203,7 +208,8 @@ class PlatformTraitsTest {
         false,
         false,
         true,
-        false);
+        false,
+        SWT.CURSOR_APPSTARTING);
   }
 
   @Test

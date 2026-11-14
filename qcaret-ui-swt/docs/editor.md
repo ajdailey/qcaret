@@ -159,7 +159,7 @@ and sets the gutter's tooltip.
   1,000 chars are read. Measured on 1,000,000 indented lines (500 page scrolls
   each, xvfb): median 2.35 ms with guides, 2.43 ms without.
 - `setBusy` (the editor's counter) and `setWindowBusy` (the window's) show
-  `BusyCursor.PLATFORM` over the text and gutter while either is on.
+  `PlatformTraits.busyCursor` over the text and gutter while either is on.
 - Each paint that shows another display range reports it through
   `EditorInput.viewportChanged`.
 

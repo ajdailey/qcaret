@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
@@ -130,5 +131,10 @@ abstract class GtkTraits implements PlatformTraits {
   @Override
   public boolean linuxKeys() {
     return true;
+  }
+
+  @Override
+  public int busyCursor() {
+    return SWT.CURSOR_APPSTARTING;
   }
 }

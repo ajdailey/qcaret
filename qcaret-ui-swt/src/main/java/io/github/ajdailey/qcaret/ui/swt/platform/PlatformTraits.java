@@ -231,4 +231,13 @@ public interface PlatformTraits {
    * @return false on GTK 4
    */
   boolean opensPrintDialog();
+
+  /**
+   * Returns the system cursor over a busy window or editor, an arrow with a busy mark. SWT 3.135
+   * cocoa shows {@code CURSOR_APPSTARTING} as a plain arrow and {@code CURSOR_WAIT} as AppKit's
+   * {@code busyButClickableCursor}.
+   *
+   * @return {@code SWT.CURSOR_WAIT} on cocoa, {@code SWT.CURSOR_APPSTARTING} elsewhere
+   */
+  int busyCursor();
 }

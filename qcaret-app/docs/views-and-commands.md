@@ -45,7 +45,7 @@ shows its own progress; input is never blocked. `MainWindow` and each
   meanwhile starts busy; idle restores each one's own cursor.
 - An editor's counter drives `EditorView.setBusy`. An editor shows busy while
   its own counter or its window's is active.
-- `BusyCursor` (`ui.swt.platform`) names the cursor per platform:
+- `PlatformTraits.busyCursor` names the cursor per platform:
   `CURSOR_APPSTARTING` on GTK and win32, `CURSOR_WAIT` on cocoa. SWT 3.135
   cocoa shows `CURSOR_APPSTARTING` as a plain arrow and `CURSOR_WAIT` as
   AppKit's `busyButClickableCursor`, an arrow with a spinner.

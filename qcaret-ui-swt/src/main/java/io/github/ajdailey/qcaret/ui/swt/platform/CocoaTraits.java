@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 
@@ -133,5 +134,10 @@ final class CocoaTraits implements PlatformTraits {
   @Override
   public boolean opensPrintDialog() {
     return true;
+  }
+
+  @Override
+  public int busyCursor() {
+    return SWT.CURSOR_WAIT;
   }
 }

@@ -1,5 +1,2 @@
-/**
- * The view layer's platform differences behind {@code PlatformTraits} and {@code BusyCursor}, one
- * class per platform each.
- */
+/** The view layer's platform differences behind {@code PlatformTraits}, one class per platform. */
 package io.github.ajdailey.qcaret.ui.swt.platform;

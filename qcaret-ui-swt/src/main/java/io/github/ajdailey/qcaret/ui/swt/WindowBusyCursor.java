@@ -2,7 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.platform.BusyCursor;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Cursor;
@@ -14,12 +14,12 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * A main window's busy cursor, {@link BusyCursor#PLATFORM}, driven by its {@link BusyCounter}.
- * While busy it shows over the shell, over every editor ({@link EditorPane#setWindowBusy}) and over
- * every shell the window owns at any depth, modal or modeless, with each {@link StyledText} in it,
- * which otherwise shows its own I-beam over the shell's cursor. An owned shell that shows while the
- * window is busy, and an editor passed to {@link #paneAdded}, start busy. Idle gives each its own
- * cursor back. Confined to the UI thread.
+ * A main window's busy cursor, {@link PlatformTraits#busyCursor}, driven by its {@link
+ * BusyCounter}. While busy it shows over the shell, over every editor ({@link
+ * EditorPane#setWindowBusy}) and over every shell the window owns at any depth, modal or modeless,
+ * with each {@link StyledText} in it, which otherwise shows its own I-beam over the shell's cursor.
+ * An owned shell that shows while the window is busy, and an editor passed to {@link #paneAdded},
+ * start busy. Idle gives each its own cursor back. Confined to the UI thread.
  */
 final class WindowBusyCursor implements BusyCounter.Indicator {
   private final Shell shell;
@@ -29,7 +29,7 @@ final class WindowBusyCursor implements BusyCounter.Indicator {
         @Override
         public void handleEvent(Event event) {
           if (event.widget instanceof Shell owned && owned != shell && owns(owned)) {
-            show(owned, BusyCursor.PLATFORM.cursor(shell.getDisplay()));
+            show(owned, shell.getDisplay().getSystemCursor(PlatformTraits.PLATFORM.busyCursor()));
           }
         }
       };
@@ -60,7 +60,8 @@ final class WindowBusyCursor implements BusyCounter.Indicator {
       return;
     }
     busy = on;
-    Cursor cursor = on ? BusyCursor.PLATFORM.cursor(shell.getDisplay()) : null;
+    Cursor cursor =
+        on ? shell.getDisplay().getSystemCursor(PlatformTraits.PLATFORM.busyCursor()) : null;
     shell.setCursor(cursor);
     for (EditorPane pane : tabs.allPanes()) {
       pane.setWindowBusy(on);

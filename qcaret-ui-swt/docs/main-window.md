@@ -194,7 +194,7 @@ WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings and language
 (`StatusFields`). A caret move or state change schedules one read on the next
 UI turn; further changes before it share that read. While the `BusyCounter`
-counts an active operation, `WindowBusyCursor` shows `BusyCursor.PLATFORM` over
+counts an active operation, `WindowBusyCursor` shows `PlatformTraits.busyCursor` over
 the shell, each editor (`EditorPane.setWindowBusy`) and each shell the window
 owns, with their `StyledText` controls; a Show filter, added only while busy,
 sets it on an owned shell that opens meanwhile
@@ -315,11 +315,10 @@ call in `ui.swt` or the launcher outside the same classes.
 | `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
+| `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
 
 `WindowStacking` reads the platform itself to pick the stacking class (see
-[Always on Top](#always-on-top)). `BusyCursor`, in the traits package, has one
-class per platform for the busy cursor: `Win32BusyCursor`, `GtkBusyCursor` and
-`CocoaBusyCursor` (see [Status bar and title](#status-bar-and-title)).
+[Always on Top](#always-on-top)).
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
 `user.home` on Linux and the WebView2 folder on Windows before the Display, and
