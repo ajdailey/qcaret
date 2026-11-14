@@ -199,6 +199,7 @@ class BusyCoverageTest {
       "controller.SyntaxHighlighter#submit",
       "controller.WindowSet#loadTheme",
       "controller.WorkspaceBrowse#restoreFolders",
+      "controller.WorkspaceDefault#apply",
       "ipc.InstanceServer#accept",
       "ipc.InstanceServer#start",
       "log.EventLoopWatchdog#start"

@@ -100,6 +100,7 @@ public final class WindowSet {
   private final RunningWrites writes = new RunningWrites();
   private final QuitSequence quitSequence;
   private final TabTransfer transfer;
+  private final WorkspaceDefault workspaceDefault;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
@@ -226,6 +227,7 @@ public final class WindowSet {
     this.budget = budget;
     this.rememberWindow = rememberWindow;
     this.settings = new Settings(config, workers, ui, preferences);
+    this.workspaceDefault = new WorkspaceDefault(settings, workers, ui);
     this.theme =
         new ThemeController(system, preferences.theme(), preferences.appearance().editorColors());
     this.defaultKeymap = keymap;
@@ -520,13 +522,18 @@ public final class WindowSet {
     return browsers;
   }
 
+  WorkspaceDefault workspaceDefault() {
+    return workspaceDefault;
+  }
+
   // Session and recovery.
 
   /**
    * Takes the session read at startup and starts recovery files. With {@code restore} true every
    * saved window opens and this instance saves the session from then on, opening an untitled
    * document in a further window that ends without a tab; with false only the Recent Files and the
-   * per-file state apply.
+   * per-file state apply, and {@code first} takes {@code workspace.default}, as it does when the
+   * session holds no window.
    *
    * @param first the window open now
    * @param store the store the session was read from
@@ -540,6 +547,9 @@ public final class WindowSet {
       Session loaded,
       boolean restore,
       Runnable then) {
+    if (!restore || loaded.windows().isEmpty()) {
+      workspaceDefault.apply(first.workspace());
+    }
     session.start(first, store, loaded, restore, then);
   }
 
@@ -577,7 +587,7 @@ public final class WindowSet {
 
   /** Opens a saved window at its bounds; null when it cannot be created. */
   ApplicationController openRestored(WindowState bounds) {
-    return openWindow(
+    return create(
         new WindowGeometry.Request(bounds.x(), bounds.y(), bounds.width(), bounds.height()),
         bounds.maximized());
   }
@@ -624,8 +634,19 @@ public final class WindowSet {
     }
   }
 
-  /** Opens a window through the factory; null while quitting or when none was created. */
+  /**
+   * Opens a window through the factory with {@code workspace.default} as its workspace; null while
+   * quitting or when none was created.
+   */
   ApplicationController openWindow(WindowGeometry.Request at, boolean maximized) {
+    ApplicationController window = create(at, maximized);
+    if (window != null) {
+      workspaceDefault.apply(window.workspace());
+    }
+    return window;
+  }
+
+  private ApplicationController create(WindowGeometry.Request at, boolean maximized) {
     if (isQuitting() || factory == null) {
       return null;
     }

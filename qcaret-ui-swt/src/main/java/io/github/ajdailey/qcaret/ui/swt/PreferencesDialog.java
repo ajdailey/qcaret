@@ -90,6 +90,7 @@ final class PreferencesDialog {
   private Combo newLineEnding;
   private Combo newEncoding;
   private PreferencesViewTab view;
+  private WorkspaceDefaultRow workspaceDefault;
 
   PreferencesDialog(Shell parent, PreferencesInput input) {
     this.input = input;
@@ -215,6 +216,7 @@ final class PreferencesDialog {
     searchMaxLineChars = field(page, UiText.PREFERENCES_SEARCH_LINE_CHARS);
     backupDays = field(page, UiText.PREFERENCES_BACKUP_DAYS);
     excludedDirectories = field(page, UiText.PREFERENCES_EXCLUDED_DIRECTORIES);
+    workspaceDefault = new WorkspaceDefaultRow(page);
     Dialogs.button(
             page,
             UiText.BUTTON_CLEAR_HISTORY.text(),
@@ -425,6 +427,7 @@ final class PreferencesDialog {
     newLineEnding.select(List.of(LINE_ENDINGS).indexOf(form.newLineEnding()));
     newEncoding.select(newEncoding.indexOf(form.newEncoding()));
     view.show(form.view());
+    workspaceDefault.show(form.workspaceDefault());
     for (TableColumn column : commands.getColumns()) {
       column.pack();
     }
@@ -463,7 +466,8 @@ final class PreferencesDialog {
             ? ""
             : LINE_ENDINGS[newLineEnding.getSelectionIndex()],
         newEncoding.getSelectionIndex() < 0 ? "" : newEncoding.getText(),
-        view.checks());
+        view.checks(),
+        workspaceDefault.value());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -653,5 +657,9 @@ final class PreferencesDialog {
 
   PreferencesViewTab view() {
     return view;
+  }
+
+  WorkspaceDefaultRow workspaceDefault() {
+    return workspaceDefault;
   }
 }

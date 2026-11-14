@@ -17,6 +17,29 @@ explicit and portable mode on Linux; there `PlatformSetup` sets `user.home` to
 the settings directory and User Guide opens without the embedded browser
 ([Help commands](help-and-themes.md#help-commands)).
 
+## Saved paths
+
+`ConfigStore` and `SessionStore` pass every user path through `InstallPaths`.
+Its base is the installation directory, `qcaret.home`, also when the settings
+directory is `<qcaret.home>/bin`; a run without `qcaret.home` (tests, an IDE)
+uses the settings directory.
+
+| Mode | Write | Read |
+|---|---|---|
+| Explicit, portable | A path whose real path is the base or under it: relative to the base's real path, `/`-separated, `.` for the base itself. Any other path: as given | A value without a root resolves against the base's real path, never the working directory |
+| Per-user | As given | As above |
+
+Real paths make a path reached through a link into the installation relative
+and keep `..` from leaving the base; a missing file compares through its
+nearest existing parent. The `qcaret.conf` keys are
+`search.history.directory.N`, `workspace.favorite.N` and `workspace.default`;
+the session keys are in [Session file](sessions-and-recovery.md#session-file).
+`Preferences` and `Session` hold resolved absolute paths, so per-file state
+matches a relative and an absolute key for one file. `ConfigStore` writes only
+changed keys, so an absolute value under the base stays until its key changes.
+Recovery file and replace backup headers keep absolute paths: after a move the
+recovery list names the old location.
+
 ## Preferences record
 
 `Preferences` holds `ui.theme`, `window.*`, `log.debugFile` (attaches the debug
@@ -169,5 +192,6 @@ Shortcuts.
 | `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
 | `workspace.favorite.N` | The workspace browser's favorite folders in the order added, 20 at most | none | The browser's Favorites menu |
 | `tabs.closeShowsLastUsed` | `true`, `false`: closing the shown tab shows the open tab used most recently; off, the tab after it, else the one before | `false` | Tools > Preferences, Files |
+| `workspace.default` | A folder, empty for none: the workspace folder of a window not restored from the session ([Window display defaults](sessions-and-recovery.md#window-display-defaults)); a value with a control char reads as none with one warning | empty | Tools > Preferences, Search and Workspace |
 
 A value out of range falls back to its default with one warning naming the key.

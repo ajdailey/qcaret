@@ -866,7 +866,8 @@ class RecoveryControllerTest {
         false,
         false,
         Options.DEFAULTS.newLineEnding(),
-        Options.DEFAULTS.newEncoding());
+        Options.DEFAULTS.newEncoding(),
+        "");
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

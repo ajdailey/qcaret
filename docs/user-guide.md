@@ -601,6 +601,11 @@ Hidden entries and the excluded directories (`.git`, `.svn`, `.hg`, `target`,
 folder searches; the browser lists hidden entries with Hidden checked.
 Preferences, Search and Workspace changes the list.
 
+Preferences, Search and Workspace, Default workspace folder sets the workspace
+folder of a new window and of the window of a start that restores no session:
+Choose picks it, Clear removes it. A restored window keeps its own. A default
+folder that no longer exists leaves the workspace folder unset.
+
 A folder lists its first 50,000 entries. A folder the browser cannot list
 shows one row saying why, such as
 `Access denied: My Documents`. On Windows, `My Documents`, `Application Data`
@@ -757,7 +762,7 @@ running windows without a restart.
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, line ending and encoding for new documents, editor colors |
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab, show the last used tab after a close |
-| Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
+| Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
 | Appearance | Theme, editor font size, editor font |
 | Keys | Every command's keys, with a filter: Add, Remove, Default Keys |
 
@@ -860,6 +865,14 @@ system's HTML application instead of its own window, because the embedded
 browser writes under `~/.cache` and `~/.local/share`. The one write left outside
 the settings directory is an empty `~/.config/ibus/bus`, which the GTK input
 method module creates.
+
+In explicit and portable mode QCaret saves a path inside the installation
+directory relative to it: tabs, Recent Files, the remembered state of closed
+files, workspace and browser folders, favorites, HyperSearch folders and the
+default workspace folder. A moved or copied installation keeps them. A path
+outside the installation, and every path in per-user mode, is saved in full.
+Recovery files and replace backups record full paths, so after a move a
+recovered buffer names its file's old location.
 
 When Preferences or Clear History finds `qcaret.conf` unreadable or not valid,
 the running settings stay and a notice says so once per run. The next save

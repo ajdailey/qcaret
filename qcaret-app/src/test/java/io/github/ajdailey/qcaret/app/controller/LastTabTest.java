@@ -89,7 +89,8 @@ class LastTabTest {
                 true,
                 false,
                 Options.DEFAULTS.newLineEnding(),
-                Options.DEFAULTS.newEncoding())));
+                Options.DEFAULTS.newEncoding(),
+                "")));
   }
 
   @Test

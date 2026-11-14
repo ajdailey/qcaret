@@ -263,6 +263,7 @@ class QuitAndCloseSavesTest {
                     o.closeWindowWithLastTab(),
                     o.closeShowsLastUsed(),
                     Options.DEFAULTS.newLineEnding(),
-                    Options.DEFAULTS.newEncoding())));
+                    Options.DEFAULTS.newEncoding(),
+                    "")));
   }
 }

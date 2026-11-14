@@ -544,7 +544,7 @@ class SessionControllerTest {
   }
 
   private static Session sessionNamed(String name) {
-    return new Session(List.of(), List.of(name), List.of());
+    return new Session(List.of(), List.of("/mock/" + name), List.of());
   }
 
   @Test
@@ -577,7 +577,7 @@ class SessionControllerTest {
       }
       gate.countDown();
       done.await();
-      assertEquals(List.of("shutdown" + round), store().load().recent());
+      assertEquals(List.of("/mock/shutdown" + round), store().load().recent());
     }
   }
 
@@ -587,7 +587,7 @@ class SessionControllerTest {
     SessionController session = harness.application.sessionController();
     session.write(new SessionController.Capture(100, sessionNamed("later")));
     session.write(new SessionController.Capture(99, sessionNamed("stale")));
-    assertEquals(List.of("later"), store().load().recent());
+    assertEquals(List.of("/mock/later"), store().load().recent());
   }
 
   /** Opens three files of 800 commented lines each and quits, which leaves 1,400 out. */

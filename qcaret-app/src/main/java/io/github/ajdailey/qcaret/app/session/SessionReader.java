@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.session;
 
+import io.github.ajdailey.qcaret.app.config.InstallPaths;
 import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
@@ -13,7 +14,8 @@ import java.util.Properties;
 /**
  * Builds a {@link Session} from the properties of {@code qcaret_session.conf}, within the {@link
  * SessionStore} limits. A value that does not parse falls back to its default; a tab without a path
- * or buffer and a search whose scope or folder does not parse are skipped.
+ * or buffer and a search whose scope or folder does not parse are skipped. A relative path resolves
+ * through {@link InstallPaths#read}.
  */
 final class SessionReader {
   private SessionReader() {}
@@ -23,9 +25,10 @@ final class SessionReader {
    *
    * @param p the file's properties
    * @param absent the display state and browser visibility of a window entry that lacks the key
+   * @param paths resolves the file and folder paths
    * @return the session
    */
-  static Session parse(Properties p, ViewDefaults absent) {
+  static Session parse(Properties p, ViewDefaults absent, InstallPaths paths) {
     List<Session.Window> windows = new ArrayList<Session.Window>();
     int tabs = 0;
     int comments = 0;
@@ -40,31 +43,31 @@ final class SessionReader {
         if (p.getProperty(tabKey + "tabWidth") == null) {
           break;
         }
-        Session.Tab tab = tab(p, tabKey, SessionStore.MAX_COMMENTS - comments);
+        Session.Tab tab = tab(p, tabKey, SessionStore.MAX_COMMENTS - comments, paths);
         if (!tab.path().isEmpty() || !tab.buffer().isEmpty()) {
           list.add(tab);
           tabs++;
           comments += tab.comments().size();
         }
       }
-      windows.add(window(p, key, list, absent));
+      windows.add(window(p, key, list, absent, paths));
     }
     return new Session(
         windows,
-        list(p, SessionStore.RECENT, SessionStore.MAX_RECENT),
-        files(p),
+        list(p, SessionStore.RECENT, SessionStore.MAX_RECENT, paths),
+        files(p, paths),
         number(p, SessionStore.DROPPED_COMMENTS, 0, Integer.MAX_VALUE, 0));
   }
 
   private static Session.Window window(
-      Properties p, String key, List<Session.Tab> tabs, ViewDefaults absent) {
+      Properties p, String key, List<Session.Tab> tabs, ViewDefaults absent, InstallPaths paths) {
     List<Session.Search> searches = new ArrayList<Session.Search>();
     for (int i = 0; i < SessionStore.MAX_SEARCHES; i++) {
       String searchKey = key + "search." + i + ".";
       if (p.getProperty(searchKey + "text") == null) {
         break;
       }
-      Session.Search search = search(p, searchKey);
+      Session.Search search = search(p, searchKey, paths);
       if (search != null) {
         searches.add(search);
       }
@@ -78,14 +81,14 @@ final class SessionReader {
             flag(p, key + "maximized")),
         tabs,
         number(p, key + "active", -1, SessionStore.MAX_TABS, -1),
-        p.getProperty(key + "workspace", ""),
+        paths.read(p.getProperty(key + "workspace", "")),
         flag(p, key + "browser", absent.workspaceBrowser()),
         p.getProperty(key + "sideWeights", ""),
-        list(p, key + "expanded.", SessionStore.MAX_EXPANDED),
+        list(p, key + "expanded.", SessionStore.MAX_EXPANDED, paths),
         flag(p, key + "results"),
         p.getProperty(key + "dockWeights", ""),
         searches,
-        list(p, key + "closed.", SessionStore.MAX_CLOSED),
+        list(p, key + "closed.", SessionStore.MAX_CLOSED, paths),
         new Session.Display(
             flag(p, key + "wrap", absent.wordWrap()),
             flag(p, key + "whitespace", absent.whitespace()),
@@ -95,13 +98,13 @@ final class SessionReader {
             flag(p, key + "lineNumbers", absent.lineNumbers())),
         p.getProperty(key + "resultsWeights", ""),
         new Session.Browse(
-            p.getProperty(key + "browseFolder", ""),
+            paths.read(p.getProperty(key + "browseFolder", "")),
             p.getProperty(key + "browseFilter", ""),
             flag(p, key + "browseHidden")),
         flag(p, key + "onTop"));
   }
 
-  private static Session.Tab tab(Properties p, String key, int maxComments) {
+  private static Session.Tab tab(Properties p, String key, int maxComments, InstallPaths paths) {
     List<Session.View> views = new ArrayList<Session.View>();
     for (int v = 0; v < 2; v++) {
       String viewKey = key + "view." + v + ".";
@@ -129,7 +132,7 @@ final class SessionReader {
       }
     }
     return new Session.Tab(
-        p.getProperty(key + "path", ""),
+        paths.read(p.getProperty(key + "path", "")),
         p.getProperty(key + "title", ""),
         p.getProperty(key + "buffer", ""),
         p.getProperty(key + "encoding", ""),
@@ -147,9 +150,9 @@ final class SessionReader {
   }
 
   /** Returns a search, or null when its scope or folder does not parse. */
-  private static Session.Search search(Properties p, String key) {
+  private static Session.Search search(Properties p, String key, InstallPaths paths) {
     try {
-      String folder = p.getProperty(key + "folder", "");
+      String folder = paths.read(p.getProperty(key + "folder", ""));
       return new Session.Search(
           new SearchRequest(
               p.getProperty(key + "text"),
@@ -168,7 +171,7 @@ final class SessionReader {
     }
   }
 
-  private static List<Session.FileState> files(Properties p) {
+  private static List<Session.FileState> files(Properties p, InstallPaths paths) {
     List<Session.FileState> files = new ArrayList<Session.FileState>();
     for (int i = 0; i < SessionStore.MAX_FILES; i++) {
       String key = SessionStore.FILE_KEY + i + ".";
@@ -178,7 +181,7 @@ final class SessionReader {
       }
       files.add(
           new Session.FileState(
-              path,
+              paths.read(path),
               p.getProperty(key + "encoding", ""),
               p.getProperty(key + "language", ""),
               number(p, key + "tabWidth", 1, Document.MAX_TAB_WIDTH, Document.DEFAULT_TAB_WIDTH),
@@ -189,14 +192,14 @@ final class SessionReader {
     return files;
   }
 
-  private static List<String> list(Properties p, String prefix, int max) {
+  private static List<String> list(Properties p, String prefix, int max, InstallPaths paths) {
     List<String> list = new ArrayList<String>();
     for (int i = 0; i < max; i++) {
       String value = p.getProperty(prefix + i);
       if (value == null) {
         break;
       }
-      list.add(value);
+      list.add(paths.read(value));
     }
     return list;
   }

@@ -104,7 +104,8 @@ final class PreferencesController implements PreferencesInput {
         o.closeShowsLastUsed(),
         o.newLineEnding().key(),
         o.newEncoding(),
-        ViewPreferences.checks(p.state()));
+        ViewPreferences.checks(p.state()),
+        o.workspaceDefault());
   }
 
   @Override
@@ -231,6 +232,12 @@ final class PreferencesController implements PreferencesInput {
           UiText.PREFERENCES_BAD_DIRECTORIES.format(
               UiText.PREFERENCES_EXCLUDED_DIRECTORIES.text()));
     }
+    String workspaceDefault = form.workspaceDefault().strip();
+    if (!Options.validFolder(workspaceDefault)) {
+      return new PreferencesForm.Problem(
+          PreferencesForm.Group.SEARCH,
+          UiText.PREFERENCES_BAD_CHOICE.format(label(UiText.PREFERENCES_WORKSPACE_DEFAULT)));
+    }
     Preferences next =
         settings
             .current()
@@ -261,7 +268,8 @@ final class PreferencesController implements PreferencesInput {
                     form.closeWindowWithLastTab(),
                     form.closeShowsLastUsed(),
                     ending,
-                    form.newEncoding()));
+                    form.newEncoding(),
+                    workspaceDefault));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));

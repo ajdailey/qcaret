@@ -139,7 +139,8 @@ class EditorAdditionsTest {
         false,
         f.newLineEnding(),
         f.newEncoding(),
-        f.view());
+        f.view(),
+        "");
   }
 
   // Document statistics.

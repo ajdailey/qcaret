@@ -75,7 +75,8 @@ class NewFileDefaultsTest {
                     o.closeWindowWithLastTab(),
                     o.closeShowsLastUsed(),
                     ending,
-                    encoding)));
+                    encoding,
+                    "")));
   }
 
   private Document newDocument() {
@@ -179,7 +180,8 @@ class NewFileDefaultsTest {
         f.closeShowsLastUsed(),
         ending,
         encoding,
-        view);
+        view,
+        "");
   }
 
   @Test

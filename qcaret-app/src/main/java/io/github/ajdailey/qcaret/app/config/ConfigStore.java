@@ -35,6 +35,10 @@ import org.slf4j.LoggerFactory;
  * it is given, so another process's newer values and keys this version does not know stay. A
  * missing or malformed file gets every key. Saves write atomically ({@link AtomicFiles}). Two
  * processes saving within the same read and write can still lose one write: no file lock is held.
+ *
+ * <p>The path keys ({@code search.history.directory.N}, {@code workspace.favorite.N}, {@code
+ * workspace.default}) pass through {@link InstallPaths}: a load resolves a relative value, a save
+ * writes a path under the installation relative in portable and explicit mode.
  */
 public final class ConfigStore {
   /** Largest file read or written; a longer one is malformed. */
@@ -49,6 +53,7 @@ public final class ConfigStore {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigStore.class);
 
   private final SettingsLocation location;
+  private final InstallPaths paths;
   private final ReentrantLock lock = new ReentrantLock();
   private boolean keepInvalid;
   private boolean saveDisabled;
@@ -60,6 +65,7 @@ public final class ConfigStore {
    */
   public ConfigStore(SettingsLocation location) {
     this.location = location;
+    this.paths = new InstallPaths(location);
   }
 
   /**
@@ -99,7 +105,15 @@ public final class ConfigStore {
       }
       Path file = SafePaths.child(dir, SettingsLocation.MARKER);
       Properties properties = read(file);
-      return properties == null ? Preferences.DEFAULTS : PreferenceKeys.read(properties, file);
+      if (properties == null) {
+        return Preferences.DEFAULTS;
+      }
+      for (String key : properties.stringPropertyNames()) {
+        if (PreferenceKeys.holdsPath(key)) {
+          properties.setProperty(key, paths.read(properties.getProperty(key)));
+        }
+      }
+      return PreferenceKeys.read(properties, file);
     } catch (IOException e) {
       LOG.warn(
           "Cannot read settings in {}: {}",
@@ -159,6 +173,8 @@ public final class ConfigStore {
       for (Map.Entry<String, String> entry : changed.entrySet()) {
         if (entry.getValue() == null) {
           properties.remove(entry.getKey());
+        } else if (PreferenceKeys.holdsPath(entry.getKey())) {
+          properties.setProperty(entry.getKey(), paths.write(entry.getValue()));
         } else {
           properties.setProperty(entry.getKey(), entry.getValue());
         }

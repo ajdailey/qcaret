@@ -126,7 +126,8 @@ class PreferencesControllerTest {
         false,
         f.newLineEnding(),
         f.newEncoding(),
-        f.view());
+        f.view(),
+        "");
   }
 
   @Test
@@ -196,7 +197,8 @@ class PreferencesControllerTest {
                 false,
                 f.newLineEnding(),
                 f.newEncoding(),
-                f.view()));
+                f.view(),
+                ""));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -228,7 +230,8 @@ class PreferencesControllerTest {
                 false,
                 f.newLineEnding(),
                 f.newEncoding(),
-                f.view())));
+                f.view(),
+                "")));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -332,7 +335,8 @@ class PreferencesControllerTest {
                 false,
                 f.newLineEnding(),
                 f.newEncoding(),
-                f.view())));
+                f.view(),
+                "")));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -467,7 +471,8 @@ class PreferencesControllerTest {
                 false,
                 f.newLineEnding(),
                 f.newEncoding(),
-                f.view())));
+                f.view(),
+                "")));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -510,7 +515,8 @@ class PreferencesControllerTest {
         false,
         false,
         Options.DEFAULTS.newLineEnding(),
-        Options.DEFAULTS.newEncoding());
+        Options.DEFAULTS.newEncoding(),
+        "");
   }
 
   @Test

@@ -81,6 +81,7 @@ final class PreferenceKeys {
   static final String NEW_LINE_ENDING = "editor.newLineEnding";
   static final String NEW_ENCODING = "editor.newEncoding";
   static final String MEMORY_INDICATOR = "ui.memoryIndicator";
+  static final String WORKSPACE_DEFAULT = "workspace.default";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -131,6 +132,7 @@ final class PreferenceKeys {
     keys.put(CLOSE_SHOWS_LAST_USED, Boolean.toString(o.closeShowsLastUsed()));
     keys.put(NEW_LINE_ENDING, o.newLineEnding().key());
     keys.put(NEW_ENCODING, o.newEncoding());
+    keys.put(WORKSPACE_DEFAULT, o.workspaceDefault());
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -325,7 +327,33 @@ final class PreferenceKeys {
         flag(p, CLOSE_WINDOW_WITH_LAST_TAB, d.closeWindowWithLastTab(), file),
         flag(p, CLOSE_SHOWS_LAST_USED, d.closeShowsLastUsed(), file),
         newLineEnding(p, d.newLineEnding(), file),
-        newEncoding(p, d.newEncoding(), file));
+        newEncoding(p, d.newEncoding(), file),
+        workspaceDefault(p, d.workspaceDefault(), file));
+  }
+
+  /**
+   * Reports whether a key holds a user path, which {@link InstallPaths} resolves and relativizes.
+   *
+   * @param key a key
+   * @return true for {@code search.history.directory.N}, {@code workspace.favorite.N} and {@code
+   *     workspace.default}
+   */
+  static boolean holdsPath(String key) {
+    return key.startsWith(HISTORY_DIRECTORY)
+        || key.startsWith(FAVORITES)
+        || key.equals(WORKSPACE_DEFAULT);
+  }
+
+  private static String workspaceDefault(Properties p, String fallback, Path file) {
+    String value = p.getProperty(WORKSPACE_DEFAULT);
+    if (value == null) {
+      return fallback;
+    }
+    if (Options.validFolder(value.strip())) {
+      return value.strip();
+    }
+    invalid(WORKSPACE_DEFAULT, file);
+    return fallback;
   }
 
   private static NewLineEnding newLineEnding(Properties p, NewLineEnding fallback, Path file) {

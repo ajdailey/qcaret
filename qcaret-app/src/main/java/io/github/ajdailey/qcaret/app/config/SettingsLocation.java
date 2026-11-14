@@ -16,10 +16,21 @@ import java.util.Map;
  *
  * @param mode how the directory was chosen
  * @param directory the directory; a per-user directory may not exist yet
+ * @param home the installation directory, {@code qcaret.home}; null outside a packaged run
  */
-public record SettingsLocation(SettingsMode mode, Path directory) {
+public record SettingsLocation(SettingsMode mode, Path directory, Path home) {
   /** The portable-mode marker, which is also the settings file. */
   public static final String MARKER = "qcaret.conf";
+
+  /**
+   * Creates a location outside a packaged run.
+   *
+   * @param mode how the directory was chosen
+   * @param directory the directory
+   */
+  public SettingsLocation(SettingsMode mode, Path directory) {
+    this(mode, directory, null);
+  }
 
   /**
    * Resolves the location from this process's properties and environment.
@@ -48,20 +59,21 @@ public record SettingsLocation(SettingsMode mode, Path directory) {
    */
   public static SettingsLocation resolve(
       Path explicit, String home, OsTraits os, Map<String, String> env, String userHome) {
-    if (explicit != null) {
-      return new SettingsLocation(SettingsMode.EXPLICIT, explicit);
-    }
     Path installed = EnvPaths.absolute(home);
+    if (explicit != null) {
+      return new SettingsLocation(SettingsMode.EXPLICIT, explicit, installed);
+    }
     if (installed != null) {
       if (Files.isRegularFile(installed.resolve(MARKER))) {
-        return new SettingsLocation(SettingsMode.PORTABLE, installed);
+        return new SettingsLocation(SettingsMode.PORTABLE, installed, installed);
       }
       Path launcher = os.launcherDirectory(installed);
       if (launcher != null && Files.isRegularFile(launcher.resolve(MARKER))) {
-        return new SettingsLocation(SettingsMode.PORTABLE, launcher);
+        return new SettingsLocation(SettingsMode.PORTABLE, launcher, installed);
       }
     }
-    return new SettingsLocation(SettingsMode.PER_USER, os.userSettings(env, Path.of(userHome)));
+    return new SettingsLocation(
+        SettingsMode.PER_USER, os.userSettings(env, Path.of(userHome)), installed);
   }
 
   /**

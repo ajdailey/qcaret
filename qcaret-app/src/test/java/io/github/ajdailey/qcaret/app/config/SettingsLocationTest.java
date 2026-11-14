@@ -24,10 +24,11 @@ class SettingsLocationTest {
     Files.createFile(home.resolve("qcaret.conf"));
     Path explicit = temp.resolve("explicit");
     assertEquals(
-        new SettingsLocation(SettingsMode.EXPLICIT, explicit),
+        new SettingsLocation(SettingsMode.EXPLICIT, explicit, home),
         resolve(explicit, home, "Linux", Map.of()));
     assertEquals(
-        new SettingsLocation(SettingsMode.PORTABLE, home), resolve(null, home, "Linux", Map.of()));
+        new SettingsLocation(SettingsMode.PORTABLE, home, home),
+        resolve(null, home, "Linux", Map.of()));
   }
 
   @Test
@@ -36,13 +37,15 @@ class SettingsLocationTest {
     Path bin = Files.createDirectory(home.resolve("bin"));
     Files.createFile(bin.resolve("qcaret.conf"));
     assertEquals(
-        new SettingsLocation(SettingsMode.PORTABLE, bin), resolve(null, home, "Linux", Map.of()));
+        new SettingsLocation(SettingsMode.PORTABLE, bin, home),
+        resolve(null, home, "Linux", Map.of()));
     assertEquals(SettingsMode.PER_USER, resolve(null, home, "Windows 11", Map.of()).mode());
     assertEquals(SettingsMode.PER_USER, resolve(null, home, "Mac OS X", Map.of()).mode());
     // With both markers, the installation directory wins.
     Files.createFile(home.resolve("qcaret.conf"));
     assertEquals(
-        new SettingsLocation(SettingsMode.PORTABLE, home), resolve(null, home, "Linux", Map.of()));
+        new SettingsLocation(SettingsMode.PORTABLE, home, home),
+        resolve(null, home, "Linux", Map.of()));
   }
 
   @Test
@@ -50,7 +53,8 @@ class SettingsLocationTest {
     Path home = Files.createDirectory(temp.resolve("home"));
     Files.createDirectory(home.resolve("qcaret.conf"));
     assertEquals(
-        new SettingsLocation(SettingsMode.PER_USER, temp.resolve(".config").resolve("qcaret")),
+        new SettingsLocation(
+            SettingsMode.PER_USER, temp.resolve(".config").resolve("qcaret"), home),
         resolve(null, home, "Linux", Map.of()));
   }
 

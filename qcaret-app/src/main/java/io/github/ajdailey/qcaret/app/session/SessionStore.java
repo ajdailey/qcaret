@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.session;
 
+import io.github.ajdailey.qcaret.app.config.InstallPaths;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.config.ViewDefaults;
@@ -37,6 +38,9 @@ import org.slf4j.LoggerFactory;
  * #MAX_COMMENTS} comments over all tabs. {@code droppedComments}, written when not 0, counts the
  * comments a save left out; a missing or malformed value reads as 0. A read-only settings directory
  * disables saving with one WARN. Paths and comments are never logged.
+ *
+ * <p>Every file and folder path passes through {@link InstallPaths}: a load resolves a relative
+ * value, a save writes a path under the installation relative in portable and explicit mode.
  */
 public final class SessionStore {
   /** The file name in the settings directory. */
@@ -82,6 +86,7 @@ public final class SessionStore {
   static final String DROPPED_COMMENTS = "droppedComments";
 
   private final SettingsLocation location;
+  private final InstallPaths paths;
   private final ReentrantLock lock = new ReentrantLock();
   private boolean keepInvalid;
   private boolean saveDisabled;
@@ -93,6 +98,7 @@ public final class SessionStore {
    */
   public SessionStore(SettingsLocation location) {
     this.location = location;
+    this.paths = new InstallPaths(location);
   }
 
   /**
@@ -128,7 +134,7 @@ public final class SessionStore {
         disableSaving();
       }
       Properties p = read(SafePaths.child(dir, FILE));
-      return p == null ? Session.EMPTY : SessionReader.parse(p, absent);
+      return p == null ? Session.EMPTY : SessionReader.parse(p, absent, paths);
     } catch (IOException e) {
       LOG.warn("Cannot read {}: {}", FILE, LogText.oneLine(e.getMessage()));
       keepInvalid = true;
@@ -155,7 +161,7 @@ public final class SessionStore {
       if (location.mode() == SettingsMode.PER_USER && !Files.isDirectory(dir)) {
         SafePaths.settingsDirectory(dir);
       }
-      byte[] bytes = format(SessionWriter.keys(session));
+      byte[] bytes = format(SessionWriter.keys(session, paths));
       if (bytes.length > MAX_BYTES) {
         LOG.warn("Session not saved: {} would be over {} bytes", FILE, MAX_BYTES);
         return false;

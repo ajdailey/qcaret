@@ -344,12 +344,16 @@ class ConfigStoreTest {
   @Test
   void fullHistoriesOfEscapedTextFitHalfTheLimit() throws IOException {
     List<String> full = new ArrayList<String>();
+    List<String> directories = new ArrayList<String>();
+    String root = temp.getRoot().toString();
     for (int i = 0; i < UiState.MAX_HISTORY; i++) {
       full.add(i + "\u00e9".repeat(UiState.MAX_ENTRY_CHARS - 2));
+      // A directory entry without a root resolves against the base; this one keeps its length.
+      directories.add(root + i + "\u00e9".repeat(UiState.MAX_ENTRY_CHARS - 2 - root.length()));
     }
     Preferences saved =
         Preferences.DEFAULTS.withState(
-            UiState.DEFAULTS.withHistory(full, full, full).withReplacements(full));
+            UiState.DEFAULTS.withHistory(full, directories, full).withReplacements(full));
     assertTrue(store(temp).save(Preferences.DEFAULTS, saved));
     assertTrue(Files.size(conf()) < ConfigStore.MAX_BYTES / 2, "size " + Files.size(conf()));
     assertEquals(saved, store(temp).load());
@@ -403,7 +407,8 @@ class ConfigStoreTest {
             false,
             true,
             NewLineEnding.CRLF,
-            "windows-1251");
+            "windows-1251",
+            "");
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),

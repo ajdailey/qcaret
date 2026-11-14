@@ -122,7 +122,8 @@ class TabCloseTest {
                     o.closeWindowWithLastTab(),
                     on,
                     Options.DEFAULTS.newLineEnding(),
-                    Options.DEFAULTS.newEncoding())));
+                    Options.DEFAULTS.newEncoding(),
+                    "")));
   }
 
   @Test

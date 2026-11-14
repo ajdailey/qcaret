@@ -47,6 +47,8 @@ import java.time.format.DateTimeFormatter;
  *     text without line breaks
  * @param newEncoding {@code editor.newEncoding}: the charset of a new document and of an empty
  *     file, one of {@link TextEncoding#MENU}
+ * @param workspaceDefault {@code workspace.default}: the workspace folder of a window not restored
+ *     from the session, empty for none
  */
 public record Options(
     int completionChars,
@@ -70,7 +72,8 @@ public record Options(
     boolean closeWindowWithLastTab,
     boolean closeShowsLastUsed,
     NewLineEnding newLineEnding,
-    String newEncoding) {
+    String newEncoding,
+    String workspaceDefault) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -153,7 +156,8 @@ public record Options(
           false,
           false,
           NewLineEnding.LF,
-          "UTF-8");
+          "UTF-8",
+          "");
 
   /** Checks the components. */
   public Options {
@@ -181,6 +185,30 @@ public record Options(
     if (!validEncoding(newEncoding)) {
       throw new IllegalArgumentException("newEncoding");
     }
+    if (!validFolder(workspaceDefault)) {
+      throw new IllegalArgumentException("workspaceDefault");
+    }
+  }
+
+  /** Longest {@code workspaceDefault}. */
+  public static final int MAX_FOLDER_CHARS = 4096;
+
+  /**
+   * Reports whether a folder value is valid; whether the folder exists is checked where it is used.
+   *
+   * @param folder a path, empty for none, or null
+   * @return false for null, over {@link #MAX_FOLDER_CHARS} chars, or holding a control char
+   */
+  public static boolean validFolder(String folder) {
+    if (folder == null || folder.length() > MAX_FOLDER_CHARS) {
+      return false;
+    }
+    for (int i = 0; i < folder.length(); i++) {
+      if (Character.isISOControl(folder.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -272,7 +300,8 @@ public record Options(
         closeWindowWithLastTab,
         closeShowsLastUsed,
         newLineEnding,
-        newEncoding);
+        newEncoding,
+        workspaceDefault);
   }
 
   /**
@@ -304,6 +333,40 @@ public record Options(
         closeWindowWithLastTab,
         closeShowsLastUsed,
         newLineEnding,
-        newEncoding);
+        newEncoding,
+        workspaceDefault);
+  }
+
+  /**
+   * Returns a copy with another default workspace folder.
+   *
+   * @param folder the folder, empty for none
+   * @return the copy
+   */
+  public Options withWorkspaceDefault(String folder) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        folder);
   }
 }

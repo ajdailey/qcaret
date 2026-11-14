@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.session;
 
+import io.github.ajdailey.qcaret.app.config.InstallPaths;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import java.util.List;
@@ -8,21 +9,22 @@ import java.util.TreeMap;
 
 /**
  * Turns a {@link Session} into the keys of {@code qcaret_session.conf}, keeping the {@link
- * SessionStore} limits and counting the comments left out as {@code droppedComments}.
+ * SessionStore} limits and counting the comments left out as {@code droppedComments}. Each file and
+ * folder path is written through {@link InstallPaths#write}.
  */
 final class SessionWriter {
   private SessionWriter() {}
 
   /** Returns the keys of a session, {@code version} included. */
-  static Map<String, String> keys(Session session) {
+  static Map<String, String> keys(Session session, InstallPaths paths) {
     Map<String, String> keys = new TreeMap<String, String>();
     keys.put(SessionStore.VERSION_KEY, SessionStore.VERSION);
-    list(keys, SessionStore.RECENT, session.recent(), SessionStore.MAX_RECENT);
+    list(keys, SessionStore.RECENT, session.recent(), SessionStore.MAX_RECENT, paths);
     int files = Math.min(SessionStore.MAX_FILES, session.files().size());
     for (int i = 0; i < files; i++) {
       Session.FileState f = session.files().get(i);
       String key = SessionStore.FILE_KEY + i + ".";
-      keys.put(key + "path", f.path());
+      keys.put(key + "path", paths.write(f.path()));
       put(keys, key + "encoding", f.encoding());
       put(keys, key + "language", f.language());
       keys.put(key + "tabWidth", Integer.toString(f.tabWidth()));
@@ -43,17 +45,17 @@ final class SessionWriter {
       optional(keys, key + "height", bounds.height());
       keys.put(key + "maximized", Boolean.toString(bounds.maximized()));
       keys.put(key + "active", Integer.toString(window.active()));
-      put(keys, key + "workspace", window.workspace());
+      put(keys, key + "workspace", paths.write(window.workspace()));
       keys.put(key + "browser", Boolean.toString(window.browser()));
       put(keys, key + "sideWeights", window.sideWeights());
-      list(keys, key + "expanded.", window.expanded(), SessionStore.MAX_EXPANDED);
+      list(keys, key + "expanded.", window.expanded(), SessionStore.MAX_EXPANDED, paths);
       keys.put(key + "results", Boolean.toString(window.results()));
       put(keys, key + "dockWeights", window.dockWeights());
       put(keys, key + "resultsWeights", window.resultsWeights());
-      put(keys, key + "browseFolder", window.browse().folder());
+      put(keys, key + "browseFolder", paths.write(window.browse().folder()));
       put(keys, key + "browseFilter", window.browse().filter());
       keys.put(key + "browseHidden", Boolean.toString(window.browse().hidden()));
-      list(keys, key + "closed.", window.closed(), SessionStore.MAX_CLOSED);
+      list(keys, key + "closed.", window.closed(), SessionStore.MAX_CLOSED, paths);
       Session.Display display = window.display();
       keys.put(key + "wrap", Boolean.toString(display.wrap()));
       keys.put(key + "whitespace", Boolean.toString(display.whitespace()));
@@ -63,11 +65,11 @@ final class SessionWriter {
       keys.put(key + "lineNumbers", Boolean.toString(display.lineNumbers()));
       keys.put(key + "onTop", Boolean.toString(window.onTop()));
       for (int i = 0; i < Math.min(SessionStore.MAX_SEARCHES, window.searches().size()); i++) {
-        search(keys, key + "search." + i + ".", window.searches().get(i));
+        search(keys, key + "search." + i + ".", window.searches().get(i), paths);
       }
       int count = Math.min(SessionStore.MAX_TABS - tabs, window.tabs().size());
       for (int i = 0; i < count; i++) {
-        comments += tab(keys, key + "tab." + i + ".", window.tabs().get(i), comments);
+        comments += tab(keys, key + "tab." + i + ".", window.tabs().get(i), comments, paths);
       }
       tabs += count;
     }
@@ -89,8 +91,9 @@ final class SessionWriter {
   }
 
   /** Writes a tab and returns the comments written. */
-  private static int tab(Map<String, String> keys, String key, Session.Tab tab, int written) {
-    put(keys, key + "path", tab.path());
+  private static int tab(
+      Map<String, String> keys, String key, Session.Tab tab, int written, InstallPaths paths) {
+    put(keys, key + "path", paths.write(tab.path()));
     put(keys, key + "title", tab.title());
     put(keys, key + "buffer", tab.buffer());
     put(keys, key + "encoding", tab.encoding());
@@ -118,14 +121,15 @@ final class SessionWriter {
     return count;
   }
 
-  private static void search(Map<String, String> keys, String key, Session.Search search) {
+  private static void search(
+      Map<String, String> keys, String key, Session.Search search, InstallPaths paths) {
     SearchRequest r = search.request();
     keys.put(key + "text", r.text());
     keys.put(key + "regex", Boolean.toString(r.regex()));
     keys.put(key + "case", Boolean.toString(r.caseSensitive()));
     keys.put(key + "word", Boolean.toString(r.wholeWord()));
     keys.put(key + "scope", r.scope().name());
-    put(keys, key + "folder", r.folder() == null ? "" : r.folder().toString());
+    put(keys, key + "folder", r.folder() == null ? "" : paths.write(r.folder().toString()));
     put(keys, key + "include", r.include());
     put(keys, key + "exclude", r.exclude());
     put(keys, key + "excluded", r.excludedDirectories());
@@ -145,9 +149,10 @@ final class SessionWriter {
     }
   }
 
-  private static void list(Map<String, String> keys, String prefix, List<String> list, int max) {
+  private static void list(
+      Map<String, String> keys, String prefix, List<String> list, int max, InstallPaths paths) {
     for (int i = 0; i < Math.min(max, list.size()); i++) {
-      keys.put(prefix + i, list.get(i));
+      keys.put(prefix + i, paths.write(list.get(i)));
     }
   }
 }

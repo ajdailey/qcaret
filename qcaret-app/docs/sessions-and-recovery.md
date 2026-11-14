@@ -16,6 +16,12 @@ keys. `Gui` reads the file before the Display.
 | A bad value | Falls back |
 | A tab without a path or buffer | Skipped |
 
+Every tab path, `file.N.path`, `recent.N` and per window `closed.N`,
+`workspace`, `browseFolder`, `expanded.N` and each retained search's `folder`
+pass through `InstallPaths` ([Saved paths](settings.md#saved-paths)): in
+explicit and portable mode a path under the installation is written relative
+to it, and a relative value reads against the installation.
+
 ### Save limits
 
 `SessionStore` saves at most 32 windows, 256 tabs over all windows, 20 Recent
@@ -77,6 +83,15 @@ writes none. `Gui` loads the session with `SessionStore.load(ViewDefaults)`, so
 an entry that lacks a display key, or holds a value other than `true` or
 `false`, reads the preference.
 
+`WorkspaceDefault` gives a window not restored from the session
+`workspace.default` as its workspace folder: the window open at a start without
+the session or over a session with no window, File > New Window, a `-n`
+handoff and a tab moved to a new window. A restored window keeps its session
+folder, none included. A `qcaret-io-` worker checks the folder and resolves its
+real path; the browser keeps the visibility `ui.workspaceBrowser` gave it, and
+a workspace set in the window meanwhile stays. A missing, relative or
+non-directory folder leaves none, with one WARN per run.
+
 ### Save timing
 
 A change arms one 2 s timer, and changes before it fires share it, so a burst
@@ -131,7 +146,8 @@ A launch that failed its handoff to a live primary gets Recent Files alone from
 `SessionController` keeps the per-file LRU (`FileLru`, `SessionStore.MAX_FILES`,
 500 entries) behind `DocumentController.FileMemory`, keyed by the opened
 document's real path (caret, top line, tab settings, forced charset, chosen
-grammar). A closing file's state goes in; an opening file's comes out, in
+grammar); a relative `file.N.path` reads as its resolved path. A closing
+file's state goes in; an opening file's comes out, in
 `DocumentOpener.Listener.options` for the charset and after the load for the
 rest. Reopen Closed Tab therefore lands where the file was. A width or
 indentation the file declares replaces the remembered and session tab settings

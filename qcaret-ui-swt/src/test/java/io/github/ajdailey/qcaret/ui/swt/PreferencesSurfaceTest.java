@@ -348,6 +348,30 @@ class PreferencesSurfaceTest {
   }
 
   @Test
+  void theDefaultWorkspaceShowsClearsAndRestoresItsDefault() throws IOException {
+    Path folder = Files.createDirectories(temp.resolve("default")).toRealPath();
+    Preferences current = controller.settings().current();
+    controller
+        .settings()
+        .set(current.withOptions(current.options().withWorkspaceDefault(folder.toString())));
+    PreferencesDialog dialog = dialog();
+    WorkspaceDefaultRow row = dialog.workspaceDefault();
+    assertEquals(folder.toString(), row.field().getText());
+    assertFalse(row.field().getEditable());
+    assertEquals(UiText.PREFERENCES_WORKSPACE_DEFAULT_NONE.text(), row.field().getMessage());
+    assertTrue(row.chooseButton().isEnabled());
+    dialog.restoreDefaults();
+    assertEquals("", row.field().getText());
+    assertEquals(folder.toString(), controller.preferences().options().workspaceDefault());
+    row.show(folder.toString());
+    row.clearButton().notifyListeners(SWT.Selection, null);
+    assertEquals("", row.field().getText());
+    assertTrue(dialog.apply());
+    assertEquals("", controller.preferences().options().workspaceDefault());
+    dialog.shell().dispose();
+  }
+
+  @Test
   void aNewSizeIsRememberedAtClose() {
     PreferencesDialog dialog = dialog();
     dialog.shell().setSize(700, 560);
@@ -376,6 +400,13 @@ class PreferencesSurfaceTest {
     dialog.apply();
     capture(dir, "preferences-invalid");
     dialog.shell().dispose();
+    controller.execute(CommandId.THEME_DARK);
+    PreferencesDialog dark = dialog();
+    dark.shell().forceActive();
+    dark.workspaceDefault().show(temp.getRoot().resolve("projects").resolve("site").toString());
+    dark.folder().setSelection(PreferencesForm.Group.SEARCH.ordinal());
+    capture(dir, "preferences-search-dark");
+    dark.shell().dispose();
   }
 
   private void pause(int millis) {

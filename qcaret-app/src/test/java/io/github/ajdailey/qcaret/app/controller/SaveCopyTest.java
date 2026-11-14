@@ -458,7 +458,8 @@ class SaveCopyTest {
                     o.closeWindowWithLastTab(),
                     false,
                     Options.DEFAULTS.newLineEnding(),
-                    Options.DEFAULTS.newEncoding())));
+                    Options.DEFAULTS.newEncoding(),
+                    "")));
   }
 
   /**

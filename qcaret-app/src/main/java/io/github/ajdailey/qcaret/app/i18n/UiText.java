@@ -1699,7 +1699,15 @@ public enum UiText {
   /** Memory indicator tip line: what a click does. */
   MEMORY_TIP_CLICK,
   /** Notice after a click's garbage collection: the heap it freed, in MB. */
-  MEMORY_FREED;
+  MEMORY_FREED,
+  /** Preferences field: {@code workspace.default}. */
+  PREFERENCES_WORKSPACE_DEFAULT,
+  /** Preferences: shown in the default workspace field while none is set. */
+  PREFERENCES_WORKSPACE_DEFAULT_NONE,
+  /** Preferences: chooses the default workspace folder. */
+  BUTTON_CHOOSE_FOLDER,
+  /** Preferences: clears the default workspace folder. */
+  BUTTON_CLEAR_FOLDER;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 
