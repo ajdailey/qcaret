@@ -114,7 +114,7 @@ recovery are in the root [README](../README.md#releases).
 
 | Launcher | Behavior |
 |---|---|
-| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. Runs only `uname` and `readlink` besides Java |
+| `bin/qcaret` (POSIX sh) | Java from `<home>/runtime`, else `$JAVA_HOME`, else `PATH`; `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50`, plus `-XstartOnFirstThread` on Darwin. Follows `$0` symlinks with plain `readlink`. `--gtk4` before `--` exports `SWT_GTK4=1` and is dropped from the arguments; after `--` it passes through as a file name. Runs only `uname` and `readlink` besides Java |
 | `qcaret.exe` (launch4j 3.50, `gui`) | Runs `lib\qcaret.jar` with a Java 21+ found in `runtime`, `%JAVA_HOME%`, then `%PATH%`; 64-bit only; `-XX:MaxRAMPercentage=50`. The launch4j header is a 32-bit x86 program that starts `javaw.exe` as a child process; on Windows arm64 it runs under x86 emulation and starts the arm64 runtime, which the CI `bundle` job checks |
 | `QCaret.app/Contents/MacOS/QCaret` | The `jpackageapplauncher` binary from the target JDK's `jdk.jpackage` module. It reads `Contents/app/QCaret.cfg` and starts `Contents/runtime` with `-XstartOnFirstThread`, `--enable-native-access=ALL-UNNAMED` and `-XX:MaxRAMPercentage=50`; the layout copies jpackage's; the CI `bundle` job starts it on both macOS runners |
 
@@ -139,7 +139,7 @@ not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
 
 | Class | Covers |
 |---|---|
-| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management` |
+| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management`. A copy of the bundle's `bin/qcaret` over a stub `runtime/bin/java` run as `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |
 | `CharsetProbe` | Run by the bundle's `java`; fails unless every encoding in `SmokeTest.ENCODINGS` is supported |
 
 ### CI bundle check

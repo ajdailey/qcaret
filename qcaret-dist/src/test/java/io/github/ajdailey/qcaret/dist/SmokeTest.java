@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -242,8 +243,8 @@ class SmokeTest {
     assertTrue(hook, "no shutdown hook line in " + file);
   }
 
-  @Test
-  void linuxBundleRunsWithoutASystemJava() throws Exception {
+  /** Unpacks the host's Linux bundle into the temp directory; skips on any other host. */
+  private Path unpackLinuxBundle() throws Exception {
     String target = System.getProperty("qcaret.target.name");
     assumeTrue("linux-x86_64".equals(target), "the host bundle is " + target);
     Path archive =
@@ -257,12 +258,16 @@ class SmokeTest {
             .start();
     assertTrue(tar.waitFor(BOUND_SECONDS, TimeUnit.SECONDS));
     assertEquals(0, tar.exitValue());
+    return unpacked.resolve("qcaret");
+  }
 
+  @Test
+  void linuxBundleRunsWithoutASystemJava() throws Exception {
+    Path home = unpackLinuxBundle();
     // PATH holds only what bin/qcaret runs besides java.
     Path bin = Files.createDirectory(temp.resolve("path"));
     Files.createSymbolicLink(bin.resolve("uname"), Path.of("/usr/bin/uname"));
     Files.createSymbolicLink(bin.resolve("readlink"), Path.of("/usr/bin/readlink"));
-    Path home = unpacked.resolve("qcaret");
     List<String> command = new ArrayList<String>();
     command.add(home.resolve("bin").resolve("qcaret").toString());
     Path log = Files.writeString(temp.resolve("bundle.txt"), "mock line\n");
@@ -303,5 +308,54 @@ class SmokeTest {
     try (Run run = new Run(probe, Map.of(), false)) {
       assertNotNull(run.await(Pattern.compile("^charsets missing: 0$")), run.seen.toString());
     }
+  }
+
+  /**
+   * The bundle's {@code bin/qcaret} under a stub {@code runtime/bin/java} that prints {@code
+   * SWT_GTK4} and its arguments: {@code --gtk4} before {@code --} sets the variable and is dropped;
+   * after {@code --} it passes through as a file name.
+   */
+  @Test
+  void linuxLauncherGtk4OptionSetsTheEnvironment() throws Exception {
+    Path bundle = unpackLinuxBundle();
+    Path home = Files.createDirectory(temp.resolve("stub"));
+    Path launcher =
+        Files.copy(
+            bundle.resolve("bin").resolve("qcaret"),
+            Files.createDirectory(home.resolve("bin")).resolve("qcaret"));
+    Path java =
+        Files.writeString(
+            Files.createDirectories(home.resolve("runtime").resolve("bin")).resolve("java"),
+            "#!/bin/sh\necho \"SWT_GTK4=${SWT_GTK4:-}\"\nfor a do echo \"arg $a\"; done\n");
+    Files.setPosixFilePermissions(java, PosixFilePermissions.fromString("rwx------"));
+    Files.setPosixFilePermissions(launcher, PosixFilePermissions.fromString("rwx------"));
+    ProcessBuilder builder =
+        new ProcessBuilder(launcher.toString(), "-m", "--gtk4", "--", "--gtk4")
+            .redirectErrorStream(true);
+    builder.environment().clear();
+    builder.environment().put("PATH", "/usr/bin:/bin");
+    Process process = builder.start();
+    List<String> lines = new ArrayList<String>();
+    try (BufferedReader r =
+        new BufferedReader(
+            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+      String line = r.readLine();
+      while (line != null) {
+        lines.add(line);
+        line = r.readLine();
+      }
+    }
+    assertTrue(process.waitFor(BOUND_SECONDS, TimeUnit.SECONDS));
+    assertEquals(
+        List.of(
+            "SWT_GTK4=1",
+            "arg --enable-native-access=ALL-UNNAMED",
+            "arg -XX:MaxRAMPercentage=50",
+            "arg -jar",
+            "arg " + home.toRealPath().resolve("lib").resolve("qcaret.jar"),
+            "arg -m",
+            "arg --",
+            "arg --gtk4"),
+        lines);
   }
 }

@@ -932,6 +932,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
 | `--window-x <px>`, `--window-y <px>` | Window position, for this run |
 | `--settings <dir>` | Settings directory |
+| `--gtk4` | Linux `bin/qcaret` only: start with GTK 4 (experimental) |
 | `--` | End of options |
 
 A missing file opens an empty document that saves to that path. Options combine:

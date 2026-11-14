@@ -23,6 +23,20 @@ else
     java=java
 fi
 
+# --gtk4 before -- selects SWT's GTK 4 backend, which SWT reads from the
+# environment when it loads; after -- it is a file name.
+ended=
+for arg do
+    shift
+    if [ -z "$ended" ]; then
+        case $arg in
+            --gtk4) SWT_GTK4=1; export SWT_GTK4; continue ;;
+            --) ended=1 ;;
+        esac
+    fi
+    set -- "$@" "$arg"
+done
+
 # SWT on macOS needs the process main thread.
 if [ "$(uname -s)" = Darwin ]; then
     exec "$java" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -XstartOnFirstThread -jar "$home/lib/qcaret.jar" "$@"

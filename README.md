@@ -183,8 +183,8 @@ To fix a bad draft, delete the draft and the tag
 - Each bundle adds a Java runtime for its target, so it needs no installed
   Java.
 - Linux targets need the system GTK 3 libraries. GTK 4 is an experimental
-  opt-in on linux-x86_64: start QCaret with `SWT_GTK4=1` (GTK 4 libraries
-  required). Under GTK 4 Help > User Guide shows no guide window; a notice
+  opt-in on linux-x86_64: start QCaret with `bin/qcaret --gtk4` or
+  `SWT_GTK4=1` (GTK 4 libraries required). Under GTK 4 Help > User Guide shows no guide window; a notice
   names the guide's file instead.
 - The macOS bundles are ad-hoc signed and not notarized, so macOS asks the user
   to approve the first launch.
@@ -216,6 +216,7 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |
 | `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
 | `--settings <dir>` | Settings directory, created owner-only; holds `qcaret.conf` and QCaret's SWT native cache |
+| `--gtk4` | `bin/qcaret` only: start on SWT's GTK 4 backend by exporting `SWT_GTK4=1`; dropped before Java starts, so `java -jar` and `qcaret.exe` reject it. After `--` it is a file name |
 | `--` | End of options |
 | `file` | Opened in a tab; a missing file opens an empty document that saves to that path. Without a file, an untitled document opens |
 
