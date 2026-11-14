@@ -120,7 +120,9 @@ class TabCloseTest {
                     o.editorConfig(),
                     o.modelines(),
                     o.closeWindowWithLastTab(),
-                    on)));
+                    on,
+                    Options.DEFAULTS.newLineEnding(),
+                    Options.DEFAULTS.newEncoding())));
   }
 
   @Test

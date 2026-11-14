@@ -401,7 +401,9 @@ class ConfigStoreTest {
             true,
             true,
             false,
-            true);
+            true,
+            NewLineEnding.CRLF,
+            "windows-1251");
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -416,7 +418,8 @@ class ConfigStoreTest {
                 "HH:mm",
                 true,
                 true,
-                List.of("/mock/favorite", "/mock/other"))
+                List.of("/mock/favorite", "/mock/other"),
+                new ViewDefaults(true, true, true, false, false, true))
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE
@@ -436,7 +439,33 @@ class ConfigStoreTest {
                     "shortcut.FIND=",
                     "search.history.replace.0=swapped",
                     "syntax.recent=java;xml",
-                    "dialog.preferences.width=640")));
+                    "dialog.preferences.width=640",
+                    "editor.newLineEnding=crlf",
+                    "editor.newEncoding=windows-1251",
+                    "ui.wordWrap=true",
+                    "ui.overview=false",
+                    "ui.workspaceBrowser=true")));
+  }
+
+  @Test
+  void theViewAndNewFileKeysFallBackOneByOne() throws IOException {
+    Files.writeString(
+        conf(),
+        "editor.newLineEnding=cr\n"
+            + "editor.newEncoding=utf8\n"
+            + "ui.wordWrap=yes\n"
+            + "ui.lineNumbers=false\n"
+            + "ui.workspaceBrowser=true\n");
+    Preferences loaded = store(temp).load();
+    assertEquals(NewLineEnding.LF, loaded.options().newLineEnding());
+    assertEquals("UTF-8", loaded.options().newEncoding());
+    assertEquals(
+        ViewDefaults.DEFAULTS.withLineNumbers(false).withWorkspaceBrowser(true),
+        loaded.state().view());
+    Files.writeString(conf(), "editor.newLineEnding= platform \neditor.newEncoding=Big5\n");
+    Options read = store(temp).load().options();
+    assertEquals(NewLineEnding.PLATFORM, read.newLineEnding());
+    assertEquals("Big5", read.newEncoding());
   }
 
   @Test

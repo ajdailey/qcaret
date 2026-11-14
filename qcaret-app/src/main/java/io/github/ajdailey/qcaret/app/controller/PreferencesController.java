@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.config.Appearance;
+import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -30,6 +31,9 @@ final class PreferencesController implements PreferencesInput {
 
   /** The settings the file holds after a failed clear, so a retry removes the same keys. */
   private Preferences uncleared;
+
+  /** The View tab's boxes as {@link #form} showed them or the last apply left them. */
+  private PreferencesForm.ViewChecks shownView;
 
   PreferencesController(
       Settings settings,
@@ -60,7 +64,9 @@ final class PreferencesController implements PreferencesInput {
 
   @Override
   public PreferencesForm form() {
-    return form(settings.current());
+    PreferencesForm form = form(settings.current());
+    shownView = form.view();
+    return form;
   }
 
   @Override
@@ -95,7 +101,10 @@ final class PreferencesController implements PreferencesInput {
         o.modelines(),
         p.appearance().editorColors(),
         o.closeWindowWithLastTab(),
-        o.closeShowsLastUsed());
+        o.closeShowsLastUsed(),
+        o.newLineEnding().key(),
+        o.newEncoding(),
+        ViewPreferences.checks(p.state()));
   }
 
   @Override
@@ -205,6 +214,16 @@ final class PreferencesController implements PreferencesInput {
           PreferencesForm.Group.EDITOR,
           UiText.PREFERENCES_BAD_DATE_FORMAT.format(label(UiText.PREFERENCES_DATE_FORMAT)));
     }
+    NewLineEnding ending = NewLineEnding.parse(form.newLineEnding());
+    if (ending == null || !Options.validEncoding(form.newEncoding())) {
+      return new PreferencesForm.Problem(
+          PreferencesForm.Group.EDITOR,
+          UiText.PREFERENCES_BAD_CHOICE.format(
+              label(
+                  ending == null
+                      ? UiText.PREFERENCES_NEW_LINE_ENDING
+                      : UiText.PREFERENCES_NEW_ENCODING)));
+    }
     String excluded = form.excludedDirectories().strip();
     if (!Options.validDirectories(excluded)) {
       return new PreferencesForm.Problem(
@@ -240,7 +259,13 @@ final class PreferencesController implements PreferencesInput {
                     form.editorConfig(),
                     form.modelines(),
                     form.closeWindowWithLastTab(),
-                    form.closeShowsLastUsed()));
+                    form.closeShowsLastUsed(),
+                    ending,
+                    form.newEncoding()));
+    PreferencesForm.ViewChecks shown =
+        shownView == null ? ViewPreferences.checks(next.state()) : shownView;
+    next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));
+    shownView = form.view();
     boolean sameThemeFile = form.themeFile().equals(settings.current().appearance().themeFile());
     settings.set(
         next,

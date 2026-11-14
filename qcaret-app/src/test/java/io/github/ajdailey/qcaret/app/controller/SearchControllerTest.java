@@ -84,7 +84,9 @@ class SearchControllerTest {
                     Options.DEFAULTS.editorConfig(),
                     Options.DEFAULTS.modelines(),
                     false,
-                    false)));
+                    false,
+                    Options.DEFAULTS.newLineEnding(),
+                    Options.DEFAULTS.newEncoding())));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();
     assertEquals(1, search.sets().get(0).matches());

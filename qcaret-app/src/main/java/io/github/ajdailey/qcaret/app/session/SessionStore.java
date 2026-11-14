@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.session;
 
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -104,11 +105,22 @@ public final class SessionStore {
   }
 
   /**
-   * Reads the session. Blocking.
+   * Reads the session; a window entry without a display key takes {@link ViewDefaults#DEFAULTS}.
+   * Blocking.
    *
    * @return the session; {@link Session#EMPTY} when the file is missing or malformed
    */
   public Session load() {
+    return load(ViewDefaults.DEFAULTS);
+  }
+
+  /**
+   * Reads the session. Blocking.
+   *
+   * @param absent the display state and browser visibility of a window entry that lacks the key
+   * @return the session; {@link Session#EMPTY} when the file is missing or malformed
+   */
+  public Session load(ViewDefaults absent) {
     lock.lock();
     try {
       Path dir = location.directory();
@@ -116,7 +128,7 @@ public final class SessionStore {
         disableSaving();
       }
       Properties p = read(SafePaths.child(dir, FILE));
-      return p == null ? Session.EMPTY : SessionReader.parse(p);
+      return p == null ? Session.EMPTY : SessionReader.parse(p, absent);
     } catch (IOException e) {
       LOG.warn("Cannot read {}: {}", FILE, LogText.oneLine(e.getMessage()));
       keepInvalid = true;

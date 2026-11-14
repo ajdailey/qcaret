@@ -123,7 +123,10 @@ class PreferencesControllerTest {
         f.modelines(),
         field.equals("editorColors") ? value : f.editorColors(),
         false,
-        false);
+        false,
+        f.newLineEnding(),
+        f.newEncoding(),
+        f.view());
   }
 
   @Test
@@ -190,7 +193,10 @@ class PreferencesControllerTest {
                 f.modelines(),
                 f.editorColors(),
                 false,
-                false));
+                false,
+                f.newLineEnding(),
+                f.newEncoding(),
+                f.view()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -219,7 +225,10 @@ class PreferencesControllerTest {
                 f.modelines(),
                 f.editorColors(),
                 false,
-                false)));
+                false,
+                f.newLineEnding(),
+                f.newEncoding(),
+                f.view())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -320,7 +329,10 @@ class PreferencesControllerTest {
                 f.modelines(),
                 f.editorColors(),
                 false,
-                false)));
+                false,
+                f.newLineEnding(),
+                f.newEncoding(),
+                f.view())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -452,7 +464,10 @@ class PreferencesControllerTest {
                 f.modelines(),
                 f.editorColors(),
                 false,
-                false)));
+                false,
+                f.newLineEnding(),
+                f.newEncoding(),
+                f.view())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -493,7 +508,9 @@ class PreferencesControllerTest {
         Options.DEFAULTS.editorConfig(),
         Options.DEFAULTS.modelines(),
         false,
-        false);
+        false,
+        Options.DEFAULTS.newLineEnding(),
+        Options.DEFAULTS.newEncoding());
   }
 
   @Test

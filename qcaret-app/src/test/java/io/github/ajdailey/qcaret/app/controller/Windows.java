@@ -41,6 +41,10 @@ final class Windows {
   final List<Boolean> maximized = new ArrayList<Boolean>();
 
   Windows(Path temp, boolean remember) {
+    this(temp, remember, Preferences.DEFAULTS);
+  }
+
+  Windows(Path temp, boolean remember, Preferences preferences) {
     workers =
         new Workers(
             2,
@@ -55,7 +59,7 @@ final class Windows {
             workers,
             ui,
             new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings"))),
-            Preferences.DEFAULTS,
+            preferences,
             Harness.LIGHT_SYSTEM,
             budget,
             Keymap.defaults(false),

@@ -23,7 +23,8 @@ the settings directory and User Guide opens without the embedded browser
 log file at the next start), `Options` (the Preferences dialog's settings),
 `UiState` (search toggles, histories, recent grammars, dialog sizes, the
 toolbar, right margin, indent guide and modified-line mark choices, the last
-date format), `ShortcutOverrides`
+date format, and `ViewDefaults`, the display state a window starts from),
+`ShortcutOverrides`
 and `Appearance` (`editor.fontFamily`, and `ui.editorColors` as a scheme or a
 theme file).
 `TipSettings` holds `help.tipsOnStartup` and `help.nextTip`.
@@ -64,7 +65,10 @@ can lose one of the two.
 ## Running settings
 
 `Settings` (`app.controller`) is the one running copy. Every controller reads
-`current()`; no toggle or history has a per-window field. `set` replaces the
+`current()`, apart from the View display toggles: word wrap, the marks, the
+overview strip, line numbers and the workspace browser are per-window state,
+and `ui.wordWrap` and its siblings set only what a window starts with ([Window
+display defaults](sessions-and-recovery.md#window-display-defaults)). `set` replaces the
 copy, calls the listeners on the UI thread and queues the change for a
 `qcaret-lifecycle-` worker. Workers drain the queue in order under `saveLock`,
 which the UI thread never takes, as one `save` from the first change's `before`
@@ -83,7 +87,13 @@ then shows a notice when Preferences opens or Clear History runs.
 `PreferencesController` runs `refresh` before the dialog opens, so the dialog
 shows the file's values, and hands checked fields to `set`. A failed save shows
 a notice, and the settings stay applied for the run. Every setting applies to
-the running windows; none needs a restart.
+the running windows; none needs a restart. On the View tab, the six per-window
+boxes change only the defaults, and Toolbar, Right margin, Indent guides and
+Modified line marks apply to every window, as their View menu items do. Apply
+writes only the View boxes changed since the dialog opened or the last Apply
+(Restore Defaults counts), so a View menu toggle made while the dialog shows
+keeps its value. The
+Editor tab's new-file lists leave open documents alone.
 
 `clearHistory` empties every `search.history.*.N` list and `SearchController`'s
 last run at once, apart from `apply`, so Cancel does not restore them. It runs
@@ -118,6 +128,12 @@ Shortcuts.
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
 | `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
 | `ui.lineChanges` | `true`, `false`: the editors mark the lines changed since the last load or save | `false` | View > Modified Line Marks |
+| `ui.wordWrap` | `true`, `false`: a window without a session entry starts with word wrap on | `false` | View > Word Wrap; Tools > Preferences, View |
+| `ui.whitespace` | `true`, `false`: such a window starts with the whitespace marks | `false` | View > Show Whitespace; Tools > Preferences, View |
+| `ui.lineEndings` | `true`, `false`: such a window starts with the line-ending marks | `false` | View > Show Line Endings; Tools > Preferences, View |
+| `ui.overview` | `true`, `false`: such a window starts with the overview strip | `true` | View > Overview Strip; Tools > Preferences, View |
+| `ui.lineNumbers` | `true`, `false`: such a window starts with line numbers | `true` | View > Line Numbers; Tools > Preferences, View |
+| `ui.workspaceBrowser` | `true`, `false`: such a window starts with the workspace browser shown | `false` | View > Workspace Browser; Tools > Preferences, View |
 | `ui.lastDateFormat` | The pattern Insert Date and Time used last, selected first in its list | none | Edit > Insert Date and Time |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
@@ -132,6 +148,8 @@ Shortcuts.
 | `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Tools > Preferences, Editor |
 | `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Tools > Preferences, Editor |
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Tools > Preferences, Editor |
+| `editor.newLineEnding` | `lf`, `crlf`, `platform` (CRLF on Windows, else LF): Enter's line ending in a new document, a missing file opened by path, and a loaded text without line breaks, until per-file settings say otherwise | `lf` | Tools > Preferences, Editor |
+| `editor.newEncoding` | A charset of the Encoding menu, spelled as there (`UTF-8`, `windows-1252`, ...): the encoding of a new document, a missing file opened by path, and a file of 0 bytes, unless forced or set by `.editorconfig` | `UTF-8` | Tools > Preferences, Editor |
 | `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom In, Zoom Out and Reset Zoom; Tools > Preferences, Appearance |
 | `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Tools > Preferences, Appearance |
 | `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Tools > Preferences, Files |

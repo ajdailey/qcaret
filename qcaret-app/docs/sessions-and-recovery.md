@@ -65,6 +65,18 @@ instance started with `restore` true saves, so `-m` never replaces the session.
 A remembered charset the runtime lacks warns and detects; one that no longer
 decodes the file warns and detects too.
 
+### Window display defaults
+
+`ViewToggles` sets each new window's word wrap, whitespace and line-ending
+marks, overview strip, line numbers and workspace browser from `UiState.view`
+(`ui.wordWrap` and the other keys in [Settings](settings.md#keys)). A window
+that restores a session entry then
+takes the entry's values; a start without the session and a new window keep the
+keys. A View toggle changes its own window and writes the key; the restore
+writes none. `Gui` loads the session with `SessionStore.load(ViewDefaults)`, so
+an entry that lacks a display key, or holds a value other than `true` or
+`false`, reads the preference.
+
 ### Save timing
 
 A change arms one 2 s timer, and changes before it fires share it, so a burst

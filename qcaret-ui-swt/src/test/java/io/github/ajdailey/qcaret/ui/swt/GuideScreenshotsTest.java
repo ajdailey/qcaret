@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
@@ -305,7 +306,7 @@ class GuideScreenshotsTest {
     Shell preferences = dialog("preferences.png");
     TabFolder tabs = find(preferences, TabFolder.class);
     assertNotNull(tabs);
-    tabs.setSelection(1);
+    tabs.setSelection(PreferencesForm.Group.FILES.ordinal());
     settle();
     saveDialog("preferences.png");
 

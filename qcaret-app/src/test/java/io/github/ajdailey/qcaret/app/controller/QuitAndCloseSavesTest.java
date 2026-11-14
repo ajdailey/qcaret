@@ -261,6 +261,8 @@ class QuitAndCloseSavesTest {
                     o.editorConfig(),
                     o.modelines(),
                     o.closeWindowWithLastTab(),
-                    o.closeShowsLastUsed())));
+                    o.closeShowsLastUsed(),
+                    Options.DEFAULTS.newLineEnding(),
+                    Options.DEFAULTS.newEncoding())));
   }
 }

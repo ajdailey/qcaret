@@ -87,7 +87,9 @@ class LastTabTest {
                 o.editorConfig(),
                 o.modelines(),
                 true,
-                false)));
+                false,
+                Options.DEFAULTS.newLineEnding(),
+                Options.DEFAULTS.newEncoding())));
   }
 
   @Test

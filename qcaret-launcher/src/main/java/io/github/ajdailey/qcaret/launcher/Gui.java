@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
@@ -171,7 +172,8 @@ final class Gui {
           LOG.info("Another instance owns the session; this one runs without it");
         }
       }
-      Session session = without ? sessions.load().recentOnly() : sessions.load();
+      ViewDefaults absent = preferences.state().view();
+      Session session = without ? sessions.load(absent).recentOnly() : sessions.load(absent);
       ThemeColors colors =
           ThemeColors.read(config.location().directory(), preferences.appearance().themeFile());
       Display.setAppName("QCaret");

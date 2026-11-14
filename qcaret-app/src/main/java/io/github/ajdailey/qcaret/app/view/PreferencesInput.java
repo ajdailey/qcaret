@@ -30,7 +30,8 @@ public interface PreferencesInput {
 
   /**
    * Checks the fields, then applies them to the running windows and saves them on a worker. A
-   * refused form changes nothing.
+   * refused form changes nothing. A View tab box still as {@link #form} or the last apply left it
+   * keeps the running value, so a View menu toggle made meanwhile stays.
    *
    * @param form the fields
    * @return null when applied, else the first invalid field

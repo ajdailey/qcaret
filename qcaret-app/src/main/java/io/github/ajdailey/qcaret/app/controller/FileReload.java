@@ -53,7 +53,7 @@ final class FileReload {
   private final UiDispatcher ui;
   private final MainView view;
   private final MemoryBudget budget;
-  private final LoadOptions options;
+  private LoadOptions options;
   private final ExternalChanges changes;
   private final DocumentSettings declared;
   private final SaveAndReload.Window window;
@@ -81,6 +81,10 @@ final class FileReload {
 
   void setCompare(CompareController value) {
     compare = value;
+  }
+
+  void setLoadOptions(LoadOptions value) {
+    options = value;
   }
 
   void setAutoReloadClean(boolean on) {
@@ -257,8 +261,9 @@ final class FileReload {
     final Path file = d.file.watch.path();
     final Charset charset = d.file.forced;
     final boolean binary = d.binary;
+    final LoadOptions loading = options;
     final LoadReservation reservation =
-        LoadReservation.reload(budget, d.reserved, options.limits());
+        LoadReservation.reload(budget, d.reserved, loading.limits());
     final FileSettingsReader reader = binary ? null : declared.reader();
     view.setActive();
     boolean started =
@@ -272,7 +277,7 @@ final class FileReload {
                 try {
                   Path real = SaveAndReload.realFile(file);
                   EditorConfig.Result config = reader == null ? null : reader.editorConfig(real);
-                  LoadOptions with = reader == null ? options : reader.options(options, config);
+                  LoadOptions with = reader == null ? loading : reader.options(loading, config);
                   ReloadedFile read =
                       CompareController.reload(
                           file, with, charset, binary, snapshot.text(), reservation, token);

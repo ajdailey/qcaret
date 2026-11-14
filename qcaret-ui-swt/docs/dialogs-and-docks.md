@@ -73,6 +73,9 @@ modeless window with one tab per `PreferencesForm.Group`, over
 - The Editor tab's Editor colors list (`EditorColorsChoice`) holds the bundled
   schemes, then the theme files a worker lists; a saved theme file missing from
   the list is added so it stays chosen.
+- The View tab (`PreferencesViewTab`) holds the six boxes of what a new window
+  starts with under one heading and the four boxes every window follows under
+  another.
 - OK and Apply pass the fields to the controller; a refused field shows its
   message above the buttons, selects its tab and keeps the dialog open.
 - Restore Defaults fills every tab and applies nothing until OK or Apply.

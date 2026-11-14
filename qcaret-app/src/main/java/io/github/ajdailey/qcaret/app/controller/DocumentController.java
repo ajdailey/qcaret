@@ -130,7 +130,7 @@ public final class DocumentController {
   private final UiDispatcher ui;
   private final MainView view;
   private final MemoryBudget budget;
-  private final LoadOptions options;
+  private LoadOptions options;
   private final DocumentOpener opener;
   private final List<OpenDocument> documents = new ArrayList<OpenDocument>();
   private final Deque<Path> closedPaths = new ArrayDeque<Path>();
@@ -401,12 +401,7 @@ public final class DocumentController {
           && error instanceof NoSuchFileException
           && path.isAbsolute()
           && path.getParent() != null) {
-        Document document =
-            Document.of(
-                "",
-                TextEncoding.of(StandardCharsets.UTF_8, false),
-                options.empty(),
-                options.limits());
+        Document document = Document.of("", newFileEncoding(), options.empty(), options.limits());
         OpenDocument d =
             add(
                 document,
@@ -876,11 +871,9 @@ public final class DocumentController {
 
   // New and Open.
 
-  /** Opens an empty untitled document, UTF-8 with the default line ending. */
+  /** Opens an empty untitled document in the new-file encoding and line ending. */
   public void newDocument() {
-    Document document =
-        Document.of(
-            "", TextEncoding.of(StandardCharsets.UTF_8, false), options.empty(), options.limits());
+    Document document = Document.of("", newFileEncoding(), options.empty(), options.limits());
     add(
         document,
         null,
@@ -1989,6 +1982,23 @@ public final class DocumentController {
   /** Returns the options files load with. */
   LoadOptions loadOptions() {
     return options;
+  }
+
+  /**
+   * Sets the line ending and charset of a new document, of a text without breaks and of an empty
+   * file.
+   *
+   * @param ending the line ending
+   * @param charset the charset
+   */
+  public void setNewFile(LineEnding ending, Charset charset) {
+    options = options.withNewFile(ending, charset);
+    files.setLoadOptions(options);
+  }
+
+  private TextEncoding newFileEncoding() {
+    Charset charset = options.emptyCharset();
+    return TextEncoding.of(charset == null ? StandardCharsets.UTF_8 : charset, false);
   }
 
   /** Returns the path the user opened the selected document by, or null without a file. */

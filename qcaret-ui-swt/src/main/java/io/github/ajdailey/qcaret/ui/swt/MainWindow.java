@@ -452,6 +452,9 @@ public final class MainWindow implements MainView {
     workspaceDock.control().moveAbove(body);
     browserWidth = new BrowserSideWidth(side, workspaceDock.buttons());
     side.setMaximizedControl(body);
+    if (menuBar.states().checked(CommandId.WORKSPACE_BROWSER)) {
+      showWorkspace(owner.workspace(), true);
+    }
     shell.addListener(
         SWT.Activate,
         new Listener() {

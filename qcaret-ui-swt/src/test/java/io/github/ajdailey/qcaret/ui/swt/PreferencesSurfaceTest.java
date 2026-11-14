@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
@@ -20,6 +21,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
@@ -124,7 +126,7 @@ class PreferencesSurfaceTest {
     PreferencesDialog dialog = dialog();
     dialog.pollSeconds().setText("0");
     assertFalse(dialog.apply());
-    assertEquals(1, dialog.folder().getSelectionIndex());
+    assertEquals(PreferencesForm.Group.FILES.ordinal(), dialog.folder().getSelectionIndex());
     assertTrue(
         dialog.message().getText().startsWith("Seconds between"), dialog.message().getText());
     assertFalse(dialog.shell().isDisposed());
@@ -265,7 +267,7 @@ class PreferencesSurfaceTest {
   @Test
   void aKeyIsRefusedWhenItTypesOrIsTakenAndTheCommandTakesAFreeOne() {
     PreferencesDialog dialog = dialog();
-    dialog.folder().setSelection(4);
+    dialog.folder().setSelection(PreferencesForm.Group.KEYS.ordinal());
     dialog.select(CommandId.COMPARE_DOCUMENTS);
     dialog.record(new KeyStroke(0, 'k'));
     dialog.addCaptured();
@@ -307,6 +309,40 @@ class PreferencesSurfaceTest {
   }
 
   @Test
+  void theViewTabAndTheNewFileListsRoundTrip() {
+    PreferencesDialog dialog = dialog();
+    assertEquals(
+        UiText.PREFERENCES_TAB_VIEW.text(),
+        dialog.folder().getItem(PreferencesForm.Group.VIEW.ordinal()).getText());
+    assertEquals(0, dialog.newLineEnding().getSelectionIndex());
+    assertEquals("UTF-8", dialog.newEncoding().getText());
+    assertFalse(dialog.view().wordWrap().getSelection());
+    assertTrue(dialog.view().toolbar().getSelection());
+    dialog.view().wordWrap().setSelection(true);
+    dialog.view().toolbar().setSelection(false);
+    dialog.newLineEnding().select(1);
+    dialog.newEncoding().select(dialog.newEncoding().indexOf("windows-1252"));
+    assertTrue(dialog.apply());
+    Preferences p = controller.preferences();
+    assertTrue(p.state().view().wordWrap());
+    assertFalse(p.state().toolbar());
+    assertEquals(NewLineEnding.CRLF, p.options().newLineEnding());
+    assertEquals("windows-1252", p.options().newEncoding());
+    assertFalse(controller.documents().wrap());
+    assertFalse(window.mainToolBar().bar().getVisible());
+    dialog.shell().dispose();
+    PreferencesDialog again = dialog();
+    assertTrue(again.view().wordWrap().getSelection());
+    assertFalse(again.view().toolbar().getSelection());
+    assertEquals(1, again.newLineEnding().getSelectionIndex());
+    assertEquals("windows-1252", again.newEncoding().getText());
+    again.restoreDefaults();
+    assertFalse(again.view().wordWrap().getSelection());
+    assertEquals(0, again.newLineEnding().getSelectionIndex());
+    again.shell().dispose();
+  }
+
+  @Test
   void aNewSizeIsRememberedAtClose() {
     PreferencesDialog dialog = dialog();
     dialog.shell().setSize(700, 560);
@@ -325,12 +361,12 @@ class PreferencesSurfaceTest {
     assumeTrue(dir != null, "qcaret.screenshots not set");
     PreferencesDialog dialog = dialog();
     dialog.shell().forceActive();
-    String[] names = {"editor", "files", "search", "appearance", "keys"};
+    String[] names = {"editor", "view", "files", "search", "appearance", "keys"};
     for (int i = 0; i < names.length; i++) {
       dialog.folder().setSelection(i);
       capture(dir, "preferences-" + names[i]);
     }
-    dialog.folder().setSelection(1);
+    dialog.folder().setSelection(PreferencesForm.Group.FILES.ordinal());
     dialog.pollSeconds().setText("0");
     dialog.apply();
     capture(dir, "preferences-invalid");

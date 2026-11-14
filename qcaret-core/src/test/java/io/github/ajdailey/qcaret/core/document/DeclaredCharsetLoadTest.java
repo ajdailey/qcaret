@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.core.text.Modeline;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,6 +65,35 @@ class DeclaredCharsetLoadTest {
     assertEquals(DetectionReason.BOM, read.detection().reason());
     assertEquals(StandardCharsets.UTF_8, read.detection().encoding().charset());
     assertTrue(read.detection().encoding().bom());
+  }
+
+  @Test
+  void anEmptyFileTakesTheEmptyCharsetUnlessOneIsForcedOrConfigured() throws IOException {
+    Path file = Files.write(dir.resolve("empty.txt"), new byte[0]);
+    Charset big5 = Charset.forName("Big5");
+    LoadOptions options = LoadOptions.DEFAULTS.withNewFile(LineEnding.CRLF, big5);
+    LoadedFile read = DocumentFiles.load(file, options, new CancellationToken());
+    assertEquals(DetectionReason.EMPTY, read.detection().reason());
+    assertEquals(big5, read.document().encoding().charset());
+    assertEquals(LineEnding.CRLF, read.document().lineEnding());
+
+    read =
+        DocumentFiles.load(
+            file,
+            options.withDeclarations(StandardCharsets.ISO_8859_1, false),
+            new CancellationToken());
+    assertEquals(DetectionReason.CONFIGURED, read.detection().reason());
+    read =
+        DocumentFiles.load(
+            file, options.withForced(StandardCharsets.UTF_16LE), new CancellationToken());
+    assertEquals(DetectionReason.FORCED, read.detection().reason());
+    read = DocumentFiles.load(file, LoadOptions.DEFAULTS, new CancellationToken());
+    assertEquals(DetectionReason.UTF8_VALID, read.detection().reason());
+
+    Files.writeString(file, "x");
+    read = DocumentFiles.load(file, options, new CancellationToken());
+    assertEquals(DetectionReason.UTF8_VALID, read.detection().reason());
+    assertEquals(LineEnding.CRLF, read.document().lineEnding());
   }
 
   @Test

@@ -1643,7 +1643,45 @@ public enum UiText {
   /** Browser row for a folder whose listing is denied; the folder's name. */
   WORKSPACE_ACCESS_DENIED,
   /** Preferences box making a close of the shown tab show the most recently used tab. */
-  PREFERENCES_CLOSE_SHOWS_LAST_USED;
+  PREFERENCES_CLOSE_SHOWS_LAST_USED,
+  /** Preferences tab of the window display defaults. */
+  PREFERENCES_TAB_VIEW,
+  /** View tab heading over the defaults a new window starts from. */
+  PREFERENCES_VIEW_NEW_WINDOWS,
+  /** View tab heading over the choices every window follows. */
+  PREFERENCES_VIEW_ALL_WINDOWS,
+  /** View tab box: new windows wrap words. */
+  PREFERENCES_VIEW_WORD_WRAP,
+  /** View tab box: new windows mark whitespace. */
+  PREFERENCES_VIEW_WHITESPACE,
+  /** View tab box: new windows mark line endings. */
+  PREFERENCES_VIEW_LINE_ENDINGS,
+  /** View tab box: new windows show the overview strip. */
+  PREFERENCES_VIEW_OVERVIEW,
+  /** View tab box: new windows show line numbers. */
+  PREFERENCES_VIEW_LINE_NUMBERS,
+  /** View tab box: new windows show the workspace browser. */
+  PREFERENCES_VIEW_WORKSPACE_BROWSER,
+  /** View tab box: every window shows the main toolbar. */
+  PREFERENCES_VIEW_TOOLBAR,
+  /** View tab box: every editor shows the right margin line. */
+  PREFERENCES_VIEW_RIGHT_MARGIN,
+  /** View tab box: every editor shows indent guides. */
+  PREFERENCES_VIEW_INDENT_GUIDES,
+  /** View tab box: every editor marks modified lines. */
+  PREFERENCES_VIEW_LINE_CHANGES,
+  /** Preferences list of the line ending of new documents. */
+  PREFERENCES_NEW_LINE_ENDING,
+  /** Preferences list of the encoding of new documents. */
+  PREFERENCES_NEW_ENCODING,
+  /** {@link #PREFERENCES_NEW_LINE_ENDING} entry for {@code lf}. */
+  PREFERENCES_LINE_ENDING_LF,
+  /** {@link #PREFERENCES_NEW_LINE_ENDING} entry for {@code crlf}. */
+  PREFERENCES_LINE_ENDING_CRLF,
+  /** {@link #PREFERENCES_NEW_LINE_ENDING} entry for {@code platform}. */
+  PREFERENCES_LINE_ENDING_PLATFORM,
+  /** Preferences refusal of a list value; takes the field's label. */
+  PREFERENCES_BAD_CHOICE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

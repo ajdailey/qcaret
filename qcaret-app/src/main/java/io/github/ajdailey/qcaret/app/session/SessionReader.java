@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.session;
 
+import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
@@ -17,8 +18,14 @@ import java.util.Properties;
 final class SessionReader {
   private SessionReader() {}
 
-  /** Returns the session the properties hold. */
-  static Session parse(Properties p) {
+  /**
+   * Returns the session the properties hold.
+   *
+   * @param p the file's properties
+   * @param absent the display state and browser visibility of a window entry that lacks the key
+   * @return the session
+   */
+  static Session parse(Properties p, ViewDefaults absent) {
     List<Session.Window> windows = new ArrayList<Session.Window>();
     int tabs = 0;
     int comments = 0;
@@ -40,7 +47,7 @@ final class SessionReader {
           comments += tab.comments().size();
         }
       }
-      windows.add(window(p, key, list));
+      windows.add(window(p, key, list, absent));
     }
     return new Session(
         windows,
@@ -49,7 +56,8 @@ final class SessionReader {
         number(p, SessionStore.DROPPED_COMMENTS, 0, Integer.MAX_VALUE, 0));
   }
 
-  private static Session.Window window(Properties p, String key, List<Session.Tab> tabs) {
+  private static Session.Window window(
+      Properties p, String key, List<Session.Tab> tabs, ViewDefaults absent) {
     List<Session.Search> searches = new ArrayList<Session.Search>();
     for (int i = 0; i < SessionStore.MAX_SEARCHES; i++) {
       String searchKey = key + "search." + i + ".";
@@ -71,7 +79,7 @@ final class SessionReader {
         tabs,
         number(p, key + "active", -1, SessionStore.MAX_TABS, -1),
         p.getProperty(key + "workspace", ""),
-        flag(p, key + "browser"),
+        flag(p, key + "browser", absent.workspaceBrowser()),
         p.getProperty(key + "sideWeights", ""),
         list(p, key + "expanded.", SessionStore.MAX_EXPANDED),
         flag(p, key + "results"),
@@ -79,12 +87,12 @@ final class SessionReader {
         searches,
         list(p, key + "closed.", SessionStore.MAX_CLOSED),
         new Session.Display(
-            flag(p, key + "wrap"),
-            flag(p, key + "whitespace"),
-            flag(p, key + "lineEndings"),
-            !"false".equals(p.getProperty(key + "overview", "true").strip()),
+            flag(p, key + "wrap", absent.wordWrap()),
+            flag(p, key + "whitespace", absent.whitespace()),
+            flag(p, key + "lineEndings", absent.lineEndings()),
+            flag(p, key + "overview", absent.overview()),
             flag(p, key + "bookmarks"),
-            !"false".equals(p.getProperty(key + "lineNumbers", "true").strip())),
+            flag(p, key + "lineNumbers", absent.lineNumbers())),
         p.getProperty(key + "resultsWeights", ""),
         new Session.Browse(
             p.getProperty(key + "browseFolder", ""),
@@ -195,6 +203,12 @@ final class SessionReader {
 
   private static boolean flag(Properties p, String key) {
     return "true".equals(p.getProperty(key, "false").strip());
+  }
+
+  /** Reads {@code true} or {@code false}; an absent or other value reads as {@code absent}. */
+  private static boolean flag(Properties p, String key, boolean absent) {
+    String value = p.getProperty(key, "").strip();
+    return value.equals("true") || value.equals("false") ? value.equals("true") : absent;
   }
 
   private static final int PIXELS = 100_000;

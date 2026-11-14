@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.search.SearchRequest;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
@@ -136,6 +137,17 @@ class SessionStoreTest {
   void aFileWithoutTheDisplayKeysReadsAsTheDefaults() throws Exception {
     Files.writeString(temp.resolve(SessionStore.FILE), "version=1\nwindow.0.active=-1\n");
     assertEquals(Session.Display.DEFAULTS, store().load().windows().get(0).display());
+  }
+
+  @Test
+  void aMissingDisplayKeyTakesTheGivenDefault() throws Exception {
+    Files.writeString(
+        temp.resolve(SessionStore.FILE),
+        "version=1\nwindow.0.active=-1\nwindow.0.wrap=false\nwindow.0.overview=on\n");
+    Session.Window window =
+        store().load(new ViewDefaults(true, true, true, false, false, true)).windows().get(0);
+    assertEquals(new Session.Display(false, true, true, false, false, false), window.display());
+    assertTrue(window.browser());
   }
 
   @Test

@@ -66,6 +66,12 @@ save writes. Encoding > Line Endings converts every line break in one undo step;
 a file with mixed endings keeps them until then, and Enter inserts the ending
 last converted to.
 
+A new document is UTF-8 with LF line breaks. Preferences, Editor chooses
+another encoding and line ending for new documents; they also apply to a file
+opened by a name that does not exist yet, to an empty file and to Enter in a
+file without line breaks. A forced encoding and `.editorconfig` settings take
+precedence.
+
 A file that cannot be written back byte for byte in its encoding opens
 read-only with a notice, and Save stays off. Save As writes a converted copy;
 turning off Read-Only lets Save convert the file itself. A reload that brings in
@@ -225,6 +231,10 @@ apply (measured on Linux, one million lines):
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+- Those five and View > Workspace Browser change only their window, and the
+  choice is saved as the start for new windows and for a start without the
+  session; a window the session restores keeps its own. Preferences, View sets
+  the same choices.
 
 ![The editor with the right margin, indent guides and modified-line marks](images/guide/guides.png)
 
@@ -717,7 +727,8 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, editor colors |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, line ending and encoding for new documents, editor colors |
+| View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, editor font |

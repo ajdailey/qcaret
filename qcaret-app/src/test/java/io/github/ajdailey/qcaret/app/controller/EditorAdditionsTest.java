@@ -136,7 +136,10 @@ class EditorAdditionsTest {
         f.modelines(),
         f.editorColors(),
         false,
-        false);
+        false,
+        f.newLineEnding(),
+        f.newEncoding(),
+        f.view());
   }
 
   // Document statistics.

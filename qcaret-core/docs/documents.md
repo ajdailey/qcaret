@@ -138,7 +138,9 @@ binary check; `BinaryFileException` for a binary file unless
 `LoadOptions.asBinary()` (ISO-8859-1, which maps every byte). With
 `LoadOptions.modelines` the last 4 KiB are read too, for a modeline charset, and
 `LoadOptions.configured` is the EditorConfig charset; both reach detection only
-without a forced charset.
+without a forced charset. A file of 0 bytes with neither a forced nor a
+configured charset takes `LoadOptions.emptyCharset` when set (reason `EMPTY`),
+else detection.
 
 Each candidate takes one `LoadPass`: 1 MiB blocks are digested, decoded
 strictly into a `DocumentBuilder` (rope leaves and line-ending counts) and the

@@ -18,5 +18,7 @@ public enum DetectionReason {
   /** No rule matched. */
   FALLBACK,
   /** An EditorConfig {@code charset}, confirmed by a strict decode. */
-  CONFIGURED
+  CONFIGURED,
+  /** A file of 0 bytes, read in the charset the caller gave for an empty file. */
+  EMPTY
 }

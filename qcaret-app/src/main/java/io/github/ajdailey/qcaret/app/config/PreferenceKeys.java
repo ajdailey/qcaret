@@ -72,6 +72,14 @@ final class PreferenceKeys {
   static final String TIPS_ON_STARTUP = "help.tipsOnStartup";
   static final String NEXT_TIP = "help.nextTip";
   static final String CLOSE_SHOWS_LAST_USED = "tabs.closeShowsLastUsed";
+  static final String WORD_WRAP = "ui.wordWrap";
+  static final String WHITESPACE = "ui.whitespace";
+  static final String LINE_ENDINGS = "ui.lineEndings";
+  static final String OVERVIEW = "ui.overview";
+  static final String LINE_NUMBERS = "ui.lineNumbers";
+  static final String WORKSPACE_BROWSER = "ui.workspaceBrowser";
+  static final String NEW_LINE_ENDING = "editor.newLineEnding";
+  static final String NEW_ENCODING = "editor.newEncoding";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -120,6 +128,8 @@ final class PreferenceKeys {
     keys.put(MODELINES, Boolean.toString(o.modelines()));
     keys.put(CLOSE_WINDOW_WITH_LAST_TAB, Boolean.toString(o.closeWindowWithLastTab()));
     keys.put(CLOSE_SHOWS_LAST_USED, Boolean.toString(o.closeShowsLastUsed()));
+    keys.put(NEW_LINE_ENDING, o.newLineEnding().key());
+    keys.put(NEW_ENCODING, o.newEncoding());
     UiState s = p.state();
     keys.put(SEARCH_REGEX, Boolean.toString(s.search().regex()));
     keys.put(SEARCH_CASE, Boolean.toString(s.search().caseSensitive()));
@@ -132,6 +142,13 @@ final class PreferenceKeys {
     }
     keys.put(INDENT_GUIDES, Boolean.toString(s.indentGuides()));
     keys.put(LINE_CHANGES, Boolean.toString(s.lineChanges()));
+    ViewDefaults view = s.view();
+    keys.put(WORD_WRAP, Boolean.toString(view.wordWrap()));
+    keys.put(WHITESPACE, Boolean.toString(view.whitespace()));
+    keys.put(LINE_ENDINGS, Boolean.toString(view.lineEndings()));
+    keys.put(OVERVIEW, Boolean.toString(view.overview()));
+    keys.put(LINE_NUMBERS, Boolean.toString(view.lineNumbers()));
+    keys.put(WORKSPACE_BROWSER, Boolean.toString(view.workspaceBrowser()));
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
@@ -304,7 +321,34 @@ final class PreferenceKeys {
         flag(p, EDITOR_CONFIG, d.editorConfig(), file),
         flag(p, MODELINES, d.modelines(), file),
         flag(p, CLOSE_WINDOW_WITH_LAST_TAB, d.closeWindowWithLastTab(), file),
-        flag(p, CLOSE_SHOWS_LAST_USED, d.closeShowsLastUsed(), file));
+        flag(p, CLOSE_SHOWS_LAST_USED, d.closeShowsLastUsed(), file),
+        newLineEnding(p, d.newLineEnding(), file),
+        newEncoding(p, d.newEncoding(), file));
+  }
+
+  private static NewLineEnding newLineEnding(Properties p, NewLineEnding fallback, Path file) {
+    String value = p.getProperty(NEW_LINE_ENDING);
+    if (value == null) {
+      return fallback;
+    }
+    NewLineEnding parsed = NewLineEnding.parse(value);
+    if (parsed == null) {
+      invalid(NEW_LINE_ENDING, file);
+      return fallback;
+    }
+    return parsed;
+  }
+
+  private static String newEncoding(Properties p, String fallback, Path file) {
+    String value = p.getProperty(NEW_ENCODING);
+    if (value == null) {
+      return fallback;
+    }
+    if (Options.validEncoding(value.strip())) {
+      return value.strip();
+    }
+    invalid(NEW_ENCODING, file);
+    return fallback;
   }
 
   private static UiState state(Properties p, Path file) {
@@ -334,7 +378,19 @@ final class PreferenceKeys {
         dateFormat(p, LAST_DATE_FORMAT, "", file),
         flag(p, INDENT_GUIDES, false, file),
         flag(p, LINE_CHANGES, false, file),
-        list(p, FAVORITES));
+        list(p, FAVORITES),
+        view(p, file));
+  }
+
+  private static ViewDefaults view(Properties p, Path file) {
+    ViewDefaults d = ViewDefaults.DEFAULTS;
+    return new ViewDefaults(
+        flag(p, WORD_WRAP, d.wordWrap(), file),
+        flag(p, WHITESPACE, d.whitespace(), file),
+        flag(p, LINE_ENDINGS, d.lineEndings(), file),
+        flag(p, OVERVIEW, d.overview(), file),
+        flag(p, LINE_NUMBERS, d.lineNumbers(), file),
+        flag(p, WORKSPACE_BROWSER, d.workspaceBrowser(), file));
   }
 
   /** Returns a valid date and time pattern, the fallback when absent, or it with one WARN. */

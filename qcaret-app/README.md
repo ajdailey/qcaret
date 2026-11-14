@@ -27,8 +27,8 @@ is that toolkit and `qcaret-launcher` composes the two.
 | `app.editor` | `DisplayProjection`, `ProjectionFolds`, `FoldLayer`, `HighlightComposer`, `TokenCache`, `SmartIndent`, `ColumnMetrics`, `Bookmarks`, `RemovedBookmarks`, `MergedFoldSource`, `LineChanges`, `TextStatistics` | [Display projection](docs/display-projection.md) |
 | `app.controller` | `GrammarLibrary`, `DocumentGrammars`: grammar detection; Syntax menu, `SyntaxHighlighter` | [Highlighting](docs/highlighting.md) |
 | `app.controller` | Tools menu: `ChecksumTools`, `TextChecksum`, `FileChecksums`, `SelectionChecksum`, `ChecksumVerify`, `ChecksumRun` | [Tools](docs/tools.md) |
-| `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys | [Settings](docs/settings.md) |
-| `app.session`, `app.recovery`, `app.controller` | Session file, per-file state, recovery files (`RecoveryController`, `RecoveryOffer`), quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
+| `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys, the Preferences View tab (`ViewPreferences`) | [Settings](docs/settings.md) |
+| `app.session`, `app.recovery`, `app.controller` | Session file, per-file state, window display defaults (`ViewToggles`), recovery files (`RecoveryController`, `RecoveryOffer`), quit snapshot | [Sessions and recovery](docs/sessions-and-recovery.md) |
 | `app.about`, `app.i18n`, `app.log`, `app.theme` | Help commands, the user guide build, `UiText`, About, the log ring; themes, theme files, font discovery | [Help and themes](docs/help-and-themes.md) |
 
 ## Controller threading

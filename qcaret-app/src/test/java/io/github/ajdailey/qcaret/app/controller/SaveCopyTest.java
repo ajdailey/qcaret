@@ -456,7 +456,9 @@ class SaveCopyTest {
                     o.editorConfig(),
                     o.modelines(),
                     o.closeWindowWithLastTab(),
-                    false)));
+                    false,
+                    Options.DEFAULTS.newLineEnding(),
+                    Options.DEFAULTS.newEncoding())));
   }
 
   /**

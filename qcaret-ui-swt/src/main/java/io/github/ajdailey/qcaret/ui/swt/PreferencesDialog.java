@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
+import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
@@ -48,6 +49,9 @@ import org.eclipse.swt.widgets.Text;
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
 
+  /** {@code editor.newLineEnding} values, in the list's order. */
+  private static final String[] LINE_ENDINGS = {"lf", "crlf", "platform"};
+
   private final Shell shell;
   private final PreferencesInput input;
   private final List<CommandId> rows = new ArrayList<CommandId>();
@@ -83,6 +87,9 @@ final class PreferencesDialog {
   private Label keyMessage;
   private KeyStroke captured;
   private ShortcutOverrides overrides;
+  private Combo newLineEnding;
+  private Combo newEncoding;
+  private PreferencesViewTab view;
 
   PreferencesDialog(Shell parent, PreferencesInput input) {
     this.input = input;
@@ -90,6 +97,7 @@ final class PreferencesDialog {
     folder = new TabFolder(shell, SWT.TOP);
     folder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     editor(tab(UiText.PREFERENCES_TAB_EDITOR));
+    view = new PreferencesViewTab(tab(UiText.PREFERENCES_TAB_VIEW));
     files(tab(UiText.PREFERENCES_TAB_FILES));
     search(tab(UiText.PREFERENCES_TAB_SEARCH));
     appearance(tab(UiText.PREFERENCES_TAB_APPEARANCE));
@@ -181,6 +189,14 @@ final class PreferencesDialog {
     dateFormat = field(page, UiText.PREFERENCES_DATE_FORMAT);
     editorConfig = check(page, UiText.PREFERENCES_EDITOR_CONFIG);
     modelines = check(page, UiText.PREFERENCES_MODELINES);
+    newLineEnding = list(page, UiText.PREFERENCES_NEW_LINE_ENDING);
+    newLineEnding.add(UiText.PREFERENCES_LINE_ENDING_LF.text());
+    newLineEnding.add(UiText.PREFERENCES_LINE_ENDING_CRLF.text());
+    newLineEnding.add(UiText.PREFERENCES_LINE_ENDING_PLATFORM.text());
+    newEncoding = list(page, UiText.PREFERENCES_NEW_ENCODING);
+    for (String name : TextEncoding.MENU) {
+      newEncoding.add(name);
+    }
     new Label(page, SWT.NONE).setText(UiText.PREFERENCES_EDITOR_COLORS.text());
     editorColors = new EditorColorsChoice(page);
   }
@@ -235,6 +251,13 @@ final class PreferencesDialog {
     fontSize = field(page, UiText.PREFERENCES_FONT_SIZE);
     fontFamily =
         choice(page, UiText.PREFERENCES_FONT_FAMILY, UiText.PREFERENCES_FONT_FAMILY_DEFAULT);
+  }
+
+  private static Combo list(Composite page, UiText label) {
+    new Label(page, SWT.NONE).setText(label.text());
+    Combo combo = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    return combo;
   }
 
   /** Adds a list whose first entry stands for an empty value; a worker's list fills the rest. */
@@ -399,6 +422,9 @@ final class PreferencesDialog {
     fontSize.setText(form.fontSize());
     selectChoice(fontFamily, form.fontFamily());
     setOverrides(form.shortcuts());
+    newLineEnding.select(List.of(LINE_ENDINGS).indexOf(form.newLineEnding()));
+    newEncoding.select(newEncoding.indexOf(form.newEncoding()));
+    view.show(form.view());
     for (TableColumn column : commands.getColumns()) {
       column.pack();
     }
@@ -432,7 +458,12 @@ final class PreferencesDialog {
         modelines.getSelection(),
         scheme ? colors : EditorSchemes.FOLLOW,
         closeWindowWithLastTab.getSelection(),
-        closeShowsLastUsed.getSelection());
+        closeShowsLastUsed.getSelection(),
+        newLineEnding.getSelectionIndex() < 0
+            ? ""
+            : LINE_ENDINGS[newLineEnding.getSelectionIndex()],
+        newEncoding.getSelectionIndex() < 0 ? "" : newEncoding.getText(),
+        view.checks());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -565,7 +596,7 @@ final class PreferencesDialog {
   }
 
   void open() {
-    Dialogs.open(shell, 640, 520);
+    Dialogs.open(shell, 640, 600);
   }
 
   Shell shell() {
@@ -610,5 +641,17 @@ final class PreferencesDialog {
 
   Text dateFormat() {
     return dateFormat;
+  }
+
+  Combo newLineEnding() {
+    return newLineEnding;
+  }
+
+  Combo newEncoding() {
+    return newEncoding;
+  }
+
+  PreferencesViewTab view() {
+    return view;
   }
 }

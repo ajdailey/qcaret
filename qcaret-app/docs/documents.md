@@ -21,10 +21,17 @@ until their worker ends.
 
 ## Opening
 
-New opens an untitled UTF-8 document ("Untitled N"). Open goes through
-`DocumentOpener`:
+New opens an untitled document ("Untitled N") in `editor.newEncoding` with
+`editor.newLineEnding`, which `ApplicationController` passes to
+`DocumentController.setNewFile`. The same pair covers the untitled document
+that replaces a closed last tab, a new window's and a start's untitled
+document, a missing file opened by path, a file of 0 bytes
+(`LoadOptions.emptyCharset`) and the ending of a loaded text without line
+breaks (`LoadOptions.empty`); a reload reads the pair current at its start.
+Open goes through `DocumentOpener`:
 
-- A missing file opens an empty document for its path.
+- A missing file opens an empty document for its path; its `.editorconfig`
+  settings then apply over the pair.
 - A file already open selects its tab. The match is by real path, resolved on
   the opener's worker and looked up (`find`) on the UI thread before the file
   is read, so a file reached again through a link or a short name selects its

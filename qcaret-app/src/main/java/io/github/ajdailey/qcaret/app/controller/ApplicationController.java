@@ -86,6 +86,7 @@ public final class ApplicationController {
   private final ChecksumTools checksums;
   private final DateTimeInsert dateTime;
   private final EditorAids aids;
+  private final ViewToggles views;
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
   private final WindowCommands windowCommands;
@@ -231,6 +232,7 @@ public final class ApplicationController {
     documents.setPollSeconds(options.pollSeconds());
     documents.setAutoReloadClean(options.autoReloadClean());
     documents.setCloseShowsLastUsed(options.closeShowsLastUsed());
+    setNewFile(options);
     documents.setGrammarChosen(
         new Consumer<String>() {
           @Override
@@ -263,6 +265,7 @@ public final class ApplicationController {
         new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
     view.setRightMargin(rightMarginColumn());
     this.aids = new EditorAids(settings, view, documents);
+    this.views = new ViewToggles(settings, documents, workspace);
     this.tips =
         new TipOfTheDay(
             set,
@@ -309,6 +312,10 @@ public final class ApplicationController {
       documents.setAutoReloadClean(now.autoReloadClean());
     }
     documents.setCloseShowsLastUsed(now.closeShowsLastUsed());
+    if (now.newLineEnding() != old.newLineEnding()
+        || !now.newEncoding().equals(old.newEncoding())) {
+      setNewFile(now);
+    }
     if (now.backupDays() != old.backupDays()) {
       replace.setBackupDays(now.backupDays());
     }
@@ -826,13 +833,13 @@ public final class ApplicationController {
       case GO_TO_SYMBOL -> view.showQuickOpen(quickOpen(false, "@"));
       case CLEAR_RECENT_FILES -> recentFiles.clear();
       case CLEAN_UP_RECENT -> recentFiles.cleanUp();
-      case WORKSPACE_BROWSER -> workspace.toggle();
+      case WORKSPACE_BROWSER -> views.toggleBrowser();
       case GO_BACK -> history.back();
       case GO_FORWARD -> history.forward();
       case COMPARE_DOCUMENTS -> compare.compareDocuments();
       case COMPARE_WITH_DISK -> compare.compareWithDisk();
-      case SHOW_WHITESPACE -> documents.toggleMarks(false);
-      case SHOW_LINE_ENDINGS -> documents.toggleMarks(true);
+      case SHOW_WHITESPACE -> views.toggleWhitespace();
+      case SHOW_LINE_ENDINGS -> views.toggleLineEndings();
       case COMMAND_PALETTE -> view.showCommandPalette(new CommandPalette(this, set.keymap()));
       case TAB_WIDTH_2 -> documents.setTabWidth(2);
       case TAB_WIDTH_4 -> documents.setTabWidth(4);
@@ -841,7 +848,7 @@ public final class ApplicationController {
       case INDENT_WITH_SPACES -> documents.toggleInsertSpaces();
       case GO_TO_LINE -> documents.goToLine();
       case READ_ONLY -> documents.toggleReadOnly();
-      case WORD_WRAP -> documents.toggleWrap();
+      case WORD_WRAP -> views.toggleWrap();
       case ZOOM_IN -> setFontSize(fontPoints() + 1);
       case ZOOM_OUT -> setFontSize(fontPoints() - 1);
       case ZOOM_RESET -> setFontSize(0);
@@ -865,8 +872,8 @@ public final class ApplicationController {
       case SEARCH_RESULTS -> search.toggleResults();
       case REPLACE_IN_RESULTS -> search.replaceInResults();
       case RESTORE_REPLACE_RUN -> replace.chooseRun();
-      case OVERVIEW_STRIP -> documents.toggleOverview();
-      case LINE_NUMBERS -> documents.toggleLineNumbers();
+      case OVERVIEW_STRIP -> views.toggleOverview();
+      case LINE_NUMBERS -> views.toggleLineNumbers();
       case TOOLBAR -> toggleToolbar();
       case ALWAYS_ON_TOP -> alwaysOnTop.toggle();
       case RIGHT_MARGIN -> toggleRightMargin();
@@ -967,6 +974,12 @@ public final class ApplicationController {
   private void toggleRightMargin() {
     Preferences current = settings.current();
     settings.set(current.withState(current.state().withRightMargin(!rightMarginShown())));
+  }
+
+  /** Passes {@code editor.newLineEnding} and {@code editor.newEncoding} to the documents. */
+  private void setNewFile(Options o) {
+    documents.setNewFile(
+        o.newLineEnding().ending(System.lineSeparator()), Charset.forName(o.newEncoding()));
   }
 
   /** Returns {@code editor.rightMargin} while the line shows, else 0. */

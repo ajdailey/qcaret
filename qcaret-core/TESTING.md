@@ -43,7 +43,7 @@ and tests of a read-only file skip where the user writes read-only files.
 | `ReloadTest` | `reload` against a comparison of two whole texts on 400 seeded edits at small blocks, repeated text, and edits in a file past every block; a BOM, a file written or made undecodable between the passes, a cancel, the charge, a change inside the headroom with the budget full, a span the budget refuses |
 | `EncodingDetectorTest` | Every detection step, the menu charsets, an unknown name; a configured charset's place, a BOM over it, a modeline charset read only with the tail |
 | `EncodersTest` | A decode-only charset not writable; the encoder reporting an unmappable char |
-| `DeclaredCharsetLoadTest` | A modeline charset at the end of a file past three read blocks, a configured charset and a BOM over it through `load`, `TextModelines` on a 100,000-line text |
+| `DeclaredCharsetLoadTest` | A modeline charset at the end of a file past three read blocks, a configured charset and a BOM over it through `load`, an empty file's `emptyCharset` under a configured and a forced charset, `TextModelines` on a 100,000-line text |
 | `EditorConfigSuiteTest` | The 173 glob, parser and property cases of editorconfig-core-test, from `cases.tsv` beside its fixtures and BSD-2-Clause license |
 | `EditorConfigTest`, `ModelinesTest`, `FileSettingsTest` | The directory walk (nearer and later wins, `unset`, `root`, an anchored section), malformed, oversized, non-UTF-8 and unreadable files, a directory named `.editorconfig`, a linked one; each modeline form, the first and last 5 lines, Emacs blocks; the width table and a modeline over EditorConfig |
 

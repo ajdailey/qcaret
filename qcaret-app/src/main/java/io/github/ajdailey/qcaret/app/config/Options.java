@@ -4,6 +4,8 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
+import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.nio.charset.Charset;
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -41,6 +43,10 @@ import java.time.format.DateTimeFormatter;
  *     closes the window
  * @param closeShowsLastUsed {@code tabs.closeShowsLastUsed}: closing the shown tab shows the most
  *     recently used tab, not the one after it
+ * @param newLineEnding {@code editor.newLineEnding}: the line ending of a new document and of a
+ *     text without line breaks
+ * @param newEncoding {@code editor.newEncoding}: the charset of a new document and of an empty
+ *     file, one of {@link TextEncoding#MENU}
  */
 public record Options(
     int completionChars,
@@ -62,7 +68,9 @@ public record Options(
     boolean editorConfig,
     boolean modelines,
     boolean closeWindowWithLastTab,
-    boolean closeShowsLastUsed) {
+    boolean closeShowsLastUsed,
+    NewLineEnding newLineEnding,
+    String newEncoding) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -143,7 +151,9 @@ public record Options(
           true,
           true,
           false,
-          false);
+          false,
+          NewLineEnding.LF,
+          "UTF-8");
 
   /** Checks the components. */
   public Options {
@@ -165,6 +175,22 @@ public record Options(
     if (!validDateFormat(dateFormat)) {
       throw new IllegalArgumentException("dateFormat");
     }
+    if (newLineEnding == null) {
+      throw new IllegalArgumentException("newLineEnding");
+    }
+    if (!validEncoding(newEncoding)) {
+      throw new IllegalArgumentException("newEncoding");
+    }
+  }
+
+  /**
+   * Reports whether a charset name is one of the Encoding menu's that this runtime supports.
+   *
+   * @param name a charset name as {@link TextEncoding#MENU} spells it, or null
+   * @return false for null, another spelling, or a charset the runtime lacks
+   */
+  public static boolean validEncoding(String name) {
+    return name != null && TextEncoding.MENU.contains(name) && Charset.isSupported(name);
   }
 
   /**
@@ -244,7 +270,9 @@ public record Options(
         editorConfig,
         modelines,
         closeWindowWithLastTab,
-        closeShowsLastUsed);
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding);
   }
 
   /**
@@ -274,6 +302,8 @@ public record Options(
         editorConfig,
         modelines,
         closeWindowWithLastTab,
-        closeShowsLastUsed);
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding);
   }
 }

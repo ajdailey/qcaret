@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.core.io.Encoders;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
+import io.github.ajdailey.qcaret.core.text.DetectionReason;
 import io.github.ajdailey.qcaret.core.text.EncodingDetection;
 import io.github.ajdailey.qcaret.core.text.EncodingDetector;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -335,12 +336,16 @@ public final class DocumentFiles {
       List<EncodingDetection> candidates =
           options.forced() != null
               ? List.of(EncodingDetector.forced(options.forced(), head.array(), length))
-              : EncodingDetector.candidates(
-                  head.array(),
-                  length,
-                  options.modelines() ? tail(channel, size) : null,
-                  options.fallback(),
-                  options.configured());
+              : size == 0 && options.configured() == null && options.emptyCharset() != null
+                  ? List.of(
+                      new EncodingDetection(
+                          TextEncoding.of(options.emptyCharset(), false), DetectionReason.EMPTY))
+                  : EncodingDetector.candidates(
+                      head.array(),
+                      length,
+                      options.modelines() ? tail(channel, size) : null,
+                      options.fallback(),
+                      options.configured());
       if (!options.allowBinary() && everyBinary(candidates, head.array(), length)) {
         throw new BinaryFileException(String.valueOf(file.getFileName()));
       }

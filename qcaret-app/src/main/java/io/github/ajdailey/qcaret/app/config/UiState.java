@@ -26,6 +26,7 @@ import java.util.Map;
  *     or save
  * @param favorites {@code workspace.favorite.N}: the workspace browser's favorite folders, in the
  *     order added
+ * @param view {@code ui.wordWrap} and the other display toggles a window starts from
  */
 public record UiState(
     SearchToggles search,
@@ -40,7 +41,8 @@ public record UiState(
     String lastDateFormat,
     boolean indentGuides,
     boolean lineChanges,
-    List<String> favorites) {
+    List<String> favorites,
+    ViewDefaults view) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -68,7 +70,8 @@ public record UiState(
           "",
           false,
           false,
-          List.of());
+          List.of(),
+          ViewDefaults.DEFAULTS);
 
   /**
    * A dialog's size in pixels.
@@ -100,6 +103,9 @@ public record UiState(
       throw new IllegalArgumentException("lastDateFormat is required");
     }
     favorites = limited(favorites, MAX_HISTORY);
+    if (view == null) {
+      throw new IllegalArgumentException("view is required");
+    }
   }
 
   private static List<String> limited(List<String> list, int max) {
@@ -143,7 +149,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -169,7 +176,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -192,7 +200,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -224,7 +233,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -247,7 +257,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -280,7 +291,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -303,7 +315,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -326,7 +339,8 @@ public record UiState(
         value,
         indentGuides,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -349,7 +363,8 @@ public record UiState(
         lastDateFormat,
         value,
         lineChanges,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -372,7 +387,8 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         value,
-        favorites);
+        favorites,
+        view);
   }
 
   /**
@@ -395,6 +411,31 @@ public record UiState(
         lastDateFormat,
         indentGuides,
         lineChanges,
+        value,
+        view);
+  }
+
+  /**
+   * Returns a copy with other window defaults.
+   *
+   * @param value the defaults
+   * @return the copy
+   */
+  public UiState withView(ViewDefaults value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites,
         value);
   }
 }

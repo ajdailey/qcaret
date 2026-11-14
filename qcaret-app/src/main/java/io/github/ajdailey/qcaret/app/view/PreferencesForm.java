@@ -32,6 +32,10 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param editorColors the editor color scheme's name
  * @param closeWindowWithLastTab the box making a window close with its last tab
  * @param closeShowsLastUsed the box making a close of the shown tab show the last used tab
+ * @param newLineEnding the line ending of new documents: {@code lf}, {@code crlf} or {@code
+ *     platform}
+ * @param newEncoding the charset name of new documents
+ * @param view the View tab's boxes
  */
 public record PreferencesForm(
     String completionChars,
@@ -58,11 +62,16 @@ public record PreferencesForm(
     boolean modelines,
     String editorColors,
     boolean closeWindowWithLastTab,
-    boolean closeShowsLastUsed) {
+    boolean closeShowsLastUsed,
+    String newLineEnding,
+    String newEncoding,
+    ViewChecks view) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */
     EDITOR,
+    /** Window display defaults and editor aids. */
+    VIEW,
     /** File checks. */
     FILES,
     /** Search, replace and the workspace. */
@@ -80,4 +89,31 @@ public record PreferencesForm(
    * @param message names the field and what it accepts
    */
   public record Problem(Group group, String message) {}
+
+  /**
+   * The View tab's boxes. The first six set what a new window starts with; the last four apply to
+   * every window.
+   *
+   * @param wordWrap word wrap
+   * @param whitespace the whitespace marks
+   * @param lineEndings the line-ending marks
+   * @param overview the overview strip
+   * @param lineNumbers the line numbers
+   * @param workspaceBrowser the workspace browser
+   * @param toolbar the main toolbar
+   * @param rightMargin the right margin line
+   * @param indentGuides the indent guides
+   * @param lineChanges the modified-line marks
+   */
+  public record ViewChecks(
+      boolean wordWrap,
+      boolean whitespace,
+      boolean lineEndings,
+      boolean overview,
+      boolean lineNumbers,
+      boolean workspaceBrowser,
+      boolean toolbar,
+      boolean rightMargin,
+      boolean indentGuides,
+      boolean lineChanges) {}
 }

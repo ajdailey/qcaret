@@ -137,6 +137,11 @@ final class SaveAndReload {
     reloads.setCompare(value);
   }
 
+  /** Sets how a reload reads its file. */
+  void setLoadOptions(LoadOptions value) {
+    reloads.setLoadOptions(value);
+  }
+
   /**
    * Sets whether a changed file reloads a clean buffer without a prompt.
    *
