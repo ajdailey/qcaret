@@ -18,6 +18,7 @@ import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
@@ -821,6 +822,24 @@ final class FakeView implements MainView {
   public void setToolbarShown(boolean shown) {
     ui.checkUiThread();
     toolbarShown = shown;
+  }
+
+  /** The last {@link #setMemoryShown}, or null before one. */
+  Boolean memoryShown;
+
+  /** Every {@link #showMemory}, oldest first. */
+  final List<MemoryFields> memory = new ArrayList<MemoryFields>();
+
+  @Override
+  public void setMemoryShown(boolean shown) {
+    ui.checkUiThread();
+    memoryShown = shown;
+  }
+
+  @Override
+  public void showMemory(MemoryFields fields) {
+    ui.checkUiThread();
+    memory.add(fields);
   }
 
   @Override

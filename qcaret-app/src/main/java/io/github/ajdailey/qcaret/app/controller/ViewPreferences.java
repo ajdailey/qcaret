@@ -26,7 +26,8 @@ final class ViewPreferences {
         s.toolbar(),
         s.rightMargin(),
         s.indentGuides(),
-        s.lineChanges());
+        s.lineChanges(),
+        s.memoryIndicator());
   }
 
   /**
@@ -51,7 +52,9 @@ final class ViewPreferences {
         .withToolbar(pick(s.toolbar(), shown.toolbar(), c.toolbar()))
         .withRightMargin(pick(s.rightMargin(), shown.rightMargin(), c.rightMargin()))
         .withIndentGuides(pick(s.indentGuides(), shown.indentGuides(), c.indentGuides()))
-        .withLineChanges(pick(s.lineChanges(), shown.lineChanges(), c.lineChanges()));
+        .withLineChanges(pick(s.lineChanges(), shown.lineChanges(), c.lineChanges()))
+        .withMemoryIndicator(
+            pick(s.memoryIndicator(), shown.memoryIndicator(), c.memoryIndicator()));
   }
 
   /** Returns the box when the user changed it, else the current value. */

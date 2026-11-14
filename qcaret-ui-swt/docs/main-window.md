@@ -196,6 +196,13 @@ line and column, selection, encoding, line endings and language
 UI turn; further changes before it share that read. `BusyCounter` shows
 `CURSOR_APPSTARTING` while any load, save or conversion runs.
 
+`MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
+from the layout while it is off. It paints `MemoryFields.text` over a bar
+filled to `MemoryFields.fill`, mixing the canvas's foreground into its
+background at each paint, so it follows the native theme; the tip is its tool
+tip. A left click calls `ApplicationController.collectGarbage`. Its width only
+grows, so a refresh does not move the fields beside it.
+
 The window title is `CommandStates.windowTitle`, set with the status fields on
 the UI turn after a state change. `Gui` calls `showStatusNow` after
 `startSession`, so the untitled document's title does not wait for the startup

@@ -318,8 +318,10 @@ class PreferencesSurfaceTest {
     assertEquals("UTF-8", dialog.newEncoding().getText());
     assertFalse(dialog.view().wordWrap().getSelection());
     assertTrue(dialog.view().toolbar().getSelection());
+    assertFalse(dialog.view().memoryIndicator().getSelection());
     dialog.view().wordWrap().setSelection(true);
     dialog.view().toolbar().setSelection(false);
+    dialog.view().memoryIndicator().setSelection(true);
     dialog.newLineEnding().select(1);
     dialog.newEncoding().select(dialog.newEncoding().indexOf("windows-1252"));
     assertTrue(dialog.apply());
@@ -330,10 +332,13 @@ class PreferencesSurfaceTest {
     assertEquals("windows-1252", p.options().newEncoding());
     assertFalse(controller.documents().wrap());
     assertFalse(window.mainToolBar().bar().getVisible());
+    assertTrue(p.state().memoryIndicator());
+    assertTrue(window.memoryGauge().control().getVisible());
     dialog.shell().dispose();
     PreferencesDialog again = dialog();
     assertTrue(again.view().wordWrap().getSelection());
     assertFalse(again.view().toolbar().getSelection());
+    assertTrue(again.view().memoryIndicator().getSelection());
     assertEquals(1, again.newLineEnding().getSelectionIndex());
     assertEquals("windows-1252", again.newEncoding().getText());
     again.restoreDefaults();

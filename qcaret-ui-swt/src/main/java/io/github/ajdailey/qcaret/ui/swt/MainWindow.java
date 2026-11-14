@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
@@ -173,6 +174,7 @@ public final class MainWindow implements MainView {
   private final Label encoding;
   private final Label lineEnding;
   private final Label language;
+  private final MemoryGauge memoryGauge;
   private final Label readOnly;
   private final Label notice;
   private final Link warnings;
@@ -313,7 +315,7 @@ public final class MainWindow implements MainView {
     font = new Font(display, fontName, fontPoints, SWT.NORMAL);
     statusBar = new Composite(shell, SWT.NONE);
     statusBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    GridLayout statusLayout = new GridLayout(8, false);
+    GridLayout statusLayout = new GridLayout(9, false);
     statusLayout.marginHeight = 1;
     statusLayout.marginWidth = 6;
     statusLayout.horizontalSpacing = 14;
@@ -355,6 +357,17 @@ public final class MainWindow implements MainView {
             }
           }
         });
+    memoryGauge =
+        new MemoryGauge(
+            statusBar,
+            new Runnable() {
+              @Override
+              public void run() {
+                if (controller != null) {
+                  controller.collectGarbage();
+                }
+              }
+            });
     busy =
         new BusyCounter(
             dispatcher,
@@ -722,6 +735,29 @@ public final class MainWindow implements MainView {
     shell.layout(true);
     toolIcons.reink();
     menuIcons.reink();
+  }
+
+  @Override
+  public void setMemoryShown(boolean shown) {
+    if (memoryGauge.setShown(shown)) {
+      statusBar.layout(true);
+    }
+  }
+
+  @Override
+  public void showMemory(MemoryFields fields) {
+    if (memoryGauge.show(fields)) {
+      statusBar.layout(true);
+    }
+  }
+
+  /**
+   * Returns the status bar's memory indicator.
+   *
+   * @return the indicator
+   */
+  MemoryGauge memoryGauge() {
+    return memoryGauge;
   }
 
   @Override

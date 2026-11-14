@@ -69,6 +69,7 @@ public final class CommandStates {
           CommandId.INDENT_GUIDES,
           CommandId.LINE_CHANGES,
           CommandId.TOOLBAR,
+          CommandId.MEMORY_INDICATOR,
           CommandId.ALWAYS_ON_TOP,
           CommandId.BOOKMARKS_LIST,
           CommandId.QUICK_OPEN,
@@ -208,6 +209,7 @@ public final class CommandStates {
       case INDENT_GUIDES -> application.preferences().state().indentGuides();
       case LINE_CHANGES -> application.preferences().state().lineChanges();
       case TOOLBAR -> application.toolbarShown();
+      case MEMORY_INDICATOR -> application.preferences().state().memoryIndicator();
       case ALWAYS_ON_TOP -> application.alwaysOnTop().shown();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();

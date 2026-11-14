@@ -190,11 +190,11 @@ class NewFileDefaultsTest {
     assertEquals("UTF-8", f.newEncoding());
     assertEquals(
         new PreferencesForm.ViewChecks(
-            false, false, false, true, true, false, true, false, false, false),
+            false, false, false, true, true, false, true, false, false, false, false),
         f.view());
     PreferencesForm.ViewChecks flipped =
         new PreferencesForm.ViewChecks(
-            true, true, true, false, false, true, false, true, true, true);
+            true, true, true, false, false, true, false, true, true, true, true);
     assertNull(input.apply(with(f, "crlf", "KOI8-R", flipped)));
     Preferences p = harness.application.preferences();
     assertEquals(new ViewDefaults(true, true, true, false, false, true), p.state().view());
@@ -202,6 +202,8 @@ class NewFileDefaultsTest {
     assertTrue(p.state().rightMargin());
     assertTrue(p.state().indentGuides());
     assertTrue(p.state().lineChanges());
+    assertTrue(p.state().memoryIndicator());
+    assertEquals(Boolean.TRUE, harness.view.memoryShown);
     assertEquals(NewLineEnding.CRLF, p.options().newLineEnding());
     assertEquals("KOI8-R", p.options().newEncoding());
     assertEquals(Boolean.FALSE, harness.view.toolbarShown);
@@ -224,6 +226,7 @@ class NewFileDefaultsTest {
     harness.application.execute(CommandId.WORD_WRAP);
     harness.application.execute(CommandId.TOOLBAR);
     harness.application.execute(CommandId.INDENT_GUIDES);
+    harness.application.execute(CommandId.MEMORY_INDICATOR);
     PreferencesForm.ViewChecks v = f.view();
     PreferencesForm.ViewChecks changed =
         new PreferencesForm.ViewChecks(
@@ -236,7 +239,8 @@ class NewFileDefaultsTest {
             v.toolbar(),
             !v.rightMargin(),
             !v.indentGuides(),
-            v.lineChanges());
+            v.lineChanges(),
+            v.memoryIndicator());
     assertNull(input.apply(with(f, f.newLineEnding(), f.newEncoding(), changed)));
     Preferences p = harness.application.preferences();
     assertTrue(p.state().view().wordWrap());
@@ -245,6 +249,8 @@ class NewFileDefaultsTest {
     assertTrue(p.state().view().whitespace());
     assertTrue(p.state().rightMargin());
     assertTrue(p.state().indentGuides());
+    assertTrue(p.state().memoryIndicator());
+    assertEquals(Boolean.TRUE, harness.view.memoryShown);
     harness.application.execute(CommandId.WORD_WRAP);
     assertNull(input.apply(with(f, f.newLineEnding(), f.newEncoding(), changed)));
     assertFalse(harness.application.preferences().state().view().wordWrap());
@@ -257,7 +263,7 @@ class NewFileDefaultsTest {
     PreferencesForm f = input.form();
     PreferencesForm.ViewChecks flipped =
         new PreferencesForm.ViewChecks(
-            true, true, true, false, false, true, false, true, true, true);
+            true, true, true, false, false, true, false, true, true, true, true);
     assertNull(input.apply(with(f, f.newLineEnding(), f.newEncoding(), flipped)));
     harness.application.execute(CommandId.LINE_CHANGES);
     assertNull(input.apply(input.defaults()));
@@ -267,6 +273,8 @@ class NewFileDefaultsTest {
     assertFalse(p.state().rightMargin());
     assertFalse(p.state().indentGuides());
     assertFalse(p.state().lineChanges());
+    assertFalse(p.state().memoryIndicator());
+    assertEquals(Boolean.FALSE, harness.view.memoryShown);
   }
 
   @Test

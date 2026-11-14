@@ -161,6 +161,7 @@ class CommandStatesTest {
           "INDENT_GUIDES -e -e -e",
           "LINE_CHANGES -e -e -e",
           "TOOLBAR ce ce ce",
+          "MEMORY_INDICATOR -e -e -e",
           "ALWAYS_ON_TOP -e -e -e",
           "COMMAND_PALETTE -e -e -e",
           "WORKSPACE_BROWSER -e -e -e",

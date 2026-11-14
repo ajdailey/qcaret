@@ -27,6 +27,7 @@ import java.util.Map;
  * @param favorites {@code workspace.favorite.N}: the workspace browser's favorite folders, in the
  *     order added
  * @param view {@code ui.wordWrap} and the other display toggles a window starts from
+ * @param memoryIndicator {@code ui.memoryIndicator}: the windows show the memory indicator
  */
 public record UiState(
     SearchToggles search,
@@ -42,7 +43,8 @@ public record UiState(
     boolean indentGuides,
     boolean lineChanges,
     List<String> favorites,
-    ViewDefaults view) {
+    ViewDefaults view,
+    boolean memoryIndicator) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -71,7 +73,8 @@ public record UiState(
           false,
           false,
           List.of(),
-          ViewDefaults.DEFAULTS);
+          ViewDefaults.DEFAULTS,
+          false);
 
   /**
    * A dialog's size in pixels.
@@ -150,7 +153,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -177,7 +181,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -201,7 +206,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -234,7 +240,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -258,7 +265,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -292,7 +300,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -316,7 +325,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -340,7 +350,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -364,7 +375,8 @@ public record UiState(
         value,
         lineChanges,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -388,7 +400,8 @@ public record UiState(
         indentGuides,
         value,
         favorites,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -412,7 +425,8 @@ public record UiState(
         indentGuides,
         lineChanges,
         value,
-        view);
+        view,
+        memoryIndicator);
   }
 
   /**
@@ -436,6 +450,32 @@ public record UiState(
         indentGuides,
         lineChanges,
         favorites,
+        value,
+        memoryIndicator);
+  }
+
+  /**
+   * Returns a copy with the memory indicator shown or hidden.
+   *
+   * @param value true to show it
+   * @return the copy
+   */
+  public UiState withMemoryIndicator(boolean value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites,
+        view,
         value);
   }
 }

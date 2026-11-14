@@ -48,15 +48,16 @@ when both exist. Modes are in the root `README.md` under "Settings directory".
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 (Temurin 21.0.12+8, downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with
-`java.base,java.logging,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs`,
+`java.base,java.logging,java.management,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs`,
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.
 `jdk.charsets` carries the legacy encodings (Big5, EUC-JP, EUC-KR, GBK,
 Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
 macOS. `jdk.localedata` carries the date and number formats of every locale
 but English, used by the Workspace Browser's Size and Modified texts and Insert
 Date and Time; it adds 28.8 MB to the linux-x86_64 runtime (68.4 to 97.2 MB,
-measured). `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so it is
-left out. `--strip-debug` is not used: it runs the host `objcopy` on target
+measured). `java.management` carries the heap pool figures the memory
+indicator reads. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so
+it is left out. `--strip-debug` is not used: it runs the host `objcopy` on target
 binaries and fails across targets.
 
 ## File associations

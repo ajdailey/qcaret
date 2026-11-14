@@ -46,7 +46,8 @@ the UI thread and returns without waiting for the user. It extends these parts:
 | `CompareView` | Asks about an external change (`askExternalChange`, answering `ChangeChoice`s; Compare can come more than once before the last answer), asks for a document to compare with, and shows a `Comparison` |
 | `ActivityIndicator` | `setActive` and `setIdle` come from any thread; `BusyCounter` counts overlapping operations on the UI thread for the busy cursor |
 
-`StatusFields` is the status bar's text for the selected document.
+`StatusFields` is the status bar's text for the selected document;
+`MemoryFields` is the memory indicator's text, tool tip and fill.
 
 ### Tabs and editors
 
@@ -187,6 +188,33 @@ Undo, Redo, Cut and Copy are `EDIT_STATE`: their keys are editor bindings, not
 accelerators, so a disabled item leaves them live in the editor and in native
 text fields. A disabled menu item's accelerator does not fire, so the view
 syncs enablement on every `documentStateChanged`.
+
+## Memory indicator
+
+`MemoryIndicator` holds View > Memory Indicator (`ui.memoryIndicator`) for one
+window and passes `MemoryFields` to `MainView.showMemory`. While the indicator
+shows, a `MemoryProbe` read runs on a CPU worker, and the next read is armed
+with `timerExec` 2 s after the result arrives; hiding it cancels the timer and
+starts no read. A read result carries the generation it started in; one from
+before a hide is dropped. `ApplicationController.collectGarbage`, the view's
+click, runs `System.gc()` on a CPU worker between two reads and shows the
+drop in live used heap as a notice; a click while one runs, or while the
+indicator is hidden, does nothing. Each window reads on its own.
+
+`MemoryStatus.of` picks the figure the text and bar show:
+
+| Heap pools | Figure |
+|---|---|
+| An old generation (`G1 Old Gen`, `PS Old Gen`, `Tenured Gen`, `ZGC Old Generation`) | The larger of its usage after its last collection and its usage now |
+| No old generation, collection usage reported (`Shenandoah`) | The pools' usage after their last collection, summed |
+| No collection usage reported, or the sum above is 0 | The live used heap |
+
+G1, Parallel and Serial update the old generation's collection usage only at an
+old or concurrent collection, so it reads 0 before the first one and lags the
+promotions since (measured on Temurin 21.0.12); its usage now covers both.
+The maximum is `Runtime.maxMemory()`, the heap `MemoryBudget` takes its 60% of.
+The tool tip adds the live used heap, the open documents' reservation against
+that budget and the `-Xmx` hint.
 
 ## Command palette
 

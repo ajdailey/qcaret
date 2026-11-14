@@ -91,8 +91,8 @@ public record PreferencesForm(
   public record Problem(Group group, String message) {}
 
   /**
-   * The View tab's boxes. The first six set what a new window starts with; the last four apply to
-   * every window.
+   * The View tab's boxes. The first six set what a new window starts with; the rest apply to every
+   * window.
    *
    * @param wordWrap word wrap
    * @param whitespace the whitespace marks
@@ -104,6 +104,7 @@ public record PreferencesForm(
    * @param rightMargin the right margin line
    * @param indentGuides the indent guides
    * @param lineChanges the modified-line marks
+   * @param memoryIndicator the memory indicator
    */
   public record ViewChecks(
       boolean wordWrap,
@@ -115,5 +116,6 @@ public record PreferencesForm(
       boolean toolbar,
       boolean rightMargin,
       boolean indentGuides,
-      boolean lineChanges) {}
+      boolean lineChanges,
+      boolean memoryIndicator) {}
 }

@@ -289,6 +289,7 @@ public final class MenuTable {
             CommandId.THEME_DARK,
             CommandId.THEME_SYSTEM,
             CommandId.TOOLBAR,
+            CommandId.MEMORY_INDICATOR,
             CommandId.WORKSPACE_BROWSER,
             CommandId.ALWAYS_ON_TOP,
             null,

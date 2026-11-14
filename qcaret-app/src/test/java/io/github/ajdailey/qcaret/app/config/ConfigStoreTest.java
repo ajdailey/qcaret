@@ -419,7 +419,8 @@ class ConfigStoreTest {
                 true,
                 true,
                 List.of("/mock/favorite", "/mock/other"),
-                new ViewDefaults(true, true, true, false, false, true))
+                new ViewDefaults(true, true, true, false, false, true),
+                true)
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE
@@ -444,7 +445,8 @@ class ConfigStoreTest {
                     "editor.newEncoding=windows-1251",
                     "ui.wordWrap=true",
                     "ui.overview=false",
-                    "ui.workspaceBrowser=true")));
+                    "ui.workspaceBrowser=true",
+                    "ui.memoryIndicator=true")));
   }
 
   @Test
@@ -455,8 +457,10 @@ class ConfigStoreTest {
             + "editor.newEncoding=utf8\n"
             + "ui.wordWrap=yes\n"
             + "ui.lineNumbers=false\n"
-            + "ui.workspaceBrowser=true\n");
+            + "ui.workspaceBrowser=true\n"
+            + "ui.memoryIndicator=on\n");
     Preferences loaded = store(temp).load();
+    assertFalse(loaded.state().memoryIndicator());
     assertEquals(NewLineEnding.LF, loaded.options().newLineEnding());
     assertEquals("UTF-8", loaded.options().newEncoding());
     assertEquals(

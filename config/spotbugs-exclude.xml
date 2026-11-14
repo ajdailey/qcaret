@@ -66,6 +66,13 @@
     <Class name="io.github.ajdailey.qcaret.core.document.Document"/>
     <Bug pattern="AT_NONATOMIC_64BIT_PRIMITIVE,AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE,AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
   </Match>
+  <!-- A click on the memory indicator requests a garbage collection, the
+       action the user asked for; it runs on a worker. -->
+  <Match>
+    <Class name="io.github.ajdailey.qcaret.app.controller.MemoryProbe$1"/>
+    <Method name="collect"/>
+    <Bug pattern="DM_GC"/>
+  </Match>
   <!-- The uncaught-exception handler logs the throwable as the throwable
        argument; its stack trace is multi-line by design and its thread name
        passes through LogText.oneLine. -->

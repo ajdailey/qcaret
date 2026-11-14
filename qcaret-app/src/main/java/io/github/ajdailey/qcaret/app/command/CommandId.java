@@ -300,6 +300,8 @@ public enum CommandId {
   LINE_CHANGES(CommandGroup.VIEW, UiText.COMMAND_LINE_CHANGES, true, null),
   /** Show the main toolbar in every window; checked while shown. */
   TOOLBAR(CommandGroup.VIEW, UiText.COMMAND_TOOLBAR, true, null),
+  /** Show the memory indicator in every window's status bar; checked while shown. */
+  MEMORY_INDICATOR(CommandGroup.VIEW, UiText.COMMAND_MEMORY_INDICATOR, true, null),
   /** Keep the window above other windows; checked while on top, disabled where unsupported. */
   ALWAYS_ON_TOP(CommandGroup.VIEW, UiText.COMMAND_ALWAYS_ON_TOP, true, null),
   /** Find and run a command by name. */

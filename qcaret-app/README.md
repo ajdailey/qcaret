@@ -15,8 +15,8 @@ is that toolkit and `qcaret-launcher` composes the two.
 | Package | Contents | Detail |
 |---|---|---|
 | `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `Version` | [Views and commands](docs/views-and-commands.md) |
-| `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
-| `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `StatusBarText`, `CommandPalette` | [Views and commands](docs/views-and-commands.md) |
+| `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `MemoryFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
+| `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `StatusBarText`, `CommandPalette`, `MemoryIndicator`, `MemoryStatus`, `MemoryProbe` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
 | `app.controller` | `WindowSet`, `ApplicationController`, `WindowCommands`; quit (`QuitSequence`), tab moves (`TabTransfer`) | [Windows and tabs](docs/windows-and-tabs.md) |
 | `app.controller`, `app.print` | `DocumentController`, `OpenDocument`, `DocumentOpener`, `SaveAndReload`, `DocumentEncodings`, `TabClosing`, `DocumentSessions`: open, load, save, reload, encodings, close, session state, split views; `DocumentSettings`, `FileSettingsReader`, `SaveCleanup`: per-file settings; `DocumentsUnder`: open documents under a browser entry; printing | [Documents](docs/documents.md) |

@@ -142,6 +142,20 @@ public interface MainView
   void setToolbarShown(boolean shown);
 
   /**
+   * Shows or hides the status bar's memory indicator.
+   *
+   * @param shown true to show it
+   */
+  void setMemoryShown(boolean shown);
+
+  /**
+   * Shows heap figures in the memory indicator.
+   *
+   * @param fields the figures
+   */
+  void showMemory(MemoryFields fields);
+
+  /**
    * Shows or hides the line numbers in every editor of the window, later ones included.
    *
    * @param shown true to show them

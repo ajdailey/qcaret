@@ -128,6 +128,7 @@ Shortcuts.
 | `ui.rightMargin` | `true`, `false`: the editors show the right margin line | `false` | View > Right Margin |
 | `ui.indentGuides` | `true`, `false`: the editors show indent guides | `false` | View > Indent Guides |
 | `ui.lineChanges` | `true`, `false`: the editors mark the lines changed since the last load or save | `false` | View > Modified Line Marks |
+| `ui.memoryIndicator` | `true`, `false`: the status bars show the memory indicator | `false` | View > Memory Indicator; Tools > Preferences, View |
 | `ui.wordWrap` | `true`, `false`: a window without a session entry starts with word wrap on | `false` | View > Word Wrap; Tools > Preferences, View |
 | `ui.whitespace` | `true`, `false`: such a window starts with the whitespace marks | `false` | View > Show Whitespace; Tools > Preferences, View |
 | `ui.lineEndings` | `true`, `false`: such a window starts with the line-ending marks | `false` | View > Show Line Endings; Tools > Preferences, View |

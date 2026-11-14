@@ -87,6 +87,7 @@ public final class ApplicationController {
   private final DateTimeInsert dateTime;
   private final EditorAids aids;
   private final ViewToggles views;
+  private final MemoryIndicator memory;
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
   private final WindowCommands windowCommands;
@@ -266,6 +267,7 @@ public final class ApplicationController {
     view.setRightMargin(rightMarginColumn());
     this.aids = new EditorAids(settings, view, documents);
     this.views = new ViewToggles(settings, documents, workspace);
+    this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
     this.tips =
         new TipOfTheDay(
             set,
@@ -341,6 +343,7 @@ public final class ApplicationController {
       view.setRightMargin(rightMarginColumn());
     }
     aids.apply(before, after);
+    memory.apply(before, after);
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -875,6 +878,7 @@ public final class ApplicationController {
       case OVERVIEW_STRIP -> views.toggleOverview();
       case LINE_NUMBERS -> views.toggleLineNumbers();
       case TOOLBAR -> toggleToolbar();
+      case MEMORY_INDICATOR -> memory.toggle();
       case ALWAYS_ON_TOP -> alwaysOnTop.toggle();
       case RIGHT_MARGIN -> toggleRightMargin();
       case INDENT_GUIDES -> aids.toggleIndentGuides();
@@ -960,6 +964,13 @@ public final class ApplicationController {
   private void toggleToolbar() {
     Preferences current = settings.current();
     settings.set(current.withState(current.state().withToolbar(!toolbarShown())));
+  }
+
+  /** Requests a garbage collection for the memory indicator; see {@link MemoryIndicator}. */
+  public void collectGarbage() {
+    if (!quitting) {
+      memory.collect();
+    }
   }
 
   /**
@@ -1219,6 +1230,7 @@ public final class ApplicationController {
   void stop() {
     quitting = true;
     settings.removeListener(settingsListener);
+    memory.stop();
     find.dispose();
     search.dispose();
     replace.dispose();

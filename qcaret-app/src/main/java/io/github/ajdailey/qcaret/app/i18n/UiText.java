@@ -1670,6 +1670,8 @@ public enum UiText {
   PREFERENCES_VIEW_INDENT_GUIDES,
   /** View tab box: every editor marks modified lines. */
   PREFERENCES_VIEW_LINE_CHANGES,
+  /** View tab box: every window shows the memory indicator. */
+  PREFERENCES_VIEW_MEMORY_INDICATOR,
   /** Preferences list of the line ending of new documents. */
   PREFERENCES_NEW_LINE_ENDING,
   /** Preferences list of the encoding of new documents. */
@@ -1681,7 +1683,23 @@ public enum UiText {
   /** {@link #PREFERENCES_NEW_LINE_ENDING} entry for {@code platform}. */
   PREFERENCES_LINE_ENDING_PLATFORM,
   /** Preferences refusal of a list value; takes the field's label. */
-  PREFERENCES_BAD_CHOICE;
+  PREFERENCES_BAD_CHOICE,
+  /** View menu toggle of the status bar's memory indicator. */
+  COMMAND_MEMORY_INDICATOR,
+  /** Memory indicator text: the heap kept after collection and the maximum heap, in MB. */
+  MEMORY_TEXT,
+  /** Memory indicator tip line: the heap in use now, in MB. */
+  MEMORY_TIP_USED,
+  /** Memory indicator tip line: the maximum heap, in MB. */
+  MEMORY_TIP_MAX,
+  /** Memory indicator tip line: the open documents' reservation and budget, in MB. */
+  MEMORY_TIP_DOCUMENTS,
+  /** Memory indicator tip line: how to raise the maximum heap. */
+  MEMORY_TIP_RAISE,
+  /** Memory indicator tip line: what a click does. */
+  MEMORY_TIP_CLICK,
+  /** Notice after a click's garbage collection: the heap it freed, in MB. */
+  MEMORY_FREED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

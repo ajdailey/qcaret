@@ -22,6 +22,7 @@ final class PreferencesViewTab {
   private final Button rightMargin;
   private final Button indentGuides;
   private final Button lineChanges;
+  private final Button memoryIndicator;
 
   /** Fills a two-column page. */
   PreferencesViewTab(Composite page) {
@@ -37,6 +38,7 @@ final class PreferencesViewTab {
     rightMargin = check(page, UiText.PREFERENCES_VIEW_RIGHT_MARGIN);
     indentGuides = check(page, UiText.PREFERENCES_VIEW_INDENT_GUIDES);
     lineChanges = check(page, UiText.PREFERENCES_VIEW_LINE_CHANGES);
+    memoryIndicator = check(page, UiText.PREFERENCES_VIEW_MEMORY_INDICATOR);
   }
 
   private static void heading(Composite page, UiText text) {
@@ -66,6 +68,7 @@ final class PreferencesViewTab {
     rightMargin.setSelection(c.rightMargin());
     indentGuides.setSelection(c.indentGuides());
     lineChanges.setSelection(c.lineChanges());
+    memoryIndicator.setSelection(c.memoryIndicator());
   }
 
   /** Returns the boxes. */
@@ -80,7 +83,8 @@ final class PreferencesViewTab {
         toolbar.getSelection(),
         rightMargin.getSelection(),
         indentGuides.getSelection(),
-        lineChanges.getSelection());
+        lineChanges.getSelection(),
+        memoryIndicator.getSelection());
   }
 
   Button wordWrap() {
@@ -89,5 +93,9 @@ final class PreferencesViewTab {
 
   Button toolbar() {
     return toolbar;
+  }
+
+  Button memoryIndicator() {
+    return memoryIndicator;
   }
 }

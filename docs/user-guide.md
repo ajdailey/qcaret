@@ -267,6 +267,14 @@ apply (measured on Linux, one million lines):
   selection, encoding, line endings and language. A click on the language
   chooses a grammar. A Warnings link appears when QCaret logs a warning and opens
   Help > Show Log.
+- View > Memory Indicator shows, at the right end of every window's status bar,
+  the Java heap kept after garbage collection and the maximum heap, as
+  `used/max MB` over a bar filled to that share. Its tool tip adds the heap in
+  use now, the memory open documents hold of their 60% share, and the `-Xmx`
+  option that raises the maximum (see [Large files](#large-files)). A
+  click runs a garbage collection and the status bar names the memory it freed.
+  The figures refresh every 2 seconds while the indicator shows. The choice is
+  saved; it is off at first.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
   at the next start; under Dark, dialogs are dark while the main window's docks,
   fields and toolbar stay light. On macOS they follow the system appearance, also
@@ -728,7 +736,7 @@ running windows without a restart.
 | Tab | Holds |
 |---|---|
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, line ending and encoding for new documents, editor colors |
-| View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks |
+| View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, Clear History |
 | Appearance | Theme, editor font size, editor font |

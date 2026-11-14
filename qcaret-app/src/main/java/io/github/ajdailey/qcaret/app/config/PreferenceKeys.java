@@ -80,6 +80,7 @@ final class PreferenceKeys {
   static final String WORKSPACE_BROWSER = "ui.workspaceBrowser";
   static final String NEW_LINE_ENDING = "editor.newLineEnding";
   static final String NEW_ENCODING = "editor.newEncoding";
+  static final String MEMORY_INDICATOR = "ui.memoryIndicator";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -149,6 +150,7 @@ final class PreferenceKeys {
     keys.put(OVERVIEW, Boolean.toString(view.overview()));
     keys.put(LINE_NUMBERS, Boolean.toString(view.lineNumbers()));
     keys.put(WORKSPACE_BROWSER, Boolean.toString(view.workspaceBrowser()));
+    keys.put(MEMORY_INDICATOR, Boolean.toString(s.memoryIndicator()));
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
@@ -379,7 +381,8 @@ final class PreferenceKeys {
         flag(p, INDENT_GUIDES, false, file),
         flag(p, LINE_CHANGES, false, file),
         list(p, FAVORITES),
-        view(p, file));
+        view(p, file),
+        flag(p, MEMORY_INDICATOR, false, file));
   }
 
   private static ViewDefaults view(Properties p, Path file) {
