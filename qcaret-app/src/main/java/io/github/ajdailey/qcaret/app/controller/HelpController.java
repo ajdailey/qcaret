@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
@@ -138,9 +139,10 @@ final class HelpController {
     final LogFiles target = files;
     start(
         "Debug log file not changed",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             String failure = null;
             if (on) {
               try {
@@ -184,9 +186,10 @@ final class HelpController {
   void openContainingFolder(final Path folder) {
     start(
         "Folder not opened",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             final boolean exists = Files.isDirectory(folder);
             post(
                 new Runnable() {
@@ -206,9 +209,10 @@ final class HelpController {
   private void openFolder(final Path folder) {
     start(
         "Folder not opened",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             Path created = null;
             String failure = null;
             try {
@@ -243,16 +247,17 @@ final class HelpController {
     final String toolkit = view.toolkitDescription();
     start(
         "Issue page not opened",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             final AboutInfo info = AboutInfo.collect(toolkit, location);
             post(
                 new Runnable() {
                   @Override
                   public void run() {
                     view.setText(String.join(System.lineSeparator(), info.details()));
-                    if (view.launchUrl(AboutInfo.ISSUES_URL)) {
+                    if (LaunchCursor.launchUrl(view, ui, AboutInfo.ISSUES_URL)) {
                       view.showNotice(UiText.NOTICE_ISSUE_DETAILS.text());
                     } else {
                       LOG.warn("No application opened the issue page");
@@ -274,9 +279,10 @@ final class HelpController {
     final Path settings = location.directory();
     start(
         "User guide not shown",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             Path copy = null;
             String failure = null;
             try {
@@ -312,7 +318,7 @@ final class HelpController {
     if (closing.getAsBoolean()) {
       return;
     }
-    if (!view.launch(guide)) {
+    if (!LaunchCursor.launch(view, ui, guide)) {
       LOG.warn("No application opened {}", LogText.oneLine(guide));
       view.showNotice(UiText.NOTICE_GUIDE_AT.format(guide));
     }
@@ -323,9 +329,10 @@ final class HelpController {
     final String toolkit = view.toolkitDescription();
     start(
         "About not shown",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             final AboutInfo info = AboutInfo.collect(toolkit, location);
             post(
                 new Runnable() {
@@ -342,9 +349,10 @@ final class HelpController {
   void showLicenses() {
     start(
         "Licenses not shown",
-        new Runnable() {
+        new BusyWork(ui, view) {
           @Override
-          public void run() {
+          @WorkerThread
+          void work() {
             String text;
             try {
               text = AboutInfo.licenseText();
@@ -364,15 +372,18 @@ final class HelpController {
   }
 
   private void launch(Path target) {
-    if (!view.launch(target)) {
+    if (!LaunchCursor.launch(view, ui, target)) {
       LOG.warn("No application opened {}", LogText.oneLine(target));
       view.showNotice(UiText.NOTICE_LAUNCH_FAILED.text());
     }
   }
 
-  /** Starts a {@code LIFECYCLE} worker; when workers are closed, logs {@code refused} at DEBUG. */
-  private void start(String refused, Runnable task) {
-    if (!workers.tryStart(Workers.Kind.LIFECYCLE, task)) {
+  /**
+   * Starts a {@code LIFECYCLE} worker under the busy cursor; when workers are closed, logs {@code
+   * refused} at DEBUG.
+   */
+  private void start(String refused, BusyWork task) {
+    if (!task.start(workers, Workers.Kind.LIFECYCLE)) {
       LOG.debug("{}: workers are closed", LogText.oneLine(refused));
     }
   }

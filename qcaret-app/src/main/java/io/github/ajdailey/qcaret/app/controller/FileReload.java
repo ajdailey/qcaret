@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
@@ -265,60 +266,53 @@ final class FileReload {
     final LoadReservation reservation =
         LoadReservation.reload(budget, d.reserved, loading.limits());
     final FileSettingsReader reader = binary ? null : declared.reader();
-    view.setActive();
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                Reloaded result = null;
-                IOException error = null;
-                try {
-                  Path real = SaveAndReload.realFile(file);
-                  EditorConfig.Result config = reader == null ? null : reader.editorConfig(real);
-                  LoadOptions with = reader == null ? loading : reader.options(loading, config);
-                  ReloadedFile read =
-                      CompareController.reload(
-                          file, with, charset, binary, snapshot.text(), reservation, token);
-                  result =
-                      new Reloaded(
-                          read.replacement(),
-                          read.encoding(),
-                          read.lineEnding(),
-                          read.baseline(),
-                          read.roundTrips(),
-                          real,
-                          reservation,
-                          config);
-                } catch (LoadTooLargeException e) {
-                  // Reported as a reload without room: no result and no error.
-                } catch (IOException e) {
-                  error = e;
-                } catch (CancellationException e) {
-                  // Closed.
-                } finally {
-                  if (result == null) {
-                    reservation.close();
-                  }
-                  final Reloaded reloaded = result;
-                  final IOException failure = error;
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          reloaded(d, token, snapshot.revision(), reloaded, failure);
-                        }
-                      });
-                  view.setIdle();
-                }
+        new BusyWork(ui, view) {
+          private Reloaded result;
+          private IOException error;
+
+          @Override
+          @WorkerThread
+          void work() {
+            try {
+              Path real = SaveAndReload.realFile(file);
+              EditorConfig.Result config = reader == null ? null : reader.editorConfig(real);
+              LoadOptions with = reader == null ? loading : reader.options(loading, config);
+              ReloadedFile read =
+                  CompareController.reload(
+                      file, with, charset, binary, snapshot.text(), reservation, token);
+              result =
+                  new Reloaded(
+                      read.replacement(),
+                      read.encoding(),
+                      read.lineEnding(),
+                      read.baseline(),
+                      read.roundTrips(),
+                      real,
+                      reservation,
+                      config);
+            } catch (LoadTooLargeException e) {
+              // Reported as a reload without room: no result and no error.
+            } catch (IOException e) {
+              error = e;
+            } catch (CancellationException e) {
+              // Closed.
+            } finally {
+              if (result == null) {
+                reservation.close();
               }
-            });
+            }
+          }
+
+          @Override
+          void finished(boolean completed) {
+            reloaded(d, token, snapshot.revision(), result, error);
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started) {
       d.file.reloading = null;
       d.file.reloadCheck = null;
       resumeWatch(d);
-      view.setIdle();
     }
   }
 

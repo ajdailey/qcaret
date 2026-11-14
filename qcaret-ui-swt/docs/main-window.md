@@ -194,7 +194,8 @@ WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings and language
 (`StatusFields`). A caret move or state change schedules one read on the next
 UI turn; further changes before it share that read. `BusyCounter` shows
-`CURSOR_APPSTARTING` while any load, save or conversion runs.
+`CURSOR_APPSTARTING` on the shell while any operation counts as active
+([busy cursor](../../qcaret-app/docs/views-and-commands.md#busy-cursor)).
 
 `MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
 from the layout while it is off. It paints `MemoryFields.text` over a bar

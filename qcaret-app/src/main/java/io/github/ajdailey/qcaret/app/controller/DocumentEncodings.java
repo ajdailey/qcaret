@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentSnapshot;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
@@ -12,7 +13,6 @@ import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Save with an encoding and the line-ending conversion of one {@link DocumentController}'s
@@ -65,40 +65,34 @@ final class DocumentEncodings {
     final DocumentSnapshot snapshot = d.document.snapshot();
     final long revision = d.document.revision();
     final int caret = d.editor.selections().selections().primary().caret();
-    view.setActive();
     busy(d, true);
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              LineConversion converted = null;
-              try {
-                converted = LineConversion.convert(snapshot.text(), ending, caret, token);
-              } catch (CancellationException e) {
-                // Closed or replaced by a newer conversion.
-              } finally {
-                final LineConversion result = converted;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        try {
-                          converted(d, token, revision, ending, result);
-                        } finally {
-                          view.setIdle();
-                          if (d.converting == null) {
-                            busy(d, false);
-                          }
-                        }
-                      }
-                    });
+    boolean started =
+        new BusyWork(ui, view) {
+          private LineConversion converted;
+
+          @Override
+          @WorkerThread
+          void work() {
+            try {
+              converted = LineConversion.convert(snapshot.text(), ending, caret, token);
+            } catch (CancellationException e) {
+              // Closed or replaced by a newer conversion.
+            }
+          }
+
+          @Override
+          void finished(boolean completed) {
+            try {
+              converted(d, token, revision, ending, converted);
+            } finally {
+              if (d.converting == null) {
+                busy(d, false);
               }
             }
-          });
-    } catch (RejectedExecutionException e) {
+          }
+        }.startCpu(workers);
+    if (!started) {
       d.converting = null;
-      view.setIdle();
       busy(d, false);
     }
   }

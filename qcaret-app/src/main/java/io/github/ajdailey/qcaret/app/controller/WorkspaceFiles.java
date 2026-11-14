@@ -176,36 +176,35 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
       return;
     }
     final WalkRules rules = workspace.rules();
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            Path made = null;
-            boolean indexed = false;
-            String error;
-            try {
-              SafePaths.userFile(dir.resolve(name));
-              made = FileOperations.create(dir, name, folder);
-              indexed = !folder && indexed(made, rules);
-              error = null;
-            } catch (FileAlreadyExistsException e) {
-              error = UiText.FILE_EXISTS.format(name);
-            } catch (IOException | InvalidPathException e) {
-              error = UiText.CREATE_FAILED.format(name, LogText.oneLine(e.getMessage()));
-            }
-            final Path result = made;
-            final boolean listed = indexed;
-            final String failure = error;
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    created(dir, result, folder, listed, title, failure);
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        Path made = null;
+        boolean indexed = false;
+        String error;
+        try {
+          SafePaths.userFile(dir.resolve(name));
+          made = FileOperations.create(dir, name, folder);
+          indexed = !folder && indexed(made, rules);
+          error = null;
+        } catch (FileAlreadyExistsException e) {
+          error = UiText.FILE_EXISTS.format(name);
+        } catch (IOException | InvalidPathException e) {
+          error = UiText.CREATE_FAILED.format(name, LogText.oneLine(e.getMessage()));
+        }
+        final Path result = made;
+        final boolean listed = indexed;
+        final String failure = error;
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                created(dir, result, folder, listed, title, failure);
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   private void created(
@@ -271,48 +270,46 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
       window.under().hold(listed);
     }
     final WalkRules rules = workspace.rules();
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            BrowserPath from = null;
-            BrowserPath to = null;
-            boolean indexed = false;
-            String error = null;
-            try {
-              Path real = realUnlessLink(source);
-              Path target = source.resolveSibling(name);
-              if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                SafePaths.userFile(target);
-              }
-              Runnable hook = beforeRename;
-              if (hook != null) {
-                hook.run();
-              }
-              Path renamed = FileOperations.rename(source, name);
-              from = new BrowserPath(source, real);
-              to = new BrowserPath(renamed, real == null ? null : real.resolveSibling(name));
-              indexed = !folder && indexed(renamed, rules);
-            } catch (FileAlreadyExistsException e) {
-              error = UiText.FILE_EXISTS.format(name);
-            } catch (IOException | InvalidPathException e) {
-              error =
-                  UiText.RENAME_FAILED.format(
-                      source.getFileName(), LogText.oneLine(e.getMessage()));
-            }
-            final PathMove move = error == null ? new PathMove(from, to) : null;
-            final boolean indexedName = indexed;
-            final String failure = error;
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    renamed(listed, held, move, folder, indexedName, failure);
-                  }
-                });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        BrowserPath from = null;
+        BrowserPath to = null;
+        boolean indexed = false;
+        String error = null;
+        try {
+          Path real = realUnlessLink(source);
+          Path target = source.resolveSibling(name);
+          if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            SafePaths.userFile(target);
           }
-        });
+          Runnable hook = beforeRename;
+          if (hook != null) {
+            hook.run();
+          }
+          Path renamed = FileOperations.rename(source, name);
+          from = new BrowserPath(source, real);
+          to = new BrowserPath(renamed, real == null ? null : real.resolveSibling(name));
+          indexed = !folder && indexed(renamed, rules);
+        } catch (FileAlreadyExistsException e) {
+          error = UiText.FILE_EXISTS.format(name);
+        } catch (IOException | InvalidPathException e) {
+          error =
+              UiText.RENAME_FAILED.format(source.getFileName(), LogText.oneLine(e.getMessage()));
+        }
+        final PathMove move = error == null ? new PathMove(from, to) : null;
+        final boolean indexedName = indexed;
+        final String failure = error;
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                renamed(listed, held, move, folder, indexedName, failure);
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   /**

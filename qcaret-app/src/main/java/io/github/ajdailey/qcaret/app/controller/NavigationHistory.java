@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.LineView;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Anchor;
 import io.github.ajdailey.qcaret.core.document.Bias;
@@ -225,21 +226,20 @@ final class NavigationHistory {
       return;
     }
     final Path path = e.path;
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            final boolean exists = Files.isRegularFile(path);
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    reached(e, exists, back);
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        final boolean exists = Files.isRegularFile(path);
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                reached(e, exists, back);
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   /** Opens a closed file's position, or drops it and moves on when the file is gone. */

@@ -213,29 +213,31 @@ final class ResultsNavigation {
   }
 
   /**
-   * Checks a file group's file on a {@code qcaret-io-} worker: a changed stamp whose bytes have
-   * another SHA-256 marks the group stale. Then runs {@code then} on the UI thread, if given.
+   * Checks a file group's file on a {@code qcaret-io-} worker under the busy cursor: a changed
+   * stamp whose bytes have another SHA-256 marks the group stale. Then runs {@code then} on the UI
+   * thread, if given.
    */
   void check(final FileResult f, final Runnable then) {
     final Path path = f.path();
     final FileStamp stamp = f.stamp();
     final byte[] digest = f.digest();
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final boolean changed = changed(path, stamp, digest, checks);
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        checked(f, changed, then);
-                      }
-                    });
-              }
-            });
+        new BusyWork(ui, view) {
+          private boolean differs;
+
+          @Override
+          @WorkerThread
+          void work() {
+            differs = changed(path, stamp, digest, checks);
+          }
+
+          @Override
+          void finished(boolean completed) {
+            if (completed) {
+              checked(f, differs, then);
+            }
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started && then != null) {
       then.run();
     }

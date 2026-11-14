@@ -38,8 +38,8 @@ undo and redo restore that model. A read-only document ignores edits.
   end are virtual. In block mode typing, Backspace, Delete, cut, copy and paste
   follow `BlockEdits`, and the block stays a block.
 - Add Next Occurrence selects the word at a primary caret, else searches a
-  snapshot for the primary's text on a `qcaret-cpu-` worker and adds the match
-  as the new primary, apart from a selection it touches
+  snapshot for the primary's text on a `qcaret-cpu-` worker, with the view
+  busy, and adds the match as the new primary, apart from a selection it touches
   (`SelectionSet.apart`); a result for another revision is dropped.
 - Esc cancels a running save and comparison through one `Runnable`, a line
   transform through `LineTransformRuns` and a selection search through
@@ -120,8 +120,8 @@ folds a restored session puts back.
   expanded region holding it; Unfold expands the collapsed region the line
   starts; Toggle Fold does either; Fold All and Unfold All take every region of
   the view.
-- Fold All measures its spans on a `qcaret-cpu-` worker against a snapshot and
-  a copy of the rows, and collapses them only if the text, rows and offered
+- Fold All measures its spans on a `qcaret-cpu-` worker, with the view busy,
+  against a snapshot and a copy of the rows, and collapses them only if the text, rows and offered
   regions are unchanged, else asks again; a fold command meanwhile drops it.
 - Folding moves each caret and anchor in hidden lines to the end of the line
   before them. A primary caret that any other command puts in hidden lines
@@ -188,8 +188,8 @@ changes nothing. An anchor follows the line while the prompt shows.
 - Go to Matching Bracket moves each caret beside a bracket past its partner;
   Select to Matching Bracket selects from the bracket to the partner. Each
   partner is sought on the UI thread within 16 Ki chars of its bracket; one
-  further away sends every search to a worker, applied only at the same
-  revision and selections. A scroll does not end that search.
+  further away sends every search to a worker, with the view busy, applied
+  only at the same revision and selections. A scroll does not end that search.
 - One UI turn after a caret move, an edit or a scroll, `EditorHighlights` gives
   the view the bracket beside the primary caret with its partner (sought on the
   UI thread within the visible range and 16 Ki chars on each side, else on a

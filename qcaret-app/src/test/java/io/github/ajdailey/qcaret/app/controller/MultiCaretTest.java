@@ -249,6 +249,18 @@ class MultiCaretTest {
               BOUND));
     }
     assertEquals("[foo] bar [foo] [foo]*", marked());
+    // The worker posts the idle call after the result: poll for it. The second search starts
+    // before the first one's idle call runs, so the cursor stays on between them.
+    assertTrue(
+        ui.runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return tab.shown.busy.size() == 2;
+              }
+            },
+            BOUND));
+    assertEquals(List.of(true, false), tab.shown.busy);
     editor.type("x");
     assertEquals("x bar x x", document.text().toString());
   }

@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
@@ -50,38 +51,24 @@ final class SaveCleanup {
       final LineEnding ending,
       final CancellationToken token,
       final Consumer<Edit> done) {
-    activity.setActive();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                Edit edit = null;
-                try {
-                  edit = edits(text, settings, ending, token);
-                } catch (CancellationException e) {
-                  // Esc or a close: done finds the save ended.
-                } finally {
-                  final Edit cleanup = edit;
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          try {
-                            done.accept(cleanup);
-                          } finally {
-                            activity.setIdle();
-                          }
-                        }
-                      });
-                }
-              }
-            });
-    if (!started) {
-      activity.setIdle();
-    }
-    return started;
+    return new BusyWork(ui, activity) {
+      private Edit edit;
+
+      @Override
+      @WorkerThread
+      void work() {
+        try {
+          edit = edits(text, settings, ending, token);
+        } catch (CancellationException e) {
+          // Esc or a close: done finds the save ended.
+        }
+      }
+
+      @Override
+      void finished(boolean completed) {
+        done.accept(edit);
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   /**

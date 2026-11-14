@@ -104,9 +104,9 @@ final class RecentFiles {
   }
 
   /**
-   * Drops the files that no longer exist. The check runs on a worker, so a slow or unreachable path
-   * holds only that worker; a Clean Up in this window while one runs does nothing. A notice reports
-   * the count.
+   * Drops the files that no longer exist. The check runs on a worker under the busy cursor, so a
+   * slow or unreachable path holds only that worker; a Clean Up in this window while one runs does
+   * nothing. A notice reports the count.
    */
   void cleanUp() {
     if (cleaning || disposed) {
@@ -115,29 +115,24 @@ final class RecentFiles {
     final List<Path> listed = List.copyOf(paths);
     final Predicate<Path> check = probe;
     cleaning =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final List<Path> gone = new ArrayList<Path>();
-                try {
-                  for (Path path : listed) {
-                    if (check == null ? isGone(path) : check.test(path)) {
-                      gone.add(path);
-                    }
-                  }
-                } finally {
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          cleaned(gone);
-                        }
-                      });
-                }
+        new BusyWork(ui, view) {
+          private final List<Path> gone = new ArrayList<Path>();
+
+          @Override
+          @WorkerThread
+          void work() {
+            for (Path path : listed) {
+              if (check == null ? isGone(path) : check.test(path)) {
+                gone.add(path);
               }
-            });
+            }
+          }
+
+          @Override
+          void finished(boolean completed) {
+            cleaned(gone);
+          }
+        }.start(workers, Workers.Kind.IO);
   }
 
   private void cleaned(List<Path> gone) {

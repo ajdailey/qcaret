@@ -42,19 +42,18 @@ final class ReplaceRestore {
   }
 
   /**
-   * Lists the runs under {@code root} on a worker after pruning those older than {@code days}; a
-   * refused worker shows the running notice.
+   * Lists the runs under {@code root} on a worker, under the busy cursor, after pruning those older
+   * than {@code days}; a refused worker shows the running notice.
    */
   void choose(final Path root, final int days) {
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                listRuns(root, days);
-              }
-            });
+        new BusyWork(ui, view) {
+          @Override
+          @WorkerThread
+          void work() {
+            listRuns(root, days);
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started) {
       view.showNotice(UiText.REPLACE_RUNNING.text());
     }

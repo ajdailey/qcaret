@@ -113,21 +113,20 @@ final class SaveCopy {
   /** Resolves the target's real path on a worker; the document's path for the same file. */
   private void resolve(final OpenDocument d, final Path target) {
     final Path own = d.file.path;
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            final Path real = sameFile(target, own) ? own : SaveAndReload.realFile(target);
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    resolved(d, target, real);
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        final Path real = sameFile(target, own) ? own : SaveAndReload.realFile(target);
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                resolved(d, target, real);
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   private void resolved(final OpenDocument d, final Path target, Path real) {
@@ -149,40 +148,31 @@ final class SaveCopy {
     final LineEnding ending = DocumentSettings.cleanupEnding(d.document, settings);
     final CancellationToken token = new CancellationToken();
     d.file.copying = token;
-    view.setActive();
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                Path written = null;
-                IOException error = null;
-                try {
-                  DocumentFiles.save(
-                      target, cleaned(snapshot, cleanup, ending, token), null, token);
-                  written = SaveAndReload.realFile(target);
-                } catch (IOException e) {
-                  error = e;
-                } catch (CancellationException e) {
-                  // Canceled: the target is unchanged.
-                } finally {
-                  final Path file = written;
-                  final IOException failure = error;
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          written(d, token, target, file, failure);
-                        }
-                      });
-                  view.setIdle();
-                }
-              }
-            });
+        new BusyWork(ui, view) {
+          private Path written;
+          private IOException error;
+
+          @Override
+          @WorkerThread
+          void work() {
+            try {
+              DocumentFiles.save(target, cleaned(snapshot, cleanup, ending, token), null, token);
+              written = SaveAndReload.realFile(target);
+            } catch (IOException e) {
+              error = e;
+            } catch (CancellationException e) {
+              // Canceled: the target is unchanged.
+            }
+          }
+
+          @Override
+          void finished(boolean completed) {
+            written(d, token, target, written, error);
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started) {
       d.file.copying = null;
-      view.setIdle();
       return;
     }
     window.writes().started(target);

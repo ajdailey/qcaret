@@ -32,6 +32,45 @@ given; `restoresSession` applies the session default. `Version.get` reads
 thread, `timerExec` and `cancelTimer` on the UI thread, no synchronous variant.
 Submissions after disposal are dropped.
 
+## Busy cursor
+
+A user-started operation on a worker shows the busy cursor while it runs, or
+shows its own progress. `MainWindow` shows `SWT.CURSOR_APPSTARTING` on the
+shell while its `BusyCounter` counts an active operation; each
+`EditorController` has its own `BusyCounter` behind `EditorView.setBusy`, which
+sets the cursor over the text, where the shell's does not show. Never
+`CURSOR_WAIT`: input is never blocked.
+
+`BusyWork` raises the counter at `start` and runs `work` on a worker, then
+`finished` on the UI thread after `work` returns or throws and after every task
+`work` posted before it returned; the counter goes idle after `finished` on
+every path. A refused start returns false with the counter idle and `finished`
+not run. A new user-started operation uses it.
+
+| Cursor | Operations |
+|---|---|
+| Window, through `BusyWork` | Save As and Save a Copy target checks, the copy write, save cleanup, `FileReload`, `DocumentEncodings`, `SelectionDelete`, `RecentFiles` Clean Up, `OpenAll`, `DroppedFiles`, `NavigationHistory` to a closed file, `WorkspaceController` set and Open in Default Application, `WorkspaceBrowse` folder changes, `WorkspaceFiles` create and rename, HyperSearch's folder check, `ResultsNavigation.check`, the replace previews, `ReplaceRestore`, the checksum list save, `SelectionChecksum`, `GrammarLibrary.reload`, every `HelpController` worker, `MemoryIndicator.collect` |
+| Window, by hand | `DocumentOpener` (one load spans the path check, the read and the listener's answer), `SaveAndReload.write` (posts its result while holding the file's write lock, so a later save's result lands after it), `CompareController` (an IO read then a CPU build, ended by `dispose` too) |
+| Editor | `EditorController` Add Next Occurrence, Go to Matching Bracket and `FoldScheduling` Fold All through `BusyWork`; `LineTransformRuns` and `SelectionCommands` set `EditorView.setBusy` directly |
+
+`LaunchCursor` holds one operation for 1 s on a UI timer after
+`MainView.launch` or `launchUrl` returns true, since the application's window
+appears later: Open in Default Application, Open Containing Folder, the log and
+settings folders, Report Issue and the user guide outside its window.
+
+HyperSearch, file reruns, Replace in Files, the checksum dialogs, statistics,
+printing, the Quick Open index and symbol scan, the find bar and the workspace
+browser's listings show their own progress. Upkeep the user did not start
+(highlighting, folds, rewraps, the overview strip, line changes, polling,
+session, settings and recovery writes) shows nothing, as do per-keystroke work
+in a popup or dialog (Quick Open matching, word completion, the text checksum)
+and small reads of QCaret's own files.
+
+`BusyCoverageTest` in `qcaret-launcher` lists every `Workers` submission in
+this module with what it shows. It fails on an unlisted submission, and on a
+listed operation that does not create a `BusyWork` or make the call its row
+names.
+
 ## View contracts
 
 `MainView` is the main window as the controller sees it; every method runs on

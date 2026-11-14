@@ -122,38 +122,37 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
   /** Checks a folder on a worker and shows it, or says why not. */
   private void show(final Path target) {
     final int request = ++generation;
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            Path real = null;
-            UiText refusal = null;
-            if (!Files.exists(target)) {
-              refusal = UiText.BROWSE_MISSING;
-            } else if (!Files.isDirectory(target)) {
-              refusal = UiText.BROWSE_NOT_FOLDER;
-            } else {
-              real = WorkspaceController.realFolder(target);
-            }
-            final Path folder = real;
-            final UiText failure = refusal;
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    if (request != generation) {
-                      return;
-                    }
-                    if (failure != null) {
-                      view.showNotice(failure.format(target));
-                    } else {
-                      workspace.showFolder(folder);
-                    }
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        Path real = null;
+        UiText refusal = null;
+        if (!Files.exists(target)) {
+          refusal = UiText.BROWSE_MISSING;
+        } else if (!Files.isDirectory(target)) {
+          refusal = UiText.BROWSE_NOT_FOLDER;
+        } else {
+          real = WorkspaceController.realFolder(target);
+        }
+        final Path folder = real;
+        final UiText failure = refusal;
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                if (request != generation) {
+                  return;
+                }
+                if (failure != null) {
+                  view.showNotice(failure.format(target));
+                } else {
+                  workspace.showFolder(folder);
+                }
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   @Override

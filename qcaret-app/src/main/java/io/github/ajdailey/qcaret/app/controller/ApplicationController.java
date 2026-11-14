@@ -149,6 +149,7 @@ public final class ApplicationController {
         new DroppedFiles(
             workers,
             ui,
+            view,
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
@@ -863,7 +864,7 @@ public final class ApplicationController {
       case SPLIT_VERTICAL -> documents.split(true);
       case UNSPLIT -> documents.unsplit();
       case FOCUS_OTHER_VIEW -> documents.focusOtherView();
-      case RELOAD_GRAMMARS -> grammars.load();
+      case RELOAD_GRAMMARS -> grammars.reload(view);
       case FIND -> find.open(false);
       case FIND_NEXT -> find.findNext();
       case FIND_PREVIOUS -> find.findPrevious();

@@ -135,27 +135,26 @@ public final class WorkspaceController implements WorkspaceInput {
    */
   public void set(Path folder) {
     final Path given = folder.toAbsolutePath().normalize();
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            final Path real = realFolder(given);
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    if (!disposed) {
-                      root = real;
-                      listings.setBrowsed(null);
-                      view.showNotice(UiText.WORKSPACE_SET.format(real));
-                      reset();
-                      documents.sessionChanged();
-                    }
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        final Path real = realFolder(given);
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                if (!disposed) {
+                  root = real;
+                  listings.setBrowsed(null);
+                  view.showNotice(UiText.WORKSPACE_SET.format(real));
+                  reset();
+                  documents.sessionChanged();
+                }
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   /**
@@ -388,21 +387,20 @@ public final class WorkspaceController implements WorkspaceInput {
     }
     final Path path = node.path();
     final boolean windows = view.launchesByExtension();
-    workers.tryStart(
-        Workers.Kind.IO,
-        new Runnable() {
-          @Override
-          public void run() {
-            final boolean runs = runsInsteadOfOpening(path, windows);
-            ui.asyncExec(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    launch(path, runs);
-                  }
-                });
-          }
-        });
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        final boolean runs = runsInsteadOfOpening(path, windows);
+        ui.asyncExec(
+            new Runnable() {
+              @Override
+              public void run() {
+                launch(path, runs);
+              }
+            });
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   private void launch(Path path, boolean runs) {
@@ -412,7 +410,7 @@ public final class WorkspaceController implements WorkspaceInput {
     String name = String.valueOf(path.getFileName());
     if (runs) {
       view.showNotice(UiText.WORKSPACE_RUNS.format(name));
-    } else if (!view.launch(path)) {
+    } else if (!LaunchCursor.launch(view, ui, path)) {
       view.showNotice(UiText.WORKSPACE_LAUNCH_FAILED.format(name));
     }
   }

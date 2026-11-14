@@ -45,12 +45,16 @@ class MemoryIndicatorTest {
   private Settings settings;
   private MemoryIndicator indicator;
 
-  /** Reports 300 MB used before a collection and 100 MB after; a collection waits for release. */
+  /**
+   * Reports 300 MB used before a collection and 100 MB after; a collection waits for release, then
+   * throws while {@code failCollect} is set.
+   */
   private static final class MockProbe implements MemoryProbe {
     final AtomicInteger reads = new AtomicInteger();
     final AtomicInteger collections = new AtomicInteger();
     final CountDownLatch release = new CountDownLatch(1);
     final List<String> collectThreads = new CopyOnWriteArrayList<String>();
+    volatile boolean failCollect;
 
     @Override
     public MemoryStatus read() {
@@ -66,6 +70,9 @@ class MemoryIndicatorTest {
         assertTrue(release.await(BOUND.toMillis(), TimeUnit.MILLISECONDS));
       } catch (InterruptedException e) {
         throw new IllegalStateException(e);
+      }
+      if (failCollect) {
+        throw new IllegalStateException("mock collection failure");
       }
       collections.incrementAndGet();
     }
@@ -159,6 +166,7 @@ class MemoryIndicatorTest {
     awaitReads(1);
     indicator.collect();
     assertTrue(indicator.collecting());
+    assertEquals(1, view.active.get(), "a collection shows the busy cursor");
     await(
         new BooleanSupplier() {
           @Override
@@ -182,6 +190,28 @@ class MemoryIndicatorTest {
     assertTrue(probe.collectThreads.get(0).startsWith("qcaret-cpu-"), probe.collectThreads.get(0));
     assertEquals(List.of("Garbage collection freed 200 MB."), view.notices);
     assertEquals("50/1000 MB", view.memory.get(view.memory.size() - 1).text());
+    assertEquals(0, view.active.get());
+  }
+
+  @Test
+  void aFailedCollectionClearsTheBusyCursor() throws Exception {
+    indicator.toggle();
+    awaitReads(1);
+    probe.failCollect = true;
+    probe.release.countDown();
+    indicator.collect();
+    assertEquals(1, view.active.get());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !indicator.collecting() && failures.size() == 1;
+          }
+        },
+        "failed collection reported");
+    assertEquals(0, view.active.get());
+    assertTrue(view.notices.isEmpty());
+    failures.clear();
   }
 
   @Test

@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
@@ -287,8 +288,8 @@ final class FoldScheduling {
   }
 
   /**
-   * Measures Fold All's spans on a worker and collapses them at the same text and rows; asks again
-   * when those changed meanwhile.
+   * Measures Fold All's spans on a worker, under the view's busy cursor, and collapses them at the
+   * same text and rows; asks again when those changed meanwhile.
    */
   private void requestFoldAll() {
     final DisplayProjection.FoldAll request = projection.foldAllRequest();
@@ -296,25 +297,20 @@ final class FoldScheduling {
       return;
     }
     foldAll = request;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              try {
-                DisplayProjection.computeFoldAll(request);
-              } finally {
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        foldAllComputed(request);
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
+    boolean started =
+        new BusyWork(ui, editor.busyCursor()) {
+          @Override
+          @WorkerThread
+          void work() {
+            DisplayProjection.computeFoldAll(request);
+          }
+
+          @Override
+          void finished(boolean completed) {
+            foldAllComputed(request);
+          }
+        }.startCpu(workers);
+    if (!started) {
       foldAll = null;
     }
   }

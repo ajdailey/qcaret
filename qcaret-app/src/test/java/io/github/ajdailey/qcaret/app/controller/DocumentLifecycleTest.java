@@ -178,7 +178,16 @@ class DocumentLifecycleTest {
       assertTrue(entered.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "rename started");
       int infos = view.infos.size();
       target.documents().save();
-      windows.settle("save refused");
+      // The rename holds the first window's busy cursor until release.
+      windows.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return view.active.get() == 0 && target.documents().loading() == 0;
+            }
+          },
+          "save refused");
+      windows.ui.runPending();
       assertEquals(infos + 1, view.infos.size(), view.infos.toString());
       String info = view.infos.get(infos);
       assertTrue(info.contains(UiText.RENAME_RUNNING.format("notes.txt")), info);

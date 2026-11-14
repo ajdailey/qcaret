@@ -102,6 +102,19 @@ class WorkspaceFilesTest {
         what);
   }
 
+  /** Runs UI tasks until the held rename is the only operation the window shows as running. */
+  private void awaitOnlyTheRename(String what) throws InterruptedException {
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.active.get() == 1 && documents().loading() == 0;
+          }
+        },
+        what);
+    harness.ui.runPending();
+  }
+
   private String lastInfo() {
     return harness.view.infos.get(harness.view.infos.size() - 1);
   }
@@ -450,7 +463,7 @@ class WorkspaceFilesTest {
       int infos = harness.view.infos.size();
       documents().save();
       documents().reloadFromDisk();
-      harness.awaitIdle("save refused");
+      awaitOnlyTheRename("save refused");
       assertEquals("notes\n", Files.readString(notes));
       assertTrue(documents().activeDocument().isDirty());
       assertEquals(infos + 1, harness.view.infos.size(), harness.view.infos.toString());
@@ -578,7 +591,7 @@ class WorkspaceFilesTest {
     try {
       assertTrue(entered.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "rename started");
       documents().save();
-      harness.awaitIdle("save refused");
+      awaitOnlyTheRename("save refused");
       assertTrue(lastInfo().contains(UiText.RENAME_RUNNING.format("trail.txt")), lastInfo());
       assertEquals("xa  \n", documents().activeDocument().text().toString());
       assertEquals("a  \n", Files.readString(trail));

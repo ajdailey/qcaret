@@ -20,12 +20,11 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Tools > Generate from Selection into Clipboard: hashes the bytes Copy's text would have in the
- * saved file, on a {@code qcaret-cpu-} worker from a text snapshot, then copies the hex and names
- * the charset and line ending in a notice.
+ * saved file, on a {@code qcaret-cpu-} worker under the busy cursor from a text snapshot, then
+ * copies the hex and names the charset and line ending in a notice.
  *
  * <ul>
  *   <li>Selections join in document order with the document's line ending, as Copy joins them;
@@ -109,33 +108,33 @@ final class SelectionChecksum {
     }
     final CancellationToken token = new CancellationToken();
     running = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              String hex = null;
-              boolean encoded = true;
-              try {
-                hex = hash(request, token);
-              } catch (CharacterCodingException e) {
-                encoded = false;
-              } catch (CancellationException e) {
-                hex = null;
-              } finally {
-                final String result = hex;
-                final boolean ok = encoded;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        hashed(token, request, result, ok);
-                      }
-                    });
-              }
+    boolean started =
+        new BusyWork(ui, view) {
+          @Override
+          @WorkerThread
+          void work() {
+            String hex = null;
+            boolean encoded = true;
+            try {
+              hex = hash(request, token);
+            } catch (CharacterCodingException e) {
+              encoded = false;
+            } catch (CancellationException e) {
+              hex = null;
+            } finally {
+              final String result = hex;
+              final boolean ok = encoded;
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      hashed(token, request, result, ok);
+                    }
+                  });
             }
-          });
-    } catch (RejectedExecutionException e) {
+          }
+        }.startCpu(workers);
+    if (!started) {
       running = null;
     }
   }

@@ -267,6 +267,23 @@ apply (measured on Linux, one million lines):
   selection, encoding, line endings and language. A click on the language
   chooses a grammar. A Warnings link appears when QCaret logs a warning and opens
   Help > Show Log.
+- The pointer shows the busy cursor, an arrow with a spinner, while a command
+  works in the background, and the window stays usable. It shows over the
+  window for opening, saving, Save As, Save a Copy, reloading and comparing
+  files, line-ending conversion, Recent Files > Clean Up, Open All, dropped
+  files, Go Back and Go Forward to a closed file, the workspace browser's folder
+  changes, New File, New Folder, Rename and Delete, HyperSearch's folder check,
+  opening a search result, the replace preview, Restore Replace Run's list,
+  Generate from Selection into Clipboard, Reload Grammars, the Help menu's
+  About, licenses, user guide, Debug Log File and folders, and the memory
+  indicator's garbage collection. It shows over the editor for Sort, Remove
+  Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Add Next
+  Occurrence, Go to and Select to Matching Bracket and Fold All. HyperSearch,
+  Replace in Files, Generate from Files, Verify Checksums, statistics, printing,
+  Quick Open and the workspace browser's folders show their own progress
+  instead. After Open in Default Application, Open Containing Folder, Report
+  Issue and the other commands that start another application, the busy cursor
+  shows for one second. On macOS the pointer stays an arrow.
 - View > Memory Indicator shows, at the right end of every window's status bar,
   the Java heap kept after garbage collection and the maximum heap, as
   `used/max MB` over a bar filled to that share. Its tool tip adds the heap in

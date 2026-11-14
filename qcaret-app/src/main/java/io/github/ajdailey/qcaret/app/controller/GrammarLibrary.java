@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -101,6 +102,26 @@ public final class GrammarLibrary {
                 read(started);
               }
             });
+    if (!running) {
+      LOG.debug("Grammars not read: workers are closed");
+    }
+  }
+
+  /**
+   * Reads the grammars again as {@link #load()} does, under a window's busy cursor.
+   *
+   * @param activity shows the read as running
+   */
+  public void reload(ActivityIndicator activity) {
+    final long started = ++generation;
+    boolean running =
+        new BusyWork(ui, activity) {
+          @Override
+          @WorkerThread
+          void work() {
+            read(started);
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!running) {
       LOG.debug("Grammars not read: workers are closed");
     }

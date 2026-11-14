@@ -485,6 +485,13 @@ final class FakeView implements MainView {
   String binaryName;
   Runnable openBinary;
   final AtomicInteger active = new AtomicInteger();
+
+  /** Counts {@code setActive} calls, so a test sees an operation that ended before it looked. */
+  final AtomicInteger activations = new AtomicInteger();
+
+  /** Makes {@code launch} and {@code launchUrl} report that no application took the target. */
+  boolean launchFails;
+
   final List<String> notices = new ArrayList<String>();
   final List<String> launched = new ArrayList<String>();
   Boolean toolbarShown;
@@ -761,6 +768,7 @@ final class FakeView implements MainView {
   @Override
   public void setActive() {
     active.incrementAndGet();
+    activations.incrementAndGet();
   }
 
   @Override
@@ -796,14 +804,14 @@ final class FakeView implements MainView {
   public boolean launch(Path target) {
     ui.checkUiThread();
     launched.add(target.toString());
-    return true;
+    return !launchFails;
   }
 
   @Override
   public boolean launchUrl(String url) {
     ui.checkUiThread();
     launched.add(url);
-    return true;
+    return !launchFails;
   }
 
   @Override

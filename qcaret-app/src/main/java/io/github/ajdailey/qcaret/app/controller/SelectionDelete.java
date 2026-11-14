@@ -67,43 +67,34 @@ final class SelectionDelete {
     if (paths.isEmpty()) {
       return;
     }
-    view.setActive();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                List<Found> found = new ArrayList<Found>();
-                Path unread = null;
-                String error = null;
-                try {
-                  for (Path path : paths) {
-                    unread = path;
-                    found.add(find(path, token));
-                  }
-                  unread = null;
-                } catch (IOException e) {
-                  error = LogText.oneLine(ChecksumRun.reason(e));
-                } catch (CancellationException e) {
-                  found = null;
-                }
-                final List<Found> result = found;
-                final Path failed = unread;
-                final String failure = error;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        view.setIdle();
-                        counted(result, failed, failure);
-                      }
-                    });
-              }
-            });
-    if (!started) {
-      view.setIdle();
-    }
+    new BusyWork(ui, view) {
+      private List<Found> found = new ArrayList<Found>();
+      private Path unread;
+      private String error;
+
+      @Override
+      @WorkerThread
+      void work() {
+        try {
+          for (Path path : paths) {
+            unread = path;
+            found.add(find(path, token));
+          }
+          unread = null;
+        } catch (IOException e) {
+          error = LogText.oneLine(ChecksumRun.reason(e));
+        } catch (CancellationException e) {
+          found = null;
+        }
+      }
+
+      @Override
+      void finished(boolean completed) {
+        if (completed) {
+          counted(found, unread, error);
+        }
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   /** Reads an entry's real path and kind, and counts a folder's contents. */
@@ -238,34 +229,27 @@ final class SelectionDelete {
   }
 
   private void deleteNow(final List<Found> found) {
-    view.setActive();
-    boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final List<FileOperations.Deleted> results =
-                    new ArrayList<FileOperations.Deleted>();
-                for (Found entry : found) {
-                  if (token.isCanceled()) {
-                    break;
-                  }
-                  results.add(FileOperations.delete(entry.entry().path(), token));
-                }
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        view.setIdle();
-                        deleted(found, results);
-                      }
-                    });
-              }
-            });
-    if (!started) {
-      view.setIdle();
-    }
+    new BusyWork(ui, view) {
+      private final List<FileOperations.Deleted> results = new ArrayList<FileOperations.Deleted>();
+
+      @Override
+      @WorkerThread
+      void work() {
+        for (Found entry : found) {
+          if (token.isCanceled()) {
+            break;
+          }
+          results.add(FileOperations.delete(entry.entry().path(), token));
+        }
+      }
+
+      @Override
+      void finished(boolean completed) {
+        if (completed) {
+          deleted(found, results);
+        }
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
   private void deleted(List<Found> found, List<FileOperations.Deleted> results) {

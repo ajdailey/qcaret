@@ -36,7 +36,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.function.IntFunction;
 
 /**
@@ -421,25 +420,25 @@ public final class ReplaceController implements ReplaceInput {
     final TextMatcher m = matcher;
     final ReplaceTemplate t = template;
     final IntFunction<String> more = MORE;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              List<PreviewLine> lines;
-              try {
-                if (digest != null && !FileReplace.holds(text, encoding, digest)) {
-                  lines = note(ReplaceRun.Reason.CHANGED);
-                } else {
-                  lines = previewLines(text, spans, m, t, ending, encoding, more, token);
-                }
-              } catch (CancellationException e) {
-                return;
+    boolean started =
+        new BusyWork(ui, view) {
+          @Override
+          @WorkerThread
+          void work() {
+            List<PreviewLine> lines;
+            try {
+              if (digest != null && !FileReplace.holds(text, encoding, digest)) {
+                lines = note(ReplaceRun.Reason.CHANGED);
+              } else {
+                lines = previewLines(text, spans, m, t, ending, encoding, more, token);
               }
-              showPreviewLater(current, lines);
+            } catch (CancellationException e) {
+              return;
             }
-          });
-    } catch (RejectedExecutionException e) {
+            showPreviewLater(current, lines);
+          }
+        }.startCpu(workers);
+    if (!started) {
       previewing = null;
     }
   }
@@ -456,20 +455,19 @@ public final class ReplaceController implements ReplaceInput {
     final IntFunction<String> more = MORE;
     final long maxBytes = limits.maxFileBytes();
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                List<PreviewLine> lines;
-                try {
-                  lines = readPreview(path, digest, encoding, maxBytes, spans, m, t, more, token);
-                } catch (CancellationException e) {
-                  return;
-                }
-                showPreviewLater(current, lines);
-              }
-            });
+        new BusyWork(ui, view) {
+          @Override
+          @WorkerThread
+          void work() {
+            List<PreviewLine> lines;
+            try {
+              lines = readPreview(path, digest, encoding, maxBytes, spans, m, t, more, token);
+            } catch (CancellationException e) {
+              return;
+            }
+            showPreviewLater(current, lines);
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started) {
       previewing = null;
     }

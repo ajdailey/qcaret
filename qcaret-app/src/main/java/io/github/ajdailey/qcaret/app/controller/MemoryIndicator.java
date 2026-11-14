@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -14,9 +15,9 @@ import java.util.concurrent.RejectedExecutionException;
  * View > Memory Indicator, saved as {@code ui.memoryIndicator}, and the figures the window's status
  * bar shows. While shown, a {@link MemoryProbe} read runs on a CPU worker and the next is armed
  * {@link #REFRESH_MILLIS} ms after its result arrives; nothing reads while hidden. A click requests
- * a garbage collection on a worker, then shows the figures and the heap freed; a click while one
- * runs does nothing. A read result carries the generation it started in and is dropped once the
- * indicator hides or stops. Confined to the UI thread.
+ * a garbage collection on a worker under the busy cursor, then shows the figures and the heap
+ * freed; a click while one runs does nothing. A read result carries the generation it started in
+ * and is dropped once the indicator hides or stops. Confined to the UI thread.
  */
 final class MemoryIndicator {
   /** Milliseconds from one read's result to the next read. */
@@ -84,35 +85,25 @@ final class MemoryIndicator {
     if (!shown || stopped || collecting) {
       return;
     }
-    collecting = true;
     final long started = generation;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              MemoryStatus before = null;
-              MemoryStatus after = null;
-              try {
-                before = probe.read();
-                probe.collect();
-                after = probe.read();
-              } finally {
-                final MemoryStatus first = before;
-                final MemoryStatus last = after;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        collected(started, first, last);
-                      }
-                    });
-              }
-            }
-          });
-    } catch (RejectedExecutionException e) {
-      collecting = false;
-    }
+    collecting =
+        new BusyWork(ui, view) {
+          private MemoryStatus before;
+          private MemoryStatus after;
+
+          @Override
+          @WorkerThread
+          void work() {
+            before = probe.read();
+            probe.collect();
+            after = probe.read();
+          }
+
+          @Override
+          void finished(boolean completed) {
+            collected(started, before, after);
+          }
+        }.startCpu(workers);
   }
 
   /**

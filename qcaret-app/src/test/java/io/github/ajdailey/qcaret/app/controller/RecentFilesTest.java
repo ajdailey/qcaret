@@ -172,6 +172,7 @@ class RecentFilesTest {
     Path b = file("b.txt");
     harness.open(a);
     harness.open(b);
+    harness.awaitIdle("open");
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch release = new CountDownLatch(1);
     final List<String> threads = new CopyOnWriteArrayList<String>();
@@ -199,8 +200,10 @@ class RecentFilesTest {
     harness.ui.runPending();
     assertEquals(List.of(b, a), recent());
     assertEquals(before, harness.view.notices.size());
+    assertEquals(1, harness.view.active.get(), "Clean Up shows the busy cursor");
     release.countDown();
     assertEquals("Removed 1 file from Recent Files", cleanUpNotice(before));
+    assertEquals(0, harness.view.active.get());
     assertEquals(List.of(b), recent());
     assertEquals(2, threads.size());
     for (String name : threads) {

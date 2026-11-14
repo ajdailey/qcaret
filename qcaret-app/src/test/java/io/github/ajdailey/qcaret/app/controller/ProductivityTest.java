@@ -395,10 +395,12 @@ class ProductivityTest {
     editor.execute(CommandId.GO_TO_MATCHING_BRACKET);
     editor.viewportChanged(1, 5);
     ui.runPending();
+    assertEquals(List.of(true), tab.shown.busy);
     gate.countDown();
     drainWorker();
     ui.runPending();
     assertEquals(close + 1, selections.selections().primary().caret());
+    assertEquals(List.of(true, false), tab.shown.busy);
   }
 
   @Test
@@ -412,6 +414,7 @@ class ProductivityTest {
     drainWorker();
     ui.runPending();
     assertEquals(3, selections.selections().primary().caret());
+    assertEquals(List.of(true, false), tab.shown.busy, "a dropped result clears the busy cursor");
   }
 
   @Test

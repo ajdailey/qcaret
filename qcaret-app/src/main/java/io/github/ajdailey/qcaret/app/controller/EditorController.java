@@ -9,6 +9,8 @@ import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
+import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
@@ -17,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.buffer.LineView;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Columns;
@@ -45,7 +48,6 @@ import io.github.ajdailey.qcaret.core.syntax.Syntax;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -103,6 +105,10 @@ public final class EditorController implements EditorInput {
   private Runnable cancelSave;
   private EditorView view;
   private CancellationToken occurrence;
+
+  /** The view's busy cursor for Add Next Occurrence, Go to Matching Bracket and Fold All. */
+  private final BusyCounter busy;
+
   private final FoldScheduling folds;
   private final EditorHighlights highlights;
   private final SelectionCommands selectionCommands;
@@ -140,6 +146,17 @@ public final class EditorController implements EditorInput {
     this.workers = workers;
     this.ui = ui;
     this.cancelSave = cancelSave;
+    busy =
+        new BusyCounter(
+            ui,
+            new BusyCounter.Indicator() {
+              @Override
+              public void busyChanged(boolean on) {
+                if (view != null) {
+                  view.setBusy(on);
+                }
+              }
+            });
     folds = new FoldScheduling(this, workers, ui);
     highlights = new EditorHighlights(this, workers, ui);
     completions = new CompletionInput(this);
@@ -553,6 +570,11 @@ public final class EditorController implements EditorInput {
   /** Reports whether the editor is disposed. */
   boolean disposed() {
     return disposed;
+  }
+
+  /** Returns the counter behind the view's busy cursor for this editor's worker commands. */
+  ActivityIndicator busyCursor() {
+    return busy;
   }
 
   /** Runs the fold step again when the regions come from the highlighter, which has new ones. */
@@ -1169,27 +1191,27 @@ public final class EditorController implements EditorInput {
     }
     final CancellationToken token = new CancellationToken();
     occurrence = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              final int found;
-              try {
-                found = Occurrences.next(text, needle, from, token);
-              } catch (CancellationException e) {
-                return;
-              }
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      occurrenceFound(token, revision, found, needle.length());
-                    }
-                  });
+    boolean started =
+        new BusyWork(ui, busy) {
+          @Override
+          @WorkerThread
+          void work() {
+            final int found;
+            try {
+              found = Occurrences.next(text, needle, from, token);
+            } catch (CancellationException e) {
+              return;
             }
-          });
-    } catch (RejectedExecutionException e) {
+            ui.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    occurrenceFound(token, revision, found, needle.length());
+                  }
+                });
+          }
+        }.startCpu(workers);
+    if (!started) {
       occurrence = null;
     }
   }
@@ -1652,35 +1674,35 @@ public final class EditorController implements EditorInput {
     final CancellationToken token = new CancellationToken();
     final Brackets.Filter filter = workerBracketFilter(text);
     partnerSearch = token;
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              final int[] found;
-              try {
-                found = partners(text, set, pairs, Integer.MAX_VALUE, token, filter);
-              } catch (CancellationException e) {
-                return;
-              }
-              ui.asyncExec(
-                  new Runnable() {
-                    @Override
-                    public void run() {
-                      if (token != partnerSearch) {
-                        return;
-                      }
-                      partnerSearch = null;
-                      if (!disposed
-                          && document.revision() == revision
-                          && set.equals(selections.selections())) {
-                        moveToPartners(set, found, select);
-                      }
-                    }
-                  });
+    boolean started =
+        new BusyWork(ui, busy) {
+          @Override
+          @WorkerThread
+          void work() {
+            final int[] found;
+            try {
+              found = partners(text, set, pairs, Integer.MAX_VALUE, token, filter);
+            } catch (CancellationException e) {
+              return;
             }
-          });
-    } catch (RejectedExecutionException e) {
+            ui.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (token != partnerSearch) {
+                      return;
+                    }
+                    partnerSearch = null;
+                    if (!disposed
+                        && document.revision() == revision
+                        && set.equals(selections.selections())) {
+                      moveToPartners(set, found, select);
+                    }
+                  }
+                });
+          }
+        }.startCpu(workers);
+    if (!started) {
       partnerSearch = null;
     }
   }

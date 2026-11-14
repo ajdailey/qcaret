@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -260,25 +261,24 @@ public final class SearchController implements ResultsInput {
       final Path given = folder;
       resolving++;
       boolean started =
-          workers.tryStart(
-              Workers.Kind.IO,
-              new Runnable() {
-                @Override
-                public void run() {
-                  final Path real = WorkspaceController.realFolder(given);
-                  ui.asyncExec(
-                      new Runnable() {
-                        @Override
-                        public void run() {
-                          resolving--;
-                          if (!disposed) {
-                            rememberDirectory(real.toString());
-                            start(form, real);
-                          }
-                        }
-                      });
-                }
-              });
+          new BusyWork(ui, view) {
+            @Override
+            @WorkerThread
+            void work() {
+              final Path real = WorkspaceController.realFolder(given);
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      resolving--;
+                      if (!disposed) {
+                        rememberDirectory(real.toString());
+                        SearchController.this.start(form, real);
+                      }
+                    }
+                  });
+            }
+          }.start(workers, Workers.Kind.IO);
       if (!started) {
         resolving--;
       }

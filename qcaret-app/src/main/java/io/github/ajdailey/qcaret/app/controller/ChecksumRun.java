@@ -159,41 +159,33 @@ abstract class ChecksumRun<R> implements ChecksumInput {
   }
 
   private void save(final Path target, final List<String> saved) {
-    try {
-      workers.start(
-          Workers.Kind.IO,
-          new Runnable() {
-            @Override
-            public void run() {
-              String reason = null;
-              Path real = null;
-              try {
-                reason = write(target, saved);
-                if (reason == null) {
-                  real = SaveAndReload.realFile(target);
-                }
-              } finally {
-                final String failure = reason;
-                final Path file = real;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        writes.ended(target);
-                        if (file != null) {
-                          written.accept(file);
-                        }
-                        if (failure != null) {
-                          view.showNotice(UiText.CHECKSUM_SAVE_FAILED.format(failure));
-                        }
-                      }
-                    });
-              }
+    boolean started =
+        new BusyWork(ui, view) {
+          private String reason;
+          private Path real;
+
+          @Override
+          @WorkerThread
+          void work() {
+            reason = write(target, saved);
+            if (reason == null) {
+              real = SaveAndReload.realFile(target);
             }
-          });
+          }
+
+          @Override
+          void finished(boolean completed) {
+            writes.ended(target);
+            if (real != null) {
+              written.accept(real);
+            }
+            if (reason != null) {
+              view.showNotice(UiText.CHECKSUM_SAVE_FAILED.format(reason));
+            }
+          }
+        }.start(workers, Workers.Kind.IO);
+    if (started) {
       writes.started(target);
-    } catch (RejectedExecutionException e) {
-      // Shutting down.
     }
   }
 

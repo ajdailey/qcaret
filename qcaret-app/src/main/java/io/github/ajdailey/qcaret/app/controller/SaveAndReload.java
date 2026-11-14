@@ -192,22 +192,21 @@ final class SaveAndReload {
     final FileSettingsReader reader = declared.reader();
     final TextSnapshot text = d.document.text();
     boolean started =
-        workers.tryStart(
-            Workers.Kind.IO,
-            new Runnable() {
-              @Override
-              public void run() {
-                final Path real = realFile(target);
-                final FileSettings found = reader == null ? null : reader.read(real, text);
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        targetResolved(d, target, real, found, end);
-                      }
-                    });
-              }
-            });
+        new BusyWork(ui, view) {
+          @Override
+          @WorkerThread
+          void work() {
+            final Path real = realFile(target);
+            final FileSettings found = reader == null ? null : reader.read(real, text);
+            ui.asyncExec(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    targetResolved(d, target, real, found, end);
+                  }
+                });
+          }
+        }.start(workers, Workers.Kind.IO);
     if (!started) {
       LOG.debug("Save As stopped: the workers are closed");
       end.stop();
