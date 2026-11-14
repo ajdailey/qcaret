@@ -122,8 +122,8 @@ import org.slf4j.LoggerFactory;
  * rebuilding the menus or the window, and keeps the focus.
  *
  * <p>{@link #setActive} and {@link #setIdle} count overlapping operations through a {@link
- * BusyCounter}: while any is active the shell shows {@code SWT.CURSOR_APPSTARTING}, which keeps the
- * window usable.
+ * BusyCounter}: while any is active the {@link WindowBusyCursor} shows over the window, its editors
+ * and the shells it owns, and the window stays usable.
  *
  * <p>Files dropped on the window open a tab each ({@link #dropped}); the shell is the only drop
  * target, and a drag offering no file never reaches it. The title follows the selected document
@@ -179,6 +179,7 @@ public final class MainWindow implements MainView {
   private final Label notice;
   private final Link warnings;
   private final BusyCounter busy;
+  private final WindowBusyCursor busyCursor;
   private final int baseFontSize;
   private final List<TextWindow> textWindows = new ArrayList<TextWindow>();
   private int fontPoints;
@@ -269,6 +270,7 @@ public final class MainWindow implements MainView {
                 added.setRightMargin(rightMargin);
                 added.setIndentGuides(indentGuides);
                 added.setLineChangesShown(lineChangesShown);
+                busyCursor.paneAdded(added);
                 return added;
               }
 
@@ -368,18 +370,8 @@ public final class MainWindow implements MainView {
                 }
               }
             });
-    busy =
-        new BusyCounter(
-            dispatcher,
-            new BusyCounter.Indicator() {
-              @Override
-              public void busyChanged(boolean active) {
-                if (!shell.isDisposed()) {
-                  shell.setCursor(
-                      active ? shell.getDisplay().getSystemCursor(SWT.CURSOR_APPSTARTING) : null);
-                }
-              }
-            });
+    busyCursor = new WindowBusyCursor(shell, tabStrip);
+    busy = new BusyCounter(dispatcher, busyCursor);
     toolIcons = new ToolIcons(toolBar);
     menuIcons = new MenuIcons(toolBar);
     applyPalette(palette);

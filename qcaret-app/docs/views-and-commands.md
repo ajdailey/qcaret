@@ -35,11 +35,20 @@ Submissions after disposal are dropped.
 ## Busy cursor
 
 A user-started operation on a worker shows the busy cursor while it runs, or
-shows its own progress. `MainWindow` shows `SWT.CURSOR_APPSTARTING` on the
-shell while its `BusyCounter` counts an active operation; each
-`EditorController` has its own `BusyCounter` behind `EditorView.setBusy`, which
-sets the cursor over the text, where the shell's does not show. Never
-`CURSOR_WAIT`: input is never blocked.
+shows its own progress; input is never blocked. `MainWindow` and each
+`EditorController` count active operations in a `BusyCounter`.
+
+- While the window's counter is active, `WindowBusyCursor` (`qcaret-ui-swt`)
+  shows the cursor over the shell, every editor in the window and every shell
+  the window owns, modal or modeless, including each `StyledText` in those,
+  which otherwise shows its own I-beam. An editor or owned shell opened
+  meanwhile starts busy; idle restores each one's own cursor.
+- An editor's counter drives `EditorView.setBusy`. An editor shows busy while
+  its own counter or its window's is active.
+- `BusyCursor` (`ui.swt.platform`) names the cursor per platform:
+  `CURSOR_APPSTARTING` on GTK and win32, `CURSOR_WAIT` on cocoa. SWT 3.135
+  cocoa shows `CURSOR_APPSTARTING` as a plain arrow and `CURSOR_WAIT` as
+  AppKit's `busyButClickableCursor`, an arrow with a spinner.
 
 `BusyWork` raises the counter at `start` and runs `work` on a worker, then
 `finished` on the UI thread after `work` returns or throws and after every task
@@ -51,7 +60,7 @@ not run. A new user-started operation uses it.
 |---|---|
 | Window, through `BusyWork` | Save As and Save a Copy target checks, the copy write, save cleanup, `FileReload`, `DocumentEncodings`, `SelectionDelete`, `RecentFiles` Clean Up, `OpenAll`, `DroppedFiles`, `NavigationHistory` to a closed file, `WorkspaceController` set and Open in Default Application, `WorkspaceBrowse` folder changes, `WorkspaceFiles` create and rename, HyperSearch's folder check, `ResultsNavigation.check`, the replace previews, `ReplaceRestore`, the checksum list save, `SelectionChecksum`, `GrammarLibrary.reload`, every `HelpController` worker, `MemoryIndicator.collect` |
 | Window, by hand | `DocumentOpener` (one load spans the path check, the read and the listener's answer), `SaveAndReload.write` (posts its result while holding the file's write lock, so a later save's result lands after it), `CompareController` (an IO read then a CPU build, ended by `dispose` too) |
-| Editor | `EditorController` Add Next Occurrence, Go to Matching Bracket and `FoldScheduling` Fold All through `BusyWork`; `LineTransformRuns` and `SelectionCommands` set `EditorView.setBusy` directly |
+| Editor, through `BusyWork` on `EditorController.busyCursor` | `EditorController` Add Next Occurrence and Go to Matching Bracket, `FoldScheduling` Fold All, `LineTransformRuns`, `SelectionCommands`; `DocumentEncodings` raises the window's counter and the counter of each view of the document |
 
 `LaunchCursor` holds one operation for 1 s on a UI timer after
 `MainView.launch` or `launchUrl` returns true, since the application's window

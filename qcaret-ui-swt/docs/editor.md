@@ -158,8 +158,8 @@ and sets the gutter's tooltip.
   row above's positions, each neighbor sought within 100 rows. A row's first
   1,000 chars are read. Measured on 1,000,000 indented lines (500 page scrolls
   each, xvfb): median 2.35 ms with guides, 2.43 ms without.
-- `setBusy` shows `SWT.CURSOR_APPSTARTING` over the text and gutter while a
-  whole-text operation computes and applies.
+- `setBusy` (the editor's counter) and `setWindowBusy` (the window's) show
+  `BusyCursor.PLATFORM` over the text and gutter while either is on.
 - Each paint that shows another display range reports it through
   `EditorInput.viewportChanged`.
 

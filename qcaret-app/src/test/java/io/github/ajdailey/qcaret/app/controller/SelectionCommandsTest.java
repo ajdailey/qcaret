@@ -263,8 +263,8 @@ class SelectionCommandsTest {
   void aLargeTextIsSearchedOnAWorker() throws InterruptedException {
     open(large());
     run(CommandId.SELECT_ALL_OCCURRENCES);
-    assertEquals(List.of(true), tab.shown.busy);
     awaitSelections(2);
+    awaitIdle();
     assertEquals(List.of(true, false), tab.shown.busy);
   }
 

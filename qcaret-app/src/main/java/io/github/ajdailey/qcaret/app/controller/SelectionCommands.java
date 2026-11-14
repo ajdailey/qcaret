@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -18,7 +19,6 @@ import io.github.ajdailey.qcaret.core.edit.Words;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * One view's Select All Occurrences, Skip Occurrence, Expand Selection, Select Line, Undo Selection
@@ -37,9 +37,9 @@ import java.util.concurrent.RejectedExecutionException;
  * </ul>
  *
  * <p>A search over a text longer than {@value #SYNC_CHARS} chars, and a bracket search that reaches
- * {@value EditorController#BRACKET_SCAN} chars, runs on a {@code qcaret-cpu-} worker with the view
- * busy; its result applies only at the same revision and selections, and a result for an older
- * revision is dropped with a notice. Esc cancels it. Confined to the UI thread.
+ * {@value EditorController#BRACKET_SCAN} chars, runs on a {@code qcaret-cpu-} worker under the
+ * editor's busy cursor; its result applies only at the same revision and selections, and a result
+ * for an older revision is dropped with a notice. Esc cancels it. Confined to the UI thread.
  */
 final class SelectionCommands {
   /** Occurrences Select All Occurrences selects at most. */
@@ -267,32 +267,27 @@ final class SelectionCommands {
     cancel();
     final CancellationToken token = new CancellationToken();
     work = token;
-    busy(true);
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              T result = null;
-              try {
-                result = search.run(token);
-              } catch (CancellationException e) {
-                // Esc, a newer search, or the view closed.
-              } finally {
-                final T found = result;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        finished(token, revision, set, found, apply);
-                      }
-                    });
-              }
+    boolean started =
+        new BusyWork(ui, editor.busyCursor()) {
+          private T found;
+
+          @Override
+          @WorkerThread
+          void work() {
+            try {
+              found = search.run(token);
+            } catch (CancellationException e) {
+              // Esc, a newer search, or the view closed.
             }
-          });
-    } catch (RejectedExecutionException e) {
+          }
+
+          @Override
+          void finished(boolean completed) {
+            SelectionCommands.this.finished(token, revision, set, found, apply);
+          }
+        }.startCpu(workers);
+    if (!started) {
       work = null;
-      busy(false);
     }
   }
 
@@ -302,7 +297,6 @@ final class SelectionCommands {
       return;
     }
     work = null;
-    busy(false);
     if (disposed || found == null || token.isCanceled()) {
       return;
     }
@@ -310,12 +304,6 @@ final class SelectionCommands {
       editor.notice(UiText.OCCURRENCES_STALE.text());
     } else if (set.equals(selections.selections())) {
       apply.apply(found);
-    }
-  }
-
-  private void busy(boolean on) {
-    if (editor.view() != null) {
-      editor.view().setBusy(on);
     }
   }
 }

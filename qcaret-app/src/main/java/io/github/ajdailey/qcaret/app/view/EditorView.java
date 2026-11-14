@@ -70,9 +70,10 @@ public interface EditorView {
   void redrawHighlights();
 
   /**
-   * Shows the busy cursor over the view, or the text cursor again.
+   * Shows the busy cursor over the view, or the text cursor again; driven by the editor's operation
+   * counter.
    *
-   * @param busy true while a whole-text operation computes and applies
+   * @param busy true while any of the editor's worker commands is active
    */
   void setBusy(boolean busy);
 

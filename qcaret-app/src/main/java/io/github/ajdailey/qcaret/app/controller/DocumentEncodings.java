@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
@@ -11,6 +12,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
@@ -65,9 +67,8 @@ final class DocumentEncodings {
     final DocumentSnapshot snapshot = d.document.snapshot();
     final long revision = d.document.revision();
     final int caret = d.editor.selections().selections().primary().caret();
-    busy(d, true);
     boolean started =
-        new BusyWork(ui, view) {
+        new BusyWork(ui, busyOver(d)) {
           private LineConversion converted;
 
           @Override
@@ -82,28 +83,36 @@ final class DocumentEncodings {
 
           @Override
           void finished(boolean completed) {
-            try {
-              converted(d, token, revision, ending, converted);
-            } finally {
-              if (d.converting == null) {
-                busy(d, false);
-              }
-            }
+            converted(d, token, revision, ending, converted);
           }
         }.startCpu(workers);
     if (!started) {
       d.converting = null;
-      busy(d, false);
     }
   }
 
-  /** Shows or clears the busy cursor over every view of a document. */
-  private static void busy(OpenDocument d, boolean on) {
+  /** Returns the window's busy cursor joined with those of the document's views at the call. */
+  private ActivityIndicator busyOver(OpenDocument d) {
+    final List<ActivityIndicator> shown = new ArrayList<ActivityIndicator>();
+    shown.add(view);
     for (EditorController e : d.editors) {
-      if (e.view() != null) {
-        e.view().setBusy(on);
-      }
+      shown.add(e.busyCursor());
     }
+    return new ActivityIndicator() {
+      @Override
+      public void setActive() {
+        for (ActivityIndicator a : shown) {
+          a.setActive();
+        }
+      }
+
+      @Override
+      public void setIdle() {
+        for (ActivityIndicator a : shown) {
+          a.setIdle();
+        }
+      }
+    };
   }
 
   private void converted(

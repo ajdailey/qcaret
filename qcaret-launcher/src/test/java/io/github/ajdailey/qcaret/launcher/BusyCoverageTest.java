@@ -39,7 +39,7 @@ class BusyCoverageTest {
      * The window's busy cursor: a {@code BusyWork}, or the named method calls {@code setActive}.
      */
     BUSY,
-    /** The editor's busy cursor: a {@code BusyWork}, or the named method calls {@code setBusy}. */
+    /** The editor's busy cursor: the named method reads the editor's counter. */
     EDITOR_BUSY,
     /** The operation's own progress: the named method makes the named call. */
     OWN_PROGRESS,
@@ -118,11 +118,11 @@ class BusyCoverageTest {
         "setActive");
     row("controller.SaveAndReload#write", Shows.BUSY, null, "setActive");
     // The editor's busy cursor.
-    row("controller.EditorController#addNextOccurrence", Shows.EDITOR_BUSY, null, null);
-    row("controller.EditorController#matchingBracket", Shows.EDITOR_BUSY, null, null);
-    row("controller.FoldScheduling#requestFoldAll", Shows.EDITOR_BUSY, null, null);
-    row("controller.LineTransformRuns#transformLines", Shows.EDITOR_BUSY, null, "setBusy");
-    row("controller.SelectionCommands#startWorker", Shows.EDITOR_BUSY, null, "busy");
+    row("controller.EditorController#addNextOccurrence", Shows.EDITOR_BUSY, null, "busy");
+    row("controller.EditorController#matchingBracket", Shows.EDITOR_BUSY, null, "busy");
+    row("controller.FoldScheduling#requestFoldAll", Shows.EDITOR_BUSY, null, "busyCursor");
+    row("controller.LineTransformRuns#transformLines", Shows.EDITOR_BUSY, null, "busyCursor");
+    row("controller.SelectionCommands#startWorker", Shows.EDITOR_BUSY, null, "busyCursor");
     // Their own progress.
     row(
         "controller.BrowserListings#list",

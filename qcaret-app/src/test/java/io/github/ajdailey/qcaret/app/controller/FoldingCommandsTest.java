@@ -14,6 +14,8 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
@@ -304,6 +306,60 @@ class FoldingCommandsTest {
     caret(editor, 2, 1);
     editor.newline();
     assertEquals("if (x) {\n)    a();\n}\n\n", editor.document().text().toString());
+  }
+
+  /** Occupies a CPU worker until the returned latch counts down; counts {@code started} down. */
+  private CountDownLatch hold(final CountDownLatch started) {
+    final CountDownLatch gate = new CountDownLatch(1);
+    harness.workers.executeCpu(
+        new Runnable() {
+          @Override
+          public void run() {
+            started.countDown();
+            try {
+              gate.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        });
+    return gate;
+  }
+
+  @Test
+  void aTransformEndingWhileFoldAllRunsLeavesTheEditorBusy() throws InterruptedException {
+    DisplayProjection p = documents.activeEditor().projection();
+    final List<Boolean> busy = harness.view.selected.shown.busy;
+    assertEquals(List.of(), busy);
+    CountDownLatch none = new CountDownLatch(0);
+    CountDownLatch first = hold(none);
+    CountDownLatch second = hold(none);
+    // The CPU queue holds the transform, a third gate, then Fold All, behind both workers.
+    harness.application.execute(CommandId.TRIM_TRAILING_WHITESPACE);
+    CountDownLatch reached = new CountDownLatch(1);
+    CountDownLatch third = hold(reached);
+    harness.application.execute(CommandId.FOLD_ALL);
+    try {
+      first.countDown();
+      // The freed worker ran the transform before it reached the third gate.
+      assertTrue(reached.await(Harness.BOUND.toSeconds(), TimeUnit.SECONDS), "transform ran");
+      harness.ui.runPending();
+      assertEquals(0, p.collapsedCount());
+      assertEquals(List.of(true), busy, "Fold All still holds the editor's busy cursor");
+    } finally {
+      second.countDown();
+      third.countDown();
+    }
+    awaitCollapsed(p, 2);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !busy.get(busy.size() - 1);
+          }
+        },
+        "idle");
+    assertEquals(List.of(true, false), busy);
   }
 
   private static int caretOf(EditorController editor) {

@@ -193,8 +193,11 @@ The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings and language
 (`StatusFields`). A caret move or state change schedules one read on the next
-UI turn; further changes before it share that read. `BusyCounter` shows
-`CURSOR_APPSTARTING` on the shell while any operation counts as active
+UI turn; further changes before it share that read. While the `BusyCounter`
+counts an active operation, `WindowBusyCursor` shows `BusyCursor.PLATFORM` over
+the shell, each editor (`EditorPane.setWindowBusy`) and each shell the window
+owns, with their `StyledText` controls; a Show filter, added only while busy,
+sets it on an owned shell that opens meanwhile
 ([busy cursor](../../qcaret-app/docs/views-and-commands.md#busy-cursor)).
 
 `MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
@@ -314,7 +317,10 @@ call in `ui.swt` or the launcher outside the same classes.
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 
 `WindowStacking` reads the platform itself to pick the stacking class (see
-[Always on Top](#always-on-top)). Operating-system checks outside the views go
+[Always on Top](#always-on-top)). `BusyCursor`, in the traits package, has one
+class per platform for the busy cursor: `Win32BusyCursor`, `GtkBusyCursor` and
+`CocoaBusyCursor` (see [Status bar and title](#status-bar-and-title)).
+Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
 `user.home` on Linux and the WebView2 folder on Windows before the Display, and
 `SettingsLocation` and `AboutInfo` (app) take the settings directory and

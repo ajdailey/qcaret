@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
@@ -15,13 +14,13 @@ import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.edit.LineTransforms;
 import io.github.ajdailey.qcaret.core.edit.ParagraphWrap;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * One view's Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph runs: each
- * computes its edit on a {@code qcaret-cpu-} worker and applies it on the UI thread, with the view
- * busy from the command to the apply. A newer run or Esc cancels the running one; a result for an
- * older revision is dropped with a notice. Confined to the UI thread.
+ * computes its edit on a {@code qcaret-cpu-} worker and applies it on the UI thread, with the
+ * editor's busy cursor ({@link EditorController#busyCursor}) from the command to the apply. A newer
+ * run or Esc cancels the running one; a result for an older revision is dropped with a notice.
+ * Confined to the UI thread.
  */
 final class LineTransformRuns {
   private final EditorController editor;
@@ -77,35 +76,30 @@ final class LineTransformRuns {
     final int tabWidth = document.tabWidth();
     final String ending = document.lineEnding().text();
     final int column = wrapColumn;
-    setBusy(true);
-    try {
-      workers.executeCpu(
-          new Runnable() {
-            @Override
-            public void run() {
-              Edit edit = null;
-              try {
-                edit =
-                    command == CommandId.WRAP_PARAGRAPH
-                        ? ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token)
-                        : lineEdit(command, text, set, token);
-              } catch (CancellationException e) {
-                // Esc, a newer transform, or the view closed.
-              } finally {
-                final Edit result = edit;
-                ui.asyncExec(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        linesComputed(token, revision, set, result);
-                      }
-                    });
-              }
+    boolean started =
+        new BusyWork(ui, editor.busyCursor()) {
+          private Edit edit;
+
+          @Override
+          @WorkerThread
+          void work() {
+            try {
+              edit =
+                  command == CommandId.WRAP_PARAGRAPH
+                      ? ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token)
+                      : lineEdit(command, text, set, token);
+            } catch (CancellationException e) {
+              // Esc, a newer transform, or the view closed.
             }
-          });
-    } catch (RejectedExecutionException e) {
+          }
+
+          @Override
+          void finished(boolean completed) {
+            linesComputed(token, revision, set, edit);
+          }
+        }.startCpu(workers);
+    if (!started) {
       lineWork = null;
-      setBusy(false);
     }
   }
 
@@ -130,11 +124,7 @@ final class LineTransformRuns {
       return;
     }
     lineWork = null;
-    try {
-      applyLines(revision, set, edit, token.isCanceled());
-    } finally {
-      setBusy(false);
-    }
+    applyLines(revision, set, edit, token.isCanceled());
   }
 
   private void applyLines(long revision, SelectionSet set, Edit edit, boolean canceled) {
@@ -148,12 +138,5 @@ final class LineTransformRuns {
     document.clearPreedit();
     boolean moved = !set.equals(selections.selections());
     editor.applyEdit(moved ? new Edit(edit.batch(), null, edit.unchanged()) : edit);
-  }
-
-  private void setBusy(boolean on) {
-    EditorView view = editor.view();
-    if (view != null) {
-      view.setBusy(on);
-    }
   }
 }

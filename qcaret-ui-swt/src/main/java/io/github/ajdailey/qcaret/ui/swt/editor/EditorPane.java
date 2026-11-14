@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.ui.swt.platform.BusyCursor;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
@@ -179,6 +180,8 @@ public final class EditorPane implements EditorView {
   private final UiDispatcher ui;
   private final CompletionPopup completion;
   private boolean lineNumbersShown;
+  private boolean busy;
+  private boolean windowBusy;
   private final MarginPainter margin = new MarginPainter();
   private final IndentGuidePainter guides = new IndentGuidePainter();
   private final LineChangePainter lineChanges = new LineChangePainter();
@@ -1177,10 +1180,27 @@ public final class EditorPane implements EditorView {
     painter.setBookmarks(value);
   }
 
+  /** Shows the busy cursor while this editor's own operations or its window's are active. */
   @Override
   public void setBusy(boolean busy) {
+    this.busy = busy;
+    showBusy();
+  }
+
+  /**
+   * Shows the busy cursor while the window's operations are active, whatever the editor's own
+   * state.
+   *
+   * @param busy true while the window is busy
+   */
+  public void setWindowBusy(boolean busy) {
+    windowBusy = busy;
+    showBusy();
+  }
+
+  private void showBusy() {
     if (!text.isDisposed()) {
-      text.setCursor(busy ? text.getDisplay().getSystemCursor(SWT.CURSOR_APPSTARTING) : null);
+      text.setCursor(busy || windowBusy ? BusyCursor.PLATFORM.cursor(text.getDisplay()) : null);
     }
   }
 

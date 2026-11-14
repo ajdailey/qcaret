@@ -106,7 +106,10 @@ public final class EditorController implements EditorInput {
   private EditorView view;
   private CancellationToken occurrence;
 
-  /** The view's busy cursor for Add Next Occurrence, Go to Matching Bracket and Fold All. */
+  /**
+   * The view's busy cursor for this editor's worker commands: Add Next Occurrence, Go to Matching
+   * Bracket, Fold All, the line transforms, the selection commands and a line-ending conversion.
+   */
   private final BusyCounter busy;
 
   private final FoldScheduling folds;

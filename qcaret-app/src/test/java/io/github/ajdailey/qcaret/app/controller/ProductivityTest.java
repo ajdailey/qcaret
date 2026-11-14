@@ -284,13 +284,15 @@ class ProductivityTest {
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return !notices.isEmpty();
+            List<Boolean> busy = tab.shown.busy;
+            return !notices.isEmpty() && !busy.isEmpty() && !busy.get(busy.size() - 1);
           }
         },
-        "notice");
+        "notice and idle");
     assertEquals(List.of(UiText.LINES_STALE.text()), notices);
     assertEquals("xb \na", document.text().toString());
-    assertEquals(List.of(true, true, false), tab.shown.busy);
+    // The editor's counter keeps the cursor on across the replaced transform.
+    assertEquals(List.of(true, false), tab.shown.busy);
   }
 
   /** Runs a line command on the marked text and returns the notices it left. */
@@ -301,6 +303,8 @@ class ProductivityTest {
     }
     open(marked);
     editor.execute(command);
+    // Runs the busy cursor's posted raise, so a worker command shows true until it ends.
+    ui.runPending();
     await(
         new BooleanSupplier() {
           @Override

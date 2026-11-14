@@ -278,12 +278,14 @@ apply (measured on Linux, one million lines):
   About, licenses, user guide, Debug Log File and folders, and the memory
   indicator's garbage collection. It shows over the editor for Sort, Remove
   Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Add Next
-  Occurrence, Go to and Select to Matching Bracket and Fold All. HyperSearch,
+  Occurrence, Go to and Select to Matching Bracket, Fold All and the selection
+  commands on a long text. HyperSearch,
   Replace in Files, Generate from Files, Verify Checksums, statistics, printing,
   Quick Open and the workspace browser's folders show their own progress
   instead. After Open in Default Application, Open Containing Folder, Report
   Issue and the other commands that start another application, the busy cursor
-  shows for one second. On macOS the pointer stays an arrow.
+  shows for one second. The busy cursor also shows over the editors and the
+  dialogs of a busy window, and over a dialog opened while it works.
 - View > Memory Indicator shows, at the right end of every window's status bar,
   the Java heap kept after garbage collection and the maximum heap, as
   `used/max MB` over a bar filled to that share. Its tool tip adds the heap in
