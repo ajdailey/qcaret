@@ -152,7 +152,7 @@ The CI `bundle` job runs each archive on its own runner through
 |---|---|---|
 | Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml`, `java.management` | The same, plus the `javaw.exe` child's image and PE machine |
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
-| Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` | The same |
+| Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` or `UI task failed` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` does not report the child's status (assumed from launch4j's `gui` header) |
 | Native access | No `WARNING: A restricted` in either launch's output | None: no `java.lang.foreign` class loads |
 

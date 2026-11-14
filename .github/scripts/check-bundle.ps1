@@ -106,6 +106,7 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
   if ($second.ExitCode -ne 0) { throw "$Name second launch exited $($second.ExitCode)" }
   if (-not $text.Contains('Handoff of 1 files taken')) { throw "$Name primary took no handoff" }
   if ($text.Contains('Unhandled failure')) { throw "$Name logged an unhandled failure" }
+  if ($text.Contains('UI task failed')) { throw "$Name logged a UI task failure" }
   Write-Output "PASS: $Name qcaret.exe started the $machine runtime $path, read the grammars and took a handoff"
 }
 

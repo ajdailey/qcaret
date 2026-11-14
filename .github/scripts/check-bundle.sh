@@ -117,6 +117,10 @@ check_launcher() {
     echo "FAIL: $3 logged an unhandled failure" >&2
     exit 1
   fi
+  if grep -q 'UI task failed' "$out"; then
+    echo "FAIL: $3 logged a UI task failure" >&2
+    exit 1
+  fi
 }
 
 check_launcher "$launcher" "$runtime" bundle
