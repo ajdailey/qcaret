@@ -98,4 +98,26 @@ class UiFailuresTest {
     assertTrue(failures.failed());
     assertEquals(1, quits);
   }
+
+  @Test
+  void aQuitThatThrowsIsMarkedFailedWithTheMarkerWritten() {
+    UiFailures failures =
+        new UiFailures(
+            System::nanoTime,
+            new Runnable() {
+              @Override
+              public void run() {
+                quits++;
+                throw new IllegalStateException("mock quit failure");
+              }
+            },
+            marker());
+    assertFalse(failures.quitFailed());
+    failures.error(new Error("mock error"));
+    assertTrue(failures.failed());
+    assertTrue(failures.quitFailed());
+    assertEquals(ErrorExitMarker.State.PENDING, marker().read());
+    failures.error(new Error("mock error"));
+    assertEquals(1, quits);
+  }
 }

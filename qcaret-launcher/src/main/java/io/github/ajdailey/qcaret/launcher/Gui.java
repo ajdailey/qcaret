@@ -65,7 +65,8 @@ import org.slf4j.LoggerFactory;
  * closes it before the workers, and so does a run that ends before the first window. {@link
  * UiFailures} handles a failure of a UI-thread task; its quit writes the {@link ErrorExitMarker},
  * which the next start reads before the Display ({@link ErrorExitStart}). The loop ends when every
- * main window is disposed, then the Display is disposed and {@link #run} returns.
+ * main window is disposed or that quit threw, then the Display is disposed and {@link #run}
+ * returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -325,7 +326,7 @@ final class Gui {
       if (observer != null) {
         observer.opened(window, controller, workers);
       }
-      while (anyOpen()) {
+      while (anyOpen() && !failures.quitFailed()) {
         // The handlers above take a task's failure; these take one SWT raises outside a task.
         try {
           if (!display.readAndDispatch()) {

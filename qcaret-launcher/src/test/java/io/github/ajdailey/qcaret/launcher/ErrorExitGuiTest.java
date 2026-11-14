@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -266,5 +267,38 @@ class ErrorExitGuiTest {
     assertEquals(SKIPPED, skipping.notice);
     assertEquals(1, skipping.offered);
     assertEquals(1, recoveryFiles().size());
+  }
+
+  @Test
+  void aQuitThatThrowsEndsTheEventLoop() {
+    Gui.Observer failing =
+        new Gui.Observer() {
+          @Override
+          public void opened(MainWindow window, ApplicationController controller, Workers workers) {
+            // Closed workers run the quit's end on the UI thread, where this listener throws.
+            controller
+                .windowSet()
+                .addQuitListener(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        throw new IllegalStateException("mock quit failure");
+                      }
+                    });
+            workers.close(Duration.ZERO);
+            window
+                .shell()
+                .getDisplay()
+                .asyncExec(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        throw new StackOverflowError("mock error");
+                      }
+                    });
+          }
+        };
+    assertEquals(Launcher.EXIT_UI_FAILURE, run(request(List.of(a), SessionMode.DEFAULT), failing));
+    assertEquals(ErrorExitMarker.State.PENDING, marker().read());
   }
 }

@@ -36,7 +36,11 @@ nearest existing parent. The `qcaret.conf` keys are
 the session keys are in [Session file](sessions-and-recovery.md#session-file).
 `Preferences` and `Session` hold resolved absolute paths, so per-file state
 matches a relative and an absolute key for one file. `ConfigStore` writes only
-changed keys, so an absolute value under the base stays until its key changes.
+changed keys, so `ConfigStore.load` rewrites the file when `InstallPaths.write`
+changes a stored path key: an absolute value under the base, from an earlier
+version, becomes relative, and the rest of the file is written as a save writes
+it. The load runs it because a run is not certain to save. Per-user mode and a
+read-only settings directory leave the file as it is.
 Recovery file and replace backup headers keep absolute paths: after a move the
 recovery list names the old location.
 

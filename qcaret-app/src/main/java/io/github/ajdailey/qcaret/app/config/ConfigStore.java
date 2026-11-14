@@ -38,7 +38,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The path keys ({@code search.history.directory.N}, {@code workspace.favorite.N}, {@code
  * workspace.default}) pass through {@link InstallPaths}: a load resolves a relative value, a save
- * writes a path under the installation relative in portable and explicit mode.
+ * writes a path under the installation relative in portable and explicit mode. A load that reads a
+ * stored value {@link InstallPaths#write} would change rewrites the file first with those keys
+ * relative, as a save writes it, so a path stored absolute keeps working after the installation
+ * moves; a save is not certain to follow in a run.
  */
 public final class ConfigStore {
   /** Largest file read or written; a longer one is malformed. */
@@ -108,6 +111,7 @@ public final class ConfigStore {
       if (properties == null) {
         return Preferences.DEFAULTS;
       }
+      relativize(file, properties);
       for (String key : properties.stringPropertyNames()) {
         if (PreferenceKeys.holdsPath(key)) {
           properties.setProperty(key, paths.read(properties.getProperty(key)));
@@ -193,19 +197,57 @@ public final class ConfigStore {
       AtomicFiles.write(file, bytes);
       return true;
     } catch (IOException e) {
-      // A denied move alone says nothing about the directory: on Windows a directory at the
-      // target or a file open elsewhere is denied too, and the next save can succeed.
-      if (Files.isDirectory(location.directory()) && !Files.isWritable(location.directory())) {
-        disableSaving();
-      } else {
-        LOG.warn(
-            "Cannot save settings in {}: {}",
-            LogText.oneLine(location.directory()),
-            LogText.oneLine(e.getMessage()));
-      }
+      saveFailed(e);
       return false;
     } finally {
       lock.unlock();
+    }
+  }
+
+  /**
+   * Writes the file with every path key {@link InstallPaths#write} changes rewritten, unless saving
+   * is disabled or no key changes.
+   */
+  private void relativize(Path file, Properties properties) {
+    if (saveDisabled) {
+      return;
+    }
+    Properties rewritten = new Properties();
+    rewritten.putAll(properties);
+    boolean changed = false;
+    for (String key : properties.stringPropertyNames()) {
+      if (PreferenceKeys.holdsPath(key)) {
+        String stored = properties.getProperty(key);
+        String written = paths.write(stored);
+        if (!written.equals(stored)) {
+          rewritten.setProperty(key, written);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) {
+      return;
+    }
+    rewritten.setProperty(VERSION_KEY, VERSION);
+    try {
+      AtomicFiles.write(file, format(rewritten));
+      LOG.info(
+          "Path keys under the installation rewritten relative in {}", SettingsLocation.MARKER);
+    } catch (IOException e) {
+      saveFailed(e);
+    }
+  }
+
+  private void saveFailed(IOException e) {
+    // A denied move alone says nothing about the directory: on Windows a directory at the
+    // target or a file open elsewhere is denied too, and the next save can succeed.
+    if (Files.isDirectory(location.directory()) && !Files.isWritable(location.directory())) {
+      disableSaving();
+    } else {
+      LOG.warn(
+          "Cannot save settings in {}: {}",
+          LogText.oneLine(location.directory()),
+          LogText.oneLine(e.getMessage()));
     }
   }
 

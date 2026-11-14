@@ -10,8 +10,9 @@ import org.slf4j.LoggerFactory;
  * or timer task on the UI thread is logged at ERROR with its stack and the event loop continues.
  * More than {@link #LIMIT} runtime exceptions within {@link #WINDOW_NANOS}, or any {@link Error},
  * writes the {@link ErrorExitMarker} on the UI thread, then runs the quit once and makes {@link
- * #failed} true. A failure after that is logged and starts no second quit. Confined to the UI
- * thread.
+ * #failed} true. A failure after that is logged and starts no second quit. A quit that throws is
+ * logged at ERROR and makes {@link #quitFailed} true, which ends the event loop: the windows that
+ * quit hid are never disposed. Confined to the UI thread.
  */
 final class UiFailures {
   /** Runtime exceptions tolerated within {@link #WINDOW_NANOS}. */
@@ -30,6 +31,7 @@ final class UiFailures {
   private int count;
   private int next;
   private boolean failed;
+  private boolean quitFailed;
 
   /**
    * Creates the handlers.
@@ -83,12 +85,26 @@ final class UiFailures {
     return failed;
   }
 
+  /**
+   * Returns whether the quit threw.
+   *
+   * @return true once the quit run from here threw
+   */
+  boolean quitFailed() {
+    return quitFailed;
+  }
+
   private void quit() {
     if (failed) {
       return;
     }
     failed = true;
     marker.write();
-    quit.run();
+    try {
+      quit.run();
+    } catch (Exception | Error e) {
+      quitFailed = true;
+      LOG.error("Quit failed; ending the event loop", e);
+    }
   }
 }
