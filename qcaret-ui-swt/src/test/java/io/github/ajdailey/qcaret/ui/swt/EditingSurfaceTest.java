@@ -559,7 +559,9 @@ class EditingSurfaceTest {
     } finally {
       gc.dispose();
     }
-    ImageData data = Pixels.read(image, window.shell());
+    // Not Pixels.read: on a 200% Mac its top-left device pixel missed the caret color by up to 15
+    // per channel, where this scaled read of the 1x1 copy matches it.
+    ImageData data = image.getImageData();
     image.dispose();
     return data.palette.getRGB(data.getPixel(0, 0));
   }
