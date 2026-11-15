@@ -974,3 +974,6 @@ To give QCaret more heap for large files, see [Large files](#large-files).
 - On macOS the caret is drawn one character to the right of its position after
   a letter with a combining mark, such as `e` followed by U+0301. Typed text
   goes to the right place.
+- On Windows a folder above the folder of an open file cannot be renamed
+  outside QCaret while QCaret runs: Windows reports it in use. Rename it from
+  the Workspace Browser, or close the file first.
