@@ -3,8 +3,8 @@ package io.github.ajdailey.qcaret.core.edit;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
 
 /**
- * Caret moves within the text: by char and to a line's ends. A CR LF and a surrogate pair are one
- * step.
+ * Caret moves within the text: by char, by grapheme cluster ({@link Clusters}) and to a line's
+ * ends. A CR LF and a surrogate pair are one char step.
  */
 public final class Moves {
   private Moves() {}
@@ -52,6 +52,36 @@ public final class Moves {
       }
     }
     return offset + 1;
+  }
+
+  /**
+   * Returns the cluster boundary left of an offset, where Left takes a caret.
+   *
+   * @param text the text
+   * @param offset the start
+   * @return the offset, 0 at the start
+   */
+  public static int clusterLeft(TextContent text, int offset) {
+    if (offset <= 0) {
+      return 0;
+    }
+    return Math.max(0, new Clusters(text, offset, 0, text.length()).preceding(offset));
+  }
+
+  /**
+   * Returns the cluster boundary right of an offset, where Right takes a caret.
+   *
+   * @param text the text
+   * @param offset the start
+   * @return the offset, the length at the end
+   */
+  public static int clusterRight(TextContent text, int offset) {
+    int length = text.length();
+    if (offset >= length) {
+      return length;
+    }
+    int at = new Clusters(text, offset, 0, length).following(offset);
+    return at < 0 ? length : at;
   }
 
   /**

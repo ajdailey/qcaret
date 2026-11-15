@@ -110,9 +110,11 @@ switch an open dialog and a newly opened one keep them until the next start.
 Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps its
 startup colors (measured on macOS 15 in QLogg). While the appearance differs
 from the startup one, `CocoaChrome` sets each shell's, table's, tree's, list's
-and field's colors to the current appearance, at the change, at `SWT.Show` of a
-shell and at `SWT.Skin` of a new control, since the docks replace their tables
-while open. It follows the system appearance, not `ui.theme`.
+and field's colors, and table and tree headers, to the current appearance, at
+the change, at `SWT.Show` of a shell and at `SWT.Skin` of a new control, since
+the docks replace their tables while open. Back in the startup appearance it
+sets every color to null, the default, check boxes included. It follows the
+system appearance, not `ui.theme`.
 
 - A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor,
   compare and replace preview `StyledText` and the tab strip, which the palette

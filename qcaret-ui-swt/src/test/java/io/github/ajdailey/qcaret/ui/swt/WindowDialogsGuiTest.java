@@ -199,6 +199,38 @@ class WindowDialogsGuiTest {
     window.searchDialog().shell().dispose();
   }
 
+  /**
+   * Every window whose size is remembered can be resized: a Command Palette and a Quick Open with
+   * dialog trim alone could not be on macOS, so their remembered size never changed.
+   */
+  @Test
+  void windowsWithARememberedSizeAreResizable() {
+    controller.execute(CommandId.PREFERENCES);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.preferencesDialog() != null;
+              }
+            }));
+    assertResizable(window.preferencesDialog().shell());
+    window.preferencesDialog().shell().dispose();
+    controller.execute(CommandId.KEYBOARD_SHORTCUTS);
+    assertResizable(window.shortcutsWindow().shell());
+    window.shortcutsWindow().shell().dispose();
+    controller.execute(CommandId.COMMAND_PALETTE);
+    assertResizable(window.commandPalette().shell());
+    window.commandPalette().shell().dispose();
+    controller.execute(CommandId.QUICK_OPEN);
+    assertResizable(window.quickOpen().shell());
+    window.quickOpen().shell().dispose();
+  }
+
+  private static void assertResizable(Shell shell) {
+    assertTrue((shell.getStyle() & SWT.RESIZE) != 0, shell.getText());
+  }
+
   @Test
   void promptsAfterTheShellIsDisposedAnswerWithoutShowing() {
     MainWindow closed = new MainWindow(display, Palette.LIGHT);

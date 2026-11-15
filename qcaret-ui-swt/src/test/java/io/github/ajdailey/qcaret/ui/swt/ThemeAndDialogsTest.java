@@ -50,6 +50,7 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
+import org.eclipse.swt.widgets.Tree;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -342,6 +343,32 @@ class ThemeAndDialogsTest {
     assertEquals(before, row.getBackground().getRGB());
     assertEquals(fieldBefore, field.getBackground().getRGB());
     assertEquals(2, settings[0]);
+    shell.dispose();
+  }
+
+  /**
+   * A tree's header takes the window and text colors while the appearance differs, as a table's
+   * does: the workspace browser's header labels kept the startup text color, black on dark. Back in
+   * the startup appearance a check box loses its clear background: it kept a dark one in light.
+   */
+  @Test
+  void cocoaChromeColorsTreeHeadersAndRestoresCheckBoxes() {
+    Shell shell = new Shell(display);
+    Tree tree = new Tree(shell, SWT.NONE);
+    tree.setHeaderVisible(true);
+    Button check = new Button(shell, SWT.CHECK);
+    RGB headerBefore = tree.getHeaderForeground().getRGB();
+    RGB checkBefore = check.getBackground().getRGB();
+    CocoaChrome chrome = new CocoaChrome(display, false);
+    try {
+      chrome.apply(true);
+      assertEquals(new RGB(0xff, 0xff, 0xff), tree.getHeaderForeground().getRGB());
+      assertEquals(new RGB(0x32, 0x32, 0x32), tree.getHeaderBackground().getRGB());
+    } finally {
+      chrome.apply(false);
+    }
+    assertEquals(headerBefore, tree.getHeaderForeground().getRGB());
+    assertEquals(checkBefore, check.getBackground().getRGB());
     shell.dispose();
   }
 

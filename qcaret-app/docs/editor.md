@@ -13,6 +13,9 @@ undo and redo restore that model. A read-only document ignores edits.
 - Typing, Enter (the document's line ending), Backspace and Delete apply at
   every selection and coalesce by kind; Backspace and Delete take a CR LF or a
   surrogate pair whole.
+- Left and Right, with or without Shift, step by grapheme cluster
+  (`Moves.clusterLeft`, `clusterRight`): a base char with its combining marks,
+  an emoji sequence and a CR LF are one step.
 - Copy joins the selections with the line ending; Paste converts line breaks to
   it and, with as many lines as selections, puts one line at each.
 - An edit the widget made on its own is mapped from display offsets and applied

@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -191,6 +192,38 @@ class MemoryGaugeTest {
     assertEquals("tip", gauge.control().getToolTipText());
     assertEquals(
         new RGB(70, 85, 100), MemoryGauge.mix(new RGB(100, 100, 100), new RGB(0, 50, 100), 30));
+  }
+
+  /**
+   * The ink reaches 4.5 contrast whatever foreground SWT reports: after a live switch on cocoa it
+   * reported white on light gray and dark gray on dark. The test asks for 3, since anti-aliased
+   * pixels and a downsampled print sit below the ink.
+   */
+  @Test
+  void theTextStaysReadableWhenTheForegroundMatchesTheBackground() {
+    MemoryGauge gauge = window.memoryGauge();
+    gauge.setShown(true);
+    gauge.show(new MemoryFields("8888/8888 MB", "tip", 0));
+    gauge.control().getParent().layout(true);
+    RGB[][] cases = {
+      {new RGB(252, 252, 252), new RGB(236, 236, 236)},
+      {new RGB(70, 70, 70), new RGB(50, 50, 50)}
+    };
+    for (RGB[] pair : cases) {
+      RGB ground = pair[1];
+      gauge.control().setForeground(new Color(pair[0]));
+      gauge.control().setBackground(new Color(ground));
+      ImageData shot = ControlPrint.of(display, gauge.control());
+      double best = 1;
+      for (int y = 2; y < shot.height - 2; y++) {
+        for (int x = 2; x < shot.width - 2; x++) {
+          best =
+              Math.max(
+                  best, SwtThemeService.contrast(shot.palette.getRGB(shot.getPixel(x, y)), ground));
+        }
+      }
+      assertTrue(best >= 3, pair[0] + " on " + ground + ": best contrast " + best);
+    }
   }
 
   @Test

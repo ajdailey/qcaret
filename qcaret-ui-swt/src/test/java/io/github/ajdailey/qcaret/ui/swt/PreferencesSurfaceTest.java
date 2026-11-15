@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,7 +38,6 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.MenuItem;
 import org.junit.jupiter.api.AfterEach;
@@ -162,14 +160,14 @@ class PreferencesSurfaceTest {
                     .withHistory(List.of("needle"), List.of("/mock"), List.of("*.mock"))
                     .withReplacements(List.of("thread"))));
     controller.execute(CommandId.REPLACE);
-    final Combo field = window.findBar().field();
-    field.setText("typed");
-    assertArrayEquals(new String[] {"needle"}, field.getItems());
+    final HistoryField field = window.findBar().fieldHistory();
+    field.text().setText("typed");
+    assertEquals(List.of("needle"), field.items());
     PreferencesDialog dialog = dialog();
     ClearHistoryDialog prompt = dialog.askClearHistory();
     prompt.cancel();
     assertTrue(prompt.shell().isDisposed());
-    assertEquals(1, field.getItemCount());
+    assertEquals(1, field.items().size());
     dialog.askClearHistory().clear();
     assertTrue(
         EventLoop.runUntil(
@@ -177,12 +175,12 @@ class PreferencesSurfaceTest {
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
-                return field.getItemCount() == 0;
+                return field.items().isEmpty();
               }
             },
             BOUND));
-    assertEquals(0, window.findBar().replaceField().getItemCount());
-    assertEquals("typed", field.getText());
+    assertEquals(List.of(), window.findBar().replaceHistory().items());
+    assertEquals("typed", field.text().getText());
     dialog.shell().close();
     assertEquals(List.of(), controller.settings().current().state().texts());
     assertEquals(List.of(), controller.settings().current().state().directories());

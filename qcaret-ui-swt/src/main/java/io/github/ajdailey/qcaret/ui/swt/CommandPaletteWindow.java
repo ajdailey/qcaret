@@ -38,7 +38,11 @@ final class CommandPaletteWindow {
   CommandPaletteWindow(Shell parent, PaletteInput input, UiDispatcher ui) {
     this.input = input;
     this.ui = ui;
-    shell = Dialogs.shell(parent, UiText.PALETTE_TITLE.text(), true);
+    shell =
+        Dialogs.shell(
+            parent,
+            UiText.PALETTE_TITLE.text(),
+            SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
     filter = new Text(shell, SWT.SEARCH | SWT.BORDER);
     filter.setMessage(UiText.PALETTE_FILTER.text());
     filter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));

@@ -4,27 +4,26 @@ import io.github.ajdailey.qcaret.app.controller.FindController;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.FindListener;
 import io.github.ajdailey.qcaret.app.view.FindState;
-import java.util.Arrays;
-import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Text;
 
 /**
  * The find bar above the status bar, shown while {@link FindController} is open: the search field
  * with its history, Match Case, Whole Word and Regex, Previous, Next, the last notice and Close,
  * and for Replace a second row with the replacement field and its history, Replace and Replace All.
- * Typing or choosing a history entry finds incrementally; Enter finds the next match, Shift+Enter
- * the previous one, Enter in the replacement field replaces, and Escape anywhere in the bar closes
- * it. While a field's list is open, Enter and Escape go to the list.
+ * Each field is a {@link HistoryField}. Typing or choosing a history entry finds incrementally;
+ * moving the list's highlight does not. Enter finds the next match, Shift+Enter the previous one,
+ * Enter in the replacement field replaces, and Escape anywhere in the bar closes it. While a
+ * field's list is open, Enter and Escape go to the list.
  */
 final class FindBar {
   /** Width of each text field. */
@@ -32,8 +31,8 @@ final class FindBar {
 
   private final Composite bar;
   private final Composite replaceRow;
-  private final Combo field;
-  private final Combo replaceField;
+  private final HistoryField field;
+  private final HistoryField replaceField;
   private final Button matchCase;
   private final Button wholeWord;
   private final Button regex;
@@ -166,12 +165,8 @@ final class FindBar {
     return width;
   }
 
-  private static Combo field(Composite row) {
-    Combo combo = new Combo(row, SWT.DROP_DOWN);
-    GridData data = new GridData(SWT.FILL, SWT.CENTER, false, false);
-    data.widthHint = FIELD_WIDTH;
-    combo.setLayoutData(data);
-    return combo;
+  private static HistoryField field(Composite row) {
+    return new HistoryField(row, FIELD_WIDTH);
   }
 
   private static Button check(Composite row, UiText label) {
@@ -195,52 +190,60 @@ final class FindBar {
   }
 
   private void listen() {
-    field.addListener(
-        SWT.Modify,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (!syncing) {
-              find.setText(field.getText());
-            }
-          }
-        });
-    replaceField.addListener(
-        SWT.Modify,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (!syncing) {
-              find.setReplacement(replaceField.getText());
-            }
-          }
-        });
-    field.addListener(
-        SWT.KeyDown,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (enter(event) && !field.getListVisible()) {
-              event.doit = false;
-              if ((event.stateMask & SWT.SHIFT) != 0) {
-                find.findPrevious();
-              } else {
-                find.findNext();
+    field
+        .text()
+        .addListener(
+            SWT.Modify,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (!syncing) {
+                  find.setText(field.text().getText());
+                }
               }
-            }
-          }
-        });
-    replaceField.addListener(
-        SWT.KeyDown,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (enter(event) && !replaceField.getListVisible()) {
-              event.doit = false;
-              find.replace();
-            }
-          }
-        });
+            });
+    replaceField
+        .text()
+        .addListener(
+            SWT.Modify,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (!syncing) {
+                  find.setReplacement(replaceField.text().getText());
+                }
+              }
+            });
+    field
+        .text()
+        .addListener(
+            SWT.KeyDown,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (enter(event) && event.doit) {
+                  event.doit = false;
+                  if ((event.stateMask & SWT.SHIFT) != 0) {
+                    find.findPrevious();
+                  } else {
+                    find.findNext();
+                  }
+                }
+              }
+            });
+    replaceField
+        .text()
+        .addListener(
+            SWT.KeyDown,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (enter(event) && event.doit) {
+                  event.doit = false;
+                  find.replace();
+                }
+              }
+            });
     Listener options =
         new Listener() {
           @Override
@@ -256,9 +259,7 @@ final class FindBar {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if (event.keyCode == SWT.ESC
-                && !field.getListVisible()
-                && !replaceField.getListVisible()) {
+            if (event.keyCode == SWT.ESC && event.doit) {
               event.doit = false;
               find.close();
             }
@@ -282,9 +283,10 @@ final class FindBar {
 
   /** Focuses the search field and selects its text. */
   void focus() {
-    if (!field.isDisposed()) {
-      field.setFocus();
-      field.setSelection(new Point(0, field.getText().length()));
+    Text text = field.text();
+    if (!text.isDisposed()) {
+      text.setFocus();
+      text.setSelection(new Point(0, text.getText().length()));
     }
   }
 
@@ -292,11 +294,19 @@ final class FindBar {
     return bar;
   }
 
-  Combo field() {
+  Text field() {
+    return field.text();
+  }
+
+  Text replaceField() {
+    return replaceField.text();
+  }
+
+  HistoryField fieldHistory() {
     return field;
   }
 
-  Combo replaceField() {
+  HistoryField replaceHistory() {
     return replaceField;
   }
 
@@ -314,13 +324,13 @@ final class FindBar {
     }
     syncing = true;
     try {
-      showHistory(field, state.textHistory());
-      showHistory(replaceField, state.replaceHistory());
-      if (!field.getText().equals(state.text())) {
-        field.setText(state.text());
+      field.setItems(state.textHistory());
+      replaceField.setItems(state.replaceHistory());
+      if (!field.text().getText().equals(state.text())) {
+        field.text().setText(state.text());
       }
-      if (!replaceField.getText().equals(state.replacement())) {
-        replaceField.setText(state.replacement());
+      if (!replaceField.text().getText().equals(state.replacement())) {
+        replaceField.text().setText(state.replacement());
       }
     } finally {
       syncing = false;
@@ -335,23 +345,17 @@ final class FindBar {
       notice.setText(text.replace("&", "&&"));
       notice.getParent().layout(new Control[] {notice});
     }
+    if (!state.open() || !state.replace()) {
+      replaceField.hide();
+    }
+    if (!state.open()) {
+      field.hide();
+    }
     boolean relayout = setShown(replaceRow, state.replace());
     relayout |= setShown(bar, state.open());
     if (relayout) {
       bar.getParent().layout(true, true);
     }
-  }
-
-  /** Replaces a field's list, keeping its text and selection: setItems can clear them. */
-  private static void showHistory(Combo combo, List<String> history) {
-    if (Arrays.asList(combo.getItems()).equals(history)) {
-      return;
-    }
-    String text = combo.getText();
-    Point selection = combo.getSelection();
-    combo.setItems(history.toArray(new String[0]));
-    combo.setText(text);
-    combo.setSelection(selection);
   }
 
   /** Shows or hides a control in its grid; returns true when that changed. */

@@ -191,13 +191,22 @@ the dialog cancels a running match.
 `FindBar` sits above the status bar while `FindController` is open: the search
 field, Match case, Whole word, Regex, Previous, Next, the notice and Close,
 plus a replace row (field, Replace, Replace All) for Replace. Both fields are
-editable `Combo`s listing the saved history from `FindState`, as `SearchDialog`
-does.
+`HistoryField`s listing the saved history from `FindState`: a `Text`, an arrow
+button, and a list in an `SWT.ON_TOP | SWT.NO_FOCUS` shell, as `CompletionPopup`
+uses, so the field keeps the keyboard. Do not replace it with a drop-down
+`Combo`: a cocoa `NSComboBox` list runs a tracking loop on the UI thread that
+outlives its window, which keeps the process running after a quit with the list
+open; that list also takes no Enter and searches on each highlight.
 
-- Typing or choosing an entry finds incrementally.
+- Typing or choosing an entry finds incrementally; moving the list's highlight
+  with Up and Down does not.
 - Enter finds the next match, Shift+Enter the previous one, and Enter in the
   replace field replaces. Escape anywhere in the bar closes it and focuses the
-  editor. While a field's list is open, Enter and Escape go to the list.
+  editor. While a field's list is open, Enter puts the highlighted entry in the
+  field and Escape closes the list; each consumes its key.
+- A click outside the list, a focus change, and a move, resize or deactivation
+  of the window close the list. The list's shell is a child of the window, so
+  it closes with it.
 - Mod+F with the bar open focuses and selects the field.
 
 `SearchDialog` (Search > HyperSearch) is modal: the text with its history,

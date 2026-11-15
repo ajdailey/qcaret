@@ -191,6 +191,8 @@ Platform choices in the defaults, with the conflict each avoids:
 | Title Case, Swap Case | None | Ctrl+Alt+letter is AltGr on Windows and types a char on many layouts |
 | Fold All, Unfold All | Alt+[ and Alt+]; Cmd+Option+[ and ] on macOS | Windows delivers AltGr as Ctrl+Alt, and AltGr+[ types a char on layouts such as US-International |
 | Save All | Cmd+Option+S on macOS only | Ctrl+Alt+S off macOS is AltGr+S on Windows |
+| Toggle Block Comment | Mod+Shift+/; Cmd+Option+/ on macOS | macOS Cmd+Shift+/ opens the Help menu search |
+| Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;
@@ -198,8 +200,7 @@ bookmarks Mod+F2 (toggle), F2 and Shift+F2 (next, previous); Go to and Select
 to Matching Bracket Mod+B and Mod+Shift+B; Command Palette Mod+Shift+P;
 HyperSearch Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Quick Open
 Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
-Occurrences Alt+Enter, Skip Occurrence Mod+K, Expand Selection Mod+Shift+Space,
-as editor bindings.
+Occurrences Alt+Enter and Skip Occurrence Mod+K, as editor bindings.
 
 Commands with no default key include the split commands, Toggle Fold, Sort,
 Remove Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Title Case,

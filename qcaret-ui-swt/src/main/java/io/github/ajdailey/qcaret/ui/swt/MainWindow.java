@@ -80,7 +80,6 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.printing.PrintDialog;
 import org.eclipse.swt.printing.Printer;
 import org.eclipse.swt.printing.PrinterData;
 import org.eclipse.swt.program.Program;
@@ -994,7 +993,8 @@ public final class MainWindow implements MainView {
       if (printerChooser != null) {
         data = printerChooser.get();
       } else if (PlatformTraits.PLATFORM.opensPrintDialog()) {
-        data = new PrintDialog(shell).open();
+        EditorPane pane = activeEditor();
+        data = PrintDialogs.create(shell, pane != null && pane.hasSelection()).open();
       } else {
         String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell);
         data = file == null ? null : PdfPrinter.printer(file);

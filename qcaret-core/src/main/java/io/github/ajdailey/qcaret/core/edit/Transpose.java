@@ -5,10 +5,8 @@ import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
-import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Transpose. With two or more non-empty selections, the selected texts rotate: each takes the text
@@ -16,13 +14,10 @@ import java.util.Locale;
  * before an LF, joining two line breaks, changes nothing and counts the lines the ranges touch as
  * unchanged. Otherwise each caret swaps the characters on either side of it and moves past both; at
  * a line end it swaps the two before it and stays; at a line start it does nothing. A character is
- * a grapheme cluster ({@link BreakIterator#getCharacterInstance}), so a surrogate pair or a base
- * char with its combining marks moves whole, and no swap crosses a line break.
+ * a grapheme cluster ({@link Clusters}), so a surrogate pair or a base char with its combining
+ * marks moves whole, and no swap crosses a line break.
  */
 public final class Transpose {
-  /** Chars on each side of a caret the cluster boundaries are read from. */
-  private static final int WINDOW = 64;
-
   private Transpose() {}
 
   /**
@@ -129,24 +124,19 @@ public final class Transpose {
     if (caret <= lineStart || caret > lineEnd) {
       return new int[0];
     }
-    int from = Math.max(lineStart, caret - WINDOW);
-    int to = Math.min(lineEnd, caret + WINDOW);
-    BreakIterator clusters = BreakIterator.getCharacterInstance(Locale.ROOT);
-    clusters.setText(text.subSequence(from, to).toString());
-    int at = caret - from;
-    if (!clusters.isBoundary(at)) {
+    Clusters clusters = new Clusters(text, caret, lineStart, lineEnd);
+    if (!clusters.isBoundary(caret)) {
       return new int[0];
     }
     if (caret == lineEnd) {
-      int middle = clusters.preceding(at);
-      int start = middle == BreakIterator.DONE ? BreakIterator.DONE : clusters.preceding(middle);
-      if (start == BreakIterator.DONE) {
+      int middle = clusters.preceding(caret);
+      int start = middle < 0 ? -1 : clusters.preceding(middle);
+      if (start < 0) {
         return new int[0];
       }
-      return new int[] {from + start, from + middle, caret, caret};
+      return new int[] {start, middle, caret, caret};
     }
-    int start = clusters.preceding(at);
-    int end = clusters.following(at);
-    return new int[] {from + start, caret, from + end, from + end};
+    int end = clusters.following(caret);
+    return new int[] {clusters.preceding(caret), caret, end, end};
   }
 }

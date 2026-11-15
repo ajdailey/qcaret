@@ -134,7 +134,8 @@ window until the copy ends.
 
 File > Print opens the system print dialog; it has no default key, because
 `Ctrl+P` is Quick Open, and Preferences can assign one. The dialog chooses the
-printer, the copies, and all pages, a page range or the selection. A job prints
+printer, the copies, and all pages, a page range or the selection; with text
+selected it opens on the selection. A job prints
 the document as it stood when you chose the command, folded text included and
 word wrap ignored: a line wider than the page wraps at the column. Each page
 has the file name and Page N of M at the top, line numbers, and Light's syntax
@@ -330,7 +331,7 @@ the grammar's rules.
 | `Ctrl+Backspace`, `Ctrl+Delete` (`Option` on macOS) | Delete the word before or after each caret |
 | `Ctrl+T` (`Control+T` on macOS) | Transpose: swap the characters around each caret, or rotate the texts of two or more selections |
 | `Ctrl+]`, `Ctrl+[`, `Shift+Tab` | Indent, outdent |
-| `Ctrl+/`, `Ctrl+Shift+/` | Toggle a line or block comment |
+| `Ctrl+/`, `Ctrl+Shift+/` (`Cmd+Option+/` on macOS) | Toggle a line or block comment |
 | `Ctrl+Space` (`Option+Esc` on macOS) | Complete the word from the open documents |
 | `Ctrl+B`, `Ctrl+Shift+B` | Go or select to the matching bracket |
 | `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column` |
@@ -380,7 +381,7 @@ unknown.
 | `Ctrl+E` | Select the word, then add its next occurrence |
 | `Ctrl+K` | Skip Occurrence: drop the occurrence added last and select the next one |
 | `Alt+Enter` | Select every occurrence of the selection, or of the word at the caret |
-| `Ctrl+Shift+Space` | Expand Selection: word, quotes, brackets, line, then the whole text |
+| `Ctrl+Shift+Space` (`Control+Cmd+Shift+Right` on macOS) | Expand Selection: word, quotes, brackets, line, then the whole text |
 | `Ctrl+L` (`Control+L` on macOS) | Select the line; again to add the next line |
 | Selection > Split into Lines | One selection per line of each selection |
 | `Alt`+drag, `Ctrl+Alt`+drag | Select a block |
@@ -411,7 +412,9 @@ its text. Typing finds as you type and every match in view is highlighted. `F3`
 and `Shift+F3` (also `Cmd+G` and `Cmd+Shift+G` on macOS), or Enter and
 `Shift+Enter` in the bar, move between matches and wrap at the ends with a
 notice. Match case, Whole word and Regex are toggles. `Esc` closes the bar.
-Both fields keep a history.
+Both fields keep a history: the arrow beside a field or `Down` opens its list,
+`Up` and `Down` move through it without searching, and Enter or a click puts
+the entry in the field and finds it. `Esc` closes only the list.
 
 ### HyperSearch
 
@@ -753,6 +756,8 @@ again.
 
 A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
+On Windows a file opened from Explorer into the running instance does not raise
+its window; the window's taskbar button flashes instead.
 Launches at the same moment queue, and each file becomes a tab in the one
 instance. `-m` runs an independent instance that saves no window placement or
 session. One instance at a time keeps the session: a launch that cannot hand

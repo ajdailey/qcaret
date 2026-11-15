@@ -396,6 +396,25 @@ class PrintOutputTest {
     assertFalse(text.contains("first"), text);
   }
 
+  /**
+   * The print dialog opens on Selection while the document has one: the Windows dialog offers
+   * Selection only when it opens with it.
+   */
+  @Test
+  void thePrintDialogOpensOnTheSelectionWhileOneExists() throws Exception {
+    openFile("first\nsecond\nthird\n");
+    EditorPane pane = window.activeEditor();
+    assertFalse(pane.hasSelection());
+    assertEquals(PrinterData.ALL_PAGES, PrintDialogs.create(window.shell(), false).getScope());
+    controller
+        .documents()
+        .activeEditor()
+        .selections()
+        .set(SelectionSet.of(List.of(Selection.caret(1), Selection.of(6, 12)), 1));
+    assertTrue(pane.hasSelection());
+    assertEquals(PrinterData.SELECTION, PrintDialogs.create(window.shell(), true).getScope());
+  }
+
   @Test
   void theWindowStaysUsableAndTheRowClosesAfterAJob() throws Exception {
     PrinterData data = requirePrinter();

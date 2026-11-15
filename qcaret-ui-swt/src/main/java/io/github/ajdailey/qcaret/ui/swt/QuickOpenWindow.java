@@ -40,7 +40,8 @@ final class QuickOpenWindow {
   QuickOpenWindow(Shell parent, final QuickOpenInput input, UiDispatcher ui) {
     this.input = input;
     this.ui = ui;
-    shell = Dialogs.shell(parent, input.title(), true);
+    shell =
+        Dialogs.shell(parent, input.title(), SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
     filter = new Text(shell, SWT.SEARCH | SWT.BORDER);
     filter.setMessage(UiText.QUICK_OPEN_FILTER.text());
     filter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));

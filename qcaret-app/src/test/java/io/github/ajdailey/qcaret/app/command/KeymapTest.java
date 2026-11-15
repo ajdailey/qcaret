@@ -195,7 +195,8 @@ class KeymapTest {
    */
   /**
    * Select Line and Transpose take Control on macOS, where Command+L is Go to Line; Delete Word
-   * takes Option there; Undo and Redo Selection, Title Case and Swap Case have no key.
+   * takes Option there; Expand Selection and Toggle Block Comment avoid keys macOS takes; Undo and
+   * Redo Selection, Title Case and Swap Case have no key.
    */
   @Test
   void selectionAndWordCommandKeysPerPlatform() {
@@ -204,7 +205,8 @@ class KeymapTest {
     String[][] expected = {
       {"SELECT_ALL_OCCURRENCES", "Alt+Enter", "Option+Enter"},
       {"SKIP_OCCURRENCE", "Ctrl+K", "Cmd+K"},
-      {"EXPAND_SELECTION", "Ctrl+Shift+Space", "Cmd+Shift+Space"},
+      {"EXPAND_SELECTION", "Ctrl+Shift+Space", "Ctrl+Cmd+Shift+Right"},
+      {"TOGGLE_BLOCK_COMMENT", "Ctrl+Shift+/", "Cmd+Option+/"},
       {"SELECT_LINE", "Ctrl+L", "Ctrl+L"},
       {"TRANSPOSE", "Ctrl+T", "Ctrl+T"},
       {"DELETE_WORD_BACK", "Ctrl+Backspace", "Option+Backspace"},

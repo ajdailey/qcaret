@@ -1079,8 +1079,8 @@ public final class EditorController implements EditorInput {
     int caret = s.caret();
     int tab = document.tabWidth();
     return switch (motion) {
-      case LEFT -> new int[] {Moves.left(text, caret), -1};
-      case RIGHT -> new int[] {Moves.right(text, caret), -1};
+      case LEFT -> new int[] {Moves.clusterLeft(text, caret), -1};
+      case RIGHT -> new int[] {Moves.clusterRight(text, caret), -1};
       case WORD_LEFT -> new int[] {Words.left(text, caret), -1};
       case WORD_RIGHT -> new int[] {Words.right(text, caret), -1};
       case LINE_START -> new int[] {Moves.home(text, caret), -1};

@@ -204,7 +204,9 @@ sets it on an owned shell that opens meanwhile
 from the layout while it is off. It paints `MemoryFields.text` over a bar
 filled to `MemoryFields.fill`, mixing the canvas's foreground into its
 background at each paint, so it follows the native theme; the tip is its tool
-tip. A left click calls `ApplicationController.collectGarbage`. Its width only
+tip. The ink moves toward white or black until it has 4.5 contrast with the
+background (`SwtThemeService.readable`): after a live change on cocoa SWT can
+report a foreground close to the background. A left click calls `ApplicationController.collectGarbage`. Its width only
 grows, so a refresh does not move the fields beside it.
 
 The window title is `CommandStates.windowTitle`, set with the status fields on
@@ -270,8 +272,8 @@ jar. `ArchitectureTest.reflectionOnlyInSanctionedViews` allows reflection in
 - On a mapped GTK window the toggle is a request to the window manager; Xvfb
   has none, so a live toggle is unverified here.
 - Dialogs stay above the window: on GTK a dialog is transient for its parent
-  (`WM_TRANSIENT_FOR` measured) and the find bar's combo list is an
-  override-redirect popup; win32 makes a topmost window's owned windows topmost.
+  (`WM_TRANSIENT_FOR` measured) and the find bar's history list, an
+  `SWT.ON_TOP` shell, is an override-redirect popup; win32 makes a topmost window's owned windows topmost.
   On cocoa a Display `SWT.Show` filter in `CocoaStacking` raises each shell
   opened under a floating window, at any depth, to the floating level, and
   returns it to normal with the window; an `SWT.ON_TOP` shell keeps its level.

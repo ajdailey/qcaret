@@ -50,8 +50,10 @@ public final class Keymap {
    * have no keys on Linux, where IBus takes Ctrl+Shift+U. On macOS, where Option+Shift with Left or
    * Right selects words, the block selection keys add Command, and Add Caret Above and Below take
    * Control+Shift. Select Line and Transpose take Control on macOS, where Command+L is Go to Line;
-   * Delete Word Back and Forward take Option there, as word moves do. Exit is Ctrl+Q off macOS,
-   * where the application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
+   * Delete Word Back and Forward take Option there, as word moves do. On macOS Toggle Block Comment
+   * is Command+Option+/ and Expand Selection Control+Command+Shift+Right, since the system takes
+   * Command+Shift+/ (Help menu search) and Command+Shift+Space. Exit is Ctrl+Q off macOS, where the
+   * application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
    * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
    * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
    * macOS.
@@ -151,11 +153,15 @@ public final class Keymap {
     editor(b, CommandId.ADD_CARET_BELOW, addCaret, KeyStroke.DOWN);
     editor(b, CommandId.ADD_NEXT_OCCURRENCE, P, 'e');
     editor(b, CommandId.TOGGLE_LINE_COMMENT, P, '/');
-    editor(b, CommandId.TOGGLE_BLOCK_COMMENT, P | S, '/');
+    editor(b, CommandId.TOGGLE_BLOCK_COMMENT, mac ? P | a : P | S, '/');
     int control = mac ? KeyStroke.CONTROL : P;
     editor(b, CommandId.SELECT_ALL_OCCURRENCES, a, KeyStroke.ENTER);
     editor(b, CommandId.SKIP_OCCURRENCE, P, 'k');
-    editor(b, CommandId.EXPAND_SELECTION, P | S, KeyStroke.SPACE);
+    if (mac) {
+      editor(b, CommandId.EXPAND_SELECTION, KeyStroke.CONTROL | P | S, KeyStroke.RIGHT);
+    } else {
+      editor(b, CommandId.EXPAND_SELECTION, P | S, KeyStroke.SPACE);
+    }
     editor(b, CommandId.SELECT_LINE, control, 'l');
     editor(b, CommandId.TRANSPOSE, control, 't');
     editor(b, CommandId.DELETE_WORD_BACK, mac ? a : P, KeyStroke.BACKSPACE);

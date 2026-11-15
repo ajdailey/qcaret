@@ -13,7 +13,7 @@ import java.util.concurrent.CancellationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
-/** Char, word and line moves, word bounds and the occurrence search. */
+/** Char, cluster, word and line moves, word bounds and the occurrence search. */
 class MovesTest {
   private static TextSnapshot text(String value) {
     return RopeStorage.of(value).snapshot();
@@ -28,6 +28,22 @@ class MovesTest {
     assertEquals(4, Moves.left(t, 6));
     assertEquals(0, Moves.left(t, 0));
     assertEquals(t.length(), Moves.right(t, t.length()));
+  }
+
+  @Test
+  void clusterMovesTakeMarksEmojiAndCrLfWhole() {
+    TextSnapshot t = text("e\u0301a\u0308\r\n\uD83D\uDC4D\uD83C\uDFFDb");
+    assertEquals(2, Moves.clusterRight(t, 0));
+    assertEquals(2, Moves.clusterRight(t, 1));
+    assertEquals(4, Moves.clusterRight(t, 2));
+    assertEquals(6, Moves.clusterRight(t, 4));
+    assertEquals(10, Moves.clusterRight(t, 6));
+    assertEquals(t.length(), Moves.clusterRight(t, t.length()));
+    assertEquals(6, Moves.clusterLeft(t, 10));
+    assertEquals(4, Moves.clusterLeft(t, 6));
+    assertEquals(2, Moves.clusterLeft(t, 4));
+    assertEquals(0, Moves.clusterLeft(t, 1));
+    assertEquals(0, Moves.clusterLeft(t, 0));
   }
 
   @Test

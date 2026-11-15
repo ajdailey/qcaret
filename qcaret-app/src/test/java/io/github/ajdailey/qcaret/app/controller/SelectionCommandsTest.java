@@ -210,6 +210,31 @@ class SelectionCommandsTest {
     assertEquals("cafe\u0301 [cafe] cafe\u0301", marked());
   }
 
+  /**
+   * Left and Right, with or without Shift, step over a base char and its combining marks, an emoji
+   * and a CR LF whole: Right from column 0 stopped between {@code e} and U+0301, and typing there
+   * split the cluster.
+   */
+  @Test
+  void caretMovesStepByGraphemeCluster() {
+    open("|e\u0301a\u0308\uD83D\uDE00\r\nz");
+    run(CommandId.CARET_RIGHT);
+    assertEquals("e\u0301|a\u0308\uD83D\uDE00\r\nz", marked());
+    run(CommandId.CARET_RIGHT, CommandId.CARET_RIGHT);
+    assertEquals("e\u0301a\u0308\uD83D\uDE00|\r\nz", marked());
+    run(CommandId.CARET_RIGHT);
+    assertEquals("e\u0301a\u0308\uD83D\uDE00\r\n|z", marked());
+    run(CommandId.CARET_LEFT, CommandId.CARET_LEFT, CommandId.CARET_LEFT);
+    assertEquals("e\u0301|a\u0308\uD83D\uDE00\r\nz", marked());
+    editor.type("X");
+    assertEquals("e\u0301Xa\u0308\uD83D\uDE00\r\nz", document.text().toString());
+    open("|e\u0301a\u0308o");
+    run(CommandId.SELECT_RIGHT, CommandId.SELECT_RIGHT);
+    assertEquals("[e\u0301a\u0308]o", marked());
+    run(CommandId.SELECT_LEFT);
+    assertEquals("[e\u0301]a\u0308o", marked());
+  }
+
   @Test
   void selectAllOccurrencesFromARangeTakesEveryLiteralMatch() {
     open("[ab]c ab.ab");

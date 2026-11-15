@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -46,11 +46,13 @@ import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
-import org.eclipse.swt.widgets.Combo;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Slider;
 import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.Text;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -334,10 +336,8 @@ class SearchSurfaceTest {
   }
 
   /** Presses Enter in a find bar field and waits for the search to end. */
-  private void pressEnter(Combo field) {
-    Event enter = new Event();
-    enter.keyCode = SWT.CR;
-    field.notifyListeners(SWT.KeyDown, enter);
+  private void pressEnter(Text field) {
+    key(field, SWT.CR);
     await(
         new BooleanSupplier() {
           @Override
@@ -354,41 +354,114 @@ class SearchSurfaceTest {
     openFile(Files.writeString(temp.resolve("find.txt"), lines(20, 3, 9)));
     controller.execute(CommandId.REPLACE);
     drain();
-    Combo field = window.findBar().field();
-    Combo replace = window.findBar().replaceField();
+    HistoryField history = window.findBar().fieldHistory();
+    Text field = history.text();
+    Text replace = window.findBar().replaceField();
     Point size = field.getSize();
     field.setText("needle");
     pressEnter(field);
     field.setText("line");
     pressEnter(field);
-    assertArrayEquals(new String[] {"line", "needle"}, field.getItems());
+    assertEquals(List.of("line", "needle"), history.items());
     assertEquals("line", field.getText());
     replace.setText("thread");
     pressEnter(replace);
-    assertArrayEquals(new String[] {"thread"}, replace.getItems());
+    assertEquals(List.of("thread"), window.findBar().replaceHistory().items());
     assertEquals("thread", replace.getText());
-    field.select(1);
+    history.show(-1);
+    history.choose(1);
+    assertFalse(history.listVisible());
     assertEquals("needle", field.getText());
     assertEquals("needle", controller.find().state().text());
-    historyScreenshot(field);
+    historyScreenshot(history);
     field.setText("z".repeat(UiState.MAX_ENTRY_CHARS));
     pressEnter(field);
-    assertEquals(3, field.getItemCount());
+    assertEquals(3, history.items().size());
     window.shell().layout(true, true);
     assertEquals(size, field.getSize());
     controller.execute(CommandId.HYPERSEARCH);
     drain();
-    assertArrayEquals(field.getItems(), window.searchDialog().text().getItems());
+    assertEquals(history.items(), List.of(window.searchDialog().text().getItems()));
     window.searchDialog().shell().close();
   }
 
+  private static void key(Control control, int keyCode) {
+    Event event = new Event();
+    event.keyCode = keyCode;
+    control.notifyListeners(SWT.KeyDown, event);
+  }
+
+  /**
+   * The history list: the arrow opens it, Down and Up move its highlight without a search, Enter
+   * closes it and finds the highlighted entry, Esc closes only the list, and the list's shell goes
+   * with the window. A cocoa native list ran a tracking loop that kept the process alive after a
+   * quit, took no Enter, and searched on each highlight.
+   */
+  @Test
+  void theHistoryListMovesWithoutSearchingAndClosesWithItsWindow() throws Exception {
+    openFile(Files.writeString(temp.resolve("find.txt"), lines(20, 3, 9)));
+    controller.execute(CommandId.FIND);
+    drain();
+    FindBar bar = window.findBar();
+    HistoryField history = bar.fieldHistory();
+    Text field = history.text();
+    field.setText("needle");
+    pressEnter(field);
+    field.setText("line");
+    pressEnter(field);
+    field.setText("typed");
+    drain();
+    history.arrow().notifyListeners(SWT.Selection, new Event());
+    assertTrue(history.listVisible());
+    assertEquals(-1, history.highlighted());
+    key(field, SWT.ARROW_DOWN);
+    key(field, SWT.ARROW_DOWN);
+    assertEquals(1, history.highlighted());
+    key(field, SWT.ARROW_UP);
+    assertEquals(0, history.highlighted());
+    drain();
+    assertEquals("typed", field.getText());
+    assertEquals("typed", controller.find().state().text());
+    key(field, SWT.ARROW_DOWN);
+    pressEnter(field);
+    assertFalse(history.listVisible());
+    assertEquals("needle", field.getText());
+    assertEquals("needle", controller.find().state().text());
+    assertTrue(bar.control().isVisible());
+    key(field, SWT.ARROW_DOWN);
+    assertTrue(history.listVisible());
+    key(field, SWT.ESC);
+    drain();
+    assertFalse(history.listVisible());
+    assertTrue(bar.control().isVisible());
+    key(field, SWT.ESC);
+    drain();
+    assertFalse(bar.control().isVisible());
+    controller.execute(CommandId.FIND);
+    drain();
+    history.show(0);
+    final Shell list = history.popup();
+    assertNotNull(list);
+    controller.quit();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.shell().isDisposed();
+          }
+        },
+        "quit");
+    assertTrue(list.isDisposed());
+    assertEquals(0, display.getShells().length);
+  }
+
   /** Saves the screen as {@code find-history.png} under {@code qcaret.screenshots}, when set. */
-  private void historyScreenshot(Combo field) {
+  private void historyScreenshot(HistoryField field) {
     String dir = System.getProperty("qcaret.screenshots");
     if (dir == null) {
       return;
     }
-    field.setListVisible(true);
+    field.show(0);
     final long until = System.nanoTime() + 500_000_000L;
     await(
         new BooleanSupplier() {
@@ -410,7 +483,7 @@ class SearchSurfaceTest {
     loader.data = new ImageData[] {image.getImageData()};
     loader.save(Path.of(dir, "find-history.png").toString(), SWT.IMAGE_PNG);
     image.dispose();
-    field.setListVisible(false);
+    field.hide();
   }
 
   private static org.eclipse.swt.graphics.RGB rgb(Rgb value) {

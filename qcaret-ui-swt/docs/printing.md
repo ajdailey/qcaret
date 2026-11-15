@@ -5,7 +5,11 @@ The SWT side of File > Print: `MainWindow.choosePrinter` and `PrintJob` in
 in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
 
 `MainWindow.choosePrinter` opens `PrintDialog`, or on GTK 4 a PDF save dialog
-(see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob` does the rest on the job's worker. A `ProgressRow` shows
+(see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob` does the rest on the job's worker.
+`PrintDialogs.create` opens the dialog with `PrinterData.SELECTION` while the
+document has a non-empty selection: the Windows 11 dialog lists Selection only
+when it opens with `PD_SELECTION` (absent without it, observed; that the flag adds
+it is assumed). A `ProgressRow` shows
 the progress and Cancel above the status bar. It takes no Esc, since the window
 stays usable.
 

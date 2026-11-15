@@ -1227,6 +1227,20 @@ public final class EditorPane implements EditorView {
   }
 
   /**
+   * Reports whether any of the model's selections is non-empty.
+   *
+   * @return true with a selection
+   */
+  public boolean hasSelection() {
+    for (Selection s : selections.selections().selections()) {
+      if (!s.isEmpty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns the bracket highlight.
    *
    * @return model offset pairs

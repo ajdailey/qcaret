@@ -17,10 +17,11 @@ import org.eclipse.swt.widgets.Listener;
 
 /**
  * The status bar's memory indicator: {@link MemoryFields#text} over a bar filled to {@link
- * MemoryFields#fill}, the tip as its tool tip, and a left click that runs an action. The bar mixes
- * the canvas's own foreground into its background, read at each paint, so it follows the native
- * theme. The width only grows, so the text does not shift the fields beside it on each refresh.
- * Hidden, it takes no room.
+ * MemoryFields#fill}, the tip as its tool tip, and a left click that runs an action. The ink is the
+ * canvas's own foreground, read at each paint and moved toward white or black until it reaches 4.5
+ * contrast with the background: after a live appearance or theme change on cocoa the foreground SWT
+ * reports can match the background. The bar mixes the ink into the background. The width only
+ * grows, so the text does not shift the fields beside it on each refresh. Hidden, it takes no room.
  */
 final class MemoryGauge {
   /** Pixels between the text and the frame on each side. */
@@ -61,6 +62,14 @@ final class MemoryGauge {
           @Override
           public void handleEvent(Event event) {
             paint(event.gc);
+          }
+        });
+    canvas.addListener(
+        SWT.Settings,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            canvas.redraw();
           }
         });
     canvas.addListener(
@@ -135,15 +144,15 @@ final class MemoryGauge {
 
   private void paint(GC gc) {
     Rectangle area = canvas.getClientArea();
-    RGB ink = canvas.getForeground().getRGB();
     RGB ground = canvas.getBackground().getRGB();
+    RGB ink = SwtThemeService.readable(canvas.getForeground().getRGB(), ground);
     gc.setBackground(canvas.getBackground());
     gc.fillRectangle(area);
     gc.setBackground(new Color(mix(ground, ink, FILL_PERCENT)));
     gc.fillRectangle(area.x + 1, area.y + 1, filledWidth(area.width - 2), area.height - 2);
     gc.setForeground(new Color(mix(ground, ink, FRAME_PERCENT)));
     gc.drawRectangle(area.x, area.y, area.width - 1, area.height - 1);
-    gc.setForeground(canvas.getForeground());
+    gc.setForeground(new Color(ink));
     Point extent = gc.textExtent(text);
     gc.drawText(
         text, area.x + (area.width - extent.x) / 2, area.y + (area.height - extent.y) / 2, true);
