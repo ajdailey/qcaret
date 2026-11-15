@@ -566,7 +566,7 @@ class TabStripButtonsTest {
     Image image = new Image(display, size.x, size.y);
     GC gc = new GC(image);
     try {
-      return list.print(gc) ? image.getImageData() : null;
+      return list.print(gc) ? Pixels.read(image, list) : null;
     } finally {
       gc.dispose();
       image.dispose();

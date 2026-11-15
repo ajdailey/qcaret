@@ -51,7 +51,7 @@ final class ScreenProbe {
             @Override
             public boolean getAsBoolean() {
               display.update();
-              return near(pixel(display, center.x, center.y), PROBE, TOLERANCE);
+              return near(pixel(shell, center.x, center.y), PROBE, TOLERANCE);
             }
           },
           BOUND);
@@ -79,13 +79,14 @@ final class ScreenProbe {
     }
   }
 
-  /** Reads one screen pixel. */
-  static RGB pixel(Display display, int x, int y) {
+  /** Reads one screen pixel at the zoom of the shell's monitor. */
+  static RGB pixel(Shell shell, int x, int y) {
+    Display display = shell.getDisplay();
     Image image = new Image(display, 1, 1);
     GC gc = new GC(display);
     try {
       gc.copyArea(image, x, y);
-      ImageData data = image.getImageData();
+      ImageData data = Pixels.read(image, shell);
       return data.palette.getRGB(data.getPixel(0, 0));
     } finally {
       gc.dispose();

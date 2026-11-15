@@ -436,7 +436,7 @@ class ProductivitySurfaceTest {
     // Control.print returns false under GTK 4 (SWT issue 2819: no offscreen draw of a control).
     try {
       assumeTrue(printed, "Control.print not supported here");
-      return image.getImageData();
+      return Pixels.read(image, text);
     } finally {
       image.dispose();
     }

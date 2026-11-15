@@ -196,7 +196,7 @@ class ThemeAndDialogsTest {
     GC gc = new GC(image);
     try {
       assumeTrue(tabs.print(gc), "Control.print not supported here");
-      return image.getImageData();
+      return Pixels.read(image, tabs);
     } finally {
       gc.dispose();
       image.dispose();

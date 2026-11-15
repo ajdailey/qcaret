@@ -214,7 +214,7 @@ class BookmarksSurfaceTest {
     }
     try {
       assumeTrue(printed, "Control.print not supported here");
-      return image.getImageData();
+      return Pixels.read(image, text);
     } finally {
       image.dispose();
     }

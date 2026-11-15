@@ -25,6 +25,12 @@ run.
   `ScreenProbeTest` opens a covering shell on GTK 3 only: on win32 the probe
   reads through a covering shell. Screenshot-only copies are
   unguarded.
+- A pixel check reads its image through `Pixels.read`, which takes the image at
+  the control's monitor zoom and keeps the first device pixel of each logical
+  pixel, so coordinates stay logical and colors exact at 200 %. On cocoa
+  `Image.getImageData()` redraws a 200 % image at 100 % with interpolation,
+  which blends fill edges and glyphs. `PixelsTest` checks the sampling on a
+  synthetic 2x image. Screenshot PNGs keep `getImageData()`.
 - A test that posts a press through `notifyListeners` and dispatches events
   before the release drops real `MouseMove` events in a Display filter added
   before the window opens, so it runs before `EditorGestures`' filter, as

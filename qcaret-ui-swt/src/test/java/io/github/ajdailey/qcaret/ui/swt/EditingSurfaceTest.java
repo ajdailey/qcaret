@@ -371,7 +371,7 @@ class EditingSurfaceTest {
       } finally {
         gc.dispose();
       }
-      return image.getImageData();
+      return Pixels.read(image, text);
     } finally {
       image.dispose();
     }
@@ -559,7 +559,7 @@ class EditingSurfaceTest {
     } finally {
       gc.dispose();
     }
-    ImageData data = image.getImageData();
+    ImageData data = Pixels.read(image, window.shell());
     image.dispose();
     return data.palette.getRGB(data.getPixel(0, 0));
   }

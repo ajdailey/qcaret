@@ -386,7 +386,7 @@ class GuideScreenshotsTest {
       gc.dispose();
     }
     try {
-      ImageData data = image.getImageData();
+      ImageData data = Pixels.read(image, window.shell());
       int height = contentHeight(data);
       int width = contentWidth(data);
       Image cut = new Image(display, width, height);
@@ -519,7 +519,7 @@ class GuideScreenshotsTest {
     GC gc = new GC(image);
     try {
       shell.print(gc);
-      ImageData data = image.getImageData();
+      ImageData data = Pixels.read(image, shell);
       int width = contentWidth(data);
       int height = contentHeight(data);
       Image cut = new Image(display, width, height);

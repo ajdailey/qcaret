@@ -51,7 +51,7 @@ final class ControlPrint {
       } finally {
         gc.dispose();
       }
-      return image.getImageData();
+      return Pixels.read(image, control);
     } finally {
       image.dispose();
     }

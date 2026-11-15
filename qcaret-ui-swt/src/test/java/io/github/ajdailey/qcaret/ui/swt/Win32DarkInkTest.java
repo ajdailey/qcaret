@@ -227,7 +227,7 @@ class Win32DarkInkTest {
     GC gc = new GC(display);
     try {
       gc.copyArea(image, area.x, area.y);
-      return image.getImageData();
+      return Pixels.read(image, window.shell());
     } finally {
       gc.dispose();
       image.dispose();

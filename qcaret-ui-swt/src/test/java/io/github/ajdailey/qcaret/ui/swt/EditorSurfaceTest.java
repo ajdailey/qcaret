@@ -341,7 +341,7 @@ class EditorSurfaceTest {
     }
     // Control.print returns false under GTK 4 (SWT issue 2819: no offscreen draw of a control).
     assumeTrue(printed, "Control.print not supported here");
-    ImageData data = image.getImageData();
+    ImageData data = Pixels.read(image, text);
     image.dispose();
     RGB ink =
         new RGB(

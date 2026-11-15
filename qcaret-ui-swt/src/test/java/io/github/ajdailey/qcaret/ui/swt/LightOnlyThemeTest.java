@@ -123,7 +123,7 @@ class LightOnlyThemeTest {
     GC gc = new GC(display);
     try {
       gc.copyArea(image, corner.x, corner.y);
-      ImageData data = image.getImageData();
+      ImageData data = Pixels.read(image, window.statusBar());
       return new Color(data.palette.getRGB(data.getPixel(0, 0)));
     } finally {
       gc.dispose();

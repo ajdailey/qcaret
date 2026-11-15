@@ -396,7 +396,7 @@ class EditorColorsSurfaceTest {
     GC gc = new GC(image);
     try {
       assumeTrue(control.print(gc), "Control.print not supported here");
-      return image.getImageData();
+      return Pixels.read(image, control);
     } finally {
       gc.dispose();
       image.dispose();
@@ -408,7 +408,7 @@ class EditorColorsSurfaceTest {
     GC gc = new GC(image);
     try {
       assumeTrue(control.print(gc), "Control.print not supported here");
-      ImageData data = image.getImageData();
+      ImageData data = Pixels.read(image, control);
       return data.palette.getRGB(data.getPixel(x, y));
     } finally {
       gc.dispose();
