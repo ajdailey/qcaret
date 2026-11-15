@@ -19,17 +19,24 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * Keeps one editor view's bracket and occurrence highlights: the bracket beside the primary caret
  * with its partner, sought on the UI thread within the visible range and {@value
- * EditorController#BRACKET_SCAN} chars on each side and on a {@code qcaret-cpu-} worker beyond
- * that, and the whole-word occurrences of the word at the primary caret in the visible range, found
- * on a worker. Both are recomputed one UI turn after {@link #schedule}. An edit shifts both at
- * once. A result is dropped when a newer search replaced it or the document moved past its
- * revision; a bracket result also when the primary caret moved. Results go to the editor's current
- * view, so a search outlives a tab move, and a new view gets the ranges at once. Confined to the UI
- * thread.
+ * EditorController#BRACKET_SCAN} chars on each side, at most {@value #BRACKET_REACH} chars from the
+ * bracket, and on a {@code qcaret-cpu-} worker beyond that, and the whole-word occurrences of the
+ * word at the primary caret in the visible range, found on a worker. Both are recomputed one UI
+ * turn after {@link #schedule}. An edit shifts both at once. A result is dropped when a newer
+ * search replaced it or the document moved past its revision; a bracket result also when the
+ * primary caret moved. Results go to the editor's current view, so a search outlives a tab move,
+ * and a new view gets the ranges at once. Confined to the UI thread.
  */
 final class EditorHighlights implements DocumentListener {
   /** Occurrences of the word at the caret highlighted in one view at most. */
   static final int VIEW_OCCURRENCES = 2000;
+
+  /**
+   * Chars a UI-thread bracket search reads at most past its bracket, however much text the visible
+   * range spans: a folded view's range can reach the end of the text. 200 rows of 240 columns and
+   * {@value EditorController#BRACKET_SCAN} chars fit. A partner beyond is sought on a worker.
+   */
+  static final int BRACKET_REACH = 1 << 16;
 
   private final EditorController editor;
   private final Document document;
@@ -143,10 +150,7 @@ final class EditorHighlights implements DocumentListener {
       showBrackets(new int[0]);
       return;
     }
-    int scan = EditorController.BRACKET_SCAN;
-    int from = Math.max(0, Math.min(editor.visibleStart(), at) - scan);
-    int to = (int) Math.min(text.length(), (long) Math.max(editor.visibleEnd(), at + 1) + scan);
-    int partner = Brackets.match(text, at, pairs, from, to, new CancellationToken(), filter);
+    int partner = uiMatch(text, at, pairs, editor.visibleStart(), editor.visibleEnd(), filter);
     if (partner != Brackets.BEYOND) {
       showBrackets(bracketRanges(at, partner));
       return;
@@ -187,6 +191,38 @@ final class EditorHighlights implements DocumentListener {
     } catch (RejectedExecutionException e) {
       bracketSearch = null;
     }
+  }
+
+  /**
+   * Seeks a bracket's partner within the visible range and {@value EditorController#BRACKET_SCAN}
+   * chars on each side, reading at most {@value #BRACKET_REACH} chars past the bracket.
+   *
+   * @param text the text
+   * @param at the bracket's offset
+   * @param pairs the bracket pairs
+   * @param visibleStart the model offset of the first visible row
+   * @param visibleEnd the model offset after the last visible row
+   * @param filter the brackets that count
+   * @return the partner's offset, {@link Brackets#NONE} or {@link Brackets#BEYOND}
+   */
+  static int uiMatch(
+      TextSnapshot text,
+      int at,
+      Pairs pairs,
+      int visibleStart,
+      int visibleEnd,
+      Brackets.Filter filter) {
+    int scan = EditorController.BRACKET_SCAN;
+    long from = Math.max((long) at - BRACKET_REACH, (long) Math.min(visibleStart, at) - scan);
+    long to = Math.min((long) at + 1 + BRACKET_REACH, (long) Math.max(visibleEnd, at + 1) + scan);
+    return Brackets.match(
+        text,
+        at,
+        pairs,
+        (int) Math.max(0, from),
+        (int) Math.min(text.length(), to),
+        new CancellationToken(),
+        filter);
   }
 
   private static int[] bracketRanges(int at, int partner) {

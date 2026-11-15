@@ -195,8 +195,9 @@ changes nothing. An anchor follows the line while the prompt shows.
   only at the same revision and selections. A scroll does not end that search.
 - One UI turn after a caret move, an edit or a scroll, `EditorHighlights` gives
   the view the bracket beside the primary caret with its partner (sought on the
-  UI thread within the visible range and 16 Ki chars on each side, else on a
-  worker) and the whole-word occurrences of the word at the primary caret in
+  UI thread within the visible range and 16 Ki chars on each side, reading at
+  most 64 Ki chars from the bracket, else on a worker; a folded view's range
+  can reach the end of the text) and the whole-word occurrences of the word at the primary caret in
   the visible range (on a worker, at most 2,000, shown when there are two or
   more). An edit shifts both at once; a result for an older revision, or a
   bracket result after the primary caret moved, is dropped. A moved tab's new view shows both at once and computes them again.

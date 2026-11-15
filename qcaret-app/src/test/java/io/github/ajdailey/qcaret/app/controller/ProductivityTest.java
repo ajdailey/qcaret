@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.BlockSelection;
@@ -19,6 +20,8 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.document.UndoLimits;
+import io.github.ajdailey.qcaret.core.edit.Brackets;
+import io.github.ajdailey.qcaret.core.edit.Pairs;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.nio.charset.StandardCharsets;
@@ -441,6 +444,68 @@ class ProductivityTest {
     searchFarBracket();
     assertArrayEquals(new int[0], tab.shown.brackets);
     ui.runPending();
+    assertArrayEquals(new int[] {0, 1, close, close + 1}, tab.shown.brackets);
+  }
+
+  @Test
+  void aUiThreadBracketSearchReadsAtMostTheReachWhateverTheVisibleRange() {
+    String text = "(" + "()".repeat(EditorHighlights.BRACKET_REACH) + ")";
+    TextSnapshot snapshot = document(text).text();
+    final int[] read = {0};
+    Brackets.Filter counting =
+        new Brackets.Filter() {
+          @Override
+          public boolean counts(int offset) {
+            read[0]++;
+            return true;
+          }
+        };
+    int[] brackets = {0, text.length() - 1};
+    for (int at : brackets) {
+      read[0] = 0;
+      assertEquals(
+          Brackets.BEYOND,
+          EditorHighlights.uiMatch(snapshot, at, Pairs.DEFAULT, 0, text.length(), counting));
+      assertEquals(EditorHighlights.BRACKET_REACH, read[0]);
+    }
+  }
+
+  @Test
+  void aFoldedBracketPairPastTheReachIsFoundOnAWorker() throws InterruptedException {
+    StringBuilder text = new StringBuilder("x {\n");
+    int rows = EditorHighlights.BRACKET_REACH / 40 + 2;
+    for (int i = 0; i < rows; i++) {
+      text.append("  ").append("y".repeat(37)).append('\n');
+    }
+    text.append("}\n|");
+    open(text.toString());
+    final int close = document.text().length() - 2;
+    DisplayProjection p = editor.projection();
+    p.setFoldRegions(List.of(new int[] {0, rows}));
+    assertTrue(p.fold(0));
+    assertTrue(p.length() < 100);
+    editor.viewportChanged(0, p.length());
+    ui.runPending();
+    assertEquals(document.text().length(), editor.visibleEnd());
+    CountDownLatch gate = holdWorker();
+    selections.set(SelectionSet.caret(3));
+    ui.runPending();
+    assertArrayEquals(new int[0], tab.shown.brackets);
+    gate.countDown();
+    drainWorker();
+    ui.runPending();
+    assertArrayEquals(new int[] {2, 3, close, close + 1}, tab.shown.brackets);
+  }
+
+  @Test
+  void anOnScreenBracketPairPastTheScanMatchesOnTheUiThread() throws InterruptedException {
+    String inside = " ".repeat(EditorController.BRACKET_SCAN * 2);
+    open("|(" + inside + ")");
+    final int close = document.text().length() - 1;
+    CountDownLatch gate = holdWorker();
+    selections.set(SelectionSet.caret(1));
+    ui.runPending();
+    gate.countDown();
     assertArrayEquals(new int[] {0, 1, close, close + 1}, tab.shown.brackets);
   }
 
