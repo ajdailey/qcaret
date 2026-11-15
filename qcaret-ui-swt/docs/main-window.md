@@ -355,7 +355,8 @@ call in `ui.swt` or the launcher outside the same classes.
 | `fadesDisabledIcons` | - | - | yes | yes | `ToolIcons.showState` |
 | `sizesToolPictures` | - | - | - | yes | `ToolIcons.apply` (see [Icons](theme-and-icons.md#icons)) |
 | `switchesThemeLive` | - | - | yes | yes | `SwtThemeService.preferDark`, `showsNow` |
-| `followsSystemAppearance` | - | yes | - | - | `SwtThemeService`: `CocoaChrome` and polling, `open`, `showsNow` |
+| `followsSystemAppearance` | - | yes | - | - | `SwtThemeService`: `CocoaChrome`, `open`, `showsNow` |
+| `pollsSystemTheme` | yes | yes | - | - | `SwtThemeService`: reads `Display.isSystemDarkTheme()` every 500 ms under System |
 | `raisesLinkContrast` | - | - | yes | yes | `SwtThemeService.colorLink` and its `SWT.Settings` recolor |
 | `lightChecksUnderDark` | yes | - | - | - | `SwtThemeService.check` |
 | `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
