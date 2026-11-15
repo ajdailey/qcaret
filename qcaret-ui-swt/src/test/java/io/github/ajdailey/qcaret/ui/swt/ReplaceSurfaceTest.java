@@ -177,10 +177,10 @@ class ReplaceSurfaceTest {
     controller.execute(CommandId.HYPERSEARCH);
     drain();
     SearchDialog dialog = window.searchDialog();
-    dialog.text().setText(text);
+    dialog.text().text().setText(text);
     dialog.scope().select(SearchScope.TREE.ordinal());
     dialog.scope().notifyListeners(SWT.Selection, new Event());
-    dialog.directory().setText(directory.toString());
+    dialog.directory().text().setText(directory.toString());
     final ResultsInput results = controller.search();
     dialog.search();
     await(

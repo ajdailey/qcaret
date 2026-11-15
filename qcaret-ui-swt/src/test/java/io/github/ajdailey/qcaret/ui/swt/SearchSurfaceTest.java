@@ -159,11 +159,11 @@ class SearchSurfaceTest {
     drain();
     SearchDialog dialog = window.searchDialog();
     assertNotNull(dialog);
-    dialog.text().setText(text);
+    dialog.text().text().setText(text);
     dialog.scope().select(scope.ordinal());
     dialog.scope().notifyListeners(SWT.Selection, new Event());
     if (directory != null) {
-      dialog.directory().setText(directory.toString());
+      dialog.directory().text().setText(directory.toString());
     }
     final ResultsInput results = controller.search();
     final int before = results.setCount();
@@ -381,7 +381,7 @@ class SearchSurfaceTest {
     assertEquals(size, field.getSize());
     controller.execute(CommandId.HYPERSEARCH);
     drain();
-    assertEquals(history.items(), List.of(window.searchDialog().text().getItems()));
+    assertEquals(history.items(), window.searchDialog().text().items());
     window.searchDialog().shell().close();
   }
 

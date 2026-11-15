@@ -78,6 +78,15 @@ final class RecoveryController implements RecoveryInput {
    */
   private static final AtomicLong OPENED = new AtomicLong();
 
+  /** File key of a recorded base's stamp; equal to no file system's key. */
+  static final Object RECORDED_KEY =
+      new Object() {
+        @Override
+        public String toString() {
+          return "recorded";
+        }
+      };
+
   private final WindowSet set;
   private final Workers workers;
   private final UiDispatcher ui;
@@ -605,11 +614,12 @@ final class RecoveryController implements RecoveryInput {
 
   /**
    * Returns the baseline a recovered buffer starts from: the file as it stands when it still holds
-   * the buffer's base, else the recorded base, which shows the change and makes a save ask. A file
-   * the buffer never matched gets a stamp that matches no file; so does a file that cannot be read.
+   * the buffer's base, else the recorded base, which shows the change and makes a save ask. The
+   * recorded base's stamp carries {@link #RECORDED_KEY}, so it equals no file's stamp: a file that
+   * cannot be read keeps its size and time, and Windows gives no file key.
    */
   @WorkerThread
-  private static FileBaseline baseline(RecoveryFile.Header header, Path real) {
+  static FileBaseline baseline(RecoveryFile.Header header, Path real) {
     try {
       FileBaseline now = FileCheck.read(real, new CancellationToken());
       if (now == null || now.digest().equals(header.baseSha256())) {
@@ -625,7 +635,7 @@ final class RecoveryController implements RecoveryInput {
       LOG.debug("A recovery file names no base time");
     }
     return new FileBaseline(
-        new FileStamp(header.baseSize(), modified, null),
+        new FileStamp(header.baseSize(), modified, RECORDED_KEY),
         header.baseSha256(),
         System.currentTimeMillis());
   }

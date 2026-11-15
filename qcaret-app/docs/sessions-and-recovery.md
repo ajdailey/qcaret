@@ -227,7 +227,10 @@ the dialog shows in the window activated last.
 `addRecovered` opens the buffer dirty and writes nothing. When the original
 still holds the buffer's base, the document takes the file's current baseline;
 otherwise, or when the file cannot be read, it keeps the recorded base, so
-`ExternalChanges` shows the change prompt and a save asks first. A clean tab of
+`ExternalChanges` shows the change prompt and a save asks first. The recorded
+base's stamp carries a file key no file has (`RecoveryController.RECORDED_KEY`).
+Do not use a null key: Windows gives no file key, so the stamp would equal an
+unreadable original's and `SafeSave` would replace it without asking. A clean tab of
 the file gives way, in the window holding it; a dirty one keeps its text and
 the row stays. Any other buffer opens in the window activated last.
 

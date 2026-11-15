@@ -25,7 +25,9 @@ import org.eclipse.swt.widgets.Text;
  * and Down move its highlight without changing the text, Enter closes it and puts the highlighted
  * entry in the field, Esc closes it only, and a click on an entry chooses it. A click elsewhere, a
  * focus change, and a move, resize or deactivation of the window close it. Each consumes its key,
- * so key listeners added after this field's see {@code doit} false.
+ * so key listeners added after this field's see {@code doit} false; while the list shows, Enter and
+ * Esc do not traverse, so a dialog neither presses its default button nor closes. Tab skips the
+ * arrow.
  *
  * <p>The list is QCaret's own shell, not a native drop-down: a cocoa {@code NSComboBox} list runs a
  * tracking loop on the UI thread that outlives its window and keeps the process running after a
@@ -65,6 +67,7 @@ final class HistoryField {
     text.setLayoutData(data);
     arrow = new Button(control, SWT.ARROW | SWT.DOWN);
     arrow.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, true));
+    control.setTabList(new Control[] {text});
     outside =
         new Listener() {
           @Override
@@ -78,6 +81,17 @@ final class HistoryField {
   }
 
   private void listen() {
+    text.addListener(
+        SWT.Traverse,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (listVisible()
+                && (event.detail == SWT.TRAVERSE_RETURN || event.detail == SWT.TRAVERSE_ESCAPE)) {
+              event.doit = false;
+            }
+          }
+        });
     text.addListener(
         SWT.KeyDown,
         new Listener() {

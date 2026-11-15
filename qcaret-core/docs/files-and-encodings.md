@@ -82,7 +82,9 @@ a worker.
    file, so a `ContentWriter` need not; a cancel before the move leaves the
    target unchanged and deletes the temporary file.
 5. The target is written in place (truncate, write, force) when it has more
-   than one hard link, its owner differs from the temporary file's, the user
+   than one hard link (Linux and macOS: `unix:nlink`; Windows has no link
+   count, so a save there replaces a hard-linked file and splits the link),
+   its owner differs from the temporary file's, the user
    cannot give the temporary file its group, its directory is not writable, or
    the move fails five times 100 ms apart (Windows sharing violations). The
    token is checked before the truncate and never after it: an in-place write

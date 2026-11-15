@@ -179,6 +179,13 @@ color that shows the caret color over the current line:
 Under difference, a channel the background cannot reach shows the nearest
 value: the dark palette's amber shows red 0xdd for 0xf3.
 
+On cocoa the caret after a combining mark paints one cluster right of its
+offset; the offset, and so typing, is right. `StyledText.getPointAtOffset` takes
+the trailing edge of `TextLayout.getPreviousOffset(offset, MOVEMENT_CLUSTER)`,
+and cocoa's `TextLayout` steps one char there (an SWT `TODO`), so it measures
+from the mark. This is an SWT defect, not worked around; arrow moves still step
+by cluster (`Clusters`).
+
 ## Fonts and widget caches
 
 Every resize and font change sends the columns that fit the text area for word

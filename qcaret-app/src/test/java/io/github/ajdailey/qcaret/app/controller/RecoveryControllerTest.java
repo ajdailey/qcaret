@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,12 +25,18 @@ import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadReservation;
+import io.github.ajdailey.qcaret.core.io.FileStamp;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryPermission;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -360,18 +367,90 @@ class RecoveryControllerTest {
     assertEquals("mock alpha\n", Files.readString(a));
   }
 
-  /** The buffer restores on the recorded base, so a save still asks before it replaces the file. */
+  /**
+   * Takes read access to a file away: POSIX permissions, else a Windows deny entry for the user.
+   */
+  private static List<AclEntry> denyRead(Path file) throws IOException {
+    if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("---------"));
+      return null;
+    }
+    AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
+    assumeTrue(view != null, "no POSIX or ACL view");
+    List<AclEntry> before = view.getAcl();
+    UserPrincipal user =
+        file.getFileSystem()
+            .getUserPrincipalLookupService()
+            .lookupPrincipalByName(System.getProperty("user.name"));
+    List<AclEntry> denied = new ArrayList<AclEntry>();
+    denied.add(
+        AclEntry.newBuilder()
+            .setType(AclEntryType.DENY)
+            .setPrincipal(user)
+            .setPermissions(AclEntryPermission.READ_DATA)
+            .build());
+    denied.addAll(before);
+    view.setAcl(denied);
+    return before;
+  }
+
+  /** Gives back what {@link #denyRead} took. */
+  private static void allowRead(Path file, List<AclEntry> before) throws IOException {
+    if (before == null) {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+    } else {
+      Files.getFileAttributeView(file, AclFileAttributeView.class).setAcl(before);
+    }
+  }
+
+  /**
+   * The recorded base's stamp equals no file's stamp, also one without a file key: Windows gives
+   * none, so a recorded base with a null key matched an unreadable original and a save of the
+   * restored buffer replaced it without asking.
+   */
+  @Test
+  void aRecordedBaseMatchesNoFileStamp() throws Exception {
+    Path a = file("a.txt", "alpha\n");
+    FileStamp now = FileStamp.read(a);
+    RecoveryFile.Header header =
+        new RecoveryFile.Header(
+            "b1",
+            a.toString(),
+            "",
+            "2026-11-05T10:00:00Z",
+            "2026-11-05T10:00:30Z",
+            1,
+            "UTF-8",
+            false,
+            "LF",
+            now.size(),
+            now.modified().toInstant().toString(),
+            "ab".repeat(32),
+            "",
+            "",
+            "");
+    FileStamp base = RecoveryController.baseline(header, a).stamp();
+    assertEquals(now.size(), base.size());
+    assertEquals(now.modified().toMillis(), base.modified().toMillis());
+    assertNotEquals(now, base);
+    assertNotEquals(new FileStamp(now.size(), now.modified(), null), base);
+  }
+
+  /**
+   * The buffer of an unreadable original restores on the recorded base, so a save asks before it
+   * replaces the file; the tab stays dirty and the file keeps its bytes.
+   */
   @Test
   void anUnreadableOriginalIsListedAndItsBufferRestores() throws Exception {
-    assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"));
     Path a = file("a.txt", "alpha\n");
     Harness first = start(false);
     first.open(a);
     edit(first, "mock ");
     end(first);
-    Files.setPosixFilePermissions(a, PosixFilePermissions.fromString("---------"));
+    List<AclEntry> acl = denyRead(a);
+    Document document;
     try {
-      assumeFalse(Files.isReadable(a), "running as root");
+      assumeFalse(Files.isReadable(a), "running as root or an administrator");
       final Harness second = start(false);
       second.await(offered(second), "the dialog");
       List<RecoveryRow> rows = second.view.recovery.rows();
@@ -380,7 +459,7 @@ class RecoveryControllerTest {
       second.view.recovery.restore(new int[] {0});
       second.await(rowsLeft(second, 0), "restored");
       second.awaitIdle("restore");
-      Document document = second.application.documents().activeDocument();
+      document = second.application.documents().activeDocument();
       assertEquals("mock alpha\n", document.text().toString());
       assertTrue(document.isDirty());
       assertEquals(a, second.application.documents().activePath());
@@ -394,8 +473,10 @@ class RecoveryControllerTest {
           },
           "the save conflict");
     } finally {
-      Files.setPosixFilePermissions(a, PosixFilePermissions.fromString("rw-------"));
+      allowRead(a, acl);
     }
+    assertTrue(document.isDirty());
+    assertEquals("alpha\n", Files.readString(a));
   }
 
   private static BooleanSupplier offered(final Harness harness) {

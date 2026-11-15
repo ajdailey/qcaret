@@ -115,6 +115,7 @@ test case.
 | Class | Covers |
 |---|---|
 | `SearchSurfaceTest` | Two tree searches from the dialog into the dock with the rows newest first, a group expanded, a match opened with Enter and F4 to another file; the strip's find marks, a click on the strip scrolling there, the slider following that, its own moves and the wheel over the text, the slider and the strip, hiding and showing the strip, its recolor on a theme switch and a strip in each split view, the slider following Page Down and Fold All; both find bar fields listing the saved history, the field's width with a 1,000-char entry, HyperSearch listing the same texts; the history list opened by the arrow and Down, Up and Down moving its highlight without a search, Enter finding the highlighted entry, Esc closing only the list, and its shell gone after a quit |
+| `SearchDialogHistoryTest` | Each HyperSearch history field (text, directory, include masks): its saved entries, the tab order skipping the arrow, the width, the list opened by the arrow, Up and Down moving its highlight without changing the text, Enter choosing the entry and Esc closing the list without pressing Search or closing the dialog, and the list's shell gone with the dialog; with the list closed Enter searches and Esc closes the dialog; a quit with a list open leaves no shell. Keys go through a `Traverse` event first, as SWT sends them, since a dialog's Enter and Esc act at the traversal |
 | `ResultRowsTest` | Row paths through expansion, expansion kept by set id, groups collapsed when a search ends |
 | `ReplaceSurfaceTest` | The preview opened from the dock over a tree search, a typed replacement, an unchecked match, Apply, the report's rows and the files, the run restored from the report |
 | `BookmarksSurfaceTest` | A plain bookmark's bar and a commented bookmark's flag in pixels, by color and by x range, in both themes; the tooltip over the gutter and its absence elsewhere; the comment prompt; the list's cells, Go To, Edit Comment, Remove and Hide; both docks shown at once |
@@ -175,6 +176,7 @@ shown and hidden. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
 | `WorkspaceSurfaceTest` | `workspace-browser.png`, `quick-open-empty.png`, `quick-open.png` |
 | `WorkspaceBrowseSurfaceTest`, `WorkspaceFilesSurfaceTest`, `WorkspaceMultiSelectTest` | The browser with a filter and a size sort, the row menu, the rename dialog and delete prompts, in light and dark |
 | `SearchSurfaceTest` | `find-history.png` |
+| `SearchDialogHistoryTest` | `hypersearch-history-light.png`, `hypersearch-history-dark.png` |
 | `EditorColorsSurfaceTest` | Both mixed theme and editor color combinations |
 | `GoToSymbolSurfaceTest` | `go-to-symbol-light.png`, `go-to-symbol-dark.png` |
 | `CompareSurfaceTest` | `change-prompt.png`, `diff-view.png` (the whole screen) |

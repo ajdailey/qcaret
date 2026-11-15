@@ -212,9 +212,12 @@ open; that list also takes no Enter and searches on each highlight.
 `SearchDialog` (Search > HyperSearch) is modal: the text with its history,
 Match case, Whole word, Regex, the scope, the workspace folder, the directory
 with its history and Browse, the include masks with their history, the exclude
-masks and Hidden files. The directory fields are enabled for the directory
-scopes, the masks for the folder scopes. Search passes a `SearchForm` to the
-controller and closes.
+masks and Hidden files. The text, directory and include fields are
+`HistoryField`s; while a list is open, Enter and Escape go to it and do not
+traverse, so they neither press Search nor close the dialog. The scope is a
+read-only `Combo`. The directory fields are enabled for the directory scopes,
+the masks for the folder scopes. Search passes a `SearchForm` to the controller
+and closes.
 
 ## Results dock
 

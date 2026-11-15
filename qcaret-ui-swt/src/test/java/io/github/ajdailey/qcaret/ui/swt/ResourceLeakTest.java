@@ -294,7 +294,7 @@ class ResourceLeakTest {
   private void searchAndStrip() {
     controller.execute(CommandId.HYPERSEARCH);
     drain();
-    window.searchDialog().text().setText("line " + (cycles % 3));
+    window.searchDialog().text().text().setText("line " + (cycles % 3));
     window.searchDialog().search();
     final ResultsInput results = controller.search();
     assertTrue(

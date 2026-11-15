@@ -25,6 +25,7 @@ Preferences, Keys changes them.
 - [Preferences](#preferences)
 - [Help and logs](#help-and-logs)
 - [Command line](#command-line)
+- [Known issues](#known-issues)
 
 ## Opening files
 
@@ -112,9 +113,11 @@ no default key elsewhere, since AltGr arrives as Ctrl+Alt on Windows) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
 as it was. A save writes a temporary file and moves it over the target, keeps
 the file's permissions and group, and follows a symbolic link. A file you have
-no write permission for is not saved, and a message says so. A file with hard
-links, or in a folder you cannot write to, is written directly; once that write
-has begun, `Esc` does not stop it. Save As onto a file open
+no write permission for is not saved, and a message says so. A file in a folder
+you cannot write to is written in place, and so is a file with hard links on
+Linux and macOS, which keeps its links; once an in-place write has begun, `Esc`
+does not stop it. On Windows a save replaces a hard-linked file and splits the
+link: its other names keep the old text. Save As onto a file open
 in another tab closes that tab, after asking when the tab has unsaved changes.
 
 File > Save a Copy As writes the current text, unsaved changes included, to
@@ -431,7 +434,9 @@ in the results dock while you work.
 | Directory | The files of one directory |
 | Directory and subdirectories | A directory's tree |
 
-Files and Exclude take masks separated by `;`, such as `*.java;*.xml`. Open
+The text, directory and Files fields keep a history, opened and used as in the
+find bar; Enter and `Esc` in an open list do not run the search or close the
+dialog. Files and Exclude take masks separated by `;`, such as `*.java;*.xml`. Open
 documents are searched as edited, in every scope, so a folder search reads an
 unsaved buffer and not its file.
 
@@ -957,3 +962,9 @@ qcaret +120:8 src/Mock.java -r notes.txt
 ```
 
 To give QCaret more heap for large files, see [Large files](#large-files).
+
+## Known issues
+
+- On macOS the caret is drawn one character to the right of its position after
+  a letter with a combining mark, such as `e` followed by U+0301. Typed text
+  goes to the right place.

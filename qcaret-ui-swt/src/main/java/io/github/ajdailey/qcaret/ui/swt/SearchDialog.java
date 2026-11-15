@@ -24,18 +24,22 @@ import org.eclipse.swt.widgets.Text;
  * masks and Hidden Files. The directory fields are enabled for the directory scopes, the masks for
  * every folder scope. Search passes the fields to the answer and closes; Cancel and Esc close
  * without an answer. Opens without a nested event loop; Browse runs the native folder chooser,
- * which has one.
+ * which has one. Each history field is a {@link HistoryField}, not a drop-down {@code Combo}.
  */
 final class SearchDialog {
   private final Shell shell;
-  private final Combo text;
+
+  /** Width of each history field, text and arrow. */
+  static final int FIELD_WIDTH = 380;
+
+  private final HistoryField text;
   private final Button matchCase;
   private final Button wholeWord;
   private final Button regex;
   private final Combo scope;
-  private final Combo directory;
+  private final HistoryField directory;
   private final Button browse;
-  private final Combo include;
+  private final HistoryField include;
   private final Text exclude;
   private final Button hidden;
   private final SearchForm form;
@@ -49,7 +53,7 @@ final class SearchDialog {
     layout.marginHeight = 0;
     fields.setLayout(layout);
     fields.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-    text = combo(fields, UiText.FIND_LABEL, form.textHistory(), form.text(), 2);
+    text = history(fields, UiText.FIND_LABEL, form.textHistory(), form.text(), 2);
     Composite options = new Composite(fields, SWT.NONE);
     options.setLayout(new GridLayout(3, false));
     options.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
@@ -69,8 +73,9 @@ final class SearchDialog {
             ? UiText.SEARCH_WORKSPACE_NONE.text()
             : UiText.SEARCH_WORKSPACE.format(form.workspace()).replace("&", "&&"));
     workspace.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
-    directory = combo(fields, UiText.SEARCH_DIRECTORY_LABEL, form.directoryHistory(), "", 1);
-    directory.setText(form.directory());
+    directory =
+        history(
+            fields, UiText.SEARCH_DIRECTORY_LABEL, form.directoryHistory(), form.directory(), 1);
     browse = new Button(fields, SWT.PUSH);
     browse.setText(UiText.SEARCH_BROWSE.text());
     browse.addListener(
@@ -81,7 +86,7 @@ final class SearchDialog {
             browse();
           }
         });
-    include = combo(fields, UiText.SEARCH_INCLUDE_LABEL, form.maskHistory(), form.include(), 2);
+    include = history(fields, UiText.SEARCH_INCLUDE_LABEL, form.maskHistory(), form.include(), 2);
     label(fields, UiText.SEARCH_EXCLUDE_LABEL);
     exclude = new Text(fields, SWT.SINGLE | SWT.BORDER);
     exclude.setText(form.exclude());
@@ -120,18 +125,16 @@ final class SearchDialog {
     return label;
   }
 
-  private static Combo combo(
+  private static HistoryField history(
       Composite parent, UiText text, List<String> history, String value, int span) {
     label(parent, text);
-    Combo combo = new Combo(parent, SWT.DROP_DOWN);
-    for (String item : history) {
-      combo.add(item);
-    }
-    combo.setText(value);
-    GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1);
-    data.widthHint = 380;
-    combo.setLayoutData(data);
-    return combo;
+    HistoryField field = new HistoryField(parent, FIELD_WIDTH);
+    ((GridData) field.text().getLayoutData()).widthHint =
+        FIELD_WIDTH - field.arrow().computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+    field.control().setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1));
+    field.setItems(history);
+    field.text().setText(value);
+    return field;
   }
 
   private static Button check(Composite parent, UiText text, boolean selected) {
@@ -150,32 +153,40 @@ final class SearchDialog {
   private void syncScope() {
     SearchScope chosen = selectedScope();
     boolean directories = chosen == SearchScope.DIRECTORY || chosen == SearchScope.TREE;
-    directory.setEnabled(directories);
+    enable(directory, directories);
     browse.setEnabled(directories);
-    include.setEnabled(chosen.folder());
+    enable(include, chosen.folder());
     exclude.setEnabled(chosen.folder());
     hidden.setEnabled(chosen.folder());
   }
 
+  private static void enable(HistoryField field, boolean enabled) {
+    if (!enabled) {
+      field.hide();
+    }
+    field.text().setEnabled(enabled);
+    field.arrow().setEnabled(enabled);
+  }
+
   private void browse() {
     DirectoryDialog chooser = new DirectoryDialog(shell);
-    chooser.setFilterPath(directory.getText());
+    chooser.setFilterPath(directory.text().getText());
     String chosen = chooser.open();
-    if (chosen != null && !directory.isDisposed()) {
-      directory.setText(chosen);
+    if (chosen != null && !directory.text().isDisposed()) {
+      directory.text().setText(chosen);
     }
   }
 
   /** Reads the fields. */
   SearchForm fields() {
     return new SearchForm(
-        text.getText(),
+        text.text().getText(),
         regex.getSelection(),
         matchCase.getSelection(),
         wholeWord.getSelection(),
         selectedScope(),
-        directory.getText(),
-        include.getText(),
+        directory.text().getText(),
+        include.text().getText(),
         exclude.getText(),
         hidden.getSelection(),
         form.workspace(),
@@ -186,14 +197,14 @@ final class SearchDialog {
 
   void open() {
     Dialogs.open(shell, SWT.DEFAULT, SWT.DEFAULT);
-    text.setFocus();
+    text.text().setFocus();
   }
 
   Shell shell() {
     return shell;
   }
 
-  Combo text() {
+  HistoryField text() {
     return text;
   }
 
@@ -201,11 +212,11 @@ final class SearchDialog {
     return scope;
   }
 
-  Combo directory() {
+  HistoryField directory() {
     return directory;
   }
 
-  Combo include() {
+  HistoryField include() {
     return include;
   }
 
