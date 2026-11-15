@@ -222,7 +222,7 @@ class Win32DarkDialogsTest {
     settle();
     Rectangle bounds = dialog.getBounds();
     Point client = dialog.toDisplay(0, 0);
-    ImageData whole = capture(bounds);
+    ImageData whole = capture(bounds, dialog);
     int titleRow = Math.max(1, (client.y - bounds.y) / 2);
     report.append("title bar row=" + titleRow + " " + hex(rowMode(whole, titleRow)) + "\n");
     RGB title = rowMode(whole, titleRow);
@@ -319,7 +319,7 @@ class Win32DarkDialogsTest {
     about.forceActive();
     settle();
     walkCheck(about, unreadable);
-    save("about-" + name, capture(about.getBounds()));
+    save("about-" + name, capture(about.getBounds(), about));
     about.dispose();
     settle();
     controller.execute(CommandId.PREFERENCES);
@@ -330,7 +330,7 @@ class Win32DarkDialogsTest {
       folder.setSelection(i);
       settle();
       walkCheck(folder.getItem(i).getControl(), unreadable);
-      save("preferences-" + i + "-" + name, capture(preferences.getBounds()));
+      save("preferences-" + i + "-" + name, capture(preferences.getBounds(), preferences));
       report.setLength(0);
     }
     assertTrue(unreadable.isEmpty(), "unreadable " + unreadable);
@@ -408,7 +408,7 @@ class Win32DarkDialogsTest {
     if (area.width <= 2 * INSET || area.height <= 2 * INSET || !control.isVisible()) {
       return null;
     }
-    ImageData data = capture(area);
+    ImageData data = capture(area, control);
     RGB ground = mode(data, INSET);
     RGB ink = strongest(data, ground);
     report.append(
@@ -442,12 +442,12 @@ class Win32DarkDialogsTest {
     return new Rectangle(origin.x, origin.y, size.x, size.y);
   }
 
-  private ImageData capture(Rectangle area) {
+  private ImageData capture(Rectangle area, Control on) {
     Image image = new Image(display, area.width, area.height);
     GC gc = new GC(display);
     try {
       gc.copyArea(image, area.x, area.y);
-      return Pixels.read(image, window.shell());
+      return Pixels.read(image, on);
     } finally {
       gc.dispose();
       image.dispose();
