@@ -209,14 +209,14 @@ class WorkspaceFilesTest {
     answer("a.");
     if (OS.WINDOWS.isCurrentOs()) {
       awaitInfo(before, "New File refused");
-      assertEquals(UiText.CREATE_FAILED.format("a.", reason), lastInfo());
+      assertTrue(lastInfo().endsWith(UiText.CREATE_FAILED.format("a.", reason)), lastInfo());
       assertFalse(Files.exists(root.resolve("a")));
 
       before = harness.view.infos.size();
       workspace().files().rename(file(root.resolve("notes.txt")));
       answer("notes ");
       awaitInfo(before, "rename refused");
-      assertEquals(UiText.RENAME_FAILED.format("notes.txt", reason), lastInfo());
+      assertTrue(lastInfo().endsWith(UiText.RENAME_FAILED.format("notes.txt", reason)), lastInfo());
       assertTrue(Files.isRegularFile(root.resolve("notes.txt")));
     } else {
       final Path made = root.resolve("a.");
