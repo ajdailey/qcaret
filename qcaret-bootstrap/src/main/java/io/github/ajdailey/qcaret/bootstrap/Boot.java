@@ -64,6 +64,9 @@ public final class Boot {
     if (decision == MacRelaunch.Decision.RELAUNCH) {
       return MacRelaunch.relaunch(jar, args);
     }
+    if ("true".equals(System.getProperty(MacRelaunch.RELAUNCHED))) {
+      MacRelaunch.watchParent(System.in);
+    }
     return run(target, jar, env, args);
   }
 

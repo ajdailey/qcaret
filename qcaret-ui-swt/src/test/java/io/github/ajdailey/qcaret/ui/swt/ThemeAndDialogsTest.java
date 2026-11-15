@@ -347,9 +347,9 @@ class ThemeAndDialogsTest {
   }
 
   /**
-   * A tree's header takes the window and text colors while the appearance differs, as a table's
-   * does: the workspace browser's header labels kept the startup text color, black on dark. Back in
-   * the startup appearance a check box loses its clear background: it kept a dark one in light.
+   * A tree's header takes the list and text colors while the appearance differs: the workspace
+   * browser's header labels kept the startup text color, black on dark. Back in the startup
+   * appearance a check box loses its clear background: it kept a dark one in light.
    */
   @Test
   void cocoaChromeColorsTreeHeadersAndRestoresCheckBoxes() {
@@ -357,19 +357,59 @@ class ThemeAndDialogsTest {
     Tree tree = new Tree(shell, SWT.NONE);
     tree.setHeaderVisible(true);
     Button check = new Button(shell, SWT.CHECK);
-    RGB headerBefore = tree.getHeaderForeground().getRGB();
     RGB checkBefore = check.getBackground().getRGB();
     CocoaChrome chrome = new CocoaChrome(display, false);
     try {
       chrome.apply(true);
       assertEquals(new RGB(0xff, 0xff, 0xff), tree.getHeaderForeground().getRGB());
-      assertEquals(new RGB(0x32, 0x32, 0x32), tree.getHeaderBackground().getRGB());
+      assertEquals(new RGB(0x1e, 0x1e, 0x1e), tree.getHeaderBackground().getRGB());
     } finally {
       chrome.apply(false);
     }
-    assertEquals(headerBefore, tree.getHeaderForeground().getRGB());
+    assertEquals(
+        display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB(),
+        tree.getHeaderForeground().getRGB());
     assertEquals(checkBefore, check.getBackground().getRGB());
     shell.dispose();
+  }
+
+  /**
+   * A table's header gets explicit colors at creation, in the startup appearance too, and keeps its
+   * header visible through each switch: on cocoa a null header draws blank labels in dark, and a
+   * table header repaints new colors only when shown again.
+   */
+  @Test
+  void cocoaChromeGivesTableHeadersExplicitColorsInEveryAppearance() {
+    CocoaChrome chrome = new CocoaChrome(display, false);
+    Shell shell = new Shell(display);
+    try {
+      final Table table = new Table(shell, SWT.NONE);
+      table.setHeaderVisible(true);
+      assertTrue(
+          EventLoop.runUntil(
+              display,
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return Boolean.FALSE.equals(table.getData(CocoaChrome.HEADER_DARK));
+                }
+              },
+              BOUND));
+      chrome.apply(true);
+      assertEquals(Boolean.TRUE, table.getData(CocoaChrome.HEADER_DARK));
+      assertEquals(new RGB(0x1e, 0x1e, 0x1e), table.getHeaderBackground().getRGB());
+      assertEquals(new RGB(0xff, 0xff, 0xff), table.getHeaderForeground().getRGB());
+      assertTrue(table.getHeaderVisible());
+      chrome.apply(false);
+      assertEquals(Boolean.FALSE, table.getData(CocoaChrome.HEADER_DARK));
+      assertEquals(
+          display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(),
+          table.getHeaderBackground().getRGB());
+      assertTrue(table.getHeaderVisible());
+    } finally {
+      chrome.apply(false);
+      shell.dispose();
+    }
   }
 
   /** The editor, the tab strip and the palette's owners keep their colors; the tree recolors. */

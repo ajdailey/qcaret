@@ -77,6 +77,24 @@ class BootstrapArchitectureTest {
   }
 
   @Test
+  void onlyTheParentWatchCallsRuntimeExit() {
+    onlyTheParentWatchCallsRuntimeExitRule().check(classes);
+  }
+
+  /**
+   * {@code Runtime.exit} runs the shutdown hooks like {@code System.exit}; only the relaunched
+   * child's parent watch in {@link MacRelaunch} calls it, since that child cannot reach {@link
+   * Main}.
+   */
+  private static ArchRule onlyTheParentWatchCallsRuntimeExitRule() {
+    return noClasses()
+        .that()
+        .doNotBelongToAnyOf(MacRelaunch.class)
+        .should()
+        .callMethod(Runtime.class, "exit", int.class);
+  }
+
+  @Test
   void osNameOnlyInTarget() {
     osNameOnlyInTargetRule().check(classes);
   }
@@ -133,6 +151,8 @@ class BootstrapArchitectureTest {
         "ProcessBuilder",
         "Runtime.exec");
     assertViolations(onlyMainExitsRule(), fixtures + "Exits", "System.exit");
+    assertViolations(
+        onlyTheParentWatchCallsRuntimeExitRule(), fixtures + "RuntimeExits", "Runtime.exit");
     assertViolations(osNameOnlyInTargetRule(), fixtures + "ReadsOsName", "os.name");
   }
 

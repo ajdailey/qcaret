@@ -98,6 +98,16 @@ child's status. A relaunched process that is still off the main thread prints
 `QCaret could not start on the macOS main thread.` and exits 2. JVM options of
 the first process are not carried over.
 
+The child ends with the parent:
+
+| Parent ends by | Child |
+|---|---|
+| SIGTERM or SIGINT | The parent's shutdown hook sends the child SIGTERM and waits up to 5 s for it |
+| SIGKILL or a crash | The child's standard input, a pipe the parent holds and never writes, reaches end of file; a daemon thread in the child then exits 143, running the shutdown hooks |
+
+The child's standard input is therefore never the terminal. Standard output and
+error are inherited.
+
 ## Testing
 
 | Class | Covers |
@@ -107,4 +117,5 @@ the first process are not carried over.
 | `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (a Linux marker beside `bin/qcaret`, the installation directory's winning), `LocalAppData` matched ignoring case, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
 | `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
 | `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |
-| `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`, the string `os.name` only in `Target`; each rule shown to fail on a fixture class |
+| `RelaunchTest` | A relaunch parent killed with `Process.destroy` (SIGTERM; the child gone when the parent has exited) and `destroyForcibly` (SIGKILL; the child gone within a bound). On macOS the parent runs the real relaunch with `-XstartOnFirstThread` over a generated jar; elsewhere it runs the child through `MacRelaunch.run`. On Windows both kills terminate the parent without hooks, so both take the standard input path |
+| `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`, `Runtime.exit` only in `MacRelaunch`'s parent watch, the string `os.name` only in `Target`; each rule shown to fail on a fixture class |

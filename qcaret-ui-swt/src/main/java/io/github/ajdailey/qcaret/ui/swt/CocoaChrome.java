@@ -28,10 +28,14 @@ import org.eclipse.swt.widgets.Tree;
  * differs from the one at startup, each shell's background is the window color of the current
  * appearance, forced onto its children. That inheritance stops at a {@link TabFolder}, so check
  * boxes turn transparent over its native panel, its titles get the text color, and tables, trees,
- * lists and text fields get the list colors, with table and tree headers in the window and text
- * colors. Back in the startup appearance every color returns to the default. Menus stay native, and
- * a {@link Canvas} that paints from the palette keeps its colors, as does a control with {@link
- * EditorPane#PALETTE_COLORED} set.
+ * lists and text fields get the list colors. Back in the startup appearance every color returns to
+ * the default. Menus stay native, and a {@link Canvas} that paints from the palette keeps its
+ * colors, as does a control with {@link EditorPane#PALETTE_COLORED} set.
+ *
+ * <p>Table and tree headers always carry explicit list colors of the current appearance, from
+ * creation on: a null header draws blank labels in dark. In the startup appearance they are the
+ * Display's list colors, the header's own default. A visible {@link Table} header repaints new
+ * colors only when shown again, so a change hides and shows it; a {@link Tree} repaints at once.
  *
  * <p>A control created during such a change, as the docks' replaced tables are, takes its colors
  * from {@link SWT#Skin}. Each control of a recolored shell receives {@link SWT#Settings}, since the
@@ -47,6 +51,9 @@ final class CocoaChrome {
   private static final Color LIGHT_LIST = new Color(0xff, 0xff, 0xff);
   private static final Color LIGHT_TEXT = new Color(0, 0, 0);
   private static final Color CLEAR = new Color(0, 0, 0, 0);
+
+  /** Data key on a table: true when its header colors are those of dark. */
+  static final String HEADER_DARK = CocoaChrome.class.getName() + ".headerDark";
 
   private final Display display;
   private final boolean startDark;
@@ -77,10 +84,12 @@ final class CocoaChrome {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if (event.widget instanceof Control control
-                && !(control instanceof Shell)
-                && differs()) {
-              style(control);
+            if (event.widget instanceof Control control && !(control instanceof Shell)) {
+              if (differs()) {
+                style(control);
+              } else {
+                header(control);
+              }
             }
           }
         });
@@ -122,7 +131,6 @@ final class CocoaChrome {
     if (control.getData(EditorPane.PALETTE_COLORED) != null) {
       return;
     }
-    Color window = differs() ? (dark ? DARK_WINDOW : LIGHT_WINDOW) : null;
     Color list = differs() ? (dark ? DARK_LIST : LIGHT_LIST) : null;
     Color text = differs() ? (dark ? DARK_TEXT : LIGHT_TEXT) : null;
     if (control instanceof CTabFolder tabs) {
@@ -143,12 +151,30 @@ final class CocoaChrome {
     } else if (control instanceof Button && (control.getStyle() & SWT.CHECK) != 0) {
       control.setBackground(differs() ? CLEAR : null);
     }
+    header(control);
+  }
+
+  private void header(Control control) {
+    Color background =
+        differs()
+            ? (dark ? DARK_LIST : LIGHT_LIST)
+            : display.getSystemColor(SWT.COLOR_LIST_BACKGROUND);
+    Color foreground =
+        differs()
+            ? (dark ? DARK_TEXT : LIGHT_TEXT)
+            : display.getSystemColor(SWT.COLOR_LIST_FOREGROUND);
     if (control instanceof Table table) {
-      table.setHeaderBackground(window);
-      table.setHeaderForeground(text);
+      table.setHeaderBackground(background);
+      table.setHeaderForeground(foreground);
+      Object before = table.getData(HEADER_DARK);
+      table.setData(HEADER_DARK, dark);
+      if (table.getHeaderVisible() && !Boolean.valueOf(dark).equals(before)) {
+        table.setHeaderVisible(false);
+        table.setHeaderVisible(true);
+      }
     } else if (control instanceof Tree tree) {
-      tree.setHeaderBackground(window);
-      tree.setHeaderForeground(text);
+      tree.setHeaderBackground(background);
+      tree.setHeaderForeground(foreground);
     }
   }
 }

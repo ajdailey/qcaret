@@ -108,13 +108,24 @@ switch an open dialog and a newly opened one keep them until the next start.
 ### cocoa
 
 Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps its
-startup colors (measured on macOS 15 in QLogg). While the appearance differs
-from the startup one, `CocoaChrome` sets each shell's, table's, tree's, list's
-and field's colors, and table and tree headers, to the current appearance, at
-the change, at `SWT.Show` of a shell and at `SWT.Skin` of a new control, since
-the docks replace their tables while open. Back in the startup appearance it
-sets every color to null, the default, check boxes included. It follows the
-system appearance, not `ui.theme`.
+startup colors (measured on macOS 15 and 27 in QLogg). `SwtThemeService` reads
+`Display.isSystemDarkTheme` every second and calls `CocoaChrome.apply` on a
+change. While the appearance differs from the startup one, `CocoaChrome` sets
+each shell's, table's, tree's, list's and field's colors to the current
+appearance, at the change, at `SWT.Show` of a shell and at `SWT.Skin` of a new
+control, since the docks replace their tables while open. Back in the startup
+appearance it sets those colors to null, the default, check boxes included. It
+follows the system appearance, not `ui.theme`.
+
+Table and tree headers never have null colors: a null header in dark draws
+blank labels. From `SWT.Skin` at creation on, `CocoaChrome` gives each header
+the list background and text color of the current appearance; in the startup
+appearance those are the Display's `COLOR_LIST_BACKGROUND` and
+`COLOR_LIST_FOREGROUND`, the colors SWT reports for a header with none set. A
+`Table` header repaints new colors only when shown again (`redraw` leaves the
+area right of the last column stale), so after a change `CocoaChrome` hides and
+shows a visible one. A `Tree` header repaints at once. Measured on macOS 27.2
+with SWT 3.135.0 (QLogg G2 header probe).
 
 - A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor,
   compare and replace preview `StyledText` and the tab strip, which the palette

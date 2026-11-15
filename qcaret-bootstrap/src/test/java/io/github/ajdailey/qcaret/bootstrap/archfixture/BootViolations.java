@@ -35,4 +35,10 @@ final class BootViolations {
       System.exit(1);
     }
   }
+
+  static final class RuntimeExits {
+    void exit() {
+      Runtime.getRuntime().exit(1);
+    }
+  }
 }
