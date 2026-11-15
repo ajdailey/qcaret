@@ -250,14 +250,6 @@ public interface PlatformTraits {
   boolean handsFilesAsEvents();
 
   /**
-   * Reports whether File > Print's dialog takes the document's PDF name in {@code
-   * PrinterData.fileName}. win32 writes a Print to File job to that name without asking.
-   *
-   * @return true on cocoa
-   */
-  boolean proposesPrintFileName();
-
-  /**
    * Reports whether the system light or dark setting is polled. cocoa SWT sends no {@code
    * SWT.Settings} for an appearance change; win32 SWT sends it 2 s after {@code WM_SETTINGCHANGE}.
    *

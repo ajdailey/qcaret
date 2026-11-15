@@ -411,10 +411,10 @@ class PrintOutputTest {
           traits.printDialogOmitsSelection() ? PrinterData.ALL_PAGES : PrinterData.SELECTION;
       assertEquals(
           PrinterData.ALL_PAGES,
-          PrintDialogs.create(window.shell(), false, null, traits).getScope(),
+          PrintDialogs.create(window.shell(), false, traits).getScope(),
           platforms[i]);
       assertEquals(
-          scope, PrintDialogs.create(window.shell(), true, null, traits).getScope(), platforms[i]);
+          scope, PrintDialogs.create(window.shell(), true, traits).getScope(), platforms[i]);
     }
   }
 
@@ -433,8 +433,7 @@ class PrintOutputTest {
     openFile("first\nsecond\nthird\n");
     select(6, 12);
     data.scope =
-        PrintDialogs.create(window.shell(), true, null, PlatformTraits.of("win32", false))
-            .getScope();
+        PrintDialogs.create(window.shell(), true, PlatformTraits.of("win32", false)).getScope();
     print(data);
     awaitOutput();
     String text = pageText(1);
@@ -460,20 +459,6 @@ class PrintOutputTest {
     assertTrue(text.contains("second"), text);
     assertFalse(text.contains("first"), text);
     assertFalse(text.contains("third"), text);
-  }
-
-  /** S9-10: the macOS print dialog proposes the document's PDF name to its save sheet. */
-  @Test
-  void thePrintDialogTakesThePdfName() {
-    assertEquals(
-        "notes.pdf",
-        PrintDialogs.create(window.shell(), false, "notes.pdf", PlatformTraits.PLATFORM)
-            .getPrinterData()
-            .fileName);
-    assertNull(
-        PrintDialogs.create(window.shell(), false, null, PlatformTraits.PLATFORM)
-            .getPrinterData()
-            .fileName);
   }
 
   @Test

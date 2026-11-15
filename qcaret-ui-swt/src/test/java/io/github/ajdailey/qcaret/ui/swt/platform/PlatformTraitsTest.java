@@ -44,7 +44,6 @@ class PlatformTraitsTest {
     "opensPrintDialog",
     "busyCursor",
     "handsFilesAsEvents",
-    "proposesPrintFileName",
     "pollsSystemTheme",
     // macOS Window menu and accessibility.
     "windowMenuControls",
@@ -81,7 +80,6 @@ class PlatformTraitsTest {
     answers.add(traits.opensPrintDialog());
     answers.add(traits.busyCursor());
     answers.add(traits.handsFilesAsEvents());
-    answers.add(traits.proposesPrintFileName());
     answers.add(traits.pollsSystemTheme());
     // macOS Window menu and accessibility.
     answers.add(traits.windowMenuControls());
@@ -128,7 +126,6 @@ class PlatformTraitsTest {
         true,
         SWT.CURSOR_APPSTARTING,
         false,
-        false,
         true,
         false,
         false,
@@ -165,7 +162,6 @@ class PlatformTraitsTest {
         false,
         true,
         SWT.CURSOR_WAIT,
-        true,
         true,
         true,
         true,
@@ -208,7 +204,6 @@ class PlatformTraitsTest {
         false,
         false,
         false,
-        false,
         false);
   }
 
@@ -242,7 +237,6 @@ class PlatformTraitsTest {
         true,
         false,
         SWT.CURSOR_APPSTARTING,
-        false,
         false,
         false,
         false,

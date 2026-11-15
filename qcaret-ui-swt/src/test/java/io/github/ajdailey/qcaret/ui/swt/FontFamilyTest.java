@@ -124,6 +124,20 @@ class FontFamilyTest {
     return usable;
   }
 
+  /**
+   * Returns the first listed family other than the platform font, so a change to it is visible.
+   * Windows lists Consolas, the platform font, first.
+   */
+  private String otherFamily() {
+    for (String family : families()) {
+      if (!family.equals(Dialogs.monospaceName())) {
+        return family;
+      }
+    }
+    assumeTrue(false, "a monospace family other than the platform font installed");
+    return null;
+  }
+
   private String editorFamily() {
     return window.editorFont().getFontData()[0].getName();
   }
@@ -256,9 +270,9 @@ class FontFamilyTest {
 
   @Test
   void anEmptyFamilyIsThePlatformFont() {
-    List<String> families = families();
-    assumeTrue(!families.isEmpty(), "a monospace family installed");
-    window.setFontFamily(families.get(0));
+    String family = otherFamily();
+    window.setFontFamily(family);
+    assertEquals(family, editorFamily());
     window.setFontFamily("");
     assertEquals(Dialogs.monospaceName(), editorFamily());
   }
@@ -276,9 +290,7 @@ class FontFamilyTest {
 
   @Test
   void openTextAndComparisonViewsFollowTheFamily() throws Exception {
-    List<String> families = families();
-    assumeTrue(!families.isEmpty(), "a monospace family installed");
-    String family = families.get(0);
+    String family = otherFamily();
     window.showLog("mock log");
     TextWindow log = window.logWindow();
     assertNotEquals(family, log.font().getFontData()[0].getName());
@@ -302,8 +314,7 @@ class FontFamilyTest {
 
   @Test
   void thePreferencesDialogListsChoicesWithoutHoldingItsOpenAndAppliesThem() throws Exception {
-    List<String> families = families();
-    assumeTrue(!families.isEmpty(), "a monospace family installed");
+    String family = otherFamily();
     Path themes = Files.createDirectories(temp.resolve(ThemeColors.DIRECTORY));
     Files.writeString(themes.resolve("harbor.theme"), "light.background = #102030\n");
     controller.execute(CommandId.PREFERENCES);
@@ -323,9 +334,9 @@ class FontFamilyTest {
     assertEquals(file + 1, colors.getItemCount());
     assertEquals("harbor", colors.getItem(file));
     colors.select(file);
-    dialog.fontFamily().select(dialog.fontFamily().indexOf(families.get(0)));
+    dialog.fontFamily().select(dialog.fontFamily().indexOf(family));
     assertTrue(dialog.apply());
-    assertEquals(families.get(0), editorFamily());
+    assertEquals(family, editorFamily());
     await(
         new BooleanSupplier() {
           @Override

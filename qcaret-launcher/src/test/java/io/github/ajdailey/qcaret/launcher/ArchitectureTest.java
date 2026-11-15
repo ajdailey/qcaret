@@ -155,7 +155,8 @@ class ArchitectureTest {
     ROOT + ".ui.swt.ToolIcons",
     ROOT + ".ui.swt.Win32Stacking",
     ROOT + ".ui.swt.CocoaStacking",
-    ROOT + ".ui.swt.GtkX11Stacking"
+    ROOT + ".ui.swt.GtkX11Stacking",
+    ROOT + ".ui.swt.CocoaPrintJobNaming"
   };
 
   /** Only the sanctioned view classes load classes by name or open members by reflection. */
@@ -176,6 +177,8 @@ class ArchitectureTest {
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[2])
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[3])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[4])
         .should()
         .callMethodWhere(
             call(Class.class, "forName|getDeclaredField|getDeclaredMethod|getField|getMethod"))

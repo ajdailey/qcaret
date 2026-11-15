@@ -13,12 +13,9 @@ dialog offers All pages and a custom range only; opened with `PD_SELECTION` it
 showed All pages and the job printed only the selection (G1 S9-7, observed). On
 win32 the dialog opens on its default scope, so the job prints what the dialog
 shows. File > Print Selection opens the same dialog; `PrintController` prints
-the selection whatever scope comes back, so Selection is reachable on win32. On
-macOS (`PlatformTraits.proposesPrintFileName`) it also sets
-`PrinterData.fileName` to `PdfPrinter.fileName` of the document, which SWT
-passes as `NSPrintSavePath`; whether the Save as PDF sheet proposes it is
-unverified. win32 writes a Print to File job to that name without asking, and
-GTK ignores it without Print to File, so only cocoa sets it. A `ProgressRow`
+the selection whatever scope comes back, so Selection is reachable on win32.
+Before the dialog opens, `PrintJobNaming` names the job (see [Job
+name](#job-name)). A `ProgressRow`
 shows the progress and Cancel above the status bar. It takes no Esc, since the
 window stays usable.
 
@@ -54,9 +51,30 @@ GTK does not also pass it to CUPS for a `GtkPrintJob`.
 
 `PrintJob.start` passes the document's name to `Printer.startJob` on every
 platform. On macOS that sets `NSPrintOperation.jobTitle` after `NSPrintPanel`
-has closed, so the panel's PDF > Save as PDF sheet proposes "Untitled" (G2
-S9-10). SWT 3.135's `PrintDialog` copies `NSPrintInfo.sharedPrintInfo` and
-takes no job name, so no public SWT call names the job before the panel.
+has closed, too late for the panel's PDF > Save as PDF sheet, which showed
+"Untitled" (G2 S9-10, G2-D-3).
+
+`PrintJobNaming.PLATFORM.name` runs before `PrintDialog.open` for Print and
+Print Selection. On cocoa, `CocoaPrintJobNaming` writes `PrintJobNaming.jobName`
+(`PdfPrinter.fileName` without `.pdf`: `d1d` for `d1d.txt`) into
+`NSPrintInfo.sharedPrintInfo`'s `printSettings` under
+`com_apple_print_JobInfo_PMJobName`. SWT 3.135 binds no
+`PMPrintSettingsSetJobName`, so the class sends the Objective-C messages
+through SWT's `internal.cocoa` bindings by reflection. `PrintDialog.open` takes
+a copy of the shared print info for its panel and ignores
+`PrinterData.otherData`. A reflective failure logs one WARN and the sheet
+proposes "Untitled"; printing is unaffected. win32 and GTK use
+`PrintJobNaming.NONE`.
+
+SWT passes `PrinterData.fileName` to the panel as `NSPrintSavePath`; the sheet
+ignored it in G2-D-3 (observed), so QCaret does not set it.
+
+| Claim | Status |
+|---|---|
+| The sheet proposes the job name from the print settings (Firefox calls `PMPrintSettingsSetJobName` before its panel for this) | Assumed from Firefox's fix; needs the Mac |
+| `printSettings` key `com_apple_print_JobInfo_PMJobName` is that job name | Assumed (Core Printing's `kPMJobNameKey`, underscored as `printSettings` spells keys); needs the Mac |
+| The name survives the copy and `updateFromPMPrintSettings` that `PrintDialog.open` runs | `PrintJobNamingTest` on the macOS CI runner |
+| The SWT members resolve | `PrintJobNamingTest` on the macOS CI runner; verified in the 3.135.0 aarch64 and x86_64 bytecode with `javap` |
 
 ## GTK 4
 
