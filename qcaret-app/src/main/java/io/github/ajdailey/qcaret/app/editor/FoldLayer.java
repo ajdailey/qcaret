@@ -216,8 +216,11 @@ final class FoldLayer {
     return k >= 0 && line <= lasts[k] ? k : -1;
   }
 
-  /** The result of {@link #afterEdit}: the new layer and the line range its change covers. */
-  record Edited(FoldLayer layer, int from, int to) {}
+  /**
+   * The result of {@link #afterEdit}: the new layer, the line range its change covers, and the line
+   * lookups it made to test edits against regions.
+   */
+  record Edited(FoldLayer layer, int from, int to, int lookups) {}
 
   /**
    * Maps the layer through a document change. A region expands when an edit touches its hidden
@@ -243,7 +246,7 @@ final class FoldLayer {
     int from = groups.get(0)[0];
     int to = groups.get(groups.size() - 1)[1];
     if (starts.length == 0) {
-      return new Edited(this, from, to);
+      return new Edited(this, from, to, 0);
     }
     EditMap map = new EditMap(before, edits);
     int lineDelta = after.lineCount() - before.lineCount();
@@ -314,7 +317,7 @@ final class FoldLayer {
     }
     System.arraycopy(measured.chars, 0, out.chars, 0, out.chars.length);
     System.arraycopy(measured.rows, 0, out.rows, 0, out.rows.length);
-    return new Edited(out, from, to);
+    return new Edited(out, from, to, map.lookups());
   }
 
   /** Reports whether lines {@code [a, b]} meet a group's lines before the change. */
@@ -332,6 +335,7 @@ final class FoldLayer {
     private final List<TextEdit> edits;
     private final int[] lastLines;
     private final int[] shifts;
+    private int lookups;
 
     EditMap(TextContent before, List<TextEdit> edits) {
       this.edits = edits;
@@ -343,6 +347,29 @@ final class FoldLayer {
         lastLines[i] = before.lineAt(e.offset() + e.removed().length());
         shifts[i + 1] = shifts[i] + e.inserted().length() - e.removed().length();
       }
+    }
+
+    /** Returns the line lookups {@link #touches} has made. */
+    int lookups() {
+      return lookups;
+    }
+
+    /**
+     * Reports whether one edit starts before line {@code a} and ends after line {@code b}, so it
+     * removes the starts of lines {@code a} to {@code b}; found without a lookup in the text.
+     */
+    boolean spans(int a, int b) {
+      int lo = 0;
+      int hi = edits.size();
+      while (lo < hi) {
+        int mid = (lo + hi) >>> 1;
+        if (lastLines[mid] <= b) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      return lo < edits.size() && edits.get(lo).startLine() < a;
     }
 
     /**
@@ -367,7 +394,11 @@ final class FoldLayer {
       return offset + shifts[lo];
     }
 
-    /** Reports whether an edit touches region {@code (a, b)}'s hidden text; see afterEdit. */
+    /**
+     * Reports whether an edit touches region {@code (a, b)}'s hidden text; see afterEdit. An edit
+     * ending past line {@code a} and starting before line {@code b} touches it without a lookup in
+     * the text, so one edit over the whole text costs no lookup per region.
+     */
     boolean touches(TextContent before, int a, int b) {
       int lo = 0;
       int hi = edits.size();
@@ -382,10 +413,18 @@ final class FoldLayer {
       if (lo == edits.size() || edits.get(lo).startLine() > b) {
         return false;
       }
-      int hs = lineEnd(before, a);
-      int he = lineEnd(before, b);
+      int hs = -1;
+      int he = -1;
       for (int i = lo; i < edits.size() && edits.get(i).startLine() <= b; i++) {
         TextEdit e = edits.get(i);
+        if (lastLines[i] > a && e.startLine() < b) {
+          return true;
+        }
+        if (hs < 0) {
+          hs = lineEnd(before, a);
+          he = lineEnd(before, b);
+          lookups += 2;
+        }
         int end = e.offset() + e.removed().length();
         if (end < hs || e.offset() > he) {
           continue;

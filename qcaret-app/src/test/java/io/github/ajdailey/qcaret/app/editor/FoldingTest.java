@@ -118,6 +118,15 @@ class FoldingTest {
       display.append(rows.get(row)[0]).append(rows.get(row)[1]);
     }
     assertEquals(display.toString(), p.textRange(0, p.length()));
+    for (int s = 0; s <= display.length(); s++) {
+      for (int n : new int[] {0, 1, 3}) {
+        int e = Math.min(display.length(), s + n);
+        assertEquals(display.substring(s, e), p.textRange(s, e - s), "range " + s + "+" + n);
+      }
+      if (s % 31 == 0) {
+        assertEquals(display.substring(s), p.textRange(s, display.length() - s), "tail " + s);
+      }
+    }
     for (int m = 0; m <= model.length(); m++) {
       int line = p.lineAt(m);
       int d = p.toDisplay(m);
@@ -147,6 +156,9 @@ class FoldingTest {
           @Override
           public void changing(DisplayProjection.DisplayChange change) {
             assertEquals(mirror.toString(), p.textRange(0, p.length()));
+            assertEquals(
+                mirror.substring(change.start(), change.start() + change.replaceChars()),
+                p.textRange(change.start(), change.replaceChars()));
             rowsBefore[0] = p.rowCount();
             assertEquals(
                 p.rowAt(change.start() + change.replaceChars()) - p.rowAt(change.start()),
@@ -158,6 +170,7 @@ class FoldingTest {
           public void changed(DisplayProjection.DisplayChange change) {
             String now = p.textRange(0, p.length());
             String inserted = now.substring(change.start(), change.start() + change.newChars());
+            assertEquals(inserted, p.textRange(change.start(), change.newChars()));
             mirror.replace(change.start(), change.start() + change.replaceChars(), inserted);
             assertEquals(now, mirror.toString());
             assertEquals(
@@ -233,6 +246,70 @@ class FoldingTest {
 
   private static String escape(CharSequence text) {
     return text.toString().replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t");
+  }
+
+  /** 10,000 lines, wrapped at 5 columns, with a region of 9 lines every 10 offered. */
+  private static DisplayProjection manyRegions(Document document) {
+    DisplayProjection p = projection(document, 5);
+    List<int[]> regions = new ArrayList<int[]>();
+    for (int line = 0; line + 10 < p.lineCount(); line += 10) {
+      regions.add(new int[] {line, line + 8});
+    }
+    p.setFoldRegions(regions);
+    return p;
+  }
+
+  private static String manyLines() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 10_000; i++) {
+      text.append("line ").append(i).append(i % 2 == 0 ? "\n" : "\r\n");
+    }
+    return text.toString();
+  }
+
+  @Test
+  void textRangeLooksUpOneLineWhateverItsRowsAndSpans() {
+    Document document = document(manyLines());
+    final DisplayProjection p = manyRegions(document);
+    final long[] lookups = new long[2];
+    p.setListener(
+        new DisplayProjection.Listener() {
+          @Override
+          public void changing(DisplayProjection.DisplayChange change) {
+            long before = p.rangeLookups();
+            p.textRange(change.start(), change.replaceChars());
+            lookups[0] = p.rangeLookups() - before;
+          }
+
+          @Override
+          public void changed(DisplayProjection.DisplayChange change) {
+            long before = p.rangeLookups();
+            p.textRange(change.start(), change.newChars());
+            lookups[1] = p.rangeLookups() - before;
+          }
+        });
+    assertTrue(p.foldAll());
+    int spans = p.folds().spans();
+    assertEquals(1000, spans);
+    assertTrue(p.rowCount() > 2 * spans, "head lines wrap");
+    // Fold All reads the whole wrapped text, then the heads; Unfold All the reverse.
+    assertArrayEquals(new long[] {1, 1}, lookups);
+    assertTrue(p.unfoldAll());
+    assertArrayEquals(new long[] {1, 1}, lookups);
+    check(p, document.text().toString(), 5);
+  }
+
+  @Test
+  void anEditOverEveryCollapsedRegionExpandsThemWithoutLineLookups() {
+    Document document = document(manyLines());
+    DisplayProjection p = manyRegions(document);
+    StringBuilder mirror = mirror(p);
+    assertTrue(p.foldAll());
+    String text = document.text().toString();
+    document.apply(EditBatch.replace(0, text.length(), text.replace("line", "LINE")));
+    assertEquals(0, p.collapsedCount());
+    assertEquals(0, p.foldEditLookups());
+    assertEquals(mirror.toString(), p.textRange(0, p.length()));
   }
 
   @Test

@@ -16,6 +16,14 @@ The adapter turns each projection change into one `textChanging` and
 It sends no `textSet`; a loaded document gets a new adapter, read in
 `setContent`. `setText` goes to the controller as an edit.
 
+On Windows `StyledText` reads the replaced text in `textChanging` and the
+inserted text in `textChanged` through `getTextRange`, for its accessible text
+event, whether or not a screen reader runs; on GTK it does so only once an
+accessibility client has created the widget's accessible object (read in SWT
+3.135). A Fold All or Sort Lines over a large document therefore copies the
+whole display text on the UI thread, at the cost of
+`DisplayProjection.textRange`.
+
 ### Input method composition
 
 A `replaceTextRange` from the widget, which it calls only for input method

@@ -18,6 +18,7 @@ SpotBugs. Input is generated, never read from the repository.
 | `StorageHarness` | W2 and W4 latency percentiles; live heap after W1 and after W3 |
 | `StartupHarness` | Process start to the first paint of file text, for `qcaret.jar` or a bundle launcher |
 | `ProjectionBenchmark` | `DisplayProjection` on a `Document`: `build`, `rewrap` at a width change, `foldAndUnfold`, `foldAllAndUnfoldAll`, `toDisplay`, `toModel`, `edit`, `editLineBreak` |
+| `FoldHarness` | UI thread time of Fold All and Unfold All on 480,005 lines of `JAVA` and of a Sort Lines edit on 1,000,001 lines with every region collapsed, regions from the Java grammar; the listener reads each change's replaced and inserted text as `StyledText` does on Windows, and the sort also runs with no reading |
 | `SearchTree` | Seeded tree in a temporary directory: 20,000 files of 2 KiB and 4 of 16 MiB; the four `Query` values, literal and regex, few and many hits |
 | `SearchBenchmark` | Time to complete, `fileSearch` into a counting sink and `hyperSearch` into a `ResultSet` |
 | `SearchHarness` | Time to first result, cancel latency, and a finished set's live heap against its charge |
@@ -39,6 +40,8 @@ java -cp qcaret-bench/target/benchmarks.jar \
 xvfb-run -a env GDK_BACKEND=x11 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.StartupHarness TARGET FILE SETTINGS [RUNS]
 java -jar qcaret-bench/target/benchmarks.jar ProjectionBenchmark
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.FoldHarness [foldall sort]
 java -jar qcaret-bench/target/benchmarks.jar SearchBenchmark
 java -jar qcaret-bench/target/benchmarks.jar MultiCaretBenchmark
 java -jar qcaret-bench/target/benchmarks.jar UndoBenchmark
@@ -58,7 +61,7 @@ reproduce.
 
 ### Heap
 
-`StorageHarness`, `SearchHarness` and `SymbolHarness` run at the shipped launchers'
+`StorageHarness`, `SearchHarness`, `SymbolHarness` and `FoldHarness` run at the shipped launchers'
 `-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
 harness with it, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;

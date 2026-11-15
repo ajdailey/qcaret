@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.document;
 
+import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
@@ -727,10 +728,10 @@ public final class Document {
       Change c = changes.get(i);
       int from = Math.max(0, c.offset() - 1);
       int to = Math.min(storage.length(), c.offset() + c.removed().length() + 1);
-      LineEndingStats old = LineEndingStats.count(storage, from, to);
+      LineEndingStats old = count(storage, from, to);
       storage.replace(c.offset(), c.removed().length(), c.inserted());
       int newTo = to + c.inserted().length() - c.removed().length();
-      lineEndings = lineEndings.replace(old, LineEndingStats.count(storage, from, newTo));
+      lineEndings = lineEndings.replace(old, count(storage, from, newTo));
     }
     revision++;
     ChangeMap map = new ChangeMap(changes);
@@ -770,6 +771,24 @@ public final class Document {
         listener.dirtyChanged(dirty);
       }
     }
+  }
+
+  /**
+   * Counts the breaks of a range as {@link LineEndingStats#count} does, reading the rope by chunks:
+   * a char at a time costs a tree descent per char, 0.2 s of a 9.5 MB Sort Lines edit (measured).
+   */
+  private static LineEndingStats count(RopeStorage text, int start, int end) {
+    final LineEndingStats.Counter counter = new LineEndingStats.Counter();
+    text.readChunks(
+        start,
+        end,
+        new ChunkVisitor() {
+          @Override
+          public void chunk(CharSequence chunk, int from, int to) {
+            counter.add(chunk, from, to);
+          }
+        });
+    return counter.stats();
   }
 
   private static int breaks(String text) {

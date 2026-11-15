@@ -338,7 +338,8 @@ final class ProjectionFolds {
 
   /**
    * Moves the offered regions through a change: by the line delta after line {@code last}, and
-   * through the edits inside {@code [first, last]}; a region left without lines is dropped.
+   * through the edits inside {@code [first, last]}; a region left without lines is dropped. A
+   * region inside one edit is dropped without a lookup in the text.
    */
   void shiftRegions(
       TextSnapshot before, TextSnapshot after, List<TextEdit> edits, int first, int last) {
@@ -361,6 +362,10 @@ final class ProjectionFolds {
       } else if (b >= first) {
         if (map == null) {
           map = new FoldLayer.EditMap(before, edits);
+        }
+        if (map.spans(a, b)) {
+          // Both ends map to the edit's start: the region is left without lines.
+          continue;
         }
         a = a < first ? a : after.lineAt(map.map(before.offsetOfLine(a)));
         b = b > last ? b + delta : after.lineAt(map.map(before.offsetOfLine(b)));

@@ -32,6 +32,12 @@ row.
 - A document change recomputes the changed lines' rows on the UI thread. A
   change over 1 Mi chars with wrap on gets only the long-line splits there, and
   the projection asks its owner for a rewrap.
+- `textRange` copies through `DisplayText`: one line lookup at the start, then
+  one chunk read per run of shown lines, with `\n` inserted at virtual breaks
+  and each collapsed span skipped by the model offsets its `FoldLayer` position
+  gives. `StyledText` on Windows reads every change's replaced and inserted
+  text on the UI thread ([editor pane](../../qcaret-ui-swt/docs/editor.md)),
+  and a lookup per row made that 3 s for Fold All on 480,005 lines.
 
 ### Rewrap
 
@@ -66,7 +72,10 @@ shown offset in either direction).
 
 Spans after an edit move by the change's char and row deltas; spans inside it
 are measured again. Offered regions follow edits approximately until the next
-`setFoldRegions`.
+`setFoldRegions`. An edit that starts above a region's last line and ends below
+its first expands it, and an offered region inside one edit is dropped, both
+without a lookup in the text, so one edit over the whole text (Sort Lines) costs
+no lookup per region.
 
 ## Highlight composition
 

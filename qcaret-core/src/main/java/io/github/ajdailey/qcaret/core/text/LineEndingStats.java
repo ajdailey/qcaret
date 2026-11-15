@@ -49,6 +49,69 @@ public record LineEndingStats(long lf, long crLf, long cr, LineEnding first) {
       }
     }
 
+    /**
+     * Counts {@code chars[from, to)} as the continuation of the text so far. A {@code String} is
+     * searched with {@code indexOf}, not read a char at a time.
+     *
+     * @param chars the chars
+     * @param from the first index
+     * @param to the index after the last char
+     */
+    public void add(CharSequence chars, int from, int to) {
+      if (chars instanceof String s) {
+        add(s, from, to);
+        return;
+      }
+      for (int i = from; i < to; i++) {
+        char c = chars.charAt(i);
+        if (afterCr) {
+          afterCr = false;
+          if (c == '\n') {
+            crLf++;
+            note(LineEnding.CRLF);
+            continue;
+          }
+          cr++;
+          note(LineEnding.CR);
+        }
+        if (c == '\n') {
+          lf++;
+          note(LineEnding.LF);
+        } else if (c == '\r') {
+          afterCr = true;
+        }
+      }
+    }
+
+    private void add(String s, int from, int to) {
+      int i = from;
+      while (i < to) {
+        if (afterCr) {
+          afterCr = false;
+          if (s.charAt(i) == '\n') {
+            crLf++;
+            note(LineEnding.CRLF);
+            i++;
+            continue;
+          }
+          cr++;
+          note(LineEnding.CR);
+        }
+        int lfAt = s.indexOf('\n', i, to);
+        int crAt = s.indexOf('\r', i, lfAt < 0 ? to : lfAt);
+        if (crAt >= 0) {
+          afterCr = true;
+          i = crAt + 1;
+        } else if (lfAt >= 0) {
+          lf++;
+          note(LineEnding.LF);
+          i = lfAt + 1;
+        } else {
+          return;
+        }
+      }
+    }
+
     private void note(LineEnding kind) {
       if (first == null) {
         first = kind;
@@ -77,31 +140,9 @@ public record LineEndingStats(long lf, long crLf, long cr, LineEnding first) {
    * @return the counts
    */
   public static LineEndingStats count(CharSequence text, int start, int end) {
-    long lf = 0;
-    long crLf = 0;
-    long cr = 0;
-    LineEnding first = null;
-    for (int i = start; i < end; i++) {
-      char c = text.charAt(i);
-      LineEnding kind = null;
-      if (c == '\n') {
-        lf++;
-        kind = LineEnding.LF;
-      } else if (c == '\r') {
-        if (i + 1 < end && text.charAt(i + 1) == '\n') {
-          crLf++;
-          i++;
-          kind = LineEnding.CRLF;
-        } else {
-          cr++;
-          kind = LineEnding.CR;
-        }
-      }
-      if (first == null) {
-        first = kind;
-      }
-    }
-    return new LineEndingStats(lf, crLf, cr, first);
+    Counter counter = new Counter();
+    counter.add(text, start, end);
+    return counter.stats();
   }
 
   /**

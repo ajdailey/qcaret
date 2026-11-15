@@ -139,6 +139,8 @@ public final class DisplayProjection implements DocumentListener {
   private final ProjectionFolds folding;
   private long linesVisited;
   private long linesMeasured;
+  private long rangeLookups;
+  private long foldEditLookups;
 
   /**
    * Creates a projection and starts following the document. Call on the UI thread.
@@ -529,6 +531,7 @@ public final class DisplayProjection implements DocumentListener {
             after.length() - before.length() + breakDelta,
             lineDelta + breakDelta);
     FoldLayer next = edited.layer();
+    foldEditLookups += edited.lookups();
     int from = edited.from();
     int to = edited.to();
     boolean toEnd = to == before.lineCount() - 1;
@@ -1133,51 +1136,25 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
-   * Returns display text: rows joined by their delimiters, a virtual break as {@code \n}.
+   * Returns display text: rows joined by their delimiters, a virtual break as {@code \n}. Costs the
+   * chars copied and one line lookup, not a lookup per row.
    *
    * @param start the first display offset
    * @param length display chars
    * @return the text
    */
   public String textRange(int start, int length) {
-    StringBuilder out = new StringBuilder(length);
-    int end = start + length;
+    if (length == 0) {
+      return "";
+    }
     int row = rowAt(start);
-    int at = start;
-    while (at < end) {
-      int rowStart = rowStart(row);
-      String rowText = rowText(row);
-      int from = at - rowStart;
-      if (from < rowText.length()) {
-        int to = Math.min(rowText.length(), end - rowStart);
-        out.append(rowText, from, to);
-        at = rowStart + to;
-        continue;
-      }
-      int next = row + 1 < rowCount() ? rowStart(row + 1) : length();
-      String delimiter = delimiter(row, rowStart + rowText.length(), next);
-      int d = at - rowStart - rowText.length();
-      int to = Math.min(delimiter.length(), end - rowStart - rowText.length());
-      out.append(delimiter, d, to);
-      at = rowStart + rowText.length() + to;
-      row++;
-    }
-    return out.toString();
-  }
-
-  /**
-   * Returns the delimiter after a row: {@code \n} for a virtual break, else the model's; after a
-   * collapsed region's first line, its last hidden line's.
-   */
-  private String delimiter(int row, int rowEnd, int nextRowStart) {
-    int line = lineOfRow(row);
-    if (row + 1 < rowCount() && lineOfRow(row + 1) == line) {
-      return "\n";
-    }
-    FoldLayer folds = folding.layer();
-    int k = folds.spanWithHead(line);
-    int modelEnd = k >= 0 ? FoldLayer.lineEnd(text, folds.last(k)) : rowModelEnd(line, subRow(row));
-    return text.subSequence(modelEnd, modelEnd + (nextRowStart - rowEnd)).toString();
+    int unfolded = folding.rowToUnfolded(row);
+    DisplayText copy = new DisplayText(text, index, folding.layer(), length);
+    String out =
+        copy.read(
+            unfoldedLineOfRow(unfolded), unfoldedSubRow(unfolded), start - rowStart(row), length);
+    rangeLookups += copy.lookups();
+    return out;
   }
 
   /**
@@ -1253,5 +1230,15 @@ public final class DisplayProjection implements DocumentListener {
   /** Returns the lines document changes have passed to {@link RowBreaks} so far, for tests. */
   long linesMeasured() {
     return linesMeasured;
+  }
+
+  /** Returns the line lookups {@link #textRange} calls have made so far, for tests. */
+  long rangeLookups() {
+    return rangeLookups;
+  }
+
+  /** Returns the line lookups document changes have made to test edits against folds, for tests. */
+  long foldEditLookups() {
+    return foldEditLookups;
   }
 }
