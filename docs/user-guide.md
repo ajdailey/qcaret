@@ -234,6 +234,9 @@ apply (measured on Linux, one million lines):
   selected one is checked. Choosing a tab selects it and brings it into the
   row. The mouse wheel or a trackpad scroll over the row selects the previous
   or next tab, one tab per notch, stopping at the first and last.
+- A screen reader reads each editor by its tab title, the three buttons by
+  their tool tips, the overview strip as Overview and the memory indicator as
+  Memory with its figures.
 - Closing a window's last tab opens an empty Untitled document in its place. An
   empty Untitled document with no unsaved changes stays open when it is the
   only tab. Preferences, Files, "Close the window with its last tab" closes the
@@ -741,6 +744,9 @@ Window > New Window opens another window. Settings, the theme, key bindings,
 grammars and Recent Files are shared; each window has its own tabs, find bar,
 workspace folder and search results. A document is open in one tab of one window
 at a time.
+
+On macOS the Window menu starts with Minimize (`Cmd+M`) and Zoom, which
+switches the window between its size and filling the screen.
 
 View > Always on Top keeps a window above other applications' windows, with its
 dialogs above it; the session restores it per window. It has no default key. On

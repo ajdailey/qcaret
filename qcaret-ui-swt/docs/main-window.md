@@ -140,7 +140,14 @@ scroll.
   when a keymap change rebuilds the menus. Reopen with Encoding starts with
   Automatic Detection, which calls `ApplicationController.reopenWithDetection`.
 - The Window menu lists the windows, when there are several, and the open
-  documents, numbered in that order, the first nine as mnemonics.
+  documents, numbered in that order, the first nine as mnemonics. Where
+  `PlatformTraits.windowMenuControls` holds (cocoa),
+  `MainMenuBar.addWindowControls` puts Minimize (`Cmd+M`,
+  `Shell.setMinimized`) and Zoom (toggles `Shell.setMaximized`), then a
+  separator, at its top; SWT adds neither to an application-defined Window
+  menu. No default binding uses `Cmd+M`. Minimize is no `CommandId`, so the
+  Keys tab accepts `Cmd+M` for a command and the two accelerators then
+  collide.
   `RecentMenus` lists in File > Recent Files the recent files above Open All,
   Clean Up and Clear Recent Files, and in File > Recently Closed the closed
   files above Clear Recently Closed, each rebuilt when its menu shows and
@@ -298,6 +305,27 @@ jar. `ArchitectureTest.reflectionOnlyInSanctionedViews` allows reflection in
 - When unsupported on GTK 3 the item's tool tip names the window manager's
   window menu. SWT drops menu item tool tips on GTK 4.
 
+## Accessible names
+
+`AccessibleName` (`ui.swt.platform`) sets the name a screen reader reads for a
+control. Where `PlatformTraits.labelsByDescription` holds (cocoa), the name is
+also the accessible description, and `attach` adds `ACC.ROLE_GROUP`: VoiceOver
+reads a `Canvas` without a role as `SWTComposite` with a blank description and
+does not read its name. `attachKeepingRole` leaves the control's own role.
+
+| Control | Name | Role on cocoa |
+|---|---|---|
+| `TabStripButtons` group | Tab buttons | group |
+| New, tab list, Close | The tool tip, with the keys | push button |
+| `OverviewStrip` | Overview | group |
+| `MemoryGauge` | Memory and its text, such as `Memory 312/4096 MB` | group |
+| Each view's `StyledText` (`EditorTab`) | The tab title, following each change | text |
+
+The gutter is painted in the `StyledText` left margin and is no separate
+control. A `ToolIcons.item` tool item reads its tool tip as its title on
+cocoa (`ToolItem`), and the read-only `StyledText` views of Compare and Replace
+in Results take the `Label` before them (`StyledText.getAssociatedLabel`).
+
 ## Platform traits
 
 Every platform difference in the view layer is a method of `PlatformTraits`
@@ -334,6 +362,8 @@ call in `ui.swt` or the launcher outside the same classes.
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
+| `windowMenuControls` | - | yes | - | - | `MainMenuBar`: Minimize and Zoom (see [Menus](#menus)) |
+| `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
 
 `WindowStacking` reads the platform itself to pick the stacking class (see
 [Always on Top](#always-on-top)).

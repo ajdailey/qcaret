@@ -30,6 +30,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -46,10 +47,12 @@ import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
@@ -60,9 +63,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The main toolbar, the editor menu, the tab menu's close and folder items and the line-number
- * toggle in a real window. Popups are never shown to a pump: each test hides one before draining,
- * since a win32 popup would hold the test in its loop.
+ * The main toolbar, the editor menu, the tab menu's close and folder items, the line-number toggle,
+ * the macOS Window menu controls and the accessible names in a real window. Popups are never shown
+ * to a pump: each test hides one before draining, since a win32 popup would hold the test in its
+ * loop.
  */
 @Tag("swt")
 class ToolbarAndMenusTest {
@@ -494,6 +498,64 @@ class ToolbarAndMenusTest {
           assertNull(entry.getImage(), entry.getText());
         }
       }
+    }
+  }
+
+  @Test
+  void theWindowMenuCarriesMinimizeAndZoomOnlyWhereThePlatformAsks() {
+    Menu windowMenu = window.menuBar().menu(CommandGroup.WINDOW);
+    boolean controls = PlatformTraits.PLATFORM.windowMenuControls();
+    assertEquals(controls, UiText.MENU_MINIMIZE.text().equals(windowMenu.getItem(0).getText()));
+    Shell shell = new Shell(display);
+    Menu menu = new Menu(shell, SWT.DROP_DOWN);
+    new MenuItem(menu, SWT.PUSH).setText("mock");
+    MainMenuBar.addWindowControls(menu, shell);
+    assertEquals(4, menu.getItemCount());
+    assertEquals(UiText.MENU_MINIMIZE.text(), menu.getItem(0).getText());
+    assertEquals(SWT.MOD1 | 'M', menu.getItem(0).getAccelerator());
+    assertEquals(UiText.MENU_ZOOM.text(), menu.getItem(1).getText());
+    assertTrue((menu.getItem(2).getStyle() & SWT.SEPARATOR) != 0);
+    assertEquals("mock", menu.getItem(3).getText());
+    shell.dispose();
+  }
+
+  @Test
+  void theTabButtonsTheOverviewStripAndEachViewCarryAccessibleNames() throws Exception {
+    boolean described = PlatformTraits.PLATFORM.labelsByDescription();
+    openFile("named.txt", "alpha\n");
+    AccessibleName group = AccessibleName.of(window.tabButtons().control());
+    assertEquals(UiText.ACCESSIBLE_TAB_BUTTONS.text(), group.name());
+    assertEquals(described, group.grouped());
+    for (Canvas button : window.tabButtons().buttons()) {
+      AccessibleName name = AccessibleName.of(button);
+      assertEquals(button.getToolTipText(), name.name());
+      assertEquals(described, name.described());
+      assertFalse(name.grouped());
+    }
+    AccessibleName overview = AccessibleName.of(window.activeEditor().overviewStrip());
+    assertEquals(UiText.ACCESSIBLE_OVERVIEW.text(), overview.name());
+    assertEquals(described, overview.grouped());
+    final AccessibleName view = AccessibleName.of(window.activeText());
+    assertEquals("named.txt", window.tabs().getSelection().getText());
+    assertEquals("named.txt", view.name());
+    assertEquals(described, view.described());
+    assertFalse(view.grouped());
+    controller.documents().activeEditor().type("typed");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            String title = window.tabs().getSelection().getText();
+            return !"named.txt".equals(title) && title.equals(view.name());
+          }
+        },
+        "the view's name follows the dirty title");
+    controller.execute(CommandId.SPLIT_HORIZONTAL);
+    drain();
+    List<EditorPane> panes = window.activeEditors();
+    assertEquals(2, panes.size());
+    for (EditorPane pane : panes) {
+      assertEquals(view.name(), AccessibleName.of(pane.text()).name());
     }
   }
 

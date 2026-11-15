@@ -45,7 +45,10 @@ class PlatformTraitsTest {
     "busyCursor",
     "handsFilesAsEvents",
     "proposesPrintFileName",
-    "pollsSystemTheme"
+    "pollsSystemTheme",
+    // macOS Window menu and accessibility.
+    "windowMenuControls",
+    "labelsByDescription"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -79,6 +82,9 @@ class PlatformTraitsTest {
     answers.add(traits.handsFilesAsEvents());
     answers.add(traits.proposesPrintFileName());
     answers.add(traits.pollsSystemTheme());
+    // macOS Window menu and accessibility.
+    answers.add(traits.windowMenuControls());
+    answers.add(traits.labelsByDescription());
     return answers;
   }
 
@@ -121,7 +127,9 @@ class PlatformTraitsTest {
         SWT.CURSOR_APPSTARTING,
         false,
         false,
-        true);
+        true,
+        false,
+        false);
   }
 
   @Test
@@ -154,6 +162,8 @@ class PlatformTraitsTest {
         false,
         true,
         SWT.CURSOR_WAIT,
+        true,
+        true,
         true,
         true,
         true);
@@ -192,6 +202,8 @@ class PlatformTraitsTest {
         SWT.CURSOR_APPSTARTING,
         false,
         false,
+        false,
+        false,
         false);
   }
 
@@ -225,6 +237,8 @@ class PlatformTraitsTest {
         true,
         false,
         SWT.CURSOR_APPSTARTING,
+        false,
+        false,
         false,
         false,
         false);

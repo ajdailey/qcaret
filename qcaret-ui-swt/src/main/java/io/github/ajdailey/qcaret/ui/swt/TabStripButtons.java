@@ -5,14 +5,13 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import java.util.List;
 import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.accessibility.ACC;
-import org.eclipse.swt.accessibility.AccessibleAdapter;
 import org.eclipse.swt.accessibility.AccessibleControlAdapter;
 import org.eclipse.swt.accessibility.AccessibleControlEvent;
-import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabFolder2Adapter;
 import org.eclipse.swt.custom.CTabFolderEvent;
@@ -36,7 +35,8 @@ import org.eclipse.swt.widgets.ToolBar;
  * top-right control. Each button is a {@code Canvas} painting a {@link ToolIcons} image on the
  * palette's strip background, in the ink that background calls for. The list button also shows the
  * count of hidden tabs and opens a menu of every tab in strip order. {@link TabRowWheel} selects
- * tabs with the mouse wheel over the strip.
+ * tabs with the mouse wheel over the strip. A button's {@link AccessibleName} is its tool tip, with
+ * the push button role; the group's is {@link UiText#ACCESSIBLE_TAB_BUTTONS}.
  *
  * <p>SWT's chevron does not show: the renderer draws nothing for it and its {@code ToolBar} is held
  * at zero width, while the strip still reserves the chevron's width. A request for SWT's list
@@ -84,6 +84,7 @@ final class TabStripButtons {
     final Runnable action;
     String icon;
     String label = "";
+    final AccessibleName name;
     boolean inside;
     boolean pressed;
 
@@ -106,15 +107,7 @@ final class TabStripButtons {
           new int[] {SWT.Paint, SWT.MouseEnter, SWT.MouseExit, SWT.MouseDown, SWT.MouseUp}) {
         canvas.addListener(type, mouse);
       }
-      canvas
-          .getAccessible()
-          .addAccessibleListener(
-              new AccessibleAdapter() {
-                @Override
-                public void getName(AccessibleEvent event) {
-                  event.result = label;
-                }
-              });
+      name = AccessibleName.attachKeepingRole(canvas, label);
       canvas
           .getAccessible()
           .addAccessibleControlListener(
@@ -133,6 +126,7 @@ final class TabStripButtons {
 
     void setLabel(String value) {
       label = value;
+      name.set(value);
       canvas.setToolTipText(value);
     }
 
@@ -191,6 +185,7 @@ final class TabStripButtons {
     layout.marginHeight = 0;
     layout.horizontalSpacing = 0;
     group.setLayout(layout);
+    AccessibleName.attach(group, UiText.ACCESSIBLE_TAB_BUTTONS.text());
     icons = new ToolIcons(group, palette);
     setPalette(palette);
     create =

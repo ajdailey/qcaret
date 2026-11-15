@@ -1713,7 +1713,17 @@ public enum UiText {
   /** Preferences: clears the default workspace folder. */
   BUTTON_CLEAR_FOLDER,
   /** Status bar notice while a large document's editor is built: the file's name, its lines. */
-  LOAD_PREPARING;
+  LOAD_PREPARING,
+  /** Window menu on macOS: minimize the window. */
+  MENU_MINIMIZE,
+  /** Window menu on macOS: zoom the window. */
+  MENU_ZOOM,
+  /** Accessible name of an editor's overview strip. */
+  ACCESSIBLE_OVERVIEW,
+  /** Accessible name of the memory indicator: its text, empty before the first reading. */
+  ACCESSIBLE_MEMORY,
+  /** Accessible name of the tab strip's button group. */
+  ACCESSIBLE_TAB_BUTTONS;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

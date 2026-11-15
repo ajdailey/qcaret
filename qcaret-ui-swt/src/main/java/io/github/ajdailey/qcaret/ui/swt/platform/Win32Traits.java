@@ -155,4 +155,14 @@ final class Win32Traits implements PlatformTraits {
   public boolean pollsSystemTheme() {
     return true;
   }
+
+  @Override
+  public boolean windowMenuControls() {
+    return false;
+  }
+
+  @Override
+  public boolean labelsByDescription() {
+    return false;
+  }
 }

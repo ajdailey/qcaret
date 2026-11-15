@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -24,7 +25,8 @@ import org.eclipse.swt.widgets.Listener;
 /**
  * One document tab of a {@link TabStrip}: its item, which a move recreates, and one or two editor
  * views in a {@link SashForm}, one above the other or side by side. The view focused last is the
- * tab's focused view. Created and used on the UI thread.
+ * tab's focused view. Each view's {@code StyledText} takes the tab title as its {@link
+ * AccessibleName}. Created and used on the UI thread.
  */
 final class EditorTab implements TabView, SelectionListener {
   final SashForm sash;
@@ -165,6 +167,7 @@ final class EditorTab implements TabView, SelectionListener {
   EditorPane add(
       DisplayProjection projection, SelectionModel selections, final EditorInput editor) {
     final EditorPane added = host.newPane(sash, projection, selections, editor);
+    AccessibleName.attachKeepingRole(added.text(), title);
     added
         .text()
         .addListener(
@@ -211,6 +214,11 @@ final class EditorTab implements TabView, SelectionListener {
   public void setTitle(String value, String tip) {
     title = value;
     toolTip = tip;
+    for (EditorPane p : panes) {
+      if (!p.text().isDisposed()) {
+        AccessibleName.of(p.text()).set(value);
+      }
+    }
     if (!item.isDisposed()) {
       item.setText(value.replace("&", "&&"));
       item.setToolTipText(tip.replace("&", "&&"));

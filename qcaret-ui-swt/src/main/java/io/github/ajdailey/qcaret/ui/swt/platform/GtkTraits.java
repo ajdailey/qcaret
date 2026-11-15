@@ -152,4 +152,14 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean pollsSystemTheme() {
     return false;
   }
+
+  @Override
+  public boolean windowMenuControls() {
+    return false;
+  }
+
+  @Override
+  public boolean labelsByDescription() {
+    return false;
+  }
 }

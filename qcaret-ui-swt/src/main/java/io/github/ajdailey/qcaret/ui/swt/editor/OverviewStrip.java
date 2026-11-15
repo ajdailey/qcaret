@@ -2,9 +2,11 @@ package io.github.ajdailey.qcaret.ui.swt.editor;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
@@ -21,7 +23,8 @@ import org.eclipse.swt.widgets.Listener;
  * left edge for a bookmark. A line down its left edge separates it from the text, and a line across
  * it marks the first and the last visible line. A click or drag scrolls that line to the middle of
  * the view and runs {@code scrolled}. Painting reads the last {@link OverviewMarks} only; each
- * resize reports the height through {@link EditorInput#overviewResized}, 0 while hidden.
+ * resize reports the height through {@link EditorInput#overviewResized}, 0 while hidden. Its
+ * accessible name is {@link UiText#ACCESSIBLE_OVERVIEW}.
  */
 final class OverviewStrip {
   /** Width in pixels. */
@@ -56,6 +59,7 @@ final class OverviewStrip {
     this.input = input;
     this.scrolled = scrolled;
     canvas = new Canvas(parent, SWT.DOUBLE_BUFFERED | SWT.NO_BACKGROUND | SWT.NO_FOCUS);
+    AccessibleName.attach(canvas, UiText.ACCESSIBLE_OVERVIEW.text());
     setPalette(palette);
     canvas.addListener(
         SWT.Paint,

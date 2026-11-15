@@ -155,4 +155,14 @@ final class CocoaTraits implements PlatformTraits {
   public boolean pollsSystemTheme() {
     return true;
   }
+
+  @Override
+  public boolean windowMenuControls() {
+    return true;
+  }
+
+  @Override
+  public boolean labelsByDescription() {
+    return true;
+  }
 }

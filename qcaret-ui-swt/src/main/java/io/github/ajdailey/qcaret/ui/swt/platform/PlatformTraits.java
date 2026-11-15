@@ -264,4 +264,21 @@ public interface PlatformTraits {
    * @return true on win32 and cocoa
    */
   boolean pollsSystemTheme();
+
+  /**
+   * Reports whether the Window menu carries Minimize ({@code Cmd+M}) and Zoom, which SWT does not
+   * add to an application-defined Window menu.
+   *
+   * @return true on cocoa
+   */
+  boolean windowMenuControls();
+
+  /**
+   * Reports whether a screen reader takes a custom control's label from its accessible description
+   * and needs an explicit role: VoiceOver reads a {@code Canvas} without a role as {@code
+   * SWTComposite} with a blank description and does not read the accessible name.
+   *
+   * @return true on cocoa
+   */
+  boolean labelsByDescription();
 }

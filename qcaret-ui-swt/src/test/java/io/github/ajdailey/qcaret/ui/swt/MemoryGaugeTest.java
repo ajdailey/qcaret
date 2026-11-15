@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -49,9 +50,10 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The status bar's memory indicator in a real window: View > Memory Indicator, its place and
- * figures, and a click's garbage collection. With {@code -Dqcaret.rm.out=<dir>} it also writes the
- * window with the indicator shown, light and dark, with this JVM's figures and with a 40% fill.
+ * The status bar's memory indicator in a real window: View > Memory Indicator, its place, figures
+ * and accessible name, and a click's garbage collection. With {@code -Dqcaret.rm.out=<dir>} it also
+ * writes the window with the indicator shown, light and dark, with this JVM's figures and with a
+ * 40% fill.
  */
 @Tag("swt")
 class MemoryGaugeTest {
@@ -144,6 +146,9 @@ class MemoryGaugeTest {
     drain();
     long max = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
     assertTrue(window.memoryGauge().text().endsWith("/" + max + " MB"));
+    AccessibleName name = AccessibleName.of(canvas);
+    assertEquals("Memory " + window.memoryGauge().text(), name.name());
+    assertEquals(PlatformTraits.PLATFORM.labelsByDescription(), name.grouped());
     assertTrue(canvas.getToolTipText().contains("Maximum heap: " + max + " MB"));
     assertTrue(canvas.getSize().x > canvas.getSize().y, canvas.getSize().toString());
     for (Control field : window.statusBar().getChildren()) {

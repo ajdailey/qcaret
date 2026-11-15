@@ -1,9 +1,9 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.accessibility.AccessibleAdapter;
-import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
@@ -17,11 +17,12 @@ import org.eclipse.swt.widgets.Listener;
 
 /**
  * The status bar's memory indicator: {@link MemoryFields#text} over a bar filled to {@link
- * MemoryFields#fill}, the tip as its tool tip, and a left click that runs an action. The ink is the
- * canvas's own foreground, read at each paint and moved toward white or black until it reaches 4.5
- * contrast with the background: after a live appearance or theme change on cocoa the foreground SWT
- * reports can match the background. The bar mixes the ink into the background. The width only
- * grows, so the text does not shift the fields beside it on each refresh. Hidden, it takes no room.
+ * MemoryFields#fill}, the tip as its tool tip, the text in its {@link AccessibleName}, and a left
+ * click that runs an action. The ink is the canvas's own foreground, read at each paint and moved
+ * toward white or black until it reaches 4.5 contrast with the background: after a live appearance
+ * or theme change on cocoa the foreground SWT reports can match the background. The bar mixes the
+ * ink into the background. The width only grows, so the text does not shift the fields beside it on
+ * each refresh. Hidden, it takes no room.
  */
 final class MemoryGauge {
   /** Pixels between the text and the frame on each side. */
@@ -34,6 +35,7 @@ final class MemoryGauge {
 
   private final Canvas canvas;
   private final GridData data;
+  private final AccessibleName name;
   private String text = "";
   private double fill;
 
@@ -82,15 +84,11 @@ final class MemoryGauge {
             }
           }
         });
-    canvas
-        .getAccessible()
-        .addAccessibleListener(
-            new AccessibleAdapter() {
-              @Override
-              public void getName(AccessibleEvent event) {
-                event.result = text;
-              }
-            });
+    name = AccessibleName.attach(canvas, accessibleName(""));
+  }
+
+  private static String accessibleName(String text) {
+    return UiText.ACCESSIBLE_MEMORY.format(text).trim();
   }
 
   /**
@@ -126,6 +124,7 @@ final class MemoryGauge {
       return false;
     }
     text = fields.text();
+    name.set(accessibleName(text));
     fill = share;
     canvas.redraw();
     GC gc = new GC(canvas);
