@@ -7,7 +7,13 @@
 ## Native controls
 
 `SwtThemeService` reports `Display.isSystemDarkTheme` with a change event from
-`SWT.Settings`, polled every second on cocoa, and sets native controls' theme:
+`SWT.Settings`, and sets native controls' theme. On win32 and cocoa
+(`PlatformTraits.pollsSystemTheme`) it also reads the setting every 500 ms:
+cocoa SWT sends no `SWT.Settings` for an appearance change, and win32 SWT sends
+it 2 s after `WM_SETTINGCHANGE` (`Display.SETTINGS_DELAY`). The service reports
+a change of the value only, so the poll and a later `SWT.Settings` apply it
+once. Listeners on `SWT.Settings` itself, such as `ToolIcons.reink`, still run
+at the event.
 
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
@@ -108,9 +114,8 @@ switch an open dialog and a newly opened one keep them until the next start.
 ### cocoa
 
 Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps its
-startup colors (measured on macOS 15 and 27 in QLogg). `SwtThemeService` reads
-`Display.isSystemDarkTheme` every second and calls `CocoaChrome.apply` on a
-change. While the appearance differs from the startup one, `CocoaChrome` sets
+startup colors (measured on macOS 15 and 27 in QLogg). `SwtThemeService` calls
+`CocoaChrome.apply` when its poll reads a change. While the appearance differs from the startup one, `CocoaChrome` sets
 each shell's, table's, tree's, list's and field's colors to the current
 appearance, at the change, at `SWT.Show` of a shell and at `SWT.Skin` of a new
 control, since the docks replace their tables while open. Back in the startup

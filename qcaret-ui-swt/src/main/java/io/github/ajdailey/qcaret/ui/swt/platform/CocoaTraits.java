@@ -150,4 +150,9 @@ final class CocoaTraits implements PlatformTraits {
   public boolean proposesPrintFileName() {
     return true;
   }
+
+  @Override
+  public boolean pollsSystemTheme() {
+    return true;
+  }
 }

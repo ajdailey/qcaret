@@ -289,7 +289,8 @@ class ThemeAndDialogsTest {
               public boolean getAsBoolean() {
                 return setting[0];
               }
-            });
+            },
+            false);
     final List<Boolean> changes = new ArrayList<Boolean>();
     service.addListener(
         new ThemeListener() {
@@ -305,6 +306,63 @@ class ThemeAndDialogsTest {
     service.refresh();
     assertEquals(List.of(true), changes);
     assertTrue(service.systemDark());
+  }
+
+  /**
+   * The poll applies a system change once; the {@code refresh} a later {@code SWT.Settings} calls
+   * and further polls of the same value apply nothing (win32 sends {@code SWT.Settings} 2 s after
+   * the change).
+   */
+  @Test
+  void thePollAppliesASystemChangeOnce() {
+    final boolean[] setting = {false};
+    final int[] reads = {0};
+    SwtThemeService service =
+        new SwtThemeService(
+            display,
+            false,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                reads[0]++;
+                return setting[0];
+              }
+            },
+            true);
+    final List<Boolean> changes = new ArrayList<Boolean>();
+    service.addListener(
+        new ThemeListener() {
+          @Override
+          public void systemThemeChanged(boolean dark) {
+            changes.add(dark);
+          }
+        });
+    setting[0] = true;
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !changes.isEmpty();
+              }
+            },
+            BOUND),
+        "the poll applied the change");
+    service.refresh();
+    final int after = reads[0];
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return reads[0] >= after + 2;
+              }
+            },
+            BOUND),
+        "two more polls");
+    assertEquals(List.of(true), changes);
   }
 
   @Test

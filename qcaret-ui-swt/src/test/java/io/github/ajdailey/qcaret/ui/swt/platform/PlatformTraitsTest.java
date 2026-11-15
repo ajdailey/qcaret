@@ -44,7 +44,8 @@ class PlatformTraitsTest {
     "opensPrintDialog",
     "busyCursor",
     "handsFilesAsEvents",
-    "proposesPrintFileName"
+    "proposesPrintFileName",
+    "pollsSystemTheme"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -77,6 +78,7 @@ class PlatformTraitsTest {
     answers.add(traits.busyCursor());
     answers.add(traits.handsFilesAsEvents());
     answers.add(traits.proposesPrintFileName());
+    answers.add(traits.pollsSystemTheme());
     return answers;
   }
 
@@ -118,7 +120,8 @@ class PlatformTraitsTest {
         true,
         SWT.CURSOR_APPSTARTING,
         false,
-        false);
+        false,
+        true);
   }
 
   @Test
@@ -151,6 +154,7 @@ class PlatformTraitsTest {
         false,
         true,
         SWT.CURSOR_WAIT,
+        true,
         true,
         true);
   }
@@ -187,6 +191,7 @@ class PlatformTraitsTest {
         true,
         SWT.CURSOR_APPSTARTING,
         false,
+        false,
         false);
   }
 
@@ -220,6 +225,7 @@ class PlatformTraitsTest {
         true,
         false,
         SWT.CURSOR_APPSTARTING,
+        false,
         false,
         false);
   }

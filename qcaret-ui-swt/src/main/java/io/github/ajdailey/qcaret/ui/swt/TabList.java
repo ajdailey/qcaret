@@ -13,7 +13,7 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 
 /**
- * The menu of every tab in a {@code CTabFolder} and the shift of the run of tabs the strip shows.
+ * The menu of every tab in a {@code CTabFolder} and the step to the tab beside the selected one.
  * One menu serves the folder; each show refills it.
  */
 final class TabList {
@@ -152,37 +152,17 @@ final class TabList {
   }
 
   /**
-   * Shifts the run of shown tabs one tab toward a side, keeping the selected tab shown.
+   * Selects the tab beside the selected one as a click does.
    *
-   * <p>{@code CTabFolder.showItem} reorders only in MRU mode; outside it the folder keeps the run
-   * that holds the selection. So the run is chosen in MRU mode, by showing the tabs from the end
-   * down to the new first one, laid out at once through a {@code Resize}, and kept when MRU mode
-   * ends, which starts the run at the first tab shown.
-   *
-   * @param direction -1 toward the first tab, 1 toward the last
+   * @param direction -1 for the previous tab, 1 for the next
+   * @return false, selecting nothing, when no tab lies that way
    */
-  void scroll(int direction) {
-    int count = tabs.getItemCount();
-    int first = -1;
-    int last = -1;
-    for (int i = 0; i < count; i++) {
-      if (tabs.getItem(i).isShowing()) {
-        first = first < 0 ? i : first;
-        last = i;
-      }
+  boolean step(int direction) {
+    int next = tabs.getSelectionIndex() + direction;
+    if (tabs.getSelectionIndex() < 0 || next < 0 || next >= tabs.getItemCount()) {
+      return false;
     }
-    int next = first + direction;
-    if (first < 0
-        || next < 0
-        || (direction > 0 && last == count - 1)
-        || (direction > 0 && next > tabs.getSelectionIndex())) {
-      return;
-    }
-    tabs.setMRUVisible(true);
-    for (int i = count - 1; i >= next; i--) {
-      tabs.showItem(tabs.getItem(i));
-    }
-    tabs.notifyListeners(SWT.Resize, new Event());
-    tabs.setMRUVisible(false);
+    choose(tabs.getItem(next));
+    return true;
   }
 }

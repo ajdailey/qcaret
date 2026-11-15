@@ -154,8 +154,8 @@ class TabCloseSurfaceTest {
   }
 
   /**
-   * {@code TabList} turns MRU mode on to repair a hidden selected tab and to scroll the strip; in
-   * MRU mode the folder reselects the last used tab on a dispose. Neither decides the next tab.
+   * {@code TabList} turns MRU mode on to repair a hidden selected tab; in MRU mode the folder
+   * reselects the last used tab on a dispose. Neither decides the next tab.
    */
   @Test
   void theFolderMruModeLeavesThePositionalRule() throws Exception {
@@ -164,7 +164,6 @@ class TabCloseSurfaceTest {
     TabList list = window.tabButtons().tabList();
     controller.documents().select(10);
     drain();
-    list.scroll(-1);
     list.showSelection();
     assertFalse(tabs.getMRUVisible());
     assertShown(showAndClose(10)[1]);

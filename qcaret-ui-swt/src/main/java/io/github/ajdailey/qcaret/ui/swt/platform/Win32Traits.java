@@ -150,4 +150,9 @@ final class Win32Traits implements PlatformTraits {
   public boolean proposesPrintFileName() {
     return false;
   }
+
+  @Override
+  public boolean pollsSystemTheme() {
+    return true;
+  }
 }

@@ -33,6 +33,7 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -41,6 +42,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -56,7 +58,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The New, tab list and Close buttons at the end of the tab strip, with 30 tabs in a 700 px window:
- * one list control, the hidden count, the list menu, the wheel over the strip, the commands and the
+ * one list control, the hidden count, the list menu, the wheel selecting tabs, the commands and the
  * icon ink across a theme switch. Events go to the controls through {@code notifyListeners}. {@code
  * qcaret.shots} names a folder for screenshots with the menu open, read from the screen, which GTK
  * 4 does not show.
@@ -151,15 +153,6 @@ class TabStripButtonsTest {
       }
     }
     return count;
-  }
-
-  private int first() {
-    for (int i = 0; i < tabs.getItemCount(); i++) {
-      if (tabs.getItem(i).isShowing()) {
-        return i;
-      }
-    }
-    return -1;
   }
 
   private static void click(Canvas button) {
@@ -319,51 +312,132 @@ class TabStripButtonsTest {
     assertTrue(duplicates.contains("file-100.txt  (" + real + ")"), duplicates.toString());
   }
 
-  @Test
-  void theWheelShowsAHiddenTabAndKeepsTheSelection() {
-    select(15);
-    final int start = first();
-    assertTrue(start > 0, "tabs hidden left of the selection");
-    wheel(tabs, 3);
+  /** Waits until the tab at an index is selected and shown, and the window title names it. */
+  private void assertSelected(final int index) {
+    final String name = tabs.getItem(index).getText() + " ";
     assertTrue(
         runUntil(
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
-                return first() == start - 1;
+                return tabs.getSelectionIndex() == index
+                    && tabs.getItem(index).isShowing()
+                    && window.shell().getText().startsWith(name);
               }
             }),
-        "first shown " + first());
-    assertEquals(15, tabs.getSelectionIndex());
-    assertTrue(tabs.getItem(15).isShowing());
-    wheel(buttons.buttons().get(1), -3);
-    assertTrue(
-        runUntil(
-            new BooleanSupplier() {
-              @Override
-              public boolean getAsBoolean() {
-                return first() == start;
-              }
-            }),
-        "first shown " + first());
-    assertEquals(15, tabs.getSelectionIndex());
+        "selected "
+            + tabs.getSelectionIndex()
+            + " shown "
+            + tabs.getSelection().isShowing()
+            + ", title "
+            + window.shell().getText());
+  }
+
+  /** Returns the selected tab's text widget. */
+  private StyledText editorText() {
+    List<Control> pending = new ArrayList<Control>();
+    pending.add(tabs.getSelection().getControl());
+    while (!pending.isEmpty()) {
+      Control control = pending.remove(pending.size() - 1);
+      if (control instanceof StyledText text) {
+        return text;
+      }
+      if (control instanceof Composite composite) {
+        pending.addAll(List.of(composite.getChildren()));
+      }
+    }
+    throw new AssertionError("no text widget");
   }
 
   @Test
-  void theWheelLeavesTheSelectedTabShown() {
-    select(15);
-    for (int i = 0; i < TABS; i++) {
-      wheel(tabs, -3);
-      runUntil(
-          new BooleanSupplier() {
-            @Override
-            public boolean getAsBoolean() {
-              return true;
-            }
-          });
+  void theWheelDownFromTheFirstTabSelectsTheSecond() {
+    select(0);
+    wheel(tabs, -3);
+    assertSelected(1);
+  }
+
+  @Test
+  void threeSingleCountsSelectOneTab() {
+    select(0);
+    wheel(tabs, -1);
+    wheel(tabs, -1);
+    assertEquals(0, tabs.getSelectionIndex());
+    wheel(buttons.buttons().get(1), -1);
+    assertSelected(1);
+    wheel(tabs, -4);
+    assertSelected(2);
+    wheel(tabs, -2);
+    assertSelected(3);
+  }
+
+  @Test
+  void aReversalRestartsTheCount() {
+    select(5);
+    wheel(tabs, -2);
+    wheel(tabs, 1);
+    assertEquals(5, tabs.getSelectionIndex());
+    wheel(tabs, 2);
+    assertSelected(4);
+  }
+
+  @Test
+  void theWheelSelectsAHiddenTabAndShowsIt() {
+    select(0);
+    int last = 0;
+    while (tabs.getItem(last + 1).isShowing()) {
+      last++;
     }
-    assertEquals(15, first(), "the selected tab stays the first shown");
-    assertTrue(tabs.getItem(15).isShowing());
+    select(last);
+    assertFalse(tabs.getItem(last + 1).isShowing(), "the next tab starts hidden");
+    wheel(buttons.buttons().get(1), -3);
+    assertSelected(last + 1);
+    wheel(tabs, 3);
+    assertSelected(last);
+  }
+
+  @Test
+  void theWheelDownOnTheLastTabStaysAndClearsTheCount() {
+    select(TABS - 1);
+    wheel(tabs, -3);
+    wheel(buttons.buttons().get(2), -2);
+    wheel(tabs, -2);
+    assertSelected(TABS - 1);
+    select(TABS - 2);
+    wheel(tabs, -2);
+    assertEquals(TABS - 2, tabs.getSelectionIndex(), "the count cleared at the end");
+    wheel(tabs, -1);
+    assertSelected(TABS - 1);
+  }
+
+  @Test
+  void theWheelUpOnTheFirstTabStays() {
+    select(0);
+    wheel(tabs, 3);
+    wheel(buttons.buttons().get(0), 3);
+    assertSelected(0);
+  }
+
+  /**
+   * Win32 sends the wheel to the focused control: an event the editor text receives with the
+   * pointer over the row selects a tab, and one with the pointer over the text does not.
+   */
+  @Test
+  void theWheelOverTheRowActsWhileTheEditorHasTheFocus() {
+    select(0);
+    StyledText text = editorText();
+    Event inside = new Event();
+    inside.count = -3;
+    inside.x = 5;
+    inside.y = 5;
+    text.notifyListeners(SWT.MouseVerticalWheel, inside);
+    assertEquals(0, tabs.getSelectionIndex());
+    Point over = text.toControl(tabs.toDisplay(5, tabs.getClientArea().y / 2));
+    Event row = new Event();
+    row.count = -3;
+    row.x = over.x;
+    row.y = over.y;
+    text.notifyListeners(SWT.MouseVerticalWheel, row);
+    assertSelected(1);
   }
 
   @Test

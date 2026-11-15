@@ -84,7 +84,7 @@ class PlatformBehaviorTest {
 
   @Test
   void restartForNativeTheme() {
-    SwtThemeService service = new SwtThemeService(display, false, LIGHT_SYSTEM);
+    SwtThemeService service = new SwtThemeService(display, false, LIGHT_SYSTEM, false);
     assertTrue(service.showsNow(false));
     assertEquals(!WIN32, service.showsNow(true));
   }

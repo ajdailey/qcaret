@@ -147,4 +147,9 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean proposesPrintFileName() {
     return false;
   }
+
+  @Override
+  public boolean pollsSystemTheme() {
+    return false;
+  }
 }

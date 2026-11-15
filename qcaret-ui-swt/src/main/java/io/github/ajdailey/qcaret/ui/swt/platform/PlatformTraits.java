@@ -256,4 +256,12 @@ public interface PlatformTraits {
    * @return true on cocoa
    */
   boolean proposesPrintFileName();
+
+  /**
+   * Reports whether the system light or dark setting is polled. cocoa SWT sends no {@code
+   * SWT.Settings} for an appearance change; win32 SWT sends it 2 s after {@code WM_SETTINGCHANGE}.
+   *
+   * @return true on win32 and cocoa
+   */
+  boolean pollsSystemTheme();
 }

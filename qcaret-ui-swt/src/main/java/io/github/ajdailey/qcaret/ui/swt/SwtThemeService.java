@@ -23,9 +23,10 @@ import org.eclipse.swt.widgets.Shell;
 /**
  * The system's light or dark setting from {@link Display#isSystemDarkTheme}, with a change event
  * from {@code SWT.Settings}. On GTK the setting is read once when the Display is created, so a
- * change made while QCaret runs applies at the next start; win32 and cocoa read it per call. cocoa
- * SWT sends no {@code SWT.Settings} for an appearance change, so the service polls there and {@link
- * CocoaChrome} recolors the shells.
+ * change made while QCaret runs applies at the next start; win32 and cocoa read it per call and the
+ * service polls there: cocoa SWT sends no {@code SWT.Settings} for an appearance change, and win32
+ * SWT sends it 2 s after the system's. A change applies once, from whichever comes first. On cocoa
+ * {@link CocoaChrome} recolors the shells.
  *
  * <p>Native controls take the theme from {@link Display#setDarkThemePreferred}. GTK applies a
  * change at once, so {@link #preferDark} calls it there. win32 controls read it only when created,
@@ -45,8 +46,8 @@ public final class SwtThemeService implements ThemeService {
   /** Display data key: true when controls start with the dark native theme. */
   private static final String NATIVE_DARK = SwtThemeService.class.getName() + ".nativeDark";
 
-  /** Milliseconds between reads of the system setting on cocoa. */
-  private static final int POLL_MILLIS = 1000;
+  /** Milliseconds between reads of the system setting on win32 and cocoa. */
+  private static final int POLL_MILLIS = 500;
 
   /** Lowest contrast of link text on its background: the WCAG AA ratio for normal text. */
   private static final double LINK_CONTRAST = 4.5;
@@ -78,7 +79,7 @@ public final class SwtThemeService implements ThemeService {
    * @param display the Display
    */
   public SwtThemeService(Display display) {
-    this(display, false, SYSTEM_SETTING);
+    this(display, false, SYSTEM_SETTING, PLATFORM.pollsSystemTheme());
   }
 
   /**
@@ -87,8 +88,9 @@ public final class SwtThemeService implements ThemeService {
    * @param display the Display
    * @param nativeDark the startup setting of native controls
    * @param system reads the system setting
+   * @param poll whether to read the setting every {@code POLL_MILLIS}
    */
-  SwtThemeService(Display display, boolean nativeDark, BooleanSupplier system) {
+  SwtThemeService(Display display, boolean nativeDark, BooleanSupplier system, boolean poll) {
     this.display = display;
     this.nativeDark = nativeDark;
     this.system = system;
@@ -108,6 +110,8 @@ public final class SwtThemeService implements ThemeService {
         });
     if (PLATFORM.followsSystemAppearance()) {
       chrome = new CocoaChrome(display, dark);
+    }
+    if (poll) {
       final SwtUiDispatcher timers = new SwtUiDispatcher(display);
       timers.timerExec(
           POLL_MILLIS,
@@ -152,7 +156,7 @@ public final class SwtThemeService implements ThemeService {
     boolean value = ThemeController.resolve(mode, Display.isSystemDarkTheme()).dark();
     display.setDarkThemePreferred(value);
     display.setData(NATIVE_DARK, value);
-    return new SwtThemeService(display, value, SYSTEM_SETTING);
+    return new SwtThemeService(display, value, SYSTEM_SETTING, PLATFORM.pollsSystemTheme());
   }
 
   /**

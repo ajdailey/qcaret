@@ -35,8 +35,8 @@ import org.eclipse.swt.widgets.ToolBar;
  * The New, tab list and Close buttons at the right end of a {@code CTabFolder}'s strip, set as its
  * top-right control. Each button is a {@code Canvas} painting a {@link ToolIcons} image on the
  * palette's strip background, in the ink that background calls for. The list button also shows the
- * count of hidden tabs and opens a menu of every tab in strip order. The mouse wheel over the strip
- * brings hidden tabs into view.
+ * count of hidden tabs and opens a menu of every tab in strip order. {@link TabRowWheel} selects
+ * tabs with the mouse wheel over the strip.
  *
  * <p>SWT's chevron does not show: the renderer draws nothing for it and its {@code ToolBar} is held
  * at zero width, while the strip still reserves the chevron's width. A request for SWT's list
@@ -106,7 +106,6 @@ final class TabStripButtons {
           new int[] {SWT.Paint, SWT.MouseEnter, SWT.MouseExit, SWT.MouseDown, SWT.MouseUp}) {
         canvas.addListener(type, mouse);
       }
-      canvas.addListener(SWT.MouseVerticalWheel, wheel());
       canvas
           .getAccessible()
           .addAccessibleListener(
@@ -185,6 +184,7 @@ final class TabStripButtons {
   TabStripButtons(CTabFolder tabs, Palette palette, Consumer<CommandId> commands) {
     this.tabs = tabs;
     tabList = new TabList(tabs);
+    new TabRowWheel(tabs, tabList);
     group = new Canvas(tabs, SWT.NO_FOCUS);
     GridLayout layout = new GridLayout(3, false);
     layout.marginWidth = 0;
@@ -255,7 +255,6 @@ final class TabStripButtons {
             update();
           }
         });
-    tabs.addListener(SWT.MouseVerticalWheel, wheel());
     tabs.addCTabFolder2Listener(
         new CTabFolder2Adapter() {
           @Override
@@ -264,18 +263,6 @@ final class TabStripButtons {
             tabList.show(list.canvas);
           }
         });
-  }
-
-  private Listener wheel() {
-    return new Listener() {
-      @Override
-      public void handleEvent(Event event) {
-        if (event.count != 0) {
-          event.doit = false;
-          tabList.scroll(event.count > 0 ? -1 : 1);
-        }
-      }
-    };
   }
 
   /**

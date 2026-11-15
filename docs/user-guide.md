@@ -232,8 +232,8 @@ apply (measured on Linux, one million lines):
   lists every tab, with the number of tabs that do not fit in the row beside
   it; separators set the tabs shown in the row apart from the others, and the
   selected one is checked. Choosing a tab selects it and brings it into the
-  row. The mouse wheel over the row scrolls it one tab at a time and keeps the
-  selected tab in view.
+  row. The mouse wheel or a trackpad scroll over the row selects the previous
+  or next tab, one tab per notch, stopping at the first and last.
 - Closing a window's last tab opens an empty Untitled document in its place. An
   empty Untitled document with no unsaved changes stays open when it is the
   only tab. Preferences, Files, "Close the window with its last tab" closes the

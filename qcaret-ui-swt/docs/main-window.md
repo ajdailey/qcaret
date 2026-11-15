@@ -102,13 +102,20 @@ runner at 700 px. On each strip paint `TabList.showSelection` turns MRU mode
 on and off once for a hidden selected tab; ending MRU mode rebuilds the order
 from the first tab shown.
 
-The mouse wheel over the strip or the buttons moves the run of shown tabs one
-tab per notch without changing the selection. `CTabFolder.showItem` moves the
-run only in MRU mode; otherwise the folder keeps the run that holds the
-selection. `TabList.scroll` turns MRU mode on, shows the tabs from the last
-down to the new first, lays the folder out through a `Resize` event and turns
-MRU mode off, which starts the run at that tab. The selected tab never leaves the strip
-(measured on GTK 3 and GTK 4): the run stops with the selection at either end.
+The mouse wheel over the strip or the buttons selects the previous tab (wheel
+up) or the next tab (wheel down). `TabRowWheel` adds each event's `count` to a
+total and calls `TabList.step` each time the total reaches 3 either way,
+subtracting 3. A notch on GTK and win32 sends one event of about 3; a cocoa
+trackpad gesture sends about 200 events of 1 or 2. A reversal restarts the
+total at the event's count, and a step past the first or last tab clears it
+and leaves the selection. `TabList.step` selects as a click does, so the
+editor, title and status bar follow, and `CTabFolder` shows the selected tab.
+
+Win32 sends the wheel to the focused control, not the one under the pointer.
+`TabRowWheel` is a `Display` filter: it takes a wheel event whose position
+lies over the row from any control in the folder's shell and cancels it for
+that control, so the row acts on hover and the editor under focus does not
+scroll.
 
 ## Menus
 
