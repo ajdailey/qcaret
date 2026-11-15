@@ -134,10 +134,15 @@ Plain text, XML, HTML, JSON, CSV, TSV and log files have no symbol rules.
 token at a position is the first rule matching there. A backreference or named
 group is refused: the alternation renumbers groups.
 
-Each rule's possible first chars come from matching its regex, without a
-leading lookbehind or `\b`, against each ASCII char (a match or a hit of the
-input's end means it may start); a rule whose leading negative lookbehind
-matches every ASCII letter, digit and `_` cannot start after one. Each context
+Each rule's possible first chars come from matching its regex, without its
+lookbehinds, `\b` and `\B`, against each ASCII char (a match or a hit of the
+input's end means it may start). A negative lookahead holding one of those is
+removed whole. Where a removal could narrow the match (a quantified assertion,
+or one under an atomic group or a possessive quantifier) the rule may start
+with any char. A rule cannot start after an ASCII letter, digit or `_` only
+when each top-level alternative leads with a negative lookbehind matching all
+of them. `FirstChars` computes both and must only widen: a position it skips is
+one where the rule cannot match. Each context
 keeps one alternation per distinct set of rules a position may start, so the
 tokenizer tries only those, none inside most identifiers, and every rule at a
 non-ASCII char.

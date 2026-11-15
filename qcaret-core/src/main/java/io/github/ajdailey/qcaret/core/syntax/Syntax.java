@@ -21,12 +21,12 @@ import java.util.regex.Pattern;
  * inner rules. Inside an embedded grammar, the embed's end is tried before every rule of the
  * current context. Thread-safe; {@link Tokenizer} holds the per-thread state.
  *
- * <p>Each rule's possible first chars are found by matching its regex, without a leading lookbehind
- * or word boundary, against each ASCII char: a char that matches or needs more input may start it.
- * A rule whose leading negative lookbehind matches every ASCII letter, digit and underscore cannot
- * start after one. Each context keeps one regex per distinct set of rules a position may start, so
- * the tokenizer tries at each position only those rules, and none inside a word that only such
- * rules could start; a non-ASCII char tries every rule.
+ * <p>Each rule's possible first chars are found by matching its regex, without its lookbehinds and
+ * word boundaries, against each ASCII char: a char that matches or needs more input may start it. A
+ * rule whose top-level alternatives each lead with a negative lookbehind matching every ASCII
+ * letter, digit and underscore cannot start after one. Each context keeps one regex per distinct
+ * set of rules a position may start, so the tokenizer tries at each position only those rules, and
+ * none inside a word that only such rules could start; a non-ASCII char tries every rule.
  *
  * <p>A span whose end or escape uses {@code \1} compiles to a template context without them. The
  * tokenizer takes from {@link #derive} one context per text the begin's first group matched: the
@@ -81,7 +81,7 @@ public final class Syntax {
       boolean atEnd,
       boolean afterWord) {
     static Alt of(Pattern pattern, Kind kind, TokenType token, int target, boolean pop) {
-      Pattern probe = probe(pattern.pattern());
+      Pattern probe = FirstChars.probe(pattern.pattern());
       boolean[] starts = new boolean[NON_ASCII + 1];
       starts[NON_ASCII] = true;
       for (int c = 0; c < NON_ASCII; c++) {
@@ -90,7 +90,14 @@ public final class Syntax {
       }
       boolean atEnd = probe == null || probe.matcher("").lookingAt();
       return new Alt(
-          pattern, kind, token, target, pop, starts, atEnd, Syntax.afterWord(pattern.pattern()));
+          pattern,
+          kind,
+          token,
+          target,
+          pop,
+          starts,
+          atEnd,
+          FirstChars.afterWord(pattern.pattern()));
     }
   }
 
@@ -221,6 +228,11 @@ public final class Syntax {
 
   Context context(int id) {
     return contexts.get(id);
+  }
+
+  /** Returns how many contexts the syntax holds, derived ones included. */
+  int contextCount() {
+    return contexts.size();
   }
 
   /**
@@ -414,107 +426,6 @@ public final class Syntax {
     // A context with no rules never matches.
     Pattern pattern = alts.isEmpty() ? Pattern.compile("(?!)") : Pattern.compile(regex.toString());
     return new Combined(pattern, alts.toArray(new Alt[0]), groups, null, null, null);
-  }
-
-  /**
-   * Reports whether a regex may match right after an ASCII letter, digit or underscore: false when
-   * one of its leading lookarounds is a negative lookbehind matching each of them.
-   */
-  static boolean afterWord(String source) {
-    int at = 0;
-    Matcher flags = Pattern.compile("^\\(\\?[a-zA-Z]+\\)").matcher(source);
-    if (flags.find()) {
-      at = flags.end();
-    }
-    while (source.startsWith("(?=", at)
-        || source.startsWith("(?!", at)
-        || source.startsWith("(?<=", at)
-        || source.startsWith("(?<!", at)) {
-      int close = closing(source, at);
-      if (close < 0) {
-        return true;
-      }
-      if (source.startsWith("(?<!", at) && excludesWordChars(source.substring(at + 4, close))) {
-        return false;
-      }
-      at = close + 1;
-    }
-    return true;
-  }
-
-  private static boolean excludesWordChars(String body) {
-    Pattern p;
-    try {
-      p = Pattern.compile(body);
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
-    for (char c = 0; c < NON_ASCII; c++) {
-      boolean word = Character.isLetterOrDigit(c) || c == '_';
-      if (word && !p.matcher(String.valueOf(c)).matches()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Returns a regex's source without a leading inline flag group's lookbehinds and word boundaries,
-   * compiled for probing first chars; null when it cannot be read that way.
-   */
-  static Pattern probe(String source) {
-    int at = 0;
-    String flags = "";
-    Matcher m = Pattern.compile("^\\(\\?[a-zA-Z]+\\)").matcher(source);
-    if (m.find()) {
-      flags = m.group();
-      at = m.end();
-    }
-    while (true) {
-      if (source.startsWith("(?<=", at) || source.startsWith("(?<!", at)) {
-        int close = closing(source, at);
-        if (close < 0) {
-          return null;
-        }
-        at = close + 1;
-      } else if (source.startsWith("\\b", at) || source.startsWith("\\B", at)) {
-        at += 2;
-      } else {
-        break;
-      }
-    }
-    try {
-      return Pattern.compile(flags + source.substring(at));
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-  }
-
-  /** Returns the index of the parenthesis closing the group opened at {@code open}, or -1. */
-  private static int closing(String source, int open) {
-    int depth = 0;
-    boolean inClass = false;
-    for (int i = open; i < source.length(); i++) {
-      char c = source.charAt(i);
-      if (c == '\\') {
-        if (source.startsWith("\\Q", i)) {
-          return -1;
-        }
-        i++;
-      } else if (inClass) {
-        inClass = c != ']';
-      } else if (c == '[') {
-        inClass = true;
-        if (i + 1 < source.length() && source.charAt(i + 1) == ']') {
-          i++;
-        }
-      } else if (c == '(') {
-        depth++;
-      } else if (c == ')' && --depth == 0) {
-        return i;
-      }
-    }
-    return -1;
   }
 
   /** Builds the contexts; not thread-safe. */
