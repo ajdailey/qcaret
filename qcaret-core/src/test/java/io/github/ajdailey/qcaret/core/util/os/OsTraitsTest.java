@@ -57,19 +57,24 @@ class OsTraitsTest {
         + " confines="
         + os.confinesToSettings()
         + " webView2="
-        + os.webView2();
+        + os.webView2()
+        + " dropsDots="
+        + os.dropsTrailingDotsAndSpaces();
   }
 
   @Test
   void eachSystemAnswersItsQuestions() {
     assertEquals(
-        "ignoresCase=true lock=CHANNEL devices=true confines=false webView2=true",
+        "ignoresCase=true lock=CHANNEL devices=true confines=false webView2=true"
+            + " dropsDots=true",
         answers(WINDOWS));
     assertEquals(
-        "ignoresCase=true lock=FLOCK_MACOS devices=false confines=false webView2=false",
+        "ignoresCase=true lock=FLOCK_MACOS devices=false confines=false webView2=false"
+            + " dropsDots=false",
         answers(MAC));
     assertEquals(
-        "ignoresCase=false lock=FLOCK_LINUX devices=false confines=true webView2=false",
+        "ignoresCase=false lock=FLOCK_LINUX devices=false confines=true webView2=false"
+            + " dropsDots=false",
         answers(LINUX));
   }
 
@@ -86,6 +91,15 @@ class OsTraitsTest {
     assertEquals(
         appData.resolve("QCaret"),
         WINDOWS.userSettings(Map.of("APPDATA", appData.toString()), home));
+    assertEquals(
+        appData.resolve("QCaret"),
+        WINDOWS.userSettings(Map.of("AppData", appData.toString()), home));
+    assertEquals(
+        xdg.resolve("qcaret").resolve("QCaret"),
+        WINDOWS.userSettings(
+            Map.of("APPDATA", xdg.resolve("qcaret").toString(), "appdata", appData.toString()),
+            home),
+        "an exact name wins");
     assertEquals(
         home.resolve("AppData").resolve("Roaming").resolve("QCaret"),
         WINDOWS.userSettings(Map.<String, String>of(), home));
@@ -107,6 +121,15 @@ class OsTraitsTest {
         List.of(Path.of("C:/Windows", "Fonts"), Path.of("C:/Local", "Microsoft/Windows/Fonts")),
         WINDOWS.fontDirectories(
             Map.of("WINDIR", "C:/Windows", "LOCALAPPDATA", "C:/Local"), "C:/home"));
+    assertEquals(
+        List.of(Path.of("C:/Windows", "Fonts"), Path.of("C:/Local", "Microsoft/Windows/Fonts")),
+        WINDOWS.fontDirectories(
+            Map.of("windir", "C:/Windows", "LocalAppData", "C:/Local"), "C:/home"));
+    assertFalse(
+        LINUX
+            .fontDirectories(Map.of("xdg_data_home", "/d"), "/home/mock")
+            .contains(Path.of("/d/fonts")),
+        "Linux compares names exactly");
     assertEquals(
         List.of(
             Path.of("/System/Library/Fonts"),

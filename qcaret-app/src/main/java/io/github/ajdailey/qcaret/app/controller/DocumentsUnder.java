@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -17,6 +18,10 @@ import java.util.List;
  * empty reports nothing; Save, Save As onto a path under the entry and reload refuse with a notice,
  * so nothing writes or reads the source path until {@link #moved} or {@link #release} ends the
  * hold.
+ *
+ * <p>{@link #closeWatches} runs on the worker that renames or deletes an entry, and {@link
+ * #reopenWatches} on the UI thread once the operation's result is applied; between them no
+ * directory at or under the entry is registered for events.
  */
 final class DocumentsUnder {
   /** Receives each document a rename moved. */
@@ -101,6 +106,23 @@ final class DocumentsUnder {
           file.watch.setMissing(file.missing);
         }
       }
+    }
+  }
+
+  /** Cancels the directory watches at or under an entry; callable on a worker. */
+  @WorkerThread
+  void closeWatches(BrowserPath entry) {
+    changes.suspendDirectories(entry.path());
+    if (entry.real() != null && !entry.real().equals(entry.path())) {
+      changes.suspendDirectories(entry.real());
+    }
+  }
+
+  /** Ends {@link #closeWatches}; the directories of the documents' paths now register again. */
+  void reopenWatches(BrowserPath entry) {
+    changes.resumeDirectories(entry.path());
+    if (entry.real() != null && !entry.real().equals(entry.path())) {
+      changes.resumeDirectories(entry.real());
     }
   }
 

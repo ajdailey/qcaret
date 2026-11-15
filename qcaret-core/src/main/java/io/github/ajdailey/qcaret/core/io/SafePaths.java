@@ -194,6 +194,30 @@ public final class SafePaths {
     return false;
   }
 
+  /**
+   * Rejects a name for a new or renamed entry that the file system would change: a name ending in a
+   * dot or space where the system drops them.
+   *
+   * @param name one file name
+   * @throws IOException naming the reason
+   */
+  public static void checkNewName(String name) throws IOException {
+    checkNewName(name, OsTraits.current());
+  }
+
+  /**
+   * Rejects a name ending in a dot or space where the system drops them.
+   *
+   * @param name one file name
+   * @param os the system the name is for
+   * @throws IOException naming the reason
+   */
+  static void checkNewName(String name, OsTraits os) throws IOException {
+    if (os.dropsTrailingDotsAndSpaces() && (name.endsWith(".") || name.endsWith(" "))) {
+      throw new IOException("Name ends in a dot or space, which Windows drops");
+    }
+  }
+
   private static void checkForm(String path) throws IOException {
     checkForm(path, OsTraits.current());
   }

@@ -36,7 +36,9 @@ import java.util.function.Consumer;
  * As onto the entry and reload from writing or reading the source path. The workspace folder
  * follows a rename ({@link WorkspaceController#moved}). Delete of one entry or several runs in
  * {@link SelectionDelete}. Rename and Delete refuse while any {@link OpenFile.Work} is in flight on
- * a document under the entry, or a {@link RunningWrites} target lies under it.
+ * a document under the entry, or a {@link RunningWrites} target lies under it. A folder's rename
+ * closes the directory watches under it first ({@link DocumentsUnder#closeWatches}), since on
+ * Windows a watched directory fails the rename of its ancestors.
  */
 final class WorkspaceFiles implements WorkspaceFilesInput {
   private final WorkspaceController workspace;
@@ -184,6 +186,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
         boolean indexed = false;
         String error;
         try {
+          SafePaths.checkNewName(name);
           SafePaths.userFile(dir.resolve(name));
           made = FileOperations.create(dir, name, folder);
           indexed = !folder && indexed(made, rules);
@@ -266,8 +269,10 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
       return;
     }
     final List<DocumentController> held = windows();
+    final List<DocumentsUnder> watches = new ArrayList<DocumentsUnder>();
     for (DocumentController window : held) {
       window.under().hold(listed);
+      watches.add(window.under());
     }
     final WalkRules rules = workspace.rules();
     new BusyWork(ui, view) {
@@ -279,6 +284,12 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
         boolean indexed = false;
         String error = null;
         try {
+          if (folder) {
+            for (DocumentsUnder window : watches) {
+              window.closeWatches(listed);
+            }
+          }
+          SafePaths.checkNewName(name);
           Path real = realUnlessLink(source);
           Path target = source.resolveSibling(name);
           if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
@@ -306,6 +317,11 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
               @Override
               public void run() {
                 renamed(listed, held, move, folder, indexedName, failure);
+                if (folder) {
+                  for (DocumentsUnder window : watches) {
+                    window.reopenWatches(listed);
+                  }
+                }
               }
             });
       }

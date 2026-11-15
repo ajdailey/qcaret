@@ -239,6 +239,7 @@ system's answers from `OsTraits.of(name)`.
 | `fileNamesIgnoreCase` | `NameFilter.PLATFORM_IGNORES_CASE` | true | true | false |
 | `fileLock` | `ProcessLock`, `Flock.Constants` | `CHANNEL` | `FLOCK_MACOS` | `FLOCK_LINUX` |
 | `opensDeviceNames` | `SafePaths` device-form check | true | false | false |
+| `dropsTrailingDotsAndSpaces` | `SafePaths.checkNewName` | true | false | false |
 | `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret`, else `~/.config/qcaret` |
 | `launcherDirectory` | `SettingsLocation` portable marker beside `bin/qcaret` | null | null | `<qcaret.home>/bin` |
 | `confinesToSettings` | `SettingsLocation.confined` | false | false | true |
@@ -247,4 +248,7 @@ system's answers from `OsTraits.of(name)`.
 | `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
 
 `OsTraits.description()` is the About dialog's OS line. `EnvPaths.absolute`
-accepts a variable's value only as a non-empty absolute path.
+accepts a variable's value only as a non-empty absolute path. `WindowsTraits`
+reads each variable through `EnvPaths.windows`, which matches the name ignoring
+case: Windows sets `windir` in lower case, and the `System.getenv()` map
+compares names exactly.

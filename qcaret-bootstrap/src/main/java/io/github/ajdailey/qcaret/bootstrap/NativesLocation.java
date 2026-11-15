@@ -78,7 +78,7 @@ record NativesLocation(Path dir, boolean writable) {
   private static Path userCache(Target target, Map<String, String> env, String userHome) {
     Path home = Path.of(userHome);
     if (target.isWindows()) {
-      Path local = absolute(env.get("LOCALAPPDATA"));
+      Path local = absolute(windowsVariable(env, "LOCALAPPDATA"));
       if (local == null) {
         local = home.resolve("AppData").resolve("Local");
       }
@@ -95,6 +95,24 @@ record NativesLocation(Path dir, boolean writable) {
       xdg = home.resolve(".cache");
     }
     return xdg.resolve("qcaret").resolve("swt");
+  }
+
+  /**
+   * Returns a Windows environment variable, matching its name ignoring case as Windows does; the
+   * {@link System#getenv()} map compares names exactly. Follows {@code EnvPaths.windows}.
+   */
+  private static String windowsVariable(Map<String, String> env, String name) {
+    String value = env.get(name);
+    if (value != null) {
+      return value;
+    }
+    for (Map.Entry<String, String> entry : env.entrySet()) {
+      String key = entry.getKey();
+      if (key.length() == name.length() && key.regionMatches(true, 0, name, 0, name.length())) {
+        return entry.getValue();
+      }
+    }
+    return null;
   }
 
   /** Returns the value as a path when it is a non-empty absolute path, else null. */

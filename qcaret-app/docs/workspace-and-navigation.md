@@ -121,7 +121,9 @@ link or a Windows junction.
   the row's directory, or a file row's parent; the user still presses Search.
 - A name must be one file name: not blank, `.` or `..`, and without `/`, `\` or
   NUL, on every platform; `SafePaths.userFile` then rejects a Windows device
-  name. A taken name is refused, so nothing is replaced. New File opens the new
+  name, and on Windows `SafePaths.checkNewName` rejects a name ending in a dot
+  or space, which Windows would drop (`a.` creates `a`). A taken name is
+  refused, so nothing is replaced. New File opens the new
   file in a tab.
 - Rename keeps the entry in its directory. A name differing only in case from
   the same entry on a case-insensitive file system renames through a temporary
@@ -142,6 +144,12 @@ link or a Windows junction.
   (`WorkspaceFollow.follow`), with a notice: the index is built again
   under the new path, the browser lists it again with its expanded
   directories, and the session is saved.
+- A rename or delete of a folder first cancels the directory watches at or
+  under it in every window holding a document (`DocumentsUnder.closeWatches`,
+  `FileMonitor.suspend`) on the worker, and the UI thread lets them register
+  again once the result is applied: under the new path after a rename, the old
+  one after a failure. On Windows a watched directory fails the rename or
+  delete of any of its ancestors; the documents' polling goes on throughout.
 - From the moment the name is accepted until the move lands or fails, the
   documents under the entry are held in every window: their checks stop, so a
   check that finds the source path empty marks nothing missing, and Save, Save

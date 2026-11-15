@@ -87,6 +87,14 @@ public interface OsTraits {
   boolean opensDeviceNames();
 
   /**
+   * Reports whether the file system drops a trailing dot or space from a file name, so creating
+   * {@code a.} creates {@code a}.
+   *
+   * @return true on Windows
+   */
+  boolean dropsTrailingDotsAndSpaces();
+
+  /**
    * Returns the per-user settings directory: {@code %APPDATA%\QCaret} on Windows, {@code
    * ~/Library/Application Support/QCaret} on macOS, {@code $XDG_CONFIG_HOME/qcaret} on Linux. A
    * variable that is unset, empty or not an absolute path takes its default under the home

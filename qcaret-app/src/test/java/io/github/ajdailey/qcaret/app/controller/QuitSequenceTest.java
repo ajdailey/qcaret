@@ -8,8 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +70,37 @@ class QuitSequenceTest {
     assertEquals(1, quit.get());
     assertEquals(1, finished.get());
     assertTrue(windows.view(first).disposed);
+  }
+
+  @Test
+  void closingTheLastWindowLogsOneQuitLine() throws Exception {
+    final List<String> lines = new CopyOnWriteArrayList<String>();
+    Handler capture =
+        new Handler() {
+          @Override
+          public void publish(LogRecord entry) {
+            if (entry.getLevel() == Level.INFO) {
+              lines.add(entry.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    Logger logger = Logger.getLogger(QuitSequence.class.getName());
+    logger.addHandler(capture);
+    try {
+      first.closeWindow();
+      windows.ui.runPending();
+      assertTrue(set.isQuitting());
+      set.quit();
+      assertEquals(List.of("Quitting with 1 windows open"), lines);
+    } finally {
+      logger.removeHandler(capture);
+    }
   }
 
   @Test

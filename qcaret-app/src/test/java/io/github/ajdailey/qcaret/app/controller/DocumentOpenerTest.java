@@ -53,6 +53,7 @@ class DocumentOpenerTest {
   private final List<Path> canceled = new ArrayList<Path>();
   private final List<Integer> progress = new ArrayList<Integer>();
   private int progressEnds;
+  private final List<String> panes = new ArrayList<String>();
   private boolean alreadyOpen;
   private boolean resolveFails;
   private DocumentOpener opener;
@@ -146,6 +147,26 @@ class DocumentOpenerTest {
               public void progressEnded() {
                 ui.checkUiThread();
                 progressEnds++;
+              }
+
+              @Override
+              public void paneStarting(Path path, int lines) {
+                ui.checkUiThread();
+                panes.add(
+                    "starting "
+                        + path.getFileName()
+                        + " lines "
+                        + lines
+                        + " results "
+                        + results.size()
+                        + " active "
+                        + (active.get() > 0));
+              }
+
+              @Override
+              public void paneBuilt() {
+                ui.checkUiThread();
+                panes.add("built results " + results.size());
               }
             });
   }
@@ -322,6 +343,52 @@ class DocumentOpenerTest {
     assertTrue(Poll.until(idle(), BOUND));
     ui.runPending();
     assertEquals(List.of(), results);
+    assertEquals(0, budget.reserved());
+  }
+
+  private BooleanSupplier paneStarted() {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return !panes.isEmpty();
+      }
+    };
+  }
+
+  /** G1 L7: building the editor of a 3,000,001-line file held the UI thread for 963 ms. */
+  @Test
+  void aLargeDocumentShowsTheNoticeAndBusyStateATurnBeforeItOpens() throws Exception {
+    opener.open(file("x\n".repeat(DocumentOpener.SLOW_PANE_LINES)), LoadOptions.DEFAULTS, listener);
+    assertTrue(ui.runUntil(paneStarted(), BOUND));
+    assertEquals(
+        List.of(
+            "starting a.txt lines "
+                + (DocumentOpener.SLOW_PANE_LINES + 1)
+                + " results 0 active true"),
+        panes);
+    assertTrue(ui.runUntil(results(1), BOUND));
+    assertTrue(Poll.until(idle(), BOUND));
+    ui.runPending();
+    assertEquals("built results 1", panes.get(1));
+    assertEquals(2, panes.size());
+
+    panes.clear();
+    results.clear();
+    opener.open(
+        file("x\n".repeat(DocumentOpener.SLOW_PANE_LINES - 2)), LoadOptions.DEFAULTS, listener);
+    assertTrue(ui.runUntil(results(1), BOUND));
+    assertEquals(List.of(), panes);
+  }
+
+  @Test
+  void aCloseBetweenTheNoticeAndTheOpenDropsTheDocument() throws Exception {
+    opener.open(file("x\n".repeat(DocumentOpener.SLOW_PANE_LINES)), LoadOptions.DEFAULTS, listener);
+    assertTrue(ui.runUntil(paneStarted(), BOUND));
+    opener.close();
+    assertTrue(Poll.until(idle(), BOUND));
+    ui.runPending();
+    assertEquals(List.of(), results);
+    assertEquals("built results 0", panes.get(1));
     assertEquals(0, budget.reserved());
   }
 

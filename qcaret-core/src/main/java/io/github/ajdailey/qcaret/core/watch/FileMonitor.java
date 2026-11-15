@@ -27,9 +27,10 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>Each directory holding a watched file is registered once with a {@link WatchService}, on the
  * thread, and its key is canceled when its last file is unwatched. A directory that cannot be
- * registered is polled only. The poll stays on regardless: a {@code WatchService} misses events on
- * network mounts, polls on macOS, and never reports a change to a symbolic link's target in another
- * directory.
+ * registered is polled only. {@link #suspend} cancels the keys at or under a directory and
+ * registers none there until {@link #resume}. The poll stays on regardless: a {@code WatchService}
+ * misses events on network mounts, polls on macOS, and never reports a change to a symbolic link's
+ * target in another directory.
  *
  * <p>The listener runs on the thread, outside the lock. An exception from it is passed to the
  * thread's uncaught-exception handler once until a call completes, and checking goes on. Lock
@@ -58,6 +59,7 @@ public final class FileMonitor implements AutoCloseable {
   private final Set<Path> requested = new LinkedHashSet<Path>();
   private final Map<Path, WatchKey> keys = new HashMap<Path, WatchKey>();
   private final Set<Path> unregistered = new LinkedHashSet<Path>();
+  private final List<Path> suspended = new ArrayList<Path>();
   private final List<Path> order = new ArrayList<Path>();
   private boolean all;
   private boolean pollChanged;
@@ -175,6 +177,48 @@ public final class FileMonitor implements AutoCloseable {
       if (files.containsKey(file)) {
         requested.add(file);
       }
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /**
+   * Cancels the keys of the registered directories at or under a directory and registers none there
+   * until {@link #resume}; the files stay watched and polled. Call before renaming or deleting the
+   * directory: on Windows a key holds its directory open, and an open directory fails the rename of
+   * any ancestor. Returns once the keys are canceled.
+   *
+   * @param root the directory
+   */
+  @WorkerThread
+  public void suspend(Path root) {
+    lock.lock();
+    try {
+      suspended.add(root);
+      List<Path> under = new ArrayList<Path>();
+      for (Path directory : keys.keySet()) {
+        if (directory.startsWith(root)) {
+          under.add(directory);
+        }
+      }
+      for (Path directory : under) {
+        keys.remove(directory).cancel();
+      }
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /**
+   * Ends one {@link #suspend} of a directory. The thread registers the directories of the files
+   * watched then, so a directory a rename moved registers under its new path.
+   *
+   * @param root the directory given to {@link #suspend}
+   */
+  public void resume(Path root) {
+    lock.lock();
+    try {
+      suspended.remove(root);
     } finally {
       lock.unlock();
     }
@@ -358,7 +402,9 @@ public final class FileMonitor implements AutoCloseable {
       return;
     }
     for (Path directory : directories) {
-      if (keys.containsKey(directory) || unregistered.contains(directory)) {
+      if (keys.containsKey(directory)
+          || unregistered.contains(directory)
+          || isSuspended(directory)) {
         continue;
       }
       try {
@@ -380,6 +426,15 @@ public final class FileMonitor implements AutoCloseable {
         unregistered.add(directory);
       }
     }
+  }
+
+  private boolean isSuspended(Path directory) {
+    for (Path root : suspended) {
+      if (directory.startsWith(root)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Ends the thread's state and closes the service; called under the lock. */

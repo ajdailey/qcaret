@@ -31,6 +31,11 @@ final class MacTraits implements OsTraits {
   }
 
   @Override
+  public boolean dropsTrailingDotsAndSpaces() {
+    return false;
+  }
+
+  @Override
   public Path userSettings(Map<String, String> env, Path userHome) {
     return userHome.resolve("Library").resolve("Application Support").resolve("QCaret");
   }

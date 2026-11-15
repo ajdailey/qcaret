@@ -206,7 +206,9 @@ and a `Slider`. The slider counts rows (one widget line each): maximum the row
 count, thumb the rows that fit, selection the top row. It follows the widget on
 each paint and resize and after the strip or the wheel scroll, and its own
 moves set the top row and hand the focus back to the text. The wheel scrolls
-the text by its event count in `MouseVerticalWheel` and consumes the event.
+the text by its event count in `MouseVerticalWheel` and consumes the event, over
+the text, the strip and the slider alike: a win32 `Slider` and the strip's
+canvas do not scroll on the wheel.
 Page and caret moves scroll the widget, folding and word wrap change its rows,
 and the next paint sets the slider.
 

@@ -31,6 +31,11 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
+  public boolean dropsTrailingDotsAndSpaces() {
+    return false;
+  }
+
+  @Override
   public Path userSettings(Map<String, String> env, Path userHome) {
     Path xdg = EnvPaths.absolute(env.get("XDG_CONFIG_HOME"));
     if (xdg == null) {

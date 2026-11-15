@@ -53,6 +53,16 @@ when several run, and the percent of their bytes read. The delay is one
 `timerExec`; after it, each `LoadReservation` progress call posts one update at
 a time, and only a changed percent reaches the view.
 
+A document of `DocumentOpener.SLOW_PANE_LINES` (500,000) lines or more reaches
+`Listener.opened` one UI turn later: the first turn starts an
+`ActivityIndicator` operation (the busy cursor) and calls
+`Progress.paneStarting`, which `DocumentController` shows as the
+`LOAD_PREPARING` notice, so both paint before the editor's build holds the UI
+thread (`StyledText.setContent`, 963 ms for 3,000,001 lines on the G1 Windows
+host). `paneBuilt`, which clears the notice, and the operation's end follow the
+call; a close between the turns drops the document and releases its
+reservation.
+
 `cancelLoads` cancels every load past `resolved`, hides the row at once and
 clears the list, so a load started next gets its own delay. A canceled load
 ends in `Listener.canceled` on the UI thread, whichever it reached: the

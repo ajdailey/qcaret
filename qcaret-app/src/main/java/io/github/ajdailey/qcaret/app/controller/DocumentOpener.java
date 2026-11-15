@@ -44,8 +44,12 @@ import java.util.function.LongConsumer;
  *
  * <p>A load still reading {@value #PROGRESS_DELAY_MILLIS} ms after it started shows through {@link
  * Progress#progress}, with every other running load, until the last ends or {@link #cancelLoads}
- * stops them. A canceled load drops whatever it read and releases its reservation; {@link
- * Listener#canceled} replaces its result, also when the worker had already finished.
+ * stops them. A document of {@value #SLOW_PANE_LINES} lines or more reaches {@link Listener#opened}
+ * one UI turn after {@link Progress#paneStarting} and an {@link ActivityIndicator} operation start,
+ * so the notice and the busy cursor paint before the editor's build holds the UI thread; {@link
+ * Progress#paneBuilt} and the operation's end follow the call. A canceled load drops whatever it
+ * read and releases its reservation; {@link Listener#canceled} replaces its result, also when the
+ * worker had already finished.
  */
 public final class DocumentOpener {
   /** Receives one open's results on the UI thread. */
@@ -117,10 +121,26 @@ public final class DocumentOpener {
 
     /** No load shows any more. */
     void progressEnded();
+
+    /**
+     * A large document's editor is about to be built on the next UI turn.
+     *
+     * @param path the file
+     * @param lines the document's lines
+     */
+    void paneStarting(Path path, int lines);
+
+    /** The editor announced by {@link #paneStarting} is built, or the opener closed first. */
+    void paneBuilt();
   }
 
   /** How long a load reads before it shows. */
   static final int PROGRESS_DELAY_MILLIS = 300;
+
+  /**
+   * Lines from which a document's editor is built a UI turn after {@link Progress#paneStarting}.
+   */
+  static final int SLOW_PANE_LINES = 500_000;
 
   /** A load past {@link Listener#resolved}; the list of them is confined to the UI thread. */
   private static final class Load {
@@ -526,8 +546,32 @@ public final class DocumentOpener {
               load.listener.canceled(load.path);
             } else if (error != null) {
               load.listener.failed(load.path, error);
+            } else if (loaded.file().document().text().lineCount() >= SLOW_PANE_LINES) {
+              openSlow(load, loaded);
             } else {
               load.listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
+            }
+          }
+        });
+  }
+
+  /** Shows the notice and the busy cursor, then opens the document on the next UI turn. */
+  private void openSlow(final Load load, final Loaded loaded) {
+    activity.setActive();
+    progress.paneStarting(load.path, loaded.file().document().text().lineCount());
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              if (closed) {
+                budget.release(loaded.reserved());
+              } else {
+                load.listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
+              }
+            } finally {
+              progress.paneBuilt();
+              activity.setIdle();
             }
           }
         });

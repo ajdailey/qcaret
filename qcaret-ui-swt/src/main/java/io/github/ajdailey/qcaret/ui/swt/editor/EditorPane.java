@@ -877,9 +877,9 @@ public final class EditorPane implements EditorView {
             syncScrollBar();
           }
         });
-    // The text has no native vertical bar: the wheel scrolls it here.
-    text.addListener(
-        SWT.MouseVerticalWheel,
+    // The text has no native vertical bar: the wheel over the text, the strip or the slider
+    // scrolls it here. A win32 Slider and the strip's canvas do not scroll on the wheel.
+    Listener wheel =
         new Listener() {
           @Override
           public void handleEvent(Event event) {
@@ -889,7 +889,10 @@ public final class EditorPane implements EditorView {
               syncScrollBar();
             }
           }
-        });
+        };
+    text.addListener(SWT.MouseVerticalWheel, wheel);
+    strip.control().addListener(SWT.MouseVerticalWheel, wheel);
+    vertical.addListener(SWT.MouseVerticalWheel, wheel);
     vertical.addListener(
         SWT.Selection,
         new Listener() {

@@ -194,6 +194,7 @@ final class QuitSequence {
       return;
     }
     quitting = true;
+    LOG.info("Quitting with {} windows open", set.windows().size());
     set.quitStarted();
     ApplicationController last = set.target();
     final SessionController.Capture capture = session.close(snapshot.written());

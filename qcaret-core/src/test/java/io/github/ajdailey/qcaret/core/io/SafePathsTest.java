@@ -205,6 +205,29 @@ class SafePathsTest {
   }
 
   @Test
+  void aNameEndingInADotOrSpaceIsRefusedWhereTheSystemDropsThem() throws IOException {
+    final OsTraits windows = OsTraits.of("Windows 11");
+    for (final String name : List.of("a.", "a ", "a. ", "..a.")) {
+      IOException refused =
+          assertThrows(
+              IOException.class,
+              new Executable() {
+                @Override
+                public void execute() throws IOException {
+                  SafePaths.checkNewName(name, windows);
+                }
+              },
+              name);
+      assertEquals("Name ends in a dot or space, which Windows drops", refused.getMessage());
+      SafePaths.checkNewName(name, OsTraits.of("Linux"));
+      SafePaths.checkNewName(name, OsTraits.of("Mac OS X"));
+    }
+    SafePaths.checkNewName("a.b", windows);
+    SafePaths.checkNewName(" a", windows);
+    SafePaths.checkNewName(".gitignore", windows);
+  }
+
+  @Test
   void settingsDirectoryIsOwnerOnly() throws Exception {
     Path dir = SafePaths.settingsDirectory(temp.resolve("a").resolve("settings"));
     assertTrue(Files.isDirectory(dir));

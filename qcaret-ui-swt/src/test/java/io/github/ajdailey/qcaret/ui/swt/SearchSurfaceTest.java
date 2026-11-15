@@ -301,6 +301,16 @@ class SearchSurfaceTest {
     text.notifyListeners(SWT.MouseVerticalWheel, wheel);
     assertEquals(13, text.getTopIndex());
     assertEquals(13, bar.getSelection());
+    wheel = new Event();
+    wheel.count = -3;
+    bar.notifyListeners(SWT.MouseVerticalWheel, wheel);
+    assertEquals(16, text.getTopIndex(), "the wheel over the slider");
+    assertEquals(16, bar.getSelection());
+    wheel = new Event();
+    wheel.count = 3;
+    strip.notifyListeners(SWT.MouseVerticalWheel, wheel);
+    assertEquals(13, text.getTopIndex(), "the wheel over the overview strip");
+    assertEquals(13, bar.getSelection());
     controller.execute(CommandId.OVERVIEW_STRIP);
     drain();
     assertFalse(strip.isVisible());

@@ -2,10 +2,12 @@ package io.github.ajdailey.qcaret.core.watch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -18,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 class FileMonitorTest {
@@ -150,6 +154,55 @@ class FileMonitorTest {
     monitor.unwatch(b);
     assertTrue(Poll.until(stopped(), BOUND));
     assertEquals(0, monitor.watchedDirectories());
+  }
+
+  private BooleanSupplier registered(final int directories) {
+    return new BooleanSupplier() {
+      @Override
+      public boolean getAsBoolean() {
+        return monitor.watchedDirectories() == directories;
+      }
+    };
+  }
+
+  /**
+   * On Windows a registered directory blocks the rename of its ancestors; Linux and macOS rename
+   * either way, so there the test checks the keys only.
+   */
+  @Test
+  void aSuspendedTreeHoldsNoKeyUntilResumedUnderItsNewPath() throws Exception {
+    final Path ws = Files.createDirectories(dir.resolve("ws").resolve("Keep")).getParent();
+    Path open = Files.writeString(ws.resolve("Keep").resolve("open.txt"), "a");
+    Path other = Files.writeString(dir.resolve("other.txt"), "b");
+    final Path renamed = dir.resolve("wsr");
+    recording(NEVER);
+    monitor.watch(open);
+    monitor.watch(other);
+    assertTrue(Poll.until(registered(2), BOUND));
+    if (OS.WINDOWS.isCurrentOs()) {
+      assertThrows(
+          IOException.class,
+          new Executable() {
+            @Override
+            public void execute() throws IOException {
+              Files.move(ws, renamed);
+            }
+          },
+          "a registered folder blocks the rename of its parent");
+    }
+    monitor.suspend(ws);
+    assertEquals(1, monitor.watchedDirectories());
+    Files.move(ws, renamed);
+    Path moved = renamed.resolve("Keep").resolve("open.txt");
+    monitor.watch(moved);
+    monitor.unwatch(open);
+    monitor.resume(ws);
+    assertTrue(Poll.until(registered(2), BOUND));
+    monitor.suspend(renamed);
+    assertEquals(1, monitor.watchedDirectories());
+    monitor.resume(renamed);
+    assertTrue(Poll.until(registered(2), BOUND));
+    assertTrue(failures.isEmpty(), failures.toString());
   }
 
   @Test

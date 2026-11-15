@@ -174,6 +174,12 @@ required, since without it QCaret restarts Java and drops `-Xmx8g` (not run on
 macOS):
 `QCaret.app/Contents/runtime/Contents/Home/bin/java -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -Xmx8g -jar QCaret.app/Contents/app/lib/qcaret.jar`.
 
+After a file of 500,000 lines or more is read, the window pauses once while the
+editor takes its lines: the status bar shows
+`Preparing <name> for display: <n> lines` and the busy cursor until the editor
+shows. A 3,000,001-line file paused 963 ms on Windows; typing and find on it did
+not pause afterwards.
+
 A reload holds only the text between the first and last change. A file at these
 limits reloads a change of about 19 MiB of text at most; a larger one leaves
 the text as it is, with a notice.
@@ -587,7 +593,8 @@ window's.
 | Delete (Delete key) | Asks first, naming what goes and how many files and folders a folder holds, then deletes permanently: there is no trash and no undo |
 
 A name must be a single file or folder name, and a name already in use is
-refused. A link is renamed or deleted as the link; its target stays. Rename
+refused. On Windows a name ending in a dot or space is refused, since Windows
+would drop it. A link is renamed or deleted as the link; its target stays. Rename
 and Delete refuse with a notice while a file in the entry is being saved, copied,
 reloaded or renamed or has a change question open, or while a save, a copy or a
 checksum list is being written into it. Open

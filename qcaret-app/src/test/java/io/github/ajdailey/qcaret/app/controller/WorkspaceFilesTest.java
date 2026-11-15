@@ -32,6 +32,7 @@ import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -201,6 +202,37 @@ class WorkspaceFilesTest {
   }
 
   @Test
+  void aNameEndingInADotIsRefusedOnWindowsAndKeptElsewhere() throws Exception {
+    String reason = "Name ends in a dot or space, which Windows drops";
+    int before = harness.view.infos.size();
+    workspace().files().newFile(workspace().rootNode());
+    answer("a.");
+    if (OS.WINDOWS.isCurrentOs()) {
+      awaitInfo(before, "New File refused");
+      assertEquals(UiText.CREATE_FAILED.format("a.", reason), lastInfo());
+      assertFalse(Files.exists(root.resolve("a")));
+
+      before = harness.view.infos.size();
+      workspace().files().rename(file(root.resolve("notes.txt")));
+      answer("notes ");
+      awaitInfo(before, "rename refused");
+      assertEquals(UiText.RENAME_FAILED.format("notes.txt", reason), lastInfo());
+      assertTrue(Files.isRegularFile(root.resolve("notes.txt")));
+    } else {
+      final Path made = root.resolve("a.");
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return made.equals(documents().activePath());
+            }
+          },
+          "a. opened");
+      assertTrue(Files.isRegularFile(made));
+    }
+  }
+
+  @Test
   void anOpenDirtyDocumentFollowsARenamedFolderAndFile() throws Exception {
     final Path main = root.resolve("src").resolve("Main.java");
     harness.open(main);
@@ -250,6 +282,59 @@ class WorkspaceFilesTest {
     assertFalse(Files.exists(main));
     assertFalse(Files.exists(moved));
     assertFalse(documents().activeDocument().isDirty());
+  }
+
+  private void awaitWatchedDirectories(final int count, String what) throws InterruptedException {
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return documents().watchedDirectories() == count;
+          }
+        },
+        what);
+  }
+
+  /** On Windows a watched directory fails the rename and delete of its ancestors. */
+  @Test
+  void aFolderAboveAWatchedFolderRenamesAndDeletes() throws Exception {
+    Path leaf = root.resolve("src").resolve("deep").resolve("Leaf.java");
+    harness.open(leaf);
+    awaitWatchedDirectories(1, "deep watched");
+    workspace().files().rename(folder(root.resolve("src")));
+    answer("lib");
+    final Path moved = root.resolve("lib").resolve("deep").resolve("Leaf.java");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return moved.equals(documents().activePath());
+          }
+        },
+        "document followed the folder");
+    assertTrue(harness.view.infos.isEmpty(), harness.view.infos.toString());
+    awaitWatchedDirectories(1, "deep watched under lib");
+
+    workspace().files().delete(folder(root.resolve("lib")));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.deleteAsked != null;
+          }
+        },
+        "asked");
+    harness.view.deleteAccept.run();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !Files.exists(root.resolve("lib"))
+                && UiText.TAB_MISSING.format("*Leaf.java").equals(harness.view.selected.title);
+          }
+        },
+        "deleted, document missing");
+    assertTrue(harness.view.infos.isEmpty(), harness.view.infos.toString());
   }
 
   @Test

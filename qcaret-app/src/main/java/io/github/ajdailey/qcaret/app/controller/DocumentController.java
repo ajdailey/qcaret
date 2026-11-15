@@ -603,6 +603,16 @@ public final class DocumentController {
               public void progressEnded() {
                 view.hideLoadProgress();
               }
+
+              @Override
+              public void paneStarting(Path path, int lines) {
+                view.showNotice(UiText.LOAD_PREPARING.format(path.getFileName(), lines));
+              }
+
+              @Override
+              public void paneBuilt() {
+                view.showNotice("");
+              }
             });
   }
 
@@ -2026,6 +2036,11 @@ public final class DocumentController {
   /** Reports whether the monitor's thread runs; for tests. */
   boolean watching() {
     return changes.running();
+  }
+
+  /** Counts the directories registered for change events; for tests. */
+  int watchedDirectories() {
+    return changes.watchedDirectories();
   }
 
   /** Counts the finished checks of every due file; for tests. */

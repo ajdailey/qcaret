@@ -23,10 +23,11 @@ import java.util.concurrent.CancellationException;
  * #LISTED_NAMES} names with the folders' contents, says that it cannot be undone and that links go
  * as links, and lists the unsaved open documents under any entry. A second worker deletes the
  * entries in order; a folder stops at its first entry that fails, the other entries still go, and
- * one message reports every stop. Afterwards the open documents under each entry are checked, which
- * marks a deleted file missing, a finished delete of the workspace folder or a parent clears it
- * ({@link WorkspaceController#deleted}), and each directory is listed again. Confined to the UI
- * thread.
+ * one message reports every stop. The directory watches under a folder close before the delete and
+ * reopen after it ({@link DocumentsUnder#closeWatches}). Afterwards the open documents under each
+ * entry are checked, which marks a deleted file missing, a finished delete of the workspace folder
+ * or a parent clears it ({@link WorkspaceController#deleted}), and each directory is listed again.
+ * Confined to the UI thread.
  */
 final class SelectionDelete {
   /** Names the delete prompt lists before {@code +N}. */
@@ -229,12 +230,23 @@ final class SelectionDelete {
   }
 
   private void deleteNow(final List<Found> found) {
+    final List<DocumentsUnder> watches = new ArrayList<DocumentsUnder>();
+    for (DocumentController window : files.windows()) {
+      watches.add(window.under());
+    }
     new BusyWork(ui, view) {
       private final List<FileOperations.Deleted> results = new ArrayList<FileOperations.Deleted>();
 
       @Override
       @WorkerThread
       void work() {
+        for (Found entry : found) {
+          if (entry.folder()) {
+            for (DocumentsUnder window : watches) {
+              window.closeWatches(entry.entry());
+            }
+          }
+        }
         for (Found entry : found) {
           if (token.isCanceled()) {
             break;
@@ -247,6 +259,13 @@ final class SelectionDelete {
       void finished(boolean completed) {
         if (completed) {
           deleted(found, results);
+        }
+        for (Found entry : found) {
+          if (entry.folder()) {
+            for (DocumentsUnder window : watches) {
+              window.reopenWatches(entry.entry());
+            }
+          }
         }
       }
     }.start(workers, Workers.Kind.IO);

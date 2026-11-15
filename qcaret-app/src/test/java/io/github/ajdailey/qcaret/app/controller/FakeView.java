@@ -493,6 +493,10 @@ final class FakeView implements MainView {
   boolean launchFails;
 
   final List<String> notices = new ArrayList<String>();
+
+  /** Runs at the start of {@code addTab}, before the tab exists; null runs nothing. */
+  Runnable beforeAddTab;
+
   final List<String> launched = new ArrayList<String>();
   Boolean toolbarShown;
   Boolean lineNumbersShown;
@@ -742,6 +746,9 @@ final class FakeView implements MainView {
       TabInput tab,
       int index) {
     ui.checkUiThread();
+    if (beforeAddTab != null) {
+      beforeAddTab.run();
+    }
     FakeTab fake = new FakeTab(projection, selections, editor, tab);
     tabs.add(index, fake);
     editor.lineChangesShown(lineChangesShown);

@@ -81,6 +81,17 @@ class BootTest {
         Path.of("/u", "AppData", "Local", "QCaret", "cache", "swt", "3.135.0-windows-x86_64"),
         NativesLocation.resolve(home, null, Target.WINDOWS_X86_64, "3.135.0", Map.of(), "/u")
             .dir());
+    Path local = temp.resolve("local");
+    assertEquals(
+        local.resolve("QCaret").resolve("cache").resolve("swt").resolve("3.135.0-windows-x86_64"),
+        NativesLocation.resolve(
+                home,
+                null,
+                Target.WINDOWS_X86_64,
+                "3.135.0",
+                Map.of("LocalAppData", local.toString()),
+                "/u")
+            .dir());
 
     Files.createFile(home.resolve("qcaret.conf"));
     assertEquals(

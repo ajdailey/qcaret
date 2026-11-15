@@ -827,7 +827,10 @@ public final class WindowSet {
     return copies;
   }
 
-  /** Starts quitting every window without asking; a second call does nothing. */
+  /**
+   * Starts quitting every window without asking and logs the start at INFO; a second call does
+   * nothing.
+   */
   public void quit() {
     quitSequence.quit();
   }

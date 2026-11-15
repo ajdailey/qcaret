@@ -179,6 +179,25 @@ final class ExternalChanges {
     monitor.check(watch.path);
   }
 
+  /**
+   * Cancels the directory watches at or under a directory until {@link #resumeDirectories}; see
+   * {@link FileMonitor#suspend}.
+   */
+  @WorkerThread
+  void suspendDirectories(Path root) {
+    monitor.suspend(root);
+  }
+
+  /** Ends one {@link #suspendDirectories}. */
+  void resumeDirectories(Path root) {
+    monitor.resume(root);
+  }
+
+  /** Counts the directories registered for events; for tests. */
+  int watchedDirectories() {
+    return monitor.watchedDirectories();
+  }
+
   /** Stops every check. */
   void close() {
     token.cancel();

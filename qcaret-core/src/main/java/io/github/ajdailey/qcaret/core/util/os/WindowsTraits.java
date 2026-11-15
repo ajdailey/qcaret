@@ -31,8 +31,13 @@ final class WindowsTraits implements OsTraits {
   }
 
   @Override
+  public boolean dropsTrailingDotsAndSpaces() {
+    return true;
+  }
+
+  @Override
   public Path userSettings(Map<String, String> env, Path userHome) {
-    Path appData = EnvPaths.absolute(env.get("APPDATA"));
+    Path appData = EnvPaths.absolute(EnvPaths.windows(env, "APPDATA"));
     if (appData == null) {
       appData = userHome.resolve("AppData").resolve("Roaming");
     }
@@ -57,8 +62,8 @@ final class WindowsTraits implements OsTraits {
   @Override
   public List<Path> fontDirectories(Map<String, String> env, String home) {
     List<Path> folders = new ArrayList<Path>();
-    EnvPaths.addFolder(folders, env.get("WINDIR"), "Fonts");
-    EnvPaths.addFolder(folders, env.get("LOCALAPPDATA"), "Microsoft/Windows/Fonts");
+    EnvPaths.addFolder(folders, EnvPaths.windows(env, "WINDIR"), "Fonts");
+    EnvPaths.addFolder(folders, EnvPaths.windows(env, "LOCALAPPDATA"), "Microsoft/Windows/Fonts");
     return folders;
   }
 

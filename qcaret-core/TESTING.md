@@ -56,8 +56,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `DigestsTest` | A file past the block size |
 | `ChecksumsTest` | Known vectors for all four algorithms (empty, `abc`), the million-`a` SHA-256 through file and text buffers, a generated file past three buffers, a cancel mid-file, a surrogate pair split across pieces in UTF-16LE, a char the charset cannot encode |
 | `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
-| `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only |
-| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings, the launcher directory and font folders per system, the description, `EnvPaths.absolute` |
+| `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only; a name ending in a dot or space refused on Windows only |
+| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings, the launcher directory and font folders per system, Windows variable names matched ignoring case, the description, `EnvPaths.absolute` |
 | `AtomicFilesTest`, `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 
 ### Editing commands
@@ -115,4 +115,4 @@ and tests of a read-only file skip where the user writes read-only files.
 | Class | Covers |
 |---|---|
 | `FileCheckTest` | An untouched file read by its stamp only, a touch with the same bytes, other bytes, a truncate and regrow to the same size and time, a racy baseline settling, a file renamed over the name with other and with the same bytes (the first skipped without a file key: NTFS tunneling), a delete and the return of the same and of other bytes, a file where none was, a directory at the path, a retargeted link, a 3 MiB file changed in its last byte |
-| `FileMonitorTest` | The poll, requested checks, one registration per directory released with its last file, a throwing listener reported once while checks go on, a directory event naming its file (skipped on macOS, whose `WatchService` polls), `close` |
+| `FileMonitorTest` | The poll, requested checks, one registration per directory released with its last file, a throwing listener reported once while checks go on, a directory event naming its file (skipped on macOS, whose `WatchService` polls), `suspend` and `resume` around the rename of a watched folder's parent (on Windows the rename fails first without `suspend`), `close` |

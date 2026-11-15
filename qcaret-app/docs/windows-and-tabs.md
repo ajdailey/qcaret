@@ -92,8 +92,8 @@ A window's close button runs `requestClose`, which asks about that window's
 documents and closes it alone; the last window quits instead, and a further
 window stays open while the session restores.
 
-`quit` asks nothing and runs once: it captures the session, queues the last
-recovery writes, stops every window, records the normal bounds and maximized
+`quit` asks nothing and runs once: it logs `Quitting with <n> windows open` at
+INFO, captures the session, queues the last recovery writes, stops every window, records the normal bounds and maximized
 state of the window activated last, hides the windows, then on a
 `qcaret-lifecycle-` worker saves the settings and the session, finishes
 recovery, runs the quit listeners, closes `Workers`, runs the finish listeners

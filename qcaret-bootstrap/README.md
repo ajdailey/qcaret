@@ -70,7 +70,7 @@ itself (its own extraction runs `chmod` through `Runtime.exec`).
 | Portable: `<qcaret.home>/qcaret.conf` exists | `<qcaret.home>/cache/swt/<swt version>-<target>/` | Verify; extract |
 | Portable on Linux: only `<qcaret.home>/bin/qcaret.conf` exists | `<qcaret.home>/bin/cache/swt/<swt version>-<target>/` | Verify; extract |
 | Linux | `${XDG_CACHE_HOME:-~/.cache}/qcaret/swt/<swt version>-<target>/` | Verify; extract |
-| Windows | `%LOCALAPPDATA%\QCaret\cache\swt\<swt version>-<target>\` | Verify; extract |
+| Windows | `%LOCALAPPDATA%\QCaret\cache\swt\<swt version>-<target>\`, the variable's name matched ignoring case | Verify; extract |
 | macOS | `~/Library/Caches/io.github.ajdailey.qcaret/swt/<swt version>-<target>/` | Verify; extract |
 
 Every start checks the SHA-256 of every library against the jar's digest.
@@ -104,7 +104,7 @@ the first process are not carried over.
 |---|---|
 | `MainTest` | Java 21 and later accepted, the message naming the running Java, `Main` compiled as Java 8 bytecode; `java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary `-Dqcaret.test.java8=<path to java>` names and skips without it |
 | `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named, `current` matching this JVM |
-| `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (a Linux marker beside `bin/qcaret`, the installation directory's winning), a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
+| `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (a Linux marker beside `bin/qcaret`, the installation directory's winning), `LocalAppData` matched ignoring case, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
 | `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
 | `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |
 | `BootstrapArchitectureTest` | The module on the JDK only, process creation only in `MacRelaunch`, `System.exit` only in `Main`, the string `os.name` only in `Target`; each rule shown to fail on a fixture class |

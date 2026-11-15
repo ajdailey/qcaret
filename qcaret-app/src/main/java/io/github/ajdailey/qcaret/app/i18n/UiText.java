@@ -1711,7 +1711,9 @@ public enum UiText {
   /** Preferences: chooses the default workspace folder. */
   BUTTON_CHOOSE_FOLDER,
   /** Preferences: clears the default workspace folder. */
-  BUTTON_CLEAR_FOLDER;
+  BUTTON_CLEAR_FOLDER,
+  /** Status bar notice while a large document's editor is built: the file's name, its lines. */
+  LOAD_PREPARING;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 
