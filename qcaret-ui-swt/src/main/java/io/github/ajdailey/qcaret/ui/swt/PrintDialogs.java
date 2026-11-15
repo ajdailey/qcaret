@@ -1,13 +1,16 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.printing.PrintDialog;
 import org.eclipse.swt.printing.PrinterData;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Creates File > Print's {@link PrintDialog}. With a selection the dialog opens with {@link
- * PrinterData#SELECTION} chosen: the Windows dialog offers Selection only when it opens with it. A
- * PDF name goes in {@link PrinterData#fileName}, which the macOS dialog passes to its save sheet.
+ * Creates the {@link PrintDialog} of File > Print and Print Selection. With a selection the dialog
+ * opens with {@link PrinterData#SELECTION} chosen, except where {@link
+ * PlatformTraits#printDialogOmitsSelection} holds: there it opens on its default scope, so the job
+ * prints what the dialog shows. A PDF name goes in {@link PrinterData#fileName}, which the macOS
+ * dialog passes to its save sheet.
  */
 final class PrintDialogs {
   private PrintDialogs() {}
@@ -18,11 +21,12 @@ final class PrintDialogs {
    * @param parent the owning shell
    * @param selected true when the document has a non-empty selection
    * @param pdfName the proposed PDF file name, or null for none
+   * @param traits the platform's traits
    * @return the dialog
    */
-  static PrintDialog create(Shell parent, boolean selected, String pdfName) {
+  static PrintDialog create(Shell parent, boolean selected, String pdfName, PlatformTraits traits) {
     PrintDialog dialog = new PrintDialog(parent);
-    if (selected) {
+    if (selected && !traits.printDialogOmitsSelection()) {
       dialog.setScope(PrinterData.SELECTION);
     }
     if (pdfName != null) {

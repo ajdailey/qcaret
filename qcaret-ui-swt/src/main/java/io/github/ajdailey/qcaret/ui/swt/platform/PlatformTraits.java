@@ -281,4 +281,13 @@ public interface PlatformTraits {
    * @return true on cocoa
    */
   boolean labelsByDescription();
+
+  /**
+   * Reports whether the print dialog offers no Selection scope. Windows 11's dialog offers All
+   * pages and a custom range; opened with {@code PrinterData.SELECTION} it shows All pages and
+   * returns Selection.
+   *
+   * @return true on win32
+   */
+  boolean printDialogOmitsSelection();
 }

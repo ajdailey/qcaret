@@ -138,7 +138,13 @@ window until the copy ends.
 File > Print opens the system print dialog; it has no default key, because
 `Ctrl+P` is Quick Open, and Preferences can assign one. The dialog chooses the
 printer, the copies, and all pages, a page range or the selection; with text
-selected it opens on the selection. A job prints
+selected it opens on the selection. The Windows 11 dialog offers no selection
+choice, so there File > Print prints what the dialog shows, all pages or a
+range of the whole document.
+
+File > Print Selection, enabled while text is selected, opens the same dialog
+and prints only the selection on every platform; a page range counts the
+selection's pages. It has no default key either. A job prints
 the document as it stood when you chose the command, folded text included and
 word wrap ignored: a line wider than the page wraps at the column. Each page
 has the file name and Page N of M at the top, line numbers, and Light's syntax
@@ -149,7 +155,8 @@ On macOS the dialog's Save as PDF proposes the document's name with `.pdf`.
 
 On Linux with GTK 4 (`SWT_GTK4=1`) the print dialog does not open: File > Print
 asks for a PDF file name, proposing the document's name with `.pdf`, and writes
-the whole document to it, one copy.
+the whole document to it, one copy; File > Print Selection writes the selection
+the same way.
 
 ### Large files
 

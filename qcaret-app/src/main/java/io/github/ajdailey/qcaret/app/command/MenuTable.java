@@ -158,6 +158,7 @@ public final class MenuTable {
             CommandId.CLOSE_RIGHT,
             null,
             CommandId.PRINT,
+            CommandId.PRINT_SELECTION,
             null,
             CommandId.QUIT));
     m.put(

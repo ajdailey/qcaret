@@ -397,14 +397,17 @@ final class WorkspaceDock {
   }
 
   /**
-   * Expands each directory of a chain and selects its last row.
+   * Expands each directory of a chain but the last and selects the last row. A last directory row
+   * keeps its placeholder: its directory is not listed, and a refill would leave it no child and no
+   * expand arrow.
    *
    * @param chain directories below the root, then the row to select
    */
   void reveal(List<WorkspaceNode> chain) {
     TreeItem[] level = tree.getItems();
     TreeItem item = null;
-    for (WorkspaceNode node : chain) {
+    for (int i = 0; i < chain.size(); i++) {
+      WorkspaceNode node = chain.get(i);
       item = null;
       for (TreeItem candidate : level) {
         if (node.equals(candidate.getData())) {
@@ -415,7 +418,7 @@ final class WorkspaceDock {
       if (item == null) {
         return;
       }
-      if (node.expands()) {
+      if (node.expands() && i < chain.size() - 1) {
         if (isPlaceholder(item)) {
           refill(item);
         }

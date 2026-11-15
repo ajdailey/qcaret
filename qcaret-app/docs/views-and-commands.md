@@ -141,7 +141,7 @@ and the editor, tab and row context menus has a mnemonic (`&` before the letter,
 
 | Menu | Holds, `\|` between groups |
 |---|---|
-| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print \| Exit |
+| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines and Convert Case cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
@@ -206,7 +206,7 @@ Commands with no default key include the split commands, Toggle Fold, Sort,
 Remove Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Title Case,
 Swap Case, Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
-Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Close Others,
+Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
 Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in

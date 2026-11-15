@@ -25,16 +25,17 @@ import java.util.Set;
  * disables every command that would write or edit it; a read-only document disables the edits and
  * the line-ending conversions, and Save too while its file's bytes do not encode back. Undo and
  * Redo need a step in the document's history, Cut and Copy a selection, which a read-only document
- * keeps for Copy. Reopen Closed Tab and Clear Recently Closed need a closed file, not a document.
- * The fold commands need fold regions in the focused view, the unfold commands a collapsed one.
- * Next, Previous and Clear Bookmarks need a bookmark; the Bookmarks list shows without a document.
- * HyperSearch runs without a document; Next and Previous Result and Replace in Results need a match
- * in a retained set. Go Back and Go Forward need a position that way, Clear Recent Files a file.
- * Compare Documents needs a second document, Compare with File on Disk and Reload from Disk a file.
- * Close to the Left and Close to the Right need a tab on that side of the selected one. Undo
- * Selection and Redo Selection need an entry in the focused view's selection history. A disabled
- * menu item's accelerator does not fire; the keys of Undo, Redo, Cut and Copy are editor bindings,
- * not accelerators, so they stay live in the editor and in text fields whatever the items show.
+ * keeps for Copy. Print Selection needs a selection too. Reopen Closed Tab and Clear Recently
+ * Closed need a closed file, not a document. The fold commands need fold regions in the focused
+ * view, the unfold commands a collapsed one. Next, Previous and Clear Bookmarks need a bookmark;
+ * the Bookmarks list shows without a document. HyperSearch runs without a document; Next and
+ * Previous Result and Replace in Results need a match in a retained set. Go Back and Go Forward
+ * need a position that way, Clear Recent Files a file. Compare Documents needs a second document,
+ * Compare with File on Disk and Reload from Disk a file. Close to the Left and Close to the Right
+ * need a tab on that side of the selected one. Undo Selection and Redo Selection need an entry in
+ * the focused view's selection history. A disabled menu item's accelerator does not fire; the keys
+ * of Undo, Redo, Cut and Copy are editor bindings, not accelerators, so they stay live in the
+ * editor and in text fields whatever the items show.
  *
  * <p>Open All in Recent Files and in Recently Closed needs a listed file.
  */
@@ -127,7 +128,8 @@ public final class CommandStates {
    * turn: {@link #enabled} costs each one a look at the history or the carets, never at the text.
    */
   public static final Set<CommandId> EDIT_STATE =
-      EnumSet.of(CommandId.UNDO, CommandId.REDO, CommandId.CUT, CommandId.COPY);
+      EnumSet.of(
+          CommandId.UNDO, CommandId.REDO, CommandId.CUT, CommandId.COPY, CommandId.PRINT_SELECTION);
 
   /**
    * A grammar as the Syntax menu lists it.
@@ -270,6 +272,7 @@ public final class CommandStates {
     }
     return switch (command) {
       case COPY -> selected(documents);
+      case PRINT_SELECTION -> selected(documents);
       case SAVE -> !binary && !documents.activeRefusesSave();
       case SAVE_AS, SAVE_COPY_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();

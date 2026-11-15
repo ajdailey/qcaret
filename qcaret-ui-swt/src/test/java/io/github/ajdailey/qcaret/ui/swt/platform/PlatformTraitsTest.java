@@ -48,7 +48,8 @@ class PlatformTraitsTest {
     "pollsSystemTheme",
     // macOS Window menu and accessibility.
     "windowMenuControls",
-    "labelsByDescription"
+    "labelsByDescription",
+    "printDialogOmitsSelection"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -85,6 +86,7 @@ class PlatformTraitsTest {
     // macOS Window menu and accessibility.
     answers.add(traits.windowMenuControls());
     answers.add(traits.labelsByDescription());
+    answers.add(traits.printDialogOmitsSelection());
     return answers;
   }
 
@@ -129,7 +131,8 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        false);
+        false,
+        true);
   }
 
   @Test
@@ -166,7 +169,8 @@ class PlatformTraitsTest {
         true,
         true,
         true,
-        true);
+        true,
+        false);
   }
 
   @Test
@@ -204,6 +208,7 @@ class PlatformTraitsTest {
         false,
         false,
         false,
+        false,
         false);
   }
 
@@ -237,6 +242,7 @@ class PlatformTraitsTest {
         true,
         false,
         SWT.CURSOR_APPSTARTING,
+        false,
         false,
         false,
         false,

@@ -1534,6 +1534,8 @@ public enum UiText {
   PRINT_FAILED,
   /** Save dialog title where File > Print writes a PDF file. */
   PRINT_TO_PDF,
+  /** File > Print Selection. */
+  COMMAND_PRINT_SELECTION,
   /** Tab tool tip line naming where the settings came from; takes the sources. */
   SETTINGS_FROM,
   /** A modeline as a settings source; takes its kind. */

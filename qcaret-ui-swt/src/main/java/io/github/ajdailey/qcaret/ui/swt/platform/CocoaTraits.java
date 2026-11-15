@@ -165,4 +165,9 @@ final class CocoaTraits implements PlatformTraits {
   public boolean labelsByDescription() {
     return true;
   }
+
+  @Override
+  public boolean printDialogOmitsSelection() {
+    return false;
+  }
 }

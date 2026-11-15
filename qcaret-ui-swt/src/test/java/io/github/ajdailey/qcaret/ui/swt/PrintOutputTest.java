@@ -397,23 +397,69 @@ class PrintOutputTest {
   }
 
   /**
-   * The print dialog opens on Selection while the document has one: the Windows dialog offers
-   * Selection only when it opens with it.
+   * The print dialog opens on Selection while the document has one, except on win32 (S9-7): the
+   * Windows 11 dialog offers no Selection, and opened on it showed All pages while the job printed
+   * only the selection.
    */
   @Test
-  void thePrintDialogOpensOnTheSelectionWhileOneExists() throws Exception {
-    openFile("first\nsecond\nthird\n");
-    EditorPane pane = window.activeEditor();
-    assertFalse(pane.hasSelection());
-    assertEquals(
-        PrinterData.ALL_PAGES, PrintDialogs.create(window.shell(), false, null).getScope());
+  void thePrintDialogOpensOnTheSelectionWhereItOffersOne() {
+    String[] platforms = {"win32", "cocoa", "gtk", "gtk"};
+    boolean[] gtk4 = {false, false, false, true};
+    for (int i = 0; i < platforms.length; i++) {
+      PlatformTraits traits = PlatformTraits.of(platforms[i], gtk4[i]);
+      int scope =
+          traits.printDialogOmitsSelection() ? PrinterData.ALL_PAGES : PrinterData.SELECTION;
+      assertEquals(
+          PrinterData.ALL_PAGES,
+          PrintDialogs.create(window.shell(), false, null, traits).getScope(),
+          platforms[i]);
+      assertEquals(
+          scope, PrintDialogs.create(window.shell(), true, null, traits).getScope(), platforms[i]);
+    }
+  }
+
+  private void select(int start, int end) {
     controller
         .documents()
         .activeEditor()
         .selections()
-        .set(SelectionSet.of(List.of(Selection.caret(1), Selection.of(6, 12)), 1));
-    assertTrue(pane.hasSelection());
-    assertEquals(PrinterData.SELECTION, PrintDialogs.create(window.shell(), true, null).getScope());
+        .set(SelectionSet.of(List.of(Selection.of(start, end)), 0));
+  }
+
+  /** S9-7: on win32 Print with a selection prints what the dialog shows, the whole document. */
+  @Test
+  void printOnWin32WithASelectionPrintsTheWholeDocument() throws Exception {
+    PrinterData data = requirePrinter();
+    openFile("first\nsecond\nthird\n");
+    select(6, 12);
+    data.scope =
+        PrintDialogs.create(window.shell(), true, null, PlatformTraits.of("win32", false))
+            .getScope();
+    print(data);
+    awaitOutput();
+    String text = pageText(1);
+    assertTrue(text.contains("first") && text.contains("second") && text.contains("third"), text);
+  }
+
+  @Test
+  void printSelectionPrintsTheSelectedLinesWhateverTheScope() throws Exception {
+    PrinterData data = requirePrinter();
+    openFile("first\nsecond\nthird\n");
+    select(6, 12);
+    data.scope = PrinterData.ALL_PAGES;
+    window.setPrinterChooser(
+        new Supplier<PrinterData>() {
+          @Override
+          public PrinterData get() {
+            return data;
+          }
+        });
+    controller.execute(CommandId.PRINT_SELECTION);
+    awaitOutput();
+    String text = pageText(1);
+    assertTrue(text.contains("second"), text);
+    assertFalse(text.contains("first"), text);
+    assertFalse(text.contains("third"), text);
   }
 
   /** S9-10: the macOS print dialog proposes the document's PDF name to its save sheet. */
@@ -421,8 +467,13 @@ class PrintOutputTest {
   void thePrintDialogTakesThePdfName() {
     assertEquals(
         "notes.pdf",
-        PrintDialogs.create(window.shell(), false, "notes.pdf").getPrinterData().fileName);
-    assertNull(PrintDialogs.create(window.shell(), false, null).getPrinterData().fileName);
+        PrintDialogs.create(window.shell(), false, "notes.pdf", PlatformTraits.PLATFORM)
+            .getPrinterData()
+            .fileName);
+    assertNull(
+        PrintDialogs.create(window.shell(), false, null, PlatformTraits.PLATFORM)
+            .getPrinterData()
+            .fileName);
   }
 
   @Test

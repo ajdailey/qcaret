@@ -307,12 +307,16 @@ the tab disposes every view.
 
 ## Printing
 
-`PrintController` runs File > Print, one job per window; a second request shows
-a notice. The command captures a `PrintSource`: a text snapshot, the active
-view's selections, the tab width, the grammar and the line-number setting.
-Edits made afterward do not reach the job, and word wrap and folds, which are
-view state, do not affect it. `MainView.choosePrinter` returns a `PrintTarget`,
-or nothing for a canceled dialog; `PrintTarget` is the toolkit seam.
+`PrintController` runs File > Print and File > Print Selection, one job per
+window; a second request shows a notice. Print prints the selection when the
+`PrintTarget` reports `selectionOnly`; Print Selection prints it whatever the
+target reports, and without a selection shows a notice and opens no dialog. A
+page range applies to the pages being printed, the selection's under Print
+Selection. The command captures a `PrintSource`: a text snapshot, the active
+view's selections, the tab width, the grammar and the line-number setting. Edits
+made afterward do not reach the job, and word wrap and folds, which are view
+state, do not affect it. `MainView.choosePrinter` returns a `PrintTarget`, or
+nothing for a canceled dialog; `PrintTarget` is the toolkit seam.
 
 The job runs on a `qcaret-print-` platform thread: `start` measures a page as
 columns and rows, `PrintLayout.of` paginates, `page` prints each page in the

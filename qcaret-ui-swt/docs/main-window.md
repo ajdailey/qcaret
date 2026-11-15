@@ -364,6 +364,7 @@ call in `ui.swt` or the launcher outside the same classes.
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
 | `windowMenuControls` | - | yes | - | - | `MainMenuBar`: Minimize and Zoom (see [Menus](#menus)) |
 | `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
+| `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |
 
 `WindowStacking` reads the platform itself to pick the stacking class (see
 [Always on Top](#always-on-top)).

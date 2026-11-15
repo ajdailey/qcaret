@@ -996,7 +996,10 @@ public final class MainWindow implements MainView {
         EditorPane pane = activeEditor();
         String pdfName =
             PlatformTraits.PLATFORM.proposesPrintFileName() ? PdfPrinter.fileName(document) : null;
-        data = PrintDialogs.create(shell, pane != null && pane.hasSelection(), pdfName).open();
+        data =
+            PrintDialogs.create(
+                    shell, pane != null && pane.hasSelection(), pdfName, PlatformTraits.PLATFORM)
+                .open();
       } else {
         String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell, document);
         data = file == null ? null : PdfPrinter.printer(file);

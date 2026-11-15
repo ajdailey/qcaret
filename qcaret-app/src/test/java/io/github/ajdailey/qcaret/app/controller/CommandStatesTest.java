@@ -43,6 +43,7 @@ class CommandStatesTest {
           "SET_WORKSPACE -e -e -e",
           "QUICK_OPEN -e -e -e",
           "PRINT -- -e -e",
+          "PRINT_SELECTION -- -- --",
           "OPEN_ALL_RECENT -- -e -e",
           "CLEAR_RECENT_FILES -- -e -e",
           "CLEAN_UP_RECENT -- -e -e",

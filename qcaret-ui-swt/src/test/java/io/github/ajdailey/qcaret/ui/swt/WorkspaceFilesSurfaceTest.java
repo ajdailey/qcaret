@@ -242,6 +242,45 @@ class WorkspaceFilesSurfaceTest {
     assertTrue(window.shell().getText().contains("NOTES.txt"), window.shell().getText());
   }
 
+  /**
+   * G1 RM-13: the renamed folder's row is selected and keeps its placeholder, so it still shows an
+   * expand arrow and lists its entries when expanded.
+   */
+  @Test
+  void aRenamedFolderRowStaysExpandable() {
+    final WorkspaceDock dock = browser(List.of("docs/", "README.txt"));
+    dock.tree().setSelection(row(dock, "docs/"));
+    key(dock, SWT.F2);
+    FileNameDialog dialog = window.fileNameDialog();
+    dialog.field().setText("papers");
+    dialog.ok().notifyListeners(SWT.Selection, new Event());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            TreeItem[] selected = dock.tree().getSelection();
+            return dock.texts(null).equals(List.of("papers/", "README.txt"))
+                && selected.length == 1
+                && selected[0].getText().equals("papers/");
+          }
+        },
+        "renamed folder selected");
+    final TreeItem papers = row(dock, "papers/");
+    assertEquals(1, papers.getItemCount());
+    papers.setExpanded(true);
+    Event event = new Event();
+    event.item = papers;
+    dock.tree().notifyListeners(SWT.Expand, event);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return papers.getItemCount() == 2 && papers.getItem(1).getText().equals("guide.txt");
+          }
+        },
+        "the renamed folder's entries");
+  }
+
   @Test
   void deleteAsksWithCancelAsDefaultThenDeletesTheFolder() {
     final WorkspaceDock dock = browser(List.of("docs/", "README.txt"));

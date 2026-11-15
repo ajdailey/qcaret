@@ -17,9 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * File > Print of one window: one job at a time on a {@code qcaret-print-} thread, shown in the
- * window's print row with Cancel. The job reads the {@link PrintSource} captured when the command
- * ran, so editing goes on while it prints. Closing the window cancels the job.
+ * File > Print and File > Print Selection of one window: one job at a time on a {@code
+ * qcaret-print-} thread, shown in the window's print row with Cancel. Print Selection prints the
+ * selection whatever scope the dialog returns; a page range counts the selection's pages, the pages
+ * its header numbers. The job reads the {@link PrintSource} captured when the command ran, so
+ * editing goes on while it prints. Closing the window cancels the job.
  */
 final class PrintController {
   private static final Logger LOG = LoggerFactory.getLogger(PrintController.class);
@@ -41,6 +43,15 @@ final class PrintController {
 
   /** Asks for a printer and prints the selected document, or its selection. */
   void print() {
+    print(false);
+  }
+
+  /** Asks for a printer and prints the selection, or shows a notice without one. */
+  void printSelection() {
+    print(true);
+  }
+
+  private void print(final boolean selection) {
     if (running != null) {
       view.showNotice(UiText.PRINT_RUNNING.text());
       return;
@@ -49,22 +60,26 @@ final class PrintController {
     if (source == null) {
       return;
     }
+    if (selection && source.selections().length == 0) {
+      view.showNotice(UiText.PRINT_NO_SELECTION.text());
+      return;
+    }
     view.choosePrinter(
         source.name(),
         new Consumer<PrintTarget>() {
           @Override
           public void accept(PrintTarget target) {
-            begin(source, target);
+            begin(source, target, selection || target.selectionOnly());
           }
         });
   }
 
-  private void begin(PrintSource source, PrintTarget target) {
+  private void begin(PrintSource source, PrintTarget target, boolean selection) {
     if (disposed) {
       target.close();
       return;
     }
-    if (target.selectionOnly() && source.selections().length == 0) {
+    if (selection && source.selections().length == 0) {
       target.close();
       view.showNotice(UiText.PRINT_NO_SELECTION.text());
       return;
@@ -72,30 +87,34 @@ final class PrintController {
     CancellationToken cancel = new CancellationToken();
     running = cancel;
     showProgress(UiText.PRINT_PREPARING.format(source.name()), 0, cancel);
-    if (!launch(source, target, cancel)) {
+    if (!launch(source, target, selection, cancel)) {
       target.close();
       finished(cancel, null);
     }
   }
 
   private boolean launch(
-      final PrintSource source, final PrintTarget target, final CancellationToken cancel) {
+      final PrintSource source,
+      final PrintTarget target,
+      final boolean selection,
+      final CancellationToken cancel) {
     return workers.tryStart(
         Workers.Kind.PRINT,
         new Runnable() {
           @Override
           public void run() {
-            job(source, target, cancel);
+            job(source, target, selection, cancel);
           }
         });
   }
 
   /** Runs a job and posts its outcome in every case; a canceled job shows no notice. */
   @WorkerThread
-  private void job(PrintSource source, PrintTarget target, CancellationToken cancel) {
+  private void job(
+      PrintSource source, PrintTarget target, boolean selection, CancellationToken cancel) {
     String notice = null;
     try {
-      notice = pages(source, target, cancel);
+      notice = pages(source, target, selection, cancel);
     } catch (CancellationException e) {
       LOG.debug("Print of {} canceled", LogText.oneLine(source.name()));
     } catch (PrintTarget.PrintFailure e) {
@@ -120,9 +139,10 @@ final class PrintController {
 
   /** Prints the chosen pages and returns the notice for the outcome. */
   @WorkerThread
-  private String pages(PrintSource source, PrintTarget target, CancellationToken cancel) {
+  private String pages(
+      PrintSource source, PrintTarget target, boolean selection, CancellationToken cancel) {
     PrintTarget.Frame frame = target.start(source.name());
-    PrintLayout layout = PrintLayout.of(source, target.selectionOnly(), frame, cancel);
+    PrintLayout layout = PrintLayout.of(source, selection, frame, cancel);
     int total = layout.pageCount();
     int first = target.firstPage();
     int last = Math.min(target.lastPage(), total);

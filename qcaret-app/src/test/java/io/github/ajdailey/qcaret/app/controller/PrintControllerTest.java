@@ -323,6 +323,62 @@ class PrintControllerTest {
     assertEquals(List.of("pha", "be"), target.text());
   }
 
+  private void select(int start, int end) {
+    harness
+        .application
+        .documents()
+        .activeEditor()
+        .selections()
+        .set(SelectionSet.of(List.of(Selection.of(start, end)), 0));
+  }
+
+  @Test
+  void printSelectionNeedsASelectionAndHasNoDefaultKey() throws Exception {
+    open("alpha\nbeta\n");
+    CommandStates states = new CommandStates(harness.application);
+    assertFalse(states.enabled(CommandId.PRINT_SELECTION));
+    assertTrue(CommandStates.EDIT_STATE.contains(CommandId.PRINT_SELECTION));
+    assertEquals("", harness.application.keymap().keysText(CommandId.PRINT_SELECTION));
+    harness.application.execute(CommandId.PRINT_SELECTION);
+    harness.ui.runPending();
+    assertEquals(UiText.PRINT_NO_SELECTION.text(), notice());
+    assertEquals(0, target.closes);
+    assertNull(harness.view.printRow);
+    select(2, 8);
+    assertTrue(states.enabled(CommandId.PRINT_SELECTION));
+  }
+
+  @Test
+  void printSelectionPrintsTheSelectionWhateverTheDialogsScope() throws Exception {
+    open("alpha\nbeta\n");
+    select(2, 8);
+    harness.application.execute(CommandId.PRINT_SELECTION);
+    awaitEnd();
+    assertEquals(List.of("pha", "be"), target.text());
+  }
+
+  @Test
+  void printWithASelectionAndTheDialogsAllPagesPrintsTheWholeDocument() throws Exception {
+    open("alpha\nbeta\n");
+    select(2, 8);
+    print();
+    awaitEnd();
+    assertEquals(List.of("alpha", "beta"), target.text());
+  }
+
+  @Test
+  void aPageRangeUnderPrintSelectionCountsTheSelectionsPages() throws Exception {
+    open("a\nb\nc\nd\ne\nf\n");
+    select(2, 9);
+    target.first = 2;
+    target.last = 2;
+    harness.application.execute(CommandId.PRINT_SELECTION);
+    awaitEnd();
+    assertEquals(List.of("d", "e"), target.text());
+    assertEquals(2, target.pages.get(0).number());
+    assertEquals(2, target.pages.get(0).total());
+  }
+
   @Test
   void closingTheWindowCancelsTheJob() throws Exception {
     open("a\nb\nc\nd\n");

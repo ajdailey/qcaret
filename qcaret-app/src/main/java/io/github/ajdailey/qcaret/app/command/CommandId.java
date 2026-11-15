@@ -40,6 +40,8 @@ public enum CommandId {
   QUICK_OPEN(CommandGroup.FILE, UiText.COMMAND_QUICK_OPEN, false, null),
   /** Print the selected document, or its selection, on a printer chosen in a dialog. */
   PRINT(CommandGroup.FILE, UiText.COMMAND_PRINT, false, null),
+  /** Print the selection on a printer chosen in a dialog, whatever scope the dialog returns. */
+  PRINT_SELECTION(CommandGroup.FILE, UiText.COMMAND_PRINT_SELECTION, false, null),
   /** Open every file of File > Recent Files. */
   OPEN_ALL_RECENT(
       CommandGroup.FILE, UiText.COMMAND_OPEN_ALL_RECENT, false, UiText.MENU_RECENT_FILES),

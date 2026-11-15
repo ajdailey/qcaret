@@ -165,4 +165,9 @@ final class Win32Traits implements PlatformTraits {
   public boolean labelsByDescription() {
     return false;
   }
+
+  @Override
+  public boolean printDialogOmitsSelection() {
+    return true;
+  }
 }

@@ -5,17 +5,22 @@ The SWT side of File > Print: `MainWindow.choosePrinter` and `PrintJob` in
 in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
 
 `MainWindow.choosePrinter` opens `PrintDialog`, or on GTK 4 a PDF save dialog
-(see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob` does the rest on the job's worker.
-`PrintDialogs.create` opens the dialog with `PrinterData.SELECTION` while the
-document has a non-empty selection: the Windows 11 dialog lists Selection only
-when it opens with `PD_SELECTION` (absent without it, observed; that the flag adds
-it is assumed). On macOS (`PlatformTraits.proposesPrintFileName`) it also sets
+(see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob`
+does the rest on the job's worker. `PrintDialogs.create` opens the dialog with
+`PrinterData.SELECTION` while the document has a non-empty selection, except
+where `PlatformTraits.printDialogOmitsSelection` holds (win32). The Windows 11
+dialog offers All pages and a custom range only; opened with `PD_SELECTION` it
+showed All pages and the job printed only the selection (G1 S9-7, observed). On
+win32 the dialog opens on its default scope, so the job prints what the dialog
+shows. File > Print Selection opens the same dialog; `PrintController` prints
+the selection whatever scope comes back, so Selection is reachable on win32. On
+macOS (`PlatformTraits.proposesPrintFileName`) it also sets
 `PrinterData.fileName` to `PdfPrinter.fileName` of the document, which SWT
 passes as `NSPrintSavePath`; whether the Save as PDF sheet proposes it is
 unverified. win32 writes a Print to File job to that name without asking, and
-GTK ignores it without Print to File, so only cocoa sets it. A `ProgressRow` shows
-the progress and Cancel above the status bar. It takes no Esc, since the window
-stays usable.
+GTK ignores it without Print to File, so only cocoa sets it. A `ProgressRow`
+shows the progress and Cancel above the status bar. It takes no Esc, since the
+window stays usable.
 
 | Call | Thread | Reason |
 |---|---|---|
@@ -61,7 +66,8 @@ there and `choosePrinter` uses `PdfPrinter`: a `FileDialog` titled Print to PDF
 names the file, proposing the document's name with its last extension replaced
 by `.pdf` (`PdfPrinter.fileName`), and `PdfPrinter.printer` returns GTK's Print to File printer
 (driver `GtkPrintBackendFile`) set to write it. The job prints every page, one
-copy; there is no printer, range or selection choice. A print system without a
+copy; there is no printer, range or selection choice. Print Selection prints the
+selection there. A print system without a
 Print to File printer shows the no-printer notice.
 
 The save dialog is the `FileDialog` Save As uses; under Xvfb on GTK 4 it opens no

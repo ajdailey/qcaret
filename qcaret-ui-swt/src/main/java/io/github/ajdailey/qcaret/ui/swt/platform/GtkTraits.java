@@ -162,4 +162,9 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean labelsByDescription() {
     return false;
   }
+
+  @Override
+  public boolean printDialogOmitsSelection() {
+    return false;
+  }
 }
