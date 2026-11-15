@@ -266,9 +266,10 @@ public interface MainView
    * Shows the print dialog. A canceled dialog calls nothing; a system without a printer, or a
    * printer that fails to open, shows a notice and calls nothing.
    *
+   * @param document the document's name, which a PDF save dialog proposes
    * @param chosen receives the job, which it must close
    */
-  void choosePrinter(Consumer<PrintTarget> chosen);
+  void choosePrinter(String document, Consumer<PrintTarget> chosen);
 
   /**
    * Shows the window's print row, or updates it.

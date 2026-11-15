@@ -111,6 +111,20 @@ xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=TabsProbe \
   -Dqcaret.bench.repeat=3
 ```
 
+### Opening many files
+
+`OpenTabsProbe` in `qcaret-ui-swt` opens, for each count in `qcaret.bench.open`,
+that many one-line files in one request, as a handoff does, and prints the
+total, the longest single UI dispatch (`longest`), the tab strip's paints, and
+`lag`: the longest wait of a UI task posted every 10 ms from another thread,
+which is what `EventLoopWatchdog` reports. It samples the UI thread as
+`TabsProbe` does.
+
+```sh
+xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=OpenTabsProbe \
+  -Dsurefire.failIfNoSpecifiedTests=false -Dqcaret.bench.open=25,100,100
+```
+
 ## Workload notes
 
 - The harness reads the live heap after three `System.gc()` calls, which are

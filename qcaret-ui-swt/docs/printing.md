@@ -41,12 +41,21 @@ them. GTK's Print to File writes one copy; Microsoft Print to PDF writes every
 copy into the file, collated. The page range is applied by `PrintController`;
 GTK does not also pass it to CUPS for a `GtkPrintJob`.
 
+## Job name
+
+`PrintJob.start` passes the document's name to `Printer.startJob` on every
+platform. On macOS that sets `NSPrintOperation.jobTitle` after `NSPrintPanel`
+has closed, so the panel's PDF > Save as PDF sheet proposes "Untitled" (G2
+S9-10). SWT 3.135's `PrintDialog` copies `NSPrintInfo.sharedPrintInfo` and
+takes no job name, so no public SWT call names the job before the panel.
+
 ## GTK 4
 
 SWT 3.135's `PrintDialog.open` throws `UnsatisfiedLinkError`
 (`GTK3.gtk_dialog_run`) on GTK 4, so `PlatformTraits.opensPrintDialog` is false
 there and `choosePrinter` uses `PdfPrinter`: a `FileDialog` titled Print to PDF
-names the file, and `PdfPrinter.printer` returns GTK's Print to File printer
+names the file, proposing the document's name with its last extension replaced
+by `.pdf` (`PdfPrinter.fileName`), and `PdfPrinter.printer` returns GTK's Print to File printer
 (driver `GtkPrintBackendFile`) set to write it. The job prints every page, one
 copy; there is no printer, range or selection choice. A print system without a
 Print to File printer shows the no-printer notice.

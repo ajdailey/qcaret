@@ -15,24 +15,34 @@ final class PdfPrinter {
   /** The {@link PrinterData#driver} of GTK's Print to File printer. */
   static final String FILE_BACKEND = "GtkPrintBackendFile";
 
-  /** The save dialog's file name, as GTK's print dialog proposes. */
-  static final String NAME = "output.pdf";
-
   private PdfPrinter() {}
 
   /**
-   * Asks for the PDF file with a save dialog.
+   * Asks for the PDF file with a save dialog proposing {@link #fileName}.
    *
    * @param shell the dialog's parent
+   * @param document the document's name
    * @return the path, or null when canceled
    */
-  static String choose(Shell shell) {
+  static String choose(Shell shell, String document) {
     FileDialog dialog = new FileDialog(shell, SWT.SAVE);
     dialog.setText(UiText.PRINT_TO_PDF.text());
     dialog.setOverwrite(true);
     dialog.setFilterExtensions(new String[] {"*.pdf"});
-    dialog.setFileName(NAME);
+    dialog.setFileName(fileName(document));
     return dialog.open();
+  }
+
+  /**
+   * Returns the PDF file name for a document: its name with the last extension replaced by {@code
+   * .pdf}, or {@code .pdf} appended when it has none. A leading dot starts no extension.
+   *
+   * @param document the document's name
+   * @return the file name
+   */
+  static String fileName(String document) {
+    int dot = document.lastIndexOf('.');
+    return (dot > 0 ? document.substring(0, dot) : document) + ".pdf";
   }
 
   /**

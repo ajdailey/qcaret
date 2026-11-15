@@ -198,7 +198,14 @@ directories the process opened. `owner.lock`, held through a `ProcessLock`,
 decides liveness; `claimDead` gets null for this process's own directory, so two
 window sets of one JVM (tests) opening in one clock tick would skip each other's
 buffers without the count. `claimDead` locks each dead directory until its claim
-closes, so two starts cannot list one buffer. On a JDK without `flock`, `open`
+closes, so two starts cannot list one buffer. `open` creates its directory and
+takes its `owner.lock` while holding `<settings>/recovery.lock`, and `claimDead`
+takes directory locks only while holding it: otherwise a sibling's claim locks
+the new, empty directory and deletes it, and the start runs with recovery off
+(G2 FINDING-B8, 2 of 6 concurrent starts on macOS). Each waits up to 2 s for
+`recovery.lock`; a start that gets none runs with recovery off, a claim that gets
+none lists nothing until the next start. `moveSnapshotsToRecovery` fills its
+new directory under the same lock. On a JDK without `flock`, `open`
 fails and recovery files are off. While the lock is held, `SafePaths.holdLock`
 makes every open and save of that `owner.lock` fail with
 `RECOVERY_LOCK_REFUSED`: a save replaces the file, the lock stays on the old

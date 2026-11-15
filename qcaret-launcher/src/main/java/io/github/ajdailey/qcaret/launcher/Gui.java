@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.launcher;
 
+import io.github.ajdailey.qcaret.app.cli.FileRequest;
+import io.github.ajdailey.qcaret.app.cli.SessionMode;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -23,12 +25,14 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.ui.swt.AppMenu;
+import io.github.ajdailey.qcaret.ui.swt.LaunchDocuments;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,22 +55,24 @@ import org.slf4j.LoggerFactory;
  * StartupRequest#restoresSession}, never with {@code -m}) owns it: the session's bounds place every
  * window it lists, the first included, and {@code qcaret.conf} places the first window of any other
  * start. A {@code --window-*} option wins over both. File arguments open in tabs, after the
- * restore; a window left without a tab opens an untitled document. The session file is read before
- * the Display, like the settings. A start that would restore first takes {@link SessionLock} and
- * holds it until {@link #run} returns, after the last session save; when another instance holds it,
- * and for a launch whose handoff failed while a primary runs, the start reads Recent Files from the
- * file, and restores and saves no session. A lock file that cannot be created or locked leaves the
- * start restoring, with a WARN. At {@code -d 2} and above an {@link EventLoopWatchdog} logs
- * UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is
- * ended without it. On the primary instance with the debug log file attached, other processes' old
- * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
- * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
- * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
- * closes it before the workers, and so does a run that ends before the first window. {@link
- * UiFailures} handles a failure of a UI-thread task; its quit writes the {@link ErrorExitMarker},
- * which the next start reads before the Display ({@link ErrorExitStart}). The loop ends when every
- * main window is disposed or that quit threw, then the Display is disposed and {@link #run}
- * returns.
+ * restore; a window left without a tab opens an untitled document. On macOS a start that names
+ * nothing takes the files the system hands it as open-document events before the first window
+ * ({@link LaunchDocuments}) and runs as a start with those files: it releases {@link SessionLock}
+ * and restores no session. The session file is read before the Display, like the settings. A start
+ * that would restore first takes {@link SessionLock} and holds it until {@link #run} returns, after
+ * the last session save; when another instance holds it, and for a launch whose handoff failed
+ * while a primary runs, the start reads Recent Files from the file, and restores and saves no
+ * session. A lock file that cannot be created or locked leaves the start restoring, with a WARN. At
+ * {@code -d 2} and above an {@link EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook
+ * ({@link ShutdownHook}) runs the quit when the process is ended without it. On the primary
+ * instance with the debug log file attached, other processes' old log files are deleted on a
+ * lifecycle worker ({@link FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs
+ * from the start of {@link #run} and, once the first window is open and the session started,
+ * delivers handed launches to {@link WindowSet#openHandoff}; quit closes it before the workers, and
+ * so does a run that ends before the first window. {@link UiFailures} handles a failure of a
+ * UI-thread task; its quit writes the {@link ErrorExitMarker}, which the next start reads before
+ * the Display ({@link ErrorExitStart}). The loop ends when every main window is disposed or that
+ * quit threw, then the Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -197,7 +203,14 @@ final class Gui {
         LOG.debug("SWT failed to start", e);
         return Launcher.EXIT_SWT;
       }
-      return runWindows(display, workers, sessions, session, colors, without, marker, errorExit);
+      StartupRequest start = withLaunchDocuments(display);
+      if (start != request) {
+        releaseSession();
+        sessionLock = null;
+        without = beside;
+      }
+      return runWindows(
+          display, workers, sessions, session, colors, without, marker, errorExit, start);
     } finally {
       if (server != null) {
         server.close();
@@ -221,6 +234,30 @@ final class Gui {
     }
   }
 
+  /**
+   * Returns the command line with the files the system handed this start as open-document events,
+   * or the command line itself. Only a start that restores the session because it names nothing
+   * collects them, and only where the application menu is present (macOS).
+   */
+  private StartupRequest withLaunchDocuments(Display display) {
+    if (!request.files().isEmpty()
+        || request.diffLeft() != null
+        || request.session() != SessionMode.DEFAULT
+        || !AppMenu.present(display)) {
+      return request;
+    }
+    List<Path> launched = LaunchDocuments.collect(display);
+    if (launched.isEmpty()) {
+      return request;
+    }
+    LOG.info("Started with {} files from the system; the session is not restored", launched.size());
+    List<FileRequest> files = new ArrayList<FileRequest>();
+    for (Path path : launched) {
+      files.add(new FileRequest(path));
+    }
+    return request.withFiles(files);
+  }
+
   /** Composes the application on the Display and runs the event loop until every window closes. */
   private int runWindows(
       final Display display,
@@ -230,7 +267,8 @@ final class Gui {
       ThemeColors colors,
       boolean without,
       ErrorExitMarker marker,
-      ErrorExitStart errorExit) {
+      ErrorExitStart errorExit,
+      StartupRequest start) {
     final SwtThemeService system = SwtThemeService.open(display, preferences.theme());
     final Palette palette =
         colors.over(
@@ -240,7 +278,7 @@ final class Gui {
       pruneLogs(workers, fileLog);
     }
     final SwtUiDispatcher ui = new SwtUiDispatcher(display);
-    boolean remember = !request.multi() && !without && !request.placesWindow();
+    boolean remember = !start.multi() && !without && !start.placesWindow();
     final WindowSet set =
         new WindowSet(
             workers,
@@ -283,16 +321,16 @@ final class Gui {
     window.attach(controller);
     shells.add(window.shell());
     controller.loadGrammars();
-    boolean restore = !request.multi() && !without && request.restoresSession();
+    boolean restore = !start.multi() && !without && start.restoresSession();
     WindowState remembered =
         restore && !session.windows().isEmpty()
             ? session.windows().get(0).bounds()
             : preferences.window();
     window.place(
-        new WindowGeometry.Request(request.x(), request.y(), request.width(), request.height()),
+        new WindowGeometry.Request(start.x(), start.y(), start.width(), start.height()),
         new WindowGeometry.Request(
             remembered.x(), remembered.y(), remembered.width(), remembered.height()));
-    if (remembered.maximized() && !request.placesWindow()) {
+    if (remembered.maximized() && !start.placesWindow()) {
       window.shell().setMaximized(true);
     }
     window.open();
@@ -306,7 +344,7 @@ final class Gui {
     if (errorExit.notice()) {
       controller.noticeErrorExit(errorExit.skipped());
     }
-    controller.startSession(sessions, session, restore, request);
+    controller.startSession(sessions, session, restore, start);
     window.showStatusNow();
     if (EventLoopWatchdog.enabled()) {
       new EventLoopWatchdog(

@@ -514,4 +514,54 @@ class DocumentOpenerTest {
     budget.release(budget.reserved());
     assertEquals(9_000_000, loaded.document().text().length());
   }
+
+  /**
+   * FINDING-W7: 100 handed files queued 100 tab builds back to back, and a UI task posted behind
+   * them waited 1.5 s on macOS. A task posted after every load finished runs before more than one
+   * turn's share of documents opens.
+   */
+  @Test
+  void aBurstOfLoadsLeavesOtherUiTasksOneTurnBehind() throws Exception {
+    final int count = 3 * DocumentOpener.OPENED_PER_TURN + 1;
+    for (int i = 0; i < count; i++) {
+      Path file = Files.writeString(temp.resolve("f" + i + ".txt"), "mock " + i);
+      opener.open(file, LoadOptions.DEFAULTS, listener);
+    }
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return ui.queued() == count;
+              }
+            },
+            BOUND));
+    assertEquals(count, ui.runQueued());
+    assertEquals(count, resolved.size());
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return active.get() == 0;
+              }
+            },
+            BOUND));
+    final List<Integer> before = new ArrayList<Integer>();
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            before.add(results.size());
+          }
+        });
+    assertTrue(ui.runUntil(results(count), BOUND));
+    assertTrue(ui.runUntil(idle(), BOUND));
+    ui.runPending();
+    assertEquals(1, before.size());
+    assertTrue(
+        before.get(0) <= DocumentOpener.OPENED_PER_TURN,
+        "documents opened before the later task: " + before.get(0));
+    budget.release(budget.reserved());
+  }
 }

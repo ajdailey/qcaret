@@ -107,6 +107,27 @@ public record StartupRequest(
   }
 
   /**
+   * Returns this request with other positional files.
+   *
+   * @param replaced the files, in order
+   * @return the request
+   */
+  public StartupRequest withFiles(List<FileRequest> replaced) {
+    return new StartupRequest(
+        replaced,
+        width,
+        height,
+        x,
+        y,
+        settingsDirectory,
+        multi,
+        newWindow,
+        session,
+        diffLeft,
+        diffRight);
+  }
+
+  /**
    * Reports whether this start restores the previous session.
    *
    * @return true for {@code --session}, and by default when no file or comparison is named

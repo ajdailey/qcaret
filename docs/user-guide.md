@@ -147,7 +147,8 @@ points. A row above the status bar shows the progress with Cancel, and you can
 keep editing. One window runs one print job at a time; closing the window cancels it.
 
 On Linux with GTK 4 (`SWT_GTK4=1`) the print dialog does not open: File > Print
-asks for a PDF file name and writes the whole document to it, one copy.
+asks for a PDF file name, proposing the document's name with `.pdf`, and writes
+the whole document to it, one copy.
 
 ### Large files
 
@@ -598,7 +599,7 @@ window's.
 | Search in Folder | Opens HyperSearch on the folder and its subdirectories, or on a file's folder; press Search to run it |
 | New File, New Folder | Asks a name and creates the entry in the folder; a new file opens in a tab |
 | Rename (F2) | Asks a new name in the same folder; open documents under it follow with their unsaved changes |
-| Delete (Delete key) | Asks first, naming what goes and how many files and folders a folder holds, then deletes permanently: there is no trash and no undo |
+| Delete (Delete key; on macOS delete or fn-Delete) | Asks first, naming what goes and how many files and folders a folder holds, then deletes permanently: there is no trash and no undo |
 
 A name must be a single file or folder name, and a name already in use is
 refused. On Windows a name ending in a dot or space is refused, since Windows
@@ -698,6 +699,8 @@ with its tabs, carets, scroll, splits, folds, bookmarks, read-only state, view
 options, workspace and dock contents. A file that does not open is named and
 skipped. Search results return as requests, and Rerun fills them. A closed file
 keeps its caret, tab settings, encoding and grammar for when it opens again.
+On macOS, files that start QCaret from Finder (Open With, a drop on the Dock
+icon) count as files: the start opens them and restores no session.
 
 The session holds at most 32 windows, 256 tabs over all windows and 20 Recent
 Files; each window keeps at most 32 retained searches, 1,000 expanded folders

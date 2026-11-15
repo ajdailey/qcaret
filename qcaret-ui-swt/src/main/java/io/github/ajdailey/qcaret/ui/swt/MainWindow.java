@@ -979,7 +979,7 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public void choosePrinter(Consumer<PrintTarget> chosen) {
+  public void choosePrinter(String document, Consumer<PrintTarget> chosen) {
     if (shell.isDisposed()) {
       return;
     }
@@ -996,7 +996,7 @@ public final class MainWindow implements MainView {
         EditorPane pane = activeEditor();
         data = PrintDialogs.create(shell, pane != null && pane.hasSelection()).open();
       } else {
-        String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell);
+        String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell, document);
         data = file == null ? null : PdfPrinter.printer(file);
       }
       if (data == null) {

@@ -16,11 +16,13 @@ import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -285,4 +287,96 @@ class RecoveryStoreTest {
     claims.get(0).close();
     store.close(false);
   }
+
+  /**
+   * FINDING-B8: a sibling's claim ran between a start creating its directory and locking it, found
+   * no files and deleted the directory, so the start ran with recovery off.
+   */
+  @Test
+  void aClaimBetweenCreatingAndLockingLeavesTheStartingDirectory() throws IOException {
+    final RecoveryStore sibling = new RecoveryStore(temp, "sibling", 0, NOTHING);
+    sibling.open();
+    final List<List<RecoveryStore.Claim>> claimed = new ArrayList<List<RecoveryStore.Claim>>();
+    RecoveryStore starting =
+        new RecoveryStore(
+            temp,
+            "starting",
+            0,
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  claimed.add(sibling.claimDead(0));
+                } catch (IOException e) {
+                  throw new UncheckedIOException(e);
+                }
+              }
+            });
+    starting.open();
+    assertTrue(starting.isOpen());
+    assertEquals(List.of(List.of()), claimed);
+    Path directory = temp.resolve(RecoveryStore.DIRECTORY).resolve("starting");
+    starting.write(header("b1", "", -1, ""), text("mock"));
+    assertTrue(Files.exists(directory.resolve("b1.qcr")));
+    starting.close(false);
+    sibling.close(false);
+  }
+
+  @Test
+  void aHeldGateStopsAStartAndDefersAClaim() throws IOException {
+    Path directory = dead("dead");
+    final RecoveryStore own = new RecoveryStore(temp, "own", 0, NOTHING);
+    final List<List<RecoveryStore.Claim>> claimed = new ArrayList<List<RecoveryStore.Claim>>();
+    final List<String> refused = new ArrayList<String>();
+    RecoveryStore holder =
+        new RecoveryStore(
+            temp,
+            "holder",
+            0,
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  own.open();
+                } catch (IOException e) {
+                  refused.add(e.getMessage());
+                }
+              }
+            });
+    holder.open();
+    assertEquals(List.of("Recovery directory is busy"), refused);
+    own.open();
+    RecoveryStore claimer =
+        new RecoveryStore(
+            temp,
+            "claimer",
+            0,
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  claimed.add(own.claimDead(0));
+                } catch (IOException e) {
+                  throw new UncheckedIOException(e);
+                }
+              }
+            });
+    claimer.open();
+    assertEquals(List.of(List.of()), claimed);
+    List<RecoveryStore.Claim> later = own.claimDead(0);
+    assertEquals(1, later.size());
+    assertEquals(directory.resolve("b1.qcr"), later.get(0).entries().get(0).file());
+    later.get(0).close();
+    claimer.close(false);
+    holder.close(false);
+    own.close(false);
+  }
+
+  private static final Runnable NOTHING =
+      new Runnable() {
+        @Override
+        public void run() {
+          // No step.
+        }
+      };
 }

@@ -109,6 +109,28 @@ public final class ManualUiDispatcher implements UiDispatcher {
   }
 
   /**
+   * Counts the queued tasks.
+   *
+   * @return the count
+   */
+  public int queued() {
+    return queue.size();
+  }
+
+  /**
+   * Runs the tasks queued now; tasks queued meanwhile stay queued.
+   *
+   * @return the number run
+   */
+  public int runQueued() {
+    int count = queue.size();
+    for (int i = 0; i < count; i++) {
+      queue.remove().run();
+    }
+    return count;
+  }
+
+  /**
    * Runs tasks as they arrive until the condition holds.
    *
    * @param condition checked before each wait

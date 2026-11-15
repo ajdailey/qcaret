@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +28,12 @@ import org.slf4j.LoggerFactory;
  * {@code owner.lock} its instance holds through an OS lock for its life. The lock decides whether
  * an instance is alive; the presence of a directory says nothing. {@link SafePaths#holdLock} keeps
  * a held {@code owner.lock} out of every open and save: a save replaces the file, the lock stays on
- * the old one, and the next start lists a live instance's buffers as a crash's. {@code
- * <settings>/snapshot/} holds the buffers of a quit with {@code session.snapshot} on. Every method
- * blocks and runs on a worker; the caller serializes them.
+ * the old one, and the next start lists a live instance's buffers as a crash's. A new directory has
+ * no owner until its lock is taken, so creating it and taking its lock happen under {@value #GATE}
+ * in the settings directory, and a claim takes a directory's lock only under it too: otherwise a
+ * sibling's claim locks the new directory, finds no file and deletes it, and the starting instance
+ * runs with recovery off. {@code <settings>/snapshot/} holds the buffers of a quit with {@code
+ * session.snapshot} on. Every method blocks and runs on a worker; the caller serializes them.
  */
 public final class RecoveryStore {
   /** The recovery directory's name in the settings directory. */
@@ -40,6 +44,22 @@ public final class RecoveryStore {
 
   /** The lock file's name in an instance directory. */
   public static final String LOCK = "owner.lock";
+
+  /** The file {@link #open} and {@link #claimDead} lock in turn, in the settings directory. */
+  static final String GATE = "recovery.lock";
+
+  /** How long {@link #open} and {@link #claimDead} wait for {@value #GATE} by default. */
+  private static final long GATE_WAIT_MILLIS = 2000;
+
+  private static final long GATE_POLL_MILLIS = 5;
+
+  private static final Runnable NOTHING =
+      new Runnable() {
+        @Override
+        public void run() {
+          // No step.
+        }
+      };
 
   private static final Logger LOG = LoggerFactory.getLogger(RecoveryStore.class);
 
@@ -108,9 +128,12 @@ public final class RecoveryStore {
     }
   }
 
+  private final Path settings;
   private final Path root;
   private final Path snapshots;
   private final Path own;
+  private final long gateWait;
+  private final Runnable created;
   private ProcessLock lock;
 
   /**
@@ -121,29 +144,86 @@ public final class RecoveryStore {
    * @throws IOException when the name is not plain
    */
   public RecoveryStore(Path settings, String instance) throws IOException {
-    this.root = SafePaths.child(settings, DIRECTORY);
-    this.snapshots = SafePaths.child(settings, SNAPSHOT);
-    this.own = SafePaths.child(root, instance);
+    this(settings, instance, GATE_WAIT_MILLIS, NOTHING);
   }
 
   /**
-   * Creates this instance's directory and takes its lock.
+   * Creates the store with a gate wait and a step between creating the directory and locking it.
    *
-   * @throws IOException when the directory cannot be created or locked
+   * @param settings the settings directory
+   * @param instance this instance's directory name, a plain file name
+   * @param gateWait how long {@link #open} and {@link #claimDead} wait for {@value #GATE}, in
+   *     milliseconds
+   * @param created runs in {@link #open} after the directory exists and before its lock is taken
+   * @throws IOException when the name is not plain
+   */
+  RecoveryStore(Path settings, String instance, long gateWait, Runnable created)
+      throws IOException {
+    this.settings = settings;
+    this.root = SafePaths.child(settings, DIRECTORY);
+    this.snapshots = SafePaths.child(settings, SNAPSHOT);
+    this.own = SafePaths.child(root, instance);
+    this.gateWait = gateWait;
+    this.created = created;
+  }
+
+  /**
+   * Creates this instance's directory and takes its lock, both under {@value #GATE}.
+   *
+   * @throws IOException when the directory cannot be created or locked, or the gate stays held
    */
   public void open() throws IOException {
-    SafePaths.settingsDirectory(own);
-    ProcessLock taken = ProcessLock.tryAcquire(own.resolve(LOCK));
-    if (taken == null) {
-      throw new IOException("Recovery directory is locked");
+    ProcessLock gate = gate(settings, gateWait);
+    if (gate == null) {
+      throw new IOException("Recovery directory is busy");
     }
     try {
-      hold(own);
-    } catch (IOException e) {
-      release(own, taken);
-      throw e;
+      SafePaths.settingsDirectory(own);
+      created.run();
+      ProcessLock taken = ProcessLock.tryAcquire(own.resolve(LOCK));
+      if (taken == null) {
+        throw new IOException("Recovery directory is locked");
+      }
+      try {
+        hold(own);
+      } catch (IOException e) {
+        release(own, taken);
+        throw e;
+      }
+      lock = taken;
+    } finally {
+      closeGate(gate);
     }
-    lock = taken;
+  }
+
+  /**
+   * Takes {@value #GATE} in a settings directory, creating the directory, polling until the wait
+   * ends.
+   *
+   * @return the lock, or null when it stayed held or the thread was interrupted
+   */
+  private static ProcessLock gate(Path settings, long waitMillis) throws IOException {
+    Path file = SafePaths.settingsDirectory(settings).resolve(GATE);
+    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(waitMillis);
+    ProcessLock taken = ProcessLock.tryAcquire(file);
+    while (taken == null && System.nanoTime() < deadline) {
+      try {
+        Thread.sleep(GATE_POLL_MILLIS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return null;
+      }
+      taken = ProcessLock.tryAcquire(file);
+    }
+    return taken;
+  }
+
+  private static void closeGate(ProcessLock gate) {
+    try {
+      gate.close();
+    } catch (IOException e) {
+      LOG.warn("Cannot release {}: {}", GATE, LogText.oneLine(e.getMessage()));
+    }
   }
 
   /**
@@ -201,7 +281,8 @@ public final class RecoveryStore {
    * older than the limit are deleted; a directory left without files goes too. The others are read
    * and the directory stays locked until its claim closes, so a second start lists it only then. A
    * file that cannot be read is listed as unreadable and logged; the directory's other files are
-   * listed as usual.
+   * listed as usual. The locks are taken under {@value #GATE}; when it stays held, nothing is
+   * claimed and the next start lists the directories.
    *
    * @param oldest the modification time, in milliseconds, before which a file is deleted
    * @return the claims
@@ -221,8 +302,26 @@ public final class RecoveryStore {
         }
       }
     }
-    for (Path directory : directories) {
-      Claim claim = claim(directory, oldest);
+    List<Path> locked = new ArrayList<Path>();
+    List<ProcessLock> locks = new ArrayList<ProcessLock>();
+    ProcessLock gate = gate(settings, gateWait);
+    if (gate == null) {
+      LOG.info("Recovery directory is busy; dead instances are listed at the next start");
+      return claims;
+    }
+    try {
+      for (Path directory : directories) {
+        ProcessLock taken = take(directory);
+        if (taken != null) {
+          locked.add(directory);
+          locks.add(taken);
+        }
+      }
+    } finally {
+      closeGate(gate);
+    }
+    for (int i = 0; i < locked.size(); i++) {
+      Claim claim = claim(locked.get(i), locks.get(i), oldest);
       if (claim != null) {
         claims.add(claim);
       }
@@ -230,15 +329,26 @@ public final class RecoveryStore {
     return claims;
   }
 
+  /** Takes a directory's lock and holds it; null when another holds it or it cannot be taken. */
   @WorkerThread
-  private static Claim claim(Path directory, long oldest) {
+  private static ProcessLock take(Path directory) {
     ProcessLock taken = null;
     try {
       taken = ProcessLock.tryAcquire(directory.resolve(LOCK));
-      if (taken == null) {
-        return null;
+      if (taken != null) {
+        hold(directory);
       }
-      hold(directory);
+      return taken;
+    } catch (IOException e) {
+      LOG.warn("Cannot lock a recovery directory: {}", LogText.oneLine(e.getMessage()));
+      release(directory, taken);
+      return null;
+    }
+  }
+
+  @WorkerThread
+  private static Claim claim(Path directory, ProcessLock taken, long oldest) {
+    try {
       List<Entry> entries = new ArrayList<Entry>();
       for (Path file : recoveryFiles(directory)) {
         Entry entry = entry(file, oldest);
@@ -414,13 +524,14 @@ public final class RecoveryStore {
 
   /**
    * Moves every snapshot file into a new directory under {@code recovery/}, where the next {@link
-   * #claimDead} lists them as a dead instance's buffers. Does nothing when there is none.
+   * #claimDead} lists them as a dead instance's buffers. Does nothing when there is none. The
+   * directory is created and filled under {@value #GATE}, so no claim finds it empty.
    *
    * @param settings the settings directory
    * @param directory the new directory's name, a plain file name
    * @return the number of files moved
-   * @throws IOException when a directory cannot be listed or created, or a file cannot be moved;
-   *     the files not moved stay in {@code snapshot/}
+   * @throws IOException when a directory cannot be listed or created, a file cannot be moved, or
+   *     the gate stays held; the files not moved stay in {@code snapshot/}
    */
   public static int moveSnapshotsToRecovery(Path settings, String directory) throws IOException {
     Path from = SafePaths.child(settings, SNAPSHOT);
@@ -431,11 +542,18 @@ public final class RecoveryStore {
     if (files.isEmpty()) {
       return 0;
     }
-    Path to =
-        SafePaths.settingsDirectory(
-            SafePaths.child(SafePaths.child(settings, DIRECTORY), directory));
-    for (Path file : files) {
-      Files.move(file, to.resolve(file.getFileName()));
+    Path recovery = SafePaths.child(settings, DIRECTORY);
+    ProcessLock gate = gate(settings, GATE_WAIT_MILLIS);
+    if (gate == null) {
+      throw new IOException("Recovery directory is busy");
+    }
+    try {
+      Path to = SafePaths.settingsDirectory(SafePaths.child(recovery, directory));
+      for (Path file : files) {
+        Files.move(file, to.resolve(file.getFileName()));
+      }
+    } finally {
+      closeGate(gate);
     }
     return files.size();
   }

@@ -104,6 +104,15 @@ window's.
    `-Xmx` value.
 3. A loaded document arrives with its rows (`DisplayProjection.layout`) and its
    reservation lowered to the retained cost.
+4. `UiPacer` hands loaded documents to `Listener.opened` in arrival order, at
+   most `OPENED_PER_TURN` (4) per UI task, and posts the rest behind whatever
+   was queued meanwhile. Each call builds a tab (about 20 ms on Linux, mostly
+   `StyledText` creation); 100 handed files queued back to back held every
+   other UI task 2.1-2.4 s on Linux and 1.6 s on macOS (G2 FINDING-W7), and
+   with the pacer 57-94 ms on Linux (`OpenTabsProbe`). `running` counts the
+   documents still waiting, so `loading() == 0` means every tab exists. A
+   document whose open was closed or canceled while waiting is dropped and its
+   reservation released.
 
 An open waiting for the UI thread is ended by `close` too, so a task the
 dispatcher drops still ends its activity. `close` sets a flag and cancels the

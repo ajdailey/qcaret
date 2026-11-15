@@ -91,6 +91,9 @@ test case.
 | `PlatformBehaviorTest` | Each view-layer platform branch on the running platform against a value worked out from `SWT.getPlatform` and `SWT_GTK4`: monospace defaults, caret blend, application menu, the main window's answers, the restart for a native theme, dialog colors, menu ink, faded disabled icons |
 | `DocumentBehaviorSurfaceTest` | The drop target's one transfer, `dropped` over an open editor and with a name that does not parse, the load row with Esc and Cancel, the title, Mod+drag and the small move of a Mod+click, the docks' weights, Recently Closed, a Recent Files entry, Automatic Detection, an encoding entry reopening and setting the next save's charset, the tab width, reload and unfinished-copies prompts, `AppMenu.open`'s guards. A real drag is not simulated |
 | `SwtUiDispatcherTest` | A canceled timer does not run; cancel after dispose does nothing |
+| `BrowserKeysTest` | Delete deleting everywhere and Backspace only on macOS (G2 RM-1), F2 renaming, a modifier running nothing |
+| `LaunchDocumentsTest` | Open-document events queued before `collect` returned in order, empty, null and unparseable names skipped; no event collecting nothing. Linux raises none at startup, so queued tasks send them (G2 M12) |
+| `PdfPrinterTest` | The GTK 4 PDF dialog's proposed name: the last extension replaced by `.pdf`, a leading dot kept (G2 S9-10) |
 | `ChecksumSurfaceTest` | Tools before Window with four enabled cascades of three items; Generate hashing as typed and Esc; Verify Checksums over the open list; with `qcaret.rm.out`, both dialogs in light and dark |
 
 ### Editor

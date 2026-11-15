@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.view.WorkspaceBrowseInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.app.view.WorkspaceSelectionInput;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -139,13 +140,12 @@ final class WorkspaceDock {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if ((event.stateMask & SWT.MODIFIER_MASK) == 0
-                && (event.keyCode == SWT.DEL || event.keyCode == SWT.F2)) {
+            WorkspaceSelectionInput.Action action =
+                BrowserKeys.action(
+                    event.keyCode, event.stateMask, PlatformTraits.PLATFORM.macKeys());
+            if (action != null) {
               event.doit = false;
-              run(
-                  event.keyCode == SWT.DEL
-                      ? WorkspaceSelectionInput.Action.DELETE
-                      : WorkspaceSelectionInput.Action.RENAME);
+              run(action);
             }
           }
         });

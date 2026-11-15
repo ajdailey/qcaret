@@ -88,7 +88,7 @@ class TabsProbe {
       for (String count : System.getProperty("qcaret.bench.tabs").split(",")) {
         final int tabs = Integer.parseInt(count.strip());
         List<Path> files = write(tabs, lines);
-        Sampler sampler = new Sampler(Thread.currentThread());
+        Sampler sampler = new Sampler(Thread.currentThread(), "probe.closeAll");
         for (int round = 0; round < repeat; round++) {
           closeAll(display, window, controller, files, sampler);
         }
@@ -174,10 +174,11 @@ class TabsProbe {
    * sample, the innermost frame, the innermost QCaret frame with its line, the innermost {@value
    * #CHAIN_FRAMES} QCaret frames and the innermost {@value #LEAF_FRAMES} frames.
    */
-  private static final class Sampler extends Thread {
+  static final class Sampler extends Thread {
     private static final int CHAIN_FRAMES = 5;
     private static final int LEAF_FRAMES = 8;
     private final Thread target;
+    private final String prefix;
     private final Map<String, Integer> own = new HashMap<String, Integer>();
     private final Map<String, Integer> top = new HashMap<String, Integer>();
     private final Map<String, Integer> chain = new HashMap<String, Integer>();
@@ -186,8 +187,9 @@ class TabsProbe {
     volatile boolean sampling;
     private int samples;
 
-    Sampler(Thread target) {
+    Sampler(Thread target, String prefix) {
       this.target = target;
+      this.prefix = prefix;
       setDaemon(true);
       start();
     }
@@ -252,14 +254,14 @@ class TabsProbe {
     }
 
     void print(int tabs) {
-      System.out.println("probe.closeAll.samples n=" + tabs + " samples=" + samples);
+      System.out.println(prefix + ".samples n=" + tabs + " samples=" + samples);
       print("own", own, 25);
       print("top", top, 15);
       print("chain", chain, 20);
       print("leaf", leaf, 20);
     }
 
-    private static void print(String kind, Map<String, Integer> counts, int limit) {
+    private void print(String kind, Map<String, Integer> counts, int limit) {
       List<Map.Entry<String, Integer>> entries =
           new ArrayList<Map.Entry<String, Integer>>(counts.entrySet());
       entries.sort(
@@ -271,8 +273,7 @@ class TabsProbe {
           });
       for (int i = 0; i < Math.min(limit, entries.size()); i++) {
         Map.Entry<String, Integer> entry = entries.get(i);
-        System.out.println(
-            "probe.closeAll." + kind + " " + entry.getValue() + " " + entry.getKey());
+        System.out.println(prefix + "." + kind + " " + entry.getValue() + " " + entry.getKey());
       }
     }
   }

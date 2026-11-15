@@ -168,7 +168,13 @@ no application menu and `hook` does nothing.
 - A file opened with QCaret (Open With, a Dock drop) arrives as
   `SWT.OpenDocument` and goes to `WindowSet.openFile`. A null or empty name
   opens nothing, and a name that does not parse logs a warning, since an
-  exception there reaches the event loop.
+  exception there reaches the event loop. A cold start gets the files as
+  events in its first event-loop passes, after it chose to restore the session:
+  a start that names nothing runs `LaunchDocuments.collect` right after the
+  Display, before `AppMenu.hook`, and starts with any files it collects as file
+  arguments, releasing `SessionLock` (G2 M12; the drain is unverified on cocoa).
+- The Workspace Browser deletes on Backspace too (`BrowserKeys`): the key
+  labeled delete on a Mac keyboard sends Backspace; Delete is fn-Delete.
 
 All of it is unverified on cocoa.
 

@@ -1263,7 +1263,7 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public void choosePrinter(Consumer<PrintTarget> chosen) {
+  public void choosePrinter(String document, Consumer<PrintTarget> chosen) {
     ui.checkUiThread();
     if (printTarget != null) {
       chosen.accept(printTarget);

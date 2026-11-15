@@ -50,6 +50,7 @@ final class PrintController {
       return;
     }
     view.choosePrinter(
+        source.name(),
         new Consumer<PrintTarget>() {
           @Override
           public void accept(PrintTarget target) {

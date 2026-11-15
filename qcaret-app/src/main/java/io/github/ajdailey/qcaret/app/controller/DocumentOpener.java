@@ -35,12 +35,15 @@ import java.util.function.LongConsumer;
  * whose text outgrows the estimate past the budget is refused when it gets there. A loaded document
  * arrives with its rows ({@link DisplayProjection#layout}), the settings its EditorConfig files and
  * modelines declare ({@link #setSettings}), and its reservation lowered to the retained cost, which
- * the listener owns from then on. {@link #close} cancels the running loads; a load that finishes
- * after it, on the worker or in a task already posted, drops its document and releases its
- * reservation, so no document reaches a closed window. Each open counts as one {@link
- * ActivityIndicator} operation until it ends: unread after {@link Listener#resolved}, refused,
- * failed, loaded, canceled or closed. An unchecked failure at any step reaches {@link
- * Listener#failed}, and goes on to the worker's handler.
+ * the listener owns from then on. Loaded documents reach {@link Listener#opened} in arrival order,
+ * at most {@value #OPENED_PER_TURN} per UI task ({@link UiPacer}): each builds a tab, and a burst
+ * of them, such as 100 handed files, otherwise holds every other UI task queued behind it for
+ * seconds. {@link #close} cancels the running loads; a load that finishes after it, on the worker
+ * or in a task already posted, drops its document and releases its reservation, so no document
+ * reaches a closed window. Each open counts as one {@link ActivityIndicator} operation until it
+ * ends: unread after {@link Listener#resolved}, refused, failed, loaded, canceled or closed. An
+ * unchecked failure at any step reaches {@link Listener#failed}, and goes on to the worker's
+ * handler.
  *
  * <p>A load still reading {@value #PROGRESS_DELAY_MILLIS} ms after it started shows through {@link
  * Progress#progress}, with every other running load, until the last ends or {@link #cancelLoads}
@@ -142,6 +145,9 @@ public final class DocumentOpener {
    */
   static final int SLOW_PANE_LINES = 500_000;
 
+  /** The most loaded documents one UI task hands to {@link Listener#opened}. */
+  static final int OPENED_PER_TURN = 4;
+
   /** A load past {@link Listener#resolved}; the list of them is confined to the UI thread. */
   private static final class Load {
     final Path path;
@@ -162,6 +168,7 @@ public final class DocumentOpener {
   private final MemoryBudget budget;
   private final ActivityIndicator activity;
   private final Progress progress;
+  private final UiPacer opened;
   private final Set<CancellationToken> running = ConcurrentHashMap.newKeySet();
   private final Set<CancellationToken> waiting = ConcurrentHashMap.newKeySet();
   private final List<Load> loads = new ArrayList<Load>();
@@ -211,6 +218,7 @@ public final class DocumentOpener {
     this.budget = budget;
     this.activity = activity;
     this.progress = progress;
+    this.opened = new UiPacer(ui, OPENED_PER_TURN);
   }
 
   /**
@@ -484,12 +492,13 @@ public final class DocumentOpener {
   }
 
   /**
-   * Counts the loads whose worker has not ended.
+   * Counts the loads whose worker has not ended or whose document waits for {@link
+   * Listener#opened}. Called on the UI thread.
    *
    * @return the count
    */
   public int running() {
-    return running.size();
+    return running.size() + opened.waiting();
   }
 
   /** A loaded file on its way to the UI thread, holding its reservation. */
@@ -546,13 +555,31 @@ public final class DocumentOpener {
               load.listener.canceled(load.path);
             } else if (error != null) {
               load.listener.failed(load.path, error);
-            } else if (loaded.file().document().text().lineCount() >= SLOW_PANE_LINES) {
-              openSlow(load, loaded);
             } else {
-              load.listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
+              opened.run(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      deliver(load, loaded);
+                    }
+                  });
             }
           }
         });
+  }
+
+  /** Hands a loaded document to the listener on its pacer turn, unless closed or canceled since. */
+  private void deliver(Load load, Loaded loaded) {
+    if (closed || load.token.isCanceled()) {
+      budget.release(loaded.reserved());
+      if (!closed) {
+        load.listener.canceled(load.path);
+      }
+    } else if (loaded.file().document().text().lineCount() >= SLOW_PANE_LINES) {
+      openSlow(load, loaded);
+    } else {
+      load.listener.opened(load.path, loaded.file(), loaded.layout(), loaded.reserved());
+    }
   }
 
   /** Shows the notice and the busy cursor, then opens the document on the next UI turn. */

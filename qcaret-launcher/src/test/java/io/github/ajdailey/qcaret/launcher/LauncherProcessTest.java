@@ -225,8 +225,9 @@ class LauncherProcessTest {
         primary.send();
         assertEquals(Launcher.Handoff.PRIMARY.name(), primary.await(LaunchMain.OUTCOME));
         primary.send(LaunchMain.READ.strip());
-        // instance.lock, instance.endpoint, and owner.lock and a mock buffer in recovery/live.
-        assertEquals("4", primary.await(LaunchMain.READ));
+        // instance.lock, instance.endpoint, recovery.lock, and owner.lock and a mock buffer in
+        // recovery/live.
+        assertEquals("5", primary.await(LaunchMain.READ));
         assertEquals("", second.await(LaunchMain.READY));
         second.send();
         assertEquals(Launcher.Handoff.HANDED.name(), second.await(LaunchMain.OUTCOME));
