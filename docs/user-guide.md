@@ -145,6 +145,7 @@ has the file name and Page N of M at the top, line numbers, and Light's syntax
 colors on white whatever Editor colors shows, in the editor's font at 10
 points. A row above the status bar shows the progress with Cancel, and you can
 keep editing. One window runs one print job at a time; closing the window cancels it.
+On macOS the dialog's Save as PDF proposes the document's name with `.pdf`.
 
 On Linux with GTK 4 (`SWT_GTK4=1`) the print dialog does not open: File > Print
 asks for a PDF file name, proposing the document's name with `.pdf`, and writes
@@ -764,6 +765,8 @@ again.
 
 A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
+On macOS this holds for Finder's Open With too when it starts another copy of
+QCaret, such as one installed at another path.
 On Windows a file opened from Explorer into the running instance does not raise
 its window; the window's taskbar button flashes instead.
 Launches at the same moment queue, and each file becomes a tab in the one

@@ -405,14 +405,24 @@ class PrintOutputTest {
     openFile("first\nsecond\nthird\n");
     EditorPane pane = window.activeEditor();
     assertFalse(pane.hasSelection());
-    assertEquals(PrinterData.ALL_PAGES, PrintDialogs.create(window.shell(), false).getScope());
+    assertEquals(
+        PrinterData.ALL_PAGES, PrintDialogs.create(window.shell(), false, null).getScope());
     controller
         .documents()
         .activeEditor()
         .selections()
         .set(SelectionSet.of(List.of(Selection.caret(1), Selection.of(6, 12)), 1));
     assertTrue(pane.hasSelection());
-    assertEquals(PrinterData.SELECTION, PrintDialogs.create(window.shell(), true).getScope());
+    assertEquals(PrinterData.SELECTION, PrintDialogs.create(window.shell(), true, null).getScope());
+  }
+
+  /** S9-10: the macOS print dialog proposes the document's PDF name to its save sheet. */
+  @Test
+  void thePrintDialogTakesThePdfName() {
+    assertEquals(
+        "notes.pdf",
+        PrintDialogs.create(window.shell(), false, "notes.pdf").getPrinterData().fileName);
+    assertNull(PrintDialogs.create(window.shell(), false, null).getPrinterData().fileName);
   }
 
   @Test

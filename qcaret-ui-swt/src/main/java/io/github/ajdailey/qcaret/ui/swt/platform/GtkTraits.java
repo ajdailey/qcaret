@@ -137,4 +137,14 @@ abstract class GtkTraits implements PlatformTraits {
   public int busyCursor() {
     return SWT.CURSOR_APPSTARTING;
   }
+
+  @Override
+  public boolean handsFilesAsEvents() {
+    return false;
+  }
+
+  @Override
+  public boolean proposesPrintFileName() {
+    return false;
+  }
 }

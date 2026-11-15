@@ -9,7 +9,11 @@ in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
 `PrintDialogs.create` opens the dialog with `PrinterData.SELECTION` while the
 document has a non-empty selection: the Windows 11 dialog lists Selection only
 when it opens with `PD_SELECTION` (absent without it, observed; that the flag adds
-it is assumed). A `ProgressRow` shows
+it is assumed). On macOS (`PlatformTraits.proposesPrintFileName`) it also sets
+`PrinterData.fileName` to `PdfPrinter.fileName` of the document, which SWT
+passes as `NSPrintSavePath`; whether the Save as PDF sheet proposes it is
+unverified. win32 writes a Print to File job to that name without asking, and
+GTK ignores it without Print to File, so only cocoa sets it. A `ProgressRow` shows
 the progress and Cancel above the status bar. It takes no Esc, since the window
 stays usable.
 

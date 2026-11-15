@@ -1,7 +1,5 @@
 package io.github.ajdailey.qcaret.launcher;
 
-import io.github.ajdailey.qcaret.app.cli.FileRequest;
-import io.github.ajdailey.qcaret.app.cli.SessionMode;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -240,22 +238,15 @@ final class Gui {
    * collects them, and only where the application menu is present (macOS).
    */
   private StartupRequest withLaunchDocuments(Display display) {
-    if (!request.files().isEmpty()
-        || request.diffLeft() != null
-        || request.session() != SessionMode.DEFAULT
-        || !AppMenu.present(display)) {
+    if (!HandoffDocuments.namesNothing(request) || !AppMenu.present(display)) {
       return request;
     }
     List<Path> launched = LaunchDocuments.collect(display);
-    if (launched.isEmpty()) {
-      return request;
+    if (!launched.isEmpty()) {
+      LOG.info(
+          "Started with {} files from the system; the session is not restored", launched.size());
     }
-    LOG.info("Started with {} files from the system; the session is not restored", launched.size());
-    List<FileRequest> files = new ArrayList<FileRequest>();
-    for (Path path : launched) {
-      files.add(new FileRequest(path));
-    }
-    return request.withFiles(files);
+    return HandoffDocuments.withFiles(request, launched);
   }
 
   /** Composes the application on the Display and runs the event loop until every window closes. */

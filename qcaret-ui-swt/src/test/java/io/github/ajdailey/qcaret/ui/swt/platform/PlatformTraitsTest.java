@@ -42,7 +42,9 @@ class PlatformTraitsTest {
     "macKeys",
     "linuxKeys",
     "opensPrintDialog",
-    "busyCursor"
+    "busyCursor",
+    "handsFilesAsEvents",
+    "proposesPrintFileName"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -73,6 +75,8 @@ class PlatformTraitsTest {
     answers.add(traits.linuxKeys());
     answers.add(traits.opensPrintDialog());
     answers.add(traits.busyCursor());
+    answers.add(traits.handsFilesAsEvents());
+    answers.add(traits.proposesPrintFileName());
     return answers;
   }
 
@@ -112,7 +116,9 @@ class PlatformTraitsTest {
         false,
         false,
         true,
-        SWT.CURSOR_APPSTARTING);
+        SWT.CURSOR_APPSTARTING,
+        false,
+        false);
   }
 
   @Test
@@ -144,7 +150,9 @@ class PlatformTraitsTest {
         true,
         false,
         true,
-        SWT.CURSOR_WAIT);
+        SWT.CURSOR_WAIT,
+        true,
+        true);
   }
 
   @Test
@@ -177,7 +185,9 @@ class PlatformTraitsTest {
         false,
         true,
         true,
-        SWT.CURSOR_APPSTARTING);
+        SWT.CURSOR_APPSTARTING,
+        false,
+        false);
   }
 
   @Test
@@ -209,7 +219,9 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        SWT.CURSOR_APPSTARTING);
+        SWT.CURSOR_APPSTARTING,
+        false,
+        false);
   }
 
   @Test

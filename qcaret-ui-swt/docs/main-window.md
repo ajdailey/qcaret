@@ -173,6 +173,9 @@ no application menu and `hook` does nothing.
   a start that names nothing runs `LaunchDocuments.collect` right after the
   Display, before `AppMenu.hook`, and starts with any files it collects as file
   arguments, releasing `SessionLock` (G2 M12; the drain is unverified on cocoa).
+  A launch that hands off to a running instance takes them with
+  `LaunchDocuments.await`, which waits up to 1 s for the first event and 200 ms
+  after the last ([qcaret-launcher](../../qcaret-launcher/README.md)).
 - The Workspace Browser deletes on Backspace too (`BrowserKeys`): the key
   labeled delete on a Mac keyboard sends Backspace; Delete is fn-Delete.
 

@@ -82,6 +82,16 @@ before the session load and the Display; only the `FileLog` setup runs between
 A run that ends before the first window closes the server, which answers held
 launches `ERR`.
 
+On macOS a Finder Open With can start a second registered copy of the bundle
+with no file arguments; the files arrive only as `SWT.OpenDocument` events.
+When the lock is held and the launch names no file, diff or session mode,
+`HandoffDocuments.beforeHandoff` creates a Display without a window and runs
+`LaunchDocuments.await`, then disposes the Display and hands off the collected
+files, or none. The wait ends 200 ms after the last event, or after 1 s without
+one (`QUIET_MILLIS`, `FIRST_MILLIS`; unmeasured on a Mac). Those files also
+open in a `BESIDE` or new-primary window. The choice is
+`PlatformTraits.handsFilesAsEvents`, true on cocoa only.
+
 After a failed handoff `Launcher.awaitSuccessor` polls for up to 2 s, so when a
 primary quits or dies one launch becomes the primary and the others hand over to
 it:
@@ -239,6 +249,7 @@ classes, so the rules over the main classes never see them.
 | `LogConfiguratorTest` | The handlers, levels and properties of the planted `java.util.logging.config.file` (`planted-logging.properties`, set by surefire) gone after `install`; the format, level mapping and logger-name shortening |
 | `RetainingLogManagerTest` | `reset()` keeping the handlers once retained |
 | `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN and rolling once the directory is gone, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes |
+| `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `LaunchDocumentsTest` |
 | `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows; a handoff a live primary does not take runs `BESIDE`, and a launch claims the lock a primary releases during its handoff |
 | `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |
 | `ArchitectureTest` | The rules above, each shown to fail on its fixture |

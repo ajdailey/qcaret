@@ -27,11 +27,12 @@ import org.slf4j.LoggerFactory;
  * failures quit the application ({@link UiFailures}).
  *
  * <p>Without {@code -m} the launch becomes the primary instance of its settings directory, or hands
- * its files to the running primary and exits 0. After a failed handoff it claims the lock a primary
- * that quit or died released, or hands over to the launch that claimed it first. Any other failure,
- * or a settings directory another user owns or can write, logs one WARN and the launch opens its
- * own window, as with {@code -m}. The primary writes {@code qcaret.log}, any other process {@code
- * qcaret-<pid>.log}.
+ * its files to the running primary and exits 0; on macOS a launch that names nothing first takes
+ * the files the system sends as open-document events ({@link HandoffDocuments}). After a failed
+ * handoff it claims the lock a primary that quit or died released, or hands over to the launch that
+ * claimed it first. Any other failure, or a settings directory another user owns or can write, logs
+ * one WARN and the launch opens its own window, as with {@code -m}. The primary writes {@code
+ * qcaret.log}, any other process {@code qcaret-<pid>.log}.
  */
 public final class Launcher {
   static final int EXIT_USAGE = 1;
@@ -109,6 +110,7 @@ public final class Launcher {
     boolean beside = false;
     if (!request.multi()) {
       Handoff handoff = handOff(location.directory(), request);
+      request = sent;
       if (handoff == Handoff.HANDED) {
         return 0;
       }
@@ -152,6 +154,9 @@ public final class Launcher {
 
   private InstanceServer primary;
 
+  /** The request {@link #handOff} sent or would send: the command line, with macOS's files. */
+  private StartupRequest sent;
+
   /** Returns the listener after {@link #handOff} answered {@link Handoff#PRIMARY}. */
   InstanceServer primary() {
     return primary;
@@ -159,6 +164,7 @@ public final class Launcher {
 
   /** Becomes the primary instance, or hands the launch to it. */
   Handoff handOff(Path directory, StartupRequest request) {
+    sent = request;
     try {
       SafePaths.settingsDirectory(directory);
     } catch (IOException e) {
@@ -179,12 +185,13 @@ public final class Launcher {
     if (primary != null) {
       return Handoff.PRIMARY;
     }
+    sent = HandoffDocuments.beforeHandoff(request);
     for (int attempt = 1; ; attempt++) {
       String tried = InstanceClient.endpointId(directory);
       try {
-        InstanceClient.handOff(directory, request);
+        InstanceClient.handOff(directory, sent);
         if (LOG.isInfoEnabled()) {
-          LOG.info("Handed {} files to the running instance", request.files().size());
+          LOG.info("Handed {} files to the running instance", sent.files().size());
         }
         return Handoff.HANDED;
       } catch (IOException e) {

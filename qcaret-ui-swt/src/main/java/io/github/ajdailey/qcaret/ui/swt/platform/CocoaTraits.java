@@ -140,4 +140,14 @@ final class CocoaTraits implements PlatformTraits {
   public int busyCursor() {
     return SWT.CURSOR_WAIT;
   }
+
+  @Override
+  public boolean handsFilesAsEvents() {
+    return true;
+  }
+
+  @Override
+  public boolean proposesPrintFileName() {
+    return true;
+  }
 }

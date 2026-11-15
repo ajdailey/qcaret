@@ -92,7 +92,7 @@ test case.
 | `DocumentBehaviorSurfaceTest` | The drop target's one transfer, `dropped` over an open editor and with a name that does not parse, the load row with Esc and Cancel, the title, Mod+drag and the small move of a Mod+click, the docks' weights, Recently Closed, a Recent Files entry, Automatic Detection, an encoding entry reopening and setting the next save's charset, the tab width, reload and unfinished-copies prompts, `AppMenu.open`'s guards. A real drag is not simulated |
 | `SwtUiDispatcherTest` | A canceled timer does not run; cancel after dispose does nothing |
 | `BrowserKeysTest` | Delete deleting everywhere and Backspace only on macOS (G2 RM-1), F2 renaming, a modifier running nothing |
-| `LaunchDocumentsTest` | Open-document events queued before `collect` returned in order, empty, null and unparseable names skipped; no event collecting nothing. Linux raises none at startup, so queued tasks send them (G2 M12) |
+| `LaunchDocumentsTest` | Open-document events queued before `collect` returned in order, empty, null and unparseable names skipped; no event collecting nothing. Linux raises none at startup, so queued tasks send them (G2 M12). `await` under a fake clock that timer steps advance: it stops 200 ms after the last event and at 1 s without one, by which steps ran, and rounds the time left up (G2-D) |
 | `PdfPrinterTest` | The GTK 4 PDF dialog's proposed name: the last extension replaced by `.pdf`, a leading dot kept (G2 S9-10) |
 | `ChecksumSurfaceTest` | Tools before Window with four enabled cascades of three items; Generate hashing as typed and Esc; Verify Checksums over the open list; with `qcaret.rm.out`, both dialogs in light and dark |
 
@@ -137,7 +137,7 @@ test case.
 | `FilePollSurfaceTest` | `file.pollSeconds` applied in the dialog with the dialog left open: a change written through a hard link in another directory, which no directory watch on Linux reports, reloads the clean buffer |
 | `RecoverySurfaceTest` | The recovery dialog and a restored split on a real window, with the top line of a tab shown later and a fold in one view |
 | `GuideWindowTest` | User Guide to its window or fallback, GTK 4's notice, the locations `allowed` takes, a result arriving after the window closed, a throwing browser factory, `LoadBound`. A real browser's outcome is never raced against a short timer: cocoa and GTK resolve that race opposite ways |
-| `PrintOutputTest` | A print through a real window and `Printer` to a PDF, read back with PDFBox: page count, header, every line, wrap, a range, a selection, copies, Cancel, the dialog opening on the selection while one exists (no printer needed), and the Light token colors under the Nightwater scheme, read from the PDF's fill colors. The dialog's answer comes through `MainWindow.setPrinterChooser`; it uses only GTK's Print to File or a Windows printer named PDF, never a physical printer, and skips when neither exists |
+| `PrintOutputTest` | A print through a real window and `Printer` to a PDF, read back with PDFBox: page count, header, every line, wrap, a range, a selection, copies, Cancel, the dialog opening on the selection while one exists and taking a PDF name (no printer needed), and the Light token colors under the Nightwater scheme, read from the PDF's fill colors. The dialog's answer comes through `MainWindow.setPrinterChooser`; it uses only GTK's Print to File or a Windows printer named PDF, never a physical printer, and skips when neither exists |
 
 ### Theme
 

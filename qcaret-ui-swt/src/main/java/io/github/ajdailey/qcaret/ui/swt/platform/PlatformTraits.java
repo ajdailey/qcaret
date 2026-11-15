@@ -240,4 +240,20 @@ public interface PlatformTraits {
    * @return {@code SWT.CURSOR_WAIT} on cocoa, {@code SWT.CURSOR_APPSTARTING} elsewhere
    */
   int busyCursor();
+
+  /**
+   * Reports whether the system hands a launch its files as {@code SWT.OpenDocument} events, with no
+   * file arguments: Finder's Open With and a Dock drop on macOS.
+   *
+   * @return true on cocoa
+   */
+  boolean handsFilesAsEvents();
+
+  /**
+   * Reports whether File > Print's dialog takes the document's PDF name in {@code
+   * PrinterData.fileName}. win32 writes a Print to File job to that name without asking.
+   *
+   * @return true on cocoa
+   */
+  boolean proposesPrintFileName();
 }
