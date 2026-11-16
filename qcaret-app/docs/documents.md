@@ -285,8 +285,13 @@ its heap reservation.
   shows (`open(Path, Consumer)`), so a skipped file and one whose load fails or
   is canceled stay listed.
 - Read-Only, the tab width and indentation with spaces are per document.
-- Go to Line asks for `line`, `line:column` or `line,column`, from 1; other
-  input shows a notice.
+- Go to Line asks for `line`, `line:column` or `line,column`, from 1, and
+  passes `parsePosition` to the view as the validator that enables OK; other
+  input reaching the answer shows a notice.
+- A failed open shows `OPEN_FAILED` with the file name and a reason from
+  `OpenFailure`: fixed text for `AccessDeniedException` and
+  `NoSuchFileException`, whose messages are the path alone, the reason of
+  another `FileSystemException`, else the message.
 - Word wrap, Show Whitespace, Show Line Endings and the completion trigger are
   settings for the window's editors.
 - Each document has one `Bookmarks`, shared by its views and disposed on close.

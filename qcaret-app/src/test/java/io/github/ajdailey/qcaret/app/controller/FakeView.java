@@ -509,6 +509,7 @@ final class FakeView implements MainView {
   Keymap keymap;
   PreferencesInput preferences;
   int goToLines;
+  Predicate<String> goToValid;
   Consumer<String> goTo;
   Keymap shortcuts;
   PaletteInput palette;
@@ -951,9 +952,10 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public void askGoToLine(int lines, Consumer<String> answer) {
+  public void askGoToLine(int lines, Predicate<String> valid, Consumer<String> answer) {
     ui.checkUiThread();
     goToLines = lines;
+    goToValid = valid;
     goTo = answer;
   }
 

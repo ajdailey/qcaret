@@ -10,6 +10,8 @@ nested event loop: `open` returns at once and buttons act through listeners.
 `showText` and `showLog` open their window modal and owned by the innermost
 visible modal dialog when one is open, because GTK gives input only to the
 newest modal shell; Licenses opened from About therefore stays usable.
+`ErrorDialog` escapes `&` in its message, so a file name such as `R&D.log`
+shows whole; a caller passes the text unescaped.
 
 Four calls do run a nested event loop, so code around them must tolerate
 re-entrant events: `FileDialog.open`, `DirectoryDialog.open`,
@@ -46,7 +48,7 @@ transient parent.
 | `DirectoryDialog` (native) | File > Set Workspace Folder and the HyperSearch dialog's Browse; runs a nested event loop |
 | `UnsavedDialog` | Save, Don't Save and Cancel answer through a callback; closing it answers Cancel |
 | `BinaryDialog` | Opens the read-only view on Open Read-Only; Cancel is the default and closing it declines |
-| `GoToDialog` | Search > Go to Line; modal, without a nested event loop |
+| `GoToDialog` | Search > Go to Line; modal, without a nested event loop; OK is enabled while the controller's validator accepts the text |
 | `TabWidthDialog` | Edit > Tab Width > Other: a modal width field; OK answers it, Cancel and Esc close without an answer |
 | `ReloadDialog` | Asks before Reload from Disk replaces unsaved changes; modal, Cancel is the default |
 | `ReplaceOpenDialog` | Asks before Save As replaces a file another tab holds with unsaved changes |
@@ -64,7 +66,10 @@ transient parent.
 Help > Keyboard Shortcuts opens `ShortcutsWindow`, a modeless table of every
 bound command by menu with a filter field; Copy puts the filtered rows on the
 clipboard as `Keymap.reference(filter)` writes them. A second request brings
-the open window forward.
+the open window forward. It opens at least 560 px wide and as wide as its
+packed columns need, within the screen (`TableFit.dialogWidth`); a remembered
+size overrides that. A cell cut off shows its full text as the table's tool tip
+(`TableFit.cellTips`).
 
 Tools > Preferences (the application menu on macOS) opens `PreferencesDialog`, a
 modeless window with one tab per `PreferencesForm.Group`, over
@@ -107,7 +112,8 @@ View > Command Palette opens `CommandPaletteWindow`, a modal dialog with a
 filter field over the rows `PaletteInput.filter` returns: command, menu and
 keys, a disabled command in gray. Up, Down, Page Up and Page Down in the field
 move the selection; Enter or a double click closes the dialog and runs the
-command on the next UI turn, after the editor has its focus back.
+command on the next UI turn, after the editor has its focus back. It is fitted
+to its columns as Keyboard Shortcuts is, at least 520 px wide.
 
 File > Quick Open and Window > Switch Document open `QuickOpenWindow`, the same
 kind of dialog over `QuickOpenInput`: name and path columns and a summary line,
@@ -195,7 +201,10 @@ field, Match case, Whole word, Regex, Previous, Next, the notice and Close,
 plus a replace row (field, Replace, Replace All) for Replace. Both fields are
 `HistoryField`s listing the saved history from `FindState`: a `Text`, an arrow
 button, and a list in an `SWT.ON_TOP | SWT.NO_FOCUS` shell, as `CompletionPopup`
-uses, so the field keeps the keyboard. Do not replace it with a drop-down
+uses, so the field keeps the keyboard. The `Text` sits inside the field's
+composite, not beside its label, so `HistoryField` names it for screen readers
+from the `Label` created just before it in the same parent, and names the arrow
+`FIND_HISTORY`. Do not replace it with a drop-down
 `Combo`: a cocoa `NSComboBox` list runs a tracking loop on the UI thread that
 outlives its window, which keeps the process running after a quit with the list
 open; that list also takes no Enter and searches on each highlight.

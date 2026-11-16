@@ -193,7 +193,7 @@ class FindControllerTest {
     find.setOptions(false, false, true);
     find.setText("(a");
     assertTrue(last.error());
-    assertTrue(last.notice().startsWith("Invalid pattern"), last.notice());
+    assertEquals("Invalid regular expression at column 3: Unclosed group", last.notice());
     find.setText("(a|b)*c");
     settle();
     assertEquals(UiText.FIND_TOO_COMPLEX.text(), last.notice());

@@ -293,9 +293,14 @@ public final class FindController implements DocumentController.ViewListener {
       notice = "";
       error = false;
     } catch (PatternSyntaxException e) {
-      notice = UiText.FIND_BAD_PATTERN.format(e.getDescription(), e.getIndex());
+      notice = badPattern(e);
       error = true;
     }
+  }
+
+  /** Returns the error text of a pattern, with its 1-based column. */
+  static String badPattern(PatternSyntaxException e) {
+    return UiText.FIND_BAD_PATTERN.format(Math.max(0, e.getIndex()) + 1, e.getDescription());
   }
 
   /** A saved history changed: updates the bar. */

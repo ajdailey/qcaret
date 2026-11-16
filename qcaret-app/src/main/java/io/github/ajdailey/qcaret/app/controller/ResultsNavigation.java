@@ -99,6 +99,7 @@ final class ResultsNavigation {
     List<FileResult> files = entries.get(set).set.files();
     int file = Math.min(cursorFile, files.size() - 1);
     int match = cursorMatch;
+    boolean wrapped = false;
     if (match < 0) {
       file = forward ? 0 : files.size() - 1;
       while (files.get(file).matchCount() == 0) {
@@ -108,9 +109,14 @@ final class ResultsNavigation {
     } else {
       match += forward ? 1 : -1;
       while (match < 0 || match >= files.get(file).matchCount()) {
+        wrapped |= file == (forward ? files.size() - 1 : 0);
         file = (file + (forward ? 1 : files.size() - 1)) % files.size();
         match = forward ? 0 : files.get(file).matchCount() - 1;
       }
+    }
+    if (wrapped) {
+      view.showNotice(
+          forward ? UiText.SEARCH_WRAPPED_FIRST.text() : UiText.SEARCH_WRAPPED_LAST.text());
     }
     open(set, file, match);
   }

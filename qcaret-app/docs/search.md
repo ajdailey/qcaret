@@ -28,8 +28,10 @@ The find bar, HyperSearch and replace across files: `FindController`,
 - Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
   request cancels the running one. A result carries its generation and revision
   and is dropped when either is stale. An invalid regex, a stack overflow and
-  an invalid replacement end with a notice in the bar. Any other failure posts
-  `FIND_FAILED` from `finally`, so the bar never stays searching.
+  an invalid replacement end with a notice in the bar; the regex notice gives
+  the 1-based column (`FindController.badPattern`), which HyperSearch's dialog
+  shows too. Any other failure posts `FIND_FAILED` from `finally`, so the bar
+  never stays searching.
 
 ### Search history
 
@@ -111,7 +113,8 @@ open the file from then on.
 Opening a match selects it only when the text there has the searched length and
 hash; otherwise the match is marked stale, the caret goes to its line and a
 notice says so. Next and Previous Result step through the set last navigated,
-or the newest set, wrapping at its ends.
+or the newest set, wrapping at its ends with a notice (`SEARCH_WRAPPED_FIRST`,
+`SEARCH_WRAPPED_LAST`).
 
 Rerun File (dock) searches one stale group's source again with the set's query
 (`app.search.FileRerun`): an open document from a snapshot, a file from its

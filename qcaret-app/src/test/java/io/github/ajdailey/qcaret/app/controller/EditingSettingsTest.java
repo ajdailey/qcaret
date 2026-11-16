@@ -130,6 +130,8 @@ class EditingSettingsTest {
     harness.open(file("g.txt", "one\ntwo\nthree"));
     harness.application.execute(CommandId.GO_TO_LINE);
     assertEquals(3, harness.view.goToLines);
+    assertFalse(harness.view.goToValid.test("abc"));
+    assertTrue(harness.view.goToValid.test(" 3:2 "));
     harness.view.goTo.accept(" 3:2 ");
     assertEquals(SelectionSet.caret(9), documents.activeEditor().selections().selections());
     harness.application.execute(CommandId.GO_TO_LINE);

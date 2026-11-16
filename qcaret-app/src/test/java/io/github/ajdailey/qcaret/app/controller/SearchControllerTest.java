@@ -282,12 +282,17 @@ class SearchControllerTest {
     EditorController editor = open("doc.txt", TEXT);
     run("key", SearchScope.CURRENT_DOCUMENT, "");
     int[] starts = {6, 15, 25};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       harness.application.execute(CommandId.NEXT_RESULT);
-      assertEquals(starts[i % 3], selected(editor).start());
+      assertEquals(starts[i], selected(editor).start());
     }
+    assertFalse(harness.view.notices.contains(UiText.SEARCH_WRAPPED_FIRST.text()));
+    harness.application.execute(CommandId.NEXT_RESULT);
+    assertEquals(6, selected(editor).start());
+    assertEquals(UiText.SEARCH_WRAPPED_FIRST.text(), last(harness.view.notices));
     harness.application.execute(CommandId.PREVIOUS_RESULT);
     assertEquals(25, selected(editor).start());
+    assertEquals(UiText.SEARCH_WRAPPED_LAST.text(), last(harness.view.notices));
   }
 
   @Test
@@ -365,7 +370,7 @@ class SearchControllerTest {
             List.of(),
             List.of(),
             List.of()));
-    assertTrue(info().startsWith("Invalid pattern"));
+    assertEquals("Invalid regular expression at column 2: Unclosed group", info());
     search.run(
         new SearchForm(
             "a",

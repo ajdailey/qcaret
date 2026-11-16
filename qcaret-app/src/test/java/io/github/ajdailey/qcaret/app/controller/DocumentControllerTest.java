@@ -27,6 +27,7 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -905,6 +906,27 @@ class DocumentControllerTest {
     assertTrue(view.tabs.isEmpty());
     assertEquals(0, view.active.get());
     assertTrue(failure.getAndSet(null) instanceof IllegalStateException);
+  }
+
+  @Test
+  void anUnreadableFileShowsTheReasonNotThePath() throws Exception {
+    Path file = file("a&b.txt", "mock\n");
+    try {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("-w-------"));
+    } catch (UnsupportedOperationException e) {
+      Assumptions.abort("no POSIX permissions: " + e);
+    }
+    Assumptions.assumeFalse(Files.isReadable(file), "the user reads every file");
+    documents.open(List.of(file));
+    await(refused());
+    settle();
+    assertEquals(
+        List.of(
+            UiText.OPEN_TITLE.text()
+                + ": "
+                + UiText.OPEN_FAILED.format("a&b.txt", UiText.OPEN_REASON_DENIED.text())),
+        view.infos);
+    assertTrue(view.tabs.isEmpty());
   }
 
   /**

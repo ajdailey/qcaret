@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -22,7 +23,8 @@ import org.eclipse.swt.widgets.Text;
  * and keys, refilled through {@link PaletteInput#filter} on each change. Up, Down, Page Up and Page
  * Down in the field move the table's selection; Enter or a double click closes the dialog and runs
  * the selected row's command on the next UI turn, so the editor has its focus back first. A row
- * whose command is disabled is gray and does not run. Esc closes the dialog.
+ * whose command is disabled is gray and does not run. Esc closes the dialog. A cell cut off shows
+ * its full text as a tool tip.
  */
 final class CommandPaletteWindow {
   /** Rows Page Up and Page Down move. */
@@ -95,6 +97,7 @@ final class CommandPaletteWindow {
     for (TableColumn column : table.getColumns()) {
       column.pack();
     }
+    TableFit.cellTips(table);
   }
 
   /** Refills the table for the filter and selects its first row. */
@@ -136,8 +139,18 @@ final class CommandPaletteWindow {
         });
   }
 
+  /** Opens the dialog at least 520 px wide and wide enough for every column, within the screen. */
   void open() {
-    Dialogs.open(shell, 520, 420);
+    open(shell.getParent().getMonitor().getClientArea());
+  }
+
+  /**
+   * Opens the dialog sized to fit an area.
+   *
+   * @param screen the area the dialog width must fit in
+   */
+  void open(Rectangle screen) {
+    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 520, screen), 420);
     filter.setFocus();
   }
 

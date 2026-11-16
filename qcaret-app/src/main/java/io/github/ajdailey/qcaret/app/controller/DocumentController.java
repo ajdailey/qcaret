@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -418,11 +419,8 @@ public final class DocumentController {
         }
         return;
       }
-      String reason = LogText.oneLine(error.getMessage());
       LOG.debug("Open failed: {}", LogText.oneLine(String.valueOf(path)));
-      view.showInfo(
-          UiText.OPEN_TITLE.text(),
-          UiText.OPEN_FAILED.format(String.valueOf(path.getFileName()), reason));
+      view.showInfo(UiText.OPEN_TITLE.text(), OpenFailure.text(path, error));
     }
 
     private void endReopen() {
@@ -1886,7 +1884,7 @@ public final class DocumentController {
 
   /**
    * Asks for a line, or {@code line:column} (also {@code line,column}), both from 1, and moves the
-   * selected editor's caret there; other input shows a notice.
+   * selected editor's caret there. The dialog submits only such input; other input shows a notice.
    */
   public void goToLine() {
     final OpenDocument d = active;
@@ -1895,6 +1893,12 @@ public final class DocumentController {
     }
     view.askGoToLine(
         d.document.text().lineCount(),
+        new Predicate<String>() {
+          @Override
+          public boolean test(String input) {
+            return parsePosition(input).length > 0;
+          }
+        },
         new Consumer<String>() {
           @Override
           public void accept(String input) {

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Point;
@@ -100,9 +101,9 @@ final class WindowDialogs {
     this.sizes = sizes;
   }
 
-  void askGoToLine(int lines, Consumer<String> answer) {
+  void askGoToLine(int lines, Predicate<String> valid, Consumer<String> answer) {
     if (!shell.isDisposed()) {
-      new GoToDialog(shell, lines, answer).open();
+      new GoToDialog(shell, lines, valid, answer).open();
     }
   }
 

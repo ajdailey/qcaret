@@ -830,6 +830,10 @@ public enum UiText {
   OPEN_TITLE,
   /** Open failure: the file name and the reason. */
   OPEN_FAILED,
+  /** Open failure reason: access denied. */
+  OPEN_REASON_DENIED,
+  /** Open failure reason: the file is missing. */
+  OPEN_REASON_MISSING,
   /** Reason of an open ended by an internal failure, such as running out of memory. */
   OPEN_STOPPED,
   /** The file is the running instance's lock. */
@@ -885,6 +889,8 @@ public enum UiText {
   FIND_LABEL,
   /** Find bar label of the replacement field. */
   FIND_REPLACE_LABEL,
+  /** Accessible name of a search field's history arrow. */
+  FIND_HISTORY,
   /** Find bar check box. */
   FIND_MATCH_CASE,
   /** Find bar check box. */
@@ -907,7 +913,7 @@ public enum UiText {
   FIND_WRAPPED_TOP,
   /** Find bar notice: a backward search continued from the bottom. */
   FIND_WRAPPED_BOTTOM,
-  /** Find bar notice: the regex error and its index. */
+  /** Find bar notice: the regex error and its column. */
   FIND_BAD_PATTERN,
   /** Find bar notice: the replacement error. */
   FIND_BAD_REPLACEMENT,
@@ -1316,6 +1322,10 @@ public enum UiText {
   SEARCH_CLOSED,
   /** Notice: next result without results. */
   SEARCH_NO_RESULTS,
+  /** Notice: Next Result passed the last result. */
+  SEARCH_WRAPPED_FIRST,
+  /** Notice: Previous Result passed the first result. */
+  SEARCH_WRAPPED_LAST,
   /** Results dock button. */
   RESULTS_STOP,
   /** Results dock button. */

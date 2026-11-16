@@ -347,9 +347,7 @@ public final class SearchController implements ResultsInput {
     try {
       matcher = request.query().compile();
     } catch (PatternSyntaxException e) {
-      view.showInfo(
-          UiText.SEARCH_TITLE.text(),
-          UiText.FIND_BAD_PATTERN.format(e.getDescription(), e.getIndex()));
+      view.showInfo(UiText.SEARCH_TITLE.text(), FindController.badPattern(e));
       return false;
     }
     FileFilter filter = null;

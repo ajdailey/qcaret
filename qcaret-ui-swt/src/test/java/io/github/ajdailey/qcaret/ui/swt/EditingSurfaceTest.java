@@ -339,6 +339,10 @@ class EditingSurfaceTest {
           public boolean getAsBoolean() {
             ImageData scrolled = print(shown);
             int x = shown.getLocationAtOffset(150).x + inside3;
+            // Until the resize settles, column 150 can lie outside the printed image.
+            if (x < 0 || x >= scrolled.width || y < 0 || y >= scrolled.height) {
+              return false;
+            }
             seen[0] = scrolled.palette.getRGB(scrolled.getPixel(x, y));
             return inBlock.equals(seen[0]);
           }
@@ -870,13 +874,19 @@ class EditingSurfaceTest {
     drain();
     Shell dialog = shellTitled(UiText.GO_TO_TITLE.text());
     assertNotNull(dialog);
-    child(dialog, Text.class).setText("3:3");
+    Button ok = null;
     for (Control button : children(dialog, Button.class)) {
       if (((Button) button).getText().equals(UiText.BUTTON_OK.text())) {
-        button.notifyListeners(SWT.Selection, new Event());
-        break;
+        ok = (Button) button;
       }
     }
+    assertNotNull(ok);
+    Text field = child(dialog, Text.class);
+    field.setText("abc");
+    assertFalse(ok.getEnabled());
+    field.setText("3:3");
+    assertTrue(ok.getEnabled());
+    ok.notifyListeners(SWT.Selection, new Event());
     assertTrue(dialog.isDisposed());
     assertEquals(SelectionSet.caret(10), editor().selections().selections());
   }

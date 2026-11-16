@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
@@ -12,6 +14,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -27,7 +30,8 @@ import org.eclipse.swt.widgets.Text;
  * focus change, and a move, resize or deactivation of the window close it. Each consumes its key,
  * so key listeners added after this field's see {@code doit} false; while the list shows, Enter and
  * Esc do not traverse, so a dialog neither presses its default button nor closes. Tab skips the
- * arrow.
+ * arrow. The text's accessible name is the text of the {@link Label} created just before the field
+ * in the same parent, without its mnemonic and colon; the arrow's is {@link UiText#FIND_HISTORY}.
  *
  * <p>The list is QCaret's own shell, not a native drop-down: a cocoa {@code NSComboBox} list runs a
  * tracking loop on the UI thread that outlives its window and keeps the process running after a
@@ -53,6 +57,7 @@ final class HistoryField {
    * @param width the text's width hint
    */
   HistoryField(Composite parent, int width) {
+    Control[] before = parent.getChildren();
     control = new Composite(parent, SWT.NONE);
     ui = new SwtUiDispatcher(parent.getDisplay());
     GridLayout layout = new GridLayout(2, false);
@@ -68,6 +73,10 @@ final class HistoryField {
     arrow = new Button(control, SWT.ARROW | SWT.DOWN);
     arrow.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, true));
     control.setTabList(new Control[] {text});
+    if (before.length > 0 && before[before.length - 1] instanceof Label label) {
+      AccessibleName.attachKeepingRole(text, name(label.getText()));
+    }
+    AccessibleName.attachKeepingRole(arrow, UiText.FIND_HISTORY.text());
     outside =
         new Listener() {
           @Override
@@ -78,6 +87,12 @@ final class HistoryField {
           }
         };
     listen();
+  }
+
+  /** Returns a label's text without its mnemonic marker and trailing colon. */
+  static String name(String label) {
+    String plain = label.replace("&", "").strip();
+    return plain.endsWith(":") ? plain.substring(0, plain.length() - 1).strip() : plain;
   }
 
   private void listen() {

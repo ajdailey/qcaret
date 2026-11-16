@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 
 /**
  * The window's document tabs and file prompts. Every method is called on the UI thread; a prompt
@@ -85,9 +86,10 @@ public interface DocumentsView {
    * Asks for a line, or a line and a column, to move the caret to.
    *
    * @param lines the document's line count
+   * @param valid accepts the text OK may submit
    * @param answer receives the text entered; not called when the user cancels
    */
-  void askGoToLine(int lines, Consumer<String> answer);
+  void askGoToLine(int lines, Predicate<String> valid, Consumer<String> answer);
 
   /**
    * Asks for a tab width.

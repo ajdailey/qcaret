@@ -7,13 +7,16 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 
-/** A one-line error or message with an OK button; modal, opened without a nested event loop. */
+/**
+ * A one-line error or message with an OK button; modal, opened without a nested event loop. An
+ * {@code &} in the message shows as itself.
+ */
 final class ErrorDialog {
   private final Shell shell;
 
   ErrorDialog(Shell parent, String title, String message) {
     shell = Dialogs.shell(parent, title, true);
-    Label label = Dialogs.label(shell, message);
+    Label label = Dialogs.label(shell, message.replace("&", "&&"));
     GridData data = (GridData) label.getLayoutData();
     data.widthHint = 420;
     Button ok =

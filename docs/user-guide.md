@@ -246,7 +246,8 @@ apply (measured on Linux, one million lines):
   or next tab, one tab per notch, stopping at the first and last.
 - A screen reader reads each editor by its tab title, the three buttons by
   their tool tips, the overview strip as Overview and the memory indicator as
-  Memory with its figures.
+  Memory with its figures. A search field reads by its label, and its history
+  arrow as Show history.
 - Closing a window's last tab opens an empty Untitled document in its place. An
   empty Untitled document with no unsaved changes stays open when it is the
   only tab. Preferences, Files, "Close the window with its last tab" closes the
@@ -353,7 +354,7 @@ the grammar's rules.
 | `Ctrl+/`, `Ctrl+Shift+/` (`Cmd+Option+/` on macOS) | Toggle a line or block comment |
 | `Ctrl+Space` (`Option+Esc` on macOS) | Complete the word from the open documents |
 | `Ctrl+B`, `Ctrl+Shift+B` | Go or select to the matching bracket |
-| `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column` |
+| `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column`; OK stays disabled until the text is one |
 | `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
 Edit > Sort Lines, and Remove Duplicate Lines and Trim Trailing Whitespace in
@@ -433,7 +434,8 @@ and `Shift+F3` (also `Cmd+G` and `Cmd+Shift+G` on macOS), or Enter and
 notice. Match case, Whole word and Regex are toggles. `Esc` closes the bar.
 Both fields keep a history: the arrow beside a field or `Down` opens its list,
 `Up` and `Down` move through it without searching, and Enter or a click puts
-the entry in the field and finds it. `Esc` closes only the list.
+the entry in the field and finds it. `Esc` closes only the list. An invalid
+regular expression shows its error and the column where it fails.
 
 ### HyperSearch
 
@@ -461,8 +463,9 @@ unsaved buffer and not its file.
 The dock keeps ten sets, newest first; Pin keeps one past that. A set stops at
 100,000 matches. Files over 64 MiB, binary and unreadable files and very long
 lines are skipped, and the set's row counts them. Enter or a double click opens
-a match; `F4` and `Shift+F4` step through the set. Stop ends a running search
-and keeps what it found; Rerun runs it again; Clear and Clear All drop sets.
+a match; `F4` and `Shift+F4` step through the set, wrapping at the ends with a
+notice. Stop ends a running search and keeps what it found; Rerun runs it again;
+Clear and Clear All drop sets.
 
 A match in text changed since the search shows as stale. Opening one goes to its
 line with a notice. Rerun File searches that file again.
@@ -942,7 +945,9 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
   notice names the guide's file instead; open that file in a browser. Without a
   working embedded browser, and in explicit and portable mode on Linux, the
   guide opens in the system's HTML application, else a notice names the file.
-- Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy.
+- Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy. It opens
+  wide enough for every column, within the screen; a cell cut off shows its
+  full text as a tool tip, as in the Command Palette.
 - Command-Line Options shows the usage text.
 - Tip of the Day shows a short tip about a feature, with its menu path and
   key. Next Tip shows the next one, and the next show, in any window,

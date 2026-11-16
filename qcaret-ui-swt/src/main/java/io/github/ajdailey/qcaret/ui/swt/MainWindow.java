@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
@@ -1630,8 +1631,8 @@ public final class MainWindow implements MainView {
   // Editing prompts and Keyboard Shortcuts.
 
   @Override
-  public void askGoToLine(int lines, Consumer<String> answer) {
-    dialogs.askGoToLine(lines, answer);
+  public void askGoToLine(int lines, Predicate<String> valid, Consumer<String> answer) {
+    dialogs.askGoToLine(lines, valid, answer);
   }
 
   @Override

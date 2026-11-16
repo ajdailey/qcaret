@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import java.util.Locale;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -21,7 +22,7 @@ import org.eclipse.swt.widgets.Text;
 /**
  * Help > Keyboard Shortcuts: a modeless table of every bound command, grouped by menu, from the
  * {@link Keymap}, with a filter field and Copy (plain text of the filtered rows, as {@link
- * Keymap#reference(String)} writes them).
+ * Keymap#reference(String)} writes them). A cell cut off shows its full text as a tool tip.
  */
 final class ShortcutsWindow {
   private final Shell shell;
@@ -67,6 +68,7 @@ final class ShortcutsWindow {
     for (TableColumn column : table.getColumns()) {
       column.pack();
     }
+    TableFit.cellTips(table);
   }
 
   private void fill() {
@@ -92,8 +94,18 @@ final class ShortcutsWindow {
     fill();
   }
 
+  /** Opens the dialog at least 560 px wide and wide enough for every column, within the screen. */
   void open() {
-    Dialogs.open(shell, 560, 520);
+    open(shell.getParent().getMonitor().getClientArea());
+  }
+
+  /**
+   * Opens the dialog sized to fit an area.
+   *
+   * @param screen the area the dialog width must fit in
+   */
+  void open(Rectangle screen) {
+    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 560, screen), 520);
   }
 
   Shell shell() {
