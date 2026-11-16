@@ -72,10 +72,10 @@ disposed and `run` returns 0.
 
 Before the Display, without `-m`, `Launcher` claims the instance lock
 ([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
-the launch over and exits 0, before `-l` attaches a log file. A settings
-directory another account owns or can write, or a failure to take the lock, logs
-one WARN and runs on alone (`Handoff.ALONE`); it restores only if it takes the
-session lock. A JDK where `flock` cannot be linked
+the launch over and exits 0, before `-l` attaches a log file. A failure to take
+the lock logs one WARN and runs on alone (`Handoff.ALONE`); it restores only if
+it takes the session lock. An endpoint file the client refuses fails the
+handoff as a missing one does. A JDK where `flock` cannot be linked
 ([`ProcessLock`](../qcaret-core/docs/files-and-encodings.md#process-lock)) is
 such a failure; `RecoveryController` then also logs `Recovery files are off`.
 
@@ -242,12 +242,13 @@ classes, so the rules over the main classes never see them.
 | `BusyCoverageTest` | Every `Workers` submission site in `qcaret-app` listed with what the user sees while it runs: an unlisted or vanished site fails, and so does a busy-cursor or progress row whose call its operation does not make; the call check shown to fail on a missing call |
 | `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |
 | `PortableGuideTest` (tag `swt`, Linux, GTK 3) | A child JVM with its own `HOME`, no XDG base directory variables and system data directories without `applications` runs User Guide in a portable run: the main window names the guide's copy in a notice, no second shell opens, and the home holds no `.cache/QCaret`, `.local/share/QCaret` or `.cache/mesa_shader_cache`. GLib reads `HOME` from the environment, hence the separate process |
+| `GtkFallbackTest` (tag `swt`, Linux) | A child JVM with `SWT_GTK4=1` and an empty `libgtk-4.so.1` first on `LD_LIBRARY_PATH`, so SWT loads GTK 3: `PlatformTraits.PLATFORM` gives the GTK 3 answers and the fallback WARN is logged |
 | `SigtermTest` (tag `swt`, Linux) | `Main` with `-l` as a child process, SIGTERM (`Process.destroy`) after the window line: the process ends within the hook's bound, saved the placement and logged the hook's INFO line to the file. Windows has no SIGTERM; `destroy` there terminates without hooks |
 | `WindowsGuiTest` (tag `swt`) | A second window through the composed application, a file handed over a real loopback exchange, the endpoint gone after quit; a handoff sent before the first window opens as a tab; a start over a two-window session (`--no-session` opens one window with an untitled document, a plain start opens both saved windows). It does not assert which window takes the file: a late `SWT.Activate` moves the target under load without a window manager, and `WindowSetTest` in `qcaret-app` pins the target |
 | `QuitPromptsGuiTest` (tag `swt`) | Quit with a dirty document in each of two windows through the real unsaved dialogs: Cancel keeps both windows and both documents dirty; then Save writes one file, Don't Save leaves the other, and both windows close |
 | `BesideLaunchTest` (tag `swt`) | `Launcher.run` in the test JVM while this JVM holds the lock with the endpoint deleted: one untitled window, the session's recent file in the File menu, its window not restored, the session file unchanged and no placement saved |
 | `AbnormalShutdownTest` (tag `swt`) | `CrashChild` types into the untitled document, waits for its recovery file and is killed with `destroyForcibly`; `Gui` started again offers the buffer and restores it dirty |
-| `BesideRunTest` (tag `swt`, Linux) | `Main` as a child process whose handoff fails under a held `instance.lock`, and one in a group-writable settings directory (`ALONE`) while this JVM holds `SessionLock`: each opens a window and, after SIGTERM, has left the session file and the placement unchanged |
+| `BesideRunTest` (tag `swt`, Linux) | `Main` as a child process whose handoff fails under a held `instance.lock`, and one with a directory at `instance.lock` (`ALONE`) while this JVM holds `SessionLock`: each opens a window and, after SIGTERM, has left the session file and the placement unchanged |
 | `StoreFaultsTest` (tag `swt`) | A start over a malformed, oversized and unknown-version session file, and a remembered charset the runtime lacks |
 | `ScreenshotsTest` (tag `swt`) | Runs only with `-Dqcaret.screenshots=<dir>` (`tools/screenshots.sh`): the README screenshots from generated mock files, in the light and the dark theme |
 | `ShutdownHookTest` | The hook's task run directly |

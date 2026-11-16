@@ -14,7 +14,7 @@ abstract class GtkTraits implements PlatformTraits {
   private static final int SAMPLE = 2;
 
   /** System property SWT sets on GTK to the GTK version. */
-  private static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
+  static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
 
   @Override
   public String name() {

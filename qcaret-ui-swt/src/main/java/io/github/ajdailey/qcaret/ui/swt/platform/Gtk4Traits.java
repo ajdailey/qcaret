@@ -1,6 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-/** GTK 4, the {@code SWT_GTK4=1} environment SWT reads. */
+/** GTK 4, which SWT loads under {@code SWT_GTK4=1} when GTK 4 is installed. */
 final class Gtk4Traits extends GtkTraits {
   @Override
   public CaretBlend caretBlend() {

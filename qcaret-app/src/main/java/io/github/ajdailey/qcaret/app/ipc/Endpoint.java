@@ -2,10 +2,8 @@ package io.github.ajdailey.qcaret.app.ipc;
 
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
-import io.github.ajdailey.qcaret.core.util.Streams;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +12,8 @@ import java.util.Properties;
 
 /**
  * The primary instance's {@code instance.endpoint}: {@code version=1}, {@code port=<n>}, {@code
- * token=<64 hex>}. Written owner-only through {@link AtomicFiles#writeOwnerOnly}.
+ * token=<64 hex>}. Written owner-only through {@link AtomicFiles#writeOwnerOnly}; read only when
+ * {@link EndpointCheck} trusts it.
  *
  * @param port the loopback port
  * @param token the shared secret, {@link Protocol#SECRET_BYTES} bytes
@@ -41,18 +40,18 @@ record Endpoint(int port, byte[] token) {
   }
 
   /**
-   * Reads the endpoint file.
+   * Reads the endpoint file through {@link EndpointCheck}.
    *
    * @param directory the settings directory
    * @return the endpoint
-   * @throws java.nio.file.NoSuchFileException when there is no file
+   * @throws java.nio.file.NoSuchFileException when there is no file, or {@link
+   *     EndpointCheck.Refused} when the file is not trusted
    * @throws IOException when it cannot be read or is malformed
    */
   static Endpoint read(Path directory) throws IOException {
-    byte[] bytes;
-    try (InputStream in = Files.newInputStream(SafePaths.child(directory, FILE))) {
-      bytes = Streams.readLimited(in, MAX_BYTES);
-    }
+    byte[] bytes =
+        EndpointCheck.read(
+            SafePaths.child(directory, FILE), System.getProperty("user.name"), MAX_BYTES);
     Properties p = new Properties();
     try {
       p.load(new ByteArrayInputStream(bytes));

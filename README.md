@@ -51,9 +51,7 @@ xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw clean verify
 ```
 
 CI runs the GUI tests on a 1280x1024 screen; `qcaret-ui-swt/TESTING.md` names
-the ones a 640x480 screen fails. CI runs with `umask 022`; under a
-group-writable umask such as 002, single-instance handoff turns off in the
-tests and the launcher tests take the no-handoff path.
+the ones a 640x480 screen fails. CI runs with `umask 022`.
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
 rules and every test, and builds the universal jar and the bundle for the build
@@ -207,7 +205,7 @@ To fix a bad draft, delete the draft and the tag
   Java.
 - Linux targets need the system GTK 3 libraries. GTK 4 is an experimental
   opt-in on linux-x86_64: start QCaret with `bin/qcaret --gtk4` or
-  `SWT_GTK4=1` (GTK 4 libraries required). Under GTK 4 Help > User Guide shows no guide window; a notice
+  `SWT_GTK4=1`; without the GTK 4 libraries it starts on GTK 3 and logs a warning. Under GTK 4 Help > User Guide shows no guide window; a notice
   names the guide's file instead.
 - The macOS bundles are ad-hoc signed and not notarized, so macOS asks the user
   to approve the first launch.

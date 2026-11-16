@@ -198,10 +198,11 @@ final class Gui {
       }
       ThemeColors colors =
           ThemeColors.read(config.location().directory(), preferences.appearance().themeFile());
-      Display.setAppName("QCaret");
       try {
+        // The first Display reference loads SWT's natives; a failed load also reaches here.
+        Display.setAppName("QCaret");
         display = new Display();
-      } catch (UnsatisfiedLinkError | SWTError e) {
+      } catch (LinkageError | SWTError e) {
         err.println("qcaret: SWT failed to start: " + LogText.oneLine(e.getMessage()));
         LOG.debug("SWT failed to start", e);
         return Launcher.EXIT_SWT;

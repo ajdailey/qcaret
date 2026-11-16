@@ -97,10 +97,13 @@ class AtomicFilesTest {
     assertEquals(1, calls.get());
   }
 
-  /** The Windows CI account is elevated, so the file's owner there is not the user. */
+  /**
+   * The Windows CI account is elevated, so a new file there is owned by {@code Administrators}; the
+   * secret is owned by the user, as the handoff's endpoint check requires.
+   */
   @Test
   @EnabledOnOs(OS.WINDOWS)
-  void aSecretHasOneAclEntryForTheCurrentUser() throws IOException {
+  void aSecretHasOneAclEntryAndTheOwnerForTheCurrentUser() throws IOException {
     Path file = temp.resolve("instance.endpoint");
     AtomicFiles.writeOwnerOnly(file, "token".getBytes(StandardCharsets.US_ASCII));
     AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
@@ -109,6 +112,7 @@ class AtomicFilesTest {
     assertEquals(AclEntryType.ALLOW, acl.get(0).type());
     assertEquals(EnumSet.allOf(AclEntryPermission.class), acl.get(0).permissions());
     assertEquals(qualifiedUser(), acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
+    assertEquals(qualifiedUser(), view.getOwner().getName().toLowerCase(Locale.ROOT));
     assertEquals("token", Files.readString(file, StandardCharsets.US_ASCII));
     assertEquals(List.of("instance.endpoint"), names());
   }
@@ -139,10 +143,13 @@ class AtomicFilesTest {
     }
   }
 
-  /** The streamed variant writes through the same private directory and leaves none behind. */
+  /**
+   * The streamed variant writes through the same private directory, sets the same owner and leaves
+   * no directory behind.
+   */
   @Test
   @EnabledOnOs(OS.WINDOWS)
-  void aStreamedSecretHasOneAclEntryAndLeavesNoDirectory() throws IOException {
+  void aStreamedSecretHasOneAclEntryAndTheOwnerAndLeavesNoDirectory() throws IOException {
     Path file = temp.resolve("recovery.txt");
     AtomicFiles.writeOwnerOnly(
         file,
@@ -152,9 +159,11 @@ class AtomicFilesTest {
             out.write("body".getBytes(StandardCharsets.US_ASCII));
           }
         });
-    List<AclEntry> acl = Files.getFileAttributeView(file, AclFileAttributeView.class).getAcl();
+    AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
+    List<AclEntry> acl = view.getAcl();
     assertEquals(1, acl.size(), acl.toString());
     assertEquals(qualifiedUser(), acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
+    assertEquals(qualifiedUser(), view.getOwner().getName().toLowerCase(Locale.ROOT));
     assertEquals("body", Files.readString(file, StandardCharsets.US_ASCII));
     assertEquals(List.of("recovery.txt"), names());
   }

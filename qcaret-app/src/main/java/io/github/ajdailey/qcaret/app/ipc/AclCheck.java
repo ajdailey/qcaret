@@ -14,19 +14,20 @@ import java.nio.file.attribute.UserPrincipal;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Checks a settings directory on a file system with ACLs and no POSIX permissions (Windows). The
- * directory must be owned by a trusted account, and no allow entry that applies to it may give an
- * untrusted account a right in {@link #WRITE}. Trusted are the user, and the owner of the user's
- * profile directory and every account its allow entries give such a right: on a default profile
- * {@code SYSTEM} and {@code Administrators}, whose names Windows localizes, so they are not looked
- * up by name. The caller passes the profile from {@code USERPROFILE}, not {@code user.home}, which
- * a launcher or test can set to any directory.
+ * Checks {@code instance.endpoint} on a file system with ACLs and no POSIX permissions (Windows).
+ * The file must be owned by the user, and every ACL entry must be for a trusted account. Trusted
+ * are the user, and the owner of the user's profile directory and every account its allow entries
+ * give a right in {@link #WRITE}: on a default profile {@code SYSTEM} and {@code Administrators},
+ * whose names Windows localizes, so they are not looked up by name. The caller passes the profile
+ * from {@code USERPROFILE}, not {@code user.home}, which a launcher or test can set to any
+ * directory.
  */
 final class AclCheck {
-  /** Rights that let an account replace, remove or re-permit the endpoint file. */
+  /** Rights that make an account a writer of the profile directory. */
   static final Set<AclEntryPermission> WRITE =
       EnumSet.of(
           AclEntryPermission.WRITE_DATA,
@@ -39,15 +40,15 @@ final class AclCheck {
   private AclCheck() {}
 
   /**
-   * Checks the directory.
+   * Checks the endpoint file.
    *
-   * @param directory the settings directory
+   * @param file the endpoint file
    * @param user the current user's name
    * @param profile the user's profile directory
-   * @return null when the handoff may use the directory, else the reason, naming the step that
-   *     failed and its exception
+   * @return null when the handoff may read the file, else the reason, naming the step that failed
+   *     and its exception
    */
-  static String refusal(Path directory, String user, Path profile) {
+  static String refusal(Path file, String user, Path profile) {
     Set<UserPrincipal> trusted;
     try {
       AclFileAttributeView view = Files.getFileAttributeView(profile, AclFileAttributeView.class);
@@ -56,27 +57,30 @@ final class AclCheck {
     } catch (IOException e) {
       return "the ACL of the profile directory " + profile + " cannot be read: " + e;
     }
+    UserPrincipal me;
     try {
-      trusted.add(Accounts.user(directory.getFileSystem(), user));
+      me = Accounts.user(file.getFileSystem(), user);
     } catch (IOException e) {
       return "the user name " + user + " does not resolve: " + e;
     }
+    trusted.add(me);
     UserPrincipal owner;
-    Set<UserPrincipal> writers;
+    List<AclEntry> acl;
     try {
       AclFileAttributeView view =
-          Files.getFileAttributeView(
-              directory, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+          Files.getFileAttributeView(file, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
       owner = view.getOwner();
-      writers = writers(view);
+      acl = view.getAcl();
     } catch (IOException e) {
-      return "the ACL of the settings directory cannot be read: " + e;
+      return "the ACL of instance.endpoint cannot be read: " + e;
     }
-    if (!trusted.contains(owner)) {
-      return "the settings directory belongs to another user";
+    if (!owner.equals(me)) {
+      return "instance.endpoint belongs to another account";
     }
-    if (!trusted.containsAll(writers)) {
-      return "the settings directory is writable by other users";
+    for (AclEntry entry : acl) {
+      if (!trusted.contains(entry.principal())) {
+        return "instance.endpoint has an ACL entry for another account";
+      }
     }
     return null;
   }

@@ -9,7 +9,6 @@ import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
-import io.github.ajdailey.qcaret.app.ipc.InstanceClient;
 import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
@@ -49,7 +48,6 @@ class LauncherTest {
         new Launcher(
             new PrintStream(out, true, StandardCharsets.UTF_8),
             new PrintStream(err, true, StandardCharsets.UTF_8));
-    assertNull(InstanceClient.refusal(temp, System.getProperty("user.name")));
     try (InstanceServer live = InstanceServer.claim(temp)) {
       assertNotNull(live);
       assertEquals(Launcher.Handoff.BESIDE, launcher.handOff(temp, request));

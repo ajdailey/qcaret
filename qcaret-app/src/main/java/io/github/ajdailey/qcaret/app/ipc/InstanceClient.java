@@ -3,18 +3,11 @@ package io.github.ajdailey.qcaret.app.ipc;
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.core.text.LogText;
-import io.github.ajdailey.qcaret.core.util.os.EnvPaths;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFileAttributes;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.UserPrincipal;
 import java.time.Duration;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +19,10 @@ import org.slf4j.LoggerFactory;
  * not hold the token.
  */
 public final class InstanceClient {
-  /** How long a missing endpoint file is waited for: the primary writes it right after binding. */
+  /**
+   * How long a missing endpoint file, or one {@link EndpointCheck} refuses, is waited for: the
+   * primary writes it right after binding.
+   */
   public static final Duration ENDPOINT_WAIT = Duration.ofSeconds(2);
 
   /** Longest connect. */
@@ -167,7 +163,11 @@ public final class InstanceClient {
         return Endpoint.read(directory);
       } catch (NoSuchFileException e) {
         if (System.nanoTime() >= deadline) {
-          throw new IOException("No endpoint file", e);
+          throw new IOException(
+              e instanceof EndpointCheck.Refused
+                  ? "No trusted endpoint file: " + e.getReason()
+                  : "No endpoint file",
+              e);
         }
         try {
           Thread.sleep(ENDPOINT_POLL_MILLIS);
@@ -176,46 +176,6 @@ public final class InstanceClient {
           throw new IOException("Interrupted", interrupted);
         }
       }
-    }
-  }
-
-  /**
-   * Checks that the handoff may use a settings directory: on POSIX it must belong to the current
-   * user and be writable by no one else; where there are ACLs instead (Windows), {@link AclCheck}
-   * applies against the {@code USERPROFILE} directory. A file system with neither is accepted.
-   *
-   * @param directory the settings directory
-   * @param user the current user's name
-   * @return null when it may, else the reason, naming the step that failed
-   */
-  public static String refusal(Path directory, String user) {
-    Set<String> views = directory.getFileSystem().supportedFileAttributeViews();
-    if (!views.contains("posix")) {
-      if (!views.contains("acl")) {
-        return null;
-      }
-      Path profile = EnvPaths.absolute(System.getenv("USERPROFILE"));
-      if (profile == null) {
-        return "USERPROFILE is not an absolute path";
-      }
-      return AclCheck.refusal(directory, user, profile);
-    }
-    try {
-      PosixFileAttributes attributes =
-          Files.readAttributes(directory, PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-      UserPrincipal me =
-          directory.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName(user);
-      if (!attributes.owner().equals(me)) {
-        return "the settings directory belongs to another user";
-      }
-      Set<PosixFilePermission> permissions = attributes.permissions();
-      if (permissions.contains(PosixFilePermission.GROUP_WRITE)
-          || permissions.contains(PosixFilePermission.OTHERS_WRITE)) {
-        return "the settings directory is writable by other users";
-      }
-      return null;
-    } catch (IOException e) {
-      return "the settings directory's owner and permissions cannot be read: " + e;
     }
   }
 }

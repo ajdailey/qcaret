@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,7 +28,8 @@ class EndpointTest {
   @TempDir Path temp;
 
   private void writeFile(String text) throws IOException {
-    Files.writeString(temp.resolve(Endpoint.FILE), text, StandardCharsets.ISO_8859_1);
+    AtomicFiles.writeOwnerOnly(
+        temp.resolve(Endpoint.FILE), text.getBytes(StandardCharsets.ISO_8859_1));
   }
 
   private void assertMalformed() {

@@ -12,8 +12,8 @@ public interface PlatformTraits {
   /** System property SWT sets on GTK to {@code x11}, {@code wayland} or {@code unknown}. */
   String GDK_BACKEND = "org.eclipse.swt.internal.gdk.backend";
 
-  /** The running platform's traits; GTK 4 is the {@code SWT_GTK4=1} environment SWT reads. */
-  PlatformTraits PLATFORM = of(SWT.getPlatform(), "1".equals(System.getenv("SWT_GTK4")));
+  /** The running platform's traits; on GTK, those of the GTK version SWT loaded. */
+  PlatformTraits PLATFORM = LoadedToolkit.traits();
 
   /**
    * Returns a platform's traits.

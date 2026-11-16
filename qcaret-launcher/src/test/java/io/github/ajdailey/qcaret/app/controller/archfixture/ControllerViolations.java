@@ -151,6 +151,10 @@ final class ControllerViolations {
       return Files.readString(file);
     }
 
+    boolean runs(OsTraits system, Path file) {
+      return system.runsInsteadOfOpening(file);
+    }
+
     long uiCallsWorker(Path path) throws IOException {
       return size(path);
     }

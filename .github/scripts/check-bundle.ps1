@@ -56,8 +56,7 @@ function Wait-LogLine([string] $Path, [string] $Text) {
 # $Javaw rather than $Exe, because the launch4j wrapper does not report the child's status.
 # $Name names the run's settings directory.
 function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
-  # Under the profile: the handoff is off in a directory other accounts can write, such as the
-  # runner's workspace, and a primary without the handoff logs to qcaret-<pid>.log.
+  # A fresh settings directory per run, outside the runner workspace.
   $settings = Join-Path $env:LOCALAPPDATA "qcaret-ci\settings-$Name"
   if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
   $logFile = Join-Path $settings 'logs\qcaret.log'

@@ -35,7 +35,7 @@ process holds no lock and does not refuse the file.
 ## Protocol
 
 `InstanceClient.handOff` runs in the launcher before the Display exists. It
-waits up to 2 s for a missing endpoint, then runs one exchange on non-blocking
+waits up to 2 s for a missing or refused endpoint, then runs one exchange on non-blocking
 channels against one 35 s deadline (`LineChannel`), because the ArchUnit rules
 ban `java.net.Socket` and its timeouts. Lines are printable ASCII, at most 16
 KiB, 256 `OPEN` lines and 1 MiB per connection. A launch naming more than 256
@@ -60,32 +60,46 @@ S: OK | ERR
   without it; a peer that fails `AUTH` gets no reply.
 - A path must be absolute and an encoding known to the runtime, else the
   request gets `ERR`.
-- `InstanceClient.refusal` turns the handoff off for a settings directory
-  another account could use to replace the endpoint (below).
+- The client reads only an endpoint file `EndpointCheck` trusts (below).
 - A lost `OK` after the primary acted opens the files twice: the launch cannot
   tell.
 
-## Settings directory check
+## Endpoint check
 
-`InstanceClient.refusal` runs before the claim:
+`Endpoint.read` goes through `EndpointCheck`, which treats a refused
+`instance.endpoint` as missing: the client waits for it as for a missing file,
+the handoff fails, and the launch's WARN names the failed step. The file must
+be a regular file, not a link, opened with `NOFOLLOW_LINKS` and owned by the
+current user:
 
 | File system | Refused when |
 |---|---|
-| POSIX | Another user owns it, or its group or others can write |
-| ACLs without POSIX (Windows) | `AclCheck`: an untrusted owner, or an allow entry that applies to the directory giving an untrusted account write, append, delete, delete child, write ACL or write owner |
+| POSIX | Any group or other permission bit |
+| ACLs without POSIX (Windows) | `AclCheck`: an ACL entry for an untrusted account |
+| Neither | Never |
 
-`AclCheck` trusts the user, and the owner of the profile directory
-(`USERPROFILE`) and the accounts its allow entries give one of those rights:
-`SYSTEM` and `Administrators` on a default profile. Windows localizes their
-names, so they are not looked up by name. `user.home` is not used: the test
-JVMs set it to `target/test-home`, and the launcher repoints it on Linux. An
-entry only children inherit, and a read right, do not count. The handoff is off
-when `USERPROFILE` is not an absolute path, an ACL cannot be read or the user
-name does not resolve; the WARN names the step and the exception. A portable
-installation in a folder that inherits `Authenticated Users: Modify`, as new
-folders under `C:\` do by default (assumed from the default `C:\` ACL, not
-checked), runs without the handoff. The Windows branch runs only on the
-Windows CI lanes.
+Java reads no owner or ACL through an open channel, so the checks run before
+and after the read; a changed file key, size or modification time refuses the
+file. `AclCheck` trusts the user, and the owner of the profile directory
+(`USERPROFILE`) and the accounts its allow entries give write, append, delete,
+delete child, write ACL or write owner: `SYSTEM` and `Administrators` on a
+default profile. Windows localizes their names, so they are not looked up by
+name. `user.home` is not used: the test JVMs set it to `target/test-home`, and
+the launcher repoints it on Linux. The file is refused when `USERPROFILE` is
+not an absolute path, an ACL cannot be read or the user name does not resolve.
+`AtomicFiles.writeOwnerOnly` sets the file's owner to the user, since an
+elevated process creates files owned by `Administrators`.
+
+The settings directory's owner and permissions are not checked. An account
+that can write the directory, such as `Authenticated Users: Modify` inherited
+by a portable installation under `C:\`, can delete or rename the endpoint but
+cannot create a file the user owns. Deleting the endpoint or holding
+`instance.lock` makes a launch open its own window: `BESIDE` while a primary
+holds the lock, as after a refused endpoint, and `ALONE` when the claim fails.
+A launch that takes the lock replaces a refused endpoint. The file type is
+checked before `open`, so an account that swaps a FIFO into place between the
+two blocks the launch in `open` (not tested). The Windows branch runs only on
+the Windows CI lanes.
 
 ## Queued launches
 

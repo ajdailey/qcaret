@@ -34,8 +34,7 @@ class SigtermTest {
     if (java == null) {
       return;
     }
-    // The launcher creates the directory owner-only, so the child holds the handoff lock under any
-    // umask; a group-writable directory turns handoff off and changes the log's name.
+    // The child holds the handoff lock, which decides the log's name.
     Path settings = temp.resolve("settings");
     Path home = Files.createDirectories(temp.resolve("home"));
     Process child =

@@ -85,7 +85,7 @@ public final class AtomicFiles {
    * permissions (Windows), the temporary file is created in a new directory beside the target whose
    * ACL is first replaced by one inheritable entry for the current user, so the file has that one
    * entry from creation and no other account can open it. The file's ACL is then set to that entry
-   * explicitly, and the directory is deleted after the move.
+   * explicitly, its owner to the user, and the directory is deleted after the move.
    *
    * @param file the target, in an existing directory
    * @param content the bytes
@@ -284,7 +284,8 @@ public final class AtomicFiles {
   }
 
   /**
-   * Leaves one ACL entry, full access for the user, where POSIX permissions do not exist.
+   * Leaves one ACL entry, full access for the user, where POSIX permissions do not exist. A file
+   * also gets the user as its owner, which an elevated process does not give it.
    *
    * @param path a file, or a directory whose entry {@code inherit} passes to new children
    */
@@ -296,15 +297,19 @@ public final class AtomicFiles {
     if (view == null) {
       return;
     }
+    UserPrincipal user = currentUser(path.getFileSystem(), view);
     AclEntry.Builder entry =
         AclEntry.newBuilder()
             .setType(AclEntryType.ALLOW)
-            .setPrincipal(currentUser(path.getFileSystem(), view))
+            .setPrincipal(user)
             .setPermissions(EnumSet.allOf(AclEntryPermission.class));
     if (inherit) {
       entry.setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT);
     }
     view.setAcl(List.of(entry.build()));
+    if (!inherit && !user.equals(view.getOwner())) {
+      view.setOwner(user);
+    }
   }
 
   /**

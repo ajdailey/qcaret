@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.io.Accounts;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
 import java.io.BufferedReader;
@@ -23,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.AclEntry;
 import java.nio.file.attribute.AclEntryFlag;
@@ -506,69 +508,65 @@ class HandoffTest {
     assertNull(InstanceServer.parseOpen(path + " 1 0 0 " + unknown));
   }
 
+  /**
+   * Another account that can write the settings directory can delete or rename the endpoint, but
+   * cannot create one the user owns, so the handoff runs.
+   */
   @Test
-  void aSharedOrForeignDirectoryTurnsTheHandoffOff() throws Exception {
-    if (!temp.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      return;
-    }
-    Path shared = Files.createDirectory(temp.resolve("shared"));
-    Files.setPosixFilePermissions(shared, PosixFilePermissions.fromString("rwxrwx---"));
-    assertNotNull(InstanceClient.refusal(shared, System.getProperty("user.name")));
-    Files.setPosixFilePermissions(shared, PosixFilePermissions.fromString("rwx------"));
-    assertNull(InstanceClient.refusal(shared, System.getProperty("user.name")));
-    assertNotNull(InstanceClient.refusal(shared, "qcaret-mock-nobody"));
+  void anOwnerOnlyEndpointInAGroupWritableDirectoryHandsOff() throws Exception {
+    assumeTrue(
+        temp.getFileSystem().supportedFileAttributeViews().contains("posix"),
+        "no POSIX permissions");
+    Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rwxrwxr-x"));
+    startPrimary();
+    InstanceClient.handOff(temp, files("a.log"));
+    assertEquals(1, received.size());
   }
 
   /**
-   * Another account with a write or delete right on the settings directory could replace the
-   * endpoint with its own port and token. A read right, or a right only new children inherit, does
-   * not turn the handoff off.
+   * The ACL a portable installation under {@code C:\} inherits. The endpoint written there is owned
+   * by the user, also in the elevated CI account, and the handoff runs.
    */
   @Test
   @EnabledOnOs(OS.WINDOWS)
-  void aWindowsDirectoryOthersCanWriteTurnsTheHandoffOff() throws Exception {
-    Path shared = Files.createDirectory(temp.resolve("shared"));
-    String user = System.getProperty("user.name");
-    assertNull(InstanceClient.refusal(shared, user));
-    assertNotNull(InstanceClient.refusal(shared, "qcaret-mock-nobody"));
-    UserPrincipal everyone;
+  void anOwnerOnlyEndpointInADirectoryAuthenticatedUsersCanModifyHandsOff() throws Exception {
+    UserPrincipal users;
     try {
-      everyone =
-          shared
-              .getFileSystem()
+      users =
+          temp.getFileSystem()
               .getUserPrincipalLookupService()
-              .lookupPrincipalByGroupName("Everyone");
+              .lookupPrincipalByGroupName("Authenticated Users");
     } catch (IOException e) {
-      assumeTrue(false, "no group named Everyone: " + e);
+      assumeTrue(false, "no group named Authenticated Users: " + e);
       return;
     }
-    AclFileAttributeView view = Files.getFileAttributeView(shared, AclFileAttributeView.class);
+    AclFileAttributeView view = Files.getFileAttributeView(temp, AclFileAttributeView.class);
     List<AclEntry> acl = new ArrayList<AclEntry>(view.getAcl());
-    acl.add(entry(everyone, AclEntryPermission.READ_DATA));
-    view.setAcl(acl);
-    assertNull(InstanceClient.refusal(shared, user));
-    AclEntry inherited = entry(everyone, AclEntryPermission.WRITE_DATA);
     acl.add(
-        AclEntry.newBuilder(inherited)
-            .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.INHERIT_ONLY)
+        AclEntry.newBuilder()
+            .setType(AclEntryType.ALLOW)
+            .setPrincipal(users)
+            .setPermissions(
+                AclEntryPermission.READ_DATA,
+                AclEntryPermission.WRITE_DATA,
+                AclEntryPermission.APPEND_DATA,
+                AclEntryPermission.READ_NAMED_ATTRS,
+                AclEntryPermission.WRITE_NAMED_ATTRS,
+                AclEntryPermission.EXECUTE,
+                AclEntryPermission.READ_ATTRIBUTES,
+                AclEntryPermission.WRITE_ATTRIBUTES,
+                AclEntryPermission.DELETE,
+                AclEntryPermission.READ_ACL,
+                AclEntryPermission.SYNCHRONIZE)
+            .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT)
             .build());
     view.setAcl(acl);
-    assertNull(InstanceClient.refusal(shared, user));
-    for (AclEntryPermission right : AclCheck.WRITE) {
-      List<AclEntry> granted = new ArrayList<AclEntry>(acl);
-      granted.add(entry(everyone, right));
-      view.setAcl(granted);
-      assertNotNull(InstanceClient.refusal(shared, user), right.toString());
-    }
-    view.setAcl(acl);
-  }
-
-  private static AclEntry entry(UserPrincipal principal, AclEntryPermission right) {
-    return AclEntry.newBuilder()
-        .setType(AclEntryType.ALLOW)
-        .setPrincipal(principal)
-        .setPermissions(right)
-        .build();
+    startPrimary();
+    assertEquals(
+        Accounts.user(temp.getFileSystem(), System.getProperty("user.name")),
+        Files.getOwner(temp.resolve(Endpoint.FILE), LinkOption.NOFOLLOW_LINKS));
+    InstanceClient.handOff(temp, files("a.log"));
+    assertEquals(1, received.size());
   }
 
   @Test

@@ -171,11 +171,6 @@ public final class Launcher {
       LOG.warn("Single-instance handoff off: {}", LogText.oneLine(e.getMessage()));
       return Handoff.ALONE;
     }
-    String refusal = InstanceClient.refusal(directory, System.getProperty("user.name"));
-    if (refusal != null) {
-      LOG.warn("Single-instance handoff off: {}", LogText.oneLine(refusal));
-      return Handoff.ALONE;
-    }
     try {
       primary = InstanceServer.claim(directory);
     } catch (IOException e) {

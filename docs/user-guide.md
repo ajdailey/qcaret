@@ -809,9 +809,11 @@ QCaret, such as one installed at another path.
 On Windows a file opened from Explorer into the running instance does not raise
 its window; the window's taskbar button flashes instead.
 Launches at the same moment queue, and each file becomes a tab in the one
-instance. When another account can write to the settings folder, as with a
-portable installation in a shared folder, every launch opens its own window and
-QCaret's log names the reason. `-m` runs an independent instance that saves no window placement or
+instance. A launch hands its files over only when `instance.endpoint` in the
+settings folder is a file the user owns that no other account can read or
+write; otherwise, or when another account that can write the settings folder
+deletes the file, the launch opens its own window and QCaret's log names the
+reason. `-m` runs an independent instance that saves no window placement or
 session. One instance at a time keeps the session: a launch that cannot hand
 its files over while another instance keeps it opens a window without the
 session and saves none. QCaret refuses to open or replace `instance.lock` in
@@ -1000,7 +1002,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
 | `--window-x <px>`, `--window-y <px>` | Window position, for this run |
 | `--settings <dir>` | Settings directory |
-| `--gtk4` | Linux `bin/qcaret` only: start with GTK 4 (experimental) |
+| `--gtk4` | Linux `bin/qcaret` only: start with GTK 4 (experimental); without GTK 4 libraries QCaret starts with GTK 3 and logs a warning |
 | `--` | End of options |
 
 A missing file opens an empty document that saves to that path. Options combine:

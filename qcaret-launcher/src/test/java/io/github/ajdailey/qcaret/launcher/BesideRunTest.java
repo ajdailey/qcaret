@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -50,17 +49,17 @@ class BesideRunTest {
     }
   }
 
-  /** A group-writable settings directory turns the handoff off, so the launch runs alone. */
+  /** A directory at {@code instance.lock} fails the claim, so the launch runs alone. */
   @Test
   void aLaunchRunningAloneWhileAnotherProcessOwnsTheSessionRunsWithoutIt() throws Exception {
     Path settings = SafePaths.settingsDirectory(temp.resolve("settings"));
-    Files.setPosixFilePermissions(settings, PosixFilePermissions.fromString("rwxrwx---"));
+    Path lock = Files.createDirectory(settings.resolve("instance.lock"));
     String saved = writeSession(settings);
     try (SessionLock held =
         SessionLock.acquire(new SettingsLocation(SettingsMode.EXPLICIT, settings))) {
       assertNotNull(held);
       runAndEnd(settings, "this one runs without it");
-      assertFalse(Files.exists(settings.resolve("instance.lock")));
+      assertTrue(Files.isDirectory(lock));
       assertEquals(saved, read(settings.resolve("qcaret_session.conf")));
       assertFalse(read(settings.resolve("qcaret.conf")).contains("window.width="));
     }
