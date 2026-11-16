@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,11 +50,26 @@ class InstallPathsTest {
   }
 
   @Test
-  void absoluteAndBlankValuesReadUnchanged() {
+  void absoluteValuesReadNormalizedAndBlankValuesUnchanged() {
     InstallPaths paths = paths(SettingsMode.PORTABLE, install, install);
     assertEquals(file.toString(), paths.read(file.toString()));
+    assertEquals(
+        file.toString(),
+        paths.read(
+            install.resolve("docs").resolve("..").resolve("docs").resolve("a.txt").toString()));
     assertEquals("", paths.read(""));
     assertEquals(" ", paths.read(" "));
+  }
+
+  @Test
+  void onWindowsAForwardSlashValueReadsWithBackslashesAndADrivelessRootStays() {
+    Assumptions.assumeTrue(File.separatorChar == '\\', "Windows path parsing");
+    InstallPaths paths = paths(SettingsMode.PORTABLE, install, install);
+    assertEquals(
+        String.join(File.separator, "C:", "gate", "mock", "in.log"),
+        paths.read("C:/gate/mock/in.log"));
+    // A root without a drive is not absolute and stays as stored.
+    assertEquals("/mock/a.log", paths.read("/mock/a.log"));
   }
 
   @Test

@@ -142,6 +142,7 @@ class FileLogTest {
     // A non-empty directory where the roll moves the file makes the move fail on every OS.
     Path blocker = Files.createDirectories(temp.resolve("logs").resolve("qcaret.log.1"));
     Files.writeString(blocker.resolve("keep.txt"), "mock\n");
+    int before = rollWarnings();
     log = new FileLog(temp, FileLog.FILE, 512);
     log.attach();
     for (int i = 0; i < 20; i++) {
@@ -151,18 +152,42 @@ class FileLogTest {
     Path file = temp.resolve("logs").resolve("qcaret.log");
     assertTrue(Files.size(file) > 512);
     assertTrue(fileContains(file, "mock line past the failed roll 19"));
+    assertEquals(1, rollWarnings() - before);
+  }
+
+  /** Counts the failed-roll warnings in the recent lines, which every test shares. */
+  private static int rollWarnings() {
     int warnings = 0;
     for (String line : LogConfigurator.RECENT.snapshot()) {
       if (line.contains(" WARN ") && line.contains("Debug log file not rolled over")) {
         warnings++;
       }
     }
-    assertEquals(1, warnings);
+    return warnings;
+  }
+
+  @Test
+  void aFailedRollIsTriedAgainOnlyOnceTheFileGrowsByTheSize() throws Exception {
+    // A non-empty directory where the roll moves the file makes the move fail on every OS.
+    Path logs = Files.createDirectories(temp.resolve("logs"));
+    Path blocker = Files.createDirectories(logs.resolve("qcaret.log.1"));
+    Files.writeString(blocker.resolve("keep.txt"), "mock\n");
+    log = new FileLog(temp, FileLog.FILE, 4096);
+    log.attach();
+    Path file = logs.resolve("qcaret.log");
+    for (int i = 0; i < 400 && Files.size(file) <= 4096; i++) {
+      LOG.debug("mock line up to the failed roll {}", i);
+    }
+    assertTrue(Files.size(file) > 4096);
     Files.delete(blocker.resolve("keep.txt"));
     Files.delete(blocker);
     LOG.debug("mock line after the blocker is gone");
-    assertEquals(List.of("qcaret.log", "qcaret.log.1"), names(temp.resolve("logs")));
-    assertTrue(Files.size(file) <= 512);
+    assertFalse(Files.exists(blocker), "the move was tried again before the file grew");
+    for (int i = 0; i < 400 && !Files.exists(blocker); i++) {
+      LOG.debug("mock line up to the next roll {}", i);
+    }
+    assertTrue(Files.isRegularFile(blocker));
+    assertTrue(Files.size(file) <= 4096);
   }
 
   @Test

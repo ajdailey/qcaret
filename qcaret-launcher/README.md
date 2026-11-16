@@ -165,9 +165,9 @@ message become `_`, a backstop behind `LogText.oneLine` at the call sites.
 no line, and a slow disk holds the thread that logs. Before a write would take
 the file past 10 MiB it moves the file to `.1` and starts a new one. It writes
 no lock file. The `logs` folder is created owner-only, and on POSIX the file
-`rw-------`. A failed move reopens the file and keeps appending; the next line
-over the size tries the move again, and the first failure after a successful
-move logs a WARN. A failed write or open detaches the file and logs an ERROR.
+`rw-------`. A failed move reopens the file and keeps appending; the move is
+tried again once the file has grown another 10 MiB, or at the next start, and
+the first failure after a successful move logs a WARN. A failed write or open detaches the file and logs an ERROR.
 
 `RetainingLogManager` ignores `reset()` once configured. The JDK's logging
 shutdown hook calls `reset()`, which would remove the handlers while
@@ -253,7 +253,7 @@ classes, so the rules over the main classes never see them.
 | `ShutdownHookTest` | The hook's task run directly |
 | `LogConfiguratorTest` | The handlers, levels and properties of the planted `java.util.logging.config.file` (`planted-logging.properties`, set by surefire) gone after `install`; the format, level mapping and logger-name shortening |
 | `RetainingLogManagerTest` | `reset()` keeping the handlers once retained |
-| `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN and rolling once the directory is gone, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes |
+| `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN, not tried again before the file grows by the size, and rolling then, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes |
 | `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `LaunchDocumentsTest` |
 | `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows; a handoff a live primary does not take runs `BESIDE`, and a launch claims the lock a primary releases during its handoff |
 | `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |

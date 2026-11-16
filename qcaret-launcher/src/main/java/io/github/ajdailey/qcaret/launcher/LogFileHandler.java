@@ -17,10 +17,11 @@ import java.util.logging.LogRecord;
  * <name>.1}, replacing it, and starts a new one. A file it creates is {@code rw-------} on POSIX.
  * It writes nothing beside the file and its {@code .1}.
  *
- * <p>A failed move reopens the file and keeps appending past {@code rollBytes}; the next record
- * over the size tries the move again. The first failed move after a successful one runs {@link
- * Failure#rollFailed}. The first failed write, close or open closes the file and runs {@link
- * Failure#failed}; later records are dropped. Both callbacks run after the handler's lock is
+ * <p>A failed move reopens the file and keeps appending past {@code rollBytes}; the move is tried
+ * again only when the file has grown another {@code rollBytes}, so a target held open (Windows)
+ * does not cost a close, move and reopen per record. The first failed move after a successful one
+ * runs {@link Failure#rollFailed}. The first failed write, close or open closes the file and runs
+ * {@link Failure#failed}; later records are dropped. Both callbacks run after the handler's lock is
  * released.
  */
 final class LogFileHandler extends Handler {
@@ -51,6 +52,7 @@ final class LogFileHandler extends Handler {
   private final Failure failure;
   private OutputStream out;
   private long size;
+  private long rollAt;
   private boolean rollFailing;
 
   /**
@@ -65,6 +67,7 @@ final class LogFileHandler extends Handler {
     this.file = file;
     this.rolled = file.resolveSibling(file.getFileName() + ".1");
     this.rollBytes = rollBytes;
+    this.rollAt = rollBytes;
     this.failure = failure;
     open();
   }
@@ -94,7 +97,7 @@ final class LogFileHandler extends Handler {
         return;
       }
       try {
-        if (size > 0 && size + bytes.length > rollBytes) {
+        if (size > 0 && size + bytes.length > rollAt) {
           rollError = roll();
         }
         out.write(bytes);
@@ -113,7 +116,7 @@ final class LogFileHandler extends Handler {
 
   /**
    * Closes the file, moves it to {@code .1} and opens a new one, or reopens the same file when the
-   * move fails; holds the lock.
+   * move fails and sets the next try {@code rollBytes} further on; holds the lock.
    *
    * @return the move's failure when the last move succeeded, else null
    * @throws IOException when the close or the open fails
@@ -129,6 +132,7 @@ final class LogFileHandler extends Handler {
       moveError = e;
     }
     open();
+    rollAt = moveError == null ? rollBytes : size + rollBytes;
     boolean report = moveError != null && !rollFailing;
     rollFailing = moveError != null;
     return report ? moveError : null;

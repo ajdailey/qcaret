@@ -26,7 +26,7 @@ uses the settings directory.
 
 | Mode | Write | Read |
 |---|---|---|
-| Explicit, portable | A path whose real path is the base or under it: relative to the base's real path, `/`-separated, `.` for the base itself. Any other path: as given | A value without a root resolves against the base's real path, never the working directory |
+| Explicit, portable | A path whose real path is the base or under it: relative to the base's real path, `/`-separated, `.` for the base itself. Any other path: as given | A value without a root resolves against the base's real path, never the working directory; an absolute value is normalized (`C:/docs/a.txt` reads as `C:\docs\a.txt` on Windows); a value with a root but no drive (`\mock`) stays as stored |
 | Per-user | As given | As above |
 
 Real paths make a path reached through a link into the installation relative

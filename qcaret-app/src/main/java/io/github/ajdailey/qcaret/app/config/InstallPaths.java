@@ -15,9 +15,11 @@ import java.util.Deque;
  * path whose real path is the base or under it relative to the base's real path, {@code /}
  * separated, {@code .} for the base itself; any other path, and every path in {@link
  * SettingsMode#PER_USER} mode, stays as given. {@link #read} resolves a relative value against the
- * base's real path in every mode, never the working directory; a value with a root, such as {@code
- * \mock} on Windows, stays as stored. Real paths make a link into the installation relativize and
- * keep a {@code ..} from escaping it. Blocking; thread-safe.
+ * base's real path in every mode, never the working directory; an absolute value is only
+ * normalized, so a hand-edited {@code C:/docs/a.txt} reads as {@code C:\docs\a.txt} and matches the
+ * path of an open tab; a value with a root but no drive, such as {@code \mock} on Windows, stays as
+ * stored. Real paths make a link into the installation relativize and keep a {@code ..} from
+ * escaping it. Blocking; thread-safe.
  */
 public final class InstallPaths {
   private final Path base;
@@ -39,8 +41,8 @@ public final class InstallPaths {
    * Returns a stored value as an absolute path.
    *
    * @param stored the value; blank for none
-   * @return a value without a root resolved against the base and normalized; any other value
-   *     unchanged
+   * @return a value without a root resolved against the base and normalized, an absolute value
+   *     normalized, any other value unchanged
    */
   public String read(String stored) {
     if (stored.isBlank()) {
@@ -48,6 +50,9 @@ public final class InstallPaths {
     }
     try {
       Path path = Path.of(stored);
+      if (path.isAbsolute()) {
+        return path.normalize().toString();
+      }
       return path.getRoot() != null ? stored : realBase().resolve(path).normalize().toString();
     } catch (InvalidPathException e) {
       return stored;
