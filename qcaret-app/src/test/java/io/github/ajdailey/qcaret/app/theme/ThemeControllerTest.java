@@ -186,6 +186,34 @@ class ThemeControllerTest {
   }
 
   @Test
+  void theResolvedSideReachesListenersWhenFixedEditorColorsKeepThePalette() {
+    FakeSystem system = new FakeSystem();
+    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.SANDSTONE);
+    final List<Object> seen = new ArrayList<Object>();
+    theme.addListener(
+        new PaletteListener() {
+          @Override
+          public void paletteChanged(Palette palette) {
+            seen.add(palette);
+          }
+
+          @Override
+          public void themeChanged(boolean dark) {
+            seen.add(dark);
+          }
+        });
+    assertFalse(theme.dark());
+    theme.setMode(ThemeMode.DARK);
+    assertTrue(theme.dark());
+    theme.setMode(ThemeMode.SYSTEM);
+    system.flip(true);
+    system.flip(false);
+    theme.setMode(ThemeMode.LIGHT);
+    assertEquals(List.of(true, false, true, false), seen);
+    assertFalse(theme.dark());
+  }
+
+  @Test
   void setEditorColorsLeavesNativeControlsAlone() {
     FakeSystem system = new FakeSystem();
     ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);

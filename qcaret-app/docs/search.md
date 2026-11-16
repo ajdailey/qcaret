@@ -22,16 +22,24 @@ The find bar, HyperSearch and replace across files: `FindController`,
   step, line breaks in the replacement become the document's line ending, and a
   read-only document disables both (`FindState.replaceEnabled`). A Replace All
   result dropped because the document changed shows a notice.
+- `ReplaceAllRun` runs Replace All on the document it started on: a tab switch
+  leaves it running and it applies to that document, while a newer Replace All,
+  closing the document or disposing the controller cancels it. The worker builds
+  the edit. Up to 10,000 matches apply as one replacement each; more apply as
+  one replacement from the first match to the end of the last, as Sort Lines
+  does: collapsed folds inside that range expand and bookmarks there map to its
+  end. `Document.apply` reads the rope and records a change per replacement on
+  the UI thread, which takes seconds for millions of matches.
 - Esc in a view with one caret and no block closes the bar and removes the
   highlights; with extra carets or a block, Esc drops those first
   (`EditorController.cancel`, `DocumentController.ViewListener.escapePressed`).
 - Every match is computed on a `qcaret-cpu-` worker from a snapshot; a newer
-  request cancels the running one. A result carries its generation and revision
-  and is dropped when either is stale. An invalid regex, a stack overflow and
-  an invalid replacement end with a notice in the bar; the regex notice gives
-  the 1-based column (`FindController.badPattern`), which HyperSearch's dialog
-  shows too. Any other failure posts `FIND_FAILED` from `finally`, so the bar
-  never stays searching.
+  search cancels the running one, and so does a tab switch. A result carries
+  its generation and revision and is dropped when either is stale. An invalid
+  regex, a stack overflow and an invalid replacement end with a notice in the
+  bar; the regex notice gives the 1-based column (`FindController.badPattern`),
+  which HyperSearch's dialog shows too. Any other failure posts `FIND_FAILED`
+  from `finally`, so the bar never stays searching.
 
 ### Search history
 

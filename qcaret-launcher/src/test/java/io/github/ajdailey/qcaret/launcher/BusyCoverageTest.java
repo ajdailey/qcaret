@@ -150,6 +150,11 @@ class BusyCoverageTest {
         "controller.FindController#state",
         "finding");
     row(
+        "controller.ReplaceAllRun#start",
+        Shows.OWN_PROGRESS,
+        "controller.FindController#state",
+        "running");
+    row(
         "controller.PrintController#launch",
         Shows.OWN_PROGRESS,
         "controller.PrintController#showProgress",

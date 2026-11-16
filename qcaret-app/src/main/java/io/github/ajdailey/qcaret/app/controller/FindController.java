@@ -65,6 +65,7 @@ public final class FindController implements DocumentController.ViewListener {
   private final Settings settings;
   private final List<FindListener> listeners = new ArrayList<FindListener>();
   private final FindHighlights highlights;
+  private final ReplaceAllRun replaceAll;
   private boolean open;
   private boolean replace;
   private String text = "";
@@ -96,6 +97,24 @@ public final class FindController implements DocumentController.ViewListener {
     this.ui = ui;
     this.settings = settings;
     this.highlights = new FindHighlights(this, documents, workers, ui);
+    this.replaceAll =
+        new ReplaceAllRun(
+            documents,
+            workers,
+            ui,
+            new ReplaceAllRun.Outcome() {
+              @Override
+              public void ended(String notice, boolean error) {
+                if (disposed) {
+                  return;
+                }
+                if (notice != null) {
+                  report(notice, error);
+                } else {
+                  changed();
+                }
+              }
+            });
     documents.setViewListener(this);
   }
 
@@ -134,7 +153,7 @@ public final class FindController implements DocumentController.ViewListener {
         toggles().wholeWord(),
         toggles().regex(),
         editable && matcher != null,
-        finding != null,
+        finding != null || replaceAll.running(),
         notice,
         error,
         settings.current().state().texts(),
@@ -396,65 +415,20 @@ public final class FindController implements DocumentController.ViewListener {
         });
   }
 
-  /** Replaces every match in the selected document as one undo step. */
+  /**
+   * Replaces every match in the selected document as one undo step ({@link ReplaceAllRun}); a tab
+   * switch does not cancel it.
+   */
   public void replaceAll() {
-    final EditorController editor = documents.activeEditor();
-    final ReplaceTemplate template = template();
+    EditorController editor = documents.activeEditor();
+    ReplaceTemplate template = template();
     if (editor == null || template == null || editor.document().isReadOnly()) {
       return;
     }
     remember(true);
-    final Document document = editor.document();
-    document.clearPreedit();
-    final TextSnapshot snapshot = document.text();
-    final long revision = document.revision();
-    final String ending = document.lineEnding().text();
-    final int caret = editor.selections().selections().primary().caret();
-    final TextMatcher m = matcher;
-    run(
-        new Task() {
-          @Override
-          @WorkerThread
-          public Runnable compute(CancellationToken token) {
-            List<Replacement> found = m.replaceAll(snapshot, template, token);
-            final List<Replacement> replacements = new ArrayList<Replacement>(found.size());
-            for (Replacement r : found) {
-              replacements.add(
-                  new Replacement(
-                      r.offset(),
-                      r.removeLength(),
-                      EditorController.convertBreaks(r.text(), ending)));
-            }
-            return new Runnable() {
-              @Override
-              public void run() {
-                if (document.revision() != revision) {
-                  report(UiText.FIND_REPLACE_ALL_STALE.text(), true);
-                  return;
-                }
-                if (document.isReadOnly()) {
-                  return;
-                }
-                if (replacements.isEmpty()) {
-                  report(UiText.FIND_NOT_FOUND.text(), true);
-                  return;
-                }
-                document.apply(
-                    EditBatch.of(EditBatch.Kind.COMMAND, replacements),
-                    editor.selections(),
-                    SelectionSet.caret(mapped(caret, replacements)));
-                if (editor.view() != null) {
-                  editor.view().showCaret();
-                }
-                report(
-                    UiText.FIND_REPLACED.format(
-                        UiText.count(
-                            replacements.size(), UiText.COUNT_MATCH, UiText.COUNT_MATCHES)),
-                    false);
-              }
-            };
-          }
-        });
+    cancelFind();
+    replaceAll.start(editor, matcher, template);
+    changed();
   }
 
   /** Where an offset lands after replacements: past one that contains it. */
@@ -488,6 +462,7 @@ public final class FindController implements DocumentController.ViewListener {
   public void dispose() {
     disposed = true;
     cancelFind();
+    replaceAll.cancel();
     highlights.dispose();
   }
 
@@ -567,6 +542,7 @@ public final class FindController implements DocumentController.ViewListener {
 
   void setBeforeFind(Runnable hook) {
     beforeFind = hook;
+    replaceAll.setBeforeWork(hook);
   }
 
   /**
@@ -680,6 +656,7 @@ public final class FindController implements DocumentController.ViewListener {
     if (disposed) {
       return;
     }
+    replaceAll.viewsChanged();
     EditorController editor = documents.activeEditor();
     if (editor != target) {
       target = editor;

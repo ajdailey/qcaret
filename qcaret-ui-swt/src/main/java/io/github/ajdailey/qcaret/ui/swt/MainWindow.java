@@ -484,9 +484,15 @@ public final class MainWindow implements MainView {
           public void paletteChanged(Palette next) {
             applyPalette(next);
           }
+
+          @Override
+          public void themeChanged(boolean dark) {
+            workspaceDock.setDark(dark);
+          }
         };
     controller.theme().addListener(paletteListener);
     applyPalette(controller.theme().palette());
+    workspaceDock.setDark(controller.theme().dark());
   }
 
   /**

@@ -18,6 +18,7 @@ public final class ThemeController {
   private String editorColors;
   private boolean systemDark;
   private Palette palette;
+  private boolean dark;
   private ThemeColors colors = ThemeColors.NONE;
 
   /**
@@ -33,6 +34,7 @@ public final class ThemeController {
     this.editorColors = editorColors;
     this.systemDark = service.systemDark();
     this.palette = EditorSchemes.palette(editorColors, mode, systemDark);
+    this.dark = resolve(mode, systemDark).dark();
     service.addListener(
         new ThemeListener() {
           @Override
@@ -42,6 +44,7 @@ public final class ThemeController {
               ThemeController.this.service.preferDark(dark);
             }
             apply(colors.over(builtIn()));
+            resolved();
           }
         });
   }
@@ -72,6 +75,15 @@ public final class ThemeController {
   }
 
   /**
+   * Reports whether the theme setting resolves to dark, whatever the editor color scheme.
+   *
+   * @return true for dark, and for system while the system is dark
+   */
+  public boolean dark() {
+    return dark;
+  }
+
+  /**
    * Returns the resolved palette.
    *
    * @return the palette
@@ -89,10 +101,11 @@ public final class ThemeController {
    */
   public boolean setMode(ThemeMode next) {
     mode = next;
-    boolean dark = resolve(next, systemDark).dark();
-    service.preferDark(dark);
+    boolean nextDark = resolve(next, systemDark).dark();
+    service.preferDark(nextDark);
     apply(colors.over(builtIn()));
-    return service.showsNow(dark);
+    resolved();
+    return service.showsNow(nextDark);
   }
 
   /**
@@ -145,6 +158,16 @@ public final class ThemeController {
 
   private Palette builtIn() {
     return EditorSchemes.palette(editorColors, mode, systemDark);
+  }
+
+  private void resolved() {
+    boolean next = resolve(mode, systemDark).dark();
+    if (next != dark) {
+      dark = next;
+      for (PaletteListener listener : new ArrayList<PaletteListener>(listeners)) {
+        listener.themeChanged(next);
+      }
+    }
   }
 
   private void apply(Palette next) {

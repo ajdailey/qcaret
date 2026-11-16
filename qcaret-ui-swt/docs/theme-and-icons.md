@@ -67,9 +67,11 @@ icon inked from it is dark on dark. Icons therefore sit only on tool bars,
 which draw light like the window; the main toolbar and the workspace browser's
 row read `#f0f0f0`. `Text.setBackground` and `setForeground` do color a field
 under the dark setting, its hint and a disabled field's background included
-(disabled text stays system gray), but QCaret keeps
-the main window's fields native: the dock, tree and toolbar around them stay
-light.
+(disabled text stays system gray). The main window keeps its fields native
+except the Workspace Browser's: `BrowserColors` gives its tree, tree header and
+two fields `Palette.DARK`'s colors while `ui.theme` resolves to dark, at once
+after a live switch, on the light dock row
+([dialogs and docks](dialogs-and-docks.md#workspace-browser)).
 
 #### Dialog colors
 

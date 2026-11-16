@@ -127,6 +127,11 @@ abstract class GtkTraits implements PlatformTraits {
   }
 
   @Override
+  public boolean colorsTreesUnderDark() {
+    return false;
+  }
+
+  @Override
   public boolean macKeys() {
     return false;
   }

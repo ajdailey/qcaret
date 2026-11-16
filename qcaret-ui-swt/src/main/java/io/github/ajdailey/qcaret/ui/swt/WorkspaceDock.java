@@ -220,6 +220,15 @@ final class WorkspaceDock {
     return drag;
   }
 
+  /**
+   * Colors the tree and the fields for a side of the theme ({@link BrowserColors}).
+   *
+   * @param dark true when the theme setting resolves to dark
+   */
+  void setDark(boolean dark) {
+    BrowserColors.apply(PlatformTraits.PLATFORM, dark, tree, browseBar.path(), browseBar.filter());
+  }
+
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */
   void reink() {
     icons.reink();

@@ -77,7 +77,8 @@ dark, then the nine `BundledSchemes`. A new scheme is an entry in both.
 `ThemeController` resolves the `Palette` through `EditorSchemes.palette`: follow
 takes `ui.theme`'s side, system following `ThemeService.systemDark` and its
 change events, and an unknown name resolves as follow. It pushes a changed
-palette to its `PaletteListener`s.
+palette to its `PaletteListener`s, and `themeChanged` when `ui.theme` resolves
+to the other side (`dark`), which a fixed scheme leaves out of the palette.
 
 `ThemeService.preferDark` takes `ui.theme`'s side only.
 `ThemeController.setEditorColors` changes the palette and never native

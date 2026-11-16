@@ -226,6 +226,15 @@ public interface PlatformTraits {
   boolean colorsDialogs();
 
   /**
+   * Reports whether the Workspace Browser's tree, its header and its fields take the palette's
+   * colors under a dark palette. win32 SWT draws a native {@code Tree} and {@code Text} light under
+   * the dark theme.
+   *
+   * @return true on win32
+   */
+  boolean colorsTreesUnderDark();
+
+  /**
    * Reports whether key names follow macOS.
    *
    * @return true on cocoa

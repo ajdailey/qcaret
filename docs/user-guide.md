@@ -324,9 +324,11 @@ apply (measured on Linux, one million lines):
 - View > Theme chooses Light, Dark or System. On Windows native controls change
   at the next start, and System takes them from the Windows setting at start;
   under a dark start, dialogs are dark while the main window's docks, fields and
-  toolbar stay light. On macOS they follow the system appearance, also
-  while QCaret runs. On Linux a GTK theme with no dark variant keeps native
-  controls light; the editor and tabs still change.
+  toolbar stay light. The Workspace Browser's file list and its path and filter
+  fields are dark whenever the theme is, switching at once. On macOS they
+  follow the system appearance, also while QCaret runs. On Linux a GTK theme
+  with no dark variant keeps native controls light; the editor and tabs still
+  change.
 - Editor colors, on the Editor tab of Tools > Preferences, colors the editors,
   the tab strip, comparison windows and the replace preview, as a terminal
   profile colors only its text area; see [Editor colors](#editor-colors). Menus,
@@ -475,7 +477,12 @@ line with a notice. Rerun File searches that file again.
 
 In the find bar, Search > Replace (`Ctrl+H`, `Cmd+Option+F` on macOS) adds the
 replace row. Replace and Replace All are one undo step each. A regex
-replacement can name groups with `$1` or `${name}`.
+replacement can name groups with `$1` or `${name}`. Replace All keeps running
+when you switch tabs and replaces in the document it started in; closing that
+document cancels it, and an edit to it before the replace finishes drops the
+replace with a notice. Over 10,000 replacements apply as one change, as Sort
+Lines does: collapsed folds between the first and last match expand, and
+bookmarks there move to the last match's line.
 
 Across files, use the dock's Replace or Search > Replace in Results
 (`Ctrl+Shift+H`) on a finished set.
