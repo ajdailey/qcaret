@@ -15,10 +15,15 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -41,7 +46,8 @@ import org.junit.jupiter.api.io.TempDir;
  * Help > User Guide: the window or its fallback, the locations the browser may load, a browser
  * exception and the load bound. A real browser's outcome is never raced against a short timer; each
  * outcome has its own deterministic test. The settings are per-user: in explicit mode on Linux,
- * User Guide skips the window and launches the system's HTML application.
+ * User Guide skips the window and launches the system's HTML application. The controller reaches
+ * the window through a view that records launches instead of opening the system browser.
  */
 @Tag("swt")
 class GuideWindowTest {
@@ -53,6 +59,7 @@ class GuideWindowTest {
   @TempDir Path temp;
 
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
+  private final List<Object> launched = new CopyOnWriteArrayList<Object>();
   private Display display;
   private Workers workers;
   private MainWindow window;
@@ -75,7 +82,7 @@ class GuideWindowTest {
         new ApplicationController(
             workers,
             new SwtUiDispatcher(display),
-            window,
+            launchless(window),
             new ConfigStore(new SettingsLocation(SettingsMode.PER_USER, temp.resolve("conf"))),
             Preferences.DEFAULTS,
             SwtThemeService.open(display, ThemeMode.LIGHT),
@@ -96,6 +103,29 @@ class GuideWindowTest {
     } finally {
       assertNull(failure.get());
     }
+  }
+
+  /** Returns a view that calls the window for everything but a launch, which it records. */
+  private MainView launchless(final MainWindow target) {
+    return (MainView)
+        Proxy.newProxyInstance(
+            MainView.class.getClassLoader(),
+            new Class<?>[] {MainView.class},
+            new InvocationHandler() {
+              @Override
+              public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                String name = method.getName();
+                if (name.equals("launch") || name.equals("launchUrl")) {
+                  launched.add(args[0]);
+                  return true;
+                }
+                try {
+                  return method.invoke(target, args);
+                } catch (InvocationTargetException e) {
+                  throw e.getCause();
+                }
+              }
+            });
   }
 
   private boolean runUntil(BooleanSupplier condition) {
@@ -134,7 +164,8 @@ class GuideWindowTest {
       return;
     }
     if (guide == null) {
-      // No browser on this host: the system's HTML application or a notice took the guide.
+      // No browser on this host: the system's HTML application takes the guide.
+      assertFallback(copy);
       return;
     }
     // Either outcome passes: the page loaded, or the window closed and took the fallback. An
@@ -149,6 +180,7 @@ class GuideWindowTest {
             });
     assertTrue(settled, "location " + guide.location());
     if (guide.shell().isDisposed()) {
+      assertFallback(copy);
       return;
     }
     assertTrue(GuideWindow.allowed(guide.location(), copy), guide.location());
@@ -163,6 +195,12 @@ class GuideWindowTest {
               }
             }));
     assertSame(guide, window.guideWindow());
+    assertEquals(List.of(), launched);
+  }
+
+  private void assertFallback(Path copy) throws Exception {
+    assertEquals(1, launched.size(), launched.toString());
+    assertEquals(copy, ((Path) launched.get(0)).toRealPath());
   }
 
   @Test
