@@ -115,9 +115,9 @@ class DocumentControllerTest {
   }
 
   /**
-   * Waits until every started blocking worker ended, then runs what they posted. The CPU pool's
-   * threads stay once a task ran on them, so they are not counted, and a CPU task can post after
-   * this returns.
+   * Waits until every started blocking worker ended, then runs what they posted. The CPU and bulk
+   * pools' threads stay once a task ran on them, so they are not counted, and a CPU task can post
+   * after this returns.
    */
   private void settle() throws Exception {
     assertTrue(
@@ -127,7 +127,7 @@ class DocumentControllerTest {
               public boolean getAsBoolean() {
                 return workers
                     .liveThreadNames()
-                    .replaceAll("qcaret-cpu-\\* x\\d+|qcaret-watch-\\d+", "")
+                    .replaceAll("qcaret-(cpu|bulk)-\\* x\\d+|qcaret-watch-\\d+", "")
                     .replaceAll("[, ]", "")
                     .isEmpty();
               }

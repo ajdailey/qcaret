@@ -60,6 +60,7 @@ Controllers run work on these `Workers` pools:
 | `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Document Statistics, Insert Date and Time rows, text and selection checksums |
 | `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks |
 | `qcaret-search-` | Folder walks of HyperSearch, the workspace file index, a replace run or restore across files |
+| `qcaret-bulk-` | The CPU steps of the blocking tasks (`CpuSteps`): decode, encode and digest blocks of loads, reloads, saves, recovery files, searches and checksums; a load's text build and layout; replace matching, preview and encoding; save cleanup; grammar parsing |
 | `qcaret-watch-` | External change checks |
 | `qcaret-lifecycle-` | Settings and session writes, the end of a quit, Help commands: the guide copy, About, licenses, the debug log file |
 | `qcaret-ipc-` | The handoff server's accept and connection tasks |

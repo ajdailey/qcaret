@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
@@ -58,7 +59,16 @@ final class SaveCleanup {
       @WorkerThread
       void work() {
         try {
-          edit = edits(text, settings, ending, token);
+          edit =
+              CpuSteps.compute(
+                  token,
+                  new CpuSteps.Compute<Edit>() {
+                    @Override
+                    @WorkerThread
+                    public Edit run() {
+                      return edits(text, settings, ending, token);
+                    }
+                  });
         } catch (CancellationException e) {
           // Esc or a close: done finds the save ended.
         }

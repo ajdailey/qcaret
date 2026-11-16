@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.document;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.io.Digests;
 import io.github.ajdailey.qcaret.core.io.Encoders;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -20,6 +21,9 @@ import java.util.Arrays;
  * TextSink} and the chars encoded back against the same bytes, so the text, the digest and the
  * round-trip result describe one read of the file. The decoder and encoder keep their state across
  * blocks; bytes of a sequence that a block splits stay in the buffer for the next one.
+ *
+ * <p>The calling thread reads each block; digesting, decoding and the round-trip check of the block
+ * run as a {@link CpuSteps} step.
  *
  * <p>An auto-detecting decoder ({@code x-JISAutoDetect}) gives another result on split input, so it
  * reads the file as one block. A charset without an encoder never round-trips.
@@ -45,6 +49,11 @@ final class LoadPass {
   private ByteBuffer unmatched;
   private int kept;
   private boolean roundTrips;
+  private CharsetDecoder decoder;
+  private ByteBuffer bytes;
+  private int bom;
+  private long read;
+  private long base;
 
   LoadPass(
       FileChannel channel,
@@ -73,7 +82,7 @@ final class LoadPass {
    * @throws java.util.concurrent.CancellationException when canceled
    */
   void run() throws IOException {
-    CharsetDecoder decoder =
+    decoder =
         encoding
             .charset()
             .newDecoder()
@@ -85,43 +94,59 @@ final class LoadPass {
       reservation.add(size);
     }
     startEncoder(block);
-    ByteBuffer bytes =
+    bytes =
         ByteBuffer.allocate((int) Math.min(DocumentFiles.MAX_BYTES, (long) block + SEQUENCE_BYTES));
-    int bom = encoding.bomBytes().length;
-    long read = 0;
-    long base = 0;
+    bom = encoding.bomBytes().length;
+    read = 0;
+    base = 0;
     boolean end = false;
     channel.position(0);
     while (!end) {
       token.check();
-      int start = bytes.position();
+      final int start = bytes.position();
       bytes.limit((int) Math.min(bytes.capacity(), start + Math.min(block, size - read)));
-      int n = bytes.hasRemaining() ? channel.read(bytes) : -1;
-      end = n < 0;
-      if (n > 0) {
-        read += n;
-        digest.update(bytes.array(), start, n);
-        end = read == size;
+      final int n = bytes.hasRemaining() ? channel.read(bytes) : -1;
+      end = n < 0 || n > 0 && read + n == size;
+      final boolean last = end;
+      CpuSteps.run(
+          token,
+          new CpuSteps.Step<Void>() {
+            @Override
+            public Void run() throws IOException {
+              decodeBlock(start, n, last);
+              return null;
+            }
+          });
+    }
+  }
+
+  /** Digests, decodes and checks the block just read; on the last one, finishes the pass. */
+  private void decodeBlock(int start, int n, boolean end) throws IOException {
+    if (n > 0) {
+      read += n;
+      digest.update(bytes.array(), start, n);
+    }
+    bytes.flip();
+    int skip = Math.min(bom, bytes.remaining());
+    bytes.position(skip);
+    bom -= skip;
+    offer(bytes.array(), Math.max(start, skip), bytes.limit());
+    while (true) {
+      token.check();
+      CoderResult result = decoder.decode(bytes, chars, end);
+      if (result.isError()) {
+        throw failure(base + bytes.position());
       }
-      bytes.flip();
-      int skip = Math.min(bom, bytes.remaining());
-      bytes.position(skip);
-      bom -= skip;
-      offer(bytes.array(), Math.max(start, skip), bytes.limit());
-      while (true) {
-        token.check();
-        CoderResult result = decoder.decode(bytes, chars, end);
-        if (result.isError()) {
-          throw failure(base + bytes.position());
-        }
-        drain();
-        if (result.isUnderflow()) {
-          break;
-        }
+      drain();
+      if (result.isUnderflow()) {
+        break;
       }
-      base += bytes.position();
-      bytes.compact();
-      reservation.charge(text.heapBytes(), read);
+    }
+    base += bytes.position();
+    bytes.compact();
+    reservation.charge(text.heapBytes(), read);
+    if (!end) {
+      return;
     }
     while (true) {
       CoderResult result = decoder.flush(chars);

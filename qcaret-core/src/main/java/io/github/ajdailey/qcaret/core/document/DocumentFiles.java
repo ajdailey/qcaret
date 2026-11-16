@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.buffer.TextCursor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.BinaryDetector;
 import io.github.ajdailey.qcaret.core.io.ContentWriter;
@@ -16,6 +17,7 @@ import io.github.ajdailey.qcaret.core.text.DetectionReason;
 import io.github.ajdailey.qcaret.core.text.EncodingDetection;
 import io.github.ajdailey.qcaret.core.text.EncodingDetector;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -28,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +37,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Loads a file into a {@link Document} and saves a {@link DocumentSnapshot} through {@link
  * SafeSave}. Both run on a worker, check their {@link CancellationToken} per block, and decode or
- * encode strictly: a malformed or unmappable sequence fails them instead of being replaced.
+ * encode strictly: a malformed or unmappable sequence fails them instead of being replaced. The
+ * calling thread reads and writes; decoding, encoding, digesting and building the text run as
+ * {@link CpuSteps} steps.
  */
 public final class DocumentFiles {
   /** Largest file loaded, in bytes. */
@@ -44,6 +47,9 @@ public final class DocumentFiles {
 
   private static final int BLOCK_BYTES = 1 << 20;
   private static final int BLOCK_CHARS = 1 << 16;
+
+  /** Encoder blocks per {@link CpuSteps} step of a save. */
+  private static final int STEP_BLOCKS = 16;
 
   /** Heap a load's buffers take beyond the text: four read blocks and the char buffers. */
   static final long BUFFER_BYTES = 5L * BLOCK_BYTES;
@@ -182,14 +188,22 @@ public final class DocumentFiles {
           }
 
           @Override
-          public LoadedFile finish(Finished read, DocumentBuilder text) {
-            return new LoadedFile(
-                text.build(read.detection().encoding(), options.empty(), options.limits()),
-                read.baseline(),
-                read.detection(),
-                read.binary(),
-                read.pass().roundTrips(),
-                text.retainedBytes(options.limits()));
+          public LoadedFile finish(final Finished read, final DocumentBuilder text)
+              throws IOException {
+            return CpuSteps.run(
+                null,
+                new CpuSteps.Step<LoadedFile>() {
+                  @Override
+                  public LoadedFile run() {
+                    return new LoadedFile(
+                        text.build(read.detection().encoding(), options.empty(), options.limits()),
+                        read.baseline(),
+                        read.detection(),
+                        read.binary(),
+                        read.pass().roundTrips(),
+                        text.retainedBytes(options.limits()));
+                  }
+                });
           }
         });
   }
@@ -420,7 +434,7 @@ public final class DocumentFiles {
     if (!Encoders.writable(encoding.charset())) {
       throw new IOException("The encoding " + encoding.charset().name() + " cannot be written");
     }
-    encode(snapshot.text(), encoding, null, token);
+    encode(snapshot.text(), encoding, null, null, token);
     final AtomicReference<String> digest = new AtomicReference<String>();
     long recorded = System.currentTimeMillis();
     FileStamp stamp =
@@ -431,11 +445,10 @@ public final class DocumentFiles {
               @Override
               public void write(OutputStream out) throws IOException {
                 MessageDigest sha = Digests.sha256();
-                OutputStream digesting = new DigestOutputStream(out, sha);
-                digesting.write(encoding.bomBytes());
+                sha.update(encoding.bomBytes());
+                out.write(encoding.bomBytes());
                 // SafeSave applies the cancel, which must not stop an in-place write.
-                encode(snapshot.text(), encoding, digesting, new CancellationToken());
-                digesting.flush();
+                encode(snapshot.text(), encoding, out, sha, new CancellationToken());
                 digest.set(Digests.hex(sha));
               }
             },
@@ -445,47 +458,101 @@ public final class DocumentFiles {
 
   /**
    * Encodes a text block by block, to {@code out} or, when it is null, only to check every char.
+   * Each step of {@value #STEP_BLOCKS} blocks encodes and digests; the calling thread writes.
+   *
+   * @param sha receives the encoded bytes, or null
    */
   private static void encode(
-      TextSnapshot text, TextEncoding encoding, OutputStream out, CancellationToken token)
+      TextSnapshot text,
+      TextEncoding encoding,
+      OutputStream out,
+      MessageDigest sha,
+      CancellationToken token)
       throws IOException {
-    CharsetEncoder encoder = Encoders.reporting(encoding.charset());
-    TextCursor cursor = text.cursor(0);
-    CharBuffer in = CharBuffer.allocate(BLOCK_CHARS);
-    ByteBuffer bytes = ByteBuffer.allocate(BLOCK_CHARS * 4);
-    long consumed = 0;
-    boolean end = false;
-    while (true) {
-      token.check();
-      while (in.hasRemaining() && cursor.hasNext()) {
-        in.put(cursor.next());
-      }
-      end = !cursor.hasNext();
-      in.flip();
-      int before = in.position();
-      CoderResult result = encoder.encode(in, bytes, end);
-      if (result.isError()) {
-        throw new TextCodingException(
-            "Cannot encode", consumed + in.position(), encoding.charset().name());
-      }
-      consumed += in.position() - before;
-      in.compact();
-      drain(bytes, out);
-      if (end && result.isUnderflow()) {
-        break;
+    final BlockEncoder blocks = new BlockEncoder(text, encoding, out != null, sha, token);
+    boolean more = true;
+    while (more) {
+      more =
+          CpuSteps.run(
+              token,
+              new CpuSteps.Step<Boolean>() {
+                @Override
+                public Boolean run() throws IOException {
+                  return blocks.encode(STEP_BLOCKS);
+                }
+              });
+      if (out != null) {
+        blocks.encoded.writeTo(out);
+        blocks.encoded.reset();
       }
     }
-    while (encoder.flush(bytes).isOverflow()) {
-      drain(bytes, out);
-    }
-    drain(bytes, out);
   }
 
-  private static void drain(ByteBuffer bytes, OutputStream out) throws IOException {
-    bytes.flip();
-    if (out != null) {
-      out.write(bytes.array(), 0, bytes.limit());
+  /** An encode in progress: its encoder state and the bytes a step produced. */
+  private static final class BlockEncoder {
+    private final TextEncoding encoding;
+    private final CharsetEncoder encoder;
+    private final TextCursor cursor;
+    private final CharBuffer in = CharBuffer.allocate(BLOCK_CHARS);
+    private final ByteBuffer bytes = ByteBuffer.allocate(BLOCK_CHARS * 4);
+    private final boolean keep;
+    private final MessageDigest sha;
+    private final CancellationToken token;
+    private final ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+    private long consumed;
+
+    BlockEncoder(
+        TextSnapshot text,
+        TextEncoding encoding,
+        boolean keep,
+        MessageDigest sha,
+        CancellationToken token) {
+      this.encoding = encoding;
+      this.encoder = Encoders.reporting(encoding.charset());
+      this.cursor = text.cursor(0);
+      this.keep = keep;
+      this.sha = sha;
+      this.token = token;
     }
-    bytes.clear();
+
+    /** Encodes up to {@code blocks} blocks into {@link #encoded}; false once the text ended. */
+    boolean encode(int blocks) throws IOException {
+      for (int i = 0; i < blocks; i++) {
+        token.check();
+        while (in.hasRemaining() && cursor.hasNext()) {
+          in.put(cursor.next());
+        }
+        boolean end = !cursor.hasNext();
+        in.flip();
+        int before = in.position();
+        CoderResult result = encoder.encode(in, bytes, end);
+        if (result.isError()) {
+          throw new TextCodingException(
+              "Cannot encode", consumed + in.position(), encoding.charset().name());
+        }
+        consumed += in.position() - before;
+        in.compact();
+        drain();
+        if (end && result.isUnderflow()) {
+          while (encoder.flush(bytes).isOverflow()) {
+            drain();
+          }
+          drain();
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private void drain() {
+      bytes.flip();
+      if (sha != null) {
+        sha.update(bytes.array(), 0, bytes.limit());
+      }
+      if (keep) {
+        encoded.write(bytes.array(), 0, bytes.limit());
+      }
+      bytes.clear();
+    }
   }
 }

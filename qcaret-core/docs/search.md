@@ -76,8 +76,8 @@ without following symbolic links. `FileFilter` holds the masks: `;`-separated
 globs on the file name (empty include takes every file), excluded directory
 names (default `.git;.svn;.hg;target;node_modules;build`) and hidden files (a
 leading `.` or the platform's hidden attribute). Paths in `searchedElsewhere`
-(open documents) are not read. Each file is read and decoded on a `qcaret-io-`
-thread, at most four at a time, and matched on the CPU pool.
+(open documents) are not read. Each file is read on a `qcaret-io-` thread, at
+most four at a time, decoded on the bulk pool and matched on the CPU pool.
 
 | File | Result |
 |---|---|

@@ -8,8 +8,8 @@ and engine are in [qcaret-core grammars](../../qcaret-core/docs/grammars.md).
 ## Grammar loading
 
 `GrammarLibrary` reads the built-in grammars and the user's
-`<settings>/grammars/*.xml` on a `qcaret-io-` worker at startup
-(`loadGrammars`) and on View > Syntax > Reload Grammars. A user file that does
+`<settings>/grammars/*.xml` on a `qcaret-io-` worker and parses them on the bulk
+pool, at startup (`loadGrammars`) and on View > Syntax > Reload Grammars. A user file that does
 not parse, fails the schema or compiles badly, or is over 1 MiB, is skipped
 with a WARN log line and one notice per read; a user grammar with a built-in's
 id replaces it.

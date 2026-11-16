@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.RopeStorage;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
@@ -157,7 +158,17 @@ final class SaveCopy {
           @WorkerThread
           void work() {
             try {
-              DocumentFiles.save(target, cleaned(snapshot, cleanup, ending, token), null, token);
+              DocumentSnapshot copy =
+                  CpuSteps.compute(
+                      token,
+                      new CpuSteps.Compute<DocumentSnapshot>() {
+                        @Override
+                        @WorkerThread
+                        public DocumentSnapshot run() {
+                          return cleaned(snapshot, cleanup, ending, token);
+                        }
+                      });
+              DocumentFiles.save(target, copy, null, token);
               written = SaveAndReload.realFile(target);
             } catch (IOException e) {
               error = e;

@@ -39,6 +39,7 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.session.SessionLock;
 import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
@@ -637,7 +638,8 @@ class ArchitectureTest {
           new Blocking(AboutInfo.class, "collect|licenseText"),
           new Blocking(UserGuide.class, "writeCopy"),
           new Blocking(LogFiles.class, "attach|detach"),
-          new Blocking(Workers.class, "close"));
+          new Blocking(Workers.class, "close"),
+          new Blocking(CpuSteps.class, ".*"));
 
   private record Blocking(Class<?> owner, String names) {}
 

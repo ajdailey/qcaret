@@ -190,7 +190,7 @@ modeline kind when any contributed.
 ### Save cleanup
 
 With `trim_trailing_whitespace = true` or `insert_final_newline = true`, a save
-first computes `SaveCleanup.edits` from a snapshot on a `qcaret-io-` worker:
+first computes `SaveCleanup.edits` from a snapshot on the bulk pool:
 spaces and tabs at each line's end removed, then the document's line ending
 appended to a text that does not end with a break. The UI thread applies the
 edit as one undo step and the write takes the snapshot after it, so the bytes

@@ -5,7 +5,9 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.document.LoadCost;
@@ -386,8 +388,7 @@ public final class DocumentOpener {
                 if (declared != null && !loaded.binary()) {
                   loaded = loaded.withSettings(declared.settings(config, loaded.document().text()));
                 }
-                DisplayProjection.Layout layout =
-                    DisplayProjection.layout(loaded.document().text(), 0, token);
+                DisplayProjection.Layout layout = layout(loaded, token);
                 long reserved = reservation.keep(loaded.retainedBytes());
                 posted = true;
                 post(load, new Loaded(loaded, layout, reserved), null);
@@ -407,6 +408,21 @@ public final class DocumentOpener {
               }
               end(token);
             }
+          }
+        });
+  }
+
+  /** Lays out a loaded file's text as a {@link CpuSteps} step. */
+  @WorkerThread
+  private static DisplayProjection.Layout layout(
+      final LoadedFile loaded, final CancellationToken token) {
+    return CpuSteps.compute(
+        token,
+        new CpuSteps.Compute<DisplayProjection.Layout>() {
+          @Override
+          @WorkerThread
+          public DisplayProjection.Layout run() {
+            return DisplayProjection.layout(loaded.document().text(), 0, token);
           }
         });
   }

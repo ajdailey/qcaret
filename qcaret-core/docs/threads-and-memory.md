@@ -12,6 +12,7 @@ The launcher creates one instance and closes it at shutdown.
 | Work | Runs on | Names |
 |---|---|---|
 | CPU-bound (`executeCpu`) | Fixed pool of platform threads, bounded queue of 4,096 | `qcaret-cpu-N` |
+| CPU steps of blocking tasks (`CpuSteps`) | A second fixed pool of the same size and queue bound | `qcaret-bulk-N` |
 | Blocking (`start(Kind, Runnable)`) | A virtual thread per task | `qcaret-io-`, `qcaret-search-`, `qcaret-watch-`, `qcaret-ipc-`, `qcaret-lifecycle-`, `qcaret-watchdog-` |
 | Print job (`Kind.PRINT`) | A daemon platform thread per job: native print calls keep per-thread state, and a virtual thread can change carrier between them | `qcaret-print-` |
 
@@ -21,9 +22,10 @@ The launcher creates one instance and closes it at shutdown.
 - After `close`, `start` and `executeCpu` throw `RejectedExecutionException`;
   `tryStart` returns false instead.
 - `close(bound)` rejects new tasks, waits up to the bound for running ones,
-  then interrupts what is left (`shutdownNow` for the pool). A virtual thread
+  then interrupts what is left (`shutdownNow` for a pool). A virtual thread
   that calls `close` does not wait for itself. `liveThreads()` counts what has
-  not ended, and `liveThreadNames()` names it for a log line.
+  not ended, and `liveThreadNames()` names it for a log line, each pool as one
+  `qcaret-cpu-*` or `qcaret-bulk-*` entry with its count.
 - `shutdownHook(task)` creates the JVM shutdown hook's platform thread,
   `qcaret-shutdown`, unstarted and outside the live set, so `close` neither
   waits for nor interrupts it.
@@ -35,6 +37,38 @@ The launcher creates one instance and closes it at shutdown.
   alive.
 - Code that catches `InterruptedException` restores the interrupt flag and
   returns.
+
+### CPU steps of blocking tasks
+
+`CpuSteps.run(token, step)` runs a step on the `qcaret-bulk-` pool when called
+on a virtual thread `Workers.start` started, and waits for it; on any other
+thread it runs the step inline. A blocking task must run every CPU-bound part
+of its work this way: a virtual thread that computes holds its carrier, and the
+carrier pool has `availableProcessors()` threads, so that many computing tasks
+stall every virtual task, including quit and the settings saves (measured: 8
+spinning `IO` tasks on 8 cores held a `LIFECYCLE` task over 5 s).
+
+- The calling thread does the reads and writes; a step does not block on I/O.
+  File loops hand over one block at a time: `LoadPass` (load and reload),
+  `DocumentFiles.save`, `Digests`, `Checksums.ofFile` and `RecoveryFile` read
+  or write a block of 1 MiB (1 Mi chars when encoding) and run its digest,
+  decode or encode as a step. Whole-text work (the load's text build and
+  layout, a search's decode, match and digest, `FileReplace`'s checks and
+  replacement, the replace preview, save cleanup, grammar parsing) is one step.
+- A cancel while the step is queued ends the wait with a
+  `CancellationException` and the step never runs; a running step is waited
+  for, since it may use the caller's buffers and reservation, and checks the
+  token itself. An interrupt does the same. `close` keeps the bulk pool
+  accepting steps until the blocking threads end or are interrupted, so a save
+  running at quit finishes its writes; a step the pool then drops ends its
+  waiter with a `CancellationException`.
+- The bulk pool is separate from `executeCpu` because its steps include
+  whole-file work that does not split into blocks (a layout, a regex replace
+  over a document): in one FIFO queue those would hold highlighting, folding
+  and find tasks for their full length. Bulk steps queue only behind each
+  other.
+- The end of a quit runs on `LIFECYCLE` and drains the queued recovery writes;
+  their encoding runs as bulk steps like any other.
 
 `@WorkerThread` marks a method that runs only on a worker, such as
 `DocumentFiles.load` and `DisplayProjection.compute`. Its callers are worker

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.search;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -39,10 +40,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Searches the files under a directory. The calling thread (a {@code qcaret-search-} worker) walks
- * the tree without following symbolic links; each accepted file is read and decoded on a {@code
- * qcaret-io-} thread, at most {@value #READERS} at a time, and matched by {@link TextSearch} on the
- * CPU pool, which digests a file only when the {@link Sink} receives it. Results reach the {@link
- * Sink} on those threads, in no fixed order.
+ * the tree without following symbolic links; each accepted file is read on a {@code qcaret-io-}
+ * thread, at most {@value #READERS} at a time, decoded as a {@link CpuSteps} step, and matched by
+ * {@link TextSearch} on the CPU pool, which digests a file only when the {@link Sink} receives it.
+ * Results reach the {@link Sink} on those threads, in no fixed order.
  *
  * <ul>
  *   <li>A file over {@code maxFileBytes} is skipped as {@link Skip#TOO_LARGE}; a file {@link
@@ -395,7 +396,8 @@ public final class FileSearch {
    * @throws CancellationException when canceled
    */
   @WorkerThread
-  public static Single searchFile(Path file, Options options, int room, CancellationToken token) {
+  public static Single searchFile(
+      final Path file, final Options options, final int room, final CancellationToken token) {
     long reserved = 0;
     try {
       long size = Files.size(file);
@@ -409,15 +411,24 @@ public final class FileSearch {
         reserved = size * BYTES_RESERVED;
       }
       token.check();
-      Decoded decoded = decode(file, options, token);
+      final Decoded decoded = decode(file, options, token);
       if (decoded.skip != null) {
         return new Single(null, decoded.skip);
       }
-      TextSearch.Outcome outcome =
-          TextSearch.search(
-              options.matcher(), decoded.text, null, room, options.maxLineChars(), token);
-      byte[] digest = reported(outcome) ? digest(file, decoded.bytes, token) : null;
-      return new Single(new FileHits(file, decoded.encoding, decoded.stamp, digest, outcome), null);
+      return CpuSteps.run(
+          token,
+          new CpuSteps.Step<Single>() {
+            @Override
+            @WorkerThread
+            public Single run() {
+              TextSearch.Outcome outcome =
+                  TextSearch.search(
+                      options.matcher(), decoded.text, null, room, options.maxLineChars(), token);
+              byte[] digest = reported(outcome) ? digest(file, decoded.bytes, token) : null;
+              return new Single(
+                  new FileHits(file, decoded.encoding, decoded.stamp, digest, outcome), null);
+            }
+          });
     } catch (IOException e) {
       return new Single(null, Skip.UNREADABLE);
     } finally {
@@ -475,12 +486,26 @@ public final class FileSearch {
    * @throws CancellationException when canceled
    */
   @WorkerThread
-  static Decoded decode(Path file, Options options, CancellationToken token) throws IOException {
-    FileStamp stamp = FileStamp.read(file);
-    byte[] bytes = read(file, options.maxFileBytes(), token);
+  static Decoded decode(final Path file, final Options options, final CancellationToken token)
+      throws IOException {
+    final FileStamp stamp = FileStamp.read(file);
+    final byte[] bytes = read(file, options.maxFileBytes(), token);
     if (bytes == null) {
       return new Decoded(null, null, stamp, null, Skip.TOO_LARGE);
     }
+    return CpuSteps.run(
+        token,
+        new CpuSteps.Step<Decoded>() {
+          @Override
+          public Decoded run() {
+            return decode(file, stamp, bytes, options, token);
+          }
+        });
+  }
+
+  /** Detects the encoding of bytes read and decodes them. */
+  private static Decoded decode(
+      Path file, FileStamp stamp, byte[] bytes, Options options, CancellationToken token) {
     List<EncodingDetection> candidates =
         EncodingDetector.candidates(bytes, bytes.length, options.fallback());
     TextEncoding encoding = candidates.get(candidates.size() - 1).encoding();

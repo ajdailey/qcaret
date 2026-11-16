@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.io;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -68,7 +69,8 @@ public final class Digests {
   }
 
   /**
-   * Digests a file, one block of 1 MiB at a time.
+   * Digests a file, one block of 1 MiB at a time: the calling thread reads, and each block is
+   * digested as a {@link CpuSteps} step.
    *
    * @param file the file; a symbolic link is followed
    * @param token checked before each block
@@ -78,8 +80,8 @@ public final class Digests {
    */
   @WorkerThread
   public static byte[] bytesOf(Path file, CancellationToken token) throws IOException {
-    MessageDigest digest = sha256();
-    ByteBuffer buffer = ByteBuffer.allocate(BLOCK_BYTES);
+    final MessageDigest digest = sha256();
+    final ByteBuffer buffer = ByteBuffer.allocate(BLOCK_BYTES);
     try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
       while (true) {
         token.check();
@@ -88,9 +90,30 @@ public final class Digests {
           break;
         }
         buffer.flip();
-        digest.update(buffer);
+        update(digest, buffer, token);
       }
     }
     return digest.digest();
+  }
+
+  /**
+   * Adds a buffer's remaining bytes to a digest as a {@link CpuSteps} step.
+   *
+   * @param digest the digest
+   * @param buffer the bytes; consumed
+   * @param token stops a wait for a queued step
+   * @throws java.util.concurrent.CancellationException when canceled before the step ran
+   */
+  public static void update(
+      final MessageDigest digest, final ByteBuffer buffer, CancellationToken token) {
+    CpuSteps.compute(
+        token,
+        new CpuSteps.Compute<Void>() {
+          @Override
+          public Void run() {
+            digest.update(buffer);
+            return null;
+          }
+        });
   }
 }

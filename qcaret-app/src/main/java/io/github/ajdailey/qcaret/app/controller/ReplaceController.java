@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.view.ResultLabel;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -477,20 +478,29 @@ public final class ReplaceController implements ReplaceInput {
   private static List<PreviewLine> readPreview(
       Path path,
       byte[] digest,
-      TextEncoding encoding,
+      final TextEncoding encoding,
       long maxBytes,
-      int[] spans,
-      TextMatcher m,
-      ReplaceTemplate t,
-      IntFunction<String> more,
-      CancellationToken token) {
+      final int[] spans,
+      final TextMatcher m,
+      final ReplaceTemplate t,
+      final IntFunction<String> more,
+      final CancellationToken token) {
     FileReplace.Loaded loaded = FileReplace.load(path, digest, encoding, maxBytes);
     if (loaded.skip() != null) {
       return note(ReplaceRun.Reason.valueOf(loaded.skip().name()));
     }
-    String text = loaded.text();
-    LineEnding ending = LineEndingStats.count(text, 0, text.length()).dominant(LineEnding.LF);
-    return previewLines(text, spans, m, t, ending, encoding, more, token);
+    final String text = loaded.text();
+    return CpuSteps.compute(
+        token,
+        new CpuSteps.Compute<List<PreviewLine>>() {
+          @Override
+          @WorkerThread
+          public List<PreviewLine> run() {
+            LineEnding ending =
+                LineEndingStats.count(text, 0, text.length()).dominant(LineEnding.LF);
+            return previewLines(text, spans, m, t, ending, encoding, more, token);
+          }
+        });
   }
 
   @WorkerThread

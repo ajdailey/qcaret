@@ -23,11 +23,17 @@ public final class Checksums {
   /** Bytes read from a file at a time. */
   static final int BUFFER_BYTES = 64 * 1024;
 
+  /** Buffers digested per {@link io.github.ajdailey.qcaret.core.concurrent.CpuSteps} step. */
+  private static final int STEP_BUFFERS = 16;
+
   private Checksums() {}
 
   /**
-   * Digests a file, one buffer of {@value #BUFFER_BYTES} bytes at a time. Only a regular file is
-   * opened: opening a FIFO blocks until a writer appears, and a device can read without end.
+   * Digests a file, one buffer of {@value #BUFFER_BYTES} bytes at a time: the calling thread reads,
+   * and every {@value #STEP_BUFFERS} buffers are digested as a {@link
+   * io.github.ajdailey.qcaret.core.concurrent.CpuSteps} step ({@link Digests#update}). Only a
+   * regular file is opened: opening a FIFO blocks until a writer appears, and a device can read
+   * without end.
    *
    * @param file the file; a symbolic link is followed
    * @param digest a fresh digest, reset by this call
@@ -44,22 +50,27 @@ public final class Checksums {
     if (!Files.readAttributes(file, BasicFileAttributes.class).isRegularFile()) {
       throw new IOException("not a regular file");
     }
-    ByteBuffer buffer = ByteBuffer.allocate(BUFFER_BYTES);
+    ByteBuffer block = ByteBuffer.allocate(STEP_BUFFERS * BUFFER_BYTES);
     long read = 0;
     try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
       while (true) {
         token.check();
-        buffer.clear();
-        int n = channel.read(buffer);
+        block.limit(Math.min(block.capacity(), block.position() + BUFFER_BYTES));
+        int n = channel.read(block);
         if (n < 0) {
           break;
         }
-        buffer.flip();
-        digest.update(buffer);
+        if (block.position() == block.capacity()) {
+          block.flip();
+          Digests.update(digest, block, token);
+          block.clear();
+        }
         read += n;
         progress.accept(read);
       }
     }
+    block.flip();
+    Digests.update(digest, block, token);
     return HexFormat.of().formatHex(digest.digest());
   }
 

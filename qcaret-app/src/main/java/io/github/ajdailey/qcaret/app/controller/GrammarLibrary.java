@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
@@ -129,15 +130,32 @@ public final class GrammarLibrary {
 
   @WorkerThread
   private void read(final long started) {
-    List<Grammar> builtIn = builtIns;
-    GrammarReader reader = new GrammarReader();
-    if (builtIn == null) {
-      builtIn = GrammarSet.readBuiltIns(reader);
-      builtIns = builtIn;
+    final GrammarReader reader = new GrammarReader();
+    if (builtIns == null) {
+      builtIns =
+          CpuSteps.compute(
+              null,
+              new CpuSteps.Compute<List<Grammar>>() {
+                @Override
+                @WorkerThread
+                public List<Grammar> run() {
+                  return GrammarSet.readBuiltIns(reader);
+                }
+              });
     }
+    final List<Grammar> builtIn = builtIns;
     final List<String> errors = new ArrayList<String>();
-    Map<String, Grammar> users = readUsers(reader, errors);
-    final GrammarSet loaded = GrammarSet.of(builtIn, users, errors);
+    final Map<String, Grammar> users = readUsers(reader, errors);
+    final GrammarSet loaded =
+        CpuSteps.compute(
+            null,
+            new CpuSteps.Compute<GrammarSet>() {
+              @Override
+              @WorkerThread
+              public GrammarSet run() {
+                return GrammarSet.of(builtIn, users, errors);
+              }
+            });
     ui.asyncExec(
         new Runnable() {
           @Override
@@ -148,10 +166,11 @@ public final class GrammarLibrary {
   }
 
   /**
-   * Reads every {@code *.xml} file of the folder, by file name; a failure goes to {@code errors}.
+   * Reads every {@code *.xml} file of the folder, by file name, and parses each as a {@link
+   * CpuSteps} step; a failure goes to {@code errors}.
    */
   @WorkerThread
-  private Map<String, Grammar> readUsers(GrammarReader reader, List<String> errors) {
+  private Map<String, Grammar> readUsers(final GrammarReader reader, List<String> errors) {
     Map<String, Grammar> users = new LinkedHashMap<String, Grammar>();
     if (!Files.isDirectory(directory)) {
       return users;
@@ -167,10 +186,29 @@ public final class GrammarLibrary {
     }
     files.sort(null);
     for (Path file : files) {
-      String name = String.valueOf(file.getFileName());
+      final String name = String.valueOf(file.getFileName());
       try (InputStream in = Files.newInputStream(file)) {
-        byte[] bytes = Streams.readLimited(in, MAX_FILE_BYTES);
-        users.put(name, reader.read(new ByteArrayInputStream(bytes), name));
+        final byte[] bytes = Streams.readLimited(in, MAX_FILE_BYTES);
+        final InvalidGrammarException[] invalid = new InvalidGrammarException[1];
+        Grammar grammar =
+            CpuSteps.run(
+                null,
+                new CpuSteps.Step<Grammar>() {
+                  @Override
+                  @WorkerThread
+                  public Grammar run() throws IOException {
+                    try {
+                      return reader.read(new ByteArrayInputStream(bytes), name);
+                    } catch (InvalidGrammarException e) {
+                      invalid[0] = e;
+                      return null;
+                    }
+                  }
+                });
+        if (invalid[0] != null) {
+          throw invalid[0];
+        }
+        users.put(name, grammar);
       } catch (IOException | InvalidGrammarException e) {
         errors.add(e instanceof InvalidGrammarException ? e.getMessage() : name + ": " + e);
       }

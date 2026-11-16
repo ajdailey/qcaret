@@ -16,9 +16,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Owns every thread QCaret starts: a fixed pool of platform threads for CPU-bound work ({@code
- * qcaret-cpu-N}) and a thread per blocking task, named by {@link Kind}, virtual except {@link
- * Kind#PRINT}. Nothing else creates a thread or an executor. The launcher creates one instance and
- * closes it at shutdown.
+ * qcaret-cpu-N}), a second one for the CPU-bound steps of blocking tasks ({@code qcaret-bulk-N},
+ * through {@link CpuSteps}) and a thread per blocking task, named by {@link Kind}, virtual except
+ * {@link Kind#PRINT}. Nothing else creates a thread or an executor. The launcher creates one
+ * instance and closes it at shutdown.
  *
  * <p>Every task runs inside a wrapper that passes an exception it ends with to the failure handler;
  * the same handler is each thread's uncaught exception handler. No task returns a {@code Future},
@@ -71,6 +72,7 @@ public final class Workers implements AutoCloseable {
 
   private final Thread.UncaughtExceptionHandler failures;
   private final ThreadPoolExecutor cpu;
+  private final ThreadPoolExecutor bulk;
   private final ThreadFactory[] factories;
   private final Set<Thread> live = ConcurrentHashMap.newKeySet();
   private final AtomicBoolean closed = new AtomicBoolean();
@@ -98,6 +100,18 @@ public final class Workers implements AutoCloseable {
             TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<Runnable>(CPU_QUEUE),
             cpuFactory);
+    this.bulk =
+        new ThreadPoolExecutor(
+            cpuThreads,
+            cpuThreads,
+            0,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<Runnable>(CPU_QUEUE),
+            Thread.ofPlatform()
+                .name("qcaret-bulk-", 1)
+                .daemon(true)
+                .uncaughtExceptionHandler(failures)
+                .factory());
     Kind[] kinds = Kind.values();
     this.factories = new ThreadFactory[kinds.length];
     for (Kind kind : kinds) {
@@ -129,9 +143,24 @@ public final class Workers implements AutoCloseable {
   }
 
   /**
-   * Starts a blocking task on a new thread of its kind. The thread joins the live set before {@code
-   * closed} is checked a second time, so {@link #close} either waits for it or the start is
-   * rejected.
+   * Queues a {@link CpuSteps} step on the bulk pool. Accepted until {@link #close} has waited for
+   * the blocking tasks, so a task running at close finishes its steps.
+   *
+   * @throws RejectedExecutionException when the queue is full or the pool is shut down
+   */
+  void executeBulk(CpuSteps.Handoff<?> step) {
+    bulk.execute(step);
+  }
+
+  /** Counts the steps waiting in the bulk pool's queue. */
+  int queuedSteps() {
+    return bulk.getQueue().size();
+  }
+
+  /**
+   * Starts a blocking task on a new thread of its kind. A virtual thread runs its {@link CpuSteps}
+   * on the bulk pool. The thread joins the live set before {@code closed} is checked a second time,
+   * so {@link #close} either waits for it or the start is rejected.
    *
    * @param kind names the thread
    * @param task the task
@@ -143,15 +172,20 @@ public final class Workers implements AutoCloseable {
       throw new RejectedExecutionException("Workers are closed");
     }
     final Runnable guarded = guard(task);
+    final Workers owner = kind == Kind.PRINT ? null : this;
     final Thread[] self = new Thread[1];
     Thread thread =
         factories[kind.ordinal()].newThread(
             new Runnable() {
               @Override
               public void run() {
+                if (owner != null) {
+                  CpuSteps.OWNER.set(owner);
+                }
                 try {
                   guarded.run();
                 } finally {
+                  CpuSteps.OWNER.remove();
                   live.remove(self[0]);
                 }
               }
@@ -201,18 +235,19 @@ public final class Workers implements AutoCloseable {
   }
 
   /**
-   * Counts threads that have not ended: started blocking threads plus pool threads.
+   * Counts threads that have not ended: started blocking threads plus both pools' threads.
    *
    * @return the count; 0 after a successful close
    */
   public int liveThreads() {
-    return live.size() + cpu.getPoolSize();
+    return live.size() + cpu.getPoolSize() + bulk.getPoolSize();
   }
 
   /**
    * Names the threads that have not ended, for a log line.
    *
-   * @return the names, comma-separated, pool threads as {@code qcaret-cpu-*} with their count
+   * @return the names, comma-separated, pool threads as {@code qcaret-cpu-*} and {@code
+   *     qcaret-bulk-*} with their counts
    */
   public String liveThreadNames() {
     List<String> names = new ArrayList<String>();
@@ -223,6 +258,10 @@ public final class Workers implements AutoCloseable {
     int pool = cpu.getPoolSize();
     if (pool > 0) {
       names.add("qcaret-cpu-* x" + pool);
+    }
+    int steps = bulk.getPoolSize();
+    if (steps > 0) {
+      names.add("qcaret-bulk-* x" + steps);
     }
     return String.join(", ", names);
   }
@@ -250,9 +289,10 @@ public final class Workers implements AutoCloseable {
 
   /**
    * Stops accepting tasks, waits up to {@code bound} for running ones, then interrupts what is left
-   * ({@code shutdownNow} for the pool). A virtual thread calling this method does not wait for
-   * itself. The live set is read again until it holds no other thread, so a thread a racing {@link
-   * #start} added is waited for too.
+   * ({@code shutdownNow} for a pool). The bulk pool shuts down after the blocking threads end or
+   * are interrupted, and a step it then drops ends its waiter with a {@code CancellationException}.
+   * A virtual thread calling this method does not wait for itself. The live set is read again until
+   * it holds no other thread, so a thread a racing {@link #start} added is waited for too.
    *
    * @param bound the longest wait
    * @return true when every thread except the caller ended within the bound
@@ -279,12 +319,24 @@ public final class Workers implements AutoCloseable {
       for (Thread thread : threads) {
         thread.interrupt();
       }
+      bulk.shutdown();
+      if (!bulk.awaitTermination(remaining(deadline), TimeUnit.NANOSECONDS)) {
+        dropBulk();
+      }
     } catch (InterruptedException e) {
       cpu.shutdownNow();
+      dropBulk();
       Thread.currentThread().interrupt();
       return false;
     }
-    return cpu.isTerminated() && others(Thread.currentThread()).isEmpty();
+    return cpu.isTerminated() && bulk.isTerminated() && others(Thread.currentThread()).isEmpty();
+  }
+
+  /** Stops the bulk pool and wakes the waiters of the steps it drops. */
+  private void dropBulk() {
+    for (Runnable dropped : bulk.shutdownNow()) {
+      ((CpuSteps.Handoff<?>) dropped).drop();
+    }
   }
 
   /** The live threads except {@code current}. */

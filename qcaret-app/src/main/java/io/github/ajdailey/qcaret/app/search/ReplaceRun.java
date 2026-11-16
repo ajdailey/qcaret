@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.search;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -429,18 +430,32 @@ public final class ReplaceRun {
 
   /** Computes an open document's replacements from its snapshot; the UI thread applies them. */
   @WorkerThread
-  private void buffer(int index, Item item, TextMatcher matcher, ReplaceTemplate template) {
-    if (item.digest() != null
-        && !FileReplace.holds(item.snapshot(), item.encoding(), item.digest())) {
-      queue(index, skipped(item, Reason.CHANGED));
-      return;
-    }
+  private void buffer(
+      int index, final Item item, final TextMatcher matcher, final ReplaceTemplate template) {
+    final boolean[] encodable = new boolean[1];
     List<Replacement> replacements =
-        FileReplace.replacements(
-            item.snapshot(), item.spans(), matcher, template, item.ending(), token);
-    if (replacements.isEmpty()) {
+        CpuSteps.compute(
+            token,
+            new CpuSteps.Compute<List<Replacement>>() {
+              @Override
+              @WorkerThread
+              public List<Replacement> run() {
+                if (item.digest() != null
+                    && !FileReplace.holds(item.snapshot(), item.encoding(), item.digest())) {
+                  return null;
+                }
+                List<Replacement> found =
+                    FileReplace.replacements(
+                        item.snapshot(), item.spans(), matcher, template, item.ending(), token);
+                encodable[0] = FileReplace.encodable(found, item.encoding());
+                return found;
+              }
+            });
+    if (replacements == null) {
+      queue(index, skipped(item, Reason.CHANGED));
+    } else if (replacements.isEmpty()) {
       queue(index, skipped(item, Reason.NO_MATCHES));
-    } else if (!FileReplace.encodable(replacements, item.encoding())) {
+    } else if (!encodable[0]) {
       queue(index, skipped(item, Reason.UNMAPPABLE));
     } else {
       queue.add(new Done(index, null, item, replacements));

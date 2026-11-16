@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.search;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.document.Replacement;
@@ -122,7 +123,8 @@ public final class FileReplace {
   }
 
   /**
-   * Reads a file and checks that it is the text searched; see the class steps.
+   * Reads a file and checks that it is the text searched; see the class steps. The calling thread
+   * reads; the checks and the decode run as a {@link CpuSteps} step.
    *
    * @param file the file
    * @param digest the SHA-256 of the bytes searched
@@ -131,9 +133,10 @@ public final class FileReplace {
    * @return the text, or why the file is skipped
    */
   @WorkerThread
-  public static Loaded load(Path file, byte[] digest, TextEncoding encoding, long maxBytes) {
-    FileStamp stamp;
-    byte[] bytes;
+  public static Loaded load(
+      Path file, final byte[] digest, final TextEncoding encoding, long maxBytes) {
+    final FileStamp stamp;
+    final byte[] bytes;
     try {
       stamp = FileStamp.read(file);
       if (stamp == null) {
@@ -146,6 +149,18 @@ public final class FileReplace {
     } catch (IOException e) {
       return new Loaded(null, null, null, Files.exists(file) ? Skip.UNREADABLE : Skip.MISSING);
     }
+    return CpuSteps.compute(
+        null,
+        new CpuSteps.Compute<Loaded>() {
+          @Override
+          public Loaded run() {
+            return check(bytes, stamp, digest, encoding);
+          }
+        });
+  }
+
+  /** Checks bytes read against the search's digest and encoding, and decodes them. */
+  private static Loaded check(byte[] bytes, FileStamp stamp, byte[] digest, TextEncoding encoding) {
     if (!MessageDigest.isEqual(digest, FileSearch.digest(bytes))) {
       return new Loaded(null, bytes, stamp, Skip.CHANGED);
     }
@@ -325,35 +340,37 @@ public final class FileReplace {
 
   @WorkerThread
   private static Outcome write(
-      Target target,
-      TextMatcher matcher,
-      ReplaceTemplate template,
+      final Target target,
+      final TextMatcher matcher,
+      final ReplaceTemplate template,
       ReplaceBackups backups,
       long maxBytes,
-      CancellationToken token) {
-    TextEncoding encoding = target.encoding();
+      final CancellationToken token) {
+    final TextEncoding encoding = target.encoding();
     Loaded loaded = load(target.file(), target.digest(), encoding, maxBytes);
     if (loaded.skip() != null) {
       return skipped(loaded.skip());
     }
-    String text = loaded.text();
-    LineEnding ending = LineEndingStats.count(text, 0, text.length()).dominant(LineEnding.LF);
-    List<Replacement> replacements =
-        replacements(text, target.spans(), matcher, template, ending, token);
-    int dropped = target.spans().length / 2 - replacements.size();
-    if (replacements.isEmpty()) {
-      return new Outcome(Skip.NO_MATCHES, 0, dropped, null);
+    final String text = loaded.text();
+    Replaced replaced =
+        CpuSteps.compute(
+            token,
+            new CpuSteps.Compute<Replaced>() {
+              @Override
+              @WorkerThread
+              public Replaced run() {
+                return replaced(text, target, matcher, template, encoding, token);
+              }
+            });
+    if (replaced.outcome() != null) {
+      return replaced.outcome();
     }
-    final byte[] bytes;
-    try {
-      bytes = encode(apply(text, replacements), encoding);
-    } catch (CharacterCodingException e) {
-      return new Outcome(Skip.UNMAPPABLE, 0, dropped, null);
-    }
+    final byte[] bytes = replaced.bytes();
+    int dropped = replaced.dropped();
     token.check();
     int entry;
     try {
-      entry = backups.record(target.file(), loaded.bytes(), FileSearch.digest(bytes));
+      entry = backups.record(target.file(), loaded.bytes(), replaced.digest());
     } catch (IOException e) {
       return new Outcome(null, 0, dropped, e);
     }
@@ -368,7 +385,7 @@ public final class FileReplace {
             }
           },
           token);
-      return new Outcome(null, replacements.size(), dropped, null);
+      return new Outcome(null, replaced.count(), dropped, null);
     } catch (ExternalModificationException e) {
       backups.dropQuietly(entry);
       return new Outcome(Skip.CHANGED, 0, dropped, null);
@@ -379,6 +396,39 @@ public final class FileReplace {
       backups.dropQuietly(entry);
       throw e;
     }
+  }
+
+  /**
+   * The new bytes of a file and their digest, or the outcome that ends the replace.
+   *
+   * @param count the replacements made
+   * @param dropped spans the query does not match again
+   */
+  private record Replaced(Outcome outcome, byte[] bytes, byte[] digest, int count, int dropped) {}
+
+  /** Computes the replaced text's bytes; the CPU-bound part of {@link #write}. */
+  @WorkerThread
+  private static Replaced replaced(
+      String text,
+      Target target,
+      TextMatcher matcher,
+      ReplaceTemplate template,
+      TextEncoding encoding,
+      CancellationToken token) {
+    LineEnding ending = LineEndingStats.count(text, 0, text.length()).dominant(LineEnding.LF);
+    List<Replacement> replacements =
+        replacements(text, target.spans(), matcher, template, ending, token);
+    int dropped = target.spans().length / 2 - replacements.size();
+    if (replacements.isEmpty()) {
+      return new Replaced(new Outcome(Skip.NO_MATCHES, 0, dropped, null), null, null, 0, dropped);
+    }
+    byte[] bytes;
+    try {
+      bytes = encode(apply(text, replacements), encoding);
+    } catch (CharacterCodingException e) {
+      return new Replaced(new Outcome(Skip.UNMAPPABLE, 0, dropped, null), null, null, 0, dropped);
+    }
+    return new Replaced(null, bytes, FileSearch.digest(bytes), replacements.size(), dropped);
   }
 
   private static Outcome skipped(Skip skip) {

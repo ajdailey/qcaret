@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.recovery;
 
 import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
+import io.github.ajdailey.qcaret.core.concurrent.CpuSteps;
 import io.github.ajdailey.qcaret.core.document.DocumentBuilder;
 import io.github.ajdailey.qcaret.core.document.LoadReservation;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
@@ -56,7 +57,9 @@ public final class RecoveryFile {
   private static final int TRAILER_BYTES = 1 + END.length() + DIGEST_CHARS + 1;
 
   private static final int MAX_HEADER_BYTES = 4 << 20;
-  private static final int BLOCK_BYTES = 1 << 16;
+
+  /** Bytes read, or chars written, per {@link CpuSteps} step. */
+  private static final int BLOCK_BYTES = 1 << 20;
 
   /** The file is not a complete recovery file, or its trailer digest does not match the body. */
   public static final class DamagedException extends IOException {
@@ -141,7 +144,15 @@ public final class RecoveryFile {
    * @throws IOException when the write fails; the target is then unchanged
    */
   public static void write(Path file, Header header, final TextSnapshot text) throws IOException {
-    final boolean wide = hasUnpairedSurrogate(text);
+    final boolean wide =
+        CpuSteps.run(
+            null,
+            new CpuSteps.Step<Boolean>() {
+              @Override
+              public Boolean run() {
+                return hasUnpairedSurrogate(text);
+              }
+            });
     final Header complete = header.withBodyEncoding(wide ? UTF_16BE : UTF_8);
     AtomicFiles.writeOwnerOnly(
         file,
@@ -150,13 +161,7 @@ public final class RecoveryFile {
           public void write(OutputStream out) throws IOException {
             out.write(headerBytes(complete));
             MessageDigest sha = Digests.sha256();
-            DigestOutputStream digesting = new DigestOutputStream(out, sha);
-            try {
-              writeBody(text, wide, digesting);
-            } catch (UncheckedIOException e) {
-              throw e.getCause();
-            }
-            digesting.flush();
+            writeBody(text, wide, sha, out);
             String trailer = "\n" + END + Digests.hex(sha) + "\n";
             out.write(trailer.getBytes(StandardCharsets.US_ASCII));
           }
@@ -185,13 +190,47 @@ public final class RecoveryFile {
     return found[0] || high[0];
   }
 
-  private static void writeBody(TextSnapshot text, boolean wide, final OutputStream out)
+  /**
+   * Writes the body {@value #BLOCK_BYTES} chars at a time: each step encodes and digests into
+   * memory, and the calling thread writes.
+   */
+  private static void writeBody(
+      final TextSnapshot text, final boolean wide, MessageDigest sha, OutputStream out)
       throws IOException {
-    if (wide) {
-      final byte[] block = new byte[BLOCK_BYTES];
+    final ByteArrayOutputStream pending = new ByteArrayOutputStream();
+    final DigestOutputStream digesting = new DigestOutputStream(pending, sha);
+    // The writer holds a high surrogate across calls, so a pair may span two chunks.
+    final Writer writer = wide ? null : new OutputStreamWriter(digesting, StandardCharsets.UTF_8);
+    final byte[] block = new byte[2 * BLOCK_BYTES];
+    int length = text.length();
+    for (int from = 0; from < length; from += BLOCK_BYTES) {
+      final int start = from;
+      final int end = Math.min(length, from + BLOCK_BYTES);
+      CpuSteps.run(
+          null,
+          new CpuSteps.Step<Void>() {
+            @Override
+            public Void run() throws IOException {
+              if (wide) {
+                writeWide(text, start, end, block, digesting);
+              } else {
+                writeUtf8(text, start, end, writer);
+              }
+              return null;
+            }
+          });
+      pending.writeTo(out);
+      pending.reset();
+    }
+  }
+
+  private static void writeWide(
+      TextSnapshot text, int from, int to, final byte[] block, final OutputStream out)
+      throws IOException {
+    try {
       text.readChunks(
-          0,
-          text.length(),
+          from,
+          to,
           new ChunkVisitor() {
             @Override
             public void chunk(CharSequence chunk, int start, int end) {
@@ -212,23 +251,30 @@ public final class RecoveryFile {
               }
             }
           });
-      return;
+    } catch (UncheckedIOException e) {
+      throw e.getCause();
     }
-    // The writer holds a high surrogate across calls, so a pair may span two chunks.
-    final Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-    text.readChunks(
-        0,
-        text.length(),
-        new ChunkVisitor() {
-          @Override
-          public void chunk(CharSequence chunk, int start, int end) {
-            try {
-              writer.append(chunk, start, end);
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
+  }
+
+  private static void writeUtf8(TextSnapshot text, int from, int to, final Writer writer)
+      throws IOException {
+    try {
+      text.readChunks(
+          from,
+          to,
+          new ChunkVisitor() {
+            @Override
+            public void chunk(CharSequence chunk, int start, int end) {
+              try {
+                writer.append(chunk, start, end);
+              } catch (IOException e) {
+                throw new UncheckedIOException(e);
+              }
             }
-          }
-        });
+          });
+    } catch (UncheckedIOException e) {
+      throw e.getCause();
+    }
     writer.flush();
   }
 
@@ -411,43 +457,61 @@ public final class RecoveryFile {
     return null;
   }
 
+  /** Reads the body block by block; each block is digested and decoded as a step. */
   private static void readUtf8(
       InputStream in,
-      long length,
-      MessageDigest sha,
-      DocumentBuilder text,
-      LoadReservation reservation)
+      final long length,
+      final MessageDigest sha,
+      final DocumentBuilder text,
+      final LoadReservation reservation)
       throws IOException {
-    CharsetDecoder decoder =
+    final CharsetDecoder decoder =
         StandardCharsets.UTF_8
             .newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT);
-    ByteBuffer bytes = ByteBuffer.allocate(BLOCK_BYTES);
-    CharBuffer chars = CharBuffer.allocate(BLOCK_BYTES);
+    final ByteBuffer bytes = ByteBuffer.allocate(BLOCK_BYTES);
+    final CharBuffer chars = CharBuffer.allocate(BLOCK_BYTES);
     long left = length;
     while (left > 0) {
       int want = (int) Math.min(left, bytes.remaining());
-      int read = in.readNBytes(bytes.array(), bytes.position(), want);
+      final int read = in.readNBytes(bytes.array(), bytes.position(), want);
       if (read < want) {
         throw new DamagedException("Truncated");
       }
-      sha.update(bytes.array(), bytes.position(), read);
       left -= read;
-      bytes.position(bytes.position() + read);
-      bytes.flip();
-      decode(decoder, bytes, chars, left == 0, text);
-      bytes.compact();
-      charge(text, reservation, length - left);
+      final long remaining = left;
+      CpuSteps.run(
+          null,
+          new CpuSteps.Step<Void>() {
+            @Override
+            public Void run() throws IOException {
+              sha.update(bytes.array(), bytes.position(), read);
+              bytes.position(bytes.position() + read);
+              bytes.flip();
+              decode(decoder, bytes, chars, remaining == 0, text);
+              bytes.compact();
+              charge(text, reservation, length - remaining);
+              return null;
+            }
+          });
     }
-    if (length == 0) {
-      bytes.flip();
-      decode(decoder, bytes, chars, true, text);
-    }
-    if (decoder.flush(chars).isError()) {
-      throw new DamagedException("Not UTF-8");
-    }
-    drain(chars, text);
+    CpuSteps.run(
+        null,
+        new CpuSteps.Step<Void>() {
+          @Override
+          public Void run() throws IOException {
+            if (length == 0) {
+              bytes.flip();
+              decode(decoder, bytes, chars, true, text);
+            }
+            if (decoder.flush(chars).isError()) {
+              throw new DamagedException("Not UTF-8");
+            }
+            drain(chars, text);
+            return null;
+          }
+        });
   }
 
   private static void charge(DocumentBuilder text, LoadReservation reservation, long read)
@@ -484,33 +548,43 @@ public final class RecoveryFile {
     chars.clear();
   }
 
+  /** Reads a UTF-16BE body block by block; each block is digested and converted as a step. */
   private static void readWide(
       InputStream in,
       long length,
-      MessageDigest sha,
-      DocumentBuilder text,
-      LoadReservation reservation)
+      final MessageDigest sha,
+      final DocumentBuilder text,
+      final LoadReservation reservation)
       throws IOException {
     if (length % 2 != 0) {
       throw new DamagedException("Odd body length");
     }
-    byte[] block = new byte[BLOCK_BYTES];
-    char[] chars = new char[BLOCK_BYTES / 2];
+    final byte[] block = new byte[BLOCK_BYTES];
+    final char[] chars = new char[BLOCK_BYTES / 2];
     long left = length;
     while (left > 0) {
-      int want = (int) Math.min(left, block.length);
+      final int want = (int) Math.min(left, block.length);
       if (in.readNBytes(block, 0, want) < want) {
         throw new DamagedException("Truncated");
       }
-      sha.update(block, 0, want);
       left -= want;
-      if (text != null) {
-        for (int i = 0; i < want; i += 2) {
-          chars[i / 2] = (char) ((block[i] & 0xff) << 8 | block[i + 1] & 0xff);
-        }
-        text.append(chars, 0, want / 2);
-      }
-      charge(text, reservation, length - left);
+      final long read = length - left;
+      CpuSteps.run(
+          null,
+          new CpuSteps.Step<Void>() {
+            @Override
+            public Void run() throws IOException {
+              sha.update(block, 0, want);
+              if (text != null) {
+                for (int i = 0; i < want; i += 2) {
+                  chars[i / 2] = (char) ((block[i] & 0xff) << 8 | block[i + 1] & 0xff);
+                }
+                text.append(chars, 0, want / 2);
+              }
+              charge(text, reservation, read);
+              return null;
+            }
+          });
     }
   }
 }

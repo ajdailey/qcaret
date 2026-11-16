@@ -34,6 +34,13 @@
     <Bug pattern="INFORMATION_EXPOSURE_THROUGH_AN_ERROR_MESSAGE"/>
   </Match>
 
+  <!-- A CPU step runs on the bulk pool; its waiter rethrows the step's
+       unchecked exception, such as a CancellationException, as its own. -->
+  <Match>
+    <Class name="io.github.ajdailey.qcaret.core.concurrent.CpuSteps$Handoff"/>
+    <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+  </Match>
+
   <!-- The bootstrap invokes the launcher's main reflectively and rethrows
        whatever exception it ends with. -->
   <Match>

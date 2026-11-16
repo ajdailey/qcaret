@@ -37,7 +37,8 @@ at once; a rename from it moves their watches to the new path
 
 ## Reload
 
-Reload compares the file with the text on a `qcaret-io-` worker, in two passes
+Reload reads the file on a `qcaret-io-` worker and compares it with the text on
+the bulk pool, block by block, in two passes
 that hold only the changed span (`DocumentFiles.reload`), and replaces the span
 between the common prefix and suffix as one undo step. Each view's caret keeps
 its line and column; the views keep their top line. The document is clean
