@@ -36,6 +36,7 @@ class PlatformTraitsTest {
     "sizesToolPictures",
     "switchesThemeLive",
     "followsSystemAppearance",
+    "themesAtCreation",
     "raisesLinkContrast",
     "lightChecksUnderDark",
     "colorsDialogs",
@@ -72,6 +73,7 @@ class PlatformTraitsTest {
     answers.add(traits.sizesToolPictures());
     answers.add(traits.switchesThemeLive());
     answers.add(traits.followsSystemAppearance());
+    answers.add(traits.themesAtCreation());
     answers.add(traits.raisesLinkContrast());
     answers.add(traits.lightChecksUnderDark());
     answers.add(traits.colorsDialogs());
@@ -118,6 +120,7 @@ class PlatformTraitsTest {
         false,
         false,
         false,
+        true,
         false,
         true,
         true,
@@ -158,6 +161,7 @@ class PlatformTraitsTest {
         false,
         false,
         false,
+        false,
         true,
         false,
         true,
@@ -192,6 +196,7 @@ class PlatformTraitsTest {
         true,
         false,
         true,
+        false,
         false,
         true,
         false,
@@ -229,6 +234,7 @@ class PlatformTraitsTest {
         true,
         true,
         true,
+        false,
         false,
         true,
         false,

@@ -319,8 +319,9 @@ apply (measured on Linux, one million lines):
   The figures refresh every 2 seconds while the indicator shows. The choice is
   saved; it is off at first.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
-  at the next start; under Dark, dialogs are dark while the main window's docks,
-  fields and toolbar stay light. On macOS they follow the system appearance, also
+  at the next start, and System takes them from the Windows setting at start;
+  under a dark start, dialogs are dark while the main window's docks, fields and
+  toolbar stay light. On macOS they follow the system appearance, also
   while QCaret runs. On Linux a GTK theme with no dark variant keeps native
   controls light; the editor and tabs still change.
 - Editor colors, on the Editor tab of Tools > Preferences, colors the editors,

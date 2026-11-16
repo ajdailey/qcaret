@@ -30,11 +30,12 @@ import org.eclipse.swt.widgets.Shell;
  *
  * <p>Native controls take the theme from {@link Display#setDarkThemePreferred}. GTK applies a
  * change at once, so {@link #preferDark} calls it there. win32 controls read it only when created,
- * so {@link #open} sets it before the first Shell and {@link #showsNow} reports whether that
- * startup setting matches a request. On cocoa native controls always follow the system appearance
- * and the service never calls it: cocoa SWT reads its widget colors once, under the system
- * appearance, and an application appearance that differs draws text in its own appearance over
- * those backgrounds, white on light gray or black on dark gray. Do not pin the cocoa appearance.
+ * so {@link #open} sets it before the first Shell, under the system theme from the system setting
+ * at start, and {@link #showsNow} reports whether that startup setting matches a request. On cocoa
+ * native controls always follow the system appearance and the service never calls it: cocoa SWT
+ * reads its widget colors once, under the system appearance, and an application appearance that
+ * differs draws text in its own appearance over those backgrounds, white on light gray or black on
+ * dark gray. Do not pin the cocoa appearance.
  *
  * <p>A GTK theme with no dark variant ignores {@code setDarkThemePreferred}, and so does a named
  * theme that is not installed: GTK falls back to light Adwaita. Native controls then stay light
@@ -142,21 +143,39 @@ public final class SwtThemeService implements ThemeService {
   }
 
   /**
-   * Creates the service and, for light or dark off cocoa, sets the native controls' theme; call
-   * before the first Shell exists.
+   * Creates the service and sets the native controls' theme to the mode's palette side: for light
+   * or dark on GTK and win32, and for system on win32, where the system setting is read once here.
+   * On cocoa, and for system on GTK, native controls follow the platform's own setting. Call before
+   * the first Shell exists.
    *
    * @param display a Display with no Shell
    * @param mode the theme setting
    * @return the service
    */
   public static SwtThemeService open(Display display, ThemeMode mode) {
-    if (mode == ThemeMode.SYSTEM || PLATFORM.followsSystemAppearance()) {
-      return new SwtThemeService(display);
+    return open(display, mode, PLATFORM, SYSTEM_SETTING);
+  }
+
+  /**
+   * Creates the service as {@link #open(Display, ThemeMode)} does, for given traits and system
+   * setting.
+   *
+   * @param display a Display with no Shell
+   * @param mode the theme setting
+   * @param platform the platform's traits
+   * @param system reads the system setting
+   * @return the service
+   */
+  static SwtThemeService open(
+      Display display, ThemeMode mode, PlatformTraits platform, BooleanSupplier system) {
+    if (platform.followsSystemAppearance()
+        || (mode == ThemeMode.SYSTEM && !platform.themesAtCreation())) {
+      return new SwtThemeService(display, false, system, platform.pollsSystemTheme());
     }
-    boolean value = ThemeController.resolve(mode, Display.isSystemDarkTheme()).dark();
+    boolean value = ThemeController.resolve(mode, system.getAsBoolean()).dark();
     display.setDarkThemePreferred(value);
     display.setData(NATIVE_DARK, value);
-    return new SwtThemeService(display, value, SYSTEM_SETTING, PLATFORM.pollsSystemTheme());
+    return new SwtThemeService(display, value, system, platform.pollsSystemTheme());
   }
 
   /**

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,10 +70,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * On win32 every control class of a {@link Dialogs#shell} dialog, and About and each Preferences
- * page, draw on the dialog's side, dark under a dark startup setting and light under a light one,
- * with readable text. The check reads screen pixels, since {@code getBackground} can differ from
- * what win32 draws. Each case saves the dialog and its readings to {@code
- * target/diagnostics/win32-dialogs/}. Skipped where the screen does not show the test window.
+ * page, draw on the dialog's side, dark under a dark startup setting, including a System start on a
+ * dark system, and light under a light one, with readable text. The check reads screen pixels,
+ * since {@code getBackground} can differ from what win32 draws. Each case saves the dialog and its
+ * readings to {@code target/diagnostics/win32-dialogs/}. Skipped where the screen does not show the
+ * test window.
  */
 @Tag("swt")
 class Win32DarkDialogsTest {
@@ -90,6 +92,14 @@ class Win32DarkDialogsTest {
   /** Controls whose text win32 draws in a system color public API cannot set. */
   private static final Set<String> LIMITS =
       Set.of("Button check disabled", "Label disabled", "ProgressBar", "Text disabled");
+
+  private static final BooleanSupplier DARK_SYSTEM =
+      new BooleanSupplier() {
+        @Override
+        public boolean getAsBoolean() {
+          return true;
+        }
+      };
 
   @TempDir Path temp;
 
@@ -247,6 +257,11 @@ class Win32DarkDialogsTest {
     dialogs(ThemeMode.LIGHT, "light");
   }
 
+  @Test
+  void aboutAndPreferencesFollowADarkSystemUnderASystemStart() {
+    dialogs(ThemeMode.SYSTEM, "system");
+  }
+
   /**
    * Checks that a control draws on a ground of the dialog's side and, when its text must read, that
    * its strongest ink reaches the text contrast.
@@ -280,7 +295,7 @@ class Win32DarkDialogsTest {
 
   private void dialogs(ThemeMode mode, String name) {
     assumeTrue("win32".equals(SWT.getPlatform()), "win32 dark dialogs");
-    dark = mode == ThemeMode.DARK;
+    dark = mode != ThemeMode.LIGHT;
     display = new Display();
     workers =
         new Workers(
@@ -291,8 +306,13 @@ class Win32DarkDialogsTest {
                 failure.set(error);
               }
             });
-    SwtThemeService system = SwtThemeService.open(display, mode);
-    window = new MainWindow(display, mode == ThemeMode.DARK ? Palette.DARK : Palette.LIGHT);
+    // A System start reads a dark system setting, whatever the runner's.
+    SwtThemeService system =
+        mode == ThemeMode.SYSTEM
+            ? SwtThemeService.open(display, mode, PlatformTraits.PLATFORM, DARK_SYSTEM)
+            : SwtThemeService.open(display, mode);
+    assertEquals(dark, SwtThemeService.nativeDark(display));
+    window = new MainWindow(display, dark ? Palette.DARK : Palette.LIGHT);
     controller =
         new ApplicationController(
             workers,

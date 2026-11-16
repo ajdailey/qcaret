@@ -107,6 +107,11 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
+  public boolean themesAtCreation() {
+    return true;
+  }
+
+  @Override
   public boolean raisesLinkContrast() {
     return false;
   }

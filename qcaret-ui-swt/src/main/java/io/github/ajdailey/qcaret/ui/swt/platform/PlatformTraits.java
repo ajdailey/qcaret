@@ -186,6 +186,14 @@ public interface PlatformTraits {
   boolean followsSystemAppearance();
 
   /**
+   * Reports whether native controls read the dark theme setting only when created, so a system
+   * theme start sets it from the system setting.
+   *
+   * @return true on win32
+   */
+  boolean themesAtCreation();
+
+  /**
    * Reports whether a {@code Link} takes a link color raised to readable contrast, and again at
    * each theme change. Adwaita's dark link color has 3.25 contrast on its window background, and a
    * link keeps the color of its creation.

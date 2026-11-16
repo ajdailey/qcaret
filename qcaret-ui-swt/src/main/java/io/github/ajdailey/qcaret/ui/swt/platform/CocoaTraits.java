@@ -107,6 +107,11 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
+  public boolean themesAtCreation() {
+    return false;
+  }
+
+  @Override
   public boolean raisesLinkContrast() {
     return false;
   }

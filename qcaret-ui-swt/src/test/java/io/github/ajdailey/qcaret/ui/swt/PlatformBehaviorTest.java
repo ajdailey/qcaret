@@ -1,11 +1,14 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -37,6 +40,14 @@ class PlatformBehaviorTest {
         @Override
         public boolean getAsBoolean() {
           return false;
+        }
+      };
+
+  private static final BooleanSupplier DARK_SYSTEM =
+      new BooleanSupplier() {
+        @Override
+        public boolean getAsBoolean() {
+          return true;
         }
       };
 
@@ -87,6 +98,32 @@ class PlatformBehaviorTest {
     SwtThemeService service = new SwtThemeService(display, false, LIGHT_SYSTEM, false);
     assertTrue(service.showsNow(false));
     assertEquals(!WIN32, service.showsNow(true));
+  }
+
+  @Test
+  void systemStartSetsNativeDarkWhereControlsThemeAtCreation() {
+    try {
+      assertEquals(WIN32, systemStart(PlatformTraits.PLATFORM, DARK_SYSTEM));
+      for (String platform : new String[] {"win32", "cocoa", "gtk"}) {
+        for (boolean gtk4 : new boolean[] {false, true}) {
+          PlatformTraits traits = PlatformTraits.of(platform, gtk4);
+          assertEquals(
+              "win32".equals(platform), systemStart(traits, DARK_SYSTEM), platform + " " + gtk4);
+        }
+      }
+      assertFalse(systemStart(PlatformTraits.of("win32", false), LIGHT_SYSTEM));
+    } finally {
+      display.setDarkThemePreferred(false);
+    }
+  }
+
+  /** Opens the theme service on a new Display under System and returns its native setting. */
+  private boolean systemStart(PlatformTraits traits, BooleanSupplier system) {
+    display.setDarkThemePreferred(false);
+    display.dispose();
+    display = new Display();
+    SwtThemeService.open(display, ThemeMode.SYSTEM, traits, system);
+    return SwtThemeService.nativeDark(display);
   }
 
   @Test
