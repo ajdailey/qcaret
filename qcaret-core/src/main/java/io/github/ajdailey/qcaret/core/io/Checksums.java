@@ -10,8 +10,10 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.function.LongConsumer;
@@ -24,20 +26,24 @@ public final class Checksums {
   private Checksums() {}
 
   /**
-   * Digests a file, one buffer of {@value #BUFFER_BYTES} bytes at a time.
+   * Digests a file, one buffer of {@value #BUFFER_BYTES} bytes at a time. Only a regular file is
+   * opened: opening a FIFO blocks until a writer appears, and a device can read without end.
    *
    * @param file the file; a symbolic link is followed
    * @param digest a fresh digest, reset by this call
    * @param token checked before each buffer
    * @param progress receives the bytes read so far after each buffer
    * @return the digest in lower-case hex
-   * @throws IOException when the file cannot be opened or read
+   * @throws IOException when the file is not a regular file or cannot be opened or read
    * @throws java.util.concurrent.CancellationException once the token is canceled
    */
   @WorkerThread
   public static String ofFile(
       Path file, MessageDigest digest, CancellationToken token, LongConsumer progress)
       throws IOException {
+    if (!Files.readAttributes(file, BasicFileAttributes.class).isRegularFile()) {
+      throw new IOException("not a regular file");
+    }
     ByteBuffer buffer = ByteBuffer.allocate(BUFFER_BYTES);
     long read = 0;
     try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {

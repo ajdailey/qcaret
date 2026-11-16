@@ -65,16 +65,26 @@ counts it and names the first.
 
 The list is the selected document's text when the document has a file, unsaved
 edits included, or a file chosen with Choose List, read as UTF-8 with malformed
-bytes replaced. Names resolve against the list file's folder; an absolute name
-stands as written. The dialog shows a line per entry in list order, then each
-bad line, then the totals.
+bytes replaced. Names resolve against the list file's folder; an absolute local
+name stands as written. The dialog shows a line per entry in list order, then
+each bad line, then the totals.
+
+`ChecksumCheck.file` checks each name before the size total or the digest
+touches it. Where `OsTraits.opensDeviceNames` (Windows), it refuses a name
+`SafePaths.checkForm` refuses (`CON`, `\\.\`, `\\?\`) and a UNC name whose
+`\\server\share` differs from the list folder's, ignoring the case of ASCII
+letters only: opening a UNC name connects to the host with the user's
+credentials. `Checksums.ofFile` then opens only a regular file, so a FIFO
+cannot block the worker in `open` and a device cannot read without end. The
+attribute read and the open are two calls; a FIFO swapped in between still
+blocks.
 
 | Outcome | When |
 |---|---|
 | OK | The digest matches |
 | FAILED | The digest differs |
-| MISSING | The open reports no file at the name (`NoSuchFileException`), a broken link included |
-| unreadable | Any other open or read failure (a folder, access denied, a folder on the way without search permission), the name is not a valid path here, or the algorithm is unavailable |
+| MISSING | The lookup reports no file at the name (`NoSuchFileException`), a broken link included |
+| unreadable | Any other lookup, open or read failure (access denied, a folder on the way without search permission), not a regular file (a folder, FIFO or device), a name `ChecksumCheck.file` refuses or that is not a valid path here, or the algorithm is unavailable |
 
 A list written on Windows with backslash separators resolves on Linux and
 macOS as one name holding backslashes, so its entries report MISSING.

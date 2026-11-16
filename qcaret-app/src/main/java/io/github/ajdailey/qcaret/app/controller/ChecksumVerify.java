@@ -16,7 +16,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
@@ -27,7 +26,8 @@ import java.util.function.LongConsumer;
  * ChecksumList}) one after another and shows {@code <name>: OK}, {@code FAILED}, {@code MISSING} or
  * {@code unreadable} for each, then each line that did not parse, then the totals. The list is the
  * selected document's text when the document has a file, or a file chosen with Choose List, read as
- * UTF-8. Names resolve against the list file's folder.
+ * UTF-8. Names resolve against the list file's folder through {@link ChecksumCheck#file}, which
+ * also refuses device and foreign UNC names before the size total reads any file.
  */
 final class ChecksumVerify extends ChecksumRun<ChecksumVerify.Request> {
   private final DocumentController documents;
@@ -99,7 +99,7 @@ final class ChecksumVerify extends ChecksumRun<ChecksumVerify.Request> {
     for (ChecksumList.Entry entry : list.entries()) {
       try {
         total += Files.size(ChecksumCheck.file(request.folder(), entry));
-      } catch (IOException | InvalidPathException e) {
+      } catch (IOException e) {
         // The check reports it.
       }
     }

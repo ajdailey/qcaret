@@ -699,11 +699,17 @@ shows disabled, with the reason in its tool tip.
 
 Tools > Verify Checksums checks a `sha256sum`-style list: the selected
 document, when it has a file, or a list chosen with Choose List. A line may use
-`*` before the name. Names are relative to the list's folder. Each file shows
-OK, FAILED, MISSING or unreadable (a file behind a folder you cannot open is
+`*` before the name. Names are relative to the list's folder; an absolute name
+on a local drive is checked where it points. Each file shows OK, FAILED,
+MISSING or unreadable with the reason (a file behind a folder you cannot open is
 unreadable, not MISSING), lines that are not checksum lines are listed,
 and the totals end the list. Lines may end in LF, CR LF or CR, and a chosen
 list may start with a UTF-8 byte order mark.
+
+Verify opens only regular files: a folder, pipe or device is unreadable and is
+not opened. On Windows, a device name (`CON`, `\\.\`, `\\?\`) is unreadable,
+and so is a network name (`\\server\share\...`) unless the list is on that
+share.
 
 ## Sessions and recovery
 

@@ -9,7 +9,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.core.io.ChecksumList;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,7 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Checksum list files: Save As writes through {@code SafeSave} with its holds, Generate from Files
  * names files relative to the folder Save As offers, and Verify tells a missing file from one it
- * cannot reach.
+ * cannot reach or does not open.
  */
 class ChecksumFilesTest {
   private static final String ABC_SHA256 =
@@ -172,6 +174,61 @@ class ChecksumFilesTest {
     harness.view.openChooser.accept(List.of(saved));
     finished();
     assertEquals(List.of("a/x.txt: OK", "b/y.txt: OK"), verified.lines);
+  }
+
+  /** Runs Verify over a chosen list holding {@code text}; returns the dialog. */
+  private FakeView.Checksums verified(String text) throws Exception {
+    Path list = Files.writeString(dir.resolve("SHA256SUMS"), text, StandardCharsets.UTF_8);
+    harness.application.execute(CommandId.VERIFY_CHECKSUMS);
+    FakeView.Checksums shown = harness.view.checksums;
+    shown.status = null;
+    shown.input.choose();
+    harness.view.openChooser.accept(List.of(list));
+    return finished();
+  }
+
+  /**
+   * An absolute local name verifies. A UNC name off the list's share is refused on Windows before
+   * any connection; elsewhere it is a relative name holding backslashes.
+   */
+  @Test
+  void anAbsoluteLocalNameVerifiesAndAForeignShareIsRefused() throws Exception {
+    Path other = Files.createDirectory(temp.resolve("other")).toRealPath();
+    Path file = Files.writeString(other.resolve("abc.txt"), "abc", StandardCharsets.US_ASCII);
+    String absolute = file.toString();
+    String unc = "\\\\qcaret-mock.invalid\\share\\x.txt";
+    FakeView.Checksums shown =
+        verified(
+            ChecksumList.line(ABC_SHA256, absolute)
+                + "\n"
+                + ChecksumList.line(ABC_SHA256, unc)
+                + "\n");
+    String refused =
+        OsTraits.current().opensDeviceNames()
+            ? UiText.CHECKSUM_UNREADABLE.format(unc, "names a network share the list is not on")
+            : UiText.CHECKSUM_MISSING.format(unc);
+    assertEquals(List.of(UiText.CHECKSUM_OK.format(absolute), refused), shown.lines);
+  }
+
+  /** A FIFO entry is reported without opening it, so the run ends. */
+  @Test
+  void aFifoIsUnreadable() throws Exception {
+    assumeTrue(dir.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Path fifo = dir.resolve("pipe");
+    Process mkfifo;
+    try {
+      mkfifo = new ProcessBuilder("mkfifo", fifo.toString()).inheritIO().start();
+    } catch (IOException e) {
+      assumeTrue(false, "no mkfifo");
+      return;
+    }
+    assumeTrue(mkfifo.waitFor() == 0 && Files.exists(fifo), "mkfifo failed");
+    FakeView.Checksums shown = verified(ABC_SHA256 + "  pipe\n" + ABC_SHA256 + "  gone.txt\n");
+    assertEquals(
+        List.of(
+            UiText.CHECKSUM_UNREADABLE.format("pipe", "not a regular file"),
+            UiText.CHECKSUM_MISSING.format("gone.txt")),
+        shown.lines);
   }
 
   /** A folder without search permission hides whether the file exists: unreadable, not MISSING. */
