@@ -220,7 +220,7 @@ closes, so two starts cannot list one buffer. `open` creates its directory and
 takes its `owner.lock` while holding `<settings>/recovery.lock`, and `claimDead`
 takes directory locks only while holding it: otherwise a sibling's claim locks
 the new, empty directory and deletes it, and the start runs with recovery off
-(G2 FINDING-B8, 2 of 6 concurrent starts on macOS). Each waits up to 2 s for
+(observed in 2 of 6 concurrent starts on macOS). Each waits up to 2 s for
 `recovery.lock`; a start that gets none runs with recovery off, a claim that gets
 none lists nothing until the next start. `moveSnapshotsToRecovery` fills its
 new directory under the same lock. On a JDK without `flock`, `open`

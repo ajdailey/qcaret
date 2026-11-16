@@ -10,9 +10,9 @@ does the rest on the job's worker. `PrintDialogs.create` opens the dialog with
 `PrinterData.SELECTION` while the document has a non-empty selection, except
 where `PlatformTraits.printDialogOmitsSelection` holds (win32). The Windows 11
 dialog offers All pages and a custom range only; opened with `PD_SELECTION` it
-showed All pages and the job printed only the selection (G1 S9-7, observed). On
-win32 the dialog opens on its default scope, so the job prints what the dialog
-shows. File > Print Selection opens the same dialog; `PrintController` prints
+showed All pages and the job printed only the selection (observed on Windows
+11). On win32 the dialog opens on its default scope, so the job prints what the
+dialog shows. File > Print Selection opens the same dialog; `PrintController` prints
 the selection whatever scope comes back, so Selection is reachable on win32.
 Before the dialog opens, `PrintJobNaming` names the job (see [Job
 name](#job-name)). A `ProgressRow`
@@ -52,7 +52,7 @@ GTK does not also pass it to CUPS for a `GtkPrintJob`.
 `PrintJob.start` passes the document's name to `Printer.startJob` on every
 platform. On macOS that sets `NSPrintOperation.jobTitle` after `NSPrintPanel`
 has closed, too late for the panel's PDF > Save as PDF sheet, which showed
-"Untitled" (G2 S9-10, G2-D-3).
+"Untitled" (observed on macOS).
 
 `PrintJobNaming.PLATFORM.name` runs before `PrintDialog.open` for Print and
 Print Selection. On cocoa, `CocoaPrintJobNaming` writes `PrintJobNaming.jobName`
@@ -67,14 +67,13 @@ proposes "Untitled"; printing is unaffected. win32 and GTK use
 `PrintJobNaming.NONE`.
 
 SWT passes `PrinterData.fileName` to the panel as `NSPrintSavePath`; the sheet
-ignored it in G2-D-3 (observed), so QCaret does not set it.
+ignores it (observed on macOS), so QCaret does not set it.
 
-| Claim | Status |
-|---|---|
-| The sheet proposes the job name from the print settings (Firefox calls `PMPrintSettingsSetJobName` before its panel for this) | Assumed from Firefox's fix; needs the Mac |
-| `printSettings` key `com_apple_print_JobInfo_PMJobName` is that job name | Assumed (Core Printing's `kPMJobNameKey`, underscored as `printSettings` spells keys); needs the Mac |
-| The name survives the copy and `updateFromPMPrintSettings` that `PrintDialog.open` runs | `PrintJobNamingTest` on the macOS CI runner |
-| The SWT members resolve | `PrintJobNamingTest` on the macOS CI runner; verified in the 3.135.0 aarch64 and x86_64 bytecode with `javap` |
+The key is Core Printing's `kPMJobNameKey` as `printSettings` spells it; Save
+as PDF proposing the job name is verified on macOS 27 (arm64).
+`PrintJobNamingTest` on the macOS CI runner checks that the SWT members resolve
+and that the name survives the copy and `updateFromPMPrintSettings` that
+`PrintDialog.open` runs.
 
 ## GTK 4
 

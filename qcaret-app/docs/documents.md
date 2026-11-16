@@ -58,7 +58,7 @@ A document of `DocumentOpener.SLOW_PANE_LINES` (500,000) lines or more reaches
 `ActivityIndicator` operation (the busy cursor) and calls
 `Progress.paneStarting`, which `DocumentController` shows as the
 `LOAD_PREPARING` notice, so both paint before the editor's build holds the UI
-thread (`StyledText.setContent`, 963 ms for 3,000,001 lines on the G1 Windows
+thread (`StyledText.setContent`, 963 ms for 3,000,001 lines on a Windows
 host). `paneBuilt`, which clears the notice, and the operation's end follow the
 call; a close between the turns drops the document and releases its
 reservation.
@@ -108,7 +108,7 @@ window's.
    most `OPENED_PER_TURN` (4) per UI task, and posts the rest behind whatever
    was queued meanwhile. Each call builds a tab (about 20 ms on Linux, mostly
    `StyledText` creation); 100 handed files queued back to back held every
-   other UI task 2.1-2.4 s on Linux and 1.6 s on macOS (G2 FINDING-W7), and
+   other UI task 2.1-2.4 s on Linux and 1.6 s on macOS, and
    with the pacer 57-94 ms on Linux (`OpenTabsProbe`). `running` counts the
    documents still waiting, so `loading() == 0` means every tab exists. A
    document whose open was closed or canceled while waiting is dropped and its

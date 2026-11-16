@@ -165,7 +165,7 @@ the dialog cancels a running match.
   placeholder on `workspaceChanged`, and a refill keeps the expansion of rows
   that remain. `reveal` expands the chain's directories but not its last row: a
   renamed or new folder it selects is not listed, and a refill would leave the
-  row no child and so no expand arrow (G1 RM-13).
+  row no child and so no expand arrow.
 - The tree is `SWT.MULTI`: Ctrl-click (Cmd-click on macOS) toggles a row and
   Shift-click selects a range. `BrowserSelection` passes the selected rows and
   the focused row to `WorkspaceSelectionInput`, which enables and runs the row

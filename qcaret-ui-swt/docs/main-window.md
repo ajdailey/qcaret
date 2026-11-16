@@ -186,7 +186,7 @@ no application menu and `hook` does nothing.
   events in its first event-loop passes, after it chose to restore the session:
   a start that names nothing runs `LaunchDocuments.collect` right after the
   Display, before `AppMenu.hook`, and starts with any files it collects as file
-  arguments, releasing `SessionLock` (G2 M12; the drain is unverified on cocoa).
+  arguments, releasing `SessionLock` (the drain is unverified on cocoa).
   A launch that hands off to a running instance takes them with
   `LaunchDocuments.await`, which waits up to 1 s for the first event and 200 ms
   after the last ([qcaret-launcher](../../qcaret-launcher/README.md)).
@@ -373,6 +373,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
+| `handsFilesAsEvents` | - | yes | - | - | `HandoffDocuments`: collects open-document events before a handoff (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |
 | `windowMenuControls` | - | yes | - | - | `MainMenuBar`: Minimize and Zoom (see [Menus](#menus)) |
 | `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |

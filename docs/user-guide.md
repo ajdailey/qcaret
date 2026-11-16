@@ -193,8 +193,7 @@ macOS):
 After a file of 500,000 lines or more is read, the window pauses once while the
 editor takes its lines: the status bar shows
 `Preparing <name> for display: <n> lines` and the busy cursor until the editor
-shows. A 3,000,001-line file paused 963 ms on Windows; typing and find on it did
-not pause afterwards.
+shows.
 
 A reload holds only the text between the first and last change. A file at these
 limits reloads a change of about 19 MiB of text at most; a larger one leaves

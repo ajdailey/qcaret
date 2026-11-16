@@ -130,7 +130,7 @@ appearance those are the Display's `COLOR_LIST_BACKGROUND` and
 `Table` header repaints new colors only when shown again (`redraw` leaves the
 area right of the last column stale), so after a change `CocoaChrome` hides and
 shows a visible one. A `Tree` header repaints at once. Measured on macOS 27.2
-with SWT 3.135.0 (QLogg G2 header probe).
+with SWT 3.135.0.
 
 - A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor,
   compare and replace preview `StyledText` and the tab strip, which the palette
