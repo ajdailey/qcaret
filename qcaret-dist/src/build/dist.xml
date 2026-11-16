@@ -12,21 +12,25 @@
   <property name="jar.root" location="${build}/jar-root"/>
   <property name="universal.jar" location="${build}/qcaret.jar"/>
   <property name="out" location="${qcaret.dist.dir}"/>
-  <property name="jdk.top" value="jdk-21.0.12+8"/>
+  <!-- Temurin JDK archives, from jdk.url unless jdk.<target>.url names
+       another release. Adoptium publishes no windows-aarch64 build of
+       21.0.13+9, so that target takes 21.0.12+8. -->
   <property name="jdk.url"
+      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9"/>
+  <property name="jdk.linux-x86_64" value="OpenJDK21U-jdk_x64_linux_hotspot_21.0.13_9.tar.gz"/>
+  <property name="jdk.linux-x86_64.sha256" value="d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c"/>
+  <property name="jdk.linux-aarch64" value="OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.13_9.tar.gz"/>
+  <property name="jdk.linux-aarch64.sha256" value="e3522e707fc7dbe2a72c30746b1e7068301a0213ecd213d4491f35a14eb55578"/>
+  <property name="jdk.windows-x86_64" value="OpenJDK21U-jdk_x64_windows_hotspot_21.0.13_9.zip"/>
+  <property name="jdk.windows-x86_64.sha256" value="a4dbaa05fca4bd89d84584e58c459bd732efebb1722af80ab13c6516832004f9"/>
+  <property name="jdk.windows-aarch64.url"
       value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12%2B8"/>
-  <property name="jdk.linux-x86_64" value="OpenJDK21U-jdk_x64_linux_hotspot_21.0.12_8.tar.gz"/>
-  <property name="jdk.linux-x86_64.sha256" value="e4446ff06a276155697597cc0f1b15da004ff083f4964a35271ecee567177370"/>
-  <property name="jdk.linux-aarch64" value="OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.12_8.tar.gz"/>
-  <property name="jdk.linux-aarch64.sha256" value="eba38e871b02d407897bfe017ea35352dfc1420ef6d2112425b0c67325ca509d"/>
-  <property name="jdk.windows-x86_64" value="OpenJDK21U-jdk_x64_windows_hotspot_21.0.12_8.zip"/>
-  <property name="jdk.windows-x86_64.sha256" value="9ba963ee2371874a74185d18bc7bb2ab9407df7683300855ed7606e0662321d0"/>
   <property name="jdk.windows-aarch64" value="OpenJDK21U-jdk_aarch64_windows_hotspot_21.0.12_8.zip"/>
   <property name="jdk.windows-aarch64.sha256" value="e7ddf1cf45885cae2cfb8a018db60b0041ef69e96843b93a92b447d9a4cba676"/>
-  <property name="jdk.macos-x86_64" value="OpenJDK21U-jdk_x64_mac_hotspot_21.0.12_8.tar.gz"/>
-  <property name="jdk.macos-x86_64.sha256" value="6b85c260eea574a995eacd0b3ee23c8042aa93b23a08e6478edafca0a0333d7f"/>
-  <property name="jdk.macos-aarch64" value="OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.12_8.tar.gz"/>
-  <property name="jdk.macos-aarch64.sha256" value="021d629349ebc12a409faa517b837ec80ceee8f58a5ac85c788ecad07ca6881c"/>
+  <property name="jdk.macos-x86_64" value="OpenJDK21U-jdk_x64_mac_hotspot_21.0.13_9.tar.gz"/>
+  <property name="jdk.macos-x86_64.sha256" value="9aa1d1c17ae5467a022679e7e0af5c00797d94ac462ed1a46f4db07a8a34a6dd"/>
+  <property name="jdk.macos-aarch64" value="OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.13_9.tar.gz"/>
+  <property name="jdk.macos-aarch64.sha256" value="bf036b35b071bfb2f54f2c0af8ee8d88afa95ee6eb3dce02c0f94cfc2524d04a"/>
   <property name="rcodesign.archive" value="apple-codesign-0.29.0-x86_64-unknown-linux-musl.tar.gz"/>
   <property name="rcodesign.sha256" value="dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002"/>
   <property name="rcodesign.url"
@@ -205,22 +209,29 @@ natives.macos-aarch64=${natives.macos-aarch64}
     <macos-bundle if:set="bundle.macos-aarch64" target="macos-aarch64"/>
   </target>
 
-  <!-- Fetches a target's JDK and extracts its jmods to ${build}/jdk/<target>. -->
+  <!-- Fetches a target's JDK and extracts its jmods to ${build}/jdk/<target>,
+       without the archive's top directory. -->
   <macrodef name="jmods">
     <attribute name="target"/>
     <attribute name="zip" default="false"/>
     <sequential>
-      <fetch url="${jdk.url}" name="${jdk.@{target}}" sha256="${jdk.@{target}.sha256}"/>
+      <local name="url"/>
+      <condition property="url" value="${jdk.@{target}.url}" else="${jdk.url}">
+        <isset property="jdk.@{target}.url"/>
+      </condition>
+      <fetch url="${url}" name="${jdk.@{target}}" sha256="${jdk.@{target}.sha256}"/>
       <delete dir="${build}/jdk/@{target}"/>
       <mkdir dir="${build}/jdk/@{target}"/>
       <unzip if:true="@{zip}" src="${qcaret.cache.dir}/${jdk.@{target}}" dest="${build}/jdk/@{target}">
         <patternset includes="*/jmods/**"/>
+        <cutdirsmapper dirs="1"/>
       </unzip>
       <exec unless:true="@{zip}" executable="tar" failonerror="true">
         <arg value="-xzf"/>
         <arg file="${qcaret.cache.dir}/${jdk.@{target}}"/>
         <arg value="-C"/>
         <arg file="${build}/jdk/@{target}"/>
+        <arg value="--strip-components=1"/>
         <arg value="--wildcards"/>
         <arg value="*/jmods/*"/>
       </exec>
@@ -280,7 +291,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <local name="home"/>
       <property name="home" location="${build}/bundles/@{target}/qcaret"/>
       <delete dir="${build}/bundles/@{target}"/>
-      <runtime jmods="${build}/jdk/@{target}/${jdk.top}/jmods" output="${home}/runtime"/>
+      <runtime jmods="${build}/jdk/@{target}/jmods" output="${home}/runtime"/>
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${basedir}/src/bin/qcaret" todir="${home}/bin"/>
@@ -324,7 +335,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <local name="home"/>
       <property name="home" location="${build}/bundles/@{target}/qcaret"/>
       <delete dir="${build}/bundles/@{target}"/>
-      <runtime jmods="${build}/jdk/@{target}/${jdk.top}/jmods" output="${home}/runtime"/>
+      <runtime jmods="${build}/jdk/@{target}/jmods" output="${home}/runtime"/>
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${build}/qcaret.exe" todir="${home}"/>
@@ -349,7 +360,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
     <sequential>
       <jmods target="@{target}"/>
       <local name="jmods"/>
-      <property name="jmods" location="${build}/jdk/@{target}/${jdk.top}/Contents/Home/jmods"/>
+      <property name="jmods" location="${build}/jdk/@{target}/Contents/Home/jmods"/>
       <local name="app"/>
       <property name="app" location="${build}/bundles/@{target}/QCaret.app"/>
       <local name="contents"/>

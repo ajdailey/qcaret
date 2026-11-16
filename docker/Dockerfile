@@ -2,7 +2,8 @@
 # The same ./mvnw runs inside as on a host. compose.yaml mounts the working
 # tree at run time; nothing from it is baked in.
 
-FROM eclipse-temurin:21.0.12_8-jdk-noble
+# Pinned by multi-platform index digest; Dependabot proposes updates.
+FROM eclipse-temurin:21.0.13_9-jdk-noble@sha256:06c1f157dacf6b68198bd9a4186dd4c34ef24e65d7bbbe2a0cf8e62571ad38c9
 
 # git: Spotless reads .gitattributes for line endings.
 # unzip: without it ./mvnw fetches the .tar.gz Maven distribution, which fails

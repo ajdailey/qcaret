@@ -51,7 +51,9 @@ xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw clean verify
 ```
 
 CI runs the GUI tests on a 1280x1024 screen; `qcaret-ui-swt/TESTING.md` names
-the ones a 640x480 screen fails.
+the ones a 640x480 screen fails. CI runs with `umask 022`; under a
+group-writable umask such as 002, single-instance handoff turns off in the
+tests and the launcher tests take the no-handoff path.
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
 rules and every test, and builds the universal jar and the bundle for the build
@@ -84,7 +86,7 @@ The Temurin JDK archives and `rcodesign` are downloaded once into
 `~/.cache/qcaret-build/` (`-Dqcaret.cache.dir` overrides it) and checked
 against pinned SHA-256 digests.
 
-Builds are reproducible: with the same JDK, two builds of one commit write
+Builds are reproducible: with the same JDK (CI's Temurin 21.0.13+9), two builds of one commit write
 byte-identical jars, `qcaret.exe` and archives, every entry dated
 `project.build.outputTimestamp` from the parent POM.
 `.github/scripts/check-reproducible.sh` builds twice and compares SHA-256.
@@ -120,17 +122,17 @@ scripts/container.sh ./mvnw -B spotless:check
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request,
-every pushed `v*` tag and on demand, with Temurin 21.0.12+8. Actions are pinned
-by commit SHA.
+every pushed `v*` tag and on demand, with Temurin 21.0.13+9. Actions are pinned
+by commit SHA, and every checkout sets `persist-credentials: false`.
 
 | Job | Runners | Does |
 |---|---|---|
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
-| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: runs `check-reproducible.sh`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus the POM version, runs `check-reproducible.sh`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
@@ -149,9 +151,24 @@ The draft Release carries the seven archives the `bundle` jobs ran,
 `SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
 release notes. Only the `release` job has `contents: write`. To release:
 
-1. Push the tag: `git tag v<version> && git push origin v<version>`.
-2. Review the draft on the repository's Releases page.
-3. Publish it there, or with `gh release edit v<version> --draft=false`.
+1. Check the bundled Temurin build (`jdk.*` in `qcaret-dist/src/build/dist.xml`)
+   against the latest Oracle Critical Patch Update and the OpenJDK advisories;
+   move the pins if a fixed build exists.
+2. Push an annotated tag:
+
+   ```sh
+   git tag -a v<version> -m "QCaret <version>" && git push origin v<version>
+   ```
+
+3. Review the draft on the repository's Releases page.
+4. Replace the generated notes with the hand-written release notes:
+
+   ```sh
+   gh release edit v<version> --notes-file <notes>.md
+   ```
+
+5. Publish the draft on the Releases page, or with `gh release edit v<version>
+   --draft=false`.
 
 To fix a bad draft, delete the draft and the tag
 (`gh release delete v<version> --cleanup-tag`) and tag again.
@@ -160,11 +177,17 @@ To fix a bad draft, delete the draft and the tag
 
 - `-Psbom` writes the CycloneDX SBOM to `dist/`: every compile and runtime
   dependency of the shipped modules, plus the six SWT fragments `qcaret.jar`
-  carries. It leaves out build-only tools, `qcaret-bench`, the Temurin runtimes
-  and launch4j's header.
+  carries. It leaves out build-only tools and `qcaret-bench`.
+  `.github/scripts/sbom-components.sh`, run by the `package` job, adds the
+  Temurin releases `dist.xml` downloads and launch4j's header.
+- `.mvn/maven.config` sets `--strict-checksums` and a resolver filter that
+  admits only the `central` repository, so a repository a third-party POM
+  declares is never contacted. A settings mirror replaces `central` with its
+  own id; a build through one adds
+  `-Daether.remoteRepositoryFilter.groupId.noInputOutcome.<mirror-id>=true`.
 - `.github/workflows/dependency-check.yml` scans the dependencies for known
   vulnerabilities weekly.
-- Dependabot proposes Maven and Actions updates.
+- Dependabot proposes Maven, Actions and build image updates.
 
 ## Targets
 

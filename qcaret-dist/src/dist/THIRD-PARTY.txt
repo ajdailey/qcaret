@@ -13,11 +13,17 @@ Eclipse Standard Widget Toolkit (SWT) 3.135.0 (3.135.0.v20260819-1952)
 SLF4J 2.0.20 (slf4j-api, slf4j-jdk14)
   License: MIT. https://www.slf4j.org
 
-Eclipse Temurin OpenJDK 21.0.12+8 (per-target bundles only: runtime/, and the
-macOS launcher Contents/MacOS/QCaret from the jdk.jpackage module)
+Eclipse Temurin OpenJDK 21.0.13+9, 21.0.12+8 in the windows-aarch64 bundle
+(per-target bundles only: runtime/, and the macOS launcher
+Contents/MacOS/QCaret from the jdk.jpackage module)
   License: GNU General Public License version 2 with the Classpath Exception.
   The runtime's notices are in its legal/ directory.
   https://adoptium.net
+
+Microsoft Visual C++ runtime DLLs (Windows bundles only: runtime/bin/
+msvcp140.dll, vcruntime140.dll and, in windows-x86_64, vcruntime140_1.dll and
+ucrtbase.dll), redistributed as part of the Temurin Windows runtime
+  License: Microsoft Visual C++ Redistributable license terms.
 
 Launch4j 3.50 executable header (qcaret.exe)
   License: MIT. https://launch4j.sourceforge.net
