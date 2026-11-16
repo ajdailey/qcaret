@@ -152,6 +152,24 @@ recovery dialog, modeless, opens in the same window once `RecoveryController`
 has listed the dead directories on a worker; the notice clears after 8 s
 whether or not the dialog is open.
 
+### Session restore preference
+
+`session.restore` decides whether an owning start opens the session's windows
+(`StartupRequest.restoresWindows`):
+
+| Start | Owns the session | Opens its windows |
+|---|---|---|
+| `--session`, with or without files | Yes | Yes, whatever the preference |
+| No option, no file and no `--diff` | Yes | Only with `session.restore` on |
+| No option, with files or `--diff` | No | No |
+| `--no-session`, `-m` | No | No |
+
+An owning start with the preference off runs as an error-exit skip does
+([Error exit](#error-exit)): `Session.withoutWindows`, the snapshot files moved
+to `recovery/snapshot-<ms>/`, one window with an untitled document. It still
+takes the session lock and saves the session, so Recent Files and per-file
+state carry on. An error exit takes precedence and shows its notice.
+
 ### Clear History
 
 Clear History leaves the result sets in the dock for the run and keeps them out

@@ -1,7 +1,10 @@
 package io.github.ajdailey.qcaret.app.theme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -268,5 +271,29 @@ class FontFilesTest {
   @Test
   void aMissingFolderIsSkipped() {
     assertEquals(List.of(), FontFiles.monospaceFamilies(List.of(temp.resolve("absent"))));
+  }
+
+  /** Confined and portable mode point {@code user.home} at the settings directory. */
+  @Test
+  void theUserFoldersAreUnderTheSavedHome() {
+    assumeFalse(
+        System.getProperty("os.name", "").startsWith("Windows"), "Windows has no home font folder");
+    Path home = temp.resolve("home");
+    String saved = System.getProperty(HomeFolder.PROPERTY);
+    System.setProperty(HomeFolder.PROPERTY, home.toString());
+    try {
+      List<Path> folders = FontFiles.folders();
+      boolean found = false;
+      for (Path folder : folders) {
+        found |= folder.startsWith(home);
+      }
+      assertTrue(found, folders.toString());
+    } finally {
+      if (saved == null) {
+        System.clearProperty(HomeFolder.PROPERTY);
+      } else {
+        System.setProperty(HomeFolder.PROPERTY, saved);
+      }
+    }
   }
 }

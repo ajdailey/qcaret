@@ -264,6 +264,13 @@ public final class MainWindow implements MainView {
                 added.setRightMargin(rightMargin);
                 added.setIndentGuides(indentGuides);
                 added.setLineChangesShown(lineChangesShown);
+                added.setWheelZoom(
+                    new IntConsumer() {
+                      @Override
+                      public void accept(int steps) {
+                        controller.execute(steps > 0 ? CommandId.ZOOM_IN : CommandId.ZOOM_OUT);
+                      }
+                    });
                 busyCursor.paneAdded(added);
                 return added;
               }

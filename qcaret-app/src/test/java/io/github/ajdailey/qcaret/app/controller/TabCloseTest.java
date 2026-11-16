@@ -123,7 +123,9 @@ class TabCloseTest {
                     on,
                     Options.DEFAULTS.newLineEnding(),
                     Options.DEFAULTS.newEncoding(),
-                    "")));
+                    "",
+                    0,
+                    true)));
   }
 
   @Test

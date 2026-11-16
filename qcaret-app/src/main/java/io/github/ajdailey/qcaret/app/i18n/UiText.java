@@ -309,6 +309,8 @@ public enum UiText {
   PREFERENCES_RECOVERY_DAYS,
   /** Preferences box: quit without asking and restore unsaved buffers. */
   PREFERENCES_SESSION_SNAPSHOT,
+  /** Preferences box: a start that names no file opens the session's windows. */
+  PREFERENCES_SESSION_RESTORE,
   /** Title of the session report. */
   SESSION_TITLE,
   /** Files of the last session that did not open: their names. */
@@ -465,6 +467,10 @@ public enum UiText {
   BUTTON_REMOVE_KEY,
   /** Button. */
   BUTTON_RESET_KEY,
+  /** Keys tab button: drops every key override. */
+  BUTTON_RESET_ALL_KEYS,
+  /** Keys tab button: empties the key field. */
+  BUTTON_CLEAR_KEY,
   /** Command label. */
   COMMAND_KEYBOARD_SHORTCUTS,
   /** Command label. */

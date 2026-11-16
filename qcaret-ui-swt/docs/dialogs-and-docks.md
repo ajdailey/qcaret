@@ -91,9 +91,11 @@ modeless window with one tab per `PreferencesForm.Group`, over
   `ClearHistoryDialog`, then clears the saved histories, HyperSearch's last run
   and the session's retained searches at once; Cancel on the dialog does not
   restore them.
-- The Keys tab lists every command; the key field records one stroke. Add
-  refuses a stroke that types or that another command holds and names that
-  command; Remove and Default Keys edit the selected command.
+- The Keys tab lists every command; the key field records one stroke and Clear
+  empties it. Add refuses a stroke that types or that another command holds
+  and names that command; Remove and Default Keys edit the selected command,
+  and Restore All Defaults drops every override. The tab's mnemonics differ
+  from each other and from the dialog buttons'.
 - `setKeymap` rebuilds the menu bar and hands the keymap to every `EditorPane`
   and an open `ShortcutsWindow`.
 

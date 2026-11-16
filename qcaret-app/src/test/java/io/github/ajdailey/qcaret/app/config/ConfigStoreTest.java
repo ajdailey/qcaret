@@ -408,7 +408,9 @@ class ConfigStoreTest {
             true,
             NewLineEnding.CRLF,
             "windows-1251",
-            "");
+            "",
+            18,
+            false);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),

@@ -127,7 +127,8 @@ class PreferencesControllerTest {
         f.newLineEnding(),
         f.newEncoding(),
         f.view(),
-        "");
+        "",
+        field.equals("sessionRestore") ? Boolean.parseBoolean(value) : f.sessionRestore());
   }
 
   @Test
@@ -198,7 +199,8 @@ class PreferencesControllerTest {
                 f.newLineEnding(),
                 f.newEncoding(),
                 f.view(),
-                ""));
+                "",
+                true));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -231,7 +233,8 @@ class PreferencesControllerTest {
                 f.newLineEnding(),
                 f.newEncoding(),
                 f.view(),
-                "")));
+                "",
+                true)));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -336,7 +339,8 @@ class PreferencesControllerTest {
                 f.newLineEnding(),
                 f.newEncoding(),
                 f.view(),
-                "")));
+                "",
+                true)));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -353,17 +357,55 @@ class PreferencesControllerTest {
   }
 
   @Test
-  void theFontSizeAppliesAndZoomStepsIt() throws Exception {
+  void zoomKeepsThePreferencesSizeAndResetReturnsToIt() throws Exception {
     PreferencesInput input = input();
     assertNull(input.apply(with(input.form(), "font", "14")));
     assertEquals(14, harness.view.fontSize);
     harness.application.execute(CommandId.ZOOM_IN);
     assertEquals(15, harness.view.fontSize);
-    assertEquals(15, file(fileHas("editor.fontSize=15")).options().fontSize());
+    Options zoomed = file(fileHas("editor.fontZoom=15")).options();
+    assertEquals(14, zoomed.fontSize());
+    assertEquals("14", input.form().fontSize());
     harness.application.execute(CommandId.ZOOM_RESET);
-    assertEquals(0, harness.view.fontSize);
+    assertEquals(14, harness.view.fontSize);
+    assertEquals(0, file(fileHas("editor.fontZoom=0")).options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_OUT);
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertEquals(14, harness.view.fontSize);
+    assertEquals(0, harness.application.preferences().options().fontZoom());
+  }
+
+  @Test
+  void aPreferencesSizeOrFamilyDropsTheZoomAndAnotherFieldKeepsIt() throws Exception {
+    PreferencesInput input = input();
+    assertNull(input.apply(with(input.form(), "font", "14")));
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertNull(input.apply(with(input.form(), "poll", "9")));
+    assertEquals(15, harness.view.fontSize);
+    assertNull(input.apply(with(input.form(), "font", "16")));
+    assertEquals(16, harness.view.fontSize);
+    assertEquals(0, harness.application.preferences().options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertNull(input.apply(with(input.form(), "fontFamily", "Mock Mono")));
+    assertEquals(16, harness.view.fontSize);
+    assertEquals(0, harness.application.preferences().options().fontZoom());
+  }
+
+  @Test
+  void zoomFromThePlatformSizeResetsToIt() {
     harness.application.execute(CommandId.ZOOM_IN);
     assertEquals(11, harness.view.fontSize);
+    harness.application.execute(CommandId.ZOOM_RESET);
+    assertEquals(0, harness.view.fontSize);
+  }
+
+  @Test
+  void theSessionRestoreBoxIsSaved() throws Exception {
+    PreferencesInput input = input();
+    assertTrue(input.form().sessionRestore());
+    assertNull(input.apply(with(input.form(), "sessionRestore", "false")));
+    assertFalse(file(fileHas("session.restore=false")).options().sessionRestore());
+    assertTrue(input.defaults().sessionRestore());
   }
 
   @Test
@@ -472,7 +514,8 @@ class PreferencesControllerTest {
                 f.newLineEnding(),
                 f.newEncoding(),
                 f.view(),
-                "")));
+                "",
+                true)));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -516,7 +559,9 @@ class PreferencesControllerTest {
         false,
         Options.DEFAULTS.newLineEnding(),
         Options.DEFAULTS.newEncoding(),
-        "");
+        "",
+        0,
+        true);
   }
 
   @Test

@@ -179,7 +179,8 @@ Shortcuts.
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Tools > Preferences, Editor |
 | `editor.newLineEnding` | `lf`, `crlf`, `platform` (CRLF on Windows, else LF): Enter's line ending in a new document, a missing file opened by path, and a loaded text without line breaks, until per-file settings say otherwise | `lf` | Tools > Preferences, Editor |
 | `editor.newEncoding` | A charset of the Encoding menu, spelled as there (`UTF-8`, `windows-1252`, ...): the encoding of a new document, a missing file opened by path, and a file of 0 bytes, unless forced or set by `.editorconfig` | `UTF-8` | Tools > Preferences, Editor |
-| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | View > Zoom In, Zoom Out and Reset Zoom; Tools > Preferences, Appearance |
+| `editor.fontSize` | 0 for the platform's default, or 4 to 72 points | 0 | Tools > Preferences, Appearance |
+| `editor.fontZoom` | 4 to 72: the size zooming chose, drawn in place of `editor.fontSize`; 0 is not zoomed. A new size or family in Preferences sets it to 0 | 0 | `Ctrl`+wheel, View > Zoom In, Zoom Out, Reset Zoom |
 | `editor.fontFamily` | A monospace family, empty for the platform's default. A family that is not installed or measures proportional gives way to the default with one warning and stays saved | empty | Tools > Preferences, Appearance |
 | `file.pollSeconds` | 1 to 3600: seconds between checks of every open file | 5 | Tools > Preferences, Files |
 | `file.autoReloadClean` | `true`, `false`: a changed file reloads a buffer without unsaved changes | `true` | Tools > Preferences, Files |
@@ -187,6 +188,7 @@ Shortcuts.
 | `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Tools > Preferences, Files |
 | `tabs.closeWindowWithLastTab` | `true`, `false`: closing a window's last tab closes the window, and the last window quits; off, an untitled document takes the tab's place | `false` | Tools > Preferences, Files |
 | `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Tools > Preferences, Files |
+| `session.restore` | `true`, `false`: a start that names no file opens the session's windows; off, it opens one window and keeps Recent Files and file positions, and `--session` still restores ([Session restore preference](sessions-and-recovery.md#session-restore-preference)) | `true` | Tools > Preferences, Files |
 | `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Tools > Preferences, Search and Workspace |
 | `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Tools > Preferences, Search and Workspace |
 | `workspace.excludedDirectories` | Directory names separated by `;`: the browser, Quick Open's index and directory searches skip them | `.git;.svn;.hg;target;node_modules;build` | Tools > Preferences, Search and Workspace |

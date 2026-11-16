@@ -56,7 +56,7 @@ permission skip where the user writes every file.
 | `SettingsTest` | The ordered queue and `refresh`, including a change made during one, a read-only directory, `setFrom` |
 | `ViewDefaultsTest` | The `ui.*` window defaults: a start without the session and a new window taking them, each View toggle changing its window only and writing its key, a restored window keeping its session state, a session entry without the keys taking them |
 | `NewFileDefaultsTest` | `editor.newLineEnding` and `editor.newEncoding` on New with each ending and several charsets, `platform` by line separator, a missing file, an empty file, a text without breaks, the last tab's untitled replacement; the View tab and new-file lists through `PreferencesInput`, defaults, values off the lists refused; a View menu toggle made while the dialog shows kept over an unchanged box, a changed box and Restore Defaults written |
-| `PreferencesControllerTest` | `PreferencesInput` driving each setting's effect on the running window; Clear History in the file, after Apply, over another process's entries, for HyperSearch's last run and on a read-only directory. The remaining effects sit with their area (`ExternalChangeTest`, `SyntaxHighlighterTest`, `SearchControllerTest`, `ReplaceControllerTest`, and `FileMonitorTest` in `qcaret-core`). The controller built with its own loaders lists the theme files and fonts and reads the theme file again on an Apply that keeps it |
+| `PreferencesControllerTest` | `PreferencesInput` driving each setting's effect on the running window; zoom stepping `editor.fontZoom` above the Preferences size, Reset Zoom and a step back to that size clearing it, a new size or family dropping it and another field keeping it; `session.restore` saved; Clear History in the file, after Apply, over another process's entries, for HyperSearch's last run and on a read-only directory. The remaining effects sit with their area (`ExternalChangeTest`, `SyntaxHighlighterTest`, `SearchControllerTest`, `ReplaceControllerTest`, and `FileMonitorTest` in `qcaret-core`). The controller built with its own loaders lists the theme files and fonts and reads the theme file again on an Apply that keeps it |
 | `HelpControllerTest` | Show Log clearing the warning state the controller is given, without a window set |
 | `TipSettingsTest` | `help.tipsOnStartup` and `help.nextTip`: defaults, round trip, invalid values, the index check |
 | `InstallPathsTest` | A relative value resolving against the installation in every mode, not the working directory; the settings directory as the base without `qcaret.home`; the write in each mode, the base as `.`, a missing file, a path outside or escaping through `..` staying as given, a link into the installation and an installation reached through a link written relative |
@@ -195,8 +195,10 @@ after the change.
 
 ### Other classes
 
-`CommandLineParserTest`, `SettingsLocationTest`, `WindowGeometryTest`,
+`CommandLineParserTest`, `StartupRequestTest` (`--session` over
+`session.restore`), `SettingsLocationTest`, `WindowGeometryTest`,
 `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest`
-(generated sfnt files), `AboutInfoTest`, `UiTextTest`, `RecentLogTest` and
+(generated sfnt files; the user font folders under `qcaret.userHome`),
+`AboutInfoTest`, `UiTextTest`, `RecentLogTest` and
 `EventLoopWatchdogTest` cover the rest, and `ManualUiDispatcherTest` the
 harness dispatcher.

@@ -35,6 +35,9 @@ the Display. Without `-m`, a start
 takes `SessionLock`, then restores the session and owns it; otherwise, or when
 another instance holds the lock, only Recent Files and per-file state apply
 ([session lock](../qcaret-app/docs/sessions-and-recovery.md#session-lock)).
+With `session.restore` off and no `--session`, the owning start opens none of
+the saved windows
+([session restore preference](../qcaret-app/docs/sessions-and-recovery.md#session-restore-preference)).
 `run` releases the lock after the Display is disposed, so the quit's last
 save comes first. It runs on the calling thread, which becomes the
 UI thread:
@@ -235,6 +238,7 @@ classes, so the rules over the main classes never see them.
 | `UiFailuresTest` | 10 failures within 1 s keep running, the 11th quits once and later failures start no second quit, failures more than 1 s apart keep running, an `Error` quits; each quit writes the marker, and a failed write still quits; a quit that throws sets `quitFailed` once |
 | `ErrorExitStartTest` | Without the marker nothing changes; a restoring start skips, shows the notice and deletes the marker; a start without the session shows the short notice once and marks it shown, and a later restoring start skips without a notice; only a skipping start moves the snapshot files to `recovery/` |
 | `ErrorExitGuiTest` (tag `swt`) | An `Error` twice from UI tasks after a restored tab is typed into: status 4, the marker written, one recovery file, the session still listing the tab. The next restoring start with a file shows the notice, opens only that file, offers the buffer and deletes the marker; the start after it restores that file without a notice. A start with a file shows the short notice once; a later restoring start skips the saved tab. A skipped session's snapshot buffer is offered for recovery. A quit that throws (a quit listener, run on the UI thread after the workers are closed) ends the loop with status 4 and the marker written |
+| `SessionRestoreGuiTest` (tag `swt`) | With `session.restore` off: `--session` restores the saved tab; a plain start opens an untitled document, keeps Recent Files and saves the session without the tab; a snapshot buffer is offered for recovery. With it on, a plain start restores |
 | `BusyCoverageTest` | Every `Workers` submission site in `qcaret-app` listed with what the user sees while it runs: an unlisted or vanished site fails, and so does a busy-cursor or progress row whose call its operation does not make; the call check shown to fail on a missing call |
 | `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |
 | `PortableGuideTest` (tag `swt`, Linux, GTK 3) | A child JVM with its own `HOME`, no XDG base directory variables and system data directories without `applications` runs User Guide in a portable run: the main window names the guide's copy in a notice, no second shell opens, and the home holds no `.cache/QCaret`, `.local/share/QCaret` or `.cache/mesa_shader_cache`. GLib reads `HOME` from the environment, hence the separate process |

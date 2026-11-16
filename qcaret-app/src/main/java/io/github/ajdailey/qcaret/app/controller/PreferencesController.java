@@ -105,7 +105,8 @@ final class PreferencesController implements PreferencesInput {
         o.newLineEnding().key(),
         o.newEncoding(),
         ViewPreferences.checks(p.state()),
-        o.workspaceDefault());
+        o.workspaceDefault(),
+        o.sessionRestore());
   }
 
   @Override
@@ -269,7 +270,9 @@ final class PreferencesController implements PreferencesInput {
                     form.closeShowsLastUsed(),
                     ending,
                     form.newEncoding(),
-                    workspaceDefault));
+                    workspaceDefault,
+                    EditorZoom.kept(settings.current(), font.value(), form.fontFamily()),
+                    form.sessionRestore()));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));

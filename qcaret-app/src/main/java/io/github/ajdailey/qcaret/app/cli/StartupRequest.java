@@ -128,13 +128,25 @@ public record StartupRequest(
   }
 
   /**
-   * Reports whether this start restores the previous session.
+   * Reports whether this start takes the previous session: its Recent Files and per-file state, and
+   * its windows where {@link #restoresWindows} says so.
    *
    * @return true for {@code --session}, and by default when no file or comparison is named
    */
   public boolean restoresSession() {
     return session == SessionMode.RESTORE
         || (session == SessionMode.DEFAULT && files.isEmpty() && diffLeft == null);
+  }
+
+  /**
+   * Reports whether this start opens the previous session's windows.
+   *
+   * @param preference {@code session.restore}
+   * @return true for {@code --session}; by default, when the preference is on and {@link
+   *     #restoresSession} is true
+   */
+  public boolean restoresWindows(boolean preference) {
+    return session == SessionMode.RESTORE || (preference && restoresSession());
   }
 
   /**

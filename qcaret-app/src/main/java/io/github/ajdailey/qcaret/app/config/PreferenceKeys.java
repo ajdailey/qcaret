@@ -41,6 +41,7 @@ final class PreferenceKeys {
   static final String EDITOR_CONFIG = "editor.editorConfig";
   static final String MODELINES = "editor.modelines";
   static final String FONT_SIZE = "editor.fontSize";
+  static final String FONT_ZOOM = "editor.fontZoom";
   static final String POLL_SECONDS = "file.pollSeconds";
   static final String AUTO_RELOAD = "file.autoReloadClean";
   static final String BACKUP_DAYS = "replace.backupDays";
@@ -49,6 +50,7 @@ final class PreferenceKeys {
   static final String RECOVERY_SECONDS = "recovery.intervalSeconds";
   static final String RECOVERY_DAYS = "recovery.keepDays";
   static final String SESSION_SNAPSHOT = "session.snapshot";
+  static final String SESSION_RESTORE = "session.restore";
   static final String CLOSE_WINDOW_WITH_LAST_TAB = "tabs.closeWindowWithLastTab";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
@@ -114,6 +116,7 @@ final class PreferenceKeys {
     keys.put(AUTO_CLOSE, Boolean.toString(o.autoClose()));
     keys.put(HIGHLIGHT_CHARS, Integer.toString(o.maxHighlightLineChars()));
     keys.put(FONT_SIZE, Integer.toString(o.fontSize()));
+    keys.put(FONT_ZOOM, Integer.toString(o.fontZoom()));
     keys.put(POLL_SECONDS, Integer.toString(o.pollSeconds()));
     keys.put(AUTO_RELOAD, Boolean.toString(o.autoReloadClean()));
     keys.put(BACKUP_DAYS, Integer.toString(o.backupDays()));
@@ -122,6 +125,7 @@ final class PreferenceKeys {
     keys.put(RECOVERY_SECONDS, Integer.toString(o.recoveryIntervalSeconds()));
     keys.put(RECOVERY_DAYS, Integer.toString(o.recoveryKeepDays()));
     keys.put(SESSION_SNAPSHOT, Boolean.toString(o.sessionSnapshot()));
+    keys.put(SESSION_RESTORE, Boolean.toString(o.sessionRestore()));
     keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
@@ -264,11 +268,8 @@ final class PreferenceKeys {
 
   private static Options options(Properties p, Path file) {
     Options d = Options.DEFAULTS;
-    int fontSize = number(p, FONT_SIZE, 0, Options.MAX_FONT_SIZE, d.fontSize(), file);
-    if (fontSize != 0 && fontSize < Options.MIN_FONT_SIZE) {
-      invalid(FONT_SIZE, file);
-      fontSize = d.fontSize();
-    }
+    int fontSize = fontPoints(p, FONT_SIZE, d.fontSize(), file);
+    int fontZoom = fontPoints(p, FONT_ZOOM, d.fontZoom(), file);
     String excluded = p.getProperty(EXCLUDED, d.excludedDirectories());
     if (!Options.validDirectories(excluded)) {
       invalid(EXCLUDED, file);
@@ -328,7 +329,19 @@ final class PreferenceKeys {
         flag(p, CLOSE_SHOWS_LAST_USED, d.closeShowsLastUsed(), file),
         newLineEnding(p, d.newLineEnding(), file),
         newEncoding(p, d.newEncoding(), file),
-        workspaceDefault(p, d.workspaceDefault(), file));
+        workspaceDefault(p, d.workspaceDefault(), file),
+        fontZoom,
+        flag(p, SESSION_RESTORE, d.sessionRestore(), file));
+  }
+
+  /** Reads a font size: 0, or {@link Options#MIN_FONT_SIZE} to {@link Options#MAX_FONT_SIZE}. */
+  private static int fontPoints(Properties p, String key, int fallback, Path file) {
+    int points = number(p, key, 0, Options.MAX_FONT_SIZE, fallback, file);
+    if (points != 0 && points < Options.MIN_FONT_SIZE) {
+      invalid(key, file);
+      return fallback;
+    }
+    return points;
   }
 
   /**

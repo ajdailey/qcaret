@@ -264,6 +264,8 @@ class QuitAndCloseSavesTest {
                     o.closeShowsLastUsed(),
                     Options.DEFAULTS.newLineEnding(),
                     Options.DEFAULTS.newEncoding(),
-                    "")));
+                    "",
+                    0,
+                    true)));
   }
 }

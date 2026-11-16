@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.theme;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
+import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -77,8 +78,18 @@ public final class FontFiles {
    */
   @WorkerThread
   public static List<String> installedFamilies() {
-    return monospaceFamilies(
-        OsTraits.current().fontDirectories(System.getenv(), System.getProperty("user.home", "")));
+    return monospaceFamilies(folders());
+  }
+
+  /**
+   * Returns this platform's font folders under the user's home as the JVM started ({@link
+   * HomeFolder#find}), not the {@code user.home} that confined and portable mode point at the
+   * settings directory.
+   *
+   * @return the folders, some possibly missing
+   */
+  static List<Path> folders() {
+    return OsTraits.current().fontDirectories(System.getenv(), HomeFolder.find().toString());
   }
 
   /**

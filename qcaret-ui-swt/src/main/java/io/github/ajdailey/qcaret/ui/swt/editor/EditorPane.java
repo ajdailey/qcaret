@@ -22,6 +22,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
@@ -184,6 +185,9 @@ public final class EditorPane implements EditorView {
   private final MarginPainter margin = new MarginPainter();
   private final IndentGuidePainter guides = new IndentGuidePainter();
   private final LineChangePainter lineChanges = new LineChangePainter();
+
+  /** Takes a wheel turn with Ctrl (Command on macOS): +1 zooms in, -1 out; null scrolls. */
+  private IntConsumer wheelZoom;
 
   /**
    * Creates the editor.
@@ -478,6 +482,15 @@ public final class EditorPane implements EditorView {
       return new int[0];
     }
     return IndentGuidePainter.guides(text, projection, row, text.getClientArea().width);
+  }
+
+  /**
+   * Sets what a wheel turn with Ctrl (Command on macOS) does in place of scrolling.
+   *
+   * @param zoom takes +1 for a turn away from the user, -1 toward; null scrolls
+   */
+  public void setWheelZoom(IntConsumer zoom) {
+    wheelZoom = zoom;
   }
 
   /**
@@ -885,6 +898,10 @@ public final class EditorPane implements EditorView {
           public void handleEvent(Event event) {
             if (event.doit && event.count != 0) {
               event.doit = false;
+              if ((event.stateMask & SWT.MOD1) != 0 && wheelZoom != null) {
+                wheelZoom.accept(event.count > 0 ? 1 : -1);
+                return;
+              }
               text.setTopIndex(Math.max(0, text.getTopIndex() - event.count));
               syncScrollBar();
             }

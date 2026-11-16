@@ -256,7 +256,9 @@ apply (measured on Linux, one million lines):
   another window leaves its window empty.
 - The editor shows line numbers, bookmark and fold marks in its gutter. View >
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
-  apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl+0`.
+  apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl`+wheel
+  (`Cmd` on macOS); `Ctrl+0` returns to the Preferences size, and a new size
+  or font in Preferences ends the zoom.
 - Those five and View > Workspace Browser change only their window, and the
   choice is saved as the start for new windows and for a start without the
   session; a window the session restores keeps its own. Preferences, View sets
@@ -726,6 +728,11 @@ keeps its caret, tab settings, encoding and grammar for when it opens again.
 On macOS, files that start QCaret from Finder (Open With, a drop on the Dock
 icon) count as files: the start opens them and restores no session.
 
+With Preferences, Files, "Restore the session at start" off, a start without
+files opens one window with an untitled document; Recent Files and file
+positions are kept, `--session` still restores the windows, and buffers that
+Quit without asking kept are offered in the recovery list.
+
 The session holds at most 32 windows, 256 tabs over all windows and 20 Recent
 Files; each window keeps at most 32 retained searches, 1,000 expanded folders
 and 20 Recently Closed files. A save past a limit leaves the rest out, and the
@@ -820,14 +827,16 @@ running windows without a restart.
 |---|---|
 | Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, line ending and encoding for new documents, editor colors |
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
-| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, close the window with its last tab, show the last used tab after a close |
+| Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
 | Appearance | Theme, editor font size, editor font |
-| Keys | Every command's keys, with a filter: Add, Remove, Default Keys |
+| Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults |
 
 Restore Defaults fills every tab with the default values; nothing changes until
 OK or Apply. Add refuses a key that types text or that another command holds,
-and names that command. Clear History removes the saved search texts, replacements, directories
+and names that command; a changed command reads "(changed)". Restore All
+Defaults drops every key change on OK or Apply. Clear History removes the
+saved search texts, replacements, directories
 and masks, and the searches kept in the session. When another QCaret window owns
 the session, its saved searches stay and a notice says so: close that window,
 then press Clear History again.
@@ -980,7 +989,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `-r`, `--read-only` | Open the following files read-only |
 | `-e`, `--encoding <name>` | Open the following files in this encoding |
 | `+<line>[:<column>]` | Place the caret in the next file |
-| `--session`, `--no-session` | Restore the previous session also with files, or skip it; a launch handed to the running instance ignores both |
+| `--session`, `--no-session` | Restore the previous session also with files or with "Restore the session at start" off, or skip it; a launch handed to the running instance ignores both |
 | `--diff <a> <b>` | Open the comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
 | `--window-x <px>`, `--window-y <px>` | Window position, for this run |

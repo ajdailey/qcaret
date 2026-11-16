@@ -45,7 +45,14 @@ record ErrorExitStart(boolean skipped, boolean notice) {
     return new ErrorExitStart(skipped, notice);
   }
 
-  private static void moveSnapshots(Path settings, long now) {
+  /**
+   * Moves the snapshot files into a recovery directory named for the start, so the recovery dialog
+   * offers them; a failure logs a WARN.
+   *
+   * @param settings the settings directory
+   * @param now the start time in milliseconds
+   */
+  static void moveSnapshots(Path settings, long now) {
     try {
       int moved = RecoveryStore.moveSnapshotsToRecovery(settings, "snapshot-" + now);
       if (moved > 0) {

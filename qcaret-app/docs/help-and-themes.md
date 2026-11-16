@@ -26,9 +26,12 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
   at the next start (`ThemeService.showsNow`), the view shows a notice.
 - `Settings` queues each change for a worker; see
   [Settings](settings.md#running-settings).
-- Zoom In and Zoom Out step `editor.fontSize` one point, from 4 to 72; Reset
-  Zoom sets it to 0, the platform's default. The view changes the font in
-  place. A change of `editor.fontFamily` reaches the view through
+- Zoom In and Zoom Out (`EditorZoom`) step `editor.fontZoom` one point from
+  the size drawn, from 4 to 72; a step back to `editor.fontSize` stores 0.
+  Reset Zoom sets it to 0, returning to the Preferences size. `EditorPane`
+  sends a wheel turn with Ctrl (Command on macOS) to the same commands. The
+  view changes the font in place. A change of `editor.fontFamily` reaches the
+  view through
   `MainView.setFontFamily`.
 - View > Right Margin toggles `ui.rightMargin`; `MainView.setRightMargin`
   passes every editor `editor.rightMargin` while it is on, else 0, and again

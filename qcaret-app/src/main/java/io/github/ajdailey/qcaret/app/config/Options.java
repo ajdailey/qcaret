@@ -49,6 +49,10 @@ import java.time.format.DateTimeFormatter;
  *     file, one of {@link TextEncoding#MENU}
  * @param workspaceDefault {@code workspace.default}: the workspace folder of a window not restored
  *     from the session, empty for none
+ * @param fontZoom {@code editor.fontZoom}: the editor font size the zoom commands chose, in points;
+ *     0 when not zoomed
+ * @param sessionRestore {@code session.restore}: a start that names no file opens the session's
+ *     windows
  */
 public record Options(
     int completionChars,
@@ -73,7 +77,9 @@ public record Options(
     boolean closeShowsLastUsed,
     NewLineEnding newLineEnding,
     String newEncoding,
-    String workspaceDefault) {
+    String workspaceDefault,
+    int fontZoom,
+    boolean sessionRestore) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -87,10 +93,10 @@ public record Options(
   /** Largest {@code maxHighlightLineChars}. */
   public static final int MAX_HIGHLIGHT_CHARS = 1_000_000;
 
-  /** Smallest {@code fontSize} apart from 0, in points. */
+  /** Smallest {@code fontSize} and {@code fontZoom} apart from 0, in points. */
   public static final int MIN_FONT_SIZE = 4;
 
-  /** Largest {@code fontSize}, in points. */
+  /** Largest {@code fontSize} and {@code fontZoom}, in points. */
   public static final int MAX_FONT_SIZE = 72;
 
   /** Shortest {@code pollSeconds}. */
@@ -157,7 +163,9 @@ public record Options(
           false,
           NewLineEnding.LF,
           "UTF-8",
-          "");
+          "",
+          0,
+          true);
 
   /** Checks the components. */
   public Options {
@@ -165,6 +173,9 @@ public record Options(
     range(maxHighlightLineChars, MIN_HIGHLIGHT_CHARS, MAX_HIGHLIGHT_CHARS);
     if (fontSize != 0) {
       range(fontSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
+    }
+    if (fontZoom != 0) {
+      range(fontZoom, MIN_FONT_SIZE, MAX_FONT_SIZE);
     }
     range(pollSeconds, MIN_POLL_SECONDS, MAX_POLL_SECONDS);
     range(backupDays, MIN_BACKUP_DAYS, MAX_BACKUP_DAYS);
@@ -301,7 +312,9 @@ public record Options(
         closeShowsLastUsed,
         newLineEnding,
         newEncoding,
-        workspaceDefault);
+        workspaceDefault,
+        fontZoom,
+        sessionRestore);
   }
 
   /**
@@ -334,7 +347,44 @@ public record Options(
         closeShowsLastUsed,
         newLineEnding,
         newEncoding,
-        workspaceDefault);
+        workspaceDefault,
+        fontZoom,
+        sessionRestore);
+  }
+
+  /**
+   * Returns a copy with another zoomed editor font size.
+   *
+   * @param points the size, 0 for none
+   * @return the copy
+   */
+  public Options withFontZoom(int points) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        points,
+        sessionRestore);
   }
 
   /**
@@ -367,6 +417,8 @@ public record Options(
         closeShowsLastUsed,
         newLineEnding,
         newEncoding,
-        folder);
+        folder,
+        fontZoom,
+        sessionRestore);
   }
 }

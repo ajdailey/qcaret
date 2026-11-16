@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * session and the recovery files span the windows and are in {@link WindowSet}.
  *
  * <p>Help commands run through {@link HelpController}. Menu check and enable state is read through
- * {@link CommandStates}. A zoom command steps {@code editor.fontSize} by one point.
+ * {@link CommandStates}. A zoom command steps the font one point through {@link EditorZoom}.
  *
  * <p>{@link Settings} holds the settings and saves each change on a worker; {@link #apply} brings
  * this window's controllers and view in line with a change, wherever it came from. A window that
@@ -300,8 +300,8 @@ public final class ApplicationController {
     if (now.maxHighlightLineChars() != old.maxHighlightLineChars()) {
       documents.setMaxHighlightLineChars(now.maxHighlightLineChars());
     }
-    if (now.fontSize() != old.fontSize()) {
-      view.setFontSize(now.fontSize());
+    if (EditorZoom.size(now) != EditorZoom.size(old)) {
+      view.setFontSize(EditorZoom.size(now));
     }
     if (!after.appearance().fontFamily().equals(before.appearance().fontFamily())) {
       view.setFontFamily(after.appearance().fontFamily());
@@ -399,12 +399,12 @@ public final class ApplicationController {
   }
 
   /**
-   * Returns {@code editor.fontSize}.
+   * Returns the editor font size: {@code editor.fontZoom}, else {@code editor.fontSize}.
    *
    * @return the size in points, 0 for the platform's default
    */
   public int fontSize() {
-    return settings.current().options().fontSize();
+    return EditorZoom.size(settings.current().options());
   }
 
   /**
@@ -649,8 +649,7 @@ public final class ApplicationController {
 
   /** Returns the editor font size in points; for {@link CommandStates}. */
   int fontPoints() {
-    int size = settings.current().options().fontSize();
-    return size == 0 ? view.defaultFontSize() : size;
+    return EditorZoom.points(settings.current().options(), view.defaultFontSize());
   }
 
   /**
@@ -854,9 +853,9 @@ public final class ApplicationController {
       case GO_TO_LINE -> documents.goToLine();
       case READ_ONLY -> documents.toggleReadOnly();
       case WORD_WRAP -> views.toggleWrap();
-      case ZOOM_IN -> setFontSize(fontPoints() + 1);
-      case ZOOM_OUT -> setFontSize(fontPoints() - 1);
-      case ZOOM_RESET -> setFontSize(0);
+      case ZOOM_IN -> zoom(1);
+      case ZOOM_OUT -> zoom(-1);
+      case ZOOM_RESET -> setOptions(settings.current().options().withFontZoom(0));
       case PREFERENCES -> preferences.open();
       case THEME_LIGHT -> setTheme(ThemeMode.LIGHT);
       case THEME_DARK -> setTheme(ThemeMode.DARK);
@@ -1020,11 +1019,12 @@ public final class ApplicationController {
     }
   }
 
-  private void setFontSize(int points) {
-    int bounded =
-        points == 0 ? 0 : Math.max(Options.MIN_FONT_SIZE, Math.min(Options.MAX_FONT_SIZE, points));
-    Preferences current = settings.current();
-    settings.set(current.withOptions(current.options().withFontSize(bounded)));
+  private void zoom(int steps) {
+    setOptions(EditorZoom.step(settings.current().options(), view.defaultFontSize(), steps));
+  }
+
+  private void setOptions(Options options) {
+    settings.set(settings.current().withOptions(options));
   }
 
   /**

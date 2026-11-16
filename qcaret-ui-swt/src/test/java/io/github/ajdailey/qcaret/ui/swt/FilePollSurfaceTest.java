@@ -89,7 +89,9 @@ class FilePollSurfaceTest {
         false,
         Options.DEFAULTS.newLineEnding(),
         Options.DEFAULTS.newEncoding(),
-        "");
+        "",
+        0,
+        true);
   }
 
   private MainWindow open(Preferences preferences) {

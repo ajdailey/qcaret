@@ -52,25 +52,28 @@ import org.slf4j.LoggerFactory;
  * --window-*} option and no {@code -m}. A start that restores the session ({@link
  * StartupRequest#restoresSession}, never with {@code -m}) owns it: the session's bounds place every
  * window it lists, the first included, and {@code qcaret.conf} places the first window of any other
- * start. A {@code --window-*} option wins over both. File arguments open in tabs, after the
- * restore; a window left without a tab opens an untitled document. On macOS a start that names
- * nothing takes the files the system hands it as open-document events before the first window
- * ({@link LaunchDocuments}) and runs as a start with those files: it releases {@link SessionLock}
- * and restores no session. The session file is read before the Display, like the settings. A start
- * that would restore first takes {@link SessionLock} and holds it until {@link #run} returns, after
- * the last session save; when another instance holds it, and for a launch whose handoff failed
- * while a primary runs, the start reads Recent Files from the file, and restores and saves no
- * session. A lock file that cannot be created or locked leaves the start restoring, with a WARN. At
- * {@code -d 2} and above an {@link EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook
- * ({@link ShutdownHook}) runs the quit when the process is ended without it. On the primary
- * instance with the debug log file attached, other processes' old log files are deleted on a
- * lifecycle worker ({@link FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs
- * from the start of {@link #run} and, once the first window is open and the session started,
- * delivers handed launches to {@link WindowSet#openHandoff}; quit closes it before the workers, and
- * so does a run that ends before the first window. {@link UiFailures} handles a failure of a
- * UI-thread task; its quit writes the {@link ErrorExitMarker}, which the next start reads before
- * the Display ({@link ErrorExitStart}). The loop ends when every main window is disposed or that
- * quit threw, then the Display is disposed and {@link #run} returns.
+ * start. With {@code session.restore} off and no {@code --session} ({@link
+ * StartupRequest#restoresWindows}), the owning start opens none of the session's windows and moves
+ * the snapshot files to a recovery directory, as an error-exit skip does. A {@code --window-*}
+ * option wins over both. File arguments open in tabs, after the restore; a window left without a
+ * tab opens an untitled document. On macOS a start that names nothing takes the files the system
+ * hands it as open-document events before the first window ({@link LaunchDocuments}) and runs as a
+ * start with those files: it releases {@link SessionLock} and restores no session. The session file
+ * is read before the Display, like the settings. A start that would restore first takes {@link
+ * SessionLock} and holds it until {@link #run} returns, after the last session save; when another
+ * instance holds it, and for a launch whose handoff failed while a primary runs, the start reads
+ * Recent Files from the file, and restores and saves no session. A lock file that cannot be created
+ * or locked leaves the start restoring, with a WARN. At {@code -d 2} and above an {@link
+ * EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the
+ * quit when the process is ended without it. On the primary instance with the debug log file
+ * attached, other processes' old log files are deleted on a lifecycle worker ({@link
+ * FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs from the start of {@link
+ * #run} and, once the first window is open and the session started, delivers handed launches to
+ * {@link WindowSet#openHandoff}; quit closes it before the workers, and so does a run that ends
+ * before the first window. {@link UiFailures} handles a failure of a UI-thread task; its quit
+ * writes the {@link ErrorExitMarker}, which the next start reads before the Display ({@link
+ * ErrorExitStart}). The loop ends when every main window is disposed or that quit threw, then the
+ * Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -180,15 +183,17 @@ final class Gui {
         }
       }
       final ErrorExitMarker marker = new ErrorExitMarker(config.location());
+      boolean owns = !request.multi() && !without && request.restoresSession();
       ErrorExitStart errorExit =
           ErrorExitStart.begin(
-              marker,
-              !request.multi() && !without && request.restoresSession(),
-              config.location().directory(),
-              System.currentTimeMillis());
+              marker, owns, config.location().directory(), System.currentTimeMillis());
       ViewDefaults absent = preferences.state().view();
       Session session = without ? sessions.load(absent).recentOnly() : sessions.load(absent);
       if (errorExit.skipped()) {
+        session = session.withoutWindows();
+      } else if (owns && !request.restoresWindows(preferences.options().sessionRestore())) {
+        LOG.info("session.restore is off; the session's windows are not opened");
+        ErrorExitStart.moveSnapshots(config.location().directory(), System.currentTimeMillis());
         session = session.withoutWindows();
       }
       ThemeColors colors =

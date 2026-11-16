@@ -715,7 +715,9 @@ class WindowSessionTest {
                     false,
                     Options.DEFAULTS.newLineEnding(),
                     Options.DEFAULTS.newEncoding(),
-                    "")));
+                    "",
+                    0,
+                    true)));
     edit(first, "left");
     ApplicationController second = before.second();
     second.documents().newDocument();

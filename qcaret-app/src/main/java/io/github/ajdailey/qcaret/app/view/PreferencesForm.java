@@ -38,6 +38,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param view the View tab's boxes
  * @param workspaceDefault the workspace folder of a window not restored from the session, empty for
  *     none
+ * @param sessionRestore the box making a start that names no file open the session's windows
  */
 public record PreferencesForm(
     String completionChars,
@@ -68,7 +69,8 @@ public record PreferencesForm(
     String newLineEnding,
     String newEncoding,
     ViewChecks view,
-    String workspaceDefault) {
+    String workspaceDefault,
+    boolean sessionRestore) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

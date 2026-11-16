@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -38,7 +39,11 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -289,6 +294,103 @@ class PreferencesSurfaceTest {
     assertTrue(dialog.apply());
     assertNull(controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     dialog.shell().dispose();
+  }
+
+  @Test
+  void theKeysTabButtonsHaveDistinctMnemonicsWithTheDialogButtons() {
+    PreferencesDialog dialog = dialog();
+    List<Button> keys = new ArrayList<Button>();
+    buttons(dialog.folder().getItem(PreferencesForm.Group.KEYS.ordinal()).getControl(), keys);
+    List<String> texts = new ArrayList<String>();
+    for (Button button : keys) {
+      texts.add(button.getText());
+    }
+    assertEquals(
+        List.of("Clear", "A&dd", "&Remove", "Default &Keys", "Re&store All Defaults"), texts);
+    List<Button> all = new ArrayList<Button>(keys);
+    for (Control child : dialog.shell().getChildren()) {
+      if (child != dialog.folder()) {
+        buttons(child, all);
+      }
+    }
+    List<Character> mnemonics = new ArrayList<Character>();
+    for (Button button : all) {
+      String text = button.getText();
+      int at = text.indexOf('&');
+      if (at >= 0) {
+        char mnemonic = Character.toLowerCase(text.charAt(at + 1));
+        assertFalse(mnemonics.contains(mnemonic), text + " in " + mnemonics);
+        mnemonics.add(mnemonic);
+      }
+    }
+    dialog.shell().dispose();
+  }
+
+  @Test
+  void restoreAllDefaultsDropsEveryKeyOverride() {
+    PreferencesDialog dialog = dialog();
+    dialog.folder().setSelection(PreferencesForm.Group.KEYS.ordinal());
+    KeyStroke free = new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT, 'k');
+    dialog.select(CommandId.COMPARE_DOCUMENTS);
+    dialog.record(free);
+    dialog.addCaptured();
+    dialog.select(CommandId.SAVE);
+    dialog.selectKey(0);
+    dialog.removeSelected();
+    assertTrue(dialog.apply());
+    assertEquals(free, controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
+    assertNull(controller.keymap().accelerator(CommandId.SAVE));
+    push(dialog, UiText.BUTTON_RESET_ALL_KEYS);
+    assertTrue(dialog.apply());
+    assertNull(controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
+    assertEquals(
+        new KeyStroke(KeyStroke.PRIMARY, 's'), controller.keymap().accelerator(CommandId.SAVE));
+    assertTrue(controller.preferences().shortcuts().keys().isEmpty());
+    dialog.shell().dispose();
+  }
+
+  @Test
+  void theSessionRestoreBoxIsSavedAndRestoredToOn() {
+    PreferencesDialog dialog = dialog();
+    Button box = find(dialog, UiText.PREFERENCES_SESSION_RESTORE);
+    assertTrue(box.getSelection());
+    box.setSelection(false);
+    assertTrue(dialog.apply());
+    assertFalse(controller.preferences().options().sessionRestore());
+    dialog.restoreDefaults();
+    assertTrue(box.getSelection());
+    assertFalse(controller.preferences().options().sessionRestore());
+    dialog.shell().dispose();
+  }
+
+  /** Adds the push buttons under a control, in order. */
+  private static void buttons(Control control, List<Button> found) {
+    if (control instanceof Button button && (button.getStyle() & SWT.PUSH) != 0) {
+      found.add(button);
+    }
+    if (control instanceof Composite composite) {
+      for (Control child : composite.getChildren()) {
+        buttons(child, found);
+      }
+    }
+  }
+
+  private static Button find(PreferencesDialog dialog, UiText label) {
+    List<Control> pending = new ArrayList<Control>(List.of(dialog.shell().getChildren()));
+    while (!pending.isEmpty()) {
+      Control control = pending.remove(pending.size() - 1);
+      if (control instanceof Button button && button.getText().equals(label.text())) {
+        return button;
+      }
+      if (control instanceof Composite composite) {
+        pending.addAll(List.of(composite.getChildren()));
+      }
+    }
+    throw new AssertionError("no " + label);
+  }
+
+  private static void push(PreferencesDialog dialog, UiText label) {
+    find(dialog, label).notifyListeners(SWT.Selection, new Event());
   }
 
   @Test

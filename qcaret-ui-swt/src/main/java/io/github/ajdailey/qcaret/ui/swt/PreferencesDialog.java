@@ -42,9 +42,9 @@ import org.eclipse.swt.widgets.Text;
  * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at
  * once, whatever OK, Apply or Cancel do afterwards. The Keys tab edits overrides on top of the
  * default keymap: the key field records one stroke, Add refuses a stroke that types or that another
- * command holds, Default Keys returns the selected command to its defaults. The theme files in
- * Editor colors and the font family list fill when a worker has listed them. Modeless; it returns
- * at once.
+ * command holds, Default Keys returns the selected command to its defaults and Restore All Defaults
+ * drops every override. The theme files in Editor colors and the font family list fill when a
+ * worker has listed them. Modeless; it returns at once.
  */
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
@@ -71,6 +71,7 @@ final class PreferencesDialog {
   private Text recoveryIntervalSeconds;
   private Text recoveryKeepDays;
   private Button sessionSnapshot;
+  private Button sessionRestore;
   private Button closeWindowWithLastTab;
   private Button closeShowsLastUsed;
   private Text backupDays;
@@ -208,6 +209,7 @@ final class PreferencesDialog {
     recoveryIntervalSeconds = field(page, UiText.PREFERENCES_RECOVERY_SECONDS);
     recoveryKeepDays = field(page, UiText.PREFERENCES_RECOVERY_DAYS);
     sessionSnapshot = check(page, UiText.PREFERENCES_SESSION_SNAPSHOT);
+    sessionRestore = check(page, UiText.PREFERENCES_SESSION_RESTORE);
     closeWindowWithLastTab = check(page, UiText.PREFERENCES_CLOSE_WINDOW_WITH_LAST_TAB);
     closeShowsLastUsed = check(page, UiText.PREFERENCES_CLOSE_SHOWS_LAST_USED);
   }
@@ -315,7 +317,7 @@ final class PreferencesDialog {
       new TableColumn(commands, SWT.LEFT).setText(title.text());
     }
     Composite editor = new Composite(page, SWT.NONE);
-    editor.setLayout(new GridLayout(4, false));
+    editor.setLayout(new GridLayout(5, false));
     editor.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     keys = new org.eclipse.swt.widgets.List(editor, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
     GridData keysData = new GridData(SWT.FILL, SWT.FILL, true, false, 1, 2);
@@ -323,9 +325,19 @@ final class PreferencesDialog {
     keys.setLayoutData(keysData);
     capture = new Text(editor, SWT.BORDER | SWT.READ_ONLY);
     capture.setMessage(UiText.PREFERENCES_KEY_CAPTURE.text());
-    GridData captureData = new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1);
+    GridData captureData = new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1);
     captureData.widthHint = 160;
     capture.setLayoutData(captureData);
+    Dialogs.button(
+        editor,
+        UiText.BUTTON_CLEAR_KEY.text(),
+        new Runnable() {
+          @Override
+          public void run() {
+            captured = null;
+            capture.setText("");
+          }
+        });
     Dialogs.button(
         editor,
         UiText.BUTTON_ADD_KEY.text(),
@@ -354,6 +366,15 @@ final class PreferencesDialog {
             if (command != null) {
               setOverrides(overrides.without(command));
             }
+          }
+        });
+    Dialogs.button(
+        page,
+        UiText.BUTTON_RESET_ALL_KEYS.text(),
+        new Runnable() {
+          @Override
+          public void run() {
+            setOverrides(ShortcutOverrides.NONE);
           }
         });
     keyMessage = new Label(page, SWT.WRAP);
@@ -414,6 +435,7 @@ final class PreferencesDialog {
     recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
     recoveryKeepDays.setText(form.recoveryKeepDays());
     sessionSnapshot.setSelection(form.sessionSnapshot());
+    sessionRestore.setSelection(form.sessionRestore());
     closeWindowWithLastTab.setSelection(form.closeWindowWithLastTab());
     closeShowsLastUsed.setSelection(form.closeShowsLastUsed());
     backupDays.setText(form.backupDays());
@@ -467,7 +489,8 @@ final class PreferencesDialog {
             : LINE_ENDINGS[newLineEnding.getSelectionIndex()],
         newEncoding.getSelectionIndex() < 0 ? "" : newEncoding.getText(),
         view.checks(),
-        workspaceDefault.value());
+        workspaceDefault.value(),
+        sessionRestore.getSelection());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
