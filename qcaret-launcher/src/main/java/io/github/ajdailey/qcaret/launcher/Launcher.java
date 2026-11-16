@@ -33,6 +33,10 @@ import org.slf4j.LoggerFactory;
  * claimed it first. Any other failure, or a settings directory another user owns or can write, logs
  * one WARN and the launch opens its own window, as with {@code -m}. The primary writes {@code
  * qcaret.log}, any other process {@code qcaret-<pid>.log}.
+ *
+ * <p>Records logged after the command line parses and before the file opens are kept ({@link
+ * LogConfigurator#holdForFile}) and written into the file first; a launch that hands off or opens
+ * no file discards them.
  */
 public final class Launcher {
   static final int EXIT_USAGE = 1;
@@ -84,6 +88,16 @@ public final class Launcher {
       return 0;
     }
     LogConfigurator.setLevel(line.logLevel());
+    LogConfigurator.holdForFile();
+    try {
+      return start(line);
+    } finally {
+      LogConfigurator.endHold();
+    }
+  }
+
+  /** Runs the launch after the command line parsed; ends the log hold before {@link Gui}. */
+  private int start(CommandLine line) {
     Thread.setDefaultUncaughtExceptionHandler(new FailureLogger());
     StartupRequest request = line.request();
     Path settings = null;
@@ -129,6 +143,7 @@ public final class Launcher {
           LOG.warn("Cannot open the debug log file: {}", LogText.oneLine(e.getMessage()));
         }
       }
+      LogConfigurator.endHold();
       return new Gui(request, config, preferences, err, null, server, logFile, beside).run();
     } catch (IOException e) {
       err.println("qcaret: " + LogText.oneLine(e.getMessage()));

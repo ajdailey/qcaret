@@ -23,9 +23,10 @@ import org.slf4j.LoggerFactory;
  * The debug log file at DEBUG, rolled to {@code <name>.1} at {@link #ROLL_BYTES}: {@code
  * <settings>/logs/qcaret.log} for the instance holding the handoff lock, {@code qcaret-<pid>.log}
  * for any other process ({@link #fileName}), so no two processes roll one file. The folder is
- * created owner-only. A {@link LogFileHandler} on the root logger writes each line on the logging
- * thread; no lock file is written. A failed write or open detaches the file and logs an ERROR,
- * which Show Log lists; a failed roll logs a WARN and the file keeps growing.
+ * created owner-only. A {@link LogFileHandler}, which the root logger's {@link FileRelayHandler}
+ * feeds, writes each line on the logging thread; no lock file is written. A failed write or open
+ * detaches the file and logs an ERROR, which Show Log lists; a failed roll logs a WARN and the file
+ * keeps growing.
  *
  * <p>{@link #prune} deletes other processes' old {@code qcaret-<pid>.log} files; the primary runs
  * it at startup with the file attached.

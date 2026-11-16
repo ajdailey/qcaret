@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -25,8 +26,9 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * A real process whose handoff fails while this JVM holds the instance lock, and one that runs
  * alone while this JVM holds the session lock: each opens a window, restores and saves no session,
- * and saves no placement. Linux only for {@code SigtermTest}'s reason: the ordered quit needs
- * SIGTERM.
+ * and saves no placement. The WARN of a handoff refused by the endpoint check, logged before the
+ * debug log file opens, is in that file once. Linux only for {@code SigtermTest}'s reason: the
+ * ordered quit needs SIGTERM.
  */
 @Tag("swt")
 @EnabledOnOs(OS.LINUX)
@@ -46,6 +48,22 @@ class BesideRunTest {
       runAndEnd(settings, "Main window open");
       assertEquals(saved, read(settings.resolve("qcaret_session.conf")));
       assertFalse(read(settings.resolve("qcaret.conf")).contains("window.width="));
+    }
+  }
+
+  @Test
+  void aRefusedEndpointIsNamedInTheLogFile() throws Exception {
+    Path settings = SafePaths.settingsDirectory(temp.resolve("settings"));
+    try (InstanceServer held = InstanceServer.claim(settings)) {
+      assertNotNull(held);
+      Files.setPosixFilePermissions(
+          settings.resolve("instance.endpoint"), PosixFilePermissions.fromString("rw-r--r--"));
+      String log =
+          runAndEnd(
+              settings,
+              "Handoff to the running instance failed; opening a window: No trusted endpoint"
+                  + " file: instance.endpoint has group or other permissions");
+      assertEquals(1, log.split("Handoff to the running instance failed", -1).length - 1, log);
     }
   }
 

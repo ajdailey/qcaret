@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.launcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
@@ -21,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongPredicate;
-import java.util.logging.Handler;
 import java.util.logging.Level;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +43,7 @@ class FileLogTest {
     if (log != null) {
       log.detach();
     }
+    LogConfigurator.endHold();
     LogConfigurator.setLevel(LogLevel.WARN);
   }
 
@@ -96,6 +97,42 @@ class FileLogTest {
     LOG.info("after detach");
     assertFalse(Files.readString(file, StandardCharsets.UTF_8).contains("after detach"));
     assertEquals(List.of("qcaret.log"), names(temp.resolve("logs")));
+  }
+
+  @Test
+  void recordsHeldBeforeTheAttachAreWrittenFirstAndEndingTheHoldRestoresTheLevel()
+      throws Exception {
+    LogConfigurator.setLevel(LogLevel.WARN);
+    LogConfigurator.holdForFile();
+    assertEquals(Level.FINE, LogConfigurator.level());
+    LOG.debug("mock held line");
+    log = new FileLog(temp);
+    log.attach();
+    LOG.debug("mock attached line");
+    LogConfigurator.endHold();
+    assertEquals(Level.FINE, LogConfigurator.level());
+    Path file = temp.resolve("logs").resolve("qcaret.log");
+    assertTrue(fileContains(file, "mock attached line"));
+    String text = Files.readString(file, StandardCharsets.UTF_8);
+    assertEquals(text.indexOf("mock held line"), text.lastIndexOf("mock held line"), text);
+    assertTrue(text.indexOf("mock held line") < text.indexOf("mock attached line"), text);
+    log.detach();
+    assertEquals(Level.INFO, LogConfigurator.level());
+  }
+
+  @Test
+  void endingAHoldWithoutAFileDiscardsItsRecords() throws Exception {
+    LogConfigurator.setLevel(LogLevel.WARN);
+    LogConfigurator.holdForFile();
+    LOG.debug("mock discarded line");
+    LogConfigurator.endHold();
+    assertEquals(Level.INFO, LogConfigurator.level());
+    log = new FileLog(temp);
+    log.attach();
+    LOG.debug("mock later line");
+    Path file = temp.resolve("logs").resolve("qcaret.log");
+    assertTrue(fileContains(file, "mock later line"));
+    assertFalse(Files.readString(file, StandardCharsets.UTF_8).contains("mock discarded line"));
   }
 
   // Log file per secondary instance.
@@ -211,9 +248,7 @@ class FileLogTest {
         LOG.debug("mock line before the failed reopen {}", i);
       }
       assertFalse(log.attached());
-      for (Handler handler : LogConfigurator.handlers()) {
-        assertFalse(handler instanceof LogFileHandler, "file handler still on the root logger");
-      }
+      assertNull(LogConfigurator.file().target(), "file handler still attached");
       assertEquals(Level.INFO, LogConfigurator.level());
       boolean reported = false;
       for (String line : LogConfigurator.RECENT.snapshot()) {

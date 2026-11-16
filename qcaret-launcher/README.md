@@ -147,7 +147,7 @@ property, and attaches the root handlers:
 |---|---|---|
 | `StderrHandler` | `-d`, WARN when absent | Standard error |
 | `RecentHandler` | INFO, or `-d` when finer | `LogConfigurator.RECENT` (`RecentLog`); WARN and ERROR lines count as warnings |
-| `LogFileHandler` | DEBUG, or `-d` when finer | `<settings>/logs/qcaret.log` on the primary, else `qcaret-<pid>.log`, through `FileLog`, while attached |
+| `FileRelayHandler` | DEBUG, or `-d` when finer | The `LogFileHandler` `FileLog` attaches: `<settings>/logs/qcaret.log` on the primary, else `qcaret-<pid>.log` |
 
 `-d` maps to JUL as slf4j-jdk14 maps the SLF4J levels: `error` SEVERE, `warn`
 WARNING, `info` INFO, `debug` FINE, `trace` FINEST. The
@@ -168,6 +168,15 @@ no lock file. The `logs` folder is created owner-only, and on POSIX the file
 `rw-------`. A failed move reopens the file and keeps appending; the move is
 tried again once the file has grown another 10 MiB, or at the next start, and
 the first failure after a successful move logs a WARN. A failed write or open detaches the file and logs an ERROR.
+
+From the command-line parse until the attach, `Launcher` holds the file's
+records (`LogConfigurator.holdForFile`): `FileRelayHandler` keeps each one,
+formatted, at the file's level, up to 1,048,576 characters, and counts the
+records past that. The attach writes the kept records first, then one WARN
+with the dropped count, so a WARN logged before the file opens, such as a
+refused handoff, is in the file once. A launch that hands off, opens no file or
+fails to open it discards the kept records and writes no file. The hold does
+not change stderr or Show Log.
 
 `RetainingLogManager` ignores `reset()` once configured. The JDK's logging
 shutdown hook calls `reset()`, which would remove the handlers while
@@ -248,13 +257,14 @@ classes, so the rules over the main classes never see them.
 | `QuitPromptsGuiTest` (tag `swt`) | Quit with a dirty document in each of two windows through the real unsaved dialogs: Cancel keeps both windows and both documents dirty; then Save writes one file, Don't Save leaves the other, and both windows close |
 | `BesideLaunchTest` (tag `swt`) | `Launcher.run` in the test JVM while this JVM holds the lock with the endpoint deleted: one untitled window, the session's recent file in the File menu, its window not restored, the session file unchanged and no placement saved |
 | `AbnormalShutdownTest` (tag `swt`) | `CrashChild` types into the untitled document, waits for its recovery file and is killed with `destroyForcibly`; `Gui` started again offers the buffer and restores it dirty |
-| `BesideRunTest` (tag `swt`, Linux) | `Main` as a child process whose handoff fails under a held `instance.lock`, and one with a directory at `instance.lock` (`ALONE`) while this JVM holds `SessionLock`: each opens a window and, after SIGTERM, has left the session file and the placement unchanged |
+| `BesideRunTest` (tag `swt`, Linux) | `Main` as a child process whose handoff fails under a held `instance.lock`, and one with a directory at `instance.lock` (`ALONE`) while this JVM holds `SessionLock`: each opens a window and, after SIGTERM, has left the session file and the placement unchanged. With `-l`, a handoff the endpoint check refuses (`rw-r--r--`) leaves its WARN in the child's log file once |
 | `StoreFaultsTest` (tag `swt`) | A start over a malformed, oversized and unknown-version session file, and a remembered charset the runtime lacks |
 | `ScreenshotsTest` (tag `swt`) | Runs only with `-Dqcaret.screenshots=<dir>` (`tools/screenshots.sh`): the README screenshots from generated mock files, in the light and the dark theme |
 | `ShutdownHookTest` | The hook's task run directly |
 | `LogConfiguratorTest` | The handlers, levels and properties of the planted `java.util.logging.config.file` (`planted-logging.properties`, set by surefire) gone after `install`; the format, level mapping and logger-name shortening |
 | `RetainingLogManagerTest` | `reset()` keeping the handlers once retained |
-| `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN, not tried again before the file grows by the size, and rolling then, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes |
+| `FileRelayHandlerTest` | Held records written first and once, in order, then later records; records past the bound dropped and counted in one WARN; a release discarding them; nothing kept without a hold |
+| `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN, not tried again before the file grows by the size, and rolling then, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes; a hold's DEBUG line written once before the attach's lines, the level back to INFO after the hold and the detach, and a hold ended without a file writing nothing |
 | `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `LaunchDocumentsTest` |
 | `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows; a handoff a live primary does not take runs `BESIDE`, and a launch claims the lock a primary releases during its handoff |
 | `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |

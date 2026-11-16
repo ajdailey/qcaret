@@ -33,7 +33,7 @@ class LogConfiguratorTest {
     assertTrue(Files.isRegularFile(Path.of(planted)), planted);
     LogConfigurator.install();
     assertArrayEquals(
-        new Handler[] {LogConfigurator.stderr(), LogConfigurator.recent()},
+        new Handler[] {LogConfigurator.stderr(), LogConfigurator.recent(), LogConfigurator.file()},
         LogConfigurator.handlers());
     assertEquals(Level.INFO, LogConfigurator.level());
     assertNull(LogManager.getLogManager().getProperty("mock.planted.level"));

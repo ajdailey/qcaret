@@ -734,9 +734,10 @@ On macOS, files that start QCaret from Finder (Open With, a drop on the Dock
 icon) count as files: the start opens them and restores no session.
 
 With Preferences, Files, "Restore the session at start" off, a start without
-files opens one window with an untitled document; Recent Files and file
-positions are kept, `--session` still restores the windows, and buffers that
-Quit without asking kept are offered in the recovery list.
+files opens one window with an untitled document and saves that window as the
+session; Recent Files and file positions are kept, `--session` restores the
+windows of the previous run, and buffers that Quit without asking kept are
+offered in the recovery list.
 
 The session holds at most 32 windows, 256 tabs over all windows and 20 Recent
 Files; each window keeps at most 32 retained searches, 1,000 expanded folders

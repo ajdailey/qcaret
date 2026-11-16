@@ -13,13 +13,15 @@ import java.util.logging.Logger;
  * Initialization sets {@code java.util.logging.manager} to {@link RetainingLogManager} unless it is
  * set, then calls {@code LogManager.reset()}, which drops the handlers, levels and properties read
  * from {@code $JAVA_HOME/conf/logging.properties} or a {@code java.util.logging.config.*} property,
- * and installs two root handlers: {@code stderr} at WARN, and {@code recent}, which feeds {@link
- * #RECENT} at INFO. Both format with {@link LineFormatter}.
+ * and installs three root handlers: {@code stderr} at WARN, {@code recent}, which feeds {@link
+ * #RECENT} at INFO, and a {@link FileRelayHandler} for the debug log file. All format with {@link
+ * LineFormatter}.
  *
  * <p>{@link #setLevel} applies {@code -d} ({@link #julLevel}) to stderr, and to the recent lines
- * when finer than INFO. {@link FileLog} adds a third handler while the debug log file is open. The
- * level of the {@link #QCARET} loggers is the finest of them: the file takes FINE (DEBUG), or
- * {@code -d} when finer. Every other logger, such as the JDK's own, stays at INFO.
+ * when finer than INFO. {@link FileLog} attaches the file through the relay. The level of the
+ * {@link #QCARET} loggers is the finest of them: the file takes FINE (DEBUG), or {@code -d} when
+ * finer, while it is attached and during {@link #holdForFile}. Every other logger, such as the
+ * JDK's own, stays at INFO.
  */
 public final class LogConfigurator {
   /** The recent lines, for Show Log. */
@@ -44,16 +46,20 @@ public final class LogConfigurator {
 
   private static final StderrHandler STDERR = new StderrHandler();
   private static final RecentHandler TO_RECENT = new RecentHandler(RECENT);
+  private static final FileRelayHandler TO_FILE = new FileRelayHandler();
   private static volatile Level consoleLevel = Level.INFO;
   private static volatile boolean fileAttached;
+  private static volatile boolean fileHeld;
 
   static {
     STDERR.setFormatter(FORMAT);
     STDERR.setLevel(Level.WARNING);
     TO_RECENT.setFormatter(FORMAT);
     TO_RECENT.setLevel(Level.INFO);
+    TO_FILE.setFormatter(FORMAT);
     ROOT.addHandler(STDERR);
     ROOT.addHandler(TO_RECENT);
+    ROOT.addHandler(TO_FILE);
     ROOT.setLevel(Level.INFO);
     QCARET_LOGGER.setLevel(Level.INFO);
     if (MANAGER instanceof RetainingLogManager retaining) {
@@ -110,19 +116,34 @@ public final class LogConfigurator {
   }
 
   /**
-   * Attaches or removes the debug log file's handler and lowers the root level to FINE while it is
-   * attached.
+   * Keeps the records QCaret logs, at the file's level, until {@link #setFile} attaches the debug
+   * log file, which then receives them first, or {@link #endHold}.
+   */
+  static void holdForFile() {
+    TO_FILE.hold();
+    fileHeld = true;
+    applyLevel();
+  }
+
+  /** Ends {@link #holdForFile} and discards what it kept; does nothing without a hold. */
+  static void endHold() {
+    TO_FILE.release();
+    fileHeld = false;
+    applyLevel();
+  }
+
+  /**
+   * Attaches or removes the debug log file's handler and lowers the level of QCaret's loggers to
+   * FINE while it is attached.
    *
    * @param file the handler
    * @param attached true to attach
    */
-  static void setFile(Handler file, boolean attached) {
+  static void setFile(LogFileHandler file, boolean attached) {
     if (attached) {
       file.setFormatter(FORMAT);
-      ROOT.addHandler(file);
-    } else {
-      ROOT.removeHandler(file);
     }
+    TO_FILE.setTarget(attached ? file : null);
     fileAttached = attached;
     applyLevel();
   }
@@ -155,6 +176,15 @@ public final class LogConfigurator {
   }
 
   /**
+   * Returns the debug log file's relay.
+   *
+   * @return the handler
+   */
+  static FileRelayHandler file() {
+    return TO_FILE;
+  }
+
+  /**
    * Returns the level of QCaret's loggers.
    *
    * @return the level
@@ -165,7 +195,7 @@ public final class LogConfigurator {
 
   private static synchronized void applyLevel() {
     Level level = consoleLevel;
-    if (fileAttached && level.intValue() > Level.FINE.intValue()) {
+    if ((fileAttached || fileHeld) && level.intValue() > Level.FINE.intValue()) {
       level = Level.FINE;
     }
     QCARET_LOGGER.setLevel(level);

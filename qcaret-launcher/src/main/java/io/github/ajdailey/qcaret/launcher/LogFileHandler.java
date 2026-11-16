@@ -86,10 +86,19 @@ final class LogFileHandler extends Handler {
 
   @Override
   public void publish(LogRecord record) {
-    if (!isLoggable(record)) {
-      return;
+    if (isLoggable(record)) {
+      write(getFormatter().format(record));
     }
-    byte[] bytes = getFormatter().format(record).getBytes(StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Appends formatted text as {@link #publish} appends a record, with the same roll and failure
+   * handling.
+   *
+   * @param text the formatted text
+   */
+  void write(String text) {
+    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     IOException error = null;
     IOException rollError = null;
     synchronized (this) {
