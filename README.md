@@ -51,7 +51,7 @@ xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw clean verify
 ```
 
 CI runs the GUI tests on a 1280x1024 screen; `qcaret-ui-swt/TESTING.md` names
-the ones a 640x480 screen fails. CI runs with `umask 022`.
+the ones a 640x480 screen fails.
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
 rules and every test, and builds the universal jar and the bundle for the build
@@ -120,8 +120,9 @@ scripts/container.sh ./mvnw -B spotless:check
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request,
-every pushed `v*` tag and on demand, with Temurin 21.0.13+9. Actions are pinned
-by commit SHA, and every checkout sets `persist-credentials: false`.
+every pushed `v*` tag and on demand, with Temurin 21.0.13+9 (21.0.12+8 on
+windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
+`persist-credentials: false`.
 
 | Job | Runners | Does |
 |---|---|---|

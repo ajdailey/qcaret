@@ -57,8 +57,9 @@ deleted. Nothing goes to `java.io.tmpdir`.
   creation, so no other account opens it before the content is written. Its
   ACL is then set to the entry explicitly; the move keeps it, and the directory
   is deleted. The user is `USERDOMAIN\user.name`, then the bare name
-  (`Accounts.user`), then the file's owner when no name resolves. An elevated
-  process's new file is owned by `BUILTIN\Administrators`, not the user.
+  (`Accounts.user`), then the file's owner when no name resolves. The file's
+  owner is then set to the user, since an elevated process's new file is owned
+  by `BUILTIN\Administrators`.
 - `writeOwnerOnly(Path, ContentWriter)` takes content too large for one array
   and forces it to disk before the move.
 - On Windows a refused move is tried for up to 250 ms: a target open elsewhere

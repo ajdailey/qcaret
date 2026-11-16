@@ -335,10 +335,17 @@ chosen by `LoadedToolkit` when the interface is first used: from
 `SWT.getPlatform()`, and on GTK from the version SWT records in
 `org.eclipse.swt.internal.gtk.version`. `LoadedToolkit` initializes `Display`
 first, whose static initializer loads SWT's GTK library and records the
-version, so the choice holds before a `Display` exists. Under `SWT_GTK4=1` SWT
-loads GTK 3 when GTK 4 fails to load; `LoadedToolkit` then picks `Gtk3Traits`
-and logs a WARN. `PlatformTraits.of` builds any
-platform's traits, so `PlatformTraitsTest` checks all four tables on Linux.
+version, so the choice holds before a `Display` exists. SWT 3.135.0 falls back
+in both directions (`OS` static initializer, verified with `javap`):
+
+| Requested | Fails to load | SWT loads | `LoadedToolkit` |
+|---|---|---|---|
+| GTK 4 (`SWT_GTK4=1`) | GTK 4 | GTK 3 | `Gtk3Traits` and a WARN |
+| GTK 3 | GTK 3 | GTK 4 | `Gtk4Traits`, no WARN |
+| Either | Both | Nothing | Logs the `LinkageError` or `SWTError` at DEBUG and picks `Gtk3Traits`; the launcher's `Gui` then ends the launch with exit status 3 |
+
+`PlatformTraits.of` builds any platform's traits, so `PlatformTraitsTest`
+checks all four tables on Linux.
 `ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call
 outside that package, and on a `System.getenv` call in `ui.swt` or the launcher
 outside it. `swtInternalNamesOnlyInPlatformClasses` fails on a class outside

@@ -262,6 +262,14 @@ natives.macos-aarch64=${natives.macos-aarch64}
         <arg value="--output"/>
         <arg file="@{output}"/>
       </exec>
+      <!-- jlink on a POSIX host makes legal/<module>/ notices links into
+           legal/java.base/. Copies keep the notices for an extractor that
+           drops links, and make the macOS seal match what unzips. -->
+      <copy todir="@{output}/legal.files">
+        <fileset dir="@{output}/legal"/>
+      </copy>
+      <delete dir="@{output}/legal"/>
+      <move file="@{output}/legal.files" tofile="@{output}/legal"/>
     </sequential>
   </macrodef>
 
@@ -406,15 +414,6 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <chmod perm="755" type="file">
         <fileset dir="${contents}" includes="MacOS/QCaret,runtime/Contents/Home/bin/*,runtime/Contents/Home/lib/jspawnhelper"/>
       </chmod>
-
-      <!-- jlink writes legal/ entries as symlinks, which <zip> dereferences
-           after signing and breaks the seal; sign real files instead. -->
-      <exec executable="sh" failonerror="true">
-        <arg value="-c"/>
-        <arg value="find &quot;$1&quot; -type l | while IFS= read -r link; do cp --remove-destination &quot;$(readlink -f &quot;$link&quot;)&quot; &quot;$link&quot;; done"/>
-        <arg value="sh"/>
-        <arg file="${contents}"/>
-      </exec>
 
       <fetch url="${rcodesign.url}" name="${rcodesign.archive}" sha256="${rcodesign.sha256}"/>
       <local name="rcodesign"/>

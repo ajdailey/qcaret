@@ -69,14 +69,13 @@ S: OK | ERR
 `Endpoint.read` goes through `EndpointCheck`, which treats a refused
 `instance.endpoint` as missing: the client waits for it as for a missing file,
 the handoff fails, and the launch's WARN names the failed step. The file must
-be a regular file, not a link, opened with `NOFOLLOW_LINKS` and owned by the
-current user:
+be a regular file, not a link, opened with `NOFOLLOW_LINKS`. Beyond that:
 
 | File system | Refused when |
 |---|---|
-| POSIX | Any group or other permission bit |
-| ACLs without POSIX (Windows) | `AclCheck`: an ACL entry for an untrusted account |
-| Neither | Never |
+| POSIX | An owner other than the current user, or any group or other permission bit |
+| ACLs without POSIX (Windows) | `AclCheck`: an owner other than the current user, or an ACL entry for an untrusted account |
+| Neither | Never; the owner is not checked |
 
 Java reads no owner or ACL through an open channel, so the checks run before
 and after the read; a changed file key, size or modification time refuses the

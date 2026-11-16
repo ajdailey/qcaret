@@ -45,8 +45,7 @@ on a virtual thread `Workers.start` started, and waits for it; on any other
 thread it runs the step inline. A blocking task must run every CPU-bound part
 of its work this way: a virtual thread that computes holds its carrier, and the
 carrier pool has `availableProcessors()` threads, so that many computing tasks
-stall every virtual task, including quit and the settings saves (measured: 8
-spinning `IO` tasks on 8 cores held a `LIFECYCLE` task over 5 s).
+stall every virtual task, including quit and the settings saves.
 
 - The calling thread does the reads and writes; a step does not block on I/O.
   File loops hand over one block at a time: `LoadPass` (load and reload),

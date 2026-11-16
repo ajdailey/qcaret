@@ -52,11 +52,15 @@ build; downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with
 `java.base,java.logging,java.management,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs`,
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.
+jlink on a POSIX host writes the `legal/<module>/` notices as links into
+`legal/java.base/`; the `runtime` macro replaces them with copies for every
+target, so an extractor that drops links keeps the notices and the macOS seal
+matches what unzips.
 `jdk.charsets` carries the legacy encodings (Big5, EUC-JP, EUC-KR, GBK,
 Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
 macOS. `jdk.localedata` carries the date and number formats of every locale
 but English, used by the Workspace Browser's Size and Modified texts and Insert
-Date and Time; it adds 28.8 MB to the linux-x86_64 runtime (68.4 to 97.2 MB,
+Date and Time; it adds 28.9 MB to the linux-x86_64 runtime (70.4 to 99.3 MB,
 measured). `java.management` carries the heap pool figures the memory
 indicator reads. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so
 it is left out. `--strip-debug` is not used: it runs the host `objcopy` on target
@@ -125,9 +129,7 @@ recovery are in the root [README](../README.md#releases).
 `allow-unsigned-executable-memory`, `disable-library-validation`), which the
 JVM needs under the hardened runtime. rcodesign cannot sign a shell script as
 the main executable, which is why the macOS launcher is the jpackage binary.
-Before signing, every symlink jlink wrote under `legal/` is replaced by a copy
-of its target: `<zip>` stores the target's content, so a signed symlink would
-not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
+The `bundle` CI job runs `codesign --verify
 --deep --strict` on the unzipped `QCaret.app`. The bundles are not notarized.
 
 ## Icons

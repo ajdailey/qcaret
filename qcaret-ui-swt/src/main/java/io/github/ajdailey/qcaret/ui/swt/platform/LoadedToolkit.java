@@ -7,8 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Chooses the running platform's traits from the toolkit SWT loaded. With {@code SWT_GTK4=1} SWT
- * loads GTK 3 when GTK 4 fails to load, so the environment variable does not select GTK 4.
+ * Chooses the running platform's traits from the toolkit SWT loaded. SWT loads GTK 3 when GTK 4
+ * fails to load and GTK 4 when GTK 3 fails, so {@code SWT_GTK4} does not select the GTK version.
  */
 final class LoadedToolkit {
   private static final Logger LOG = LoggerFactory.getLogger(LoadedToolkit.class);
