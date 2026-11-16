@@ -73,4 +73,10 @@ final class WindowsTraits implements OsTraits {
     return Files.readAttributes(path, DosFileAttributes.class, LinkOption.NOFOLLOW_LINKS)
         .isHidden();
   }
+
+  @Override
+  public boolean runsInsteadOfOpening(Path file) {
+    Path name = file.getFileName();
+    return name != null && RunnableTypes.windows(name.toString(), System.getenv("PATHEXT"));
+  }
 }

@@ -9,13 +9,12 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.workspace.FileIndex;
 import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
@@ -40,12 +39,6 @@ import java.util.function.Consumer;
  * or stale index returns its charge, and {@link #dispose} cancels the build and returns the charge.
  */
 public final class WorkspaceController implements WorkspaceInput {
-  /** Extensions Windows runs rather than opens. */
-  static final List<String> WINDOWS_EXECUTABLE =
-      List.of(
-          ".bat", ".cmd", ".com", ".cpl", ".exe", ".hta", ".js", ".jse", ".lnk", ".msc", ".msi",
-          ".pif", ".ps1", ".reg", ".scr", ".url", ".vbe", ".vbs", ".wsf", ".wsh");
-
   private final MainView view;
   private final Workers workers;
   private final UiDispatcher ui;
@@ -386,12 +379,12 @@ public final class WorkspaceController implements WorkspaceInput {
       return;
     }
     final Path path = node.path();
-    final boolean windows = view.launchesByExtension();
+    final OsTraits system = view.system();
     new BusyWork(ui, view) {
       @Override
       @WorkerThread
       void work() {
-        final boolean runs = runsInsteadOfOpening(path, windows);
+        final boolean runs = system.runsInsteadOfOpening(path);
         ui.asyncExec(
             new Runnable() {
               @Override
@@ -413,30 +406,6 @@ public final class WorkspaceController implements WorkspaceInput {
     } else if (!LaunchCursor.launch(view, ui, path)) {
       view.showNotice(UiText.WORKSPACE_LAUNCH_FAILED.format(name));
     }
-  }
-
-  /**
-   * Reports whether the system would run a file rather than open it (QLogg SWT-8: on Windows {@code
-   * Files.isExecutable} is true for every readable file).
-   *
-   * @param path the file
-   * @param windows true on Windows, which decides by extension
-   * @return true for a {@link #WINDOWS_EXECUTABLE} extension on Windows, an executable file
-   *     elsewhere
-   */
-  @WorkerThread
-  static boolean runsInsteadOfOpening(Path path, boolean windows) {
-    if (windows) {
-      Path name = path.getFileName();
-      String text = name == null ? "" : name.toString().toLowerCase(Locale.ROOT);
-      for (String extension : WINDOWS_EXECUTABLE) {
-        if (text.endsWith(extension)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    return Files.isExecutable(path);
   }
 
   @Override

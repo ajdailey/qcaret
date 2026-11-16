@@ -261,6 +261,17 @@ system's answers from `OsTraits.of(name)`.
 | `webView2` | `PlatformSetup` | true | false | false |
 | `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
 | `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
+| `runsInsteadOfOpening` | `WorkspaceController` Open in Default Application | `RunnableTypes.windows` with `PATHEXT` | `RunnableTypes.mac`, or the execute bit | the execute bit |
+
+`RunnableTypes` lists the extensions a system runs, or follows to another
+target, when asked to open the file with its default application.
+`windows(name, pathext)` matches `RunnableTypes.WINDOWS` and each `PATHEXT`
+entry starting with `.`, ignoring case, after dropping trailing dots and spaces
+as Windows does. `mac(name)` matches `RunnableTypes.MAC`: Terminal runs
+`.terminal`, `.command` and `.tool`, Jar Launcher runs `.jar`, and `.fileloc`,
+`.webloc` and `.inetloc` open their target, none needing the execute bit.
+`WindowsTraits` reads `PATHEXT`; `windows` takes it as an argument, so tests
+pass one.
 
 `OsTraits.description()` is the About dialog's OS line. `EnvPaths.absolute`
 accepts a variable's value only as a non-empty absolute path. `WindowsTraits`

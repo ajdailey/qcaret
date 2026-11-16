@@ -28,7 +28,6 @@ class PlatformTraitsTest {
     "opensBrowser",
     "positionsWindows",
     "remeasuresTrim",
-    "launchesByExtension",
     "explainsUnsupportedStacking",
     "menuImages",
     "padsMenuImages",
@@ -66,7 +65,6 @@ class PlatformTraitsTest {
     answers.add(traits.opensBrowser());
     answers.add(traits.positionsWindows());
     answers.add(traits.remeasuresTrim());
-    answers.add(traits.launchesByExtension());
     answers.add(traits.explainsUnsupportedStacking());
     answers.add(traits.menuImages());
     answers.add(traits.padsMenuImages());
@@ -110,7 +108,6 @@ class PlatformTraitsTest {
         CaretBlend.XOR,
         false,
         false,
-        true,
         true,
         true,
         true,
@@ -160,7 +157,6 @@ class PlatformTraitsTest {
         false,
         false,
         false,
-        false,
         true,
         false,
         false,
@@ -192,7 +188,6 @@ class PlatformTraitsTest {
         false,
         true,
         !"wayland".equals(backend),
-        false,
         false,
         true,
         true,
@@ -226,7 +221,6 @@ class PlatformTraitsTest {
         "Monospace",
         10,
         CaretBlend.OVER,
-        false,
         false,
         false,
         false,

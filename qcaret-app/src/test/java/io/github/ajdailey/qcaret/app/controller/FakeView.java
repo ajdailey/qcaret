@@ -41,6 +41,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -992,7 +993,8 @@ final class FakeView implements MainView {
   List<WorkspaceNode> revealedChain;
   QuickOpenInput quickOpen;
   int quickOpenChanges;
-  boolean windows;
+  // The host, as MainWindow answers: Files.isExecutable is true for every readable file on Windows.
+  OsTraits system = OsTraits.current();
 
   @Override
   public void showWorkspace(WorkspaceInput input, boolean shown) {
@@ -1060,9 +1062,9 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public boolean launchesByExtension() {
+  public OsTraits system() {
     ui.checkUiThread();
-    return windows;
+    return system;
   }
 
   @Override

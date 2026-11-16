@@ -43,9 +43,13 @@ The index and the browser leave out hidden entries and
   `WorkspaceSelectionInput.MENU`: Open and Open in Default Application, the
   file operations below, then Copy Path, Search in Folder and Set as Workspace
   Folder.
-- Open in Default Application refuses a file the system would run: on Windows
-  by extension (`Files.isExecutable` is true for every readable file there),
-  elsewhere by the executable bit, read on a worker.
+- Open in Default Application refuses a file the system would run. The
+  controller calls `runsInsteadOfOpening` on a worker, on the `OsTraits` that
+  `WorkspaceView.system` returns: Windows decides by extension
+  (`RunnableTypes.WINDOWS` or a `PATHEXT` entry; `Files.isExecutable` is true
+  for every readable file there), macOS by `RunnableTypes.MAC` or the execute
+  bit, Linux by the execute bit. Both lists are denylists: a program installed
+  later can register another extension to run.
 
 ## Several selected rows
 

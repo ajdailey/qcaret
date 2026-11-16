@@ -45,6 +45,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -1814,8 +1815,8 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public boolean launchesByExtension() {
-    return PlatformTraits.PLATFORM.launchesByExtension();
+  public OsTraits system() {
+    return OsTraits.current();
   }
 
   /**

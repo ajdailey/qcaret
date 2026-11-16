@@ -84,7 +84,6 @@ class PlatformBehaviorTest {
   void mainWindowAnswers() {
     MainWindow window = new MainWindow(display, Palette.LIGHT);
     try {
-      assertEquals(WIN32, window.launchesByExtension());
       assertTrue(
           window.toolkitDescription().startsWith("SWT " + SWT.getVersion() + " " + PLATFORM),
           window.toolkitDescription());

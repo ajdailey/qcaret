@@ -6,12 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -182,5 +186,32 @@ class OsTraitsTest {
       Path dot = Files.createDirectory(temp.resolve(".dot"));
       assertTrue(OsTraits.current().hidden(dot));
     }
+  }
+
+  @Test
+  void runnableFilesFollowTheSystem(@TempDir Path temp) throws IOException {
+    Path text = Files.writeString(temp.resolve("notes.txt"), "x\n");
+    Path jar = Files.writeString(temp.resolve("tool.jar"), "x\n");
+    Path terminal = Files.writeString(temp.resolve("shell.terminal"), "x\n");
+    assertTrue(WINDOWS.runsInsteadOfOpening(jar));
+    assertFalse(WINDOWS.runsInsteadOfOpening(terminal));
+    assertFalse(WINDOWS.runsInsteadOfOpening(text));
+    assertTrue(MAC.runsInsteadOfOpening(jar));
+    assertTrue(MAC.runsInsteadOfOpening(terminal));
+  }
+
+  /** Windows reports every readable file as executable, so the execute bit is set on POSIX only. */
+  @Test
+  @DisabledOnOs(OS.WINDOWS)
+  void theExecuteBitDecidesOnMacOsAndLinux(@TempDir Path temp) throws IOException {
+    Path script = Files.writeString(temp.resolve("run.sh"), "x\n");
+    Path terminal = Files.writeString(temp.resolve("shell.terminal"), "x\n");
+    assertFalse(LINUX.runsInsteadOfOpening(terminal));
+    assertFalse(MAC.runsInsteadOfOpening(script));
+    assertFalse(LINUX.runsInsteadOfOpening(script));
+    Files.setPosixFilePermissions(script, PosixFilePermissions.fromString("rwx------"));
+    assertTrue(MAC.runsInsteadOfOpening(script));
+    assertTrue(LINUX.runsInsteadOfOpening(script));
+    assertFalse(WINDOWS.runsInsteadOfOpening(script));
   }
 }

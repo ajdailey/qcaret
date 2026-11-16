@@ -60,7 +60,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
 | `ChecksumNamesTest` | `ChecksumCheck.checkName` under Windows and Linux traits on every OS: UNC names off the list's share and device names refused, local, relative and same-share names kept; an absolute local name verified; on Windows a UNC and device names unreadable with the reason; on POSIX a FIFO and `/dev/zero` unreadable within a 30 s bound, which a missing regular-file check fails instead of hanging |
 | `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only; a name ending in a dot or space refused on Windows only |
-| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings, the launcher directory and font folders per system, Windows variable names matched ignoring case, the description, `EnvPaths.absolute` |
+| `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings, the launcher directory and font folders per system, Windows variable names matched ignoring case, the description, `EnvPaths.absolute`; `runsInsteadOfOpening` by name per system, and by the execute bit on macOS and Linux (POSIX hosts) |
+| `RunnableTypesTest` | Every `WINDOWS` and `MAC` extension in either case, trailing dots and spaces on Windows, a `PATHEXT` entry added and malformed entries ignored |
 | `AtomicFilesTest` | Write, replace and the move retry; on Windows only, a secret from either `writeOwnerOnly` with one ACL entry for the user and no `.qcaret-` directory left, and a file created in `privateDirectory` with only the user's entry from creation |
 | `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 

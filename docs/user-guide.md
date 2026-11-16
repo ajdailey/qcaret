@@ -590,7 +590,13 @@ again, Reveal Active File selects the current document's file, and Hide Browser
 hides the browser. A row's menu offers Open, Open in Default Application, New
 File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
 Workspace Folder; right-click empty space in the browser to act on the shown
-folder itself. Open in Default Application refuses a file the system would run.
+folder itself. Open in Default Application refuses a file the system would run
+and shows a notice: on Windows a program, script, shortcut, installer or other
+type Windows runs (`.exe`, `.bat`, `.ps1`, `.jar`, `.lnk`, `.url` and others)
+or an extension listed in `PATHEXT`; on macOS a `.command`, `.terminal`,
+`.tool`, `.jar`, `.webloc`, `.inetloc` or `.fileloc` file, or a file with the
+execute permission; on Linux a file with the execute permission. Open such a
+file in QCaret instead.
 
 Ctrl-click (Cmd-click on macOS) adds or removes a row, and Shift-click selects
 a range. With several rows selected, Open, Open in Default Application and

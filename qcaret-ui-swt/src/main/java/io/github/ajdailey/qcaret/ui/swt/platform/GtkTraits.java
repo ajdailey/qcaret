@@ -52,11 +52,6 @@ abstract class GtkTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean launchesByExtension() {
-    return false;
-  }
-
-  @Override
   public boolean explainsUnsupportedStacking() {
     return true;
   }

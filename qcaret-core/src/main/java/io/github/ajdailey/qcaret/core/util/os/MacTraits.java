@@ -69,4 +69,10 @@ final class MacTraits implements OsTraits {
   public boolean hidden(Path path) throws IOException {
     return Files.isHidden(path);
   }
+
+  @Override
+  public boolean runsInsteadOfOpening(Path file) {
+    Path name = file.getFileName();
+    return (name != null && RunnableTypes.mac(name.toString())) || Files.isExecutable(file);
+  }
 }

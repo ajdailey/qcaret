@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.app.view.WorkspaceSelectionInput;
 import io.github.ajdailey.qcaret.app.view.WorkspaceSelectionInput.Action;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -132,7 +133,7 @@ class WorkspaceSelectionTest {
   @Test
   void openInDefaultApplicationLaunchesEverySelectedFile() throws Exception {
     // Decide by extension on every host: Files.isExecutable is true for any file on Windows.
-    harness.view.windows = true;
+    harness.view.system = OsTraits.of("Windows 11");
     selection()
         .run(
             Action.OPEN_DEFAULT, List.of(file("notes.txt"), folder("src"), file("todo.txt")), null);
@@ -151,7 +152,7 @@ class WorkspaceSelectionTest {
   @Test
   void openInDefaultApplicationAsksFirstAboveTenFiles() throws Exception {
     // Decide by extension on every host: Files.isExecutable is true for any file on Windows.
-    harness.view.windows = true;
+    harness.view.system = OsTraits.of("Windows 11");
     final List<WorkspaceNode> rows = new ArrayList<WorkspaceNode>();
     for (int i = 0; i < WorkspaceSelection.OPEN_UNASKED; i++) {
       String name = "f" + i + ".txt";

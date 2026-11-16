@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.workspace.FileIndex;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir;
  * charge, over a temp tree.
  */
 class WorkspaceControllerTest {
+  private static final String RUNS = " was not opened: the system would run it";
+
   @TempDir Path temp;
 
   private Harness harness;
@@ -222,37 +225,58 @@ class WorkspaceControllerTest {
     assertNull(workspace.index());
   }
 
-  /** QLogg SWT-8: Windows decides by extension; POSIX by the executable bit. */
+  /**
+   * Each system's rule reaches the refusal: Windows by extension (QLogg SWT-8: {@code
+   * Files.isExecutable} is true for every readable file there), macOS by its list, Linux by the
+   * execute bit.
+   */
   @Test
   void openInDefaultApplicationRefusesFilesTheSystemWouldRun() throws Exception {
-    assertTrue(WorkspaceController.runsInsteadOfOpening(Path.of("setup.EXE"), true));
-    assertTrue(WorkspaceController.runsInsteadOfOpening(Path.of("run.ps1"), true));
-    assertFalse(WorkspaceController.runsInsteadOfOpening(root.resolve("notes.txt"), true));
     setRoot(workspace(), root);
-    harness.view.windows = true;
-    workspace()
-        .openInDefaultApplication(
-            new WorkspaceNode(root.resolve("tool.cmd"), "tool.cmd", WorkspaceNode.Kind.FILE));
-    workspace()
-        .openInDefaultApplication(
-            new WorkspaceNode(root.resolve("notes.txt"), "notes.txt", WorkspaceNode.Kind.FILE));
-    harness.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return harness.view.launched.size() == 1
-                && harness.view.notices.contains(
-                    "tool.cmd was not opened: the system would run it");
-          }
-        },
-        "launched one, refused one");
+    harness.view.system = OsTraits.of("Windows 11");
+    openDefault("tool.cmd");
+    openDefault("tool.jar");
+    openDefault("notes.txt");
+    harness.view.system = OsTraits.of("Mac OS X");
+    openDefault("shell.terminal");
+    awaitOutcomes(1, 3);
     assertEquals(root.resolve("notes.txt").toString(), harness.view.launched.get(0));
+    for (String name : List.of("tool.cmd", "tool.jar", "shell.terminal")) {
+      assertTrue(harness.view.notices.contains(name + RUNS), name);
+    }
 
     Path script = Files.writeString(root.resolve("run.sh"), "#!/bin/sh\n");
     assumeTrue(
         Files.getFileStore(script).supportsFileAttributeView("posix"), "POSIX permissions only");
+    harness.view.system = OsTraits.of("Linux");
+    openDefault("run.sh");
+    awaitOutcomes(2, 3);
     Files.setPosixFilePermissions(script, PosixFilePermissions.fromString("rwxr-xr-x"));
-    assertTrue(WorkspaceController.runsInsteadOfOpening(script, false));
-    assertFalse(WorkspaceController.runsInsteadOfOpening(root.resolve("notes.txt"), false));
+    openDefault("run.sh");
+    awaitOutcomes(2, 4);
+    assertTrue(harness.view.notices.contains("run.sh" + RUNS));
+  }
+
+  private void openDefault(String name) {
+    workspace()
+        .openInDefaultApplication(
+            new WorkspaceNode(root.resolve(name), name, WorkspaceNode.Kind.FILE));
+  }
+
+  private void awaitOutcomes(final int launched, final int refused) throws InterruptedException {
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            int notices = 0;
+            for (String notice : harness.view.notices) {
+              if (notice.endsWith(RUNS)) {
+                notices++;
+              }
+            }
+            return harness.view.launched.size() == launched && notices == refused;
+          }
+        },
+        launched + " launched, " + refused + " refused");
   }
 }

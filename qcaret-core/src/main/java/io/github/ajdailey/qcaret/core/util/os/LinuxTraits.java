@@ -83,4 +83,9 @@ final class LinuxTraits implements OsTraits {
   public boolean hidden(Path path) throws IOException {
     return Files.isHidden(path);
   }
+
+  @Override
+  public boolean runsInsteadOfOpening(Path file) {
+    return Files.isExecutable(file);
+  }
 }

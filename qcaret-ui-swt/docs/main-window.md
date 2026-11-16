@@ -350,7 +350,6 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `opensBrowser` | yes | yes | yes | - | `MainWindow.showGuide`: otherwise a notice names the guide's file |
 | `positionsWindows` | yes | yes | X11 only | - | `MainWindow` placement |
 | `remeasuresTrim` | yes | - | - | - | `MainWindow` placement: places again with the measured trim |
-| `launchesByExtension` | yes | - | - | - | `MainWindow.launchesByExtension` |
 | `explainsUnsupportedStacking` | - | - | yes | yes | `MainMenuBar`: Always on Top tool tip |
 | `stacksOnX11` | - | - | X11 only | - | `WindowStacking.forPlatform`: `GtkX11Stacking`, otherwise `NONE` (see [Always on Top](#always-on-top)) |
 | `toolkitVersion` | null | null | GTK version | GTK version | `MainWindow.toolkitDescription` |
@@ -376,7 +375,9 @@ Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
 `user.home` on Linux and the WebView2 folder on Windows before the Display, and
 `SettingsLocation` and `AboutInfo` (app) take the settings directory and
-About's OS line from it. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
+About's OS line from it. `MainWindow.system` returns `OsTraits.current()`, which
+`WorkspaceController` asks whether Open in Default Application would run a
+file. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
 `os.name` to that package; `Target` (bootstrap) reads it before the launcher
 loads.
 

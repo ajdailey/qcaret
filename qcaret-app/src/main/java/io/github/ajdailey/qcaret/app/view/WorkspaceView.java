@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -67,9 +68,10 @@ public interface WorkspaceView {
   void quickOpenChanged();
 
   /**
-   * Reports whether the system decides what a file runs by its extension (Windows).
+   * Returns the operating system whose rules decide which files Open in Default Application
+   * refuses.
    *
-   * @return true on Windows
+   * @return this process's system
    */
-  boolean launchesByExtension();
+  OsTraits system();
 }

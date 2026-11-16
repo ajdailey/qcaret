@@ -150,4 +150,15 @@ public interface OsTraits {
    * @throws IOException when the attributes cannot be read
    */
   boolean hidden(Path path) throws IOException;
+
+  /**
+   * Reports whether opening a file with its default application runs it: on Windows an extension in
+   * {@link RunnableTypes#WINDOWS} or {@code PATHEXT}, whatever the attributes, since every readable
+   * file is executable there; on macOS an extension in {@link RunnableTypes#MAC} or the execute
+   * bit; on Linux the execute bit. Reads the file's attributes.
+   *
+   * @param file the file
+   * @return true when the file would run
+   */
+  boolean runsInsteadOfOpening(Path file);
 }

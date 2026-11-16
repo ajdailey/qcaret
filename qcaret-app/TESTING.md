@@ -179,7 +179,7 @@ after the change.
 
 | Class | Covers |
 |---|---|
-| `WorkspaceControllerTest` | A directory listed when it expands, Refresh keeping the old rows until a new file arrives, 1,200 entries shown 500 at a time, Reveal Active File's chain and a file outside the folder, the index's charge across a folder change and its return on dispose, Open in Default Application by extension and by the executable bit (POSIX only) |
+| `WorkspaceControllerTest` | A directory listed when it expands, Refresh keeping the old rows until a new file arrives, 1,200 entries shown 500 at a time, Reveal Active File's chain and a file outside the folder, the index's charge across a folder change and its return on dispose, Open in Default Application refusing a Windows and a macOS runnable type and, on POSIX, a file with the execute bit |
 | `WorkspaceIndexTest` | Index listeners after a build and an in-place change until removed; a Refresh during a build replacing it |
 | `BrowserListingsTest` | Through `WorkspaceController`: a hidden browser listing nothing until shown, the empty and unreadable rows, Reveal Active File past the first page and on a hidden file, an excluded directory listed and indexed again, a row operation dropping the listings under a removed folder and selecting the new row, restored directories expanding once their parent is listed, a listing ending after dispose dropped |
 | `WorkspaceBrowseTest` | Browsing away from and back to the workspace folder, a typed folder outside it, path and filter refusals, favorites, the filter and Hidden, Size and Modified with their units and sort, a listing canceled by a new folder, the session round trip, another window following a rename and a Refresh, the workspace folder following a rename and cleared by a delete |

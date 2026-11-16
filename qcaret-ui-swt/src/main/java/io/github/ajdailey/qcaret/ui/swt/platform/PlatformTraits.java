@@ -106,13 +106,6 @@ public interface PlatformTraits {
   boolean remeasuresTrim();
 
   /**
-   * Reports whether a file opens in its system application by file extension.
-   *
-   * @return true on win32
-   */
-  boolean launchesByExtension();
-
-  /**
    * Reports whether a disabled Always on Top item carries a tool tip saying the platform cannot
    * keep a window on top.
    *
