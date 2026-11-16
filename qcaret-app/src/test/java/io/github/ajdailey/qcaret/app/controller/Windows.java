@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.app.controller;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.sun.management.HotSpotDiagnosticMXBean;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
@@ -16,8 +15,6 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,15 +108,7 @@ final class Windows {
 
   private static String threadDump() {
     try {
-      Path file = Files.createTempFile("qcaret-threads", ".txt");
-      try {
-        Files.delete(file);
-        ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)
-            .dumpThreads(file.toString(), HotSpotDiagnosticMXBean.ThreadDumpFormat.TEXT_PLAIN);
-        return Files.readString(file);
-      } finally {
-        Files.deleteIfExists(file);
-      }
+      return ThreadDumps.text();
     } catch (IOException e) {
       return "no thread dump: " + e;
     }

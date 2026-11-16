@@ -325,7 +325,9 @@ class DocumentControllerTest {
     documents.cancelSave();
     documents.activeEditor().type("y");
     documents.save();
-    Thread.sleep(300);
+    assertTrue(
+        Poll.until(ThreadDumps.anyStackWith("SaveAndReload$", "ReentrantLock.lock"), BOUND),
+        "the second writer did not wait for the first");
     assertTrue(Files.size(file) < "yxbefore".length(), "a second writer ran beside the first");
     gate.release();
     settle();

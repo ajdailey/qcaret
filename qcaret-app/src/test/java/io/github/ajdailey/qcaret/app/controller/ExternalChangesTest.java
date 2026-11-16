@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
+import io.github.ajdailey.qcaret.core.testkit.Poll;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,13 +24,13 @@ class ExternalChangesTest {
   private static final Duration BOUND = Duration.ofSeconds(20);
   private static final long QUIET_MILLIS = 2000;
   private static final long POLL_MILLIS = 60_000;
-  private static final long CHECK_MILLIS = 300;
 
   @TempDir Path temp;
 
   /**
    * Another program's truncate and write are two directory events, and the check between them reads
-   * 0 bytes. Only the bytes after the write may reach the listener.
+   * 0 bytes: the write waits until a check is in {@code settle}. Only the bytes after the write may
+   * reach the listener.
    */
   @Test
   void aTruncateAndALaterWriteReportOneChange() throws Exception {
@@ -53,7 +54,7 @@ class ExternalChangesTest {
       changes.watch(file, baseline);
       Files.write(file, new byte[0]);
       changes.checkAll();
-      Thread.sleep(CHECK_MILLIS);
+      assertTrue(Poll.until(ThreadDumps.anyStackWith("ExternalChanges.settle"), BOUND));
       Files.writeString(file, "theirs\n", StandardCharsets.UTF_8);
       assertTrue(
           ui.runUntil(

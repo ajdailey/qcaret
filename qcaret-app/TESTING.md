@@ -11,8 +11,10 @@ jar for the other modules.
 
 `Harness` builds a controller over `FakeView` with a recent log and a mock
 debug log file. `Windows` is a set of `FakeView`s for the multi-window tests.
-Tests that need a symbolic link skip where links cannot be created, and tests
-of a file without write permission skip where the user writes every file.
+`ThreadDumps` polls a thread dump, virtual threads included, until a worker
+reaches a call, for a wait that has no other signal. Tests that need a symbolic
+link skip where links cannot be created, and tests of a file without write
+permission skip where the user writes every file.
 
 ## Coverage
 
@@ -21,6 +23,8 @@ of a file without write permission skip where the user writes every file.
 | Class | Covers |
 |---|---|
 | `HandoffTest` | Client and server over loopback in one JVM: options, `-n`, geometry and `--diff` carried; a wrong token, a peer without the token and a listener without the token; a stale endpoint with and without a live lock; a child JVM killed by `destroyForcibly` releasing the lock; 16 launches against a primary before and after its first window; arrival order; `ERR` at `close` and at `WINDOW_BOUND`; a listener that never answers |
+| `HandoffLimitsTest` | Each bound on a peer: a line of `MAX_LINE` bytes taken and one byte more dropped, a byte outside printable ASCII, more than `MAX_REQUEST` bytes, `MAX_OPEN` OPEN lines taken and one more answered `ERR`, silent peers holding all `MAX_CONNECTIONS` slots until `EXCHANGE_BOUND`; a dropped peer gets no reply, and the next launch is taken |
+| `EndpointTest` | `instance.endpoint` round trip; a missing file; a missing or unknown version, a port missing, not a number, out of range or overflowing, a token missing, not hex, of odd length or not 32 bytes, a malformed escape, and a file one byte over 4,096 refused |
 | `InstanceServerInterruptTest` | The accept loop and a held handoff on an interrupted thread: each returns, the handoff refused, with the flag still set |
 | `WindowSetTest` | What the windows share, handoff targets, the one-buffer rule, close and quit |
 | `QuitSequenceTest` | A finish listener added after the quit finished; a quit with the workers closed; a window close answered after the other window closed (quits) or after the quit began; one INFO line for a quit |
@@ -107,7 +111,7 @@ of a file without write permission skip where the user writes every file.
 
 | Class | Covers |
 |---|---|
-| `ExternalChangesTest` | A truncate and a later write pinned to one report |
+| `ExternalChangesTest` | A truncate and a later write pinned to one report: the write waits until the check of the truncate is in `settle` |
 | `ExternalChangeTest` | Keep Mine recording the declined file as a buffer's base; a clean document reloaded as one undo step with its caret line kept; a dirty document's prompt, with Keep Mine making the next save ask and Overwrite writing; a file that never holds still reloading anyway; Reload keeping the edits in undo; a newer change updating the open prompt; a deleted file kept missing and dirty until the same bytes return, and reloaded when other bytes return; a missing file saved without a prompt; a touch with the same bytes neither prompting nor blocking the save; five saves never reported; Compare from the prompt and Compare Documents; a retargeted link reloading and saving its new target; a 3 MiB file reloaded; a span the budget refuses, read again only on a new change and asked about at the next save; a failed reload reported once per change; the round-trip guard set and cleared by a reload and kept apart from the user's read-only choice; typing during a reload held in a gate charset (kept with a prompt, undo after accepting, undone back to clean); Reload from Disk, asking once for a dirty document; a confirmed reload; a re-encoded file detected on reload and in Compare with File on Disk; a chosen charset surviving a reload; a Compare refused when the file's text outgrows the budget; Reload at the save conflict prompt; a save during a reload showing its notice; a reload edited during every read stopping after `RELOAD_ATTEMPTS` with a notice |
 
 Each check in `ExternalChangeTest` runs on window activation; a case that
@@ -154,6 +158,7 @@ after the change.
 | `SyntaxMenuTest` | The category submenus of the built-in grammars, a user grammar in its category or in User, the recent list |
 | `GrammarWiringTest` | Fold regions from the highlighter for a `brackets` grammar and from indentation for the others through switches and a reload; the grammar's indent rules and pairs; bracket matching that counts a string's bracket until the tokens arrive and skips it after |
 | `HighlightComposerTest`, `TokenCacheTest`, `GrammarRulesTest` | The background precedence; the cache through edits; the indent regexes and the token filter |
+| `PatternIndentRulesTest` | Each rule over a regex that matches only past the read limit reporting false, and its next call matching |
 
 ### Search and replace
 
