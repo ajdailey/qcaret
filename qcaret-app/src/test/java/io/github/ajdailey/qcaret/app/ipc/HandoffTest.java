@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
@@ -23,7 +24,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryFlag;
+import java.nio.file.attribute.AclEntryPermission;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +40,8 @@ import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -508,6 +517,58 @@ class HandoffTest {
     Files.setPosixFilePermissions(shared, PosixFilePermissions.fromString("rwx------"));
     assertNull(InstanceClient.refusal(shared, System.getProperty("user.name")));
     assertNotNull(InstanceClient.refusal(shared, "qcaret-mock-nobody"));
+  }
+
+  /**
+   * Another account with a write or delete right on the settings directory could replace the
+   * endpoint with its own port and token. A read right, or a right only new children inherit, does
+   * not turn the handoff off.
+   */
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void aWindowsDirectoryOthersCanWriteTurnsTheHandoffOff() throws Exception {
+    Path shared = Files.createDirectory(temp.resolve("shared"));
+    String user = System.getProperty("user.name");
+    assertNull(InstanceClient.refusal(shared, user));
+    assertNotNull(InstanceClient.refusal(shared, "qcaret-mock-nobody"));
+    UserPrincipal everyone;
+    try {
+      everyone =
+          shared
+              .getFileSystem()
+              .getUserPrincipalLookupService()
+              .lookupPrincipalByGroupName("Everyone");
+    } catch (IOException e) {
+      assumeTrue(false, "no group named Everyone: " + e);
+      return;
+    }
+    AclFileAttributeView view = Files.getFileAttributeView(shared, AclFileAttributeView.class);
+    List<AclEntry> acl = new ArrayList<AclEntry>(view.getAcl());
+    acl.add(entry(everyone, AclEntryPermission.READ_DATA));
+    view.setAcl(acl);
+    assertNull(InstanceClient.refusal(shared, user));
+    AclEntry inherited = entry(everyone, AclEntryPermission.WRITE_DATA);
+    acl.add(
+        AclEntry.newBuilder(inherited)
+            .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.INHERIT_ONLY)
+            .build());
+    view.setAcl(acl);
+    assertNull(InstanceClient.refusal(shared, user));
+    for (AclEntryPermission right : AclCheck.WRITE) {
+      List<AclEntry> granted = new ArrayList<AclEntry>(acl);
+      granted.add(entry(everyone, right));
+      view.setAcl(granted);
+      assertNotNull(InstanceClient.refusal(shared, user), right.toString());
+    }
+    view.setAcl(acl);
+  }
+
+  private static AclEntry entry(UserPrincipal principal, AclEntryPermission right) {
+    return AclEntry.newBuilder()
+        .setType(AclEntryType.ALLOW)
+        .setPrincipal(principal)
+        .setPermissions(right)
+        .build();
   }
 
   @Test

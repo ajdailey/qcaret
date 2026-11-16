@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryStream;
@@ -107,11 +108,55 @@ class AtomicFilesTest {
     assertEquals(1, acl.size());
     assertEquals(AclEntryType.ALLOW, acl.get(0).type());
     assertEquals(EnumSet.allOf(AclEntryPermission.class), acl.get(0).permissions());
-    String expected = System.getenv("USERDOMAIN") + "\\" + System.getProperty("user.name");
-    assertEquals(
-        expected.toLowerCase(Locale.ROOT),
-        acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
+    assertEquals(qualifiedUser(), acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
     assertEquals("token", Files.readString(file, StandardCharsets.US_ASCII));
+    assertEquals(List.of("instance.endpoint"), names());
+  }
+
+  private static String qualifiedUser() {
+    String user = System.getenv("USERDOMAIN") + "\\" + System.getProperty("user.name");
+    return user.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * A secret's temporary file is created in this directory, so it has the user's entry from
+   * creation: a file created with its parent's inherited entries could be opened by another account
+   * before its ACL was replaced, and the handle read the content written afterwards.
+   */
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void aFileCreatedInThePrivateDirectoryHasOnlyTheUsersEntry() throws IOException {
+    Path staging = AtomicFiles.privateDirectory(temp);
+    Path file = Files.createFile(staging.resolve("born.tmp"));
+    try {
+      List<AclEntry> acl = Files.getFileAttributeView(file, AclFileAttributeView.class).getAcl();
+      assertEquals(1, acl.size(), acl.toString());
+      assertEquals(AclEntryType.ALLOW, acl.get(0).type());
+      assertEquals(qualifiedUser(), acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
+    } finally {
+      Files.delete(file);
+      Files.delete(staging);
+    }
+  }
+
+  /** The streamed variant writes through the same private directory and leaves none behind. */
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void aStreamedSecretHasOneAclEntryAndLeavesNoDirectory() throws IOException {
+    Path file = temp.resolve("recovery.txt");
+    AtomicFiles.writeOwnerOnly(
+        file,
+        new ContentWriter() {
+          @Override
+          public void write(OutputStream out) throws IOException {
+            out.write("body".getBytes(StandardCharsets.US_ASCII));
+          }
+        });
+    List<AclEntry> acl = Files.getFileAttributeView(file, AclFileAttributeView.class).getAcl();
+    assertEquals(1, acl.size(), acl.toString());
+    assertEquals(qualifiedUser(), acl.get(0).principal().getName().toLowerCase(Locale.ROOT));
+    assertEquals("body", Files.readString(file, StandardCharsets.US_ASCII));
+    assertEquals(List.of("recovery.txt"), names());
   }
 
   @Test

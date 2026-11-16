@@ -50,11 +50,15 @@ directory (POSIX `rw-------`), then moves it over the target with
 deleted. Nothing goes to `java.io.tmpdir`.
 
 - `write(Path, InputStream)` streams the content through a 64 KiB buffer.
-- `writeOwnerOnly`, for a secret, also replaces the temporary file's ACL with
-  one entry for the current user where there are ACLs but no POSIX permissions
-  (Windows): `USERDOMAIN\user.name`, then the bare name, then the file's owner
-  when no name resolves. An elevated process's new file is owned by
-  `BUILTIN\Administrators`, not the user.
+- `writeOwnerOnly`, for a secret, where there are ACLs but no POSIX
+  permissions (Windows), creates the temporary file in a new `.qcaret-`
+  directory beside the target whose ACL is first set to one inheritable entry
+  for the current user (`privateDirectory`). The file has that entry from
+  creation, so no other account opens it before the content is written. Its
+  ACL is then set to the entry explicitly; the move keeps it, and the directory
+  is deleted. The user is `USERDOMAIN\user.name`, then the bare name
+  (`Accounts.user`), then the file's owner when no name resolves. An elevated
+  process's new file is owned by `BUILTIN\Administrators`, not the user.
 - `writeOwnerOnly(Path, ContentWriter)` takes content too large for one array
   and forces it to disk before the move.
 - On Windows a refused move is tried for up to 250 ms: a target open elsewhere
@@ -78,14 +82,21 @@ a worker.
    `ATOMIC_MOVE`. Replacing a file, the temporary file is created owner-only,
    takes the target's group before the write, and takes the target's POSIX
    permissions or DOS hidden and system flags before the move. A new file takes
-   the default mode. `SafeSave` checks the token on each write to the temporary
+   the default mode. POSIX ACLs and extended attributes are not copied.
+   Where there are ACLs but no POSIX permissions (Windows), a target whose ACL
+   differs from the one the temporary file took from the directory is written
+   through a temporary file in a `privateDirectory` instead, given the target's
+   ACL before the content, so no account the directory grants opens it first.
+   Java cannot mark an entry inherited, so that target's inherited entries
+   become explicit. `SafeSave` checks the token on each write to the temporary
    file, so a `ContentWriter` need not; a cancel before the move leaves the
    target unchanged and deletes the temporary file.
 5. The target is written in place (truncate, write, force) when it has more
    than one hard link (Linux and macOS: `unix:nlink`; Windows has no link
    count, so a save there replaces a hard-linked file and splits the link),
    its owner differs from the temporary file's, the user
-   cannot give the temporary file its group, its directory is not writable, or
+   cannot give the temporary file its group, its directory is not writable, the
+   target's ACL cannot be read or given to the temporary file, or
    the move fails five times 100 ms apart (Windows sharing violations). The
    token is checked before the truncate and never after it: an in-place write
    runs to its end, so Esc does not stop one on a large file. A failure partway

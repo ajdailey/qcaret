@@ -15,6 +15,8 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.DosFileAttributeView;
 import java.nio.file.attribute.DosFileAttributes;
 import java.nio.file.attribute.GroupPrincipal;
@@ -25,6 +27,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.SecureRandom;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 
@@ -33,14 +36,18 @@ import java.util.concurrent.CancellationException;
  * .<name>.<random>.qcaret-tmp} in the target's directory, forced to disk, then moved over the
  * target with {@code ATOMIC_MOVE}. Replacing a file, the temporary file is owner-only while it is
  * written, takes the target's group first and its POSIX permissions or DOS attributes before the
- * move; a new file takes the default mode. A symbolic link is resolved first, dangling or not, so
- * the link stays a link.
+ * move; a new file takes the default mode. Where ACLs replace POSIX permissions (Windows), a target
+ * whose ACL differs from the one a new file in its directory gets is replaced by a temporary file
+ * created in a private directory beside it ({@link AtomicFiles#privateDirectory}) and given the
+ * target's ACL before the content is written. A symbolic link is resolved first, dangling or not,
+ * so the link stays a link.
  *
  * <p>The target is written in place (truncate, write, force) instead when it has more than one hard
  * link, its owner is not the user the temporary file is created as, that user cannot give the
- * temporary file its group, its directory is not writable, or the move still fails after {@value
- * #MOVE_ATTEMPTS} attempts (Windows sharing violations). An in-place write that fails partway
- * leaves the target partly written, and a cancel does not stop one that has begun.
+ * temporary file its group, its directory is not writable, the target's ACL cannot be read or given
+ * to the temporary file, or the move still fails after {@value #MOVE_ATTEMPTS} attempts (Windows
+ * sharing violations). An in-place write that fails partway leaves the target partly written, and a
+ * cancel does not stop one that has begun.
  */
 public final class SafeSave {
   /** Move attempts before the in-place fallback. */
@@ -95,13 +102,32 @@ public final class SafeSave {
     if (current != null && (hardLinked(real) || !Files.isWritable(dir))) {
       return inPlace(real, content, token);
     }
-    Path temp = dir.resolve("." + real.getFileName() + "." + randomHex() + ".qcaret-tmp");
+    Path temp = tempIn(dir, real);
     createTemp(temp, current != null);
+    Path staging = null;
     boolean moved = false;
     try {
       if (current != null && !(sameOwner(real, temp) && sameGroup(real, temp))) {
         Files.delete(temp);
         return inPlace(real, content, token);
+      }
+      List<AclEntry> acl;
+      try {
+        acl = current == null ? null : differingAcl(real, temp);
+      } catch (IOException e) {
+        Files.delete(temp);
+        return inPlace(real, content, token);
+      }
+      if (acl != null) {
+        Files.delete(temp);
+        try {
+          staging = AtomicFiles.privateDirectory(dir);
+          temp = tempIn(staging, real);
+          Files.createFile(temp);
+          Files.getFileAttributeView(temp, AclFileAttributeView.class).setAcl(acl);
+        } catch (IOException e) {
+          return inPlace(real, content, token);
+        }
       }
       write(temp, content, token, StandardOpenOption.WRITE);
       if (current != null) {
@@ -117,7 +143,36 @@ public final class SafeSave {
       if (!moved) {
         Files.deleteIfExists(temp);
       }
+      if (staging != null) {
+        AtomicFiles.deleteStaging(staging);
+      }
     }
+  }
+
+  private static Path tempIn(Path dir, Path real) {
+    return dir.resolve("." + real.getFileName() + "." + randomHex() + ".qcaret-tmp");
+  }
+
+  /**
+   * Compares the target's ACL with the one the temporary file took from the directory, where ACLs
+   * replace POSIX permissions.
+   *
+   * @return the target's ACL when the two differ, else null
+   * @throws IOException when an ACL cannot be read
+   */
+  private static List<AclEntry> differingAcl(Path real, Path temp) throws IOException {
+    if (temp.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      return null;
+    }
+    AclFileAttributeView view = Files.getFileAttributeView(real, AclFileAttributeView.class);
+    if (view == null) {
+      return null;
+    }
+    List<AclEntry> acl = view.getAcl();
+    if (acl.equals(Files.getFileAttributeView(temp, AclFileAttributeView.class).getAcl())) {
+      return null;
+    }
+    return acl;
   }
 
   /** Returns where a missing target's links end, itself when it is not a link. */

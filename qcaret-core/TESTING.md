@@ -54,14 +54,15 @@ and tests of a read-only file skip where the user writes read-only files.
 | Class | Covers |
 |---|---|
 | `ProcessLockTest` | A second acquire in the JVM and in a child JVM, close, a killed holder, a read of the held file, a non-ASCII path, 16 racing threads, a link that fails on a missing, changed or refusing API |
-| `SafeSaveTest` | Permissions, a new file, an external change, a cancel, a symbolic link, a hard link, the held lock file |
+| `SafeSaveTest` | Permissions, a new file, an external change, a cancel, a symbolic link, a hard link, the held lock file; on Windows only, a user-only ACL kept and the content written to a staged file that already has it, and an inherited ACL left inherited with no staging directory |
 | `DigestsTest` | A file past the block size |
 | `ChecksumsTest` | Known vectors for all four algorithms (empty, `abc`), the million-`a` SHA-256 through file and text buffers, a generated file past three buffers, a cancel mid-file, a surrogate pair split across pieces in UTF-16LE, a char the charset cannot encode |
 | `ChecksumListTest` | Text and `*` lines, the algorithm from the length, bad and overlong lines, escaped names both ways, one-char pieces, each `ChecksumCheck` outcome |
 | `ChecksumNamesTest` | `ChecksumCheck.checkName` under Windows and Linux traits on every OS: UNC names off the list's share and device names refused, local, relative and same-share names kept; an absolute local name verified; on Windows a UNC and device names unreadable with the reason; on POSIX a FIFO and `/dev/zero` unreadable within a 30 s bound, which a missing regular-file check fails instead of hanging |
 | `SafePathsTest` | The path rules, including the Windows device forms on every OS; device names refused on Windows only; a name ending in a dot or space refused on Windows only |
 | `OsTraitsTest` | The system each `os.name` picks, every answer of each system, per-user settings, the launcher directory and font folders per system, Windows variable names matched ignoring case, the description, `EnvPaths.absolute` |
-| `AtomicFilesTest`, `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
+| `AtomicFilesTest` | Write, replace and the move retry; on Windows only, a secret from either `writeOwnerOnly` with one ACL entry for the user and no `.qcaret-` directory left, and a file created in `privateDirectory` with only the user's entry from creation |
+| `LogTextTest`, `UtilTest`, `TestkitTest` | The other classes |
 
 ### Editing commands
 

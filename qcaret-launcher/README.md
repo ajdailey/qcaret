@@ -70,7 +70,7 @@ disposed and `run` returns 0.
 Before the Display, without `-m`, `Launcher` claims the instance lock
 ([single instance](../qcaret-app/docs/single-instance.md)). A held lock hands
 the launch over and exits 0, before `-l` attaches a log file. A settings
-directory another user owns or can write, or a failure to take the lock, logs
+directory another account owns or can write, or a failure to take the lock, logs
 one WARN and runs on alone (`Handoff.ALONE`); it restores only if it takes the
 session lock. A JDK where `flock` cannot be linked
 ([`ProcessLock`](../qcaret-core/docs/files-and-encodings.md#process-lock)) is

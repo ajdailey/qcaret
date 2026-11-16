@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.ipc;
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.EnvPaths;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -180,15 +181,24 @@ public final class InstanceClient {
 
   /**
    * Checks that the handoff may use a settings directory: on POSIX it must belong to the current
-   * user and be writable by no one else.
+   * user and be writable by no one else; where there are ACLs instead (Windows), {@link AclCheck}
+   * applies against the {@code USERPROFILE} directory. A file system with neither is accepted.
    *
    * @param directory the settings directory
    * @param user the current user's name
-   * @return null when it may, else the reason
+   * @return null when it may, else the reason, naming the step that failed
    */
   public static String refusal(Path directory, String user) {
-    if (!directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      return null;
+    Set<String> views = directory.getFileSystem().supportedFileAttributeViews();
+    if (!views.contains("posix")) {
+      if (!views.contains("acl")) {
+        return null;
+      }
+      Path profile = EnvPaths.absolute(System.getenv("USERPROFILE"));
+      if (profile == null) {
+        return "USERPROFILE is not an absolute path";
+      }
+      return AclCheck.refusal(directory, user, profile);
     }
     try {
       PosixFileAttributes attributes =
@@ -205,7 +215,7 @@ public final class InstanceClient {
       }
       return null;
     } catch (IOException e) {
-      return "the settings directory cannot be checked";
+      return "the settings directory's owner and permissions cannot be read: " + e;
     }
   }
 }

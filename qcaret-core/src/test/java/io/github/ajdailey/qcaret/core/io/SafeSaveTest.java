@@ -16,16 +16,23 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryPermission;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.GroupPrincipal;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -328,6 +335,74 @@ class SafeSaveTest {
     assertTrue(Files.isSymbolicLink(first));
     assertTrue(Files.isSymbolicLink(last));
     assertEquals("new", Files.readString(gone));
+  }
+
+  /**
+   * Records, while the content is written, the ACL of the file in each private directory beside the
+   * target.
+   */
+  private ContentWriter recordingStagedAcls(final List<List<AclEntry>> staged) {
+    return new ContentWriter() {
+      @Override
+      public void write(OutputStream out) throws IOException {
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(temp)) {
+          for (Path entry : entries) {
+            if (Files.isDirectory(entry)) {
+              try (DirectoryStream<Path> inside = Files.newDirectoryStream(entry)) {
+                for (Path file : inside) {
+                  staged.add(Files.getFileAttributeView(file, AclFileAttributeView.class).getAcl());
+                }
+              }
+            }
+          }
+        }
+        out.write("new".getBytes(StandardCharsets.UTF_8));
+      }
+    };
+  }
+
+  /**
+   * A file whose ACL is narrower than its directory's keeps it, and the content is written to a
+   * file that has that ACL already, so an account the directory grants read cannot open it.
+   */
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void anExplicitAclIsKeptAndTheContentWrittenUnderIt() throws Exception {
+    Path file = temp.resolve("credentials.txt");
+    Files.writeString(file, "old");
+    AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
+    List<AclEntry> userOnly =
+        List.of(
+            AclEntry.newBuilder()
+                .setType(AclEntryType.ALLOW)
+                .setPrincipal(Accounts.user(file.getFileSystem(), System.getProperty("user.name")))
+                .setPermissions(EnumSet.allOf(AclEntryPermission.class))
+                .build());
+    view.setAcl(userOnly);
+    List<List<AclEntry>> staged = new ArrayList<List<AclEntry>>();
+    SafeSave.save(file, FileStamp.read(file), recordingStagedAcls(staged), new CancellationToken());
+    assertEquals(List.of(userOnly), staged);
+    assertEquals(userOnly, view.getAcl());
+    assertEquals("new", Files.readString(file));
+    assertEquals(List.of("credentials.txt"), names());
+  }
+
+  /**
+   * A file with the ACL its directory gives a new file is replaced through a temporary file in that
+   * directory and keeps the inherited ACL.
+   */
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void anInheritedAclStaysInherited() throws Exception {
+    Path file = temp.resolve("plain.txt");
+    Files.writeString(file, "old");
+    AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
+    List<AclEntry> before = view.getAcl();
+    List<List<AclEntry>> staged = new ArrayList<List<AclEntry>>();
+    SafeSave.save(file, FileStamp.read(file), recordingStagedAcls(staged), new CancellationToken());
+    assertEquals(List.of(), staged);
+    assertEquals(before, view.getAcl());
+    assertEquals("new", Files.readString(file));
   }
 
   @Test

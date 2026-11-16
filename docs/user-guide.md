@@ -114,7 +114,8 @@ Save (`Ctrl+S`), Save As (`Ctrl+Shift+S`) and Save All (`Cmd+Option+S` on macOS,
 no default key elsewhere, since AltGr arrives as Ctrl+Alt on Windows) write on a
 worker while you keep editing; `Esc` cancels a running save and leaves the file
 as it was. A save writes a temporary file and moves it over the target, keeps
-the file's permissions and group, and follows a symbolic link. A file you have
+the file's permissions and group (on Windows its ACL), and follows a symbolic
+link. POSIX ACLs and extended attributes on Linux and macOS are not kept. A file you have
 no write permission for is not saved, and a message says so. A file in a folder
 you cannot write to is written in place, and so is a file with hard links on
 Linux and macOS, which keeps its links; once an in-place write has begun, `Esc`
@@ -792,7 +793,9 @@ QCaret, such as one installed at another path.
 On Windows a file opened from Explorer into the running instance does not raise
 its window; the window's taskbar button flashes instead.
 Launches at the same moment queue, and each file becomes a tab in the one
-instance. `-m` runs an independent instance that saves no window placement or
+instance. When another account can write to the settings folder, as with a
+portable installation in a shared folder, every launch opens its own window and
+QCaret's log names the reason. `-m` runs an independent instance that saves no window placement or
 session. One instance at a time keeps the session: a launch that cannot hand
 its files over while another instance keeps it opens a window without the
 session and saves none. QCaret refuses to open or replace `instance.lock` in

@@ -61,9 +61,31 @@ S: OK | ERR
 - A path must be absolute and an encoding known to the runtime, else the
   request gets `ERR`.
 - `InstanceClient.refusal` turns the handoff off for a settings directory
-  another user owns or can write (POSIX).
+  another account could use to replace the endpoint (below).
 - A lost `OK` after the primary acted opens the files twice: the launch cannot
   tell.
+
+## Settings directory check
+
+`InstanceClient.refusal` runs before the claim:
+
+| File system | Refused when |
+|---|---|
+| POSIX | Another user owns it, or its group or others can write |
+| ACLs without POSIX (Windows) | `AclCheck`: an untrusted owner, or an allow entry that applies to the directory giving an untrusted account write, append, delete, delete child, write ACL or write owner |
+
+`AclCheck` trusts the user, and the owner of the profile directory
+(`USERPROFILE`) and the accounts its allow entries give one of those rights:
+`SYSTEM` and `Administrators` on a default profile. Windows localizes their
+names, so they are not looked up by name. `user.home` is not used: the test
+JVMs set it to `target/test-home`, and the launcher repoints it on Linux. An
+entry only children inherit, and a read right, do not count. The handoff is off
+when `USERPROFILE` is not an absolute path, an ACL cannot be read or the user
+name does not resolve; the WARN names the step and the exception. A portable
+installation in a folder that inherits `Authenticated Users: Modify`, as new
+folders under `C:\` do by default (assumed from the default `C:\` ACL, not
+checked), runs without the handoff. The Windows branch runs only on the
+Windows CI lanes.
 
 ## Queued launches
 
