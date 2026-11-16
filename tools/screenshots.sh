@@ -3,7 +3,8 @@
 # 1100x700) and the user guide's docs/images/guide/*.png from generated mock
 # files under Xvfb. Linux (GTK) only. Needs xvfb-run and a JDK 21 in JAVA_HOME;
 # the test JVMs use target/test-home as user.home, so nothing is written to the
-# real home directory. The files are written to /tmp/qcaret-demo and removed
+# real home directory. The files are written to /tmp/qcaret-demo, the path the
+# screenshots show, created owner-only (the run stops if it exists) and removed
 # afterwards. Every image the guide names must exist before this runs, because
 # the build embeds them; the next build embeds the new ones.
 # XDG_CONFIG_HOME names the tests' settings.ini, so GTK draws Adwaita, light or
@@ -12,8 +13,9 @@ set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 files=/tmp/qcaret-demo
-cd "$root"
+mkdir -m 700 "$files"
 trap 'rm -rf "$files"' EXIT
+cd "$root"
 XDG_CONFIG_HOME="$root/qcaret-ui-swt/src/test/resources/gtk-config/adwaita"
 export XDG_CONFIG_HOME
 xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -q package -pl qcaret-launcher -am \

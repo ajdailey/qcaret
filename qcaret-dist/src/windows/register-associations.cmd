@@ -1,19 +1,21 @@
 @echo off
 rem Adds QCaret to the current user's Open With lists, or removes it with /u.
 rem Writes only under HKCU; the default program for a type stays the user's.
-setlocal
+setlocal DisableDelayedExpansion
 set "exe=%~dp0qcaret.exe"
+rem !exe! expands after cmd splits the line, so & ( ) ^ in the path stay literal.
+setlocal EnableDelayedExpansion
 set "classes=HKCU\Software\Classes"
 set "extensions=.txt .md .log .csv .xml .json .yml .yaml .ini .conf .cfg .properties .c .h .cpp .hpp .cs .java .py .rb .js .ts .css .html .sh .bat .cmd .ps1 .sql"
 
 if /i "%~1"=="/u" goto remove
 if not "%~1"=="" goto usage
-if not exist "%exe%" goto missing
+if not exist "!exe!" goto missing
 
 reg add "%classes%\QCaret.File" /ve /d "Text file (QCaret)" /f >nul || goto failed
-reg add "%classes%\QCaret.File\DefaultIcon" /ve /d "\"%exe%\",0" /f >nul || goto failed
-reg add "%classes%\QCaret.File\shell\open\command" /ve /d "\"%exe%\" \"%%1\"" /f >nul || goto failed
-reg add "%classes%\Applications\qcaret.exe\shell\open\command" /ve /d "\"%exe%\" \"%%1\"" /f >nul || goto failed
+reg add "%classes%\QCaret.File\DefaultIcon" /ve /d "\"!exe!\",0" /f >nul || goto failed
+reg add "%classes%\QCaret.File\shell\open\command" /ve /d "\"!exe!\" \"%%1\"" /f >nul || goto failed
+reg add "%classes%\Applications\qcaret.exe\shell\open\command" /ve /d "\"!exe!\" \"%%1\"" /f >nul || goto failed
 for %%e in (%extensions%) do (
   reg add "%classes%\%%e\OpenWithProgids" /v "QCaret.File" /t REG_NONE /f >nul || goto failed
 )

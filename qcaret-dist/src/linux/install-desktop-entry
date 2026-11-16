@@ -27,9 +27,12 @@ case ${1:-} in
         ;;
     '')
         mkdir -p "$data/applications" "${icon%/*}"
-        # Desktop entry quoting: a backslash, quote, backtick or dollar sign is
-        # escaped inside the double quotes; sed needs its own \\ and & escaped.
-        quoted=$(printf '%s' "$home/bin/qcaret" | sed 's/[\\"`$]/\\\\&/g; s/[\\&|]/\\&/g')
+        # Desktop Entry Exec quoting: inside the double quotes a backslash
+        # becomes \\\\ and a quote, backtick or dollar sign \\<char> (the
+        # quoting and the string escapes each halve the backslashes); % is
+        # doubled. The last step escapes \, & and | for the sed below.
+        quoted=$(printf '%s' "$home/bin/qcaret" |
+            sed 's/\\/\\\\\\\\/g; s/["`$]/\\\\&/g; s/%/%%/g; s/[\\&|]/\\&/g')
         sed "s|@EXEC@|\"$quoted\"|" "$home/share/qcaret.desktop" > "$entry"
         cp "$home/share/qcaret.svg" "$icon"
         ;;

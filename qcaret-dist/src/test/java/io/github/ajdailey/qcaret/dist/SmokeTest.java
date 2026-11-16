@@ -194,6 +194,22 @@ class SmokeTest {
     assertEquals(6, lists);
   }
 
+  /** The jar copied alone carries QCaret's license and the third-party notices. */
+  @Test
+  void jarCarriesTheNotices() throws Exception {
+    try (ZipFile zip = new ZipFile(jar().toFile())) {
+      for (String name : List.of("LICENSE", "NOTICE", "THIRD-PARTY.txt")) {
+        ZipEntry entry = zip.getEntry("META-INF/" + name);
+        assertNotNull(entry, name);
+        assertTrue(entry.getSize() > 0, name);
+      }
+      try (InputStream in = zip.getInputStream(zip.getEntry("META-INF/THIRD-PARTY.txt"))) {
+        String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        assertTrue(text.contains("Eclipse Temurin"), text);
+      }
+    }
+  }
+
   @Test
   void universalJarOpensTheWindow() throws Exception {
     Path log = Files.writeString(temp.resolve("notes.txt"), "mock line\n");

@@ -14,8 +14,9 @@ runs against it.
 
 `target/qcaret.jar` holds the bootstrap classes at the root, the application
 jars under `META-INF/qcaret/lib/`, the six SWT fragments unmodified under
-`META-INF/qcaret/swt/<target>.jar`, a SHA-256 for every native, and
-`index.properties` (layout in `qcaret-bootstrap/README.md`). The maven-shade
+`META-INF/qcaret/swt/<target>.jar`, a SHA-256 for every native,
+`index.properties` (layout in `qcaret-bootstrap/README.md`), and `LICENSE`,
+`NOTICE` and `THIRD-PARTY.txt` in `META-INF/`. The maven-shade
 plugin cannot merge the fragments, which share class names.
 
 `qcaret-<version>.zip` holds `qcaret/lib/qcaret.jar`, `qcaret/bin/qcaret`,
@@ -140,7 +141,8 @@ not match the seal after unzipping. The `bundle` CI job runs `codesign --verify
 
 | Class | Covers |
 |---|---|
-| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management`. A copy of the bundle's `bin/qcaret` over a stub `runtime/bin/java` run as `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |
+| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order; the jar holds `META-INF/LICENSE`, `NOTICE` and `THIRD-PARTY.txt`. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management`. A copy of the bundle's `bin/qcaret` over a stub `runtime/bin/java` run as `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |
+| `DesktopEntryTest` (POSIX) | `install-desktop-entry` run from install folders whose names hold a space, `%`, `\`, `"`, `$`, a backtick, `&`, `\|`, `;`, `'` and `(` writes an `Exec` that decodes, by the Desktop Entry rules, to the folder's `bin/qcaret` and `%F`, and that `desktop-file-validate` accepts where installed; `--uninstall` removes the entry |
 | `CharsetProbe` | Run by the bundle's `java`; fails unless every encoding in `SmokeTest.ENCODINGS` is supported |
 
 ### CI bundle check

@@ -13,17 +13,11 @@
     <Bug pattern="COMMAND_INJECTION"/>
   </Match>
 
-  <!-- Natives cache: library names come from the build-time index, match
-       [A-Za-z0-9._-]+ and are checked to resolve inside the directory; the
-       directory comes from the settings option, qcaret.home or the per-user cache, and
-       is created owner-only. -->
+  <!-- Natives.extract names its temporary file after a library name that
+       Natives.child has checked against [A-Za-z0-9._-]+ and the directory. -->
   <Match>
-    <Or>
-      <Class name="io.github.ajdailey.qcaret.bootstrap.Boot"/>
-      <Class name="io.github.ajdailey.qcaret.bootstrap.BootIndex"/>
-      <Class name="io.github.ajdailey.qcaret.bootstrap.Natives"/>
-      <Class name="io.github.ajdailey.qcaret.bootstrap.NativesLocation"/>
-    </Or>
+    <Class name="io.github.ajdailey.qcaret.bootstrap.Natives"/>
+    <Method name="extract"/>
     <Bug pattern="PATH_TRAVERSAL_IN"/>
   </Match>
 

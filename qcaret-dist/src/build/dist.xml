@@ -78,12 +78,15 @@
   <target name="all" depends="universal,exe,universal-zip,bundles"/>
 
   <!-- qcaret.jar: the bootstrap at the root, the application jars and all six
-       SWT fragments nested unmodified, and the SHA-256 of every native. -->
+       SWT fragments nested unmodified, the SHA-256 of every native, and
+       LICENSE, NOTICE and THIRD-PARTY.txt in META-INF/. -->
   <target name="universal">
     <delete dir="${jar.root}"/>
     <copy todir="${jar.root}">
       <fileset dir="${stage}/bootstrap" excludes="META-INF/MANIFEST.MF,META-INF/maven/**"/>
     </copy>
+    <copy todir="${jar.root}/META-INF"><fileset refid="notices"/></copy>
+    <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${jar.root}/META-INF"/>
     <copy todir="${jar.root}/META-INF/qcaret/lib">
       <fileset dir="${stage}/lib" includes="*.jar"/>
     </copy>
