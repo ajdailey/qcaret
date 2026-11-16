@@ -347,6 +347,10 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <property name="home" location="${build}/bundles/@{target}/qcaret"/>
       <delete dir="${build}/bundles/@{target}"/>
       <runtime jmods="${build}/jdk/@{target}/jmods" output="${home}/runtime"/>
+      <!-- Windows 10 and later load the system UCRT, never an app-local copy. -->
+      <delete>
+        <fileset dir="${home}/runtime/bin" includes="ucrtbase.dll,api-ms-win-*.dll"/>
+      </delete>
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${build}/qcaret.exe" todir="${home}"/>

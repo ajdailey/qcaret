@@ -20,10 +20,9 @@ Contents/MacOS/QCaret from the jdk.jpackage module)
   The runtime's notices are in its legal/ directory.
   https://adoptium.net
 
-Microsoft Visual C++ runtime DLLs (Windows bundles only: runtime/bin/
-msvcp140.dll, vcruntime140.dll and, in windows-x86_64, vcruntime140_1.dll,
-ucrtbase.dll and the api-ms-win-*.dll Universal C Runtime forwarders),
+Microsoft Visual C++ runtime DLLs (Windows bundles only: runtime/bin/),
 redistributed as part of the Temurin Windows runtime
+  msvcp140.dll, vcruntime140.dll and, in windows-x86_64, vcruntime140_1.dll
   License: Microsoft Visual C++ Redistributable license terms.
 
 Launch4j 3.50 executable header (qcaret.exe)
