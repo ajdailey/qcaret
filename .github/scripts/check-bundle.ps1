@@ -56,7 +56,10 @@ function Wait-LogLine([string] $Path, [string] $Text) {
 # $Javaw rather than $Exe, because the launch4j wrapper does not report the child's status.
 # $Name names the run's settings directory.
 function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
-  $settings = Join-Path $work "settings-$Name"
+  # Under the profile: the handoff is off in a directory other accounts can write, such as the
+  # runner's workspace, and a primary without the handoff logs to qcaret-<pid>.log.
+  $settings = Join-Path $env:LOCALAPPDATA "qcaret-ci\settings-$Name"
+  if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
   $logFile = Join-Path $settings 'logs\qcaret.log'
   $jar = Join-Path (Split-Path $Exe) 'lib\qcaret.jar'
   Write-Output "$Name qcaret.exe image: $(Get-PeMachine $Exe)"
@@ -94,6 +97,8 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
   } finally {
     Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
   }
+  $logs = Join-Path $settings 'logs'
+  if (Test-Path $logs) { Write-Output "$Name logs: $((Get-ChildItem $logs).Name -join ', ')" }
   Write-Output "--- $Name log"
   Write-Output $text
   Write-Output '---'
