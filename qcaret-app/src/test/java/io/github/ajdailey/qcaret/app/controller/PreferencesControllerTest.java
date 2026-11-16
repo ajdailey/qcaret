@@ -84,17 +84,18 @@ class PreferencesControllerTest {
   }
 
   private BooleanSupplier fileHas(final String key) {
-    return new BooleanSupplier() {
-      @Override
-      public boolean getAsBoolean() {
-        try {
-          Path conf = temp.resolve("settings").resolve("qcaret.conf");
-          return Files.exists(conf) && Files.readString(conf).contains(key);
-        } catch (IOException e) {
-          return false;
-        }
-      }
-    };
+    return new SpacedRead(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            try {
+              Path conf = temp.resolve("settings").resolve("qcaret.conf");
+              return Files.exists(conf) && Files.readString(conf).contains(key);
+            } catch (IOException e) {
+              return false;
+            }
+          }
+        });
   }
 
   private static PreferencesForm with(PreferencesForm f, String field, String value) {

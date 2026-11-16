@@ -125,13 +125,13 @@ class ViewDefaultsTest {
     assertEquals(FLIPPED, first.preferences().state().view());
     final ConfigStore file = new ConfigStore(location());
     windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            windows.ui.runPending();
-            return file.load().state().view().equals(FLIPPED);
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return file.load().state().view().equals(FLIPPED);
+              }
+            }),
         "every key saved");
     first.execute(CommandId.WORD_WRAP);
     assertFalse(first.preferences().state().view().wordWrap());

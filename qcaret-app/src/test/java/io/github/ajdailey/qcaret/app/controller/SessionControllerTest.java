@@ -624,12 +624,13 @@ class SessionControllerTest {
     Harness second = start(true);
     assertEquals(1, count(second.view.notices, notice), second.view.notices.toString());
     second.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return store().load().droppedComments() == 0;
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return store().load().droppedComments() == 0;
+              }
+            }),
         "the save after the notice");
     assertEquals(1, count(second.view.notices, notice), second.view.notices.toString());
     assertFalse(Files.readString(settings.resolve(SessionStore.FILE)).contains("droppedComments"));
@@ -662,13 +663,14 @@ class SessionControllerTest {
     Harness harness = start(true);
     harness.open(a);
     harness.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return !store().load().windows().isEmpty()
-                && !store().load().windows().get(0).tabs().isEmpty();
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                List<Session.Window> saved = store().load().windows();
+                return !saved.isEmpty() && !saved.get(0).tabs().isEmpty();
+              }
+            }),
         "the debounced save");
     assertEquals(a.toString(), store().load().windows().get(0).tabs().get(0).path());
   }

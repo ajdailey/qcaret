@@ -573,15 +573,15 @@ class WindowSessionTest {
     final Path c = file("c.txt", "c\n");
     windows.open(first, c);
     windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            windows.ui.runPending();
-            Session saved = store().load();
-            return saved.windows().size() == 2
-                && tabs(saved.windows().get(0)).equals(List.of(a.toString(), c.toString()));
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                Session saved = store().load();
+                return saved.windows().size() == 2
+                    && tabs(saved.windows().get(0)).equals(List.of(a.toString(), c.toString()));
+              }
+            }),
         "the saved session follows the windows");
   }
 
@@ -670,15 +670,15 @@ class WindowSessionTest {
     assertNotNull(windows.set.moveDocument(first, document, null, NEW));
 
     windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            windows.ui.runPending();
-            Session saved = store().load();
-            return saved.windows().size() == 2
-                && tabs(saved.windows().get(1)).equals(List.of(a.toString()));
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                Session saved = store().load();
+                return saved.windows().size() == 2
+                    && tabs(saved.windows().get(1)).equals(List.of(a.toString()));
+              }
+            }),
         "the saved session holds the moved tab");
   }
 
@@ -851,52 +851,31 @@ class WindowSessionTest {
     final Windows windows = start(true);
     windows.first().execute(CommandId.OVERVIEW_STRIP);
     windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            windows.ui.runPending();
-            List<Session.Window> saved = store().load().windows();
-            return !saved.isEmpty() && !saved.get(0).display().overview();
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                List<Session.Window> saved = store().load().windows();
+                return !saved.isEmpty() && !saved.get(0).display().overview();
+              }
+            }),
         "the session follows the toggle");
   }
 
-  private void awaitNoSearchInFile(final Windows windows) throws Exception {
-    windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            windows.ui.runPending();
-            try {
-              return !Files.readString(settings.resolve(SessionStore.FILE)).contains(".search.");
-            } catch (IOException e) {
-              return false;
-            }
-          }
-        },
-        "the session file holds no search");
+  /** Reads the file after the write ended: on Windows a read during it can refuse the move. */
+  private void assertNoSearchInFile() throws IOException {
+    assertFalse(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
   }
 
-  private void saveSessionWithSearch(final Windows windows) throws Exception {
+  private void saveSessionWithSearch(Windows windows) throws Exception {
     runSearch(windows.first());
     windows.settle("search");
     windows.ui.runPending();
-    assertEquals(1, captured(windows).windows().get(0).searches().size());
-    // The window's own timer save can land after this one with a capture from before the search.
-    windows.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            try {
-              return store().save(captured(windows))
-                  && Files.readString(settings.resolve(SessionStore.FILE)).contains(".search.");
-            } catch (IOException e) {
-              return false;
-            }
-          }
-        },
-        "the session file holds the search");
+    SessionController.Capture capture = windows.set.session().capture(false);
+    assertEquals(1, capture.session().windows().get(0).searches().size());
+    // The window's sequenced write drops a timer save holding an earlier capture.
+    assertTrue(windows.set.session().write(capture));
+    assertTrue(Files.readString(settings.resolve(SessionStore.FILE)).contains(".search."));
   }
 
   @Test
@@ -905,9 +884,9 @@ class WindowSessionTest {
     saveSessionWithSearch(windows);
     int sets = windows.first().search().setCount();
 
-    windows.set.forgetHistory(IGNORED);
+    assertEquals(SessionRewrite.Result.REMOVED, forget(windows));
 
-    awaitNoSearchInFile(windows);
+    assertNoSearchInFile();
     assertEquals(sets, windows.first().search().setCount());
     assertEquals(List.of(), captured(windows).windows().get(0).searches());
   }
@@ -923,8 +902,8 @@ class WindowSessionTest {
     SessionStore store = store();
     windows.first().startSession(store, store.load(), false);
     windows.settle("start");
-    windows.set.forgetHistory(IGNORED);
-    awaitNoSearchInFile(windows);
+    assertEquals(SessionRewrite.Result.REMOVED, forget(windows));
+    assertNoSearchInFile();
     assertEquals(1, store().load().windows().size());
   }
 
@@ -1053,7 +1032,7 @@ class WindowSessionTest {
         },
         "the second write ended");
     assertEquals(SessionRewrite.Result.REMOVED, removed.get());
-    awaitNoSearchInFile(windows);
+    assertNoSearchInFile();
   }
 
   /** Opens Preferences in a window and returns the window's view, which shows the notices. */

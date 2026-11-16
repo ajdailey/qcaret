@@ -67,12 +67,13 @@ class TipOfTheDayTest {
     final ConfigStore config =
         new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings")));
     harness.await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return config.load().tips().equals(expected);
-          }
-        },
+        new SpacedRead(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return config.load().tips().equals(expected);
+              }
+            }),
         "saved " + expected);
   }
 

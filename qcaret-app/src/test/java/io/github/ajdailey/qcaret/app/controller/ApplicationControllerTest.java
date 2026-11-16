@@ -103,12 +103,13 @@ class ApplicationControllerTest {
   }
 
   private BooleanSupplier saved(final Preferences expected) {
-    return new BooleanSupplier() {
-      @Override
-      public boolean getAsBoolean() {
-        return Files.exists(temp.resolve("qcaret.conf")) && expected.equals(config.load());
-      }
-    };
+    return new SpacedRead(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return Files.exists(temp.resolve("qcaret.conf")) && expected.equals(config.load());
+          }
+        });
   }
 
   @Test
