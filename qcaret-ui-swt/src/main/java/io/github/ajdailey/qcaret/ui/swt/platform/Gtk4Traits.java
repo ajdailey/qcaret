@@ -26,4 +26,9 @@ final class Gtk4Traits extends GtkTraits {
   public boolean opensPrintDialog() {
     return false;
   }
+
+  @Override
+  public boolean stacksOnX11() {
+    return false;
+  }
 }

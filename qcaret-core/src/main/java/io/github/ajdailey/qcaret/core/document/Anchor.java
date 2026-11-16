@@ -26,15 +26,6 @@ public final class Anchor {
   }
 
   /**
-   * Returns the bias.
-   *
-   * @return the side of an insert at the anchor it stays on
-   */
-  public Bias bias() {
-    return bias;
-  }
-
-  /**
    * Reports whether {@link #dispose} has run.
    *
    * @return true once disposed

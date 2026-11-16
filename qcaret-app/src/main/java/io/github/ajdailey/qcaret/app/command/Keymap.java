@@ -254,15 +254,6 @@ public final class Keymap {
   }
 
   /**
-   * Reports whether keys are written with macOS names.
-   *
-   * @return true for macOS
-   */
-  public boolean mac() {
-    return mac;
-  }
-
-  /**
    * Returns every binding.
    *
    * @return the bindings, in display order

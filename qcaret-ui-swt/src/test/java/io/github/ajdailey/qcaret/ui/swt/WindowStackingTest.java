@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -58,7 +59,7 @@ class WindowStackingTest {
   }
 
   private static boolean x11() {
-    return "x11".equals(System.getProperty(MainWindow.GDK_BACKEND));
+    return "x11".equals(System.getProperty(PlatformTraits.GDK_BACKEND));
   }
 
   @Test

@@ -121,6 +121,20 @@ public interface PlatformTraits {
   boolean explainsUnsupportedStacking();
 
   /**
+   * Reports whether Always on Top goes through GTK 3's X11 calls; read when the stacking is chosen.
+   *
+   * @return true on GTK 3 when the GDK backend is {@code x11}
+   */
+  boolean stacksOnX11();
+
+  /**
+   * Returns the native toolkit version SWT records, for the About text.
+   *
+   * @return the GTK version, or null on win32 and cocoa or when SWT recorded none
+   */
+  String toolkitVersion();
+
+  /**
    * Reports whether menu items show images.
    *
    * @return false on cocoa

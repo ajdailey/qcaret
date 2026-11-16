@@ -12,4 +12,11 @@ final class CoreViolations {
       return UiText.WINDOW_TITLE.text();
     }
   }
+
+  /** Loads a class by name and opens its constructor. */
+  static final class Reflects {
+    Object load() throws ReflectiveOperationException {
+      return Class.forName("mock.Type").getDeclaredConstructor();
+    }
+  }
 }

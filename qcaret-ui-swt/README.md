@@ -24,7 +24,8 @@ classes, which reach SWT internals by reflection.
 
 Every class here runs on the UI thread, except `PrintJob`'s printing on its
 worker. `SwtUiDispatcher` is the only class that posts to the Display
-(`asyncExec`, `timerExec`); no code calls `Display.syncExec`, and no call in
+(`asyncExec`, `timerExec`, `execute`); no code calls `Display.syncExec` or
+`syncCall`, and no call in
 `ui.swt` blocks. Submissions after the Display is disposed are dropped, and a
 timer canceled or posted after disposal does nothing.
 

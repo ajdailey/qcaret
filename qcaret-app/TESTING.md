@@ -6,7 +6,9 @@ The controller tests run the UI thread on the test thread through
 `ManualUiDispatcher`. `FakeView` calls `ManualUiDispatcher.checkUiThread` in
 every method, so a view call from a worker fails the test instead of passing on
 the test thread. `ManualUiDispatcher` holds timers of 5 s and over until
-`runLongTimers`, because the recovery timer rearms itself. It is in the test
+`runLongTimers`, because the recovery timer rearms itself. Its `timerExec` off
+the test thread throws, as SWT's does off the UI thread, and fails the next
+drain even where the caller catches the throw. It is in the test
 jar for the other modules.
 
 `Harness` builds a controller over `FakeView` with a recent log and a mock

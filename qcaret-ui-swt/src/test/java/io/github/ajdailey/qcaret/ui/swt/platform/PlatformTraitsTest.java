@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
@@ -49,7 +50,8 @@ class PlatformTraitsTest {
     // macOS Window menu and accessibility.
     "windowMenuControls",
     "labelsByDescription",
-    "printDialogOmitsSelection"
+    "printDialogOmitsSelection",
+    "stacksOnX11"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -87,6 +89,7 @@ class PlatformTraitsTest {
     answers.add(traits.windowMenuControls());
     answers.add(traits.labelsByDescription());
     answers.add(traits.printDialogOmitsSelection());
+    answers.add(traits.stacksOnX11());
     return answers;
   }
 
@@ -132,7 +135,8 @@ class PlatformTraitsTest {
         true,
         false,
         false,
-        true);
+        true,
+        false);
   }
 
   @Test
@@ -170,6 +174,7 @@ class PlatformTraitsTest {
         true,
         true,
         true,
+        false,
         false);
   }
 
@@ -209,7 +214,8 @@ class PlatformTraitsTest {
         false,
         false,
         false,
-        false);
+        false,
+        "x11".equals(backend));
   }
 
   @Test
@@ -247,7 +253,37 @@ class PlatformTraitsTest {
         false,
         false,
         false,
+        false,
         false);
+  }
+
+  @Test
+  void onlyGtkReportsAToolkitVersion() {
+    String gtk = System.getProperty("org.eclipse.swt.internal.gtk.version");
+    assertEquals(gtk, PlatformTraits.of("gtk", false).toolkitVersion());
+    assertEquals(gtk, PlatformTraits.of("gtk", true).toolkitVersion());
+    assertNull(PlatformTraits.of("win32", false).toolkitVersion());
+    assertNull(PlatformTraits.of("cocoa", false).toolkitVersion());
+  }
+
+  @Test
+  void gtk3StacksOnX11Only() {
+    String key = PlatformTraits.GDK_BACKEND;
+    String saved = System.getProperty(key);
+    PlatformTraits traits = PlatformTraits.of("gtk", false);
+    try {
+      System.setProperty(key, "unknown");
+      assertEquals(false, traits.stacksOnX11());
+      System.setProperty(key, "x11");
+      assertEquals(true, traits.stacksOnX11());
+      assertEquals(false, PlatformTraits.of("gtk", true).stacksOnX11());
+    } finally {
+      if (saved == null) {
+        System.clearProperty(key);
+      } else {
+        System.setProperty(key, saved);
+      }
+    }
   }
 
   @Test

@@ -1,6 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import org.eclipse.swt.SWT;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.widgets.Shell;
 
 /**
@@ -60,15 +60,10 @@ interface WindowStacking {
    * @return the stacking; {@link #NONE} on GTK 4 and on a GDK backend other than X11
    */
   static WindowStacking forPlatform() {
-    return switch (SWT.getPlatform()) {
+    return switch (PlatformTraits.PLATFORM.name()) {
       case "win32" -> new Win32Stacking();
       case "cocoa" -> new CocoaStacking();
-      case "gtk" ->
-          "1".equals(System.getenv("SWT_GTK4"))
-                  || !"x11".equals(System.getProperty(MainWindow.GDK_BACKEND))
-              ? NONE
-              : new GtkX11Stacking();
-      default -> NONE;
+      default -> PlatformTraits.PLATFORM.stacksOnX11() ? new GtkX11Stacking() : NONE;
     };
   }
 }

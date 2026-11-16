@@ -170,4 +170,14 @@ final class Win32Traits implements PlatformTraits {
   public boolean printDialogOmitsSelection() {
     return true;
   }
+
+  @Override
+  public boolean stacksOnX11() {
+    return false;
+  }
+
+  @Override
+  public String toolkitVersion() {
+    return null;
+  }
 }

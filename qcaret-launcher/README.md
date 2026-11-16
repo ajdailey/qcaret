@@ -197,8 +197,9 @@ classes, so the rules over the main classes never see them.
 |---|---|
 | SWT only in `ui.swt` and `launcher` | Model and controllers test without a display |
 | No dependency on `org.eclipse.swt.internal` | Public SWT API only, so GTK3 and GTK4 behave the same |
-| In `ui.swt` and `launcher`, `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `ToolIcons`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking` and `CocoaPrintJobNaming` | SWT internals differ per platform; only these classes reach them by reflection |
-| `SWT.getPlatform()` only in `ui.swt.platform` and `WindowStacking`; `System.getenv` in `ui.swt` and `launcher` only in the same classes | Each view-layer platform difference is a `PlatformTraits` method |
+| `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `ToolIcons`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking`, `CocoaPrintJobNaming` and `core.io.Flock` | SWT internals differ per platform, and `Flock` links the Java 21 foreign-function API; only these classes reach them by reflection |
+| `SWT.getPlatform()` only in `ui.swt.platform`; `System.getenv` in `ui.swt` and `launcher` only there | Each view-layer platform difference is a `PlatformTraits` method |
+| A string starting `org.eclipse.swt.internal.` only in `ui.swt.platform` and the reflection classes above | SWT internal properties and class names go through `PlatformTraits`; the check reads each class file's constant pool |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
 | `app.view` not on `app.{controller, search, config, session, recovery, cli, ipc}`; `app.editor` not on `app.controller`; `ui.swt` not on `core.{concurrent, io, buffer, edit, syntax, search, diff, watch, workspace}` or `app.{config, session, recovery, cli, ipc}` | Layering |
 | Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |
@@ -206,15 +207,15 @@ classes, so the rules over the main classes never see them.
 | `core.util` depends on no other QCaret package | Utilities stay leaf classes |
 | Every `UiText` constant is read outside `UiText` | No unused bundle entry |
 | `java.util.logging` and `org.slf4j.jul` only in `launcher` | Everything else logs through slf4j; only the launcher sets handlers, levels or the `LogManager` |
-| No `java.net.http`, `URLConnection`, `Socket` or `URL.openStream`; `SocketChannel` and `ServerSocketChannel` only in `app.ipc` | No outbound network |
-| No `ProcessBuilder`, `Runtime.exec`, object streams, `XMLDecoder`, or `java.util.Random` and its subtypes other than `SecureRandom` | Security |
-| `System.exit` and `Runtime.halt` only in `launcher.Main` | One exit point: `Main` exits with the nonzero status `Launcher.run` returns |
-| No `Display.syncExec`; `Display.asyncExec` and `timerExec` only in `SwtUiDispatcher` | A worker never waits on the UI thread; submissions after disposal are dropped |
-| No `Future.get`, `Thread.join` or `sleep`, `Object.wait`, `Lock.lock*`, `Condition.await*`, `Semaphore.acquire*`, `BlockingQueue.put` or `take`, `CountDownLatch.await` or `java.nio.channels` in `ui.swt` and `app.view` | The UI thread never blocks |
+| No `java.net.http`, `URLConnection`, `Socket`, `ServerSocket`, `DatagramSocket`, `DatagramChannel`, `AsynchronousSocketChannel`, `URL.openStream` or `getContent`, or `InetAddress.getByName` or `getAllByName`; `SocketChannel` and `ServerSocketChannel` only in `app.ipc` | No outbound network |
+| No `ProcessBuilder`, any `Runtime.exec` overload, object streams, `XMLDecoder`, or `java.util.Random` and its subtypes other than `SecureRandom` | Security |
+| `System.exit`, `Runtime.exit` and `Runtime.halt` only in `launcher.Main` | One exit point: `Main` exits with the nonzero status `Launcher.run` returns |
+| No `Display.syncExec` or `syncCall`; `Display.asyncExec`, `timerExec` and `execute` only in `SwtUiDispatcher` | A worker never waits on the UI thread; submissions after disposal are dropped |
+| No `Future.get`, `Thread.join` or `sleep`, `Object.wait`, `Lock.lock*`, `Condition.await*`, `Semaphore.acquire*`, `BlockingQueue.put` or `take`, `CountDownLatch.await`, `Charset.availableCharsets` or `java.nio.channels` in `ui.swt` and `app.view` | The UI thread never blocks |
 | No `Future.get`, `Thread.join`, `Thread.sleep` or `CountDownLatch.await` in `app.controller` and `app.command` | Controllers run on the UI thread |
-| No `System.getProperty` in `app.controller` | Platform facts come from the caller |
+| No `System.getProperty`, `getProperties` or `getenv`, and no `OsTraits.current()`, in `app.controller` | Platform facts come from the caller |
 | In `app.controller`, the blocking calls (`BLOCKING` in `ArchitectureTest`: `DocumentFiles` estimates, loads and saves, `SafeSave`, `Files`, `FileChannel`, `Path.toRealPath`, `Charset.availableCharsets`, `AtomicFiles`, `SafePaths`, `ConfigStore` and `SessionStore` `load` and `save`, `SessionLock`, `SessionRewrite.withoutSearches`, `RecoveryStore`, `RecoveryFile`, `AboutInfo.collect` and `licenseText`, `UserGuide.writeCopy`, `LogFiles.attach` and `detach`, `Workers.close`, `CpuSteps`, which runs a step inline off a worker) are made only from a `@WorkerThread` method or from `run` of an anonymous `Runnable` its creating method submits to `Workers`, directly or through a helper of its class that takes a `Runnable`; a creating method that makes another anonymous `Runnable` or takes a method reference does not qualify. `@WorkerThread` methods are called only from such code | The UI thread never waits; annotating a UI-thread method fails at its caller |
-| No `new Thread`, `Thread.ofVirtual`, `ofPlatform`, `startVirtualThread`, `Executors`, pool or `AbstractExecutorService` types, `java.util.Timer` or `ThreadFactory` implementations outside `Workers` | One owner for every thread |
+| No `new Thread`, `Thread.ofVirtual`, `ofPlatform`, `startVirtualThread`, `Executors`, pool or `AbstractExecutorService` types, `java.util.Timer`, `ForkJoinTask` types, `CompletableFuture` `*Async` calls, `BaseStream.parallel`, `Arrays.parallel*` or `ThreadFactory` implementations outside `Workers` | One owner for every thread |
 | `FileChannel.lock` and `tryLock` only in `core.io.ProcessLock` | A POSIX record lock drops when any channel on the file closes |
 | No `synchronized` methods in `core.concurrent`, `core.io` and `app.ipc` | A monitor pins a virtual thread; blocking code uses `ReentrantLock`. Synchronized blocks are not visible to ArchUnit |
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |

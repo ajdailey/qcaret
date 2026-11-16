@@ -14,7 +14,9 @@ import java.util.function.BooleanSupplier;
  * which acts as the UI thread. Delays under {@value #LONG_MILLIS} ms are ignored and those tasks
  * queue in submission order; a longer timer, which may rearm itself, waits for {@link
  * #runLongTimers}. Fakes call {@link #checkUiThread} in every view method, so a controller that
- * reaches the view from a worker fails the test instead of passing on the test thread.
+ * reaches the view from a worker fails the test instead of passing on the test thread. {@code
+ * timerExec} off the UI thread throws, as SWT's {@code Display} does, and fails the next drain
+ * though the caller catches it.
  */
 public final class ManualUiDispatcher implements UiDispatcher {
   /** The shortest delay that waits for {@link #runLongTimers}. */
@@ -27,6 +29,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
   private final Map<Runnable, Integer> longTimers = new LinkedHashMap<Runnable, Integer>();
   private final Thread uiThread = Thread.currentThread();
   private volatile boolean disposed;
+  private volatile String offThreadTimer;
 
   @Override
   public void asyncExec(Runnable task) {
@@ -37,6 +40,10 @@ public final class ManualUiDispatcher implements UiDispatcher {
 
   @Override
   public void timerExec(int delayMillis, Runnable task) {
+    if (Thread.currentThread() != uiThread) {
+      offThreadTimer = "timerExec ran on " + Thread.currentThread().getName();
+      throw new IllegalStateException(offThreadTimer);
+    }
     if (delayMillis >= LONG_MILLIS) {
       longTimers.put(task, delayMillis);
     } else {
@@ -61,6 +68,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
 
   /** Runs the long timers armed now, on the calling thread. */
   public void runLongTimers() {
+    failOnOffThreadTimer();
     List<Runnable> due = new ArrayList<Runnable>(longTimers.keySet());
     longTimers.clear();
     for (Runnable task : due) {
@@ -98,6 +106,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
    * @return the number run
    */
   public int runPending() {
+    failOnOffThreadTimer();
     int count = 0;
     Runnable task = queue.poll();
     while (task != null) {
@@ -123,6 +132,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
    * @return the number run
    */
   public int runQueued() {
+    failOnOffThreadTimer();
     int count = queue.size();
     for (int i = 0; i < count; i++) {
       queue.remove().run();
@@ -141,6 +151,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
   public boolean runUntil(BooleanSupplier condition, Duration bound) throws InterruptedException {
     long deadline = System.nanoTime() + bound.toNanos();
     while (!condition.getAsBoolean()) {
+      failOnOffThreadTimer();
       long left = deadline - System.nanoTime();
       if (left <= 0) {
         return false;
@@ -151,5 +162,13 @@ public final class ManualUiDispatcher implements UiDispatcher {
       }
     }
     return true;
+  }
+
+  private void failOnOffThreadTimer() {
+    String recorded = offThreadTimer;
+    if (recorded != null) {
+      offThreadTimer = null;
+      throw new AssertionError(recorded);
+    }
   }
 }

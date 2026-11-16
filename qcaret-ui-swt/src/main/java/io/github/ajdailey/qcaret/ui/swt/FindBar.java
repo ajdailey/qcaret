@@ -314,10 +314,6 @@ final class FindBar {
     return notice.getText();
   }
 
-  boolean replaceShown() {
-    return replaceRow.getVisible();
-  }
-
   private void show(FindState state) {
     if (bar.isDisposed()) {
       return;

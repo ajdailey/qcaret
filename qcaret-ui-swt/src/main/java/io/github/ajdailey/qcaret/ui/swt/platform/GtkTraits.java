@@ -13,6 +13,9 @@ abstract class GtkTraits implements PlatformTraits {
   /** Side of the image a visible control is drawn into; the corner holds no item. */
   private static final int SAMPLE = 2;
 
+  /** System property SWT sets on GTK to the GTK version. */
+  private static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
+
   @Override
   public String name() {
     return "gtk";
@@ -166,5 +169,10 @@ abstract class GtkTraits implements PlatformTraits {
   @Override
   public boolean printDialogOmitsSelection() {
     return false;
+  }
+
+  @Override
+  public String toolkitVersion() {
+    return System.getProperty(GTK_VERSION);
   }
 }

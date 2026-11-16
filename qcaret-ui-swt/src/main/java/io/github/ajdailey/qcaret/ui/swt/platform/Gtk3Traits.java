@@ -26,4 +26,9 @@ final class Gtk3Traits extends GtkTraits {
   public boolean opensPrintDialog() {
     return true;
   }
+
+  @Override
+  public boolean stacksOnX11() {
+    return "x11".equals(System.getProperty(GDK_BACKEND));
+  }
 }

@@ -276,8 +276,8 @@ View > Always on Top runs `AlwaysOnTop` in app, which calls
 `WindowStacking.PLATFORM`, one implementation chosen on first use, after the
 Display exists. SWT has no public call, so each implementation reaches SWT
 internals by reflection and the product compiles against every platform's SWT
-jar. `ArchitectureTest.reflectionOnlyInSanctionedViews` allows reflection in
-`ui.swt` and the launcher only in these classes and `ToolIcons`;
+jar. `ArchitectureTest.reflectionOnlyInSanctionedClasses` allows reflection
+only in these classes, `ToolIcons`, `CocoaPrintJobNaming` and `core.io.Flock`;
 `noSwtInternals` is unchanged.
 
 | Platform | Class | Call | Verified |
@@ -334,8 +334,10 @@ Every platform difference in the view layer is a method of `PlatformTraits`
 `SWT_GTK4=1` when the interface is first used. `PlatformTraits.of` builds any
 platform's traits, so `PlatformTraitsTest` checks all four tables on Linux.
 `ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call
-outside that package and `WindowStacking`, and on a `System.getenv`
-call in `ui.swt` or the launcher outside the same classes.
+outside that package, and on a `System.getenv` call in `ui.swt` or the launcher
+outside it. `swtInternalNamesOnlyInPlatformClasses` fails on a class outside
+that package and the reflection classes whose constant pool holds a string
+starting `org.eclipse.swt.internal.`, such as a GTK property name.
 
 | Method | win32 | cocoa | GTK 3 | GTK 4 | Caller |
 |---|---|---|---|---|---|
@@ -350,6 +352,8 @@ call in `ui.swt` or the launcher outside the same classes.
 | `remeasuresTrim` | yes | - | - | - | `MainWindow` placement: places again with the measured trim |
 | `launchesByExtension` | yes | - | - | - | `MainWindow.launchesByExtension` |
 | `explainsUnsupportedStacking` | - | - | yes | yes | `MainMenuBar`: Always on Top tool tip |
+| `stacksOnX11` | - | - | X11 only | - | `WindowStacking.forPlatform`: `GtkX11Stacking`, otherwise `NONE` (see [Always on Top](#always-on-top)) |
+| `toolkitVersion` | null | null | GTK version | GTK version | `MainWindow.toolkitDescription` |
 | `menuImages`, `padsMenuImages`, `fixedMenuInk` | yes, -, yes | -, -, - | yes, yes, - | yes, yes, - | `MenuIcons` |
 | `shownBackground` | `getBackground` | `getBackground` | A drawn pixel of a visible control | As GTK 3 | `ToolIcons.reink` |
 | `fadesDisabledIcons` | - | - | yes | yes | `ToolIcons.showState` |
@@ -368,8 +372,6 @@ call in `ui.swt` or the launcher outside the same classes.
 | `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |
 
-`WindowStacking` reads the platform itself to pick the stacking class (see
-[Always on Top](#always-on-top)).
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
 `user.home` on Linux and the WebView2 folder on Windows before the Display, and

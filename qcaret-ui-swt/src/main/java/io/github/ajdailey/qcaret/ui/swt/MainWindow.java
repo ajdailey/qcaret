@@ -138,12 +138,6 @@ import org.slf4j.LoggerFactory;
 public final class MainWindow implements MainView {
   private static final Logger LOG = LoggerFactory.getLogger(MainWindow.class);
 
-  /** System property SWT sets on GTK to {@code x11}, {@code wayland} or {@code unknown}. */
-  static final String GDK_BACKEND = PlatformTraits.GDK_BACKEND;
-
-  /** System property SWT sets on GTK to the GTK version. */
-  static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
-
   /** How long a notice stays in the status bar. */
   static final int NOTICE_MILLIS = 8000;
 
@@ -1587,7 +1581,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public String toolkitDescription() {
-    String gtk = System.getProperty(GTK_VERSION);
+    String gtk = PlatformTraits.PLATFORM.toolkitVersion();
     return "SWT "
         + SWT.getVersion()
         + " "

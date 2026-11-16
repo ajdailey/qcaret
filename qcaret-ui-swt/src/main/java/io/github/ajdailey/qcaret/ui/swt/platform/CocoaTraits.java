@@ -170,4 +170,14 @@ final class CocoaTraits implements PlatformTraits {
   public boolean printDialogOmitsSelection() {
     return false;
   }
+
+  @Override
+  public boolean stacksOnX11() {
+    return false;
+  }
+
+  @Override
+  public String toolkitVersion() {
+    return null;
+  }
 }

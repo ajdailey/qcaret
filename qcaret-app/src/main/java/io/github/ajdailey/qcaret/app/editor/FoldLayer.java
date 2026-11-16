@@ -204,12 +204,6 @@ final class FoldLayer {
     return lo;
   }
 
-  /** Returns the span whose head is a line, or -1. */
-  int spanWithHead(int line) {
-    int k = firstSpanFrom(line);
-    return k < heads.length && heads[k] == line ? k : -1;
-  }
-
   /** Returns the span that hides a line, or -1. */
   int spanHiding(int line) {
     int k = firstSpanFrom(line) - 1;

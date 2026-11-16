@@ -46,6 +46,7 @@ import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.beans.XMLDecoder;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,9 +54,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.AccessibleObject;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -73,6 +79,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
@@ -160,16 +167,21 @@ class ArchitectureTest {
     ROOT + ".ui.swt.CocoaPrintJobNaming"
   };
 
-  /** Only the sanctioned view classes load classes by name or open members by reflection. */
+  /**
+   * Only the sanctioned view classes and {@code Flock}, which links the Java 21 foreign-function
+   * API, load classes by name or open members by reflection. The bootstrap has its own test.
+   */
   @Test
-  void reflectionOnlyInSanctionedViews() {
-    reflectionOnlyInSanctionedViewsRule().check(classes);
+  void reflectionOnlyInSanctionedClasses() {
+    reflectionOnlyInSanctionedClassesRule().check(classes);
   }
 
-  private static ArchRule reflectionOnlyInSanctionedViewsRule() {
+  private static ArchRule reflectionOnlyInSanctionedClassesRule() {
     return noClasses()
         .that()
-        .resideInAnyPackage(ROOT + ".ui.swt..", LAUNCHER)
+        .resideOutsideOfPackage(ROOT + ".bootstrap..")
+        .and()
+        .doNotHaveFullyQualifiedName(ROOT + ".core.io.Flock")
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[0])
         .and()
@@ -181,18 +193,11 @@ class ArchitectureTest {
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[4])
         .should()
-        .callMethodWhere(
-            call(Class.class, "forName|getDeclaredField|getDeclaredMethod|getField|getMethod"))
+        .callMethodWhere(call(Class.class, "forName|getDeclared.*|getField|getMethod"))
         .orShould()
         .callMethodWhere(call(AccessibleObject.class, "setAccessible|trySetAccessible"))
-        .because("SWT internals differ per platform; only these classes reach them");
+        .because("SWT internals and the foreign-function API are reached only through these");
   }
-
-  /**
-   * The view classes that read the SWT platform or the environment: the {@code PlatformTraits}
-   * package, plus classes whose subject is the platform.
-   */
-  private static final String[] PLATFORM_READERS = {ROOT + ".ui.swt.WindowStacking"};
 
   /** Platform checks in the view layer go through {@code PlatformTraits}. */
   @Test
@@ -213,8 +218,6 @@ class ArchitectureTest {
     return noClasses()
         .that()
         .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
-        .and()
-        .doNotHaveFullyQualifiedName(PLATFORM_READERS[0])
         .should()
         .callMethodWhere(callNamed("org.eclipse.swt.SWT", "getPlatform"))
         .orShould()
@@ -230,6 +233,40 @@ class ArchitectureTest {
               }
             })
         .because("each view-layer platform difference is a PlatformTraits method");
+  }
+
+  /**
+   * Only {@code ui.swt.platform} and the sanctioned reflection classes name an {@code
+   * org.eclipse.swt.internal} property or class, which no import shows.
+   */
+  @Test
+  void swtInternalNamesOnlyInPlatformClasses() {
+    swtInternalNamesOnlyInPlatformClassesRule().check(classes);
+  }
+
+  @Test
+  void swtInternalNameRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        swtInternalNamesOnlyInPlatformClassesRule(),
+        VIEW_FIXTURES + "ReadsPlatform",
+        "ReadsPlatform holds a string starting \"org.eclipse.swt.internal.\"");
+  }
+
+  private static ArchRule swtInternalNamesOnlyInPlatformClassesRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[0])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[1])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[2])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[3])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[4])
+        .should(holdAStringStarting("org.eclipse.swt.internal."));
   }
 
   @Test
@@ -472,7 +509,21 @@ class ArchitectureTest {
             .dependOnClassesThat()
             .areAssignableTo(Socket.class)
             .orShould()
-            .callMethod(URL.class, "openStream"),
+            .dependOnClassesThat()
+            .areAssignableTo(ServerSocket.class)
+            .orShould()
+            .dependOnClassesThat()
+            .areAssignableTo(DatagramSocket.class)
+            .orShould()
+            .dependOnClassesThat()
+            .areAssignableTo(DatagramChannel.class)
+            .orShould()
+            .dependOnClassesThat()
+            .areAssignableTo(AsynchronousSocketChannel.class)
+            .orShould()
+            .callMethodWhere(call(URL.class, "openStream|getContent"))
+            .orShould()
+            .callMethodWhere(call(InetAddress.class, "getByName|getAllByName")),
         noClasses()
             .that()
             .resideOutsideOfPackage(ROOT + ".app.ipc..")
@@ -495,9 +546,7 @@ class ArchitectureTest {
         .dependOnClassesThat()
         .areAssignableTo(ProcessBuilder.class)
         .orShould()
-        .callMethod(Runtime.class, "exec", String.class)
-        .orShould()
-        .callMethod(Runtime.class, "exec", String[].class)
+        .callMethodWhere(call(Runtime.class, "exec"))
         .orShould()
         .dependOnClassesThat()
         .areAssignableTo(ObjectInputStream.class)
@@ -523,7 +572,7 @@ class ArchitectureTest {
         .should()
         .callMethod(System.class, "exit", int.class)
         .orShould()
-        .callMethod(Runtime.class, "halt", int.class);
+        .callMethodWhere(call(Runtime.class, "exit|halt"));
   }
 
   @Test
@@ -532,9 +581,7 @@ class ArchitectureTest {
   }
 
   private static ArchRule noSyncExecRule() {
-    return noClasses()
-        .should()
-        .callMethod("org.eclipse.swt.widgets.Display", "syncExec", Runnable.class.getName());
+    return noClasses().should().callMethodWhere(call(Display.class, "syncExec|syncCall"));
   }
 
   @Test
@@ -547,10 +594,7 @@ class ArchitectureTest {
         .that()
         .doNotHaveFullyQualifiedName(ROOT + ".ui.swt.SwtUiDispatcher")
         .should()
-        .callMethod("org.eclipse.swt.widgets.Display", "asyncExec", Runnable.class.getName())
-        .orShould()
-        .callMethod(
-            "org.eclipse.swt.widgets.Display", "timerExec", "int", Runnable.class.getName());
+        .callMethodWhere(call(Display.class, "asyncExec|timerExec|execute"));
   }
 
   @Test
@@ -578,6 +622,8 @@ class ArchitectureTest {
         .callMethodWhere(call(BlockingQueue.class, "put|take"))
         .orShould()
         .callMethodWhere(call(CountDownLatch.class, "await"))
+        .orShould()
+        .callMethodWhere(call(Charset.class, "availableCharsets"))
         .orShould()
         .dependOnClassesThat()
         .resideInAPackage("java.nio.channels..");
@@ -611,9 +657,21 @@ class ArchitectureTest {
         .that()
         .resideInAPackage(ROOT + ".app.controller..")
         .should()
-        .callMethod(System.class, "getProperty", String.class)
-        .orShould()
-        .callMethod(System.class, "getProperty", String.class, String.class);
+        .callMethodWhere(call(System.class, "getProperty|getProperties|getenv"));
+  }
+
+  /** Controllers take the system, or values from it, from their caller. */
+  @Test
+  void controllersDoNotAskTheOs() {
+    controllersDoNotAskTheOsRule().check(classes);
+  }
+
+  private static ArchRule controllersDoNotAskTheOsRule() {
+    return noClasses()
+        .that()
+        .resideInAPackage(ROOT + ".app.controller..")
+        .should()
+        .callMethod(OsTraits.class, "current");
   }
 
   // Blocking calls in controllers.
@@ -791,6 +849,16 @@ class ArchitectureTest {
         .orShould()
         .dependOnClassesThat()
         .areAssignableTo(Timer.class)
+        // The common ForkJoinPool runs these without a reference to ForkJoinPool.
+        .orShould()
+        .dependOnClassesThat()
+        .areAssignableTo(ForkJoinTask.class)
+        .orShould()
+        .callMethodWhere(call(java.util.concurrent.CompletableFuture.class, ".*Async"))
+        .orShould()
+        .callMethodWhere(call(java.util.stream.BaseStream.class, "parallel"))
+        .orShould()
+        .callMethodWhere(call(Arrays.class, "parallel.*"))
         .orShould()
         .implement(ThreadFactory.class);
   }
@@ -1034,10 +1102,15 @@ class ArchitectureTest {
         VIEW_FIXTURES + "UsesSwtInternals",
         "org.eclipse.swt.internal.Library");
     assertViolations(
-        reflectionOnlyInSanctionedViewsRule(),
+        reflectionOnlyInSanctionedClassesRule(),
         VIEW_FIXTURES + "ReflectsIntoSwt",
         "Class.forName",
         "Field.setAccessible");
+    assertViolations(
+        reflectionOnlyInSanctionedClassesRule(),
+        ROOT + ".core.archfixture.CoreViolations$Reflects",
+        "Class.forName",
+        "Class.getDeclaredConstructor");
     List<ArchRule> layering = layeringRules();
     assertViolations(layering.get(0), ROOT + ".core.archfixture.CoreViolations$UsesApp", "UiText");
     assertViolations(layering.get(1), CONTROLLER_FIXTURES + "UsesView", "SwtKeys");
@@ -1083,6 +1156,16 @@ class ArchitectureTest {
     List<ArchRule> network = noOutboundNetworkRules();
     assertViolations(
         network.get(0), CONTROLLER_FIXTURES + "Connects", "Socket", "openStream", "java.net.http");
+    assertViolations(
+        network.get(0),
+        CONTROLLER_FIXTURES + "ReachesNetwork",
+        "java.net.ServerSocket",
+        "java.net.DatagramSocket",
+        "java.nio.channels.DatagramChannel",
+        "java.nio.channels.AsynchronousSocketChannel",
+        "URL.getContent",
+        "InetAddress.getByName",
+        "InetAddress.getAllByName");
     assertViolations(network.get(1), CONTROLLER_FIXTURES + "Connects", "SocketChannel");
     assertViolations(
         noProcessesDeserializationOrWeakRandomRule(),
@@ -1093,7 +1176,16 @@ class ArchitectureTest {
         "XMLDecoder",
         "java.util.Random");
     assertViolations(
-        onlyMainExitsRule(), CONTROLLER_FIXTURES + "Exits", "System.exit", "Runtime.halt");
+        noProcessesDeserializationOrWeakRandomRule(),
+        CONTROLLER_FIXTURES + "StartsProcesses",
+        "Runtime.exec(java.lang.String, [Ljava.lang.String;)",
+        "Runtime.exec([Ljava.lang.String;, [Ljava.lang.String;, java.io.File)");
+    assertViolations(
+        onlyMainExitsRule(),
+        CONTROLLER_FIXTURES + "Exits",
+        "System.exit",
+        "Runtime.halt",
+        "Runtime.exit");
     assertViolations(
         xmlParsersOnlyInSyntaxRule(), CONTROLLER_FIXTURES + "ParsesXml", "DocumentBuilderFactory");
   }
@@ -1106,6 +1198,11 @@ class ArchitectureTest {
         VIEW_FIXTURES + "PostsToDisplay",
         "asyncExec",
         "timerExec");
+    assertViolations(noSyncExecRule(), VIEW_FIXTURES + "WaitsOnDisplay", "Display.syncCall");
+    assertViolations(
+        onlyTheDispatcherPostsToTheDisplayRule(),
+        VIEW_FIXTURES + "WaitsOnDisplay",
+        "Display.execute");
     assertViolations(
         viewsNeverBlockRule(),
         VIEW_FIXTURES + "Blocks",
@@ -1117,6 +1214,7 @@ class ArchitectureTest {
         "Semaphore.acquire",
         "BlockingQueue.put",
         "CountDownLatch.await",
+        "Charset.availableCharsets",
         "java.nio.channels");
     assertViolations(
         fileLocksOnlyInProcessLockRule(),
@@ -1132,7 +1230,9 @@ class ArchitectureTest {
     assertViolations(
         controllersReadNoSystemPropertiesRule(),
         CONTROLLER_FIXTURES + "ReadsPlatform",
-        "getProperty");
+        "System.getProperty",
+        "System.getProperties",
+        "System.getenv");
     assertViolations(
         controllersBlockOnlyOnWorkersRule(),
         CONTROLLER_FIXTURES + "BlocksOnTheUiThread",
@@ -1154,6 +1254,15 @@ class ArchitectureTest {
         "java.util.Timer",
         "Executors",
         "ThreadFactory");
+    assertViolations(
+        onlyWorkersCreatesThreadsRule(),
+        CONTROLLER_FIXTURES + "UsesTheCommonPool",
+        "java.util.concurrent.RecursiveAction",
+        "CompletableFuture.runAsync",
+        "CompletableFuture.supplyAsync",
+        "CompletableFuture.thenApplyAsync",
+        "IntStream.parallel",
+        "Arrays.parallelSort");
     assertViolations(
         noSynchronizedMethodsWhereVirtualThreadsBlockRule(),
         ROOT + ".core.io.archfixture.IoViolations$Synchronized",
@@ -1219,6 +1328,8 @@ class ArchitectureTest {
   void osRulesFailOnTheirFixtures() throws ClassNotFoundException {
     assertViolations(osNameOnlyInTheOsSeamRule(), CONTROLLER_FIXTURES + "ReadsPlatform", "os.name");
     assertViolations(
+        controllersDoNotAskTheOsRule(), CONTROLLER_FIXTURES + "AsksTheOs", "OsTraits.current()");
+    assertViolations(
         noToolkitPlatformChecksOutsideTheViewsRule(),
         ROOT + ".launcher.archfixture.ToolkitChecks",
         "SWT.getPlatform",
@@ -1239,16 +1350,7 @@ class ArchitectureTest {
     return new ArchCondition<JavaClass>("hold the string \"" + text + "\"") {
       @Override
       public void check(JavaClass type, ConditionEvents events) {
-        String file = type.getName().replace('.', '/') + ".class";
-        byte[] bytes;
-        try (InputStream in = ArchitectureTest.class.getClassLoader().getResourceAsStream(file)) {
-          if (in == null) {
-            throw new AssertionError("No class file " + file);
-          }
-          bytes = in.readAllBytes();
-        } catch (IOException e) {
-          throw new UncheckedIOException(e);
-        }
+        byte[] bytes = classFile(type);
         boolean holds = false;
         for (int i = 0; !holds && i + entry.length <= bytes.length; i++) {
           holds = Arrays.equals(bytes, i, i + entry.length, entry, 0, entry.length);
@@ -1260,6 +1362,48 @@ class ArchitectureTest {
                 type.getName() + (holds ? " holds" : " does not hold") + " \"" + text + "\""));
       }
     };
+  }
+
+  /**
+   * Matches a class whose constant pool holds a {@code CONSTANT_Utf8} entry starting with the
+   * prefix.
+   */
+  private static ArchCondition<JavaClass> holdAStringStarting(final String prefix) {
+    final byte[] utf8 = prefix.getBytes(StandardCharsets.UTF_8);
+    return new ArchCondition<JavaClass>("hold a string starting \"" + prefix + "\"") {
+      @Override
+      public void check(JavaClass type, ConditionEvents events) {
+        byte[] bytes = classFile(type);
+        boolean holds = false;
+        for (int i = 3; !holds && i + utf8.length <= bytes.length; i++) {
+          holds =
+              bytes[i - 3] == 1
+                  && (((bytes[i - 2] & 0xff) << 8) | (bytes[i - 1] & 0xff)) >= utf8.length
+                  && Arrays.equals(bytes, i, i + utf8.length, utf8, 0, utf8.length);
+        }
+        events.add(
+            new SimpleConditionEvent(
+                type,
+                holds,
+                type.getName()
+                    + (holds ? " holds" : " does not hold")
+                    + " a string starting \""
+                    + prefix
+                    + "\""));
+      }
+    };
+  }
+
+  private static byte[] classFile(JavaClass type) {
+    String file = type.getName().replace('.', '/') + ".class";
+    try (InputStream in = ArchitectureTest.class.getClassLoader().getResourceAsStream(file)) {
+      if (in == null) {
+        throw new AssertionError("No class file " + file);
+      }
+      return in.readAllBytes();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /**

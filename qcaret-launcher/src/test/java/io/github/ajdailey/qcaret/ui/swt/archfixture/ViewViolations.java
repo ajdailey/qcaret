@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.core.io.SafePaths;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -19,6 +20,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.SwtCallable;
 import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Button;
@@ -56,6 +58,10 @@ final class ViewViolations {
 
   /** Blocks in every banned way. */
   static final class Blocks {
+    int charsets() {
+      return Charset.availableCharsets().size();
+    }
+
     void block(
         Future<String> future,
         Object monitor,
@@ -124,10 +130,31 @@ final class ViewViolations {
     }
   }
 
-  /** Reads the SWT platform and the GTK 4 environment outside {@code PlatformTraits}. */
+  /**
+   * Reads the SWT platform, the GTK 4 environment and an SWT internal property outside {@code
+   * PlatformTraits}.
+   */
   static final class ReadsPlatform {
     boolean gtk4() {
       return "gtk".equals(SWT.getPlatform()) && System.getenv("SWT_GTK4") != null;
+    }
+
+    String gtkVersion() {
+      return System.getProperty("org.eclipse.swt.internal.gtk.version");
+    }
+  }
+
+  /** Waits on the UI thread through {@code syncCall} and posts through {@code execute}. */
+  static final class WaitsOnDisplay {
+    int post(Display display, Runnable task) {
+      display.execute(task);
+      return display.syncCall(
+          new SwtCallable<Integer, RuntimeException>() {
+            @Override
+            public Integer call() {
+              return 1;
+            }
+          });
     }
   }
 }
