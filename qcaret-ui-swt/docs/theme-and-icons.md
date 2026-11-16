@@ -67,10 +67,15 @@ icon inked from it is dark on dark. Icons therefore sit only on tool bars,
 which draw light like the window; the main toolbar and the workspace browser's
 row read `#f0f0f0`. `Text.setBackground` and `setForeground` do color a field
 under the dark setting, its hint and a disabled field's background included
-(disabled text stays system gray). The main window keeps its fields native
+(disabled text stays system gray). The first color puts the field under the dark
+Explorer theme for the life of the control; with its colors then reset to null,
+Windows draws it near-black (33,33,33) with black text unless it has focus.
+The main window keeps its fields native
 except the Workspace Browser's: `BrowserColors` gives its tree, tree header and
 two fields `Palette.DARK`'s colors while `ui.theme` resolves to dark, at once
-after a live switch, on the light dock row
+after a live switch, on the light dock row. On the light side after a dark start
+it sets the fields to `COLOR_LIST_BACKGROUND` and `COLOR_LIST_FOREGROUND`
+rather than null
 ([dialogs and docks](dialogs-and-docks.md#workspace-browser)).
 
 #### Dialog colors

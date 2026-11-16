@@ -226,7 +226,13 @@ final class WorkspaceDock {
    * @param dark true when the theme setting resolves to dark
    */
   void setDark(boolean dark) {
-    BrowserColors.apply(PlatformTraits.PLATFORM, dark, tree, browseBar.path(), browseBar.filter());
+    BrowserColors.apply(
+        PlatformTraits.PLATFORM,
+        dark,
+        SwtThemeService.nativeDark(tree.getDisplay()),
+        tree,
+        browseBar.path(),
+        browseBar.filter());
   }
 
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */

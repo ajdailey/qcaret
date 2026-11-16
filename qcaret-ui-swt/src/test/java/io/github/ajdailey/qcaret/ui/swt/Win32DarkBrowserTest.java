@@ -19,10 +19,14 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Tree;
 import org.junit.jupiter.api.AfterEach;
@@ -34,7 +38,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * On win32 the Workspace Browser's tree, header and fields take {@link Palette#DARK}'s colors under
- * a dark start and follow live theme switches to light and back.
+ * a dark start and follow live theme switches to light and back. The path field's drawn color is
+ * read from a print: with no colors set, Windows draws a field under the dark Explorer theme
+ * near-black while {@code getBackground} reports the system color.
  */
 @Tag("swt")
 @EnabledOnOs(OS.WINDOWS)
@@ -64,6 +70,26 @@ class Win32DarkBrowserTest {
 
   private static RGB rgb(Rgb rgb) {
     return new RGB(rgb.red(), rgb.green(), rgb.blue());
+  }
+
+  /** Returns the most frequent color inside a control's 3-pixel inset, its drawn background. */
+  private RGB drawn(Control control) {
+    ImageData data = ControlPrint.of(display, control);
+    assertTrue(data != null, "print");
+    Map<RGB, Integer> counts = new HashMap<RGB, Integer>();
+    RGB most = null;
+    for (int y = 3; y < data.height - 3; y++) {
+      for (int x = 3; x < data.width - 3; x++) {
+        RGB rgb = data.palette.getRGB(data.getPixel(x, y));
+        Integer count = counts.get(rgb);
+        int next = count == null ? 1 : count + 1;
+        counts.put(rgb, next);
+        if (most == null || next > counts.get(most)) {
+          most = rgb;
+        }
+      }
+    }
+    return most;
   }
 
   private void await(final BooleanSupplier condition, String what) {
@@ -106,6 +132,9 @@ class Win32DarkBrowserTest {
     assertEquals(rgb(Palette.DARK.text()), tree.getHeaderForeground().getRGB());
     assertEquals(dark, dock.bar().path().getBackground().getRGB());
     assertEquals(dark, dock.bar().filter().getBackground().getRGB());
+    // Windows draws an unfocused field differently from a focused one under the dark theme.
+    tree.setFocus();
+    assertEquals(dark, drawn(dock.bar().path()));
     final RGB system = display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB();
     controller.execute(CommandId.THEME_LIGHT);
     await(
@@ -117,6 +146,10 @@ class Win32DarkBrowserTest {
         },
         "light tree");
     assertEquals(system, dock.bar().filter().getBackground().getRGB());
+    assertEquals(system, drawn(dock.bar().path()));
+    assertEquals(
+        display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB(),
+        dock.bar().path().getForeground().getRGB());
     controller.execute(CommandId.THEME_DARK);
     await(
         new BooleanSupplier() {
@@ -127,5 +160,17 @@ class Win32DarkBrowserTest {
         },
         "dark tree again");
     assertEquals(dark, dock.bar().path().getBackground().getRGB());
+    assertEquals(dark, drawn(dock.bar().path()));
+    controller.execute(CommandId.THEME_LIGHT);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return tree.getBackground().getRGB().equals(system);
+          }
+        },
+        "light tree again");
+    assertEquals(system, drawn(dock.bar().path()));
+    assertEquals(system, drawn(dock.bar().filter()));
   }
 }

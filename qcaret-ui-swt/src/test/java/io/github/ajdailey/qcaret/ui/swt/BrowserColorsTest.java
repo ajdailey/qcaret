@@ -55,7 +55,7 @@ class BrowserColorsTest {
 
   @Test
   void aDarkThemeOnWin32ColorsTheTreeItsHeaderAndTheFields() {
-    BrowserColors.apply(PlatformTraits.of("win32", false), true, tree, field);
+    BrowserColors.apply(PlatformTraits.of("win32", false), true, false, tree, field);
     RGB background = rgb(Palette.DARK.background());
     RGB text = rgb(Palette.DARK.text());
     assertEquals(
@@ -66,17 +66,32 @@ class BrowserColorsTest {
   void aLightThemeRestoresTheSystemColors() {
     List<RGB> system = colors();
     PlatformTraits win32 = PlatformTraits.of("win32", false);
-    BrowserColors.apply(win32, true, tree, field);
-    BrowserColors.apply(win32, false, tree, field);
+    BrowserColors.apply(win32, true, false, tree, field);
+    BrowserColors.apply(win32, false, false, tree, field);
     assertEquals(system, colors());
+  }
+
+  @Test
+  void aLightThemeAfterADarkStartGivesTheFieldsTheListColors() {
+    List<RGB> system = colors();
+    PlatformTraits win32 = PlatformTraits.of("win32", false);
+    for (boolean dark : new boolean[] {true, false, true, false}) {
+      BrowserColors.apply(win32, dark, true, tree, field);
+    }
+    RGB background = display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB();
+    RGB text = display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();
+    assertEquals(system.subList(0, 4), colors().subList(0, 4));
+    assertEquals(List.of(background, text), colors().subList(4, 6));
   }
 
   @Test
   void otherPlatformsKeepTheSystemColorsUnderADarkTheme() {
     List<RGB> system = colors();
-    BrowserColors.apply(PlatformTraits.of("cocoa", false), true, tree, field);
-    BrowserColors.apply(PlatformTraits.of("gtk", false), true, tree, field);
-    BrowserColors.apply(PlatformTraits.of("gtk", true), true, tree, field);
+    for (boolean nativeDark : new boolean[] {false, true}) {
+      BrowserColors.apply(PlatformTraits.of("cocoa", false), true, nativeDark, tree, field);
+      BrowserColors.apply(PlatformTraits.of("gtk", false), true, nativeDark, tree, field);
+      BrowserColors.apply(PlatformTraits.of("gtk", true), true, nativeDark, tree, field);
+    }
     assertEquals(system, colors());
   }
 }
