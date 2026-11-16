@@ -32,6 +32,11 @@ import java.util.Map;
  * #MAX_BYTES} bytes or {@value #MAX_LINES} lines, not valid UTF-8, unreadable or malformed ({@link
  * EditorConfigFile#parse}) contributes nothing, its {@code root} included, and is listed in {@link
  * Result#problems}.
+ *
+ * <p>A section that is not {@link EditorConfigGlob#valid}, or whose match reaches its read limit,
+ * matches nothing; each file's skipped sections are counted in {@link Result#problems}. A match
+ * reads at most {@link BoundedChars#lineLimit} of the path, and all matches of one call together at
+ * most {@value #MAX_MATCH_READS}; once that is spent, every remaining section is skipped.
  */
 public final class EditorConfig {
   /** Name of the files read. */
@@ -42,6 +47,9 @@ public final class EditorConfig {
 
   /** Most lines in a file read. */
   public static final int MAX_LINES = 10_000;
+
+  /** Most path reads by all section matches of one {@link #resolve}. */
+  public static final long MAX_MATCH_READS = 1L << 22;
 
   private EditorConfig() {}
 
@@ -90,17 +98,34 @@ public final class EditorConfig {
     }
     Map<String, String> properties = new LinkedHashMap<String, String>();
     List<Path> files = new ArrayList<Path>();
+    BoundedChars chars = new BoundedChars();
+    long budget = MAX_MATCH_READS;
     for (int i = parsed.size() - 1; i >= 0; i--) {
       String path = relative(directories.get(i), absolute);
+      Path config = directories.get(i).resolve(FILE_NAME);
       boolean matched = false;
+      List<String> invalid = new ArrayList<String>();
+      List<String> limited = new ArrayList<String>();
       for (EditorConfigFile.Section section : parsed.get(i).sections()) {
-        if (section.glob().matches(path)) {
+        EditorConfigGlob glob = section.glob();
+        if (!glob.valid()) {
+          invalid.add(glob.section());
+          continue;
+        }
+        chars.reset(path, Math.min(BoundedChars.lineLimit(path), budget));
+        EditorConfigGlob.Match match = glob.match(chars);
+        budget -= chars.used();
+        if (match == EditorConfigGlob.Match.YES) {
           matched = true;
           properties.putAll(section.properties());
+        } else if (match == EditorConfigGlob.Match.LIMIT) {
+          limited.add(glob.section());
         }
       }
+      skipped(problems, config, invalid, "not a valid pattern");
+      skipped(problems, config, limited, "over the match limit");
       if (matched) {
-        files.add(0, directories.get(i).resolve(FILE_NAME));
+        files.add(0, config);
       }
     }
     Iterator<String> values = properties.values().iterator();
@@ -128,6 +153,22 @@ public final class EditorConfig {
     }
     if ("tab".equals(p.get("indent_size")) && p.containsKey("tab_width")) {
       p.put("indent_size", p.get("tab_width"));
+    }
+  }
+
+  /** Adds one problem naming the count of sections skipped for a reason and the first of them. */
+  private static void skipped(
+      List<String> problems, Path config, List<String> sections, String reason) {
+    if (!sections.isEmpty()) {
+      problems.add(
+          config
+              + ": skipped "
+              + sections.size()
+              + " section(s) "
+              + reason
+              + ", first ["
+              + sections.get(0)
+              + "]");
     }
   }
 

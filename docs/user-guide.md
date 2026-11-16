@@ -99,7 +99,9 @@ Reopen with Encoding or Save with Encoding wins over both, and a byte order mark
 wins over a declared encoding; a declared encoding that does not read the file
 is skipped. `end_of_line` never converts a file's existing line breaks; use
 Encoding > Line Endings for that. Trim and the final newline happen at each Save
-as one Undo step, so the file holds what the window shows.
+as one Undo step, so the file holds what the window shows. An `.editorconfig`
+section that is not a valid pattern, or that needs too many steps to match, is
+ignored with a warning; the file's other sections still apply.
 
 The tab's tool tip names the files and the modeline a document's settings came
 from. Save As to another folder, a rename in the workspace browser, Reload and

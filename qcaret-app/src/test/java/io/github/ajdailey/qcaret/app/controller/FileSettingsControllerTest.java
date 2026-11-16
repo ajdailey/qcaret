@@ -135,6 +135,20 @@ class FileSettingsControllerTest {
     assertEquals(project.resolve("a.txt").toString(), view.tabs.get(1).toolTip);
   }
 
+  @Test
+  void filesUnderBacktrackingAndInvalidSectionsOpenWithTheOtherSections() throws Exception {
+    Path project = temp.toRealPath().resolve("p");
+    config(
+        project,
+        "[*.txt]\nindent_size = 3\n[[z-a]]\nindent_size = 7\n"
+            + "[*a*a*a*a*a*a*a*a*a*ab]\nindent_size = 9\n".repeat(8));
+    String name = "a".repeat(40);
+    Document first = open(Files.writeString(project.resolve(name + ".txt"), "x\n"));
+    Document second = open(Files.writeString(project.resolve(name + "a.txt"), "y\n"));
+    assertEquals(3, first.tabWidth());
+    assertEquals(3, second.tabWidth());
+  }
+
   /** Rows: what each source declares, then the width the document takes. */
   @Test
   void precedenceModelineThenEditorConfigThenRememberedThenPreferences() throws Exception {

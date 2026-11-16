@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.text;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -117,6 +118,59 @@ class EditorConfigTest {
       assumeTrue(false, "no symbolic links");
     }
     assertEquals("5", EditorConfig.resolve(q.resolve("x.txt")).properties().get("indent_size"));
+  }
+
+  /** A section that backtracks for seconds against a long name without its final {@code b}. */
+  private static final String BACKTRACKS = "*a*a*a*a*a*a*a*a*a*ab";
+
+  @Test
+  void aBacktrackingSectionEndsAtTheReadLimitWithoutMatching() {
+    EditorConfigGlob glob = EditorConfigGlob.compile(BACKTRACKS);
+    String path = "/" + "a".repeat(40) + ".txt";
+    long limit = BoundedChars.lineLimit(path);
+    BoundedChars chars = new BoundedChars();
+    assertEquals(EditorConfigGlob.Match.LIMIT, glob.match(chars.reset(path, limit)));
+    assertTrue(chars.used() <= limit, Long.toString(chars.used()));
+    assertFalse(glob.matches(path));
+    assertTrue(glob.matches("/x/" + "a".repeat(10) + "b"));
+  }
+
+  @Test
+  void backtrackingSectionsAreSkippedAndSpendOneBudget() throws IOException {
+    write(
+        dir.resolve(".editorconfig"),
+        "root = true\n[*.txt]\nindent_size = 3\n"
+            + ("[" + BACKTRACKS + "]\nindent_size = 9\n").repeat(200)
+            + "[*]\ncharset = utf-8\n");
+    EditorConfig.Result r = EditorConfig.resolve(dir.resolve("a".repeat(40) + ".txt"));
+    assertEquals(Map.of("indent_size", "3", "tab_width", "3"), r.properties());
+    assertEquals(1, r.problems().size());
+    assertTrue(
+        r.problems().get(0).contains("skipped 201 section(s) over the match limit"),
+        r.problems().get(0));
+  }
+
+  @Test
+  void anInvalidSectionIsSkippedAndTheOthersApply() throws IOException {
+    write(
+        dir.resolve(".editorconfig"),
+        "root = true\n[[z-a]]\nindent_size = 9\n[x[9-0]]\nindent_size = 8\n"
+            + "[x{1..99999999999999999999}]\nindent_size = 7\n[*]\nindent_size = 3\n");
+    EditorConfig.Result r = EditorConfig.resolve(dir.resolve("x.txt"));
+    assertEquals(Map.of("indent_size", "3", "tab_width", "3"), r.properties());
+    assertEquals(
+        List.of(
+            dir.resolve(".editorconfig")
+                + ": skipped 3 section(s) not a valid pattern, first [[z-a]]"),
+        r.problems());
+  }
+
+  @Test
+  void aBraceGlobInsideBracesCompiles() {
+    String[] sections = {"{a}}", "{{a}}", "{{a}b,c}", "{a,b}}{{c}"};
+    for (String section : sections) {
+      assertTrue(EditorConfigGlob.compile(section).valid(), section);
+    }
   }
 
   @Test

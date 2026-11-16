@@ -182,6 +182,8 @@ removes a property. Then the EditorConfig core libraries' defaults apply
 | `.editorconfig` a symbolic link | Followed |
 | `.editorconfig` a directory, FIFO or device | Skipped unread |
 | Over 256 KiB or 10,000 lines, not UTF-8, unreadable, a line that is not blank, a comment, a section or `key = value` | Contributes nothing, its `root` included; named in `Result.problems` |
+| A section whose expression does not compile, or whose match reads the path more than `BoundedChars.lineLimit` times | Matches nothing; the other sections apply; counted in `Result.problems` |
+| Section matches of one `resolve` past 4,194,304 path reads (`MAX_MATCH_READS`) in all | Every remaining section matches nothing; counted in `Result.problems` |
 
 `EditorConfigFile.parse` lower-cases keys and the standard properties' values; a
 `#` or `;` inside a value belongs to it. `EditorConfigGlob` compiles a section
