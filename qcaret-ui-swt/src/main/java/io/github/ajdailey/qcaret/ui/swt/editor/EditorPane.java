@@ -850,6 +850,14 @@ public final class EditorPane implements EditorView {
           }
         });
     text.addListener(
+        SWT.Traverse,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            TabTraversal.keepBound(event, keymap);
+          }
+        });
+    text.addListener(
         SWT.Verify,
         new Listener() {
           @Override

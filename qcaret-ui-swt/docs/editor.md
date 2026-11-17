@@ -55,6 +55,15 @@ and drop) arrives as `Verify`, is canceled, and goes to
 `EditorInput.replaceFromView`; the controller applies it inside the listener,
 before `modifyContent` returns.
 
+`StyledText.handleTraverse` traverses focus on Tab with any modifier held, before
+the `VerifyKey` listener runs. A `Traverse` listener (`TabTraversal`) cancels a
+Tab traversal whose stroke has an editor binding, so Tab and Shift+Tab (Insert
+Tab, Outdent) stay in the editor, and a rebound stroke follows the keymap.
+Ctrl+Tab and Ctrl+Shift+Tab have no editor binding and move focus out of the
+editor. Every editor view, split views included, is an `EditorPane`; the
+comparison window and the replace preview are read-only `StyledText`s without
+the editor keymap.
+
 ## Carets and selections
 
 Caret moves are editor bindings, run by the controller at every caret. A plain
