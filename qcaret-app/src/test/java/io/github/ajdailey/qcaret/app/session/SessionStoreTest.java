@@ -440,6 +440,43 @@ class SessionStoreTest {
   }
 
   @Test
+  void anOversizedSessionWarnsWithTheLimitAndNoPath() throws Exception {
+    StringBuilder text = new StringBuilder("version=1\nwindow.0.active=0\n");
+    while (text.length() <= SessionStore.MAX_BYTES) {
+      text.append("window.0.tab.0.path=/mock/").append("a".repeat(1000)).append('\n');
+    }
+    Files.writeString(temp.resolve(SessionStore.FILE), text);
+    final List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
+    Handler capture =
+        new Handler() {
+          @Override
+          public void publish(LogRecord entry) {
+            if (entry.getLevel().intValue() >= Level.WARNING.intValue()) {
+              warnings.add(entry.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    Logger logger = Logger.getLogger(SessionStore.class.getName());
+    logger.addHandler(capture);
+    try {
+      store().load();
+      assertEquals(1, warnings.size(), warnings.toString());
+      assertTrue(
+          warnings.get(0).contains("More than " + SessionStore.MAX_BYTES + " bytes"),
+          warnings.get(0));
+      assertFalse(warnings.get(0).contains(temp.toString()), warnings.get(0));
+    } finally {
+      logger.removeHandler(capture);
+    }
+  }
+
+  @Test
   void selectionsKeepThePrimaryFirstAndClampToTheText() {
     SelectionSet set = SelectionSet.of(List.of(Selection.of(1, 2), Selection.of(8, 5)), 1);
     String text = SessionText.selections(set);

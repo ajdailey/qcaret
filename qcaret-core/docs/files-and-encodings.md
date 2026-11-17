@@ -233,7 +233,8 @@ path, a pattern, an exception message) to one line before it reaches a logger:
 C0 controls, DEL, NEL, U+2028 and U+2029 become `_`, and the result is cut at
 1,024 chars. `LogText.reason` gives an I/O failure without its paths: the
 exception's simple class name, plus `FileSystemException.getReason()` when
-there is one. Use it where a log line must not carry a path; the message of a
+there is one or the message of a `LimitExceededException` (thrown by
+`Streams.readLimited`, which names only the limit). Use it where a log line must not carry a path; the message of a
 `FileSystemException` and of many plain `IOException`s holds the paths.
 `config/findsecbugs-taint.txt` registers both with find-sec-bugs as removing CR
 and LF.

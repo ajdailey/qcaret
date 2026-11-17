@@ -16,7 +16,8 @@ public final class Streams {
    * @param in the stream
    * @param limit the most bytes accepted, at least 0
    * @return every byte read
-   * @throws IOException on a read error, or when the stream holds more than {@code limit} bytes
+   * @throws LimitExceededException when the stream holds more than {@code limit} bytes
+   * @throws IOException on a read error
    */
   public static byte[] readLimited(InputStream in, int limit) throws IOException {
     Checks.notNegative(limit, "limit");
@@ -27,7 +28,7 @@ public final class Streams {
     while (n >= 0) {
       total += n;
       if (total > limit) {
-        throw new IOException("More than " + limit + " bytes");
+        throw new LimitExceededException(limit);
       }
       out.write(buffer, 0, n);
       n = in.read(buffer);

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.text;
 
+import io.github.ajdailey.qcaret.core.util.LimitExceededException;
 import java.nio.file.FileSystemException;
 
 /**
@@ -32,14 +33,18 @@ public final class LogText {
 
   /**
    * Returns a failure's simple class name, followed by {@link FileSystemException#getReason()} when
-   * there is one, on one line. The message is left out: a {@code FileSystemException} message and
-   * many plain {@code IOException} messages hold the file and directory paths.
+   * there is one or by the message of a {@link LimitExceededException}, on one line. Any other
+   * message is left out: a {@code FileSystemException} message and many plain {@code IOException}
+   * messages hold the file and directory paths.
    *
    * @param error the failure
    * @return the path-free single line
    */
   public static String reason(Throwable error) {
     String name = error.getClass().getSimpleName();
+    if (error instanceof LimitExceededException) {
+      return oneLine(name + ": " + error.getMessage());
+    }
     if (error instanceof FileSystemException system && system.getReason() != null) {
       return oneLine(name + ": " + system.getReason());
     }

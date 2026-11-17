@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.text;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.ajdailey.qcaret.core.util.LimitExceededException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
@@ -39,6 +40,9 @@ class LogTextTest {
         "AccessDeniedException",
         LogText.reason(new AccessDeniedException("/mock/dir/a.tmp", "/mock/dir/a.conf", null)));
     assertEquals("IOException", LogText.reason(new IOException("/mock/dir is not a directory")));
+    assertEquals(
+        "LimitExceededException: More than 4096 bytes",
+        LogText.reason(new LimitExceededException(4096)));
     assertEquals(
         "FileSystemException: in_use",
         LogText.reason(new FileSystemException("/mock/a.conf", null, "in\nuse")));

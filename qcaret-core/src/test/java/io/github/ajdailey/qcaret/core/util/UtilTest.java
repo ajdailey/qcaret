@@ -47,7 +47,7 @@ class UtilTest {
     final ByteArrayInputStream longer = new ByteArrayInputStream(data);
     IOException refused =
         assertThrows(
-            IOException.class,
+            LimitExceededException.class,
             new Executable() {
               @Override
               public void execute() throws IOException {
