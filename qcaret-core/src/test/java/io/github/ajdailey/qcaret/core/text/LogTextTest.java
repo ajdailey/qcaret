@@ -2,6 +2,9 @@ package io.github.ajdailey.qcaret.core.text;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
 import org.junit.jupiter.api.Test;
 
 class LogTextTest {
@@ -24,5 +27,20 @@ class LogTextTest {
   @Test
   void nullIsText() {
     assertEquals("null", LogText.oneLine(null));
+  }
+
+  @Test
+  void reasonLeavesOutThePaths() {
+    assertEquals(
+        "FileSystemException: Is a directory",
+        LogText.reason(
+            new FileSystemException("/mock/dir/a.tmp", "/mock/dir/a.conf", "Is a directory")));
+    assertEquals(
+        "AccessDeniedException",
+        LogText.reason(new AccessDeniedException("/mock/dir/a.tmp", "/mock/dir/a.conf", null)));
+    assertEquals("IOException", LogText.reason(new IOException("/mock/dir is not a directory")));
+    assertEquals(
+        "FileSystemException: in_use",
+        LogText.reason(new FileSystemException("/mock/a.conf", null, "in\nuse")));
   }
 }

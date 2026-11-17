@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory;
  * #MAX_COMMENTS} comments over all tabs. {@code droppedComments}, written when not 0, counts the
  * comments a save left out; a missing or malformed value reads as 0. A read-only settings directory
  * disables saving with one WARN. A failed write logs one WARN per run of failures; a write that
- * lands ends the run. Paths and comments are never logged.
+ * lands ends the run. Log lines name the file and the failure's {@link LogText#reason}; paths and
+ * comments are never logged.
  *
  * <p>Every file and folder path passes through {@link InstallPaths}: a load resolves a relative
  * value, a save writes a path under the installation relative in portable and explicit mode.
@@ -148,7 +149,7 @@ public final class SessionStore {
       Properties p = read(SafePaths.child(dir, FILE));
       return p == null ? Session.EMPTY : SessionReader.parse(p, absent, paths);
     } catch (IOException e) {
-      LOG.warn("Cannot read {}: {}", FILE, LogText.oneLine(e.getMessage()));
+      LOG.warn("Cannot read {}: {}", FILE, LogText.reason(e));
       keepInvalid = true;
       return Session.EMPTY;
     } finally {
@@ -205,11 +206,11 @@ public final class SessionStore {
       }
       if (failing) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Cannot save {} again: {}", FILE, LogText.oneLine(e.getMessage()));
+          LOG.debug("Cannot save {} again: {}", FILE, LogText.reason(e));
         }
       } else {
         failing = true;
-        LOG.warn("Cannot save {}: {}", FILE, LogText.oneLine(e.getMessage()));
+        LOG.warn("Cannot save {}: {}", FILE, LogText.reason(e));
       }
       return Write.FAILED;
     } finally {
@@ -233,7 +234,7 @@ public final class SessionStore {
       keepInvalid = false;
       return null;
     } catch (IOException e) {
-      LOG.warn("Cannot read {}: {}", FILE, LogText.oneLine(e.getMessage()));
+      LOG.warn("Cannot read {}: {}", FILE, LogText.reason(e));
       keepInvalid = true;
       return null;
     }

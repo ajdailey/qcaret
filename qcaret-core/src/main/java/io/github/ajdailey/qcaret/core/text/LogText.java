@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.core.text;
 
+import java.nio.file.FileSystemException;
+
 /**
  * Reduces a value that did not originate in QCaret's own code to one log-safe line before it
  * reaches a logger: a path, a search pattern, a configuration value or an I/O exception message.
@@ -26,6 +28,22 @@ public final class LogText {
       out.append(isBreak(c) ? '_' : c);
     }
     return out.toString();
+  }
+
+  /**
+   * Returns a failure's simple class name, followed by {@link FileSystemException#getReason()} when
+   * there is one, on one line. The message is left out: a {@code FileSystemException} message and
+   * many plain {@code IOException} messages hold the file and directory paths.
+   *
+   * @param error the failure
+   * @return the path-free single line
+   */
+  public static String reason(Throwable error) {
+    String name = error.getClass().getSimpleName();
+    if (error instanceof FileSystemException system && system.getReason() != null) {
+      return oneLine(name + ": " + system.getReason());
+    }
+    return name;
   }
 
   private static boolean isBreak(char c) {

@@ -426,6 +426,8 @@ class SessionStoreTest {
       assertEquals(SessionStore.Write.FAILED, store.write(session()));
       assertEquals(SessionStore.Write.FAILED, store.write(session()));
       assertEquals(1, warnings.size(), warnings.toString());
+      assertTrue(warnings.get(0).contains(SessionStore.FILE), warnings.get(0));
+      assertFalse(warnings.get(0).contains(temp.toString()), warnings.get(0));
       Files.delete(file);
       assertEquals(SessionStore.Write.WRITTEN, store.write(session()));
       Files.delete(file);

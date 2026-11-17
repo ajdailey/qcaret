@@ -45,7 +45,8 @@ The layer 7 packages do not use each other.
   Symbol scan and the Bookmarks list reserve their heap from `MemoryBudget` before they hold it, and
   release it when they drop it.
 - A value that did not originate in QCaret's code reaches a logger through
-  `LogText.oneLine`.
+  `LogText.oneLine`; a failure whose log line must not carry a path, through
+  `LogText.reason`.
 
 ## Testing
 
