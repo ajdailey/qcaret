@@ -24,10 +24,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -40,7 +44,8 @@ import org.junit.jupiter.api.io.TempDir;
  * On win32 the Workspace Browser's tree, header and fields take {@link Palette#DARK}'s colors under
  * a dark start; the tree and header follow live theme switches to light and back, and the fields
  * stay dark. The path field's drawn color is read from a print, since Windows can draw a field
- * under the dark Explorer theme in a color {@code getBackground} does not report.
+ * under the dark Explorer theme in a color {@code getBackground} does not report. The empty filter
+ * field's hint is read from the screen, where its Paint listener's drawing shows.
  */
 @Tag("swt")
 @EnabledOnOs(OS.WINDOWS)
@@ -96,8 +101,42 @@ class Win32DarkBrowserTest {
     assertTrue(EventLoop.runUntil(display, condition, BOUND), what);
   }
 
-  @Test
-  void theBrowserFollowsADarkStartAndLiveSwitches() {
+  private static double luminance(RGB rgb) {
+    double sum = 0;
+    double[] weights = {0.2126, 0.7152, 0.0722};
+    int[] channels = {rgb.red, rgb.green, rgb.blue};
+    for (int i = 0; i < 3; i++) {
+      double c = channels[i] / 255.0;
+      c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      sum += weights[i] * c;
+    }
+    return sum;
+  }
+
+  /** Returns the contrast against the dark background of the lightest pixel inside the inset. */
+  private double hintContrast(Text field) {
+    Point origin = field.toDisplay(0, 0);
+    Point size = field.getSize();
+    Image image = new Image(display, size.x, size.y);
+    GC gc = new GC(display);
+    ImageData data;
+    try {
+      gc.copyArea(image, origin.x, origin.y);
+      data = Pixels.read(image, field.getShell());
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
+    double lightest = 0;
+    for (int y = 3; y < data.height - 3; y++) {
+      for (int x = 3; x < data.width - 3; x++) {
+        lightest = Math.max(lightest, luminance(data.palette.getRGB(data.getPixel(x, y))));
+      }
+    }
+    return (lightest + 0.05) / (luminance(rgb(Palette.DARK.background())) + 0.05);
+  }
+
+  private MainWindow openDark() {
     display = new Display();
     workers =
         new Workers(
@@ -124,6 +163,35 @@ class Win32DarkBrowserTest {
     controller.documents().newDocument();
     window.open();
     controller.execute(CommandId.WORKSPACE_BROWSER);
+    return window;
+  }
+
+  @Test
+  void theEmptyFilterFieldDrawsItsHintLegiblyUnderDark() {
+    MainWindow window = openDark();
+    WorkspaceDock dock = window.workspaceDock();
+    final Text filter = dock.bar().filter();
+    dock.tree().setFocus();
+    assertEquals("", filter.getText());
+    ScreenProbe.assumeShows(window.shell());
+    // The hint paints after the focus change.
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            display.update();
+            return hintContrast(filter) >= 4.5;
+          }
+        },
+        BOUND);
+    double contrast = hintContrast(filter);
+    assertTrue(contrast >= 4.5, "hint contrast " + contrast);
+  }
+
+  @Test
+  void theBrowserFollowsADarkStartAndLiveSwitches() {
+    MainWindow window = openDark();
     final WorkspaceDock dock = window.workspaceDock();
     final Tree tree = dock.tree();
     final RGB dark = rgb(Palette.DARK.background());

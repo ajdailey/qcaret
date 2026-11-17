@@ -791,6 +791,12 @@ public final class EditorPane implements EditorView {
   /**
    * Sends the widget's selections to the model after the user moved them. A report of the primary
    * as the model holds it, such as after a resize, keeps the other selections unless {@code click}.
+   *
+   * <p>A drag or Shift+click moves the widget's caret, firing {@code caretMoved}, before the widget
+   * extends the selection. A non-empty range with the caret at neither end, or equal to the model's
+   * primary range with only the caret moved, is that intermediate state and is skipped; the
+   * widget's {@code SWT.Selection} event reports the extended range. Sent to the model, the
+   * intermediate state returns through {@link #syncWidget} and resets the widget's anchor.
    */
   private void fromWidget(boolean click) {
     if (syncing || composing || text.isDisposed()) {
@@ -801,8 +807,15 @@ public final class EditorPane implements EditorView {
     if (ranges.length == 2) {
       int start = ranges[0];
       int end = start + ranges[1];
-      int anchor = caretOffset == start ? end : start;
       Selection primary = selections.selections().primary();
+      if (start != end
+          && (caretOffset != start && caretOffset != end
+              || !click
+                  && start == projection.toDisplay(primary.start())
+                  && end == projection.toDisplay(primary.end()))) {
+        return;
+      }
+      int anchor = caretOffset == start ? end : start;
       if (click
           || anchor != projection.toDisplay(primary.anchor())
           || caretOffset != projection.toDisplay(primary.caret())) {
@@ -811,7 +824,7 @@ public final class EditorPane implements EditorView {
       return;
     }
     int[] pairs = new int[ranges.length];
-    int primary = 0;
+    int primary = -1;
     for (int i = 0; i < ranges.length; i += 2) {
       int start = ranges[i];
       int end = start + ranges[i + 1];
@@ -821,6 +834,9 @@ public final class EditorPane implements EditorView {
       if (caretOffset == start || caretOffset == end) {
         primary = i / 2;
       }
+    }
+    if (primary < 0) {
+      return;
     }
     input.selectionsFromView(pairs, primary);
   }

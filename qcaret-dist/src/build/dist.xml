@@ -270,6 +270,10 @@ natives.macos-aarch64=${natives.macos-aarch64}
       </copy>
       <delete dir="@{output}/legal"/>
       <move file="@{output}/legal.files" tofile="@{output}/legal"/>
+      <!-- java.base's keytool launcher; QCaret never runs it. -->
+      <delete>
+        <fileset dir="@{output}/bin" includes="keytool,keytool.exe"/>
+      </delete>
     </sequential>
   </macrodef>
 

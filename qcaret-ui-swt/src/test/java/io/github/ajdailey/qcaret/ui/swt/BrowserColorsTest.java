@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -24,6 +25,7 @@ class BrowserColorsTest {
   private Shell shell;
   private Tree tree;
   private Text field;
+  private FieldHint hint;
 
   @BeforeEach
   void create() {
@@ -32,6 +34,8 @@ class BrowserColorsTest {
     tree = new Tree(shell, SWT.NONE);
     tree.setHeaderVisible(true);
     field = new Text(shell, SWT.SINGLE);
+    hint = new FieldHint(field);
+    hint.setHint("filter");
   }
 
   @AfterEach
@@ -55,7 +59,7 @@ class BrowserColorsTest {
 
   @Test
   void aDarkThemeOnWin32ColorsTheTreeItsHeaderAndTheFields() {
-    BrowserColors.apply(PlatformTraits.of("win32", false), true, false, tree, field);
+    BrowserColors.apply(PlatformTraits.of("win32", false), true, false, tree, hint);
     RGB background = rgb(Palette.DARK.background());
     RGB text = rgb(Palette.DARK.text());
     assertEquals(
@@ -63,11 +67,25 @@ class BrowserColorsTest {
   }
 
   @Test
+  void aDarkFieldDrawsItsHintInTheTabTextColorAndALightOneShowsTheNativeMessage() {
+    PlatformTraits win32 = PlatformTraits.of("win32", false);
+    assertEquals("filter", field.getMessage());
+    BrowserColors.apply(win32, true, false, tree, hint);
+    assertEquals("", field.getMessage());
+    assertEquals(rgb(Palette.DARK.accents().tabText()), hint.color().getRGB());
+    BrowserColors.apply(win32, false, false, tree, hint);
+    assertEquals("filter", field.getMessage());
+    assertNull(hint.color());
+    BrowserColors.apply(win32, false, true, tree, hint);
+    assertEquals("", field.getMessage());
+  }
+
+  @Test
   void aLightThemeRestoresTheSystemColors() {
     List<RGB> system = colors();
     PlatformTraits win32 = PlatformTraits.of("win32", false);
-    BrowserColors.apply(win32, true, false, tree, field);
-    BrowserColors.apply(win32, false, false, tree, field);
+    BrowserColors.apply(win32, true, false, tree, hint);
+    BrowserColors.apply(win32, false, false, tree, hint);
     assertEquals(system, colors());
   }
 
@@ -79,7 +97,7 @@ class BrowserColorsTest {
     RGB text = rgb(Palette.DARK.text());
     List<RGB> darkTree = List.of(background, text, rgb(Palette.DARK.gutter()), text);
     for (boolean dark : new boolean[] {true, false, true, false}) {
-      BrowserColors.apply(win32, dark, true, tree, field);
+      BrowserColors.apply(win32, dark, true, tree, hint);
       assertEquals(dark ? darkTree : system.subList(0, 4), colors().subList(0, 4));
       assertEquals(List.of(background, text), colors().subList(4, 6));
     }
@@ -89,10 +107,11 @@ class BrowserColorsTest {
   void otherPlatformsKeepTheSystemColorsUnderADarkTheme() {
     List<RGB> system = colors();
     for (boolean nativeDark : new boolean[] {false, true}) {
-      BrowserColors.apply(PlatformTraits.of("cocoa", false), true, nativeDark, tree, field);
-      BrowserColors.apply(PlatformTraits.of("gtk", false), true, nativeDark, tree, field);
-      BrowserColors.apply(PlatformTraits.of("gtk", true), true, nativeDark, tree, field);
+      BrowserColors.apply(PlatformTraits.of("cocoa", false), true, nativeDark, tree, hint);
+      BrowserColors.apply(PlatformTraits.of("gtk", false), true, nativeDark, tree, hint);
+      BrowserColors.apply(PlatformTraits.of("gtk", true), true, nativeDark, tree, hint);
     }
     assertEquals(system, colors());
+    assertEquals("filter", field.getMessage());
   }
 }

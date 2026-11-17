@@ -1,5 +1,6 @@
 # Unpacks the $env:TARGET bundle from dist\, checks that its runtime reports
-# os.arch $env:EXPECTED_ARCH and has jdk.charsets, jdk.localedata, java.xml and java.management, then starts qcaret.exe and
+# os.arch $env:EXPECTED_ARCH, has jdk.charsets, jdk.localedata, java.xml and java.management and no
+# bin\keytool.exe, then starts qcaret.exe and
 # finds the javaw.exe it starts. Passes only when that child runs runtime\bin\javaw.exe from the
 # bundle and the image's PE machine is $env:EXPECTED_MACHINE. An ARM64 image
 # cannot run under x86 or x64 emulation, so ARM64 proves a native arm64 JVM.
@@ -131,6 +132,7 @@ if (-not ($modules -match '^jdk\.charsets@')) { throw 'runtime lacks jdk.charset
 if (-not ($modules -match '^jdk\.localedata@')) { throw 'runtime lacks jdk.localedata' }
 if (-not ($modules -match '^java\.xml@')) { throw 'runtime lacks java.xml' }
 if (-not ($modules -match '^java\.management@')) { throw 'runtime lacks java.management' }
+if (Test-Path (Join-Path $bundle 'runtime\bin\keytool.exe')) { throw 'runtime holds keytool.exe' }
 
 $log = Join-Path $work 'notes.txt'
 Set-Content -Path $log -Value 'mock line'

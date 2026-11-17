@@ -313,6 +313,7 @@ class SmokeTest {
     assertTrue(release.contains("jdk.charsets"), release);
     assertTrue(release.contains("jdk.localedata"), release);
     assertTrue(release.contains("java.management"), release);
+    assertFalse(Files.exists(home.resolve("runtime").resolve("bin").resolve("keytool")));
     List<String> probe = new ArrayList<String>();
     probe.add(home.resolve("runtime").resolve("bin").resolve("java").toString());
     probe.add("-cp");

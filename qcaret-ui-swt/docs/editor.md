@@ -64,6 +64,14 @@ every model change and every display change. Caret moves the widget makes while
 it applies a change are ignored, and so is a widget report of that primary,
 such as after a resize, unless it follows a plain click.
 
+A drag or Shift+click fires `caretMoved` at the new offset before the widget
+extends the selection. `EditorPane` skips a report of a non-empty range with the
+caret at neither end, or of the model's primary range with only the caret
+moved; the widget's `Selection` event that follows reports the extended range.
+Sent to the model, the intermediate state would return through
+`setSelectionRange` and move the widget's anchor to the wrong end of an upward
+drag (`MouseSelectionSurfaceTest`).
+
 ### Mouse gestures
 
 `EditorGestures`, a Display filter, takes the editor's mouse gestures before

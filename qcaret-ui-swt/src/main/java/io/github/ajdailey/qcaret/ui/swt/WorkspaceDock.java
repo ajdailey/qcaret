@@ -231,8 +231,7 @@ final class WorkspaceDock {
         dark,
         SwtThemeService.nativeDark(tree.getDisplay()),
         tree,
-        browseBar.path(),
-        browseBar.filter());
+        browseBar.hints());
   }
 
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */

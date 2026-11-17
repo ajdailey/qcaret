@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Unpacks the $TARGET bundle from dist/, verifies a macOS bundle's signature,
-# checks that its runtime reports os.arch $EXPECTED_ARCH and has jdk.charsets,
-# jdk.localedata, java.xml and java.management, and starts the bundle's launcher until
+# checks that its runtime reports os.arch $EXPECTED_ARCH, has jdk.charsets,
+# jdk.localedata, java.xml and java.management and no bin/keytool, and starts the bundle's launcher until
 # the main window opens and the grammars are read, with no unhandled failure. A second launch then
 # hands a file to the running bundle and exits 0. Neither launch prints the
 # JDK's native-access warning. The same run follows with the
@@ -42,6 +42,7 @@ fi
   || { echo "FAIL: runtime lacks java.xml" >&2; exit 1; }
 "$runtime/bin/java" --list-modules | grep '^java\.management@' >/dev/null \
   || { echo "FAIL: runtime lacks java.management" >&2; exit 1; }
+[ ! -e "$runtime/bin/keytool" ] || { echo "FAIL: runtime holds keytool" >&2; exit 1; }
 
 arch="$("$runtime/bin/java" -XshowSettings:properties -version 2>&1 \
   | sed -n 's/^ *os\.arch = //p')"
