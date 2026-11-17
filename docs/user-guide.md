@@ -355,6 +355,7 @@ the grammar's rules.
 | `Ctrl+Backspace`, `Ctrl+Delete` (`Option` on macOS) | Delete the word before or after each caret |
 | `Ctrl+T` (`Control+T` on macOS) | Transpose: swap the characters around each caret, or rotate the texts of two or more selections |
 | `Ctrl+]`, `Ctrl+[`, `Shift+Tab` | Indent, outdent |
+| `Tab` on a selection that holds a line break | Indent the lines it touches; a selection within one line is replaced by a tab |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Move the keyboard focus out of the editor, forward or back |
 | `Ctrl+/`, `Ctrl+Shift+/` (`Cmd+Option+/` on macOS) | Toggle a line or block comment |
 | `Ctrl+Space` (`Option+Esc` on macOS) | Complete the word from the open documents |

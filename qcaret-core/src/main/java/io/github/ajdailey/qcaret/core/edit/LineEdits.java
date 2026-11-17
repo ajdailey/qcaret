@@ -301,8 +301,9 @@ public final class LineEdits {
   }
 
   /**
-   * The Tab key: indents the touched lines when a selection spans lines, else replaces each
-   * selection with a tab, or with spaces to the next tab stop from its start column.
+   * The Tab key: indents the touched lines when a selection holds a line break, a whole line with
+   * its break included, else replaces each selection with a tab, or with spaces to the next tab
+   * stop from its start column.
    *
    * @param text the text
    * @param set the selections
@@ -312,7 +313,7 @@ public final class LineEdits {
    */
   public static Edit insertTab(TextContent text, SelectionSet set, int tabWidth, boolean spaces) {
     for (Selection s : set.selections()) {
-      if (Lines.lastLine(text, s) > text.lineAt(s.start())) {
+      if (text.lineAt(s.end()) > text.lineAt(s.start())) {
         return indent(text, set, tabWidth, spaces);
       }
     }

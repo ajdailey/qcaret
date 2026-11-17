@@ -22,12 +22,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -37,7 +39,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Tab, Shift+Tab and Ctrl+Tab posted through {@code Display.post} to a focused editor, so each key
  * takes the native traversal path. Runs on GTK 3 and win32 when the test window is the foreground
- * window; GTK 4 does not implement posted keys and cocoa needs an accessibility grant.
+ * window and a posted Shift press reaches it (the windows-aarch64 runner delivers none); GTK 4 does
+ * not implement posted keys and cocoa needs an accessibility grant.
  */
 @Tag("swt")
 class EditorTabKeysTest {
@@ -113,6 +116,38 @@ class EditorTabKeysTest {
     assumeTrue(
         display.getActiveShell() == window.shell() && text.isFocusControl(),
         "the test window is not the foreground window");
+    assumeTrue(postedKeysArrive(), "posted keys do not reach this desktop");
+  }
+
+  /** Posts a Shift press and reports whether its KeyDown reached the display. */
+  private boolean postedKeysArrive() {
+    final AtomicBoolean seen = new AtomicBoolean();
+    Listener probe =
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.keyCode == SWT.SHIFT) {
+              seen.set(true);
+            }
+          }
+        };
+    display.addFilter(SWT.KeyDown, probe);
+    try {
+      post(SWT.KeyDown, SWT.SHIFT, 0);
+      post(SWT.KeyUp, SWT.SHIFT, 0);
+      EventLoop.runUntil(
+          display,
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return seen.get();
+            }
+          },
+          Duration.ofSeconds(5));
+    } finally {
+      display.removeFilter(SWT.KeyDown, probe);
+    }
+    return seen.get();
   }
 
   @AfterEach

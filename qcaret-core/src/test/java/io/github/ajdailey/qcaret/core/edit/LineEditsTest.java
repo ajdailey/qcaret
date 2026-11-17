@@ -158,6 +158,20 @@ class LineEditsTest {
   }
 
   @Test
+  void tabIndentsAWholeLineSelectedWithItsBreakAndNoLineAfterIt() {
+    Marked m = new Marked("a\n[bb\n]cc");
+    m.apply(LineEdits.insertTab(m.document.text(), m.model.selections(), 4, false));
+    assertEquals("a\n\t[bb\n]cc", m.marked());
+  }
+
+  @Test
+  void tabReplacesARangeWithinOneLine() {
+    Marked m = new Marked("a[bb]c\nd");
+    m.apply(LineEdits.insertTab(m.document.text(), m.model.selections(), 4, false));
+    assertEquals("a\t|c\nd", m.marked());
+  }
+
+  @Test
   void splitIntoLinesGivesEachLineItsPartOfTheRange() {
     Marked m = new Marked("a[bc\ndef\ng]h");
     m.model.set(LineEdits.splitIntoLines(m.document.text(), m.model.selections()));
