@@ -21,8 +21,13 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -371,7 +376,9 @@ class SessionStoreTest {
             List.of(),
             Session.Display.DEFAULTS,
             "");
-    assertFalse(store.save(new Session(List.of(window), List.of(), List.of())));
+    assertEquals(
+        SessionStore.Write.REFUSED,
+        store.write(new Session(List.of(window), List.of(), List.of())));
     assertEquals(session(), store.load());
   }
 
@@ -385,10 +392,48 @@ class SessionStoreTest {
       assumeFalse(Files.isWritable(temp), "the user ignores permissions");
       SessionStore store = store();
       assertEquals(session(), store.load());
-      assertFalse(store.save(Session.EMPTY));
+      assertEquals(SessionStore.Write.REFUSED, store.write(Session.EMPTY));
       assertEquals(session(), store.load());
     } finally {
       Files.setPosixFilePermissions(temp, before);
+    }
+  }
+
+  @Test
+  void aFailedWriteWarnsOncePerRunOfFailures() throws Exception {
+    final List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
+    Handler capture =
+        new Handler() {
+          @Override
+          public void publish(LogRecord entry) {
+            if (entry.getLevel().intValue() >= Level.WARNING.intValue()) {
+              warnings.add(entry.getMessage());
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    Logger logger = Logger.getLogger(SessionStore.class.getName());
+    logger.addHandler(capture);
+    try {
+      SessionStore store = store();
+      Path file = temp.resolve(SessionStore.FILE);
+      Files.createDirectory(file);
+      assertEquals(SessionStore.Write.FAILED, store.write(session()));
+      assertEquals(SessionStore.Write.FAILED, store.write(session()));
+      assertEquals(1, warnings.size(), warnings.toString());
+      Files.delete(file);
+      assertEquals(SessionStore.Write.WRITTEN, store.write(session()));
+      Files.delete(file);
+      Files.createDirectory(file);
+      assertEquals(SessionStore.Write.FAILED, store.write(session()));
+      assertEquals(2, warnings.size(), warnings.toString());
+    } finally {
+      logger.removeHandler(capture);
     }
   }
 

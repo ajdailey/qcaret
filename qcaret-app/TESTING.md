@@ -45,10 +45,12 @@ permission skip where the user writes every file.
 
 | Class | Covers |
 |---|---|
-| `SessionStoreTest` | Round trip, the limits, the `droppedComments` count, malformed, oversized and unknown-version files, a bookmark comment without a line or text, a missing or invalid display key reading the given default |
+| `SessionStoreTest` | Round trip, the limits, the `droppedComments` count, malformed, oversized and unknown-version files, one WARN per run of failed writes, a bookmark comment without a line or text, a missing or invalid display key reading the given default |
 | `SessionOverflowTest` | Each save limit (windows, tabs over all windows, searches, expanded directories and closed files per window, Recent Files) reached by one entry past it: the count left out and the file holding exactly the limit |
 | `SessionLockTest` | The session lock held by a child JVM and by this one, a second acquire in the JVM, the held file refused as a user file, a per-user directory created first |
 | `SessionControllerTest` | Restore through real files, a restored tab's marks, split and read-only with marks past the end skipped, the restored closed-file list at its limit with an unparsable path skipped, the comment count shown and cleared, debounced and shutdown saves on racing workers, one WARN and one notice for two saves past a limit |
+| `SessionSaveRetryTest` | A directory at the session file failing every timed save: the retry armed past the short delays, and the remembered entry in the file once the directory is gone, with no further change; a failing retry finishing after `close` or during a quit hold arming nothing, and the Cancel saving |
+| `SaveBackoffTest` | The retry delay doubling from 2 s to the 60 s cap, and a written or refused outcome ending the run |
 | `RecoveryFileTest` | Round trip of a text over every buffer size, surrogates, damage |
 | `RecoveryStoreTest` | Liveness by lock, a live child process that read its `owner.lock`, age limits, the original file's state, an unreadable original or recovery file hiding no buffer; snapshot files moved to `recovery/` claimed as a dead instance's; a sibling's claim run between `open` creating its directory and locking it, which deleted the directory before `recovery.lock`; a held `recovery.lock` failing a start and deferring a claim |
 | `ErrorExitMarkerTest` | A write creating a missing per-user directory, `markShown` read back as shown, a new write reading as pending, `clear` deleting the marker and a second `clear` passing; other content reading as pending; a write into a path that is a file returning false |

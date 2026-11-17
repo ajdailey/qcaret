@@ -100,6 +100,16 @@ and a lifecycle worker writes it under `saveLock`, skipping any capture a later
 one has written. An unchanged session writes nothing. New windows, closed
 windows and tab moves arm the same timer.
 
+A timed save whose write fails (`SessionStore.Write.FAILED`, as when Windows
+refuses the replace while another process holds the file open) re-arms the
+timer on the UI thread at the `SaveBackoff` delay: 2 s after the first failure,
+doubling to at most 60 s, so the session reaches the file without a further
+change. The `owner`, `closed` and quit-hold checks of a change apply, so no
+retry follows `close` or runs during a quit prompt. A write that lands ends
+the run. `SessionStore` logs one WARN per run of failures and DEBUG for the
+rest. A `REFUSED` write (saving disabled, or over 4 MiB) is not retried; the
+next change tries again.
+
 A quit that asks arms no save from `quitStarted` on. `quitAnswered` keeps the
 windows after the last answer and before the first close, so the last save
 lists every tab and the file an untitled document was saved to at a prompt; the

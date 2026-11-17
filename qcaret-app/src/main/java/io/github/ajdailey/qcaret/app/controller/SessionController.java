@@ -38,7 +38,9 @@ import org.slf4j.LoggerFactory;
  * it, so a burst of edits cannot put the save off for good. The timer captures the state on the UI
  * thread and numbers the capture; a {@code qcaret-lifecycle-} worker writes it under {@link
  * #saveLock}, skipping a capture a later one has written, so the debounced save and the shutdown
- * save cannot land out of order. An unchanged session writes nothing.
+ * save cannot land out of order. An unchanged session writes nothing. A timed save whose write
+ * fails re-arms the timer from the UI thread at the {@link SaveBackoff} delay, so the session
+ * reaches the file without a further change.
  *
  * <p>A quit that asks saves nothing from {@link #quitStarted} on, and captures the windows after
  * the last answer and before the first close ({@link #quitAnswered}), so the last save lists every
@@ -49,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * that restores; any other instance takes it for the one rewrite of {@link #forgetSearches}.
  *
  * <p>The per-file LRU holds {@value SessionStore#MAX_FILES} entries keyed by the opened document's
- * real path. Confined to the UI thread apart from {@link #write}.
+ * real path. Confined to the UI thread apart from {@link #write} and {@code retry}.
  */
 final class SessionController implements DocumentController.FileMemory {
   /** Milliseconds from a change to the save it arms. */
@@ -116,6 +118,9 @@ final class SessionController implements DocumentController.FileMemory {
 
   /** True when the newest capture did not reach the file; guarded by {@link #saveLock}. */
   private boolean writeFailed;
+
+  /** Guarded by {@link #saveLock}. */
+  private final SaveBackoff backoff = new SaveBackoff();
 
   private SessionStore store;
   private boolean owner;
@@ -421,11 +426,20 @@ final class SessionController implements DocumentController.FileMemory {
     return restoring;
   }
 
+  /** Reports whether the save timer is armed. */
+  boolean armed() {
+    return armed;
+  }
+
   /** Arms the timer unless it runs or this instance does not save. */
   void changed() {
+    arm(DELAY_MILLIS);
+  }
+
+  private void arm(int delay) {
     if (owner && !restoring && !armed && !closed && !held) {
       armed = true;
-      ui.timerExec(DELAY_MILLIS, timer);
+      ui.timerExec(delay, timer);
     }
   }
 
@@ -440,11 +454,35 @@ final class SessionController implements DocumentController.FileMemory {
             new Runnable() {
               @Override
               public void run() {
-                write(capture);
+                if (!write(capture)) {
+                  retry();
+                }
               }
             });
     if (!started) {
       LOG.debug("Session not saved: workers are closed");
+    }
+  }
+
+  /** Re-arms the timer at the backoff delay; the store logged the failure. */
+  @WorkerThread
+  private void retry() {
+    final int delay;
+    saveLock.lock();
+    try {
+      delay = backoff.delay();
+    } finally {
+      saveLock.unlock();
+    }
+    if (delay > 0) {
+      LOG.debug("Session save retries in {} ms", delay);
+      ui.asyncExec(
+          new Runnable() {
+            @Override
+            public void run() {
+              arm(delay);
+            }
+          });
     }
   }
 
@@ -603,15 +641,16 @@ final class SessionController implements DocumentController.FileMemory {
         return !writeFailed;
       }
       written = capture.sequence();
-      writeFailed = false;
+      SessionStore.Write outcome = SessionStore.Write.WRITTEN;
       if (!capture.session().equals(lastWritten)) {
-        if (store.save(capture.session())) {
+        outcome = store.write(capture.session());
+        if (outcome == SessionStore.Write.WRITTEN) {
           lastWritten = capture.session();
           limits.check(capture.session());
-        } else {
-          writeFailed = true;
         }
       }
+      writeFailed = outcome != SessionStore.Write.WRITTEN;
+      backoff.record(outcome);
       return !writeFailed;
     } finally {
       saveLock.unlock();

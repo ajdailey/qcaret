@@ -37,7 +37,8 @@ import org.slf4j.LoggerFactory;
  * windows, {@link #MAX_TABS} tabs over all windows, {@link #MAX_FILES} file entries and {@link
  * #MAX_COMMENTS} comments over all tabs. {@code droppedComments}, written when not 0, counts the
  * comments a save left out; a missing or malformed value reads as 0. A read-only settings directory
- * disables saving with one WARN. Paths and comments are never logged.
+ * disables saving with one WARN. A failed write logs one WARN per run of failures; a write that
+ * lands ends the run. Paths and comments are never logged.
  *
  * <p>Every file and folder path passes through {@link InstallPaths}: a load resolves a relative
  * value, a save writes a path under the installation relative in portable and explicit mode.
@@ -90,6 +91,17 @@ public final class SessionStore {
   private final ReentrantLock lock = new ReentrantLock();
   private boolean keepInvalid;
   private boolean saveDisabled;
+  private boolean failing;
+
+  /** The outcome of {@link #write}. */
+  public enum Write {
+    /** The file holds the session. */
+    WRITTEN,
+    /** The write failed; a later write of the same session can succeed. */
+    FAILED,
+    /** Saving is disabled or the session is over {@link #MAX_BYTES}; nothing was written. */
+    REFUSED
+  }
 
   /**
    * Creates the store; nothing is read until {@link #load}.
@@ -148,14 +160,23 @@ public final class SessionStore {
    * Writes the session atomically, creating a per-user directory first. Blocking.
    *
    * @param session the session
-   * @return false when saving is disabled, the file would be over {@link #MAX_BYTES} or the write
-   *     failed, which is logged
+   * @return false when {@link #write} does not return {@link Write#WRITTEN}
    */
   public boolean save(Session session) {
+    return write(session) == Write.WRITTEN;
+  }
+
+  /**
+   * Writes the session atomically, creating a per-user directory first. Blocking.
+   *
+   * @param session the session
+   * @return the outcome
+   */
+  public Write write(Session session) {
     lock.lock();
     try {
       if (saveDisabled) {
-        return false;
+        return Write.REFUSED;
       }
       Path dir = location.directory();
       if (location.mode() == SettingsMode.PER_USER && !Files.isDirectory(dir)) {
@@ -164,7 +185,7 @@ public final class SessionStore {
       byte[] bytes = format(SessionWriter.keys(session, paths));
       if (bytes.length > MAX_BYTES) {
         LOG.warn("Session not saved: {} would be over {} bytes", FILE, MAX_BYTES);
-        return false;
+        return Write.REFUSED;
       }
       Path file = SafePaths.child(dir, FILE);
       if (keepInvalid && Files.exists(file)) {
@@ -173,16 +194,24 @@ public final class SessionStore {
       }
       keepInvalid = false;
       AtomicFiles.write(file, bytes);
-      return true;
+      failing = false;
+      return Write.WRITTEN;
     } catch (IOException e) {
       // A denied move alone says nothing about the directory: on Windows a directory at the
       // target or a file open elsewhere is denied too, and the next save can succeed.
       if (Files.isDirectory(location.directory()) && !Files.isWritable(location.directory())) {
         disableSaving();
+        return Write.REFUSED;
+      }
+      if (failing) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Cannot save {} again: {}", FILE, LogText.oneLine(e.getMessage()));
+        }
       } else {
+        failing = true;
         LOG.warn("Cannot save {}: {}", FILE, LogText.oneLine(e.getMessage()));
       }
-      return false;
+      return Write.FAILED;
     } finally {
       lock.unlock();
     }
