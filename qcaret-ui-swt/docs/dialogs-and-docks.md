@@ -154,9 +154,9 @@ the dialog cancels a running match.
   (`PlatformTraits.colorsTreesUnderDark`), where they draw light under the dark
   theme: while `ThemeController.dark` holds they take `Palette.DARK`'s
   background and text, the header its gutter, and at
-  `PaletteListener.themeChanged` to light they return to the system colors, set
-  explicitly on the fields after a dark start. The icon row and the Hidden check
-  box stay native
+  `PaletteListener.themeChanged` to light they return to the system colors;
+  after a dark start the fields stay dark until the next start. The icon row
+  and the Hidden check box stay native
   ([theme and icons](theme-and-icons.md#win32)).
 - `BrowserColumns`: Size and Modified start as wide as their headers and widen
   to the widest text a fill adds; Name takes the rest of the tree's width at

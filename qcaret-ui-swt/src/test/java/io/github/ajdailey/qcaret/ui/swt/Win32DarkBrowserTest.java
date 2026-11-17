@@ -38,9 +38,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * On win32 the Workspace Browser's tree, header and fields take {@link Palette#DARK}'s colors under
- * a dark start and follow live theme switches to light and back. The path field's drawn color is
- * read from a print: with no colors set, Windows draws a field under the dark Explorer theme
- * near-black while {@code getBackground} reports the system color.
+ * a dark start; the tree and header follow live theme switches to light and back, and the fields
+ * stay dark. The path field's drawn color is read from a print, since Windows can draw a field
+ * under the dark Explorer theme in a color {@code getBackground} does not report.
  */
 @Tag("swt")
 @EnabledOnOs(OS.WINDOWS)
@@ -145,11 +145,13 @@ class Win32DarkBrowserTest {
           }
         },
         "light tree");
-    assertEquals(system, dock.bar().filter().getBackground().getRGB());
-    assertEquals(system, drawn(dock.bar().path()));
-    assertEquals(
-        display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB(),
-        dock.bar().path().getForeground().getRGB());
+    final RGB text = rgb(Palette.DARK.text());
+    assertEquals(dark, dock.bar().filter().getBackground().getRGB());
+    assertEquals(dark, drawn(dock.bar().path()));
+    assertEquals(text, dock.bar().path().getForeground().getRGB());
+    dock.bar().path().setFocus();
+    assertEquals(dark, drawn(dock.bar().path()));
+    tree.setFocus();
     controller.execute(CommandId.THEME_DARK);
     await(
         new BooleanSupplier() {
@@ -170,7 +172,8 @@ class Win32DarkBrowserTest {
           }
         },
         "light tree again");
-    assertEquals(system, drawn(dock.bar().path()));
-    assertEquals(system, drawn(dock.bar().filter()));
+    assertEquals(dark, drawn(dock.bar().path()));
+    assertEquals(dark, drawn(dock.bar().filter()));
+    assertEquals(text, dock.bar().path().getForeground().getRGB());
   }
 }

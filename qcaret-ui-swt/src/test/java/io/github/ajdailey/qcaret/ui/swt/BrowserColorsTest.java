@@ -72,16 +72,17 @@ class BrowserColorsTest {
   }
 
   @Test
-  void aLightThemeAfterADarkStartGivesTheFieldsTheListColors() {
+  void theFieldsStayDarkAfterADarkStartWhileTheTreeFollowsTheTheme() {
     List<RGB> system = colors();
     PlatformTraits win32 = PlatformTraits.of("win32", false);
+    RGB background = rgb(Palette.DARK.background());
+    RGB text = rgb(Palette.DARK.text());
+    List<RGB> darkTree = List.of(background, text, rgb(Palette.DARK.gutter()), text);
     for (boolean dark : new boolean[] {true, false, true, false}) {
       BrowserColors.apply(win32, dark, true, tree, field);
+      assertEquals(dark ? darkTree : system.subList(0, 4), colors().subList(0, 4));
+      assertEquals(List.of(background, text), colors().subList(4, 6));
     }
-    RGB background = display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB();
-    RGB text = display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();
-    assertEquals(system.subList(0, 4), colors().subList(0, 4));
-    assertEquals(List.of(background, text), colors().subList(4, 6));
   }
 
   @Test

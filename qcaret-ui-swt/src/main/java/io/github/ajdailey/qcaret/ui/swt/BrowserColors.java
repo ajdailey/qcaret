@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
@@ -16,9 +15,8 @@ import org.eclipse.swt.widgets.Tree;
  * system colors. Elsewhere it sets nothing, so cocoa's header colors from {@code CocoaChrome} stay.
  *
  * <p>Under a dark startup setting where controls take the native theme at creation ({@link
- * PlatformTraits#themesAtCreation}), the light side gives the fields the system list colors
- * explicitly. win32 SWT puts a {@code Text} under the dark Explorer theme when it is first colored
- * and never takes it off; with no colors set, Windows draws that field near-black with black text.
+ * PlatformTraits#themesAtCreation}), the fields keep {@link Palette#DARK}'s background and text on
+ * the light side until the next start, while the tree and its header follow the theme.
  */
 final class BrowserColors {
   private BrowserColors() {}
@@ -47,8 +45,8 @@ final class BrowserColors {
     Color fieldBackground = background;
     Color fieldText = text;
     if (!dark && nativeDark && traits.themesAtCreation()) {
-      fieldBackground = tree.getDisplay().getSystemColor(SWT.COLOR_LIST_BACKGROUND);
-      fieldText = tree.getDisplay().getSystemColor(SWT.COLOR_LIST_FOREGROUND);
+      fieldBackground = color(Palette.DARK.background());
+      fieldText = color(Palette.DARK.text());
     }
     for (Text field : fields) {
       field.setBackground(fieldBackground);
