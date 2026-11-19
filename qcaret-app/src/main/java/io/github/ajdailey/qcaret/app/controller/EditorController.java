@@ -81,7 +81,8 @@ import java.util.function.Supplier;
  *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()} unless {@code
  *       editor.autoClose} is off.
  *   <li>Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph run in {@link
- *       LineTransformRuns}, Edit > Format XML and JSON in {@link FormatRuns}.
+ *       LineTransformRuns}, Edit > Format XML and JSON in {@link FormatRuns}, Copy XML and JSON
+ *       Path in {@link CaretPathRuns}.
  *   <li>{@link EditorHighlights} recomputes the view's bracket and occurrence highlights after a
  *       caret move, an edit or a scroll.
  *   <li>Word completion ({@link CompletionInput}) shows its list in the view; while it shows, Up,
@@ -108,8 +109,8 @@ public final class EditorController implements EditorInput {
 
   /**
    * The view's busy cursor for this editor's worker commands: Add Next Occurrence, Go to Matching
-   * Bracket, Fold All, the line transforms, Encode/Decode, the format commands, the selection
-   * commands and a line-ending conversion.
+   * Bracket, Fold All, the line transforms, Encode/Decode, the format and path commands, the
+   * selection commands and a line-ending conversion.
    */
   private final BusyCounter busy;
 
@@ -120,6 +121,7 @@ public final class EditorController implements EditorInput {
   private final LineTransformRuns lineRuns;
   private final CodecRuns codecRuns;
   private final FormatRuns formatRuns;
+  private final CaretPathRuns pathRuns;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
@@ -171,6 +173,7 @@ public final class EditorController implements EditorInput {
     lineRuns = new LineTransformRuns(this, workers, ui);
     codecRuns = new CodecRuns(this, workers, ui);
     formatRuns = new FormatRuns(this, workers, ui);
+    pathRuns = new CaretPathRuns(this, workers, ui);
     lineChanges =
         new LineChangesUpdater(
             document,
@@ -885,6 +888,7 @@ public final class EditorController implements EditorInput {
     lineRuns.cancel();
     codecRuns.cancel();
     formatRuns.cancel();
+    pathRuns.cancel();
     selectionCommands.cancel();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
@@ -1619,6 +1623,7 @@ public final class EditorController implements EditorInput {
     lineRuns.cancel();
     codecRuns.cancel();
     formatRuns.cancel();
+    pathRuns.cancel();
     if (partnerSearch != null) {
       partnerSearch.cancel();
     }
@@ -1654,6 +1659,30 @@ public final class EditorController implements EditorInput {
    */
   void format(CommandId command, boolean strictJson) {
     formatRuns.run(command, strictJson);
+  }
+
+  /**
+   * Runs Edit > Copy XML Path or Copy JSON Path.
+   *
+   * @param command the command
+   * @param strictJson true to refuse JSON comments
+   */
+  void copyPath(CommandId command, boolean strictJson) {
+    pathRuns.run(command, strictJson);
+  }
+
+  /** Puts text on the clipboard. */
+  void copyText(String text) {
+    clipboard.setText(text);
+  }
+
+  /**
+   * Replaces selection i with {@code parts.get(i)} as one undo step, the carets after each part.
+   *
+   * @param parts one text per selection, in text order
+   */
+  void replaceSelections(List<String> parts) {
+    apply(parts, EditBatch.Kind.COMMAND);
   }
 
   // Bookmarks.

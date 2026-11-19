@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.TipDisplay;
 import io.github.ajdailey.qcaret.app.view.TipInput;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
@@ -78,6 +79,7 @@ final class WindowDialogs {
   private FileNameDialog fileNameDialog;
   private DeleteDialog deleteDialog;
   private OpenManyDialog openManyDialog;
+  private NumberSequenceDialog numberSequenceDialog;
   private SearchDialog searchDialog;
   private ReplaceDialog replaceDialog;
   private final List<ReportWindow> reportWindows = new ArrayList<ReportWindow>();
@@ -104,6 +106,14 @@ final class WindowDialogs {
   void askGoToLine(int lines, Predicate<String> valid, Consumer<String> answer) {
     if (!shell.isDisposed()) {
       new GoToDialog(shell, lines, valid, answer).open();
+    }
+  }
+
+  void askNumberSequence(
+      SequenceForm initial, Predicate<SequenceForm> valid, Consumer<SequenceForm> answer) {
+    if (!shell.isDisposed()) {
+      numberSequenceDialog = new NumberSequenceDialog(shell, initial, valid, answer);
+      numberSequenceDialog.open();
     }
   }
 
@@ -473,6 +483,10 @@ final class WindowDialogs {
 
   OpenManyDialog openManyDialog() {
     return openManyDialog;
+  }
+
+  NumberSequenceDialog numberSequenceDialog() {
+    return numberSequenceDialog;
   }
 
   SearchDialog searchDialog() {

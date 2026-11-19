@@ -59,9 +59,9 @@ not run. A new user-started operation uses it.
 
 | Cursor | Operations |
 |---|---|
-| Window, through `BusyWork` | Save As and Save a Copy target checks, the copy write, save cleanup, `FileReload`, `DocumentEncodings`, `SelectionDelete`, `RecentFiles` Clean Up, `OpenAll`, `DroppedFiles`, `NavigationHistory` to a closed file, `WorkspaceController` set and Open in Default Application, `WorkspaceBrowse` folder changes, `WorkspaceFiles` create and rename, HyperSearch's folder check, `ResultsNavigation.check`, the replace previews, `ReplaceRestore`, the checksum list save, `SelectionChecksum`, `GrammarLibrary.reload`, every `HelpController` worker, `MemoryIndicator.collect` |
+| Window, through `BusyWork` | Save As and Save a Copy target checks, the copy write, save cleanup, `FileReload`, `DocumentEncodings`, `SelectionDelete`, `RecentFiles` Clean Up, `OpenAll`, `DroppedFiles`, `NavigationHistory` to a closed file, `WorkspaceController` set and Open in Default Application, `WorkspaceBrowse` folder changes, `WorkspaceFiles` create and rename, HyperSearch's folder check, `ResultsNavigation.check`, `OpenPathAtCaret`, the replace previews, `ReplaceRestore`, the checksum list save, `SelectionChecksum`, `GrammarLibrary.reload`, every `HelpController` worker, `MemoryIndicator.collect` |
 | Window, by hand | `DocumentOpener` (one load spans the path check, the read and the listener's answer), `SaveAndReload.write` (posts its result while holding the file's write lock, so a later save's result lands after it), `CompareController` (an IO read then a CPU build, ended by `dispose` too) |
-| Editor, through `BusyWork` on `EditorController.busyCursor` | `EditorController` Add Next Occurrence and Go to Matching Bracket, `FoldScheduling` Fold All, `LineTransformRuns`, `CodecRuns`, `FormatRuns`, `SelectionCommands`; `DocumentEncodings` raises the window's counter and the counter of each view of the document |
+| Editor, through `BusyWork` on `EditorController.busyCursor` | `EditorController` Add Next Occurrence and Go to Matching Bracket, `FoldScheduling` Fold All, `LineTransformRuns`, `CodecRuns`, `FormatRuns`, `CaretPathRuns`, `SelectionCommands`; `DocumentEncodings` raises the window's counter and the counter of each view of the document |
 
 `LaunchCursor` holds one operation for 1 s on a UI timer after
 `MainView.launch` or `launchUrl` returns true, since the application's window
@@ -141,11 +141,11 @@ and the editor, tab and row context menus has a mnemonic (`&` before the letter,
 
 | Menu | Holds, `\|` between groups |
 |---|---|
-| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
-| Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines and Convert Case cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Transpose, Delete Word Back and Forward \| Read-Only |
+| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open, Open Path at Caret \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
+| Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines and Convert Case cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Insert Number Sequence, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
-| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top \| Command Palette |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
@@ -193,6 +193,7 @@ Platform choices in the defaults, with the conflict each avoids:
 | Save All | Cmd+Option+S on macOS only | Ctrl+Alt+S off macOS is AltGr+S on Windows |
 | Toggle Block Comment | Mod+Shift+/; Cmd+Option+/ on macOS | macOS Cmd+Shift+/ opens the Help menu search |
 | Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
+| Full Screen | F11; Control+Command+F on macOS | Each platform's full-screen key |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;
@@ -206,7 +207,7 @@ Commands with no default key include the split commands, Toggle Fold, Sort,
 Reverse Lines, Remove Duplicate and Blank Lines, Trim Leading and Trailing
 Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,
-Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
+Insert Date and Time, Insert Number Sequence, Open Path at Caret, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
 Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent

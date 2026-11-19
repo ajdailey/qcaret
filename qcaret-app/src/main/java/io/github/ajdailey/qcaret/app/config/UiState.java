@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.config;
 
+import io.github.ajdailey.qcaret.core.edit.NumberSequence;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,6 +29,7 @@ import java.util.Map;
  *     order added
  * @param view {@code ui.wordWrap} and the other display toggles a window starts from
  * @param memoryIndicator {@code ui.memoryIndicator}: the windows show the memory indicator
+ * @param numberSequence {@code ui.numberSequence.*}: the values Insert Number Sequence used last
  */
 public record UiState(
     SearchToggles search,
@@ -44,7 +46,8 @@ public record UiState(
     boolean lineChanges,
     List<String> favorites,
     ViewDefaults view,
-    boolean memoryIndicator) {
+    boolean memoryIndicator,
+    NumberSequence numberSequence) {
   /** Entries per search history. */
   public static final int MAX_HISTORY = 20;
 
@@ -74,7 +77,8 @@ public record UiState(
           false,
           List.of(),
           ViewDefaults.DEFAULTS,
-          false);
+          false,
+          NumberSequence.DEFAULTS);
 
   /**
    * A dialog's size in pixels.
@@ -108,6 +112,9 @@ public record UiState(
     favorites = limited(favorites, MAX_HISTORY);
     if (view == null) {
       throw new IllegalArgumentException("view is required");
+    }
+    if (numberSequence == null) {
+      throw new IllegalArgumentException("numberSequence is required");
     }
   }
 
@@ -154,7 +161,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -182,7 +190,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -207,7 +216,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -241,7 +251,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -266,7 +277,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -301,7 +313,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -326,7 +339,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -351,7 +365,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -376,7 +391,8 @@ public record UiState(
         lineChanges,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -401,7 +417,8 @@ public record UiState(
         value,
         favorites,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -426,7 +443,8 @@ public record UiState(
         lineChanges,
         value,
         view,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -451,7 +469,8 @@ public record UiState(
         lineChanges,
         favorites,
         value,
-        memoryIndicator);
+        memoryIndicator,
+        numberSequence);
   }
 
   /**
@@ -476,6 +495,33 @@ public record UiState(
         lineChanges,
         favorites,
         view,
+        value,
+        numberSequence);
+  }
+
+  /**
+   * Returns a copy with other Insert Number Sequence values.
+   *
+   * @param value the values
+   * @return the copy
+   */
+  public UiState withNumberSequence(NumberSequence value) {
+    return new UiState(
+        search,
+        texts,
+        directories,
+        masks,
+        replacements,
+        recentGrammars,
+        dialogs,
+        toolbar,
+        rightMargin,
+        lastDateFormat,
+        indentGuides,
+        lineChanges,
+        favorites,
+        view,
+        memoryIndicator,
         value);
   }
 }

@@ -172,6 +172,11 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
+  public boolean fullScreenSpace() {
+    return true;
+  }
+
+  @Override
   public boolean stacksOnX11() {
     return false;
   }

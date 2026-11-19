@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The main window as the controllers see it. Every method but the {@link ActivityIndicator} ones is
@@ -297,6 +298,32 @@ public interface MainView
    * @param onTop true to keep it above
    */
   void setOnTop(boolean onTop);
+
+  /**
+   * Asks for Edit > Insert Number Sequence's values; modal. OK is enabled while the validator
+   * accepts the fields; it passes them to the answer and closes. Cancel and Esc close without one.
+   *
+   * @param initial the fields' first values
+   * @param valid accepts fields that make a sequence
+   * @param answer receives the fields
+   */
+  void askNumberSequence(
+      SequenceForm initial, Predicate<SequenceForm> valid, Consumer<SequenceForm> answer);
+
+  /**
+   * Reports whether the window fills the screen.
+   *
+   * @return true while full screen
+   */
+  boolean fullScreen();
+
+  /**
+   * Fills the screen with the window, or returns it to its bounds. {@link #windowBounds} and {@link
+   * #windowMaximized} keep reporting the state before full screen.
+   *
+   * @param on true to fill the screen
+   */
+  void setFullScreen(boolean on);
 
   /**
    * Opens the modeless Tip of the Day dialog, which calls {@link TipInput#closed} once it closes.

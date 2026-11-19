@@ -28,6 +28,7 @@ import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
 import io.github.ajdailey.qcaret.app.view.StatisticsInput;
 import io.github.ajdailey.qcaret.app.view.StatisticsReport;
@@ -1297,6 +1298,37 @@ final class FakeView implements MainView {
   public void setOnTop(boolean onTop) {
     ui.checkUiThread();
     onTopCalls.add(onTop);
+  }
+
+  /** The fields {@link #askNumberSequence} offered, its validator and its answer. */
+  SequenceForm sequenceShown;
+
+  Predicate<SequenceForm> sequenceValid;
+
+  Consumer<SequenceForm> sequenceAnswer;
+
+  /** What {@link #fullScreen} reports; {@link #setFullScreen} sets it. */
+  boolean fullScreen;
+
+  @Override
+  public void askNumberSequence(
+      SequenceForm initial, Predicate<SequenceForm> valid, Consumer<SequenceForm> answer) {
+    ui.checkUiThread();
+    sequenceShown = initial;
+    sequenceValid = valid;
+    sequenceAnswer = answer;
+  }
+
+  @Override
+  public boolean fullScreen() {
+    ui.checkUiThread();
+    return fullScreen;
+  }
+
+  @Override
+  public void setFullScreen(boolean on) {
+    ui.checkUiThread();
+    fullScreen = on;
   }
 
   /** The open Tip of the Day dialog's state. */

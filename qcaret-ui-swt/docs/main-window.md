@@ -260,8 +260,8 @@ list lacks, so OK does not drop it.
   is skipped and the size applies. On win32 `computeTrim` overstates the height
   once a menu bar is set, so the window is placed again with the trim measured
   from the sized shell.
-- Every unmaximized move and resize records the normal bounds, which
-  `windowBounds` returns for the quit to save.
+- Every unmaximized move and resize outside full screen records the normal
+  bounds, which `windowBounds` returns for the quit to save.
 - `WindowDialogs.rememberSize` gives the resizable windows (`preferences`,
   `shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`, `guide`)
   their last size, within the monitor's client area, after they open, and keeps
@@ -304,6 +304,24 @@ only in these classes, `ToolIcons`, `CocoaPrintJobNaming` and `core.io.Flock`;
   stacks above. Only GTK on X11 is measured.
 - When unsupported on GTK 3 the item's tool tip names the window manager's
   window menu. SWT drops menu item tool tips on GTK 4.
+
+## Full Screen
+
+View > Full Screen (F11; Control+Command+F on macOS) calls
+`MainView.setFullScreen` with the opposite of `fullScreen`; `MainWindow` passes
+both to `FullScreen`. The state is not saved. While full screen, the bounds
+tracking skips every event, so `windowBounds` and `windowMaximized` report the
+window before full screen, which a quit saves. Esc does not leave full screen.
+
+| | win32, GTK | cocoa (`PlatformTraits.fullScreenSpace`) |
+|---|---|---|
+| State | The last request: set before `Shell.setFullScreen(true)` and cleared after `setFullScreen(false)`, so the size events win32 sends inside the call count as full screen | `Shell.getFullScreen`, which the title bar button also changes |
+| Change | During the call on win32; a window manager request on GTK | An AppKit animation into a space of its own, after the call returns |
+| Menu bar | Stays in the window | The system menu bar, shown when the pointer reaches the top edge |
+
+Under Xvfb, without a window manager, `CaretCommandsSurfaceTest` verified the
+check item and that a resize while full screen leaves the saved bounds; win32
+and cocoa are unverified.
 
 ## Accessible names
 
@@ -385,6 +403,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `windowMenuControls` | - | yes | - | - | `MainMenuBar`: Minimize and Zoom (see [Menus](#menus)) |
 | `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |
+| `fullScreenSpace` | - | yes | - | - | `FullScreen`: the state is the shell's (see [Full Screen](#full-screen)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

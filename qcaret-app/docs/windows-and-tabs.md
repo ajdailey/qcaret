@@ -94,7 +94,7 @@ window stays open while the session restores.
 
 `quit` asks nothing and runs once: it logs `Quitting with <n> windows open` at
 INFO, captures the session, queues the last recovery writes, stops every window, records the normal bounds and maximized
-state of the window activated last, hides the windows, then on a
+state of the window activated last (those before full screen), hides the windows, then on a
 `qcaret-lifecycle-` worker saves the settings and the session, finishes
 recovery, runs the quit listeners, closes `Workers`, runs the finish listeners
 and posts the disposals. With `Workers` already closed it runs only the listeners

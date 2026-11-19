@@ -54,6 +54,15 @@ running load, and no tab opens.
 File > Reload from Disk reads the selected document's file again. With unsaved
 changes it asks first, and Undo brings them back.
 
+File > Open Path at Caret opens the file whose path is at the caret, such as
+`src/Main.java` or `C:\work\notes.txt`, and goes to a trailing `:line` or
+`:line:column`. A relative path is read from the document's folder, or from
+the workspace folder for an untitled document. A path with spaces needs quotes
+around it; otherwise the path ends at a space, a quote or one of
+`< > | ( ) [ ] { } , ; = * ?`, and a period or colon ending it is dropped. A
+URL is never opened, and a path naming no file shows a notice in the status
+bar.
+
 ### Encodings
 
 The file's encoding comes from its byte order mark, an XML, HTML or Python
@@ -409,6 +418,15 @@ the one set in Preferences, Editor (a Java `DateTimeFormatter` pattern such as
 replaces every selection, as one undo step. Month and day names follow the
 system's language.
 
+Edit > Insert Number Sequence asks for a start, a step, a width and a base
+(decimal or hex), then writes one number at each caret, in text order, or on
+each row of a block selection from the top, replacing selected text, as one
+undo step. Start and step may be negative and take `0x` before hex digits; the
+dialog refuses a number outside 64 bits, and nothing is inserted when a later
+number would leave that range. Width pads with zeros after any minus sign, so
+`-1` at width 3 is `-01`. Hex is written with a minus sign, never as two's
+complement. The dialog starts from the values used last.
+
 Tools > Document Statistics shows the selected document's lines, words,
 characters, characters without spaces and bytes in its encoding, and the same
 for the selections. A word is a run of characters that are not spaces, tabs or
@@ -445,6 +463,18 @@ stood, Check says the comments are not standard JSON, and Minify keeps `/* */`
 comments and refuses a `//` comment. Preferences, Editor, Strict JSON refuses
 every comment. Trailing commas, single quotes, unquoted names, `NaN` and
 `Infinity` are errors either way.
+
+Copy XML Path and Copy JSON Path, in the same cascade, copy the path of the
+element, attribute, member or array item at the caret and show it in the status
+bar:
+
+| Format | Example | Rules |
+|---|---|---|
+| XML | `/catalog/book[2]/@id` | An index from 1 only where siblings share the name; prefixes as written; text, comments and CDATA give the element around them; outside the root element, `/` |
+| JSON | `$.items[0].name`, `$['first name']` | Array indexes from 0; a name that is not letters, digits, `_` and `$` (not starting with a digit) is quoted |
+
+Text that is not well-formed before the caret gives the same error as Check;
+errors after the caret do not matter.
 
 ## Multiple carets and block selection
 
@@ -846,6 +876,12 @@ View > Always on Top keeps a window above other applications' windows, with its
 dialogs above it; the session restores it per window. It has no default key. On
 Linux it needs GTK 3 on X11; under Wayland or GTK 4 the item is disabled, and
 the window manager's window menu (`Alt+Space` on most desktops) offers the same.
+
+View > Full Screen (`F11`; `Control+Cmd+F` on macOS) fills the screen with the
+window; the same command returns it. On Linux and Windows the menu bar stays; on macOS
+the window moves to its own space, the menu bar shows at the top edge, and the
+window's green button does the same. `Esc` does not leave full screen. A
+restart opens the window at its size before full screen.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
 window's tab strip to dock it there; Window > Move to New Window and the tab

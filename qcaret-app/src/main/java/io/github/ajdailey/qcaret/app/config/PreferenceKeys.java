@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.edit.NumberSequence;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -85,6 +86,10 @@ final class PreferenceKeys {
   static final String NEW_ENCODING = "editor.newEncoding";
   static final String MEMORY_INDICATOR = "ui.memoryIndicator";
   static final String WORKSPACE_DEFAULT = "workspace.default";
+  static final String SEQUENCE_START = "ui.numberSequence.start";
+  static final String SEQUENCE_STEP = "ui.numberSequence.step";
+  static final String SEQUENCE_WIDTH = "ui.numberSequence.width";
+  static final String SEQUENCE_BASE = "ui.numberSequence.base";
 
   /** Largest window coordinate or size accepted, in pixels. */
   static final int MAX_PIXELS = 100_000;
@@ -159,6 +164,11 @@ final class PreferenceKeys {
     keys.put(LINE_NUMBERS, Boolean.toString(view.lineNumbers()));
     keys.put(WORKSPACE_BROWSER, Boolean.toString(view.workspaceBrowser()));
     keys.put(MEMORY_INDICATOR, Boolean.toString(s.memoryIndicator()));
+    NumberSequence sequence = s.numberSequence();
+    keys.put(SEQUENCE_START, Long.toString(sequence.start()));
+    keys.put(SEQUENCE_STEP, Long.toString(sequence.step()));
+    keys.put(SEQUENCE_WIDTH, Integer.toString(sequence.width()));
+    keys.put(SEQUENCE_BASE, sequence.base().key());
     putList(keys, HISTORY_TEXT, s.texts());
     putList(keys, HISTORY_DIRECTORY, s.directories());
     putList(keys, HISTORY_MASK, s.masks());
@@ -426,7 +436,40 @@ final class PreferenceKeys {
         flag(p, LINE_CHANGES, false, file),
         list(p, FAVORITES),
         view(p, file),
-        flag(p, MEMORY_INDICATOR, false, file));
+        flag(p, MEMORY_INDICATOR, false, file),
+        sequence(p, file));
+  }
+
+  private static NumberSequence sequence(Properties p, Path file) {
+    NumberSequence d = NumberSequence.DEFAULTS;
+    NumberSequence.Base base = d.base();
+    String key = p.getProperty(SEQUENCE_BASE);
+    if (key != null) {
+      base = NumberSequence.Base.parse(key.strip());
+      if (base == null) {
+        invalid(SEQUENCE_BASE, file);
+        base = d.base();
+      }
+    }
+    return new NumberSequence(
+        whole(p, SEQUENCE_START, d.start(), file),
+        whole(p, SEQUENCE_STEP, d.step(), file),
+        number(p, SEQUENCE_WIDTH, 0, NumberSequence.MAX_WIDTH, d.width(), file),
+        base);
+  }
+
+  /** Returns a {@code long}, the fallback when absent, or it with one WARN when invalid. */
+  private static long whole(Properties p, String key, long fallback, Path file) {
+    String value = p.getProperty(key);
+    if (value == null) {
+      return fallback;
+    }
+    try {
+      return Long.parseLong(value.strip());
+    } catch (NumberFormatException e) {
+      invalid(key, file);
+      return fallback;
+    }
   }
 
   private static ViewDefaults view(Properties p, Path file) {

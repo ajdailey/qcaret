@@ -85,6 +85,8 @@ public final class ApplicationController {
   private final StatisticsController statistics;
   private final ChecksumTools checksums;
   private final DateTimeInsert dateTime;
+  private final NumberSequenceInsert numbers;
+  private final OpenPathAtCaret openPath;
   private final EditorAids aids;
   private final ViewToggles views;
   private final MemoryIndicator memory;
@@ -265,6 +267,8 @@ public final class ApplicationController {
     this.checksums = new ChecksumTools(documents, workers, ui, view);
     this.dateTime =
         new DateTimeInsert(documents, settings, view, workers, ui, Clock.systemDefaultZone());
+    this.numbers = new NumberSequenceInsert(documents, settings, view);
+    this.openPath = new OpenPathAtCaret(documents, workspace::root, view, workers, ui);
     view.setRightMargin(rightMarginColumn());
     this.aids = new EditorAids(settings, view, documents);
     this.views = new ViewToggles(settings, documents, workspace);
@@ -902,6 +906,10 @@ public final class ApplicationController {
       case PRETTY_PRINT_XML, MINIFY_XML, CHECK_XML, PRETTY_PRINT_JSON, MINIFY_JSON, CHECK_JSON ->
           aids.format(command);
       case INSERT_DATE_TIME -> dateTime.choose();
+      case COPY_XML_PATH, COPY_JSON_PATH -> aids.copyPath(command);
+      case INSERT_NUMBER_SEQUENCE -> numbers.choose();
+      case OPEN_PATH_AT_CARET -> openPath.open();
+      case FULL_SCREEN -> view.setFullScreen(!view.fullScreen());
       case DOCUMENT_STATISTICS -> statistics.open();
       case MD5_TEXT,
           MD5_FILES,
@@ -997,6 +1005,15 @@ public final class ApplicationController {
    */
   public boolean rightMarginShown() {
     return settings.current().state().rightMargin();
+  }
+
+  /**
+   * Reports whether View > Full Screen shows checked.
+   *
+   * @return true while the window fills the screen
+   */
+  public boolean fullScreen() {
+    return view.fullScreen();
   }
 
   private void toggleRightMargin() {

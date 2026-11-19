@@ -20,14 +20,14 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.util.os` | 1 | `OsTraits` and one class per operating system, `EnvPaths`, `RunnableTypes` | [Files and encodings](docs/files-and-encodings.md#operating-system) |
 | `core.concurrent` | 2 | `Workers`, `CancellationToken`, `WorkerThread`, `MemoryBudget` | [Threads and memory](docs/threads-and-memory.md) |
 | `core.io` | 3 | `SafePaths`, `AtomicFiles`, `SafeSave`, `ProcessLock`, `FileStamp`, `FileBaseline`, `Digests`, `BinaryDetector`, `HiddenFiles`; checksums: `ChecksumAlgorithm`, `Checksums`, `ChecksumList`, `ChecksumCheck` | [Files and encodings](docs/files-and-encodings.md) |
-| `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars`; `EditorConfig`, `EditorConfigFile`, `EditorConfigGlob`, `Modelines`, `Modeline`, `FileSettings` | [Files and encodings](docs/files-and-encodings.md#encodings) |
+| `core.text` | 4 | `TextEncoding`, `EncodingDetector`, `LineEnding`, `LineEndingStats`, `LogText`, `BoundedChars`; `EditorConfig`, `EditorConfigFile`, `EditorConfigGlob`, `Modelines`, `Modeline`, `FileSettings`; `PathAtCaret` | [Files and encodings](docs/files-and-encodings.md#encodings), [Documents](docs/documents.md#path-at-the-caret) |
 | `core.buffer` | 5 | `RopeStorage`, `TextSnapshot`, `TextCursor`, `LineView` | [Documents](docs/documents.md#text-storage) |
 | `core.document` | 6 | `Document`, `EditBatch`, `DocumentChange`, undo, selections, anchors, `DocumentFiles`, `TextModelines` | [Documents](docs/documents.md#document-model) |
-| `core.edit` | 7 | `LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`, `CaseEdits`, `WordDeletes`, `Transpose`, `SelectionExpansion`, `ParagraphWrap`, `CodecEdits`, `TextCodec` | [Documents](docs/documents.md#editing-commands) |
+| `core.edit` | 7 | `LineEdits`, `LineTransforms`, `BlockEdits`, `CommentEdits`, `AutoClose`, `Brackets`, `Moves`, `Words`, `WordIndex`, `Occurrences`, `CaseEdits`, `WordDeletes`, `Transpose`, `SelectionExpansion`, `ParagraphWrap`, `CodecEdits`, `TextCodec`, `NumberSequence` | [Documents](docs/documents.md#editing-commands) |
 | `core.syntax` | 7 | Grammar reader, compiler, `Tokenizer`, `SyntaxEngine`, `FoldRegionPass`, `GrammarSet`, `FoldRegions`, `SymbolScanner`, `SymbolScan`, `SymbolKind` | [Grammars](docs/grammars.md) |
 | `core.search` | 7 | `TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups` | [Search](docs/search.md) |
 | `core.diff` | 7 | `LineDiff` | [Search](docs/search.md#line-diff) |
-| `core.format` | 7 | `Formats`, `FormatLayout`, `FormatResult`, `FormatError`: XML and JSON Pretty Print, Minify and Check | [Documents](docs/documents.md#xml-and-json-formatting) |
+| `core.format` | 7 | `Formats`, `FormatLayout`, `FormatResult`, `FormatError`: XML and JSON Pretty Print, Minify and Check; `CaretPath` | [Documents](docs/documents.md#xml-and-json-formatting) |
 | `core.xml` | uses no QCaret package | `SecureXml`: every JDK XML parser and schema factory, each locked down | [Grammars](docs/grammars.md#xml-parsers) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |
 | `core.workspace` | above `io` | `WalkRules`, `DirectoryListing`, `ListingOptions`, `NameFilter`, `FileIndex`, `FileOperations`, `HomeFolder` | [Search](docs/search.md#workspace-folder) |

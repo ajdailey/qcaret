@@ -21,13 +21,13 @@ import java.util.Arrays;
  * Both passes are iterative, so nesting depth is bounded by the heap.
  */
 final class XmlLayout {
-  private static final byte TEXT = 0;
-  private static final byte SPACE = 1;
-  private static final byte START = 2;
-  private static final byte END = 3;
-  private static final byte EMPTY = 4;
-  private static final byte CDATA = 5;
-  private static final byte OTHER = 6;
+  static final byte TEXT = 0;
+  static final byte SPACE = 1;
+  static final byte START = 2;
+  static final byte END = 3;
+  static final byte EMPTY = 4;
+  static final byte CDATA = 5;
+  static final byte OTHER = 6;
 
   /** A start tag's content holds text or CDATA. */
   private static final byte MIXED = 1;
@@ -80,6 +80,36 @@ final class XmlLayout {
       return false;
     }
     return layout.topElements == 1 && !layout.topMixed;
+  }
+
+  /**
+   * The items of a range, in text order and covering it from offset 0.
+   *
+   * @param count the number of items
+   * @param starts each item's offset
+   * @param ends the offset after each item
+   * @param types each item's type: {@link #TEXT}, {@link #SPACE}, {@link #START}, {@link #END},
+   *     {@link #EMPTY}, {@link #CDATA} or {@link #OTHER}
+   * @param complete false when an unterminated construct ended the split early
+   */
+  record Items(int count, int[] starts, int[] ends, byte[] types, boolean complete) {}
+
+  /**
+   * Splits a range that need not be well-formed into items, up to the first construct that does not
+   * end.
+   *
+   * @param source the range's text
+   * @return the items
+   */
+  static Items items(String source) {
+    XmlLayout layout = new XmlLayout(source, null, false);
+    boolean complete = true;
+    try {
+      layout.scan();
+    } catch (FormatException e) {
+      complete = false;
+    }
+    return new Items(layout.count, layout.starts, layout.ends, layout.types, complete);
   }
 
   /** Splits the range into items and flags each start tag. */

@@ -33,6 +33,7 @@ import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
 import io.github.ajdailey.qcaret.app.view.StatisticsInput;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
@@ -182,6 +183,7 @@ public final class MainWindow implements MainView {
   private Font font;
   private final TabStrip tabStrip;
   private final WindowDialogs dialogs;
+  private final FullScreen fullScreen;
   private ApplicationController controller;
   private MainMenuBar menuBar;
   private MainToolBar mainToolBar;
@@ -226,6 +228,7 @@ public final class MainWindow implements MainView {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
     shell = new Shell(display, SWT.SHELL_TRIM);
+    fullScreen = new FullScreen(shell, PlatformTraits.PLATFORM);
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
@@ -1439,13 +1442,17 @@ public final class MainWindow implements MainView {
     return new WindowGeometry.Rect(r.x, r.y, r.width, r.height);
   }
 
-  /** Keeps the normal bounds whenever the window moves or resizes unmaximized. */
+  /** Keeps the normal bounds whenever the window moves or resizes unmaximized, not full screen. */
   private void trackWindowState() {
     Listener track =
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if (shell.isDisposed() || shell.getMaximized() || shell.getMinimized()) {
+            if (shell.isDisposed() || shell.getMinimized() || fullScreen.on()) {
+              return;
+            }
+            fullScreen.track();
+            if (shell.getMaximized()) {
               return;
             }
             Point location = shell.getLocation();
@@ -1610,7 +1617,32 @@ public final class MainWindow implements MainView {
 
   @Override
   public boolean windowMaximized() {
-    return !shell.isDisposed() && shell.getMaximized();
+    return !shell.isDisposed() && fullScreen.maximized();
+  }
+
+  @Override
+  public boolean fullScreen() {
+    return !shell.isDisposed() && fullScreen.on();
+  }
+
+  @Override
+  public void setFullScreen(boolean on) {
+    fullScreen.set(on);
+  }
+
+  @Override
+  public void askNumberSequence(
+      SequenceForm initial, Predicate<SequenceForm> valid, Consumer<SequenceForm> answer) {
+    dialogs.askNumberSequence(initial, valid, answer);
+  }
+
+  /**
+   * Returns the newest Insert Number Sequence dialog.
+   *
+   * @return the dialog, or null before one opened
+   */
+  NumberSequenceDialog numberSequenceDialog() {
+    return dialogs.numberSequenceDialog();
   }
 
   @Override

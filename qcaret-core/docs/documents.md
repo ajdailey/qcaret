@@ -223,7 +223,24 @@ that line out.
 | `ParagraphWrap` | Wrap Paragraph at a column: every paragraph in the lines a selection touches, else the paragraph at each caret. A paragraph is a run of non-blank lines that all start with the grammar's line comment after their indent, or none of which does; each wrapped line takes the first line's indent and comment prefix. Words join with one space, tabs count to the next stop, and a word longer than the column takes a line of its own. Cancelable |
 | `AutoClose`, `Pairs` | Typing with auto-closed pairs at each caret: an open char inserts its pair before a line end, blank, close bracket, `,` or `;` (a quote also needs no word char or same quote before it), a close char before the same char moves over it, Backspace between a pair deletes both. Returns null when no caret uses a pair, so plain typing applies. `Pairs.DEFAULT` is `() [] {} "" ''` |
 | `Brackets` | The bracket beside a caret (the char before first) and its partner within bounds: same-pair brackets nest, other chars are ignored, and a `Filter` leaves out brackets (the app passes the ones in strings and comments); `NONE` when the text holds no partner, `BEYOND` when the bounds ended the search |
+| `NumberSequence` | Insert Number Sequence's numbers: start, step, a zero-padded width that counts the minus sign as `%0Nd` does, decimal or hex in either case (sign and magnitude, never two's complement). `values` throws `ArithmeticException` when a number leaves `long`; `parse` reads a field's decimal or `0x` hex number, null outside `long` |
 | `WordIndex` | The distinct words of a text for completion (letter or `_` first, 2 to 100 chars, at most 100,000), sorted by lower case; prefix lookup ignoring case. A word is copied only the first time it is seen |
+
+## Path at the caret
+
+`PathAtCaret.find` (`core.text`) returns the path at a caret in a line's text,
+with an optional line and column, and marks a URL; nothing is read from disk.
+
+- A caret between a pair of `"`, `'` or `` ` ``, counted in pairs from the
+  line start, takes everything between them.
+- Otherwise the run of chars around the caret, or ending at it, stops at
+  whitespace, quotes and `< > | ( ) [ ] { } , ; = * ?`; trailing `.` and `:`
+  are dropped.
+- A trailing `:line` or `:line:column`, from 1, is split off. A single letter
+  and a colon is a drive, so `C:\a.txt` keeps its drive; a number past `int`
+  stays in the path.
+- A run starting with a scheme of two or more chars and `://`, or with
+  `mailto:`, `data:`, `javascript:`, `tel:` or `urn:`, is a URL.
 
 ## XML and JSON formatting
 
@@ -275,3 +292,20 @@ reports a comment. Trailing commas, single quotes, unquoted names, `NaN` and
 
 The run checks its `CancellationToken` on every parser read and every 4,096
 output steps.
+
+### Caret paths
+
+`CaretPath.find` returns the path at a caret in the whole text, or the first
+error before the caret; malformed text at or after the caret does not count.
+
+| | XML (`XmlPath`) | JSON (`JsonPath`) |
+|---|---|---|
+| Form | `/a/b[2]/c`, `/a/@name` | `$.a[1].b`, `$['key']` |
+| Index | From 1, only where a sibling has the same name, counting siblings after the caret | From 0 |
+| Names | Prefixes as written | A name outside `[A-Za-z_$][A-Za-z0-9_$]*` goes in `['...']`, with `'`, backslash and control characters escaped |
+| Read | `XmlCheck` over the whole text, as a fragment when it holds more than one root; then `XmlLayout.items`, which splits malformed text up to the first construct that does not end | `JsonLayout.scan`, which hands each token to `JsonPath` and stops at the caret |
+| Caret off an element or value | Text, CDATA, a comment or a PI gives the enclosing element; outside every element, `/` | A closing bracket, or a comma or gap after a comma, gives the container; whitespace before the first token or after the last, `$` |
+
+A caret on a tag's `<` is in the tag, one after its `>` is not; a caret
+touching the end of a JSON token counts as on it. An XML caret inside a
+construct that does not end is an error.

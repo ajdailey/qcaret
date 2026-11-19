@@ -164,6 +164,9 @@ Shortcuts.
 | `ui.lineNumbers` | `true`, `false`: such a window starts with line numbers | `true` | View > Line Numbers; Tools > Preferences, View |
 | `ui.workspaceBrowser` | `true`, `false`: such a window starts with the workspace browser shown | `false` | View > Workspace Browser; Tools > Preferences, View |
 | `ui.lastDateFormat` | The pattern Insert Date and Time used last, selected first in its list | none | Edit > Insert Date and Time |
+| `ui.numberSequence.start`, `ui.numberSequence.step` | Whole numbers in 64 bits: the start and step Insert Number Sequence used last | 1, 1 | Edit > Insert Number Sequence |
+| `ui.numberSequence.width` | 0 to 64: the zero-padded width Insert Number Sequence used last | 0 | Edit > Insert Number Sequence |
+| `ui.numberSequence.base` | `decimal`, `hexUpper`, `hexLower`: the base Insert Number Sequence used last | `decimal` | Edit > Insert Number Sequence |
 | `window.x`, `.y`, `.width`, `.height`, `.maximized` | The normal position, client size and maximized state at the last exit | none | Exit, unless a `--window-*` option or `-m` was given |
 | `log.debugFile` | `true`, `false`: the debug log file is attached at start | `false` | Help > Debug Log File |
 | `help.tipsOnStartup` | `true`, `false`: Tip of the Day opens at start, after the session restore and the recovery prompt | `false` | Help > Tip of the Day, Show tips on startup |

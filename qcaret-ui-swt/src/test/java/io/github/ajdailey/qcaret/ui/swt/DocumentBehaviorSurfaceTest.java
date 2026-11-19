@@ -333,7 +333,7 @@ class DocumentBehaviorSurfaceTest {
   }
 
   @Test
-  void editFormatListsXmlThenJson() {
+  void editFormatListsXmlThenJsonThenThePaths() {
     window.menuBar().sync(CommandGroup.EDIT);
     Menu cascade = window.menuBar().item(CommandId.PRETTY_PRINT_XML).getParent();
     List<String> texts = new ArrayList<String>();
@@ -348,7 +348,10 @@ class DocumentBehaviorSurfaceTest {
             "-",
             CommandId.PRETTY_PRINT_JSON.label(),
             CommandId.MINIFY_JSON.label(),
-            CommandId.CHECK_JSON.label()),
+            CommandId.CHECK_JSON.label(),
+            "-",
+            CommandId.COPY_XML_PATH.label(),
+            CommandId.COPY_JSON_PATH.label()),
         texts);
     assertEquals(UiText.MENU_FORMAT.text(), cascade.getParentItem().getText());
   }

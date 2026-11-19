@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.core.edit.NumberSequence;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -428,7 +429,8 @@ class ConfigStoreTest {
                 true,
                 List.of("/mock/favorite", "/mock/other"),
                 new ViewDefaults(true, true, true, false, false, true),
-                true)
+                true,
+                new NumberSequence(-5, -10, 4, NumberSequence.Base.HEX_LOWER))
             .withDialog("preferences", new UiState.Size(640, 480));
     ShortcutOverrides shortcuts =
         ShortcutOverrides.NONE
@@ -501,9 +503,14 @@ class ConfigStoreTest {
             + "search.history.text.2=after a gap\n"
             + "shortcut.FIND=Mod+Nothing\n"
             + "shortcut.COPY=k\n"
-            + "shortcut.NOT_A_COMMAND=Mod+K\n");
+            + "shortcut.NOT_A_COMMAND=Mod+K\n"
+            + "ui.numberSequence.start=9223372036854775808\n"
+            + "ui.numberSequence.step=1.5\n"
+            + "ui.numberSequence.width=65\n"
+            + "ui.numberSequence.base=octal\n");
     Preferences loaded = store(temp).load();
     assertEquals(Options.DEFAULTS, loaded.options());
+    assertEquals(NumberSequence.DEFAULTS, loaded.state().numberSequence());
     assertEquals(SearchToggles.DEFAULTS, loaded.state().search());
     assertTrue(loaded.state().dialogs().isEmpty());
     assertEquals(List.of("first"), loaded.state().texts());

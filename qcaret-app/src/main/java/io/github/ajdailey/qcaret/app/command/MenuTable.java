@@ -145,6 +145,7 @@ public final class MenuTable {
             null,
             CommandId.SET_WORKSPACE,
             CommandId.QUICK_OPEN,
+            CommandId.OPEN_PATH_AT_CARET,
             null,
             CommandId.SAVE,
             CommandId.SAVE_AS,
@@ -215,6 +216,9 @@ public final class MenuTable {
             CommandId.MINIFY_JSON,
             CommandId.CHECK_JSON,
             null,
+            CommandId.COPY_XML_PATH,
+            CommandId.COPY_JSON_PATH,
+            null,
             CommandId.TOGGLE_LINE_COMMENT,
             CommandId.TOGGLE_BLOCK_COMMENT,
             null,
@@ -228,6 +232,7 @@ public final class MenuTable {
             null,
             CommandId.COMPLETE_WORD,
             CommandId.INSERT_DATE_TIME,
+            CommandId.INSERT_NUMBER_SEQUENCE,
             CommandId.TRANSPOSE,
             CommandId.DELETE_WORD_BACK,
             CommandId.DELETE_WORD_FORWARD,
@@ -318,6 +323,7 @@ public final class MenuTable {
             CommandId.MEMORY_INDICATOR,
             CommandId.WORKSPACE_BROWSER,
             CommandId.ALWAYS_ON_TOP,
+            CommandId.FULL_SCREEN,
             null,
             CommandId.COMMAND_PALETTE));
     m.put(

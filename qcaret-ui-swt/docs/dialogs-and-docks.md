@@ -55,6 +55,7 @@ transient parent.
 | `ClearHistoryDialog` | Asks before Clear History |
 | `DocumentChooser` | Asks for the document Compare Documents compares with |
 | `DateFormatChooser` | Edit > Insert Date and Time: a modal list of formats with the current time; Insert, Enter or a double click inserts the selected one |
+| `NumberSequenceDialog` | Edit > Insert Number Sequence: modal start, step, width and base fields returned as a `SequenceForm`; OK is enabled while the controller's validator accepts them |
 | `StatisticsDialog` | Tools > Document Statistics: modeless; the document and selection counts, the percent read or a message, Refresh and Close; Esc closes it and closing cancels the count |
 | `HashTextDialog` | Tools > *algorithm* > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
 | `ChecksumDialog` | Tools > *algorithm* > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |

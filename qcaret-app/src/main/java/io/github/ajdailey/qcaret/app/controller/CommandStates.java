@@ -81,7 +81,8 @@ public final class CommandStates {
           CommandId.WORKSPACE_BROWSER,
           CommandId.GO_BACK,
           CommandId.GO_FORWARD,
-          CommandId.PREFERENCES);
+          CommandId.PREFERENCES,
+          CommandId.FULL_SCREEN);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -139,7 +140,8 @@ public final class CommandStates {
           CommandId.PRETTY_PRINT_XML,
           CommandId.MINIFY_XML,
           CommandId.PRETTY_PRINT_JSON,
-          CommandId.MINIFY_JSON);
+          CommandId.MINIFY_JSON,
+          CommandId.INSERT_NUMBER_SEQUENCE);
 
   /**
    * Commands whose state follows the text and the selection. A view reads them on every status
@@ -231,6 +233,7 @@ public final class CommandStates {
       case TOOLBAR -> application.toolbarShown();
       case MEMORY_INDICATOR -> application.preferences().state().memoryIndicator();
       case ALWAYS_ON_TOP -> application.alwaysOnTop().shown();
+      case FULL_SCREEN -> application.fullScreen();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();
       default -> false;

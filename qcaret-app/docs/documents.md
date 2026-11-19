@@ -284,6 +284,16 @@ its heap reservation.
   file opens an empty tab for it. Recently Closed drops each file once its tab
   shows (`open(Path, Consumer)`), so a skipped file and one whose load fails or
   is canceled stay listed.
+- Open Path at Caret (`OpenPathAtCaret`) reads the primary caret's line, at
+  most `REACH` (4,096) chars each side of the caret, on a `qcaret-io-` worker
+  under the window's busy cursor. `PathAtCaret` finds the path and its
+  `:line:column` ([rules](../../qcaret-core/docs/documents.md#path-at-the-caret));
+  a relative path resolves against the document's folder, or
+  `WorkspaceController.root` for an untitled document, and must name a regular
+  file. The file opens through `open(Path, Consumer)`, so an open file selects
+  its tab and a new one goes through `DocumentOpener`; the caret then goes to
+  the line and visual column. No path, a URL, no base folder or no regular file
+  shows a notice instead. A newer run drops an older result.
 - Read-Only, the tab width and indentation with spaces are per document.
 - Go to Line asks for `line`, `line:column` or `line,column`, from 1, and
   passes `parsePosition` to the view as the validator that enables OK; other

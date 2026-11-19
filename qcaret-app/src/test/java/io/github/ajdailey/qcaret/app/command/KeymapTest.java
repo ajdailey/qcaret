@@ -120,7 +120,10 @@ class KeymapTest {
           CommandId.CHECK_XML,
           CommandId.PRETTY_PRINT_JSON,
           CommandId.MINIFY_JSON,
-          CommandId.CHECK_JSON);
+          CommandId.CHECK_JSON,
+          CommandId.COPY_XML_PATH,
+          CommandId.COPY_JSON_PATH,
+          CommandId.INSERT_NUMBER_SEQUENCE);
 
   @Test
   void everyEditingCommandHasAKey() {
@@ -409,5 +412,17 @@ class KeymapTest {
     Keymap mac = Keymap.defaults(true);
     assertEquals("Cmd+Option+[", mac.keysText(CommandId.FOLD_ALL));
     assertEquals("Cmd+Option+]", mac.keysText(CommandId.UNFOLD_ALL));
+  }
+
+  @Test
+  void fullScreenTakesThePlatformKey() {
+    KeyStroke f11 = new KeyStroke(0, KeyStroke.F1 + 10);
+    assertEquals(f11, Keymap.defaults(false, true).accelerator(CommandId.FULL_SCREEN));
+    assertEquals("F11", Keymap.defaults(false).keysText(CommandId.FULL_SCREEN));
+    Keymap mac = Keymap.defaults(true);
+    assertEquals(
+        new KeyStroke(KeyStroke.CONTROL | KeyStroke.PRIMARY, 'f'),
+        mac.accelerator(CommandId.FULL_SCREEN));
+    assertEquals("Ctrl+Cmd+F", mac.keysText(CommandId.FULL_SCREEN));
   }
 }

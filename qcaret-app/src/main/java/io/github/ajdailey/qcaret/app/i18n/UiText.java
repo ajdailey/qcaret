@@ -82,6 +82,46 @@ public enum UiText {
   /** Preferences field. */
   PREFERENCES_STRICT_JSON,
   /** Command label. */
+  COMMAND_COPY_XML_PATH,
+  /** Command label. */
+  COMMAND_COPY_JSON_PATH,
+  /** Notice: Copy XML or JSON Path copied a path; the path. */
+  PATH_COPIED,
+  /** Notice: Copy XML or JSON Path dropped its result because the document changed. */
+  PATH_STALE,
+  /** Command label. */
+  COMMAND_INSERT_NUMBER_SEQUENCE,
+  /** Dialog title. */
+  NUMBER_SEQUENCE_TITLE,
+  /** Dialog note: the numbers the start and step fields take. */
+  NUMBER_SEQUENCE_NOTE,
+  /** Dialog field. */
+  NUMBER_SEQUENCE_START,
+  /** Dialog field. */
+  NUMBER_SEQUENCE_STEP,
+  /** Dialog field. */
+  NUMBER_SEQUENCE_WIDTH,
+  /** Dialog field. */
+  NUMBER_SEQUENCE_BASE,
+  /** Base choice. */
+  NUMBER_SEQUENCE_DECIMAL,
+  /** Base choice. */
+  NUMBER_SEQUENCE_HEX_UPPER,
+  /** Base choice. */
+  NUMBER_SEQUENCE_HEX_LOWER,
+  /** Notice: a number of the sequence lies outside 64 bits. */
+  NUMBER_SEQUENCE_OVERFLOW,
+  /** Command label. */
+  COMMAND_OPEN_PATH_AT_CARET,
+  /** Notice: Open Path at Caret found no path. */
+  OPEN_PATH_NONE,
+  /** Notice: Open Path at Caret found a URL; the URL. */
+  OPEN_PATH_URL,
+  /** Notice: Open Path at Caret found no file; the path. */
+  OPEN_PATH_MISSING,
+  /** Command label. */
+  COMMAND_FULL_SCREEN,
+  /** Command label. */
   COMMAND_TRANSPOSE,
   /** Command label. */
   COMMAND_SELECT_ALL_OCCURRENCES,

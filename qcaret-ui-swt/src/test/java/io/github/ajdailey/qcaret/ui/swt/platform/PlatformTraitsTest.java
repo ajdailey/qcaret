@@ -51,7 +51,8 @@ class PlatformTraitsTest {
     "windowMenuControls",
     "labelsByDescription",
     "printDialogOmitsSelection",
-    "stacksOnX11"
+    "stacksOnX11",
+    "fullScreenSpace"
   };
 
   private static List<Object> answers(PlatformTraits traits) {
@@ -90,6 +91,7 @@ class PlatformTraitsTest {
     answers.add(traits.labelsByDescription());
     answers.add(traits.printDialogOmitsSelection());
     answers.add(traits.stacksOnX11());
+    answers.add(traits.fullScreenSpace());
     return answers;
   }
 
@@ -136,6 +138,7 @@ class PlatformTraitsTest {
         false,
         false,
         true,
+        false,
         false);
   }
 
@@ -175,7 +178,8 @@ class PlatformTraitsTest {
         true,
         true,
         false,
-        false);
+        false,
+        true);
   }
 
   @Test
@@ -215,7 +219,8 @@ class PlatformTraitsTest {
         false,
         false,
         false,
-        "x11".equals(backend));
+        "x11".equals(backend),
+        false);
   }
 
   @Test
@@ -249,6 +254,7 @@ class PlatformTraitsTest {
         true,
         false,
         SWT.CURSOR_APPSTARTING,
+        false,
         false,
         false,
         false,

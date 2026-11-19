@@ -143,14 +143,26 @@ final class FormatRuns {
   }
 
   private void showError(String name, FormatError error) {
+    editor.notice(errorNotice(document, name, error));
+    selections.set(SelectionSet.caret(error.offset()));
+    editor.showCaret();
+  }
+
+  /**
+   * Returns the notice for a format error, with the status bar's column.
+   *
+   * @param document the formatted document, unchanged since the run
+   * @param name the format's name
+   * @param error the error
+   * @return the notice
+   */
+  static String errorNotice(Document document, String name, FormatError error) {
     TextSnapshot text = document.text();
     int line = text.lineAt(error.offset());
     LineView view = text.lineView(line, new LineView());
     int index = Math.min(error.offset() - view.start(), view.length());
     int column = Columns.column(view, index, document.tabWidth());
-    editor.notice(UiText.FORMAT_ERROR.format(name, line + 1, column + 1, error.reason()));
-    selections.set(SelectionSet.caret(error.offset()));
-    editor.showCaret();
+    return UiText.FORMAT_ERROR.format(name, line + 1, column + 1, error.reason());
   }
 
   private static Formats.Language language(CommandId command) {

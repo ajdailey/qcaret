@@ -205,6 +205,14 @@ fragment, that the selection is a well-formed XML fragment. Pretty Print and Min
 nothing on a read-only document; Check runs on any. Each range's output is
 limited to an eighth of the maximum heap in chars.
 
+Copy XML Path and Copy JSON Path in the same cascade run `CaretPath` at the
+primary caret
+([paths](../../qcaret-core/docs/documents.md#caret-paths)) in `CaretPathRuns`,
+with the same worker, busy cursor, cancel and stale-result rules and
+`editor.strictJson`. The path goes to the clipboard and a notice; an error
+before the caret shows the format error notice and leaves the caret and the
+clipboard as they were.
+
 ## Bookmarks
 
 Toggle works at every caret's line, Next and Previous from the primary caret's
@@ -262,6 +270,20 @@ The chosen format, in the default locale at the time of the choice, goes to
 document. `Options.validDateFormat` checks a pattern by formatting a fixed UTC
 time; the Preferences dialog refuses an invalid one, and an invalid one in
 `qcaret.conf` falls back to the default.
+
+## Insert Number Sequence
+
+`NumberSequenceInsert` runs Edit > Insert Number Sequence. `MainView.askNumberSequence`
+takes the dialog's fields as a `SequenceForm` (field text, width, base index)
+starting from `ui.numberSequence.*`, and a validator that builds the core
+`NumberSequence` from them; the view never parses. The answer is saved to
+`ui.numberSequence.*`. One number per selection in text order
+(`EditorController.replaceSelections`), or per block row from the top
+(`BlockEdits.paste`), replaces the selected text as one undo step; nothing happens on a read-only document. `NumberSequence.values`
+throws `ArithmeticException` when a number leaves `long`; the text is then
+unchanged and a notice shows. The validator refuses a start or step that
+`NumberSequence.parse` rejects, a width outside 0 to 64 and an unknown base;
+the dialog enables OK only while it accepts.
 
 ## Document statistics
 

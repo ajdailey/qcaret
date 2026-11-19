@@ -356,6 +356,16 @@ public enum CommandId {
   MINIFY_JSON(CommandGroup.EDIT, UiText.COMMAND_MINIFY_JSON, false, UiText.MENU_FORMAT),
   /** Report whether each selection, or the document, is well-formed JSON. */
   CHECK_JSON(CommandGroup.EDIT, UiText.COMMAND_CHECK_JSON, false, UiText.MENU_FORMAT),
+  /** Copy the path of the XML element or attribute at the primary caret. */
+  COPY_XML_PATH(CommandGroup.EDIT, UiText.COMMAND_COPY_XML_PATH, false, UiText.MENU_FORMAT),
+  /** Copy the path of the JSON member or element at the primary caret. */
+  COPY_JSON_PATH(CommandGroup.EDIT, UiText.COMMAND_COPY_JSON_PATH, false, UiText.MENU_FORMAT),
+  /** Insert one number of a chosen sequence at each caret or block row, replacing selections. */
+  INSERT_NUMBER_SEQUENCE(CommandGroup.EDIT, UiText.COMMAND_INSERT_NUMBER_SEQUENCE, false, null),
+  /** Open the file whose path is at the primary caret, at its {@code :line:column}. */
+  OPEN_PATH_AT_CARET(CommandGroup.FILE, UiText.COMMAND_OPEN_PATH_AT_CARET, false, null),
+  /** Fill the screen with the window; checked while it does. */
+  FULL_SCREEN(CommandGroup.VIEW, UiText.COMMAND_FULL_SCREEN, true, null),
   /** Swap the characters around each caret, or rotate the texts of two or more selections. */
   TRANSPOSE(CommandGroup.EDIT, UiText.COMMAND_TRANSPOSE, false, null),
   /** Replace each selection with the Base64 of its UTF-8 bytes. */

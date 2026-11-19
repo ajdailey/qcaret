@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.format;
 
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import java.util.Arrays;
 
 /**
@@ -18,13 +19,29 @@ import java.util.Arrays;
  */
 final class JsonLayout {
   private static final int NONE = 0;
-  private static final int OPEN = 1;
-  private static final int CLOSE = 2;
-  private static final int COLON = 3;
-  private static final int COMMA = 4;
-  private static final int VALUE = 5;
-  private static final int LINE_COMMENT = 6;
-  private static final int BLOCK_COMMENT = 7;
+  static final int OPEN = 1;
+  static final int CLOSE = 2;
+  static final int COLON = 3;
+  static final int COMMA = 4;
+  static final int VALUE = 5;
+  static final int LINE_COMMENT = 6;
+  static final int BLOCK_COMMENT = 7;
+
+  /** A member name; only {@link Tokens} sees this kind. */
+  static final int NAME = 8;
+
+  /** Receives each token of {@link #scan} in text order. */
+  interface Tokens {
+    /**
+     * Takes a token; it may throw to end the scan.
+     *
+     * @param kind {@link #OPEN}, {@link #CLOSE}, {@link #COLON}, {@link #COMMA}, {@link #VALUE},
+     *     {@link #NAME}, {@link #LINE_COMMENT} or {@link #BLOCK_COMMENT}
+     * @param start the token's offset
+     * @param end the offset after it
+     */
+    void token(int kind, int start, int end);
+  }
 
   /** Parser states: what the next token may be. */
   private static final int EXPECT_VALUE = 0;
@@ -46,12 +63,29 @@ final class JsonLayout {
   private boolean first = true;
   private int previous = NONE;
   private int previousToken = NONE;
+  private Tokens tokens;
 
   private JsonLayout(String source, Output out, boolean pretty, boolean strict) {
     this.s = source;
     this.out = out;
     this.pretty = pretty;
     this.strict = strict;
+  }
+
+  /**
+   * Checks a range as Check does, passing each token to {@code tokens} before checking past it.
+   *
+   * @param source the range's text
+   * @param strict true to refuse comments
+   * @param tokens receives the tokens
+   * @param token checked as the range is read
+   * @throws FormatException at the first error
+   */
+  static void scan(String source, boolean strict, Tokens tokens, CancellationToken token) {
+    JsonLayout layout =
+        new JsonLayout(source, new Output(source, null, "", new int[0], token), false, strict);
+    layout.tokens = tokens;
+    layout.run();
   }
 
   /**
@@ -141,6 +175,10 @@ final class JsonLayout {
         }
         default -> throw new FormatException(i, "Unexpected text after the JSON value");
       }
+      if (tokens != null) {
+        boolean name = kind == VALUE && (state == OBJECT_FIRST || state == EXPECT_NAME);
+        tokens.token(name ? NAME : kind, i, end);
+      }
       gap(pos, i, kind, level);
       out.copy(i, end);
       previous = kind;
@@ -183,6 +221,9 @@ final class JsonLayout {
       throw new FormatException(at, "Unexpected character '/'");
     }
     comments = true;
+    if (tokens != null) {
+      tokens.token(kind, at, end);
+    }
     gap(pos, at, kind, depth);
     out.copy(at, end);
     previous = kind;

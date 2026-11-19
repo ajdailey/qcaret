@@ -8,8 +8,8 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 /**
  * View > Indent Guides and View > Modified Line Marks, saved as {@code ui.indentGuides} and {@code
  * ui.lineChanges} and passed to the window's view, and Edit > Line > Wrap Paragraph at {@code
- * editor.rightMargin}; Edit > Format XML and JSON runs with {@code editor.strictJson}. Confined to
- * the UI thread.
+ * editor.rightMargin}; Edit > Format XML and JSON and the path commands run with {@code
+ * editor.strictJson}. Confined to the UI thread.
  */
 final class EditorAids {
   private final Settings settings;
@@ -65,6 +65,14 @@ final class EditorAids {
     EditorController editor = documents.activeEditor();
     if (editor != null) {
       editor.format(command, settings.current().options().strictJson());
+    }
+  }
+
+  /** Runs Copy XML Path or Copy JSON Path in the selected editor with {@code editor.strictJson}. */
+  void copyPath(CommandId command) {
+    EditorController editor = documents.activeEditor();
+    if (editor != null) {
+      editor.copyPath(command, settings.current().options().strictJson());
     }
   }
 }

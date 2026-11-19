@@ -19,6 +19,7 @@ public final class Keymap {
   private static final int F3 = KeyStroke.F1 + 2;
   private static final int F4 = KeyStroke.F1 + 3;
   private static final int F6 = KeyStroke.F1 + 5;
+  private static final int F11 = KeyStroke.F1 + 10;
 
   private final List<Binding> bindings;
   private final boolean mac;
@@ -56,7 +57,7 @@ public final class Keymap {
    * application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
    * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
    * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
-   * macOS.
+   * macOS. Full Screen is F11, and Control+Command+F on macOS.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -91,6 +92,11 @@ public final class Keymap {
     window(b, CommandId.ZOOM_OUT, P, '-');
     window(b, CommandId.ZOOM_OUT, P, KeyStroke.KEYPAD_SUBTRACT);
     window(b, CommandId.ZOOM_RESET, P, '0');
+    if (mac) {
+      window(b, CommandId.FULL_SCREEN, KeyStroke.CONTROL | P, 'f');
+    } else {
+      window(b, CommandId.FULL_SCREEN, 0, F11);
+    }
     window(b, CommandId.NEXT_TAB, P, KeyStroke.PAGE_DOWN);
     window(b, CommandId.PREVIOUS_TAB, P, KeyStroke.PAGE_UP);
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);

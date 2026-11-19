@@ -78,6 +78,7 @@ class BusyCoverageTest {
       "controller.MemoryIndicator#collect",
       "controller.NavigationHistory#go",
       "controller.OpenAll#open",
+      "controller.OpenPathAtCaret#open",
       "controller.RecentFiles#cleanUp",
       "controller.ReplaceController#previewDocument",
       "controller.ReplaceController#previewFile",
@@ -122,6 +123,7 @@ class BusyCoverageTest {
     row("controller.EditorController#matchingBracket", Shows.EDITOR_BUSY, null, "busy");
     row("controller.FoldScheduling#requestFoldAll", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.FormatRuns#run", Shows.EDITOR_BUSY, null, "busyCursor");
+    row("controller.CaretPathRuns#run", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.LineTransformRuns#transformLines", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.CodecRuns#convert", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.SelectionCommands#startWorker", Shows.EDITOR_BUSY, null, "busyCursor");

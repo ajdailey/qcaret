@@ -306,4 +306,14 @@ public interface PlatformTraits {
    * @return true on win32
    */
   boolean printDialogOmitsSelection();
+
+  /**
+   * Reports whether full screen moves the window to a space of its own: the system animates the
+   * change after {@code Shell.setFullScreen} returns, the window's title bar button also enters and
+   * leaves it, and the system menu bar shows when the pointer reaches the top edge. Elsewhere the
+   * window keeps its menu bar and only {@code setFullScreen} changes the state.
+   *
+   * @return true on cocoa
+   */
+  boolean fullScreenSpace();
 }
