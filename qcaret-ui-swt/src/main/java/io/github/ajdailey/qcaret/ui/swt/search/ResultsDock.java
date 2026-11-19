@@ -37,6 +37,7 @@ import org.eclipse.swt.widgets.TableItem;
  *   <li>Stop, Rerun, Replace, Pin and Clear act on the set of the selected row, or the newest set;
  *       Rerun File on the selected row's group while its source changed; Clear All on every set;
  *       Hide hides the dock. The selection follows its row across changes.
+ *   <li>{@link ResultsMenu} is the table's context menu.
  * </ul>
  */
 public final class ResultsDock {
@@ -56,13 +57,14 @@ public final class ResultsDock {
   private final Button clear;
   private final Button clearAll;
   private final ResultRows rows = new ResultRows();
+  private final ResultsMenu menu = new ResultsMenu(this, rows);
   private ResultsInput input;
   private int[] selected = new int[0];
   private Color highlight;
   private Color highlightText;
 
   /** What a button does. */
-  private enum Action {
+  enum Action {
     STOP,
     RERUN,
     RERUN_FILE,
@@ -136,6 +138,16 @@ public final class ResultsDock {
    */
   public Composite control() {
     return root;
+  }
+
+  /** Returns the model, or null before {@link #setInput}. */
+  ResultsInput input() {
+    return input;
+  }
+
+  /** Returns the selected row's path, empty without one. */
+  int[] selected() {
+    return selected;
   }
 
   /**
@@ -234,7 +246,8 @@ public final class ResultsDock {
     table.showSelection();
   }
 
-  private void select(int[] path) {
+  /** Selects a path's row, or nothing for an empty or hidden path. */
+  void select(int[] path) {
     selected = path;
     int at = path.length == 0 ? -1 : rows.row(path);
     if (at < 0) {
@@ -281,6 +294,7 @@ public final class ResultsDock {
             }
           }
         });
+    menu.attach(table);
     table.addListener(
         SWT.KeyDown,
         new Listener() {
@@ -451,14 +465,15 @@ public final class ResultsDock {
   }
 
   /** Returns the index of the selected row's set, or the newest set, or -1 without sets. */
-  private int selectedSet() {
+  int selectedSet() {
     if (input == null || input.setCount() == 0) {
       return -1;
     }
     return selected.length == 0 || selected[0] >= input.setCount() ? 0 : selected[0];
   }
 
-  private void act(Action action) {
+  /** Runs a button's action. */
+  void act(Action action) {
     int set = selectedSet();
     if (input == null) {
       return;
@@ -504,7 +519,8 @@ public final class ResultsDock {
     syncButtons();
   }
 
-  private void syncButtons() {
+  /** Enables the buttons for the selected row. */
+  void syncButtons() {
     if (root.isDisposed()) {
       return;
     }

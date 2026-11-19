@@ -63,6 +63,7 @@ class BusyCoverageTest {
   static {
     // The window's busy cursor through BusyWork.
     String[] wrapped = {
+      "controller.BookmarkList#copyLine",
       "controller.ChecksumRun#save",
       "controller.DocumentEncodings#convert",
       "controller.DroppedFiles#open",
@@ -83,6 +84,7 @@ class BusyCoverageTest {
       "controller.ReplaceController#previewDocument",
       "controller.ReplaceController#previewFile",
       "controller.ReplaceRestore#choose",
+      "controller.ResultsCopy#start",
       "controller.ResultsNavigation#check",
       "controller.SaveAndReload#saveAsTarget",
       "controller.SaveCleanup#start",

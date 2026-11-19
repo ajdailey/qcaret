@@ -12,11 +12,12 @@ import java.util.Set;
 
 /**
  * The layout of every menu: the commands of each menu-bar menu in order with their separators, the
- * editor's and the tab's context menus, and which check commands show as radio items. Consecutive
- * commands with the same {@link CommandId#submenu()} form one cascade. A separator before a
- * cascade's first command sits in the parent menu; one before a later command sits in the cascade.
- * Where the system supplies an application menu (macOS), About, Exit and Preferences sit there and
- * are left out of Help, File and Tools.
+ * editor's and the tab's context menus, the status bar's encoding and line-ending menus, and which
+ * check commands show as radio items. Consecutive commands with the same {@link
+ * CommandId#submenu()} form one cascade. A separator before a cascade's first command sits in the
+ * parent menu; one before a later command sits in the cascade. Where the system supplies an
+ * application menu (macOS), About, Exit and Preferences sit there and are left out of Help, File
+ * and Tools.
  */
 public final class MenuTable {
   /** Commands the macOS application menu runs instead of the menu bar. */
@@ -37,10 +38,47 @@ public final class MenuTable {
           CommandId.LINE_ENDING_LF,
           CommandId.LINE_ENDING_CR);
 
-  /** The editor's context menu in order; null is a separator. */
+  /** Edit > Convert Case, also in the editor menu. */
+  private static final List<CommandId> CONVERT_CASE =
+      Arrays.asList(
+          CommandId.UPPER_CASE, CommandId.LOWER_CASE, CommandId.TITLE_CASE, CommandId.SWAP_CASE);
+
+  /** Edit > Encode/Decode Text, also in the editor menu; null is a separator. */
+  private static final List<CommandId> ENCODE_DECODE =
+      Arrays.asList(
+          CommandId.BASE64_ENCODE,
+          CommandId.BASE64_DECODE,
+          null,
+          CommandId.URL_ENCODE,
+          CommandId.URL_DECODE,
+          null,
+          CommandId.XML_ESCAPE,
+          CommandId.XML_UNESCAPE,
+          null,
+          CommandId.JSON_ESCAPE,
+          CommandId.JSON_UNESCAPE);
+
+  /** Edit > Format XML and JSON, also in the editor menu; null is a separator. */
+  private static final List<CommandId> FORMAT =
+      Arrays.asList(
+          CommandId.PRETTY_PRINT_XML,
+          CommandId.MINIFY_XML,
+          CommandId.CHECK_XML,
+          null,
+          CommandId.PRETTY_PRINT_JSON,
+          CommandId.MINIFY_JSON,
+          CommandId.CHECK_JSON,
+          null,
+          CommandId.COPY_XML_PATH,
+          CommandId.COPY_JSON_PATH);
+
+  /**
+   * The editor's context menu in order; null is a separator. The Edit menu's cascades in it form
+   * cascades as in the menu bar ({@link #editorSubmenu}); every other command is a top item.
+   */
   public static final List<CommandId> EDITOR_MENU =
       Collections.unmodifiableList(
-          Arrays.asList(
+          concat(
               CommandId.UNDO,
               CommandId.REDO,
               null,
@@ -53,7 +91,20 @@ public final class MenuTable {
               CommandId.TOGGLE_BOOKMARK,
               CommandId.EDIT_BOOKMARK_COMMENT,
               null,
-              CommandId.TOGGLE_FOLD));
+              CommandId.TOGGLE_FOLD,
+              null,
+              FORMAT,
+              ENCODE_DECODE,
+              CommandId.TOGGLE_LINE_COMMENT,
+              CONVERT_CASE));
+
+  /** The status bar's line-ending menu, as radio items. */
+  public static final List<CommandId> LINE_ENDING_MENU =
+      List.of(CommandId.LINE_ENDING_LF, CommandId.LINE_ENDING_CRLF, CommandId.LINE_ENDING_CR);
+
+  /** The status bar's encoding menu: the cascades the Encoding menu starts with. */
+  public static final List<UiText> ENCODING_MENU =
+      List.of(UiText.MENU_REOPEN_ENCODING, UiText.MENU_SAVE_ENCODING);
 
   /** The tab's context menu labels in order; null is a separator. */
   public static final List<UiText> TAB_MENU =
@@ -107,11 +158,36 @@ public final class MenuTable {
    * @return the entries in menu order
    */
   public static List<Entry> entries(CommandGroup group, boolean appMenu) {
-    List<Entry> entries = new ArrayList<Entry>();
     List<CommandId> layout = LAYOUT.get(group);
-    if (layout == null) {
-      return entries;
-    }
+    return layout == null ? new ArrayList<Entry>() : entries(layout, appMenu);
+  }
+
+  /**
+   * Returns the editor menu's entries, as {@link #entries(CommandGroup, boolean)} gives a menu's.
+   *
+   * @return the entries of {@link #EDITOR_MENU} in order
+   */
+  public static List<Entry> editorEntries() {
+    return entries(EDITOR_MENU, false);
+  }
+
+  /**
+   * Returns the cascade a command of {@link #EDITOR_MENU} sits in there.
+   *
+   * @param command the command
+   * @return its {@link CommandId#submenu()} for a command of the Edit menu's Format, Encode/Decode
+   *     and Convert Case cascades, else null
+   */
+  public static String editorSubmenu(CommandId command) {
+    return FORMAT.contains(command)
+            || ENCODE_DECODE.contains(command)
+            || CONVERT_CASE.contains(command)
+        ? command.submenu()
+        : null;
+  }
+
+  private static List<Entry> entries(List<CommandId> layout, boolean appMenu) {
+    List<Entry> entries = new ArrayList<Entry>();
     boolean separator = false;
     for (CommandId command : layout) {
       if (command == null) {
@@ -124,6 +200,21 @@ public final class MenuTable {
       }
     }
     return entries;
+  }
+
+  /** Flattens commands, nulls and lists of them into one list. */
+  private static List<CommandId> concat(Object... parts) {
+    List<CommandId> out = new ArrayList<CommandId>();
+    for (Object part : parts) {
+      if (part instanceof List<?> list) {
+        for (Object command : list) {
+          out.add((CommandId) command);
+        }
+      } else {
+        out.add((CommandId) part);
+      }
+    }
+    return out;
   }
 
   private static Map<CommandGroup, List<CommandId>> layout() {
@@ -164,7 +255,7 @@ public final class MenuTable {
             CommandId.QUIT));
     m.put(
         CommandGroup.EDIT,
-        Arrays.asList(
+        concat(
             CommandId.UNDO,
             CommandId.REDO,
             null,
@@ -193,31 +284,9 @@ public final class MenuTable {
             CommandId.SORT_LINES_DESCENDING,
             CommandId.SORT_LINES_IGNORE_CASE,
             CommandId.SORT_LINES_NUMERIC,
-            CommandId.UPPER_CASE,
-            CommandId.LOWER_CASE,
-            CommandId.TITLE_CASE,
-            CommandId.SWAP_CASE,
-            CommandId.BASE64_ENCODE,
-            CommandId.BASE64_DECODE,
-            null,
-            CommandId.URL_ENCODE,
-            CommandId.URL_DECODE,
-            null,
-            CommandId.XML_ESCAPE,
-            CommandId.XML_UNESCAPE,
-            null,
-            CommandId.JSON_ESCAPE,
-            CommandId.JSON_UNESCAPE,
-            CommandId.PRETTY_PRINT_XML,
-            CommandId.MINIFY_XML,
-            CommandId.CHECK_XML,
-            null,
-            CommandId.PRETTY_PRINT_JSON,
-            CommandId.MINIFY_JSON,
-            CommandId.CHECK_JSON,
-            null,
-            CommandId.COPY_XML_PATH,
-            CommandId.COPY_JSON_PATH,
+            CONVERT_CASE,
+            ENCODE_DECODE,
+            FORMAT,
             null,
             CommandId.TOGGLE_LINE_COMMENT,
             CommandId.TOGGLE_BLOCK_COMMENT,

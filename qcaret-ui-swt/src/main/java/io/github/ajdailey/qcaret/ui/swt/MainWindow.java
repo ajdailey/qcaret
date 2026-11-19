@@ -189,6 +189,7 @@ public final class MainWindow implements MainView {
   private MainToolBar mainToolBar;
   private TabStripButtons tabButtons;
   private EditorMenu editorMenu;
+  private StatusMenus statusMenus;
   private final ToolBar toolBar;
   private boolean lineNumbersShown = true;
   private int rightMargin;
@@ -417,7 +418,9 @@ public final class MainWindow implements MainView {
     mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusEditor);
     mainToolBar.setKeymap(keymap);
     setToolbarShown(owner.toolbarShown());
-    editorMenu = new EditorMenu(shell, menuBar.states(), menuIcons, keymap);
+    editorMenu = new EditorMenu(shell, owner, menuBar.states(), menuIcons, keymap);
+    statusMenus = new StatusMenus(shell, menuBar, owner, keymap);
+    statusMenus.hook(encoding, lineEnding);
     int fontSize = owner.fontSize();
     if (fontSize != 0) {
       setFontSize(fontSize);
@@ -708,6 +711,24 @@ public final class MainWindow implements MainView {
    */
   EditorMenu editorMenu() {
     return editorMenu;
+  }
+
+  /**
+   * Returns the status bar's encoding and line-ending popups.
+   *
+   * @return their owner, or null before {@link #attach}
+   */
+  StatusMenus statusMenus() {
+    return statusMenus;
+  }
+
+  /**
+   * Returns the status bar's encoding field and line-ending field.
+   *
+   * @return the two labels
+   */
+  Label[] encodingFields() {
+    return new Label[] {encoding, lineEnding};
   }
 
   /**
@@ -1725,6 +1746,7 @@ public final class MainWindow implements MainView {
     mainToolBar.setKeymap(bindings);
     tabButtons.setKeymap(bindings);
     editorMenu.setKeymap(bindings);
+    statusMenus.setKeymap(bindings);
     for (EditorPane pane : allPanes()) {
       pane.setKeymap(bindings);
     }

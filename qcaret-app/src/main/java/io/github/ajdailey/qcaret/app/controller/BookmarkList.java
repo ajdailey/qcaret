@@ -31,7 +31,8 @@ import java.util.concurrent.RejectedExecutionException;
  * while the document is still at that revision, and a newer read is requested otherwise. Each row
  * reserves {@value #ROW_BYTES} bytes plus 2 per char from the {@link MemoryBudget} while listed;
  * rows past a refusal are left out, as past {@value #MAX_ROWS}, and the summary says so. Go to,
- * edit and remove act on the row's bookmark wherever edits have moved it since the read.
+ * edit, remove and copy line act on the row's bookmark wherever edits have moved it since the read;
+ * copy line reads a line over {@value #COPY_INLINE_CHARS} chars on a worker under the busy cursor.
  */
 public final class BookmarkList implements BookmarksInput {
   /** Most rows listed. */
@@ -45,6 +46,9 @@ public final class BookmarkList implements BookmarksInput {
 
   /** Wait after a change before reading. */
   static final int DELAY_MILLIS = 150;
+
+  /** Longest line Copy Line reads on the UI thread; a longer one is read on a worker. */
+  static final int COPY_INLINE_CHARS = 100_000;
 
   /** What a worker built: the rows, their bookmarks' keys, the total and the bytes reserved. */
   record Snapshot(
@@ -394,6 +398,49 @@ public final class BookmarkList implements BookmarksInput {
     int line = line(index);
     if (line >= 0) {
       bookmarks.remove(line);
+    }
+  }
+
+  @Override
+  public void copyLine(int index) {
+    final int number = line(index);
+    if (number < 0) {
+      return;
+    }
+    final TextSnapshot text = document.text();
+    if (text.lineLength(number) <= COPY_INLINE_CHARS) {
+      copied(text.line(number));
+      return;
+    }
+    new BusyWork(ui, view) {
+      private String line;
+
+      @Override
+      @WorkerThread
+      void work() {
+        line = text.line(number);
+      }
+
+      @Override
+      void finished(boolean completed) {
+        if (line != null) {
+          copied(line);
+        }
+      }
+    }.startCpu(workers);
+  }
+
+  /** Puts a line on the clipboard; an empty one copies nothing, as the clipboard refuses it. */
+  private void copied(String line) {
+    if (!line.isEmpty()) {
+      view.setText(line);
+    }
+  }
+
+  @Override
+  public void clearAll() {
+    if (bookmarks != null) {
+      bookmarks.clear();
     }
   }
 

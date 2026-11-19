@@ -158,6 +158,26 @@ final class ResultRows {
   }
 
   /**
+   * Expands or collapses a set and each of its groups; recounts the rows.
+   *
+   * @param set the set's index
+   * @param expand true to expand
+   */
+  void setAllExpanded(int set, boolean expand) {
+    if (set < 0 || set >= shown.size()) {
+      return;
+    }
+    SetRows rows = shown.get(set);
+    rows.expanded = expand;
+    if (expand) {
+      rows.files.set(0, rows.before.length - 1);
+    } else {
+      rows.files.clear();
+    }
+    update(input);
+  }
+
+  /**
    * Expands or collapses a set or group; recounts the rows.
    *
    * @param path a set or group path

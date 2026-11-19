@@ -82,6 +82,7 @@ public final class SearchController implements ResultsInput {
   private boolean disposed;
   private final ResultsNavigation navigation;
   private final ResultsDockModel dock;
+  private final ResultsCopy copy;
 
   /** One retained set, its running search and a rerun in progress. */
   static final class Entry {
@@ -127,6 +128,7 @@ public final class SearchController implements ResultsInput {
     this.navigation = new ResultsNavigation(this, entries, documents, workers, ui, view);
     this.dock =
         new ResultsDockModel(this, entries, navigation, documents, workers, ui, view, budget);
+    this.copy = new ResultsCopy(entries, workers, ui, view, budget);
     documents.setCloseListener(
         new Consumer<Document>() {
           @Override
@@ -765,6 +767,16 @@ public final class SearchController implements ResultsInput {
   @Override
   public void hide() {
     dock.hide();
+  }
+
+  @Override
+  public void copy(int set, int file, int match) {
+    copy.copy(set, file, match);
+  }
+
+  @Override
+  public void copyAll() {
+    copy.copyAll();
   }
 
   // Navigation: ResultsNavigation.

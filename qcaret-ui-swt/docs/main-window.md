@@ -159,14 +159,17 @@ scroll.
 
 ### Editor context menu
 
-`EditorMenu` is the context menu of the text views, `MenuTable.EDITOR_MENU`:
+`EditorMenu` is the context menu of the text views, `MenuTable.EDITOR_MENU`
+with the Edit menu's Format, Encode/Decode and Convert Case cascades:
 one popup per window, built on its first show (building one per view stalled a
 file open under GTK 4 in QLogg) and again after a key change. `SWT.MenuDetect`
 on each view's `StyledText` makes that view the tab's focused view; a pointer
 request calls `EditorInput.menuFromView`, and a keyboard request opens below
 the caret and moves nothing. An item runs through that view's
-`EditorInput.execute`, so in a split it acts on the view clicked. The popup
-holds the view weakly, so it does not keep a closed document.
+`EditorInput.execute`, so in a split it acts on the view clicked; a command
+the view does not run (the Format commands) goes to
+`ApplicationController.execute`, whose active view is the one clicked. The
+popup holds the view weakly, so it does not keep a closed document.
 
 ### macOS application menu
 
@@ -222,6 +225,14 @@ the shell, each editor (`EditorPane.setWindowBusy`) and each shell the window
 owns, with their `StyledText` controls; a Show filter, added only while busy,
 sets it on an owned shell that opens meanwhile
 ([busy cursor](../../qcaret-app/docs/views-and-commands.md#busy-cursor)).
+
+A left click on the encoding field opens Reopen with Encoding and Save with
+Encoding, the Encoding menu's `EncodingCascade`s, and one on the line-ending
+field opens LF, CRLF and CR as radio items running the Line Endings commands;
+both open below the field as the language popup does, and each field's tool
+tip names its action (`StatusMenus`). The encoding popup is built on the first
+click and kept, since its Other cascades list every charset; the line-ending
+popup is built on each click and replaces the previous one.
 
 `MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
 from the layout while it is off. It paints `MemoryFields.text` over a bar

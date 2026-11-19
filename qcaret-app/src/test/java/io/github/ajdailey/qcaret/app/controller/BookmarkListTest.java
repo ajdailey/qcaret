@@ -206,6 +206,40 @@ class BookmarkListTest {
   }
 
   @Test
+  void copyLineCopiesTheWholeLineAndClearAllRemovesEveryBookmark() throws Exception {
+    String tail = "\tx".repeat(BookmarkList.TEXT_CHARS);
+    String longLine = "y".repeat(BookmarkList.COPY_INLINE_CHARS + 1);
+    harness.open(
+        Files.writeString(
+            temp.resolve("copy line.txt"), "first\n  tabs" + tail + "\n\n" + longLine + "\n"));
+    for (int line = 1; line <= 3; line++) {
+      caretAt(line);
+      harness.application.execute(CommandId.TOGGLE_BOOKMARK);
+    }
+    harness.application.execute(CommandId.BOOKMARKS_LIST);
+    awaitRows("rows", 1, 2, 3);
+    list.copyLine(0);
+    assertEquals("  tabs" + tail, harness.view.clipboard);
+    list.copyLine(1);
+    assertEquals("  tabs" + tail, harness.view.clipboard);
+    final int active = harness.view.activations.get();
+    list.copyLine(2);
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return longLine.equals(harness.view.clipboard);
+          }
+        },
+        "the long line copied on a worker");
+    assertTrue(harness.view.activations.get() > active);
+    harness.awaitIdle("copy line");
+    list.clearAll();
+    awaitRows("cleared");
+    assertEquals(0, documents.bookmarksOf(documents.activeDocument()).lines().length);
+  }
+
+  @Test
   void rowsStopAtTheLimitAndAtABudgetRefusal() {
     StringBuilder text = new StringBuilder();
     for (int i = 0; i <= BookmarkList.MAX_ROWS; i++) {

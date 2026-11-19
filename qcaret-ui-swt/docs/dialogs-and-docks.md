@@ -262,6 +262,15 @@ Xvfb); `ResultRows` maps rows to paths.
   Hide hides the dock.
 - A cut of more than 2,000 rows replaces the table, since GTK removes rows one
   at a time (seconds for 100,000, against about 0.1 s for a new table).
+- `ResultsMenu` is the table's context menu (`ResultsInput.MENU`), built on
+  the first `MenuDetect` and disposed with its table. A pointer request first
+  selects the row under the pointer, or clears the selection over empty space.
+  Open opens a match,
+  or a group's first match; Copy copies the selected row's matches; Copy All
+  Results every set; Rerun, Pin (a check item) and Remove Set (Clear) act as
+  the buttons, on the selected row's set or the newest set. Expand All and
+  Collapse All change the selected row's set and every group in it, and do not
+  check the groups' files, which expanding one group does.
 
 ## Bookmarks dock
 
@@ -269,7 +278,10 @@ Xvfb); `ResultRows` maps rows to paths.
 (from 1), Comment and Text columns under Go To, Edit Comment, Remove, Hide and
 the model's summary. Enter and a double click go to the selected row, and
 Delete removes its bookmark; a cut of more than 2,000 rows replaces the table,
-as in the results dock.
+as in the results dock. `BookmarksMenu` is the context menu
+(`BookmarksInput.MENU`: Go To, Edit Comment, Copy Line, Remove, Clear All),
+built and selecting its row as `ResultsMenu` does; Clear All is enabled while
+the list has rows.
 
 ## Replace windows
 

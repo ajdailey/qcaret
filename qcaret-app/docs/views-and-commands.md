@@ -132,11 +132,16 @@ it ignores a position (Wayland) only the size applies.
 `CommandId` lists every command with its group (`CommandGroup`, the menu that
 lists it), label, check state and cascade. `MenuTable` lays out the menus: each
 menu's commands in order with its separators, the editor and tab context menus,
-and the check commands shown as radio items (Theme, Tab Width, Line Endings).
-Consecutive commands with one cascade form that cascade; a separator before a
-cascade's first command sits in the parent menu. Every item of a menu, cascade
-and the editor, tab and row context menus has a mnemonic (`&` before the letter,
-`&&` a literal ampersand), and no two in one menu share one (`MenuTableTest`,
+the status bar's encoding and line-ending popups, and the check commands shown
+as radio items (Theme, Tab Width, Line Endings). Consecutive commands with one
+cascade form that cascade; a separator before a cascade's first command sits in
+the parent menu. The editor menu shares the Edit menu's Format, Encode/Decode
+and Convert Case lists, and only those form cascades there
+(`MenuTable.editorSubmenu`); Toggle Fold and the bookmark commands stay top
+items. `ResultsInput.MENU` and `BookmarksInput.MENU` order the docks' row menus.
+Every item of a menu, cascade and the editor, tab, row, results, bookmarks and
+status bar menus has a mnemonic (`&` before the letter, `&&` a literal
+ampersand), and no two in one menu share one (`MenuTableTest`,
 `ToolbarAndMenusTest`).
 
 | Menu | Holds, `\|` between groups |

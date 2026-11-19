@@ -719,7 +719,16 @@ class ToolbarAndMenusTest {
     StyledText text = window.activeText();
     select(0, 3);
     Menu menu = rightClick(text, 1);
-    assertEquals(MenuTable.EDITOR_MENU.size(), menu.getItemCount());
+    int top = 0;
+    String cascade = null;
+    for (MenuTable.Entry entry : MenuTable.editorEntries()) {
+      String submenu = MenuTable.editorSubmenu(entry.command());
+      if (submenu == null || !submenu.equals(cascade)) {
+        top += entry.separatorBefore() ? 2 : 1;
+      }
+      cascade = submenu;
+    }
+    assertEquals(top, menu.getItemCount());
     MenuItem copy = entry(menu, CommandId.COPY);
     assertTrue(copy.getText().endsWith("\t" + controller.keymap().menuKeyText(CommandId.COPY)));
     copy.notifyListeners(SWT.Selection, new Event());

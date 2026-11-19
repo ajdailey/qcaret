@@ -1094,6 +1094,38 @@ public enum UiText {
   BOOKMARKS_SUMMARY_CUT,
   /** Bookmarks list summary without a document. */
   BOOKMARKS_NO_DOCUMENT,
+  /** Bookmarks list context menu item. */
+  BOOKMARKS_MENU_GO_TO,
+  /** Bookmarks list context menu item. */
+  BOOKMARKS_MENU_EDIT,
+  /** Bookmarks list context menu item. */
+  BOOKMARKS_MENU_COPY_LINE,
+  /** Bookmarks list context menu item. */
+  BOOKMARKS_MENU_REMOVE,
+  /** Bookmarks list context menu item. */
+  BOOKMARKS_MENU_CLEAR_ALL,
+  /** Results dock context menu item. */
+  RESULTS_MENU_OPEN,
+  /** Results dock context menu item. */
+  RESULTS_MENU_COPY,
+  /** Results dock context menu item. */
+  RESULTS_MENU_COPY_ALL,
+  /** Results dock context menu item. */
+  RESULTS_MENU_RERUN,
+  /** Results dock context menu item. */
+  RESULTS_MENU_PIN,
+  /** Results dock context menu item. */
+  RESULTS_MENU_REMOVE_SET,
+  /** Results dock context menu item. */
+  RESULTS_MENU_EXPAND_ALL,
+  /** Results dock context menu item. */
+  RESULTS_MENU_COLLAPSE_ALL,
+  /** Notice when the memory budget refuses a results copy; {@code %,d} is the match count. */
+  RESULTS_COPY_NO_MEMORY,
+  /** Tool tip of the status bar's encoding field. */
+  STATUS_ENCODING_TIP,
+  /** Tool tip of the status bar's line-ending field. */
+  STATUS_LINE_ENDING_TIP,
   /** Command label. */
   COMMAND_SHOW_WHITESPACE,
   /** Command label. */

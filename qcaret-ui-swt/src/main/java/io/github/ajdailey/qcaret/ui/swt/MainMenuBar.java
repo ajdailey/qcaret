@@ -471,6 +471,15 @@ final class MainMenuBar {
     syncEncodings();
   }
 
+  /**
+   * Returns the charsets {@link #encodingsLoaded} gave.
+   *
+   * @return the choices, or null before they load
+   */
+  EncodingChoices encodings() {
+    return encodings;
+  }
+
   /** Enables or disables an item and shows its icon in that state, when it changes. */
   void setEnabled(MenuItem item, boolean enabled) {
     if (item.getEnabled() != enabled) {

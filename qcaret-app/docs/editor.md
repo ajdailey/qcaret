@@ -371,6 +371,11 @@ hidden, it reads nothing.
 - Each row reserves 96 bytes plus 2 per char from the `MemoryBudget` while
   listed; rows past a refusal are left out, and the summary reads "first N of
   M".
-- Go To, Edit Comment and Remove act on the row's bookmark at its current line
-  (`Bookmarks.line(key)`), so an edit since the read does not move them to
-  another line; Go To into a collapsed region expands it.
+- Go To, Edit Comment, Remove and Copy Line act on the row's bookmark at its
+  current line (`Bookmarks.line(key)`), so an edit since the read does not move
+  them to another line; Go To into a collapsed region expands it.
+- Copy Line copies the whole line without its line break, not the row's 160
+  chars; a line over 100,000 chars is read on a `qcaret-cpu-` worker under the
+  busy cursor. An empty line copies nothing, as the clipboard refuses empty
+  text. Clear All clears the listed document's `Bookmarks`, as Clear Bookmarks
+  does for the active one.

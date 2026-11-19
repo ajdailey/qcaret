@@ -120,6 +120,16 @@ class ResultRowsTest {
     public void hide() {
       // Not hidden here.
     }
+
+    @Override
+    public void copy(int set, int file, int match) {
+      // Not copied here.
+    }
+
+    @Override
+    public void copyAll() {
+      // Not copied here.
+    }
   }
 
   @Test

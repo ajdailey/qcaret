@@ -290,8 +290,10 @@ apply (measured on Linux, one million lines):
   indent, and a comment paragraph keeps its comment marker, such as `//` or
   `#`. A blank line ends a paragraph. Undo restores the text in one step.
 - A right click in the text opens Undo, Redo, Cut, Copy, Paste, Select All,
-  Toggle Bookmark, Edit Bookmark Comment and Toggle Fold for that view. A click
-  in a selection keeps it; a click elsewhere moves the caret there first.
+  Toggle Bookmark, Edit Bookmark Comment, Toggle Fold, the Format XML and JSON
+  and Encode/Decode Text cascades, Toggle Line Comment and Convert Case for that
+  view. A click in a selection keeps it; a click elsewhere moves the caret
+  there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
   matches and bookmarks across the whole document; a click or drag scrolls
   there.
@@ -301,7 +303,8 @@ apply (measured on Linux, one million lines):
   Bookmarks List show the docks around the editor.
 - The status bar shows notices, the read-only marker, line and column, the
   selection, encoding, line endings and language. A click on the language
-  chooses a grammar. A Warnings link appears when QCaret logs a warning and opens
+  chooses a grammar, one on the encoding reopens or saves with another
+  encoding, and one on the line endings converts them to LF, CRLF or CR. A Warnings link appears when QCaret logs a warning and opens
   Help > Show Log.
 - The pointer shows the busy cursor, an arrow with a spinner, while a command
   works in the background, and the window stays usable. It shows over the
@@ -554,6 +557,12 @@ a match; `F4` and `Shift+F4` step through the set, wrapping at the ends with a
 notice. Stop ends a running search and keeps what it found; Rerun runs it again;
 Clear and Clear All drop sets.
 
+Right-click a row for Open, Copy, Copy All Results, Rerun, Pin, Remove Set,
+Expand All and Collapse All. Copy puts one line per match on the clipboard, as
+`path:line: text`: the row's match, a file's matches or a set's. Copy All
+Results copies every set. Expand All and Collapse All open and close every file
+of the row's set.
+
 A match in text changed since the search shows as stale. Opening one goes to its
 line with a notice. Rerun File searches that file again.
 
@@ -598,7 +607,9 @@ back.
 A bookmark shows as a bar in the gutter and a commented one as a flag, with the
 comment as its tooltip. Bookmarks follow their lines through edits. Search >
 Bookmarks > Bookmarks List shows the document's bookmarks with Go To, Edit
-Comment and Remove. A document holds up to 1,000 comments of 1,000 chars.
+Comment and Remove. Right-click a row for those, Copy Line, which copies the
+whole line, and Clear All. A document holds up to 1,000 comments of 1,000
+chars.
 
 ## Folding
 

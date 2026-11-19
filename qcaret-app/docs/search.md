@@ -130,6 +130,22 @@ bytes. The new group takes the old one's place and may use the matches the
 set's limit leaves free; a source without matches leaves the set. A selection
 set reruns whole, since the selection is not kept.
 
+### Copying results
+
+`ResultsCopy` serves the dock's Copy (a match, group or set row) and Copy All
+Results (every set, newest first): one line per match, `path:line: snippet`,
+joined with the platform line separator. The path is the file's, or an
+untitled document's tab name; the line counts from 1 in the document's current
+revision (`FileResult.rebase`); the snippet is the row's, cut at 500 chars.
+
+- Up to 2,000 matches build on the UI thread, within a millisecond.
+- More build on a `qcaret-cpu-` worker under the busy cursor. The UI thread
+  captures each group's path, its immutable hits and a copy of its line
+  numbers, so the worker reads nothing a later rebase changes.
+- The worker's text reserves 2 bytes a char from the `MemoryBudget` until it
+  reaches the clipboard; a refusal copies nothing and posts
+  `RESULTS_COPY_NO_MEMORY`. A newer copy cancels an older one.
+
 ## Replace across files
 
 `ReplaceController` replaces the matches of a finished set (dock Replace, or

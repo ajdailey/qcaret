@@ -20,8 +20,9 @@ import org.eclipse.swt.widgets.TableItem;
  * BookmarksInput}'s rows, with the line (from 1), the comment and the line's text in three columns.
  * Rows load as they show. Enter and a double click go to the selected row's line, Delete removes
  * its bookmark; Go To, Edit Comment and Remove act on the selected row, Hide hides the dock. The
- * selection keeps its index across changes, within the row count. A cut of over {@value
- * #REMOVE_ROWS} rows replaces the table, as GTK removes rows one by one.
+ * table's context menu is a {@link BookmarksMenu}. The selection keeps its index across changes,
+ * within the row count. A cut of over {@value #REMOVE_ROWS} rows replaces the table, as GTK removes
+ * rows one by one.
  */
 final class BookmarksDock {
   /** Rows removed one by one at most; a larger cut replaces the table. */
@@ -33,6 +34,7 @@ final class BookmarksDock {
   private final Button edit;
   private final Button remove;
   private Table table;
+  private final BookmarksMenu menu = new BookmarksMenu(this);
   private BookmarksInput input;
 
   /** What a button does. */
@@ -105,6 +107,7 @@ final class BookmarksDock {
             act(Action.GO_TO);
           }
         });
+    menu.attach(table);
     table.addListener(
         SWT.KeyDown,
         new Listener() {
@@ -145,6 +148,11 @@ final class BookmarksDock {
    */
   Composite control() {
     return root;
+  }
+
+  /** Returns the model, or null before {@link #setInput}. */
+  BookmarksInput input() {
+    return input;
   }
 
   /**
@@ -234,7 +242,8 @@ final class BookmarksDock {
     }
   }
 
-  private void syncButtons() {
+  /** Enables the buttons for the selected row. */
+  void syncButtons() {
     boolean any = !table.isDisposed() && table.getSelectionIndex() >= 0;
     goTo.setEnabled(any);
     edit.setEnabled(any);
