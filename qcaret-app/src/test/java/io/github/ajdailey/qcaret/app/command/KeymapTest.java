@@ -86,8 +86,8 @@ class KeymapTest {
   }
 
   /**
-   * Line transforms, Insert Date and Time, Document Statistics, Title Case and Swap Case stay menu
-   * only.
+   * Line transforms, Encode/Decode, Insert Date and Time, Document Statistics, Title Case and Swap
+   * Case stay menu only.
    */
   private static final Set<CommandId> MENU_ONLY =
       EnumSet.of(
@@ -100,7 +100,21 @@ class KeymapTest {
           CommandId.INSERT_DATE_TIME,
           CommandId.DOCUMENT_STATISTICS,
           CommandId.TITLE_CASE,
-          CommandId.SWAP_CASE);
+          CommandId.SWAP_CASE,
+          CommandId.SORT_LINES_NUMERIC,
+          CommandId.REVERSE_LINES,
+          CommandId.REMOVE_BLANK_LINES,
+          CommandId.TRIM_LEADING_WHITESPACE,
+          CommandId.INDENT_TO_SPACES,
+          CommandId.INDENT_TO_TABS,
+          CommandId.BASE64_ENCODE,
+          CommandId.BASE64_DECODE,
+          CommandId.URL_ENCODE,
+          CommandId.URL_DECODE,
+          CommandId.XML_ESCAPE,
+          CommandId.XML_UNESCAPE,
+          CommandId.JSON_ESCAPE,
+          CommandId.JSON_UNESCAPE);
 
   @Test
   void everyEditingCommandHasAKey() {

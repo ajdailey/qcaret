@@ -108,7 +108,8 @@ public final class EditorController implements EditorInput {
 
   /**
    * The view's busy cursor for this editor's worker commands: Add Next Occurrence, Go to Matching
-   * Bracket, Fold All, the line transforms, the selection commands and a line-ending conversion.
+   * Bracket, Fold All, the line transforms, Encode/Decode, the selection commands and a line-ending
+   * conversion.
    */
   private final BusyCounter busy;
 
@@ -117,6 +118,7 @@ public final class EditorController implements EditorInput {
   private final SelectionCommands selectionCommands;
   private final CompletionInput completions;
   private final LineTransformRuns lineRuns;
+  private final CodecRuns codecRuns;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
@@ -166,6 +168,7 @@ public final class EditorController implements EditorInput {
     selections.addListener(selectionListener);
     selectionCommands = new SelectionCommands(this, workers, ui);
     lineRuns = new LineTransformRuns(this, workers, ui);
+    codecRuns = new CodecRuns(this, workers, ui);
     lineChanges =
         new LineChangesUpdater(
             document,
@@ -465,8 +468,23 @@ public final class EditorController implements EditorInput {
           SORT_LINES_DESCENDING,
           SORT_LINES_IGNORE_CASE,
           REMOVE_DUPLICATE_LINES,
-          TRIM_TRAILING_WHITESPACE ->
+          TRIM_TRAILING_WHITESPACE,
+          SORT_LINES_NUMERIC,
+          REVERSE_LINES,
+          REMOVE_BLANK_LINES,
+          TRIM_LEADING_WHITESPACE,
+          INDENT_TO_SPACES,
+          INDENT_TO_TABS ->
           lineRuns.transformLines(command);
+      case BASE64_ENCODE,
+          BASE64_DECODE,
+          URL_ENCODE,
+          URL_DECODE,
+          XML_ESCAPE,
+          XML_UNESCAPE,
+          JSON_ESCAPE,
+          JSON_UNESCAPE ->
+          codecRuns.convert(command);
       case COMPLETE_WORD -> completions.requestCompletion(true);
       case GO_TO_MATCHING_BRACKET -> matchingBracket(false);
       case SELECT_TO_MATCHING_BRACKET -> matchingBracket(true);
@@ -863,6 +881,7 @@ public final class EditorController implements EditorInput {
   public void cancel() {
     cancelSave.run();
     lineRuns.cancel();
+    codecRuns.cancel();
     selectionCommands.cancel();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
@@ -1595,6 +1614,7 @@ public final class EditorController implements EditorInput {
     selections.removeListener(selectionListener);
     highlights.dispose();
     lineRuns.cancel();
+    codecRuns.cancel();
     if (partnerSearch != null) {
       partnerSearch.cancel();
     }

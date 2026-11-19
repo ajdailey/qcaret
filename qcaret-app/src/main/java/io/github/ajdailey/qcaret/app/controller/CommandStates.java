@@ -121,7 +121,21 @@ public final class CommandStates {
           CommandId.TITLE_CASE,
           CommandId.SWAP_CASE,
           CommandId.TRANSPOSE,
-          CommandId.WRAP_PARAGRAPH);
+          CommandId.WRAP_PARAGRAPH,
+          CommandId.SORT_LINES_NUMERIC,
+          CommandId.REVERSE_LINES,
+          CommandId.REMOVE_BLANK_LINES,
+          CommandId.TRIM_LEADING_WHITESPACE,
+          CommandId.INDENT_TO_SPACES,
+          CommandId.INDENT_TO_TABS,
+          CommandId.BASE64_ENCODE,
+          CommandId.BASE64_DECODE,
+          CommandId.URL_ENCODE,
+          CommandId.URL_DECODE,
+          CommandId.XML_ESCAPE,
+          CommandId.XML_UNESCAPE,
+          CommandId.JSON_ESCAPE,
+          CommandId.JSON_UNESCAPE);
 
   /**
    * Commands whose state follows the text and the selection. A view reads them on every status

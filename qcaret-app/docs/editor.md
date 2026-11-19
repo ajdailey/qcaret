@@ -45,8 +45,8 @@ undo and redo restore that model. A read-only document ignores edits.
   busy, and adds the match as the new primary, apart from a selection it touches
   (`SelectionSet.apart`); a result for another revision is dropped.
 - Esc cancels a running save and comparison through one `Runnable`, a line
-  transform through `LineTransformRuns` and a selection search through
-  `SelectionCommands`, and drops the secondary selections and the block; with
+  transform through `LineTransformRuns`, an Encode/Decode conversion through
+  `CodecRuns` and a selection search through `SelectionCommands`, and drops the secondary selections and the block; with
   neither, it closes the find bar.
 
 ## Selection commands
@@ -143,12 +143,15 @@ folds a restored session puts back.
 
 ## Line transforms
 
-Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph run
-in `LineTransformRuns`: each computes its edit (`LineTransforms`,
+Edit > Sort Lines, the line operations of Edit > Line (Remove Duplicate and
+Blank Lines, Reverse Lines, Trim Leading and Trailing Whitespace, Wrap
+Paragraph, Convert Indentation to Spaces and to Tabs) run in
+`LineTransformRuns`: each computes its edit (`LineTransforms`,
 `ParagraphWrap`) on a `qcaret-cpu-` worker and applies it on the UI thread as
 one undo step, with the view's busy
 cursor from the command to the apply; a result for an older revision is dropped
-with a notice. Lines a transform, Delete Line or Move Lines leaves as they were
+with a notice. The indentation conversions read the document's tab width when
+the command starts. Lines a transform, Delete Line or Move Lines leaves as they were
 to keep a CR and an LF apart (`Edit.unchanged`) are counted in a notice through
 `EditorController.notice`; a command that skips nothing shows none.
 
@@ -170,6 +173,16 @@ paragraph at each caret. `ParagraphWrap` defines the rest:
   ending for a one-line paragraph, so a CR LF paragraph stays CR LF.
 - A selection then spans its wrapped lines; a caret moves to the end of its
   paragraph.
+
+## Encode/Decode
+
+The Edit > Encode/Decode Text commands run in `CodecRuns` on the line
+transforms' model: a `qcaret-cpu-` worker, the view's busy cursor, Esc or a
+newer conversion canceling the running one, one undo step, and a result for an
+older revision dropped with a notice. `CodecEdits` converts every non-empty
+selection or none; a refused selection leaves the text as it is with a notice
+naming its number among the ranges and the reason. With carets only, a notice
+and no worker. The rules are in [Documents](../../qcaret-core/docs/documents.md#editing-commands).
 
 ## Bookmarks
 

@@ -16,11 +16,11 @@ import io.github.ajdailey.qcaret.core.edit.ParagraphWrap;
 import java.util.concurrent.CancellationException;
 
 /**
- * One view's Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph runs: each
- * computes its edit on a {@code qcaret-cpu-} worker and applies it on the UI thread, with the
- * editor's busy cursor ({@link EditorController#busyCursor}) from the command to the apply. A newer
- * run or Esc cancels the running one; a result for an older revision is dropped with a notice.
- * Confined to the UI thread.
+ * One view's Sort, Reverse, Remove Duplicate and Blank Lines, Trim Leading and Trailing Whitespace,
+ * indentation conversion and Wrap Paragraph runs: each computes its edit on a {@code qcaret-cpu-}
+ * worker and applies it on the UI thread, with the editor's busy cursor ({@link
+ * EditorController#busyCursor}) from the command to the apply. A newer run or Esc cancels the
+ * running one; a result for an older revision is dropped with a notice. Confined to the UI thread.
  */
 final class LineTransformRuns {
   private final EditorController editor;
@@ -56,10 +56,7 @@ final class LineTransformRuns {
     transformLines(CommandId.WRAP_PARAGRAPH);
   }
 
-  /**
-   * Computes a sort, duplicate removal, trim or paragraph wrap on a worker and applies it at the
-   * same revision.
-   */
+  /** Computes a line transform on a worker and applies it at the same revision. */
   void transformLines(final CommandId command) {
     if (document.isReadOnly()) {
       return;
@@ -85,9 +82,14 @@ final class LineTransformRuns {
           void work() {
             try {
               edit =
-                  command == CommandId.WRAP_PARAGRAPH
-                      ? ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token)
-                      : lineEdit(command, text, set, token);
+                  switch (command) {
+                    case WRAP_PARAGRAPH ->
+                        ParagraphWrap.wrap(text, set, column, comment, tabWidth, ending, token);
+                    case INDENT_TO_SPACES, INDENT_TO_TABS ->
+                        LineTransforms.convertIndent(
+                            text, set, tabWidth, command == CommandId.INDENT_TO_TABS, token);
+                    default -> lineEdit(command, text, set, token);
+                  };
             } catch (CancellationException e) {
               // Esc, a newer transform, or the view closed.
             }
@@ -115,6 +117,11 @@ final class LineTransformRuns {
       case SORT_LINES_IGNORE_CASE ->
           LineTransforms.sort(text, set, LineTransforms.Order.IGNORE_CASE, token);
       case REMOVE_DUPLICATE_LINES -> LineTransforms.removeDuplicates(text, set, token);
+      case SORT_LINES_NUMERIC ->
+          LineTransforms.sort(text, set, LineTransforms.Order.NUMERIC, token);
+      case REVERSE_LINES -> LineTransforms.reverse(text, set, token);
+      case REMOVE_BLANK_LINES -> LineTransforms.removeBlank(text, set, token);
+      case TRIM_LEADING_WHITESPACE -> LineTransforms.trimLeading(text, set, token);
       default -> LineTransforms.trimTrailing(text, set, token);
     };
   }

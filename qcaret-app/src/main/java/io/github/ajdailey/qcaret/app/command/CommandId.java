@@ -227,6 +227,20 @@ public enum CommandId {
    * Hard-wrap the selected lines, or the paragraph at each caret, at {@code editor.rightMargin}.
    */
   WRAP_PARAGRAPH(CommandGroup.EDIT, UiText.COMMAND_WRAP_PARAGRAPH, false, UiText.MENU_LINE),
+  /** Sort the touched lines, or every line, by the number at each line's start. */
+  SORT_LINES_NUMERIC(
+      CommandGroup.EDIT, UiText.COMMAND_SORT_LINES_NUMERIC, false, UiText.MENU_SORT_LINES),
+  /** Reverse the order of the touched lines, or every line. */
+  REVERSE_LINES(CommandGroup.EDIT, UiText.COMMAND_REVERSE_LINES, false, UiText.MENU_LINE),
+  /** Remove empty and whitespace-only lines from the touched lines, or every line. */
+  REMOVE_BLANK_LINES(CommandGroup.EDIT, UiText.COMMAND_REMOVE_BLANK_LINES, false, UiText.MENU_LINE),
+  /** Remove leading spaces and tabs from the touched lines, or every line. */
+  TRIM_LEADING_WHITESPACE(
+      CommandGroup.EDIT, UiText.COMMAND_TRIM_LEADING_WHITESPACE, false, UiText.MENU_LINE),
+  /** Rewrite the indentation of the touched lines, or every line, as spaces. */
+  INDENT_TO_SPACES(CommandGroup.EDIT, UiText.COMMAND_INDENT_TO_SPACES, false, UiText.MENU_LINE),
+  /** Rewrite the indentation of the touched lines, or every line, as tabs. */
+  INDENT_TO_TABS(CommandGroup.EDIT, UiText.COMMAND_INDENT_TO_TABS, false, UiText.MENU_LINE),
   /** Complete the word before the caret from the words of the open documents. */
   COMPLETE_WORD(CommandGroup.EDIT, UiText.COMMAND_COMPLETE_WORD, false, null),
   /** Select from each caret's bracket to its partner, both included. */
@@ -332,6 +346,22 @@ public enum CommandId {
   SWAP_CASE(CommandGroup.EDIT, UiText.COMMAND_SWAP_CASE, false, UiText.MENU_CONVERT_CASE),
   /** Swap the characters around each caret, or rotate the texts of two or more selections. */
   TRANSPOSE(CommandGroup.EDIT, UiText.COMMAND_TRANSPOSE, false, null),
+  /** Replace each selection with the Base64 of its UTF-8 bytes. */
+  BASE64_ENCODE(CommandGroup.EDIT, UiText.COMMAND_BASE64_ENCODE, false, UiText.MENU_ENCODE_DECODE),
+  /** Replace each selection's Base64 with the UTF-8 text it encodes. */
+  BASE64_DECODE(CommandGroup.EDIT, UiText.COMMAND_BASE64_DECODE, false, UiText.MENU_ENCODE_DECODE),
+  /** Percent-encode each selection's UTF-8 bytes. */
+  URL_ENCODE(CommandGroup.EDIT, UiText.COMMAND_URL_ENCODE, false, UiText.MENU_ENCODE_DECODE),
+  /** Decode each selection's percent escapes as UTF-8. */
+  URL_DECODE(CommandGroup.EDIT, UiText.COMMAND_URL_DECODE, false, UiText.MENU_ENCODE_DECODE),
+  /** Replace {@code & < > " '} in each selection with XML entities. */
+  XML_ESCAPE(CommandGroup.EDIT, UiText.COMMAND_XML_ESCAPE, false, UiText.MENU_ENCODE_DECODE),
+  /** Replace XML and HTML entities and character references in each selection. */
+  XML_UNESCAPE(CommandGroup.EDIT, UiText.COMMAND_XML_UNESCAPE, false, UiText.MENU_ENCODE_DECODE),
+  /** Escape each selection as the content of a JSON string. */
+  JSON_ESCAPE(CommandGroup.EDIT, UiText.COMMAND_JSON_ESCAPE, false, UiText.MENU_ENCODE_DECODE),
+  /** Unescape each selection as the content of a JSON string. */
+  JSON_UNESCAPE(CommandGroup.EDIT, UiText.COMMAND_JSON_UNESCAPE, false, UiText.MENU_ENCODE_DECODE),
   /** Select every occurrence of the primary selection, or of the word at the caret. */
   SELECT_ALL_OCCURRENCES(
       CommandGroup.SELECTION, UiText.COMMAND_SELECT_ALL_OCCURRENCES, false, null),

@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -499,6 +500,71 @@ class ToolbarAndMenusTest {
         }
       }
     }
+  }
+
+  @Test
+  void editCascadesListTheEncodeDecodeAndLineCommandsInOrder() {
+    Menu codecs = item(CommandId.BASE64_ENCODE).getParent();
+    assertEquals(
+        Arrays.asList(
+            CommandId.BASE64_ENCODE,
+            CommandId.BASE64_DECODE,
+            null,
+            CommandId.URL_ENCODE,
+            CommandId.URL_DECODE,
+            null,
+            CommandId.XML_ESCAPE,
+            CommandId.XML_UNESCAPE,
+            null,
+            CommandId.JSON_ESCAPE,
+            CommandId.JSON_UNESCAPE),
+        commandsOf(codecs));
+    Menu edit = window.menuBar().menu(CommandGroup.EDIT);
+    int caseHolder = edit.indexOf(item(CommandId.SWAP_CASE).getParent().getParentItem());
+    MenuItem holder = edit.getItem(caseHolder + 1);
+    assertSame(codecs, holder.getMenu());
+    assertEquals(UiText.MENU_ENCODE_DECODE.text(), holder.getText());
+    assertEquals(
+        Arrays.asList(
+            CommandId.DUPLICATE,
+            CommandId.DELETE_LINE,
+            CommandId.MOVE_LINES_UP,
+            CommandId.MOVE_LINES_DOWN,
+            CommandId.JOIN_LINES,
+            null,
+            CommandId.REMOVE_DUPLICATE_LINES,
+            CommandId.REMOVE_BLANK_LINES,
+            CommandId.REVERSE_LINES,
+            CommandId.TRIM_LEADING_WHITESPACE,
+            CommandId.TRIM_TRAILING_WHITESPACE,
+            CommandId.WRAP_PARAGRAPH,
+            null,
+            CommandId.INDENT_TO_SPACES,
+            CommandId.INDENT_TO_TABS),
+        commandsOf(item(CommandId.REVERSE_LINES).getParent()));
+    assertEquals(
+        Arrays.asList(
+            CommandId.SORT_LINES_ASCENDING,
+            CommandId.SORT_LINES_DESCENDING,
+            CommandId.SORT_LINES_IGNORE_CASE,
+            CommandId.SORT_LINES_NUMERIC),
+        commandsOf(item(CommandId.SORT_LINES_NUMERIC).getParent()));
+  }
+
+  /** Returns a menu's commands in order, null for a separator. */
+  private List<CommandId> commandsOf(Menu menu) {
+    List<CommandId> out = new ArrayList<CommandId>();
+    for (MenuItem entry : menu.getItems()) {
+      CommandId found = null;
+      for (CommandId command : CommandId.values()) {
+        if (item(command) == entry) {
+          found = command;
+        }
+      }
+      assertTrue(found != null || (entry.getStyle() & SWT.SEPARATOR) != 0, entry.getText());
+      out.add(found);
+    }
+    return out;
   }
 
   @Test

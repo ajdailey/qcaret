@@ -829,7 +829,21 @@ public final class ApplicationController {
           EXPAND_SELECTION,
           SELECT_LINE,
           UNDO_SELECTION,
-          REDO_SELECTION ->
+          REDO_SELECTION,
+          SORT_LINES_NUMERIC,
+          REVERSE_LINES,
+          REMOVE_BLANK_LINES,
+          TRIM_LEADING_WHITESPACE,
+          INDENT_TO_SPACES,
+          INDENT_TO_TABS,
+          BASE64_ENCODE,
+          BASE64_DECODE,
+          URL_ENCODE,
+          URL_DECODE,
+          XML_ESCAPE,
+          XML_UNESCAPE,
+          JSON_ESCAPE,
+          JSON_UNESCAPE ->
           edit(command);
       case BOOKMARKS_LIST -> bookmarkList.toggle();
       case QUICK_OPEN -> view.showQuickOpen(quickOpen(false, ""));

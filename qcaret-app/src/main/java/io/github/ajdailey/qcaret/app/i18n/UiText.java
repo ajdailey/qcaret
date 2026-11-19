@@ -1215,6 +1215,50 @@ public enum UiText {
   /** Notice: a line command dropped its result because the document changed. */
   LINES_STALE,
   /** Command label. */
+  COMMAND_SORT_LINES_NUMERIC,
+  /** Command label. */
+  COMMAND_REVERSE_LINES,
+  /** Command label. */
+  COMMAND_REMOVE_BLANK_LINES,
+  /** Command label. */
+  COMMAND_TRIM_LEADING_WHITESPACE,
+  /** Command label. */
+  COMMAND_INDENT_TO_SPACES,
+  /** Command label. */
+  COMMAND_INDENT_TO_TABS,
+  /** Edit menu cascade of the encode and decode commands. */
+  MENU_ENCODE_DECODE,
+  /** Command label. */
+  COMMAND_BASE64_ENCODE,
+  /** Command label. */
+  COMMAND_BASE64_DECODE,
+  /** Command label. */
+  COMMAND_URL_ENCODE,
+  /** Command label. */
+  COMMAND_URL_DECODE,
+  /** Command label. */
+  COMMAND_XML_ESCAPE,
+  /** Command label. */
+  COMMAND_XML_UNESCAPE,
+  /** Command label. */
+  COMMAND_JSON_ESCAPE,
+  /** Command label. */
+  COMMAND_JSON_UNESCAPE,
+  /** Notice: an Encode/Decode command found no selected text. */
+  CODEC_NO_SELECTION,
+  /** Notice: an Encode/Decode command dropped its result because the document changed. */
+  CODEC_STALE,
+  /** Notice: a selection is not Base64: its number. */
+  CODEC_NOT_BASE64,
+  /** Notice: a selection's decoded bytes are not UTF-8: its number. */
+  CODEC_NOT_UTF8,
+  /** Notice: a selection to encode holds an unpaired surrogate: its number. */
+  CODEC_UNPAIRED_SURROGATE,
+  /** Notice: a selection holds a malformed escape: its number. */
+  CODEC_MALFORMED_ESCAPE,
+  /** Notice: a selection holds a JSON escape of an unpaired surrogate: its number. */
+  CODEC_LONE_SURROGATE_ESCAPE,
+  /** Command label. */
   COMMAND_SET_WORKSPACE,
   /** Command label. */
   COMMAND_HYPERSEARCH,

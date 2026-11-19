@@ -304,7 +304,8 @@ apply (measured on Linux, one million lines):
   Generate from Selection into Clipboard, Reload Grammars, the Help menu's
   About, licenses, user guide, Debug Log File and folders, and the memory
   indicator's garbage collection. It shows over the editor for Sort, Remove
-  Duplicate Lines, Trim Trailing Whitespace, Wrap Paragraph, Add Next
+  Duplicate and Blank Lines, Reverse Lines, Trim Leading and Trailing
+  Whitespace, Wrap Paragraph, Convert Indentation, Encode/Decode Text, Add Next
   Occurrence, Go to and Select to Matching Bracket, Fold All and the selection
   commands on a long text. HyperSearch,
   Replace in Files, Generate from Files, Verify Checksums, statistics, printing,
@@ -363,9 +364,17 @@ the grammar's rules.
 | `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column`; OK stays disabled until the text is one |
 | `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
-Edit > Sort Lines, and Remove Duplicate Lines and Trim Trailing Whitespace in
-Edit > Line, act on the selected lines, or every line. Each is one undo step,
-and `Esc` stops one still computing, as it stops a running comparison. In a
+Edit > Sort Lines, and Remove Duplicate Lines, Remove Blank Lines, Reverse
+Lines, Trim Leading and Trailing Whitespace and Convert Indentation to Spaces
+and to Tabs in Edit > Line, act on the selected lines, or every line. Each is
+one undo step, and `Esc` stops one still computing, as it stops a running
+comparison. A line holding only spaces and tabs is blank. Sort Lines >
+Numerically orders lines by the number at their start (after spaces and tabs:
+an optional sign, digits and a decimal fraction, so `-2.5` before `10`); lines
+without one follow in their order, and lines with equal numbers keep theirs.
+Convert Indentation rewrites only the spaces and tabs at the start of each line
+at the document's tab width; converting to tabs keeps as spaces the columns
+short of a tab stop. In a
 file mixing CR and LF line endings, these commands, Delete Line, Move Lines,
 Transpose and the trim at Save leave alone any line whose change would merge a CR and an LF
 into one CR LF line ending, and the status bar names how many lines they left.
@@ -374,6 +383,19 @@ Read-Only apply to the selected document. Preferences, Editor sets the width
 and the indentation a document without saved settings starts with. The bracket
 beside the caret and the other occurrences of the word at the caret are
 highlighted.
+
+Edit > Encode/Decode Text converts each selection in place and leaves it
+selected; every selection converts or none does, as one undo step, and `Esc`
+stops one still computing. With nothing selected, or when a selection is not
+valid input, the status bar says so and the text stays as it is; a refusal
+names the selection by its number, counting from the top.
+
+| Command | Converts |
+|---|---|
+| Base64 Encode, Base64 Decode | The text's UTF-8 bytes to Base64 on one line, and back. Decode skips spaces, tabs and line breaks and accepts missing `=` padding; input outside the Base64 alphabet (including the URL-safe `-` and `_`) or bytes that are not UTF-8 text are refused |
+| URL Encode, URL Decode | Percent-encoding of the UTF-8 bytes (RFC 3986): everything but letters, digits and `- . _ ~` becomes `%XX`, a space `%20`. Decode leaves `+` as it is and refuses a `%` without two hex digits or bytes that are not UTF-8 text |
+| Escape XML Entities, Unescape XML Entities | `&`, `<`, `>`, `"` and `'` to `&amp;`, `&lt;`, `&gt;`, `&quot;` and `&apos;`. Unescape reads those, the HTML 4.01 named entities such as `&nbsp;` and `&euro;`, and `&#65;` and `&#x41;` references; anything else, such as `&bogus;` or an `&` without `;`, stays as it is |
+| Escape JSON String, Unescape JSON String | The selection as the content of a JSON string, without the quotes: `"`, backslash and control characters get backslash escapes. Unescape refuses an unknown escape and an escaped surrogate without its pair |
 
 Completion opens on its key, or by itself after the number of word chars set in
 Preferences. Up, Down, Enter, Tab and `Esc` work in the list; typing narrows it.
