@@ -9,7 +9,8 @@ highlighting](../../qcaret-app/docs/highlighting.md).
 
 A grammar is an XML file in QCaret's own format, validated against
 `grammar.xsd` (beside the classes) while the JDK parser reads it, with DOCTYPE
-declarations refused and external DTD and schema access off (`GrammarReader`).
+declarations refused and external DTD and schema access off (`GrammarReader`
+through `SecureXml.schema` and `SecureXml.document`).
 Each regex compiles at read time and each context a rule names must exist; a
 failure is an `InvalidGrammarException` naming the file and, for a schema
 error, the line. User grammars use the same format, in `grammars/*.xml` in the
@@ -217,3 +218,16 @@ by id, and a user grammar that does not compile is left out with a message.
 `detect` takes a grammar naming the file name, then the extension (any case),
 then a first-line regex over the first 1,000 chars, read through
 `BoundedChars`; user grammars come first, then plain text.
+
+## XML parsers
+
+`core.xml.SecureXml` builds every JDK XML parser and schema factory QCaret
+uses; ArchUnit refuses `DocumentBuilderFactory`, `SAXParserFactory`,
+`XMLInputFactory` and `SchemaFactory` anywhere else. Each has secure
+processing on and `ACCESS_EXTERNAL_DTD` and `ACCESS_EXTERNAL_SCHEMA` empty.
+
+| Method | Caller | Permits | Refuses |
+|---|---|---|---|
+| `schema` | `GrammarReader` | The schema's own declarations | An external DTD, an imported or included schema |
+| `document` | `GrammarReader` | A namespace-aware document, validated while it parses | Any DOCTYPE, so no entity is declared; XInclude; entity expansion |
+| `checkWellFormed` | Edit > Format XML and JSON (`XmlCheck`) | A DOCTYPE and its internal subset, expanded within the JDK's 64,000-expansion limit | External general and parameter entities and the external DTD, which are not loaded |

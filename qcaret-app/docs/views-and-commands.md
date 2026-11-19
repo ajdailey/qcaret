@@ -61,7 +61,7 @@ not run. A new user-started operation uses it.
 |---|---|
 | Window, through `BusyWork` | Save As and Save a Copy target checks, the copy write, save cleanup, `FileReload`, `DocumentEncodings`, `SelectionDelete`, `RecentFiles` Clean Up, `OpenAll`, `DroppedFiles`, `NavigationHistory` to a closed file, `WorkspaceController` set and Open in Default Application, `WorkspaceBrowse` folder changes, `WorkspaceFiles` create and rename, HyperSearch's folder check, `ResultsNavigation.check`, the replace previews, `ReplaceRestore`, the checksum list save, `SelectionChecksum`, `GrammarLibrary.reload`, every `HelpController` worker, `MemoryIndicator.collect` |
 | Window, by hand | `DocumentOpener` (one load spans the path check, the read and the listener's answer), `SaveAndReload.write` (posts its result while holding the file's write lock, so a later save's result lands after it), `CompareController` (an IO read then a CPU build, ended by `dispose` too) |
-| Editor, through `BusyWork` on `EditorController.busyCursor` | `EditorController` Add Next Occurrence and Go to Matching Bracket, `FoldScheduling` Fold All, `LineTransformRuns`, `CodecRuns`, `SelectionCommands`; `DocumentEncodings` raises the window's counter and the counter of each view of the document |
+| Editor, through `BusyWork` on `EditorController.busyCursor` | `EditorController` Add Next Occurrence and Go to Matching Bracket, `FoldScheduling` Fold All, `LineTransformRuns`, `CodecRuns`, `FormatRuns`, `SelectionCommands`; `DocumentEncodings` raises the window's counter and the counter of each view of the document |
 
 `LaunchCursor` holds one operation for 1 s on a UI timer after
 `MainView.launch` or `launchUrl` returns true, since the application's window
@@ -205,7 +205,8 @@ Occurrences Alt+Enter and Skip Occurrence Mod+K, as editor bindings.
 Commands with no default key include the split commands, Toggle Fold, Sort,
 Reverse Lines, Remove Duplicate and Blank Lines, Trim Leading and Trailing
 Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
-command, Title Case, Swap Case, Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
+command, Title Case, Swap Case, the Edit > Format XML and JSON commands,
+Insert Date and Time, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
 Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent

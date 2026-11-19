@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -7,7 +8,8 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 /**
  * View > Indent Guides and View > Modified Line Marks, saved as {@code ui.indentGuides} and {@code
  * ui.lineChanges} and passed to the window's view, and Edit > Line > Wrap Paragraph at {@code
- * editor.rightMargin}. Confined to the UI thread.
+ * editor.rightMargin}; Edit > Format XML and JSON runs with {@code editor.strictJson}. Confined to
+ * the UI thread.
  */
 final class EditorAids {
   private final Settings settings;
@@ -52,6 +54,17 @@ final class EditorAids {
     EditorController editor = documents.activeEditor();
     if (editor != null) {
       editor.wrapParagraph(settings.current().options().rightMargin());
+    }
+  }
+
+  /**
+   * Runs an Edit > Format XML and JSON command in the selected editor with {@code
+   * editor.strictJson}.
+   */
+  void format(CommandId command) {
+    EditorController editor = documents.activeEditor();
+    if (editor != null) {
+      editor.format(command, settings.current().options().strictJson());
     }
   }
 }

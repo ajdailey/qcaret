@@ -78,7 +78,8 @@ class NewFileDefaultsTest {
                     encoding,
                     "",
                     0,
-                    true)));
+                    true,
+                    o.strictJson())));
   }
 
   private Document newDocument() {
@@ -184,7 +185,8 @@ class NewFileDefaultsTest {
         encoding,
         view,
         "",
-        true);
+        true,
+        f.strictJson());
   }
 
   @Test

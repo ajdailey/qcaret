@@ -72,6 +72,7 @@ final class PreferencesDialog {
   private Text recoveryKeepDays;
   private Button sessionSnapshot;
   private Button sessionRestore;
+  private Button strictJson;
   private Button closeWindowWithLastTab;
   private Button closeShowsLastUsed;
   private Text backupDays;
@@ -191,6 +192,7 @@ final class PreferencesDialog {
     dateFormat = field(page, UiText.PREFERENCES_DATE_FORMAT);
     editorConfig = check(page, UiText.PREFERENCES_EDITOR_CONFIG);
     modelines = check(page, UiText.PREFERENCES_MODELINES);
+    strictJson = check(page, UiText.PREFERENCES_STRICT_JSON);
     newLineEnding = list(page, UiText.PREFERENCES_NEW_LINE_ENDING);
     newLineEnding.add(UiText.PREFERENCES_LINE_ENDING_LF.text());
     newLineEnding.add(UiText.PREFERENCES_LINE_ENDING_CRLF.text());
@@ -430,6 +432,7 @@ final class PreferencesDialog {
     dateFormat.setText(form.dateFormat());
     editorConfig.setSelection(form.editorConfig());
     modelines.setSelection(form.modelines());
+    strictJson.setSelection(form.strictJson());
     pollSeconds.setText(form.pollSeconds());
     autoReloadClean.setSelection(form.autoReloadClean());
     recoveryIntervalSeconds.setText(form.recoveryIntervalSeconds());
@@ -490,7 +493,8 @@ final class PreferencesDialog {
         newEncoding.getSelectionIndex() < 0 ? "" : newEncoding.getText(),
         view.checks(),
         workspaceDefault.value(),
-        sessionRestore.getSelection());
+        sessionRestore.getSelection(),
+        strictJson.getSelection());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */

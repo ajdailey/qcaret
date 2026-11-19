@@ -86,8 +86,8 @@ class KeymapTest {
   }
 
   /**
-   * Line transforms, Encode/Decode, Insert Date and Time, Document Statistics, Title Case and Swap
-   * Case stay menu only.
+   * Line transforms, Encode/Decode, Insert Date and Time, Document Statistics, Title Case, Swap
+   * Case and Edit > Format stay menu only.
    */
   private static final Set<CommandId> MENU_ONLY =
       EnumSet.of(
@@ -114,7 +114,13 @@ class KeymapTest {
           CommandId.XML_ESCAPE,
           CommandId.XML_UNESCAPE,
           CommandId.JSON_ESCAPE,
-          CommandId.JSON_UNESCAPE);
+          CommandId.JSON_UNESCAPE,
+          CommandId.PRETTY_PRINT_XML,
+          CommandId.MINIFY_XML,
+          CommandId.CHECK_XML,
+          CommandId.PRETTY_PRINT_JSON,
+          CommandId.MINIFY_JSON,
+          CommandId.CHECK_JSON);
 
   @Test
   void everyEditingCommandHasAKey() {

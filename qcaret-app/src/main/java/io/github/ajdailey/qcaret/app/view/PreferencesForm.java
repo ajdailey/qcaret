@@ -39,6 +39,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param workspaceDefault the workspace folder of a window not restored from the session, empty for
  *     none
  * @param sessionRestore the box making a start that names no file open the session's windows
+ * @param strictJson the box making Edit > Format XML and JSON accept RFC 8259 JSON only
  */
 public record PreferencesForm(
     String completionChars,
@@ -70,7 +71,8 @@ public record PreferencesForm(
     String newEncoding,
     ViewChecks view,
     String workspaceDefault,
-    boolean sessionRestore) {
+    boolean sessionRestore,
+    boolean strictJson) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

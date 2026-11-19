@@ -91,7 +91,8 @@ class FilePollSurfaceTest {
         Options.DEFAULTS.newEncoding(),
         "",
         0,
-        true);
+        true,
+        o.strictJson());
   }
 
   private MainWindow open(Preferences preferences) {

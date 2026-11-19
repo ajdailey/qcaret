@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.syntax;
 
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.xml.SecureXml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -9,13 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -25,9 +21,9 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 /**
- * Reads a grammar file: the JDK parser with DOCTYPE declarations refused and external entity, DTD
- * and schema access off, validated against {@code grammar.xsd} while it parses. Then every regex
- * compiles and every context a rule names exists in the file. Thread-safe.
+ * Reads a grammar file through {@link SecureXml#document}, which refuses DOCTYPE declarations and
+ * reads no external entity, DTD or schema, validated against {@code grammar.xsd} while it parses.
+ * Then every regex compiles and every context a rule names exists in the file. Thread-safe.
  */
 public final class GrammarReader {
   /** The schema resource, beside this class. */
@@ -66,11 +62,7 @@ public final class GrammarReader {
       if (in == null) {
         throw new IllegalStateException("grammar schema missing");
       }
-      SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-      factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-      factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-      schema = factory.newSchema(new StreamSource(in, SCHEMA));
+      schema = SecureXml.schema(in, SCHEMA);
     } catch (IOException | SAXException e) {
       throw new IllegalStateException("grammar schema did not load", e);
     }
@@ -89,18 +81,7 @@ public final class GrammarReader {
   public Grammar read(InputStream in, String source) throws IOException, InvalidGrammarException {
     Document document;
     try {
-      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-      factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-      factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-      factory.setXIncludeAware(false);
-      factory.setExpandEntityReferences(false);
-      factory.setNamespaceAware(true);
-      factory.setSchema(schema);
-      DocumentBuilder builder = factory.newDocumentBuilder();
-      builder.setErrorHandler(ERRORS);
-      document = builder.parse(in);
+      document = SecureXml.document(in, schema, ERRORS);
     } catch (ParserConfigurationException e) {
       throw new InvalidGrammarException(source + ": parser setup failed", e);
     } catch (SAXParseException e) {

@@ -81,7 +81,7 @@ import java.util.function.Supplier;
  *   <li>Typing and Backspace follow {@link AutoClose} with {@link #pairs()} unless {@code
  *       editor.autoClose} is off.
  *   <li>Sort, Remove Duplicate Lines, Trim Trailing Whitespace and Wrap Paragraph run in {@link
- *       LineTransformRuns}.
+ *       LineTransformRuns}, Edit > Format XML and JSON in {@link FormatRuns}.
  *   <li>{@link EditorHighlights} recomputes the view's bracket and occurrence highlights after a
  *       caret move, an edit or a scroll.
  *   <li>Word completion ({@link CompletionInput}) shows its list in the view; while it shows, Up,
@@ -108,8 +108,8 @@ public final class EditorController implements EditorInput {
 
   /**
    * The view's busy cursor for this editor's worker commands: Add Next Occurrence, Go to Matching
-   * Bracket, Fold All, the line transforms, Encode/Decode, the selection commands and a line-ending
-   * conversion.
+   * Bracket, Fold All, the line transforms, Encode/Decode, the format commands, the selection
+   * commands and a line-ending conversion.
    */
   private final BusyCounter busy;
 
@@ -119,6 +119,7 @@ public final class EditorController implements EditorInput {
   private final CompletionInput completions;
   private final LineTransformRuns lineRuns;
   private final CodecRuns codecRuns;
+  private final FormatRuns formatRuns;
   private Runnable escapeListener;
   private boolean columnMode;
   private String highSurrogate;
@@ -169,6 +170,7 @@ public final class EditorController implements EditorInput {
     selectionCommands = new SelectionCommands(this, workers, ui);
     lineRuns = new LineTransformRuns(this, workers, ui);
     codecRuns = new CodecRuns(this, workers, ui);
+    formatRuns = new FormatRuns(this, workers, ui);
     lineChanges =
         new LineChangesUpdater(
             document,
@@ -882,6 +884,7 @@ public final class EditorController implements EditorInput {
     cancelSave.run();
     lineRuns.cancel();
     codecRuns.cancel();
+    formatRuns.cancel();
     selectionCommands.cancel();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
@@ -1615,6 +1618,7 @@ public final class EditorController implements EditorInput {
     highlights.dispose();
     lineRuns.cancel();
     codecRuns.cancel();
+    formatRuns.cancel();
     if (partnerSearch != null) {
       partnerSearch.cancel();
     }
@@ -1640,6 +1644,16 @@ public final class EditorController implements EditorInput {
    */
   void wrapParagraph(int column) {
     lineRuns.wrapParagraph(column);
+  }
+
+  /**
+   * Runs an Edit > Format XML and JSON command.
+   *
+   * @param command the command
+   * @param strictJson true to refuse JSON comments
+   */
+  void format(CommandId command, boolean strictJson) {
+    formatRuns.run(command, strictJson);
   }
 
   // Bookmarks.

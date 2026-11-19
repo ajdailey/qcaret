@@ -129,7 +129,8 @@ class PreferencesControllerTest {
         f.newEncoding(),
         f.view(),
         "",
-        field.equals("sessionRestore") ? Boolean.parseBoolean(value) : f.sessionRestore());
+        field.equals("sessionRestore") ? Boolean.parseBoolean(value) : f.sessionRestore(),
+        f.strictJson());
   }
 
   @Test
@@ -201,7 +202,8 @@ class PreferencesControllerTest {
                 f.newEncoding(),
                 f.view(),
                 "",
-                true));
+                true,
+                f.strictJson()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -235,7 +237,8 @@ class PreferencesControllerTest {
                 f.newEncoding(),
                 f.view(),
                 "",
-                true)));
+                true,
+                f.strictJson())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -341,7 +344,8 @@ class PreferencesControllerTest {
                 f.newEncoding(),
                 f.view(),
                 "",
-                true)));
+                true,
+                f.strictJson())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -516,7 +520,8 @@ class PreferencesControllerTest {
                 f.newEncoding(),
                 f.view(),
                 "",
-                true)));
+                true,
+                f.strictJson())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -562,7 +567,8 @@ class PreferencesControllerTest {
         Options.DEFAULTS.newEncoding(),
         "",
         0,
-        true);
+        true,
+        o.strictJson());
   }
 
   @Test

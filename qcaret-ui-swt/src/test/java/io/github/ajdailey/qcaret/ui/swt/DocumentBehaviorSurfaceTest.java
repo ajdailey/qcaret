@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -329,6 +330,27 @@ class DocumentBehaviorSurfaceTest {
     items[1].notifyListeners(SWT.Selection, new Event());
     await(tabs(2), "the chosen file");
     assertEquals("a.txt", window.tabs().getItem(1).getText());
+  }
+
+  @Test
+  void editFormatListsXmlThenJson() {
+    window.menuBar().sync(CommandGroup.EDIT);
+    Menu cascade = window.menuBar().item(CommandId.PRETTY_PRINT_XML).getParent();
+    List<String> texts = new ArrayList<String>();
+    for (MenuItem item : cascade.getItems()) {
+      texts.add((item.getStyle() & SWT.SEPARATOR) != 0 ? "-" : item.getText().split("\t")[0]);
+    }
+    assertEquals(
+        List.of(
+            CommandId.PRETTY_PRINT_XML.label(),
+            CommandId.MINIFY_XML.label(),
+            CommandId.CHECK_XML.label(),
+            "-",
+            CommandId.PRETTY_PRINT_JSON.label(),
+            CommandId.MINIFY_JSON.label(),
+            CommandId.CHECK_JSON.label()),
+        texts);
+    assertEquals(UiText.MENU_FORMAT.text(), cascade.getParentItem().getText());
   }
 
   @Test

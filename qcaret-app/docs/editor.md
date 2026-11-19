@@ -46,7 +46,8 @@ undo and redo restore that model. A read-only document ignores edits.
   (`SelectionSet.apart`); a result for another revision is dropped.
 - Esc cancels a running save and comparison through one `Runnable`, a line
   transform through `LineTransformRuns`, an Encode/Decode conversion through
-  `CodecRuns` and a selection search through `SelectionCommands`, and drops the secondary selections and the block; with
+  `CodecRuns`, a format through `FormatRuns` and a selection search through
+  `SelectionCommands`, and drops the secondary selections and the block; with
   neither, it closes the find bar.
 
 ## Selection commands
@@ -183,6 +184,26 @@ older revision dropped with a notice. `CodecEdits` converts every non-empty
 selection or none; a refused selection leaves the text as it is with a notice
 naming its number among the ranges and the reason. With carets only, a notice
 and no worker. The rules are in [Documents](../../qcaret-core/docs/documents.md#editing-commands).
+
+## XML and JSON formatting
+
+Edit > Format XML and JSON holds Pretty Print, Minify and Check Well-Formed
+for each format (`Formats`,
+[core formatting](../../qcaret-core/docs/documents.md#xml-and-json-formatting)).
+`FormatRuns` runs each on a `qcaret-cpu-` worker with the view's busy cursor,
+as the line transforms do: Esc or a newer run cancels, a result for an older
+revision is dropped with a notice, and the edit is one undo step. The indent
+unit is the document's tab width and Indent with Spaces; the inserted line
+break is the document's line ending. `editor.strictJson` limits JSON to RFC
+8259; otherwise comments are accepted.
+
+A failure changes nothing, moves the caret to the error and shows a notice
+with the format, line, column and reason; the column is the status bar's, with
+tabs expanded. Check shows a notice naming the format; for JSON with comments,
+that the comments are not standard JSON; for an XML selection parsed as a
+fragment, that the selection is a well-formed XML fragment. Pretty Print and Minify do
+nothing on a read-only document; Check runs on any. Each range's output is
+limited to an eighth of the maximum heap in chars.
 
 ## Bookmarks
 

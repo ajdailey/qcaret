@@ -461,7 +461,8 @@ class SaveCopyTest {
                     Options.DEFAULTS.newEncoding(),
                     "",
                     0,
-                    true)));
+                    true,
+                    o.strictJson())));
   }
 
   /**

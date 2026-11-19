@@ -55,6 +55,32 @@ public enum UiText {
   COMMAND_TITLE_CASE,
   /** Command label. */
   COMMAND_SWAP_CASE,
+  /** Cascade label. */
+  MENU_FORMAT,
+  /** Command label. */
+  COMMAND_PRETTY_PRINT_XML,
+  /** Command label. */
+  COMMAND_MINIFY_XML,
+  /** Command label. */
+  COMMAND_CHECK_XML,
+  /** Command label. */
+  COMMAND_PRETTY_PRINT_JSON,
+  /** Command label. */
+  COMMAND_MINIFY_JSON,
+  /** Command label. */
+  COMMAND_CHECK_JSON,
+  /** Notice: a format run failed; format name, line, column, reason. */
+  FORMAT_ERROR,
+  /** Notice: Check passed; format name. */
+  FORMAT_WELL_FORMED,
+  /** Notice: JSON Check passed on text holding comments. */
+  FORMAT_WELL_FORMED_COMMENTS,
+  /** Notice: XML Check passed on a selection parsed as a fragment. */
+  FORMAT_WELL_FORMED_FRAGMENT,
+  /** Notice: a format run dropped its result because the document changed. */
+  FORMAT_STALE,
+  /** Preferences field. */
+  PREFERENCES_STRICT_JSON,
   /** Command label. */
   COMMAND_TRANSPOSE,
   /** Command label. */

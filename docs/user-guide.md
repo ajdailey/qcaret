@@ -305,9 +305,9 @@ apply (measured on Linux, one million lines):
   About, licenses, user guide, Debug Log File and folders, and the memory
   indicator's garbage collection. It shows over the editor for Sort, Remove
   Duplicate and Blank Lines, Reverse Lines, Trim Leading and Trailing
-  Whitespace, Wrap Paragraph, Convert Indentation, Encode/Decode Text, Add Next
-  Occurrence, Go to and Select to Matching Bracket, Fold All and the selection
-  commands on a long text. HyperSearch,
+  Whitespace, Wrap Paragraph, Convert Indentation, Encode/Decode Text, Edit >
+  Format XML and JSON, Add Next Occurrence, Go to and Select to Matching Bracket,
+  Fold All and the selection commands on a long text. HyperSearch,
   Replace in Files, Generate from Files, Verify Checksums, statistics, printing,
   Quick Open and the workspace browser's folders show their own progress
   instead. After Open in Default Application, Open Containing Folder, Report
@@ -416,6 +416,35 @@ line breaks; a character is a Unicode code point, so an emoji counts once. A
 large document shows the percent counted; Refresh counts again after an edit.
 In an encoding that can only be read, such as `x-JISAutoDetect`, bytes show as
 unknown.
+
+### Formatting XML and JSON
+
+Edit > Format XML and JSON pretty-prints, minifies or checks XML and JSON:
+each selection on its own, or the whole document when nothing is selected. Pretty
+Print puts each element, member or array item on its own line, indented with
+the document's tab width and Indent with Spaces; Minify removes that
+whitespace. Only whitespace between tags and tokens changes: attribute spacing,
+text, comments, CDATA, escapes and number spelling stay as they are. XML text
+mixed with tags, text-only elements and `xml:space="preserve"` stay as written.
+Each command is one undo step, and `Esc` stops one still computing.
+
+A document that is not well-formed is not changed: the status bar names the
+line, column and reason, and the caret moves to the error. Check Well-Formed
+reports the same, or that the text is well-formed.
+
+A selection may hold several XML elements, with comments or text between them,
+without one enclosing element: it is formatted as a fragment, each element on
+its own line at the indent of the selection's first line, and Check reports a
+well-formed fragment. Text between the elements leaves the selection as
+written. A fragment cannot hold an XML declaration or a DOCTYPE. With nothing
+selected, the document must have one root element. QCaret never reads a DTD,
+schema or entity from a file or the network; an internal DTD subset is read.
+
+JSON may hold `//` and `/* */` comments: Pretty Print keeps each where it
+stood, Check says the comments are not standard JSON, and Minify keeps `/* */`
+comments and refuses a `//` comment. Preferences, Editor, Strict JSON refuses
+every comment. Trailing commas, single quotes, unquoted names, `NaN` and
+`Infinity` are errors either way.
 
 ## Multiple carets and block selection
 
@@ -865,7 +894,7 @@ running windows without a restart.
 
 | Tab | Holds |
 |---|---|
-| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, line ending and encoding for new documents, editor colors |
+| Editor | Completion trigger, auto-close, longest line with syntax colors, tab width and spaces for new documents, right margin column, date and time format, `.editorconfig` files and modelines on or off, strict JSON, line ending and encoding for new documents, editor colors |
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |

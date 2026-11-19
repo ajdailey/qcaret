@@ -410,6 +410,7 @@ class ConfigStoreTest {
             "windows-1251",
             "",
             18,
+            false,
             false);
     UiState state =
         new UiState(

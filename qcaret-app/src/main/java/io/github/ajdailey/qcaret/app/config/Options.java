@@ -53,6 +53,8 @@ import java.time.format.DateTimeFormatter;
  *     0 when not zoomed
  * @param sessionRestore {@code session.restore}: a start that names no file opens the session's
  *     windows
+ * @param strictJson {@code editor.strictJson}: Edit > Format XML and JSON accepts RFC 8259 JSON
+ *     only, without comments
  */
 public record Options(
     int completionChars,
@@ -79,7 +81,8 @@ public record Options(
     String newEncoding,
     String workspaceDefault,
     int fontZoom,
-    boolean sessionRestore) {
+    boolean sessionRestore,
+    boolean strictJson) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -165,7 +168,8 @@ public record Options(
           "UTF-8",
           "",
           0,
-          true);
+          true,
+          false);
 
   /** Checks the components. */
   public Options {
@@ -314,7 +318,8 @@ public record Options(
         newEncoding,
         workspaceDefault,
         fontZoom,
-        sessionRestore);
+        sessionRestore,
+        strictJson);
   }
 
   /**
@@ -349,7 +354,8 @@ public record Options(
         newEncoding,
         workspaceDefault,
         fontZoom,
-        sessionRestore);
+        sessionRestore,
+        strictJson);
   }
 
   /**
@@ -384,7 +390,8 @@ public record Options(
         newEncoding,
         workspaceDefault,
         points,
-        sessionRestore);
+        sessionRestore,
+        strictJson);
   }
 
   /**
@@ -419,6 +426,7 @@ public record Options(
         newEncoding,
         folder,
         fontZoom,
-        sessionRestore);
+        sessionRestore,
+        strictJson);
   }
 }

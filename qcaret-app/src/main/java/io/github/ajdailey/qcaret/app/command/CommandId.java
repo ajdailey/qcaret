@@ -344,6 +344,18 @@ public enum CommandId {
   TITLE_CASE(CommandGroup.EDIT, UiText.COMMAND_TITLE_CASE, false, UiText.MENU_CONVERT_CASE),
   /** Swap upper and lower case in the selections, or the word at each caret. */
   SWAP_CASE(CommandGroup.EDIT, UiText.COMMAND_SWAP_CASE, false, UiText.MENU_CONVERT_CASE),
+  /** Lay out each selection, or the document, as indented XML. */
+  PRETTY_PRINT_XML(CommandGroup.EDIT, UiText.COMMAND_PRETTY_PRINT_XML, false, UiText.MENU_FORMAT),
+  /** Remove the whitespace between XML tags of each selection, or the document. */
+  MINIFY_XML(CommandGroup.EDIT, UiText.COMMAND_MINIFY_XML, false, UiText.MENU_FORMAT),
+  /** Report whether each selection, or the document, is well-formed XML. */
+  CHECK_XML(CommandGroup.EDIT, UiText.COMMAND_CHECK_XML, false, UiText.MENU_FORMAT),
+  /** Lay out each selection, or the document, as indented JSON. */
+  PRETTY_PRINT_JSON(CommandGroup.EDIT, UiText.COMMAND_PRETTY_PRINT_JSON, false, UiText.MENU_FORMAT),
+  /** Remove the whitespace between JSON tokens of each selection, or the document. */
+  MINIFY_JSON(CommandGroup.EDIT, UiText.COMMAND_MINIFY_JSON, false, UiText.MENU_FORMAT),
+  /** Report whether each selection, or the document, is well-formed JSON. */
+  CHECK_JSON(CommandGroup.EDIT, UiText.COMMAND_CHECK_JSON, false, UiText.MENU_FORMAT),
   /** Swap the characters around each caret, or rotate the texts of two or more selections. */
   TRANSPOSE(CommandGroup.EDIT, UiText.COMMAND_TRANSPOSE, false, null),
   /** Replace each selection with the Base64 of its UTF-8 bytes. */

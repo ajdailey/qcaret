@@ -141,7 +141,8 @@ class EditorAdditionsTest {
         f.newEncoding(),
         f.view(),
         "",
-        true);
+        true,
+        f.strictJson());
   }
 
   // Document statistics.

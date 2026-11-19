@@ -899,6 +899,8 @@ public final class ApplicationController {
       case INDENT_GUIDES -> aids.toggleIndentGuides();
       case LINE_CHANGES -> aids.toggleLineChanges();
       case WRAP_PARAGRAPH -> aids.wrapParagraph();
+      case PRETTY_PRINT_XML, MINIFY_XML, CHECK_XML, PRETTY_PRINT_JSON, MINIFY_JSON, CHECK_JSON ->
+          aids.format(command);
       case INSERT_DATE_TIME -> dateTime.choose();
       case DOCUMENT_STATISTICS -> statistics.open();
       case MD5_TEXT,

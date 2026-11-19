@@ -121,6 +121,7 @@ class BusyCoverageTest {
     row("controller.EditorController#addNextOccurrence", Shows.EDITOR_BUSY, null, "busy");
     row("controller.EditorController#matchingBracket", Shows.EDITOR_BUSY, null, "busy");
     row("controller.FoldScheduling#requestFoldAll", Shows.EDITOR_BUSY, null, "busyCursor");
+    row("controller.FormatRuns#run", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.LineTransformRuns#transformLines", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.CodecRuns#convert", Shows.EDITOR_BUSY, null, "busyCursor");
     row("controller.SelectionCommands#startWorker", Shows.EDITOR_BUSY, null, "busyCursor");

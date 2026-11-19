@@ -1,8 +1,8 @@
 # Documents
 
 Text storage (`core.buffer`), the document model and its file loads and saves
-(`core.document`), and editing commands (`core.edit`), of
-[qcaret-core](../README.md).
+(`core.document`), editing commands (`core.edit`) and XML and JSON formatting
+(`core.format`), of [qcaret-core](../README.md).
 
 ## Text storage
 
@@ -224,3 +224,54 @@ that line out.
 | `AutoClose`, `Pairs` | Typing with auto-closed pairs at each caret: an open char inserts its pair before a line end, blank, close bracket, `,` or `;` (a quote also needs no word char or same quote before it), a close char before the same char moves over it, Backspace between a pair deletes both. Returns null when no caret uses a pair, so plain typing applies. `Pairs.DEFAULT` is `() [] {} "" ''` |
 | `Brackets` | The bracket beside a caret (the char before first) and its partner within bounds: same-pair brackets nest, other chars are ignored, and a `Filter` leaves out brackets (the app passes the ones in strings and comments); `NONE` when the text holds no partner, `BEYOND` when the bounds ended the search |
 | `WordIndex` | The distinct words of a text for completion (letter or `_` first, 2 to 100 chars, at most 100,000), sorted by lower case; prefix lookup ignoring case. A word is copied only the first time it is seen |
+
+## XML and JSON formatting
+
+`Formats.run` in `core.format` runs Pretty Print, Minify or Check for XML or
+JSON over each non-empty selection, or the whole text when every selection is a
+caret, and returns a `FormatResult`: an `EditBatch` with the selections after
+it, or the first `FormatError` (offset, line, UTF-16 column, reason), never
+both. An error in any range fails the run. Pretty Print and Minify refuse what
+Check reports. The whole text must hold one complete document.
+
+An XML selection holding anything but one top-level element (siblings, or text
+beside an element) is a fragment: `XmlCheck` parses it inside a synthetic root
+that adds no line, so a parser column on the first line drops the root's
+length, and an error past the selection lands at its end. An XML declaration or
+a DOCTYPE in a fragment is an error at its position. The fragment's top level
+is laid out like an element's content, at the selection's base indent;
+non-whitespace text there makes it mixed content, left verbatim.
+`FormatResult.fragment` reports a fragment.
+
+Formatting inserts or removes whitespace (space, tab, CR, LF) between tokens
+and nothing else: attribute spacing inside a tag, string escapes, number
+spelling, comments, PIs, CDATA and the DOCTYPE keep their text. Whitespace
+before a range's first token and after its last stays. `FormatLayout` gives the
+indent unit, the inserted line break, JSON strictness and the output limit; a
+range whose output would pass the limit fails with an error. Each line Pretty
+Print inserts into a selection starts with the spaces and tabs that start the
+selection's first line. A selection endpoint in a token keeps its place in it;
+one in a changed gap moves before the next token. Each range's replacement
+leaves out the prefix and suffix that did not change.
+
+| | XML | JSON |
+|---|---|---|
+| Check | JDK SAX parser over the range as a character stream, not namespace aware | `JsonLayout`: RFC 8259, plus `//` and block comments unless `strictJson` |
+| Laid out | The top level and every element content except mixed content (non-whitespace text or CDATA beside anything), text-only content, and elements under `xml:space="preserve"` (`xml:space="default"` resets it); such content stays verbatim to its end tag | Every container |
+| Pretty Print | One item per line, one indent per open element; an element holding only whitespace becomes `<a></a>` | One member or element per line, `": "` after a name, `{}` and `[]` kept on one line |
+| Minify | Removes the gaps Pretty Print would replace | Removes every gap; keeps block comments and refuses a `//` comment |
+| Depth | Two iterative passes | One iterative pass with a byte stack |
+
+`XmlCheck` parses through `SecureXml.checkWellFormed` ([XML
+parsers](grammars.md#xml-parsers)): an internal DTD subset is read, nothing
+outside the text is. The parser's line and column map to an offset with LF,
+CR LF and CR each ending a line, the column counted in UTF-16 code units.
+
+In lenient JSON a comment that followed a line break goes on its own line at
+the depth of its container; one on the line of the token before it keeps its
+gap; a line comment is always followed by a line break. `FormatResult.comments`
+reports a comment. Trailing commas, single quotes, unquoted names, `NaN` and
+`Infinity` are errors in both modes.
+
+The run checks its `CancellationToken` on every parser read and every 4,096
+output steps.

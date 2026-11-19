@@ -323,6 +323,7 @@ class ArchitectureTest {
                 ROOT + ".core.syntax..",
                 ROOT + ".core.search..",
                 ROOT + ".core.diff..",
+                ROOT + ".core.format..",
                 ROOT + ".core.watch..",
                 ROOT + ".core.workspace..",
                 ROOT + ".app.config..",
@@ -334,8 +335,8 @@ class ArchitectureTest {
 
   /**
    * Core layers, lowest first: util, concurrent, io, text, buffer, document, then edit, syntax,
-   * search and diff, which do not use each other; watch and workspace sit on io. A layer uses only
-   * the layers below it. A layer with no classes yet is allowed.
+   * search, diff and format, which do not use each other; watch and workspace sit on io. A layer
+   * uses only the layers below it. A layer with no classes yet is allowed.
    */
   @Test
   void coreLayers() {
@@ -366,6 +367,8 @@ class ArchitectureTest {
         .definedBy(ROOT + ".core.search..")
         .layer("diff")
         .definedBy(ROOT + ".core.diff..")
+        .layer("format")
+        .definedBy(ROOT + ".core.format..")
         .layer("watch")
         .definedBy(ROOT + ".core.watch..")
         .layer("workspace")
@@ -380,17 +383,28 @@ class ArchitectureTest {
             "syntax",
             "search",
             "diff",
+            "format",
             "watch",
             "workspace")
         .whereLayer("io")
         .mayOnlyBeAccessedByLayers(
-            "text", "buffer", "document", "edit", "syntax", "search", "diff", "watch", "workspace")
+            "text",
+            "buffer",
+            "document",
+            "edit",
+            "syntax",
+            "search",
+            "diff",
+            "format",
+            "watch",
+            "workspace")
         .whereLayer("text")
-        .mayOnlyBeAccessedByLayers("buffer", "document", "edit", "syntax", "search", "diff")
+        .mayOnlyBeAccessedByLayers(
+            "buffer", "document", "edit", "syntax", "search", "diff", "format")
         .whereLayer("buffer")
-        .mayOnlyBeAccessedByLayers("document", "edit", "syntax", "search", "diff")
+        .mayOnlyBeAccessedByLayers("document", "edit", "syntax", "search", "diff", "format")
         .whereLayer("document")
-        .mayOnlyBeAccessedByLayers("edit", "syntax", "search", "diff")
+        .mayOnlyBeAccessedByLayers("edit", "syntax", "search", "diff", "format")
         .whereLayer("edit")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("syntax")
@@ -398,6 +412,8 @@ class ArchitectureTest {
         .whereLayer("search")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("diff")
+        .mayNotBeAccessedByAnyLayer()
+        .whereLayer("format")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("watch")
         .mayNotBeAccessedByAnyLayer()
@@ -906,16 +922,16 @@ class ArchitectureTest {
         .callMethodWhere(callNamed(ROOT + ".core.document.Document", "apply|undo|redo"));
   }
 
-  /** Grammar files are the only XML QCaret parses; the parser setup lives in one package. */
+  /** Every XML parser and schema factory is built in {@code core.xml}. */
   @Test
-  void xmlParsersOnlyInSyntax() {
-    xmlParsersOnlyInSyntaxRule().check(classes);
+  void xmlParsersOnlyInCoreXml() {
+    xmlParsersOnlyInCoreXmlRule().check(classes);
   }
 
-  private static ArchRule xmlParsersOnlyInSyntaxRule() {
+  private static ArchRule xmlParsersOnlyInCoreXmlRule() {
     return noClasses()
         .that()
-        .resideOutsideOfPackage(ROOT + ".core.syntax..")
+        .resideOutsideOfPackage(ROOT + ".core.xml..")
         .should()
         .dependOnClassesThat()
         .haveFullyQualifiedName("javax.xml.parsers.DocumentBuilderFactory")
@@ -924,7 +940,10 @@ class ArchitectureTest {
         .haveFullyQualifiedName("javax.xml.parsers.SAXParserFactory")
         .orShould()
         .dependOnClassesThat()
-        .haveFullyQualifiedName("javax.xml.stream.XMLInputFactory");
+        .haveFullyQualifiedName("javax.xml.stream.XMLInputFactory")
+        .orShould()
+        .dependOnClassesThat()
+        .haveFullyQualifiedName("javax.xml.validation.SchemaFactory");
   }
 
   /**
@@ -1188,7 +1207,7 @@ class ArchitectureTest {
         "Runtime.halt",
         "Runtime.exit");
     assertViolations(
-        xmlParsersOnlyInSyntaxRule(), CONTROLLER_FIXTURES + "ParsesXml", "DocumentBuilderFactory");
+        xmlParsersOnlyInCoreXmlRule(), CONTROLLER_FIXTURES + "ParsesXml", "DocumentBuilderFactory");
   }
 
   @Test

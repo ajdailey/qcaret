@@ -135,7 +135,11 @@ public final class CommandStates {
           CommandId.XML_ESCAPE,
           CommandId.XML_UNESCAPE,
           CommandId.JSON_ESCAPE,
-          CommandId.JSON_UNESCAPE);
+          CommandId.JSON_UNESCAPE,
+          CommandId.PRETTY_PRINT_XML,
+          CommandId.MINIFY_XML,
+          CommandId.PRETTY_PRINT_JSON,
+          CommandId.MINIFY_JSON);
 
   /**
    * Commands whose state follows the text and the selection. A view reads them on every status

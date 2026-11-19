@@ -51,6 +51,7 @@ final class PreferenceKeys {
   static final String RECOVERY_DAYS = "recovery.keepDays";
   static final String SESSION_SNAPSHOT = "session.snapshot";
   static final String SESSION_RESTORE = "session.restore";
+  static final String STRICT_JSON = "editor.strictJson";
   static final String CLOSE_WINDOW_WITH_LAST_TAB = "tabs.closeWindowWithLastTab";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
@@ -126,6 +127,7 @@ final class PreferenceKeys {
     keys.put(RECOVERY_DAYS, Integer.toString(o.recoveryKeepDays()));
     keys.put(SESSION_SNAPSHOT, Boolean.toString(o.sessionSnapshot()));
     keys.put(SESSION_RESTORE, Boolean.toString(o.sessionRestore()));
+    keys.put(STRICT_JSON, Boolean.toString(o.strictJson()));
     keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
@@ -331,7 +333,8 @@ final class PreferenceKeys {
         newEncoding(p, d.newEncoding(), file),
         workspaceDefault(p, d.workspaceDefault(), file),
         fontZoom,
-        flag(p, SESSION_RESTORE, d.sessionRestore(), file));
+        flag(p, SESSION_RESTORE, d.sessionRestore(), file),
+        flag(p, STRICT_JSON, d.strictJson(), file));
   }
 
   /** Reads a font size: 0, or {@link Options#MIN_FONT_SIZE} to {@link Options#MAX_FONT_SIZE}. */

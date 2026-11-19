@@ -950,7 +950,8 @@ class RecoveryControllerTest {
         Options.DEFAULTS.newEncoding(),
         "",
         0,
-        true);
+        true,
+        o.strictJson());
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {
