@@ -185,6 +185,8 @@ To fix a bad draft, delete the draft and the tag
   declares is never contacted. A settings mirror replaces `central` with its
   own id; a build through one adds
   `-Daether.remoteRepositoryFilter.groupId.noInputOutcome.<mirror-id>=true`.
+  It also retries an HTTP 429 or 503 from the repository 8 times, starting 10
+  seconds apart: Maven Central rate-limits GitHub runners.
 - `.github/workflows/dependency-check.yml` scans the dependencies for known
   vulnerabilities weekly.
 - Dependabot proposes Maven, Actions and build image updates.
