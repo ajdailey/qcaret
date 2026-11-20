@@ -19,7 +19,7 @@ both views.
 Preview, at the toolbar's end while the selected tab is a Markdown tab, and
 removes them otherwise. `BrowserPreview.unavailable` is the one check of the
 Browser renderer; it gives a reason in this version, so View > Markdown
-Preview > Browser is disabled with that reason as its tool tip.
+View > Browser is disabled with that reason as its tool tip.
 
 ## Pane
 

@@ -391,6 +391,7 @@ public final class MenuTable {
             CommandId.MARKDOWN_SOURCE,
             CommandId.MARKDOWN_SPLIT,
             CommandId.MARKDOWN_PREVIEW,
+            null,
             CommandId.PREVIEW_BASIC,
             CommandId.PREVIEW_BROWSER,
             null,

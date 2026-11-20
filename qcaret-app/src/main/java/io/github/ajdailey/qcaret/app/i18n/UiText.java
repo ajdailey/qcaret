@@ -1904,7 +1904,7 @@ public enum UiText {
   ACCESSIBLE_MEMORY,
   /** Accessible name of the tab strip's button group. */
   ACCESSIBLE_TAB_BUTTONS,
-  /** View > Markdown View cascade. */
+  /** View > Markdown View cascade: the modes, then the renderers. */
   MENU_MARKDOWN_VIEW,
   /** Markdown View > Source. */
   COMMAND_MARKDOWN_SOURCE,
@@ -1912,12 +1912,12 @@ public enum UiText {
   COMMAND_MARKDOWN_SPLIT,
   /** Markdown View > Preview. */
   COMMAND_MARKDOWN_PREVIEW,
-  /** View > Markdown Preview cascade. */
-  MENU_MARKDOWN_PREVIEW,
-  /** Markdown Preview > Basic. */
+  /** Markdown View > Basic. */
   COMMAND_PREVIEW_BASIC,
-  /** Markdown Preview > Browser. */
+  /** Markdown View > Browser. */
   COMMAND_PREVIEW_BROWSER,
+  /** The key that switches a Markdown tab to its next mode, in Keyboard Shortcuts. */
+  COMMAND_MARKDOWN_CYCLE,
   /** Status bar field naming the preview renderer: the renderer's name. */
   STATUS_PREVIEW,
   /** The Basic renderer's name. */

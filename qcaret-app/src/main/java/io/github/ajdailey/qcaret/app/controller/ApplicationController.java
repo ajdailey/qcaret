@@ -493,7 +493,7 @@ public final class ApplicationController {
     return alwaysOnTop;
   }
 
-  /** Returns the window's Markdown View and Markdown Preview commands. */
+  /** Returns the window's Markdown View commands. */
   MarkdownCommands markdown() {
     return markdown;
   }
@@ -917,7 +917,12 @@ public final class ApplicationController {
       case INSERT_NUMBER_SEQUENCE -> numbers.choose();
       case OPEN_PATH_AT_CARET -> openPath.open();
       case FULL_SCREEN -> view.setFullScreen(!view.fullScreen());
-      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, PREVIEW_BASIC, PREVIEW_BROWSER ->
+      case MARKDOWN_SOURCE,
+          MARKDOWN_SPLIT,
+          MARKDOWN_PREVIEW,
+          PREVIEW_BASIC,
+          PREVIEW_BROWSER,
+          MARKDOWN_CYCLE ->
           markdown.execute(command);
       case DOCUMENT_STATISTICS -> statistics.open();
       case MD5_TEXT,

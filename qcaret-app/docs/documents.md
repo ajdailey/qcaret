@@ -336,8 +336,9 @@ The mode is kept as `markdown` (`split`, `preview`, empty for Source) in the
 session tab and the per-file state. `MarkdownPreviews.restore` applies it once
 the grammar is known: at once for a Markdown tab, after the detection that runs
 for a just-opened file, and not at all when the grammar is another.
-`MarkdownCommands` runs View > Markdown View and View > Markdown Preview and
-gives the status bar the renderer's name while a preview shows.
+`MarkdownCommands` runs View > Markdown View and Cycle Markdown View (Source,
+Split, Preview, then Source; nothing on another tab) and gives the status bar
+the renderer's name while a preview shows.
 
 | Trigger | Render |
 |---|---|

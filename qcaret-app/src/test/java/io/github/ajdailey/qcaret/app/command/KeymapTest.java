@@ -425,4 +425,35 @@ class KeymapTest {
         mac.accelerator(CommandId.FULL_SCREEN));
     assertEquals("Ctrl+Cmd+F", mac.keysText(CommandId.FULL_SCREEN));
   }
+
+  /**
+   * Cycle Markdown View has no menu item, so its key is no accelerator and runs from the window
+   * filter; the modes have no default key, and a saved key for one still binds it.
+   */
+  @Test
+  void cycleMarkdownViewRunsFromTheWindowFilterAndTheModesHaveNoKey() {
+    KeyStroke m = KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'm');
+    for (boolean mac : new boolean[] {false, true}) {
+      Keymap keymap = Keymap.defaults(mac);
+      assertEquals(List.of(m), keymap.strokes(CommandId.MARKDOWN_CYCLE));
+      assertNull(keymap.accelerator(CommandId.MARKDOWN_CYCLE));
+      assertEquals(CommandId.MARKDOWN_CYCLE, keymap.windowCommand(m));
+      assertNull(keymap.editorCommand(m));
+      for (CommandId mode :
+          List.of(
+              CommandId.MARKDOWN_SOURCE, CommandId.MARKDOWN_SPLIT, CommandId.MARKDOWN_PREVIEW)) {
+        assertEquals("", keymap.keysText(mode));
+      }
+    }
+    assertEquals("Ctrl+Shift+M", Keymap.defaults(false).keysText(CommandId.MARKDOWN_CYCLE));
+    assertEquals("Cmd+Shift+M", Keymap.defaults(true).keysText(CommandId.MARKDOWN_CYCLE));
+    List<String> refused = new ArrayList<String>();
+    ShortcutOverrides saved =
+        ShortcutOverrides.parse(Map.of("shortcut.MARKDOWN_SPLIT", "Mod+Shift+2"), refused);
+    assertEquals(List.of(), refused);
+    Keymap keymap = Keymap.defaults(false).withOverrides(saved);
+    assertEquals(
+        KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, '2'),
+        keymap.accelerator(CommandId.MARKDOWN_SPLIT));
+  }
 }

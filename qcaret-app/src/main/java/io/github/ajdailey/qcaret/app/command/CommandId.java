@@ -146,11 +146,10 @@ public enum CommandId {
   MARKDOWN_PREVIEW(
       CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_PREVIEW, true, UiText.MENU_MARKDOWN_VIEW),
   /** Draw every window's Markdown previews as styled text. */
-  PREVIEW_BASIC(
-      CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BASIC, true, UiText.MENU_MARKDOWN_PREVIEW),
+  PREVIEW_BASIC(CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BASIC, true, UiText.MENU_MARKDOWN_VIEW),
   /** Draw every window's Markdown previews as HTML in the platform's browser control. */
   PREVIEW_BROWSER(
-      CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BROWSER, true, UiText.MENU_MARKDOWN_PREVIEW),
+      CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BROWSER, true, UiText.MENU_MARKDOWN_VIEW),
   /** Read the grammars again; the Syntax cascade lists the languages above it. */
   RELOAD_GRAMMARS(CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, false, UiText.MENU_SYNTAX),
   /** Collapse the fold region the caret's line starts, or else the innermost one holding it. */
@@ -467,6 +466,11 @@ public enum CommandId {
   BLOCK_UP(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_UP, false, null),
   /** Extend the block selection, or start one, one line down. */
   BLOCK_DOWN(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_DOWN, false, null),
+  /**
+   * Switch the selected Markdown tab to its next mode: Source, Split, Preview, then Source again. A
+   * window key with no menu item, so it also runs while the preview has focus.
+   */
+  MARKDOWN_CYCLE(CommandGroup.EDITOR, UiText.COMMAND_MARKDOWN_CYCLE, false, null),
   /** Insert a tab or spaces at every caret, or indent the lines a selection spans. */
   INSERT_TAB(CommandGroup.EDITOR, UiText.COMMAND_INSERT_TAB, false, null),
   /** Insert the document's line ending at every selection. */

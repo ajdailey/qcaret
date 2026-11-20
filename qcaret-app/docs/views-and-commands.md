@@ -154,7 +154,7 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines, Convert Case, Encode/Decode Text and Format XML and JSON cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Insert Number Sequence, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
-| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Source, Split, Preview \| Basic, Browser) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
@@ -171,8 +171,9 @@ out of Help, File and Tools.
 a scope). Menu item text, accelerators, the editor's key dispatch and Help >
 Keyboard Shortcuts all read it.
 
-- A `WINDOW` binding is a menu accelerator when it is the command's first
-  window binding; a second one (Ctrl plus keypad +) runs from the window's key
+- A `WINDOW` binding is a menu accelerator when it is the first window binding
+  of a command in a menu; a second one (Ctrl plus keypad +), and one of a
+  command without a menu item (Cycle Markdown View), runs from the window's key
   filter.
 - An `EDITOR` binding runs only from the focused editor, so `Ctrl+C` never
   fires in another control.
@@ -203,7 +204,7 @@ Platform choices in the defaults, with the conflict each avoids:
 | Toggle Block Comment | Mod+Shift+/; Cmd+Option+/ on macOS | macOS Cmd+Shift+/ opens the Help menu search |
 | Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
 | Full Screen | F11; Control+Command+F on macOS | Each platform's full-screen key |
-| Markdown View Source, Split, Preview | Ctrl+Shift+1, 2, 3; Cmd+Option+1, 2, 3 on macOS | Ctrl+Alt+digit is AltGr on Windows; macOS Cmd+Shift+3 takes a screenshot |
+| Cycle Markdown View | Mod+Shift+M | Ctrl+Alt+letter is AltGr on Windows; Cmd+M minimizes on macOS; Mod+Shift+V is paste without formatting in other programs |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;
@@ -213,7 +214,8 @@ HyperSearch Mod+Shift+F, Next and Previous Result F4 and Shift+F4; Quick Open
 Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
 Occurrences Alt+Enter and Skip Occurrence Mod+K, as editor bindings.
 
-Commands with no default key include the split commands, Toggle Fold, Sort,
+Commands with no default key include the split commands, the Markdown View
+modes, Toggle Fold, Sort,
 Reverse Lines, Remove Duplicate and Blank Lines, Trim Leading and Trailing
 Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,

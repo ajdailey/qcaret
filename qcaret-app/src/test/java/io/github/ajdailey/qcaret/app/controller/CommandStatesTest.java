@@ -240,6 +240,7 @@ class CommandStatesTest {
           "BLOCK_RIGHT -- -e -e",
           "BLOCK_UP -- -e -e",
           "BLOCK_DOWN -- -e -e",
+          "MARKDOWN_CYCLE -- -- --",
           "INSERT_TAB -- -e --",
           "NEWLINE -- -e --",
           "DELETE_BACK -- -e --",

@@ -57,9 +57,8 @@ public final class Keymap {
    * application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
    * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
    * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
-   * macOS. Full Screen is F11, and Control+Command+F on macOS. Markdown View's Source, Split and
-   * Preview are Ctrl+Shift+1, 2 and 3 off macOS, and Command+Option+1, 2 and 3 on macOS, where
-   * Command+Shift+3 takes a screenshot.
+   * macOS. Full Screen is F11, and Control+Command+F on macOS. Cycle Markdown View is a window key
+   * without a menu item, so it runs from the preview as well as the editor.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -99,10 +98,7 @@ public final class Keymap {
     } else {
       window(b, CommandId.FULL_SCREEN, 0, F11);
     }
-    int markdown = mac ? P | KeyStroke.ALT : P | S;
-    window(b, CommandId.MARKDOWN_SOURCE, markdown, '1');
-    window(b, CommandId.MARKDOWN_SPLIT, markdown, '2');
-    window(b, CommandId.MARKDOWN_PREVIEW, markdown, '3');
+    window(b, CommandId.MARKDOWN_CYCLE, P | S, 'm');
     window(b, CommandId.NEXT_TAB, P, KeyStroke.PAGE_DOWN);
     window(b, CommandId.PREVIOUS_TAB, P, KeyStroke.PAGE_UP);
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);
@@ -278,9 +274,12 @@ public final class Keymap {
    * Returns the stroke a menu item sets as its accelerator: the command's first window binding.
    *
    * @param command the command
-   * @return the stroke, or null when the command has no window binding
+   * @return the stroke, or null when the command has no window binding or no menu
    */
   public KeyStroke accelerator(CommandId command) {
+    if (!command.group().menu()) {
+      return null;
+    }
     for (Binding binding : bindings) {
       if (binding.command() == command && binding.scope() == Binding.Scope.WINDOW) {
         return binding.stroke();

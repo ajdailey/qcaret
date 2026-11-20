@@ -670,9 +670,10 @@ Syntax, shows its document in one of three modes:
 | Split | The editor with the preview on its right, scrolling together; with a split editor, right of both views |
 | Preview | The preview alone |
 
-The `Source | Split | Preview` buttons at the end of the toolbar, View >
-Markdown View and `Ctrl+Shift+1`, `2`, `3` (`Cmd+Option+1`, `2`, `3` on macOS)
-switch the selected tab. A file opens in Source the first time and in the mode
+The `Source | Split | Preview` buttons at the end of the toolbar and View >
+Markdown View switch the selected tab; `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
+steps it from Source to Split to Preview and back to Source, from the editor or
+the preview. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
 match. Preview text can be selected and copied.
@@ -686,7 +687,7 @@ The Basic renderer draws headings, emphasis, lists and task lists, quotes,
 alerts, footnotes, tables, code colored by QCaret's grammars and local PNG,
 JPEG, GIF, BMP and TIFF images in the current theme. An SVG or an image that
 does not decode shows as a box with its name; a remote image shows its alt text
-and address. View > Markdown Preview, or the Appearance tab of Preferences,
+and address. View > Markdown View, or the Appearance tab of Preferences,
 chooses the renderer for every window; the status bar names it. The Browser
 renderer is not available in this version.
 

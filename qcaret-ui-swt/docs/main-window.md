@@ -132,7 +132,8 @@ scroll.
   menu's `Show`. Showing a menu or running one of its items syncs that menu's
   checks.
 - A Display key filter runs window bindings that are not accelerators (Ctrl
-  plus keypad +), when enabled.
+  plus keypad +, and Cycle Markdown View, which has no menu item), when
+  enabled, whichever control of the shell has focus.
 - A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
   item it deselects too, so the listener runs the command only for the item
   selected.

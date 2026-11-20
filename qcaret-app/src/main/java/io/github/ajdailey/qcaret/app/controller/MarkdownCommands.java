@@ -7,12 +7,11 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 
 /**
- * View > Markdown View and View > Markdown Preview for one window, and the status bar's renderer
- * field. The view mode belongs to the selected tab; the renderer is {@code
- * markdown.previewRenderer}, shared by every window. Browser draws only where {@link
- * MainView#previewBrowserUnavailable} gives no reason; a saved Browser choice otherwise shows
- * Basic, and the first preview the window shows posts a notice saying so. Confined to the UI
- * thread.
+ * View > Markdown View and Cycle Markdown View for one window, and the status bar's renderer field.
+ * The view mode belongs to the selected tab; the renderer is {@code markdown.previewRenderer},
+ * shared by every window. Browser draws only where {@link MainView#previewBrowserUnavailable} gives
+ * no reason; a saved Browser choice otherwise shows Basic, and the first preview the window shows
+ * posts a notice saying so. Confined to the UI thread.
  */
 final class MarkdownCommands {
   private final Settings settings;
@@ -26,12 +25,17 @@ final class MarkdownCommands {
     this.view = view;
   }
 
-  /** Runs a Markdown View or Markdown Preview command. */
+  /** Runs a Markdown View command or Cycle Markdown View; a mode change needs a Markdown tab. */
   void execute(CommandId command) {
     switch (command) {
       case MARKDOWN_SOURCE -> setMode(MarkdownViewMode.SOURCE);
       case MARKDOWN_SPLIT -> setMode(MarkdownViewMode.SPLIT);
       case MARKDOWN_PREVIEW -> setMode(MarkdownViewMode.PREVIEW);
+      case MARKDOWN_CYCLE -> {
+        if (documents.activeMarkdown()) {
+          setMode(next(documents.markdownMode()));
+        }
+      }
       case PREVIEW_BASIC -> choose(PreviewRenderer.BASIC);
       case PREVIEW_BROWSER -> {
         if (view.previewBrowserUnavailable() == null) {
@@ -52,6 +56,14 @@ final class MarkdownCommands {
       }
       view.documentStateChanged();
     }
+  }
+
+  private static MarkdownViewMode next(MarkdownViewMode mode) {
+    return switch (mode) {
+      case SOURCE -> MarkdownViewMode.SPLIT;
+      case SPLIT -> MarkdownViewMode.PREVIEW;
+      case PREVIEW -> MarkdownViewMode.SOURCE;
+    };
   }
 
   private void choose(PreviewRenderer renderer) {

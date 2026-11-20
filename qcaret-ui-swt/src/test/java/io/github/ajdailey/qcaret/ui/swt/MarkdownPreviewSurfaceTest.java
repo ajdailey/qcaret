@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -28,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -37,6 +40,7 @@ import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolItem;
 import org.junit.jupiter.api.AfterEach;
@@ -48,8 +52,9 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * The Markdown preview in a real window: the toolbar switch shows for a Markdown tab only, Split
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
- * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, and
- * the Browser menu item is disabled with its reason.
+ * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, the
+ * Browser menu item is disabled with its reason, View > Markdown View holds the modes and the
+ * renderers, and the cycle key runs from the preview.
  */
 @Tag("swt")
 class MarkdownPreviewSurfaceTest {
@@ -271,6 +276,64 @@ class MarkdownPreviewSurfaceTest {
     String tip =
         "1".equals(System.getenv("SWT_GTK4")) ? null : UiText.MARKDOWN_BROWSER_NOT_BUILT.text();
     assertEquals(tip, browser.getToolTipText());
+  }
+
+  @Test
+  void oneMarkdownViewCascadeHoldsTheModesThenTheRenderers() {
+    Menu cascade = window.menuBar().item(CommandId.MARKDOWN_SOURCE).getParent();
+    List<String> labels = new ArrayList<String>();
+    for (MenuItem item : cascade.getItems()) {
+      labels.add((item.getStyle() & SWT.SEPARATOR) != 0 ? "-" : item.getText());
+    }
+    assertEquals(List.of("&Source", "S&plit", "Pre&view", "-", "&Basic", "B&rowser"), labels);
+    assertEquals("Markdown V&iew", cascade.getParentItem().getText());
+    assertEquals(0, window.menuBar().item(CommandId.MARKDOWN_SPLIT).getAccelerator());
+    List<String> view = new ArrayList<String>();
+    for (MenuItem item : window.menuBar().menu(CommandGroup.VIEW).getItems()) {
+      String text = item.getText();
+      int tab = text.indexOf('\t');
+      view.add(tab < 0 ? text : text.substring(0, tab));
+    }
+    for (String label :
+        List.of("S&yntax", "Co&mpare", "Markdown V&iew", "&Zoom In", "Memory Indi&cator")) {
+      assertTrue(view.contains(label), label + " in " + view);
+    }
+  }
+
+  @Test
+  void theCycleKeyRunsWhileThePreviewHasFocus() throws Exception {
+    assumeTrue(
+        "gtk".equals(SWT.getPlatform()) && !"1".equals(System.getenv("SWT_GTK4")),
+        "keys posted through Display.post: GTK 3 only");
+    openFile("guide.md", "# Mock guide\n\nBody text.\n");
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitShown("Mock guide");
+    window.shell().forceActive();
+    window.activePreview().text().setFocus();
+    flush();
+    post(SWT.KeyDown, SWT.CTRL, 0);
+    post(SWT.KeyDown, SWT.SHIFT, 0);
+    post(SWT.KeyDown, 0, 'm');
+    post(SWT.KeyUp, 0, 'm');
+    post(SWT.KeyUp, SWT.SHIFT, 0);
+    post(SWT.KeyUp, SWT.CTRL, 0);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return controller.documents().markdownMode() == MarkdownViewMode.SOURCE;
+          }
+        },
+        "Ctrl+Shift+M in the preview, mode " + controller.documents().markdownMode());
+  }
+
+  private void post(int type, int keyCode, int character) {
+    Event event = new Event();
+    event.type = type;
+    event.keyCode = keyCode;
+    event.character = (char) character;
+    assertTrue(display.post(event));
   }
 
   private static MenuItem find(MenuItem item, CommandId command) {

@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * View > Markdown View and View > Markdown Preview through the application controller: the mode
- * kept in the file memory and the session, the renderer's fallback and the status field.
+ * View > Markdown View and Cycle Markdown View through the application controller: the mode kept in
+ * the file memory and the session, the cycle order, the renderer's fallback and the status field.
  */
 class MarkdownCommandsTest {
   @TempDir Path temp;
@@ -152,6 +152,33 @@ class MarkdownCommandsTest {
     harness.awaitIdle("open");
     assertFalse(states.enabled(CommandId.MARKDOWN_SPLIT));
     harness.application.execute(CommandId.MARKDOWN_PREVIEW);
+    assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
+    assertEquals("", states.status().preview());
+  }
+
+  @Test
+  void cycleRunsSourceSplitPreviewAndBackToSource() throws Exception {
+    open("notes.md");
+    assertTrue(states.enabled(CommandId.MARKDOWN_CYCLE));
+    harness.application.execute(CommandId.MARKDOWN_CYCLE);
+    awaitMode(MarkdownViewMode.SPLIT);
+    assertTrue(states.checked(CommandId.MARKDOWN_SPLIT));
+    harness.application.execute(CommandId.MARKDOWN_CYCLE);
+    awaitMode(MarkdownViewMode.PREVIEW);
+    assertEquals(MarkdownViewMode.PREVIEW, harness.view.selected.markdown.mode());
+    harness.application.execute(CommandId.MARKDOWN_CYCLE);
+    awaitMode(MarkdownViewMode.SOURCE);
+    assertTrue(states.checked(CommandId.MARKDOWN_SOURCE));
+  }
+
+  @Test
+  void cycleDoesNothingOnATextTab() throws Exception {
+    Path file = Files.writeString(temp.resolve("notes.txt"), "# Mock\n", StandardCharsets.UTF_8);
+    harness.open(file);
+    harness.awaitIdle("open");
+    assertFalse(states.enabled(CommandId.MARKDOWN_CYCLE));
+    harness.application.execute(CommandId.MARKDOWN_CYCLE);
+    harness.awaitIdle("cycle");
     assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
     assertEquals("", states.status().preview());
   }

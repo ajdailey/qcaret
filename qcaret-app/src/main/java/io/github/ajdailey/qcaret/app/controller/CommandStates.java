@@ -38,8 +38,8 @@ import java.util.Set;
  * editor and in text fields whatever the items show.
  *
  * <p>Open All in Recent Files and in Recently Closed needs a listed file. The Markdown View modes
- * need a tab whose grammar is {@code markdown}; Markdown Preview's Browser needs the platform's
- * browser control, and {@link #unavailable} gives the reason it is missing.
+ * and Cycle Markdown View need a tab whose grammar is {@code markdown}; Markdown View's Browser
+ * needs the platform's browser control, and {@link #unavailable} gives the reason it is missing.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -321,7 +321,7 @@ public final class CommandStates {
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canUndo();
       case REDO_SELECTION ->
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canRedo();
-      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW ->
+      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, MARKDOWN_CYCLE ->
           application.markdown().enabled(command);
       default -> true;
     };
