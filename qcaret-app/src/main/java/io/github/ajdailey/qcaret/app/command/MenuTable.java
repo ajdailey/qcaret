@@ -93,6 +93,8 @@ public final class MenuTable {
               null,
               CommandId.TOGGLE_FOLD,
               null,
+              CommandId.OPEN_PATH_AT_CARET,
+              null,
               FORMAT,
               ENCODE_DECODE,
               CommandId.TOGGLE_LINE_COMMENT,

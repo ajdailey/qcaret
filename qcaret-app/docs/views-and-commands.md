@@ -137,8 +137,8 @@ as radio items (Theme, Tab Width, Line Endings). Consecutive commands with one
 cascade form that cascade; a separator before a cascade's first command sits in
 the parent menu. The editor menu shares the Edit menu's Format, Encode/Decode
 and Convert Case lists, and only those form cascades there
-(`MenuTable.editorSubmenu`); Toggle Fold and the bookmark commands stay top
-items. `ResultsInput.MENU` and `BookmarksInput.MENU` order the docks' row menus.
+(`MenuTable.editorSubmenu`); Toggle Fold, Open Path at Caret and the bookmark
+commands stay top items. `ResultsInput.MENU` and `BookmarksInput.MENU` order the docks' row menus.
 Every item of a menu, cascade and the editor, tab, row, results, bookmarks and
 status bar menus has a mnemonic (`&` before the letter, `&&` a literal
 ampersand), and no two in one menu share one (`MenuTableTest`,

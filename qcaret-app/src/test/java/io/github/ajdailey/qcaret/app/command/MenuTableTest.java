@@ -282,7 +282,8 @@ class MenuTableTest {
             CommandId.TOGGLE_LINE_COMMENT.label(),
             UiText.MENU_CONVERT_CASE.text()),
         top.subList(top.size() - 4, top.size()));
-    assertEquals(CommandId.TOGGLE_FOLD.label(), top.get(top.size() - 5));
+    assertEquals(CommandId.OPEN_PATH_AT_CARET.label(), top.get(top.size() - 5));
+    assertEquals(CommandId.TOGGLE_FOLD.label(), top.get(top.size() - 6));
     for (UiText cascade :
         new UiText[] {UiText.MENU_FORMAT, UiText.MENU_ENCODE_DECODE, UiText.MENU_CONVERT_CASE}) {
       List<CommandId> inEdit = new ArrayList<CommandId>();

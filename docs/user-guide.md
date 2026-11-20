@@ -290,8 +290,8 @@ apply (measured on Linux, one million lines):
   indent, and a comment paragraph keeps its comment marker, such as `//` or
   `#`. A blank line ends a paragraph. Undo restores the text in one step.
 - A right click in the text opens Undo, Redo, Cut, Copy, Paste, Select All,
-  Toggle Bookmark, Edit Bookmark Comment, Toggle Fold, the Format XML and JSON
-  and Encode/Decode Text cascades, Toggle Line Comment and Convert Case for that
+  Toggle Bookmark, Edit Bookmark Comment, Toggle Fold, Open Path at Caret, the
+  Format XML and JSON and Encode/Decode Text cascades, Toggle Line Comment and Convert Case for that
   view. A click in a selection keeps it; a click elsewhere moves the caret
   there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
