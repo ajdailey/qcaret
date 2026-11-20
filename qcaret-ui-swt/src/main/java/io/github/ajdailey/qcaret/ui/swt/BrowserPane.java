@@ -45,11 +45,12 @@ import org.slf4j.LoggerFactory;
  *       PlatformTraits#scrollsBrowserToFragments} holds, after the page loaded; a new page returns
  *       to the last id asked for. The browser's own scroll is not reported: with JavaScript off the
  *       page position cannot be read.
- *   <li>An {@link SWTException} or {@link SWTError} from a browser call, or a page not loaded
- *       within {@link GuideWindow#LOAD_BOUND_MILLIS} of {@code setText}, runs the failure action
- *       once; no browser exception leaves this class. A failure while this pane's own browser call
- *       is on the stack runs after that call returns: on Cocoa an SWT timer runs inside a nested
- *       run loop a native call spins.
+ *   <li>An {@link SWTException} or {@link SWTError} from a browser call, a page whose navigation
+ *       has not started within {@link #START_BOUND_MILLIS} of {@code setText}, or a page not loaded
+ *       within {@link GuideWindow#LOAD_BOUND_MILLIS} of its navigation starting, runs the failure
+ *       action once; no browser exception leaves this class. A failure while this pane's own
+ *       browser call is on the stack runs after that call returns: on Cocoa an SWT timer runs
+ *       inside a nested run loop a native call spins.
  * </ul>
  *
  * Call on the UI thread.
@@ -60,6 +61,12 @@ final class BrowserPane {
   /** Time from a click or key on the browser to the navigation it starts. */
   static final int GESTURE_MILLIS = 1000;
 
+  /**
+   * Time from {@code setText} to the page's navigation, which on win32 includes the WebView2 start
+   * of a new browser control.
+   */
+  static final int START_BOUND_MILLIS = 60_000;
+
   private static final String BLANK = "about:blank";
 
   private final Composite root;
@@ -69,6 +76,7 @@ final class BrowserPane {
   private final MarkdownPreviewInput input;
   private final Runnable failure;
   private final UiDispatcher ui;
+  private final GuideWindow.LoadBound start;
   private final GuideWindow.LoadBound bound;
   private final Runnable gestureEnd =
       new Runnable() {
@@ -92,7 +100,7 @@ final class BrowserPane {
    * @param parent the tab's frame
    * @param input receives links and the render request
    * @param factory creates the browser control
-   * @param ui runs the gesture's time limit and the load bound
+   * @param ui runs the gesture's time limit and the start and load bounds
    * @param failure runs once when a browser call fails, after this pane recorded it
    * @throws SWTException when the browser control cannot be created
    * @throws SWTError when the browser control cannot be created
@@ -106,16 +114,8 @@ final class BrowserPane {
     this.input = input;
     this.ui = ui;
     this.failure = failure;
-    this.bound =
-        new GuideWindow.LoadBound(
-            ui,
-            GuideWindow.LOAD_BOUND_MILLIS,
-            new Runnable() {
-              @Override
-              public void run() {
-                fail(UiText.MARKDOWN_BROWSER_TIMEOUT.format(GuideWindow.LOAD_BOUND_MILLIS / 1000));
-              }
-            });
+    this.start = timeout(ui, START_BOUND_MILLIS);
+    this.bound = timeout(ui, GuideWindow.LOAD_BOUND_MILLIS);
     root = new Composite(parent, SWT.NONE);
     try {
       GridLayout layout = new GridLayout(1, false);
@@ -151,6 +151,18 @@ final class BrowserPane {
     }
   }
 
+  private GuideWindow.LoadBound timeout(UiDispatcher dispatcher, final int millis) {
+    return new GuideWindow.LoadBound(
+        dispatcher,
+        millis,
+        new Runnable() {
+          @Override
+          public void run() {
+            fail(UiText.MARKDOWN_BROWSER_TIMEOUT.format(millis / 1000));
+          }
+        });
+  }
+
   private void listen() {
     browser.addLocationListener(
         new LocationAdapter() {
@@ -158,6 +170,10 @@ final class BrowserPane {
           public void changing(LocationEvent event) {
             if (expected != null && same(event.location, expected)) {
               expected = null;
+              if (start.armed()) {
+                start.met();
+                bound.arm();
+              }
               return;
             }
             event.doit = false;
@@ -174,6 +190,7 @@ final class BrowserPane {
           @Override
           public void completed(ProgressEvent event) {
             loaded = true;
+            start.met();
             bound.met();
             if (anchor != null) {
               scroll(anchor);
@@ -264,7 +281,8 @@ final class BrowserPane {
     final String page = next.html().page();
     loaded = false;
     expected = BLANK;
-    bound.arm();
+    bound.met();
+    start.arm();
     call(
         new Runnable() {
           @Override
@@ -389,6 +407,7 @@ final class BrowserPane {
       return;
     }
     failed = true;
+    start.met();
     bound.met();
     LOG.info("Browser preview failed: {}", LogText.oneLine(reason));
     BrowserPreview.failed(root.getDisplay(), reason);
@@ -396,9 +415,18 @@ final class BrowserPane {
   }
 
   /**
+   * Returns the start bound.
+   *
+   * @return the bound from the current {@code setText} to its navigation
+   */
+  GuideWindow.LoadBound start() {
+    return start;
+  }
+
+  /**
    * Returns the load bound.
    *
-   * @return the bound on the current {@code setText}
+   * @return the bound from the current page's navigation to its {@code completed} event
    */
   GuideWindow.LoadBound bound() {
     return bound;
@@ -424,6 +452,7 @@ final class BrowserPane {
 
   /** Disposes the pane. */
   void dispose() {
+    start.met();
     bound.met();
     if (!root.isDisposed()) {
       root.dispose();

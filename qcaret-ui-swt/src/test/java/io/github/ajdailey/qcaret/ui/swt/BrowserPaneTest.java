@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -56,14 +57,16 @@ import org.junit.jupiter.api.io.TempDir;
  * The Browser preview pane with the platform's real browser: the content's page loads as built, a
  * {@code setText} page reads no {@code file:} URL, a page with remote resources makes no request, a
  * navigation is canceled and forwarded only after a click, the pane's own fragment scroll is the
- * one navigation let through, and the failure path: a throwing call, the load bound, and a failure
- * during the pane's own call running after it returns. Each outcome is driven directly, never raced
- * against a real load. Skips, with the reason, where {@link BrowserHosts#assumeBrowser} finds no
- * browser.
+ * one navigation let through, a page's navigation moving it from the start bound to the load bound,
+ * and the failure path: a throwing call, either bound expiring, and a failure during the pane's own
+ * call running after it returns. The pane's dispatcher never schedules a bound: each expiry is
+ * driven directly, never raced against a real load. Skips, with the reason, where {@link
+ * BrowserHosts#assumeBrowser} finds no browser.
  */
 @Tag("swt")
 class BrowserPaneTest {
-  private static final Duration BOUND = Duration.ofSeconds(30);
+  /** Covers the WebView2 start of the first browser control on a CI runner. */
+  private static final Duration BOUND = Duration.ofSeconds(90);
 
   /** Time a loaded page gets to start any request or navigation it would make. */
   private static final long SETTLE_NANOS = 2_000_000_000L;
@@ -131,7 +134,7 @@ class BrowserPaneTest {
             shell,
             input,
             GuideWindow.BROWSER,
-            new SwtUiDispatcher(display),
+            new UnboundDispatcher(new SwtUiDispatcher(display)),
             new Runnable() {
               @Override
               public void run() {
@@ -141,6 +144,37 @@ class BrowserPaneTest {
     shell.layout(true, true);
     shell.open();
     return pane;
+  }
+
+  /** Schedules every timer but a {@link GuideWindow.LoadBound}. */
+  private static final class UnboundDispatcher implements UiDispatcher {
+    private final UiDispatcher ui;
+
+    UnboundDispatcher(UiDispatcher ui) {
+      this.ui = ui;
+    }
+
+    @Override
+    public void asyncExec(Runnable task) {
+      ui.asyncExec(task);
+    }
+
+    @Override
+    public void timerExec(int delayMillis, Runnable task) {
+      if (!(task instanceof GuideWindow.LoadBound)) {
+        ui.timerExec(delayMillis, task);
+      }
+    }
+
+    @Override
+    public void cancelTimer(Runnable task) {
+      ui.cancelTimer(task);
+    }
+
+    @Override
+    public boolean isUiThread() {
+      return ui.isUiThread();
+    }
   }
 
   private static MarkdownPreviewContent content(String body, int[] lines, List<String> ids) {
@@ -431,6 +465,18 @@ class BrowserPaneTest {
   }
 
   @Test
+  void theStartBoundExpiringRunsTheFailureAction() {
+    BrowserPane pane = pane();
+    pane.start().arm();
+    pane.start().run();
+    assertEquals(1, failureActions);
+    String reason = BrowserPreview.unavailable(display);
+    assertNotNull(reason);
+    assertTrue(reason.contains(UiText.MARKDOWN_BROWSER_TIMEOUT.format(60)), reason);
+    assertFalse(pane.start().armed());
+  }
+
+  @Test
   void aFailureDuringTheOwnCallRunsAfterItReturns() {
     final BrowserPane pane = pane();
     final int[] during = new int[] {-1};
@@ -488,11 +534,25 @@ class BrowserPaneTest {
   }
 
   @Test
-  void aLoadedPageMeetsTheBound() {
-    BrowserPane pane = pane();
+  void aLoadedPageMeetsTheBounds() {
+    final BrowserPane pane = pane();
+    final List<String> atNavigation = new ArrayList<String>();
+    pane.browser()
+        .addLocationListener(
+            new LocationAdapter() {
+              @Override
+              public void changing(LocationEvent event) {
+                if ("about:blank".equals(event.location)) {
+                  atNavigation.add(pane.start().armed() + " " + pane.bound().armed());
+                }
+              }
+            });
     pane.showRendered(content("<p>text</p>", new int[0], List.<String>of()));
-    assertTrue(pane.bound().armed());
+    assertTrue(pane.start().armed());
+    assertFalse(pane.bound().armed());
     awaitLoaded(pane.browser());
+    assertEquals(List.of("false true"), atNavigation, "start bound, load bound");
+    assertFalse(pane.start().armed());
     assertFalse(pane.bound().armed());
     assertEquals(0, failureActions);
   }

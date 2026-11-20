@@ -30,7 +30,7 @@ removes them otherwise.
 | Cause | Reason |
 |---|---|
 | GTK 4 (`PlatformTraits.opensBrowser` false) | WebKitGTK does not start under GTK 4 |
-| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or a page did not load within 15 s | The error's message, or `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 15 s") for the load bound, for the rest of the Display's life |
+| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or its start or load bound expired (Browser pane) | The error's message, or `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 60 s" or "15 s") for a bound, for the rest of the Display's life |
 
 `PreviewSlot` catches the failure, shows the content in the `MarkdownPane` and
 calls `browserFailed`; the controller posts "Browser preview unavailable;
@@ -75,11 +75,13 @@ pane's UI-thread work is the `setText` call.
     loads it as another page. The pane cancels that form.
 - The browser's own scroll is not reported: with JavaScript off the page
   position cannot be read, so Split follows the editor and not the reverse.
-- Each `setText` arms a `GuideWindow.LoadBound` of 15 s, met by the page's
-  `completed` event; expiry takes the failure path of a throwing call. A
-  failure raised while the pane's own browser call is on the stack runs after
-  that call returns, since on cocoa an SWT timer runs inside the nested run
-  loop of a native call.
+- Each `setText` arms a start bound of 60 s; the page's own navigation
+  (`changing` on `about:blank`) replaces it with a load bound of 15 s, and
+  `completed` meets either. Expiry takes the failure path of a throwing call.
+  The start bound covers the WebView2 start of a new browser control on win32,
+  which delays the navigation, not the load after it. A failure raised while
+  the pane's own browser call is on the stack runs after that call returns,
+  since on cocoa an SWT timer runs inside the nested run loop of a native call.
 
 | Platform | Engine | `setText(page, false)` base | `file:` image from the page |
 |---|---|---|---|

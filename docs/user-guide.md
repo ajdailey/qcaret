@@ -709,7 +709,8 @@ move the editor. On Windows and macOS the preview does not scroll to follow the
 editor, the Outline dock or a find match. View > Markdown View >
 Browser is disabled under GTK 4, where WebKitGTK does not start, and for the
 rest of the run after the browser control fails to start or a page does not
-load within 15 seconds; its tool tip, or its
+load in time (60 seconds for the browser control to start, then 15 seconds);
+its tool tip, or its
 label under GTK 4, gives the reason. A saved Browser choice then shows Basic
 with the notice "Browser preview unavailable; showing Basic".
 
