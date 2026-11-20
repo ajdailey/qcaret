@@ -28,7 +28,7 @@ removes them otherwise.
 | Cause | Reason |
 |---|---|
 | GTK 4 (`PlatformTraits.opensBrowser` false) | WebKitGTK does not start under GTK 4 |
-| A preview's `Browser` failed to create, or a call on it threw `SWTException` or `SWTError` | The error's message, for the rest of the Display's life |
+| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or a page did not load within 15 s | The error's message, for the rest of the Display's life |
 
 `PreviewSlot` catches the failure, shows the content in the `MarkdownPane` and
 calls `browserFailed`; the controller posts "Browser preview unavailable;
@@ -62,6 +62,11 @@ stylesheet, built on the UI thread on each new render and theme switch.
   WebView2 without a navigation event.
 - The browser's own scroll is not reported: with JavaScript off the page
   position cannot be read, so Split follows the editor and not the reverse.
+- Each `setText` arms a `GuideWindow.LoadBound` of 15 s, met by the page's
+  `completed` event; expiry takes the failure path of a throwing call. A
+  failure raised while the pane's own browser call is on the stack runs after
+  that call returns, since on cocoa an SWT timer runs inside the nested run
+  loop of a native call.
 
 | Platform | Engine | `setText(page, false)` base | `file:` image from the page |
 |---|---|---|---|

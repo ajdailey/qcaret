@@ -43,6 +43,12 @@ jobs:
       - name: Xvfb and GTK 3
         if: runner.os == 'Linux'
         run: .github/scripts/linux-display-deps.sh
+      # The WebKitGTK SWT's Browser loads on GTK 3, so the Browser preview tests run.
+      - name: WebKitGTK
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0
       - name: Verify (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify

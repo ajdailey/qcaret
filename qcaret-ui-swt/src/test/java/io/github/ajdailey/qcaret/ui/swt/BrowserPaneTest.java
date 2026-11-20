@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.SWTException;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.browser.LocationAdapter;
 import org.eclipse.swt.browser.LocationEvent;
@@ -51,8 +52,10 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * The Browser preview pane with the platform's real browser: a {@code setText} page reads no {@code
  * file:} URL, a page with remote resources makes no request, a navigation is canceled and forwarded
- * only after a click, and the pane's own fragment scroll is the one navigation let through. Skips
- * where {@link PlatformTraits#opensBrowser} is false.
+ * only after a click, the pane's own fragment scroll is the one navigation let through, and the
+ * failure path: a throwing call, the load bound, and a failure during the pane's own call running
+ * after it returns. Each outcome is driven directly, never raced against a real load. Skips, with
+ * the reason, where {@link BrowserHosts#assumeBrowser} finds no browser.
  */
 @Tag("swt")
 class BrowserPaneTest {
@@ -67,14 +70,15 @@ class BrowserPaneTest {
   private Shell shell;
   private final List<String> followed = new CopyOnWriteArrayList<String>();
   private int failures;
+  private int failureActions;
 
   @BeforeEach
   void open() {
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
     display = new Display();
     shell = new Shell(display);
     shell.setLayout(new FillLayout());
     shell.setSize(700, 500);
+    BrowserHosts.assumeBrowser(shell);
   }
 
   @AfterEach
@@ -128,7 +132,7 @@ class BrowserPaneTest {
             new Runnable() {
               @Override
               public void run() {
-                // Recorded through browserFailed.
+                failureActions++;
               }
             });
     shell.layout(true, true);
@@ -364,6 +368,80 @@ class BrowserPaneTest {
     assertEquals(List.of(), followed);
     assertNotNull(pane.content());
     assertFalse(pane.noticeShown());
+  }
+
+  @Test
+  void aThrowingCallRunsTheFailureActionOnce() {
+    BrowserPane pane = pane();
+    pane.call(
+        new Runnable() {
+          @Override
+          public void run() {
+            throw new SWTException("Mock browser call failure");
+          }
+        });
+    assertEquals(1, failureActions);
+    String reason = BrowserPreview.unavailable(display);
+    assertNotNull(reason);
+    assertTrue(reason.contains("Mock browser call failure"), reason);
+    final boolean[] ran = new boolean[1];
+    pane.call(
+        new Runnable() {
+          @Override
+          public void run() {
+            ran[0] = true;
+          }
+        });
+    assertFalse(ran[0], "no call after a failure");
+    assertEquals(1, failureActions);
+  }
+
+  @Test
+  void theLoadBoundExpiringRunsTheFailureAction() {
+    BrowserPane pane = pane();
+    pane.bound().arm();
+    pane.bound().run();
+    assertEquals(1, failureActions);
+    String reason = BrowserPreview.unavailable(display);
+    assertNotNull(reason);
+    assertTrue(reason.contains("not loaded within"), reason);
+    assertFalse(pane.bound().armed());
+  }
+
+  @Test
+  void aFailureDuringTheOwnCallRunsAfterItReturns() {
+    final BrowserPane pane = pane();
+    final int[] during = new int[] {-1};
+    pane.call(
+        new Runnable() {
+          @Override
+          public void run() {
+            pane.bound().arm();
+            pane.bound().run();
+            pane.call(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    throw new SWTException("Mock nested failure");
+                  }
+                });
+            during[0] = failureActions;
+          }
+        });
+    assertEquals(0, during[0]);
+    assertEquals(1, failureActions);
+    String reason = BrowserPreview.unavailable(display);
+    assertTrue(reason.contains("not loaded within"), reason);
+  }
+
+  @Test
+  void aLoadedPageMeetsTheBound() {
+    BrowserPane pane = pane();
+    pane.showRendered(content("<p>text</p>", new int[0], List.<String>of()));
+    assertTrue(pane.bound().armed());
+    awaitLoaded(pane.browser());
+    assertFalse(pane.bound().armed());
+    assertEquals(0, failureActions);
   }
 
   private void post(int type, Point at, int button) {

@@ -413,8 +413,9 @@ stylesheet resembling GitLab's in a `Palette`'s colors.
 File > Export as HTML (`MarkdownExport`, enabled for a Markdown tab) proposes
 the document's name with `.html`, then parses, writes the HTML with the Light
 palette and saves it through `SafeSave` on a `qcaret-io-` worker under the busy
-cursor. The document's own file is refused as the target; a failed write shows
-`EXPORT_HTML_FAILED`.
+cursor. The worker refuses the document's own file as the target, also through
+a link or another spelling of its path (`Files.isSameFile`); a failed write
+shows `EXPORT_HTML_FAILED`.
 
 ### Outline
 

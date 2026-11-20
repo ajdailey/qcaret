@@ -49,7 +49,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * The Browser renderer in a real window: the choice renders through the Browser pane and back, a
  * browser that fails to create leaves Basic with the notice and the reason, the cycle key runs with
- * the browser focused, and the Command Palette lists Cycle Markdown View. With {@code
+ * the browser focused, and the Command Palette lists Cycle Markdown View. A test that needs a real
+ * browser skips, with the reason, where {@link BrowserHosts#assumeBrowser} finds none. With {@code
  * -Dqcaret.rm.out=<dir>} the light and dark page is saved there as PNG.
  */
 @Tag("swt")
@@ -182,7 +183,7 @@ class BrowserPreviewSurfaceTest {
 
   @Test
   void theBrowserChoiceRendersThroughTheBrowserPaneAndBack() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
+    BrowserHosts.assumeBrowser(window.shell());
     openMarkdown("# Mock guide\n\nBody text.\n");
     controller.execute(CommandId.PREVIEW_BROWSER);
     controller.execute(CommandId.MARKDOWN_SPLIT);
@@ -228,6 +229,7 @@ class BrowserPreviewSurfaceTest {
     assumeTrue(
         "gtk".equals(SWT.getPlatform()) && PlatformTraits.PLATFORM.opensBrowser(),
         "keys posted through Display.post: GTK 3 only");
+    BrowserHosts.assumeBrowser(window.shell());
     openMarkdown("# Mock guide\n");
     controller.execute(CommandId.PREVIEW_BROWSER);
     controller.execute(CommandId.MARKDOWN_PREVIEW);
@@ -254,7 +256,8 @@ class BrowserPreviewSurfaceTest {
   @Test
   void browserShotsInBothThemes() throws Exception {
     String out = System.getProperty("qcaret.rm.out");
-    assumeTrue(out != null && PlatformTraits.PLATFORM.opensBrowser(), "-Dqcaret.rm.out unset");
+    assumeTrue(out != null, "-Dqcaret.rm.out unset");
+    BrowserHosts.assumeBrowser(window.shell());
     openMarkdown(
         "# Mock guide\n\n[[_TOC_]]\n\n## Code\n\n```java\nint x = 1; // note\n```\n\n"
             + "## Table\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n> [!NOTE]\n> A mock note.\n\n"

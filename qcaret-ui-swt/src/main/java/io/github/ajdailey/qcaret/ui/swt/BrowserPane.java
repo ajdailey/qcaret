@@ -45,8 +45,11 @@ import org.slf4j.LoggerFactory;
  *       PlatformTraits#scrollsBrowserToFragments} holds, after the page loaded; a new page returns
  *       to the last id asked for. The browser's own scroll is not reported: with JavaScript off the
  *       page position cannot be read.
- *   <li>An {@link SWTException} or {@link SWTError} from a browser call runs the failure action
- *       once; no browser exception leaves this class.
+ *   <li>An {@link SWTException} or {@link SWTError} from a browser call, or a page not loaded
+ *       within {@link GuideWindow#LOAD_BOUND_MILLIS} of {@code setText}, runs the failure action
+ *       once; no browser exception leaves this class. A failure while this pane's own browser call
+ *       is on the stack runs after that call returns: on Cocoa an SWT timer runs inside a nested
+ *       run loop a native call spins.
  * </ul>
  *
  * Call on the UI thread.
@@ -66,6 +69,7 @@ final class BrowserPane {
   private final MarkdownPreviewInput input;
   private final Runnable failure;
   private final UiDispatcher ui;
+  private final GuideWindow.LoadBound bound;
   private final Runnable gestureEnd =
       new Runnable() {
         @Override
@@ -80,6 +84,8 @@ final class BrowserPane {
   private boolean gesture;
   private boolean failed;
   private String anchor;
+  private int calls;
+  private String deferredFailure;
 
   /**
    * Creates the pane, empty.
@@ -88,7 +94,7 @@ final class BrowserPane {
    * @param input receives links and the render request
    * @param palette the palette the page starts with
    * @param factory creates the browser control
-   * @param ui runs the gesture's time limit
+   * @param ui runs the gesture's time limit and the load bound
    * @param failure runs once when a browser call fails, after this pane recorded it
    * @throws SWTException when the browser control cannot be created
    * @throws SWTError when the browser control cannot be created
@@ -104,6 +110,16 @@ final class BrowserPane {
     this.ui = ui;
     this.palette = palette;
     this.failure = failure;
+    this.bound =
+        new GuideWindow.LoadBound(
+            ui,
+            GuideWindow.LOAD_BOUND_MILLIS,
+            new Runnable() {
+              @Override
+              public void run() {
+                fail("page not loaded within " + GuideWindow.LOAD_BOUND_MILLIS + " ms");
+              }
+            });
     root = new Composite(parent, SWT.NONE);
     try {
       GridLayout layout = new GridLayout(1, false);
@@ -162,6 +178,7 @@ final class BrowserPane {
           @Override
           public void completed(ProgressEvent event) {
             loaded = true;
+            bound.met();
             if (anchor != null) {
               scroll(anchor);
             }
@@ -238,6 +255,7 @@ final class BrowserPane {
     String page = MarkdownPage.page("", content.html().body(), palette);
     loaded = false;
     expected = BLANK;
+    bound.arm();
     call(
         new Runnable() {
           @Override
@@ -335,19 +353,58 @@ final class BrowserPane {
     }
   }
 
-  /** Runs a browser call; an exception records the failure and runs the failure action once. */
-  private void call(Runnable task) {
+  /**
+   * Runs a browser call. An exception, or a failure while the call is on the stack, records the
+   * failure and runs the failure action once after the outermost call returns.
+   *
+   * @param task calls the browser
+   */
+  void call(Runnable task) {
     if (failed || browser.isDisposed()) {
       return;
     }
+    calls++;
     try {
       task.run();
     } catch (SWTException | SWTError e) {
-      failed = true;
-      LOG.info("Browser preview failed: {}", LogText.oneLine(e.getMessage()));
-      BrowserPreview.failed(browser.getDisplay(), e.getMessage());
-      failure.run();
+      if (deferredFailure == null) {
+        deferredFailure = e.getMessage() == null ? "" : e.getMessage();
+      }
+    } finally {
+      calls--;
     }
+    if (calls == 0 && deferredFailure != null) {
+      String reason = deferredFailure;
+      deferredFailure = null;
+      fail(reason);
+    }
+  }
+
+  /** Records the failure and runs the failure action once, or defers it past this pane's call. */
+  private void fail(String reason) {
+    if (calls > 0) {
+      if (deferredFailure == null) {
+        deferredFailure = reason;
+      }
+      return;
+    }
+    if (failed || root.isDisposed()) {
+      return;
+    }
+    failed = true;
+    bound.met();
+    LOG.info("Browser preview failed: {}", LogText.oneLine(reason));
+    BrowserPreview.failed(root.getDisplay(), reason);
+    failure.run();
+  }
+
+  /**
+   * Returns the load bound.
+   *
+   * @return the bound on the current {@code setText}
+   */
+  GuideWindow.LoadBound bound() {
+    return bound;
   }
 
   /**
@@ -370,6 +427,7 @@ final class BrowserPane {
 
   /** Disposes the pane. */
   void dispose() {
+    bound.met();
     if (!root.isDisposed()) {
       root.dispose();
     }

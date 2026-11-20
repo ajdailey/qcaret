@@ -4,15 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +25,8 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * File > Export as HTML through the application controller: enabled for a Markdown tab only, the
  * proposed name, a page that opens offline (inline stylesheet, embedded image, remote image as a
- * link, no outside reference), a failed write and the document's own file refused.
+ * link, no outside reference), a failed write and the document's own file refused, also through a
+ * symbolic or hard link.
  */
 class MarkdownExportTest {
   private static final byte[] PNG =
@@ -126,6 +130,38 @@ class MarkdownExportTest {
     assertEquals(
         UiText.EXPORT_HTML_TITLE.text() + ": " + UiText.EXPORT_HTML_SOURCE.format("notes.md"),
         harness.view.infos.get(0));
+  }
+
+  @Test
+  void theDocumentsFileThroughASymlinkIsRefused() throws Exception {
+    Path file = openMarkdown();
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+    Path link = temp.resolve("link");
+    try {
+      Files.createSymbolicLink(link, temp);
+    } catch (IOException | UnsupportedOperationException e) {
+      assumeTrue(false, "no symbolic link: " + e);
+    }
+    choose(link.resolve("notes.md"));
+    assertEquals(before, Files.readString(file, StandardCharsets.UTF_8));
+    assertEquals(
+        List.of(
+            UiText.EXPORT_HTML_TITLE.text() + ": " + UiText.EXPORT_HTML_SOURCE.format("notes.md")),
+        harness.view.infos);
+  }
+
+  @Test
+  void theDocumentsFileThroughAHardLinkIsRefused() throws Exception {
+    Path file = openMarkdown();
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+    Path alias = Files.createLink(temp.resolve("alias.md"), file);
+    choose(alias);
+    assertEquals(before, Files.readString(file, StandardCharsets.UTF_8));
+    assertEquals(before, Files.readString(alias, StandardCharsets.UTF_8));
+    assertEquals(
+        List.of(
+            UiText.EXPORT_HTML_TITLE.text() + ": " + UiText.EXPORT_HTML_SOURCE.format("notes.md")),
+        harness.view.infos);
   }
 
   @Test

@@ -18,6 +18,7 @@ import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 
@@ -25,8 +26,9 @@ import java.util.function.Consumer;
  * File > Export as HTML: writes a Markdown tab's text, unsaved edits included, as one HTML page
  * that opens offline, with the Light palette's stylesheet inline and local images as {@code data:}
  * URIs; remote images are links and links stay as written. The page parses, renders and writes
- * through {@link SafeSave} on a {@code qcaret-io-} worker under the busy cursor. The document's own
- * file is refused as the target. Confined to the UI thread.
+ * through {@link SafeSave} on a {@code qcaret-io-} worker under the busy cursor. The worker refuses
+ * a target that is the document's own file under any path ({@link #sameFile}). Confined to the UI
+ * thread.
  */
 final class MarkdownExport {
   private final Workers workers;
@@ -69,11 +71,6 @@ final class MarkdownExport {
 
   private void write(final OpenDocument d, final Path target) {
     final Path own = d.file.path;
-    if (own != null
-        && target.toAbsolutePath().normalize().equals(own.toAbsolutePath().normalize())) {
-      view.showInfo(UiText.EXPORT_HTML_TITLE.text(), UiText.EXPORT_HTML_SOURCE.format(d.name()));
-      return;
-    }
     final TextSnapshot text = d.document.text();
     final String title = d.name();
     final Path folder = own == null ? null : own.getParent();
@@ -81,11 +78,16 @@ final class MarkdownExport {
     final int maxLineChars = grammars.maxLineChars();
     new BusyWork(ui, view) {
       private IOException error;
+      private boolean refused;
 
       @Override
       @WorkerThread
       void work() {
         try {
+          if (own != null && sameFile(target, own)) {
+            refused = true;
+            return;
+          }
           byte[] page = page(renderer, text, title, folder, set, maxLineChars);
           SafeSave.save(target, null, bytes(page), new CancellationToken());
         } catch (IOException e) {
@@ -95,7 +97,9 @@ final class MarkdownExport {
 
       @Override
       void finished(boolean completed) {
-        if (error != null) {
+        if (refused) {
+          view.showInfo(UiText.EXPORT_HTML_TITLE.text(), UiText.EXPORT_HTML_SOURCE.format(title));
+        } else if (error != null) {
           view.showInfo(
               UiText.EXPORT_HTML_TITLE.text(),
               UiText.EXPORT_HTML_FAILED.format(
@@ -105,6 +109,23 @@ final class MarkdownExport {
         }
       }
     }.start(workers, Workers.Kind.IO);
+  }
+
+  /**
+   * Reports whether a target names the document's file: the same normalized path, or an existing
+   * file {@link Files#isSameFile} matches through a link or another spelling of the path.
+   *
+   * @param target the chosen file
+   * @param own the document's file
+   * @return true when writing the target would replace the document's file
+   * @throws IOException when the files cannot be compared
+   */
+  @WorkerThread
+  static boolean sameFile(Path target, Path own) throws IOException {
+    if (target.toAbsolutePath().normalize().equals(own.toAbsolutePath().normalize())) {
+      return true;
+    }
+    return Files.exists(target) && Files.exists(own) && Files.isSameFile(target, own);
   }
 
   /**
