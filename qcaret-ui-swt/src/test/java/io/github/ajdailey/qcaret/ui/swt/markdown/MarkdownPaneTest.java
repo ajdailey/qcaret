@@ -24,6 +24,7 @@ import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.EventLoop;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -153,7 +154,7 @@ class MarkdownPaneTest {
             },
             Palette.LIGHT,
             new SwtUiDispatcher(display),
-            "Monospace");
+            PlatformTraits.PLATFORM.monospaceFamily());
     shell.open();
   }
 
@@ -262,7 +263,7 @@ class MarkdownPaneTest {
     assertNotNull(pane.styler().background(comment));
     StyleRange token = line(comment).styles[0];
     assertEquals(rgb(p.style(TokenRole.COMMENT).foreground()), token.foreground.getRGB());
-    assertEquals("Monospace", token.font.getFontData()[0].getName());
+    assertEquals(PlatformTraits.PLATFORM.monospaceFamily(), token.font.getFontData()[0].getName());
     assertNull(pane.styler().background(lineOf(c, "Text with")));
     assertNotNull(pane.styler().background(lineOf(c, "title: Mock")));
     StyleRange header = at(c, "Left");
