@@ -548,8 +548,11 @@ class BrowserPaneTest {
               }
             });
     pane.showRendered(content("<p>text</p>", new int[0], List.<String>of()));
-    assertTrue(pane.start().armed());
-    assertFalse(pane.bound().armed());
+    // Cocoa's setText runs a nested run loop, so the navigation can start before it returns.
+    if (atNavigation.isEmpty()) {
+      assertTrue(pane.start().armed());
+      assertFalse(pane.bound().armed());
+    }
     awaitLoaded(pane.browser());
     assertEquals(List.of("false true"), atNavigation, "start bound, load bound");
     assertFalse(pane.start().armed());
