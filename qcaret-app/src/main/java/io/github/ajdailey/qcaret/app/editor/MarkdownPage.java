@@ -29,7 +29,7 @@ public final class MarkdownPage {
    * Returns a page.
    *
    * @param title the page title, escaped here
-   * @param body the HTML fragment
+   * @param body the HTML fragment; its {@code <meta>} tags become inert ({@link InertMeta})
    * @param palette the colors
    * @return the page
    */
@@ -44,7 +44,7 @@ public final class MarkdownPage {
     out.append("</title>\n<style>\n")
         .append(css)
         .append("</style>\n</head>\n<body>\n<article class=\"markdown-body\">\n")
-        .append(body)
+        .append(InertMeta.apply(body))
         .append("</article>\n</body>\n</html>\n");
     return out.toString();
   }

@@ -199,18 +199,20 @@ class BrowserPaneTest {
     // JavaScript on in this browser only, to read the image's width.
     Browser browser = new Browser(shell, SWT.NONE);
     shell.open();
-    browser.setText(MarkdownPage.page("", img, Palette.LIGHT), false);
+    assertEquals(0.0, width(browser, MarkdownPage.page("", img, Palette.LIGHT), false));
+    String plain = "<html><body>" + img + "</body></html>";
+    assertEquals(40.0, width(browser, plain, true), "a trusted page reads file:");
+    // GTK: the untrusted page's about:blank origin blocks file:. cocoa and win32 load it (CI on
+    // aa1db2c), so the content policy is the barrier there.
+    double untrusted = "gtk".equals(SWT.getPlatform()) ? 0.0 : 40.0;
+    assertEquals(untrusted, width(browser, plain, false), "untrusted, no policy");
+  }
+
+  private Object width(Browser browser, String page, boolean trusted) {
+    browser.setText(page, trusted);
     awaitLoaded(browser);
     settle();
-    assertEquals(0.0, browser.evaluate("return document.getElementById('i').naturalWidth;"));
-    browser.setText("<html><body>" + img + "</body></html>", false);
-    awaitLoaded(browser);
-    settle();
-    Object withoutPolicy = browser.evaluate("return document.getElementById('i').naturalWidth;");
-    System.out.println("file: image without the policy, naturalWidth " + withoutPolicy);
-    if (!"win32".equals(SWT.getPlatform())) {
-      assertEquals(0.0, withoutPolicy, "an untrusted page's origin blocks file:");
-    }
+    return browser.evaluate("return document.getElementById('i').naturalWidth;");
   }
 
   @Test
@@ -230,31 +232,11 @@ class BrowserPaneTest {
         });
     server.start();
     try {
-      String remote = "http://127.0.0.1:" + server.getAddress().getPort();
-      String body =
-          "<img src=\""
-              + remote
-              + "/img.png\"><link rel=\"stylesheet\" href=\""
-              + remote
-              + "/s.css\"><iframe src=\""
-              + remote
-              + "/frame\"></iframe><div style=\"background: url('"
-              + remote
-              + "/bg.png'); width: 9px; height: 9px\"></div><video src=\""
-              + remote
-              + "/v.mp4\"></video><object data=\""
-              + remote
-              + "/o\"></object><style>@import url('"
-              + remote
-              + "/imp.css'); @font-face { font-family: m; src: url('"
-              + remote
-              + "/f.woff'); } p { font-family: m; }</style><p>text</p>"
-              + "<meta http-equiv=\"refresh\" content=\"0; url="
-              + remote
-              + "/refresh\"><script src=\""
-              + remote
-              + "/s.js\"></script>";
-      // The control: the same resources without the policy reach the server.
+      String origin = "http://127.0.0.1:" + server.getAddress().getPort();
+      String control = remoteBody(origin + "/control");
+      String body = remoteBody(origin + "/pane");
+      // The control: the same resources without the policy reach the server, and its own
+      // canceled meta refresh does not.
       Browser plain = new Browser(shell, SWT.NONE);
       plain.setJavascriptEnabled(false);
       plain.addLocationListener(
@@ -265,28 +247,54 @@ class BrowserPaneTest {
             }
           });
       shell.open();
-      plain.setText("<html><body>" + body + "</body></html>", false);
-      await(
-          new BooleanSupplier() {
-            @Override
-            public boolean getAsBoolean() {
-              return !hits.isEmpty();
-            }
-          },
-          "the control page reached the server");
-      plain.dispose();
+      plain.setText("<html><body>" + control + "</body></html>", false);
+      awaitLoaded(plain);
       settle();
-      hits.clear();
+      System.out.println("Requests from the control page: " + hits);
+      assertFalse(hits.isEmpty(), "the control page reached the server");
+      assertFalse(hits.contains("/control/refresh"), "a canceled navigation makes a request");
+      plain.dispose();
       BrowserPane pane = pane();
       pane.showRendered(content(body, new int[0], List.<String>of()));
       awaitLoaded(pane.browser());
       settle();
-      assertEquals(List.of(), hits);
+      List<String> fromPane = new ArrayList<String>();
+      for (String hit : hits) {
+        if (hit.startsWith("/pane/")) {
+          fromPane.add(hit);
+        }
+      }
+      assertEquals(List.of(), fromPane);
       assertEquals(List.of(), followed, "a meta refresh is no click");
       assertEquals(0, failures);
     } finally {
       server.stop(0);
     }
+  }
+
+  private static String remoteBody(String remote) {
+    return "<img src=\""
+        + remote
+        + "/img.png\"><link rel=\"stylesheet\" href=\""
+        + remote
+        + "/s.css\"><iframe src=\""
+        + remote
+        + "/frame\"></iframe><div style=\"background: url('"
+        + remote
+        + "/bg.png'); width: 9px; height: 9px\"></div><video src=\""
+        + remote
+        + "/v.mp4\"></video><object data=\""
+        + remote
+        + "/o\"></object><style>@import url('"
+        + remote
+        + "/imp.css'); @font-face { font-family: m; src: url('"
+        + remote
+        + "/f.woff'); } p { font-family: m; }</style><p>text</p>"
+        + "<meta http-equiv=\"refresh\" content=\"0; url="
+        + remote
+        + "/refresh\"><script src=\""
+        + remote
+        + "/s.js\"></script>";
   }
 
   @Test
@@ -367,6 +375,7 @@ class BrowserPaneTest {
           }
         },
         "the scroll navigated, allowed " + allowed);
+    settle();
     assertEquals(List.of("about:blank", "about:blank#qcaret-line-150"), allowed);
     assertEquals(List.of(), followed);
     assertNotNull(pane.content());

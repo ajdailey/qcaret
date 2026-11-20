@@ -52,17 +52,25 @@ pane's UI-thread work is the `setText` call.
   images arrive embedded as `data:` URIs.
 - `setText` must pass `trusted` false: with true, SWT on GTK and cocoa loads
   the page with a `file:///` base, which lets it read local files.
+- `MarkdownPage.page` renames each `<meta` tag in the fragment to `<wbr`
+  (`InertMeta`), so a raw-HTML meta refresh does not navigate; the content
+  policy does not cover it.
 - Every navigation is canceled except the page load and the pane's own
-  `about:blank#id` scroll. A canceled navigation within 1 s of a primary-button
-  release, Enter or Space on the browser goes to `linkFollowed`; any other one,
-  such as a meta refresh, is dropped and logged at debug.
+  `about:blank#id` scroll, matched on the text before `#` and the
+  percent-decoded fragment. A canceled navigation within 1 s of a
+  primary-button release, Enter or Space on the browser goes to
+  `linkFollowed`; any other one is dropped and logged at debug.
 - `scrollToLine` maps a rendered line to its source line and the last element
   starting at or above it (`MarkdownHtml.idAt`), and `scrollToAnchor` takes an
   id; both navigate to `about:blank#id` once the page loaded, and a new page
   returns to the last id. Where `PlatformTraits.scrollsBrowserToFragments` is
-  false (win32, where SWT's Edge shows `setText` content from a temporary file
-  through `document.write`), neither scrolls, and an anchor link scrolls inside
-  WebView2 without a navigation event.
+  false, neither scrolls:
+  - win32: SWT's Edge shows `setText` content from a temporary file through
+    `document.write`. An anchor link scrolls inside WebView2 without a
+    navigation event.
+  - cocoa: SWT's `setUrl` escapes `#` as `%23` (CI reported
+    `about:blank%23qcaret-line-150`), so the URL has no fragment and WebKit
+    loads it as another page. The pane cancels that form.
 - The browser's own scroll is not reported: with JavaScript off the page
   position cannot be read, so Split follows the editor and not the reverse.
 - Each `setText` arms a `GuideWindow.LoadBound` of 15 s, met by the page's
@@ -74,8 +82,8 @@ pane's UI-thread work is the `setText` call.
 | Platform | Engine | `setText(page, false)` base | `file:` image from the page |
 |---|---|---|---|
 | GTK 3 | WebKitGTK 4.1 | `about:blank` | Not loaded with or without the policy (measured, WebKitGTK 2.52.6) |
-| cocoa | WebKit | `about:blank`; SWT also ignores `file:` loads from untrusted text | Not checked; `BrowserPaneTest` runs on CI |
-| win32 | WebView2 | A temporary `file:` page written with `document.write` | Blocked by the policy only (read from SWT's source, not run); `BrowserPaneTest` asserts it with the policy |
+| cocoa | WebKit | `about:blank`; SWT ignores `file:` navigations from untrusted text | Loaded without the policy, blocked by the policy (CI, `aa1db2c`) |
+| win32 | WebView2 | A temporary `file:` page written with `document.write` | Loaded without the policy, blocked by the policy (CI, `aa1db2c`) |
 
 ## Pane
 

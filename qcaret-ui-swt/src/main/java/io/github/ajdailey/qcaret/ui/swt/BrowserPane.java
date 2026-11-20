@@ -200,14 +200,31 @@ final class BrowserPane {
     browser.addListener(SWT.KeyDown, gestures);
   }
 
-  /** Compares two locations after percent-decoding. */
-  private static boolean same(String location, String wanted) {
-    return decode(location).equals(decode(wanted));
+  /**
+   * Reports whether a navigation is the one the pane asked for: the same text before the first
+   * {@code #}, and the same fragment after percent-decoding. A {@code #} escaped as {@code %23}
+   * does not match: that URL has no fragment, and WebKit loads it as another page.
+   *
+   * @param location the location of a navigation
+   * @param wanted the location the pane loads
+   * @return true when they match
+   */
+  static boolean same(String location, String wanted) {
+    if (location == null) {
+      return false;
+    }
+    int hash = location.indexOf('#');
+    int wantedHash = wanted.indexOf('#');
+    if (hash < 0 || wantedHash < 0) {
+      return location.equals(wanted);
+    }
+    return location.substring(0, hash).equals(wanted.substring(0, wantedHash))
+        && decode(location.substring(hash)).equals(decode(wanted.substring(wantedHash)));
   }
 
   private static String decode(String location) {
     try {
-      return URLDecoder.decode(location == null ? "" : location, StandardCharsets.UTF_8);
+      return URLDecoder.decode(location, StandardCharsets.UTF_8);
     } catch (IllegalArgumentException e) {
       return location;
     }

@@ -193,6 +193,6 @@ final class CocoaTraits implements PlatformTraits {
 
   @Override
   public boolean scrollsBrowserToFragments() {
-    return true;
+    return false;
   }
 }

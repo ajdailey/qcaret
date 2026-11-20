@@ -174,6 +174,15 @@ public final class EditorPane implements EditorView {
   private int reportedStart = -1;
   private int reportedEnd = -1;
   private boolean syncing;
+
+  /**
+   * True between a change's {@code textChanging} and {@code textChanged}. The selections already
+   * hold the new offsets while the projection still answers for the old text, and win32 paints
+   * inside {@code textChanging} when the widget scrolls; that paint skips the caret line and the
+   * overlays, and {@code syncWidget} redraws the widget after the change.
+   */
+  private boolean changing;
+
   private boolean composing;
   private final EditorLayout layout;
   private final EditorGestures gestures;
@@ -299,12 +308,14 @@ public final class EditorPane implements EditorView {
           @Override
           public void run() {
             syncing = true;
+            changing = true;
           }
         },
         new Runnable() {
           @Override
           public void run() {
             syncing = false;
+            changing = false;
             updateGutter();
             syncWidget();
           }
@@ -983,6 +994,9 @@ public final class EditorPane implements EditorView {
         new LineBackgroundListener() {
           @Override
           public void lineGetBackground(LineBackgroundEvent event) {
+            if (changing) {
+              return;
+            }
             Selection primary = selections.selections().primary();
             int row = projection.rowAt(event.lineOffset);
             if (projection.lineOfRow(row) == projection.lineAt(primary.caret())) {
@@ -1014,6 +1028,9 @@ public final class EditorPane implements EditorView {
         new PaintListener() {
           @Override
           public void paintControl(PaintEvent event) {
+            if (changing) {
+              return;
+            }
             painter.paintGutter(event.gc, event.y, event.height);
             lineChanges.paint(event.gc, text, projection, gutterWidth);
             painter.paintCollapsed(event.gc);

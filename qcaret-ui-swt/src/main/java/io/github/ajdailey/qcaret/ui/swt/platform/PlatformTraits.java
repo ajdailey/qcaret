@@ -328,9 +328,10 @@ public interface PlatformTraits {
   /**
    * Reports whether {@code Browser.setUrl("about:blank#id")} after {@code setText} scrolls the same
    * page to the id. On win32, SWT's Edge shows {@code setText} content in a temporary file's page,
-   * so the call would navigate away from it.
+   * so the call would navigate away from it. On cocoa, SWT escapes the {@code #} as {@code %23}, so
+   * the URL has no fragment and WebKit loads it as another page.
    *
-   * @return false on win32
+   * @return false on win32 and cocoa
    */
   boolean scrollsBrowserToFragments();
 }

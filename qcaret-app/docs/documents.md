@@ -423,7 +423,9 @@ and image attribute extensions; commonmark's URL sanitizer drops
 Code colors and image bytes are read in a pass before rendering, so file reads
 stay in `@WorkerThread` methods. `MarkdownPage` (app.editor) wraps a fragment
 in the page both use: the content security policy meta, the title and a
-stylesheet resembling GitLab's in a `Palette`'s colors.
+stylesheet resembling GitLab's in a `Palette`'s colors. `InertMeta` renames each
+`<meta` tag in the fragment to `<wbr`, so a raw-HTML meta refresh, which the
+policy does not cover, does not navigate.
 
 File > Export as HTML (`MarkdownExport`, enabled for a Markdown tab) proposes
 the document's name with `.html`, then parses, writes the HTML with the Light

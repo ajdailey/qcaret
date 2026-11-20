@@ -35,7 +35,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.LineBackgroundEvent;
+import org.eclipse.swt.custom.LineBackgroundListener;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.custom.TextChangeListener;
+import org.eclipse.swt.custom.TextChangedEvent;
+import org.eclipse.swt.custom.TextChangingEvent;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -303,6 +308,62 @@ class EditorSurfaceTest {
     assertSame(shown, window.activeEditor());
     assertEquals("two.txt", window.tabs().getItem(0).getText());
     assertEquals("two", modelText());
+  }
+
+  /**
+   * win32 paints inside {@code textChanging} when the widget scrolls for an edit (CI on {@code
+   * aa1db2c}: the caret line's background read the new caret against the old text). {@code
+   * Control.print} paints at the same point here.
+   */
+  @Test
+  void aPaintWhileAnEditAppliesReadsTheOldText() throws Exception {
+    openFile("paint.txt", "alpha\n");
+    final StyledText text = window.activeText();
+    final int[] lines = new int[1];
+    final AtomicReference<IndexOutOfBoundsException> error =
+        new AtomicReference<IndexOutOfBoundsException>();
+    final Image image = new Image(display, 300, 200);
+    final GC gc = new GC(image);
+    try {
+      text.addLineBackgroundListener(
+          new LineBackgroundListener() {
+            @Override
+            public void lineGetBackground(LineBackgroundEvent event) {
+              lines[0]++;
+            }
+          });
+      text.getContent()
+          .addTextChangeListener(
+              new TextChangeListener() {
+                @Override
+                public void textChanging(TextChangingEvent event) {
+                  try {
+                    text.print(gc);
+                  } catch (IndexOutOfBoundsException e) {
+                    error.set(e);
+                  }
+                }
+
+                @Override
+                public void textChanged(TextChangedEvent event) {
+                  // The paint under test runs in textChanging.
+                }
+
+                @Override
+                public void textSet(TextChangedEvent event) {
+                  // Not sent by the adapter.
+                }
+              });
+      EditorController editor = controller.documents().activeEditor();
+      editor.goTo(1, 0);
+      editor.type("beta gamma delta epsilon\n");
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
+    assertNull(error.get());
+    assumeTrue(lines[0] > 0, "Control.print painted no line");
+    assertEquals("alpha\nbeta gamma delta epsilon\n", modelText());
   }
 
   @Test

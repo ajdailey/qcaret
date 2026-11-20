@@ -24,6 +24,13 @@ accessibility client has created the widget's accessible object (read in SWT
 whole display text on the UI thread, at the cost of
 `DisplayProjection.textRange`.
 
+Between `textChanging` and `textChanged` the selections hold the new offsets
+while the projection answers for the old text. On win32 `StyledText` scrolls
+inside `textChanging` and the scroll paints at once (`RedrawWindow`), so
+`EditorPane` skips the current-line background and its `Paint` overlays during
+a change and redraws after it; reading the new caret against the old text threw
+`IndexOutOfBoundsException` (CI on `aa1db2c`).
+
 ### Input method composition
 
 A `replaceTextRange` from the widget, which it calls only for input method
