@@ -118,10 +118,9 @@ dropped. Until an image arrives its char reserves the requested size, or 32 by
 
 ## Outline
 
-The [Outline dock](dialogs-and-docks.md#outline-dock) lists the selected
-Markdown tab's headings in every mode. A heading chosen there puts its line at
-the editor's top; in Split and Preview the pane scrolls to the heading through
-`scrollToLine`, as for an anchor link.
+A heading chosen in the [Outline dock](dialogs-and-docks.md#outline-dock)
+scrolls the shown pane through `scrollToLine`; the go-to is in
+[Documents](../../qcaret-app/docs/documents.md#outline).
 
 ## Printing
 

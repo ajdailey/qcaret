@@ -645,6 +645,14 @@ public enum UiText {
   TIP_RESULTS_COPY,
   /** A tip without a key. */
   TIP_STATUS_MENUS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_MARKDOWN_CYCLE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_MARKDOWN_OUTLINE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_EXPORT_HTML,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_PRINT_MARKDOWN,
   /** Command label. */
   COMMAND_SHOW_LOG,
   /** Command label. */

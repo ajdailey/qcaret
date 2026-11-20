@@ -380,12 +380,13 @@ not mapped back: `Tab.scrollSource` returns the editor's top line after the
 scroll, which the document's end can hold above the line asked for, and the
 report of that line is ignored. `MarkdownLinks` follows links. A click
 (`clicked`) on Basic text follows its link: an anchor scrolls the preview to
-its heading, a local file opens in the window, a URL goes to
-`MainView.launchUrl`; a footnote reference scrolls to its footnote. A Browser
-navigation (`linkFollowed`) is followed by its location: `about:` with a
-fragment calls `scrollToAnchor`, a `file:` URL opens in the window, an `http`,
-`https`, `mailto` or `ftp` URL goes to `launchUrl`, and anything else, such as
-`javascript:` or `data:`, is dropped. The pane (`MarkdownPreviewView`) only
+its heading, a local file opens in the window, an `http`, `https`, `mailto` or
+`ftp` URL goes to `MainView.launchUrl`, and any other URL, such as
+`javascript:` or `smb:`, is dropped; a footnote reference scrolls to its
+footnote. A Browser navigation (`linkFollowed`) is followed by its location:
+`about:` with a fragment calls `scrollToAnchor`, a `file:` URL opens in the
+window, a URL of those four schemes goes to `launchUrl`, and anything else is
+dropped. The pane (`MarkdownPreviewView`) only
 applies these requests.
 
 #### Browser HTML and Export as HTML

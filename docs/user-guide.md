@@ -662,8 +662,8 @@ format is in `qcaret-core/docs/grammars.md` in the QCaret source repository.
 
 ## Markdown preview
 
-A tab whose language is Markdown, detected from a `.md` name or chosen in View >
-Syntax, shows its document in one of three modes:
+A tab whose language is Markdown, detected from a `.md` or `.markdown` name or
+chosen in View > Syntax, shows its document in one of three modes:
 
 | Mode | Shows |
 |---|---|
@@ -681,29 +681,39 @@ match. Preview text can be selected and copied.
 
 The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on
-a link opens a local file in QCaret, an address in the system browser, or
-scrolls to a heading or footnote; nothing loads without a click.
+a link scrolls to a heading or footnote, opens a local file in QCaret, or opens
+an `http`, `https`, `mailto` or `ftp` address in the system browser; a link
+with another scheme does nothing, and nothing loads without a click.
 
 The Basic renderer draws headings, emphasis, lists and task lists, quotes,
 alerts, footnotes, tables, code colored by QCaret's grammars and local PNG,
 JPEG, GIF, BMP and TIFF images in the current theme. An SVG or an image that
 does not decode shows as a box with its name; a remote image shows its alt text
 and address. View > Markdown View, or the Appearance tab of Preferences,
-chooses the renderer for every window; the status bar names it.
+chooses the renderer for every window; the status bar names it, and
+`qcaret.conf` keeps the choice as `markdown.previewRenderer` (`basic` or
+`browser`).
 
 The Browser renderer shows the preview as a web page in the system's browser
 control, with a stylesheet resembling GitLab's in the current theme, and shows
-HTML in the document as written. Scripts do not run and nothing outside the
+HTML in the document as written. JavaScript is off and nothing outside the
 page loads: local images are embedded in the page, and a remote image shows as
 a link. In Split the preview follows the editor; scrolling the preview does not
-move the editor. Browser is disabled, with the reason beside it, under GTK 4
-and after the browser control fails to start; a saved Browser choice then
-shows Basic with the notice "Browser preview unavailable; showing Basic".
+move the editor. On Windows the preview does not scroll to follow the editor or
+the Outline dock. View > Markdown View >
+Browser is disabled under GTK 4, where WebKitGTK does not start, and for the
+rest of the run after the browser control fails to start or a page does not
+load within 15 seconds; its tool tip, or its
+label under GTK 4, gives the reason. A saved Browser choice then shows Basic
+with the notice "Browser preview unavailable; showing Basic".
 
 File > Export as HTML writes the selected Markdown tab, unsaved edits
 included, as one HTML file in the Light theme that opens without QCaret or a
-network: images are embedded, remote images are links, and links stay as
-written.
+network: local PNG, JPEG, GIF, BMP, WebP, SVG and TIFF images are embedded,
+remote images are links, and links stay as written. An image over 16 MiB, or
+one that would take the document's embedded images past 64 MiB, shows as its
+alt text. Choosing the document's own file as the target writes nothing and
+says so.
 
 View > Markdown View > Outline shows the Outline dock right of the editor: the
 selected Markdown tab's headings as a tree, in any mode, updated 0.3 seconds

@@ -58,6 +58,31 @@ class TipListTest {
   }
 
   @Test
+  void theMarkdownTipsNameTheirMenuPathsAndKeys() {
+    Keymap linux = Keymap.defaults(false, true);
+    Keymap mac = Keymap.defaults(true, false);
+    assertTrue(
+        TipList.text(indexOf(UiText.TIP_MARKDOWN_CYCLE), linux)
+            .startsWith("View > Markdown View > Cycle Markdown View (Ctrl+Shift+M) steps"));
+    assertTrue(
+        TipList.text(indexOf(UiText.TIP_MARKDOWN_CYCLE), mac)
+            .startsWith(
+                "View > Markdown View > Cycle Markdown View ("
+                    + mac.menuKeyText(CommandId.MARKDOWN_CYCLE)
+                    + ") steps"));
+    assertTrue(mac.menuKeyText(CommandId.MARKDOWN_CYCLE).startsWith("Cmd+"));
+    assertTrue(
+        TipList.text(indexOf(UiText.TIP_MARKDOWN_OUTLINE), linux)
+            .startsWith("View > Markdown View > Outline lists"));
+    assertTrue(
+        TipList.text(indexOf(UiText.TIP_EXPORT_HTML), linux)
+            .startsWith("File > Export as HTML writes"));
+    assertTrue(
+        TipList.text(indexOf(UiText.TIP_PRINT_MARKDOWN), linux)
+            .startsWith("File > Print Rendered Markdown prints"));
+  }
+
+  @Test
   void anUnboundCommandsTipHasNoKey() {
     Keymap keymap = Keymap.defaults(false, true);
     assertEquals("", keymap.menuKeyText(CommandId.ALWAYS_ON_TOP));

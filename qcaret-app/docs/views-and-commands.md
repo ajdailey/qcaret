@@ -154,7 +154,7 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines, Convert Case, Encode/Decode Text and Format XML and JSON cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Insert Number Sequence, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
-| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Cycle Markdown View, Source, Split, Preview \| Basic, Browser) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Cycle Markdown View, Source, Split, Preview \| Basic, Browser \| Outline) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
@@ -214,13 +214,13 @@ Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
 Occurrences Alt+Enter and Skip Occurrence Mod+K, as editor bindings.
 
 Commands with no default key include the split commands, the Markdown View
-modes, Toggle Fold, Sort,
+modes, Basic and Browser, Outline, Toggle Fold, Sort,
 Reverse Lines, Remove Duplicate and Blank Lines, Trim Leading and Trailing
 Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,
 Insert Date and Time, Insert Number Sequence, Open Path at Caret, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
-Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Print Rendered Markdown, Close Others,
+Always on Top, Set Workspace Folder, Save a Copy As, Export as HTML, Print (Mod+P is Quick Open), Print Selection, Print Rendered Markdown, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
 Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in

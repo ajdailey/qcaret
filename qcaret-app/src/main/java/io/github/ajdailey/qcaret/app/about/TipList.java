@@ -72,6 +72,10 @@ public final class TipList {
     add(list, UiText.TIP_FULL_SCREEN, CommandId.FULL_SCREEN);
     add(list, UiText.TIP_RESULTS_COPY, null);
     add(list, UiText.TIP_STATUS_MENUS, null);
+    add(list, UiText.TIP_MARKDOWN_CYCLE, CommandId.MARKDOWN_CYCLE);
+    add(list, UiText.TIP_MARKDOWN_OUTLINE, CommandId.MARKDOWN_OUTLINE);
+    add(list, UiText.TIP_EXPORT_HTML, CommandId.EXPORT_HTML);
+    add(list, UiText.TIP_PRINT_MARKDOWN, CommandId.PRINT_MARKDOWN);
     return List.copyOf(list);
   }
 

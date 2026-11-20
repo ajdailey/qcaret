@@ -42,8 +42,9 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Writes screenshots of the Outline dock beside a Split preview (light and dark) and measures the
- * fill of a 10,000-heading tree, to the directory {@code qcaret.rm.out} names. Skipped without it.
+ * Writes screenshots of the Outline dock beside a Split preview with a table and fenced code (light
+ * and dark) and measures the fill of a 10,000-heading tree, to the directory {@code qcaret.rm.out}
+ * names. Skipped without it.
  */
 @Tag("swt")
 @EnabledIfSystemProperty(named = "qcaret.rm.out", matches = ".+")
@@ -53,7 +54,9 @@ class OutlineShotsTest {
   private static final String GUIDE =
       "# Mock guide\n\nA mock document for the outline.\n\n## Install\n\nSteps.\n\n"
           + "### From the archive\n\nUnpack it.\n\n### From source\n\nBuild it.\n\n"
-          + "## Usage\n\nOpen a file.\n\nKeys\n----\n\nPress keys.\n\n"
+          + "## Usage\n\nOpen a file.\n\n| Target | Status |\n|---|---|\n| Linux | done |\n"
+          + "| Windows | pending |\n\n```java\nint total = items.size(); // mock\n```\n\n"
+          + "Keys\n----\n\nPress keys.\n\n"
           + "```markdown\n# not a heading\n```\n\n## Usage\n\nA repeated heading.\n";
 
   @TempDir Path temp;

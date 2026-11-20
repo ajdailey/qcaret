@@ -567,6 +567,26 @@ class MarkdownPreviewTest {
   }
 
   @Test
+  void basicClicksOpenWebUrlsOnly() throws InterruptedException {
+    MarkdownPreview p =
+        preview(
+            document(
+                "[a](javascript:alert(1)) [b](smb://host/share) [c](//host/x)"
+                    + " [d](FTP://example.invalid/f) [e](mailto:someone@example.invalid)\n"),
+            1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    for (int i = 0; i < r.links().size(); i++) {
+      p.clicked(r.links().get(i).start());
+    }
+    assertEquals(5, r.links().size());
+    assertEquals(List.of("FTP://example.invalid/f", "mailto:someone@example.invalid"), tab.urls);
+    assertEquals(List.of(), tab.files);
+    p.dispose();
+  }
+
+  @Test
   void browserLinksScrollToAnchorsOpenFilesAndWebUrlsOnly() throws InterruptedException {
     tab.browser = true;
     MarkdownPreview p = preview(document("# Part two\n"), 1000);

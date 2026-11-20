@@ -24,7 +24,8 @@ final class MarkdownLinks {
 
   /**
    * Follows a click on Basic text: a footnote reference scrolls to its footnote, an anchor to its
-   * heading, a local file opens in QCaret, anything else opens in the system browser.
+   * heading, a local file opens in QCaret, an {@code http}, {@code https}, {@code mailto} or {@code
+   * ftp} URL opens in the system browser; anything else is dropped.
    *
    * @param r the shown render
    * @param offset the rendered offset clicked
@@ -59,7 +60,11 @@ final class MarkdownLinks {
           tab.openFile(target.path());
         }
       }
-      default -> tab.openUrl(target.destination());
+      default -> {
+        if (webScheme(target.destination())) {
+          tab.openUrl(target.destination());
+        }
+      }
     }
   }
 
