@@ -327,12 +327,15 @@ window before full screen, which a quit saves. Esc does not leave full screen.
 | | win32, GTK | cocoa (`PlatformTraits.fullScreenSpace`) |
 |---|---|---|
 | State | The last request: set before `Shell.setFullScreen(true)` and cleared after `setFullScreen(false)`, so the size events win32 sends inside the call count as full screen | `Shell.getFullScreen`, which the title bar button also changes |
-| Change | During the call on win32; a window manager request on GTK | An AppKit animation into a space of its own, after the call returns |
+| Change | During the call on win32; a window manager request on GTK | An AppKit animation into a space of its own, after the call returns. AppKit ignores a change requested during the animation, so `FullScreen` holds a request made within `SETTLE_MS` (1 s) of the previous change until then, makes it again while the shell does not show it (at most `RETRIES`), and the check item shows the held request |
 | Menu bar | Stays in the window | The system menu bar, shown when the pointer reaches the top edge |
 
-Under Xvfb, without a window manager, `CaretCommandsSurfaceTest` verified the
-check item and that a resize while full screen leaves the saved bounds; win32
-and cocoa are unverified.
+SWT's `Shell.setBounds` and `setSize` leave full screen on cocoa and GTK
+(measured in CI and under Xvfb), so nothing resizes the main shell after
+`place`. `CaretCommandsSurfaceTest` checks the item, the saved bounds and
+maximized state while full screen, and a second toggle during the transition,
+on every CI platform; the macOS jobs measured the held request leaving full
+screen about 1 s after it was made.
 
 ## Accessible names
 

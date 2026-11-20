@@ -182,11 +182,21 @@ class CaretCommandsSurfaceTest {
     item.notifyListeners(SWT.Selection, null);
     awaitFullScreen(true);
     assertTrue(item.getSelection());
-    window.shell().setSize(1100, 900);
+    // Entering resized the window; a resize through setSize would leave full screen in SWT.
     flush();
     assertEquals(normal, window.windowBounds());
     assertEquals(maximized, window.windowMaximized());
     item.notifyListeners(SWT.Selection, null);
+    awaitFullScreen(false);
+    assertFalse(item.getSelection());
+  }
+
+  @Test
+  void aSecondToggleDuringTheTransitionStillLeavesFullScreen() {
+    MenuItem item = window.menuBar().item(CommandId.FULL_SCREEN);
+    item.notifyListeners(SWT.Selection, null);
+    item.notifyListeners(SWT.Selection, null);
+    assertFalse(window.fullScreen());
     awaitFullScreen(false);
     assertFalse(item.getSelection());
   }

@@ -229,7 +229,7 @@ public final class MainWindow implements MainView {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
     shell = new Shell(display, SWT.SHELL_TRIM);
-    fullScreen = new FullScreen(shell, PlatformTraits.PLATFORM);
+    fullScreen = new FullScreen(shell, dispatcher, PlatformTraits.PLATFORM);
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
@@ -1643,7 +1643,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public boolean fullScreen() {
-    return !shell.isDisposed() && fullScreen.on();
+    return !shell.isDisposed() && fullScreen.shown();
   }
 
   @Override
