@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -31,8 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The Browser Markdown preview of one tab: an SWT {@link Browser} showing a render's HTML through
- * {@code setText(page, false)}, with the size notice above it.
+ * The Browser Markdown preview of one tab: an SWT {@link Browser} showing a render's page, built
+ * off the UI thread ({@link io.github.ajdailey.qcaret.app.view.MarkdownHtml#page}), through {@code
+ * setText(page, false)}, with the size notice above it.
  *
  * <ul>
  *   <li>JavaScript is off, and the page's content security policy ({@link MarkdownPage#POLICY})
@@ -77,7 +77,6 @@ final class BrowserPane {
           gesture = false;
         }
       };
-  private Palette palette;
   private MarkdownPreviewContent content;
   private String expected;
   private boolean loaded;
@@ -92,7 +91,6 @@ final class BrowserPane {
    *
    * @param parent the tab's frame
    * @param input receives links and the render request
-   * @param palette the palette the page starts with
    * @param factory creates the browser control
    * @param ui runs the gesture's time limit and the load bound
    * @param failure runs once when a browser call fails, after this pane recorded it
@@ -102,13 +100,11 @@ final class BrowserPane {
   BrowserPane(
       Composite parent,
       final MarkdownPreviewInput input,
-      Palette palette,
       GuideWindow.BrowserFactory factory,
       UiDispatcher ui,
       Runnable failure) {
     this.input = input;
     this.ui = ui;
-    this.palette = palette;
     this.failure = failure;
     this.bound =
         new GuideWindow.LoadBound(
@@ -117,7 +113,7 @@ final class BrowserPane {
             new Runnable() {
               @Override
               public void run() {
-                fail("page not loaded within " + GuideWindow.LOAD_BOUND_MILLIS + " ms");
+                fail(UiText.MARKDOWN_BROWSER_TIMEOUT.format(GuideWindow.LOAD_BOUND_MILLIS / 1000));
               }
             });
     root = new Composite(parent, SWT.NONE);
@@ -237,7 +233,7 @@ final class BrowserPane {
    * Shows Browser content: its page replaces the one shown, and the last id asked for is scrolled
    * to once it loads. Hides the size notice.
    *
-   * @param next content with HTML
+   * @param next content with HTML and its page
    */
   void showRendered(MarkdownPreviewContent next) {
     if (root.isDisposed()) {
@@ -245,14 +241,10 @@ final class BrowserPane {
     }
     setNotice(null);
     content = next;
-    load();
-  }
-
-  private void load() {
-    if (content == null || content.html() == null) {
+    if (next.html() == null || next.html().page() == null) {
       return;
     }
-    String page = MarkdownPage.page("", content.html().body(), palette);
+    final String page = next.html().page();
     loaded = false;
     expected = BLANK;
     bound.arm();
@@ -339,18 +331,6 @@ final class BrowserPane {
             browser.setUrl(target);
           }
         });
-  }
-
-  /**
-   * Recolors the page: the shown content loads again with the palette's stylesheet.
-   *
-   * @param next the palette
-   */
-  void setPalette(Palette next) {
-    palette = next;
-    if (!root.isDisposed()) {
-      load();
-    }
   }
 
   /**

@@ -13,6 +13,8 @@ import io.github.ajdailey.qcaret.app.log.RecentLog;
 import io.github.ajdailey.qcaret.app.search.HyperSearch;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.PaletteListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
@@ -95,6 +97,13 @@ public final class ApplicationController {
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
   private final WindowCommands windowCommands;
+  private final PaletteListener markdownPalette =
+      new PaletteListener() {
+        @Override
+        public void paletteChanged(Palette palette) {
+          documents.setMarkdownPalette(palette);
+        }
+      };
   private final Settings.Listener settingsListener =
       new Settings.Listener() {
         @Override
@@ -277,6 +286,8 @@ public final class ApplicationController {
     this.views = new ViewToggles(settings, documents, workspace);
     this.markdown = new MarkdownCommands(settings, documents, view);
     documents.setMarkdownBrowser(markdown.browserChosen());
+    documents.setMarkdownPalette(theme.palette());
+    theme.addListener(markdownPalette);
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
     this.tips =
         new TipOfTheDay(
@@ -1304,6 +1315,7 @@ public final class ApplicationController {
   void stop() {
     quitting = true;
     settings.removeListener(settingsListener);
+    theme.removeListener(markdownPalette);
     memory.stop();
     find.dispose();
     search.dispose();

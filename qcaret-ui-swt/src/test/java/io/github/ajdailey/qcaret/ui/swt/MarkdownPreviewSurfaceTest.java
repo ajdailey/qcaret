@@ -16,6 +16,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -23,6 +24,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -54,7 +56,8 @@ import org.junit.jupiter.api.io.TempDir;
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
  * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, the
  * Browser menu item names its reason when disabled, View > Markdown View holds the modes and the
- * renderers, and the cycle key runs from the preview.
+ * renderers, the cycle key runs from the preview, and Find from Preview selects in the hidden
+ * source and returns the focus to the preview.
  */
 @Tag("swt")
 class MarkdownPreviewSurfaceTest {
@@ -344,6 +347,40 @@ class MarkdownPreviewSurfaceTest {
           }
         },
         "Ctrl+Shift+M in the preview, mode " + controller.documents().markdownMode());
+  }
+
+  @Test
+  void findFromPreviewSelectsInTheSourceAndEscFocusesThePreview() throws Exception {
+    openFile("guide.md", "# Mock guide\n\nA needle here.\n");
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitShown("needle");
+    window.shell().forceActive();
+    window.activePreview().text().setFocus();
+    flush();
+    controller.execute(CommandId.FIND);
+    flush();
+    FindBar bar = window.findBar();
+    assertTrue(bar.control().isVisible());
+    bar.field().setText("needle");
+    final EditorController editor = controller.documents().activeEditor();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            Selection s = editor.selections().selections().primary();
+            return s.start() == 16 && s.end() == 22;
+          }
+        },
+        "the source's match selected");
+    assertEquals(MarkdownViewMode.PREVIEW, controller.documents().markdownMode());
+    assertSame(window.activePreview().control(), frame().getMaximizedControl());
+    Event escape = new Event();
+    escape.keyCode = SWT.ESC;
+    bar.field().notifyListeners(SWT.KeyDown, escape);
+    flush();
+    assertFalse(bar.control().isVisible());
+    assertSame(window.activePreview().text(), display.getFocusControl());
   }
 
   private void post(int type, int keyCode, int character) {

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -38,6 +39,7 @@ final class MarkdownPreviews {
   private final MemoryBudget budget;
   private final MarkdownImages images;
   private boolean browserChosen;
+  private Palette palette = Palette.LIGHT;
 
   /**
    * Creates the previews of one window.
@@ -126,6 +128,11 @@ final class MarkdownPreviews {
                 }
 
                 @Override
+                public Palette palette() {
+                  return palette;
+                }
+
+                @Override
                 public void browserFailed() {
                   view.showNotice(UiText.MARKDOWN_BROWSER_FALLBACK.text());
                   view.documentStateChanged();
@@ -152,6 +159,18 @@ final class MarkdownPreviews {
   boolean setBrowserChosen(boolean browser) {
     boolean changed = browserChosen != browser;
     browserChosen = browser;
+    return changed;
+  }
+
+  /**
+   * Sets the palette of Browser pages.
+   *
+   * @param next the window's palette
+   * @return true when it changed
+   */
+  boolean setPalette(Palette next) {
+    boolean changed = !palette.equals(next);
+    palette = next;
     return changed;
   }
 

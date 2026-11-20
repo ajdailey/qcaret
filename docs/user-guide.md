@@ -677,7 +677,9 @@ steps it from Source to Split to Preview and back to Source, from the editor or
 the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
-match. Preview text can be selected and copied.
+match. In Preview they select the match in the hidden source without scrolling
+the preview, and closing the find bar returns to the preview. Preview text can
+be selected and copied.
 
 The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on

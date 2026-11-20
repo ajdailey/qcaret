@@ -303,8 +303,7 @@ public final class MainWindow implements MainView {
               @Override
               public BrowserPane newBrowserPreview(
                   Composite frame, MarkdownPreviewInput input, Runnable failure) {
-                return new BrowserPane(
-                    frame, input, MainWindow.this.palette, browserFactory, dispatcher, failure);
+                return new BrowserPane(frame, input, browserFactory, dispatcher, failure);
               }
 
               @Override
@@ -630,9 +629,6 @@ public final class MainWindow implements MainView {
       pane.setPalette(next);
     }
     for (MarkdownPane pane : tabStrip.allPreviews()) {
-      pane.setPalette(next);
-    }
-    for (BrowserPane pane : tabStrip.allBrowserPreviews()) {
       pane.setPalette(next);
     }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.

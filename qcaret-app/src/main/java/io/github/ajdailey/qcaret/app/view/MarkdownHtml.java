@@ -3,19 +3,42 @@ package io.github.ajdailey.qcaret.app.view;
 import java.util.List;
 
 /**
- * A render as an HTML fragment for the Browser preview: the body's content, without the page's head
- * and stylesheet, and the element ids that scroll to a source line.
+ * A render as an HTML fragment for the Browser preview: the body's content, the element ids that
+ * scroll to a source line, and the full page the browser shows.
  *
  * @param body the HTML; local images embedded as {@code data:} URIs
  * @param lines source lines, ascending, each the first line of the element of the same index in
  *     {@code ids}. Shared, not copied: do not modify
  * @param ids the id of each line's element: a heading's GitLab anchor, else {@code
  *     qcaret-line-<line>}
+ * @param page the body inside its page with a palette's stylesheet, built off the UI thread; null
+ *     before it is built
  */
-public record MarkdownHtml(String body, int[] lines, List<String> ids) {
+public record MarkdownHtml(String body, int[] lines, List<String> ids, String page) {
   /** Copies the ids. */
   public MarkdownHtml {
     ids = List.copyOf(ids);
+  }
+
+  /**
+   * Creates a fragment without its page.
+   *
+   * @param body the HTML
+   * @param lines the source lines
+   * @param ids the ids
+   */
+  public MarkdownHtml(String body, int[] lines, List<String> ids) {
+    this(body, lines, ids, null);
+  }
+
+  /**
+   * Returns this fragment with a page.
+   *
+   * @param next the page
+   * @return a copy carrying {@code next}
+   */
+  public MarkdownHtml withPage(String next) {
+    return new MarkdownHtml(body, lines, ids, next);
   }
 
   /**

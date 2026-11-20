@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownHtml;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
@@ -18,19 +20,22 @@ import java.util.concurrent.CancellationException;
 /**
  * One preview render: what it reads, and its result once {@link #run} returns. The text parses
  * once; Basic content takes the render, its code colors, spans and image requests, and Browser
- * content adds the HTML and leaves image decoding to the browser.
+ * content adds the HTML and its page in {@link #palette}, and leaves image decoding to the browser.
  */
 final class MarkdownRenderJob {
   final long generation;
   final long revision;
   final CancellationToken cancel;
   final long charge;
+
+  /** The palette of a Browser page; null for Basic content. */
+  final Palette palette;
+
   private final TextSnapshot text;
   private final MarkdownRenderer renderer;
   private final Path folder;
   private final GrammarSet grammars;
   private final int maxLineChars;
-  private final boolean browser;
   private volatile MarkdownPreviewContent result;
 
   MarkdownRenderJob(
@@ -41,7 +46,7 @@ final class MarkdownRenderJob {
       Path folder,
       GrammarSet grammars,
       int maxLineChars,
-      boolean browser,
+      Palette palette,
       CancellationToken cancel,
       long charge) {
     this.generation = generation;
@@ -51,7 +56,7 @@ final class MarkdownRenderJob {
     this.folder = folder;
     this.grammars = grammars;
     this.maxLineChars = maxLineChars;
-    this.browser = browser;
+    this.palette = palette;
     this.cancel = cancel;
     this.charge = charge;
   }
@@ -67,10 +72,14 @@ final class MarkdownRenderJob {
       MarkdownTree tree = renderer.parse(text, cancel);
       RenderedMarkdown rendered = renderer.render(tree, folder, cancel);
       List<int[]> tokens = MarkdownCodeTokens.of(rendered, grammars, maxLineChars, cancel);
-      MarkdownHtml html =
-          browser ? MarkdownHtmlWriter.preview(tree, folder, grammars, maxLineChars, cancel) : null;
+      MarkdownHtml html = null;
+      if (palette != null) {
+        html = MarkdownHtmlWriter.preview(tree, folder, grammars, maxLineChars, cancel);
+        cancel.check();
+        html = html.withPage(MarkdownPage.page("", html.body(), palette));
+      }
       List<MarkdownImageRequest> images =
-          browser ? List.<MarkdownImageRequest>of() : MarkdownImages.requests(rendered);
+          palette != null ? List.<MarkdownImageRequest>of() : MarkdownImages.requests(rendered);
       cancel.check();
       result =
           new MarkdownPreviewContent(

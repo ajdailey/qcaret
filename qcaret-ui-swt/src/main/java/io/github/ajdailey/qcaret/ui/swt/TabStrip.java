@@ -308,23 +308,6 @@ final class TabStrip {
   }
 
   /**
-   * Returns every Browser preview pane of every tab, in strip order.
-   *
-   * @return the panes showing
-   */
-  List<BrowserPane> allBrowserPreviews() {
-    List<BrowserPane> previews = new ArrayList<BrowserPane>();
-    for (CTabItem item : tabs.getItems()) {
-      if (item.getData() instanceof EditorTab tab
-          && tab.preview != null
-          && tab.preview.browserPane() != null) {
-        previews.add(tab.preview.browserPane());
-      }
-    }
-    return previews;
-  }
-
-  /**
    * Returns the selected tab's Markdown preview pane.
    *
    * @return the pane, or null without one

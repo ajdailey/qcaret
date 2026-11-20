@@ -75,7 +75,12 @@ final class EditorTab implements TabView, SelectionListener {
     @Override
     public void focus() {
       pane = editor;
-      editor.focus();
+      // In Preview the frame sizes the editors to nothing; a focused editor takes keys unseen.
+      if (preview != null && preview.mode() == MarkdownViewMode.PREVIEW) {
+        preview.focus();
+      } else {
+        editor.focus();
+      }
     }
 
     @Override

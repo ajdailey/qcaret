@@ -1981,7 +1981,9 @@ public enum UiText {
   /** Several headings. */
   COUNT_HEADINGS,
   /** Accessible name of the Outline dock's tree. */
-  ACCESSIBLE_OUTLINE;
+  ACCESSIBLE_OUTLINE,
+  /** Why a Browser preview failed when its page did not load in time: the seconds. */
+  MARKDOWN_BROWSER_TIMEOUT;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

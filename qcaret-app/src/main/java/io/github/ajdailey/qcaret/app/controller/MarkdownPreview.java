@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -34,10 +35,13 @@ import java.util.concurrent.RejectedExecutionException;
  *       shows a notice, and {@link #renderRequested} renders it, charged to the {@link
  *       MemoryBudget} through {@link MarkdownCharge}; a refused charge renders nothing and posts a
  *       notice.
- *   <li>A render runs as a {@link MarkdownRenderJob}, with HTML while {@link Tab#browser} holds. It
- *       carries a generation and the revision it read; a result whose generation was overtaken, or
- *       whose revision is not the document's, is dropped. {@link #rendererChanged} and {@link
- *       #browserFailed} render again under the busy cursor.
+ *   <li>A render runs as a {@link MarkdownRenderJob}, with HTML and its page in {@link Tab#palette}
+ *       while {@link Tab#browser} holds. It carries a generation and the revision it read; a result
+ *       whose generation was overtaken, or whose revision is not the document's, is dropped. {@link
+ *       #rendererChanged} and {@link #browserFailed} render again under the busy cursor.
+ *   <li>{@link #paletteChanged}, and a Browser result built in a palette since replaced, rebuild
+ *       the page on a worker through {@link MarkdownRepage}; a page built for content no longer
+ *       shown is dropped.
  *   <li>A shown render's local images decode through {@link MarkdownImages}; the next render, a
  *       switch to Source and a close cancel the decode.
  *   <li>In Split, the editor's and the preview's top lines map through the shown render's source
@@ -91,6 +95,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     /** Reports whether renders build the Browser preview's HTML. */
     boolean browser();
 
+    /** The palette of the Browser preview's page. */
+    Palette palette();
+
     /** Posts the Browser preview's failure: the notice and the renderer shown. */
     void browserFailed();
   }
@@ -104,6 +111,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   private final MarkdownCharge charge;
   private final MarkdownImages images;
   private final MarkdownRestore restore = new MarkdownRestore();
+  private final MarkdownRepage repage;
 
   private MarkdownPreviewView view;
   private MarkdownViewMode mode = MarkdownViewMode.SOURCE;
@@ -181,6 +189,21 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     this.limit = limit;
     this.charge = new MarkdownCharge(budget, limit);
     this.images = images;
+    this.repage =
+        new MarkdownRepage(
+            workers,
+            ui,
+            new MarkdownRepage.Target() {
+              @Override
+              public void built(MarkdownPreviewContent from, MarkdownPreviewContent next) {
+                if (!disposed && shown == from && mode != MarkdownViewMode.SOURCE) {
+                  shown = next;
+                  if (view != null) {
+                    view.showRendered(next);
+                  }
+                }
+              }
+            });
     document.addListener(follower);
   }
 
@@ -280,6 +303,13 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     }
   }
 
+  /** Rebuilds the shown Browser page in {@link Tab#palette} on a worker. */
+  void paletteChanged() {
+    if (!disposed && mode != MarkdownViewMode.SOURCE && shown != null && shown.html() != null) {
+      repage.start(shown, tab.palette());
+    }
+  }
+
   @Override
   public void browserFailed() {
     if (!disposed) {
@@ -369,6 +399,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     document.removeListener(follower);
     view = null;
     shown = null;
+    repage.cancel();
     charge.dispose();
   }
 
@@ -444,7 +475,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
             tab.folder(),
             tab.grammars(),
             tab.maxLineChars(),
-            tab.browser(),
+            tab.browser() ? tab.palette() : null,
             running,
             reserved);
     if (user) {
@@ -506,7 +537,10 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     }
     shown = job.result();
     charge.shown(job.charge);
-    if (view != null) {
+    repage.cancel();
+    if (job.palette != null && !job.palette.equals(tab.palette())) {
+      paletteChanged();
+    } else if (view != null) {
       view.showRendered(shown);
       decode();
     }

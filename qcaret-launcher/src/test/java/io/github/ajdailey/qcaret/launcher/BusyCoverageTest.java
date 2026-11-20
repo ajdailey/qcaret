@@ -207,6 +207,8 @@ class BusyCoverageTest {
       "controller.MarkdownImages#show",
       // The Outline dock's headings, on showing it, a tab change and a typing pause.
       "controller.MarkdownOutline#render",
+      // A shown Browser page rebuilt in the palette a theme switch sets.
+      "controller.MarkdownRepage#start",
       "controller.MemoryIndicator#read",
       "controller.OverviewUpdater#compute",
       "controller.QuitSequence#quit",

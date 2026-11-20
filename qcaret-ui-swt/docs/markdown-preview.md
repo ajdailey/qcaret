@@ -12,7 +12,9 @@ A tab's control is a horizontal `SashForm`, the frame, holding the editors'
 right: a `BrowserPane` while the content carries HTML, else a `MarkdownPane`.
 `PreviewSlot` is the tab's `MarkdownPreviewView`: Source maximizes the
 editors, Split shows both at equal weights the first time, Preview maximizes
-the pane. A mode change moves the focus to the control that shows. An editor
+the pane. A mode change moves the focus to the control that shows. In
+Preview, focusing a view (`EditorView.focus`, as closing the find bar does) or
+selecting the tab focuses the pane: the hidden editors would take keys unseen. An editor
 split stays inside the editors' sash, so the preview stands right of both
 views. A renderer change swaps the panes and keeps the sash position; the
 `MarkdownPane` stays hidden in the frame, a `BrowserPane` is disposed.
@@ -28,7 +30,7 @@ removes them otherwise.
 | Cause | Reason |
 |---|---|
 | GTK 4 (`PlatformTraits.opensBrowser` false) | WebKitGTK does not start under GTK 4 |
-| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or a page did not load within 15 s | The error's message, for the rest of the Display's life |
+| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or a page did not load within 15 s | The error's message, or `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 15 s") for the load bound, for the rest of the Display's life |
 
 `PreviewSlot` catches the failure, shows the content in the `MarkdownPane` and
 calls `browserFailed`; the controller posts "Browser preview unavailable;
@@ -40,9 +42,10 @@ tips), in its label. `MainWindow.setPreviewBrowserFactory` replaces the
 
 ## Browser pane
 
-`BrowserPane` shows a page through `Browser.setText(page, false)`: the
-fragment of `MarkdownHtml` inside `MarkdownPage.page` with the palette's
-stylesheet, built on the UI thread on each new render and theme switch.
+`BrowserPane` shows `MarkdownHtml.page` through `Browser.setText(page, false)`.
+The controller builds the page, the fragment inside `MarkdownPage.page` with
+the palette's stylesheet, on a worker for each render and theme switch, so the
+pane's UI-thread work is the `setText` call.
 
 - JavaScript is off, and the page's content security policy, `default-src
   'none'; style-src 'unsafe-inline'; img-src data:`, loads nothing else. Local

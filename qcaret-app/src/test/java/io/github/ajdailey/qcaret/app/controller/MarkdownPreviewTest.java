@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import io.github.ajdailey.qcaret.app.editor.TokenCache;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.DecodedImage;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
@@ -45,7 +47,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@link MarkdownPreview} with a fake view: debounce, stale drop, cancel on edit, the busy cursor,
- * the size limit, mode reset on a grammar change, scroll mapping, code colors and link clicks.
+ * the size limit, mode reset on a grammar change, scroll mapping, code colors, link clicks, and
+ * Browser pages built on a worker with stale ones dropped.
  */
 class MarkdownPreviewTest {
   private static final Duration BOUND = Duration.ofSeconds(20);
@@ -101,6 +104,7 @@ class MarkdownPreviewTest {
     Path folder;
     boolean browser;
     int browserFailures;
+    volatile Palette palette = Palette.LIGHT;
 
     @Override
     public Path folder() {
@@ -146,6 +150,11 @@ class MarkdownPreviewTest {
     @Override
     public boolean browser() {
       return browser;
+    }
+
+    @Override
+    public Palette palette() {
+      return palette;
     }
 
     @Override
@@ -564,6 +573,102 @@ class MarkdownPreviewTest {
     assertNull(pane.shown.get(1).html());
     assertEquals(2, busy.started.get());
     p.dispose();
+  }
+
+  private static String page(MarkdownPreviewContent content, Palette palette) {
+    return MarkdownPage.page("", content.html().body(), palette);
+  }
+
+  @Test
+  void browserContentArrivesWithItsPageAndAPaletteChangeRebuildsOnlyThePage()
+      throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Title\n\nText\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    MarkdownPreviewContent first = pane.shown.get(0);
+    assertEquals(page(first, Palette.LIGHT), first.html().page());
+    tab.palette = Palette.DARK;
+    p.paletteChanged();
+    assertEquals(1, pane.shown.size(), "the page builds on a worker");
+    awaitShown(2);
+    MarkdownPreviewContent second = pane.shown.get(1);
+    assertEquals(page(first, Palette.DARK), second.html().page());
+    assertTrue(second.rendered() == first.rendered(), "no new render");
+    assertEquals(second, p.shown());
+    assertEquals(1, busy.started.get());
+    p.dispose();
+  }
+
+  @Test
+  void aPageForAnOverriddenPaletteIsDropped() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Title\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    MarkdownPreviewContent first = pane.shown.get(0);
+    tab.palette = Palette.DARK;
+    p.paletteChanged();
+    tab.palette = Palette.LIGHT;
+    p.paletteChanged();
+    // Both pages wait on the UI queue; the first one's generation is overtaken.
+    awaitQueued(2);
+    ui.runQueued();
+    assertEquals(2, pane.shown.size());
+    assertEquals(page(first, Palette.LIGHT), pane.shown.get(1).html().page());
+    p.dispose();
+  }
+
+  @Test
+  void aRenderBuiltInAReplacedPaletteShowsOnlyTheRebuiltPage() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Title\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    // The render started in Light; nothing shows yet, so the change has no page to rebuild.
+    tab.palette = Palette.DARK;
+    p.paletteChanged();
+    awaitShown(1);
+    MarkdownPreviewContent shown = pane.shown.get(0);
+    assertEquals(page(shown, Palette.DARK), shown.html().page());
+    ui.runPending();
+    assertEquals(1, pane.shown.size());
+    p.dispose();
+  }
+
+  @Test
+  void aPageForContentNoLongerShownIsDropped() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Title\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    MarkdownPreviewContent stale = pane.shown.get(0);
+    p.rendererChanged();
+    awaitQueued(1);
+    // The new render waits on the UI queue; the page asked for now is for the content it replaces.
+    tab.palette = Palette.DARK;
+    p.paletteChanged();
+    awaitQueued(2);
+    ui.runQueued();
+    awaitShown(2);
+    ui.runPending();
+    assertEquals(2, pane.shown.size());
+    MarkdownPreviewContent last = pane.shown.get(1);
+    assertTrue(last.rendered() != stale.rendered(), "the new render, rebuilt in Dark");
+    assertEquals(page(last, Palette.DARK), last.html().page());
+    p.dispose();
+  }
+
+  private void awaitQueued(final int count) throws InterruptedException {
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return ui.queued() == count;
+              }
+            },
+            BOUND),
+        "queued " + count + ", was " + ui.queued());
   }
 
   @Test

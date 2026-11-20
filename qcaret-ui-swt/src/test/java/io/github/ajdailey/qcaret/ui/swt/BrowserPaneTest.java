@@ -10,6 +10,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownHtml;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
@@ -35,6 +36,8 @@ import org.eclipse.swt.browser.LocationAdapter;
 import org.eclipse.swt.browser.LocationEvent;
 import org.eclipse.swt.browser.ProgressAdapter;
 import org.eclipse.swt.browser.ProgressEvent;
+import org.eclipse.swt.browser.TitleEvent;
+import org.eclipse.swt.browser.TitleListener;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.PaletteData;
@@ -50,12 +53,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The Browser preview pane with the platform's real browser: a {@code setText} page reads no {@code
- * file:} URL, a page with remote resources makes no request, a navigation is canceled and forwarded
- * only after a click, the pane's own fragment scroll is the one navigation let through, and the
- * failure path: a throwing call, the load bound, and a failure during the pane's own call running
- * after it returns. Each outcome is driven directly, never raced against a real load. Skips, with
- * the reason, where {@link BrowserHosts#assumeBrowser} finds no browser.
+ * The Browser preview pane with the platform's real browser: the content's page loads as built, a
+ * {@code setText} page reads no {@code file:} URL, a page with remote resources makes no request, a
+ * navigation is canceled and forwarded only after a click, the pane's own fragment scroll is the
+ * one navigation let through, and the failure path: a throwing call, the load bound, and a failure
+ * during the pane's own call running after it returns. Each outcome is driven directly, never raced
+ * against a real load. Skips, with the reason, where {@link BrowserHosts#assumeBrowser} finds no
+ * browser.
  */
 @Tag("swt")
 class BrowserPaneTest {
@@ -126,7 +130,6 @@ class BrowserPaneTest {
         new BrowserPane(
             shell,
             input,
-            Palette.LIGHT,
             GuideWindow.BROWSER,
             new SwtUiDispatcher(display),
             new Runnable() {
@@ -146,7 +149,7 @@ class BrowserPaneTest {
         List.<int[]>of(),
         new int[0],
         List.<MarkdownImageRequest>of(),
-        new MarkdownHtml(body, lines, ids));
+        new MarkdownHtml(body, lines, ids, MarkdownPage.page("", body, Palette.LIGHT)));
   }
 
   private void await(BooleanSupplier condition, String what) {
@@ -404,7 +407,7 @@ class BrowserPaneTest {
     assertEquals(1, failureActions);
     String reason = BrowserPreview.unavailable(display);
     assertNotNull(reason);
-    assertTrue(reason.contains("not loaded within"), reason);
+    assertTrue(reason.contains(UiText.MARKDOWN_BROWSER_TIMEOUT.format(15)), reason);
     assertFalse(pane.bound().armed());
   }
 
@@ -431,7 +434,38 @@ class BrowserPaneTest {
     assertEquals(0, during[0]);
     assertEquals(1, failureActions);
     String reason = BrowserPreview.unavailable(display);
-    assertTrue(reason.contains("not loaded within"), reason);
+    assertTrue(reason.contains(UiText.MARKDOWN_BROWSER_TIMEOUT.format(15)), reason);
+  }
+
+  @Test
+  void theContentsPageLoadsAsBuilt() {
+    BrowserPane pane = pane();
+    final List<String> titles = new CopyOnWriteArrayList<String>();
+    pane.browser()
+        .addTitleListener(
+            new TitleListener() {
+              @Override
+              public void changed(TitleEvent event) {
+                titles.add(event.title);
+              }
+            });
+    String page = "<html><head><title>Mock built page</title></head><body>x</body></html>";
+    pane.showRendered(
+        new MarkdownPreviewContent(
+            new MarkdownRenderer().render("text\n", null, new CancellationToken()),
+            List.<int[]>of(),
+            new int[0],
+            List.<MarkdownImageRequest>of(),
+            new MarkdownHtml("y", new int[0], List.<String>of(), page)));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return titles.contains("Mock built page");
+          }
+        },
+        "the page's own title, saw " + titles);
+    assertEquals(0, failureActions);
   }
 
   @Test

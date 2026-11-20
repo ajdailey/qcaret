@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -48,10 +49,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The Browser renderer in a real window: the choice renders through the Browser pane and back, a
- * browser that fails to create leaves Basic with the notice and the reason, the cycle key runs with
- * the browser focused, and the Command Palette lists Cycle Markdown View. A test that needs a real
- * browser skips, with the reason, where {@link BrowserHosts#assumeBrowser} finds none. With {@code
- * -Dqcaret.rm.out=<dir>} the light and dark page is saved there as PNG.
+ * theme switch reloads the page in the new palette, a browser that fails to create leaves Basic
+ * with the notice and the reason, the cycle key runs with the browser focused, and the Command
+ * Palette lists Cycle Markdown View. A test that needs a real browser skips, with the reason, where
+ * {@link BrowserHosts#assumeBrowser} finds none. With {@code -Dqcaret.rm.out=<dir>} the light and
+ * dark page is saved there as PNG.
  */
 @Tag("swt")
 class BrowserPreviewSurfaceTest {
@@ -196,6 +198,38 @@ class BrowserPreviewSurfaceTest {
     controller.execute(CommandId.PREVIEW_BASIC);
     awaitBasic("Mock guide");
     assertTrue(slot().created().control().isVisible());
+  }
+
+  @Test
+  void aThemeSwitchShowsThePageInTheNewPalette() throws Exception {
+    BrowserHosts.assumeBrowser(window.shell());
+    openMarkdown("# Mock guide\n");
+    controller.execute(CommandId.PREVIEW_BROWSER);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitBrowser(true);
+    assertTrue(
+        slot()
+            .browserPane()
+            .content()
+            .html()
+            .page()
+            .contains(MarkdownPage.stylesheet(Palette.LIGHT)));
+    controller.execute(CommandId.THEME_DARK);
+    final Palette dark = controller.theme().palette();
+    assertTrue(dark.dark());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return slot()
+                .browserPane()
+                .content()
+                .html()
+                .page()
+                .contains(MarkdownPage.stylesheet(dark));
+          }
+        },
+        "the Dark page");
   }
 
   @Test

@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.print.PrintSource;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -2041,6 +2042,21 @@ public final class DocumentController {
       for (OpenDocument d : documents) {
         if (d.markdown != null) {
           d.markdown.rendererChanged();
+        }
+      }
+    }
+  }
+
+  /**
+   * Sets the palette of Browser preview pages; a change rebuilds every shown page.
+   *
+   * @param palette the window's palette
+   */
+  void setMarkdownPalette(Palette palette) {
+    if (markdown.setPalette(palette)) {
+      for (OpenDocument d : documents) {
+        if (d.markdown != null) {
+          d.markdown.paletteChanged();
         }
       }
     }
