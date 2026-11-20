@@ -37,8 +37,9 @@ calls `browserFailed`; the controller posts "Browser preview unavailable;
 showing Basic" and renders Basic. View > Markdown View > Browser is disabled
 with the reason as its tool tip, or, where
 `PlatformTraits.showsMenuToolTips` is false (GTK 4, where SWT drops menu tool
-tips), in its label. `MainWindow.setPreviewBrowserFactory` replaces the
-`GuideWindow.BrowserFactory` for tests.
+tips), in its label. For tests, `MainWindow.setPreviewBrowserFactory` replaces
+the `GuideWindow.BrowserFactory` and `setPreviewBrowserDispatcher` the
+dispatcher that runs the panes' timers and bounds.
 
 ## Browser pane
 

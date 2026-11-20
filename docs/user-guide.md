@@ -1151,8 +1151,10 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
   the page written to the settings directory, holding its own images, with
   JavaScript off. Under GTK 4 a
   notice names the guide's file instead; open that file in a browser. Without a
-  working embedded browser, and in explicit and portable mode on Linux, the
-  guide opens in the system's HTML application, else a notice names the file.
+  working embedded browser, when the guide does not load in time (60 seconds
+  for the browser control to start, then 15 seconds), and in explicit and
+  portable mode on Linux, the guide opens in the system's HTML application,
+  else a notice names the file.
 - Keyboard Shortcuts (`F1`) lists every key, with a filter and Copy. It opens
   wide enough for every column, within the screen; a cell cut off shows its
   full text as a tool tip, as in the Command Palette.

@@ -51,13 +51,15 @@ import org.junit.jupiter.api.io.TempDir;
  * The Browser renderer in a real window: the choice renders through the Browser pane and back, a
  * theme switch reloads the page in the new palette, a browser that fails to create leaves Basic
  * with the notice and the reason, the cycle key runs with the browser focused, and the Command
- * Palette lists Cycle Markdown View. A test that needs a real browser skips, with the reason, where
- * {@link BrowserHosts#assumeBrowser} finds none. With {@code -Dqcaret.rm.out=<dir>} the light and
- * dark page is saved there as PNG.
+ * Palette lists Cycle Markdown View. The panes' dispatcher never schedules a start or load bound,
+ * so no real load races one. A test that needs a real browser skips, with the reason, where {@link
+ * BrowserHosts#assumeBrowser} finds none. With {@code -Dqcaret.rm.out=<dir>} the light and dark
+ * page is saved there as PNG.
  */
 @Tag("swt")
 class BrowserPreviewSurfaceTest {
-  private static final Duration BOUND = Duration.ofSeconds(30);
+  /** Covers the WebView2 start of the first browser control on a CI runner. */
+  private static final Duration BOUND = Duration.ofSeconds(90);
 
   @TempDir Path temp;
 
@@ -91,6 +93,7 @@ class BrowserPreviewSurfaceTest {
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
             Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
             false);
+    window.setPreviewBrowserDispatcher(new UnboundDispatcher(new SwtUiDispatcher(display)));
     window.attach(controller);
     window.place(new WindowGeometry.Request(null, null, 900, 600), null);
     window.open();

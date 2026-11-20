@@ -46,11 +46,11 @@ import org.slf4j.LoggerFactory;
  *       to the last id asked for. The browser's own scroll is not reported: with JavaScript off the
  *       page position cannot be read.
  *   <li>An {@link SWTException} or {@link SWTError} from a browser call, a page whose navigation
- *       has not started within {@link #START_BOUND_MILLIS} of {@code setText}, or a page not loaded
- *       within {@link GuideWindow#LOAD_BOUND_MILLIS} of its navigation starting, runs the failure
- *       action once; no browser exception leaves this class. A failure while this pane's own
- *       browser call is on the stack runs after that call returns: on Cocoa an SWT timer runs
- *       inside a nested run loop a native call spins.
+ *       has not started within {@link GuideWindow#START_BOUND_MILLIS} of {@code setText}, or a page
+ *       not loaded within {@link GuideWindow#LOAD_BOUND_MILLIS} of its navigation starting, runs
+ *       the failure action once; no browser exception leaves this class. A failure while this
+ *       pane's own browser call is on the stack runs after that call returns: on Cocoa an SWT timer
+ *       runs inside a nested run loop a native call spins.
  * </ul>
  *
  * Call on the UI thread.
@@ -60,12 +60,6 @@ final class BrowserPane {
 
   /** Time from a click or key on the browser to the navigation it starts. */
   static final int GESTURE_MILLIS = 1000;
-
-  /**
-   * Time from {@code setText} to the page's navigation, which on win32 includes the WebView2 start
-   * of a new browser control.
-   */
-  static final int START_BOUND_MILLIS = 60_000;
 
   private static final String BLANK = "about:blank";
 
@@ -114,7 +108,7 @@ final class BrowserPane {
     this.input = input;
     this.ui = ui;
     this.failure = failure;
-    this.start = timeout(ui, START_BOUND_MILLIS);
+    this.start = timeout(ui, GuideWindow.START_BOUND_MILLIS);
     this.bound = timeout(ui, GuideWindow.LOAD_BOUND_MILLIS);
     root = new Composite(parent, SWT.NONE);
     try {

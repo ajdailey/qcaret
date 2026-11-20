@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,6 +28,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,6 +36,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.eclipse.swt.SWTException;
 import org.eclipse.swt.browser.Browser;
+import org.eclipse.swt.browser.LocationAdapter;
+import org.eclipse.swt.browser.LocationEvent;
+import org.eclipse.swt.browser.ProgressAdapter;
+import org.eclipse.swt.browser.ProgressEvent;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.junit.jupiter.api.AfterEach;
@@ -44,14 +50,16 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Help > User Guide: the window or its fallback, the locations the browser may load, a browser
- * exception and the load bound. A real browser's outcome is never raced against a short timer; each
- * outcome has its own deterministic test. The settings are per-user: in explicit mode on Linux,
- * User Guide skips the window and launches the system's HTML application. The controller reaches
- * the window through a view that records launches instead of opening the system browser.
+ * exception, and the start and load bounds. A real browser's outcome is never raced against a
+ * bound: a window built here gets a dispatcher that never schedules one, and each expiry is called
+ * directly. The settings are per-user: in explicit mode on Linux, User Guide skips the window and
+ * launches the system's HTML application. The controller reaches the window through a view that
+ * records launches instead of opening the system browser.
  */
 @Tag("swt")
 class GuideWindowTest {
-  private static final Duration BOUND = Duration.ofSeconds(30);
+  /** Covers both bounds of a real window, the first WebView2 start on a CI runner included. */
+  private static final Duration BOUND = Duration.ofSeconds(90);
 
   /** Time the posted result of a written copy gets to reach the window. */
   private static final long SETTLE_NANOS = 2_000_000_000L;
@@ -245,10 +253,123 @@ class GuideWindowTest {
                 throw new SWTException("Waiting for Edge operation to terminate timed out");
               }
             },
-            GuideWindow.LOAD_BOUND_MILLIS);
+            new UnboundDispatcher(new SwtUiDispatcher(display)));
     assertNull(created);
     assertEquals(shells, display.getShells().length);
     assertTrue(fallbacks.isEmpty());
+  }
+
+  /** Creates a window on the guide's file whose browser carries the given listeners first. */
+  private GuideWindow guide(
+      Path copy, final LocationAdapter locations, final ProgressAdapter progress) {
+    return GuideWindow.create(
+        window.shell(),
+        copy,
+        new Consumer<Path>() {
+          @Override
+          public void accept(Path file) {
+            launched.add(file);
+          }
+        },
+        new GuideWindow.BrowserFactory() {
+          @Override
+          public Browser create(Composite parent) {
+            Browser browser = GuideWindow.BROWSER.create(parent);
+            if (locations != null) {
+              browser.addLocationListener(locations);
+            }
+            if (progress != null) {
+              browser.addProgressListener(progress);
+            }
+            return browser;
+          }
+        },
+        new UnboundDispatcher(new SwtUiDispatcher(display)));
+  }
+
+  private Path page() throws Exception {
+    return Files.writeString(
+        temp.resolve("guide.html"), "<html><body><p>Mock guide</p></body></html>");
+  }
+
+  @Test
+  void aLoadedGuideMeetsTheBounds() throws Exception {
+    BrowserHosts.assumeBrowser(window.shell());
+    // Listeners added in the factory run before the window's own, so each records the bounds as
+    // the window's previous event left them.
+    final List<String> atNavigation = new ArrayList<String>();
+    final List<String> atCompleted = new ArrayList<String>();
+    final GuideWindow[] created = new GuideWindow[1];
+    final GuideWindow guide =
+        guide(
+            page(),
+            new LocationAdapter() {
+              @Override
+              public void changing(LocationEvent event) {
+                if (event.location != null && event.location.startsWith("file:")) {
+                  atNavigation.add(armed(created[0]));
+                }
+              }
+            },
+            new ProgressAdapter() {
+              @Override
+              public void completed(ProgressEvent event) {
+                if (!atNavigation.isEmpty()) {
+                  atCompleted.add(armed(created[0]));
+                }
+              }
+            });
+    assertNotNull(guide);
+    created[0] = guide;
+    assertTrue(guide.start().armed());
+    assertFalse(guide.bound().armed());
+    guide.open();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return guide.loaded();
+              }
+            }),
+        "location " + guide.location());
+    assertEquals("true false", atNavigation.get(0), "start bound, load bound at navigation");
+    assertEquals("false true", atCompleted.get(0), "start bound, load bound at completed");
+    assertFalse(guide.start().armed());
+    assertFalse(guide.bound().armed());
+    assertEquals(List.of(), launched);
+  }
+
+  private static String armed(GuideWindow guide) {
+    return guide == null ? "none" : guide.start().armed() + " " + guide.bound().armed();
+  }
+
+  @Test
+  void theStartBoundExpiringTakesTheFallback() throws Exception {
+    BrowserHosts.assumeBrowser(window.shell());
+    Path copy = page();
+    GuideWindow guide = guide(copy, null, null);
+    assertNotNull(guide);
+    assertTrue(guide.start().armed());
+    guide.start().run();
+    assertTrue(guide.shell().isDisposed());
+    assertEquals(List.of(copy), launched);
+    assertFalse(guide.start().armed());
+    assertFalse(guide.bound().armed());
+  }
+
+  @Test
+  void theLoadBoundExpiringTakesTheFallback() throws Exception {
+    BrowserHosts.assumeBrowser(window.shell());
+    Path copy = page();
+    GuideWindow guide = guide(copy, null, null);
+    assertNotNull(guide);
+    guide.start().met();
+    guide.bound().arm();
+    guide.bound().run();
+    assertTrue(guide.shell().isDisposed());
+    assertEquals(List.of(copy), launched);
+    assertFalse(guide.bound().armed());
   }
 
   @Test

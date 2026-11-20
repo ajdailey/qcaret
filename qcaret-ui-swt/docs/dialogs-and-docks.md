@@ -357,8 +357,13 @@ guide's file, with or without an anchor, and `about:blank`.
 | cocoa | WebKit opens a modal "Page Load Failed" alert for a missing page, so the page is written before the load. An SWT timer runs inside any nested run loop a native call spins, so a bound that expires during this window's own `setUrl` or `Shell.open` closes the window after the call returns (`calls`, `deferredFailure`) |
 | win32 | WebView2 creation can stall; its data folder is `<settings>/cache/webview2` (`PlatformSetup`), inside the settings directory in every mode |
 
-An `SWTException` or `SWTError` from any browser call, or a page not loaded
-within `LOAD_BOUND_MILLIS` (15 s, `LoadBound` on `UiDispatcher.timerExec`),
+An `SWTException` or `SWTError` from any browser call, or an expired bound,
 closes the window and calls `ApplicationController.showGuideElsewhere`; during
-`create` it returns null and `showGuide` returns false. The location comes from
-the `changed` event: `Browser.getUrl` can throw on win32.
+`create` it returns null and `showGuide` returns false. Each `setUrl` arms the
+start bound, `START_BOUND_MILLIS` (60 s); the guide's own navigation
+(`changing` on its `file:` URL) replaces it with the load bound,
+`LOAD_BOUND_MILLIS` (15 s), and the loaded page meets either. Both are
+`LoadBound`s on `UiDispatcher.timerExec`, and `BrowserPane` uses the same two.
+The start bound covers the WebView2 start of a new browser control on win32,
+measured at 6-16 s on a freshly booted CI runner. The location comes from the
+`changed` event: `Browser.getUrl` can throw on win32.

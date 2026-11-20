@@ -43,6 +43,7 @@ import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.TipDisplay;
 import io.github.ajdailey.qcaret.app.view.TipInput;
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceInput;
@@ -176,6 +177,7 @@ public final class MainWindow implements MainView {
   private final Label preview;
   private MarkdownSwitch markdownSwitch;
   private GuideWindow.BrowserFactory browserFactory = GuideWindow.BROWSER;
+  private UiDispatcher browserDispatcher;
   private final MemoryGauge memoryGauge;
   private final Label readOnly;
   private final Label notice;
@@ -236,6 +238,7 @@ public final class MainWindow implements MainView {
   public MainWindow(Display display, Palette palette) {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
+    this.browserDispatcher = dispatcher;
     shell = new Shell(display, SWT.SHELL_TRIM);
     fullScreen = new FullScreen(shell, dispatcher, PlatformTraits.PLATFORM);
     shell.setText(UiText.WINDOW_TITLE.text());
@@ -303,7 +306,7 @@ public final class MainWindow implements MainView {
               @Override
               public BrowserPane newBrowserPreview(
                   Composite frame, MarkdownPreviewInput input, Runnable failure) {
-                return new BrowserPane(frame, input, browserFactory, dispatcher, failure);
+                return new BrowserPane(frame, input, browserFactory, browserDispatcher, failure);
               }
 
               @Override
@@ -797,6 +800,15 @@ public final class MainWindow implements MainView {
    */
   void setPreviewBrowserFactory(GuideWindow.BrowserFactory factory) {
     browserFactory = factory;
+  }
+
+  /**
+   * Sets the dispatcher Browser preview panes created from now on run their timers on.
+   *
+   * @param ui the dispatcher
+   */
+  void setPreviewBrowserDispatcher(UiDispatcher ui) {
+    browserDispatcher = ui;
   }
 
   /**

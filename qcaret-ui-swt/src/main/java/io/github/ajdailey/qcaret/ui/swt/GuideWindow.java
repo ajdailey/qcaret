@@ -28,9 +28,10 @@ import org.slf4j.LoggerFactory;
  * browser loads only the guide's file: every other location, a web address included, is refused,
  * and anchors within the page work.
  *
- * <p>An {@link SWTException} or {@link SWTError} from a browser call, or a page not loaded within
- * {@link #LOAD_BOUND_MILLIS} of a load request, closes the window and passes the guide's file to
- * the fallback; no browser exception reaches the caller. The bound runs on {@link
+ * <p>An {@link SWTException} or {@link SWTError} from a browser call, a guide whose navigation has
+ * not started within {@link #START_BOUND_MILLIS} of {@code setUrl}, or a guide not loaded within
+ * {@link #LOAD_BOUND_MILLIS} of its navigation starting, closes the window and passes the guide's
+ * file to the fallback; no browser exception reaches the caller. The bounds run on {@link
  * UiDispatcher#timerExec}, so the UI thread never waits for the browser.
  *
  * <p>A bound that expires while this window's own browser or shell call is on the stack closes the
@@ -40,7 +41,13 @@ import org.slf4j.LoggerFactory;
 final class GuideWindow {
   private static final Logger LOG = LoggerFactory.getLogger(GuideWindow.class);
 
-  /** Time from a load request to the loaded page before the window falls back. */
+  /**
+   * Time from a load request to the page's navigation, which on win32 includes the WebView2 start
+   * of a new browser control.
+   */
+  static final int START_BOUND_MILLIS = 60_000;
+
+  /** Time from the page's navigation to the loaded page. */
   static final int LOAD_BOUND_MILLIS = 15_000;
 
   /** Creates the browser widget in the window. */
@@ -58,6 +65,7 @@ final class GuideWindow {
 
   private final Shell shell;
   private final Consumer<Path> fallback;
+  private final LoadBound start;
   private final LoadBound bound;
   private final Browser browser;
   private Path file;
@@ -69,21 +77,25 @@ final class GuideWindow {
   private String deferredFailure;
 
   private GuideWindow(
-      Shell shell, Browser browser, Path file, Consumer<Path> fallback, int boundMillis) {
+      Shell shell, Browser browser, Path file, Consumer<Path> fallback, UiDispatcher ui) {
     this.shell = shell;
     this.browser = browser;
     this.file = file;
     this.fallback = fallback;
-    this.bound =
-        new LoadBound(
-            new SwtUiDispatcher(shell.getDisplay()),
-            boundMillis,
-            new Runnable() {
-              @Override
-              public void run() {
-                fail("not loaded within " + boundMillis + " ms");
-              }
-            });
+    this.start = timeout(ui, START_BOUND_MILLIS, "navigation not started");
+    this.bound = timeout(ui, LOAD_BOUND_MILLIS, "not loaded");
+  }
+
+  private LoadBound timeout(UiDispatcher ui, final int millis, final String what) {
+    return new LoadBound(
+        ui,
+        millis,
+        new Runnable() {
+          @Override
+          public void run() {
+            fail(what + " within " + millis + " ms");
+          }
+        });
   }
 
   /**
@@ -95,26 +107,26 @@ final class GuideWindow {
    * @return the window, not yet open, or null when the browser fails here, the fallback not called
    */
   static GuideWindow create(Shell parent, Path file, Consumer<Path> fallback) {
-    return create(parent, file, fallback, BROWSER, LOAD_BOUND_MILLIS);
+    return create(parent, file, fallback, BROWSER, new SwtUiDispatcher(parent.getDisplay()));
   }
 
   /**
-   * Creates the window with a given browser factory and load bound.
+   * Creates the window with a given browser factory and dispatcher.
    *
    * @param parent the main window
    * @param file the guide's HTML file
    * @param fallback receives the guide's file when the window fails after this returns
    * @param factory creates the browser widget
-   * @param boundMillis the load bound
+   * @param ui runs the start and load bounds
    * @return the window, not yet open, or null when the browser fails here, the fallback not called
    */
   static GuideWindow create(
-      Shell parent, Path file, Consumer<Path> fallback, BrowserFactory factory, int boundMillis) {
+      Shell parent, Path file, Consumer<Path> fallback, BrowserFactory factory, UiDispatcher ui) {
     Shell shell = Dialogs.shell(parent, UiText.GUIDE_TITLE.text(), false);
     GuideWindow window = null;
     try {
       Browser browser = factory.create(shell);
-      window = new GuideWindow(shell, browser, file, fallback, boundMillis);
+      window = new GuideWindow(shell, browser, file, fallback, ui);
       window.calls++;
       try {
         browser.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -132,6 +144,7 @@ final class GuideWindow {
     } catch (SWTException | SWTError e) {
       LOG.info("No browser for the user guide: {}", LogText.oneLine(e.getMessage()));
       if (window != null) {
+        window.start.met();
         window.bound.met();
       }
       dispose(shell);
@@ -147,6 +160,11 @@ final class GuideWindow {
             if (!allowed(event.location, file)) {
               event.doit = false;
               LOG.debug("User guide refused {}", LogText.oneLine(event.location));
+            } else if (start.armed()
+                && event.location != null
+                && event.location.startsWith("file:")) {
+              start.met();
+              bound.arm();
             }
           }
 
@@ -168,18 +186,20 @@ final class GuideWindow {
         });
   }
 
-  /** Starts a load of the guide and the bound on it; a browser exception propagates. */
+  /** Starts a load of the guide and the start bound on it; a browser exception propagates. */
   private void load(Path guide) {
     file = guide;
     location = null;
     completed = false;
     loads++;
-    bound.arm();
+    bound.met();
+    start.arm();
     browser.setUrl(guide.toUri().toString());
   }
 
   private void settle() {
     if (loaded()) {
+      start.met();
       bound.met();
     }
   }
@@ -198,6 +218,7 @@ final class GuideWindow {
     }
     failed = true;
     LOG.info("User guide window closed, {}; opening the guide elsewhere", LogText.oneLine(reason));
+    start.met();
     bound.met();
     dispose(shell);
     fallback.accept(file);
@@ -278,6 +299,24 @@ final class GuideWindow {
 
   Shell shell() {
     return shell;
+  }
+
+  /**
+   * Returns the start bound.
+   *
+   * @return the bound from the current load request to the guide's navigation
+   */
+  LoadBound start() {
+    return start;
+  }
+
+  /**
+   * Returns the load bound.
+   *
+   * @return the bound from the guide's navigation to the loaded page
+   */
+  LoadBound bound() {
+    return bound;
   }
 
   /**

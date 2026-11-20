@@ -17,7 +17,6 @@ import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
-import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -144,37 +143,6 @@ class BrowserPaneTest {
     shell.layout(true, true);
     shell.open();
     return pane;
-  }
-
-  /** Schedules every timer but a {@link GuideWindow.LoadBound}. */
-  private static final class UnboundDispatcher implements UiDispatcher {
-    private final UiDispatcher ui;
-
-    UnboundDispatcher(UiDispatcher ui) {
-      this.ui = ui;
-    }
-
-    @Override
-    public void asyncExec(Runnable task) {
-      ui.asyncExec(task);
-    }
-
-    @Override
-    public void timerExec(int delayMillis, Runnable task) {
-      if (!(task instanceof GuideWindow.LoadBound)) {
-        ui.timerExec(delayMillis, task);
-      }
-    }
-
-    @Override
-    public void cancelTimer(Runnable task) {
-      ui.cancelTimer(task);
-    }
-
-    @Override
-    public boolean isUiThread() {
-      return ui.isUiThread();
-    }
   }
 
   private static MarkdownPreviewContent content(String body, int[] lines, List<String> ids) {
