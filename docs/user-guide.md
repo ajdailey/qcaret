@@ -214,7 +214,7 @@ apply (measured on Linux, one million lines):
 | Operation | Time |
 |---|---|
 | Theme switch or font change (View > Zoom In, Zoom Out, Reset Zoom; Preferences) | About 1 s per view; a split document has two |
-| Sort, Remove Duplicate Lines, Trim Trailing Whitespace, line-ending conversion: the new text replaces the document's, with a busy cursor | Sort: 1.2-2.0 s after the sorted text is computed in the background; the others not measured |
+| Sort, the Edit > Line commands, Encode/Decode Text, Format XML and JSON, line-ending conversion: the new text replaces the document's, with a busy cursor | Sort: 1.2-2.0 s after the sorted text is computed in the background; the others not measured |
 
 ## The main window
 
@@ -291,9 +291,9 @@ apply (measured on Linux, one million lines):
   `#`. A blank line ends a paragraph. Undo restores the text in one step.
 - A right click in the text opens Undo, Redo, Cut, Copy, Paste, Select All,
   Toggle Bookmark, Edit Bookmark Comment, Toggle Fold, Open Path at Caret, the
-  Format XML and JSON and Encode/Decode Text cascades, Toggle Line Comment and Convert Case for that
-  view. A click in a selection keeps it; a click elsewhere moves the caret
-  there first.
+  Format XML and JSON and Encode/Decode Text cascades, Toggle Line Comment and
+  the Convert Case cascade for that view. A click in a selection keeps it; a
+  click elsewhere moves the caret there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
   matches and bookmarks across the whole document; a click or drag scrolls
   there.
@@ -304,18 +304,19 @@ apply (measured on Linux, one million lines):
 - The status bar shows notices, the read-only marker, line and column, the
   selection, encoding, line endings and language. A click on the language
   chooses a grammar, one on the encoding reopens or saves with another
-  encoding, and one on the line endings converts them to LF, CRLF or CR. A Warnings link appears when QCaret logs a warning and opens
-  Help > Show Log.
+  encoding, and one on the line endings converts them to LF, CRLF or CR. A
+  Warnings link appears when QCaret logs a warning and opens Help > Show Log.
 - The pointer shows the busy cursor, an arrow with a spinner, while a command
   works in the background, and the window stays usable. It shows over the
   window for opening, saving, Save As, Save a Copy, reloading and comparing
   files, line-ending conversion, Recent Files > Clean Up, Open All, dropped
   files, Go Back and Go Forward to a closed file, the workspace browser's folder
   changes, New File, New Folder, Rename and Delete, HyperSearch's folder check,
-  opening a search result, the replace preview, Restore Replace Run's list,
-  Generate from Selection into Clipboard, Reload Grammars, the Help menu's
-  About, licenses, user guide, Debug Log File and folders, and the memory
-  indicator's garbage collection. It shows over the editor for Sort, Remove
+  opening a search result, Open Path at Caret, copying a large set of search
+  results or a long bookmarked line, the replace preview, Restore Replace Run's
+  list, Generate from Selection into Clipboard, Reload Grammars, the Help
+  menu's About, licenses, user guide, Debug Log File and folders, and the
+  memory indicator's garbage collection. It shows over the editor for Sort, Remove
   Duplicate and Blank Lines, Reverse Lines, Trim Leading and Trailing
   Whitespace, Wrap Paragraph, Convert Indentation, Encode/Decode Text, Edit >
   Format XML and JSON, Add Next Occurrence, Go to and Select to Matching Bracket,
@@ -386,15 +387,14 @@ an optional sign, digits and a decimal fraction, so `-2.5` before `10`); lines
 without one follow in their order, and lines with equal numbers keep theirs.
 Convert Indentation rewrites only the spaces and tabs at the start of each line
 at the document's tab width; converting to tabs keeps as spaces the columns
-short of a tab stop. In a
-file mixing CR and LF line endings, these commands, Delete Line, Move Lines,
-Transpose and the trim at Save leave alone any line whose change would merge a CR and an LF
-into one CR LF line ending, and the status bar names how many lines they left.
-Edit > Tab Width (any width from 1 to 16 through Other), Indent with Spaces and
-Read-Only apply to the selected document. Preferences, Editor sets the width
-and the indentation a document without saved settings starts with. The bracket
-beside the caret and the other occurrences of the word at the caret are
-highlighted.
+short of a tab stop. In a file mixing CR and LF line endings, these commands,
+Delete Line, Move Lines, Transpose and the trim at Save leave alone any line
+whose change would merge a CR and an LF into one CR LF line ending, and the
+status bar names how many lines they left. Edit > Tab Width (any width from 1
+to 16 through Other), Indent with Spaces and Read-Only apply to the selected
+document. Preferences, Editor sets the width and the indentation a document
+without saved settings starts with. The bracket beside the caret and the other
+occurrences of the word at the caret are highlighted.
 
 Edit > Encode/Decode Text converts each selection in place and leaves it
 selected; every selection converts or none does, as one undo step, and `Esc`
@@ -422,13 +422,15 @@ replaces every selection, as one undo step. Month and day names follow the
 system's language.
 
 Edit > Insert Number Sequence asks for a start, a step, a width and a base
-(decimal or hex), then writes one number at each caret, in text order, or on
-each row of a block selection from the top, replacing selected text, as one
-undo step. Start and step may be negative and take `0x` before hex digits; the
-dialog refuses a number outside 64 bits, and nothing is inserted when a later
-number would leave that range. Width pads with zeros after any minus sign, so
-`-1` at width 3 is `-01`. Hex is written with a minus sign, never as two's
-complement. The dialog starts from the values used last.
+(decimal, or hex in upper or lower case), then writes one number at each caret,
+in text order, or on each row of a block selection from the top, replacing
+selected text, as one undo step. Start and step may be negative and take `0x`
+before hex digits; the dialog refuses a number outside 64 bits, and nothing is
+inserted when a later number would leave that range. Width pads with zeros
+after any minus sign, so `-1` at width 3 is `-01`. Hex is written with a minus
+sign, never as two's complement. The dialog starts from the values used last.
+
+![The Insert Number Sequence dialog with a hex sequence](images/guide/number-sequence.png)
 
 Tools > Document Statistics shows the selected document's lines, words,
 characters, characters without spaces and bytes in its encoding, and the same
@@ -889,10 +891,10 @@ Linux it needs GTK 3 on X11; under Wayland or GTK 4 the item is disabled, and
 the window manager's window menu (`Alt+Space` on most desktops) offers the same.
 
 View > Full Screen (`F11`; `Control+Cmd+F` on macOS) fills the screen with the
-window; the same command returns it. On Linux and Windows the menu bar stays; on macOS
-the window moves to its own space, the menu bar shows at the top edge, and the
-window's green button does the same. `Esc` does not leave full screen. A
-restart opens the window at its size before full screen.
+window; the same command returns it. On Linux and Windows the menu bar stays;
+on macOS the window moves to its own space, the menu bar shows at the top edge,
+and the window's green button does the same. `Esc` does not leave full screen.
+A restart opens the window at its size before full screen.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
 window's tab strip to dock it there; Window > Move to New Window and the tab
@@ -934,7 +936,7 @@ File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 
 ## Preferences
 
-![Preferences on the Files tab](images/guide/preferences.png)
+![Preferences on the Editor tab](images/guide/preferences.png)
 
 Tools > Preferences (`Ctrl+,`; the application menu on macOS) applies to the
 running windows without a restart.

@@ -45,6 +45,19 @@ class TipListTest {
   }
 
   @Test
+  void theFullScreenTipNamesEachPlatformsKey() {
+    int fullScreen = indexOf(UiText.TIP_FULL_SCREEN);
+    assertTrue(
+        TipList.text(fullScreen, Keymap.defaults(false, true))
+            .startsWith("View > Full Screen (F11) fills"));
+    Keymap mac = Keymap.defaults(true, false);
+    assertTrue(
+        TipList.text(fullScreen, mac)
+            .startsWith("View > Full Screen (" + mac.menuKeyText(CommandId.FULL_SCREEN) + ") "));
+    assertFalse(mac.menuKeyText(CommandId.FULL_SCREEN).contains("F11"));
+  }
+
+  @Test
   void anUnboundCommandsTipHasNoKey() {
     Keymap keymap = Keymap.defaults(false, true);
     assertEquals("", keymap.menuKeyText(CommandId.ALWAYS_ON_TOP));

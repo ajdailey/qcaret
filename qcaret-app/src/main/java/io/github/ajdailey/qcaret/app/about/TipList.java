@@ -62,6 +62,16 @@ public final class TipList {
     add(list, UiText.TIP_TOGGLE_LINE_COMMENT, CommandId.TOGGLE_LINE_COMMENT);
     add(list, UiText.TIP_COMPLETE_WORD, CommandId.COMPLETE_WORD);
     add(list, UiText.TIP_KEYBOARD_SHORTCUTS, CommandId.KEYBOARD_SHORTCUTS);
+    add(list, UiText.TIP_FORMAT_JSON, CommandId.PRETTY_PRINT_JSON);
+    add(list, UiText.TIP_ENCODE_DECODE, CommandId.BASE64_DECODE);
+    add(list, UiText.TIP_LINE_CLEANUP, CommandId.REMOVE_BLANK_LINES);
+    add(list, UiText.TIP_SORT_NUMERIC, CommandId.SORT_LINES_NUMERIC);
+    add(list, UiText.TIP_NUMBER_SEQUENCE, CommandId.INSERT_NUMBER_SEQUENCE);
+    add(list, UiText.TIP_OPEN_PATH_AT_CARET, CommandId.OPEN_PATH_AT_CARET);
+    add(list, UiText.TIP_COPY_JSON_PATH, CommandId.COPY_JSON_PATH);
+    add(list, UiText.TIP_FULL_SCREEN, CommandId.FULL_SCREEN);
+    add(list, UiText.TIP_RESULTS_COPY, null);
+    add(list, UiText.TIP_STATUS_MENUS, null);
     return List.copyOf(list);
   }
 

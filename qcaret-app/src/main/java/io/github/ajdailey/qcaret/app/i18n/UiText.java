@@ -625,6 +625,26 @@ public enum UiText {
   TIP_COMPLETE_WORD,
   /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
   TIP_KEYBOARD_SHORTCUTS,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_FORMAT_JSON,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_ENCODE_DECODE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_LINE_CLEANUP,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_SORT_NUMERIC,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_NUMBER_SEQUENCE,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_OPEN_PATH_AT_CARET,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_COPY_JSON_PATH,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_FULL_SCREEN,
+  /** A tip without a key. */
+  TIP_RESULTS_COPY,
+  /** A tip without a key. */
+  TIP_STATUS_MENUS,
   /** Command label. */
   COMMAND_SHOW_LOG,
   /** Command label. */

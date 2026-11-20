@@ -302,11 +302,21 @@ class GuideScreenshotsTest {
     settle();
     save(window.shell(), "guides.png");
 
+    controller.execute(CommandId.INSERT_NUMBER_SEQUENCE);
+    dialog("number-sequence.png");
+    NumberSequenceDialog sequence = window.numberSequenceDialog();
+    sequence.start().setText("0x10");
+    sequence.step().setText("0x10");
+    sequence.width().setSelection(4);
+    sequence.base().select(1);
+    settle();
+    saveDialog("number-sequence.png");
+
     controller.execute(CommandId.PREFERENCES);
     Shell preferences = dialog("preferences.png");
     TabFolder tabs = find(preferences, TabFolder.class);
     assertNotNull(tabs);
-    tabs.setSelection(PreferencesForm.Group.FILES.ordinal());
+    tabs.setSelection(PreferencesForm.Group.EDITOR.ordinal());
     settle();
     saveDialog("preferences.png");
 

@@ -214,7 +214,7 @@ classes, so the rules over the main classes never see them.
 | A string starting `org.eclipse.swt.internal.` only in `ui.swt.platform` and the reflection classes above | SWT internal properties and class names go through `PlatformTraits`; the check reads each class file's constant pool |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
 | `app.view` not on `app.{controller, search, config, session, recovery, cli, ipc}`; `app.editor` not on `app.controller`; `ui.swt` not on `core.{concurrent, io, buffer, edit, syntax, search, diff, watch, workspace}` or `app.{config, session, recovery, cli, ipc}` | Layering |
-| Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |
+| Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, `format`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |
 | No package cycles | Layering |
 | `core.util` depends on no other QCaret package | Utilities stay leaf classes |
 | Every `UiText` constant is read outside `UiText` | No unused bundle entry |
@@ -235,7 +235,7 @@ classes, so the rules over the main classes never see them.
 | A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogSurfaces.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
-| `DocumentBuilderFactory`, `SAXParserFactory` and `XMLInputFactory` only in `core.syntax` | Grammar files are the only XML parsed |
+| `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory` and `SchemaFactory` only in `core.xml` | `SecureXml` sets up every parser with external DTD, schema and entity access off ([XML parsers](../qcaret-core/docs/grammars.md#xml-parsers)) |
 | The string `os.name` only in `core.util.os` | Operating system questions go through `OsTraits`; the check reads each class file's constant pool, since ArchUnit does not see call arguments |
 | No `SWT.getPlatform()` or string `SWT_GTK4` in `core`, `app` or `launcher` | Toolkit platform questions stay in the view layer |
 
