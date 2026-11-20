@@ -21,6 +21,7 @@ import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.TextStyle;
 
 /**
  * Maps one rendered line of the content a pane shows onto {@code StyledText} line styles, as the
@@ -308,6 +309,29 @@ final class MarkdownStyler {
     StyleRange r = new StyleRange();
     r.start = from;
     r.length = to - from;
+    apply(r, bits, code, header, palette, fonts, 1f);
+    out.add(r);
+  }
+
+  /**
+   * Sets a text style from a span's bits, as Basic shows the span.
+   *
+   * @param r the style to set
+   * @param bits the span's {@link MarkdownSpans} bits, 0 for plain text
+   * @param code true on a code line
+   * @param header true on a table's header row
+   * @param palette the colors
+   * @param fonts the fonts
+   * @param pixelsPerPoint device pixels per point, for the rise of subscript and superscript
+   */
+  static void apply(
+      TextStyle r,
+      int bits,
+      boolean code,
+      boolean header,
+      Palette palette,
+      MarkdownFonts fonts,
+      float pixelsPerPoint) {
     int level = MarkdownSpans.level(bits);
     int role = MarkdownSpans.role(bits);
     boolean mono = code || (bits & (MarkdownSpans.CODE | MarkdownSpans.KBD)) != 0;
@@ -345,12 +369,12 @@ final class MarkdownStyler {
     if (mono || style != SWT.NORMAL || level > 0 || small) {
       r.font = fonts.get(mono, style, level, small);
     }
+    int height = (int) (r.font == null ? 0 : r.font.getFontData()[0].getHeight() * pixelsPerPoint);
     if ((bits & MarkdownSpans.SUP) != 0) {
-      r.rise = r.font.getFontData()[0].getHeight() / 2;
+      r.rise = height / 2;
     } else if ((bits & MarkdownSpans.SUB) != 0) {
-      r.rise = -r.font.getFontData()[0].getHeight() / 3;
+      r.rise = -height / 3;
     }
-    out.add(r);
   }
 
   /** Returns a palette color; SWT colors without a device hold no resource. */

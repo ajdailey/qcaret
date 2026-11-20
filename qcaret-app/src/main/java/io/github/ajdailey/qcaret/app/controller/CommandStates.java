@@ -40,6 +40,7 @@ import java.util.Set;
  * <p>Open All in Recent Files and in Recently Closed needs a listed file. The Markdown View modes
  * and Cycle Markdown View need a tab whose grammar is {@code markdown}; Markdown View's Browser
  * needs the platform's browser control, and {@link #unavailable} gives the reason it is missing.
+ * Print Rendered Markdown needs a Markdown tab.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -303,6 +304,7 @@ public final class CommandStates {
     return switch (command) {
       case COPY -> selected(documents);
       case PRINT_SELECTION -> selected(documents);
+      case PRINT_MARKDOWN -> documents.activeMarkdown();
       case SAVE -> !binary && !documents.activeRefusesSave();
       case SAVE_AS, SAVE_COPY_AS, READ_ONLY -> !binary;
       case SAVE_ALL -> documents.anyDirty();

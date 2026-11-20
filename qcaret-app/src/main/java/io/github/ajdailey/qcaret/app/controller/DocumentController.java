@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.editor.Bookmarks;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.FoldRegionSource;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.print.MarkdownPrintSource;
 import io.github.ajdailey.qcaret.app.print.PrintSource;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -2396,6 +2397,23 @@ public final class DocumentController {
         active.document.tabWidth(),
         lineNumbersShown,
         active.syntax == null ? null : active.syntax.syntax(),
+        grammars.maxLineChars());
+  }
+
+  /**
+   * Captures what printing the selected Markdown tab's rendering reads.
+   *
+   * @return the source, or null unless the selected tab is a Markdown tab
+   */
+  MarkdownPrintSource markdownPrintSource() {
+    if (!activeMarkdown()) {
+      return null;
+    }
+    return new MarkdownPrintSource(
+        active.name(),
+        active.document.text(),
+        active.file.path == null ? null : active.file.path.getParent(),
+        grammars.current(),
         grammars.maxLineChars());
   }
 

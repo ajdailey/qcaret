@@ -150,7 +150,7 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 
 | Menu | Holds, `\|` between groups |
 |---|---|
-| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open, Open Path at Caret \| the saves, Export as HTML \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
+| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open, Open Path at Caret \| the saves, Export as HTML \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection, Print Rendered Markdown \| Exit |
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines, Convert Case, Encode/Decode Text and Format XML and JSON cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Insert Number Sequence, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
@@ -220,7 +220,7 @@ Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,
 Insert Date and Time, Insert Number Sequence, Open Path at Caret, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
-Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Close Others,
+Always on Top, Set Workspace Folder, Save a Copy As, Print (Mod+P is Quick Open), Print Selection, Print Rendered Markdown, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
 Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in

@@ -1,8 +1,9 @@
 # Printing
 
-The SWT side of File > Print: `MainWindow.choosePrinter` and `PrintJob` in
-`ui.swt` of [qcaret-ui-swt](../README.md). Pagination and the job lifecycle are
-in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
+The SWT side of File > Print, Print Selection and Print Rendered Markdown:
+`MainWindow.choosePrinter` and `PrintJob` in `ui.swt`, and `MarkdownPrinting`
+in `ui.swt.markdown` of [qcaret-ui-swt](../README.md). Pagination and the job
+lifecycle are in [qcaret-app documents](../../qcaret-app/docs/documents.md#printing).
 
 `MainWindow.choosePrinter` opens `PrintDialog`, or on GTK 4 a PDF save dialog
 (see [GTK 4](#gtk-4)), and creates the `Printer` on the UI thread; `PrintJob`
@@ -14,6 +15,8 @@ showed All pages and the job printed only the selection (observed on Windows
 11). On win32 the dialog opens on its default scope, so the job prints what the
 dialog shows. File > Print Selection opens the same dialog; `PrintController` prints
 the selection whatever scope comes back, so Selection is reachable on win32.
+Print Rendered Markdown opens the same dialog, on Selection too while text is
+selected, and prints the whole rendering whatever scope comes back.
 Before the dialog opens, `PrintJobNaming` names the job (see [Job
 name](#job-name)). A `ProgressRow`
 shows the progress and Cancel above the status bar. It takes no Esc, since the
@@ -22,7 +25,7 @@ window stays usable.
 | Call | Thread | Reason |
 |---|---|---|
 | `PrintDialog.open`, `new Printer` | UI | GTK's constructor runs `gtk_enumerate_printers` with a main loop on the default context and uses static fields; macOS's creates an `NSWindow` |
-| `startJob`, `GC`, fonts, drawing, `endJob`, `cancelJob` | One platform worker | SWT checks the thread on widgets, not on a `Device` or its `GC`. macOS sets the graphics context per thread in `startJob`, and Pango's font map is per thread, so a virtual thread would be wrong |
+| `startJob`, `GC`, fonts, `TextLayout` measuring and drawing, images, `endJob`, `cancelJob` | One platform worker | SWT checks the thread on widgets, not on a `Device` or its `GC`. macOS sets the graphics context per thread in `startJob`, and Pango's font map is per thread, so a virtual thread would be wrong |
 | `Printer.dispose` | UI, or the worker when the Display is gone | The object was created there |
 
 On GTK, `endJob` queues the spool file; the event loop delivers it, so a quit
@@ -37,6 +40,34 @@ font's family, placing each span at its column times the measured advance, with
 bundled scheme or a theme file included; plain text and the header are black. A
 device depth of 1 prints all black. GTK reports depth 0 and macOS the screen's
 depth, so there the print system converts color for a monochrome printer.
+
+## Rendered Markdown
+
+`PrintJob.startMarkdown` starts the job as `start` does and returns a
+`MarkdownPrintSheet` over `MarkdownPrinting`: the body is the area below the
+header, and each page prints the same header. The text prints in the system
+font's family at 10 points, headings at Basic's sizes, code in the editor
+font's family, colored as Basic colors it with `Palette.LIGHT` on white (all
+black at depth 1).
+
+| Class | Role |
+|---|---|
+| `PrintLines` | Builds a rendered line's `TextLayout` on the `Printer`: styles from `MarkdownStyler.apply`, the shared span-to-style mapping; a paragraph line wraps at the body width less its quote and list indent; a table row does not wrap and takes its tab stops. Basic's pixel constants scale by the printer's dpi over 96 |
+| `PrintMeasurer` | All measuring: cell widths through the printer's `GC`, a line's row heights through its `TextLayout` |
+| `MarkdownPrinting` | Decodes images, draws placed rows clipped to the body, and paints what Basic's `MarkdownPainter` paints: code shade, quote bars, rules, heading lines, table borders, list markers, images and placeholders |
+
+Measuring and drawing run on the job's worker. `TextLayout` measuring on a
+`Printer` off the UI thread is verified on GTK 3 and GTK 4 (`PrintMeasurerTest`);
+win32 and cocoa are unverified until that test runs on their CI jobs. Should
+either fail, the fallback, measuring on the UI thread in bounded turns, goes in
+`PrintMeasurer` alone; drawing stays on the worker.
+
+An image decodes with `ImageLoader` from the bytes the job read, first frame
+only, sized as `SwtImageDecoder.size` sizes it in 96-dpi pixels, scaled to the
+printer's dpi and fitted inside the body. The decoded data is scaled down to the
+printed size when larger and never up; `drawImage` scales it on the page. An
+`Image` exists only while its row draws. A file that was not read or does not
+decode prints as a box with its file name.
 
 ## Copies and ranges
 

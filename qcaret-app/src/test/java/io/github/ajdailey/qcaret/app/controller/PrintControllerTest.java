@@ -8,8 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.TokenRole;
+import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
+import io.github.ajdailey.qcaret.app.view.MarkdownPrintSheet;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
@@ -18,6 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +38,10 @@ class PrintControllerTest {
   /** A printer that records pages, as text rows, on the job's thread. */
   private static final class FakeTarget implements PrintTarget {
     final List<Page> pages = new CopyOnWriteArrayList<Page>();
+    final List<MarkdownPrintSheet.Page> renderedPages =
+        new CopyOnWriteArrayList<MarkdownPrintSheet.Page>();
+    final List<String> rendered = new CopyOnWriteArrayList<String>();
+    final Map<String, Boolean> images = new ConcurrentHashMap<String, Boolean>();
     final CountDownLatch release = new CountDownLatch(1);
     final CountDownLatch inPage = new CountDownLatch(1);
     volatile boolean gate;
@@ -70,11 +80,56 @@ class PrintControllerTest {
     }
 
     @Override
+    public MarkdownPrintSheet startMarkdown(String name, final MarkdownPreviewContent content) {
+      thread = Thread.currentThread();
+      if (failStart) {
+        throw new PrintFailure("mock failure", null);
+      }
+      return new MarkdownPrintSheet() {
+        @Override
+        public Body body() {
+          return new Body(1000, rows * 10, 2);
+        }
+
+        @Override
+        public int width(String text, boolean strong) {
+          return text.length() * 10;
+        }
+
+        @Override
+        public void image(MarkdownImageRequest request, byte[] bytes) {
+          images.put(request.path().getFileName().toString(), bytes.length > 0);
+        }
+
+        @Override
+        public int[] rows(int line, MarkdownTableLayout.Row table) {
+          return new int[] {10};
+        }
+
+        @Override
+        public void page(MarkdownPrintSheet.Page page) {
+          String text = content.rendered().text();
+          for (MarkdownPrintSheet.Placed placed : page.lines()) {
+            int start = content.rendered().lineStart(placed.line());
+            int end = text.indexOf('\n', start);
+            rendered.add(text.substring(start, end < 0 ? text.length() : end));
+          }
+          renderedPages.add(page);
+          pageDone();
+        }
+      };
+    }
+
+    @Override
     public void page(Page page) {
       if (failPage) {
         throw new PrintFailure("mock failure", null);
       }
       pages.add(page);
+      pageDone();
+    }
+
+    private void pageDone() {
       inPage.countDown();
       if (gate) {
         try {
@@ -400,5 +455,95 @@ class PrintControllerTest {
         "job closed");
     assertFalse(target.finished);
     assertEquals(1, target.pages.size());
+  }
+
+  /** Opens {@code text} as {@code sample.md} with the Markdown grammar. */
+  private void openMarkdown(String text) throws Exception {
+    loadGrammars();
+    Path file = temp.resolve("sample.md");
+    Files.writeString(file, text, StandardCharsets.UTF_8);
+    harness.open(file);
+    harness.application.setSyntax("markdown");
+  }
+
+  private void loadGrammars() throws InterruptedException {
+    harness.application.loadGrammars();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !harness.application.documents().grammarChoices().isEmpty();
+          }
+        },
+        "grammars");
+  }
+
+  @Test
+  void printRenderedMarkdownNeedsAMarkdownTabAndHasNoDefaultKey() throws Exception {
+    loadGrammars();
+    open("# not rendered\n");
+    CommandStates states = new CommandStates(harness.application);
+    assertFalse(states.enabled(CommandId.PRINT_MARKDOWN));
+    assertEquals("", harness.application.keymap().keysText(CommandId.PRINT_MARKDOWN));
+    harness.application.execute(CommandId.PRINT_MARKDOWN);
+    harness.ui.runPending();
+    assertNull(harness.view.printRow);
+    assertEquals(0, target.closes);
+    harness.application.setSyntax("markdown");
+    assertTrue(states.enabled(CommandId.PRINT_MARKDOWN));
+  }
+
+  @Test
+  void printRenderedMarkdownPrintsTheWholeRenderingOnAPlatformWorker() throws Exception {
+    openMarkdown("# Title\n\nSome *mock* text\n\n- item\n");
+    select(2, 5);
+    target.selection = true;
+    harness.application.execute(CommandId.PRINT_MARKDOWN);
+    awaitEnd();
+    assertEquals(List.of("Title", "", "Some mock text", "", "item"), target.rendered);
+    assertTrue(target.pages.isEmpty());
+    assertEquals(3, target.renderedPages.size());
+    assertTrue(target.finished);
+    assertTrue(target.thread.getName().startsWith("qcaret-print-"));
+    assertFalse(target.thread.isVirtual());
+    assertEquals("sample.md: 3 pages sent to the printer", notice());
+  }
+
+  @Test
+  void printRenderedMarkdownReadsLocalImagesButNotSvg() throws Exception {
+    Files.write(temp.resolve("mock.png"), new byte[] {1, 2, 3});
+    Files.writeString(temp.resolve("mock.svg"), "<svg/>", StandardCharsets.UTF_8);
+    openMarkdown("![a](mock.png) ![b](mock.svg) ![c](missing.png)\n");
+    harness.application.execute(CommandId.PRINT_MARKDOWN);
+    awaitEnd();
+    assertEquals(Boolean.TRUE, target.images.get("mock.png"));
+    assertEquals(Boolean.FALSE, target.images.get("mock.svg"));
+    assertEquals(Boolean.FALSE, target.images.get("missing.png"));
+  }
+
+  @Test
+  void cancelDiscardsARenderedMarkdownJob() throws Exception {
+    openMarkdown("one\n\ntwo\n\nthree\n\nfour\n");
+    target.gate = true;
+    harness.application.execute(CommandId.PRINT_MARKDOWN);
+    assertTrue(target.inPage.await(20, TimeUnit.SECONDS));
+    harness.view.printCancel.run();
+    target.release.countDown();
+    awaitEnd();
+    assertEquals(1, target.renderedPages.size());
+    assertFalse(target.finished);
+    assertEquals(1, target.closes);
+  }
+
+  @Test
+  void aPageRangeOfRenderedMarkdownPrintsItsPagesUnderTheWholeCount() throws Exception {
+    openMarkdown("one\n\ntwo\n\nthree\n");
+    target.first = 2;
+    target.last = 2;
+    harness.application.execute(CommandId.PRINT_MARKDOWN);
+    awaitEnd();
+    assertEquals(List.of("two", ""), target.rendered);
+    assertEquals(2, target.renderedPages.get(0).number());
+    assertEquals(3, target.renderedPages.get(0).total());
   }
 }

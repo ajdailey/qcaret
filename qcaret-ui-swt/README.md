@@ -17,13 +17,13 @@ classes, which reach SWT internals by reflection.
 | `ui.swt.search` | `ResultsDock`, `ResultsMenu`, `ResultRows`, `ReplaceDialog`, `ReportWindow`, `RunChooser` | [Dialogs and docks](docs/dialogs-and-docks.md#results-dock) |
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `PaneHighlights`, `PanePainter`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
 | `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes | [Main window](docs/main-window.md#platform-traits) |
-| `ui.swt` | `PrintJob`, `PdfPrinter` and the printer calls | [Printing](docs/printing.md) |
+| `ui.swt`, `ui.swt.markdown` | `PrintJob`, `PdfPrinter`, the printer calls; `MarkdownPrinting`, `PrintLines`, `PrintMeasurer` | [Printing](docs/printing.md) |
 | `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch` | [Markdown preview](docs/markdown-preview.md) |
 | `ui.swt` | `SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 
 ## UI thread
 
-Every class here runs on the UI thread, except `PrintJob`'s printing on its
+Every class here runs on the UI thread, except `PrintJob`'s printing and `MarkdownPrinting` on their
 worker. `SwtUiDispatcher` is the only class that posts to the Display
 (`asyncExec`, `timerExec`, `execute`); no code calls `Display.syncExec` or
 `syncCall`, and no call in

@@ -445,9 +445,9 @@ dock is hidden.
 
 ## Printing
 
-`PrintController` runs File > Print and File > Print Selection, one job per
-window; a second request shows a notice. Print prints the selection when the
-`PrintTarget` reports `selectionOnly`; Print Selection prints it whatever the
+`PrintController` runs File > Print, File > Print Selection and File > Print
+Rendered Markdown, one job per window; a second request shows a notice. Print
+prints the selection when the `PrintTarget` reports `selectionOnly`; Print Selection prints it whatever the
 target reports, and without a selection shows a notice and opens no dialog. A
 page range applies to the pages being printed, the selection's under Print
 Selection. The command captures a `PrintSource`: a text snapshot, the active
@@ -469,3 +469,31 @@ Rules are in its Javadoc. It tokenizes forward from the first line on its own
 `Tokenizer`, because a page's first line needs the state before it, so pages
 are built in ascending order. `total` in a page is the count of the whole
 layout, so a range prints Page 3 of 10.
+
+### Rendered Markdown
+
+Print Rendered Markdown, enabled on a Markdown tab, captures a
+`MarkdownPrintSource` (text snapshot, folder, grammars) and prints the whole
+rendering: the selection and a Selection scope do not apply; a page range does.
+`MarkdownPrintJob` runs on the job's thread. It renders as the preview does
+(`MarkdownRenderer`, `MarkdownCodeTokens`, `MarkdownSpans`), calls
+`PrintTarget.startMarkdown`, hands each local image's bytes to the returned
+`MarkdownPrintSheet` (an SVG, a file over 16 MiB or an unreadable one goes as
+empty bytes and prints as a placeholder), then lays out with
+`MarkdownPageLayout`. The sheet is the toolkit seam for measuring and drawing.
+
+`MarkdownPageLayout` (`app.print`) measures table columns through
+`MarkdownTableLayout` with the sheet as `TextMeasurer`, asks the sheet for each
+rendered line's row heights, and stacks them on pages of the body's height:
+
+| Line | Page break |
+|---|---|
+| Paragraph, list item, quote, HTML, TOC | Between wrapped rows |
+| Code line, table row, heading, rule | Never inside; a line taller than the page breaks between rows |
+| Heading at a page's end | Moves to the next page with the separator lines after it, unless first on its page |
+| Table row continuing a table on a new page | The header row prints first again |
+| Separator line at a page's top | Left out |
+
+A row taller than the body takes a page of its own and is cut at the body's
+bottom; the sheet scales images to fit the body. Cancel is checked per block,
+image, line and page.

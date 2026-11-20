@@ -5,8 +5,8 @@ import java.util.List;
 
 /**
  * One print job on a chosen printer. {@link #start}, {@link #page} and {@link #finish} run in that
- * order on one platform worker thread, and {@link #close} ends the job on that thread. A failing
- * call throws {@link PrintFailure}.
+ * order on one platform worker thread, or {@link #startMarkdown}, the sheet's pages and {@link
+ * #finish}; {@link #close} ends the job on that thread. A failing call throws {@link PrintFailure}.
  */
 public interface PrintTarget {
   /**
@@ -87,6 +87,15 @@ public interface PrintTarget {
    * @return the page's text area
    */
   Frame start(String name);
+
+  /**
+   * Starts the job for rendered Markdown, in place of {@link #start}.
+   *
+   * @param name the document's name, for the job and the page header
+   * @param content the render, its code colors and its images
+   * @return the sheet that measures and prints its pages
+   */
+  MarkdownPrintSheet startMarkdown(String name, MarkdownPreviewContent content);
 
   /**
    * Prints a page.

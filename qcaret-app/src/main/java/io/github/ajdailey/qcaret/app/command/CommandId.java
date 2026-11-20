@@ -42,6 +42,8 @@ public enum CommandId {
   PRINT(CommandGroup.FILE, UiText.COMMAND_PRINT, false, null),
   /** Print the selection on a printer chosen in a dialog, whatever scope the dialog returns. */
   PRINT_SELECTION(CommandGroup.FILE, UiText.COMMAND_PRINT_SELECTION, false, null),
+  /** Print the selected Markdown tab as Basic renders it, on a printer chosen in a dialog. */
+  PRINT_MARKDOWN(CommandGroup.FILE, UiText.COMMAND_PRINT_MARKDOWN, false, null),
   /** Open every file of File > Recent Files. */
   OPEN_ALL_RECENT(
       CommandGroup.FILE, UiText.COMMAND_OPEN_ALL_RECENT, false, UiText.MENU_RECENT_FILES),

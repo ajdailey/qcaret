@@ -117,3 +117,10 @@ The [Outline dock](dialogs-and-docks.md#outline-dock) lists the selected
 Markdown tab's headings in every mode. A heading chosen there puts its line at
 the editor's top; in Split and Preview the pane scrolls to the heading through
 `scrollToLine`, as for an anchor link.
+
+## Printing
+
+File > Print Rendered Markdown prints Basic's rendering. `MarkdownStyler.apply`
+maps a span's bits to a `TextStyle` for both the pane's `StyleRange` and the
+printer's `TextLayout`, so a style change reaches both. The printing classes
+are in [Printing](printing.md#rendered-markdown).

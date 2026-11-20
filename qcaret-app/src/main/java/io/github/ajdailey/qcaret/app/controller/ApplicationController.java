@@ -765,6 +765,7 @@ public final class ApplicationController {
       case RELOAD -> documents.reloadFromDisk();
       case PRINT -> print.print();
       case PRINT_SELECTION -> print.printSelection();
+      case PRINT_MARKDOWN -> print.printMarkdown();
       case CLOSE -> documents.closeActive();
       case CLOSE_ALL -> documents.closeAllTabs();
       case QUIT -> requestQuit();

@@ -713,6 +713,15 @@ focus to the editor. The arrow keys and typing a heading's first letters move
 the selection without moving the caret, and the selection follows the caret.
 The dock lists nothing for a document over 1 MiB of chars.
 
+File > Print Rendered Markdown, enabled on a Markdown tab, prints the document
+as the Basic renderer draws it, in any mode. It opens the same dialog as File >
+Print (on Linux with GTK 4, the PDF file name) and prints the whole document; a
+page range applies, a selection does not. Each page has the file name and Page
+N of M at the top, and the colors are the light theme's on white. A table row,
+a code line or an image never splits across pages, a heading does not end a
+page, and a table continued on a new page repeats its header row. It has no
+default key; progress, Cancel and the one-job limit are as for File > Print.
+
 ## External changes
 
 QCaret checks each open file every 5 seconds and when a window activates.

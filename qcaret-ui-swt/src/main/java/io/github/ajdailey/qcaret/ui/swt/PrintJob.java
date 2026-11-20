@@ -1,10 +1,15 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.TokenStyle;
+import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
+import io.github.ajdailey.qcaret.app.view.MarkdownPrintSheet;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
+import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPrinting;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
@@ -44,11 +49,13 @@ final class PrintJob implements PrintTarget {
   private final Printer printer;
   private final PrinterData data;
   private final String family;
+  private final String bodyFamily;
   private final SwtUiDispatcher ui;
   private final Display display;
   private final boolean color;
   private final Font[] fonts = new Font[4];
   private GC gc;
+  private MarkdownPrinting rendered;
   private boolean jobOpen;
   private String name = "";
   private double advance;
@@ -56,6 +63,7 @@ final class PrintJob implements PrintTarget {
   private int left;
   private int right;
   private int top;
+  private int bottom;
   private int body;
 
   /**
@@ -63,13 +71,15 @@ final class PrintJob implements PrintTarget {
    *
    * @param printer the printer, which the job disposes
    * @param data what the dialog chose
-   * @param family the font family
-   * @param display the Display, on whose thread the Printer is disposed
+   * @param family the font family of source text and of rendered Markdown's code
+   * @param display the Display, on whose thread the Printer is disposed; its system font's family
+   *     prints rendered Markdown's text
    */
   PrintJob(Printer printer, PrinterData data, String family, Display display) {
     this.printer = printer;
     this.data = data;
     this.family = family;
+    this.bodyFamily = display.getSystemFont().getFontData()[0].getName();
     this.display = display;
     this.ui = new SwtUiDispatcher(display);
     this.color = printer.getDepth() != 1;
@@ -92,30 +102,108 @@ final class PrintJob implements PrintTarget {
 
   @Override
   public Frame start(String document) {
-    name = document;
     try {
-      jobOpen = printer.startJob(document);
-      if (!jobOpen) {
-        throw new PrintFailure("The print job did not start", null);
-      }
-      gc = new GC(printer);
-      gc.setFont(font(false, false));
-      advance = gc.stringExtent(MEASURE).x / (double) MEASURE.length();
-      rowHeight = gc.getFontMetrics().getHeight();
-      Rectangle client = printer.getClientArea();
-      Rectangle trim = printer.computeTrim(0, 0, 0, 0);
-      Point dpi = printer.getDPI();
-      int marginX = dpi.x * MARGIN / 100;
-      int marginY = dpi.y * MARGIN / 100;
-      left = Math.max(client.x, trim.x + marginX);
-      right = Math.min(client.x + client.width, trim.x + trim.width + client.width - marginX);
-      top = Math.max(client.y, trim.y + marginY);
-      int bottom =
-          Math.min(client.y + client.height, trim.y + trim.height + client.height - marginY);
-      body = top + rowHeight * 2;
+      open(document);
       return new Frame((int) ((right - left) / advance), (bottom - body) / rowHeight);
     } catch (SWTError | SWTException e) {
       throw new PrintFailure("The print job did not start", e);
+    }
+  }
+
+  @Override
+  public MarkdownPrintSheet startMarkdown(String document, MarkdownPreviewContent content) {
+    try {
+      open(document);
+      rendered =
+          new MarkdownPrinting(
+              printer,
+              gc,
+              new Rectangle(left, body, right - left, bottom - body),
+              content,
+              bodyFamily,
+              family,
+              color);
+      return new RenderedSheet(rendered);
+    } catch (SWTError | SWTException e) {
+      throw new PrintFailure("The print job did not start", e);
+    }
+  }
+
+  /** Starts the job and measures the margins, the header and the source text's columns. */
+  private void open(String document) {
+    name = document;
+    jobOpen = printer.startJob(document);
+    if (!jobOpen) {
+      throw new PrintFailure("The print job did not start", null);
+    }
+    gc = new GC(printer);
+    gc.setFont(font(false, false));
+    advance = gc.stringExtent(MEASURE).x / (double) MEASURE.length();
+    rowHeight = gc.getFontMetrics().getHeight();
+    Rectangle client = printer.getClientArea();
+    Rectangle trim = printer.computeTrim(0, 0, 0, 0);
+    Point dpi = printer.getDPI();
+    int marginX = dpi.x * MARGIN / 100;
+    int marginY = dpi.y * MARGIN / 100;
+    left = Math.max(client.x, trim.x + marginX);
+    right = Math.min(client.x + client.width, trim.x + trim.width + client.width - marginX);
+    top = Math.max(client.y, trim.y + marginY);
+    bottom = Math.min(client.y + client.height, trim.y + trim.height + client.height - marginY);
+    body = top + rowHeight * 2;
+  }
+
+  /** The rendered Markdown pages of a job, drawn by {@link MarkdownPrinting}. */
+  private final class RenderedSheet implements MarkdownPrintSheet {
+    private final MarkdownPrinting pages;
+
+    RenderedSheet(MarkdownPrinting pages) {
+      this.pages = pages;
+    }
+
+    @Override
+    public Body body() {
+      return new Body(right - left, bottom - body, pages.padding());
+    }
+
+    @Override
+    public int width(String text, boolean strong) {
+      try {
+        return pages.width(text, strong);
+      } catch (SWTError | SWTException e) {
+        throw new PrintFailure("Measuring failed", e);
+      }
+    }
+
+    @Override
+    public void image(MarkdownImageRequest request, byte[] bytes) {
+      try {
+        pages.image(request, bytes);
+      } catch (SWTError | SWTException e) {
+        throw new PrintFailure("An image failed", e);
+      }
+    }
+
+    @Override
+    public int[] rows(int line, MarkdownTableLayout.Row table) {
+      try {
+        return pages.rows(line, table);
+      } catch (SWTError | SWTException e) {
+        throw new PrintFailure("Measuring failed", e);
+      }
+    }
+
+    @Override
+    public void page(MarkdownPrintSheet.Page page) {
+      try {
+        if (!printer.startPage()) {
+          throw new PrintFailure("A page did not start", null);
+        }
+        header(page.number(), page.total());
+        pages.draw(page.lines());
+        printer.endPage();
+      } catch (SWTError | SWTException e) {
+        throw new PrintFailure("A page failed", e);
+      }
     }
   }
 
@@ -125,7 +213,7 @@ final class PrintJob implements PrintTarget {
       if (!printer.startPage()) {
         throw new PrintFailure("A page did not start", null);
       }
-      header(page);
+      header(page.number(), page.total());
       int y = body;
       for (Row row : page.rows()) {
         if (row.line() > 0) {
@@ -150,10 +238,10 @@ final class PrintJob implements PrintTarget {
     }
   }
 
-  private void header(Page page) {
+  private void header(int number, int total) {
     gc.setFont(font(false, false));
     gc.setForeground(BLACK);
-    String label = UiText.PRINT_PAGE.format(page.number(), page.total());
+    String label = UiText.PRINT_PAGE.format(number, total);
     int columns = (int) ((right - left) / advance) - label.length() - 1;
     String title = name;
     if (title.length() > columns) {
@@ -220,6 +308,10 @@ final class PrintJob implements PrintTarget {
   }
 
   private void releaseDrawing() {
+    if (rendered != null) {
+      rendered.dispose();
+      rendered = null;
+    }
     if (gc != null) {
       gc.dispose();
       gc = null;

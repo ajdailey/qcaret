@@ -1714,6 +1714,8 @@ public enum UiText {
   PRINT_TO_PDF,
   /** File > Print Selection. */
   COMMAND_PRINT_SELECTION,
+  /** File > Print Rendered Markdown. */
+  COMMAND_PRINT_MARKDOWN,
   /** Tab tool tip line naming where the settings came from; takes the sources. */
   SETTINGS_FROM,
   /** A modeline as a settings source; takes its kind. */
