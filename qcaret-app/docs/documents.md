@@ -400,8 +400,20 @@ dropped. The pane (`MarkdownPreviewView`) only
 applies these requests.
 
 Find, Replace and HyperSearch act on the tab's document and editor in every
-mode. In Preview the match is selected in the hidden editor and the preview
-does not scroll to it.
+mode. In Preview, `FindController` (Find Next, Find Previous, the incremental
+find, and the match after a Replace) and `ResultsNavigation` (an opened
+HyperSearch result) pass the selected match to
+`DocumentController.revealMarkdownMatch`, which calls the document's
+`MarkdownPreview.revealMatch` in the window holding it. `PreviewMatch` maps
+the match: the preview scrolls to the rendered line of its source line, as
+`revealSource` does, and Basic content also selects the rendered text
+(`MarkdownPreviewView.selectRendered`) when the match's text occurs once in its
+block's source and once in the block's rendered text, outside a table, with
+both texts at most 100,000 chars. The render has no source offsets, so a match in
+markup that does not render, or whose text repeats in its block, only
+scrolls. `HeldMatch` keeps a match found in a revision the shown render does
+not hold, as after a Replace, until the render of that revision shows; an edit
+before then drops it. Split keeps its scroll mapping and Source does nothing.
 
 #### Browser HTML and Export as HTML
 

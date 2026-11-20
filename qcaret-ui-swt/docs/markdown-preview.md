@@ -109,8 +109,11 @@ it is measured. A table row's spaces show as no-break spaces so a cell does not
 wrap; Copy, from the keys bound to it and from the context menu, puts the
 render's own text on the clipboard.
 
-The pane reports a new top line from `Paint`; `scrollToLine` records the line
-it set, so the controller's own scroll is not reported back. The text has no
+The pane reports a new top line from `Paint`; `scrollToLine` and
+`selectRendered` record the line they leave at the top, so the controller's own
+scroll is not reported back. `selectRendered` (a find match in Preview) sets
+the selection, which scrolls it into view, and leaves the focus where it is;
+the `BrowserPane` has no selection and only scrolls. The text has no
 top margin: `getTopIndex` returns the first fully visible line, and a line
 scrolled under a top margin would read as the next one.
 

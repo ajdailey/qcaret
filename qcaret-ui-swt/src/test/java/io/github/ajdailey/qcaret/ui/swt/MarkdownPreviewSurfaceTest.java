@@ -38,7 +38,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -56,8 +61,9 @@ import org.junit.jupiter.api.io.TempDir;
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
  * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, the
  * Browser menu item names its reason when disabled, View > Markdown View holds the modes and the
- * renderers, the cycle key runs from the preview, and Find from Preview selects in the hidden
- * source and returns the focus to the preview.
+ * renderers, the cycle key runs from the preview, Find from Preview selects in the hidden source
+ * and returns the focus to the preview, and a match found in Preview scrolls into view selected.
+ * With {@code -Dqcaret.rm.out=<dir>} that match is saved there as PNG, light and dark.
  */
 @Tag("swt")
 class MarkdownPreviewSurfaceTest {
@@ -381,6 +387,80 @@ class MarkdownPreviewSurfaceTest {
     flush();
     assertFalse(bar.control().isVisible());
     assertSame(window.activePreview().text(), display.getFocusControl());
+  }
+
+  @Test
+  void findInPreviewScrollsTheMatchIntoViewAndSelectsIt() throws Exception {
+    StringBuilder text = new StringBuilder("# Top\n\n");
+    for (int i = 0; i < 300; i++) {
+      text.append(i == 250 ? "Paragraph with a **needle** in it." : "Paragraph " + i + ".");
+      text.append("\n\n");
+    }
+    openFile("long.md", text.toString());
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitShown("Paragraph 299");
+    window.shell().forceActive();
+    final MarkdownPane pane = window.activePreview();
+    pane.text().setFocus();
+    flush();
+    controller.execute(CommandId.FIND);
+    flush();
+    FindBar bar = window.findBar();
+    bar.field().setText("needle");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return "needle".equals(pane.text().getSelectionText());
+          }
+        },
+        "the rendered match selected, was '" + pane.text().getSelectionText() + "'");
+    flush();
+    int y = pane.text().getLocationAtOffset(pane.text().getSelection().x).y;
+    assertTrue(
+        y >= 0 && y < pane.text().getClientArea().height,
+        "match at y " + y + ", top " + pane.text().getTopIndex());
+    assertSame(bar.field(), display.getFocusControl());
+    String out = System.getProperty("qcaret.rm.out");
+    if (out != null) {
+      shot(Path.of(out, "find-preview-light.png"));
+      controller.execute(CommandId.THEME_DARK);
+      flush();
+      shot(Path.of(out, "find-preview-dark.png"));
+    }
+    Event escape = new Event();
+    escape.keyCode = SWT.ESC;
+    bar.field().notifyListeners(SWT.KeyDown, escape);
+    flush();
+    assertSame(pane.text(), display.getFocusControl());
+  }
+
+  /** Saves the window as the screen shows it, after 2 s of event loop for the repaint. */
+  private void shot(Path file) throws Exception {
+    final long until = System.nanoTime() + 2_000_000_000L;
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return System.nanoTime() > until;
+          }
+        },
+        BOUND);
+    Files.createDirectories(file.getParent());
+    Rectangle bounds = window.shell().getBounds();
+    Image image = new Image(display, bounds.width, bounds.height);
+    GC gc = new GC(display);
+    try {
+      gc.copyArea(image, bounds.x, bounds.y);
+      ImageLoader loader = new ImageLoader();
+      loader.data = new ImageData[] {image.getImageData()};
+      loader.save(file.toString(), SWT.IMAGE_PNG);
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
   }
 
   private void post(int type, int keyCode, int character) {

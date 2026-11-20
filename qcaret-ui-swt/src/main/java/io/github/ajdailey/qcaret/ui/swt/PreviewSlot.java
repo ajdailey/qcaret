@@ -276,6 +276,13 @@ final class PreviewSlot implements MarkdownPreviewView {
   }
 
   @Override
+  public void selectRendered(int start, int end) {
+    if (browser == null && pane != null) {
+      pane.selectRendered(start, end);
+    }
+  }
+
+  @Override
   public void scrollToAnchor(String id) {
     if (browser != null) {
       browser.scrollToAnchor(id);

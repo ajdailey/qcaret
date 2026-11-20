@@ -2081,6 +2081,21 @@ public final class DocumentController {
     }
   }
 
+  /**
+   * Shows a find match of a document in its window's preview ({@link MarkdownPreview#revealMatch}).
+   *
+   * @param document the document searched, in any window
+   * @param start the match's start
+   * @param end the match's end
+   */
+  void revealMarkdownMatch(Document document, int start, int end) {
+    DocumentController holder = holderOf(document);
+    OpenDocument d = holder == null ? null : holder.entry(document);
+    if (d != null && d.markdown != null) {
+      d.markdown.revealMatch(start, end);
+    }
+  }
+
   /** Returns the selected document's grammar, or null without a document or before the read. */
   Grammar activeGrammar() {
     return active == null ? null : grammars.grammarOf(active);

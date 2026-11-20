@@ -170,6 +170,7 @@ class MarkdownPreviewTest {
     final List<int[]> notices = new ArrayList<int[]>();
     final List<Integer> scrolls = new ArrayList<Integer>();
     final List<String> anchors = new ArrayList<String>();
+    final List<int[]> selects = new ArrayList<int[]>();
     final FakeMarkdownPane delegate = new FakeMarkdownPane(null);
 
     @Override
@@ -194,6 +195,12 @@ class MarkdownPreviewTest {
     public void scrollToLine(int line) {
       ui.checkUiThread();
       scrolls.add(line);
+    }
+
+    @Override
+    public void selectRendered(int start, int end) {
+      ui.checkUiThread();
+      selects.add(new int[] {start, end});
     }
 
     @Override
@@ -404,6 +411,77 @@ class MarkdownPreviewTest {
     p.sourceScrolled(0);
     assertEquals(1, pane.scrolls.size());
     p.dispose();
+  }
+
+  @Test
+  void aMatchInPreviewScrollsToItsBlockAndSelectsItsText() throws InterruptedException {
+    String text = "# A\n\npara\n\nA **needle** here.\n";
+    MarkdownPreview p = preview(document(text), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    int at = text.indexOf("needle");
+    p.revealMatch(at, at + 6);
+    assertEquals(List.of(r.renderedLine(4)), pane.scrolls);
+    int rendered = r.text().indexOf("needle");
+    assertEquals(List.of(List.of(rendered, rendered + 6)), selects());
+    p.setMode(MarkdownViewMode.SPLIT);
+    p.revealMatch(at, at + 6);
+    assertEquals(1, pane.scrolls.size());
+    assertEquals(1, pane.selects.size());
+    p.dispose();
+  }
+
+  @Test
+  void aMatchInBrowserContentScrollsWithoutASelection() throws InterruptedException {
+    tab.browser = true;
+    String text = "# A\n\npara needle\n";
+    MarkdownPreview p = preview(document(text), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    int at = text.indexOf("needle");
+    p.revealMatch(at, at + 6);
+    assertEquals(List.of(pane.shown.get(0).rendered().renderedLine(2)), pane.scrolls);
+    assertEquals(List.of(), pane.selects);
+    p.dispose();
+  }
+
+  @Test
+  void aMatchAfterAnEditWaitsForTheRenderOfThatRevision() throws InterruptedException {
+    Document d = document("# A\n\nA needle here.\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    d.apply(EditBatch.replace(0, 3, "# Mock needle"));
+    p.revealMatch(7, 13);
+    assertEquals(List.of(), pane.scrolls);
+    awaitShown(2);
+    assertEquals(List.of(0), pane.scrolls);
+    assertEquals(List.of(List.of(5, 11)), selects());
+    p.dispose();
+  }
+
+  @Test
+  void aHeldMatchIsDroppedByALaterEdit() throws InterruptedException {
+    Document d = document("# A\n\nA needle here.\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    d.apply(EditBatch.replace(0, 3, "# Mock needle"));
+    p.revealMatch(7, 13);
+    d.apply(EditBatch.replace(0, 0, "x"));
+    awaitShown(2);
+    assertEquals(List.of(), pane.scrolls);
+    assertEquals(List.of(), pane.selects);
+    p.dispose();
+  }
+
+  private List<List<Integer>> selects() {
+    List<List<Integer>> all = new ArrayList<List<Integer>>();
+    for (int[] s : pane.selects) {
+      all.add(List.of(s[0], s[1]));
+    }
+    return all;
   }
 
   @Test

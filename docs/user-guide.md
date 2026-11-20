@@ -677,8 +677,12 @@ steps it from Source to Split to Preview and back to Source, from the editor or
 the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
-match. In Preview they select the match in the hidden source without scrolling
-the preview, and closing the find bar returns to the preview. Preview text can
+match. In Preview, each match Find, Replace or a HyperSearch result selects
+scrolls the preview to the match's paragraph, heading or other block, and the
+Basic renderer also selects the match's rendered text when that text appears
+once in the block; a match in markup that does not render, such as a link
+address, only scrolls. The find bar keeps the focus, and closing it returns to
+the preview. Preview text can
 be selected and copied.
 
 The preview renders again 0.3 seconds after you stop typing. A document over
@@ -701,8 +705,8 @@ control, with a stylesheet resembling GitLab's in the current theme, and shows
 HTML in the document as written. JavaScript is off and nothing outside the
 page loads: local images are embedded in the page, and a remote image shows as
 a link. In Split the preview follows the editor; scrolling the preview does not
-move the editor. On Windows the preview does not scroll to follow the editor or
-the Outline dock. View > Markdown View >
+move the editor. On Windows and macOS the preview does not scroll to follow the
+editor, the Outline dock or a find match. View > Markdown View >
 Browser is disabled under GTK 4, where WebKitGTK does not start, and for the
 rest of the run after the browser control fails to start or a page does not
 load within 15 seconds; its tool tip, or its

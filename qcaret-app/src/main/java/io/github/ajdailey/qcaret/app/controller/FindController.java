@@ -524,6 +524,7 @@ public final class FindController implements DocumentController.ViewListener {
                 if (editor.view() != null) {
                   editor.view().showCaret();
                 }
+                documents.revealMarkdownMatch(document, match.start(), match.end());
                 if (move) {
                   anchor = match.start();
                 }

@@ -46,6 +46,7 @@ import java.util.concurrent.RejectedExecutionException;
  *       switch to Source and a close cancel the decode.
  *   <li>In Split, the editor's and the preview's top lines map through the shown render's source
  *       map; the scroll this class causes is not mapped back.
+ *   <li>In Preview, a find match scrolls the preview to it ({@link #revealMatch}).
  *   <li>A restored mode follows {@link MarkdownRestore}.
  *   <li>A reload of the grammars renders again, so code blocks take the new grammars.
  *   <li>A click on a link follows it: an anchor scrolls the preview to its heading, a local file
@@ -120,6 +121,8 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   private long generation;
   private CancellationToken running;
   private MarkdownPreviewContent shown;
+  private long shownRevision;
+  private final HeldMatch held = new HeldMatch();
   private int scrolledPreview = -1;
   private int scrolledSource = -1;
   private CancellationToken decoding;
@@ -200,6 +203,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
                   shown = next;
                   if (view != null) {
                     view.showRendered(next);
+                    revealHeld();
                   }
                 }
               }
@@ -379,6 +383,34 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     scrollPreview(scrolledPreview);
   }
 
+  /**
+   * In Preview, scrolls the preview to a find match's source line and, in Basic content, selects
+   * its rendered text as {@link PreviewMatch} maps it. A match in a revision the shown render does
+   * not hold waits for the render of that revision; an edit before it shows drops it.
+   *
+   * @param start the match's start in the document
+   * @param end the match's end
+   */
+  void revealMatch(int start, int end) {
+    if (mode == MarkdownViewMode.PREVIEW) {
+      held.hold(start, end, document.revision());
+      revealHeld();
+    }
+  }
+
+  private void revealHeld() {
+    if (view != null
+        && shown != null
+        && held.take(shownRevision, document.revision(), mode == MarkdownViewMode.PREVIEW)) {
+      PreviewMatch match =
+          PreviewMatch.of(shown.rendered(), document.text(), held.start(), held.end());
+      view.scrollToLine(match.line());
+      if (match.start() >= 0 && shown.html() == null) {
+        view.selectRendered(match.start(), match.end());
+      }
+    }
+  }
+
   @Override
   public void clicked(int offset) {
     if (shown != null && mode != MarkdownViewMode.SOURCE) {
@@ -536,6 +568,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
       return;
     }
     shown = job.result();
+    shownRevision = job.revision;
     charge.shown(job.charge);
     repage.cancel();
     if (job.palette != null && !job.palette.equals(tab.palette())) {
@@ -543,6 +576,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     } else if (view != null) {
       view.showRendered(shown);
       decode();
+      revealHeld();
     }
   }
 }

@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.FindState;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.core.document.Selection;
+import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Find, Replace and HyperSearch on a Markdown tab in Split and in Preview: each acts on the source
  * document, the commands stay enabled, the mode stays, and the preview renders the replaced text.
+ * In Preview each match scrolls the preview to its block and selects its rendered text.
  */
 class MarkdownFindTest {
   /** The source; "needle" sits inside Markdown markup that the render drops. */
@@ -122,8 +124,10 @@ class MarkdownFindTest {
     FindController find = harness.application.find();
     find.setText("needle");
     findSelects(7, 13);
+    revealed(mode, 1, 0);
     find.findNext();
     findSelects(19, 25);
+    revealed(mode, 2, 2);
     find.setReplacement("pin");
     find.replace();
     harness.await(
@@ -137,7 +141,49 @@ class MarkdownFindTest {
     assertEquals(
         "# Mock needle\n\nA **pin** here.\n", documents.activeDocument().text().toString());
     assertEquals(mode, documents.markdownMode());
+    findSelects(7, 13);
+    revealed(mode, 3, 0);
     find.close();
+  }
+
+  private FakeMarkdownPane pane() {
+    return harness.view.tabs.get(0).markdown;
+  }
+
+  /**
+   * In Preview, waits for a count of rendered selections, then asserts the last scroll went to a
+   * source line's block and the last selection is that block's "needle". Elsewhere asserts no
+   * selection.
+   */
+  private void revealed(MarkdownViewMode mode, final int count, int sourceLine)
+      throws InterruptedException {
+    final FakeMarkdownPane pane = pane();
+    if (mode != MarkdownViewMode.PREVIEW) {
+      assertEquals(0, pane.selects.size());
+      return;
+    }
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.selects.size() == count;
+          }
+        },
+        count + " selections, were " + pane.selects.size());
+    RenderedMarkdown r = ((MarkdownPreview) documents.markdownPreview()).shown().rendered();
+    int line = r.renderedLine(sourceLine);
+    assertEquals(line, pane.scrolls.get(pane.scrolls.size() - 1));
+    int[] s = pane.selects.get(count - 1);
+    assertEquals("needle", r.text().substring(s[0], s[1]));
+    assertEquals(line, lineOf(r, s[0]));
+  }
+
+  private static int lineOf(RenderedMarkdown r, int offset) {
+    int line = 0;
+    while (line + 1 < r.lineCount() && r.lineStart(line + 1) <= offset) {
+      line++;
+    }
+    return line;
   }
 
   @Test
@@ -148,6 +194,21 @@ class MarkdownFindTest {
   @Test
   void findAndReplaceActOnTheSourceInPreview() throws Exception {
     findAndReplace(MarkdownViewMode.PREVIEW);
+  }
+
+  @Test
+  void findInSourceRevealsNothing() throws Exception {
+    mode(MarkdownViewMode.PREVIEW);
+    FakeMarkdownPane pane = pane();
+    int scrolls = pane.scrolls.size();
+    assertTrue(documents.setMarkdownMode(MarkdownViewMode.SOURCE));
+    harness.application.execute(CommandId.FIND);
+    harness.application.find().setText("needle");
+    findSelects(7, 13);
+    harness.application.find().findNext();
+    findSelects(19, 25);
+    assertEquals(scrolls, pane.scrolls.size());
+    assertEquals(0, pane.selects.size());
   }
 
   @Test
@@ -170,5 +231,6 @@ class MarkdownFindTest {
     search.open(0, 0, 1);
     assertEquals(Selection.of(19, 25), selected());
     assertEquals(MarkdownViewMode.PREVIEW, documents.markdownMode());
+    revealed(MarkdownViewMode.PREVIEW, 1, 2);
   }
 }

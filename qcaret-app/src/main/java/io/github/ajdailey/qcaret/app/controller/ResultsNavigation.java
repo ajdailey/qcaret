@@ -215,6 +215,8 @@ final class ResultsNavigation {
     if (editor.view() != null) {
       editor.view().showCaret();
     }
+    Selection shown = editor.selections().selections().primary();
+    documents.revealMarkdownMatch(document, shown.start(), shown.end());
     documents.refreshOverview();
   }
 

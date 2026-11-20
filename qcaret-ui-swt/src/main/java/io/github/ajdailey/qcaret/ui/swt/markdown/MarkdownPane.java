@@ -367,6 +367,20 @@ public final class MarkdownPane {
   }
 
   /**
+   * Selects text and scrolls it into view; the scroll is not reported back.
+   *
+   * @param start the first offset
+   * @param end the offset after the text
+   */
+  public void selectRendered(int start, int end) {
+    int length = text.isDisposed() ? -1 : text.getCharCount();
+    if (start >= 0 && start <= end && end <= length) {
+      text.setSelection(start, end);
+      reportedTop = text.getTopIndex();
+    }
+  }
+
+  /**
    * Returns a decoder for the pane's current width.
    *
    * @return the decoder

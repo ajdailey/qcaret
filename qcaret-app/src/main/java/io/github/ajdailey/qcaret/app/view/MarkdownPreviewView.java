@@ -37,6 +37,15 @@ public interface MarkdownPreviewView {
   void scrollToLine(int line);
 
   /**
+   * Selects rendered text of the content shown and scrolls it into view, without taking the focus.
+   * Browser content ignores it.
+   *
+   * @param start the text's first rendered offset
+   * @param end the rendered offset after the text
+   */
+  void selectRendered(int start, int end);
+
+  /**
    * Returns a decoder for the content shown, holding the pane's width now.
    *
    * @return the decoder
