@@ -51,4 +51,12 @@ public interface MarkdownPreviewView {
    *     bytes that decode to no image
    */
   void showImage(MarkdownImageRequest request, DecodedImage image);
+
+  /**
+   * Scrolls Browser content to the element with an id: a heading's anchor, a footnote or an id in
+   * the document's own HTML. Basic content ignores it.
+   *
+   * @param id the id, percent-decoded
+   */
+  void scrollToAnchor(String id);
 }

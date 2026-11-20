@@ -15,6 +15,13 @@ block source spans; LF, CR LF and CR breaks give the same render. The token is
 checked before and after the parse and before every block; the parse itself
 cannot be canceled. Rendering reads no file.
 
+`parse(text, cancel)` returns the parse alone as a `MarkdownTree` (the
+commonmark tree, its source and each heading's GitLab anchor), and
+`render(tree, folder, cancel)` renders it, so another renderer walks the same
+parse: the Browser preview's HTML is written from it in qcaret-app.
+`MarkdownTree.MULTILINE_QUOTE` and `TOC` are the node classes of the two
+GitLab blocks, for a renderer to register.
+
 `core.markdown` uses no other core layer but `concurrent`
 (`ArchitectureTest.coreLayers`), so code blocks carry their language and the
 caller colors them.
@@ -74,8 +81,8 @@ an untitled document, and a path the file system rejects, has a null path.
 so a table of contents links to headings below it. The id follows GitLab: the
 text without HTML, lower case; letters, digits, `_` and `-` kept; spaces to
 `-`; other chars dropped; a run of `-` joined; a repeat gets `-1`, `-2`.
-commonmark's `IdGenerator` does not join `-` runs (`a  b` gives `a--b`), so it
-is not used.
+commonmark's `heading-anchor` extension keeps `-` runs (`a  b` gives `a--b`),
+so it is not a dependency.
 
 ## Source map
 

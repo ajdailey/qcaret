@@ -247,7 +247,7 @@ final class EditorTab implements TabView, SelectionListener {
     if (!item.isDisposed()) {
       strip.folder().setSelection(item);
       if (preview != null && preview.mode() == MarkdownViewMode.PREVIEW) {
-        preview.created().focus();
+        preview.focus();
       } else {
         pane.focus();
       }
@@ -295,6 +295,12 @@ final class EditorTab implements TabView, SelectionListener {
               @Override
               public void run() {
                 pane.focus();
+              }
+            },
+            new Function<Runnable, BrowserPane>() {
+              @Override
+              public BrowserPane apply(Runnable failure) {
+                return host.newBrowserPreview(frame, markdown, failure);
               }
             });
     return preview;

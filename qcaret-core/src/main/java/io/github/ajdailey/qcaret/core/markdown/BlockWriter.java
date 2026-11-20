@@ -53,11 +53,11 @@ final class BlockWriter {
   /** The source line of a separator line the next block line writes first, or -1. */
   private int separator = -1;
 
-  BlockWriter(String source, Node document, Path folder, CancellationToken cancel) {
+  BlockWriter(String source, HeadingAnchors anchors, Path folder, CancellationToken cancel) {
     this.source = source;
     this.cancel = cancel;
     this.inline = new InlineWriter(out, folder);
-    this.anchors = new HeadingAnchors(document);
+    this.anchors = anchors;
   }
 
   @WorkerThread
@@ -382,7 +382,7 @@ final class BlockWriter {
   }
 
   /** An info string's first word without braces or a leading dot, or null. */
-  private static String language(String info) {
+  static String language(String info) {
     if (info == null) {
       return null;
     }

@@ -99,6 +99,8 @@ class MarkdownPreviewTest {
     final List<String> notices = new ArrayList<String>();
     int lastTop = Integer.MAX_VALUE;
     Path folder;
+    boolean browser;
+    int browserFailures;
 
     @Override
     public Path folder() {
@@ -140,6 +142,16 @@ class MarkdownPreviewTest {
     public void openUrl(String url) {
       urls.add(url);
     }
+
+    @Override
+    public boolean browser() {
+      return browser;
+    }
+
+    @Override
+    public void browserFailed() {
+      browserFailures++;
+    }
   }
 
   /** Records display requests; fails a call off the UI thread. */
@@ -148,6 +160,7 @@ class MarkdownPreviewTest {
     final List<MarkdownPreviewContent> shown = new ArrayList<MarkdownPreviewContent>();
     final List<int[]> notices = new ArrayList<int[]>();
     final List<Integer> scrolls = new ArrayList<Integer>();
+    final List<String> anchors = new ArrayList<String>();
     final FakeMarkdownPane delegate = new FakeMarkdownPane(null);
 
     @Override
@@ -172,6 +185,12 @@ class MarkdownPreviewTest {
     public void scrollToLine(int line) {
       ui.checkUiThread();
       scrolls.add(line);
+    }
+
+    @Override
+    public void scrollToAnchor(String id) {
+      ui.checkUiThread();
+      anchors.add(id);
     }
 
     @Override
@@ -452,7 +471,7 @@ class MarkdownPreviewTest {
     p.setMode(MarkdownViewMode.PREVIEW);
     p.renderRequested();
     awaitShown(1);
-    long charge = MarkdownPreview.BYTES_PER_CHAR * d.text().length();
+    long charge = MarkdownCharge.BYTES_PER_CHAR * d.text().length();
     assertEquals(charge, small.reserved());
     p.renderRequested();
     awaitShown(2);
@@ -526,6 +545,60 @@ class MarkdownPreviewTest {
     ui.runPending();
     assertEquals(0, pane.shown.size());
     assertNull(p.shown());
+    p.dispose();
+  }
+
+  @Test
+  void browserContentCarriesHtmlAndNoImageRequests() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Title\n\n![x](x.png)\n"), 1000);
+    p.setMode(MarkdownViewMode.SPLIT);
+    awaitShown(1);
+    MarkdownPreviewContent content = pane.shown.get(0);
+    assertNotNull(content.html());
+    assertTrue(content.html().body().contains("<h1 id=\"title\">Title</h1>"));
+    assertEquals(List.of(), content.images());
+    tab.browser = false;
+    p.rendererChanged();
+    awaitShown(2);
+    assertNull(pane.shown.get(1).html());
+    assertEquals(2, busy.started.get());
+    p.dispose();
+  }
+
+  @Test
+  void browserLinksScrollToAnchorsOpenFilesAndWebUrlsOnly() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("# Part two\n"), 1000);
+    p.linkFollowed("about:blank#part-two");
+    assertEquals(List.of(), pane.anchors);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    p.linkFollowed("about:blank#part%20two");
+    p.linkFollowed("about:blank");
+    Path file = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("a.md");
+    p.linkFollowed(file.toUri().toString());
+    p.linkFollowed("https://example.invalid/x");
+    p.linkFollowed("MAILTO:someone@example.invalid");
+    p.linkFollowed("javascript:alert(1)");
+    p.linkFollowed("data:text/html,x");
+    assertEquals(List.of("part two"), pane.anchors);
+    assertEquals(List.of(file), tab.files);
+    assertEquals(List.of("https://example.invalid/x", "MAILTO:someone@example.invalid"), tab.urls);
+    p.dispose();
+  }
+
+  @Test
+  void aBrowserFailurePostsTheNoticeAndRendersAgain() throws InterruptedException {
+    tab.browser = true;
+    MarkdownPreview p = preview(document("text\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    tab.browser = false;
+    p.browserFailed();
+    awaitShown(2);
+    assertEquals(1, tab.browserFailures);
+    assertNull(pane.shown.get(1).html());
     p.dispose();
   }
 }

@@ -169,7 +169,7 @@ final class MainMenuBar {
           item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
         }
         if (command == CommandId.PREVIEW_BROWSER) {
-          item.setToolTipText(states.unavailable(command));
+          showReason(item, command);
         }
       }
       if (group == CommandGroup.WINDOW && PlatformTraits.PLATFORM.windowMenuControls()) {
@@ -255,6 +255,10 @@ final class MainMenuBar {
     }
     if (group == CommandGroup.VIEW) {
       syncSyntax();
+      MenuItem browser = items.get(CommandId.PREVIEW_BROWSER);
+      if (browser != null && !browser.isDisposed()) {
+        showReason(browser, CommandId.PREVIEW_BROWSER);
+      }
     }
     if (group == CommandGroup.FILE) {
       recent.syncRecent(items.get(CommandId.CLEAR_RECENT_FILES));
@@ -298,6 +302,22 @@ final class MainMenuBar {
   }
 
   /** Lists the {@link SyntaxMenu} entries above Reload Grammars. */
+  /**
+   * Shows why a command is unavailable: in the item's tool tip, or in its label where menus show no
+   * tool tip.
+   */
+  private void showReason(MenuItem item, CommandId command) {
+    String reason = states.unavailable(command);
+    if (PlatformTraits.PLATFORM.showsMenuToolTips()) {
+      item.setToolTipText(reason);
+    } else {
+      item.setText(
+          reason == null
+              ? command.label()
+              : UiText.MENU_ITEM_REASON.format(command.label(), reason));
+    }
+  }
+
   private void syncSyntax() {
     MenuItem reload = items.get(CommandId.RELOAD_GRAMMARS);
     if (reload == null || reload.isDisposed()) {

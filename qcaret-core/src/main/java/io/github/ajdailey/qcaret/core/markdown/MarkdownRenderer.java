@@ -59,10 +59,38 @@ public final class MarkdownRenderer {
    */
   @WorkerThread
   public RenderedMarkdown render(CharSequence text, Path folder, CancellationToken cancel) {
+    return render(parse(text, cancel), folder, cancel);
+  }
+
+  /**
+   * Parses a text without rendering it.
+   *
+   * @param text the Markdown source; LF, CR LF and CR breaks
+   * @param cancel checked before and after the parse
+   * @return the parsed document
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public MarkdownTree parse(CharSequence text, CancellationToken cancel) {
     cancel.check();
     String source = text.toString();
     Node document = parser.parse(source);
     cancel.check();
-    return new BlockWriter(source, document, folder, cancel).write(document);
+    return new MarkdownTree(source, document);
+  }
+
+  /**
+   * Renders a parsed document.
+   *
+   * @param tree a document {@link #parse} returned
+   * @param folder the document's folder, against which relative link and image paths resolve; null
+   *     for an untitled document
+   * @param cancel checked between blocks
+   * @return the render
+   * @throws java.util.concurrent.CancellationException when canceled
+   */
+  @WorkerThread
+  public RenderedMarkdown render(MarkdownTree tree, Path folder, CancellationToken cancel) {
+    return new BlockWriter(tree.source(), tree.anchors(), folder, cancel).write(tree.document());
   }
 }

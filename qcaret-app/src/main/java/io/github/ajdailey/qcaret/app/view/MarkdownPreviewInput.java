@@ -27,4 +27,16 @@ public interface MarkdownPreviewInput {
    * @param offset the rendered offset clicked
    */
   void clicked(int offset);
+
+  /**
+   * Reports a navigation the Browser preview canceled after a click or key on it, which follows the
+   * link: {@code about:blank#id} scrolls to the id, a {@code file:} URL opens in QCaret, an {@code
+   * http}, {@code https}, {@code mailto} or {@code ftp} URL opens in the system browser.
+   *
+   * @param location the location the browser was about to load
+   */
+  void linkFollowed(String location);
+
+  /** Reports that the Browser preview failed to start; the preview shows Basic. */
+  void browserFailed();
 }

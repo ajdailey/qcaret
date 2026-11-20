@@ -31,4 +31,9 @@ final class Gtk4Traits extends GtkTraits {
   public boolean stacksOnX11() {
     return false;
   }
+
+  @Override
+  public boolean showsMenuToolTips() {
+    return false;
+  }
 }

@@ -248,6 +248,7 @@ class CommandStatesTest {
           "CANCEL -- -e -e",
           "CLOSE_LEFT -- -- -e",
           "CLOSE_RIGHT -- -- --",
+          "EXPORT_HTML -- -- --",
           "reopen - e -",
           "saveEncoding - e -");
 

@@ -113,8 +113,8 @@ the UI thread and returns without waiting for the user. It extends these parts:
   `EditorInput.viewportChanged`, and shows find matches through
   `EditorView.showMatches`.
 - A tab's `markdownView` is its Markdown preview pane (`MarkdownPreviewView`),
-  which forwards clicks, scrolls and the render request as
-  `MarkdownPreviewInput` and decodes images through the
+  which forwards clicks, scrolls, Browser navigations, a Browser failure and
+  the render request as `MarkdownPreviewInput` and decodes images through the
   `MarkdownImageDecoder` it hands out.
 - An editor view shows its overview strip's `OverviewMarks` (`showOverview`,
   `setOverviewShown`) and reports the strip's height through
@@ -150,11 +150,11 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 
 | Menu | Holds, `\|` between groups |
 |---|---|
-| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open, Open Path at Caret \| the saves \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
+| File | New, Open, Reload from Disk \| Recent Files, Reopen Closed Tab, Recently Closed \| Set Workspace Folder, Quick Open, Open Path at Caret \| the saves, Export as HTML \| Close, Close All, Close Multiple Tabs (Close Others, Close to the Left, Close to the Right) \| Print, Print Selection \| Exit |
 | Edit | Undo, Redo \| clipboard \| Select All \| the Line, Sort Lines, Convert Case, Encode/Decode Text and Format XML and JSON cascades \| comments \| indent, Tab Width, Indent with Spaces \| Complete Word, Insert Date and Time, Insert Number Sequence, Transpose, Delete Word Back and Forward \| Read-Only |
 | Selection | Select Line, Expand Selection, Select to Matching Bracket \| carets and occurrences, Split into Lines \| Column Selection Mode \| Undo and Redo Selection |
 | Search | Find, Find Next, Find Previous, Replace \| HyperSearch and its results \| Go to Line, Go to Symbol, Go to Matching Bracket, Go Back, Go Forward \| Bookmarks, with Edit Bookmark Comment |
-| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Source, Split, Preview \| Basic, Browser) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
+| View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Cycle Markdown View, Source, Split, Preview \| Basic, Browser) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
@@ -173,8 +173,7 @@ Keyboard Shortcuts all read it.
 
 - A `WINDOW` binding is a menu accelerator when it is the first window binding
   of a command in a menu; a second one (Ctrl plus keypad +), and one of a
-  command without a menu item (Cycle Markdown View), runs from the window's key
-  filter.
+  command without a menu item, runs from the window's key filter.
 - An `EDITOR` binding runs only from the focused editor, so `Ctrl+C` never
   fires in another control.
 - `Keymap.defaults(mac, linux)` binds `PRIMARY` (Ctrl, or Command on macOS).

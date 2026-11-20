@@ -76,6 +76,7 @@ class BusyCoverageTest {
       "controller.HelpController#showAbout",
       "controller.HelpController#showGuide",
       "controller.HelpController#showLicenses",
+      "controller.MarkdownExport#write",
       "controller.MemoryIndicator#collect",
       "controller.NavigationHistory#go",
       "controller.OpenAll#open",

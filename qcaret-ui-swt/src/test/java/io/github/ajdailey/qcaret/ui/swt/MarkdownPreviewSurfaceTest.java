@@ -53,7 +53,7 @@ import org.junit.jupiter.api.io.TempDir;
  * The Markdown preview in a real window: the toolbar switch shows for a Markdown tab only, Split
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
  * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, the
- * Browser menu item is disabled with its reason, View > Markdown View holds the modes and the
+ * Browser menu item names its reason when disabled, View > Markdown View holds the modes and the
  * renderers, and the cycle key runs from the preview.
  */
 @Tag("swt")
@@ -262,7 +262,7 @@ class MarkdownPreviewSurfaceTest {
   }
 
   @Test
-  void theBrowserItemIsDisabledWithItsReason() throws Exception {
+  void theBrowserItemIsEnabledOrNamesItsReason() throws Exception {
     openFile("guide.md", "# Mock\n");
     awaitMarkdown(true);
     MenuItem browser = null;
@@ -271,11 +271,18 @@ class MarkdownPreviewSurfaceTest {
     }
     assertNotNull(browser);
     window.menuBar().syncAll();
-    assertFalse(browser.getEnabled());
-    // SWT drops a menu item's tool tip on GTK 4.
-    String tip =
-        "1".equals(System.getenv("SWT_GTK4")) ? null : UiText.MARKDOWN_BROWSER_NOT_BUILT.text();
-    assertEquals(tip, browser.getToolTipText());
+    if (PlatformTraits.PLATFORM.opensBrowser()) {
+      assertTrue(browser.getEnabled());
+      assertNull(browser.getToolTipText());
+      assertEquals(CommandId.PREVIEW_BROWSER.label(), browser.getText());
+    } else {
+      // SWT drops a menu item's tool tip on GTK 4: the label carries the reason.
+      assertFalse(browser.getEnabled());
+      assertEquals(
+          UiText.MENU_ITEM_REASON.format(
+              CommandId.PREVIEW_BROWSER.label(), UiText.MARKDOWN_BROWSER_GTK4.text()),
+          browser.getText());
+    }
   }
 
   @Test
@@ -285,7 +292,16 @@ class MarkdownPreviewSurfaceTest {
     for (MenuItem item : cascade.getItems()) {
       labels.add((item.getStyle() & SWT.SEPARATOR) != 0 ? "-" : item.getText());
     }
-    assertEquals(List.of("&Source", "S&plit", "Pre&view", "-", "&Basic", "B&rowser"), labels);
+    String cycle =
+        CommandId.MARKDOWN_CYCLE.label()
+            + "\t"
+            + Keymap.defaults(PlatformTraits.PLATFORM.macKeys())
+                .menuKeyText(CommandId.MARKDOWN_CYCLE);
+    String browser =
+        PlatformTraits.PLATFORM.opensBrowser()
+            ? "B&rowser"
+            : UiText.MENU_ITEM_REASON.format("B&rowser", UiText.MARKDOWN_BROWSER_GTK4.text());
+    assertEquals(List.of(cycle, "&Source", "S&plit", "Pre&view", "-", "&Basic", browser), labels);
     assertEquals("Markdown V&iew", cascade.getParentItem().getText());
     assertEquals(0, window.menuBar().item(CommandId.MARKDOWN_SPLIT).getAccelerator());
     List<String> view = new ArrayList<String>();

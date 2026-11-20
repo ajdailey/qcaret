@@ -1926,8 +1926,8 @@ public enum UiText {
   PREVIEW_RENDERER_BROWSER,
   /** Notice when a saved Browser choice cannot start. */
   MARKDOWN_BROWSER_FALLBACK,
-  /** Why the Browser renderer is disabled in a build without it. */
-  MARKDOWN_BROWSER_NOT_BUILT,
+  /** Why the Browser renderer is disabled under GTK 4. */
+  MARKDOWN_BROWSER_GTK4,
   /** Notice when the heap budget refuses a requested render. */
   MARKDOWN_NO_MEMORY,
   /** The preview's size notice: the document's chars and the live limit. */
@@ -1937,7 +1937,21 @@ public enum UiText {
   /** Preferences: the preview renderer chooser. */
   PREFERENCES_PREVIEW_RENDERER,
   /** Accessible name of a Markdown preview pane. */
-  ACCESSIBLE_MARKDOWN_PREVIEW;
+  ACCESSIBLE_MARKDOWN_PREVIEW,
+  /** Why the Browser renderer is disabled after the browser control failed: the error. */
+  MARKDOWN_BROWSER_FAILED,
+  /** A disabled menu item's label with its reason, where menus show no tool tip. */
+  MENU_ITEM_REASON,
+  /** File > Export as HTML. */
+  COMMAND_EXPORT_HTML,
+  /** Title of Export as HTML's messages. */
+  EXPORT_HTML_TITLE,
+  /** Notice after an export: the document's name and the file. */
+  EXPORT_HTML_DONE,
+  /** A failed export: the file's name and the reason. */
+  EXPORT_HTML_FAILED,
+  /** A target that is the document's own file: the document's name. */
+  EXPORT_HTML_SOURCE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

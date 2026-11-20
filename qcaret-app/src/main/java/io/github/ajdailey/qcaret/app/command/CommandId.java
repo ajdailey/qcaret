@@ -467,10 +467,11 @@ public enum CommandId {
   /** Extend the block selection, or start one, one line down. */
   BLOCK_DOWN(CommandGroup.EDITOR, UiText.COMMAND_BLOCK_DOWN, false, null),
   /**
-   * Switch the selected Markdown tab to its next mode: Source, Split, Preview, then Source again. A
-   * window key with no menu item, so it also runs while the preview has focus.
+   * Switch the selected Markdown tab to its next mode: Source, Split, Preview, then Source again;
+   * the first item of View > Markdown View.
    */
-  MARKDOWN_CYCLE(CommandGroup.EDITOR, UiText.COMMAND_MARKDOWN_CYCLE, false, null),
+  MARKDOWN_CYCLE(
+      CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_CYCLE, false, UiText.MENU_MARKDOWN_VIEW),
   /** Insert a tab or spaces at every caret, or indent the lines a selection spans. */
   INSERT_TAB(CommandGroup.EDITOR, UiText.COMMAND_INSERT_TAB, false, null),
   /** Insert the document's line ending at every selection. */
@@ -484,7 +485,9 @@ public enum CommandId {
   /** Close the tabs left of the selected one, asking about each unsaved one. */
   CLOSE_LEFT(CommandGroup.FILE, UiText.TAB_CLOSE_LEFT, false, UiText.MENU_CLOSE_MULTIPLE),
   /** Close the tabs right of the selected one, asking about each unsaved one. */
-  CLOSE_RIGHT(CommandGroup.FILE, UiText.TAB_CLOSE_RIGHT, false, UiText.MENU_CLOSE_MULTIPLE);
+  CLOSE_RIGHT(CommandGroup.FILE, UiText.TAB_CLOSE_RIGHT, false, UiText.MENU_CLOSE_MULTIPLE),
+  /** Write the selected Markdown tab as one HTML page that opens offline. */
+  EXPORT_HTML(CommandGroup.FILE, UiText.COMMAND_EXPORT_HTML, false, null);
 
   private final CommandGroup group;
   private final UiText label;

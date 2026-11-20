@@ -333,9 +333,10 @@ disposes the preview. `MarkdownPreviews.of` attaches the tab's pane
 (`TabView.markdownView`) when it creates the preview.
 
 The mode is kept as `markdown` (`split`, `preview`, empty for Source) in the
-session tab and the per-file state. `MarkdownPreviews.restore` applies it once
-the grammar is known: at once for a Markdown tab, after the detection that runs
-for a just-opened file, and not at all when the grammar is another.
+session tab and the per-file state. `MarkdownPreviews.restore` applies it
+through `MarkdownRestore` once the grammar is known: at once for a Markdown
+tab, after the detection that runs for a just-opened file, and not at all when
+the grammar is another.
 `MarkdownCommands` runs View > Markdown View and Cycle Markdown View (Source,
 Split, Preview, then Source; nothing on another tab) and gives the status bar
 the renderer's name while a preview shows.
@@ -346,19 +347,23 @@ the renderer's name while a preview shows.
 | An edit while not in Source | Cancels the running render; 300 ms after the last edit, on a worker without the busy cursor |
 | `renderRequested` from the notice | At once, under the busy cursor, at any size |
 | A reload of the grammars while not in Source | As an edit does, without the busy cursor |
+| A renderer change (`rendererChanged`) or a Browser failure (`browserFailed`) while not in Source | At once, under the busy cursor |
 
 A document over `LIVE_LIMIT_CHARS` (1 MiB of chars) is not rendered on a switch
-or an edit: the pane shows the size notice instead. A render parses with
-`MarkdownRenderer`, then colors each code block with a `SyntaxEngine` for the
-grammar `GrammarSet.forLabel` finds for its language (`MarkdownCodeTokens`), on
-the same worker, and flattens the style runs and tokens into `MarkdownSpans`;
-the pane receives all three as `MarkdownPreviewContent`, with the local images
-to decode. Each render carries a generation, raised by every edit, switch,
+or an edit: the pane shows the size notice instead. A render
+(`MarkdownRenderJob`) parses once with `MarkdownRenderer.parse`, renders the
+tree, then colors each code block with a `SyntaxEngine` for the grammar
+`GrammarSet.forLabel` finds for its language (`MarkdownCodeTokens`), on the
+same worker, and flattens the style runs and tokens into `MarkdownSpans`; the
+pane receives all three as `MarkdownPreviewContent`, with the local images to
+decode. While `markdown.previewRenderer` is Browser and
+`MainView.previewBrowserUnavailable` gives no reason, the render also writes
+the tree as HTML (`MarkdownHtmlWriter`, below) and requests no image decode. Each render carries a generation, raised by every edit, switch,
 grammar reload and new render, and the revision it read; a result whose
 generation or revision is not current is dropped. A render over the limit
-reserves 24 bytes per char from the `MemoryBudget` (assumed, not measured) until
-a later render replaces it or the tab closes; a refused reservation renders
-nothing and posts `MARKDOWN_NO_MEMORY`.
+reserves 24 bytes per char from the `MemoryBudget` through `MarkdownCharge`
+(assumed, not measured) until a later render replaces it or the tab closes; a
+refused reservation renders nothing and posts `MARKDOWN_NO_MEMORY`.
 
 `MarkdownImages` decodes the shown render's local images on a `qcaret-io-`
 worker, one after another, each posted as it arrives; the next render, a switch
@@ -373,10 +378,43 @@ In Split, the focused editor's viewport report calls `sourceScrolled`, and
 render's source map and scroll the other side. The scroll a mapping causes is
 not mapped back: `Tab.scrollSource` returns the editor's top line after the
 scroll, which the document's end can hold above the line asked for, and the
-report of that line is ignored. A click (`clicked`) on a link follows it: an anchor
-scrolls the preview to its heading, a local file opens in the window, a URL goes
-to `MainView.launchUrl`; a footnote reference scrolls to its footnote. The pane
-(`MarkdownPreviewView`) only applies these requests.
+report of that line is ignored. `MarkdownLinks` follows links. A click
+(`clicked`) on Basic text follows its link: an anchor scrolls the preview to
+its heading, a local file opens in the window, a URL goes to
+`MainView.launchUrl`; a footnote reference scrolls to its footnote. A Browser
+navigation (`linkFollowed`) is followed by its location: `about:` with a
+fragment calls `scrollToAnchor`, a `file:` URL opens in the window, an `http`,
+`https`, `mailto` or `ftp` URL goes to `launchUrl`, and anything else, such as
+`javascript:` or `data:`, is dropped. The pane (`MarkdownPreviewView`) only
+applies these requests.
+
+#### Browser HTML and Export as HTML
+
+`MarkdownHtmlWriter` writes a `MarkdownTree` with commonmark's `HtmlRenderer`
+and the HTML renderers of the table, strikethrough, task list, footnote, alert
+and image attribute extensions; commonmark's URL sanitizer drops
+`javascript:` and similar link targets, and raw HTML stays as written.
+
+| Element | HTML |
+|---|---|
+| Heading | `id` is the GitLab anchor from `MarkdownTree.anchor` |
+| Other block, first on a later source line | `id="qcaret-line-<line>"`; `MarkdownHtml.idAt` maps a source line to the id for scrolling |
+| Fenced code, front matter | `<pre><code>` with `<span class="tk-<role>">` from `MarkdownCodeTokens.ofText`; front matter as `pre.front-matter` |
+| `>>>`, `[[_TOC_]]` | `blockquote`; nested `ul.section-nav` of links to the headings |
+| Local image | `data:` URI when its type is known, it is at most 16 MiB and the document's embedded total stays within 64 MiB; else its alt text |
+| Remote image | A link with its alt text |
+| Link to a local file | Preview: the file's `file:` URL. Export: as written |
+
+Code colors and image bytes are read in a pass before rendering, so file reads
+stay in `@WorkerThread` methods. `MarkdownPage` (app.editor) wraps a fragment
+in the page both use: the content security policy meta, the title and a
+stylesheet resembling GitLab's in a `Palette`'s colors.
+
+File > Export as HTML (`MarkdownExport`, enabled for a Markdown tab) proposes
+the document's name with `.html`, then parses, writes the HTML with the Light
+palette and saves it through `SafeSave` on a `qcaret-io-` worker under the busy
+cursor. The document's own file is refused as the target; a failed write shows
+`EXPORT_HTML_FAILED`.
 
 ## Printing
 

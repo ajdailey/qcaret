@@ -174,6 +174,7 @@ public final class MainWindow implements MainView {
   private final Label language;
   private final Label preview;
   private MarkdownSwitch markdownSwitch;
+  private GuideWindow.BrowserFactory browserFactory = GuideWindow.BROWSER;
   private final MemoryGauge memoryGauge;
   private final Label readOnly;
   private final Label notice;
@@ -293,6 +294,13 @@ public final class MainWindow implements MainView {
               public MarkdownPane newPreview(Composite frame, MarkdownPreviewInput input) {
                 return new MarkdownPane(
                     frame, input, MainWindow.this.palette, dispatcher, fontName);
+              }
+
+              @Override
+              public BrowserPane newBrowserPreview(
+                  Composite frame, MarkdownPreviewInput input, Runnable failure) {
+                return new BrowserPane(
+                    frame, input, MainWindow.this.palette, browserFactory, dispatcher, failure);
               }
 
               @Override
@@ -616,6 +624,9 @@ public final class MainWindow implements MainView {
     for (MarkdownPane pane : tabStrip.allPreviews()) {
       pane.setPalette(next);
     }
+    for (BrowserPane pane : tabStrip.allBrowserPreviews()) {
+      pane.setPalette(next);
+    }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
     dispatcher.asyncExec(
         new Runnable() {
@@ -776,6 +787,15 @@ public final class MainWindow implements MainView {
   }
 
   /**
+   * Sets how Browser preview panes create their browser control.
+   *
+   * @param factory the factory
+   */
+  void setPreviewBrowserFactory(GuideWindow.BrowserFactory factory) {
+    browserFactory = factory;
+  }
+
+  /**
    * Returns the status bar's preview field.
    *
    * @return the label
@@ -786,7 +806,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public String previewBrowserUnavailable() {
-    return BrowserPreview.unavailable();
+    return BrowserPreview.unavailable(shell.getDisplay());
   }
 
   /**

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.commonmark.ext.heading.anchor.IdGenerator;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -56,8 +55,7 @@ class GitLabMarkdownTest {
   }
 
   @Test
-  void commonmarksIdGeneratorKeepsHyphenRunsWhereGitLabJoinsThem() {
-    assertEquals("a--b", IdGenerator.builder().build().generateId("a  b"));
+  void hyphenRunsJoinAsGitLabJoinsThem() {
     assertEquals("a-b", HeadingAnchors.id("a  b"));
   }
 

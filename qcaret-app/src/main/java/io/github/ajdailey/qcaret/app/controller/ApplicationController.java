@@ -274,6 +274,7 @@ public final class ApplicationController {
     this.aids = new EditorAids(settings, view, documents);
     this.views = new ViewToggles(settings, documents, workspace);
     this.markdown = new MarkdownCommands(settings, documents, view);
+    documents.setMarkdownBrowser(markdown.browserChosen());
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
     this.tips =
         new TipOfTheDay(
@@ -351,6 +352,7 @@ public final class ApplicationController {
     }
     aids.apply(before, after);
     memory.apply(before, after);
+    documents.setMarkdownBrowser(markdown.browserChosen());
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -925,6 +927,7 @@ public final class ApplicationController {
           MARKDOWN_CYCLE ->
           markdown.execute(command);
       case DOCUMENT_STATISTICS -> statistics.open();
+      case EXPORT_HTML -> documents.exportHtml();
       case MD5_TEXT,
           MD5_FILES,
           MD5_SELECTION,

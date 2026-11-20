@@ -300,7 +300,7 @@ class MarkdownRendererTest {
         new Executable() {
           @Override
           public void execute() {
-            new BlockWriter("", document, null, token).write(document);
+            new BlockWriter("", new HeadingAnchors(document), null, token).write(document);
           }
         });
     assertEquals(List.of("canceling"), walked);

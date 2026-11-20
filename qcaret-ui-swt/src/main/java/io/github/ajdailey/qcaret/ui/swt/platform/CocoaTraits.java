@@ -185,4 +185,14 @@ final class CocoaTraits implements PlatformTraits {
   public String toolkitVersion() {
     return null;
   }
+
+  @Override
+  public boolean showsMenuToolTips() {
+    return true;
+  }
+
+  @Override
+  public boolean scrollsBrowserToFragments() {
+    return true;
+  }
 }

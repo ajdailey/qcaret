@@ -75,6 +75,18 @@ final class TabStrip {
      */
     MarkdownPane newPreview(Composite frame, MarkdownPreviewInput input);
 
+    /**
+     * Creates a tab's Browser Markdown preview pane with the window's palette.
+     *
+     * @param frame the tab's frame
+     * @param input the tab's preview controller
+     * @param failure runs when a browser call fails
+     * @return the pane, the frame's last child
+     * @throws org.eclipse.swt.SWTException when the browser cannot be created
+     * @throws org.eclipse.swt.SWTError when the browser cannot be created
+     */
+    BrowserPane newBrowserPreview(Composite frame, MarkdownPreviewInput input, Runnable failure);
+
     /** Shows the status fields on a later UI turn. */
     void scheduleStatus();
 
@@ -290,6 +302,23 @@ final class TabStrip {
           && tab.preview != null
           && tab.preview.created() != null) {
         previews.add(tab.preview.created());
+      }
+    }
+    return previews;
+  }
+
+  /**
+   * Returns every Browser preview pane of every tab, in strip order.
+   *
+   * @return the panes showing
+   */
+  List<BrowserPane> allBrowserPreviews() {
+    List<BrowserPane> previews = new ArrayList<BrowserPane>();
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof EditorTab tab
+          && tab.preview != null
+          && tab.preview.browserPane() != null) {
+        previews.add(tab.preview.browserPane());
       }
     }
     return previews;

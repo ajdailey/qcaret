@@ -673,7 +673,7 @@ Syntax, shows its document in one of three modes:
 The `Source | Split | Preview` buttons at the end of the toolbar and View >
 Markdown View switch the selected tab; `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
 steps it from Source to Split to Preview and back to Source, from the editor or
-the preview. A file opens in Source the first time and in the mode
+the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
 match. Preview text can be selected and copied.
@@ -688,8 +688,21 @@ alerts, footnotes, tables, code colored by QCaret's grammars and local PNG,
 JPEG, GIF, BMP and TIFF images in the current theme. An SVG or an image that
 does not decode shows as a box with its name; a remote image shows its alt text
 and address. View > Markdown View, or the Appearance tab of Preferences,
-chooses the renderer for every window; the status bar names it. The Browser
-renderer is not available in this version.
+chooses the renderer for every window; the status bar names it.
+
+The Browser renderer shows the preview as a web page in the system's browser
+control, with a stylesheet resembling GitLab's in the current theme, and shows
+HTML in the document as written. Scripts do not run and nothing outside the
+page loads: local images are embedded in the page, and a remote image shows as
+a link. In Split the preview follows the editor; scrolling the preview does not
+move the editor. Browser is disabled, with the reason beside it, under GTK 4
+and after the browser control fails to start; a saved Browser choice then
+shows Basic with the notice "Browser preview unavailable; showing Basic".
+
+File > Export as HTML writes the selected Markdown tab, unsaved edits
+included, as one HTML file in the Light theme that opens without QCaret or a
+network: images are embedded, remote images are links, and links stay as
+written.
 
 ## External changes
 

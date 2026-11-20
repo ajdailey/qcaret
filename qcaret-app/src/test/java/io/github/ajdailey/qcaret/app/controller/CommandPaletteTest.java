@@ -115,4 +115,13 @@ class CommandPaletteTest {
         },
         "sorted");
   }
+
+  @Test
+  void theCycleMarkdownViewItemIsListedWithItsKey() {
+    harness.application.execute(CommandId.COMMAND_PALETTE);
+    PaletteEntry cycle = first("cycle markdown");
+    assertEquals(CommandId.MARKDOWN_CYCLE, cycle.command());
+    assertEquals(harness.application.keymap().keysText(CommandId.MARKDOWN_CYCLE), cycle.keys());
+    assertTrue(cycle.keys().endsWith("M"), cycle.keys());
+  }
 }

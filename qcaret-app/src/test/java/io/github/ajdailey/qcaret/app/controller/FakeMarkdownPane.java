@@ -18,6 +18,7 @@ class FakeMarkdownPane implements MarkdownPreviewView {
   final List<MarkdownPreviewContent> shown = new ArrayList<MarkdownPreviewContent>();
   final List<int[]> notices = new ArrayList<int[]>();
   final List<Integer> scrolls = new ArrayList<Integer>();
+  final List<String> anchors = new ArrayList<String>();
   final List<MarkdownImageRequest> images = new ArrayList<MarkdownImageRequest>();
   final List<DecodedImage> decoded = new ArrayList<DecodedImage>();
 
@@ -46,6 +47,11 @@ class FakeMarkdownPane implements MarkdownPreviewView {
   @Override
   public void scrollToLine(int line) {
     scrolls.add(line);
+  }
+
+  @Override
+  public void scrollToAnchor(String id) {
+    anchors.add(id);
   }
 
   @Override

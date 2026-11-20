@@ -316,4 +316,21 @@ public interface PlatformTraits {
    * @return true on cocoa
    */
   boolean fullScreenSpace();
+
+  /**
+   * Reports whether a menu item shows its tool tip. SWT drops menu item tool tips on GTK 4, so a
+   * disabled item there names its reason in its label.
+   *
+   * @return false on GTK 4
+   */
+  boolean showsMenuToolTips();
+
+  /**
+   * Reports whether {@code Browser.setUrl("about:blank#id")} after {@code setText} scrolls the same
+   * page to the id. On win32, SWT's Edge shows {@code setText} content in a temporary file's page,
+   * so the call would navigate away from it.
+   *
+   * @return false on win32
+   */
+  boolean scrollsBrowserToFragments();
 }

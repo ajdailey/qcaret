@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.app.controller;
 
-import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
@@ -16,15 +15,9 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
-import io.github.ajdailey.qcaret.core.markdown.LinkTarget;
-import io.github.ajdailey.qcaret.core.markdown.MarkdownFootnote;
-import io.github.ajdailey.qcaret.core.markdown.MarkdownLink;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
-import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
@@ -38,30 +31,27 @@ import java.util.concurrent.RejectedExecutionException;
  *   <li>While the mode is not Source, an edit cancels the running render and renders again {@value
  *       #DELAY_MILLIS} ms after the last edit, on a worker without the busy cursor.
  *   <li>A document longer than the size limit is not rendered on a switch or an edit: the view
- *       shows a notice, and {@link #renderRequested} renders it. Such a render reserves {@value
- *       #BYTES_PER_CHAR} bytes per char from the {@link MemoryBudget} until a later render replaces
- *       it or the tab closes; a refused reservation renders nothing and posts a notice.
- *   <li>A render parses on the worker, then colors the code blocks there ({@link
- *       MarkdownCodeTokens}). It carries a generation and the revision it read; a result whose
- *       generation was overtaken, or whose revision is not the document's, is dropped.
+ *       shows a notice, and {@link #renderRequested} renders it, charged to the {@link
+ *       MemoryBudget} through {@link MarkdownCharge}; a refused charge renders nothing and posts a
+ *       notice.
+ *   <li>A render runs as a {@link MarkdownRenderJob}, with HTML while {@link Tab#browser} holds. It
+ *       carries a generation and the revision it read; a result whose generation was overtaken, or
+ *       whose revision is not the document's, is dropped. {@link #rendererChanged} and {@link
+ *       #browserFailed} render again under the busy cursor.
  *   <li>A shown render's local images decode through {@link MarkdownImages}; the next render, a
  *       switch to Source and a close cancel the decode.
  *   <li>In Split, the editor's and the preview's top lines map through the shown render's source
  *       map; the scroll this class causes is not mapped back.
- *   <li>A restored mode other than Source waits for the grammar while detection runs, and applies
- *       when the grammar is {@code markdown}.
+ *   <li>A restored mode follows {@link MarkdownRestore}.
  *   <li>A reload of the grammars renders again, so code blocks take the new grammars.
  *   <li>A click on a link follows it: an anchor scrolls the preview to its heading, a local file
  *       opens in QCaret, a URL opens in the system browser. A click on a footnote reference scrolls
- *       to the footnote.
+ *       to the footnote. The Browser preview reports its links through {@link #linkFollowed}.
  * </ul>
  */
 final class MarkdownPreview implements MarkdownPreviewInput {
   /** Milliseconds from the last edit to the live render it starts. */
   static final int DELAY_MILLIS = 300;
-
-  /** Heap reserved per char for a render above the size limit; assumed, not measured. */
-  static final long BYTES_PER_CHAR = 24;
 
   /** {@link #scrolledSource} while the editor scrolls for the preview. */
   private static final int SCROLLING = -2;
@@ -97,6 +87,12 @@ final class MarkdownPreview implements MarkdownPreviewInput {
 
     /** Opens a URL in the system browser. */
     void openUrl(String url);
+
+    /** Reports whether renders build the Browser preview's HTML. */
+    boolean browser();
+
+    /** Posts the Browser preview's failure: the notice and the renderer shown. */
+    void browserFailed();
   }
 
   private final Document document;
@@ -105,8 +101,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   private final MarkdownRenderer renderer;
   private final Tab tab;
   private final int limit;
-  private final MemoryBudget budget;
+  private final MarkdownCharge charge;
   private final MarkdownImages images;
+  private final MarkdownRestore restore = new MarkdownRestore();
 
   private MarkdownPreviewView view;
   private MarkdownViewMode mode = MarkdownViewMode.SOURCE;
@@ -117,9 +114,22 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   private MarkdownPreviewContent shown;
   private int scrolledPreview = -1;
   private int scrolledSource = -1;
-  private long shownCharge;
   private CancellationToken decoding;
-  private MarkdownViewMode wanted;
+
+  private final MarkdownLinks.Scroller scroller =
+      new MarkdownLinks.Scroller() {
+        @Override
+        public void toLine(int line) {
+          scrollPreview(line);
+        }
+
+        @Override
+        public void toAnchor(String id) {
+          if (view != null) {
+            view.scrollToAnchor(id);
+          }
+        }
+      };
 
   private final Runnable timer =
       new Runnable() {
@@ -169,7 +179,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     this.renderer = renderer;
     this.tab = tab;
     this.limit = limit;
-    this.budget = budget;
+    this.charge = new MarkdownCharge(budget, limit);
     this.images = images;
     document.addListener(follower);
   }
@@ -234,8 +244,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
    */
   void grammarChanged(boolean isMarkdown) {
     markdown = isMarkdown;
-    MarkdownViewMode restored = wanted;
-    wanted = null;
+    MarkdownViewMode restored = restore.grammarKnown();
     if (!isMarkdown) {
       setMode(MarkdownViewMode.SOURCE);
     } else if (restored != null) {
@@ -251,11 +260,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
    *     {@link #grammarChanged}
    */
   void restoreMode(MarkdownViewMode value, boolean detecting) {
-    wanted = null;
-    if (markdown || value == MarkdownViewMode.SOURCE) {
-      setMode(value);
-    } else if (detecting) {
-      wanted = value;
+    MarkdownViewMode now = restore.restore(value, markdown, detecting);
+    if (now != null) {
+      setMode(now);
     }
   }
 
@@ -263,6 +270,28 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   void grammarsReloaded() {
     if (!disposed && mode != MarkdownViewMode.SOURCE) {
       render(false, false);
+    }
+  }
+
+  /** Renders again under the busy cursor with the renderer now chosen, while the preview shows. */
+  void rendererChanged() {
+    if (!disposed && mode != MarkdownViewMode.SOURCE) {
+      render(true, false);
+    }
+  }
+
+  @Override
+  public void browserFailed() {
+    if (!disposed) {
+      tab.browserFailed();
+      rendererChanged();
+    }
+  }
+
+  @Override
+  public void linkFollowed(String location) {
+    if (shown != null && mode != MarkdownViewMode.SOURCE && location != null) {
+      MarkdownLinks.followed(location, tab, scroller);
     }
   }
 
@@ -308,50 +337,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
 
   @Override
   public void clicked(int offset) {
-    if (shown == null || mode == MarkdownViewMode.SOURCE) {
-      return;
+    if (shown != null && mode != MarkdownViewMode.SOURCE) {
+      MarkdownLinks.clicked(shown.rendered(), offset, tab, scroller);
     }
-    RenderedMarkdown r = shown.rendered();
-    for (MarkdownFootnote.Reference ref : r.footnoteReferences()) {
-      if (offset >= ref.start() && offset < ref.end()) {
-        for (MarkdownFootnote note : r.footnotes()) {
-          if (note.number() == ref.number()) {
-            scrollPreview(note.line());
-          }
-        }
-        return;
-      }
-    }
-    MarkdownLink link = linkAt(r.links(), offset);
-    if (link == null) {
-      return;
-    }
-    LinkTarget target = link.target();
-    switch (target.kind()) {
-      case ANCHOR -> {
-        int line = target.anchor().isEmpty() ? 0 : r.headingLine(target.anchor());
-        if (line >= 0) {
-          scrollPreview(line);
-        }
-      }
-      case FILE -> {
-        if (target.path() != null) {
-          tab.openFile(target.path());
-        }
-      }
-      default -> tab.openUrl(target.destination());
-    }
-  }
-
-  /** The innermost link holding an offset: the last one starting at or before it. */
-  private static MarkdownLink linkAt(List<MarkdownLink> links, int offset) {
-    MarkdownLink found = null;
-    for (MarkdownLink link : links) {
-      if (link.start() <= offset && offset < link.end()) {
-        found = link;
-      }
-    }
-    return found;
   }
 
   private void scrollPreview(int line) {
@@ -367,8 +355,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     document.removeListener(follower);
     view = null;
     shown = null;
-    budget.release(shownCharge);
-    shownCharge = 0;
+    charge.dispose();
   }
 
   private void edited() {
@@ -427,18 +414,15 @@ final class MarkdownPreview implements MarkdownPreviewInput {
       }
       return;
     }
-    long charge = 0;
-    if (text.length() > limit) {
-      charge = BYTES_PER_CHAR * text.length();
-      if (!budget.reserve(charge)) {
-        tab.notice(UiText.MARKDOWN_NO_MEMORY.text());
-        return;
-      }
+    final long reserved = charge.reserve(text.length());
+    if (reserved < 0) {
+      tab.notice(UiText.MARKDOWN_NO_MEMORY.text());
+      return;
     }
     cancelRunning();
     running = new CancellationToken();
-    final Job job =
-        new Job(
+    final MarkdownRenderJob job =
+        new MarkdownRenderJob(
             generation,
             document.revision(),
             text,
@@ -446,8 +430,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
             tab.folder(),
             tab.grammars(),
             tab.maxLineChars(),
+            tab.browser(),
             running,
-            charge);
+            reserved);
     if (user) {
       boolean started =
           new BusyWork(ui, tab.busy()) {
@@ -464,7 +449,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
           }.startCpu(workers);
       if (!started) {
         running = null;
-        budget.release(charge);
+        charge.release(reserved);
       }
       return;
     }
@@ -488,81 +473,28 @@ final class MarkdownPreview implements MarkdownPreviewInput {
           });
     } catch (RejectedExecutionException e) {
       running = null;
-      budget.release(charge);
+      charge.release(reserved);
     }
   }
 
   /** Shows a finished render unless it was overtaken. */
-  private void apply(Job job) {
+  private void apply(MarkdownRenderJob job) {
     if (running == job.cancel) {
       running = null;
     }
     if (disposed
-        || job.result == null
+        || job.result() == null
         || job.generation != generation
         || job.revision != document.revision()
         || mode == MarkdownViewMode.SOURCE) {
-      budget.release(job.charge);
+      charge.release(job.charge);
       return;
     }
-    shown = job.result;
-    budget.release(shownCharge);
-    shownCharge = job.charge;
+    shown = job.result();
+    charge.shown(job.charge);
     if (view != null) {
       view.showRendered(shown);
       decode();
-    }
-  }
-
-  /** One render: what it reads, and its result once {@link #run} returns. */
-  private static final class Job {
-    final long generation;
-    final long revision;
-    final TextSnapshot text;
-    final MarkdownRenderer renderer;
-    final Path folder;
-    final GrammarSet grammars;
-    final int maxLineChars;
-    final CancellationToken cancel;
-    final long charge;
-    volatile MarkdownPreviewContent result;
-
-    Job(
-        long generation,
-        long revision,
-        TextSnapshot text,
-        MarkdownRenderer renderer,
-        Path folder,
-        GrammarSet grammars,
-        int maxLineChars,
-        CancellationToken cancel,
-        long charge) {
-      this.generation = generation;
-      this.revision = revision;
-      this.text = text;
-      this.renderer = renderer;
-      this.folder = folder;
-      this.grammars = grammars;
-      this.maxLineChars = maxLineChars;
-      this.cancel = cancel;
-      this.charge = charge;
-    }
-
-    @WorkerThread
-    void run() {
-      try {
-        RenderedMarkdown rendered = renderer.render(text, folder, cancel);
-        List<int[]> tokens = MarkdownCodeTokens.of(rendered, grammars, maxLineChars, cancel);
-        cancel.check();
-        result =
-            new MarkdownPreviewContent(
-                rendered,
-                tokens,
-                MarkdownSpans.of(rendered, tokens),
-                MarkdownImages.requests(rendered));
-      } catch (CancellationException e) {
-        result = null;
-      }
     }
   }
 }

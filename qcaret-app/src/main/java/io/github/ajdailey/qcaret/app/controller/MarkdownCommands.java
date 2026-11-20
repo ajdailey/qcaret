@@ -84,6 +84,15 @@ final class MarkdownCommands {
         : chosen;
   }
 
+  /**
+   * Reports whether {@code markdown.previewRenderer} is Browser, whether or not it can run.
+   *
+   * @return true for Browser
+   */
+  boolean browserChosen() {
+    return settings.current().options().previewRenderer() == PreviewRenderer.BROWSER;
+  }
+
   /** {@link CommandStates#checked} for a Markdown command. */
   boolean checked(CommandId command) {
     return switch (command) {

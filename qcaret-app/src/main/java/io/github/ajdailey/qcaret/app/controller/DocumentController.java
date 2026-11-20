@@ -144,6 +144,7 @@ public final class DocumentController {
   private boolean wrap;
   private final DocumentGrammars grammars;
   private final MarkdownPreviews markdown;
+  private final MarkdownExport htmlExport;
   private final DocumentEncodings encodings;
   private final TabClosing closing;
   private final DocumentSessions sessions;
@@ -489,6 +490,7 @@ public final class DocumentController {
               }
             },
             budget);
+    this.htmlExport = new MarkdownExport(workers, ui, view, grammars);
     this.encodings = new DocumentEncodings(workers, ui, view);
     this.sessions =
         new DocumentSessions(this, documents, selected, view, grammars, markdown, closedPaths);
@@ -2026,6 +2028,28 @@ public final class DocumentController {
    */
   public MarkdownPreviewInput markdownPreview() {
     return active == null ? null : markdown.of(active);
+  }
+
+  /**
+   * Sets the Markdown preview renderer; a change renders every shown preview again.
+   *
+   * @param browser true for Browser
+   */
+  void setMarkdownBrowser(boolean browser) {
+    if (markdown.setBrowserChosen(browser)) {
+      for (OpenDocument d : documents) {
+        if (d.markdown != null) {
+          d.markdown.rendererChanged();
+        }
+      }
+    }
+  }
+
+  /** File > Export as HTML of the selected Markdown tab. */
+  public void exportHtml() {
+    if (active != null && MarkdownPreviews.MARKDOWN.equals(active.grammar)) {
+      htmlExport.export(active);
+    }
   }
 
   /** Returns the selected document's grammar, or null without a document or before the read. */

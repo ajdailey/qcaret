@@ -427,17 +427,17 @@ class KeymapTest {
   }
 
   /**
-   * Cycle Markdown View has no menu item, so its key is no accelerator and runs from the window
-   * filter; the modes have no default key, and a saved key for one still binds it.
+   * Cycle Markdown View's key is its menu item's accelerator; the modes have no default key, and a
+   * saved key for one still binds it.
    */
   @Test
-  void cycleMarkdownViewRunsFromTheWindowFilterAndTheModesHaveNoKey() {
+  void cycleMarkdownViewIsAnAcceleratorAndTheModesHaveNoKey() {
     KeyStroke m = KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'm');
     for (boolean mac : new boolean[] {false, true}) {
       Keymap keymap = Keymap.defaults(mac);
       assertEquals(List.of(m), keymap.strokes(CommandId.MARKDOWN_CYCLE));
-      assertNull(keymap.accelerator(CommandId.MARKDOWN_CYCLE));
-      assertEquals(CommandId.MARKDOWN_CYCLE, keymap.windowCommand(m));
+      assertEquals(m, keymap.accelerator(CommandId.MARKDOWN_CYCLE));
+      assertNull(keymap.windowCommand(m));
       assertNull(keymap.editorCommand(m));
       for (CommandId mode :
           List.of(

@@ -323,6 +323,7 @@ public final class CommandStates {
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canRedo();
       case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, MARKDOWN_CYCLE ->
           application.markdown().enabled(command);
+      case EXPORT_HTML -> documents.activeMarkdown();
       default -> true;
     };
   }

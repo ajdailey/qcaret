@@ -81,4 +81,12 @@
     <Class name="io.github.ajdailey.qcaret.launcher.Launcher$FailureLogger"/>
     <Bug pattern="CRLF_INJECTION_LOGS"/>
   </Match>
+  <!-- MarkdownPage.page writes the HTML fragment it is given into the page
+       unescaped: the fragment is HTML by contract, raw HTML of the document
+       included, and the page's content security policy loads nothing. -->
+  <Match>
+    <Class name="io.github.ajdailey.qcaret.app.editor.MarkdownPage"/>
+    <Method name="page"/>
+    <Bug pattern="POTENTIAL_XML_INJECTION"/>
+  </Match>
 </FindBugsFilter>

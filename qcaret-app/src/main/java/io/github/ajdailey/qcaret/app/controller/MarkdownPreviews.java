@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MainView;
@@ -36,6 +37,7 @@ final class MarkdownPreviews {
   private final Consumer<Path> openFile;
   private final MemoryBudget budget;
   private final MarkdownImages images;
+  private boolean browserChosen;
 
   /**
    * Creates the previews of one window.
@@ -117,6 +119,17 @@ final class MarkdownPreviews {
                 public void openUrl(String url) {
                   view.launchUrl(url);
                 }
+
+                @Override
+                public boolean browser() {
+                  return browserChosen && view.previewBrowserUnavailable() == null;
+                }
+
+                @Override
+                public void browserFailed() {
+                  view.showNotice(UiText.MARKDOWN_BROWSER_FALLBACK.text());
+                  view.documentStateChanged();
+                }
               },
               LIVE_LIMIT_CHARS,
               budget,
@@ -127,6 +140,19 @@ final class MarkdownPreviews {
       }
     }
     return d.markdown;
+  }
+
+  /**
+   * Sets the renderer chosen in {@code markdown.previewRenderer}; Browser draws only while {@link
+   * MainView#previewBrowserUnavailable} gives no reason.
+   *
+   * @param browser true for Browser
+   * @return true when the choice changed
+   */
+  boolean setBrowserChosen(boolean browser) {
+    boolean changed = browserChosen != browser;
+    browserChosen = browser;
+    return changed;
   }
 
   /** Gives a tab moved in from another window the mode it had there. */

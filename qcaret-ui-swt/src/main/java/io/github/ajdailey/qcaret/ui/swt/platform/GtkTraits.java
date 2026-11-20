@@ -180,4 +180,9 @@ abstract class GtkTraits implements PlatformTraits {
   public String toolkitVersion() {
     return System.getProperty(GTK_VERSION);
   }
+
+  @Override
+  public boolean scrollsBrowserToFragments() {
+    return true;
+  }
 }

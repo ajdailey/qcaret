@@ -229,6 +229,16 @@ class MarkdownPreviewShotsTest {
               public void clicked(int offset) {
                 // No links followed.
               }
+
+              @Override
+              public void linkFollowed(String location) {
+                // No links followed.
+              }
+
+              @Override
+              public void browserFailed() {
+                // Basic only.
+              }
             },
             Palette.LIGHT,
             new SwtUiDispatcher(display),

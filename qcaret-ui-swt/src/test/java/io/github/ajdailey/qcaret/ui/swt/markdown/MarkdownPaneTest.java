@@ -151,6 +151,16 @@ class MarkdownPaneTest {
               public void clicked(int offset) {
                 clicks.add(offset);
               }
+
+              @Override
+              public void linkFollowed(String location) {
+                // No links followed.
+              }
+
+              @Override
+              public void browserFailed() {
+                // Basic only.
+              }
             },
             Palette.LIGHT,
             new SwtUiDispatcher(display),

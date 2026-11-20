@@ -14,8 +14,8 @@ SLF4J 2.0.20 (slf4j-api, slf4j-jdk14)
   License: MIT. https://www.slf4j.org
 
 commonmark-java 0.32.0 (commonmark and the extensions autolink, footnotes,
-gfm-alerts, gfm-strikethrough, gfm-tables, heading-anchor, image-attributes,
-task-list-items, yaml-front-matter)
+gfm-alerts, gfm-strikethrough, gfm-tables, image-attributes, task-list-items,
+yaml-front-matter)
   License: BSD 2-Clause. https://github.com/commonmark/commonmark-java
 
 autolink-java 0.12.0 (autolink)
