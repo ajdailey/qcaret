@@ -102,8 +102,17 @@ and tests of a read-only file skip where the user writes read-only files.
 | `SymbolScannerTest` | A definition in a comment or a string ignored, the first rule winning a column, CR LF and CR breaks, the count and line limits on a generated file, a line over the block size, a cancel |
 | `SymbolRescanTest` | `rescan` equal to `scanAll` after each of 150 steps of random edits to a 4,000-line text, with and without the count reached: comments and strings opened across lines, breaks split and joined, long lines; a truncated scan returned unchanged for an edit past its stop; the charge |
 | `SymbolRulesTest` | One sample per built-in grammar with symbol rules, with its definitions and none from a comment or a string; which grammars have rules |
-| `GrammarSetTest` | The detection order, each language's extensions, file names and shebangs, every format grammar's file names and extensions, one grammar per extension, user grammars, a runaway first-line regex |
+| `GrammarSetTest` | The detection order, each language's extensions, file names and shebangs, every format grammar's file names and extensions, one grammar per extension, user grammars, a runaway first-line regex, `forLabel` by id, name, extension and file name |
 | `BoundedCharsTest` | The read bound and cancellation |
+
+### Markdown
+
+| Class | Covers |
+|---|---|
+| `MarkdownRendererTest` | Headings, paragraphs and their separator lines; each inline style's range; `<br>`, `<kbd>`, `<sub>`, `<sup>` and other inline HTML as text; HTML blocks and `<details>`; hard breaks and their source lines; nested and loose lists, empty items, numbers and task states; nested quotes and a quote in a list; rules; GFM tables with alignment, inline styles and a short row; code lines and the info string's language; a supplementary char before a run; CR LF and CR input equal to LF; the leaf block list; images by target; a cancel before the parse and one between blocks (a block whose walk cancels, then the next block's check); 3,000 generated sections over 256 KiB |
+| `GitLabMarkdownTest` | Heading ids against the examples of GitLab's Markdown documentation, and commonmark's `IdGenerator` keeping a `--` GitLab joins; the heading list (ATX, setext, in a quote, none from a fence); `[[_TOC_]]` and `[TOC]` linking the same anchors; `>>>` quotes; autolinks; footnote numbering, order and the unused definition; alerts with the default and a custom title; front matter; image width and height |
+| `SourceMapTest` | Rendered to source and back at a heading, a wrapped paragraph, a link reference definition, a fence and a list |
+| `LinkTargetTest` | Relative, parent, absolute and `file:` paths, an untitled document, URLs and `//`, anchors, percent decoding with malformed escapes |
 
 ### Search and replace
 

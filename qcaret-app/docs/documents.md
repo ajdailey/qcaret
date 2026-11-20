@@ -320,6 +320,39 @@ so view state lives per view, not per tab. The focused view is the one menu and
 find commands act on. Unsplit closes every view but the focused one; closing
 the tab disposes every view.
 
+### Markdown preview
+
+Each tab has a `MarkdownPreview`, created by `MarkdownPreviews` on first use,
+holding its view mode (`MarkdownViewMode`: Source, Split, Preview) and its
+renders. `DocumentController.setMarkdownMode` and `markdownMode` act on the
+selected tab, and `markdownPreview` hands its pane the `MarkdownPreviewInput`.
+A tab takes Split or Preview only while its grammar is `markdown`;
+`DocumentGrammars` reports each grammar change, and a change away returns the
+tab to Source. A tab moved to another window keeps its mode; closing or moving
+disposes the preview.
+
+| Trigger | Render |
+|---|---|
+| Source to Split or Preview | At once, on a `qcaret-cpu-` worker under the busy cursor (`BusyWork`) |
+| An edit while not in Source | Cancels the running render; 300 ms after the last edit, on a worker without the busy cursor |
+| `renderRequested` from the notice | At once, under the busy cursor, at any size |
+
+A document over `LIVE_LIMIT_CHARS` (1 MiB of chars) is not rendered on a switch
+or an edit: the pane shows the size notice instead. A render parses with
+`MarkdownRenderer`, then colors each code block with a `SyntaxEngine` for the
+grammar `GrammarSet.forLabel` finds for its language (`MarkdownCodeTokens`), on
+the same worker; the pane receives both as `MarkdownPreviewContent`. Each render
+carries a generation, raised by every edit, switch and new render, and the
+revision it read; a result whose generation or revision is not current is
+dropped.
+
+In Split, `sourceScrolled` and `previewScrolled` map the top line through the
+shown render's source map and scroll the other side; the scroll a mapping
+causes is not mapped back. A click (`clicked`) on a link follows it: an anchor
+scrolls the preview to its heading, a local file opens in the window, a URL goes
+to `MainView.launchUrl`; a footnote reference scrolls to its footnote. The pane
+(`MarkdownPreviewView`) only applies these requests.
+
 ## Printing
 
 `PrintController` runs File > Print and File > Print Selection, one job per

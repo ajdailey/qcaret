@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.nio.charset.StandardCharsets;
@@ -259,7 +260,8 @@ class FileCommandsTest {
                     "",
                     0,
                     true,
-                    o.strictJson())));
+                    o.strictJson(),
+                    PreviewRenderer.BASIC)));
   }
 
   @Test

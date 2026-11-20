@@ -13,6 +13,8 @@ import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
+import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
@@ -141,6 +143,7 @@ public final class DocumentController {
   private Elsewhere elsewhere;
   private boolean wrap;
   private final DocumentGrammars grammars;
+  private final MarkdownPreviews markdown;
   private final DocumentEncodings encodings;
   private final TabClosing closing;
   private final DocumentSessions sessions;
@@ -466,6 +469,25 @@ public final class DocumentController {
     this.options = options;
     this.declared = new DocumentSettings(workers, ui, view);
     this.grammars = new DocumentGrammars(workers, ui, view, documents);
+    this.markdown =
+        new MarkdownPreviews(
+            workers,
+            ui,
+            grammars,
+            view,
+            new Consumer<Path>() {
+              @Override
+              public void accept(Path path) {
+                open(
+                    path,
+                    new Consumer<EditorController>() {
+                      @Override
+                      public void accept(EditorController editor) {
+                        // The tab shows; nothing else to do.
+                      }
+                    });
+              }
+            });
     this.encodings = new DocumentEncodings(workers, ui, view);
     this.sessions = new DocumentSessions(this, documents, selected, view, grammars, closedPaths);
     this.changes =
@@ -1329,6 +1351,7 @@ public final class DocumentController {
       changes.unwatch(d.file.watch);
     }
     d.document.removeListener(d);
+    markdown.closed(d);
     release.run();
     int index = documents.indexOf(d);
     documents.remove(d);
@@ -1962,6 +1985,37 @@ public final class DocumentController {
     }
   }
 
+  /**
+   * Returns the selected tab's Markdown view mode.
+   *
+   * @return Source without a document or for a tab that is not Markdown
+   */
+  public MarkdownViewMode markdownMode() {
+    return active == null || active.markdown == null
+        ? MarkdownViewMode.SOURCE
+        : active.markdown.mode();
+  }
+
+  /**
+   * Switches the selected tab's Markdown view mode; leaving Source renders under the busy cursor.
+   *
+   * @param mode the mode
+   * @return false, changing nothing, without a document or for Split or Preview on a tab whose
+   *     grammar is not {@code markdown}
+   */
+  public boolean setMarkdownMode(MarkdownViewMode mode) {
+    return active != null && markdown.of(active).setMode(mode);
+  }
+
+  /**
+   * Returns the selected tab's Markdown preview, for its pane.
+   *
+   * @return the preview, or null without a document
+   */
+  public MarkdownPreviewInput markdownPreview() {
+    return active == null ? null : markdown.of(active);
+  }
+
   /** Returns the selected document's grammar, or null without a document or before the read. */
   Grammar activeGrammar() {
     return active == null ? null : grammars.grammarOf(active);
@@ -2384,6 +2438,7 @@ public final class DocumentController {
     if (from.detecting > 0) {
       grammars.detect(d);
     }
+    markdown.adopt(d, from);
     ui.asyncExec(
         new Runnable() {
           @Override

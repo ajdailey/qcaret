@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.search.ResultSet;
 import io.github.ajdailey.qcaret.app.view.ResultLabel;
@@ -90,7 +91,8 @@ class SearchControllerTest {
                     "",
                     0,
                     true,
-                    o.strictJson())));
+                    o.strictJson(),
+                    PreviewRenderer.BASIC)));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();
     assertEquals(1, search.sets().get(0).matches());

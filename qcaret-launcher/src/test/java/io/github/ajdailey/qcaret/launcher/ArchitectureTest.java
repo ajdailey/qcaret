@@ -335,8 +335,9 @@ class ArchitectureTest {
 
   /**
    * Core layers, lowest first: util, concurrent, io, text, buffer, document, then edit, syntax,
-   * search, diff and format, which do not use each other; watch and workspace sit on io. A layer
-   * uses only the layers below it. A layer with no classes yet is allowed.
+   * search, diff and format, which do not use each other; watch and workspace sit on io; markdown
+   * uses util, concurrent, text and document. A layer uses only the layers below it. A layer with
+   * no classes yet is allowed.
    */
   @Test
   void coreLayers() {
@@ -369,6 +370,8 @@ class ArchitectureTest {
         .definedBy(ROOT + ".core.diff..")
         .layer("format")
         .definedBy(ROOT + ".core.format..")
+        .layer("markdown")
+        .definedBy(ROOT + ".core.markdown..")
         .layer("watch")
         .definedBy(ROOT + ".core.watch..")
         .layer("workspace")
@@ -385,7 +388,8 @@ class ArchitectureTest {
             "diff",
             "format",
             "watch",
-            "workspace")
+            "workspace",
+            "markdown")
         .whereLayer("io")
         .mayOnlyBeAccessedByLayers(
             "text",
@@ -400,11 +404,11 @@ class ArchitectureTest {
             "workspace")
         .whereLayer("text")
         .mayOnlyBeAccessedByLayers(
-            "buffer", "document", "edit", "syntax", "search", "diff", "format")
+            "buffer", "document", "edit", "syntax", "search", "diff", "format", "markdown")
         .whereLayer("buffer")
         .mayOnlyBeAccessedByLayers("document", "edit", "syntax", "search", "diff", "format")
         .whereLayer("document")
-        .mayOnlyBeAccessedByLayers("edit", "syntax", "search", "diff", "format")
+        .mayOnlyBeAccessedByLayers("edit", "syntax", "search", "diff", "format", "markdown")
         .whereLayer("edit")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("syntax")
@@ -414,6 +418,8 @@ class ArchitectureTest {
         .whereLayer("diff")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("format")
+        .mayNotBeAccessedByAnyLayer()
+        .whereLayer("markdown")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("watch")
         .mayNotBeAccessedByAnyLayer()

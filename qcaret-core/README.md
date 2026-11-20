@@ -3,9 +3,11 @@
 Model-side code with no SWT and no logging dependency: thread ownership, the
 memory budget, paths and safe file writes, encodings and line endings, text
 storage, the document model, editing commands, XML and JSON formatting,
-grammars and the tokenizer,
+grammars and the tokenizer, the Markdown preview model,
 search and file replace, the line diff, external change detection and the
-workspace folder's listings and index. Tests run without a display.
+workspace folder's listings and index. Tests run without a display. The one
+third-party runtime library is commonmark-java with its extensions, in
+`core.markdown` only.
 
 A package uses only lower layers (`ArchitectureTest.coreLayers` in
 `qcaret-launcher`); the layer column below is that order, lowest first.
@@ -28,6 +30,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.search` | 7 | `TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups` | [Search](docs/search.md) |
 | `core.diff` | 7 | `LineDiff` | [Search](docs/search.md#line-diff) |
 | `core.format` | 7 | `Formats`, `FormatLayout`, `FormatResult`, `FormatError`: XML and JSON Pretty Print, Minify and Check; `CaretPath` | [Documents](docs/documents.md#xml-and-json-formatting) |
+| `core.markdown` | 7, on `util`, `concurrent`, `text` and `document` | `MarkdownRenderer`, `RenderedMarkdown` and its records (`StyleRun`, `MarkdownBlock`, `CodeBlock`, `MarkdownTable`, `MarkdownImage`, `MarkdownLink`, `LinkTarget`, `MarkdownHeading`, `MarkdownAlert`, `MarkdownFootnote`) | [Markdown](docs/markdown.md) |
 | `core.xml` | uses no QCaret package | `SecureXml`: every JDK XML parser and schema factory, each locked down | [Grammars](docs/grammars.md#xml-parsers) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |
 | `core.workspace` | above `io` | `WalkRules`, `DirectoryListing`, `ListingOptions`, `NameFilter`, `FileIndex`, `FileOperations`, `HomeFolder` | [Search](docs/search.md#workspace-folder) |

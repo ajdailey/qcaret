@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.ViewDefaults;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
@@ -79,7 +80,8 @@ class NewFileDefaultsTest {
                     "",
                     0,
                     true,
-                    o.strictJson())));
+                    o.strictJson(),
+                    PreviewRenderer.BASIC)));
   }
 
   private Document newDocument() {

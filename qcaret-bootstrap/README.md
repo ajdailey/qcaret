@@ -31,7 +31,7 @@ directory. Exit status 3 means the natives could not be prepared.
 |---|---|
 | `io/github/ajdailey/qcaret/bootstrap/` | This module |
 | `META-INF/qcaret/index.properties` | `swt.version`, `lib` (nested jar names), `natives.<target>` (library names) |
-| `META-INF/qcaret/lib/*.jar` | Application jars, slf4j-api, slf4j-jdk14 |
+| `META-INF/qcaret/lib/*.jar` | Application jars, slf4j-api, slf4j-jdk14, commonmark and its extensions, autolink |
 | `META-INF/qcaret/swt/<target>.jar` | The six SWT fragments, unmodified |
 | `META-INF/qcaret/natives/<target>/<library>.sha256` | SHA-256 of each native, hex |
 

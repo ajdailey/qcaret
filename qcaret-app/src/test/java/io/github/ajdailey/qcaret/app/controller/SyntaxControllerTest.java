@@ -2,11 +2,13 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.session.Session;
+import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
@@ -103,6 +105,26 @@ class SyntaxControllerTest {
     assertEquals(1, checked);
     loadGrammars();
     awaitLanguage("Python");
+  }
+
+  @Test
+  void aMarkdownTabTakesAViewModeThatAGrammarChangeResets() throws Exception {
+    loadGrammars();
+    final DocumentController documents = harness.application.documents();
+    open("notes.txt", "# Mock\n");
+    awaitLanguage("Plain Text");
+    assertFalse(documents.setMarkdownMode(MarkdownViewMode.SPLIT));
+    harness.application.setSyntax("markdown");
+    awaitLanguage("Markdown");
+    assertTrue(documents.setMarkdownMode(MarkdownViewMode.SPLIT));
+    assertEquals(MarkdownViewMode.SPLIT, documents.markdownMode());
+    harness.application.setSyntax("java");
+    awaitLanguage("Java");
+    assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
+    open("README.md", "# Other\n");
+    awaitLanguage("Markdown");
+    assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
+    assertNotNull(documents.markdownPreview());
   }
 
   @Test

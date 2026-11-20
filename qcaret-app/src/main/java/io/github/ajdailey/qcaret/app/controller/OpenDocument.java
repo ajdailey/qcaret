@@ -44,6 +44,9 @@ final class OpenDocument implements DocumentListener {
   boolean manualGrammar;
   int detecting;
 
+  /** The Markdown preview, created on first use by {@link MarkdownPreviews}; null before. */
+  MarkdownPreview markdown;
+
   /** The running reopen of this document, or null. */
   DocumentController.Open reopen;
 

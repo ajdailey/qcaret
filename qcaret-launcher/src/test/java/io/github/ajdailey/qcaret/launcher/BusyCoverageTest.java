@@ -200,6 +200,8 @@ class BusyCoverageTest {
       "controller.FoldScheduling#scheduleRewrap",
       "controller.GrammarLibrary#load",
       "controller.LineChangesUpdater#compute",
+      // The live render after typing; a switch or a requested render goes through BusyWork.
+      "controller.MarkdownPreview#render",
       "controller.MemoryIndicator#read",
       "controller.OverviewUpdater#compute",
       "controller.QuitSequence#quit",

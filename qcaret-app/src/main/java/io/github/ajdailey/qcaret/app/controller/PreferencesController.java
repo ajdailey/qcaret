@@ -274,7 +274,8 @@ final class PreferencesController implements PreferencesInput {
                     workspaceDefault,
                     EditorZoom.kept(settings.current(), font.value(), form.fontFamily()),
                     form.sessionRestore(),
-                    form.strictJson()));
+                    form.strictJson(),
+                    settings.current().options().previewRenderer()));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));

@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
@@ -92,7 +93,8 @@ class FilePollSurfaceTest {
         "",
         0,
         true,
-        o.strictJson());
+        o.strictJson(),
+        PreviewRenderer.BASIC);
   }
 
   private MainWindow open(Preferences preferences) {

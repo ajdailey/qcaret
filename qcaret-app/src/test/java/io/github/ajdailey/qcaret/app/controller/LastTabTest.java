@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.session.Session;
@@ -93,7 +94,8 @@ class LastTabTest {
                 "",
                 0,
                 true,
-                o.strictJson())));
+                o.strictJson(),
+                PreviewRenderer.BASIC)));
   }
 
   @Test

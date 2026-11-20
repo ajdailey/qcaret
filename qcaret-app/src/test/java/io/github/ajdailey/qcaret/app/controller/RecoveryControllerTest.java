@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
@@ -951,7 +952,8 @@ class RecoveryControllerTest {
         "",
         0,
         true,
-        o.strictJson());
+        o.strictJson(),
+        PreviewRenderer.BASIC);
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

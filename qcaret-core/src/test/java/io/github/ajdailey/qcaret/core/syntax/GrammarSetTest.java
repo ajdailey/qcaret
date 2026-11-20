@@ -35,6 +35,17 @@ class GrammarSetTest {
   }
 
   @Test
+  void findsAGrammarByIdNameExtensionOrFileName() {
+    GrammarSet set = Tokens.BUILT_IN;
+    assertEquals("java", set.forLabel("JAVA"));
+    assertEquals("cpp", set.forLabel("c++"));
+    assertEquals("shell", set.forLabel("bash"));
+    assertEquals("python", set.forLabel("py"));
+    assertEquals("dockerfile", set.forLabel("Dockerfile"));
+    assertEquals(null, set.forLabel("mock-language"));
+  }
+
+  @Test
   void detectsTheAddedLanguages() {
     GrammarSet set = Tokens.BUILT_IN;
     String[][] cases = {

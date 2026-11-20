@@ -180,6 +180,7 @@ Shortcuts.
 | `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Tools > Preferences, Editor |
 | `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Tools > Preferences, Editor |
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Tools > Preferences, Editor |
+| `markdown.previewRenderer` | `basic`, `browser`: what draws the Markdown preview of every window | `basic` | Not shown yet |
 | `editor.strictJson` | `true`, `false`: Edit > Format XML and JSON accepts RFC 8259 JSON only, and a comment is an error | `false` | Tools > Preferences, Editor |
 | `editor.newLineEnding` | `lf`, `crlf`, `platform` (CRLF on Windows, else LF): Enter's line ending in a new document, a missing file opened by path, and a loaded text without line breaks, until per-file settings say otherwise | `lf` | Tools > Preferences, Editor |
 | `editor.newEncoding` | A charset of the Encoding menu, spelled as there (`UTF-8`, `windows-1252`, ...): the encoding of a new document, a missing file opened by path, and a file of 0 bytes, unless forced or set by `.editorconfig` | `UTF-8` | Tools > Preferences, Editor |

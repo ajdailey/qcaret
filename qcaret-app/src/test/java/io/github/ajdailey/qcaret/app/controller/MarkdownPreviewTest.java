@@ -1,0 +1,405 @@
+package io.github.ajdailey.qcaret.app.controller;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.github.ajdailey.qcaret.app.editor.TokenCache;
+import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
+import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
+import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.document.EditBatch;
+import io.github.ajdailey.qcaret.core.document.UndoLimits;
+import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
+import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
+import io.github.ajdailey.qcaret.core.syntax.GrammarReader;
+import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
+import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
+import io.github.ajdailey.qcaret.core.syntax.TokenType;
+import io.github.ajdailey.qcaret.core.testkit.Poll;
+import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+/**
+ * {@link MarkdownPreview} with a fake view: debounce, stale drop, cancel on edit, the busy cursor,
+ * the size limit, mode reset on a grammar change, scroll mapping, code colors and link clicks.
+ */
+class MarkdownPreviewTest {
+  private static final Duration BOUND = Duration.ofSeconds(20);
+  private static final GrammarSet GRAMMARS =
+      GrammarSet.of(
+          GrammarSet.readBuiltIns(new GrammarReader()), Map.of(), new ArrayList<String>());
+
+  private final ManualUiDispatcher ui = new ManualUiDispatcher();
+  private final List<Throwable> failures = new CopyOnWriteArrayList<Throwable>();
+  private final Workers workers =
+      new Workers(
+          2,
+          new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+              failures.add(e);
+            }
+          });
+  private final Busy busy = new Busy();
+  private final FakeTab tab = new FakeTab();
+  private final FakePane pane = new FakePane();
+
+  @AfterEach
+  void close() {
+    assertTrue(workers.close(Duration.ofSeconds(5)));
+    assertEquals(List.of(), failures);
+  }
+
+  /** Counts busy-cursor operations. */
+  private static final class Busy implements ActivityIndicator {
+    final AtomicInteger started = new AtomicInteger();
+    final AtomicInteger active = new AtomicInteger();
+
+    @Override
+    public void setActive() {
+      started.incrementAndGet();
+      active.incrementAndGet();
+    }
+
+    @Override
+    public void setIdle() {
+      active.decrementAndGet();
+    }
+  }
+
+  private final class FakeTab implements MarkdownPreview.Tab {
+    final List<Integer> scrolled = new ArrayList<Integer>();
+    final List<Path> files = new ArrayList<Path>();
+    final List<String> urls = new ArrayList<String>();
+    Path folder;
+
+    @Override
+    public Path folder() {
+      return folder;
+    }
+
+    @Override
+    public ActivityIndicator busy() {
+      return busy;
+    }
+
+    @Override
+    public GrammarSet grammars() {
+      return GRAMMARS;
+    }
+
+    @Override
+    public int maxLineChars() {
+      return SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
+    }
+
+    @Override
+    public void scrollSource(int line) {
+      scrolled.add(line);
+    }
+
+    @Override
+    public void openFile(Path path) {
+      files.add(path);
+    }
+
+    @Override
+    public void openUrl(String url) {
+      urls.add(url);
+    }
+  }
+
+  /** Records display requests; fails a call off the UI thread. */
+  private final class FakePane implements MarkdownPreviewView {
+    final List<MarkdownViewMode> modes = new ArrayList<MarkdownViewMode>();
+    final List<MarkdownPreviewContent> shown = new ArrayList<MarkdownPreviewContent>();
+    final List<int[]> notices = new ArrayList<int[]>();
+    final List<Integer> scrolls = new ArrayList<Integer>();
+
+    @Override
+    public void showMode(MarkdownViewMode mode) {
+      ui.checkUiThread();
+      modes.add(mode);
+    }
+
+    @Override
+    public void showRendered(MarkdownPreviewContent content) {
+      ui.checkUiThread();
+      shown.add(content);
+    }
+
+    @Override
+    public void showSizeNotice(int chars, int limit) {
+      ui.checkUiThread();
+      notices.add(new int[] {chars, limit});
+    }
+
+    @Override
+    public void scrollToLine(int line) {
+      ui.checkUiThread();
+      scrolls.add(line);
+    }
+
+    String lastText() {
+      return shown.get(shown.size() - 1).rendered().text();
+    }
+  }
+
+  private static Document document(String text) {
+    return Document.of(
+        text, TextEncoding.of(StandardCharsets.UTF_8, false), LineEnding.LF, UndoLimits.DEFAULTS);
+  }
+
+  private MarkdownPreview preview(Document document, int limit) {
+    MarkdownPreview p =
+        new MarkdownPreview(document, workers, ui, new MarkdownRenderer(), tab, limit);
+    p.grammarChanged(true);
+    p.attach(pane);
+    return p;
+  }
+
+  private void runUntil(BooleanSupplier condition) throws InterruptedException {
+    assertTrue(ui.runUntil(condition, BOUND));
+  }
+
+  private void awaitShown(final int count) throws InterruptedException {
+    runUntil(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.shown.size() >= count && busy.active.get() == 0;
+          }
+        });
+  }
+
+  @Test
+  void switchingFromSourceRendersUnderTheBusyCursor() throws InterruptedException {
+    MarkdownPreview p = preview(document("# Title\n\nText\n"), 1000);
+    assertEquals(List.of(MarkdownViewMode.SOURCE), pane.modes);
+    assertTrue(p.setMode(MarkdownViewMode.SPLIT));
+    awaitShown(1);
+    assertEquals("Title\n\nText", pane.lastText());
+    assertEquals(1, busy.started.get());
+    assertTrue(p.setMode(MarkdownViewMode.PREVIEW));
+    ui.runPending();
+    assertEquals(1, pane.shown.size());
+    assertEquals(1, busy.started.get());
+    assertEquals(
+        List.of(MarkdownViewMode.SOURCE, MarkdownViewMode.SPLIT, MarkdownViewMode.PREVIEW),
+        pane.modes);
+    p.dispose();
+  }
+
+  @Test
+  void editsRenderOnceAfterThePauseWithoutTheBusyCursor() throws InterruptedException {
+    Document d = document("one\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    d.apply(EditBatch.replace(d.text().length(), 0, "two\n"));
+    d.apply(EditBatch.replace(d.text().length(), 0, "three\n"));
+    assertEquals(1, ui.queued());
+    awaitShown(2);
+    assertEquals("one two three", pane.lastText());
+    assertEquals(2, pane.shown.size());
+    assertEquals(1, busy.started.get());
+    p.dispose();
+  }
+
+  @Test
+  void editsInSourceRenderNothing() {
+    Document d = document("one\n");
+    MarkdownPreview p = preview(d, 1000);
+    d.apply(EditBatch.replace(0, 0, "x"));
+    assertEquals(0, ui.queued());
+    ui.runPending();
+    assertEquals(0, pane.shown.size());
+    p.dispose();
+  }
+
+  @Test
+  void aResultForAnOlderRevisionIsDropped() throws InterruptedException {
+    final Document d = document("first\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    d.apply(EditBatch.replace(0, 5, "second"));
+    ui.runQueued();
+    final CancellationToken token = p.runningRender();
+    assertNotNull(token);
+    // Waits for the worker's result without running it, so it is still queued at the edit.
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return ui.queued() > 0;
+              }
+            },
+            BOUND));
+    d.apply(EditBatch.replace(0, 6, "third"));
+    ui.runQueued();
+    assertEquals(1, pane.shown.size());
+    awaitShown(2);
+    assertEquals("third", pane.lastText());
+    assertEquals(2, pane.shown.size());
+    p.dispose();
+  }
+
+  @Test
+  void anEditCancelsTheRunningRender() {
+    Document d = document("text\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    CancellationToken first = p.runningRender();
+    assertNotNull(first);
+    d.apply(EditBatch.replace(0, 0, "x"));
+    assertTrue(first.isCanceled());
+    assertNull(p.runningRender());
+    p.dispose();
+  }
+
+  @Test
+  void aDocumentOverTheLimitShowsTheNoticeUntilARenderIsRequested() throws InterruptedException {
+    Document d = document("0123456789 over the limit\n");
+    MarkdownPreview p = preview(d, 10);
+    p.setMode(MarkdownViewMode.SPLIT);
+    ui.runPending();
+    assertEquals(1, pane.notices.size());
+    assertEquals(d.text().length(), pane.notices.get(0)[0]);
+    assertEquals(10, pane.notices.get(0)[1]);
+    assertEquals(0, busy.started.get());
+    assertNull(p.runningRender());
+    d.apply(EditBatch.replace(0, 0, "x"));
+    ui.runPending();
+    assertEquals(2, pane.notices.size());
+    assertEquals(0, pane.shown.size());
+    p.renderRequested();
+    awaitShown(1);
+    assertEquals(1, busy.started.get());
+    assertEquals("x0123456789 over the limit", pane.lastText());
+    p.dispose();
+  }
+
+  @Test
+  void aGrammarChangeAwayFromMarkdownReturnsToSource() throws InterruptedException {
+    Document d = document("text\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.SPLIT);
+    p.grammarChanged(false);
+    assertEquals(MarkdownViewMode.SOURCE, p.mode());
+    assertEquals(MarkdownViewMode.SOURCE, pane.modes.get(pane.modes.size() - 1));
+    assertFalse(p.setMode(MarkdownViewMode.PREVIEW));
+    runUntil(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return busy.active.get() == 0;
+          }
+        });
+    assertEquals(0, pane.shown.size());
+    p.dispose();
+  }
+
+  @Test
+  void scrollsMapThroughTheSourceMapWithoutEcho() throws InterruptedException {
+    Document d = document("# A\n\npara\n\n```\nx\ny\n```\n\nend\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.SPLIT);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    p.sourceScrolled(6);
+    assertEquals(List.of(r.renderedLine(6)), pane.scrolls);
+    p.previewScrolled(r.renderedLine(6));
+    assertEquals(List.of(), tab.scrolled);
+    p.previewScrolled(2);
+    assertEquals(List.of(r.sourceLine(2)), tab.scrolled);
+    p.sourceScrolled(r.sourceLine(2));
+    assertEquals(1, pane.scrolls.size());
+    p.setMode(MarkdownViewMode.PREVIEW);
+    p.sourceScrolled(0);
+    assertEquals(1, pane.scrolls.size());
+    p.dispose();
+  }
+
+  @Test
+  void codeBlocksAreColoredByTheGrammarTheirLanguageNames() throws InterruptedException {
+    Document d = document("```java\n// note\nint x;\n```\n\n```mock-language\nint y;\n```\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    MarkdownPreviewContent content = pane.shown.get(0);
+    int[] java = content.codeTokens().get(0);
+    String text = content.rendered().text();
+    boolean comment = false;
+    for (int i = 0; i < java.length; i += 3) {
+      comment |=
+          text.substring(java[i], java[i + 1]).equals("// note")
+              && java[i + 2] == TokenCache.role(TokenType.COMMENT.ordinal());
+    }
+    assertTrue(comment);
+    assertEquals(0, content.codeTokens().get(1).length);
+    p.dispose();
+  }
+
+  @Test
+  void clicksFollowAnchorsFilesUrlsAndFootnotes() throws InterruptedException {
+    tab.folder = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
+    Document d =
+        document(
+            "[top](#part-two) [file](notes.md) [web](https://example.com) note[^n]\n\n"
+                + "# Part two\n\n[^n]: The note.\n");
+    MarkdownPreview p = preview(d, 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    p.clicked(r.links().get(0).start());
+    assertEquals(List.of(r.headingLine("part-two")), pane.scrolls);
+    p.clicked(r.links().get(1).start());
+    assertEquals(List.of(tab.folder.resolve("notes.md")), tab.files);
+    p.clicked(r.links().get(2).start());
+    assertEquals(List.of("https://example.com"), tab.urls);
+    p.clicked(r.footnoteReferences().get(0).start());
+    assertEquals(r.footnotes().get(0).line(), (int) pane.scrolls.get(1));
+    p.clicked(r.text().indexOf(' '));
+    assertEquals(2, pane.scrolls.size());
+    p.dispose();
+  }
+
+  @Test
+  void aResultAfterSwitchingToSourceIsDropped() throws InterruptedException {
+    MarkdownPreview p = preview(document("text\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    p.setMode(MarkdownViewMode.SOURCE);
+    runUntil(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return busy.active.get() == 0;
+          }
+        });
+    ui.runPending();
+    assertEquals(0, pane.shown.size());
+    assertNull(p.shown());
+    p.dispose();
+  }
+}

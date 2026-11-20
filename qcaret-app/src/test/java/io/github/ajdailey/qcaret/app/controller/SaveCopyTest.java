@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -462,7 +463,8 @@ class SaveCopyTest {
                     "",
                     0,
                     true,
-                    o.strictJson())));
+                    o.strictJson(),
+                    PreviewRenderer.BASIC)));
   }
 
   /**

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Selection;
@@ -151,7 +152,8 @@ class FormatRunsTest {
                     o.workspaceDefault(),
                     o.fontZoom(),
                     o.sessionRestore(),
-                    true)));
+                    true,
+                    PreviewRenderer.BASIC)));
     EditorController editor = open("[1 /* c */]");
     run(CommandId.PRETTY_PRINT_JSON);
     assertEquals("[1 /* c */]", text(editor));

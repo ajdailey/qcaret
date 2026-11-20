@@ -26,6 +26,7 @@ SpotBugs. Input is generated, never read from the repository.
 | `UndoBenchmark` | Undo and redo of one 100,000-replacement Replace All step and of Sort Lines on 200,000 lines, with a projection following |
 | `HighlightBenchmark` | `SyntaxEngine` on the 1,000,000-line `JAVA` text: `typeChar` and `openComment` run an edit to idle and fold regions; `installRegions` is the UI thread's copy and `DisplayProjection.setFoldRegions` of the region list |
 | `WorkspaceBenchmark` | Quick Open index build of 100,000 files, a 50,000-entry Workspace Browser listing, and `Fuzzy` scoring over the whole index and over the 2,000 paths matched on the UI thread |
+| `MarkdownHarness` | Markdown preview on generated 100 KiB, 1 MiB and 10 MiB documents: `MarkdownRenderer.render` and the code blocks' `SyntaxEngine` pass, median and maximum of 5 after 2 warm-ups |
 | `SymbolHarness` | Go to Symbol on generated 1,000,000-line `JAVA` (a definition every 7 lines), `JAVA_SPARSE` (every 200) and `MARKDOWN` (a heading every 120): the first scan, the filter and sort a cached list leaves, `rescan` and a whole scan after one-line edits at lines 1,006 and 500,006, clear of the Markdown fences, with their results compared, and a `SymbolScan`'s live heap against its charge |
 
 ## Running
@@ -51,6 +52,8 @@ java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SearchHarness [first cancel heap]
 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SymbolHarness [JAVA JAVA_SPARSE MARKDOWN]
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.MarkdownHarness [KIB...]
 ```
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
@@ -61,7 +64,7 @@ reproduce.
 
 ### Heap
 
-`StorageHarness`, `SearchHarness`, `SymbolHarness` and `FoldHarness` run at the shipped launchers'
+`StorageHarness`, `SearchHarness`, `SymbolHarness`, `FoldHarness` and `MarkdownHarness` run at the shipped launchers'
 `-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
 harness with it, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;

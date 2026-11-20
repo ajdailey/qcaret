@@ -190,13 +190,17 @@ final class DocumentGrammars {
   private void apply(OpenDocument d, String id, GrammarSet set) {
     d.grammar = id;
     d.syntax.setSyntax(GrammarSet.PLAIN.equals(id) ? null : set.syntax(id));
+    if (d.markdown != null) {
+      d.markdown.grammarChanged(MarkdownPreviews.MARKDOWN.equals(id));
+    }
     for (EditorController e : d.editors) {
       e.setGrammar(editorGrammar(d));
     }
     view.documentStateChanged();
   }
 
-  private GrammarSet current() {
+  /** Returns the grammars, or null before they are read. */
+  GrammarSet current() {
     return library == null ? null : library.set();
   }
 }

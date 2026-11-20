@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.config.Options;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
@@ -267,6 +268,7 @@ class QuitAndCloseSavesTest {
                     "",
                     0,
                     true,
-                    o.strictJson())));
+                    o.strictJson(),
+                    PreviewRenderer.BASIC)));
   }
 }

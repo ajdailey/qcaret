@@ -55,6 +55,7 @@ desktop.ini
 !/qcaret-core/docs/external-changes.md
 !/qcaret-core/docs/files-and-encodings.md
 !/qcaret-core/docs/grammars.md
+!/qcaret-core/docs/markdown.md
 !/qcaret-core/docs/search.md
 !/qcaret-core/docs/threads-and-memory.md
 !/qcaret-dist/README.md

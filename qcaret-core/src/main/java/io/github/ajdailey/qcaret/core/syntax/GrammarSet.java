@@ -235,6 +235,40 @@ public final class GrammarSet {
   }
 
   /**
+   * Finds the grammar a label names, such as a Markdown code fence's info string: by id, then name,
+   * then extension, then file name, each ignoring ASCII case. User grammars come first.
+   *
+   * @param label the label, such as {@code java}, {@code C++}, {@code sh} or {@code Dockerfile}
+   * @return the grammar's id, or null when none matches
+   */
+  public String forLabel(String label) {
+    String lower = asciiLower(label);
+    for (Grammar g : detection) {
+      if (asciiLower(g.id()).equals(lower)) {
+        return g.id();
+      }
+    }
+    for (Grammar g : detection) {
+      if (asciiLower(g.name()).equals(lower)) {
+        return g.id();
+      }
+    }
+    for (Grammar g : detection) {
+      if (g.extensions().contains(lower)) {
+        return g.id();
+      }
+    }
+    for (Grammar g : detection) {
+      for (String name : g.fileNames()) {
+        if (asciiLower(name).equals(lower)) {
+          return g.id();
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Picks the grammar for a file.
    *
    * @param fileName the file's name without its folder, or null for an untitled document

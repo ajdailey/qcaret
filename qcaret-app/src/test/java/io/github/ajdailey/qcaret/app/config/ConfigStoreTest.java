@@ -412,7 +412,8 @@ class ConfigStoreTest {
             "",
             18,
             false,
-            false);
+            false,
+            PreviewRenderer.BASIC);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -480,6 +481,53 @@ class ConfigStoreTest {
     Options read = store(temp).load().options();
     assertEquals(NewLineEnding.PLATFORM, read.newLineEnding());
     assertEquals("Big5", read.newEncoding());
+  }
+
+  @Test
+  void thePreviewRendererKeyReadsWritesAndFallsBack() throws IOException {
+    assertEquals(PreviewRenderer.BASIC, store(temp).load().options().previewRenderer());
+    Files.writeString(conf(), "markdown.previewRenderer= browser \n");
+    Preferences loaded = store(temp).load();
+    assertEquals(PreviewRenderer.BROWSER, loaded.options().previewRenderer());
+    Files.writeString(conf(), "markdown.previewRenderer=webkit\n");
+    assertEquals(PreviewRenderer.BASIC, store(temp).load().options().previewRenderer());
+    Files.delete(conf());
+    Options options = Options.DEFAULTS;
+    Preferences browser =
+        Preferences.DEFAULTS.withOptions(
+            new Options(
+                options.completionChars(),
+                options.autoClose(),
+                options.maxHighlightLineChars(),
+                options.fontSize(),
+                options.pollSeconds(),
+                options.autoReloadClean(),
+                options.backupDays(),
+                options.searchMaxLineChars(),
+                options.excludedDirectories(),
+                options.recoveryIntervalSeconds(),
+                options.recoveryKeepDays(),
+                options.sessionSnapshot(),
+                options.tabWidth(),
+                options.insertSpaces(),
+                options.rightMargin(),
+                options.dateFormat(),
+                options.editorConfig(),
+                options.modelines(),
+                options.closeWindowWithLastTab(),
+                options.closeShowsLastUsed(),
+                options.newLineEnding(),
+                options.newEncoding(),
+                options.workspaceDefault(),
+                options.fontZoom(),
+                options.sessionRestore(),
+                options.strictJson(),
+                PreviewRenderer.BROWSER));
+    assertTrue(store(temp).save(Preferences.DEFAULTS, browser));
+    assertTrue(
+        Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)
+            .contains("markdown.previewRenderer=browser"));
+    assertEquals(browser, store(temp).load());
   }
 
   @Test

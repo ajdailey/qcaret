@@ -217,7 +217,10 @@ or a `StackOverflowError`, leaves the rest of the line plain.
 by id, and a user grammar that does not compile is left out with a message.
 `detect` takes a grammar naming the file name, then the extension (any case),
 then a first-line regex over the first 1,000 chars, read through
-`BoundedChars`; user grammars come first, then plain text.
+`BoundedChars`; user grammars come first, then plain text. `forLabel` maps a
+label such as a Markdown fence's info string to a grammar by id, name,
+extension, then file name, ignoring ASCII case: `bash` is `shell`, `C++` is
+`cpp`.
 
 ## XML parsers
 

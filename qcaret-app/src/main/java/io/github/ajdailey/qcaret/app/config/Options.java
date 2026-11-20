@@ -55,6 +55,7 @@ import java.time.format.DateTimeFormatter;
  *     windows
  * @param strictJson {@code editor.strictJson}: Edit > Format XML and JSON accepts RFC 8259 JSON
  *     only, without comments
+ * @param previewRenderer {@code markdown.previewRenderer}: what draws the Markdown preview
  */
 public record Options(
     int completionChars,
@@ -82,7 +83,8 @@ public record Options(
     String workspaceDefault,
     int fontZoom,
     boolean sessionRestore,
-    boolean strictJson) {
+    boolean strictJson,
+    PreviewRenderer previewRenderer) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -169,7 +171,8 @@ public record Options(
           "",
           0,
           true,
-          false);
+          false,
+          PreviewRenderer.BASIC);
 
   /** Checks the components. */
   public Options {
@@ -196,6 +199,9 @@ public record Options(
     }
     if (newLineEnding == null) {
       throw new IllegalArgumentException("newLineEnding");
+    }
+    if (previewRenderer == null) {
+      throw new IllegalArgumentException("previewRenderer");
     }
     if (!validEncoding(newEncoding)) {
       throw new IllegalArgumentException("newEncoding");
@@ -319,7 +325,8 @@ public record Options(
         workspaceDefault,
         fontZoom,
         sessionRestore,
-        strictJson);
+        strictJson,
+        previewRenderer);
   }
 
   /**
@@ -355,7 +362,8 @@ public record Options(
         workspaceDefault,
         fontZoom,
         sessionRestore,
-        strictJson);
+        strictJson,
+        previewRenderer);
   }
 
   /**
@@ -391,7 +399,8 @@ public record Options(
         workspaceDefault,
         points,
         sessionRestore,
-        strictJson);
+        strictJson,
+        previewRenderer);
   }
 
   /**
@@ -427,6 +436,7 @@ public record Options(
         folder,
         fontZoom,
         sessionRestore,
-        strictJson);
+        strictJson,
+        previewRenderer);
   }
 }
