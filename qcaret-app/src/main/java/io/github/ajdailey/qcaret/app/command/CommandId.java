@@ -150,6 +150,9 @@ public enum CommandId {
   /** Draw every window's Markdown previews as HTML in the platform's browser control. */
   PREVIEW_BROWSER(
       CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BROWSER, true, UiText.MENU_MARKDOWN_VIEW),
+  /** Show the selected Markdown tab's headings as a tree; checked while the dock shows. */
+  MARKDOWN_OUTLINE(
+      CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_OUTLINE, true, UiText.MENU_MARKDOWN_VIEW),
   /** Read the grammars again; the Syntax cascade lists the languages above it. */
   RELOAD_GRAMMARS(CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, false, UiText.MENU_SYNTAX),
   /** Collapse the fold region the caret's line starts, or else the innermost one holding it. */

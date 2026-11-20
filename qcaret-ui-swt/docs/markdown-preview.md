@@ -110,3 +110,10 @@ than the pane's text area when the decoder was made. `PaneImages` creates each
 content and with the pane; a result for a request of earlier content is
 dropped. Until an image arrives its char reserves the requested size, or 32 by
 32 pixels without one; a failed decode reserves 160 by 40 for its placeholder.
+
+## Outline
+
+The [Outline dock](dialogs-and-docks.md#outline-dock) lists the selected
+Markdown tab's headings in every mode. A heading chosen there puts its line at
+the editor's top; in Split and Preview the pane scrolls to the heading through
+`scrollToLine`, as for an anchor link.

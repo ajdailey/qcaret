@@ -95,7 +95,8 @@ final class SessionReader {
             flag(p, key + "lineEndings", absent.lineEndings()),
             flag(p, key + "overview", absent.overview()),
             flag(p, key + "bookmarks"),
-            flag(p, key + "lineNumbers", absent.lineNumbers())),
+            flag(p, key + "lineNumbers", absent.lineNumbers()),
+            flag(p, key + "outline")),
         p.getProperty(key + "resultsWeights", ""),
         new Session.Browse(
             paths.read(p.getProperty(key + "browseFolder", "")),

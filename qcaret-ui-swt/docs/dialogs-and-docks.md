@@ -283,6 +283,34 @@ as in the results dock. `BookmarksMenu` is the context menu
 built and selecting its row as `ResultsMenu` does; Clear All is enabled while
 the list has rows.
 
+## Outline dock
+
+`OutlineDock` shows the `OutlineInput` model, the selected Markdown tab's
+headings, as a `Tree` under Hide and the model's summary, right of the editors
+and the bottom docks. View > Markdown View > Outline shows and hides it; the
+window's session keeps it shown.
+
+- A heading's parent is the closest earlier heading of a higher level, so an
+  H3 under an H1 is one step in. Every level shows expanded.
+- A click on a heading's text calls `goTo` and keeps the focus in the tree;
+  Enter and a double click call it and focus the editor. Arrows and the
+  platform's type-ahead move the selection only. `outlineSelected` selects the
+  heading holding the caret without an event.
+- `refresh` keeps the items before the first entry whose parent changed, with
+  their expansion, and sets their text; the rest are disposed and created
+  again. Creation runs in slices of 500 items, one per UI turn through
+  `UiDispatcher.asyncExec`, and a newer refresh abandons the running fill. A
+  cut of more than 2,000 items clears the tree, as the other docks do.
+- GTK appends a row by walking its siblings, so appending a long sibling list
+  is quadratic: 10,000 headings under one H1 took 2.1 s with turns up to
+  189 ms (measured, Xvfb). `OutlineDock` creates each parent's new children
+  last first, inserted after its kept children (a prepend when it has none),
+  and expands the rows once the fill ends: 178 ms, longest turn 13 ms.
+- The tree is not virtual: GTK disables type-ahead in a virtual `Tree`.
+- The dock follows `PaletteListener.themeChanged` through `BrowserColors`, as
+  the workspace browser's tree does; elsewhere the native tree follows the
+  system theme.
+
 ## Replace windows
 
 `ReplaceDialog` (`ui.swt.search`) is the replace preview: modal and resizable,

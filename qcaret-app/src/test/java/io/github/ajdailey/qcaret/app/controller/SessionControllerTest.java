@@ -543,6 +543,22 @@ class SessionControllerTest {
     assertEquals(root.resolve("sub"), second.view.expanded.get(0).path());
   }
 
+  @Test
+  void theOutlineDockReturns() throws Exception {
+    Harness first = start(true);
+    first.application.execute(CommandId.MARKDOWN_OUTLINE);
+    assertTrue(first.view.outlineVisible);
+    quit(first);
+    assertTrue(store().load().windows().get(0).display().outline());
+
+    Harness second = start(true);
+    assertTrue(second.application.outline().shown());
+    assertTrue(second.view.outlineVisible);
+    second.application.execute(CommandId.MARKDOWN_OUTLINE);
+    quit(second);
+    assertFalse(store().load().windows().get(0).display().outline());
+  }
+
   private static Session sessionNamed(String name) {
     return new Session(List.of(), List.of("/mock/" + name), List.of());
   }

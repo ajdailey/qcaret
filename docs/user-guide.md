@@ -299,8 +299,9 @@ apply (measured on Linux, one million lines):
   there.
 - View > Split shows a document in two views, side by side or one above the
   other, each with its own carets and scroll position. `F6` moves between them.
-- View > Workspace Browser, Search > Search Results and Search > Bookmarks >
-  Bookmarks List show the docks around the editor.
+- View > Workspace Browser, Search > Search Results, Search > Bookmarks >
+  Bookmarks List and View > Markdown View > Outline show the docks around the
+  editor.
 - The status bar shows notices, the read-only marker, line and column, the
   selection, encoding, line endings, language and, while a Markdown preview
   shows, its renderer. A click on the language
@@ -703,6 +704,14 @@ File > Export as HTML writes the selected Markdown tab, unsaved edits
 included, as one HTML file in the Light theme that opens without QCaret or a
 network: images are embedded, remote images are links, and links stay as
 written.
+
+View > Markdown View > Outline shows the Outline dock right of the editor: the
+selected Markdown tab's headings as a tree, in any mode, updated 0.3 seconds
+after you stop typing. Clicking a heading moves the caret to it and puts it at
+the top of the editor and the preview; Enter or a double click also returns the
+focus to the editor. The arrow keys and typing a heading's first letters move
+the selection without moving the caret, and the selection follows the caret.
+The dock lists nothing for a document over 1 MiB of chars.
 
 ## External changes
 

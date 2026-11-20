@@ -397,6 +397,8 @@ public final class MenuTable {
             CommandId.PREVIEW_BASIC,
             CommandId.PREVIEW_BROWSER,
             null,
+            CommandId.MARKDOWN_OUTLINE,
+            null,
             CommandId.ZOOM_IN,
             CommandId.ZOOM_OUT,
             CommandId.ZOOM_RESET,

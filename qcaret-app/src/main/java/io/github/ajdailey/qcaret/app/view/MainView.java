@@ -20,7 +20,8 @@ public interface MainView
         BookmarksView,
         WorkspaceView,
         CompareView,
-        SessionView {
+        SessionView,
+        OutlineView {
   /** Hides the window while shutdown completes. */
   void hide();
 

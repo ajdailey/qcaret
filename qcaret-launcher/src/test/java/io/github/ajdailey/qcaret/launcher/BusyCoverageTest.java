@@ -205,6 +205,8 @@ class BusyCoverageTest {
       "controller.MarkdownPreview#render",
       // Local images of a shown preview, drawn as each arrives.
       "controller.MarkdownImages#show",
+      // The Outline dock's headings, on showing it, a tab change and a typing pause.
+      "controller.MarkdownOutline#render",
       "controller.MemoryIndicator#read",
       "controller.OverviewUpdater#compute",
       "controller.QuitSequence#quit",

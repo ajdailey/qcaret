@@ -98,7 +98,7 @@ class SessionStoreTest {
 
   @Test
   void theDisplayStateAndReadOnlyRoundTrip() {
-    Session.Display display = new Session.Display(true, true, true, false, true, false);
+    Session.Display display = new Session.Display(true, true, true, false, true, false, true);
     Session.Tab tab = tab("/mock/r.txt");
     Session.Window window =
         new Session.Window(

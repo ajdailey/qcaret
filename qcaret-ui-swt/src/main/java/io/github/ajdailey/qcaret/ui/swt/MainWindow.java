@@ -25,6 +25,7 @@ import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
+import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
@@ -223,6 +224,8 @@ public final class MainWindow implements MainView {
   private SashForm docks;
   private ResultsDock resultsDock;
   private BookmarksDock bookmarksDock;
+  private final SashForm center;
+  private OutlineDock outlineDock;
 
   /**
    * Creates the window, not yet visible.
@@ -247,7 +250,8 @@ public final class MainWindow implements MainView {
     toolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     side = new SashForm(shell, SWT.HORIZONTAL);
     side.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-    body = new SashForm(side, SWT.VERTICAL);
+    center = new SashForm(side, SWT.HORIZONTAL);
+    body = new SashForm(center, SWT.VERTICAL);
     tabStrip =
         new TabStrip(
             body,
@@ -482,10 +486,14 @@ public final class MainWindow implements MainView {
     docks.setWeights(new int[] {3, 2});
     body.setWeights(new int[] {3, 1});
     body.setMaximizedControl(tabs);
+    outlineDock = new OutlineDock(center, dispatcher);
+    outlineDock.follow(owner.theme());
+    center.setWeights(new int[] {4, 1});
+    center.setMaximizedControl(body);
     workspaceDock = new WorkspaceDock(side, toolBar);
-    workspaceDock.control().moveAbove(body);
+    workspaceDock.control().moveAbove(center);
     browserWidth = new BrowserSideWidth(side, workspaceDock.buttons());
-    side.setMaximizedControl(body);
+    side.setMaximizedControl(center);
     if (menuBar.states().checked(CommandId.WORKSPACE_BROWSER)) {
       showWorkspace(owner.workspace(), true);
     }
@@ -1847,7 +1855,7 @@ public final class MainWindow implements MainView {
       return;
     }
     workspaceDock.setInput(input);
-    side.setMaximizedControl(shown ? null : body);
+    side.setMaximizedControl(shown ? null : center);
     browserWidth.fit();
     side.layout(true);
     if (shown) {
@@ -2189,6 +2197,50 @@ public final class MainWindow implements MainView {
    */
   boolean bookmarksShown() {
     return bookmarksDock.control().getVisible() && body.getMaximizedControl() == null;
+  }
+
+  // Outline dock.
+
+  @Override
+  public void showOutline(OutlineInput input, boolean shown) {
+    if (shell.isDisposed() || outlineDock == null) {
+      return;
+    }
+    outlineDock.setInput(input);
+    center.setMaximizedControl(shown ? null : body);
+    center.layout(true);
+  }
+
+  @Override
+  public void outlineChanged() {
+    if (outlineDock != null && !shell.isDisposed()) {
+      outlineDock.refresh();
+    }
+  }
+
+  @Override
+  public void outlineSelected(int index) {
+    if (outlineDock != null && !shell.isDisposed()) {
+      outlineDock.select(index);
+    }
+  }
+
+  /**
+   * Returns the Outline dock.
+   *
+   * @return the dock, or null before {@link #attach}
+   */
+  OutlineDock outlineDock() {
+    return outlineDock;
+  }
+
+  /**
+   * Reports whether the Outline dock shows.
+   *
+   * @return true while shown
+   */
+  boolean outlineShown() {
+    return outlineDock != null && center.getMaximizedControl() == null;
   }
 
   @Override

@@ -335,6 +335,20 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     }
   }
 
+  /**
+   * Scrolls the preview to the rendered line showing a source line, outside Source and once a
+   * render shows; the scroll is not mapped back to the editor.
+   *
+   * @param line a zero-based source line
+   */
+  void revealSource(int line) {
+    if (mode == MarkdownViewMode.SOURCE || shown == null) {
+      return;
+    }
+    scrolledPreview = shown.rendered().renderedLine(line);
+    scrollPreview(scrolledPreview);
+  }
+
   @Override
   public void clicked(int offset) {
     if (shown != null && mode != MarkdownViewMode.SOURCE) {

@@ -75,6 +75,7 @@ public final class ApplicationController {
   private final SearchController search;
   private final ReplaceController replace;
   private final BookmarkList bookmarkList;
+  private final MarkdownOutline outline;
   private final AlwaysOnTop alwaysOnTop;
   private final NavigationHistory history;
   private final RecentFiles recentFiles;
@@ -210,6 +211,7 @@ public final class ApplicationController {
             Clock.systemDefaultZone());
     search.setReplace(replace);
     this.bookmarkList = new BookmarkList(documents, workers, ui, view, budget);
+    this.outline = new MarkdownOutline(documents, workers, ui, view);
     this.alwaysOnTop = new AlwaysOnTop(view, documents);
     this.compare = new CompareController(documents, workers, ui, view, budget);
     this.windowCommands = new WindowCommands(this, set, view, settings, documents, compare);
@@ -479,6 +481,15 @@ public final class ApplicationController {
    */
   public BookmarkList bookmarkList() {
     return bookmarkList;
+  }
+
+  /**
+   * Returns the Outline dock's model.
+   *
+   * @return the outline
+   */
+  public MarkdownOutline outline() {
+    return outline;
   }
 
   /** Returns the Tools menu's checksum commands; for {@link CommandStates}. */
@@ -926,6 +937,7 @@ public final class ApplicationController {
           PREVIEW_BROWSER,
           MARKDOWN_CYCLE ->
           markdown.execute(command);
+      case MARKDOWN_OUTLINE -> outline.toggle();
       case DOCUMENT_STATISTICS -> statistics.open();
       case EXPORT_HTML -> documents.exportHtml();
       case MD5_TEXT,
@@ -1296,6 +1308,7 @@ public final class ApplicationController {
     search.dispose();
     replace.dispose();
     bookmarkList.dispose();
+    outline.dispose();
     workspace.dispose();
     history.dispose();
     recentFiles.dispose();

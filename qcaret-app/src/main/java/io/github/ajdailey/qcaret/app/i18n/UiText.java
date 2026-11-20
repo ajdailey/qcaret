@@ -1951,7 +1951,27 @@ public enum UiText {
   /** A failed export: the file's name and the reason. */
   EXPORT_HTML_FAILED,
   /** A target that is the document's own file: the document's name. */
-  EXPORT_HTML_SOURCE;
+  EXPORT_HTML_SOURCE,
+  /** View > Markdown View > Outline. */
+  COMMAND_MARKDOWN_OUTLINE,
+  /** Outline dock: the Hide button. */
+  OUTLINE_HIDE,
+  /** Outline dock summary: the document's name and the heading count. */
+  OUTLINE_SUMMARY,
+  /** Outline dock summary when headings were left out: name, listed, total. */
+  OUTLINE_SUMMARY_CUT,
+  /** Outline dock summary for a tab that is not Markdown, or no tab. */
+  OUTLINE_NOT_MARKDOWN,
+  /** Outline dock summary for a document over the size limit: name, limit. */
+  OUTLINE_TOO_LARGE,
+  /** Outline dock: a heading without text. */
+  OUTLINE_EMPTY_HEADING,
+  /** One heading. */
+  COUNT_HEADING,
+  /** Several headings. */
+  COUNT_HEADINGS,
+  /** Accessible name of the Outline dock's tree. */
+  ACCESSIBLE_OUTLINE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

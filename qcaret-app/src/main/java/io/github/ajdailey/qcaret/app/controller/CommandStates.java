@@ -86,7 +86,8 @@ public final class CommandStates {
           CommandId.PREFERENCES,
           CommandId.FULL_SCREEN,
           CommandId.PREVIEW_BASIC,
-          CommandId.PREVIEW_BROWSER);
+          CommandId.PREVIEW_BROWSER,
+          CommandId.MARKDOWN_OUTLINE);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -242,6 +243,7 @@ public final class CommandStates {
       case WORKSPACE_BROWSER -> application.workspace().shown();
       case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, PREVIEW_BASIC, PREVIEW_BROWSER ->
           application.markdown().checked(command);
+      case MARKDOWN_OUTLINE -> application.outline().shown();
       default -> false;
     };
   }

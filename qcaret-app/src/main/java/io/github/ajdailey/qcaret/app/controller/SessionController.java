@@ -228,6 +228,7 @@ final class SessionController implements DocumentController.FileMemory {
     window.documents().restoreClosed(saved.closed());
     window.documents().restoreDisplay(saved.display());
     window.bookmarkList().restore(saved.display().bookmarks());
+    window.outline().restore(saved.display().outline());
     window.alwaysOnTop().restore(saved.onTop());
     restoreTab(loaded, index, window, 0);
   }
@@ -615,7 +616,9 @@ final class SessionController implements DocumentController.FileMemory {
         SessionText.numbers(view.dockWeights()),
         search.retained(),
         documents.closedFiles(),
-        documents.sessionDisplay(window.bookmarkList().shown()),
+        documents
+            .sessionDisplay(window.bookmarkList().shown())
+            .withOutline(window.outline().shown()),
         SessionText.numbers(view.resultsWeights()),
         new Session.Browse(
             workspace.listings().browsed() == null ? "" : workspace.listings().browsed().toString(),

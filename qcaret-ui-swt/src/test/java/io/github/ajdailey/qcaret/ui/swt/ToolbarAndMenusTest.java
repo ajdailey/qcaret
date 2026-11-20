@@ -221,7 +221,8 @@ class ToolbarAndMenusTest {
       assertTrue(tip.startsWith(command.title()), tip);
       assertTrue(tip.contains(keymap.keysText(command)), tip);
     }
-    assertTrue(bar.getBounds().y < window.tabs().getParent().getParent().getBounds().y + 1);
+    assertTrue(
+        bar.getBounds().y < window.tabs().getParent().getParent().getParent().getBounds().y + 1);
   }
 
   @Test

@@ -8,13 +8,16 @@ the macOS application menu and the platform traits, in `ui.swt` of
 ## Layout
 
 `MainWindow` holds the menu bar, a horizontal `SashForm` with the workspace
-browser left of a vertical `SashForm`, which holds a `CTabFolder` (one tab per
-document) over a horizontal `SashForm` holding the HyperSearch results dock and
-the Bookmarks list dock side by side; then the find bar, the `ProgressRow` rows
-and a status bar.
+browser left of a second horizontal `SashForm`, which holds a vertical
+`SashForm` left of the [Outline dock](dialogs-and-docks.md#outline-dock). The
+vertical sash holds a `CTabFolder` (one tab per document) over a horizontal
+`SashForm` holding the HyperSearch results dock and the Bookmarks list dock side
+by side. Below them are the find bar, the `ProgressRow` rows and a status bar.
 
-- A hidden dock is an invisible control the sash leaves out; with both hidden
-  the folder is maximized, and with the browser hidden the vertical sash is.
+- A hidden results or Bookmarks dock is an invisible control the sash leaves
+  out; with both hidden the folder is maximized. With the browser hidden the
+  sash right of it is maximized, and with the Outline dock hidden the vertical
+  sash is.
 - A tab's control is a horizontal `SashForm`, the frame, holding the editors'
   `SashForm` and, for a Markdown tab out of Source, the preview pane
   ([Markdown preview](markdown-preview.md#tab-frame)). The editors' sash holds

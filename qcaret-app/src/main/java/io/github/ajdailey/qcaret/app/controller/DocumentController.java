@@ -2052,6 +2052,18 @@ public final class DocumentController {
     }
   }
 
+  /** Sets what runs after any document's grammar is applied, or null for nothing. */
+  void setGrammarListener(Runnable listener) {
+    grammars.setApplied(listener);
+  }
+
+  /** Scrolls the selected tab's preview to a source line in Split and Preview. */
+  void revealMarkdownSource(int line) {
+    if (active != null && active.markdown != null) {
+      active.markdown.revealSource(line);
+    }
+  }
+
   /** Returns the selected document's grammar, or null without a document or before the read. */
   Grammar activeGrammar() {
     return active == null ? null : grammars.grammarOf(active);

@@ -260,6 +260,7 @@ public record Session(
    * @param overview the overview strip
    * @param bookmarks the Bookmarks list
    * @param lineNumbers the line numbers
+   * @param outline the Outline dock
    */
   public record Display(
       boolean wrap,
@@ -267,9 +268,31 @@ public record Session(
       boolean lineEndings,
       boolean overview,
       boolean bookmarks,
-      boolean lineNumbers) {
+      boolean lineNumbers,
+      boolean outline) {
     /** A window that saved nothing. */
     public static final Display DEFAULTS = new Display(false, false, false, true, false, true);
+
+    /** A window without the Outline dock. */
+    public Display(
+        boolean wrap,
+        boolean whitespace,
+        boolean lineEndings,
+        boolean overview,
+        boolean bookmarks,
+        boolean lineNumbers) {
+      this(wrap, whitespace, lineEndings, overview, bookmarks, lineNumbers, false);
+    }
+
+    /**
+     * Returns a copy with the Outline dock shown or hidden.
+     *
+     * @param shown true when the dock shows
+     * @return the copy
+     */
+    public Display withOutline(boolean shown) {
+      return new Display(wrap, whitespace, lineEndings, overview, bookmarks, lineNumbers, shown);
+    }
   }
 
   /**

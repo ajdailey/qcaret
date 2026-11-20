@@ -301,7 +301,9 @@ class MarkdownPreviewSurfaceTest {
         PlatformTraits.PLATFORM.opensBrowser()
             ? "B&rowser"
             : UiText.MENU_ITEM_REASON.format("B&rowser", UiText.MARKDOWN_BROWSER_GTK4.text());
-    assertEquals(List.of(cycle, "&Source", "S&plit", "Pre&view", "-", "&Basic", browser), labels);
+    assertEquals(
+        List.of(cycle, "&Source", "S&plit", "Pre&view", "-", "&Basic", browser, "-", "&Outline"),
+        labels);
     assertEquals("Markdown V&iew", cascade.getParentItem().getText());
     assertEquals(0, window.menuBar().item(CommandId.MARKDOWN_SPLIT).getAccelerator());
     List<String> view = new ArrayList<String>();

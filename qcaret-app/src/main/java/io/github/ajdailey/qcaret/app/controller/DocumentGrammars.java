@@ -31,6 +31,7 @@ final class DocumentGrammars {
   private GrammarLibrary library;
   private Consumer<GrammarSet> listener;
   private Consumer<String> chosen;
+  private Runnable applied;
   private int maxLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
 
   DocumentGrammars(Workers workers, UiDispatcher ui, MainView view, List<OpenDocument> documents) {
@@ -68,6 +69,11 @@ final class DocumentGrammars {
     if (library != null) {
       library.removeListener(listener);
     }
+  }
+
+  /** Sets what runs after a document's grammar is applied, or null for nothing. */
+  void setApplied(Runnable listener) {
+    applied = listener;
   }
 
   /** Sets what receives a grammar's id when the user chooses it with {@link #choose}. */
@@ -198,6 +204,9 @@ final class DocumentGrammars {
     }
     for (EditorController e : d.editors) {
       e.setGrammar(editorGrammar(d));
+    }
+    if (applied != null) {
+      applied.run();
     }
     view.documentStateChanged();
   }

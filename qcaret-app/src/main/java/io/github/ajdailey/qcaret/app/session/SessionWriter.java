@@ -64,6 +64,7 @@ final class SessionWriter {
       keys.put(key + "overview", Boolean.toString(display.overview()));
       keys.put(key + "bookmarks", Boolean.toString(display.bookmarks()));
       keys.put(key + "lineNumbers", Boolean.toString(display.lineNumbers()));
+      keys.put(key + "outline", Boolean.toString(display.outline()));
       keys.put(key + "onTop", Boolean.toString(window.onTop()));
       for (int i = 0; i < Math.min(SessionStore.MAX_SEARCHES, window.searches().size()); i++) {
         search(keys, key + "search." + i + ".", window.searches().get(i), paths);

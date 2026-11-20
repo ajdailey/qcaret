@@ -416,6 +416,33 @@ palette and saves it through `SafeSave` on a `qcaret-io-` worker under the busy
 cursor. The document's own file is refused as the target; a failed write shows
 `EXPORT_HTML_FAILED`.
 
+### Outline
+
+`MarkdownOutline`, one per window, is the Outline dock's `OutlineInput`: the
+selected tab's headings while its grammar is `markdown`, empty otherwise. It
+follows the selected tab and focused view (`addActiveListener`) and grammar
+changes (`DocumentController.setGrammarListener`), and reads nothing while the
+dock is hidden.
+
+- It renders on its own in every mode, so Source lists headings too: at once
+  when it binds a Markdown tab, and 300 ms after the last edit, on a
+  `qcaret-cpu-` worker without the busy cursor. Each render carries a
+  generation, raised by every edit and rebind, and the revision it read; a
+  result whose generation or revision is not current is dropped. A document
+  over `LIVE_LIMIT_CHARS` is not rendered and lists nothing.
+- `OutlineTree` turns `RenderedMarkdown.headings` into `OutlineEntry` rows: a
+  heading's parent is the closest earlier heading with a lower level, so a
+  skipped level nests one step. At most 10,000 entries of 160 chars each are
+  kept; the summary gives the total.
+- `selected` is the last heading at or above the focused editor's caret line,
+  updated from its `SelectionListener` and posted through `outlineSelected`.
+- `goTo` moves the caret to the heading's line (a jump for Go Back), puts that
+  line at the editor's top and, in Split and Preview, calls
+  `MarkdownPreview.revealSource`, which scrolls the preview to the heading's
+  rendered line without mapping the scroll back. Heading lines come from the
+  last finished render, so after an edit they can be off until the next one;
+  the line is clamped to the document.
+
 ## Printing
 
 `PrintController` runs File > Print and File > Print Selection, one job per

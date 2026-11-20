@@ -21,6 +21,8 @@ import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
+import io.github.ajdailey.qcaret.app.view.OutlineEntry;
+import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
@@ -1425,5 +1427,31 @@ final class FakeView implements MainView {
         unfinishedWait = null;
       }
     };
+  }
+
+  OutlineInput outline;
+  boolean outlineVisible;
+  int outlineChanges;
+  final List<List<OutlineEntry>> outlineShown = new ArrayList<List<OutlineEntry>>();
+  final List<Integer> outlineSelections = new ArrayList<Integer>();
+
+  @Override
+  public void showOutline(OutlineInput input, boolean shown) {
+    ui.checkUiThread();
+    outline = input;
+    outlineVisible = shown;
+  }
+
+  @Override
+  public void outlineChanged() {
+    ui.checkUiThread();
+    outlineChanges++;
+    outlineShown.add(outline.entries());
+  }
+
+  @Override
+  public void outlineSelected(int index) {
+    ui.checkUiThread();
+    outlineSelections.add(index);
   }
 }
