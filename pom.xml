@@ -7,7 +7,7 @@
 
     <groupId>io.github.ajdailey.qcaret</groupId>
     <artifactId>qcaret-parent</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <packaging>pom</packaging>
 
     <name>QCaret</name>
@@ -38,7 +38,7 @@
              qcaret.exe link time. Set it to the release date when the version
              changes. ISO-8601 UTC with seconds, the form dist.xml passes to
              Ant, GNU tar and PeTimestamp. -->
-        <project.build.outputTimestamp>2026-11-04T00:00:00Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-11-19T00:00:00Z</project.build.outputTimestamp>
 
         <!-- ===== Plugin versions (alphabetical). Newest stable; milestones
              and 4.0.0 betas are not targets. ===== -->
