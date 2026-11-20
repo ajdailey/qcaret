@@ -249,10 +249,20 @@ class BrowserPaneTest {
       shell.open();
       plain.setText("<html><body>" + control + "</body></html>", false);
       awaitLoaded(plain);
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return !hits.isEmpty();
+            }
+          },
+          "the control page reached the server");
       settle();
       System.out.println("Requests from the control page: " + hits);
-      assertFalse(hits.isEmpty(), "the control page reached the server");
-      assertFalse(hits.contains("/control/refresh"), "a canceled navigation makes a request");
+      // Edge requests a meta refresh's target although the navigation is canceled (CI, win32).
+      if (!"win32".equals(SWT.getPlatform())) {
+        assertFalse(hits.contains("/control/refresh"), "a canceled navigation makes a request");
+      }
       plain.dispose();
       BrowserPane pane = pane();
       pane.showRendered(content(body, new int[0], List.<String>of()));

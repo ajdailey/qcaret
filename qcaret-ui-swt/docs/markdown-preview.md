@@ -54,7 +54,9 @@ pane's UI-thread work is the `setText` call.
   the page with a `file:///` base, which lets it read local files.
 - `MarkdownPage.page` renames each `<meta` tag in the fragment to `<wbr`
   (`InertMeta`), so a raw-HTML meta refresh does not navigate; the content
-  policy does not cover it.
+  policy does not cover it, and Edge requests the target of a canceled
+  navigation (measured on CI, windows-x86_64), so a clicked link on win32
+  reaches its server once from Edge as well as from the system browser.
 - Every navigation is canceled except the page load and the pane's own
   `about:blank#id` scroll, matched on the text before `#` and the
   percent-decoded fragment. A canceled navigation within 1 s of a
