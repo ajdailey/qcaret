@@ -188,7 +188,8 @@ class NewFileDefaultsTest {
         view,
         "",
         true,
-        f.strictJson());
+        f.strictJson(),
+        f.previewRenderer());
   }
 
   @Test

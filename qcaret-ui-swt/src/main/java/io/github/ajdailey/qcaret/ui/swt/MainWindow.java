@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
@@ -49,6 +50,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
@@ -170,6 +172,8 @@ public final class MainWindow implements MainView {
   private final Label encoding;
   private final Label lineEnding;
   private final Label language;
+  private final Label preview;
+  private MarkdownSwitch markdownSwitch;
   private final MemoryGauge memoryGauge;
   private final Label readOnly;
   private final Label notice;
@@ -286,6 +290,12 @@ public final class MainWindow implements MainView {
               }
 
               @Override
+              public MarkdownPane newPreview(Composite frame, MarkdownPreviewInput input) {
+                return new MarkdownPane(
+                    frame, input, MainWindow.this.palette, dispatcher, fontName);
+              }
+
+              @Override
               public void scheduleStatus() {
                 MainWindow.this.scheduleStatus();
               }
@@ -323,7 +333,7 @@ public final class MainWindow implements MainView {
     font = new Font(display, fontName, fontPoints, SWT.NORMAL);
     statusBar = new Composite(shell, SWT.NONE);
     statusBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    GridLayout statusLayout = new GridLayout(9, false);
+    GridLayout statusLayout = new GridLayout(10, false);
     statusLayout.marginHeight = 1;
     statusLayout.marginWidth = 6;
     statusLayout.horizontalSpacing = 14;
@@ -355,6 +365,7 @@ public final class MainWindow implements MainView {
     lineEnding = statusLabel();
     language = statusLabel();
     language.setToolTipText(UiText.STATUS_LANGUAGE_TIP.text());
+    preview = statusLabel();
     language.addListener(
         SWT.MouseUp,
         new Listener() {
@@ -417,6 +428,8 @@ public final class MainWindow implements MainView {
     menuBar.build(keymap);
     mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusEditor);
     mainToolBar.setKeymap(keymap);
+    markdownSwitch = new MarkdownSwitch(toolBar, owner, menuBar.states());
+    markdownSwitch.setKeymap(keymap);
     setToolbarShown(owner.toolbarShown());
     editorMenu = new EditorMenu(shell, owner, menuBar.states(), menuIcons, keymap);
     statusMenus = new StatusMenus(shell, menuBar, owner, keymap);
@@ -600,6 +613,9 @@ public final class MainWindow implements MainView {
     for (EditorPane pane : allPanes()) {
       pane.setPalette(next);
     }
+    for (MarkdownPane pane : tabStrip.allPreviews()) {
+      pane.setPalette(next);
+    }
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
     dispatcher.asyncExec(
         new Runnable() {
@@ -680,6 +696,7 @@ public final class MainWindow implements MainView {
   private void syncCommands() {
     menuBar.syncEnablement();
     mainToolBar.sync();
+    markdownSwitch.sync();
   }
 
   private void focusEditor() {
@@ -738,6 +755,38 @@ public final class MainWindow implements MainView {
    */
   MainToolBar mainToolBar() {
     return mainToolBar;
+  }
+
+  /**
+   * Returns the toolbar's Markdown view switch.
+   *
+   * @return the switch, or null before {@link #attach}
+   */
+  MarkdownSwitch markdownSwitch() {
+    return markdownSwitch;
+  }
+
+  /**
+   * Returns the selected tab's Markdown preview pane.
+   *
+   * @return the pane, or null before the tab showed a preview
+   */
+  public MarkdownPane activePreview() {
+    return tabStrip.activePreview();
+  }
+
+  /**
+   * Returns the status bar's preview field.
+   *
+   * @return the label
+   */
+  Label previewField() {
+    return preview;
+  }
+
+  @Override
+  public String previewBrowserUnavailable() {
+    return BrowserPreview.unavailable();
   }
 
   /**
@@ -934,6 +983,7 @@ public final class MainWindow implements MainView {
     changed |= set(lineEnding, fields.lineEnding());
     changed |= set(language, fields.language());
     changed |= set(readOnly, fields.readOnly());
+    changed |= set(preview, fields.preview());
     if (changed) {
       statusBar.layout(true);
     }

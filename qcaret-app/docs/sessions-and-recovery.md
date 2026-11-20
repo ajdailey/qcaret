@@ -208,7 +208,7 @@ A launch that failed its handoff to a live primary gets Recent Files alone from
 `SessionController` keeps the per-file LRU (`FileLru`, `SessionStore.MAX_FILES`,
 500 entries) behind `DocumentController.FileMemory`, keyed by the opened
 document's real path (caret, top line, tab settings, forced charset, chosen
-grammar); a relative `file.N.path` reads as its resolved path. A closing
+grammar, Markdown view mode); a relative `file.N.path` reads as its resolved path. A closing
 file's state goes in; an opening file's comes out, in
 `DocumentOpener.Listener.options` for the charset and after the load for the
 rest. Reopen Closed Tab therefore lands where the file was. A width or

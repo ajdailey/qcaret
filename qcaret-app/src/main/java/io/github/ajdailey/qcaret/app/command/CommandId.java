@@ -137,6 +137,20 @@ public enum CommandId {
   UNSPLIT(CommandGroup.VIEW, UiText.COMMAND_UNSPLIT, false, UiText.MENU_SPLIT),
   /** Focus the selected document's other view. */
   FOCUS_OTHER_VIEW(CommandGroup.VIEW, UiText.COMMAND_FOCUS_OTHER_VIEW, false, UiText.MENU_SPLIT),
+  /** Show the selected Markdown tab's source alone. */
+  MARKDOWN_SOURCE(
+      CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_SOURCE, true, UiText.MENU_MARKDOWN_VIEW),
+  /** Show the selected Markdown tab's source with its preview on the right. */
+  MARKDOWN_SPLIT(CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_SPLIT, true, UiText.MENU_MARKDOWN_VIEW),
+  /** Show the selected Markdown tab's preview alone. */
+  MARKDOWN_PREVIEW(
+      CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_PREVIEW, true, UiText.MENU_MARKDOWN_VIEW),
+  /** Draw every window's Markdown previews as styled text. */
+  PREVIEW_BASIC(
+      CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BASIC, true, UiText.MENU_MARKDOWN_PREVIEW),
+  /** Draw every window's Markdown previews as HTML in the platform's browser control. */
+  PREVIEW_BROWSER(
+      CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BROWSER, true, UiText.MENU_MARKDOWN_PREVIEW),
   /** Read the grammars again; the Syntax cascade lists the languages above it. */
   RELOAD_GRAMMARS(CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, false, UiText.MENU_SYNTAX),
   /** Collapse the fold region the caret's line starts, or else the innermost one holding it. */

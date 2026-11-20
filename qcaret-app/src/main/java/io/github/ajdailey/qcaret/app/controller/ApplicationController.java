@@ -89,6 +89,7 @@ public final class ApplicationController {
   private final OpenPathAtCaret openPath;
   private final EditorAids aids;
   private final ViewToggles views;
+  private final MarkdownCommands markdown;
   private final MemoryIndicator memory;
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
@@ -272,6 +273,7 @@ public final class ApplicationController {
     view.setRightMargin(rightMarginColumn());
     this.aids = new EditorAids(settings, view, documents);
     this.views = new ViewToggles(settings, documents, workspace);
+    this.markdown = new MarkdownCommands(settings, documents, view);
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
     this.tips =
         new TipOfTheDay(
@@ -489,6 +491,11 @@ public final class ApplicationController {
    */
   public AlwaysOnTop alwaysOnTop() {
     return alwaysOnTop;
+  }
+
+  /** Returns the window's Markdown View and Markdown Preview commands. */
+  MarkdownCommands markdown() {
+    return markdown;
   }
 
   /** Returns the Tip of the Day dialog's controller; for tests. */
@@ -910,6 +917,8 @@ public final class ApplicationController {
       case INSERT_NUMBER_SEQUENCE -> numbers.choose();
       case OPEN_PATH_AT_CARET -> openPath.open();
       case FULL_SCREEN -> view.setFullScreen(!view.fullScreen());
+      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, PREVIEW_BASIC, PREVIEW_BROWSER ->
+          markdown.execute(command);
       case DOCUMENT_STATISTICS -> statistics.open();
       case MD5_TEXT,
           MD5_FILES,

@@ -487,9 +487,11 @@ public final class DocumentController {
                       }
                     });
               }
-            });
+            },
+            budget);
     this.encodings = new DocumentEncodings(workers, ui, view);
-    this.sessions = new DocumentSessions(this, documents, selected, view, grammars, closedPaths);
+    this.sessions =
+        new DocumentSessions(this, documents, selected, view, grammars, markdown, closedPaths);
     this.changes =
         new ExternalChanges(
             workers,
@@ -1036,6 +1038,7 @@ public final class DocumentController {
           public void run() {
             sessionChanged();
             d.syntax.viewportChanged(editor, editor.visibleStart(), editor.visibleEnd());
+            markdown.sourceScrolled(d, editor);
             if (viewListener != null && active == d) {
               viewListener.viewportChanged(editor);
             }
@@ -2005,6 +2008,15 @@ public final class DocumentController {
    */
   public boolean setMarkdownMode(MarkdownViewMode mode) {
     return active != null && markdown.of(active).setMode(mode);
+  }
+
+  /**
+   * Reports whether the selected tab is a Markdown tab.
+   *
+   * @return true when its grammar is {@code markdown}
+   */
+  public boolean activeMarkdown() {
+    return active != null && MarkdownPreviews.MARKDOWN.equals(active.grammar);
   }
 
   /**

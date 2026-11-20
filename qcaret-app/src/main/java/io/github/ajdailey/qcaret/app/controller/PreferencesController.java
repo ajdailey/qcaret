@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.config.Appearance;
 import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
+import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
@@ -107,7 +108,8 @@ final class PreferencesController implements PreferencesInput {
         ViewPreferences.checks(p.state()),
         o.workspaceDefault(),
         o.sessionRestore(),
-        o.strictJson());
+        o.strictJson(),
+        o.previewRenderer().key());
   }
 
   @Override
@@ -275,7 +277,7 @@ final class PreferencesController implements PreferencesInput {
                     EditorZoom.kept(settings.current(), font.value(), form.fontFamily()),
                     form.sessionRestore(),
                     form.strictJson(),
-                    settings.current().options().previewRenderer()));
+                    renderer(form.previewRenderer())));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));
@@ -295,6 +297,12 @@ final class PreferencesController implements PreferencesInput {
       loadTheme.run();
     }
     return null;
+  }
+
+  /** Parses the form's renderer; anything else keeps the current one. */
+  private PreviewRenderer renderer(String key) {
+    PreviewRenderer parsed = PreviewRenderer.parse(key);
+    return parsed == null ? settings.current().options().previewRenderer() : parsed;
   }
 
   @Override

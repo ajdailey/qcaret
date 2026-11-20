@@ -142,7 +142,8 @@ class EditorAdditionsTest {
         f.view(),
         "",
         true,
-        f.strictJson());
+        f.strictJson(),
+        f.previewRenderer());
   }
 
   // Document statistics.

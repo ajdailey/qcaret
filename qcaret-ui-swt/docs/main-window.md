@@ -15,9 +15,11 @@ and a status bar.
 
 - A hidden dock is an invisible control the sash leaves out; with both hidden
   the folder is maximized, and with the browser hidden the vertical sash is.
-- A tab's control is a `SashForm` holding one `EditorPane`'s `control()`, or
-  two after a split (`SWT.HORIZONTAL` side by side, `SWT.VERTICAL` one above
-  the other).
+- A tab's control is a horizontal `SashForm`, the frame, holding the editors'
+  `SashForm` and, for a Markdown tab out of Source, the preview pane
+  ([Markdown preview](markdown-preview.md#tab-frame)). The editors' sash holds
+  one `EditorPane`'s `control()`, or two after a split (`SWT.HORIZONTAL` side by
+  side, `SWT.VERTICAL` one above the other).
 - The pane that took the focus last is the tab's focused view; a pane's
   `FocusIn` reports it to the controller, and a view the controller focuses
   becomes it without waiting for the event.
@@ -209,6 +211,8 @@ HyperSearch, Zoom In, Zoom Out.
 - Enablement syncs from `CommandStates` with the menu bar, and `EDIT_STATE` on
   each status read, coalesced with the status bar.
 - A click that left the focus on the bar returns it to the editor.
+- `MarkdownSwitch` adds Source, Split and Preview at the end while the selected
+  tab is a Markdown tab ([Markdown preview](markdown-preview.md#tab-frame)).
 - The GTK window's minimum width is the menu bar's (437 px measured); the
   toolbar prefers 441 px there, and below its width GTK moves the last buttons
   behind an overflow arrow. Every button's command is also in a menu.
@@ -217,8 +221,8 @@ HyperSearch, Zoom In, Zoom Out.
 
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
-line and column, selection, encoding, line endings and language
-(`StatusFields`). A caret move or state change schedules one read on the next
+line and column, selection, encoding, line endings, language and, while a
+Markdown preview shows, its renderer (`StatusFields`). A caret move or state change schedules one read on the next
 UI turn; further changes before it share that read. While the `BusyCounter`
 counts an active operation, `WindowBusyCursor` shows `PlatformTraits.busyCursor` over
 the shell, each editor (`EditorPane.setWindowBusy`) and each shell the window

@@ -168,6 +168,9 @@ final class MainMenuBar {
             && !states.enabled(command)) {
           item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
         }
+        if (command == CommandId.PREVIEW_BROWSER) {
+          item.setToolTipText(states.unavailable(command));
+        }
       }
       if (group == CommandGroup.WINDOW && PlatformTraits.PLATFORM.windowMenuControls()) {
         addWindowControls(menu, shell);

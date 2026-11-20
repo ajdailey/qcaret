@@ -18,8 +18,13 @@ import io.github.ajdailey.qcaret.core.text.TextEncoding;
 final class StatusBarText {
   private StatusBarText() {}
 
-  /** Reads the fields of a window's selected document; see {@link CommandStates#status}. */
-  static StatusFields read(DocumentController documents) {
+  /**
+   * Reads the fields of a window's selected document; see {@link CommandStates#status}.
+   *
+   * @param documents the window's documents
+   * @param preview the preview field
+   */
+  static StatusFields read(DocumentController documents, String preview) {
     Document document = documents.activeDocument();
     EditorController editor = documents.activeEditor();
     if (document == null || editor == null) {
@@ -52,7 +57,8 @@ final class StatusBarText {
         encoding.bom() ? UiText.STATUS_BOM.format(charset) : charset,
         endingText(document.lineEndings(), document.lineEnding()),
         language(documents.activeGrammar()),
-        readOnly);
+        readOnly,
+        preview);
   }
 
   private static String language(Grammar grammar) {

@@ -36,7 +36,12 @@ public final class MenuTable {
           CommandId.TAB_WIDTH_OTHER,
           CommandId.LINE_ENDING_CRLF,
           CommandId.LINE_ENDING_LF,
-          CommandId.LINE_ENDING_CR);
+          CommandId.LINE_ENDING_CR,
+          CommandId.MARKDOWN_SOURCE,
+          CommandId.MARKDOWN_SPLIT,
+          CommandId.MARKDOWN_PREVIEW,
+          CommandId.PREVIEW_BASIC,
+          CommandId.PREVIEW_BROWSER);
 
   /** Edit > Convert Case, also in the editor menu. */
   private static final List<CommandId> CONVERT_CASE =
@@ -382,6 +387,12 @@ public final class MenuTable {
             CommandId.FOCUS_OTHER_VIEW,
             CommandId.COMPARE_DOCUMENTS,
             CommandId.COMPARE_WITH_DISK,
+            null,
+            CommandId.MARKDOWN_SOURCE,
+            CommandId.MARKDOWN_SPLIT,
+            CommandId.MARKDOWN_PREVIEW,
+            CommandId.PREVIEW_BASIC,
+            CommandId.PREVIEW_BROWSER,
             null,
             CommandId.ZOOM_IN,
             CommandId.ZOOM_OUT,

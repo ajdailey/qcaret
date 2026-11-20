@@ -329,26 +329,50 @@ selected tab, and `markdownPreview` hands its pane the `MarkdownPreviewInput`.
 A tab takes Split or Preview only while its grammar is `markdown`;
 `DocumentGrammars` reports each grammar change, and a change away returns the
 tab to Source. A tab moved to another window keeps its mode; closing or moving
-disposes the preview.
+disposes the preview. `MarkdownPreviews.of` attaches the tab's pane
+(`TabView.markdownView`) when it creates the preview.
+
+The mode is kept as `markdown` (`split`, `preview`, empty for Source) in the
+session tab and the per-file state. `MarkdownPreviews.restore` applies it once
+the grammar is known: at once for a Markdown tab, after the detection that runs
+for a just-opened file, and not at all when the grammar is another.
+`MarkdownCommands` runs View > Markdown View and View > Markdown Preview and
+gives the status bar the renderer's name while a preview shows.
 
 | Trigger | Render |
 |---|---|
 | Source to Split or Preview | At once, on a `qcaret-cpu-` worker under the busy cursor (`BusyWork`) |
 | An edit while not in Source | Cancels the running render; 300 ms after the last edit, on a worker without the busy cursor |
 | `renderRequested` from the notice | At once, under the busy cursor, at any size |
+| A reload of the grammars while not in Source | As an edit does, without the busy cursor |
 
 A document over `LIVE_LIMIT_CHARS` (1 MiB of chars) is not rendered on a switch
 or an edit: the pane shows the size notice instead. A render parses with
 `MarkdownRenderer`, then colors each code block with a `SyntaxEngine` for the
 grammar `GrammarSet.forLabel` finds for its language (`MarkdownCodeTokens`), on
-the same worker; the pane receives both as `MarkdownPreviewContent`. Each render
-carries a generation, raised by every edit, switch and new render, and the
-revision it read; a result whose generation or revision is not current is
-dropped.
+the same worker, and flattens the style runs and tokens into `MarkdownSpans`;
+the pane receives all three as `MarkdownPreviewContent`, with the local images
+to decode. Each render carries a generation, raised by every edit, switch,
+grammar reload and new render, and the revision it read; a result whose
+generation or revision is not current is dropped. A render over the limit
+reserves 24 bytes per char from the `MemoryBudget` (assumed, not measured) until
+a later render replaces it or the tab closes; a refused reservation renders
+nothing and posts `MARKDOWN_NO_MEMORY`.
 
-In Split, `sourceScrolled` and `previewScrolled` map the top line through the
-shown render's source map and scroll the other side; the scroll a mapping
-causes is not mapped back. A click (`clicked`) on a link follows it: an anchor
+`MarkdownImages` decodes the shown render's local images on a `qcaret-io-`
+worker, one after another, each posted as it arrives; the next render, a switch
+to Source and a close cancel the rest. The size comes from the image
+attributes (`120`, `120px`, `50%` of the pane's width); an SVG, a file over
+16 MiB and an unreadable one post a placeholder. Decoded images stay cached per
+window up to 64 MiB, keyed by path, size, modification time, requested size and
+pane width, so a live render decodes nothing again.
+
+In Split, the focused editor's viewport report calls `sourceScrolled`, and
+`sourceScrolled` and `previewScrolled` map the top line through the shown
+render's source map and scroll the other side. The scroll a mapping causes is
+not mapped back: `Tab.scrollSource` returns the editor's top line after the
+scroll, which the document's end can hold above the line asked for, and the
+report of that line is ignored. A click (`clicked`) on a link follows it: an anchor
 scrolls the preview to its heading, a local file opens in the window, a URL goes
 to `MainView.launchUrl`; a footnote reference scrolls to its footnote. The pane
 (`MarkdownPreviewView`) only applies these requests.

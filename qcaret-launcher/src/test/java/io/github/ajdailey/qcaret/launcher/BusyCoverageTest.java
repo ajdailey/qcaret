@@ -202,6 +202,8 @@ class BusyCoverageTest {
       "controller.LineChangesUpdater#compute",
       // The live render after typing; a switch or a requested render goes through BusyWork.
       "controller.MarkdownPreview#render",
+      // Local images of a shown preview, drawn as each arrives.
+      "controller.MarkdownImages#show",
       "controller.MemoryIndicator#read",
       "controller.OverviewUpdater#compute",
       "controller.QuitSequence#quit",

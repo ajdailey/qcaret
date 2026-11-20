@@ -7,15 +7,20 @@ import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
+import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
@@ -24,12 +29,15 @@ import org.eclipse.swt.widgets.Listener;
 
 /**
  * One document tab of a {@link TabStrip}: its item, which a move recreates, and one or two editor
- * views in a {@link SashForm}, one above the other or side by side. The view focused last is the
- * tab's focused view. Each view's {@code StyledText} takes the tab title as its {@link
- * AccessibleName}. Created and used on the UI thread.
+ * views in a {@link SashForm}, one above the other or side by side. The item's control is the
+ * frame, a horizontal sash holding the editors' sash and, for a Markdown tab, the {@link
+ * PreviewSlot}'s pane. The view focused last is the tab's focused view. Each view's {@code
+ * StyledText} takes the tab title as its {@link AccessibleName}. Created and used on the UI thread.
  */
 final class EditorTab implements TabView, SelectionListener {
+  final SashForm frame;
   final SashForm sash;
+  PreviewSlot preview;
   final List<EditorPane> panes = new ArrayList<EditorPane>(2);
   final List<View> views = new ArrayList<View>(2);
   final List<SelectionModel> models = new ArrayList<SelectionModel>(2);
@@ -151,14 +159,23 @@ final class EditorTab implements TabView, SelectionListener {
    *
    * @param strip the strip holding the tab
    * @param host the window around the strip
-   * @param sash the tab's control
+   * @param frame the tab's control
+   * @param sash the editors' sash, the frame's first child
    * @param input the tab's controller
    * @param index the index
    */
-  EditorTab(TabStrip strip, TabStrip.Host host, SashForm sash, TabInput input, int index) {
+  EditorTab(
+      TabStrip strip,
+      TabStrip.Host host,
+      SashForm frame,
+      SashForm sash,
+      TabInput input,
+      int index) {
     this.strip = strip;
     this.host = host;
+    this.frame = frame;
     this.sash = sash;
+    frame.setMaximizedControl(sash);
     this.input = input;
     this.item = strip.newItem(this, index);
   }
@@ -229,7 +246,11 @@ final class EditorTab implements TabView, SelectionListener {
   public void select() {
     if (!item.isDisposed()) {
       strip.folder().setSelection(item);
-      pane.focus();
+      if (preview != null && preview.mode() == MarkdownViewMode.PREVIEW) {
+        preview.created().focus();
+      } else {
+        pane.focus();
+      }
       input.activated();
     }
   }
@@ -250,11 +271,33 @@ final class EditorTab implements TabView, SelectionListener {
     for (EditorPane p : panes) {
       p.release();
     }
-    strip.disposeLater(sash);
+    strip.disposeLater(frame);
     CTabItem next = strip.folder().getSelection();
     if (next != null && next.getData() instanceof EditorTab shown) {
       shown.pane.focus();
     }
+  }
+
+  @Override
+  public MarkdownPreviewView markdownView(final MarkdownPreviewInput markdown) {
+    preview =
+        new PreviewSlot(
+            frame,
+            sash,
+            markdown,
+            new Function<MarkdownPreviewInput, MarkdownPane>() {
+              @Override
+              public MarkdownPane apply(MarkdownPreviewInput input) {
+                return host.newPreview(frame, input);
+              }
+            },
+            new Runnable() {
+              @Override
+              public void run() {
+                pane.focus();
+              }
+            });
+    return preview;
   }
 
   @Override

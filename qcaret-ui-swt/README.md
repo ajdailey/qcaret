@@ -18,6 +18,7 @@ classes, which reach SWT internals by reflection.
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `PaneHighlights`, `PanePainter`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
 | `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes | [Main window](docs/main-window.md#platform-traits) |
 | `ui.swt` | `PrintJob`, `PdfPrinter` and the printer calls | [Printing](docs/printing.md) |
+| `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch` | [Markdown preview](docs/markdown-preview.md) |
 | `ui.swt` | `SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 
 ## UI thread

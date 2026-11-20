@@ -146,7 +146,8 @@ final class SessionReader {
         p.getProperty(key + "weights", ""),
         p.getProperty(key + "bookmarks", ""),
         comments,
-        flag(p, key + "readOnly"));
+        flag(p, key + "readOnly"),
+        p.getProperty(key + "markdown", ""));
   }
 
   /** Returns a search, or null when its scope or folder does not parse. */
@@ -187,7 +188,8 @@ final class SessionReader {
               number(p, key + "tabWidth", 1, Document.MAX_TAB_WIDTH, Document.DEFAULT_TAB_WIDTH),
               flag(p, key + "spaces"),
               p.getProperty(key + "selection", ""),
-              number(p, key + "top", 0, Integer.MAX_VALUE, 0)));
+              number(p, key + "top", 0, Integer.MAX_VALUE, 0),
+              p.getProperty(key + "markdown", "")));
     }
     return files;
   }

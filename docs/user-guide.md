@@ -302,7 +302,8 @@ apply (measured on Linux, one million lines):
 - View > Workspace Browser, Search > Search Results and Search > Bookmarks >
   Bookmarks List show the docks around the editor.
 - The status bar shows notices, the read-only marker, line and column, the
-  selection, encoding, line endings and language. A click on the language
+  selection, encoding, line endings, language and, while a Markdown preview
+  shows, its renderer. A click on the language
   chooses a grammar, one on the encoding reopens or saves with another
   encoding, and one on the line endings converts them to LF, CRLF or CR. A
   Warnings link appears when QCaret logs a warning and opens Help > Show Log.
@@ -658,6 +659,37 @@ attribute picks its Syntax submenu (User without one). View > Syntax > Reload
 Grammars reads them again, and an invalid file is skipped with a notice. The
 format is in `qcaret-core/docs/grammars.md` in the QCaret source repository.
 
+## Markdown preview
+
+A tab whose language is Markdown, detected from a `.md` name or chosen in View >
+Syntax, shows its document in one of three modes:
+
+| Mode | Shows |
+|---|---|
+| Source | The editor alone |
+| Split | The editor with the preview on its right, scrolling together; with a split editor, right of both views |
+| Preview | The preview alone |
+
+The `Source | Split | Preview` buttons at the end of the toolbar, View >
+Markdown View and `Ctrl+Shift+1`, `2`, `3` (`Cmd+Option+1`, `2`, `3` on macOS)
+switch the selected tab. A file opens in Source the first time and in the mode
+it had after that, and a session restores each tab's mode. Find, Replace and
+HyperSearch act on the source; in Split the preview follows the editor to a
+match. Preview text can be selected and copied.
+
+The preview renders again 0.3 seconds after you stop typing. A document over
+1 MiB of chars renders only when you click Render above the preview. A click on
+a link opens a local file in QCaret, an address in the system browser, or
+scrolls to a heading or footnote; nothing loads without a click.
+
+The Basic renderer draws headings, emphasis, lists and task lists, quotes,
+alerts, footnotes, tables, code colored by QCaret's grammars and local PNG,
+JPEG, GIF, BMP and TIFF images in the current theme. An SVG or an image that
+does not decode shows as a box with its name; a remote image shows its alt text
+and address. View > Markdown Preview, or the Appearance tab of Preferences,
+chooses the renderer for every window; the status bar names it. The Browser
+renderer is not available in this version.
+
 ## External changes
 
 QCaret checks each open file every 5 seconds and when a window activates.
@@ -947,7 +979,7 @@ running windows without a restart.
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
-| Appearance | Theme, editor font size, editor font |
+| Appearance | Theme, editor font size, editor font, Markdown preview renderer |
 | Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults |
 
 Restore Defaults fills every tab with the default values; nothing changes until

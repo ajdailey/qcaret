@@ -52,6 +52,8 @@ final class PreferencesDialog {
   /** {@code editor.newLineEnding} values, in the list's order. */
   private static final String[] LINE_ENDINGS = {"lf", "crlf", "platform"};
 
+  private static final String[] RENDERERS = {"basic", "browser"};
+
   private final Shell shell;
   private final PreferencesInput input;
   private final List<CommandId> rows = new ArrayList<CommandId>();
@@ -91,6 +93,7 @@ final class PreferencesDialog {
   private ShortcutOverrides overrides;
   private Combo newLineEnding;
   private Combo newEncoding;
+  private Combo previewRenderer;
   private PreferencesViewTab view;
   private WorkspaceDefaultRow workspaceDefault;
 
@@ -257,6 +260,9 @@ final class PreferencesDialog {
     fontSize = field(page, UiText.PREFERENCES_FONT_SIZE);
     fontFamily =
         choice(page, UiText.PREFERENCES_FONT_FAMILY, UiText.PREFERENCES_FONT_FAMILY_DEFAULT);
+    previewRenderer = list(page, UiText.PREFERENCES_PREVIEW_RENDERER);
+    previewRenderer.add(UiText.PREVIEW_RENDERER_BASIC.text());
+    previewRenderer.add(UiText.PREVIEW_RENDERER_BROWSER.text());
   }
 
   private static Combo list(Composite page, UiText label) {
@@ -451,6 +457,7 @@ final class PreferencesDialog {
     setOverrides(form.shortcuts());
     newLineEnding.select(List.of(LINE_ENDINGS).indexOf(form.newLineEnding()));
     newEncoding.select(newEncoding.indexOf(form.newEncoding()));
+    previewRenderer.select(Math.max(0, List.of(RENDERERS).indexOf(form.previewRenderer())));
     view.show(form.view());
     workspaceDefault.show(form.workspaceDefault());
     for (TableColumn column : commands.getColumns()) {
@@ -494,7 +501,8 @@ final class PreferencesDialog {
         view.checks(),
         workspaceDefault.value(),
         sessionRestore.getSelection(),
-        strictJson.getSelection());
+        strictJson.getSelection(),
+        RENDERERS[Math.max(0, previewRenderer.getSelectionIndex())]);
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -680,6 +688,10 @@ final class PreferencesDialog {
 
   Combo newEncoding() {
     return newEncoding;
+  }
+
+  Combo previewRenderer() {
+    return previewRenderer;
   }
 
   PreferencesViewTab view() {

@@ -112,6 +112,10 @@ the UI thread and returns without waiting for the user. It extends these parts:
   `TabInput.viewFocused` and its visible display range through
   `EditorInput.viewportChanged`, and shows find matches through
   `EditorView.showMatches`.
+- A tab's `markdownView` is its Markdown preview pane (`MarkdownPreviewView`),
+  which forwards clicks, scrolls and the render request as
+  `MarkdownPreviewInput` and decodes images through the
+  `MarkdownImageDecoder` it hands out.
 - An editor view shows its overview strip's `OverviewMarks` (`showOverview`,
   `setOverviewShown`) and reports the strip's height through
   `EditorInput.overviewResized`.
@@ -199,6 +203,7 @@ Platform choices in the defaults, with the conflict each avoids:
 | Toggle Block Comment | Mod+Shift+/; Cmd+Option+/ on macOS | macOS Cmd+Shift+/ opens the Help menu search |
 | Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
 | Full Screen | F11; Control+Command+F on macOS | Each platform's full-screen key |
+| Markdown View Source, Split, Preview | Ctrl+Shift+1, 2, 3; Cmd+Option+1, 2, 3 on macOS | Ctrl+Alt+digit is AltGr on Windows; macOS Cmd+Shift+3 takes a screenshot |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;

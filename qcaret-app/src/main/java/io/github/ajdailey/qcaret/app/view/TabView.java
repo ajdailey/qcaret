@@ -76,4 +76,13 @@ public interface TabView {
    * @param kept the view that stays
    */
   void unsplit(EditorView kept);
+
+  /**
+   * Returns the tab's Markdown preview pane, which shows nothing until its mode leaves Source. In
+   * Split it stands right of every editor view; in Preview it takes the editors' place.
+   *
+   * @param input receives the pane's input
+   * @return the pane
+   */
+  MarkdownPreviewView markdownView(MarkdownPreviewInput input);
 }

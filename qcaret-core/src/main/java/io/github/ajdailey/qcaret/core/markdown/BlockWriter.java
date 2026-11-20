@@ -311,6 +311,7 @@ final class BlockWriter {
     for (HeadingAnchors.Entry e : anchors.entries()) {
       top = Math.min(top, e.heading().getLevel());
     }
+    flushSeparator();
     int depth = out.listDepth;
     for (HeadingAnchors.Entry e : anchors.entries()) {
       out.listDepth = depth + e.heading().getLevel() - top + 1;

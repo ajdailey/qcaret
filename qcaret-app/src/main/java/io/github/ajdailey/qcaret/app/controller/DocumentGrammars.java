@@ -54,6 +54,9 @@ final class DocumentGrammars {
                 d.manualGrammar = false;
                 detect(d);
               }
+              if (d.markdown != null) {
+                d.markdown.grammarsReloaded();
+              }
             }
           }
         };

@@ -27,6 +27,7 @@ final class DocumentSessions {
   private final Supplier<OpenDocument> selected;
   private final MainView view;
   private final DocumentGrammars grammars;
+  private final MarkdownPreviews markdown;
   private final Deque<Path> closedPaths;
   private DocumentController.FileMemory memory;
 
@@ -36,12 +37,14 @@ final class DocumentSessions {
       Supplier<OpenDocument> selected,
       MainView view,
       DocumentGrammars grammars,
+      MarkdownPreviews markdown,
       Deque<Path> closedPaths) {
     this.owner = owner;
     this.documents = documents;
     this.selected = selected;
     this.view = view;
     this.grammars = grammars;
+    this.markdown = markdown;
     this.closedPaths = closedPaths;
   }
 
@@ -63,6 +66,7 @@ final class DocumentSessions {
     }
     d.setTabSettings(state.tabWidth(), state.insertSpaces());
     grammars.restore(d, state.language());
+    markdown.restore(d, state.markdown());
     SelectionSet set = SessionText.selections(state.selections(), d.document.text().length());
     d.editor.restoreView(set, state.top(), new int[0]);
     view.documentStateChanged();
@@ -72,6 +76,7 @@ final class DocumentSessions {
   void applyTab(OpenDocument d, Session.Tab tab) {
     d.setTabSettings(tab.tabWidth(), tab.insertSpaces());
     grammars.restore(d, tab.language());
+    markdown.restore(d, tab.markdown());
     int lines = d.document.text().lineCount();
     for (int line : SessionText.numbers(tab.bookmarks())) {
       if (line < lines && !d.bookmarks.contains(line)) {
@@ -139,7 +144,8 @@ final class DocumentSessions {
         d.editors.size() > 1 ? SessionText.numbers(d.tab.splitWeights()) : "",
         SessionText.numbers(d.bookmarks.lines()),
         comments,
-        d.document.isReadOnly());
+        d.document.isReadOnly(),
+        MarkdownPreviews.saved(d));
   }
 
   /** Keeps a closing file's state in the {@link DocumentController.FileMemory}. */
@@ -157,7 +163,8 @@ final class DocumentSessions {
               d.document.tabWidth(),
               d.document.insertSpaces(),
               SessionText.selections(e.selections().selections()),
-              e.topLine()));
+              e.topLine(),
+              MarkdownPreviews.saved(d)));
     }
   }
 

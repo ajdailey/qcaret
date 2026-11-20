@@ -7,12 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.editor.TokenCache;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
+import io.github.ajdailey.qcaret.app.view.DecodedImage;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.app.view.MarkdownImageDecoder;
+import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
+import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.EditBatch;
@@ -62,6 +67,7 @@ class MarkdownPreviewTest {
   private final Busy busy = new Busy();
   private final FakeTab tab = new FakeTab();
   private final FakePane pane = new FakePane();
+  private final MemoryBudget budget = new MemoryBudget(1L << 40, 100);
 
   @AfterEach
   void close() {
@@ -90,6 +96,8 @@ class MarkdownPreviewTest {
     final List<Integer> scrolled = new ArrayList<Integer>();
     final List<Path> files = new ArrayList<Path>();
     final List<String> urls = new ArrayList<String>();
+    final List<String> notices = new ArrayList<String>();
+    int lastTop = Integer.MAX_VALUE;
     Path folder;
 
     @Override
@@ -113,8 +121,14 @@ class MarkdownPreviewTest {
     }
 
     @Override
-    public void scrollSource(int line) {
+    public int scrollSource(int line) {
       scrolled.add(line);
+      return Math.min(line, lastTop);
+    }
+
+    @Override
+    public void notice(String message) {
+      notices.add(message);
     }
 
     @Override
@@ -134,6 +148,7 @@ class MarkdownPreviewTest {
     final List<MarkdownPreviewContent> shown = new ArrayList<MarkdownPreviewContent>();
     final List<int[]> notices = new ArrayList<int[]>();
     final List<Integer> scrolls = new ArrayList<Integer>();
+    final FakeMarkdownPane delegate = new FakeMarkdownPane(null);
 
     @Override
     public void showMode(MarkdownViewMode mode) {
@@ -159,6 +174,17 @@ class MarkdownPreviewTest {
       scrolls.add(line);
     }
 
+    @Override
+    public MarkdownImageDecoder imageDecoder() {
+      return delegate.imageDecoder();
+    }
+
+    @Override
+    public void showImage(MarkdownImageRequest request, DecodedImage image) {
+      ui.checkUiThread();
+      delegate.showImage(request, image);
+    }
+
     String lastText() {
       return shown.get(shown.size() - 1).rendered().text();
     }
@@ -170,11 +196,22 @@ class MarkdownPreviewTest {
   }
 
   private MarkdownPreview preview(Document document, int limit) {
-    MarkdownPreview p =
-        new MarkdownPreview(document, workers, ui, new MarkdownRenderer(), tab, limit);
+    MarkdownPreview p = unattached(document, limit, budget);
     p.grammarChanged(true);
     p.attach(pane);
     return p;
+  }
+
+  private MarkdownPreview unattached(Document document, int limit, MemoryBudget budget) {
+    return new MarkdownPreview(
+        document,
+        workers,
+        ui,
+        new MarkdownRenderer(),
+        tab,
+        limit,
+        budget,
+        new MarkdownImages(workers, ui));
   }
 
   private void runUntil(BooleanSupplier condition) throws InterruptedException {
@@ -382,6 +419,95 @@ class MarkdownPreviewTest {
     assertEquals(r.footnotes().get(0).line(), (int) pane.scrolls.get(1));
     p.clicked(r.text().indexOf(' '));
     assertEquals(2, pane.scrolls.size());
+    p.dispose();
+  }
+
+  @Test
+  void aClampedEditorScrollIsNotMappedBack() throws InterruptedException {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 40; i++) {
+      text.append("para ").append(i).append("\n\n");
+    }
+    MarkdownPreview p = preview(document(text.toString()), 100_000);
+    p.setMode(MarkdownViewMode.SPLIT);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    tab.lastTop = 30;
+    p.previewScrolled(r.lineCount() - 1);
+    assertEquals(List.of(r.sourceLine(r.lineCount() - 1)), tab.scrolled);
+    p.sourceScrolled(30);
+    assertEquals(List.of(), pane.scrolls);
+    p.sourceScrolled(31);
+    assertEquals(List.of(r.renderedLine(31)), pane.scrolls);
+    p.dispose();
+  }
+
+  @Test
+  void aRequestedRenderAboveTheLimitChargesTheBudgetUntilReplaced() throws InterruptedException {
+    MemoryBudget small = new MemoryBudget(1L << 30, 100);
+    Document d = document("0123456789 over the limit\n");
+    MarkdownPreview p = unattached(d, 10, small);
+    p.grammarChanged(true);
+    p.attach(pane);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    p.renderRequested();
+    awaitShown(1);
+    long charge = MarkdownPreview.BYTES_PER_CHAR * d.text().length();
+    assertEquals(charge, small.reserved());
+    p.renderRequested();
+    awaitShown(2);
+    assertEquals(charge, small.reserved());
+    p.dispose();
+    assertEquals(0, small.reserved());
+  }
+
+  @Test
+  void aRefusedReservationRendersNothingAndPostsANotice() throws InterruptedException {
+    MemoryBudget tiny = new MemoryBudget(100, 100);
+    MarkdownPreview p = unattached(document("0123456789 over the limit\n"), 10, tiny);
+    p.grammarChanged(true);
+    p.attach(pane);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    p.renderRequested();
+    assertNull(p.runningRender());
+    assertEquals(List.of(UiText.MARKDOWN_NO_MEMORY.text()), tab.notices);
+    assertEquals(0, tiny.reserved());
+    p.dispose();
+  }
+
+  @Test
+  void aGrammarReloadOvertakesTheRunningRenderAndRendersAgain() throws InterruptedException {
+    MarkdownPreview p = preview(document("```java\nint x;\n```\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    CancellationToken first = p.runningRender();
+    p.grammarsReloaded();
+    assertTrue(first.isCanceled());
+    assertNotNull(p.runningRender());
+    awaitShown(1);
+    p.grammarsReloaded();
+    awaitShown(2);
+    p.setMode(MarkdownViewMode.SOURCE);
+    p.grammarsReloaded();
+    assertNull(p.runningRender());
+    p.dispose();
+  }
+
+  @Test
+  void aRestoredModeWaitsForAMarkdownGrammar() throws InterruptedException {
+    MarkdownPreview p = unattached(document("text\n"), 1000, budget);
+    p.grammarChanged(false);
+    p.attach(pane);
+    p.restoreMode(MarkdownViewMode.SPLIT, true);
+    assertEquals(MarkdownViewMode.SOURCE, p.mode());
+    p.grammarChanged(true);
+    assertEquals(MarkdownViewMode.SPLIT, p.mode());
+    awaitShown(1);
+    p.grammarChanged(false);
+    p.restoreMode(MarkdownViewMode.PREVIEW, false);
+    p.grammarChanged(true);
+    assertEquals(MarkdownViewMode.SOURCE, p.mode());
+    p.restoreMode(MarkdownViewMode.PREVIEW, false);
+    assertEquals(MarkdownViewMode.PREVIEW, p.mode());
     p.dispose();
   }
 

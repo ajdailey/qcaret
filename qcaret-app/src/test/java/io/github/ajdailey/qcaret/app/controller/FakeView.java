@@ -18,6 +18,8 @@ import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
@@ -243,6 +245,8 @@ final class FakeView implements MainView {
     int redraws;
     final Shown shown = new Shown();
 
+    FakeMarkdownPane markdown;
+
     FakeTab(
         DisplayProjection projection,
         SelectionModel selections,
@@ -344,6 +348,13 @@ final class FakeView implements MainView {
     public void setSplitWeights(int[] value) {
       ui.checkUiThread();
       weights = value.clone();
+    }
+
+    @Override
+    public MarkdownPreviewView markdownView(MarkdownPreviewInput input) {
+      ui.checkUiThread();
+      markdown = new FakeMarkdownPane(input);
+      return markdown;
     }
 
     @Override
@@ -1391,6 +1402,14 @@ final class FakeView implements MainView {
 
   /** Unfinished-copies dialogs opened. */
   int unfinishedAsked;
+
+  /** The reason {@link #previewBrowserUnavailable} gives; null while Browser is available. */
+  String browserUnavailable;
+
+  @Override
+  public String previewBrowserUnavailable() {
+    return browserUnavailable;
+  }
 
   @Override
   public Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait) {

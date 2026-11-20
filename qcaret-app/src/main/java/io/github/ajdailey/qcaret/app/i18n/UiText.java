@@ -1903,7 +1903,41 @@ public enum UiText {
   /** Accessible name of the memory indicator: its text, empty before the first reading. */
   ACCESSIBLE_MEMORY,
   /** Accessible name of the tab strip's button group. */
-  ACCESSIBLE_TAB_BUTTONS;
+  ACCESSIBLE_TAB_BUTTONS,
+  /** View > Markdown View cascade. */
+  MENU_MARKDOWN_VIEW,
+  /** Markdown View > Source. */
+  COMMAND_MARKDOWN_SOURCE,
+  /** Markdown View > Split. */
+  COMMAND_MARKDOWN_SPLIT,
+  /** Markdown View > Preview. */
+  COMMAND_MARKDOWN_PREVIEW,
+  /** View > Markdown Preview cascade. */
+  MENU_MARKDOWN_PREVIEW,
+  /** Markdown Preview > Basic. */
+  COMMAND_PREVIEW_BASIC,
+  /** Markdown Preview > Browser. */
+  COMMAND_PREVIEW_BROWSER,
+  /** Status bar field naming the preview renderer: the renderer's name. */
+  STATUS_PREVIEW,
+  /** The Basic renderer's name. */
+  PREVIEW_RENDERER_BASIC,
+  /** The Browser renderer's name. */
+  PREVIEW_RENDERER_BROWSER,
+  /** Notice when a saved Browser choice cannot start. */
+  MARKDOWN_BROWSER_FALLBACK,
+  /** Why the Browser renderer is disabled in a build without it. */
+  MARKDOWN_BROWSER_NOT_BUILT,
+  /** Notice when the heap budget refuses a requested render. */
+  MARKDOWN_NO_MEMORY,
+  /** The preview's size notice: the document's chars and the live limit. */
+  MARKDOWN_SIZE_NOTICE,
+  /** The size notice's render action. */
+  MARKDOWN_RENDER,
+  /** Preferences: the preview renderer chooser. */
+  PREFERENCES_PREVIEW_RENDERER,
+  /** Accessible name of a Markdown preview pane. */
+  ACCESSIBLE_MARKDOWN_PREVIEW;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

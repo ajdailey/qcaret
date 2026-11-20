@@ -439,4 +439,41 @@ public record Options(
         strictJson,
         previewRenderer);
   }
+
+  /**
+   * Returns a copy with another Markdown preview renderer.
+   *
+   * @param renderer the renderer
+   * @return the copy
+   */
+  public Options withPreviewRenderer(PreviewRenderer renderer) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        renderer);
+  }
 }

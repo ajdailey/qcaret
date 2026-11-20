@@ -40,6 +40,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  *     none
  * @param sessionRestore the box making a start that names no file open the session's windows
  * @param strictJson the box making Edit > Format XML and JSON accept RFC 8259 JSON only
+ * @param previewRenderer the Markdown preview renderer: {@code basic} or {@code browser}
  */
 public record PreferencesForm(
     String completionChars,
@@ -72,7 +73,8 @@ public record PreferencesForm(
     ViewChecks view,
     String workspaceDefault,
     boolean sessionRestore,
-    boolean strictJson) {
+    boolean strictJson,
+    String previewRenderer) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

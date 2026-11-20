@@ -350,4 +350,11 @@ public interface MainView
    * @return closes the dialog without running either answer
    */
   Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait);
+
+  /**
+   * Reports why the Browser preview renderer cannot run in this window.
+   *
+   * @return the reason, or null when the platform's browser control is available
+   */
+  String previewBrowserUnavailable();
 }

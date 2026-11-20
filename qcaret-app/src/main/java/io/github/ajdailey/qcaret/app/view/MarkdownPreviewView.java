@@ -35,4 +35,20 @@ public interface MarkdownPreviewView {
    * @param line a line of the render shown
    */
   void scrollToLine(int line);
+
+  /**
+   * Returns a decoder for the content shown, holding the pane's width now.
+   *
+   * @return the decoder
+   */
+  MarkdownImageDecoder imageDecoder();
+
+  /**
+   * Draws a decoded image in the space its request reserved.
+   *
+   * @param request one of the shown content's {@link MarkdownPreviewContent#images}
+   * @param image the image, or null for a placeholder: an SVG, a file too large or unreadable, or
+   *     bytes that decode to no image
+   */
+  void showImage(MarkdownImageRequest request, DecodedImage image);
 }

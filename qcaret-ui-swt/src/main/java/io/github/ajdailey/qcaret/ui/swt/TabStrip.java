@@ -5,10 +5,12 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.TabInput;
 import io.github.ajdailey.qcaret.app.view.TabView;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -63,6 +65,15 @@ final class TabStrip {
      * @param event the {@code MenuDetect} event
      */
     void showEditorMenu(EditorPane pane, EditorInput editor, Event event);
+
+    /**
+     * Creates a tab's Markdown preview pane with the window's palette.
+     *
+     * @param frame the tab's frame
+     * @param input the tab's preview controller
+     * @return the pane, the frame's last child
+     */
+    MarkdownPane newPreview(Composite frame, MarkdownPreviewInput input);
 
     /** Shows the status fields on a later UI turn. */
     void scheduleStatus();
@@ -215,11 +226,13 @@ final class TabStrip {
       EditorInput editor,
       TabInput input,
       int index) {
+    SashForm frame = new SashForm(tabs, SWT.HORIZONTAL);
     EditorTab tab =
         new EditorTab(
             this,
             host,
-            new SashForm(tabs, SWT.VERTICAL),
+            frame,
+            new SashForm(frame, SWT.VERTICAL),
             input,
             Math.min(index, tabs.getItemCount()));
     EditorPane pane = tab.add(projection, selections, editor);
@@ -263,6 +276,35 @@ final class TabStrip {
       }
     }
     return panes;
+  }
+
+  /**
+   * Returns every Markdown preview pane of every tab, in strip order.
+   *
+   * @return the panes created so far
+   */
+  List<MarkdownPane> allPreviews() {
+    List<MarkdownPane> previews = new ArrayList<MarkdownPane>();
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof EditorTab tab
+          && tab.preview != null
+          && tab.preview.created() != null) {
+        previews.add(tab.preview.created());
+      }
+    }
+    return previews;
+  }
+
+  /**
+   * Returns the selected tab's Markdown preview pane.
+   *
+   * @return the pane, or null without one
+   */
+  MarkdownPane activePreview() {
+    CTabItem item = tabs.getSelection();
+    return item != null && item.getData() instanceof EditorTab tab && tab.preview != null
+        ? tab.preview.created()
+        : null;
   }
 
   /**
@@ -317,7 +359,7 @@ final class TabStrip {
    */
   CTabItem newItem(EditorTab tab, int index) {
     CTabItem item = new CTabItem(tabs, SWT.CLOSE, index);
-    item.setControl(tab.sash);
+    item.setControl(tab.frame);
     item.setData(tab);
     item.setText(tab.title.replace("&", "&&"));
     item.setToolTipText(tab.toolTip.replace("&", "&&"));

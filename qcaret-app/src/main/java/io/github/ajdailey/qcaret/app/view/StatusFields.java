@@ -9,6 +9,7 @@ package io.github.ajdailey.qcaret.app.view;
  * @param lineEnding {@code CRLF}, {@code LF}, {@code CR} or Mixed
  * @param language the syntax in use
  * @param readOnly the read-only marker, or empty for an editable document
+ * @param preview the Markdown preview renderer's name while a preview shows, else empty
  */
 public record StatusFields(
     String position,
@@ -16,7 +17,8 @@ public record StatusFields(
     String encoding,
     String lineEnding,
     String language,
-    String readOnly) {
+    String readOnly,
+    String preview) {
   /** The fields without a document. */
-  public static final StatusFields NONE = new StatusFields("", "", "", "", "", "");
+  public static final StatusFields NONE = new StatusFields("", "", "", "", "", "", "");
 }

@@ -290,6 +290,7 @@ public record Session(
    * @param bookmarks the bookmarked lines, zero-based, comma-separated
    * @param comments the bookmark comments
    * @param readOnly true when the document refuses edits
+   * @param markdown the Markdown view mode, {@code split} or {@code preview}; empty for Source
    */
   public record Tab(
       String path,
@@ -306,11 +307,48 @@ public record Session(
       String weights,
       String bookmarks,
       List<Comment> comments,
-      boolean readOnly) {
+      boolean readOnly,
+      String markdown) {
     /** Copies the lists. */
     public Tab {
       views = List.copyOf(views);
       comments = List.copyOf(comments);
+    }
+
+    /** A tab in Source. */
+    public Tab(
+        String path,
+        String title,
+        String buffer,
+        String encoding,
+        String language,
+        boolean binary,
+        int tabWidth,
+        boolean insertSpaces,
+        List<View> views,
+        int focused,
+        boolean sideBySide,
+        String weights,
+        String bookmarks,
+        List<Comment> comments,
+        boolean readOnly) {
+      this(
+          path,
+          title,
+          buffer,
+          encoding,
+          language,
+          binary,
+          tabWidth,
+          insertSpaces,
+          views,
+          focused,
+          sideBySide,
+          weights,
+          bookmarks,
+          comments,
+          readOnly,
+          "");
     }
 
     /**
@@ -335,7 +373,8 @@ public record Session(
           weights,
           bookmarks,
           comments,
-          readOnly);
+          readOnly,
+          markdown);
     }
   }
 
@@ -374,6 +413,7 @@ public record Session(
    * @param insertSpaces true to indent with spaces
    * @param selections in the form of {@link SessionText#selections}
    * @param top the first visible line, zero-based
+   * @param markdown the Markdown view mode, {@code split} or {@code preview}; empty for Source
    */
   public record FileState(
       String path,
@@ -382,7 +422,20 @@ public record Session(
       int tabWidth,
       boolean insertSpaces,
       String selections,
-      int top) {
+      int top,
+      String markdown) {
+    /** A file left in Source. */
+    public FileState(
+        String path,
+        String encoding,
+        String language,
+        int tabWidth,
+        boolean insertSpaces,
+        String selections,
+        int top) {
+      this(path, encoding, language, tabWidth, insertSpaces, selections, top, "");
+    }
+
     /**
      * Returns this state for another path, as a rename moves it.
      *
@@ -390,7 +443,8 @@ public record Session(
      * @return the state with the new path
      */
     public FileState withPath(String moved) {
-      return new FileState(moved, encoding, language, tabWidth, insertSpaces, selections, top);
+      return new FileState(
+          moved, encoding, language, tabWidth, insertSpaces, selections, top, markdown);
     }
   }
 }

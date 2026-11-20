@@ -105,6 +105,16 @@ class GitLabMarkdownTest {
   }
 
   @Test
+  void aTocAfterABlockKeepsItsFirstMarkerOffTheSeparator() {
+    RenderedMarkdown r = Render.of("# A\n\npara\n\n[[_TOC_]]\n");
+    assertEquals(List.of("A", "", "para", "", "A"), lines(r));
+    assertEquals(0, r.listDepth(3));
+    assertEquals(RenderedMarkdown.ListMarker.NONE, r.marker(3));
+    assertEquals(1, r.listDepth(4));
+    assertEquals(RenderedMarkdown.ListMarker.BULLET, r.marker(4));
+  }
+
+  @Test
   void tocTextInsideAParagraphStaysText() {
     RenderedMarkdown r = Render.of("See [TOC] here\n");
     assertEquals("See [TOC] here", r.text());

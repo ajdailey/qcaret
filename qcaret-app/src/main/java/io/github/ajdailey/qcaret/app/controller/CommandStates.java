@@ -37,7 +37,9 @@ import java.util.Set;
  * of Undo, Redo, Cut and Copy are editor bindings, not accelerators, so they stay live in the
  * editor and in text fields whatever the items show.
  *
- * <p>Open All in Recent Files and in Recently Closed needs a listed file.
+ * <p>Open All in Recent Files and in Recently Closed needs a listed file. The Markdown View modes
+ * need a tab whose grammar is {@code markdown}; Markdown Preview's Browser needs the platform's
+ * browser control, and {@link #unavailable} gives the reason it is missing.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -82,7 +84,9 @@ public final class CommandStates {
           CommandId.GO_BACK,
           CommandId.GO_FORWARD,
           CommandId.PREFERENCES,
-          CommandId.FULL_SCREEN);
+          CommandId.FULL_SCREEN,
+          CommandId.PREVIEW_BASIC,
+          CommandId.PREVIEW_BROWSER);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -236,6 +240,8 @@ public final class CommandStates {
       case FULL_SCREEN -> application.fullScreen();
       case BOOKMARKS_LIST -> application.bookmarkList().shown();
       case WORKSPACE_BROWSER -> application.workspace().shown();
+      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW, PREVIEW_BASIC, PREVIEW_BROWSER ->
+          application.markdown().checked(command);
       default -> false;
     };
   }
@@ -267,6 +273,7 @@ public final class CommandStates {
         case GO_BACK -> application.history().canBack();
         case GO_FORWARD -> application.history().canForward();
         case ALWAYS_ON_TOP -> application.alwaysOnTop().supported();
+        case PREVIEW_BASIC, PREVIEW_BROWSER -> application.markdown().enabled(command);
         default -> true;
       };
     }
@@ -314,6 +321,8 @@ public final class CommandStates {
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canUndo();
       case REDO_SELECTION ->
           documents.activeEditor() != null && documents.activeEditor().selectionHistory().canRedo();
+      case MARKDOWN_SOURCE, MARKDOWN_SPLIT, MARKDOWN_PREVIEW ->
+          application.markdown().enabled(command);
       default -> true;
     };
   }
@@ -325,7 +334,8 @@ public final class CommandStates {
    * @return the reason, or null when the command's algorithm is available or it has none
    */
   public String unavailable(CommandId command) {
-    return application.checksums().unavailable(command);
+    String markdown = application.markdown().unavailable(command);
+    return markdown != null ? markdown : application.checksums().unavailable(command);
   }
 
   /**
@@ -472,7 +482,7 @@ public final class CommandStates {
    * @return the fields, {@link StatusFields#NONE} without a document
    */
   public StatusFields status() {
-    return StatusBarText.read(application.documents());
+    return StatusBarText.read(application.documents(), application.markdown().status());
   }
 
   private Document document() {
