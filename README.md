@@ -212,12 +212,27 @@ To fix a bad draft, delete the draft and the tag
   opt-in on linux-x86_64: start QCaret with `bin/qcaret --gtk4` or
   `SWT_GTK4=1`; without the GTK 4 libraries it starts on GTK 3 and logs a warning. Under GTK 4 Help > User Guide shows no guide window; a notice
   names the guide's file instead.
-- The macOS bundles are ad-hoc signed and not notarized, so macOS asks the user
-  to approve the first launch.
+- The Windows launchers and the macOS bundles are not signed by a publisher; see
+  [First launch of an unsigned build](#first-launch-of-an-unsigned-build).
 - File associations: on Linux run `bin/install-desktop-entry`, on Windows
   `register-associations.cmd`, each per user; the macOS bundle declares its
   document types. Details are in
   [qcaret-dist](qcaret-dist/README.md#file-associations).
+
+### First launch of an unsigned build
+
+`qcaret.exe` carries no Authenticode signature, and `QCaret.app` is ad-hoc
+signed and not notarized. A downloaded copy therefore needs one approval:
+
+| Platform | First launch |
+|---|---|
+| Windows | SmartScreen shows "Windows protected your PC": choose More info, then Run anyway. Unblocking the downloaded zip first (Properties, Unblock) avoids the prompt. |
+| macOS | macOS refuses the first open. Open System Settings > Privacy & Security and choose Open Anyway for QCaret, or run `xattr -dr com.apple.quarantine QCaret.app` before the first launch. |
+
+A copy that did not come from a browser download, such as one copied from
+removable media, usually shows no prompt. The universal jar needs none:
+`java -jar lib/qcaret.jar` runs under an installed, signed Java 21. Each
+release lists the SHA-256 of every archive in `SHA256SUMS`.
 
 ## Command line
 
