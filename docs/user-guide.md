@@ -687,7 +687,8 @@ be selected and copied.
 
 The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on
-a link scrolls to a heading or footnote, opens a local file in QCaret, or opens
+a link scrolls to a heading or footnote, opens a local file in QCaret (a path
+relative to the document or a `file:` address, in either renderer), or opens
 an `http`, `https`, `mailto` or `ftp` address in the system browser; a link
 with another scheme does nothing, and nothing loads without a click.
 

@@ -185,4 +185,14 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean scrollsBrowserToFragments() {
     return true;
   }
+
+  @Override
+  public boolean acceleratorsFollowFocusControl() {
+    return false;
+  }
+
+  @Override
+  public boolean blankLinksReplacePage() {
+    return true;
+  }
 }

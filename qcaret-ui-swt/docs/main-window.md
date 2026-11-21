@@ -136,6 +136,10 @@ scroll.
   checks.
 - A Display key filter runs window bindings that are not accelerators (Ctrl
   plus keypad +), when enabled, whichever control of the shell has focus.
+  Where `PlatformTraits.acceleratorsFollowFocusControl` holds (GTK 4), it runs
+  the accelerators too and consumes the key: SWT runs a GTK 4 accelerator from
+  the window's shortcut controller after the focused control, and the editor's
+  `StyledText` inserted the CR that Ctrl+Shift+M carries.
 - A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
   item it deselects too, so the listener runs the command only for the item
   selected.
@@ -209,8 +213,9 @@ All of it is unverified on cocoa.
 false: New, Open, Save, Save All, Undo, Redo, Cut, Copy, Paste, Find, Replace,
 HyperSearch, Zoom In, Zoom Out.
 
-- Each button runs its command through `ApplicationController.execute` and
-  shows the command and its keys as the tool tip.
+- Each button runs its command through `ApplicationController.execute`, shows
+  the command and its keys as the tool tip, and carries the command as data
+  for its accessible name ([Accessible names](#accessible-names)).
 - Enablement syncs from `CommandStates` with the menu bar, and `EDIT_STATE` on
   each status read, coalesced with the status bar.
 - A click that left the focus on the bar returns it to the editor.
@@ -360,6 +365,13 @@ does not read its name. `attachKeepingRole` leaves the control's own role.
 | `MemoryGauge` | Memory and its text, such as `Memory 312/4096 MB` | group |
 | Each view's `StyledText` (`EditorTab`) | The tab title, following each change | text |
 
+`ToolBarNames` names each toolbar item that carries a `CommandId` by the
+command's title, through the toolbar's `Accessible`, which SWT asks per item
+index on win32 (unverified there). SWT on GTK calls Java accessibility listeners
+only for the controls it draws, not for native widgets: on GTK 3 the toolbar's
+icon buttons and the Outline `Tree` read no name through AT-SPI, and setting
+one needs SWT internals.
+
 The gutter is painted in the `StyledText` left margin and is no separate
 control. A `ToolIcons.item` tool item reads its tool tip as its title on
 cocoa (`ToolItem`), and the read-only `StyledText` views of Compare and Replace
@@ -425,6 +437,8 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |
 | `fullScreenSpace` | - | yes | - | - | `FullScreen`: the state is the shell's (see [Full Screen](#full-screen)) |
+| `acceleratorsFollowFocusControl` | - | - | - | yes | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators (see [Menus](#menus)) |
+| `blankLinksReplacePage` | - | - | yes | yes | `BrowserPane`: loads the page again after a stray `about:blank` (see [Markdown preview](markdown-preview.md#browser-pane)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

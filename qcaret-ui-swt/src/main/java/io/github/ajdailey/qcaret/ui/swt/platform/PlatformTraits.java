@@ -334,4 +334,24 @@ public interface PlatformTraits {
    * @return false on win32 and cocoa
    */
   boolean scrollsBrowserToFragments();
+
+  /**
+   * Reports whether a menu accelerator's key reaches the focused control before the menu item runs,
+   * and that control's default action then also runs: SWT on GTK 4 runs accelerators from the
+   * window's shortcut controller, after the focused widget, so a {@code StyledText} inserts
+   * Ctrl+Shift+M's CR. A key the focused control consumes never reaches the shortcut.
+   *
+   * @return true on GTK 4
+   */
+  boolean acceleratorsFollowFocusControl();
+
+  /**
+   * Reports whether a click on a link to {@code about:blank}, such as {@code href=""} on a {@code
+   * setText} page, replaces the page with an empty one without a {@code LocationListener.changing}
+   * event to cancel: WebKitGTK asks no navigation policy for {@code about:blank}. The {@code
+   * changed} and {@code completed} events follow.
+   *
+   * @return true on GTK
+   */
+  boolean blankLinksReplacePage();
 }

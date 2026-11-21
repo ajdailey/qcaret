@@ -36,4 +36,9 @@ final class Gtk4Traits extends GtkTraits {
   public boolean showsMenuToolTips() {
     return false;
   }
+
+  @Override
+  public boolean acceleratorsFollowFocusControl() {
+    return true;
+  }
 }

@@ -14,9 +14,9 @@ import org.eclipse.swt.widgets.ToolItem;
 
 /**
  * The main toolbar's buttons: each runs its menu command, takes its enabled state from {@link
- * CommandStates}, and shows the command and its keys as the tool tip. A command missing an icon
- * shows its title. After a click that left the focus on the toolbar the focus returns to the
- * editor. Call on the UI thread.
+ * CommandStates}, shows the command and its keys as the tool tip, and carries the command as its
+ * data, which {@link ToolBarNames} reads. A command missing an icon shows its title. After a click
+ * that left the focus on the toolbar the focus returns to the editor. Call on the UI thread.
  */
 final class MainToolBar {
   /** The buttons in order; null is a separator. */
@@ -70,6 +70,7 @@ final class MainToolBar {
         continue;
       }
       ToolItem item = new ToolItem(bar, SWT.PUSH);
+      item.setData(command);
       if (!icons.apply(item, MenuIcons.icon(command))) {
         item.setText(command.title());
       }
@@ -89,6 +90,7 @@ final class MainToolBar {
           });
       items.put(command, item);
     }
+    ToolBarNames.attach(bar);
     sync();
   }
 

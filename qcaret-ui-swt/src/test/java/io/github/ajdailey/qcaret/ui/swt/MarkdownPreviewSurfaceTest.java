@@ -42,6 +42,7 @@ import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Control;
@@ -213,6 +214,95 @@ class MarkdownPreviewSurfaceTest {
     flush();
     assertNull(window.markdownSwitch().items()[0]);
     assertEquals("", window.previewField().getText());
+  }
+
+  /**
+   * A real click: SWT checks a radio tool item after sending a Selection event to the item it
+   * unchecks, and a listener that synced the items on that event unchecked the clicked one.
+   */
+  @Test
+  void aClickOnASwitchItemRunsItsMode() throws Exception {
+    PostedInput.assumeGtk();
+    openFile("guide.md", "# Mock guide\n\nBody text.\n");
+    awaitMarkdown(true);
+    window.shell().forceActive();
+    flush();
+    ToolItem[] items = window.markdownSwitch().items();
+    PostedInput.click(display, center(items[1]));
+    awaitMode(MarkdownViewMode.SPLIT);
+    PostedInput.click(display, center(items[2]));
+    awaitMode(MarkdownViewMode.PREVIEW);
+    assertFalse(items[0].getSelection());
+    assertFalse(items[1].getSelection());
+    assertTrue(items[2].getSelection());
+  }
+
+  private static Point center(ToolItem item) {
+    Rectangle bounds = item.getBounds();
+    return item.getParent().toDisplay(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  }
+
+  private void awaitMode(final MarkdownViewMode mode) {
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return controller.documents().markdownMode() == mode;
+          }
+        },
+        "mode " + mode + ", was " + controller.documents().markdownMode());
+    flush();
+  }
+
+  /** On GTK 4 the focused editor sees a menu accelerator's key: Ctrl+Shift+M carries a CR. */
+  @Test
+  void theCycleKeyFromTheEditorLeavesTheDocumentUnchanged() throws Exception {
+    PostedInput.assumeGtk();
+    String source = "# Mock guide\n\nBody text.\n";
+    openFile("guide.md", source);
+    awaitMarkdown(true);
+    window.shell().forceActive();
+    window.activeEditor().text().setFocus();
+    window.activeEditor().text().setCaretOffset(5);
+    flush();
+    PostedInput.ctrlShift(display, 'm');
+    awaitMode(MarkdownViewMode.SPLIT);
+    PostedInput.ctrlShift(display, 'm');
+    awaitMode(MarkdownViewMode.PREVIEW);
+    assertEquals(source, controller.documents().activeEditor().document().text().toString());
+  }
+
+  /**
+   * Preview paints the pane alone: the frame prints as the pane does. On GTK 4 the editors that
+   * SashForm moved off the frame painted over the pane's top left.
+   */
+  @Test
+  void previewShowsThePaneAlone() throws Exception {
+    StringBuilder text = new StringBuilder("# Mock\n\n");
+    for (int i = 0; i < 80; i++) {
+      text.append("<!-- mock editor line ").append(i).append(" -->\n");
+    }
+    openFile("guide.md", text.toString());
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_SPLIT);
+    awaitShown("Mock");
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    flush();
+    Control pane = window.activePreview().control();
+    assertEquals(frame().getSize(), pane.getSize());
+    ImageData framePixels = ControlPrint.of(display, frame());
+    ImageData panePixels = ControlPrint.of(display, pane);
+    assumeTrue(framePixels != null && panePixels != null, "Control.print failed");
+    int differing = 0;
+    for (int y = 0; y < panePixels.height; y++) {
+      for (int x = 0; x < panePixels.width; x++) {
+        RGB seen = framePixels.palette.getRGB(framePixels.getPixel(x, y));
+        if (!seen.equals(panePixels.palette.getRGB(panePixels.getPixel(x, y)))) {
+          differing++;
+        }
+      }
+    }
+    assertEquals(0, differing, "frame pixels that differ from the pane's");
   }
 
   @Test

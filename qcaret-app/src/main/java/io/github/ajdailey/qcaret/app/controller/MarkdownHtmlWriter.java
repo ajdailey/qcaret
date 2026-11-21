@@ -59,8 +59,8 @@ import org.commonmark.renderer.html.HtmlWriter;
  *   <li>A local image of a known type up to {@link MarkdownImages#MAX_FILE_BYTES} is embedded as a
  *       {@code data:} URI while the embedded total stays within {@link #EMBED_BYTES}; a remote
  *       image is a link with its alt text; any other image is its alt text.
- *   <li>For the preview, a link to a local file carries the file's {@code file:} URL; for export,
- *       links stay as written.
+ *   <li>For the preview, a link to a local file carries {@link MarkdownLinks#previewFileUrl}; for
+ *       export, links stay as written. A link whose URL the sanitizer refuses has no {@code href}.
  * </ul>
  */
 final class MarkdownHtmlWriter {
@@ -285,10 +285,13 @@ final class MarkdownHtmlWriter {
           attributes.put("id", LINE_ID + line);
           mark(line, LINE_ID + line);
         }
-      } else if (node instanceof Link link && !export) {
-        String href = previewHref(link.getDestination());
+      } else if (node instanceof Link link) {
+        String href = export ? null : previewHref(link.getDestination());
         if (href != null) {
           attributes.put("href", href);
+        } else if ("".equals(attributes.get("href"))) {
+          // The sanitizer empties a refused scheme; an empty href links to the page itself.
+          attributes.remove("href");
         }
       }
     }
@@ -302,11 +305,14 @@ final class MarkdownHtmlWriter {
     }
   }
 
-  /** A link's preview target: a local file's {@code file:} URL; null keeps the sanitized one. */
+  /**
+   * A link's preview target: a local file's {@link MarkdownLinks#previewFileUrl}; null keeps the
+   * sanitized one.
+   */
   private String previewHref(String destination) {
     LinkTarget target = LinkTarget.of(destination, folder);
     if (target.kind() == LinkTarget.Kind.FILE && target.path() != null) {
-      return target.path().toUri().toString();
+      return MarkdownLinks.previewFileUrl(target.path());
     }
     return null;
   }

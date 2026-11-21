@@ -169,17 +169,29 @@ class MarkdownHtmlWriterTest {
   }
 
   @Test
-  void previewLinksToFilesCarryFileUrlsAndExportKeepsThemAsWritten() {
-    String link = "[doc](docs/a.md) [top](#one) [web](https://example.invalid) [bad](javascript:x)";
+  void previewLinksToFilesCarryThePreviewSchemeAndExportKeepsThemAsWritten() {
+    Path absolute = temp.resolve("abs.txt").toAbsolutePath();
+    String link =
+        "[doc](docs/a.md) [top](#one) [web](https://example.invalid) [bad](javascript:x)"
+            + " [share](smb://host.invalid/s) [abs]("
+            + absolute.toUri()
+            + ")";
     String preview = body(link + "\n");
-    assertHas(preview, "href=\"" + temp.resolve("docs/a.md").toUri() + "\"");
+    String docUrl = temp.resolve("docs/a.md").toUri().toString();
+    assertHas(preview, "href=\"qcaret-file:" + docUrl.substring("file:".length()) + "\"");
+    assertHas(
+        preview, "href=\"qcaret-file:" + absolute.toUri().toString().substring("file:".length()));
     assertHas(preview, "href=\"#one\"");
     assertHas(preview, "href=\"https://example.invalid\"");
     assertFalse(preview.contains("javascript:"));
+    assertFalse(preview.contains("href=\"\""));
+    assertHas(preview, "<a rel=\"nofollow\">bad</a>");
+    assertHas(preview, "<a rel=\"nofollow\">share</a>");
     String exported = export(link + "\n");
     assertHas(exported, "href=\"docs/a.md\"");
-    assertFalse(exported.contains("file:"));
+    assertFalse(exported.contains("qcaret-file:"));
     assertFalse(exported.contains("javascript:"));
+    assertFalse(exported.contains("href=\"\""));
   }
 
   @Test

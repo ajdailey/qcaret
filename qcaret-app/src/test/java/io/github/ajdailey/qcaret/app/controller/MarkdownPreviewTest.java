@@ -781,12 +781,15 @@ class MarkdownPreviewTest {
     p.linkFollowed("about:blank");
     Path file = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("a.md");
     p.linkFollowed(file.toUri().toString());
+    Path spaced = file.resolveSibling("mock notes.txt");
+    p.linkFollowed(MarkdownLinks.previewFileUrl(spaced));
     p.linkFollowed("https://example.invalid/x");
     p.linkFollowed("MAILTO:someone@example.invalid");
     p.linkFollowed("javascript:alert(1)");
     p.linkFollowed("data:text/html,x");
+    p.linkFollowed("other.txt");
     assertEquals(List.of("part two"), pane.anchors);
-    assertEquals(List.of(file), tab.files);
+    assertEquals(List.of(file, spaced), tab.files);
     assertEquals(List.of("https://example.invalid/x", "MAILTO:someone@example.invalid"), tab.urls);
     p.dispose();
   }

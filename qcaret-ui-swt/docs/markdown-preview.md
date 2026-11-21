@@ -12,7 +12,9 @@ A tab's control is a horizontal `SashForm`, the frame, holding the editors'
 right: a `BrowserPane` while the content carries HTML, else a `MarkdownPane`.
 `PreviewSlot` is the tab's `MarkdownPreviewView`: Source maximizes the
 editors, Split shows both at equal weights the first time, Preview maximizes
-the pane. A mode change moves the focus to the control that shows. In
+the pane and hides the editors: `SashForm` moves a control it does not show to
+a 0 by 0 box off the frame, and GTK 4 still paints that box's children over the
+pane. A mode change moves the focus to the control that shows. In
 Preview, focusing a view (`EditorView.focus`, as closing the find bar does) or
 selecting the tab focuses the pane: the hidden editors would take keys unseen. An editor
 split stays inside the editors' sash, so the preview stands right of both
@@ -21,7 +23,10 @@ views. A renderer change swaps the panes and keeps the sash position; the
 
 `MarkdownSwitch` adds a separator and three radio items, Source, Split and
 Preview, at the toolbar's end while the selected tab is a Markdown tab, and
-removes them otherwise.
+removes them otherwise. A click sends the item it unchecks a `Selection` event
+before it checks the clicked item and sends that one its own (SWT 3.135.0 on
+GTK, win32 and cocoa), so only the checked item's event runs the command and
+syncs the items; a sync on the first event unchecks the clicked item.
 
 ## Browser availability
 
@@ -63,6 +68,19 @@ pane's UI-thread work is the `setText` call.
   percent-decoded fragment. A canceled navigation within 1 s of a
   primary-button release, Enter or Space on the browser goes to
   `linkFollowed`; any other one is dropped and logged at debug.
+- A link to a local file carries `qcaret-file:` in place of `file:`
+  (`MarkdownLinks.previewFileUrl`), and `linkFollowed` maps it back: WebKitGTK
+  cancels a `file:` navigation from the `about:blank` page before `changing`,
+  and passes other schemes to it (measured, WebKitGTK 2.52.6). A link whose
+  URL commonmark's sanitizer refuses, such as `javascript:` or `smb:`, has no
+  `href`.
+- WebKitGTK loads `about:blank` without a `changing` event, so a raw-HTML link
+  to it replaces the page with an empty one. Where
+  `PlatformTraits.blankLinksReplacePage` holds (GTK), a `changed` to
+  `about:blank` that is not the pane's own load marks the page replaced; its
+  `completed` loads the shown content's page again, once, and neither meets a
+  bound nor scrolls. A `completed` that met the stray page's state would
+  scroll and cancel the pane's next load.
 - `scrollToLine` maps a rendered line to its source line and the last element
   starting at or above it (`MarkdownHtml.idAt`), and `scrollToAnchor` takes an
   id; both navigate to `about:blank#id` once the page loaded, and a new page
@@ -103,8 +121,19 @@ painting:
 | `PaintObjectListener` | `MarkdownPainter` | An image, or a box with the file name for one that did not decode |
 | `Paint` | `MarkdownPainter` | Quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders |
 
-UI-thread work per new render is `setText` of the render's text plus the
-scroll restore; the styling follows the lines in view. Table columns are the
+UI-thread work per new render is the text change (`TextDelta`), the scroll
+restore and styling of the lines in view. The wrapping `StyledText` measures a
+line's height once, and both ways of changing its text measure lines:
+
+| Call | Lines measured |
+|---|---|
+| `setText`, then the scroll restore | Every line above the top line |
+| One `replaceTextRange` of the span between the common prefix and suffix | The lines between the top line and the far end of the span; the rest keep their height |
+
+`TextDelta` takes the call that measures fewer. At 1 MiB with the top at the
+end, a render after typing near the end took 1.9 s with `setText` and 6.5 ms
+with the replace (median of 10, Xvfb, GTK 3); the first show of 951 KB took
+3.3 s as a replace from the empty text. Table columns are the
 only work that grows with the document: `TableColumns` measures cells with a
 `GC` through `MarkdownTableLayout` in UI turns of at most 200 cells and 8 ms,
 checked every 16 cells, tables in view first, and restyles a table's lines when

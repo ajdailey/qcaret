@@ -38,6 +38,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
@@ -288,6 +289,46 @@ class BrowserPreviewSurfaceTest {
           }
         },
         "Ctrl+Shift+M in the browser, mode " + controller.documents().markdownMode());
+  }
+
+  /**
+   * WebKit cancels a {@code file:} navigation from a {@code setText} page before the location
+   * listener sees it, so the page's file links use a scheme of their own.
+   */
+  @Test
+  void aClickOnALocalFileLinkOpensTheFile() throws Exception {
+    PostedInput.assumeGtk();
+    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
+    BrowserHosts.assumeBrowser(window.shell());
+    Files.writeString(temp.resolve("other.txt"), "mock other\n", StandardCharsets.UTF_8);
+    Path absolute =
+        Files.writeString(temp.resolve("abs.txt"), "mock abs\n", StandardCharsets.UTF_8);
+    controller.execute(CommandId.PREVIEW_BROWSER);
+    clickOpens("[" + "GO ".repeat(800) + "](other.txt)\n", "other.txt");
+    clickOpens("[" + "GO ".repeat(800) + "](" + absolute.toUri() + ")\n", "abs.txt");
+  }
+
+  private void clickOpens(String markdown, final String name) throws Exception {
+    openMarkdown(markdown);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitBrowser(true);
+    window.shell().forceActive();
+    settle();
+    final int before = window.tabs().getItemCount();
+    Control browser = slot().browserPane().browser();
+    PostedInput.click(display, browser.toDisplay(browser.getSize().x / 2, browser.getSize().y / 3));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return window.tabs().getItemCount() == before + 1
+                && window.tabs().getSelection().getText().contains(name);
+          }
+        },
+        name + " opened in a tab");
+    controller.documents().select(before - 1);
+    controller.execute(CommandId.CLOSE);
+    flush();
   }
 
   @Test

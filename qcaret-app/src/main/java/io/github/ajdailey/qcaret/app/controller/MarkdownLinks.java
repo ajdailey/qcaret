@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.markdown.LinkTarget;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownFootnote;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownLink;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -11,7 +12,24 @@ import java.util.List;
  * Browser preview canceled by its location. Confined to the UI thread.
  */
 final class MarkdownLinks {
+  /**
+   * The scheme a preview page gives a local file's link in place of {@code file:}: WebKit cancels a
+   * {@code file:} navigation from a {@code setText} page before the browser's location listener
+   * sees it, and passes any other scheme to the listener.
+   */
+  static final String PREVIEW_FILE_SCHEME = "qcaret-file:";
+
   private MarkdownLinks() {}
+
+  /**
+   * Returns the preview link of a local file.
+   *
+   * @param target the file
+   * @return its {@code file:} URL with {@link #PREVIEW_FILE_SCHEME} as the scheme
+   */
+  static String previewFileUrl(Path target) {
+    return PREVIEW_FILE_SCHEME + target.toUri().toString().substring("file:".length());
+  }
 
   /** Scrolls the shown preview. */
   interface Scroller {
@@ -70,8 +88,8 @@ final class MarkdownLinks {
 
   /**
    * Follows a Browser navigation: {@code about:} with a fragment scrolls to that id, a {@code
-   * file:} URL opens in QCaret, an {@code http}, {@code https}, {@code mailto} or {@code ftp} URL
-   * opens in the system browser; anything else is dropped.
+   * file:} or {@link #PREVIEW_FILE_SCHEME} URL opens in QCaret, an {@code http}, {@code https},
+   * {@code mailto} or {@code ftp} URL opens in the system browser; anything else is dropped.
    *
    * @param location the location the browser was about to load
    * @param tab opens files and URLs
@@ -85,7 +103,12 @@ final class MarkdownLinks {
       }
       return;
     }
-    LinkTarget target = LinkTarget.of(location, null);
+    int scheme = PREVIEW_FILE_SCHEME.length();
+    String url =
+        location.regionMatches(true, 0, PREVIEW_FILE_SCHEME, 0, scheme)
+            ? "file:" + location.substring(scheme)
+            : location;
+    LinkTarget target = LinkTarget.of(url, null);
     if (target.kind() == LinkTarget.Kind.FILE) {
       if (target.path() != null) {
         tab.openFile(target.path());

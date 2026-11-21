@@ -1434,10 +1434,13 @@ public final class MainWindow implements MainView {
 
   /**
    * Runs window bindings that are not a menu item's accelerator, such as a command's second window
-   * key, from a Display filter while this window has a key event. A disabled command does not run.
+   * key, from a Display filter while this window has a key event, and the accelerators too where
+   * {@link PlatformTraits#acceleratorsFollowFocusControl} holds. The key is consumed; a disabled
+   * command does not run.
    */
   private void dispatchWindowKeys() {
     final Display display = shell.getDisplay();
+    final boolean accelerators = PlatformTraits.PLATFORM.acceleratorsFollowFocusControl();
     final Listener filter =
         new Listener() {
           @Override
@@ -1449,7 +1452,10 @@ public final class MainWindow implements MainView {
               return;
             }
             KeyStroke stroke = SwtKeys.stroke(event.stateMask, event.keyCode, event.character);
-            CommandId command = stroke == null ? null : keymap.windowCommand(stroke);
+            CommandId command =
+                stroke == null
+                    ? null
+                    : accelerators ? keymap.windowBinding(stroke) : keymap.windowCommand(stroke);
             if (command != null) {
               event.type = SWT.None;
               event.doit = false;

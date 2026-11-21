@@ -350,6 +350,80 @@ class BrowserPaneTest {
     assertEquals(List.of("about:blank"), allowed);
   }
 
+  /**
+   * A click on a link to the page's own {@code about:blank} location: WebKitGTK replaced the page
+   * with an empty one, and the pane then dropped its own next loads.
+   */
+  @Test
+  void aClickOnALinkToThePageItselfKeepsThePaneUsable() {
+    assumeTrue("gtk".equals(SWT.getPlatform()), "clicks posted through Display.post on GTK 3 only");
+    final BrowserPane pane = pane();
+    final List<String> titles = new CopyOnWriteArrayList<String>();
+    pane.browser()
+        .addTitleListener(
+            new TitleListener() {
+              @Override
+              public void changed(TitleEvent event) {
+                titles.add(event.title);
+              }
+            });
+    final List<String> allowed = new CopyOnWriteArrayList<String>();
+    pane.browser()
+        .addLocationListener(
+            new LocationAdapter() {
+              @Override
+              public void changing(LocationEvent event) {
+                if (event.doit) {
+                  allowed.add(event.location);
+                }
+              }
+            });
+    pane.showRendered(
+        page(
+            "<p style=\"margin: 0; font-size: 40px\"><a href=\"\">GO GO GO</a></p>"
+                + "<p id=\"tail\">tail</p>",
+            "Mock first page"));
+    awaitLoaded(pane.browser());
+    pane.scrollToAnchor("tail");
+    shell.forceActive();
+    settle();
+    Point at = pane.browser().toDisplay(30, 25);
+    post(SWT.MouseMove, at, 0);
+    post(SWT.MouseDown, at, 1);
+    post(SWT.MouseUp, at, 1);
+    final List<String> twice =
+        List.of("about:blank", "about:blank#tail", "about:blank", "about:blank#tail");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return allowed.equals(twice);
+          }
+        },
+        "the page loaded again and scrolled, allowed " + allowed);
+    assertEquals(List.of(), followed);
+    pane.showRendered(page("<p>second</p>", "Mock second page"));
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return titles.contains("Mock second page");
+          }
+        },
+        "the next page loaded, titles " + titles);
+    assertEquals(0, failureActions);
+  }
+
+  private static MarkdownPreviewContent page(String body, String title) {
+    String page = MarkdownPage.page(title, body, Palette.LIGHT);
+    return new MarkdownPreviewContent(
+        new MarkdownRenderer().render("text\n", null, new CancellationToken()),
+        List.<int[]>of(),
+        new int[0],
+        List.<MarkdownImageRequest>of(),
+        new MarkdownHtml(body, new int[0], List.<String>of(), page));
+  }
+
   @Test
   void theFragmentScrollIsTheOneNavigationLetThrough() {
     assumeTrue(PlatformTraits.PLATFORM.scrollsBrowserToFragments(), "no fragment scroll");

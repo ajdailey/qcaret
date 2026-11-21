@@ -394,9 +394,9 @@ its heading, a local file opens in the window, an `http`, `https`, `mailto` or
 `ftp` URL goes to `MainView.launchUrl`, and any other URL, such as
 `javascript:` or `smb:`, is dropped; a footnote reference scrolls to its
 footnote. A Browser navigation (`linkFollowed`) is followed by its location:
-`about:` with a fragment calls `scrollToAnchor`, a `file:` URL opens in the
-window, a URL of those four schemes goes to `launchUrl`, and anything else is
-dropped. The pane (`MarkdownPreviewView`) only
+`about:` with a fragment calls `scrollToAnchor`, a `file:` or `qcaret-file:`
+URL opens in the window, a URL of those four schemes goes to `launchUrl`, and
+anything else is dropped. The pane (`MarkdownPreviewView`) only
 applies these requests.
 
 Find, Replace and HyperSearch act on the tab's document and editor in every
@@ -420,7 +420,8 @@ before then drops it. Split keeps its scroll mapping and Source does nothing.
 `MarkdownHtmlWriter` writes a `MarkdownTree` with commonmark's `HtmlRenderer`
 and the HTML renderers of the table, strikethrough, task list, footnote, alert
 and image attribute extensions; commonmark's URL sanitizer drops
-`javascript:` and similar link targets, and raw HTML stays as written.
+`javascript:` and similar link targets, the link then has no `href`, and raw
+HTML stays as written.
 
 | Element | HTML |
 |---|---|
@@ -430,7 +431,7 @@ and image attribute extensions; commonmark's URL sanitizer drops
 | `>>>`, `[[_TOC_]]` | `blockquote`; nested `ul.section-nav` of links to the headings |
 | Local image | `data:` URI when its type is known, it is at most 16 MiB and the document's embedded total stays within 64 MiB; else its alt text |
 | Remote image | A link with its alt text |
-| Link to a local file | Preview: the file's `file:` URL. Export: as written |
+| Link to a local file | Preview: the file's `file:` URL with `qcaret-file:` as the scheme (`MarkdownLinks.previewFileUrl`; see [Browser pane](../../qcaret-ui-swt/docs/markdown-preview.md#browser-pane)). Export: as written |
 
 Code colors and image bytes are read in a pass before rendering, so file reads
 stay in `@WorkerThread` methods. `MarkdownPage` (app.editor) wraps a fragment

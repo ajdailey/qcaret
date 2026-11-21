@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.accessibility.ACC;
+import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
@@ -624,6 +626,36 @@ class ToolbarAndMenusTest {
     for (EditorPane pane : panes) {
       assertEquals(view.name(), AccessibleName.of(pane.text()).name());
     }
+  }
+
+  @Test
+  void theToolbarItemsAndTheOutlineCarryAccessibleNames() throws Exception {
+    openFile("named.txt", "mock\n");
+    ToolBar bar = window.mainToolBar().bar();
+    ToolBarNames names = ToolBarNames.of(bar);
+    int named = 0;
+    for (int i = 0; i < bar.getItemCount(); i++) {
+      AccessibleEvent event = new AccessibleEvent(bar.getAccessible());
+      event.childID = i;
+      names.getName(event);
+      if (bar.getItem(i).getData() instanceof CommandId command) {
+        assertEquals(command.title(), event.result);
+        named++;
+      } else {
+        assertNull(event.result);
+      }
+    }
+    int buttons = 0;
+    for (CommandId command : MainToolBar.COMMANDS) {
+      buttons += command == null ? 0 : 1;
+    }
+    assertEquals(buttons, named);
+    AccessibleEvent self = new AccessibleEvent(bar.getAccessible());
+    self.childID = ACC.CHILDID_SELF;
+    names.getName(self);
+    assertNull(self.result);
+    assertEquals(
+        UiText.ACCESSIBLE_OUTLINE.text(), AccessibleName.of(window.outlineDock().tree()).name());
   }
 
   @Test

@@ -123,6 +123,9 @@ final class PreviewSlot implements MarkdownPreviewView {
         (pane != null && hasFocus(pane.control()))
             || (browser != null && hasFocus(browser.control()));
     mode = value;
+    // SashForm moves a control it does not show to a 0 by 0 box off the frame; GTK 4 still paints
+    // that box's children over the preview, so Preview also hides the editors.
+    editors.setVisible(value != MarkdownViewMode.PREVIEW);
     switch (value) {
       case SOURCE -> frame.setMaximizedControl(editors);
       case SPLIT -> {

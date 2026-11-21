@@ -70,6 +70,7 @@ public final class MarkdownPane {
   private final MarkdownStyler styler;
   private final MarkdownPainter painter;
   private MarkdownPreviewContent content;
+  private String shownText = "";
   private SwtImageDecoder decoder;
   private Clipboard clipboard;
   private int reportedTop;
@@ -302,6 +303,7 @@ public final class MarkdownPane {
 
   /**
    * Shows new content, keeping the top line where the new text has it; hides the size notice.
+   * {@link TextDelta} changes the text; the visible lines are styled again.
    *
    * @param next the render and its styles
    */
@@ -315,10 +317,19 @@ public final class MarkdownPane {
     images.reset(next.images());
     styler.setContent(next);
     painter.setRendered(next.rendered());
-    text.setText(displayText(next.rendered()));
+    String nextText = displayText(next.rendered());
+    TextDelta.apply(text, shownText, nextText);
+    shownText = nextText;
     text.setTopIndex(Math.min(top, text.getLineCount() - 1));
     reportedTop = text.getTopIndex();
-    tables.reset(next.rendered(), reportedTop, bottomLine());
+    int bottom = bottomLine();
+    int start = text.getOffsetAtLine(reportedTop);
+    int end =
+        bottom + 1 < text.getLineCount() ? text.getOffsetAtLine(bottom + 1) : nextText.length();
+    if (end > start) {
+      text.redrawRange(start, end - start, true);
+    }
+    tables.reset(next.rendered(), reportedTop, bottom);
   }
 
   /**

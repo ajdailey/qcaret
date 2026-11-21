@@ -41,6 +41,9 @@ import org.slf4j.LoggerFactory;
  *       scroll it asks for. A canceled navigation within {@value #GESTURE_MILLIS} ms of a
  *       primary-button release or an Enter or Space key on the browser goes to {@link
  *       MarkdownPreviewInput#linkFollowed}; any other one, such as a meta refresh, is dropped.
+ *   <li>Where {@link PlatformTraits#blankLinksReplacePage} holds, an empty {@code about:blank} page
+ *       the pane did not load is replaced by the shown content's page once, after it loads; its
+ *       {@code completed} event neither meets a bound nor scrolls.
  *   <li>Scrolling to a line or an anchor navigates to {@code about:blank#id} where {@link
  *       PlatformTraits#scrollsBrowserToFragments} holds, after the page loaded; a new page returns
  *       to the last id asked for. The browser's own scroll is not reported: with JavaScript off the
@@ -81,6 +84,9 @@ final class BrowserPane {
       };
   private MarkdownPreviewContent content;
   private String expected;
+  private String committing;
+  private boolean stray;
+  private boolean restored;
   private boolean loaded;
   private boolean gesture;
   private boolean failed;
@@ -163,6 +169,7 @@ final class BrowserPane {
           @Override
           public void changing(LocationEvent event) {
             if (expected != null && same(event.location, expected)) {
+              committing = expected;
               expected = null;
               if (start.armed()) {
                 start.met();
@@ -178,11 +185,34 @@ final class BrowserPane {
               LOG.debug("Markdown preview dropped {}", LogText.oneLine(event.location));
             }
           }
+
+          @Override
+          public void changed(LocationEvent event) {
+            if (!event.top || !PlatformTraits.PLATFORM.blankLinksReplacePage()) {
+              return;
+            }
+            if (committing != null && same(event.location, committing)) {
+              committing = null;
+              stray = false;
+            } else if (BLANK.equals(event.location)) {
+              stray = true;
+              LOG.debug("Markdown preview page replaced by an empty one");
+            }
+          }
         });
     browser.addProgressListener(
         new ProgressAdapter() {
           @Override
           public void completed(ProgressEvent event) {
+            if (stray) {
+              stray = false;
+              if (!restored && page() != null) {
+                restored = true;
+                load(page());
+              }
+              return;
+            }
+            restored = false;
             loaded = true;
             start.met();
             bound.met();
@@ -269,10 +299,17 @@ final class BrowserPane {
     }
     setNotice(null);
     content = next;
-    if (next.html() == null || next.html().page() == null) {
-      return;
+    if (page() != null) {
+      load(page());
     }
-    final String page = next.html().page();
+  }
+
+  /** The shown content's page, or null. */
+  private String page() {
+    return content == null || content.html() == null ? null : content.html().page();
+  }
+
+  private void load(final String page) {
     loaded = false;
     expected = BLANK;
     bound.met();

@@ -74,6 +74,9 @@ final class MarkdownSwitch {
       ToolItem item = new ToolItem(bar, SWT.RADIO);
       item.setText(command.title());
       item.setData(command);
+      // A click sends the item it unchecks a Selection event first, then checks the clicked item
+      // and sends it one (SWT 3.135.0 on GTK, win32 and cocoa). Only the checked item's event acts:
+      // a sync on the first event would uncheck the clicked item before its own event.
       item.addListener(
           SWT.Selection,
           new Listener() {
@@ -81,8 +84,8 @@ final class MarkdownSwitch {
             public void handleEvent(Event event) {
               if (((ToolItem) event.widget).getSelection()) {
                 controller.execute(command);
+                sync();
               }
-              sync();
             }
           });
       items[i] = item;

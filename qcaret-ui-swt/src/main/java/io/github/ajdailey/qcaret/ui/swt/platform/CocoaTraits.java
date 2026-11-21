@@ -195,4 +195,14 @@ final class CocoaTraits implements PlatformTraits {
   public boolean scrollsBrowserToFragments() {
     return false;
   }
+
+  @Override
+  public boolean acceleratorsFollowFocusControl() {
+    return false;
+  }
+
+  @Override
+  public boolean blankLinksReplacePage() {
+    return false;
+  }
 }

@@ -402,6 +402,21 @@ public final class Keymap {
   }
 
   /**
+   * Returns the command a window stroke runs, a menu accelerator included.
+   *
+   * @param stroke the stroke
+   * @return the command, or null when the stroke is unbound in the window
+   */
+  public CommandId windowBinding(KeyStroke stroke) {
+    for (Binding binding : bindings) {
+      if (binding.scope() == Binding.Scope.WINDOW && binding.stroke().equals(stroke)) {
+        return binding.command();
+      }
+    }
+    return null;
+  }
+
+  /**
    * Returns the keymap with a command's keys replaced wherever the overrides set them. A key keeps
    * the scope of the command's default keys, so an editor command stays one; a command without
    * defaults is a window command, or an editor one in {@link CommandGroup#EDITOR}.

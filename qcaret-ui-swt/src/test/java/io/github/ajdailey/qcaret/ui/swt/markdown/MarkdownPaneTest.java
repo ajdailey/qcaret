@@ -36,6 +36,9 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ST;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.custom.TextChangeListener;
+import org.eclipse.swt.custom.TextChangedEvent;
+import org.eclipse.swt.custom.TextChangingEvent;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.PaletteData;
@@ -409,6 +412,55 @@ class MarkdownPaneTest {
     PaneImages images = pane.images();
     shell.dispose();
     assertEquals(0, images.live());
+  }
+
+  /**
+   * A {@code setText} drops every measured line height, and restoring the top line then measured
+   * each line above it on the UI thread: 1.9 s at 1 MiB with the top at the end. The first show
+   * sets the text: a replace from the empty text measured every line, 3.3 s at 951 KB.
+   */
+  @Test
+  void aNewRenderReplacesOnlyTheTextThatDiffers() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 2_000; i++) {
+      text.append("para ").append(i).append("\n\n");
+    }
+    final List<String> changes = new ArrayList<String>();
+    pane.text()
+        .getContent()
+        .addTextChangeListener(
+            new TextChangeListener() {
+              @Override
+              public void textChanging(TextChangingEvent event) {
+                changes.add(event.start + "-" + event.replaceCharCount + "+" + event.newCharCount);
+              }
+
+              @Override
+              public void textChanged(TextChangedEvent event) {
+                // Follows textChanging.
+              }
+
+              @Override
+              public void textSet(TextChangedEvent event) {
+                changes.add("set");
+              }
+            });
+    pane.showRendered(content(text.toString()));
+    flush();
+    pane.scrollToLine(pane.text().getLineCount() - 40);
+    flush();
+    int top = pane.text().getTopIndex();
+    assertTrue(top > 3_000, "top " + top);
+    String edited = text.toString().replace("para 1998\n", "para 1998 typed\n");
+    MarkdownPreviewContent next = content(edited);
+    pane.showRendered(next);
+    flush();
+    int at = next.rendered().text().indexOf(" typed");
+    assertEquals(List.of("set", at + "-0+6"), changes);
+    assertEquals(next.rendered().text(), pane.text().getText());
+    assertEquals(top, pane.text().getTopIndex());
+    pane.showRendered(content(edited));
+    assertEquals(2, changes.size(), "an equal text is not replaced");
   }
 
   @Test
