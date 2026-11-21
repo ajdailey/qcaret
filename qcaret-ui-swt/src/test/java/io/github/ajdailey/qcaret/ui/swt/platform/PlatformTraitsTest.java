@@ -293,6 +293,14 @@ class PlatformTraitsTest {
   }
 
   @Test
+  void onlyGtk3NamesThroughAtk() {
+    assertEquals(true, PlatformTraits.of("gtk", false).namesThroughAtk());
+    assertEquals(false, PlatformTraits.of("gtk", true).namesThroughAtk());
+    assertEquals(false, PlatformTraits.of("win32", false).namesThroughAtk());
+    assertEquals(false, PlatformTraits.of("cocoa", false).namesThroughAtk());
+  }
+
+  @Test
   void gtk3PositionsWindowsExceptUnderWayland() {
     String key = PlatformTraits.GDK_BACKEND;
     String saved = System.getProperty(key);

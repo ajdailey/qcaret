@@ -31,6 +31,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import io.github.ajdailey.qcaret.ui.swt.platform.AtkNames;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -656,6 +657,14 @@ class ToolbarAndMenusTest {
     assertNull(self.result);
     assertEquals(
         UiText.ACCESSIBLE_OUTLINE.text(), AccessibleName.of(window.outlineDock().tree()).name());
+    if (PlatformTraits.PLATFORM.namesThroughAtk()) {
+      for (CommandId command : MainToolBar.COMMANDS) {
+        if (command != null) {
+          assertEquals(command.title(), AtkNames.of(window.mainToolBar().item(command)));
+        }
+      }
+      assertEquals(UiText.ACCESSIBLE_OUTLINE.text(), AtkNames.of(window.outlineDock().tree()));
+    }
   }
 
   @Test

@@ -226,7 +226,8 @@ apply (measured on Linux, one million lines):
   available when the document has a step to take, Cut and Copy with a selection;
   the keys work the same in the find bar and in dialogs. View > Toolbar hides it
   in every window, and the choice is saved. In a narrow window the last buttons
-  leave the row; the menus hold the same commands.
+  leave the row; the menus hold the same commands. A screen reader reads each
+  button by its command, or on Linux with `--gtk4` by its tool tip.
 - Common menu items show an icon on Linux and Windows, the same one as their
   toolbar button. macOS menus show none.
 - The title bar shows the selected document's name, a `*` while it has unsaved
@@ -729,7 +730,8 @@ after you stop typing. Clicking a heading moves the caret to it and puts it at
 the top of the editor and the preview; Enter or a double click also returns the
 focus to the editor. The arrow keys and typing a heading's first letters move
 the selection without moving the caret, and the selection follows the caret.
-The dock lists nothing for a document over 1 MiB of chars.
+The dock lists nothing for a document over 1 MiB of chars. A screen reader reads
+the tree as Outline, except on Linux with `--gtk4`.
 
 File > Print Rendered Markdown, enabled on a Markdown tab, prints the document
 as the Basic renderer draws it, in any mode. It opens the same dialog as File >

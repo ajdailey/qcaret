@@ -36,4 +36,9 @@ final class Gtk3Traits extends GtkTraits {
   public boolean showsMenuToolTips() {
     return true;
   }
+
+  @Override
+  public boolean namesThroughAtk() {
+    return true;
+  }
 }

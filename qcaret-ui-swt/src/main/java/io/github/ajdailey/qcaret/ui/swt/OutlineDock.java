@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.view.OutlineEntry;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import io.github.ajdailey.qcaret.ui.swt.platform.NativeNames;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -92,6 +93,7 @@ final class OutlineDock {
     tree = new Tree(root, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL);
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     AccessibleName.attachKeepingRole(tree, UiText.ACCESSIBLE_OUTLINE.text());
+    NativeNames.PLATFORM.name(tree, UiText.ACCESSIBLE_OUTLINE.text());
     tree.addListener(
         SWT.MouseUp,
         new Listener() {

@@ -354,4 +354,12 @@ public interface PlatformTraits {
    * @return true on GTK
    */
   boolean blankLinksReplacePage();
+
+  /**
+   * Reports whether a native widget's accessible name goes on its ATK object through SWT internals,
+   * since SWT asks no Java listener for it ({@link NativeNames}).
+   *
+   * @return true on GTK 3
+   */
+  boolean namesThroughAtk();
 }

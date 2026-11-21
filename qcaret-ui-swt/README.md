@@ -3,8 +3,9 @@
 The SWT views: the main window with its tabs, menus and toolbar, the editor
 (`ui.swt.editor`), the dialogs and docks, the theme service and the UI
 dispatcher. It depends on `qcaret-app`, `qcaret-core` and the build host's SWT
-fragment. It uses public SWT API except in `ToolIcons` and the `WindowStacking`
-classes, which reach SWT internals by reflection.
+fragment. It uses public SWT API except in `ToolIcons`, the `WindowStacking`
+classes, `CocoaPrintJobNaming` and `Gtk3NativeNames`, which reach SWT internals
+by reflection.
 
 ---
 

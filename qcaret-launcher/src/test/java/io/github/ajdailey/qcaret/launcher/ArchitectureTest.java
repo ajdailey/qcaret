@@ -164,7 +164,8 @@ class ArchitectureTest {
     ROOT + ".ui.swt.Win32Stacking",
     ROOT + ".ui.swt.CocoaStacking",
     ROOT + ".ui.swt.GtkX11Stacking",
-    ROOT + ".ui.swt.CocoaPrintJobNaming"
+    ROOT + ".ui.swt.CocoaPrintJobNaming",
+    ROOT + ".ui.swt.platform.Gtk3NativeNames"
   };
 
   /**
@@ -192,6 +193,8 @@ class ArchitectureTest {
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[3])
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[4])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[5])
         .should()
         .callMethodWhere(call(Class.class, "forName|getDeclared.*|getField|getMethod"))
         .orShould()

@@ -300,7 +300,8 @@ View > Always on Top runs `AlwaysOnTop` in app, which calls
 Display exists. SWT has no public call, so each implementation reaches SWT
 internals by reflection and the product compiles against every platform's SWT
 jar. `ArchitectureTest.reflectionOnlyInSanctionedClasses` allows reflection
-only in these classes, `ToolIcons`, `CocoaPrintJobNaming` and `core.io.Flock`;
+only in these classes, `ToolIcons`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
+([Accessible names](#accessible-names)) and `core.io.Flock`;
 `noSwtInternals` is unchanged.
 
 | Platform | Class | Call | Verified |
@@ -365,12 +366,22 @@ does not read its name. `attachKeepingRole` leaves the control's own role.
 | `MemoryGauge` | Memory and its text, such as `Memory 312/4096 MB` | group |
 | Each view's `StyledText` (`EditorTab`) | The tab title, following each change | text |
 
-`ToolBarNames` names each toolbar item that carries a `CommandId` by the
-command's title, through the toolbar's `Accessible`, which SWT asks per item
-index on win32 (unverified there). SWT on GTK calls Java accessibility listeners
-only for the controls it draws, not for native widgets: on GTK 3 the toolbar's
-icon buttons and the Outline `Tree` read no name through AT-SPI, and setting
-one needs SWT internals.
+SWT on GTK calls Java accessibility listeners only for the controls it draws,
+not for native widgets such as a tool item or a `Tree`. `ToolBarNames.attach`
+names each toolbar item that carries a `CommandId` by the command's title,
+through the toolbar's `Accessible` and through `NativeNames`
+(`ui.swt.platform`); `OutlineDock` names its `Tree` Outline through
+`AccessibleName` and `NativeNames`. `NativeNames` is
+`Gtk3NativeNames` on GTK 3, which sets `accessible-name` on the widget's ATK
+object through SWT internals (a tool item's on the GtkButton inside it), and
+`NONE` elsewhere. Read through AT-SPI under Xvfb (GTK 3.24.41, GTK 4.14.5):
+
+| Platform | Toolbar icon buttons | Outline `Tree` |
+|---|---|---|
+| GTK 3 | The command title, such as `Find`; the tool tip is the description | `Outline` |
+| GTK 4 | The tool tip, which GTK 4 reads as the name: `Find (Ctrl+F)` | Absent from AT-SPI, items included, with or without a tool tip; SWT 3.135.0 binds no `gtk_accessible_*` call |
+| win32 | The command title, from `ToolBarNames`, which SWT asks per item index (unverified) | `AccessibleName` (unverified) |
+| cocoa | The item's tool tip | `AccessibleName` (unverified) |
 
 The gutter is painted in the `StyledText` left margin and is no separate
 control. A `ToolIcons.item` tool item reads its tool tip as its title on
@@ -439,6 +450,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `fullScreenSpace` | - | yes | - | - | `FullScreen`: the state is the shell's (see [Full Screen](#full-screen)) |
 | `acceleratorsFollowFocusControl` | - | - | - | yes | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators (see [Menus](#menus)) |
 | `blankLinksReplacePage` | - | - | yes | yes | `BrowserPane`: loads the page again after a stray `about:blank` (see [Markdown preview](markdown-preview.md#browser-pane)) |
+| `namesThroughAtk` | - | - | yes | - | `NativeNames.forPlatform`: `Gtk3NativeNames`, otherwise `NONE` (see [Accessible names](#accessible-names)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

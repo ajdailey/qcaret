@@ -205,4 +205,9 @@ final class CocoaTraits implements PlatformTraits {
   public boolean blankLinksReplacePage() {
     return false;
   }
+
+  @Override
+  public boolean namesThroughAtk() {
+    return false;
+  }
 }

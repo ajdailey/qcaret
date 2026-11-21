@@ -41,4 +41,9 @@ final class Gtk4Traits extends GtkTraits {
   public boolean acceleratorsFollowFocusControl() {
     return true;
   }
+
+  @Override
+  public boolean namesThroughAtk() {
+    return false;
+  }
 }
