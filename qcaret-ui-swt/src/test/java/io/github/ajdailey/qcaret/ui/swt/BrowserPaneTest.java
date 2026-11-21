@@ -54,12 +54,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The Browser preview pane with the platform's real browser: the content's page loads as built, a
- * {@code setText} page reads no {@code file:} URL, a page with remote resources makes no request, a
- * navigation is canceled and forwarded only after a click, the pane's own fragment scroll is the
- * one navigation let through, a page's navigation moving it from the start bound to the load bound,
- * and the failure path: a throwing call, either bound expiring, and a failure during the pane's own
- * call running after it returns. The pane's dispatcher never schedules a bound: each expiry is
- * driven directly, never raced against a real load. Skips, with the reason, where {@link
+ * {@code setText} page reads no {@code file:} URL, a page with remote resources makes no request
+ * and follows nothing, a clicked link is canceled and forwarded, the pane's own fragment scroll is
+ * the one navigation let through, a page's navigation moving it from the start bound to the load
+ * bound, and the failure path: a throwing call, either bound expiring, and a failure during the
+ * pane's own call running after it returns. The pane's dispatcher never schedules a bound: each
+ * expiry is driven directly, never raced against a real load. Skips, with the reason, where {@link
  * BrowserHosts#assumeBrowser} finds no browser.
  */
 @Tag("swt")
@@ -309,9 +309,19 @@ class BrowserPaneTest {
         + "/s.js\"></script>";
   }
 
+  /**
+   * A posted click on a link reaches {@code linkFollowed}: on GTK 3 through the click's gesture, on
+   * win32 with no gesture, since Edge with JavaScript off reports no mouse event.
+   */
   @Test
   void aClickedLinkIsCanceledAndForwarded() {
-    assumeTrue("gtk".equals(SWT.getPlatform()), "clicks posted through Display.post on GTK 3 only");
+    String platform = SWT.getPlatform();
+    assumeTrue(
+        "gtk".equals(platform) || "win32".equals(platform),
+        "clicks posted through Display.post on GTK 3 and win32 only");
+    assumeTrue(
+        !"win32".equals(platform) || !"aarch64".equals(System.getProperty("os.arch")),
+        "a click posted on windows-aarch64 does not reach the WebView2 page");
     BrowserPane pane = pane();
     final List<String> allowed = new ArrayList<String>();
     pane.browser()

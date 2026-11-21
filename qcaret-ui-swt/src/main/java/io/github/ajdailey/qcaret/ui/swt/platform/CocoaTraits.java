@@ -210,4 +210,9 @@ final class CocoaTraits implements PlatformTraits {
   public boolean namesThroughAtk() {
     return false;
   }
+
+  @Override
+  public boolean followsLinksWithoutGesture() {
+    return false;
+  }
 }

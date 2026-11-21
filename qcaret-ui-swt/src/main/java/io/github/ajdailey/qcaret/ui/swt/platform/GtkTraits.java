@@ -195,4 +195,9 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean blankLinksReplacePage() {
     return true;
   }
+
+  @Override
+  public boolean followsLinksWithoutGesture() {
+    return false;
+  }
 }

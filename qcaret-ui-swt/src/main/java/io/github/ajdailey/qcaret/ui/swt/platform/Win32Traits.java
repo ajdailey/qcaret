@@ -210,4 +210,9 @@ final class Win32Traits implements PlatformTraits {
   public boolean namesThroughAtk() {
     return false;
   }
+
+  @Override
+  public boolean followsLinksWithoutGesture() {
+    return true;
+  }
 }

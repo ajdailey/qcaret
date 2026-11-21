@@ -362,4 +362,14 @@ public interface PlatformTraits {
    * @return true on GTK 3
    */
   boolean namesThroughAtk();
+
+  /**
+   * Reports whether the Markdown preview follows every navigation it cancels, with no click or key
+   * on the browser. SWT's Edge with JavaScript off reports no mouse or key event to the {@code
+   * Browser}, so no link would follow on a gesture; with no script, meta refresh made inert and the
+   * content policy, the page starts no navigation by itself.
+   *
+   * @return true on win32
+   */
+  boolean followsLinksWithoutGesture();
 }

@@ -451,6 +451,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `acceleratorsFollowFocusControl` | - | - | - | yes | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators (see [Menus](#menus)) |
 | `blankLinksReplacePage` | - | - | yes | yes | `BrowserPane`: loads the page again after a stray `about:blank` (see [Markdown preview](markdown-preview.md#browser-pane)) |
 | `namesThroughAtk` | - | - | yes | - | `NativeNames.forPlatform`: `Gtk3NativeNames`, otherwise `NONE` (see [Accessible names](#accessible-names)) |
+| `followsLinksWithoutGesture` | yes | - | - | - | `BrowserPane`: `LinkGestures` follows every canceled top-frame navigation (see [Markdown preview](markdown-preview.md#browser-pane)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

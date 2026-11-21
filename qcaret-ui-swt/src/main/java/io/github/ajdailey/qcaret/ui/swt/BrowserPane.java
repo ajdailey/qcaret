@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
@@ -38,8 +39,9 @@ import org.slf4j.LoggerFactory;
  *   <li>JavaScript is off, and the page's content security policy ({@link MarkdownPage#POLICY})
  *       loads nothing but inline styles and {@code data:} images.
  *   <li>Every navigation is canceled except the page this pane loads and the {@code about:blank#id}
- *       scroll it asks for. A canceled navigation within {@value #GESTURE_MILLIS} ms of a
- *       primary-button release or an Enter or Space key on the browser goes to {@link
+ *       scroll it asks for. {@link LinkGestures} sends a canceled navigation that a primary-button
+ *       release or an Enter or Space key on the browser started, or every top-frame one where
+ *       {@link PlatformTraits#followsLinksWithoutGesture} holds, to {@link
  *       MarkdownPreviewInput#linkFollowed}; any other one, such as a meta refresh, is dropped.
  *   <li>Where {@link PlatformTraits#blankLinksReplacePage} holds, an empty {@code about:blank} page
  *       the pane did not load is replaced by the shown content's page once, after it loads; its
@@ -61,9 +63,6 @@ import org.slf4j.LoggerFactory;
 final class BrowserPane {
   private static final Logger LOG = LoggerFactory.getLogger(BrowserPane.class);
 
-  /** Time from a click or key on the browser to the navigation it starts. */
-  static final int GESTURE_MILLIS = 1000;
-
   private static final String BLANK = "about:blank";
 
   private final Composite root;
@@ -72,23 +71,15 @@ final class BrowserPane {
   private final Browser browser;
   private final MarkdownPreviewInput input;
   private final Runnable failure;
-  private final UiDispatcher ui;
   private final GuideWindow.LoadBound start;
   private final GuideWindow.LoadBound bound;
-  private final Runnable gestureEnd =
-      new Runnable() {
-        @Override
-        public void run() {
-          gesture = false;
-        }
-      };
+  private final LinkGestures gestures;
   private MarkdownPreviewContent content;
   private String expected;
   private String committing;
   private boolean stray;
   private boolean restored;
   private boolean loaded;
-  private boolean gesture;
   private boolean failed;
   private String anchor;
   private int calls;
@@ -112,10 +103,19 @@ final class BrowserPane {
       UiDispatcher ui,
       Runnable failure) {
     this.input = input;
-    this.ui = ui;
     this.failure = failure;
     this.start = timeout(ui, GuideWindow.START_BOUND_MILLIS);
     this.bound = timeout(ui, GuideWindow.LOAD_BOUND_MILLIS);
+    this.gestures =
+        new LinkGestures(
+            ui,
+            PlatformTraits.PLATFORM.followsLinksWithoutGesture(),
+            new Consumer<String>() {
+              @Override
+              public void accept(String location) {
+                input.linkFollowed(location);
+              }
+            });
     root = new Composite(parent, SWT.NONE);
     try {
       GridLayout layout = new GridLayout(1, false);
@@ -178,12 +178,7 @@ final class BrowserPane {
               return;
             }
             event.doit = false;
-            if (gesture) {
-              gesture = false;
-              input.linkFollowed(event.location);
-            } else {
-              LOG.debug("Markdown preview dropped {}", LogText.oneLine(event.location));
-            }
+            gestures.canceled(event.location, event.top);
           }
 
           @Override
@@ -221,7 +216,7 @@ final class BrowserPane {
             }
           }
         });
-    Listener gestures =
+    Listener gesture =
         new Listener() {
           @Override
           public void handleEvent(Event event) {
@@ -232,13 +227,12 @@ final class BrowserPane {
                         || event.keyCode == SWT.KEYPAD_CR
                         || event.character == ' ');
             if (click || key) {
-              gesture = true;
-              ui.timerExec(GESTURE_MILLIS, gestureEnd);
+              gestures.gesture(click ? LinkGestures.Source.CLICK : LinkGestures.Source.KEY);
             }
           }
         };
-    browser.addListener(SWT.MouseUp, gestures);
-    browser.addListener(SWT.KeyDown, gestures);
+    browser.addListener(SWT.MouseUp, gesture);
+    browser.addListener(SWT.KeyDown, gesture);
   }
 
   /**

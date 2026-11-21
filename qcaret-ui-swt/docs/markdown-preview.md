@@ -65,9 +65,19 @@ pane's UI-thread work is the `setText` call.
   reaches its server once from Edge as well as from the system browser.
 - Every navigation is canceled except the page load and the pane's own
   `about:blank#id` scroll, matched on the text before `#` and the
-  percent-decoded fragment. A canceled navigation within 1 s of a
-  primary-button release, Enter or Space on the browser goes to
-  `linkFollowed`; any other one is dropped and logged at debug.
+  percent-decoded fragment. `LinkGestures` sends a canceled navigation within
+  1 s after a gesture (primary-button release, Enter or Space on the browser)
+  to `linkFollowed`, once per gesture; any other one is dropped. Each followed
+  navigation is logged at debug with its gesture's source and age, and each
+  dropped one with the time since the last gesture ended, or `none`.
+- Where `PlatformTraits.followsLinksWithoutGesture` holds (win32), every
+  canceled top-frame navigation goes to `linkFollowed` with no gesture and is
+  logged as followed `with no gesture`. SWT's Edge with JavaScript off reports
+  no mouse or key event to the `Browser`, so on the gesture rule every link
+  click and Enter on win32 would be dropped (measured on CI, windows-x86_64:
+  `changing` with no `MouseUp` in 42 clicks, no `KeyDown` for Enter). The
+  page starts no navigation by itself: JavaScript is off, `InertMeta` makes a
+  meta refresh inert, and the content policy loads no frame.
 - A link to a local file carries `qcaret-file:` in place of `file:`
   (`MarkdownLinks.previewFileUrl`), and `linkFollowed` maps it back: WebKitGTK
   cancels a `file:` navigation from the `about:blank` page before `changing`,
