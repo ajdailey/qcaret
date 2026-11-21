@@ -101,6 +101,7 @@ class MarkdownPreviewTest {
     final List<String> urls = new ArrayList<String>();
     final List<String> notices = new ArrayList<String>();
     int lastTop = Integer.MAX_VALUE;
+    boolean syncScroll = true;
     Path folder;
     boolean browser;
     int browserFailures;
@@ -124,6 +125,11 @@ class MarkdownPreviewTest {
     @Override
     public int maxLineChars() {
       return SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
+    }
+
+    @Override
+    public boolean syncScroll() {
+      return syncScroll;
     }
 
     @Override
@@ -410,6 +416,27 @@ class MarkdownPreviewTest {
     p.setMode(MarkdownViewMode.PREVIEW);
     p.sourceScrolled(0);
     assertEquals(1, pane.scrolls.size());
+    p.dispose();
+  }
+
+  @Test
+  void aPreviewScrollLeavesTheEditorWithSyncOffAndAnOutlineGoToStillScrolls()
+      throws InterruptedException {
+    Document d = document("# A\n\npara\n\n```\nx\ny\n```\n\nend\n");
+    MarkdownPreview p = preview(d, 1000);
+    tab.syncScroll = false;
+    p.setMode(MarkdownViewMode.SPLIT);
+    awaitShown(1);
+    RenderedMarkdown r = pane.shown.get(0).rendered();
+    p.previewScrolled(2);
+    assertEquals(List.of(), tab.scrolled);
+    p.revealSource(6);
+    assertEquals(List.of(r.renderedLine(6)), pane.scrolls);
+    tab.syncScroll = true;
+    p.previewScrolled(r.renderedLine(6));
+    assertEquals(List.of(), tab.scrolled, "the go-to's own scroll is not mapped back");
+    p.previewScrolled(2);
+    assertEquals(List.of(r.sourceLine(2)), tab.scrolled);
     p.dispose();
   }
 

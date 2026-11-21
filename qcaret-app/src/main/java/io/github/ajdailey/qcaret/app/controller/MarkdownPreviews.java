@@ -17,8 +17,8 @@ import java.util.function.Consumer;
 /**
  * The {@link MarkdownPreview} of each tab of one {@link DocumentController}, created on first use
  * with its tab's pane attached. A tab is a Markdown tab while its grammar is {@code markdown}. In
- * Split, the tab's focused editor reports its top line through {@link #sourceScrolled}. Confined to
- * the UI thread.
+ * Split with scroll sync on, the tab's focused editor reports its top line through {@link
+ * #sourceScrolled}. Confined to the UI thread.
  */
 final class MarkdownPreviews {
   /** The grammar id of a Markdown tab. */
@@ -39,6 +39,7 @@ final class MarkdownPreviews {
   private final MemoryBudget budget;
   private final MarkdownImages images;
   private boolean browserChosen;
+  private boolean syncScroll = true;
   private Palette palette = Palette.LIGHT;
 
   /**
@@ -95,6 +96,11 @@ final class MarkdownPreviews {
                 @Override
                 public int maxLineChars() {
                   return grammars.maxLineChars();
+                }
+
+                @Override
+                public boolean syncScroll() {
+                  return syncScroll;
                 }
 
                 @Override
@@ -163,6 +169,15 @@ final class MarkdownPreviews {
   }
 
   /**
+   * Sets whether Split scrolls a tab's editor and preview together ({@code markdown.syncScroll}).
+   *
+   * @param on true to sync
+   */
+  void setSyncScroll(boolean on) {
+    syncScroll = on;
+  }
+
+  /**
    * Sets the palette of Browser pages.
    *
    * @param next the window's palette
@@ -226,13 +241,17 @@ final class MarkdownPreviews {
   }
 
   /**
-   * Reports an editor's new top line; the preview of its tab follows in Split.
+   * Reports an editor's new top line; the preview of its tab follows in Split while scroll sync is
+   * on.
    *
    * @param d the editor's tab
    * @param editor the editor
    */
   void sourceScrolled(OpenDocument d, EditorController editor) {
-    if (d.markdown != null && editor == d.editor && d.markdown.mode() == MarkdownViewMode.SPLIT) {
+    if (syncScroll
+        && d.markdown != null
+        && editor == d.editor
+        && d.markdown.mode() == MarkdownViewMode.SPLIT) {
       d.markdown.sourceScrolled(d.document.text().lineAt(editor.visibleStart()));
     }
   }

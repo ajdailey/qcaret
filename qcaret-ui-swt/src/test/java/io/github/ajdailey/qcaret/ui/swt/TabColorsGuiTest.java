@@ -52,6 +52,8 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("swt")
 class TabColorsGuiTest {
   private static final Duration BOUND = Duration.ofSeconds(20);
+  private static final Duration STRIP_BOUND = Duration.ofSeconds(5);
+  private static final Duration STRIP_READ_INTERVAL = Duration.ofMillis(100);
   private static final double READABLE = 4.5;
   private static final double DARK_LUMINANCE = 0.2;
   private static final double LIGHT_LUMINANCE = 0.5;
@@ -197,12 +199,14 @@ class TabColorsGuiTest {
     settle();
     Rectangle shellArea = window.shell().getBounds();
     ImageData data = capture(shellArea);
-    inspect(step + " status bar", data, area(window.statusBar(), shellArea), dark);
+    StripRead read = new StripRead(new ArrayList<String>());
+    inspect(step + " status bar", data, area(window.statusBar(), shellArea), dark, read);
     for (Control child : window.statusBar().getChildren()) {
       if (child instanceof Link) {
-        inspect(step + " warnings link", data, area(child, shellArea), dark);
+        inspect(step + " warnings link", data, area(child, shellArea), dark, read);
       }
     }
+    faults.addAll(read.faults());
     assertTrue(faults.isEmpty(), faults.toString());
     assertEquals(
         dark ? Icons.Variant.DARK : Icons.Variant.LIGHT,
@@ -241,10 +245,37 @@ class TabColorsGuiTest {
     inspectStrip(window.tabs(), step + " focused", dark);
   }
 
-  private void inspectStrip(CTabFolder tabs, String step, boolean dark) {
+  /**
+   * Reads the strip until every tab passes or {@link #STRIP_BOUND} passes, then records the last
+   * read's faults.
+   */
+  private void inspectStrip(final CTabFolder tabs, final String step, final boolean dark) {
+    final StripRead[] last = new StripRead[1];
+    final long[] next = new long[1];
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            long now = System.nanoTime();
+            if (last[0] != null && now < next[0]) {
+              return false;
+            }
+            next[0] = now + STRIP_READ_INTERVAL.toNanos();
+            last[0] = readStrip(tabs, step, dark);
+            return last[0].faults().isEmpty();
+          }
+        },
+        STRIP_BOUND);
+    faults.addAll(last[0].faults());
+  }
+
+  /** The faults one read of the pixels found. */
+  private record StripRead(List<String> faults) {}
+
+  private StripRead readStrip(CTabFolder tabs, String step, boolean dark) {
     tabs.redraw();
     tabs.update();
-    settle();
     ImageData data;
     int dx = 0;
     int dy = 0;
@@ -257,12 +288,14 @@ class TabColorsGuiTest {
     } else {
       data = print(tabs);
     }
+    StripRead read = new StripRead(new ArrayList<String>());
     CTabItem selected = tabs.getSelection();
     for (CTabItem item : tabs.getItems()) {
       Rectangle bounds = item.getBounds();
       Rectangle area = new Rectangle(bounds.x + dx, bounds.y + dy, bounds.width, bounds.height);
-      inspect(step + (item == selected ? " selected" : " unselected"), data, area, dark);
+      inspect(step + (item == selected ? " selected" : " unselected"), data, area, dark, read);
     }
+    return read;
   }
 
   /** Reads a covered folder's pixels on win32, where they equal the screen's (measured). */
@@ -292,7 +325,8 @@ class TabColorsGuiTest {
     }
   }
 
-  private void inspect(String label, ImageData data, Rectangle area, boolean dark) {
+  private static void inspect(
+      String label, ImageData data, Rectangle area, boolean dark, StripRead read) {
     Map<Integer, Integer> counts = new HashMap<Integer, Integer>();
     for (int y = area.y + 3; y < area.y + area.height - 3; y++) {
       for (int x = area.x + 3; x < area.x + area.width - 3; x++) {
@@ -320,10 +354,10 @@ class TabColorsGuiTest {
     double luminance = luminance(ground);
     String seen = String.format("%s: ground %s text %s contrast %.2f", label, ground, text, best);
     if (best < READABLE) {
-      faults.add("unreadable " + seen);
+      read.faults().add("unreadable " + seen);
     }
     if (dark ? luminance > DARK_LUMINANCE : luminance < LIGHT_LUMINANCE) {
-      faults.add("wrong theme " + seen);
+      read.faults().add("wrong theme " + seen);
     }
   }
 

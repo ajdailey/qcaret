@@ -388,7 +388,10 @@ In Split, the focused editor's viewport report calls `sourceScrolled`, and
 render's source map and scroll the other side. The scroll a mapping causes is
 not mapped back: `Tab.scrollSource` returns the editor's top line after the
 scroll, which the document's end can hold above the line asked for, and the
-report of that line is ignored. `MarkdownLinks` follows links. A click
+report of that line is ignored. With `markdown.syncScroll` off
+(`MarkdownPreviews.setSyncScroll`, `Tab.syncScroll`), neither call scrolls the
+other side; `revealSource`, a find match and a link still scroll the preview.
+`MarkdownLinks` follows links. A click
 (`clicked`) on Basic text follows its link: an anchor scrolls the preview to
 its heading, a local file opens in the window, an `http`, `https`, `mailto` or
 `ftp` URL goes to `MainView.launchUrl`, and any other URL, such as

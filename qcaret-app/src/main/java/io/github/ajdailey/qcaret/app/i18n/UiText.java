@@ -1946,6 +1946,10 @@ public enum UiText {
   MARKDOWN_RENDER,
   /** Preferences: the preview renderer chooser. */
   PREFERENCES_PREVIEW_RENDERER,
+  /** Markdown View > Sync Scrolling. */
+  COMMAND_MARKDOWN_SYNC_SCROLL,
+  /** Preferences: the Markdown scroll sync box. */
+  PREFERENCES_MARKDOWN_SYNC_SCROLL,
   /** Accessible name of a Markdown preview pane. */
   ACCESSIBLE_MARKDOWN_PREVIEW,
   /** Why the Browser renderer is disabled after the browser control failed: the error. */

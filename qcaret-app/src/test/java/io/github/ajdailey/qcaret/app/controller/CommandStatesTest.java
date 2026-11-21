@@ -96,6 +96,7 @@ class CommandStatesTest {
           "MARKDOWN_PREVIEW -- -- --",
           "PREVIEW_BASIC ce ce ce",
           "PREVIEW_BROWSER -e -e -e",
+          "MARKDOWN_SYNC_SCROLL ce ce ce",
           "MARKDOWN_OUTLINE -e -e -e",
           "RELOAD_GRAMMARS -e -e -e",
           "FOLD -- -- --",

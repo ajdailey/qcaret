@@ -269,6 +269,7 @@ class QuitAndCloseSavesTest {
                     0,
                     true,
                     o.strictJson(),
-                    PreviewRenderer.BASIC)));
+                    PreviewRenderer.BASIC,
+                    true)));
   }
 }

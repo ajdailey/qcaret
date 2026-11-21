@@ -68,6 +68,7 @@ import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
+import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
@@ -1435,12 +1436,14 @@ public final class MainWindow implements MainView {
   /**
    * Runs window bindings that are not a menu item's accelerator, such as a command's second window
    * key, from a Display filter while this window has a key event, and the accelerators too where
-   * {@link PlatformTraits#acceleratorsFollowFocusControl} holds. The key is consumed; a disabled
+   * {@link PlatformTraits#acceleratorsFollowFocusControl} holds, or for a key in a {@code Browser}
+   * where {@link PlatformTraits#browserKeysSkipAccelerators} holds. The key is consumed; a disabled
    * command does not run.
    */
   private void dispatchWindowKeys() {
     final Display display = shell.getDisplay();
     final boolean accelerators = PlatformTraits.PLATFORM.acceleratorsFollowFocusControl();
+    final boolean browserKeys = PlatformTraits.PLATFORM.browserKeysSkipAccelerators();
     final Listener filter =
         new Listener() {
           @Override
@@ -1455,7 +1458,9 @@ public final class MainWindow implements MainView {
             CommandId command =
                 stroke == null
                     ? null
-                    : accelerators ? keymap.windowBinding(stroke) : keymap.windowCommand(stroke);
+                    : accelerators || (browserKeys && control instanceof Browser)
+                        ? keymap.windowBinding(stroke)
+                        : keymap.windowCommand(stroke);
             if (command != null) {
               event.type = SWT.None;
               event.doit = false;

@@ -215,4 +215,9 @@ final class Win32Traits implements PlatformTraits {
   public boolean followsLinksWithoutGesture() {
     return true;
   }
+
+  @Override
+  public boolean browserKeysSkipAccelerators() {
+    return true;
+  }
 }

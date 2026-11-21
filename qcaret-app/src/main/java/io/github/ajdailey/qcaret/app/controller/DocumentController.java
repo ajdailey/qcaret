@@ -2033,6 +2033,15 @@ public final class DocumentController {
   }
 
   /**
+   * Sets whether Split scrolls a Markdown tab's editor and preview together.
+   *
+   * @param on true to sync
+   */
+  void setMarkdownSyncScroll(boolean on) {
+    markdown.setSyncScroll(on);
+  }
+
+  /**
    * Sets the Markdown preview renderer; a change renders every shown preview again.
    *
    * @param browser true for Browser

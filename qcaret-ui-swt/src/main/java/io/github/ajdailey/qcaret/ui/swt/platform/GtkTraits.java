@@ -200,4 +200,9 @@ abstract class GtkTraits implements PlatformTraits {
   public boolean followsLinksWithoutGesture() {
     return false;
   }
+
+  @Override
+  public boolean browserKeysSkipAccelerators() {
+    return false;
+  }
 }

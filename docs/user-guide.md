@@ -669,7 +669,7 @@ chosen in View > Syntax, shows its document in one of three modes:
 | Mode | Shows |
 |---|---|
 | Source | The editor alone |
-| Split | The editor with the preview on its right, scrolling together; with a split editor, right of both views |
+| Split | The editor with the preview on its right, scrolling together while Sync Scrolling is on; with a split editor, right of both views |
 | Preview | The preview alone |
 
 The `Source | Split | Preview` buttons at the end of the toolbar and View >
@@ -701,6 +701,13 @@ and address. View > Markdown View, or the Appearance tab of Preferences,
 chooses the renderer for every window; the status bar names it, and
 `qcaret.conf` keeps the choice as `markdown.previewRenderer` (`basic` or
 `browser`).
+
+View > Markdown View > Sync Scrolling, on by default, makes the editor and the
+preview in Split scroll together in every window; the Appearance tab of
+Preferences has the same check box, and `qcaret.conf` keeps it as
+`markdown.syncScroll` (`true` or `false`). With it off, neither side moves the
+other; the Outline dock, a find match and a link to a heading still scroll the
+preview.
 
 The Browser renderer shows the preview as a web page in the system's browser
 control, with a stylesheet resembling GitLab's in the current theme, and shows

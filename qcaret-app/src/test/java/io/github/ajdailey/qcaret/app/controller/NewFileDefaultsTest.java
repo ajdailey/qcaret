@@ -81,7 +81,8 @@ class NewFileDefaultsTest {
                     0,
                     true,
                     o.strictJson(),
-                    PreviewRenderer.BASIC)));
+                    PreviewRenderer.BASIC,
+                    true)));
   }
 
   private Document newDocument() {
@@ -189,7 +190,8 @@ class NewFileDefaultsTest {
         "",
         true,
         f.strictJson(),
-        f.previewRenderer());
+        f.previewRenderer(),
+        f.markdownSyncScroll());
   }
 
   @Test

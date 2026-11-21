@@ -152,6 +152,9 @@ public enum CommandId {
   /** Draw every window's Markdown previews as HTML in the platform's browser control. */
   PREVIEW_BROWSER(
       CommandGroup.VIEW, UiText.COMMAND_PREVIEW_BROWSER, true, UiText.MENU_MARKDOWN_VIEW),
+  /** In Split, scroll the editor and the preview together; checked while on, for every window. */
+  MARKDOWN_SYNC_SCROLL(
+      CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_SYNC_SCROLL, true, UiText.MENU_MARKDOWN_VIEW),
   /** Show the selected Markdown tab's headings as a tree; checked while the dock shows. */
   MARKDOWN_OUTLINE(
       CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_OUTLINE, true, UiText.MENU_MARKDOWN_VIEW),

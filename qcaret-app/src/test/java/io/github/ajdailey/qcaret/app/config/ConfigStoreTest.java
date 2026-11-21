@@ -413,7 +413,8 @@ class ConfigStoreTest {
             18,
             false,
             false,
-            PreviewRenderer.BASIC);
+            PreviewRenderer.BASIC,
+            true);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -522,12 +523,41 @@ class ConfigStoreTest {
                 options.fontZoom(),
                 options.sessionRestore(),
                 options.strictJson(),
-                PreviewRenderer.BROWSER));
+                PreviewRenderer.BROWSER,
+                true));
     assertTrue(store(temp).save(Preferences.DEFAULTS, browser));
     assertTrue(
         Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)
             .contains("markdown.previewRenderer=browser"));
     assertEquals(browser, store(temp).load());
+  }
+
+  @Test
+  void theSyncScrollKeyDefaultsOnReadsWritesAndFallsBack() throws IOException {
+    assertTrue(Options.DEFAULTS.markdownSyncScroll());
+    assertTrue(store(temp).load().options().markdownSyncScroll());
+    Files.writeString(conf(), "markdown.syncScroll= false \n");
+    assertFalse(store(temp).load().options().markdownSyncScroll());
+    Files.writeString(conf(), "markdown.syncScroll=off\n");
+    assertTrue(store(temp).load().options().markdownSyncScroll());
+    Files.delete(conf());
+    Preferences off =
+        Preferences.DEFAULTS.withOptions(Options.DEFAULTS.withMarkdownSyncScroll(false));
+    assertTrue(store(temp).save(Preferences.DEFAULTS, off));
+    assertTrue(
+        Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)
+            .contains("markdown.syncScroll=false"));
+    assertEquals(off, store(temp).load());
+    assertFalse(
+        Options.DEFAULTS
+            .withMarkdownSyncScroll(false)
+            .withPreviewRenderer(PreviewRenderer.BROWSER)
+            .withFontZoom(12)
+            .withFontSize(11)
+            .withCompletionChars(3)
+            .withWorkspaceDefault("")
+            .markdownSyncScroll(),
+        "each copy keeps the setting");
   }
 
   @Test

@@ -153,7 +153,8 @@ class FormatRunsTest {
                     o.fontZoom(),
                     o.sessionRestore(),
                     true,
-                    PreviewRenderer.BASIC)));
+                    PreviewRenderer.BASIC,
+                    true)));
     EditorController editor = open("[1 /* c */]");
     run(CommandId.PRETTY_PRINT_JSON);
     assertEquals("[1 /* c */]", text(editor));

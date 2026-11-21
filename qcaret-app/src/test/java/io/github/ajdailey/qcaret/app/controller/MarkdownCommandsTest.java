@@ -172,6 +172,18 @@ class MarkdownCommandsTest {
   }
 
   @Test
+  void syncScrollingTogglesTheSavedSettingWithoutADocument() {
+    assertTrue(states.enabled(CommandId.MARKDOWN_SYNC_SCROLL));
+    assertTrue(states.checked(CommandId.MARKDOWN_SYNC_SCROLL));
+    harness.application.execute(CommandId.MARKDOWN_SYNC_SCROLL);
+    assertFalse(harness.application.preferences().options().markdownSyncScroll());
+    assertFalse(states.checked(CommandId.MARKDOWN_SYNC_SCROLL));
+    harness.application.execute(CommandId.MARKDOWN_SYNC_SCROLL);
+    assertTrue(harness.application.preferences().options().markdownSyncScroll());
+    assertTrue(states.checked(CommandId.MARKDOWN_SYNC_SCROLL));
+  }
+
+  @Test
   void cycleDoesNothingOnATextTab() throws Exception {
     Path file = Files.writeString(temp.resolve("notes.txt"), "# Mock\n", StandardCharsets.UTF_8);
     harness.open(file);

@@ -720,7 +720,8 @@ class WindowSessionTest {
                     0,
                     true,
                     o.strictJson(),
-                    PreviewRenderer.BASIC)));
+                    PreviewRenderer.BASIC,
+                    true)));
     edit(first, "left");
     ApplicationController second = before.second();
     second.documents().newDocument();

@@ -309,6 +309,14 @@ class PlatformTraitsTest {
   }
 
   @Test
+  void onlyWin32BrowserKeysSkipAccelerators() {
+    assertEquals(true, PlatformTraits.of("win32", false).browserKeysSkipAccelerators());
+    assertEquals(false, PlatformTraits.of("cocoa", false).browserKeysSkipAccelerators());
+    assertEquals(false, PlatformTraits.of("gtk", false).browserKeysSkipAccelerators());
+    assertEquals(false, PlatformTraits.of("gtk", true).browserKeysSkipAccelerators());
+  }
+
+  @Test
   void gtk3PositionsWindowsExceptUnderWayland() {
     String key = PlatformTraits.GDK_BACKEND;
     String saved = System.getProperty(key);

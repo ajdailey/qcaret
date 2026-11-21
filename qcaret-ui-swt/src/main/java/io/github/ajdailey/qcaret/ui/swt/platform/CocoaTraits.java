@@ -215,4 +215,9 @@ final class CocoaTraits implements PlatformTraits {
   public boolean followsLinksWithoutGesture() {
     return false;
   }
+
+  @Override
+  public boolean browserKeysSkipAccelerators() {
+    return false;
+  }
 }

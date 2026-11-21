@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.LineStyleEvent;
+import org.eclipse.swt.custom.LineStyleListener;
 import org.eclipse.swt.custom.ST;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
@@ -461,6 +463,33 @@ class MarkdownPaneTest {
     assertEquals(top, pane.text().getTopIndex());
     pane.showRendered(content(edited));
     assertEquals(2, changes.size(), "an equal text is not replaced");
+  }
+
+  /**
+   * A flushed layout of the pane styles the lines in view only. A wrapping {@code StyledText}
+   * without size hints measured every line in {@code computeSize}, which froze a renderer switch on
+   * a 950K-char document for 71-89 s on macOS.
+   */
+  @Test
+  void aFlushedLayoutStylesOnlyTheLinesInView() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 2_000; i++) {
+      text.append("para ").append(i).append("\n\n");
+    }
+    pane.showRendered(content(text.toString()));
+    flush();
+    final int[] styled = new int[1];
+    pane.text()
+        .addLineStyleListener(
+            new LineStyleListener() {
+              @Override
+              public void lineGetStyle(LineStyleEvent event) {
+                styled[0]++;
+              }
+            });
+    shell.layout(true, true);
+    flush();
+    assertTrue(styled[0] < 500, "lines styled " + styled[0] + " of " + pane.text().getLineCount());
   }
 
   @Test

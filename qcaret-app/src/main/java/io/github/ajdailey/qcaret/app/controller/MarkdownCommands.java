@@ -8,10 +8,11 @@ import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 
 /**
  * View > Markdown View and Cycle Markdown View for one window, and the status bar's renderer field.
- * The view mode belongs to the selected tab; the renderer is {@code markdown.previewRenderer},
- * shared by every window. Browser draws only where {@link MainView#previewBrowserUnavailable} gives
- * no reason; a saved Browser choice otherwise shows Basic, and the first preview the window shows
- * posts a notice saying so. Confined to the UI thread.
+ * The view mode belongs to the selected tab; the renderer is {@code markdown.previewRenderer} and
+ * Sync Scrolling {@code markdown.syncScroll}, both shared by every window. Browser draws only where
+ * {@link MainView#previewBrowserUnavailable} gives no reason; a saved Browser choice otherwise
+ * shows Basic, and the first preview the window shows posts a notice saying so. Confined to the UI
+ * thread.
  */
 final class MarkdownCommands {
   private final Settings settings;
@@ -41,6 +42,13 @@ final class MarkdownCommands {
         if (view.previewBrowserUnavailable() == null) {
           choose(PreviewRenderer.BROWSER);
         }
+      }
+      case MARKDOWN_SYNC_SCROLL -> {
+        settings.set(
+            settings
+                .current()
+                .withOptions(settings.current().options().withMarkdownSyncScroll(!syncScroll())));
+        view.documentStateChanged();
       }
       default -> throw new IllegalArgumentException(command.name());
     }
@@ -93,6 +101,16 @@ final class MarkdownCommands {
     return settings.current().options().previewRenderer() == PreviewRenderer.BROWSER;
   }
 
+  /**
+   * Reports whether {@code markdown.syncScroll} is on: in Split, a scroll of the editor or the
+   * preview scrolls the other.
+   *
+   * @return true while on
+   */
+  boolean syncScroll() {
+    return settings.current().options().markdownSyncScroll();
+  }
+
   /** {@link CommandStates#checked} for a Markdown command. */
   boolean checked(CommandId command) {
     return switch (command) {
@@ -101,6 +119,7 @@ final class MarkdownCommands {
       case MARKDOWN_PREVIEW -> documents.markdownMode() == MarkdownViewMode.PREVIEW;
       case PREVIEW_BASIC -> renderer() == PreviewRenderer.BASIC;
       case PREVIEW_BROWSER -> renderer() == PreviewRenderer.BROWSER;
+      case MARKDOWN_SYNC_SCROLL -> syncScroll();
       default -> false;
     };
   }

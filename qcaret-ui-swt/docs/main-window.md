@@ -139,7 +139,13 @@ scroll.
   Where `PlatformTraits.acceleratorsFollowFocusControl` holds (GTK 4), it runs
   the accelerators too and consumes the key: SWT runs a GTK 4 accelerator from
   the window's shortcut controller after the focused control, and the editor's
-  `StyledText` inserted the CR that Ctrl+Shift+M carries.
+  `StyledText` inserted the CR that Ctrl+Shift+M carries. Where
+  `PlatformTraits.browserKeysSkipAccelerators` holds (win32), it runs the
+  accelerators too for a key in a `Browser`: SWT's Edge sends a key with Ctrl
+  or Alt, or one that types no character, to the `Browser` from WebView2's
+  `AcceleratorKeyPressed`, and the window's native accelerators never see it.
+  The consumed key is marked handled, so WebView2 does not act on it as well
+  (Ctrl+F opened WebView2's own find box).
 - A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
   item it deselects too, so the listener runs the command only for the item
   selected.
@@ -452,6 +458,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `blankLinksReplacePage` | - | - | yes | yes | `BrowserPane`: loads the page again after a stray `about:blank` (see [Markdown preview](markdown-preview.md#browser-pane)) |
 | `namesThroughAtk` | - | - | yes | - | `NativeNames.forPlatform`: `Gtk3NativeNames`, otherwise `NONE` (see [Accessible names](#accessible-names)) |
 | `followsLinksWithoutGesture` | yes | - | - | - | `BrowserPane`: `LinkGestures` follows every canceled top-frame navigation (see [Markdown preview](markdown-preview.md#browser-pane)) |
+| `browserKeysSkipAccelerators` | yes | - | - | - | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators for a key in a `Browser` (see [Menus](#menus)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

@@ -95,7 +95,8 @@ class LastTabTest {
                 0,
                 true,
                 o.strictJson(),
-                PreviewRenderer.BASIC)));
+                PreviewRenderer.BASIC,
+                true)));
   }
 
   @Test

@@ -372,4 +372,14 @@ public interface PlatformTraits {
    * @return true on win32
    */
   boolean followsLinksWithoutGesture();
+
+  /**
+   * Reports whether a key pressed in a {@code Browser} reaches its {@code KeyDown} listeners and no
+   * menu accelerator runs: SWT's Edge receives keys in WebView2's process and sends them to the
+   * {@code Browser} from {@code AcceleratorKeyPressed}, so the window's native accelerators never
+   * see them. A key a listener consumes is marked handled, and WebView2 does not act on it.
+   *
+   * @return true on win32
+   */
+  boolean browserKeysSkipAccelerators();
 }

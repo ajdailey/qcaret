@@ -143,7 +143,8 @@ class EditorAdditionsTest {
         "",
         true,
         f.strictJson(),
-        f.previewRenderer());
+        f.previewRenderer(),
+        f.markdownSyncScroll());
   }
 
   // Document statistics.

@@ -84,6 +84,11 @@ final class MarkdownPreview implements MarkdownPreviewInput {
      */
     int scrollSource(int line);
 
+    /**
+     * Reports whether Split scrolls the editor to follow the preview ({@code markdown.syncScroll}).
+     */
+    boolean syncScroll();
+
     /** Shows a message in the window's status bar. */
     void notice(String message);
 
@@ -343,6 +348,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     }
     if (line == scrolledPreview) {
       scrolledPreview = -1;
+      return;
+    }
+    if (!tab.syncScroll()) {
       return;
     }
     scrolledSource = SCROLLING;

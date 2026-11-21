@@ -262,11 +262,21 @@ class BrowserPreviewSurfaceTest {
     assertEquals(reason, browser.getToolTipText());
   }
 
+  /**
+   * The mode steps once per press. On a win32 CI runner a posted key reaches the {@code Browser}'s
+   * own window and its menu accelerator, not WebView2, so the window filter must not run it again;
+   * the WebView2 path is {@link #aWindowKeyTheBrowserReportsRunsItsCommandOnce}.
+   */
   @Test
   void theCycleKeyRunsWhileTheBrowserHasFocus() throws Exception {
+    String platform = SWT.getPlatform();
     assumeTrue(
-        "gtk".equals(SWT.getPlatform()) && PlatformTraits.PLATFORM.opensBrowser(),
-        "keys posted through Display.post: GTK 3 only");
+        ("gtk".equals(platform) && PlatformTraits.PLATFORM.opensBrowser())
+            || "win32".equals(platform),
+        "keys posted through Display.post: GTK 3 and win32 only");
+    assumeTrue(
+        !"win32".equals(platform) || !"aarch64".equals(System.getProperty("os.arch")),
+        "the windows-aarch64 runner delivers no posted key");
     BrowserHosts.assumeBrowser(window.shell());
     openMarkdown("# Mock guide\n");
     controller.execute(CommandId.PREVIEW_BROWSER);
@@ -275,12 +285,7 @@ class BrowserPreviewSurfaceTest {
     window.shell().forceActive();
     slot().browserPane().focus();
     flush();
-    key(SWT.KeyDown, SWT.CTRL);
-    key(SWT.KeyDown, SWT.SHIFT);
-    key(SWT.KeyDown, 'm');
-    key(SWT.KeyUp, 'm');
-    key(SWT.KeyUp, SWT.SHIFT);
-    key(SWT.KeyUp, SWT.CTRL);
+    PostedInput.ctrlShift(display, 'm');
     await(
         new BooleanSupplier() {
           @Override
@@ -289,6 +294,33 @@ class BrowserPreviewSurfaceTest {
           }
         },
         "Ctrl+Shift+M in the browser, mode " + controller.documents().markdownMode());
+    settle();
+    assertEquals(MarkdownViewMode.SOURCE, controller.documents().markdownMode());
+  }
+
+  /**
+   * SWT's Edge sends a key pressed in WebView2 to the {@code Browser}'s {@code KeyDown} listeners
+   * from {@code AcceleratorKeyPressed}, with the key's letter as its key code and no character, and
+   * marks it handled when a listener clears {@code doit}. The window's accelerators never see it,
+   * so the window's key filter runs the command. Regression: Ctrl+Shift+M and Ctrl+F did nothing
+   * with the page focused on Windows.
+   */
+  @Test
+  void aWindowKeyTheBrowserReportsRunsItsCommandOnce() throws Exception {
+    assumeTrue(PlatformTraits.PLATFORM.browserKeysSkipAccelerators(), "Edge's key path: win32");
+    BrowserHosts.assumeBrowser(window.shell());
+    openMarkdown("# Mock guide\n");
+    controller.execute(CommandId.PREVIEW_BROWSER);
+    controller.execute(CommandId.MARKDOWN_SPLIT);
+    awaitBrowser(true);
+    Event key = new Event();
+    key.keyCode = 'm';
+    key.stateMask = SWT.CTRL | SWT.SHIFT;
+    slot().browserPane().browser().notifyListeners(SWT.KeyDown, key);
+    assertFalse(key.doit, "the key is marked handled");
+    assertEquals(MarkdownViewMode.PREVIEW, controller.documents().markdownMode());
+    flush();
+    assertEquals(MarkdownViewMode.PREVIEW, controller.documents().markdownMode());
   }
 
   /**
@@ -378,16 +410,5 @@ class BrowserPreviewSurfaceTest {
       gc.dispose();
       image.dispose();
     }
-  }
-
-  private void key(int type, int key) {
-    Event event = new Event();
-    event.type = type;
-    if (key == SWT.CTRL || key == SWT.SHIFT) {
-      event.keyCode = key;
-    } else {
-      event.character = (char) key;
-    }
-    assertTrue(display.post(event));
   }
 }

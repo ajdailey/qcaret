@@ -286,6 +286,7 @@ public final class ApplicationController {
     this.views = new ViewToggles(settings, documents, workspace);
     this.markdown = new MarkdownCommands(settings, documents, view);
     documents.setMarkdownBrowser(markdown.browserChosen());
+    documents.setMarkdownSyncScroll(markdown.syncScroll());
     documents.setMarkdownPalette(theme.palette());
     theme.addListener(markdownPalette);
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
@@ -366,6 +367,7 @@ public final class ApplicationController {
     aids.apply(before, after);
     memory.apply(before, after);
     documents.setMarkdownBrowser(markdown.browserChosen());
+    documents.setMarkdownSyncScroll(markdown.syncScroll());
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -947,6 +949,7 @@ public final class ApplicationController {
           MARKDOWN_PREVIEW,
           PREVIEW_BASIC,
           PREVIEW_BROWSER,
+          MARKDOWN_SYNC_SCROLL,
           MARKDOWN_CYCLE ->
           markdown.execute(command);
       case MARKDOWN_OUTLINE -> outline.toggle();

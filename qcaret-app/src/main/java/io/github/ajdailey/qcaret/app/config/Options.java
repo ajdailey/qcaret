@@ -56,6 +56,8 @@ import java.time.format.DateTimeFormatter;
  * @param strictJson {@code editor.strictJson}: Edit > Format XML and JSON accepts RFC 8259 JSON
  *     only, without comments
  * @param previewRenderer {@code markdown.previewRenderer}: what draws the Markdown preview
+ * @param markdownSyncScroll {@code markdown.syncScroll}: in Split, a scroll of the editor or the
+ *     preview scrolls the other
  */
 public record Options(
     int completionChars,
@@ -84,7 +86,8 @@ public record Options(
     int fontZoom,
     boolean sessionRestore,
     boolean strictJson,
-    PreviewRenderer previewRenderer) {
+    PreviewRenderer previewRenderer,
+    boolean markdownSyncScroll) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -172,7 +175,8 @@ public record Options(
           0,
           true,
           false,
-          PreviewRenderer.BASIC);
+          PreviewRenderer.BASIC,
+          true);
 
   /** Checks the components. */
   public Options {
@@ -326,7 +330,8 @@ public record Options(
         fontZoom,
         sessionRestore,
         strictJson,
-        previewRenderer);
+        previewRenderer,
+        markdownSyncScroll);
   }
 
   /**
@@ -363,7 +368,8 @@ public record Options(
         fontZoom,
         sessionRestore,
         strictJson,
-        previewRenderer);
+        previewRenderer,
+        markdownSyncScroll);
   }
 
   /**
@@ -400,7 +406,8 @@ public record Options(
         points,
         sessionRestore,
         strictJson,
-        previewRenderer);
+        previewRenderer,
+        markdownSyncScroll);
   }
 
   /**
@@ -437,7 +444,8 @@ public record Options(
         fontZoom,
         sessionRestore,
         strictJson,
-        previewRenderer);
+        previewRenderer,
+        markdownSyncScroll);
   }
 
   /**
@@ -474,6 +482,45 @@ public record Options(
         fontZoom,
         sessionRestore,
         strictJson,
-        renderer);
+        renderer,
+        markdownSyncScroll);
+  }
+
+  /**
+   * Returns a copy with Markdown scroll sync on or off.
+   *
+   * @param on true to sync
+   * @return the copy
+   */
+  public Options withMarkdownSyncScroll(boolean on) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        on);
   }
 }

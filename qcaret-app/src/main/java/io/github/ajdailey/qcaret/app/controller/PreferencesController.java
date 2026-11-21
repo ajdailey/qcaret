@@ -109,7 +109,8 @@ final class PreferencesController implements PreferencesInput {
         o.workspaceDefault(),
         o.sessionRestore(),
         o.strictJson(),
-        o.previewRenderer().key());
+        o.previewRenderer().key(),
+        o.markdownSyncScroll());
   }
 
   @Override
@@ -277,7 +278,8 @@ final class PreferencesController implements PreferencesInput {
                     EditorZoom.kept(settings.current(), font.value(), form.fontFamily()),
                     form.sessionRestore(),
                     form.strictJson(),
-                    renderer(form.previewRenderer())));
+                    renderer(form.previewRenderer()),
+                    form.markdownSyncScroll()));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));

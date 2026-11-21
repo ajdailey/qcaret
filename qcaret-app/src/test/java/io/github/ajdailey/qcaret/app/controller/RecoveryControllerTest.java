@@ -953,7 +953,8 @@ class RecoveryControllerTest {
         0,
         true,
         o.strictJson(),
-        PreviewRenderer.BASIC);
+        PreviewRenderer.BASIC,
+        true);
   }
 
   private void awaitQuit(final Harness harness) throws InterruptedException {

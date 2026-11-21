@@ -132,7 +132,8 @@ class PreferencesControllerTest {
         "",
         field.equals("sessionRestore") ? Boolean.parseBoolean(value) : f.sessionRestore(),
         f.strictJson(),
-        f.previewRenderer());
+        f.previewRenderer(),
+        f.markdownSyncScroll());
   }
 
   @Test
@@ -206,7 +207,8 @@ class PreferencesControllerTest {
                 "",
                 true,
                 f.strictJson(),
-                f.previewRenderer()));
+                f.previewRenderer(),
+                f.markdownSyncScroll()));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -242,9 +244,55 @@ class PreferencesControllerTest {
                 "",
                 true,
                 f.strictJson(),
-                f.previewRenderer())));
+                f.previewRenderer(),
+                f.markdownSyncScroll())));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
+  }
+
+  @Test
+  void theSyncScrollBoxShowsAndAppliesTheSetting() throws Exception {
+    PreferencesInput input = input();
+    PreferencesForm f = input.form();
+    assertTrue(f.markdownSyncScroll());
+    assertNull(
+        input.apply(
+            new PreferencesForm(
+                f.completionChars(),
+                f.autoClose(),
+                f.maxHighlightLineChars(),
+                f.tabWidth(),
+                f.insertSpaces(),
+                f.pollSeconds(),
+                f.autoReloadClean(),
+                f.recoveryIntervalSeconds(),
+                f.recoveryKeepDays(),
+                f.sessionSnapshot(),
+                f.backupDays(),
+                f.searchMaxLineChars(),
+                f.excludedDirectories(),
+                f.theme(),
+                f.fontSize(),
+                f.shortcuts(),
+                f.themeFile(),
+                f.fontFamily(),
+                f.rightMargin(),
+                f.dateFormat(),
+                f.editorConfig(),
+                f.modelines(),
+                f.editorColors(),
+                f.closeWindowWithLastTab(),
+                f.closeShowsLastUsed(),
+                f.newLineEnding(),
+                f.newEncoding(),
+                f.view(),
+                f.workspaceDefault(),
+                f.sessionRestore(),
+                f.strictJson(),
+                f.previewRenderer(),
+                false)));
+    assertFalse(harness.application.preferences().options().markdownSyncScroll());
+    assertFalse(input.form().markdownSyncScroll());
   }
 
   @Test
@@ -350,7 +398,8 @@ class PreferencesControllerTest {
                 "",
                 true,
                 f.strictJson(),
-                f.previewRenderer())));
+                f.previewRenderer(),
+                f.markdownSyncScroll())));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -527,7 +576,8 @@ class PreferencesControllerTest {
                 "",
                 true,
                 f.strictJson(),
-                f.previewRenderer())));
+                f.previewRenderer(),
+                f.markdownSyncScroll())));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -575,7 +625,8 @@ class PreferencesControllerTest {
         0,
         true,
         o.strictJson(),
-        PreviewRenderer.BASIC);
+        PreviewRenderer.BASIC,
+        true);
   }
 
   @Test

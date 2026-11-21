@@ -103,7 +103,8 @@ pane's UI-thread work is the `setText` call.
     `about:blank%23qcaret-line-150`), so the URL has no fragment and WebKit
     loads it as another page. The pane cancels that form.
 - The browser's own scroll is not reported: with JavaScript off the page
-  position cannot be read, so Split follows the editor and not the reverse.
+  position cannot be read, so Split follows the editor and not the reverse,
+  and only while Sync Scrolling is on.
 - Each `setText` arms a start bound of 60 s; the page's own navigation
   (`changing` on `about:blank`) replaces it with a load bound of 15 s, and
   `completed` meets either. Expiry takes the failure path of a throwing call.
@@ -121,8 +122,12 @@ pane's UI-thread work is the `setText` call.
 ## Pane
 
 `MarkdownPane` is a read-only, wrapping `StyledText` with a notice row above it
-for the size notice and its Render button. Nothing is styled ahead of
-painting:
+for the size notice and its Render button. The text's `GridData` has zero
+width and height hints, so a layout gives it the space left and never calls
+its `computeSize`, which measures every line of a wrapping `StyledText`. With
+size hints unset, the flushed frame layout of a renderer switch held the UI
+thread 3.2 s (GTK 3) and 4.6 s (Windows x64) at 1 MiB, and 71-89 s at 950K
+chars on macOS. Nothing is styled ahead of painting:
 
 | Listener | Class | Per painted line |
 |---|---|---|
@@ -153,7 +158,10 @@ render's own text on the clipboard.
 
 The pane reports a new top line from `Paint`; `scrollToLine` and
 `selectRendered` record the line they leave at the top, so the controller's own
-scroll is not reported back. `selectRendered` (a find match in Preview) sets
+scroll is not reported back. View > Markdown View > Sync Scrolling
+(`markdown.syncScroll`) is the controller's rule: while it is off, the
+controller scrolls neither side of Split for the other, and the views are
+unchanged ([Documents](../../qcaret-app/docs/documents.md#markdown-preview)). `selectRendered` (a find match in Preview) sets
 the selection, which scrolls it into view, and leaves the focus where it is;
 the `BrowserPane` has no selection and only scrolls. The text has no
 top margin: `getTopIndex` returns the first fully visible line, and a line

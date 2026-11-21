@@ -116,7 +116,12 @@ public final class MarkdownPane {
           }
         });
     text = new StyledText(root, SWT.READ_ONLY | SWT.WRAP | SWT.MULTI | SWT.V_SCROLL);
-    text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    GridData textData = new GridData(SWT.FILL, SWT.FILL, true, true);
+    // Zero hints: the layout gives the text the space left and never calls computeSize, which
+    // measures every line of a wrapping StyledText.
+    textData.widthHint = 0;
+    textData.heightHint = 0;
+    text.setLayoutData(textData);
     // No top margin: a line scrolled to the top is fully visible, so getTopIndex returns it.
     text.setMargins(12, 0, 12, 8);
     AccessibleName.attachKeepingRole(text, UiText.ACCESSIBLE_MARKDOWN_PREVIEW.text());

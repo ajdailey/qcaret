@@ -94,6 +94,7 @@ final class PreferencesDialog {
   private Combo newLineEnding;
   private Combo newEncoding;
   private Combo previewRenderer;
+  private Button syncScroll;
   private PreferencesViewTab view;
   private WorkspaceDefaultRow workspaceDefault;
 
@@ -263,6 +264,7 @@ final class PreferencesDialog {
     previewRenderer = list(page, UiText.PREFERENCES_PREVIEW_RENDERER);
     previewRenderer.add(UiText.PREVIEW_RENDERER_BASIC.text());
     previewRenderer.add(UiText.PREVIEW_RENDERER_BROWSER.text());
+    syncScroll = check(page, UiText.PREFERENCES_MARKDOWN_SYNC_SCROLL);
   }
 
   private static Combo list(Composite page, UiText label) {
@@ -458,6 +460,7 @@ final class PreferencesDialog {
     newLineEnding.select(List.of(LINE_ENDINGS).indexOf(form.newLineEnding()));
     newEncoding.select(newEncoding.indexOf(form.newEncoding()));
     previewRenderer.select(Math.max(0, List.of(RENDERERS).indexOf(form.previewRenderer())));
+    syncScroll.setSelection(form.markdownSyncScroll());
     view.show(form.view());
     workspaceDefault.show(form.workspaceDefault());
     for (TableColumn column : commands.getColumns()) {
@@ -502,7 +505,8 @@ final class PreferencesDialog {
         workspaceDefault.value(),
         sessionRestore.getSelection(),
         strictJson.getSelection(),
-        RENDERERS[Math.max(0, previewRenderer.getSelectionIndex())]);
+        RENDERERS[Math.max(0, previewRenderer.getSelectionIndex())],
+        syncScroll.getSelection());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -692,6 +696,10 @@ final class PreferencesDialog {
 
   Combo previewRenderer() {
     return previewRenderer;
+  }
+
+  Button syncScroll() {
+    return syncScroll;
   }
 
   PreferencesViewTab view() {

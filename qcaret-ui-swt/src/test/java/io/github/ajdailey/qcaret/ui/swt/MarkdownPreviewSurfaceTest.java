@@ -60,11 +60,12 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * The Markdown preview in a real window: the toolbar switch shows for a Markdown tab only, Split
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
- * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split, the
- * Browser menu item names its reason when disabled, View > Markdown View holds the modes and the
- * renderers, the cycle key runs from the preview, Find from Preview selects in the hidden source
- * and returns the focus to the preview, and a match found in Preview scrolls into view selected.
- * With {@code -Dqcaret.rm.out=<dir>} that match is saved there as PNG, light and dark.
+ * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split and
+ * with Sync Scrolling off neither side moves the other, the Browser menu item names its reason when
+ * disabled, View > Markdown View holds the modes and the renderers, the cycle key runs from the
+ * preview, Find from Preview selects in the hidden source and returns the focus to the preview, and
+ * a match found in Preview scrolls into view selected. With {@code -Dqcaret.rm.out=<dir>} that
+ * match is saved there as PNG, light and dark.
  */
 @Tag("swt")
 class MarkdownPreviewSurfaceTest {
@@ -143,6 +144,20 @@ class MarkdownPreviewSurfaceTest {
     while (display.readAndDispatch()) {
       // Runs queued work.
     }
+  }
+
+  /** Runs the event loop for 1 s, past the paint that reports a scroll and the follow it starts. */
+  private void settle() {
+    final long until = System.nanoTime() + 1_000_000_000L;
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return System.nanoTime() > until;
+          }
+        },
+        BOUND);
   }
 
   private void openFile(String name, String text) throws Exception {
@@ -293,9 +308,14 @@ class MarkdownPreviewSurfaceTest {
     ImageData framePixels = ControlPrint.of(display, frame());
     ImageData panePixels = ControlPrint.of(display, pane);
     assumeTrue(framePixels != null && panePixels != null, "Control.print failed");
+    // The pane's caret blinks between the two prints; its box is left out.
+    Rectangle caret = window.activePreview().text().getCaret().getBounds();
     int differing = 0;
     for (int y = 0; y < panePixels.height; y++) {
       for (int x = 0; x < panePixels.width; x++) {
+        if (caret.contains(x, y)) {
+          continue;
+        }
         RGB seen = framePixels.palette.getRGB(framePixels.getPixel(x, y));
         if (!seen.equals(panePixels.palette.getRGB(panePixels.getPixel(x, y)))) {
           differing++;
@@ -360,6 +380,51 @@ class MarkdownPreviewSurfaceTest {
         "preview followed the editor, top " + pane.text().getTopIndex());
   }
 
+  /** With Sync Scrolling off neither side of Split moves the other; on, both follow again. */
+  @Test
+  void syncScrollingOffLeavesEachSideWhereItIs() throws Exception {
+    StringBuilder text = new StringBuilder("# Top\n\n");
+    for (int i = 0; i < 300; i++) {
+      text.append("Paragraph ").append(i).append(".\n\n");
+    }
+    openFile("long.md", text.toString());
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_SPLIT);
+    awaitShown("Paragraph 299");
+    final MarkdownPane pane = window.activePreview();
+    final EditorPane editor = window.activeEditor();
+    controller.execute(CommandId.MARKDOWN_SYNC_SCROLL);
+    window.menuBar().syncAll();
+    assertFalse(window.menuBar().item(CommandId.MARKDOWN_SYNC_SCROLL).getSelection());
+    editor.scrollToRow(200);
+    settle();
+    assertEquals(0, pane.text().getTopIndex());
+    final int editorTop = editor.topRow();
+    pane.text().setTopIndex(400);
+    settle();
+    assertEquals(400, pane.text().getTopIndex());
+    assertEquals(editorTop, editor.topRow());
+    controller.execute(CommandId.MARKDOWN_SYNC_SCROLL);
+    pane.text().setTopIndex(100);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return editor.topRow() != editorTop;
+          }
+        },
+        "editor followed the preview, top " + editor.topRow());
+    editor.scrollToRow(500);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.text().getTopIndex() > 300;
+          }
+        },
+        "preview followed the editor, top " + pane.text().getTopIndex());
+  }
+
   @Test
   void theBrowserItemIsEnabledOrNamesItsReason() throws Exception {
     openFile("guide.md", "# Mock\n");
@@ -401,7 +466,17 @@ class MarkdownPreviewSurfaceTest {
             ? "B&rowser"
             : UiText.MENU_ITEM_REASON.format("B&rowser", UiText.MARKDOWN_BROWSER_GTK4.text());
     assertEquals(
-        List.of(cycle, "&Source", "S&plit", "Pre&view", "-", "&Basic", browser, "-", "&Outline"),
+        List.of(
+            cycle,
+            "&Source",
+            "S&plit",
+            "Pre&view",
+            "-",
+            "&Basic",
+            browser,
+            "-",
+            "S&ync Scrolling",
+            "&Outline"),
         labels);
     assertEquals("Markdown V&iew", cascade.getParentItem().getText());
     assertEquals(0, window.menuBar().item(CommandId.MARKDOWN_SPLIT).getAccelerator());
