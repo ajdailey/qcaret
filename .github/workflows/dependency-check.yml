@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: "21.0.13+9"
+          java-version: "21.0.13.1+2"
           cache: maven
       # The NVD database (about 419,000 records) takes most of an hour to
       # download in full; each run restores the newest copy and updates it.

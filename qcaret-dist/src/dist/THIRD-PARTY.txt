@@ -21,7 +21,7 @@ yaml-front-matter)
 autolink-java 0.12.0 (autolink)
   License: MIT. https://github.com/robinst/autolink-java
 
-Eclipse Temurin OpenJDK 21.0.13+9, 21.0.12+8 in the windows-aarch64 bundle
+Eclipse Temurin OpenJDK 21.0.13.1+2, 21.0.12.1+1 in the windows-aarch64 bundle
 (per-target bundles only: runtime/, and the macOS launcher
 Contents/MacOS/QCaret from the jdk.jpackage module)
   License: GNU General Public License version 2 with the Classpath Exception.

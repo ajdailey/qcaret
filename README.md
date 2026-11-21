@@ -85,8 +85,9 @@ The Temurin JDK archives and `rcodesign` are downloaded once into
 `~/.cache/qcaret-build/` (`-Dqcaret.cache.dir` overrides it) and checked
 against pinned SHA-256 digests.
 
-Builds are reproducible: with the same JDK (CI's Temurin 21.0.13+9), two builds of one commit write
-byte-identical jars, `qcaret.exe` and archives, every entry dated
+Builds are reproducible: with the same JDK (CI's Temurin 21.0.13.1+2), two
+builds of one commit write byte-identical jars, `qcaret.exe` and archives,
+every entry dated
 `project.build.outputTimestamp` from the parent POM.
 `.github/scripts/check-reproducible.sh` builds twice and compares SHA-256.
 
@@ -121,7 +122,7 @@ scripts/container.sh ./mvnw -B spotless:check
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request,
-every pushed `v*` tag and on demand, with Temurin 21.0.13+9 (21.0.12+8 on
+every pushed `v*` tag and on demand, with Temurin 21.0.13.1+2 (21.0.12.1+1 on
 windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
 `persist-credentials: false`.
 

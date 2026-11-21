@@ -7,7 +7,7 @@
 
     <groupId>io.github.ajdailey.qcaret</groupId>
     <artifactId>qcaret-parent</artifactId>
-    <version>0.1.1</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
 
     <name>QCaret</name>

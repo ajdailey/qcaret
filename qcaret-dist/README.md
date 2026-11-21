@@ -47,8 +47,8 @@ Linux one in `qcaret/bin/`, beside the script, also does, and `qcaret/` wins
 when both exist. Modes are in the root `README.md` under "Settings directory".
 
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
-(Temurin 21.0.13+9, and 21.0.12+8 for windows-aarch64, which has no 21.0.13+9
-build; downloaded once into `qcaret.cache.dir`, default
+(Temurin 21.0.13.1+2, and 21.0.12.1+1 for windows-aarch64, which has no
+21.0.13.1+2 build; downloaded once into `qcaret.cache.dir`, default
 `~/.cache/qcaret-build`, and verified by SHA-256) with
 `java.base,java.logging,java.management,java.naming,java.xml,jdk.charsets,jdk.localedata,jdk.unsupported,jdk.zipfs`,
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.

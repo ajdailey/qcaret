@@ -14,23 +14,23 @@
   <property name="out" location="${qcaret.dist.dir}"/>
   <!-- Temurin JDK archives, from jdk.url unless jdk.<target>.url names
        another release. Adoptium publishes no windows-aarch64 build of
-       21.0.13+9, so that target takes 21.0.12+8. -->
+       21.0.13.1+2, so that target takes 21.0.12.1+1. -->
   <property name="jdk.url"
-      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9"/>
-  <property name="jdk.linux-x86_64" value="OpenJDK21U-jdk_x64_linux_hotspot_21.0.13_9.tar.gz"/>
-  <property name="jdk.linux-x86_64.sha256" value="d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c"/>
-  <property name="jdk.linux-aarch64" value="OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.13_9.tar.gz"/>
-  <property name="jdk.linux-aarch64.sha256" value="e3522e707fc7dbe2a72c30746b1e7068301a0213ecd213d4491f35a14eb55578"/>
-  <property name="jdk.windows-x86_64" value="OpenJDK21U-jdk_x64_windows_hotspot_21.0.13_9.zip"/>
-  <property name="jdk.windows-x86_64.sha256" value="a4dbaa05fca4bd89d84584e58c459bd732efebb1722af80ab13c6516832004f9"/>
+      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13.1%2B2"/>
+  <property name="jdk.linux-x86_64" value="OpenJDK21U-jdk_x64_linux_hotspot_21.0.13.1_2.tar.gz"/>
+  <property name="jdk.linux-x86_64.sha256" value="bb8a93f9ae6e7a693b2b721e85dbeff26ae1a77447985a8d7afcdd9c7cf6222e"/>
+  <property name="jdk.linux-aarch64" value="OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.13.1_2.tar.gz"/>
+  <property name="jdk.linux-aarch64.sha256" value="8c72816a6b308842d5ed1f13e5826b69c567da4784f7238d7e800efa71fe54b1"/>
+  <property name="jdk.windows-x86_64" value="OpenJDK21U-jdk_x64_windows_hotspot_21.0.13.1_2.zip"/>
+  <property name="jdk.windows-x86_64.sha256" value="bbebea1469996b276683c9299c227b294f85c847039c82633218186a4ad4fbf2"/>
   <property name="jdk.windows-aarch64.url"
-      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12%2B8"/>
-  <property name="jdk.windows-aarch64" value="OpenJDK21U-jdk_aarch64_windows_hotspot_21.0.12_8.zip"/>
-  <property name="jdk.windows-aarch64.sha256" value="e7ddf1cf45885cae2cfb8a018db60b0041ef69e96843b93a92b447d9a4cba676"/>
-  <property name="jdk.macos-x86_64" value="OpenJDK21U-jdk_x64_mac_hotspot_21.0.13_9.tar.gz"/>
-  <property name="jdk.macos-x86_64.sha256" value="9aa1d1c17ae5467a022679e7e0af5c00797d94ac462ed1a46f4db07a8a34a6dd"/>
-  <property name="jdk.macos-aarch64" value="OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.13_9.tar.gz"/>
-  <property name="jdk.macos-aarch64.sha256" value="bf036b35b071bfb2f54f2c0af8ee8d88afa95ee6eb3dce02c0f94cfc2524d04a"/>
+      value="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1"/>
+  <property name="jdk.windows-aarch64" value="OpenJDK21U-jdk_aarch64_windows_hotspot_21.0.12.1_1.zip"/>
+  <property name="jdk.windows-aarch64.sha256" value="ccf2e51f527d542a70ba5794a600d3aac04b4e967950e227834c7566cb1bec7b"/>
+  <property name="jdk.macos-x86_64" value="OpenJDK21U-jdk_x64_mac_hotspot_21.0.13.1_2.tar.gz"/>
+  <property name="jdk.macos-x86_64.sha256" value="1b5eff1741bb83d32e2e19aade71452bb42e40f047c01d3e178d438304c9a26d"/>
+  <property name="jdk.macos-aarch64" value="OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.13.1_2.tar.gz"/>
+  <property name="jdk.macos-aarch64.sha256" value="48067f2b7c958ed104a9d8a5749be7d25220b0a356b4d2d1bcfaab3e16ad0b14"/>
   <property name="rcodesign.archive" value="apple-codesign-0.29.0-x86_64-unknown-linux-musl.tar.gz"/>
   <property name="rcodesign.sha256" value="dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002"/>
   <property name="rcodesign.url"

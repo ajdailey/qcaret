@@ -28,7 +28,7 @@ jobs:
           - { target: linux-x86_64, runner: ubuntu-24.04 }
           - { target: linux-aarch64, runner: ubuntu-24.04-arm }
           - { target: windows-x86_64, runner: windows-2025 }
-          - { target: windows-aarch64, runner: windows-11-arm, jdk: "21.0.12+8" }
+          - { target: windows-aarch64, runner: windows-11-arm, jdk: "21.0.12.1+1" }
           - { target: macos-x86_64, runner: macos-15-intel }
           - { target: macos-aarch64, runner: macos-15 }
     steps:
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: ${{ matrix.jdk || '21.0.13+9' }}
+          java-version: ${{ matrix.jdk || '21.0.13.1+2' }}
           cache: maven
       - name: Xvfb and GTK 3
         if: runner.os == 'Linux'
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: "21.0.13+9"
+          java-version: "21.0.13.1+2"
           cache: maven
       - name: Xvfb and GTK 3
         run: .github/scripts/linux-display-deps.sh
@@ -108,7 +108,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: "21.0.13+9"
+          java-version: "21.0.13.1+2"
           cache: maven
       - name: Xvfb and GTK 3
         run: .github/scripts/linux-display-deps.sh
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: "21.0.13+9"
+          java-version: "21.0.13.1+2"
           cache: maven
       # JDK archives and rcodesign, outside the Maven cache.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -177,7 +177,7 @@ jobs:
           - { target: linux-x86_64, runner: ubuntu-24.04, arch: amd64 }
           - { target: linux-aarch64, runner: ubuntu-24.04-arm, arch: aarch64 }
           - { target: windows-x86_64, runner: windows-2025, arch: amd64, machine: x64 }
-          - { target: windows-aarch64, runner: windows-11-arm, arch: aarch64, machine: ARM64, jdk: "21.0.12+8" }
+          - { target: windows-aarch64, runner: windows-11-arm, arch: aarch64, machine: ARM64, jdk: "21.0.12.1+1" }
           - { target: macos-x86_64, runner: macos-15-intel, arch: x86_64 }
           - { target: macos-aarch64, runner: macos-15, arch: aarch64 }
     env:
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: ${{ matrix.jdk || '21.0.13+9' }}
+          java-version: ${{ matrix.jdk || '21.0.13.1+2' }}
       - name: Xvfb and GTK 3
         if: runner.os == 'Linux'
         run: .github/scripts/linux-display-deps.sh
@@ -225,7 +225,7 @@ jobs:
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
-          java-version: "21.0.13+9"
+          java-version: "21.0.13.1+2"
           cache: maven
       - name: Tag matches the POM version
         run: |
