@@ -143,8 +143,10 @@ On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
 `runtime\bin\javaw.exe` with the target's PE machine type (`ARM64` on
 `windows-11-arm`); the universal zip's `qcaret.exe` must start the JDK's
-`javaw.exe`. On macOS it also runs `codesign --verify --deep --strict` on
-`QCaret.app`.
+`javaw.exe`. Each launch repeats through `qcaret.cmd`, and `qcaret.cmd` runs
+over a probe jar from folders whose names hold a space, `&` and `%` to check
+the Java it picks, the JVM options and each argument. On macOS it also runs
+`codesign --verify --deep --strict` on `QCaret.app`.
 
 The `package` job caches the JDK archives and `rcodesign` under
 `~/.cache/qcaret-build`, apart from the Maven cache, keyed on
@@ -208,8 +210,8 @@ To fix a bad draft, delete the draft and the tag
 | macos-aarch64 | `cocoa.macosx.aarch64` | `qcaret-<version>-macos-aarch64.zip` (`QCaret.app`) |
 
 - `qcaret-<version>.zip` holds the universal `lib/qcaret.jar`, which runs on
-  all six targets under an installed Java 21, with `bin/qcaret` and
-  `qcaret.exe`.
+  all six targets under an installed Java 21, with `bin/qcaret`, `qcaret.exe`
+  and `qcaret.cmd`.
 - Each bundle adds a Java runtime for its target, so it needs no installed
   Java.
 - Linux targets need the system GTK 3 libraries. GTK 4 is an experimental
@@ -232,6 +234,12 @@ signed and not notarized. A downloaded copy therefore needs one approval:
 |---|---|
 | Windows | SmartScreen shows "Windows protected your PC": choose More info, then Run anyway. Unblocking the downloaded zip first (Properties, Unblock) avoids the prompt. |
 | macOS | macOS refuses the first open. Open System Settings > Privacy & Security and choose Open Anyway for QCaret, or run `xattr -dr com.apple.quarantine QCaret.app` before the first launch. |
+
+On Windows `qcaret.cmd` starts the same `javaw.exe` and jar without
+`qcaret.exe`. What Windows shows for a downloaded `.cmd` is unverified: Explorer
+marks the files it extracts from a downloaded zip as from the internet, and
+opening a marked script may show an "Open File - Security Warning" rather than
+SmartScreen's page.
 
 A copy that did not come from a browser download, such as one copied from
 removable media, usually shows no prompt. The universal jar needs none:
@@ -261,7 +269,7 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |
 | `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
 | `--settings <dir>` | Settings directory, created owner-only; holds `qcaret.conf` and QCaret's SWT native cache |
-| `--gtk4` | `bin/qcaret` only: start on SWT's GTK 4 backend by exporting `SWT_GTK4=1`; dropped before Java starts, so `java -jar` and `qcaret.exe` reject it. After `--` it is a file name |
+| `--gtk4` | `bin/qcaret` only: start on SWT's GTK 4 backend by exporting `SWT_GTK4=1`; dropped before Java starts, so `java -jar`, `qcaret.exe` and `qcaret.cmd` reject it. After `--` it is a file name |
 | `--` | End of options |
 | `file` | Opened in a tab; a missing file opens an empty document that saves to that path. Without a file, an untitled document opens |
 

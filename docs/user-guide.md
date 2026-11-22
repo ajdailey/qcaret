@@ -193,7 +193,9 @@ x86_64 (the non-ASCII text has a CJK char in every line):
 The launchers set the maximum heap to half of the physical memory. To raise it,
 run the jar with the bundle's runtime:
 `runtime/bin/java --enable-native-access=ALL-UNNAMED -Xmx8g -jar lib/qcaret.jar`.
-On Windows add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`. On
+On Windows add `-Xmx8g` as a line in `qcaret.l4j.ini` next to `qcaret.exe`;
+`qcaret.cmd` does not read that file, so replace `-XX:MaxRAMPercentage=50` in
+`qcaret.cmd` with `-Xmx8g`. On
 macOS the runtime and jar sit inside the bundle, and `-XstartOnFirstThread` is
 required, since without it QCaret restarts Java and drops `-Xmx8g` (not run on
 macOS):
@@ -1216,6 +1218,19 @@ missing GTK libraries, exits 3; a quit after an internal error exits 4.
 ```text
 qcaret +120:8 src/Mock.java -r notes.txt
 ```
+
+On Windows `qcaret` is `qcaret.exe`, or `qcaret.cmd` where Windows blocks the
+`.exe`. Both exit 0 once Java starts, so the exit statuses above reach only
+`java -jar` and `bin/qcaret`. Through
+`qcaret.cmd`, quote every argument holding a space or `&`, `|`, `<`, `>` or
+`^`: cmd.exe runs the text after an unquoted `&` as another command and drops
+an unquoted `^`. For the same reason, drop such a file on the QCaret window,
+not on `qcaret.cmd`, and start `qcaret.exe` from PowerShell, which quotes only
+arguments holding a space. Through either launcher a file name with characters
+outside the Windows code page for non-Unicode programs, such as a Japanese name
+on an English system, arrives with `?` in their place; open it from File >
+Open. Neither launcher starts from a folder whose path holds `;` or such
+characters.
 
 To give QCaret more heap for large files, see [Large files](#large-files).
 

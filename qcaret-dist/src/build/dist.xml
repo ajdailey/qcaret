@@ -150,6 +150,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <zipfileset file="${basedir}/src/icons/qcaret.svg" fullpath="qcaret/share/qcaret.svg"/>
       <zipfileset file="${universal.jar}" fullpath="qcaret/lib/qcaret.jar"/>
       <zipfileset file="${build}/qcaret.exe" fullpath="qcaret/qcaret.exe"/>
+      <zipfileset file="${basedir}/src/windows/qcaret.cmd" fullpath="qcaret/qcaret.cmd"/>
       <zipfileset file="${basedir}/src/windows/register-associations.cmd"
           fullpath="qcaret/register-associations.cmd"/>
       <zipfileset refid="notices" prefix="qcaret"/>
@@ -358,6 +359,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
       <copy file="${universal.jar}" todir="${home}/lib"/>
       <swt-dir target="@{target}" dest="${home}/lib/swt"/>
       <copy file="${build}/qcaret.exe" todir="${home}"/>
+      <copy file="${basedir}/src/windows/qcaret.cmd" todir="${home}"/>
       <copy file="${basedir}/src/windows/register-associations.cmd" todir="${home}"/>
       <copy todir="${home}"><fileset refid="notices"/></copy>
       <copy file="${basedir}/src/dist/THIRD-PARTY.txt" todir="${home}"/>
