@@ -47,7 +47,9 @@ import org.junit.jupiter.api.io.TempDir;
  * The tab strip's and status bar's screen pixels across theme changes, with focus outside and
  * inside the folder: each tab is readable and the strip follows the theme. Skipped on GTK 4, where
  * {@code GC.copyArea} from the Display reads white. Where a screen read does not show the window,
- * win32 reads through {@code Control.print} and other platforms skip ({@link ScreenProbe}).
+ * win32 reads through {@code Control.print} and other platforms skip ({@link ScreenProbe}). The
+ * pointer is parked off the window first: a tool bar button's tool tip covers the first tab, and on
+ * win32 it keeps the startup theme until a restart.
  */
 @Tag("swt")
 class TabColorsGuiTest {
@@ -120,6 +122,7 @@ class TabColorsGuiTest {
     controller.documents().newDocument();
     window.open();
     window.shell().forceActive();
+    ScreenProbe.parkPointer(window.shell());
     if (WIN32) {
       screenShowsWindows = ScreenProbe.shows(window.shell());
     } else {

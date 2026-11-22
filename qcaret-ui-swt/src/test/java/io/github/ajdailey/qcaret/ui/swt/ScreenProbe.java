@@ -9,6 +9,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -59,6 +60,21 @@ final class ScreenProbe {
       probe.dispose();
       display.update();
     }
+  }
+
+  /**
+   * Moves the pointer to the top-right corner of the shell's monitor work area, or the top-left
+   * when the shell covers that, so no tool tip opens over a screen read. A test that posted input
+   * can leave the pointer where a later shell has a tool bar button.
+   */
+  static void parkPointer(Shell shell) {
+    Rectangle window = shell.getBounds();
+    Rectangle work = shell.getMonitor().getClientArea();
+    Point corner = new Point(work.x + work.width - 1, work.y);
+    if (window.contains(corner)) {
+      corner = new Point(work.x, work.y);
+    }
+    shell.getDisplay().setCursorLocation(corner);
   }
 
   /** Aborts the running test unless a screen read shows the shell. */
