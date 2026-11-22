@@ -27,7 +27,9 @@ import org.commonmark.node.Text;
  * Writes a block's inline content into a {@link MarkdownOutput}. A soft line break is a space; a
  * hard line break and {@code <br>} start a new rendered line, or write a space in a table cell.
  * {@code <kbd>}, {@code <sub>} and {@code <sup>} open a style run that the matching close tag, or
- * the block's end, closes. Any other inline HTML is written as its source text.
+ * the block's end, closes. Any other inline HTML is written as its source text, with each line
+ * break in it as a space, so the block keeps one rendered line per {@link
+ * MarkdownOutput#startLine}.
  */
 final class InlineWriter {
   private static final Pattern TAG =
@@ -164,7 +166,23 @@ final class InlineWriter {
   private void html(String literal) {
     Matcher m = TAG.matcher(literal);
     if (!m.matches()) {
-      text(literal);
+      StringBuilder flat = new StringBuilder(literal.length());
+      for (int i = 0; i < literal.length(); i++) {
+        char c = literal.charAt(i);
+        if (c == '\n') {
+          spanIndex++;
+          flat.append(' ');
+        } else if (c == '\r') {
+          if (i + 1 < literal.length() && literal.charAt(i + 1) == '\n') {
+            continue;
+          }
+          spanIndex++;
+          flat.append(' ');
+        } else {
+          flat.append(c);
+        }
+      }
+      text(flat.toString());
       return;
     }
     if (m.group(2) != null) {

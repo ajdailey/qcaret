@@ -75,6 +75,48 @@ class MarkdownRendererTest {
   }
 
   @Test
+  void aLineBreakInInlineHtmlRendersAsASpace() {
+    RenderedMarkdown r = Render.of("x <span title=\"a\nb\">y</span>\n\n# H\n");
+    assertEquals(List.of("x <span title=\"a b\">y</span>", "", "H"), lines(r));
+    assertEquals(newlines(r) + 1, r.lineCount());
+    assertEquals(2, r.headings().get(0).line());
+    assertEquals(3, r.sourceLine(2));
+  }
+
+  @Test
+  void lineIndexesAfterAMultiLinePictureTagLandOnTheirLines() {
+    RenderedMarkdown r =
+        Render.of(
+            "<picture> <source media=\"(prefers-color-scheme: dark)\"\n"
+                + "srcset=\"mock-dark.svg\"> <img\n"
+                + "src=\"mock-light.svg\" alt=\"logo\" width=\"96\"\n"
+                + "height=\"96\"> </picture>\n\n"
+                + "| A | B |\n|---|---|\n| `c` | d |\n\n# After\n");
+    assertEquals(newlines(r) + 1, r.lineCount());
+    assertEquals(6, r.lineCount());
+    assertEquals("A\tB", Render.line(r, 2));
+    assertEquals(2, r.tables().get(0).firstLine());
+    assertEquals(5, r.sourceLine(2));
+    assertEquals(7, r.sourceLine(3));
+    assertEquals(2, r.renderedLine(5));
+    StyleRun code = Render.first(r, InlineStyle.CODE);
+    assertEquals("c", Render.covered(r, code));
+    assertEquals(r.lineStart(3), code.start());
+    assertEquals(5, r.headings().get(0).line());
+    assertEquals("After", Render.line(r, 5));
+  }
+
+  private static int newlines(RenderedMarkdown r) {
+    int n = 0;
+    for (int i = 0; i < r.text().length(); i++) {
+      if (r.text().charAt(i) == '\n') {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  @Test
   void anHtmlBlockShowsAsSourceText() {
     RenderedMarkdown r = Render.of("<div class=\"x\">\n<b>bold</b>\n</div>\n");
     assertEquals(List.of("<div class=\"x\">", "<b>bold</b>", "</div>"), lines(r));

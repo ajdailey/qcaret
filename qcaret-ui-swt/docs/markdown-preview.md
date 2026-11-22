@@ -132,9 +132,9 @@ chars on macOS. Nothing is styled ahead of painting:
 | Listener | Class | Per painted line |
 |---|---|---|
 | `LineStyleListener` | `MarkdownStyler` | Fonts and colors from `MarkdownSpans`, code lines in the monospace family with token colors, the bold header row, glyph metrics for each image char, quote and list indent, bullet, number or checkbox, a measured table's indent and tab stops |
-| `LineBackgroundListener` | `MarkdownStyler` | The code shade on code and front matter lines |
+| `LineBackgroundListener` | `MarkdownStyler` | The code shade on code and front matter lines and on a measured table's header row |
 | `PaintObjectListener` | `MarkdownPainter` | An image, or a box with the file name for one that did not decode |
-| `Paint` | `MarkdownPainter` | Quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders |
+| `Paint` | `MarkdownPainter` | Quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders; the pane background over the header row's shade outside the table |
 
 UI-thread work per new render is the text change (`TextDelta`), the scroll
 restore and styling of the lines in view. The wrapping `StyledText` measures a
@@ -151,10 +151,17 @@ with the replace (median of 10, Xvfb, GTK 3); the first show of 951 KB took
 3.3 s as a replace from the empty text. Table columns are the
 only work that grows with the document: `TableColumns` measures cells with a
 `GC` through `MarkdownTableLayout` in UI turns of at most 200 cells and 8 ms,
-checked every 16 cells, tables in view first, and restyles a table's lines when
-it is measured. A table row's spaces show as no-break spaces so a cell does not
-wrap; Copy, from the keys bound to it and from the context menu, puts the
-render's own text on the clipboard.
+checked every 16 cells, tables in view first. `SpanWidths` measures each span
+of a cell in the font `MarkdownStyler` draws it with (code and kbd monospace,
+bold, italic), so a cell stays inside its column. A turn ends when a table is
+measured, and the next turn restyles the table's lines; a table below the view
+repaints nothing, since the pixel position of a line below the view lays out
+every wrapped line above it. The restyle of a table filling the view is the
+widget's work: `redrawRange` and the repaint below it each lay out the lines in
+view, 7-9 ms each for a 2,000-row table (measured, Xvfb, GTK 3). A table row's
+spaces show as no-break spaces so a cell does not wrap; Copy, from the keys
+bound to it and from the context menu, puts the render's own text on the
+clipboard.
 
 The pane reports a new top line from `Paint`; `scrollToLine` and
 `selectRendered` record the line they leave at the top, so the controller's own
@@ -163,9 +170,10 @@ scroll is not reported back. View > Markdown View > Sync Scrolling
 controller scrolls neither side of Split for the other, and the views are
 unchanged ([Documents](../../qcaret-app/docs/documents.md#markdown-preview)). `selectRendered` (a find match in Preview) sets
 the selection, which scrolls it into view, and leaves the focus where it is;
-the `BrowserPane` has no selection and only scrolls. The text has no
-top margin: `getTopIndex` returns the first fully visible line, and a line
-scrolled under a top margin would read as the next one.
+the `BrowserPane` has no selection and only scrolls. The text has 24 px side
+margins, 2 px between lines, and no top margin: `getTopIndex` returns the first
+fully visible line, and a line scrolled under a top margin would read as the
+next one.
 
 Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
 for subscript and superscript, and the editor font's family for code) belong

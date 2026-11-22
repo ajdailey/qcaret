@@ -748,7 +748,9 @@ Print (on Linux with GTK 4, the PDF file name) and prints the whole document; a
 page range applies, a selection does not. Each page has the file name and Page
 N of M at the top, and the colors are the light theme's on white. A table row,
 a code line or an image never splits across pages, a heading does not end a
-page, and a table continued on a new page repeats its header row. It has no
+page, and a table continued on a new page repeats its header row. A table wider
+than the page has its columns narrowed to fit, each cell wrapping inside its
+column. It has no
 default key; progress, Cancel and the one-job limit are as for File > Print.
 
 ## External changes

@@ -52,9 +52,9 @@ black at depth 1).
 
 | Class | Role |
 |---|---|
-| `PrintLines` | Builds a rendered line's `TextLayout` on the `Printer`: styles from `MarkdownStyler.apply`, the shared span-to-style mapping; a paragraph line wraps at the body width less its quote and list indent; a table row does not wrap and takes its tab stops. Basic's pixel constants scale by the printer's dpi over 96 |
-| `PrintMeasurer` | All measuring: cell widths through the printer's `GC`, a line's row heights through its `TextLayout` |
-| `MarkdownPrinting` | Decodes images, draws placed rows clipped to the body, and paints what Basic's `MarkdownPainter` paints: code shade, quote bars, rules, heading lines, table borders, list markers, images and placeholders |
+| `PrintLines` | Builds a rendered line's `TextLayout` on the `Printer`: styles from `MarkdownStyler.apply`, the shared span-to-style mapping; a paragraph line wraps at the body width less its quote and list indent; a table row is one `TextLayout` per cell, wrapped at its column's width and aligned in it. Basic's pixel constants scale by the printer's dpi over 96 |
+| `PrintMeasurer` | All measuring: cell widths through `SpanWidths` with the printer's `GC`, each span in its font; a line's row heights through its `TextLayout`; a table row's height as its tallest cell's |
+| `MarkdownPrinting` | Decodes images, draws placed rows clipped to the body, and paints what Basic's `MarkdownPainter` paints: code shade, the header row's shade, quote bars, rules, heading lines, table borders, list markers, images and placeholders |
 
 Measuring and drawing run on the job's worker. `TextLayout` measuring on a
 `Printer` off the UI thread is verified on GTK 3 and GTK 4 (`PrintMeasurerTest`);

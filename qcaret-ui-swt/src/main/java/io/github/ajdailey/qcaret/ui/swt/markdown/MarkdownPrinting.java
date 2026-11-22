@@ -83,7 +83,8 @@ public final class MarkdownPrinting {
         new MarkdownFonts(printer, new FontData(bodyFamily, POINTS, SWT.NORMAL), monoFamily);
     this.lines =
         new PrintLines(printer, content, fonts, sizes, body.width, printer.getDPI(), color);
-    this.measurer = new PrintMeasurer(lines, fonts, gc);
+    this.measurer =
+        new PrintMeasurer(lines, new SpanWidths(gc, fonts, rendered.text(), content.spans()));
     this.headingLevels = new int[rendered.lineCount()];
     for (MarkdownHeading heading : rendered.headings()) {
       headingLevels[heading.line()] = heading.level();
@@ -96,18 +97,29 @@ public final class MarkdownPrinting {
    * @return printer pixels
    */
   public int padding() {
-    return lines.scaled(TableColumns.PADDING);
+    return lines.padding();
   }
 
   /**
-   * Measures text in the body font.
+   * Measures a range of one rendered line, each span in its font.
    *
-   * @param text the text
+   * @param start the range's first offset
+   * @param end the offset after it
    * @param strong true for bold
    * @return the width in printer pixels
    */
-  public int width(String text, boolean strong) {
-    return measurer.width(text, strong);
+  public int width(int start, int end, boolean strong) {
+    return measurer.width(start, end, strong);
+  }
+
+  /**
+   * Returns the indent a line's quotes and lists take.
+   *
+   * @param line a rendered line
+   * @return printer pixels
+   */
+  public int indent(int line) {
+    return lines.baseIndent(line);
   }
 
   /**
@@ -183,7 +195,11 @@ public final class MarkdownPrinting {
   }
 
   private void line(MarkdownPrintSheet.Placed p) {
-    TextLayout layout = lines.layout(p.line(), p.table());
+    if (p.table() != null) {
+      tableRow(p);
+      return;
+    }
+    TextLayout layout = lines.layout(p.line());
     try {
       int last = Math.min(p.firstRow() + p.rowCount(), layout.getLineCount()) - 1;
       int rowTop = layout.getLineBounds(p.firstRow()).y;
@@ -198,11 +214,11 @@ public final class MarkdownPrinting {
         gc.fillRectangle(base, top, right - base, height);
       }
       bars(p.line(), top, height);
-      int x = body.x + lines.start(p.line(), p.table());
+      int x = body.x + lines.start(p.line());
       int y = top - rowTop;
       gc.setForeground(BLACK);
       layout.draw(gc, x, y);
-      images(p, layout, x, y, last);
+      images(layout, lines.lineStart(p.line()), lines.lineEnd(p.line()), x, y, p.firstRow(), last);
       if (p.firstRow() == 0) {
         marker(p.line(), base, top, layout);
       }
@@ -214,11 +230,38 @@ public final class MarkdownPrinting {
       if (level > 0 && level <= 2 && last == layout.getLineCount() - 1) {
         gc.drawLine(base, top + height - 1, right, top + height - 1);
       }
-      if (p.edges() != null) {
-        borders(p.edges(), base, top, height);
-      }
     } finally {
       layout.dispose();
+    }
+  }
+
+  /** Draws a table row: each cell wrapped in its column, the header row shaded when in color. */
+  private void tableRow(MarkdownPrintSheet.Placed p) {
+    TextLayout[] cells = lines.cells(p.line(), p.table());
+    try {
+      int height = 0;
+      for (TextLayout cell : cells) {
+        height = Math.max(height, cell.getBounds().height);
+      }
+      int[] edges = p.edges();
+      int top = body.y + p.y();
+      int base = body.x + lines.baseIndent(p.line());
+      if (color && lines.styler().header(p.line())) {
+        gc.setBackground(MarkdownStyler.color(Palette.LIGHT.gutter()));
+        gc.fillRectangle(base + edges[0], top, edges[edges.length - 1] - edges[0], height);
+      }
+      bars(p.line(), top, height);
+      int[] pairs = lines.cellRanges(p.line());
+      gc.setForeground(BLACK);
+      for (int c = 0; c < cells.length; c++) {
+        int x = base + edges[c] + lines.padding();
+        cells[c].draw(gc, x, top);
+        images(cells[c], pairs[2 * c], pairs[2 * c + 1], x, top, 0, cells[c].getLineCount() - 1);
+      }
+      gc.setForeground(color(Palette.LIGHT.accents().rightMargin()));
+      borders(edges, base, top, height);
+    } finally {
+      PrintLines.dispose(cells);
     }
   }
 
@@ -266,12 +309,13 @@ public final class MarkdownPrinting {
     gc.drawString(text, x, top + ascent, true);
   }
 
-  private void images(MarkdownPrintSheet.Placed p, TextLayout layout, int x, int y, int lastRow) {
-    int start = lines.lineStart(p.line());
-    for (int offset : lines.imagesIn(p.line())) {
+  /** Draws the images of a layout holding the rendered text from start to end, in its rows. */
+  private void images(
+      TextLayout layout, int start, int end, int x, int y, int firstRow, int lastRow) {
+    for (int offset : lines.imagesIn(start, end)) {
       int index = offset - start;
       int row = layout.getLineIndex(index);
-      if (row < p.firstRow() || row > lastRow) {
+      if (row < firstRow || row > lastRow) {
         continue;
       }
       Point size = sizes.get(offset);

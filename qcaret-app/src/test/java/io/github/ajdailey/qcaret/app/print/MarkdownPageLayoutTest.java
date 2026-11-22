@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.print;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -38,8 +39,13 @@ class MarkdownPageLayoutTest {
     }
 
     @Override
-    public int width(String text, boolean strong) {
-      return text.length() * 10;
+    public int width(int start, int end, boolean strong) {
+      return (end - start) * 10;
+    }
+
+    @Override
+    public int indent(int line) {
+      return 0;
     }
 
     @Override
@@ -74,6 +80,19 @@ class MarkdownPageLayoutTest {
       out.add(page);
     }
     return out;
+  }
+
+  @Test
+  void aTableWiderThanTheBodyHasItsColumnsNarrowedToFit() {
+    RenderedMarkdown r =
+        render("| Name | Note |\n|---|---|\n| a | " + "mock words ".repeat(20) + "|\n");
+    MarkdownPageLayout layout = MarkdownPageLayout.of(r, new FakeSheet(1000), GO);
+    List<MarkdownPrintSheet.Placed> lines = layout.page(1).lines();
+    assertEquals(2, lines.size());
+    // Body 500, padding 4: room 484; widest words 40 and 50 leave 394 for the second column.
+    assertArrayEquals(new int[] {0, 48, 500}, lines.get(1).edges());
+    assertArrayEquals(new int[] {0, 48, 500}, lines.get(1).table().edges());
+    assertEquals(48 + 4, lines.get(1).table().tabStops()[0]);
   }
 
   @Test

@@ -19,6 +19,7 @@ import org.eclipse.swt.custom.LineStyleEvent;
 import org.eclipse.swt.custom.ST;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.TextStyle;
@@ -28,9 +29,9 @@ import org.eclipse.swt.graphics.TextStyle;
  * widget paints it: fonts, colors and decorations from the {@link MarkdownSpans}, the monospace
  * font on code lines with the token colors of the palette, bold table headers, glyph metrics that
  * reserve each image's space, the indent of quotes and lists with a bullet, number or checkbox on
- * an item's first line, and a measured table's tab stops. Nothing is applied ahead of painting, so
- * the work per UI turn follows the lines in view, not the document. Colors follow {@link
- * #setPalette}. Call on the UI thread.
+ * an item's first line, a measured table's tab stops, and the shade of code lines and of a measured
+ * table's header row. Nothing is applied ahead of painting, so the work per UI turn follows the
+ * lines in view, not the document. Colors follow {@link #setPalette}. Call on the UI thread.
  */
 final class MarkdownStyler {
   /** Pixels a quote level indents. */
@@ -113,7 +114,7 @@ final class MarkdownStyler {
     }
     RenderedMarkdown r = content.rendered();
     int table = tableAt(line);
-    boolean header = table >= 0 && r.tables().get(table).firstLine() == line;
+    boolean header = header(line);
     boolean code = r.code(line);
     List<StyleRange> out = new ArrayList<StyleRange>();
     int[] spans = content.spans();
@@ -138,13 +139,29 @@ final class MarkdownStyler {
    * Returns a line's background.
    *
    * @param line a line
-   * @return the code shade for a code line, else null
+   * @return the code shade for a code line and for the header row of a measured table, else null
    */
   Color background(int line) {
     if (content == null || line >= content.rendered().lineCount()) {
       return null;
     }
-    return content.rendered().code(line) ? color(palette.gutter()) : null;
+    boolean shaded =
+        content.rendered().code(line)
+            || (header(line) && tables != null && tables.measured(tableAt(line)) != null);
+    return shaded ? color(palette.gutter()) : null;
+  }
+
+  /**
+   * Reports whether a line is a table's header row.
+   *
+   * @param line a line
+   * @return true for the first row of a table
+   */
+  boolean header(int line) {
+    int table = tableAt(line);
+    return table >= 0
+        && content != null
+        && content.rendered().tables().get(table).firstLine() == line;
   }
 
   /**
@@ -336,13 +353,7 @@ final class MarkdownStyler {
     int role = MarkdownSpans.role(bits);
     boolean mono = code || (bits & (MarkdownSpans.CODE | MarkdownSpans.KBD)) != 0;
     boolean small = (bits & (MarkdownSpans.SUB | MarkdownSpans.SUP)) != 0;
-    int style = SWT.NORMAL;
-    if (header || level > 0 || (bits & MarkdownSpans.STRONG) != 0) {
-      style |= SWT.BOLD;
-    }
-    if ((bits & MarkdownSpans.EMPHASIS) != 0) {
-      style |= SWT.ITALIC;
-    }
+    int style = fontStyle(bits, header);
     if (role >= 0) {
       TokenStyle token = palette.style(TokenRole.values()[role]);
       r.foreground = color(token.foreground());
@@ -375,6 +386,35 @@ final class MarkdownStyler {
     } else if ((bits & MarkdownSpans.SUB) != 0) {
       r.rise = -height / 3;
     }
+  }
+
+  /**
+   * Returns the font {@link #apply} sets for a span outside a code block.
+   *
+   * @param bits the span's {@link MarkdownSpans} bits, 0 for plain text
+   * @param header true on a table's header row
+   * @param fonts the fonts
+   * @return the font, or null for the body font
+   */
+  static Font font(int bits, boolean header, MarkdownFonts fonts) {
+    int level = MarkdownSpans.level(bits);
+    boolean mono = (bits & (MarkdownSpans.CODE | MarkdownSpans.KBD)) != 0;
+    boolean small = (bits & (MarkdownSpans.SUB | MarkdownSpans.SUP)) != 0;
+    int style = fontStyle(bits, header);
+    return mono || style != SWT.NORMAL || level > 0 || small
+        ? fonts.get(mono, style, level, small)
+        : null;
+  }
+
+  private static int fontStyle(int bits, boolean header) {
+    int style = SWT.NORMAL;
+    if (header || MarkdownSpans.level(bits) > 0 || (bits & MarkdownSpans.STRONG) != 0) {
+      style |= SWT.BOLD;
+    }
+    if ((bits & MarkdownSpans.EMPHASIS) != 0) {
+      style |= SWT.ITALIC;
+    }
+    return style;
   }
 
   /** Returns a palette color; SWT colors without a device hold no resource. */

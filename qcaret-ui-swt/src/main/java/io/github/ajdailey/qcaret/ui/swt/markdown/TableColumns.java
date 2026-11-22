@@ -2,21 +2,22 @@ package io.github.ajdailey.qcaret.ui.swt.markdown;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.editor.TextMeasurer;
+import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.util.ArrayList;
 import java.util.List;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Rectangle;
 
 /**
- * The column layouts of the tables a pane shows, measured with a {@link GC} on the UI thread in
- * turns of at most {@value #CELLS_PER_TURN} cells and {@value #TURN_MILLIS} ms, whole rows at a
- * time, the tables in view first. A measured table's rows are styled again so they take its tab
- * stops. Call on the UI thread.
+ * The column layouts of the tables a pane shows, each cell measured in its spans' fonts by {@link
+ * SpanWidths} with a {@link GC} on the UI thread in turns of at most {@value #CELLS_PER_TURN} cells
+ * and {@value #TURN_MILLIS} ms, whole rows at a time, the tables in view first. A turn stops when a
+ * table is measured; the next turn styles that table's rows again so they take its tab stops. Call
+ * on the UI thread.
  */
 final class TableColumns {
   /** The most cells measured in one UI turn. */
@@ -35,11 +36,13 @@ final class TableColumns {
   private final MarkdownFonts fonts;
   private final UiDispatcher ui;
   private RenderedMarkdown rendered;
+  private int[] spans;
   private MarkdownTableLayout[] layouts = new MarkdownTableLayout[0];
   private final List<Integer> queue = new ArrayList<Integer>();
   private long generation;
   private int turns;
   private long longestTurn;
+  private int restyled = -1;
 
   TableColumns(StyledText text, MarkdownFonts fonts, UiDispatcher ui) {
     this.text = text;
@@ -50,20 +53,22 @@ final class TableColumns {
   /**
    * Starts measuring the tables of new content.
    *
-   * @param next the render shown
+   * @param next the content shown
    * @param topLine the first line in view
    * @param bottomLine the last line in view
    */
-  void reset(RenderedMarkdown next, int topLine, int bottomLine) {
+  void reset(MarkdownPreviewContent next, int topLine, int bottomLine) {
     generation++;
-    rendered = next;
-    List<MarkdownTable> tables = next.tables();
+    rendered = next.rendered();
+    spans = next.spans();
+    List<MarkdownTable> tables = rendered.tables();
     layouts = new MarkdownTableLayout[tables.size()];
     queue.clear();
+    restyled = -1;
     List<Integer> later = new ArrayList<Integer>();
     for (int i = 0; i < tables.size(); i++) {
       MarkdownTable table = tables.get(i);
-      layouts[i] = new MarkdownTableLayout(table, next.text(), PADDING);
+      layouts[i] = new MarkdownTableLayout(table, rendered.text(), PADDING);
       boolean inView =
           table.firstLine() <= bottomLine && table.firstLine() + table.rowCount() > topLine;
       (inView ? queue : later).add(i);
@@ -85,7 +90,7 @@ final class TableColumns {
     return layout != null && layout.measured() ? layout : null;
   }
 
-  /** Counts the UI turns that measured, for tests. */
+  /** Counts the UI turns, for tests. */
   int turns() {
     return turns;
   }
@@ -99,6 +104,12 @@ final class TableColumns {
   void cancel() {
     generation++;
     queue.clear();
+    restyled = -1;
+  }
+
+  /** Reports whether measuring or a restyle is still to run, for tests. */
+  boolean busy() {
+    return !queue.isEmpty() || restyled >= 0;
   }
 
   private void schedule() {
@@ -115,18 +126,32 @@ final class TableColumns {
   }
 
   private void turn() {
+    RenderedMarkdown shown = rendered;
+    if (shown == null) {
+      return;
+    }
     turns++;
     long start = System.nanoTime();
-    final GC gc = new GC(text);
     try {
-      TextMeasurer measurer =
-          new TextMeasurer() {
-            @Override
-            public int width(String cell, boolean strong) {
-              gc.setFont(fonts.get(false, strong ? SWT.BOLD : SWT.NORMAL, 0, false));
-              return gc.textExtent(cell, 0).x;
-            }
-          };
+      if (restyled >= 0) {
+        redraw(text, shown, restyled);
+        restyled = -1;
+      } else {
+        measure(shown);
+      }
+    } finally {
+      longestTurn = Math.max(longestTurn, System.nanoTime() - start);
+    }
+    if (!queue.isEmpty() || restyled >= 0) {
+      schedule();
+    }
+  }
+
+  /** Measures until the budget or the deadline runs out, or until a table is measured. */
+  private void measure(RenderedMarkdown shown) {
+    GC gc = new GC(text);
+    try {
+      TextMeasurer measurer = new SpanWidths(gc, fonts, shown.text(), spans);
       int budget = CELLS_PER_TURN;
       long deadline = System.nanoTime() + TURN_MILLIS * 1_000_000L;
       while (budget > 0 && !queue.isEmpty() && System.nanoTime() < deadline) {
@@ -134,35 +159,29 @@ final class TableColumns {
         budget -= Math.max(1, layouts[index].measure(measurer, Math.min(budget, CELLS_PER_STEP)));
         if (layouts[index].measured()) {
           queue.remove(0);
-          redraw(index);
+          restyled = index;
+          return;
         }
       }
     } finally {
       gc.dispose();
-      longestTurn = Math.max(longestTurn, System.nanoTime() - start);
-    }
-    if (!queue.isEmpty()) {
-      schedule();
     }
   }
 
-  private void redraw(int index) {
-    if (rendered == null) {
-      return;
-    }
-    MarkdownTable table = rendered.tables().get(index);
-    int first = rendered.lineStart(table.firstLine());
+  private static void redraw(StyledText text, RenderedMarkdown shown, int index) {
+    MarkdownTable table = shown.tables().get(index);
+    int first = shown.lineStart(table.firstLine());
     int lastLine = table.firstLine() + table.rowCount() - 1;
     int end =
-        lastLine + 1 < rendered.lineCount()
-            ? rendered.lineStart(lastLine + 1)
-            : rendered.text().length();
+        lastLine + 1 < shown.lineCount() ? shown.lineStart(lastLine + 1) : shown.text().length();
     restyle(text, first, end);
   }
 
   /**
-   * Styles a range's lines again and repaints from its first line down, full width: a new indent or
-   * line height moves text the range's own bounds do not cover.
+   * Styles a range's lines again and, when its first line is above the last line in view, repaints
+   * from that line down, full width: a new indent or line height moves text the range's own bounds
+   * do not cover. A range below the view repaints nothing: the pixel position of a line below the
+   * view lays out every wrapped line above it.
    *
    * @param text the widget
    * @param start the range's first offset
@@ -171,9 +190,11 @@ final class TableColumns {
   static void restyle(StyledText text, int start, int end) {
     text.redrawRange(start, Math.max(0, end - start), true);
     Rectangle area = text.getClientArea();
-    int y = Math.max(0, text.getLinePixel(text.getLineAtOffset(start)));
-    if (y < area.height) {
-      text.redraw(0, y, area.width, area.height - y, true);
+    int line = text.getLineAtOffset(start);
+    if (line > text.getLineIndex(Math.max(0, area.height - 1))) {
+      return;
     }
+    int y = line <= text.getTopIndex() ? 0 : Math.max(0, text.getLinePixel(line));
+    text.redraw(0, y, area.width, area.height - y, true);
   }
 }

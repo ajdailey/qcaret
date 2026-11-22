@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
+import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.util.Arrays;
 import java.util.Map;
@@ -15,9 +16,9 @@ import org.eclipse.swt.graphics.TextLayout;
 import org.eclipse.swt.graphics.TextStyle;
 
 /**
- * Builds the {@link TextLayout} of one rendered line on a printer, styled as Basic styles it with
+ * Builds the {@link TextLayout}s of rendered lines on a printer, styled as Basic styles them with
  * {@link Palette#LIGHT}: a paragraph line wraps at the body's width less its quote and list indent;
- * a table row does not wrap and starts each cell at its tab stop. Basic's pixel constants scale
+ * a table row is one layout per cell, wrapped at its column's width. Basic's pixel constants scale
  * from 96 dpi to the printer's. Without color every style is black on white. Confined to the job's
  * thread.
  */
@@ -95,15 +96,11 @@ final class PrintLines {
   /**
    * Returns where a line's layout starts.
    *
-   * @param line a rendered line
-   * @param table the row's placement in its table, or null
+   * @param line a rendered line outside a table
    * @return pixels from the body's left edge
    */
-  int start(int line, MarkdownTableLayout.Row table) {
+  int start(int line) {
     int base = baseIndent(line);
-    if (table != null) {
-      return base + table.indent();
-    }
     return content.rendered().listDepth(line) > 0
         ? base + scaled(MarkdownStyler.BULLET_WIDTH)
         : base;
@@ -121,33 +118,95 @@ final class PrintLines {
   }
 
   /**
-   * Builds a line's layout; the caller disposes it.
+   * Builds the layout of a line outside a table, wrapped at the body's width less its indent; the
+   * caller disposes it.
    *
    * @param line a rendered line
-   * @param table the row's placement in its table, or null outside a table
    * @return the layout, its origin at {@link #start}
    */
-  TextLayout layout(int line, MarkdownTableLayout.Row table) {
-    RenderedMarkdown r = content.rendered();
+  TextLayout layout(int line) {
     int start = lineStart(line);
     int end = lineEnd(line);
+    TextLayout layout = text(start, end);
+    layout.setWidth(Math.max(1, width - start(line)));
+    styleRange(layout, start, end, content.rendered().code(line), false);
+    return layout;
+  }
+
+  /**
+   * Builds the layouts of a table row's cells, each wrapped at its column's width less padding and
+   * aligned in it; the caller disposes them.
+   *
+   * @param line a table row's rendered line
+   * @param table the row's placement in its table
+   * @return one layout per column, the first column first; column {@code c} starts at {@link
+   *     #baseIndent} plus {@code table.edges()[c]} plus {@link #padding}
+   */
+  TextLayout[] cells(int line, MarkdownTableLayout.Row table) {
+    MarkdownTable t = content.rendered().tables().get(styler.tableAt(line));
+    int[] pairs = cellRanges(line);
+    boolean header = line == t.firstLine();
+    int[] edges = table.edges();
+    int padding = padding();
+    TextLayout[] cells = new TextLayout[t.alignments().size()];
+    boolean built = false;
+    try {
+      for (int c = 0; c < cells.length; c++) {
+        int start = pairs[2 * c];
+        int end = pairs[2 * c + 1];
+        cells[c] = text(start, end);
+        cells[c].setWidth(Math.max(1, edges[c + 1] - edges[c] - 2 * padding));
+        cells[c].setAlignment(
+            switch (t.alignments().get(c)) {
+              case RIGHT -> SWT.RIGHT;
+              case CENTER -> SWT.CENTER;
+              default -> SWT.LEFT;
+            });
+        styleRange(cells[c], start, end, false, header);
+      }
+      built = true;
+    } finally {
+      if (!built) {
+        dispose(cells);
+      }
+    }
+    return cells;
+  }
+
+  /**
+   * Returns a table row's cells.
+   *
+   * @param line a table row's rendered line
+   * @return {@code start, end} offset pairs, one per column; shared, do not modify
+   */
+  int[] cellRanges(int line) {
+    MarkdownTable t = content.rendered().tables().get(styler.tableAt(line));
+    return t.cells()[line - t.firstLine()];
+  }
+
+  /** Disposes layouts from {@link #cells}; null entries are skipped. */
+  static void dispose(TextLayout[] layouts) {
+    for (TextLayout layout : layouts) {
+      if (layout != null) {
+        layout.dispose();
+      }
+    }
+  }
+
+  /** Returns the padding on each side of a table cell's text, in printer pixels. */
+  int padding() {
+    return scaled(TableColumns.PADDING);
+  }
+
+  private TextLayout text(int start, int end) {
     TextLayout layout = new TextLayout(device);
     layout.setFont(fonts.get(false, SWT.NORMAL, 0, false));
-    layout.setText(r.text().substring(start, end));
-    if (table != null) {
-      int[] stops = table.tabStops();
-      if (stops.length > 0) {
-        int[] tabs = new int[stops.length];
-        for (int i = 0; i < tabs.length; i++) {
-          tabs[i] = Math.max(1, stops[i] - table.indent());
-        }
-        layout.setTabs(tabs);
-      }
-    } else {
-      layout.setWidth(Math.max(1, width - start(line, null)));
-    }
-    boolean code = r.code(line);
-    boolean header = table != null && isHeader(r, line);
+    layout.setText(content.rendered().text().substring(start, end));
+    return layout;
+  }
+
+  /** Styles a layout holding the rendered text from {@code start} to {@code end}. */
+  private void styleRange(TextLayout layout, int start, int end, boolean code, boolean header) {
     int[] spans = content.spans();
     int at = start;
     for (int i = MarkdownSpans.first(spans, start); 3 * i < spans.length; i++) {
@@ -162,12 +221,6 @@ final class PrintLines {
     }
     style(layout, start, at, end, 0, code, header);
     images(layout, start, end);
-    return layout;
-  }
-
-  private boolean isHeader(RenderedMarkdown r, int line) {
-    int table = styler.tableAt(line);
-    return table >= 0 && r.tables().get(table).firstLine() == line;
   }
 
   private void style(
@@ -197,10 +250,8 @@ final class PrintLines {
     }
   }
 
-  /** Returns the image offsets inside a line, ascending. */
-  int[] imagesIn(int line) {
-    int start = lineStart(line);
-    int end = lineEnd(line);
+  /** Returns the image offsets from {@code start} to {@code end}, ascending. */
+  int[] imagesIn(int start, int end) {
     int i = Arrays.binarySearch(imageOffsets, start);
     i = i < 0 ? -i - 1 : i;
     int j = i;

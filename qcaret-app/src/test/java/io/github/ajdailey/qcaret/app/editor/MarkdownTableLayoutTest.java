@@ -24,11 +24,16 @@ class MarkdownTableLayoutTest {
   /** Ten pixels a char, twelve in a strong row; records each call. */
   private static final class Fake implements TextMeasurer {
     final List<String> measured = new ArrayList<String>();
+    final String text;
+
+    Fake(RenderedMarkdown r) {
+      text = r.text();
+    }
 
     @Override
-    public int width(String text, boolean strong) {
-      measured.add((strong ? "!" : "") + text);
-      return text.length() * (strong ? 12 : 10);
+    public int width(int start, int end, boolean strong) {
+      measured.add((strong ? "!" : "") + text.substring(start, end));
+      return (end - start) * (strong ? 12 : 10);
     }
   }
 
@@ -44,7 +49,7 @@ class MarkdownTableLayoutTest {
   void columnsFitTheWidestCellAndAlignmentPlacesEachCell() {
     RenderedMarkdown r = render("| L | Center | R |\n|:--|:-:|--:|\n| aaaa | b | c |\n");
     MarkdownTableLayout layout = layout(r);
-    Fake fake = new Fake();
+    Fake fake = new Fake(r);
     layout.measure(fake, Integer.MAX_VALUE);
     assertTrue(layout.measured());
     assertEquals(List.of("!L", "!Center", "!R", "aaaa", "b", "c"), fake.measured);
@@ -64,8 +69,9 @@ class MarkdownTableLayoutTest {
     for (int i = 0; i < 9; i++) {
       text.append("| x | y |\n");
     }
-    final MarkdownTableLayout layout = layout(render(text.toString()));
-    Fake fake = new Fake();
+    RenderedMarkdown r = render(text.toString());
+    final MarkdownTableLayout layout = layout(r);
+    Fake fake = new Fake(r);
     assertEquals(4, layout.measure(fake, 3));
     assertFalse(layout.measured());
     assertThrows(
@@ -86,10 +92,37 @@ class MarkdownTableLayoutTest {
   }
 
   @Test
+  void fitNarrowsColumnsByTheirSlackAboveTheWidestWord() {
+    RenderedMarkdown r = render("| a | bbbbbbbbbb cccccccccc dddddddddd |\n|---|---|\n| x | y |\n");
+    MarkdownTableLayout layout = layout(r);
+    Fake fake = new Fake(r);
+    layout.measure(fake, Integer.MAX_VALUE);
+    // Inner widths 12 and 32 strong chars, 384.
+    assertArrayEquals(new int[] {0, 20, 412}, layout.edges());
+    layout.fit(fake, 500);
+    assertArrayEquals(new int[] {0, 20, 412}, layout.edges());
+    // Room 184; widest words 12 and 120 leave 52, all to the second column.
+    layout.fit(fake, 200);
+    assertArrayEquals(new int[] {0, 20, 200}, layout.edges());
+    assertEquals(20 + PADDING, layout.row(0).tabStops()[0]);
+    assertArrayEquals(layout.edges(), layout.row(1).edges());
+  }
+
+  @Test
+  void fitKeepsTheWidestWordsOfATableThatCannotFit() {
+    RenderedMarkdown r = render("| aaaa | bbbbbbbbbb cc |\n|---|---|\n");
+    MarkdownTableLayout layout = layout(r);
+    Fake fake = new Fake(r);
+    layout.measure(fake, Integer.MAX_VALUE);
+    layout.fit(fake, 50);
+    assertArrayEquals(new int[] {0, 56, 184}, layout.edges());
+  }
+
+  @Test
   void aShortRowLeavesItsMissingCellsEmpty() {
     RenderedMarkdown r = render("| a | bb |\n|---|---|\n| ccc |\n");
     MarkdownTableLayout layout = layout(r);
-    layout.measure(new Fake(), Integer.MAX_VALUE);
+    layout.measure(new Fake(r), Integer.MAX_VALUE);
     assertArrayEquals(new int[] {0, 38, 70}, layout.edges());
     assertEquals(PADDING, layout.row(1).indent());
   }

@@ -22,9 +22,12 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
+import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
+import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -599,6 +602,99 @@ class MarkdownPreviewSurfaceTest {
     bar.field().notifyListeners(SWT.KeyDown, escape);
     flush();
     assertSame(pane.text(), display.getFocusControl());
+  }
+
+  /**
+   * A document whose paragraphs sit between tables, code blocks and headings, so rendered lines
+   * differ in height and the preview's line spacing adds up.
+   */
+  private static String mixedLines() {
+    StringBuilder text = new StringBuilder("# Top\n\n");
+    for (int i = 0; i < 300; i++) {
+      if (i % 40 == 0) {
+        text.append("## Section ").append(i).append("\n\n");
+        text.append("| Head | `code` |\n|---|---|\n| a | **b** |\n\n");
+        text.append("```\nmock code\n```\n\n");
+      }
+      text.append(i == 250 ? "Paragraph with a **needle** in it." : "Paragraph " + i + ".");
+      text.append("\n\n");
+    }
+    return text.toString();
+  }
+
+  /** Returns the zero-based source line holding a text. */
+  private static int sourceLine(String source, String text) {
+    String[] lines = source.split("\n", -1);
+    for (int i = 0; i < lines.length; i++) {
+      if (lines[i].contains(text)) {
+        return i;
+      }
+    }
+    throw new AssertionError(text);
+  }
+
+  /** Sync Scrolling lands each side on the mapped line with the preview's line spacing. */
+  @Test
+  void syncScrollingLandsOnTheMappedLineWithLineSpacing() throws Exception {
+    String source = mixedLines();
+    final RenderedMarkdown r = new MarkdownRenderer().render(source, temp, new CancellationToken());
+    openFile("long.md", source);
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_SPLIT);
+    awaitShown("Paragraph 299");
+    final MarkdownPane pane = window.activePreview();
+    final EditorPane editor = window.activeEditor();
+    assertEquals(2, pane.text().getLineSpacing());
+    final int row = sourceLine(source, "Paragraph 200.");
+    editor.scrollToRow(row);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.text().getTopIndex() == r.renderedLine(row);
+          }
+        },
+        "preview at line " + r.renderedLine(row) + ", top " + pane.text().getTopIndex());
+    assertEquals(0, pane.text().getLinePixel(pane.text().getTopIndex()));
+    final int line = r.renderedLine(sourceLine(source, "Paragraph 100."));
+    pane.text().setTopIndex(line);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return editor.topRow() == r.sourceLine(line);
+          }
+        },
+        "editor at row " + r.sourceLine(line) + ", top " + editor.topRow());
+  }
+
+  /** Find in Preview puts the match's line at the top with the preview's line spacing. */
+  @Test
+  void findInPreviewLandsOnTheMatchLineWithLineSpacing() throws Exception {
+    String source = mixedLines();
+    openFile("long.md", source);
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitShown("Paragraph 299");
+    window.shell().forceActive();
+    final MarkdownPane pane = window.activePreview();
+    pane.text().setFocus();
+    flush();
+    controller.execute(CommandId.FIND);
+    flush();
+    window.findBar().field().setText("needle");
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return "needle".equals(pane.text().getSelectionText());
+          }
+        },
+        "the rendered match selected, was '" + pane.text().getSelectionText() + "'");
+    flush();
+    int line = pane.text().getLineAtOffset(pane.text().getSelection().x);
+    assertEquals(line, pane.text().getTopIndex());
+    assertEquals(0, pane.text().getLinePixel(line));
   }
 
   /** Saves the window as the screen shows it, after 2 s of event loop for the repaint. */

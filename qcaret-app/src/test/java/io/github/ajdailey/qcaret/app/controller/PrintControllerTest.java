@@ -92,8 +92,13 @@ class PrintControllerTest {
         }
 
         @Override
-        public int width(String text, boolean strong) {
-          return text.length() * 10;
+        public int width(int start, int end, boolean strong) {
+          return (end - start) * 10;
+        }
+
+        @Override
+        public int indent(int line) {
+          return 0;
         }
 
         @Override

@@ -59,6 +59,12 @@ import org.eclipse.swt.widgets.MenuItem;
  * Call on the UI thread.
  */
 public final class MarkdownPane {
+  /** Pixels left and right of the text. */
+  static final int SIDE_MARGIN = 24;
+
+  /** Pixels between lines. */
+  static final int LINE_SPACING = 2;
+
   private final Composite root;
   private final Composite notice;
   private final Label noticeText;
@@ -123,7 +129,8 @@ public final class MarkdownPane {
     textData.heightHint = 0;
     text.setLayoutData(textData);
     // No top margin: a line scrolled to the top is fully visible, so getTopIndex returns it.
-    text.setMargins(12, 0, 12, 8);
+    text.setMargins(SIDE_MARGIN, 0, SIDE_MARGIN, 8);
+    text.setLineSpacing(LINE_SPACING);
     AccessibleName.attachKeepingRole(text, UiText.ACCESSIBLE_MARKDOWN_PREVIEW.text());
     fonts = new MarkdownFonts(text.getDisplay(), text.getFont().getFontData()[0], monospace);
     images = new PaneImages(text.getDisplay());
@@ -334,7 +341,7 @@ public final class MarkdownPane {
     if (end > start) {
       text.redrawRange(start, end - start, true);
     }
-    tables.reset(next.rendered(), reportedTop, bottom);
+    tables.reset(next, reportedTop, bottom);
   }
 
   /**

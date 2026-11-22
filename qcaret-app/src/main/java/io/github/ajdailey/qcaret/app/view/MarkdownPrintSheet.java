@@ -7,9 +7,9 @@ import java.util.List;
 /**
  * The pages of one rendered Markdown print job: measures the render's lines in the printer's pixels
  * and draws laid-out pages. A line lays out with Basic's styles at the body's width; a table row
- * does not wrap. Every call runs on the job's thread, between {@link PrintTarget#startMarkdown} and
- * {@link PrintTarget#finish} or {@link PrintTarget#close}. A failing call throws {@link
- * PrintTarget.PrintFailure}.
+ * wraps each cell inside its column. Every call runs on the job's thread, between {@link
+ * PrintTarget#startMarkdown} and {@link PrintTarget#finish} or {@link PrintTarget#close}. A failing
+ * call throws {@link PrintTarget.PrintFailure}.
  */
 public interface MarkdownPrintSheet extends TextMeasurer {
   /**
@@ -61,11 +61,19 @@ public interface MarkdownPrintSheet extends TextMeasurer {
   void image(MarkdownImageRequest request, byte[] bytes);
 
   /**
+   * Returns the indent a line's quotes and lists take.
+   *
+   * @param line a rendered line
+   * @return pixels from the body's left edge
+   */
+  int indent(int line);
+
+  /**
    * Lays out a rendered line and returns the height of each row it takes.
    *
    * @param line the rendered line
    * @param table the row's placement in its table, or null outside a table
-   * @return at least one height, top row first
+   * @return at least one height, top row first; one height for a table row
    */
   int[] rows(int line, MarkdownTableLayout.Row table);
 

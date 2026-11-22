@@ -19,8 +19,11 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
+import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
@@ -261,6 +264,51 @@ class OutlineSurfaceTest {
     window.outlineDock().tree().notifyListeners(SWT.DefaultSelection, enter);
     flush();
     assertEquals(2 + 38, caretLine());
+  }
+
+  /** Go-to from the Outline puts the heading at the preview's top with its line spacing. */
+  @Test
+  void aClickPutsTheHeadingAtThePreviewTopWithLineSpacing() throws Exception {
+    StringBuilder text = new StringBuilder("# Doc\n\n");
+    for (int i = 1; i <= 12; i++) {
+      text.append("## Section ").append(i).append("\n\n");
+      text.append("| Head | `code` |\n|---|---|\n| a | **b** |\n\n");
+      text.append("```\nmock code\n```\n\n");
+      for (int j = 0; j < 12; j++) {
+        text.append("Line ").append(j).append(" of section ").append(i).append(".\n\n");
+      }
+    }
+    final String source = text.toString();
+    openFile("long.md", source, true);
+    controller.documents().setMarkdownMode(MarkdownViewMode.PREVIEW);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            MarkdownPane pane = window.activePreview();
+            return pane != null && pane.text().getText().contains("Section 12");
+          }
+        },
+        "preview rendered");
+    showOutline();
+    awaitTop("the tree", "Doc");
+    TreeItem section = window.outlineDock().tree().getItem(0).getItem(8);
+    assertEquals("Section 9", section.getText());
+    click(section);
+    final RenderedMarkdown r = new MarkdownRenderer().render(source, temp, new CancellationToken());
+    final int heading = r.headings().get(9).line();
+    final StyledText preview = window.activePreview().text();
+    assertEquals(2, preview.getLineSpacing());
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return preview.getTopIndex() == heading;
+          }
+        },
+        "the preview at line " + heading + ", top " + preview.getTopIndex());
+    assertEquals(0, preview.getLinePixel(heading));
+    assertTrue(preview.getLine(heading).startsWith("Section 9"));
   }
 
   @Test

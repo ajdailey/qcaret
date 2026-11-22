@@ -166,12 +166,17 @@ final class PrintJob implements PrintTarget {
     }
 
     @Override
-    public int width(String text, boolean strong) {
+    public int width(int start, int end, boolean strong) {
       try {
-        return pages.width(text, strong);
+        return pages.width(start, end, strong);
       } catch (SWTError | SWTException e) {
         throw new PrintFailure("Measuring failed", e);
       }
+    }
+
+    @Override
+    public int indent(int line) {
+      return pages.indent(line);
     }
 
     @Override

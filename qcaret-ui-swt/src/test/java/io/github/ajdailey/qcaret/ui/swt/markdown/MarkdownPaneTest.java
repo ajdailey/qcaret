@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -41,11 +42,14 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.TextChangeListener;
 import org.eclipse.swt.custom.TextChangedEvent;
 import org.eclipse.swt.custom.TextChangingEvent;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -356,6 +360,116 @@ class MarkdownPaneTest {
     assertTrue(pane.text().getLine(row).contains(" "));
     pane.text().setSelection(c.rendered().lineStart(row), c.rendered().lineStart(row) + 6);
     pane.copy();
+  }
+
+  private void awaitMeasured(final int table) {
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return pane.tables().measured(table) != null;
+          }
+        },
+        "table measured");
+    flush();
+  }
+
+  /**
+   * A code cell measured in the body font came out narrower than it draws in the monospace font, so
+   * it crossed its column's right border and pushed the next cell off its tab stop.
+   */
+  @Test
+  void aCellWithInlineCodeStaysInsideItsColumn() {
+    MarkdownPreviewContent c =
+        content("| Name | Note |\n|---|---|\n| `iiiiiiiiiiiiiiiiiiii` | next |\n| a | b |\n");
+    pane.showRendered(c);
+    awaitMeasured(0);
+    StyledText text = pane.text();
+    String rendered = c.rendered().text();
+    int code = rendered.indexOf("iiii");
+    int[] edges = pane.tables().measured(0).edges();
+    int left = text.getLeftMargin() - text.getHorizontalPixel();
+    Rectangle bounds = text.getTextBounds(code, code + 19);
+    assertTrue(
+        bounds.x + bounds.width <= left + edges[1] - TableColumns.PADDING,
+        "code cell ends at " + (bounds.x + bounds.width) + ", column at " + (left + edges[1]));
+    int next = rendered.indexOf("next");
+    assertEquals(left + edges[1] + TableColumns.PADDING, text.getLocationAtOffset(next).x);
+  }
+
+  @Test
+  void aMeasuredTablesHeaderRowIsShadedToTheTablesWidth() {
+    MarkdownPreviewContent c = content("Intro\n\n| Head | Er |\n|---|---|\n| a | b |\n");
+    pane.showRendered(c);
+    int header = c.rendered().tables().get(0).firstLine();
+    assertNull(pane.styler().background(header));
+    awaitMeasured(0);
+    for (Palette palette : new Palette[] {Palette.LIGHT, Palette.DARK}) {
+      pane.setPalette(palette);
+      flush();
+      assertEquals(rgb(palette.gutter()), pane.styler().background(header).getRGB());
+      assertNull(pane.styler().background(header + 1));
+    }
+    StyledText text = pane.text();
+    int[] edges = pane.tables().measured(0).edges();
+    int left = text.getLeftMargin() - text.getHorizontalPixel();
+    int y = text.getLinePixel(header) + 2;
+    Palette dark = Palette.DARK;
+    ImageData shot = shot(text);
+    // GTK 4 under Xvfb can print white: the dark background must read back first.
+    assumeTrue(
+        rgb(dark.background()).equals(pixel(shot, 1, 1)),
+        "Control.print reads " + pixel(shot, 1, 1) + " for the pane background here");
+    assertEquals(rgb(dark.gutter()), pixel(shot, left + edges[0] + 2, y), "in the table");
+    assertEquals(
+        rgb(dark.background()),
+        pixel(shot, left + edges[edges.length - 1] + 4, y),
+        "right of the table");
+    assertEquals(rgb(dark.background()), pixel(shot, left - 4, y), "left of the table");
+  }
+
+  @Test
+  void linesHaveTwoPixelsOfSpacingAndTheSideMargins() {
+    pane.showRendered(content("one\n\ntwo\n"));
+    flush();
+    StyledText text = pane.text();
+    assertEquals(MarkdownPane.LINE_SPACING, text.getLineSpacing());
+    assertEquals(MarkdownPane.SIDE_MARGIN, text.getLeftMargin());
+    assertEquals(MarkdownPane.SIDE_MARGIN, text.getRightMargin());
+    assertEquals(0, text.getTopMargin());
+    StyledText plain = new StyledText(shell, SWT.MULTI);
+    try {
+      plain.setFont(text.getFont());
+      plain.setText("one\n\ntwo");
+      assertEquals(
+          plain.getLinePixel(1) + MarkdownPane.LINE_SPACING,
+          text.getLinePixel(1) - text.getLinePixel(0));
+    } finally {
+      plain.dispose();
+    }
+  }
+
+  /** Draws a control into an image and reads it at the control's zoom. */
+  private ImageData shot(StyledText text) {
+    Point size = text.getSize();
+    Image image = new Image(display, size.x, size.y);
+    GC gc = new GC(image);
+    try {
+      text.print(gc);
+    } finally {
+      gc.dispose();
+    }
+    try {
+      return image.getImageData(text.getMonitor().getZoom());
+    } finally {
+      image.dispose();
+    }
+  }
+
+  /** Reads the device pixel at a logical point. */
+  private RGB pixel(ImageData data, int x, int y) {
+    int zoom = pane.text().getMonitor().getZoom();
+    return data.palette.getRGB(data.getPixel(x * zoom / 100, y * zoom / 100));
   }
 
   private static byte[] png(int width, int height) {

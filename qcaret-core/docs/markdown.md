@@ -37,7 +37,7 @@ carrying the enclosing list and quote depth; items of a tight list are not.
 | Heading | Its text under a `HEADING` run with the level |
 | Paragraph | One line; a soft break is a space, a hard break or `<br>` starts a line |
 | `**`, `*`, `~~`, code span, link, `<kbd>`, `<sub>`, `<sup>` | Text under the matching `InlineStyle` run; runs nest |
-| Other inline HTML, HTML block | Source text; `<details>` lines dropped, `<summary>` text strong |
+| Other inline HTML, HTML block | Source text; `<details>` lines dropped, `<summary>` text strong. A line break inside an inline HTML tag is a space, so the paragraph stays one line |
 | List item | Text; bullet, number and task state are attributes of its first line |
 | Block quote, `>>>` | Lines with `quoteDepth` raised |
 | Alert (`> [!note]`) | A quote whose first line is the title, strong: the custom title or the kind |

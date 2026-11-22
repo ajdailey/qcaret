@@ -103,6 +103,7 @@ class PrintMeasurerTest {
             MarkdownSpans.of(rendered, List.of(new int[0])),
             List.<MarkdownImageRequest>of());
     final String body = display.getSystemFont().getFontData()[0].getName();
+    final int mock = rendered.text().indexOf("mock words");
     final Printer printer = new Printer(data);
     final int[][] rows = new int[3][];
     final int[] widths = new int[2];
@@ -132,8 +133,8 @@ class PrintMeasurerTest {
                       rows[0] = printing.rows(0, null);
                       rows[1] = printing.rows(2, null);
                       rows[2] = printing.rows(4, null);
-                      widths[0] = printing.width("mock", false);
-                      widths[1] = printing.width("mock", true);
+                      widths[0] = printing.width(mock, mock + 4, false);
+                      widths[1] = printing.width(mock, mock + 4, true);
                     } finally {
                       printing.dispose();
                       gc.dispose();

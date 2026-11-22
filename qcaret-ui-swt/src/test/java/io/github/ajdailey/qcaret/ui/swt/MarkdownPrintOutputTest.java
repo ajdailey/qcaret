@@ -266,6 +266,30 @@ class MarkdownPrintOutputTest {
     writePages(Math.min(2, pages));
   }
 
+  /** A table row wider than the page printed as one line, cut at the body's right edge. */
+  @Test
+  void aTableRowWiderThanThePageWrapsInsideItsColumns() throws Exception {
+    PrinterData data = requirePrinter();
+    openMarkdown(
+        "| Key | Note | Last |\n|---|---|---|\n| k1 | STARTWORD "
+            + "mock words ".repeat(40)
+            + "ENDWORD | LASTCELL |\n");
+    print(data);
+    awaitOutput();
+    String text = pageText(1);
+    assertTrue(text.contains("ENDWORD") && text.contains("LASTCELL"), text);
+    boolean found = false;
+    for (String line : text.split("\n")) {
+      if (line.contains("STARTWORD")) {
+        found = true;
+        assertFalse(line.contains("ENDWORD"), "the long cell wraps: " + line);
+        assertTrue(line.contains("LASTCELL"), "the last cell starts on the row's top: " + line);
+      }
+    }
+    assertTrue(found, text);
+    writePages(1);
+  }
+
   /** Writes page images where {@code qcaret.rm.out} names a directory. */
   private void writePages(int count) throws IOException {
     String dir = System.getProperty("qcaret.rm.out");

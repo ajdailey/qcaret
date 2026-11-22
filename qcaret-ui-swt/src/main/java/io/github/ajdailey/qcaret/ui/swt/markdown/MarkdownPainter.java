@@ -17,9 +17,10 @@ import org.eclipse.swt.graphics.Rectangle;
 
 /**
  * Paints what line styles cannot show over the lines in view: a bar per quote level, colored by the
- * alert's kind inside an alert; thematic breaks; a rule under level 1 and 2 headings; table borders
- * once the table is measured; and each image, or a placeholder box with its file name when it does
- * not decode. Call on the UI thread.
+ * alert's kind inside an alert; thematic breaks; a rule under level 1 and 2 headings; table
+ * borders, and the header row's shade cut to the table's width, once the table is measured; and
+ * each image, or a placeholder box with its file name when it does not decode. Call on the UI
+ * thread.
  */
 final class MarkdownPainter {
   private static final int BAR_WIDTH = 3;
@@ -55,6 +56,13 @@ final class MarkdownPainter {
     int bottom = Math.min(rendered.lineCount() - 1, text.getLineIndex(area.height - 1));
     Color bar = MarkdownStyler.color(palette.lineNumbers());
     Color rule = MarkdownStyler.color(palette.accents().rightMargin());
+    for (int i = 0; i < rendered.tables().size(); i++) {
+      int header = rendered.tables().get(i).firstLine();
+      MarkdownTableLayout layout = tables.measured(i);
+      if (layout != null && header >= top && header <= bottom) {
+        clearBesideHeader(gc, header, layout, left, area.width);
+      }
+    }
     for (int line = top; line <= bottom; line++) {
       int y0 = text.getLinePixel(line);
       int y1 = y0 + lineHeight(line);
@@ -85,6 +93,23 @@ final class MarkdownPainter {
       if (layout != null && table.firstLine() <= bottom && last >= top) {
         borders(gc, table, layout, left);
       }
+    }
+  }
+
+  /**
+   * Paints the pane's background over a header row's shade left and right of its table: the line
+   * background {@link MarkdownStyler#background} gives the row spans the whole line.
+   */
+  private void clearBesideHeader(GC gc, int line, MarkdownTableLayout layout, int left, int width) {
+    int[] edges = layout.edges();
+    int x0 = left + styler.baseIndent(line) + edges[0];
+    int x1 = left + styler.baseIndent(line) + edges[edges.length - 1];
+    int y = text.getLinePixel(line);
+    int height = lineHeight(line);
+    gc.setBackground(MarkdownStyler.color(styler.palette().background()));
+    gc.fillRectangle(0, y, Math.max(0, x0), height);
+    if (x1 < width) {
+      gc.fillRectangle(x1, y, width - x1, height);
     }
   }
 

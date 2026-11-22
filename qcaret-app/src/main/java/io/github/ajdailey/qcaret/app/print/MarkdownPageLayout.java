@@ -20,6 +20,8 @@ import java.util.List;
  *       rule never split; an image sits in one row, which never splits.
  *   <li>A heading never ends a page: it moves to the next page with the separator lines after it,
  *       unless it is the page's first line.
+ *   <li>A table wider than the body has its columns narrowed to fit ({@link
+ *       MarkdownTableLayout#fit}); a row is one row as tall as its tallest wrapped cell.
  *   <li>A table continued onto a page starts that page with its header row again.
  *   <li>Separator lines at the top of a page are left out.
  *   <li>A line that does not split and is taller than the body breaks between its rows; a row
@@ -85,8 +87,10 @@ public final class MarkdownPageLayout {
     List<MarkdownTable> all = rendered.tables();
     for (int t = 0; t < all.size(); t++) {
       cancel.check();
-      tables[t] = new MarkdownTableLayout(all.get(t), rendered.text(), sheet.body().padding());
+      MarkdownTable table = all.get(t);
+      tables[t] = new MarkdownTableLayout(table, rendered.text(), sheet.body().padding());
       tables[t].measure(sheet, Integer.MAX_VALUE);
+      tables[t].fit(sheet, sheet.body().width() - sheet.indent(table.firstLine()));
       tableEdges[t] = tables[t].edges();
     }
   }

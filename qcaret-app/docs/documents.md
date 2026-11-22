@@ -517,8 +517,11 @@ empty bytes and prints as a placeholder), then lays out with
 `MarkdownPageLayout`. The sheet is the toolkit seam for measuring and drawing.
 
 `MarkdownPageLayout` (`app.print`) measures table columns through
-`MarkdownTableLayout` with the sheet as `TextMeasurer`, asks the sheet for each
-rendered line's row heights, and stacks them on pages of the body's height:
+`MarkdownTableLayout` with the sheet as `TextMeasurer`, narrows the columns of a
+table wider than the body (`MarkdownTableLayout.fit`: each column keeps its
+widest word, the rest is shared by how far its widest cell exceeds that word),
+asks the sheet for each rendered line's row heights, and stacks them on pages of
+the body's height; a table row is one row, as tall as its tallest wrapped cell:
 
 | Line | Page break |
 |---|---|
