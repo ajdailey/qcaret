@@ -152,7 +152,18 @@ jobs:
         with:
           path: ~/.cache/qcaret-build
           key: qcaret-build-${{ hashFiles('qcaret-dist/src/build/dist.xml') }}
-      - run: ./mvnw -B package -Pall-targets,sbom -DskipTests
+      # A v* tag builds the tag's version; anything else <revision>+<short commit>.
+      - name: Version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            revision="${GITHUB_REF_NAME#v}"
+          else
+            revision=$(./mvnw -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
+              -Dexpression=revision -DforceStdout)
+            revision="$revision+${GITHUB_SHA:0:7}"
+          fi
+          echo "REVISION=$revision" >> "$GITHUB_ENV"
+      - run: ./mvnw -B package -Pall-targets,sbom -DskipTests "-Drevision=$REVISION"
       - name: SBOM runtime and launcher components
         run: .github/scripts/sbom-components.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -207,7 +218,7 @@ jobs:
         shell: pwsh
         run: .github/scripts/check-bundle.ps1
 
-  # A v* tag: check the tag against the POM version, rebuild twice to check
+  # A v* tag: check the tag against the POM revision, rebuild twice to check
   # reproducibility, check that the rebuild matches the archives the bundle
   # jobs ran, and attach those archives, SHA256SUMS and the SBOM to a draft
   # GitHub Release.
@@ -227,12 +238,14 @@ jobs:
           distribution: temurin
           java-version: "21.0.13.1+2"
           cache: maven
-      - name: Tag matches the POM version
+      # The package job built the tag's version; the tag must name the
+      # commit's <revision>, with or without -SNAPSHOT.
+      - name: Tag matches the POM revision
         run: |
-          version=$(./mvnw -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
-            -Dexpression=project.version -DforceStdout)
-          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match the POM version $version"
+          revision=$(./mvnw -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
+            -Dexpression=revision -DforceStdout)
+          if [ "$GITHUB_REF_NAME" != "v${revision%-SNAPSHOT}" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the POM revision $revision"
             exit 1
           fi
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -240,7 +253,7 @@ jobs:
           path: ~/.cache/qcaret-build
           key: qcaret-build-${{ hashFiles('qcaret-dist/src/build/dist.xml') }}
       - name: Reproducibility
-        run: .github/scripts/check-reproducible.sh
+        run: .github/scripts/check-reproducible.sh "-Drevision=${GITHUB_REF_NAME#v}"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: qcaret-archives
@@ -260,3 +273,35 @@ jobs:
           gh release create "$GITHUB_REF_NAME" release/*
           --repo "$GITHUB_REPOSITORY" --draft --verify-tag
           --title "$GITHUB_REF_NAME" --generate-notes
+
+  # A push to main: replace the continuous pre-release with this run's
+  # archives, SHA256SUMS and SBOM (publish-continuous.sh). One publish runs at
+  # a time; the script skips a commit older than the one published.
+  continuous:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, test-gtk4, bundle]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: continuous
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: qcaret-archives
+          path: release
+      - name: SHA256SUMS
+        run: |
+          cd release
+          sha256sum -- *.zip *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          test "$(wc -l < SHA256SUMS)" -eq 7
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/publish-continuous.sh

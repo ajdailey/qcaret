@@ -8,6 +8,7 @@ height="96"> </picture>
 [![CI](https://github.com/ajdailey/qcaret/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ajdailey/qcaret/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/ajdailey/qcaret)](https://github.com/ajdailey/qcaret/releases/latest)
 [![License](https://img.shields.io/github/license/ajdailey/qcaret)](LICENSE)
+[![Continuous build](https://img.shields.io/github/release-date-pre/ajdailey/qcaret?label=continuous)](https://github.com/ajdailey/qcaret/releases/tag/continuous)
 
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
 SWT. It makes no outbound network connections; its only socket is a loopback
@@ -135,9 +136,10 @@ windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
-| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus the POM version, runs `check-reproducible.sh`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
+| `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
 running `qcaret.jar`, and passes only when the child's image is the bundle's
@@ -159,25 +161,47 @@ The `package` job caches the JDK archives and `rcodesign` under
 
 The draft Release carries the seven archives the `bundle` jobs ran,
 `SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
-release notes. Only the `release` job has `contents: write`. To release:
+release notes. Only the `release` and `continuous` jobs have `contents:
+write`.
 
-1. Check the bundled Temurin build (`jdk.*` in `qcaret-dist/src/build/dist.xml`)
+The [`continuous`](https://github.com/ajdailey/qcaret/releases/tag/continuous)
+pre-release holds the build of the newest `main` commit whose CI run passed,
+never marked Latest; its body names the commit, the run and the date.
+
+Every module's version is `${revision}`, set once in the parent POM
+(`<revision>0.2.0-SNAPSHOT</revision>`), so a version change is that one line;
+flatten-maven-plugin writes the resolved POM into each jar. The `package` job
+builds with `-Drevision`: the tag's version for a `v*` tag, otherwise
+`<revision>+<short commit>` (for example `0.2.0-SNAPSHOT+3290f82`), which the
+archive names, `Implementation-Version`, `qcaret.exe`'s version text and `-v`
+carry. A local build without `-Drevision` uses `<revision>`.
+
+Publishes run one at a time, and `publish-continuous.sh` skips a commit older
+than the one `continuous` holds, so a re-run of an older run never replaces a
+newer build.
+
+To release:
+
+1. Set `project.build.outputTimestamp` to the release date and commit; the tag
+   goes on that commit, whose `<revision>` stays `<version>-SNAPSHOT`. After
+   the release, set `<revision>` to the next `-SNAPSHOT` version.
+2. Check the bundled Temurin build (`jdk.*` in `qcaret-dist/src/build/dist.xml`)
    against the latest Oracle Critical Patch Update and the OpenJDK advisories;
    move the pins if a fixed build exists.
-2. Push an annotated tag:
+3. Push an annotated tag:
 
    ```sh
    git tag -a v<version> -m "QCaret <version>" && git push origin v<version>
    ```
 
-3. Review the draft on the repository's Releases page.
-4. Replace the generated notes with the hand-written release notes:
+4. Review the draft on the repository's Releases page.
+5. Replace the generated notes with the hand-written release notes:
 
    ```sh
    gh release edit v<version> --notes-file <notes>.md
    ```
 
-5. Publish the draft on the Releases page, or with `gh release edit v<version>
+6. Publish the draft on the Releases page, or with `gh release edit v<version>
    --draft=false`.
 
 To fix a bad draft, delete the draft and the tag
