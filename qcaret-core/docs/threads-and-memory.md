@@ -24,15 +24,16 @@ The launcher creates one instance and closes it at shutdown.
 - `close(bound)` rejects new tasks, waits up to the bound for running ones,
   then interrupts what is left (`shutdownNow` for a pool). A virtual thread
   that calls `close` does not wait for itself. `liveThreads()` counts what has
-  not ended, and `liveThreadNames()` names it for a log line, each pool as one
-  `qcaret-cpu-*` or `qcaret-bulk-*` entry with its count.
+  not ended and reads 0 once `close` returns true; `liveThreadNames()` names it
+  for a log line, each pool as one `qcaret-cpu-*` or `qcaret-bulk-*` entry with
+  its count.
 - `shutdownHook(task)` creates the JVM shutdown hook's platform thread,
   `qcaret-shutdown`, unstarted and outside the live set, so `close` neither
   waits for nor interrupts it.
-- `start` adds the thread to the live set, then checks `closed` again before
-  starting it, and `close` reads the set until it holds no other thread. A
-  start racing `close` is therefore rejected or waited for; no task starts
-  after `close` returns.
+- No task starts after `close` returns: `start` checks `closed`, adds the
+  thread to the live set and starts it under a read lock, and `close` sets
+  `closed` under the write lock, so the set only shrinks afterwards.
+  `liveThreads()` counts by iterating the set, as `close` reads it.
 - Pool threads are daemon threads, so a missed `close` cannot keep the JVM
   alive.
 - Code that catches `InterruptedException` restores the interrupt flag and

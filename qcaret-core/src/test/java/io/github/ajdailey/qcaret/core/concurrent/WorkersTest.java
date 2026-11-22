@@ -167,12 +167,7 @@ class WorkersTest {
     }
   }
 
-  /**
-   * A start racing close is either rejected or waited for, so no task runs after close returns.
-   * Without the second {@code closed} check after joining the live set, a thread starts after close
-   * took its snapshot of the set. The live count is polled because {@code ConcurrentHashMap.size}
-   * lags a removal the set already shows.
-   */
+  /** A start racing close is either rejected or waited for, so no task runs after close returns. */
   @Test
   void noTaskRunsAfterCloseReturns() throws Exception {
     for (int round = 0; round < 50; round++) {
@@ -204,15 +199,47 @@ class WorkersTest {
       assertTrue(workers.close(Duration.ofSeconds(10)));
       closeReturned.set(true);
       assertEquals(0, late.get());
-      assertTrue(
-          Poll.until(
-              new BooleanSupplier() {
-                @Override
-                public boolean getAsBoolean() {
-                  return workers.liveThreads() == 0;
+      assertEquals(0, workers.liveThreads());
+    }
+    assertTrue(failures.isEmpty(), failures.toString());
+  }
+
+  /** After close returns true, liveThreads reads 0 while another thread keeps calling tryStart. */
+  @Test
+  void rejectedStartIsNotCounted() throws Exception {
+    try (Workers spawners = new Workers(1, handler)) {
+      for (int round = 0; round < 200; round++) {
+        final Workers workers = new Workers(1, handler);
+        final AtomicBoolean stop = new AtomicBoolean();
+        final CountDownLatch spawning = new CountDownLatch(1);
+        final Runnable task =
+            new Runnable() {
+              @Override
+              public void run() {}
+            };
+        spawners.start(
+            Workers.Kind.LIFECYCLE,
+            new Runnable() {
+              @Override
+              public void run() {
+                spawning.countDown();
+                while (!stop.get()) {
+                  workers.tryStart(Workers.Kind.IO, task);
+                  // Frees the carrier for the started tasks.
+                  Thread.yield();
                 }
-              },
-              Duration.ofSeconds(10)));
+              }
+            });
+        try {
+          assertTrue(spawning.await(10, TimeUnit.SECONDS));
+          assertTrue(workers.close(Duration.ofSeconds(10)));
+          for (int read = 0; read < 100; read++) {
+            assertEquals(0, workers.liveThreads());
+          }
+        } finally {
+          stop.set(true);
+        }
+      }
     }
     assertTrue(failures.isEmpty(), failures.toString());
   }

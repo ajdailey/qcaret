@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.util.Checks;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -13,6 +14,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Owns every thread QCaret starts: a fixed pool of platform threads for CPU-bound work ({@code
@@ -76,6 +79,9 @@ public final class Workers implements AutoCloseable {
   private final ThreadFactory[] factories;
   private final Set<Thread> live = ConcurrentHashMap.newKeySet();
   private final AtomicBoolean closed = new AtomicBoolean();
+
+  /** Held shared by {@link #start}, exclusive while {@link #close} sets {@code closed}. */
+  private final ReadWriteLock gate = new ReentrantReadWriteLock();
 
   /**
    * Creates the pools.
@@ -159,8 +165,8 @@ public final class Workers implements AutoCloseable {
 
   /**
    * Starts a blocking task on a new thread of its kind. A virtual thread runs its {@link CpuSteps}
-   * on the bulk pool. The thread joins the live set before {@code closed} is checked a second time,
-   * so {@link #close} either waits for it or the start is rejected.
+   * on the bulk pool. A start that {@link #close} rejects never touches the live set; one it admits
+   * has started before {@code close} reads the set.
    *
    * @param kind names the thread
    * @param task the task
@@ -168,36 +174,45 @@ public final class Workers implements AutoCloseable {
    * @throws RejectedExecutionException after {@link #close}
    */
   public Thread start(Kind kind, Runnable task) {
-    if (closed.get()) {
-      throw new RejectedExecutionException("Workers are closed");
-    }
     final Runnable guarded = guard(task);
     final Workers owner = kind == Kind.PRINT ? null : this;
     final Thread[] self = new Thread[1];
-    Thread thread =
-        factories[kind.ordinal()].newThread(
-            new Runnable() {
-              @Override
-              public void run() {
-                if (owner != null) {
-                  CpuSteps.OWNER.set(owner);
+    gate.readLock().lock();
+    try {
+      if (closed.get()) {
+        throw new RejectedExecutionException("Workers are closed");
+      }
+      Thread thread =
+          factories[kind.ordinal()].newThread(
+              new Runnable() {
+                @Override
+                public void run() {
+                  if (owner != null) {
+                    CpuSteps.OWNER.set(owner);
+                  }
+                  try {
+                    guarded.run();
+                  } finally {
+                    CpuSteps.OWNER.remove();
+                    live.remove(self[0]);
+                  }
                 }
-                try {
-                  guarded.run();
-                } finally {
-                  CpuSteps.OWNER.remove();
-                  live.remove(self[0]);
-                }
-              }
-            });
-    self[0] = thread;
-    live.add(thread);
-    if (closed.get()) {
-      live.remove(thread);
-      throw new RejectedExecutionException("Workers are closed");
+              });
+      self[0] = thread;
+      live.add(thread);
+      boolean started = false;
+      try {
+        thread.start();
+        started = true;
+      } finally {
+        if (!started) {
+          live.remove(thread);
+        }
+      }
+      return thread;
+    } finally {
+      gate.readLock().unlock();
     }
-    thread.start();
-    return thread;
   }
 
   /**
@@ -235,12 +250,20 @@ public final class Workers implements AutoCloseable {
   }
 
   /**
-   * Counts threads that have not ended: started blocking threads plus both pools' threads.
+   * Counts threads that have not ended: started blocking threads plus both pools' threads. Counts
+   * by iterating the live set, as {@link #close} reads it: {@code ConcurrentHashMap.size} lags a
+   * removal that iteration already shows.
    *
-   * @return the count; 0 after a successful close
+   * @return the count; 0 after {@link #close} returns true
    */
   public int liveThreads() {
-    return live.size() + cpu.getPoolSize() + bulk.getPoolSize();
+    int count = 0;
+    Iterator<Thread> threads = live.iterator();
+    while (threads.hasNext()) {
+      threads.next();
+      count++;
+    }
+    return count + cpu.getPoolSize() + bulk.getPoolSize();
   }
 
   /**
@@ -291,33 +314,29 @@ public final class Workers implements AutoCloseable {
    * Stops accepting tasks, waits up to {@code bound} for running ones, then interrupts what is left
    * ({@code shutdownNow} for a pool). The bulk pool shuts down after the blocking threads end or
    * are interrupted, and a step it then drops ends its waiter with a {@code CancellationException}.
-   * A virtual thread calling this method does not wait for itself. The live set is read again until
-   * it holds no other thread, so a thread a racing {@link #start} added is waited for too.
+   * A virtual thread calling this method does not wait for itself. Once {@code closed} is set the
+   * live set only shrinks, so one read of it names every thread to wait for.
    *
    * @param bound the longest wait
    * @return true when every thread except the caller ended within the bound
    */
   public boolean close(Duration bound) {
-    closed.set(true);
+    gate.writeLock().lock();
+    try {
+      closed.set(true);
+    } finally {
+      gate.writeLock().unlock();
+    }
     cpu.shutdown();
     long deadline = System.nanoTime() + bound.toNanos();
     try {
       if (!cpu.awaitTermination(remaining(deadline), TimeUnit.NANOSECONDS)) {
         cpu.shutdownNow();
       }
-      Thread current = Thread.currentThread();
-      List<Thread> threads = others(current);
-      while (!threads.isEmpty() && remaining(deadline) > 0) {
-        for (Thread thread : threads) {
-          if (awaitStarted(thread, deadline)
-              && !thread.join(Duration.ofNanos(remaining(deadline)))) {
-            thread.interrupt();
-          }
+      for (Thread thread : others(Thread.currentThread())) {
+        if (!thread.join(Duration.ofNanos(remaining(deadline)))) {
+          thread.interrupt();
         }
-        threads = others(current);
-      }
-      for (Thread thread : threads) {
-        thread.interrupt();
       }
       bulk.shutdown();
       if (!bulk.awaitTermination(remaining(deadline), TimeUnit.NANOSECONDS)) {
@@ -344,22 +363,6 @@ public final class Workers implements AutoCloseable {
     List<Thread> threads = new ArrayList<Thread>(live);
     threads.remove(current);
     return threads;
-  }
-
-  /**
-   * Waits, bounded, while a thread {@link #start} added to the live set is not yet started: its
-   * starter either starts it or, having seen {@code closed}, removes it again.
-   *
-   * @return false when the thread did not start, so there is nothing to join
-   */
-  private boolean awaitStarted(Thread thread, long deadline) throws InterruptedException {
-    while (thread.getState() == Thread.State.NEW) {
-      if (!live.contains(thread) || remaining(deadline) == 0) {
-        return thread.getState() != Thread.State.NEW;
-      }
-      Thread.sleep(1);
-    }
-    return true;
   }
 
   private static long remaining(long deadline) {

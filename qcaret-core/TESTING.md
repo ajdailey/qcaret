@@ -20,7 +20,7 @@ and tests of a read-only file skip where the user writes read-only files.
 
 | Class | Covers |
 |---|---|
-| `WorkersTest` | Thread names, failure routing, rejection after close, `tryStart`, no task running after `close` returns. A pool can report terminated just before its last thread ends, and the live set lags a removal, so the lifecycle checks poll |
+| `WorkersTest` | Thread names, failure routing, rejection after close, `tryStart`; `noTaskRunsAfterCloseReturns` races `tryStart` against `close` 50 times; `rejectedStartIsNotCounted` reads `liveThreads()` after a true `close` while another thread keeps calling `tryStart`, 200 times (regression: a rejected `start` sat in the live set between two `closed` checks and was counted). `liveThreads()` is asserted 0 directly after a true `close`, and polled after a `close` with a short bound, whose interrupted threads end afterwards |
 | `WorkerKindsTest` | A `CpuSteps` step from a virtual task runs on `qcaret-bulk-1`, inline elsewhere; `availableProcessors()` `IO` tasks with a spinning step leave a task of every kind runnable (inline on the virtual thread, a `LIFECYCLE` task waited over 5 s behind 8 spinners on 8 cores); a cancel or `close` while the step is queued ends the wait and the step never runs; a step's `IOException` reaches the caller |
 | `BulkStepCancelTest` | With the only bulk thread held, a cancel while the first step waits ends a load, a save (target unchanged), a `searchFile`, `Checksums.ofFile` and `Digests.of` with a `CancellationException` |
 | `MemoryBudgetTest` | The share and refusals |
