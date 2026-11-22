@@ -122,7 +122,8 @@ pane's UI-thread work is the `setText` call.
 ## Pane
 
 `MarkdownPane` is a read-only, wrapping `StyledText` with a notice row above it
-for the size notice and its Render button. The text's `GridData` has zero
+for the size notice and its Render button. The `StyledText` holds the display
+text of a `MarkdownDisplayMap` ([Tables](#tables)). The text's `GridData` has zero
 width and height hints, so a layout gives it the space left and never calls
 its `computeSize`, which measures every line of a wrapping `StyledText`. With
 size hints unset, the flushed frame layout of a renderer switch held the UI
@@ -131,8 +132,8 @@ chars on macOS. Nothing is styled ahead of painting:
 
 | Listener | Class | Per painted line |
 |---|---|---|
-| `LineStyleListener` | `MarkdownStyler` | Fonts and colors from `MarkdownSpans`, code lines in the monospace family with token colors, the bold header row, glyph metrics for each image char, quote and list indent, bullet, number or checkbox, a measured table's indent and tab stops |
-| `LineBackgroundListener` | `MarkdownStyler` | The code shade on code and front matter lines and on a measured table's header row |
+| `LineStyleListener` | `MarkdownStyler` | Fonts and colors from `MarkdownSpans`, code lines in the monospace family with token colors, the bold header row, glyph metrics for each image char and each row padding char, quote and list indent, bullet, number or checkbox, a laid-out table row's indent and tab stops |
+| `LineBackgroundListener` | `MarkdownStyler` | The code shade on code and front matter lines and on a laid-out table's header row |
 | `PaintObjectListener` | `MarkdownPainter` | An image, or a box with the file name for one that did not decode |
 | `Paint` | `MarkdownPainter` | Quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders; the pane background over the header row's shade outside the table |
 
@@ -148,24 +149,13 @@ line's height once, and both ways of changing its text measure lines:
 `TextDelta` takes the call that measures fewer. At 1 MiB with the top at the
 end, a render after typing near the end took 1.9 s with `setText` and 6.5 ms
 with the replace (median of 10, Xvfb, GTK 3); the first show of 951 KB took
-3.3 s as a replace from the empty text. Table columns are the
-only work that grows with the document: `TableColumns` measures cells with a
-`GC` through `MarkdownTableLayout` in UI turns of at most 200 cells and 8 ms,
-checked every 16 cells, tables in view first. `SpanWidths` measures each span
-of a cell in the font `MarkdownStyler` draws it with (code and kbd monospace,
-bold, italic), so a cell stays inside its column. A turn ends when a table is
-measured, and the next turn restyles the table's lines; a table below the view
-repaints nothing, since the pixel position of a line below the view lays out
-every wrapped line above it. The restyle of a table filling the view is the
-widget's work: `redrawRange` and the repaint below it each lay out the lines in
-view, 7-9 ms each for a 2,000-row table (measured, Xvfb, GTK 3). A table row's
-spaces show as no-break spaces so a cell does not wrap; Copy, from the keys
-bound to it and from the context menu, puts the render's own text on the
-clipboard.
+3.3 s as a replace from the empty text. Table layout is the only
+other work that grows with the document ([Tables](#tables)).
 
-The pane reports a new top line from `Paint`; `scrollToLine` and
-`selectRendered` record the line they leave at the top, so the controller's own
-scroll is not reported back. View > Markdown View > Sync Scrolling
+The pane reports a new top line from `Paint` as a rendered line;
+`scrollToLine` and `selectRendered` record the line they leave at the top, so
+the controller's own scroll, and a table layout that keeps the top line, is
+not reported back. View > Markdown View > Sync Scrolling
 (`markdown.syncScroll`) is the controller's rule: while it is off, the
 controller scrolls neither side of Split for the other, and the views are
 unchanged ([Documents](../../qcaret-app/docs/documents.md#markdown-preview)). `selectRendered` (a find match in Preview) sets
@@ -179,6 +169,65 @@ Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
 for subscript and superscript, and the editor font's family for code) belong
 to the pane and are disposed with it. `setPalette` recolors in place on a theme
 switch.
+
+## Tables
+
+`MarkdownDisplayMap` (`app.editor`) is the text the pane shows: the render's
+text with each laid-out table row replaced by its display lines. It maps
+offsets and lines both ways; a display char a row adds (a tab, a line break,
+the padding char) maps to the rendered offset after the piece before it. The
+controller sees rendered offsets and lines only, and every widget offset or
+line crosses the map:
+
+| Call site | Map |
+|---|---|
+| `MarkdownStyler.style`, `background` | Display line to rendered line; each display piece takes its rendered chars' styles, shifted to display offsets |
+| `MarkdownPainter.paint` | Rendered lines of quotes, rules, headings and table rows to display lines |
+| `MarkdownPainter.paintObject`, click, link cursor | Display offset to rendered offset |
+| Copy, from the keys bound to it and the context menu | The selection to the rendered range from its first to its last copied char |
+| `selectRendered`, `showImage` | Rendered offsets to display offsets; a match across a cell's break selects the display text between its ends |
+| `scrollToLine`; the top line `previewScrolled` reports | Rendered line to its first display line, and back |
+
+`TableColumns` lays out each table in UI turns of at most 200 cells and 8 ms,
+tables in view first. A turn takes another step while the last step's time
+fits before its deadline, and a layout step starts a turn of its own:
+
+1. `MarkdownTableLayout` measures each cell through `SpanWidths`, each span in
+   the font `MarkdownStyler` draws it with (code and kbd monospace, bold,
+   italic).
+2. A table wider than the pane's text width less its quote and list indent has
+   its words and the spaces between them measured (`TableWords`) and is fitted
+   with `MarkdownTableLayout.fit(words, width, true)`: each column keeps its
+   widest word and shares the rest by how far its widest cell exceeds that
+   word. Widest words that do not fit narrow in proportion, so a table is never
+   wider than the pane.
+3. `TableWrap` breaks a cell wider than its column at its spaces, a word wider
+   than its column at a char count in proportion to its width, and gives a row
+   as many display lines as its tallest cell. Display line `j` holds each
+   cell's `j`th segment, tab-separated, with the indent and tab stops that
+   start each segment in its column. The rows replace the table's lines in the
+   map and the widget, 16 rows per `replaceTextRange`.
+
+A width change refits each measured table from its cached widths and lays out
+again the tables whose column edges change. A new render keeps the layout and
+rows of a table whose text, spans and alignments equal one shown before, so an
+edit in Split does not lay out an unchanged table again. Across a layout the
+top line keeps its rendered line and the selection its rendered text.
+
+Do not show the rows with `setText`. `replaceTextRange` lays out the new rows
+and each line between the top line and the rows whose height the widget has
+not measured; `setText` lays out nothing at once but drops every line height,
+and the widget then measures the whole text again in its 50 ms idle steps
+(README.md show to idle 644 ms against 138 ms, measured, Xvfb, GTK 3). A turn
+over 8 ms is one replace laying out lines the widget has not measured since new
+content or a width change: up to 11 ms on README.md (measured, as above).
+
+Cells have 13 px of padding left and right. A row's first and last display
+lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics add
+6 px above the body font's ascent and 4 px below its descent; with the 2 px
+line spacing that is 6 px above and below the row's text. At a line's start,
+the char moves the tab after it off its stop (GTK 3), so it ends the line.
+Borders follow the display lines' pixel positions.
 
 ## Images
 

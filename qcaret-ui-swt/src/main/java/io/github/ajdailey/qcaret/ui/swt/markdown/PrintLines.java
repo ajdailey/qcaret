@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -25,6 +26,9 @@ import org.eclipse.swt.graphics.TextStyle;
 final class PrintLines {
   /** The resolution Basic's pixel constants are written for. */
   static final float SCREEN_DPI = 96f;
+
+  /** Pixels on each side of a table cell's text at {@link #SCREEN_DPI}. */
+  static final int CELL_PADDING = 8;
 
   private final Device device;
   private final MarkdownPreviewContent content;
@@ -65,7 +69,7 @@ final class PrintLines {
     this.pixelsPerPoint = dpi.y / 72f;
     this.color = color;
     this.styler = new MarkdownStyler(fonts, null, null, Palette.LIGHT);
-    styler.setContent(content);
+    styler.setContent(content, new MarkdownDisplayMap(content.rendered()));
     this.imageOffsets = new int[content.images().size()];
     for (int i = 0; i < imageOffsets.length; i++) {
       imageOffsets[i] = content.images().get(i).offset();
@@ -195,7 +199,7 @@ final class PrintLines {
 
   /** Returns the padding on each side of a table cell's text, in printer pixels. */
   int padding() {
-    return scaled(TableColumns.PADDING);
+    return scaled(CELL_PADDING);
   }
 
   private TextLayout text(int start, int end) {

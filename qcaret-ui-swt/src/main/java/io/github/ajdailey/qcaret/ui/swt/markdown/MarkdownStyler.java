@@ -1,7 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
-import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
+import io.github.ajdailey.qcaret.app.editor.TableWrap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.TokenRole;
@@ -25,13 +26,15 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.TextStyle;
 
 /**
- * Maps one rendered line of the content a pane shows onto {@code StyledText} line styles, as the
+ * Maps one display line of the content a pane shows onto {@code StyledText} line styles, as the
  * widget paints it: fonts, colors and decorations from the {@link MarkdownSpans}, the monospace
  * font on code lines with the token colors of the palette, bold table headers, glyph metrics that
  * reserve each image's space, the indent of quotes and lists with a bullet, number or checkbox on
- * an item's first line, a measured table's tab stops, and the shade of code lines and of a measured
- * table's header row. Nothing is applied ahead of painting, so the work per UI turn follows the
- * lines in view, not the document. Colors follow {@link #setPalette}. Call on the UI thread.
+ * an item's first line, a laid-out table row's indent, tab stops and padding, and the shade of code
+ * lines and of a laid-out table's header row. A display line takes the styles of the rendered chars
+ * the {@link MarkdownDisplayMap} maps it to. Nothing is applied ahead of painting, so the work per
+ * UI turn follows the lines in view, not the document. Colors follow {@link #setPalette}. Call on
+ * the UI thread.
  */
 final class MarkdownStyler {
   /** Pixels a quote level indents. */
@@ -69,6 +72,7 @@ final class MarkdownStyler {
   private final PaneImages images;
   private final TableColumns tables;
   private MarkdownPreviewContent content;
+  private MarkdownDisplayMap map;
   private Palette palette;
   private int paneWidth;
 
@@ -79,9 +83,10 @@ final class MarkdownStyler {
     this.palette = palette;
   }
 
-  /** Takes new content. */
-  void setContent(MarkdownPreviewContent next) {
+  /** Takes new content and the map of the text the pane shows. */
+  void setContent(MarkdownPreviewContent next, MarkdownDisplayMap nextMap) {
     content = next;
+    map = nextMap;
   }
 
   /** Takes a new palette. */
@@ -100,24 +105,51 @@ final class MarkdownStyler {
   }
 
   /**
-   * Computes a line's styles, indent, bullet and tab stops.
+   * Computes a display line's styles, indent, bullet and tab stops.
    *
-   * @param line the line's index
-   * @param start the line's first offset
-   * @param end the offset after its last char
+   * @param displayLine the line's index in the display text
+   * @param start the line's first display offset
+   * @param end the display offset after its last char
    * @return the style, empty for a line past the content
    */
-  LineStyle style(int line, int start, int end) {
+  LineStyle style(int displayLine, int start, int end) {
     LineStyle style = new LineStyle();
-    if (content == null || line >= content.rendered().lineCount()) {
+    if (content == null || map == null || displayLine >= map.lineCount()) {
       return style;
     }
     RenderedMarkdown r = content.rendered();
-    int table = tableAt(line);
+    int line = map.renderedLine(displayLine);
+    int sub = map.subLine(displayLine);
+    TableWrap.Row row = map.row(line);
     boolean header = header(line);
     boolean code = r.code(line);
     List<StyleRange> out = new ArrayList<StyleRange>();
-    int[] spans = content.spans();
+    int[] pieces = map.pieces(displayLine);
+    for (int k = 0; k < pieces.length; k += 3) {
+      int from = out.size();
+      int s = pieces[k + 1];
+      styles(out, content.spans(), s, s + pieces[k + 2], code, header);
+      for (int i = from; i < out.size(); i++) {
+        out.get(i).start += pieces[k] - s;
+      }
+    }
+    if (row != null && (sub == 0 || sub == row.lines() - 1) && end > start) {
+      int[] pad = tables.padMetrics();
+      StyleRange glyph = new StyleRange();
+      glyph.start = end - 1;
+      glyph.length = 1;
+      glyph.metrics =
+          new GlyphMetrics(sub == 0 ? pad[0] : 0, sub == row.lines() - 1 ? pad[1] : 0, 0);
+      out.add(glyph);
+    }
+    style.styles = out.toArray(new StyleRange[0]);
+    indent(style, r, line, sub, row);
+    return style;
+  }
+
+  /** Adds the styles of the rendered range [start, end) of one line. */
+  private void styles(
+      List<StyleRange> out, int[] spans, int start, int end, boolean code, boolean header) {
     int at = start;
     for (int i = MarkdownSpans.first(spans, start); 3 * i < spans.length; i++) {
       int s = Math.max(spans[3 * i], start);
@@ -130,24 +162,22 @@ final class MarkdownStyler {
       at = t;
     }
     add(out, at, end, 0, code, header);
-    style.styles = out.toArray(new StyleRange[0]);
-    indent(style, r, line, table);
-    return style;
   }
 
   /**
-   * Returns a line's background.
+   * Returns a display line's background.
    *
-   * @param line a line
-   * @return the code shade for a code line and for the header row of a measured table, else null
+   * @param displayLine a display line
+   * @return the code shade for a code line and for the header row of a laid-out table, else null
    */
-  Color background(int line) {
-    if (content == null || line >= content.rendered().lineCount()) {
+  Color background(int displayLine) {
+    if (content == null || map == null || displayLine >= map.lineCount()) {
       return null;
     }
+    int line = map.renderedLine(displayLine);
     boolean shaded =
         content.rendered().code(line)
-            || (header(line) && tables != null && tables.measured(tableAt(line)) != null);
+            || (header(line) && tables != null && tables.laidOut(tableAt(line)));
     return shaded ? color(palette.gutter()) : null;
   }
 
@@ -167,14 +197,21 @@ final class MarkdownStyler {
   /**
    * Returns the indent a line's quotes and lists take.
    *
-   * @param line a line
+   * @param line a rendered line
    * @return pixels from the left margin
    */
   int baseIndent(int line) {
-    if (content == null) {
-      return 0;
-    }
-    RenderedMarkdown r = content.rendered();
+    return content == null ? 0 : baseIndent(content.rendered(), line);
+  }
+
+  /**
+   * Returns the indent a rendered line's quotes and lists take.
+   *
+   * @param r the render
+   * @param line a rendered line
+   * @return pixels from the left margin
+   */
+  static int baseIndent(RenderedMarkdown r, int line) {
     int list = r.listDepth(line);
     return r.quoteDepth(line) * QUOTE_INDENT + (list > 0 ? (list - 1) * LIST_INDENT : 0);
   }
@@ -250,26 +287,25 @@ final class MarkdownStyler {
     return color(palette.style(role).foreground());
   }
 
-  private void indent(LineStyle event, RenderedMarkdown r, int line, int table) {
+  private void indent(LineStyle event, RenderedMarkdown r, int line, int sub, TableWrap.Row row) {
     int base = baseIndent(line);
     int list = r.listDepth(line);
     int textStart = list > 0 ? base + BULLET_WIDTH : base;
     event.indent = textStart;
     event.wrapIndent = textStart;
-    if (r.marker(line) != RenderedMarkdown.ListMarker.NONE) {
+    if (sub == 0 && r.marker(line) != RenderedMarkdown.ListMarker.NONE) {
       // StyledText draws a bullet right-aligned in its metrics from the margin, ignoring the
       // indent, and starts the text after both: the metrics span the whole indent.
       event.bullet = bullet(r, line, textStart);
       event.indent = 0;
     }
-    MarkdownTableLayout layout = table >= 0 ? tables.measured(table) : null;
-    if (layout != null) {
-      MarkdownTableLayout.Row row = layout.row(line - r.tables().get(table).firstLine());
-      event.indent = base + row.indent();
-      if (row.tabStops().length > 0) {
-        int[] stops = new int[row.tabStops().length];
+    if (row != null) {
+      event.indent = base + row.indents()[sub];
+      int[] rowStops = row.tabStops()[sub];
+      if (rowStops.length > 0) {
+        int[] stops = new int[rowStops.length];
         for (int i = 0; i < stops.length; i++) {
-          stops[i] = base + row.tabStops()[i];
+          stops[i] = base + rowStops[i];
         }
         event.tabStops = stops;
       }

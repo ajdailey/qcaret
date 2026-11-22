@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -9,8 +10,6 @@ import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
-import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
-import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.LineBackgroundEvent;
@@ -40,14 +39,17 @@ import org.eclipse.swt.widgets.MenuItem;
 
 /**
  * The Basic Markdown preview of one tab: a read-only, wrapping {@link StyledText} holding the
- * render's text, with the size notice above it while the document is too large to render on its
- * own.
+ * display text of a {@link MarkdownDisplayMap}, with the size notice above it while the document is
+ * too large to render on its own. The map takes every offset and line between the widget and the
+ * render; the controller sees rendered offsets and lines only.
  *
  * <ul>
  *   <li>Styles: {@link MarkdownStyler} styles each line as it paints, {@link MarkdownPainter}
- *       paints quote bars, rules, table borders and images. A table row's spaces show as no-break
- *       spaces so a cell does not wrap; Copy puts the render's own text on the clipboard.
- *   <li>Tables: {@link TableColumns} measures columns in bounded UI turns.
+ *       paints quote bars, rules, table borders and images. Copy puts the rendered text of the
+ *       selection on the clipboard.
+ *   <li>Tables: {@link TableColumns} measures columns, fits them to the pane and replaces each
+ *       table's rows with display rows whose cells wrap inside their columns, in bounded UI turns,
+ *       again on a width change.
  *   <li>Images: a {@link SwtImageDecoder} decodes on the controller's worker; {@link PaneImages}
  *       creates and disposes the {@code Image}s, all of them on new content and on dispose.
  *   <li>Input: a click goes to {@link MarkdownPreviewInput#clicked} with its offset; a paint that
@@ -76,7 +78,7 @@ public final class MarkdownPane {
   private final MarkdownStyler styler;
   private final MarkdownPainter painter;
   private MarkdownPreviewContent content;
-  private String shownText = "";
+  private MarkdownDisplayMap map;
   private SwtImageDecoder decoder;
   private Clipboard clipboard;
   private int reportedTop;
@@ -147,9 +149,11 @@ public final class MarkdownPane {
         new LineStyleListener() {
           @Override
           public void lineGetStyle(LineStyleEvent event) {
-            int line = text.getLineAtOffset(event.lineOffset);
             styler
-                .style(line, event.lineOffset, event.lineOffset + event.lineText.length())
+                .style(
+                    text.getLineAtOffset(event.lineOffset),
+                    event.lineOffset,
+                    event.lineOffset + event.lineText.length())
                 .applyTo(event);
           }
         });
@@ -173,7 +177,7 @@ public final class MarkdownPane {
           @Override
           public void handleEvent(Event event) {
             painter.paint(event.gc);
-            int top = text.getTopIndex();
+            int top = renderedTop();
             if (top != reportedTop) {
               reportedTop = top;
               input.previewScrolled(top);
@@ -186,6 +190,9 @@ public final class MarkdownPane {
           @Override
           public void handleEvent(Event event) {
             styler.setPaneWidth(textWidth());
+            int bottom = Math.max(text.getTopIndex(), bottomLine());
+            tables.setWidth(
+                textWidth(), renderedTop(), map == null ? bottom : map.renderedLine(bottom));
             if (images.offsets().length > 0) {
               restyle();
             }
@@ -198,8 +205,8 @@ public final class MarkdownPane {
           public void handleEvent(Event event) {
             if (event.button == 1 && text.getSelectionCount() == 0) {
               int offset = text.getOffsetAtPoint(new Point(event.x, event.y));
-              if (offset >= 0) {
-                input.clicked(offset);
+              if (offset >= 0 && map != null) {
+                input.clicked(map.rendered(offset));
               }
             }
           }
@@ -264,10 +271,11 @@ public final class MarkdownPane {
     text.setMenu(menu);
   }
 
-  private boolean link(int offset) {
-    if (offset < 0 || content == null) {
+  private boolean link(int displayOffset) {
+    if (displayOffset < 0 || content == null) {
       return false;
     }
+    int offset = map.rendered(displayOffset);
     int[] spans = content.spans();
     int i = MarkdownSpans.first(spans, offset);
     return 3 * i < spans.length
@@ -284,8 +292,15 @@ public final class MarkdownPane {
     if (clipboard == null) {
       clipboard = new Clipboard(text.getDisplay());
     }
-    String copied = content.rendered().text().substring(selection.x, selection.x + selection.y);
-    clipboard.setContents(new Object[] {copied}, new Transfer[] {TextTransfer.getInstance()});
+    clipboard.setContents(
+        new Object[] {selectedRendered()}, new Transfer[] {TextTransfer.getInstance()});
+  }
+
+  /** Returns the rendered text the selection shows. */
+  String selectedRendered() {
+    Point selection = text.getSelectionRange();
+    int[] range = map.renderedRange(selection.x, selection.x + selection.y);
+    return content.rendered().text().substring(range[0], range[1]);
   }
 
   /**
@@ -314,8 +329,9 @@ public final class MarkdownPane {
   }
 
   /**
-   * Shows new content, keeping the top line where the new text has it; hides the size notice.
-   * {@link TextDelta} changes the text; the visible lines are styled again.
+   * Shows new content, keeping the top line where the new text has it; hides the size notice. A
+   * table equal to one shown before keeps its rows; {@link TextDelta} changes the text; the visible
+   * lines are styled again.
    *
    * @param next the render and its styles
    */
@@ -325,23 +341,26 @@ public final class MarkdownPane {
     }
     setNotice(null);
     int top = text.getTopIndex();
+    String shown = map == null ? "" : map.text();
+    int topLine = map == null ? 0 : map.renderedLine(top);
+    int bottomLine = map == null ? bottomLine() : map.renderedLine(Math.max(top, bottomLine()));
     content = next;
+    map = new MarkdownDisplayMap(next.rendered());
     images.reset(next.images());
-    styler.setContent(next);
-    painter.setRendered(next.rendered());
-    String nextText = displayText(next.rendered());
-    TextDelta.apply(text, shownText, nextText);
-    shownText = nextText;
+    styler.setContent(next, map);
+    painter.setRendered(next.rendered(), map);
+    tables.reset(next, map, topLine, bottomLine);
+    String nextText = map.text();
+    TextDelta.apply(text, shown, nextText);
     text.setTopIndex(Math.min(top, text.getLineCount() - 1));
-    reportedTop = text.getTopIndex();
+    reportedTop = renderedTop();
     int bottom = bottomLine();
-    int start = text.getOffsetAtLine(reportedTop);
+    int start = text.getOffsetAtLine(text.getTopIndex());
     int end =
         bottom + 1 < text.getLineCount() ? text.getOffsetAtLine(bottom + 1) : nextText.length();
     if (end > start) {
       text.redrawRange(start, end - start, true);
     }
-    tables.reset(next, reportedTop, bottom);
   }
 
   /**
@@ -378,28 +397,33 @@ public final class MarkdownPane {
   }
 
   /**
-   * Scrolls so a line is at the top; the scroll is not reported back.
+   * Scrolls so a line's first display line is at the top; the scroll is not reported back.
    *
    * @param line a rendered line
    */
   public void scrollToLine(int line) {
-    if (!text.isDisposed() && text.getLineCount() > 0) {
-      text.setTopIndex(Math.max(0, Math.min(line, text.getLineCount() - 1)));
-      reportedTop = text.getTopIndex();
+    if (!text.isDisposed() && content != null) {
+      int last = content.rendered().lineCount() - 1;
+      text.setTopIndex(map.displayLine(Math.max(0, Math.min(line, last))));
+      reportedTop = renderedTop();
     }
   }
 
   /**
-   * Selects text and scrolls it into view; the scroll is not reported back.
+   * Selects the display text of a rendered range and scrolls it into view; the scroll is not
+   * reported back. A range crossing a wrapped table cell's break selects the display text between
+   * its ends, which holds other cells' segments.
    *
-   * @param start the first offset
-   * @param end the offset after the text
+   * @param start the first rendered offset
+   * @param end the rendered offset after the text
    */
   public void selectRendered(int start, int end) {
-    int length = text.isDisposed() ? -1 : text.getCharCount();
+    int length = text.isDisposed() || content == null ? -1 : content.rendered().text().length();
     if (start >= 0 && start <= end && end <= length) {
-      text.setSelection(start, end);
-      reportedTop = text.getTopIndex();
+      int from = map.display(start);
+      int to = map.display(end);
+      text.setSelection(Math.min(from, to), Math.max(from, to));
+      reportedTop = renderedTop();
     }
   }
 
@@ -421,7 +445,8 @@ public final class MarkdownPane {
    */
   public void showImage(MarkdownImageRequest request, DecodedImage image) {
     if (!text.isDisposed() && images.accept(request, image)) {
-      TableColumns.restyle(text, request.offset(), request.offset() + 1);
+      int offset = map.display(request.offset());
+      TableColumns.restyle(text, offset, offset + 1);
     }
   }
 
@@ -454,24 +479,9 @@ public final class MarkdownPane {
     return text.getLineIndex(Math.max(0, text.getClientArea().height - 1));
   }
 
-  /** The render's text with each table row's spaces as no-break spaces. */
-  private static String displayText(RenderedMarkdown rendered) {
-    String plain = rendered.text();
-    if (rendered.tables().isEmpty()) {
-      return plain;
-    }
-    char[] chars = plain.toCharArray();
-    for (MarkdownTable table : rendered.tables()) {
-      int start = rendered.lineStart(table.firstLine());
-      int last = table.firstLine() + table.rowCount() - 1;
-      int end = last + 1 < rendered.lineCount() ? rendered.lineStart(last + 1) : chars.length;
-      for (int i = start; i < end; i++) {
-        if (chars[i] == ' ') {
-          chars[i] = ' ';
-        }
-      }
-    }
-    return new String(chars);
+  /** The rendered line of the top display line. */
+  private int renderedTop() {
+    return map == null ? text.getTopIndex() : map.renderedLine(text.getTopIndex());
   }
 
   // For tests.
@@ -484,6 +494,11 @@ public final class MarkdownPane {
   /** Returns the table measuring. */
   TableColumns tables() {
     return tables;
+  }
+
+  /** Returns the display map, or null before content. */
+  MarkdownDisplayMap map() {
+    return map;
   }
 
   /** Returns the images. */

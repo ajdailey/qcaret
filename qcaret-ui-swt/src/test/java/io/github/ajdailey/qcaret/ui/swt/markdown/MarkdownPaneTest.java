@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
+import io.github.ajdailey.qcaret.app.editor.TableWrap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.TokenRole;
@@ -218,9 +219,14 @@ class MarkdownPaneTest {
     return pane.styler().style(line, start, start + text.getLine(line).length());
   }
 
+  /** Maps a rendered offset to the pane's text. */
+  private int display(int offset) {
+    return pane.map().display(offset);
+  }
+
   private StyleRange at(MarkdownPreviewContent c, String word) {
-    int offset = c.rendered().text().indexOf(word);
-    assertTrue(offset >= 0, word);
+    assertTrue(c.rendered().text().indexOf(word) >= 0, word);
+    int offset = display(c.rendered().text().indexOf(word));
     int line = pane.text().getLineAtOffset(offset);
     for (StyleRange r : line(line).styles) {
       if (r.start <= offset && offset < r.start + r.length) {
@@ -231,7 +237,7 @@ class MarkdownPaneTest {
   }
 
   private int lineOf(MarkdownPreviewContent c, String word) {
-    return pane.text().getLineAtOffset(c.rendered().text().indexOf(word));
+    return pane.text().getLineAtOffset(display(c.rendered().text().indexOf(word)));
   }
 
   private static RGB rgb(Rgb value) {
@@ -263,7 +269,7 @@ class MarkdownPaneTest {
     assertEquals(rgb(p.style(TokenRole.LINK).foreground()), link.foreground.getRGB());
     assertEquals(SWT.BORDER_SOLID, at(c, "Ctrl").borderStyle);
     assertTrue(at(c, "2O").rise < 0);
-    int sup = c.rendered().text().indexOf("x2") + 1;
+    int sup = display(c.rendered().text().indexOf("x2") + 1);
     StyleRange superscript = null;
     for (StyleRange r : line(pane.text().getLineAtOffset(sup)).styles) {
       if (r.start == sup) {
@@ -287,7 +293,7 @@ class MarkdownPaneTest {
     assertNotNull(pane.styler().background(lineOf(c, "title: Mock")));
     StyleRange header = at(c, "Left");
     assertTrue(bold(header));
-    int image = c.images().get(0).offset();
+    int image = display(c.images().get(0).offset());
     StyleRange glyph = null;
     for (StyleRange r : line(pane.text().getLineAtOffset(image)).styles) {
       if (r.start == image) {
@@ -342,35 +348,25 @@ class MarkdownPaneTest {
     MarkdownPreviewContent c = content(text.toString());
     pane.showRendered(c);
     assertNull(pane.tables().measured(0));
-    await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return pane.tables().measured(1) != null;
-          }
-        },
-        "tables measured");
+    awaitShown(1);
     assertTrue(pane.tables().turns() > 3, "turns " + pane.tables().turns());
-    assertNotNull(pane.tables().measured(0));
-    int row = c.rendered().tables().get(0).firstLine() + 5;
+    assertTrue(pane.tables().laidOut(0));
+    int row = pane.map().displayLine(c.rendered().tables().get(0).firstLine() + 5);
     MarkdownStyler.LineStyle event = line(row);
     assertNotNull(event.tabStops);
     assertEquals(2, event.tabStops.length);
-    assertTrue(c.rendered().text().indexOf("cell 3") > 0);
-    assertTrue(pane.text().getLine(row).contains(" "));
-    pane.text().setSelection(c.rendered().lineStart(row), c.rendered().lineStart(row) + 6);
-    pane.copy();
+    assertTrue(pane.text().getLine(row).endsWith(String.valueOf(TableWrap.PAD)));
   }
 
-  private void awaitMeasured(final int table) {
+  private void awaitShown(final int table) {
     await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return pane.tables().measured(table) != null;
+            return pane.tables().laidOut(table) && !pane.tables().busy();
           }
         },
-        "table measured");
+        "table laid out");
     flush();
   }
 
@@ -383,17 +379,17 @@ class MarkdownPaneTest {
     MarkdownPreviewContent c =
         content("| Name | Note |\n|---|---|\n| `iiiiiiiiiiiiiiiiiiii` | next |\n| a | b |\n");
     pane.showRendered(c);
-    awaitMeasured(0);
+    awaitShown(0);
     StyledText text = pane.text();
     String rendered = c.rendered().text();
-    int code = rendered.indexOf("iiii");
-    int[] edges = pane.tables().measured(0).edges();
+    int code = display(rendered.indexOf("iiii"));
+    int[] edges = pane.tables().edges(0);
     int left = text.getLeftMargin() - text.getHorizontalPixel();
     Rectangle bounds = text.getTextBounds(code, code + 19);
     assertTrue(
         bounds.x + bounds.width <= left + edges[1] - TableColumns.PADDING,
         "code cell ends at " + (bounds.x + bounds.width) + ", column at " + (left + edges[1]));
-    int next = rendered.indexOf("next");
+    int next = display(rendered.indexOf("next"));
     assertEquals(left + edges[1] + TableColumns.PADDING, text.getLocationAtOffset(next).x);
   }
 
@@ -403,7 +399,9 @@ class MarkdownPaneTest {
     pane.showRendered(c);
     int header = c.rendered().tables().get(0).firstLine();
     assertNull(pane.styler().background(header));
-    awaitMeasured(0);
+    awaitShown(0);
+    header = pane.map().displayLine(header);
+    awaitShown(0);
     for (Palette palette : new Palette[] {Palette.LIGHT, Palette.DARK}) {
       pane.setPalette(palette);
       flush();
@@ -411,7 +409,7 @@ class MarkdownPaneTest {
       assertNull(pane.styler().background(header + 1));
     }
     StyledText text = pane.text();
-    int[] edges = pane.tables().measured(0).edges();
+    int[] edges = pane.tables().edges(0);
     int left = text.getLeftMargin() - text.getHorizontalPixel();
     int y = text.getLinePixel(header) + 2;
     Palette dark = Palette.DARK;

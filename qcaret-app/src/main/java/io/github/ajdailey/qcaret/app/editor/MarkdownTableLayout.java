@@ -9,8 +9,8 @@ import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
  * start each cell at its column, left, centered or right as the column's alignment says. Measuring
  * runs a bounded number of cells per call so a caller can spread a large table over several UI
  * turns. {@link #fit} narrows the columns of a table wider than a given width, for a caller that
- * wraps each cell inside its column. Positions are in pixels from the table's left edge. Not
- * thread-safe.
+ * wraps each cell inside its column; each fit starts from the measured widths. Positions are in
+ * pixels from the table's left edge. Not thread-safe.
  */
 public final class MarkdownTableLayout {
   /**
@@ -29,6 +29,7 @@ public final class MarkdownTableLayout {
   private final int columns;
   private final int[][] widths;
   private final int[] inner;
+  private final int[] natural;
   private int measuredRows;
   private int[] edges;
 
@@ -46,6 +47,7 @@ public final class MarkdownTableLayout {
     this.columns = table.alignments().size();
     this.widths = new int[table.rowCount()][columns];
     this.inner = new int[columns];
+    this.natural = new int[columns];
   }
 
   /**
@@ -71,6 +73,7 @@ public final class MarkdownTableLayout {
       measuredRows++;
     }
     if (measured() && edges == null) {
+      System.arraycopy(inner, 0, natural, 0, columns);
       setEdges();
     }
     return cells;
@@ -97,33 +100,76 @@ public final class MarkdownTableLayout {
     if (edges == null) {
       throw new IllegalStateException("not measured");
     }
-    int room = width - 2 * padding * columns;
-    long natural = 0;
-    for (int c = 0; c < columns; c++) {
-      natural += inner[c];
-    }
-    if (natural <= room) {
-      return;
-    }
     int[] words = new int[columns];
-    for (int row = 0; row < table.rowCount(); row++) {
-      int[] pairs = table.cells()[row];
-      for (int c = 0; c < columns && 2 * c + 1 < pairs.length; c++) {
-        words[c] = Math.max(words[c], widestWord(measurer, pairs[2 * c], pairs[2 * c + 1], row));
+    if (wider(width)) {
+      for (int row = 0; row < table.rowCount(); row++) {
+        int[] pairs = table.cells()[row];
+        for (int c = 0; c < columns && 2 * c + 1 < pairs.length; c++) {
+          words[c] = Math.max(words[c], widestWord(measurer, pairs[2 * c], pairs[2 * c + 1], row));
+        }
       }
     }
-    long least = 0;
+    fit(words, width, false);
+  }
+
+  /**
+   * Fits the measured columns to a width as {@link #fit(TextMeasurer, int)} does, from each
+   * column's widest word. A table that fits gets its measured widths back.
+   *
+   * @param words each column's widest word; read only when the table is {@link #wider} than the
+   *     width
+   * @param width the widest the table may be, padding included
+   * @param bounded true to narrow the widest words in proportion when they do not fit, so the table
+   *     is never wider than {@code width}; a word wider than its column then has to break
+   * @throws IllegalStateException before every row is measured
+   */
+  public void fit(int[] words, int width, boolean bounded) {
+    if (edges == null) {
+      throw new IllegalStateException("not measured");
+    }
+    System.arraycopy(natural, 0, inner, 0, columns);
+    if (!wider(width)) {
+      setEdges();
+      return;
+    }
+    int room = width - 2 * padding * columns;
+    int[] least = new int[columns];
+    long leastTotal = 0;
     long flex = 0;
     for (int c = 0; c < columns; c++) {
-      words[c] = Math.min(words[c], inner[c]);
-      least += words[c];
-      flex += inner[c] - words[c];
+      least[c] = Math.min(words[c], natural[c]);
+      leastTotal += least[c];
+      flex += natural[c] - least[c];
     }
-    long spare = Math.max(0, room - least);
-    for (int c = 0; c < columns; c++) {
-      inner[c] = words[c] + (int) (flex == 0 ? 0 : spare * (inner[c] - words[c]) / flex);
+    if (bounded && leastTotal > room) {
+      for (int c = 0; c < columns; c++) {
+        inner[c] = (int) (Math.max(0, room) * least[c] / leastTotal);
+      }
+    } else {
+      long spare = Math.max(0, room - leastTotal);
+      for (int c = 0; c < columns; c++) {
+        inner[c] = least[c] + (int) (flex == 0 ? 0 : spare * (natural[c] - least[c]) / flex);
+      }
     }
     setEdges();
+  }
+
+  /**
+   * Reports whether the table at its measured column widths is wider than a width.
+   *
+   * @param width the widest the table may be, padding included
+   * @return true when {@link #fit(int[], int, boolean)} narrows a column
+   * @throws IllegalStateException before every row is measured
+   */
+  public boolean wider(int width) {
+    if (edges == null) {
+      throw new IllegalStateException("not measured");
+    }
+    long total = 0;
+    for (int c = 0; c < columns; c++) {
+      total += natural[c];
+    }
+    return total > width - 2 * padding * columns;
   }
 
   private int widestWord(TextMeasurer measurer, int start, int end, int row) {
@@ -161,6 +207,36 @@ public final class MarkdownTableLayout {
       throw new IllegalStateException("not measured");
     }
     return edges.clone();
+  }
+
+  /**
+   * Returns a cell's measured width.
+   *
+   * @param row a row, 0 for the header
+   * @param column a column
+   * @return pixels, without padding
+   */
+  public int width(int row, int column) {
+    return widths[row][column];
+  }
+
+  /**
+   * Returns a column's width after the last fit.
+   *
+   * @param column a column
+   * @return pixels, without padding
+   */
+  public int columnWidth(int column) {
+    return inner[column];
+  }
+
+  /**
+   * Returns the pixels on each side of a cell's text.
+   *
+   * @return the padding
+   */
+  public int padding() {
+    return padding;
   }
 
   /**
