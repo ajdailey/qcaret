@@ -1221,16 +1221,19 @@ qcaret +120:8 src/Mock.java -r notes.txt
 
 On Windows `qcaret` is `qcaret.exe`, or `qcaret.cmd` where Windows blocks the
 `.exe`. Both exit 0 once Java starts, so the exit statuses above reach only
-`java -jar` and `bin/qcaret`. Through
-`qcaret.cmd`, quote every argument holding a space or `&`, `|`, `<`, `>` or
-`^`: cmd.exe runs the text after an unquoted `&` as another command and drops
-an unquoted `^`. For the same reason, drop such a file on the QCaret window,
-not on `qcaret.cmd`, and start `qcaret.exe` from PowerShell, which quotes only
-arguments holding a space. Through either launcher a file name with characters
-outside the Windows code page for non-Unicode programs, such as a Japanese name
-on an English system, arrives with `?` in their place; open it from File >
-Open. Neither launcher starts from a folder whose path holds `;` or such
-characters.
+`java -jar` and `bin/qcaret`, and both print `-h`, `-v` and error messages only
+when the output is redirected or piped, as in `qcaret.cmd -v | more`.
+`qcaret.cmd` passes a file name dropped on it or typed after it as given,
+including `&`, `^`, `%` and `!`, and runs nothing in it, so dropping files on it
+is safe. A program that passes an unquoted `|`, `<` or `>` to `qcaret.cmd` has
+it acted on by cmd.exe before the script runs; no file name holds one. Started
+from a command prompt opened with `cmd /q`, `qcaret.cmd` cannot read its
+arguments: it prints `qcaret.cmd could not read its arguments through "<file>".`
+and starts nothing. Through either launcher a file name
+with characters outside the Windows code page for non-Unicode programs, such as
+a Japanese name on an English system, arrives with `?` in their place; open it
+from File > Open. Neither launcher starts from a folder whose path holds `;` or
+such characters.
 
 To give QCaret more heap for large files, see [Large files](#large-files).
 

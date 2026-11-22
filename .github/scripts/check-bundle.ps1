@@ -8,7 +8,8 @@
 # opens, the grammars are read with 0 skipped and no unhandled failure is logged. A second launch
 # then hands a file to the running instance and exits 0. qcaret.cmd then runs the same check; it
 # also runs LauncherProbe in place of qcaret.jar to check the Java it picks, the JVM options and
-# the arguments it passes, and its -v must print the version. Both launchers of the universal zip,
+# the arguments it passes, unquoted names as Explorer drops them and escaped ones typed at a
+# prompt, none of which may run a command, and its -v must print the version. Both launchers of the universal zip,
 # which has no runtime, then run the first check and pass when the child runs javaw.exe from
 # $env:JAVA_HOME.
 $ErrorActionPreference = 'Stop'
@@ -73,7 +74,8 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
   $deadline = (Get-Date).AddSeconds(60)
   while (-not $child -and (Get-Date) -lt $deadline) {
     $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id) AND Name = 'javaw.exe'" |
-      Where-Object { $_.CommandLine -like '*qcaret.jar*' } |
+      # Under load WMI has listed the child with no ExecutablePath; poll until it has one.
+      Where-Object { $_.CommandLine -like '*qcaret.jar*' -and $_.ExecutablePath } |
       Select-Object -First 1
     if (-not $child) { Start-Sleep -Milliseconds 100 }
   }
@@ -215,6 +217,96 @@ function Test-CmdVersion([string] $Bundle) {
   Write-Output "PASS: qcaret.cmd -v printed $want"
 }
 
+# Returns LauncherProbe's lines from $Out, written after qcaret.cmd returns.
+function Wait-Probe([string] $Out) {
+  $deadline = (Get-Date).AddSeconds(60)
+  while (-not (Test-Path -LiteralPath $Out) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 100 }
+  if (-not (Test-Path -LiteralPath $Out)) { throw "LauncherProbe wrote no $Out within 60 s" }
+  Get-Content -LiteralPath $Out -Encoding utf8
+}
+
+# A folder holding mark.cmd, which writes marker.txt beside itself when run. An argument
+# `a&mark` runs it if any cmd.exe acts on the &.
+function New-MarkFolder([string] $Folder) {
+  New-Item -ItemType Directory -Path $Folder -Force | Out-Null
+  Set-Content -LiteralPath (Join-Path $Folder 'mark.cmd') -Value "@>`"%~dp0marker.txt`" echo ran`r`n" -NoNewline
+  $Folder
+}
+
+# Fails when $Folder holds marker.txt or l.txt, which a cmd.exe acting on & | > creates.
+function Assert-NoMarker([string] $Folder, [string] $Case) {
+  # A command after & runs once the script returns; give it time.
+  Start-Sleep -Seconds 2
+  foreach ($name in @('marker.txt', 'l.txt')) {
+    if (Test-Path -LiteralPath (Join-Path $Folder $name)) { throw "$Case ran a command: $name exists" }
+  }
+}
+
+# Explorer passes a dropped path without quotes unless it holds a space, through ShellExecute,
+# which starts cmd.exe /c ""<qcaret.cmd>" <arguments>". qcaret.cmd must pass each name intact,
+# and no command after an & may run.
+function Test-CmdExplorer([string] $Bundle) {
+  $folder = New-MarkFolder (Join-Path $work 'cmd\explorer')
+  $tree = New-ProbeTree $Bundle $folder
+  $out = Join-Path $work "probe-$([guid]::NewGuid()).txt"
+  $env:QCARET_PROBE_OUT = $out
+  # Defined, so a cmd.exe that expands g%h%.txt changes the name.
+  $env:h = 'expanded'
+  try {
+    $e = [char] 0xe9
+    $text = "$folder\a&mark c^d.txt e!f.txt g%h%.txt (p).txt caf$e.txt `"x y&mark.txt`""
+    $launch = Start-Process -FilePath (Join-Path $tree 'qcaret.cmd') -ArgumentList $text -WorkingDirectory $folder -WindowStyle Hidden -PassThru
+    if (-not $launch.WaitForExit(60000)) { throw "qcaret.cmd through ShellExecute did not exit within 60 s" }
+    $lines = Wait-Probe $out
+  } finally {
+    Remove-Item Env:QCARET_PROBE_OUT, Env:h -ErrorAction SilentlyContinue
+  }
+  Assert-NoMarker $folder 'qcaret.cmd through ShellExecute'
+  Assert-Probe $lines $tree (Join-Path $tree 'runtime') @("$folder\a&mark", 'c^d.txt', 'e!f.txt', 'g%h%.txt', '(p).txt', "caf$e.txt", 'x y&mark.txt')
+  Write-Output 'PASS: qcaret.cmd through ShellExecute passed unquoted & ^ ! % names intact and ran no command'
+}
+
+# Runs $Text as a line typed at a command prompt in $Folder: cmd.exe without /c reads it from
+# standard input. Returns LauncherProbe's lines.
+function Invoke-Prompt([string] $Folder, [string] $Text) {
+  $out = Join-Path $work "probe-$([guid]::NewGuid()).txt"
+  $info = New-Object System.Diagnostics.ProcessStartInfo $env:ComSpec
+  # Without /q: under /q, echo on has no effect and qcaret.cmd refuses to run.
+  $info.Arguments = '/d'
+  $info.UseShellExecute = $false
+  $info.WorkingDirectory = $Folder
+  $info.RedirectStandardInput = $true
+  $info.RedirectStandardOutput = $true
+  $info.RedirectStandardError = $true
+  $info.Environment['QCARET_PROBE_OUT'] = $out
+  $process = [System.Diagnostics.Process]::Start($info)
+  $stdout = $process.StandardOutput.ReadToEndAsync()
+  $stderr = $process.StandardError.ReadToEndAsync()
+  $process.StandardInput.Write("$Text`r`nexit`r`n")
+  $process.StandardInput.Close()
+  if (-not $process.WaitForExit(60000)) {
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    throw "cmd.exe reading $Text did not exit within 60 s"
+  }
+  if (-not ($stdout.Wait(60000) -and $stderr.Wait(60000))) { throw "cmd.exe reading $Text started a Java that has not ended within 60 s" }
+  if ($stderr.Result) { Write-Output "prompt stderr: $($stderr.Result)" }
+  Wait-Probe $out
+}
+
+# At a command prompt, escaped and quoted arguments reach Java as cmd.exe passed them to
+# qcaret.cmd, and nothing in them runs.
+function Test-CmdPrompt([string] $Bundle) {
+  $folder = New-MarkFolder (Join-Path $work 'cmd\prompt & 100%')
+  $tree = New-ProbeTree $Bundle $folder
+  $script = "`"$(Join-Path $tree 'qcaret.cmd')`""
+  $lines = Invoke-Prompt $folder "$script a^&mark c^^d.txt e!f.txt g%q9z%.txt i^|mark k^>l.txt `"x&y.txt`" (p).txt"
+  Assert-NoMarker $folder 'qcaret.cmd at a prompt'
+  Assert-Probe $lines $tree (Join-Path $tree 'runtime') @('a&mark', 'c^d.txt', 'e!f.txt', 'g%q9z%.txt', 'i|mark', 'k>l.txt', 'x&y.txt', '(p).txt')
+  $lines = Invoke-Prompt $folder "$script $cmdLine"
+  Assert-Probe $lines $tree (Join-Path $tree 'runtime') $cmdArguments
+  Write-Output 'PASS: qcaret.cmd at a prompt passed escaped & ^ | > and quoted arguments intact and ran no command'
+}
+
 $work = Join-Path $PWD 'bundle-run'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 $archive = Get-Item "dist\qcaret-*-$env:TARGET.zip"
@@ -253,6 +345,8 @@ Test-CmdArguments $bundle 'with space'
 Test-CmdArguments $bundle 'amp & pct 100%'
 Test-CmdJavaOrder $bundle
 Test-CmdVersion $bundle
+Test-CmdExplorer $bundle
+Test-CmdPrompt $bundle
 
 $universal = Get-ChildItem dist -Filter 'qcaret-*.zip' |
   Where-Object { $_.Name -notmatch '-(linux|macos|windows)-' } |

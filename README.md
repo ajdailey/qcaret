@@ -145,7 +145,10 @@ running `qcaret.jar`, and passes only when the child's image is the bundle's
 `windows-11-arm`); the universal zip's `qcaret.exe` must start the JDK's
 `javaw.exe`. Each launch repeats through `qcaret.cmd`, and `qcaret.cmd` runs
 over a probe jar from folders whose names hold a space, `&` and `%` to check
-the Java it picks, the JVM options and each argument. On macOS it also runs
+the Java it picks, the JVM options and each argument, then passes unquoted
+`&`, `^`, `!` and `%` names the way Explorer drops them, and escaped ones from a
+command prompt, and fails if any name changes or a command in one runs. On
+macOS it also runs
 `codesign --verify --deep --strict` on `QCaret.app`.
 
 The `package` job caches the JDK archives and `rcodesign` under
@@ -218,6 +221,10 @@ To fix a bad draft, delete the draft and the tag
   opt-in on linux-x86_64: start QCaret with `bin/qcaret --gtk4` or
   `SWT_GTK4=1`; without the GTK 4 libraries it starts on GTK 3 and logs a warning. Under GTK 4 Help > User Guide shows no guide window; a notice
   names the guide's file instead.
+- On Windows, `qcaret.cmd` is a second launcher beside `qcaret.exe`. It passes
+  file names dropped on it or typed after it to QCaret as given, `&`, `^`, `%`
+  and `!` included, and runs nothing in them; limits are in
+  [qcaret-dist](qcaret-dist/README.md#launchers).
 - The Windows launchers and the macOS bundles are not signed by a publisher; see
   [First launch of an unsigned build](#first-launch-of-an-unsigned-build).
 - File associations: on Linux run `bin/install-desktop-entry`, on Windows
@@ -232,14 +239,13 @@ signed and not notarized. A downloaded copy therefore needs one approval:
 
 | Platform | First launch |
 |---|---|
-| Windows | SmartScreen shows "Windows protected your PC": choose More info, then Run anyway. Unblocking the downloaded zip first (Properties, Unblock) avoids the prompt. |
+| Windows | `qcaret.exe`: SmartScreen shows "Windows protected your PC"; choose More info, then Run anyway. `qcaret.cmd`: "Open File - Security Warning", "The publisher could not be verified"; choose Run. |
 | macOS | macOS refuses the first open. Open System Settings > Privacy & Security and choose Open Anyway for QCaret, or run `xattr -dr com.apple.quarantine QCaret.app` before the first launch. |
 
-On Windows `qcaret.cmd` starts the same `javaw.exe` and jar without
-`qcaret.exe`. What Windows shows for a downloaded `.cmd` is unverified: Explorer
-marks the files it extracts from a downloaded zip as from the internet, and
-opening a marked script may show an "Open File - Security Warning" rather than
-SmartScreen's page.
+On Windows, unblock the downloaded zip before extracting it (Properties,
+Unblock, or `Unblock-File`): nothing extracted from it then carries the
+internet mark, and neither launcher prompts. Neither leaves a console window
+open. Measured on Windows 11 26H2.
 
 A copy that did not come from a browser download, such as one copied from
 removable media, usually shows no prompt. The universal jar needs none:
