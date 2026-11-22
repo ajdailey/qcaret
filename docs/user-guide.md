@@ -1229,11 +1229,27 @@ is safe. A program that passes an unquoted `|`, `<` or `>` to `qcaret.cmd` has
 it acted on by cmd.exe before the script runs; no file name holds one. Started
 from a command prompt opened with `cmd /q`, `qcaret.cmd` cannot read its
 arguments: it prints `qcaret.cmd could not read its arguments through "<file>".`
-and starts nothing. Through either launcher a file name
-with characters outside the Windows code page for non-Unicode programs, such as
-a Japanese name on an English system, arrives with `?` in their place; open it
-from File > Open. Neither launcher starts from a folder whose path holds `;` or
-such characters.
+and starts nothing. A batch file that runs `call qcaret.cmd` keeps its echo
+setting. A program reading `qcaret.cmd`'s output through a pipe reaches its end
+once the QCaret window opens; QCaret's later output is discarded.
+
+A file name with characters outside the Windows code page for non-Unicode
+programs, such as a Japanese name on an English system:
+
+| Launch | Result |
+|---|---|
+| Dropped on `qcaret.cmd`, or passed to it by a program or shortcut | Opens |
+| Typed after `qcaret.cmd` at a command prompt | Opens under console code page 65001 (`chcp 65001`) |
+| `qcaret.exe`, quoted, as Open with passes it | Not opened; a message names it with `?` in place of the characters |
+| `qcaret.exe`, unquoted, as a drop passes it | Java reads `?` as a wildcard: no file named at that launch opens, and a message names the pattern |
+
+Open such a file from File > Open or through `qcaret.cmd`. While QCaret runs,
+a launch with that message opens its own window beside the running one.
+`qcaret.exe` also turns some characters into a look-alike: a fullwidth a
+(U+FF41) arrives as `a` and a dotless i (U+0131) as `i`, so such a name can open
+a different file, and a fullwidth quote (U+FF02) arrives as `"`, which splits
+the name into several arguments. Neither launcher starts from a folder whose path holds `;` or
+characters outside the code page.
 
 To give QCaret more heap for large files, see [Large files](#large-files).
 

@@ -211,7 +211,7 @@ after the change.
 
 ### Other classes
 
-`CommandLineParserTest`, `StartupRequestTest` (`--session` over
+`CommandLineParserTest`, `WildcardExpansionTest`, `StartupRequestTest` (`--session` over
 `session.restore`), `SettingsLocationTest`, `WindowGeometryTest`,
 `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest`
 (generated sfnt files; the user font folders under `qcaret.userHome`),

@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -119,6 +120,12 @@ class ApplicationControllerTest {
     assertEquals(Palette.DARK, controller.theme().palette());
     assertTrue(ui.runUntil(saved(Preferences.DEFAULTS.withTheme(ThemeMode.DARK)), BOUND));
     assertEquals(0, view.infos.size());
+  }
+
+  @Test
+  void unopenedNamesShowAMessageDialog() {
+    controller(true).noticeUnopenedNames("Not opened: ??.txt.");
+    assertEquals(List.of("Open: Not opened: ??.txt."), view.infos);
   }
 
   @Test

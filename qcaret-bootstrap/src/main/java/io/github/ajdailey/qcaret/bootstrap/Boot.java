@@ -36,13 +36,16 @@ public final class Boot {
 
   /**
    * Starts QCaret and returns when the launcher returns, or with a nonzero status when startup
-   * fails before the launcher runs. After a macOS relaunch it returns the child's status.
+   * fails before the launcher runs. After a macOS relaunch it returns the child's status. Under
+   * {@code qcaret.cmd} the arguments come from the environment ({@link CmdArguments}).
    *
-   * @param args the command line
+   * @param given the arguments Java received
    * @return the exit status
    * @throws Exception when the launcher fails with an exception it does not handle
    */
-  public static int start(String[] args) throws Exception {
+  public static int start(String[] given) throws Exception {
+    Map<String, String> env = System.getenv();
+    String[] args = CmdArguments.of(given, System.getProperty(CmdArguments.LAUNCHER), env);
     Target target = Target.current();
     if (target == null) {
       System.err.println(Target.unsupportedMessage());
@@ -53,7 +56,6 @@ public final class Boot {
       System.err.println("QCaret must be started from qcaret.jar.");
       return EXIT_UNSUPPORTED;
     }
-    Map<String, String> env = System.getenv();
     MacRelaunch.Decision decision =
         MacRelaunch.decide(
             target, env, ProcessHandle.current().pid(), System.getProperty(MacRelaunch.RELAUNCHED));

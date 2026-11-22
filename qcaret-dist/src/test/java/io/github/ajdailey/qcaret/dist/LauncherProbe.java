@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.dist;
 
+import io.github.ajdailey.qcaret.bootstrap.CmdArguments;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +12,8 @@ import java.util.List;
 /**
  * Stands in for {@code qcaret.jar} under a launcher. Writes {@code home=<java.home>}, {@code
  * jar=<java.class.path>}, one {@code opt=} line per JVM option and one {@code arg=} line per
- * argument, in UTF-8, to the file {@code QCARET_PROBE_OUT} names.
+ * argument as the bootstrap reads them ({@link CmdArguments}), in UTF-8, to the file {@code
+ * QCARET_PROBE_OUT} names.
  */
 public final class LauncherProbe {
   private LauncherProbe() {}
@@ -29,7 +31,8 @@ public final class LauncherProbe {
     for (String option : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
       lines.add("opt=" + option);
     }
-    for (String arg : args) {
+    String launcher = System.getProperty(CmdArguments.LAUNCHER);
+    for (String arg : CmdArguments.of(args, launcher, System.getenv())) {
       lines.add("arg=" + arg);
     }
     Path out = Path.of(System.getenv("QCARET_PROBE_OUT"));

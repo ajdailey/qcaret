@@ -9,7 +9,10 @@ loads every other QCaret class, and SWT, through its own class loader.
 `QCaret requires Java 21 or later; <java.home> is Java <version>.` and exits 2
 instead of failing with `UnsupportedClassVersionError`. It reaches `Boot`
 through reflection, because a Java 8 compilation cannot link to Java 21
-bytecode. `Boot.start` then:
+bytecode. Under `qcaret.cmd` (`-Dqcaret.launcher=cmd` and no arguments)
+`Boot.start` takes the arguments from `QCARET_CMDLINE`, split by the C runtime
+rules (`CmdArguments`), and every later step and the launcher see those. It
+then:
 
 1. Maps `os.name` and `os.arch` to a `Target` (`Target.current`, the only
    bootstrap reader of `os.name`); any other platform prints one line and
@@ -115,6 +118,7 @@ error are inherited.
 | `MainTest` | Java 21 and later accepted, the message naming the running Java, `Main` compiled as Java 8 bytecode; `java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary `-Dqcaret.test.java8=<path to java>` names and skips without it |
 | `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named, `current` matching this JVM |
 | `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (a Linux marker beside `bin/qcaret`, the installation directory's winning), `LocalAppData` matched ignoring case, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
+| `CmdArgumentsTest` | Microsoft's examples of the C runtime rules, empty quoted arguments, wildcards and CJK passed unchanged, the variable read only under `qcaret.cmd` with no arguments |
 | `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
 | `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |
 | `RelaunchTest` | A relaunch parent killed with `Process.destroy` (SIGTERM; the child gone when the parent has exited) and `destroyForcibly` (SIGKILL; the child gone within a bound). On macOS the parent runs the real relaunch with `-XstartOnFirstThread` over a generated jar; elsewhere it runs the child through `MacRelaunch.run`. On Windows both kills terminate the parent without hooks, so both take the standard input path |

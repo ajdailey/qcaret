@@ -288,4 +288,22 @@ class CommandLineParserTest {
       assertTrue(usage.contains(option), option);
     }
   }
+
+  // A Windows launcher hands a name outside the ANSI code page over with ? in place of those
+  // characters; before this, the parse failed and javaw exited 1 with nothing on screen.
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void aWildcardNameIsListedNotOpenedOnWindows() throws Exception {
+    CommandLine line = parse("+3", "??.txt", "a.txt", "b*.txt");
+    assertEquals(List.of("??.txt", "b*.txt"), line.unpassed());
+    assertEquals(List.of(new FileRequest(CWD.resolve("a.txt"))), line.request().files());
+  }
+
+  @Test
+  @DisabledOnOs(OS.WINDOWS)
+  void aWildcardNameIsAFileElsewhere() throws Exception {
+    CommandLine line = parse("??.txt");
+    assertEquals(List.of(), line.unpassed());
+    assertEquals(List.of(new FileRequest(CWD.resolve("??.txt"))), line.request().files());
+  }
 }

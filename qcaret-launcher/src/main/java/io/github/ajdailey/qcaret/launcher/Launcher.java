@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.launcher;
 import io.github.ajdailey.qcaret.app.cli.CommandLine;
 import io.github.ajdailey.qcaret.app.cli.CommandLineException;
 import io.github.ajdailey.qcaret.app.cli.CommandLineParser;
+import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.cli.Version;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -16,6 +17,7 @@ import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +73,19 @@ public final class Launcher {
    * @return the exit status
    */
   public int run(String[] args) {
+    return run(args, List.of());
+  }
+
+  /**
+   * Runs QCaret to completion. After a wildcard expansion the launch opens no command-line file
+   * ({@link UnopenedNames}). Names it does not open are logged at INFO and shown in a message in
+   * this launch's window, beside a running instance rather than handed to it.
+   *
+   * @param args the command line
+   * @param expanded the patterns the Java launcher expanded in {@code args}
+   * @return the exit status
+   */
+  public int run(String[] args, List<String> expanded) {
     CommandLine line;
     try {
       line = new CommandLineParser(Path.of("").toAbsolutePath()).parse(args);
@@ -90,16 +105,25 @@ public final class Launcher {
     LogConfigurator.setLevel(line.logLevel());
     LogConfigurator.holdForFile();
     try {
-      return start(line);
+      return start(line, new UnopenedNames(expanded, line.unpassed()));
     } finally {
       LogConfigurator.endHold();
     }
   }
 
   /** Runs the launch after the command line parsed; ends the log hold before {@link Gui}. */
-  private int start(CommandLine line) {
+  private int start(CommandLine line, UnopenedNames unopened) {
     Thread.setDefaultUncaughtExceptionHandler(new FailureLogger());
-    StartupRequest request = line.request();
+    StartupRequest request = unopened.apply(line.request());
+    String message = unopened.message();
+    if (message != null && LOG.isInfoEnabled()) {
+      LOG.info("{}", LogText.oneLine(message));
+    }
+    if (LOG.isDebugEnabled()) {
+      for (FileRequest file : request.files()) {
+        LOG.debug("Command-line file: {}", LogText.oneLine(file.path()));
+      }
+    }
     Path settings = null;
     if (request.settingsDirectory() != null) {
       try {
@@ -123,6 +147,7 @@ public final class Launcher {
     InstanceServer server = null;
     boolean beside = false;
     if (!request.multi()) {
+      showsMessage = message != null;
       Handoff handoff = handOff(location.directory(), request);
       request = sent;
       if (handoff == Handoff.HANDED) {
@@ -144,7 +169,9 @@ public final class Launcher {
         }
       }
       LogConfigurator.endHold();
-      return new Gui(request, config, preferences, err, null, server, logFile, beside).run();
+      return new Gui(request, config, preferences, err, null, server, logFile, beside)
+          .withMessage(message)
+          .run();
     } catch (IOException e) {
       err.println("qcaret: " + LogText.oneLine(e.getMessage()));
       return EXIT_USAGE;
@@ -169,6 +196,9 @@ public final class Launcher {
 
   private InstanceServer primary;
 
+  /** True when this launch has a message about names it did not open; {@link #handOff} reads it. */
+  private boolean showsMessage;
+
   /** The request {@link #handOff} sent or would send: the command line, with macOS's files. */
   private StartupRequest sent;
 
@@ -177,7 +207,10 @@ public final class Launcher {
     return primary;
   }
 
-  /** Becomes the primary instance, or hands the launch to it. */
+  /**
+   * Becomes the primary instance, or hands the launch to it. A launch with a message about names it
+   * did not open runs beside a running primary instead, so the message shows in its own window.
+   */
   Handoff handOff(Path directory, StartupRequest request) {
     sent = request;
     try {
@@ -194,6 +227,10 @@ public final class Launcher {
     }
     if (primary != null) {
       return Handoff.PRIMARY;
+    }
+    if (showsMessage) {
+      LOG.info("An instance is running; this launch opens its own window for its message");
+      return Handoff.BESIDE;
     }
     sent = HandoffDocuments.beforeHandoff(request);
     for (int attempt = 1; ; attempt++) {

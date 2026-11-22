@@ -18,7 +18,13 @@ the `--window-*` geometry, `--settings`, `-m`, `-n`, `--session` or
   too. `--diff` takes the next two arguments. `-e` is checked against the
   runtime's charsets.
 - Paths resolve against the working directory without touching the file system;
-  the caller validates them.
+  the caller validates them. A file argument holding `?` or `*` that the file
+  system refuses as a path (Windows) goes to `CommandLine.unpassed` instead of
+  failing the parse: a Windows launcher delivers a name outside the ANSI code
+  page with `?`.
+- `WildcardExpansion.patterns` recognizes the Windows Java launcher's
+  expansion of such an argument from `sun.java.command`; the launcher module
+  then opens no file of that launch.
 - An unknown option, a bad value, a position with no file after it, or `-n`
   with `-m` throws `CommandLineException` with one line naming the argument.
 

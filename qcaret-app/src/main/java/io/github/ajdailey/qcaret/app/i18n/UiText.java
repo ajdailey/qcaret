@@ -1987,7 +1987,11 @@ public enum UiText {
   /** Accessible name of the Outline dock's tree. */
   ACCESSIBLE_OUTLINE,
   /** Why a Browser preview failed when its page did not load in time: the seconds. */
-  MARKDOWN_BROWSER_TIMEOUT;
+  MARKDOWN_BROWSER_TIMEOUT,
+  /** Startup message: file arguments holding {@code ?} or {@code *}, not opened. */
+  LAUNCH_NAMES_UNPASSED,
+  /** Startup message: the Java launcher expanded these patterns; no command-line file opened. */
+  LAUNCH_NAMES_EXPANDED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

@@ -15,7 +15,10 @@ import java.util.List;
  * --}, so is a {@code +<line>}.
  *
  * <p>Paths are resolved against the working directory without touching the file system; the caller
- * validates them.
+ * validates them. A file argument holding {@code ?} or {@code *} that the file system refuses as a
+ * path (Windows) is listed in {@link CommandLine#unpassed} rather than failing the parse: the
+ * Windows launchers deliver a name outside the ANSI code page with {@code ?} in place of those
+ * characters.
  */
 public final class CommandLineParser {
   private final Path workingDirectory;
@@ -98,6 +101,7 @@ public final class CommandLineParser {
     Integer y;
     Path settings;
     final List<FileRequest> files = new ArrayList<FileRequest>();
+    final List<String> unpassed = new ArrayList<String>();
 
     void apply(Option option, String value) throws CommandLineException {
       switch (option) {
@@ -119,9 +123,16 @@ public final class CommandLineParser {
       }
     }
 
-    /** Adds a file with the options in force; a pending position goes to it alone. */
+    /**
+     * Adds a file with the options in force; a pending position goes to it alone. A name holding
+     * {@code ?} or {@code *} that is not a valid path goes to {@link #unpassed} instead.
+     */
     void addFile(String arg) throws CommandLineException {
-      files.add(new FileRequest(path(arg, arg), line, column, readOnly, encoding));
+      if (wildcard(arg) && !validPath(arg)) {
+        unpassed.add(arg);
+      } else {
+        files.add(new FileRequest(path(arg, arg), line, column, readOnly, encoding));
+      }
       line = 0;
       column = 0;
       position = null;
@@ -177,7 +188,7 @@ public final class CommandLineParser {
         state.help
             ? CommandLine.Action.HELP
             : state.version ? CommandLine.Action.VERSION : CommandLine.Action.RUN;
-    return new CommandLine(action, request, state.level, state.log);
+    return new CommandLine(action, request, state.level, state.log, state.unpassed);
   }
 
   /** Reads the two files after {@code --diff}. */
@@ -344,6 +355,19 @@ public final class CommandLineParser {
       return Long.parseLong(text);
     } catch (NumberFormatException e) {
       throw new CommandLineException(option + " needs a number");
+    }
+  }
+
+  private static boolean wildcard(String value) {
+    return value.indexOf('?') >= 0 || value.indexOf('*') >= 0;
+  }
+
+  private boolean validPath(String value) {
+    try {
+      workingDirectory.resolve(value);
+      return true;
+    } catch (InvalidPathException e) {
+      return false;
     }
   }
 

@@ -149,7 +149,9 @@ running `qcaret.jar`, and passes only when the child's image is the bundle's
 over a probe jar from folders whose names hold a space, `&` and `%` to check
 the Java it picks, the JVM options and each argument, then passes unquoted
 `&`, `^`, `!` and `%` names the way Explorer drops them, and escaped ones from a
-command prompt, and fails if any name changes or a command in one runs. On
+command prompt, and fails if any name changes or a command in one runs. A CJK
+file name beside a decoy then goes through both launchers, and the job fails if
+the decoy opens or the launch neither opens the name nor shows its message. On
 macOS it also runs
 `codesign --verify --deep --strict` on `QCaret.app`.
 
@@ -247,7 +249,9 @@ To fix a bad draft, delete the draft and the tag
   names the guide's file instead.
 - On Windows, `qcaret.cmd` is a second launcher beside `qcaret.exe`. It passes
   file names dropped on it or typed after it to QCaret as given, `&`, `^`, `%`
-  and `!` included, and runs nothing in them; limits are in
+  and `!` included, and runs nothing in them. It also passes names outside the
+  Windows code page for non-Unicode programs, which `qcaret.exe` delivers with
+  `?` or a look-alike character; limits are in
   [qcaret-dist](qcaret-dist/README.md#launchers).
 - The Windows launchers and the macOS bundles are not signed by a publisher; see
   [First launch of an unsigned build](#first-launch-of-an-unsigned-build).

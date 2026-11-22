@@ -1,5 +1,7 @@
 package io.github.ajdailey.qcaret.app.cli;
 
+import java.util.List;
+
 /**
  * A parsed command line.
  *
@@ -7,9 +9,20 @@ package io.github.ajdailey.qcaret.app.cli;
  * @param request the startup request; meaningful for {@link Action#RUN}
  * @param logLevel {@code -d}, {@link LogLevel#WARN} when absent
  * @param logToFile {@code -l}
+ * @param unpassed file arguments holding {@code ?} or {@code *} that are not valid paths, in order;
+ *     not in the request
  */
 public record CommandLine(
-    Action action, StartupRequest request, LogLevel logLevel, boolean logToFile) {
+    Action action,
+    StartupRequest request,
+    LogLevel logLevel,
+    boolean logToFile,
+    List<String> unpassed) {
+  /** Copies {@code unpassed}. */
+  public CommandLine {
+    unpassed = List.copyOf(unpassed);
+  }
+
   /** What the command line asks for. */
   public enum Action {
     /** Open the window. */

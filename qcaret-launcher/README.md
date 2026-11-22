@@ -111,6 +111,25 @@ answers costs a launch 37 s before its window. `-d` and `-l` of a launch
 that hands off apply to that process only, and so does `--session`: the running
 instance restored its session at its own start.
 
+### Names a launch does not open
+
+On Windows the Java launcher hands a name outside the ANSI code page over with
+`?` in place of those characters, and expands an unquoted argument holding `*`
+or `?` into the files it matches before `main` runs. `Main` compares the
+arguments with `sun.java.command`, which holds them unexpanded
+(`WildcardExpansion`); after an expansion `UnopenedNames` drops every file and
+`--diff` of the launch, since an expanded name can be another file. A file
+argument holding `?` or `*` that is not a valid path is left out by the parser
+(`CommandLine.unpassed`). Either way `Launcher` logs the message at INFO and the
+first window shows it in a dialog after the session starts. Such a launch never
+hands off: with a primary running it runs `BESIDE`, so the message shows in its
+own window. `qcaret.cmd` passes the arguments through the environment, where
+neither applies (`qcaret-bootstrap`).
+
+Under `qcaret.cmd` `CmdStreams` closes standard output and error once the first
+window is open, so a caller reading them through a pipe reaches the end;
+`-v`, `-h` and command-line errors print before that.
+
 A JVM shutdown hook covers an exit that skips the ordered quit (SIGTERM,
 logoff, a parent ending the process). `ShutdownHook` posts
 `WindowSet.quit` through the dispatcher, waits up to 3 s for it to
@@ -267,5 +286,6 @@ classes, so the rules over the main classes never see them.
 | `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN, not tried again before the file grows by the size, and rolling then, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes; a hold's DEBUG line written once before the attach's lines, the level back to INFO after the hold and the detach, and a hold ended without a file writing nothing |
 | `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `LaunchDocumentsTest` |
 | `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows; a handoff a live primary does not take runs `BESIDE`, and a launch claims the lock a primary releases during its handoff |
+| `UnopenedNamesTest` | After an expansion the request keeps its options and loses its files and comparison; without one it stands; the message for unpassed names and for an expansion, none when every name opens |
 | `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |
 | `ArchitectureTest` | The rules above, each shown to fail on its fixture |

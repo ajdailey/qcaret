@@ -1,5 +1,8 @@
 package io.github.ajdailey.qcaret.launcher;
 
+import io.github.ajdailey.qcaret.app.cli.WildcardExpansion;
+import java.util.List;
+
 /**
  * Application entry point, loaded by the bootstrap through its nested-jar class loader. Configures
  * logging ({@link LogConfigurator#install}) before any class logs. Calls {@code System.exit} only
@@ -16,7 +19,10 @@ public final class Main {
    */
   public static void main(String[] args) {
     LogConfigurator.install();
-    int status = new Launcher(System.out, System.err).run(args);
+    List<String> expanded =
+        WildcardExpansion.patterns(
+            args, System.getProperty("sun.java.command"), System.getProperty("java.class.path"));
+    int status = new Launcher(System.out, System.err).run(args, expanded);
     if (status != 0) {
       System.exit(status);
     }

@@ -1185,6 +1185,15 @@ public final class ApplicationController {
   }
 
   /**
+   * Shows the message about command-line names the launch did not open.
+   *
+   * @param message the message
+   */
+  public void noticeUnopenedNames(String message) {
+    view.showInfo(UiText.OPEN_TITLE.text(), message);
+  }
+
+  /**
    * Sets {@code ui.theme} and applies the palette. When native controls show the theme only from
    * the next start, says so.
    *

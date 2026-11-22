@@ -9,7 +9,10 @@
 # then hands a file to the running instance and exits 0. qcaret.cmd then runs the same check; it
 # also runs LauncherProbe in place of qcaret.jar to check the Java it picks, the JVM options and
 # the arguments it passes, unquoted names as Explorer drops them and escaped ones typed at a
-# prompt, none of which may run a command, and its -v must print the version. Both launchers of the universal zip,
+# prompt, none of which may run a command, and its -v must print the version. A CJK file name
+# beside a decoy goes through both launchers, by ShellExecute and from a console: the decoy never
+# opens. A batch file calls qcaret.cmd: its echo state holds and its pipe ends while QCaret runs.
+# Both launchers of the universal zip,
 # which has no runtime, then run the first check and pass when the child runs javaw.exe from
 # $env:JAVA_HOME.
 $ErrorActionPreference = 'Stop'
@@ -172,10 +175,10 @@ function Invoke-Probe([string] $Tree, [string] $Arguments, [hashtable] $Environm
   Get-Content -LiteralPath $out -Encoding utf8
 }
 
-# Fails unless $Lines name $JavaHome, $Tree\lib\qcaret.jar, the JVM options of qcaret.exe and
-# exactly $Expected as the arguments.
+# Fails unless $Lines name $JavaHome, $Tree\lib\qcaret.jar, the JVM options of qcaret.exe plus
+# -Dqcaret.launcher=cmd, and exactly $Expected as the arguments the bootstrap reads.
 function Assert-Probe([string[]] $Lines, [string] $Tree, [string] $JavaHome, [string[]] $Expected) {
-  $want = @("home=$JavaHome", "jar=$(Join-Path $Tree 'lib\qcaret.jar')", 'opt=-XX:MaxRAMPercentage=50')
+  $want = @("home=$JavaHome", "jar=$(Join-Path $Tree 'lib\qcaret.jar')", 'opt=-XX:MaxRAMPercentage=50', 'opt=-Dqcaret.launcher=cmd')
   foreach ($arg in $Expected) { $want += "arg=$arg" }
   $got = $Lines -join "`n"
   if ($got -cne ($want -join "`n")) { throw "qcaret.cmd in $Tree passed`n$got`nexpected`n$($want -join "`n")" }
@@ -307,6 +310,154 @@ function Test-CmdPrompt([string] $Bundle) {
   Write-Output 'PASS: qcaret.cmd at a prompt passed escaped & ^ | > and quoted arguments intact and ran no command'
 }
 
+# Returns the javaw.exe running qcaret.jar that is not in $Before, waiting up to 60 s.
+function Wait-NewJavaw([int[]] $Before) {
+  $deadline = (Get-Date).AddSeconds(60)
+  while ((Get-Date) -lt $deadline) {
+    $new = Get-CimInstance Win32_Process -Filter "Name = 'javaw.exe'" |
+      Where-Object { $_.CommandLine -like '*qcaret.jar*' -and $_.ExecutablePath -and $Before -notcontains [int] $_.ProcessId } |
+      Select-Object -First 1
+    if ($new) { return $new }
+    Start-Sleep -Milliseconds 100
+  }
+  throw 'no new javaw.exe running qcaret.jar within 60 s'
+}
+
+function Get-JavawIds { @(Get-CimInstance Win32_Process -Filter "Name = 'javaw.exe'" | ForEach-Object { [int] $_.ProcessId }) }
+
+# A name outside the ANSI code page, beside a decoy its ? form matches as a wildcard, through
+# each launcher by ShellExecute and from a console (a UTF-8 batch file under code page 65001).
+# qcaret.exe hands Java ??.txt: unquoted, the Java launcher expands it and QCaret opens no file;
+# quoted, QCaret opens nothing and says so. qcaret.cmd passes the name intact. The decoy never
+# opens, and every case shows its message or opens the file.
+function Test-UnicodeNames([string] $Bundle) {
+  $folder = Join-Path $work 'unicode'
+  New-Item -ItemType Directory -Path $folder -Force | Out-Null
+  $name = "$([char]0x65E5)$([char]0x672C).txt"
+  $path = Join-Path $folder $name
+  Set-Content -LiteralPath $path -Value 'mock line'
+  Set-Content -LiteralPath (Join-Path $folder 'zz.txt') -Value 'mock line'
+  $lossy = Join-Path $folder '??.txt'
+  $cases = @(
+    @{ Exe = 'qcaret.exe'; Arg = $name; Want = 'No file named at startup was opened: Java expanded ??.txt as a wildcard' },
+    @{ Exe = 'qcaret.exe'; Arg = "`"$path`""; Want = "Not opened: $lossy." },
+    @{ Exe = 'qcaret.cmd'; Arg = $name; Want = "Command-line file: $path" },
+    @{ Exe = 'qcaret.cmd'; Arg = "`"$path`""; Want = "Command-line file: $path" }
+  )
+  $n = 0
+  foreach ($case in $cases) {
+    foreach ($via in @('ShellExecute', 'console')) {
+      $n++
+      $settings = Join-Path $env:LOCALAPPDATA "qcaret-ci\unicode-$n"
+      if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
+      $logFile = Join-Path $settings 'logs\qcaret.log'
+      $exe = Join-Path $Bundle $case.Exe
+      $line = "-l -d 2 --settings `"$settings`" $($case.Arg)"
+      $before = Get-JavawIds
+      if ($via -eq 'ShellExecute') {
+        Start-Process -FilePath $exe -ArgumentList $line -WorkingDirectory $folder | Out-Null
+      } else {
+        $bat = Join-Path $work "unicode-$n.cmd"
+        [System.IO.File]::WriteAllText($bat, "@chcp 65001 >nul`r`n@`"$exe`" $line`r`n", (New-Object System.Text.UTF8Encoding $false))
+        # Not -Wait: it waits for every descendant, javaw included.
+        $console = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', "`"$bat`"") -WorkingDirectory $folder -NoNewWindow -PassThru
+        if (-not $console.WaitForExit(60000)) { throw "unicode-$n.cmd did not exit within 60 s" }
+      }
+      $child = Wait-NewJavaw $before
+      try {
+        Wait-LogLine $logFile 'Main window open'
+        Wait-LogLine $logFile $case.Want
+        $text = Read-Log $logFile
+      } finally {
+        Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
+      }
+      $label = "$($case.Exe) $via $($case.Arg)"
+      if (-not $text.Contains($case.Want)) { throw "$label`: the log lacks [$($case.Want)]:`n$text" }
+      if ($text.Contains('zz.txt')) { throw "$label named the decoy zz.txt:`n$text" }
+      Write-Output "PASS: $label`: $($case.Want)"
+    }
+  }
+}
+
+# A qcaret.exe launch whose name the Java launcher expanded, while an instance runs: the launch
+# hands nothing over and opens its own window, which shows the message.
+function Test-UnicodeHandoff([string] $Bundle) {
+  $folder = Join-Path $work 'unicode'
+  $name = "$([char]0x65E5)$([char]0x672C).txt"
+  $settings = Join-Path $env:LOCALAPPDATA 'qcaret-ci\unicode-handoff'
+  if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
+  $logs = Join-Path $settings 'logs'
+  $javaw = Join-Path $Bundle 'runtime\bin\javaw.exe'
+  $jar = Join-Path $Bundle 'lib\qcaret.jar'
+  $before = Get-JavawIds
+  Start-Process -FilePath $javaw -ArgumentList @('-jar', "`"$jar`"", '-l', '--settings', "`"$settings`"") | Out-Null
+  $primary = Wait-NewJavaw $before
+  $second = $null
+  try {
+    Wait-LogLine (Join-Path $logs 'qcaret.log') 'Main window open'
+    $before = Get-JavawIds
+    Start-Process -FilePath (Join-Path $Bundle 'qcaret.exe') -ArgumentList "-l -d 2 --settings `"$settings`" $name" -WorkingDirectory $folder | Out-Null
+    $second = Wait-NewJavaw $before
+    $secondLog = Join-Path $logs "qcaret-$($second.ProcessId).log"
+    Wait-LogLine $secondLog 'Main window open'
+    Wait-LogLine $secondLog 'No file named at startup was opened'
+    $text = Read-Log $secondLog
+    $primaryText = Read-Log (Join-Path $logs 'qcaret.log')
+  } finally {
+    if ($second) { Stop-Process -Id $second.ProcessId -Force -ErrorAction SilentlyContinue }
+    Stop-Process -Id $primary.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+  if (-not $text.Contains('No file named at startup was opened')) { throw "the second launch showed no message:`n$text" }
+  if (-not $text.Contains('Main window open')) { throw "the second launch opened no window:`n$text" }
+  if ($primaryText.Contains('Handoff of')) { throw "the second launch handed over to the running instance:`n$primaryText" }
+  if ($text.Contains('zz.txt') -or $primaryText.Contains('zz.txt')) { throw "a launch named the decoy zz.txt:`n$text" }
+  Write-Output 'PASS: a qcaret.exe launch with an expanded name beside a running instance opened its own window with its message and no file'
+}
+
+# A batch file calls qcaret.cmd with its output captured through a pipe. The caller's echo state
+# holds after the call, and the pipe ends once QCaret's window is open, with QCaret still running.
+function Test-CmdCall([string] $Bundle) {
+  $folder = Join-Path $work 'call'
+  New-Item -ItemType Directory -Path $folder -Force | Out-Null
+  foreach ($echo in @('on', 'off')) {
+    $settings = Join-Path $env:LOCALAPPDATA "qcaret-ci\call-$echo"
+    if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
+    $bat = Join-Path $folder "call-$echo.bat"
+    $text = ''
+    if ($echo -eq 'off') { $text += "@echo off`r`n" }
+    $text += "call `"$(Join-Path $Bundle 'qcaret.cmd')`" -l --settings `"$settings`" `"$handed`"`r`nrem after-marker`r`necho`r`n"
+    [System.IO.File]::WriteAllText($bat, $text, (New-Object System.Text.ASCIIEncoding))
+    $info = New-Object System.Diagnostics.ProcessStartInfo $env:ComSpec
+    $info.Arguments = "/d /c `"$bat`""
+    $info.WorkingDirectory = $folder
+    $info.UseShellExecute = $false
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $before = Get-JavawIds
+    $process = [System.Diagnostics.Process]::Start($info)
+    $stdout = $process.StandardOutput.ReadToEndAsync()
+    $stderr = $process.StandardError.ReadToEndAsync()
+    $child = Wait-NewJavaw $before
+    try {
+      if (-not $process.WaitForExit(60000)) { throw "call-$echo.bat did not exit within 60 s" }
+      $ended = $stdout.Wait(60000) -and $stderr.Wait(60000)
+      $running = -not (Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue).HasExited
+      # The handles close in the turn that opens the window; the log line follows on a later turn.
+      Wait-LogLine (Join-Path $settings 'logs\qcaret.log') 'Main window open'
+      $log = Read-Log (Join-Path $settings 'logs\qcaret.log')
+    } finally {
+      Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    if (-not $ended) { throw "call-$echo.bat: the pipe did not end within 60 s of the call" }
+    if (-not $running) { throw "call-$echo.bat: QCaret exited before the pipe ended:`n$log" }
+    if (-not $log.Contains('Main window open')) { throw "call-$echo.bat: QCaret opened no window:`n$log" }
+    $out = $stdout.Result
+    $echoed = $out.Contains('>rem after-marker')
+    if (($echo -eq 'on') -ne $echoed) { throw "call-$echo.bat: echo is not $echo after the call:`n$out" }
+    Write-Output "PASS: call from a batch with echo $echo kept it $echo, and the pipe ended while QCaret ran"
+  }
+}
+
 $work = Join-Path $PWD 'bundle-run'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 $archive = Get-Item "dist\qcaret-*-$env:TARGET.zip"
@@ -336,8 +487,14 @@ Test-Launcher (Join-Path $bundle 'qcaret.cmd') (Join-Path $bundle 'runtime\bin\j
 
 $jdk = (Resolve-Path $env:JAVA_HOME).Path
 $probeClasses = Join-Path $work 'probe-classes'
-& (Join-Path $jdk 'bin\javac.exe') -d $probeClasses 'qcaret-dist\src\test\java\io\github\ajdailey\qcaret\dist\LauncherProbe.java'
+$bundleJar = Join-Path $bundle 'lib\qcaret.jar'
+& (Join-Path $jdk 'bin\javac.exe') -cp $bundleJar -d $probeClasses 'qcaret-dist\src\test\java\io\github\ajdailey\qcaret\dist\LauncherProbe.java'
 if ($LASTEXITCODE -ne 0) { throw "javac exited $LASTEXITCODE" }
+# The probe reads the arguments through the bundle's own CmdArguments.
+Push-Location $probeClasses
+try { & (Join-Path $jdk 'bin\jar.exe') --extract --file $bundleJar 'io/github/ajdailey/qcaret/bootstrap/CmdArguments.class' }
+finally { Pop-Location }
+if ($LASTEXITCODE -ne 0) { throw "jar --extract exited $LASTEXITCODE" }
 $probeJar = Join-Path $work 'probe.jar'
 & (Join-Path $jdk 'bin\jar.exe') --create --file $probeJar --main-class io.github.ajdailey.qcaret.dist.LauncherProbe -C $probeClasses .
 if ($LASTEXITCODE -ne 0) { throw "jar exited $LASTEXITCODE" }
@@ -347,6 +504,9 @@ Test-CmdJavaOrder $bundle
 Test-CmdVersion $bundle
 Test-CmdExplorer $bundle
 Test-CmdPrompt $bundle
+Test-UnicodeNames $bundle
+Test-UnicodeHandoff $bundle
+Test-CmdCall $bundle
 
 $universal = Get-ChildItem dist -Filter 'qcaret-*.zip' |
   Where-Object { $_.Name -notmatch '-(linux|macos|windows)-' } |

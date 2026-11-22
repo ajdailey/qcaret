@@ -100,6 +100,7 @@ final class Gui {
   private final boolean beside;
   private SessionLock sessionLock;
   private final List<Shell> shells = new ArrayList<Shell>();
+  private String message;
 
   /**
    * Creates the composition of an instance without a handoff listener.
@@ -151,6 +152,17 @@ final class Gui {
     this.logFiles = logFiles;
     this.server = server;
     this.beside = beside;
+  }
+
+  /**
+   * Sets a message the first window shows once the command line's files are requested.
+   *
+   * @param text the message, or null for none
+   * @return this composition
+   */
+  Gui withMessage(String text) {
+    message = text;
+    return this;
   }
 
   /**
@@ -342,6 +354,10 @@ final class Gui {
       controller.noticeErrorExit(errorExit.skipped());
     }
     controller.startSession(sessions, session, restore, start);
+    if (message != null) {
+      controller.noticeUnopenedNames(message);
+    }
+    CmdStreams.closeAfterWindow();
     window.showStatusNow();
     if (EventLoopWatchdog.enabled()) {
       new EventLoopWatchdog(
