@@ -5,6 +5,10 @@ height="96"> </picture>
 
 # QCaret
 
+[![CI](https://github.com/ajdailey/qcaret/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ajdailey/qcaret/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ajdailey/qcaret)](https://github.com/ajdailey/qcaret/releases/latest)
+[![License](https://img.shields.io/github/license/ajdailey/qcaret)](LICENSE)
+
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
 SWT. It makes no outbound network connections; its only socket is a loopback
 endpoint that passes files from a second launch to the running instance.
