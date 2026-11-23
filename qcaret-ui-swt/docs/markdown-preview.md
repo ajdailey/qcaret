@@ -132,10 +132,10 @@ chars on macOS. Nothing is styled ahead of painting:
 
 | Listener | Class | Per painted line |
 |---|---|---|
-| `LineStyleListener` | `MarkdownStyler` | Fonts and colors from `MarkdownSpans`, code lines in the monospace family with token colors, the bold header row, glyph metrics for each image char and each row padding char, quote and list indent, bullet, number or checkbox, a laid-out table row's indent and tab stops |
+| `LineStyleListener` | `MarkdownStyler` | Fonts and colors from `MarkdownSpans`, code lines in the monospace family with token colors and a 12 px indent, the bold header row, glyph metrics for each image char, each row padding char and each padded separator line's char, quote and list indent, bullet, number or checkbox, a laid-out table row's indent and tab stops |
 | `LineBackgroundListener` | `MarkdownStyler` | The code shade on code and front matter lines and on a laid-out table's header row |
 | `PaintObjectListener` | `MarkdownPainter` | An image, or a box with the file name for one that did not decode |
-| `Paint` | `MarkdownPainter` | Quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders; the pane background over the header row's shade outside the table |
+| `Paint` | `MarkdownPainter` | Code block boxes, quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders; the pane background over the header row's shade outside the table |
 
 UI-thread work per new render is the text change (`TextDelta`), the scroll
 restore and styling of the lines in view. The wrapping `StyledText` measures a
@@ -163,7 +163,36 @@ the selection, which scrolls it into view, and leaves the focus where it is;
 the `BrowserPane` has no selection and only scrolls. The text has 24 px side
 margins, 2 px between lines, and no top margin: `getTopIndex` returns the first
 fully visible line, and a line scrolled under a top margin would read as the
-next one.
+next one. Space between blocks is in the separator lines ([Block
+spacing](#block-spacing)), so it adds no line and moves no line index.
+
+## Block spacing
+
+`BlockSpacing` (`app.editor`) gives an empty separator line between two blocks
+extra pixels; `MarkdownDisplayMap` shows each such line as one zero-width
+`TableWrap.PAD`, and `PadGlyphs` sets that char's glyph metrics to the
+body font's ascent and descent plus the extra pixels. A block with no separator
+beside it, such as a code block on the first line or inside a tight list item,
+gets no space on that side.
+
+| Separator | Pixels added | Browser |
+|---|---|---|
+| Before a heading | 4 at the bottom | 24 px margin above |
+| After a level 1 or 2 heading | 6 at the top; the heading's rule is drawn below them | 0.3 em padding above the border |
+| Before and after a code block | 8 at the bottom and at the top, inside the box | 8 px padding |
+
+Each separator is one body line (21 px with the line spacing) before its
+extra pixels. A line never gets shorter than the widget font's height, so
+spacing Browser sets below that, such as 16 px under a heading, stays one
+body line.
+
+`MarkdownPainter` draws a code block as a box from the line's text start to the
+right margin: the shade over its padding in the separators, the pane
+background over the code lines' shade outside the box and at its 4 px corners,
+and a 1 px border in the line number color. Code lines are indented 12 px.
+Do not use `StyledText.setLineSpacingProvider` for this: in SWT 3.135.0 each
+line laid out with a spacing other than its cached layout's, in view or not,
+resets that line's cache and redraws the whole widget.
 
 Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
 for subscript and superscript, and the editor font's family for code) belong
@@ -173,7 +202,8 @@ switch.
 ## Tables
 
 `MarkdownDisplayMap` (`app.editor`) is the text the pane shows: the render's
-text with each laid-out table row replaced by its display lines. It maps
+text with each laid-out table row replaced by its display lines and each padded
+separator holding one `TableWrap.PAD`. It maps
 offsets and lines both ways; a display char a row adds (a tab, a line break,
 the padding char) maps to the rendered offset after the piece before it. The
 controller sees rendered offsets and lines only, and every widget offset or
@@ -185,12 +215,13 @@ line crosses the map:
 | `MarkdownPainter.paint` | Rendered lines of quotes, rules, headings and table rows to display lines |
 | `MarkdownPainter.paintObject`, click, link cursor | Display offset to rendered offset |
 | Copy, from the keys bound to it and the context menu | The selection to the rendered range from its first to its last copied char |
-| `selectRendered`, `showImage` | Rendered offsets to display offsets; a match across a cell's break selects the display text between its ends |
+| `selectRendered`, `showImage` | Rendered offsets to display offsets; a match inside one cell across its break selects its part before the break (`displayRange`) |
 | `scrollToLine`; the top line `previewScrolled` reports | Rendered line to its first display line, and back |
 
 `TableColumns` lays out each table in UI turns of at most 200 cells and 8 ms,
-tables in view first. A turn takes another step while the last step's time
-fits before its deadline, and a layout step starts a turn of its own:
+tables in view first; `TableTurns` schedules the turns and holds the waiting
+tables. A turn takes another step while twice the last step's time fits 1 ms
+before that limit, and a layout step starts a turn of its own:
 
 1. `MarkdownTableLayout` measures each cell through `SpanWidths`, each span in
    the font `MarkdownStyler` draws it with (code and kbd monospace, bold,
@@ -205,27 +236,42 @@ fits before its deadline, and a layout step starts a turn of its own:
    than its column at a char count in proportion to its width, and gives a row
    as many display lines as its tallest cell. Display line `j` holds each
    cell's `j`th segment, tab-separated, with the indent and tab stops that
-   start each segment in its column. The rows replace the table's lines in the
-   map and the widget, 16 rows per `replaceTextRange`.
+   start each segment in its column (`TableRowStyle`). `RowSteps` replaces the
+   table's lines in the map and the widget through `replaceTextRange`, 16 rows
+   in the first step and then as many as the last step's rate fits in 2 ms, at
+   least 4.
+
+A table starting more than one view height below the rendered lines in view, or
+above them and never laid out, is measured but waits for steps 2 and 3. A table
+laid out before a width change is laid out again while it ends within one view
+height above the view. Each paint passes the lines in view to
+`TableTurns.setView`, which queues the waiting tables near them. Outline go-to, Sync Scrolling and Find move the view first, and
+the layout that follows keeps the top line and the selection.
 
 A width change refits each measured table from its cached widths and lays out
 again the tables whose column edges change. A new render keeps the layout and
 rows of a table whose text, spans and alignments equal one shown before, so an
 edit in Split does not lay out an unchanged table again. Across a layout the
-top line keeps its rendered line and the selection its rendered text.
+top line keeps its rendered line and its pixel offset, and the selection its
+rendered text. The offset is restored after each replace: on GTK 4 a replace
+below the top line moves the view a few pixels without changing the top index
+(measured: 4 px after an Outline go-to).
 
 Do not show the rows with `setText`. `replaceTextRange` lays out the new rows
 and each line between the top line and the rows whose height the widget has
 not measured; `setText` lays out nothing at once but drops every line height,
 and the widget then measures the whole text again in its 50 ms idle steps
-(README.md show to idle 644 ms against 138 ms, measured, Xvfb, GTK 3). A turn
-over 8 ms is one replace laying out lines the widget has not measured since new
-content or a width change: up to 11 ms on README.md (measured, as above).
+(README.md show to idle 644 ms against 138 ms, measured, Xvfb, GTK 3). A
+replace lays out the unmeasured lines between the top line and its rows: a
+table far below the view took single replaces of up to 15 ms on README.md, and
+a table just above the view after a jump took 3-12 ms for every replace, one
+row or several (measured, as above). A single replace can still take 5-13 ms
+now and again, so a turn can pass 8 ms by a few milliseconds.
 
 Cells have 13 px of padding left and right. A row's first and last display
-lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics add
-6 px above the body font's ascent and 4 px below its descent; with the 2 px
-line spacing that is 6 px above and below the row's text. At a line's start,
+lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics
+(`PadGlyphs`) add 6 px above the body font's ascent and 4 px below its
+descent; with the 2 px line spacing that is 6 px above and below the row's text. At a line's start,
 the char moves the tab after it off its stop (GTK 3), so it ends the line.
 Borders follow the display lines' pixel positions.
 

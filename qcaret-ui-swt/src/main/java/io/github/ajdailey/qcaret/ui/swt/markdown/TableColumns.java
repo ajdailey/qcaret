@@ -14,34 +14,31 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
-import org.eclipse.swt.graphics.FontMetrics;
 import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 
 /**
- * Lays out the tables a pane shows, the tables in view first, in UI turns of at most {@value
- * #CELLS_PER_TURN} cells and {@value #TURN_MILLIS} ms: a turn takes another step while the last
- * step's time fits before its deadline. Per table:
+ * Lays out the tables a pane shows, the tables in view first, in {@link TableTurns} of at most
+ * {@value #CELLS_PER_TURN} cells: a turn takes another step while twice the last step's time fits
+ * before its deadline. Per table:
  *
  * <ol>
  *   <li>{@link SpanWidths} measures each cell in its spans' fonts with a {@link GC} ({@link
  *       MarkdownTableLayout}).
  *   <li>A table wider than the pane's text width less its indent has its words measured ({@link
  *       TableWords}) and its columns fitted to that width.
- *   <li>{@link TableWrap} lays out its rows, which replace the table's lines in the {@link
- *       MarkdownDisplayMap} and the widget, {@value #ROWS_PER_STEP} rows per {@code
- *       replaceTextRange}, until the turn's time runs out. The top line and the selection keep
- *       their rendered text. A layout starts a turn of its own and ends it.
+ *   <li>{@link TableWrap} lays out its rows, which {@link RowSteps} shows in the {@link
+ *       MarkdownDisplayMap} and the widget until the turn's time runs out. A layout starts a turn
+ *       of its own and ends it.
  * </ol>
  *
  * A replace lays out each line between the top line and the replaced rows whose height the widget
  * has not measured, and the new rows; {@code setText} would leave the widget to measure every line
  * again.
  *
- * <p>A width change lays out again each table whose columns change, from the measured widths. New
+ * <p>A table {@link TableTurns} does not find near the view is measured but waits for its layout. A
+ * width change lays out again each table whose columns change, from the measured widths. New
  * content reuses the layout and rows of a table whose text, spans and alignments equal one shown
  * before, so the rows go into the new map before the widget's text changes. Call on the UI thread.
  */
@@ -49,38 +46,21 @@ final class TableColumns {
   /** The most cells measured in one UI turn. */
   static final int CELLS_PER_TURN = 200;
 
-  /** The time after which a turn stops at the next step. */
-  static final int TURN_MILLIS = 8;
-
   /** Cells measured between two time checks. */
   private static final int CELLS_PER_STEP = 16;
-
-  /** Rows laid out per text replace. */
-  static final int ROWS_PER_STEP = 16;
 
   /** Pixels left and right of a cell's text. */
   static final int PADDING = 13;
 
-  /** Pixels above a row's text. */
-  static final int PAD_ABOVE = 6;
-
-  /** Pixels below a row's text, before the pane's line spacing. */
-  static final int PAD_BELOW = 4;
-
   private final StyledText text;
   private final MarkdownFonts fonts;
-  private final UiDispatcher ui;
+  private final TableTurns turns;
+  private final RowSteps rows;
   private RenderedMarkdown rendered;
   private int[] spans = new int[0];
   private MarkdownDisplayMap map;
   private int width;
   private Table[] tables = new Table[0];
-  private final List<Integer> queue = new ArrayList<Integer>();
-  private long generation;
-  private int turns;
-  private long longestTurn;
-  private int ascent = -1;
-  private int descent;
 
   /** A table's layout state. */
   private static final class Table {
@@ -101,7 +81,31 @@ final class TableColumns {
   TableColumns(StyledText text, MarkdownFonts fonts, UiDispatcher ui) {
     this.text = text;
     this.fonts = fonts;
-    this.ui = ui;
+    this.rows = new RowSteps(text);
+    this.turns =
+        new TableTurns(
+            ui,
+            new TableTurns.Work() {
+              @Override
+              public boolean live() {
+                return rendered != null && !text.isDisposed();
+              }
+
+              @Override
+              public void step(long deadline) {
+                TableColumns.this.step(deadline);
+              }
+
+              @Override
+              public MarkdownTable table(int index) {
+                return rendered.tables().get(index);
+              }
+
+              @Override
+              public boolean laidOut(int index) {
+                return TableColumns.this.laidOut(index);
+              }
+            });
   }
 
   /**
@@ -114,7 +118,7 @@ final class TableColumns {
    * @param bottomLine the last rendered line in view
    */
   void reset(MarkdownPreviewContent next, MarkdownDisplayMap nextMap, int topLine, int bottomLine) {
-    generation++;
+    turns.restart(topLine, bottomLine);
     Map<String, Table> before = new HashMap<String, Table>();
     for (Table t : tables) {
       if (t.layout.measured() && t.next < 0) {
@@ -127,7 +131,7 @@ final class TableColumns {
     map = nextMap;
     List<MarkdownTable> all = rendered.tables();
     tables = new Table[all.size()];
-    queue.clear();
+    List<Integer> queue = new ArrayList<Integer>();
     List<Integer> later = new ArrayList<Integer>();
     for (int i = 0; i < all.size(); i++) {
       MarkdownTable table = all.get(i);
@@ -156,9 +160,7 @@ final class TableColumns {
       }
     }
     queue.addAll(later);
-    if (!queue.isEmpty()) {
-      schedule();
-    }
+    turns.queue(queue);
   }
 
   /** The text, spans and alignments a reused layout has to match. */
@@ -198,8 +200,8 @@ final class TableColumns {
     if (rendered == null) {
       return;
     }
-    generation++;
-    queue.clear();
+    turns.restart(topLine, bottomLine);
+    List<Integer> queue = new ArrayList<Integer>();
     List<Integer> later = new ArrayList<Integer>();
     for (int i = 0; i < tables.length; i++) {
       MarkdownTable table = rendered.tables().get(i);
@@ -216,9 +218,17 @@ final class TableColumns {
       (inView ? queue : later).add(i);
     }
     queue.addAll(later);
-    if (!queue.isEmpty()) {
-      schedule();
-    }
+    turns.queue(queue);
+  }
+
+  /**
+   * Takes the rendered lines in view and queues each waiting table near them.
+   *
+   * @param topLine the first rendered line in view
+   * @param bottomLine the last rendered line in view
+   */
+  void setView(int topLine, int bottomLine) {
+    turns.setView(topLine, bottomLine);
   }
 
   /** The width a table may take: the text width less the table's indent. */
@@ -257,71 +267,34 @@ final class TableColumns {
     return laidOut(table) ? tables[table].shown : new int[0];
   }
 
-  /**
-   * Returns the ascent and descent of the zero-width char that pads a row.
-   *
-   * @return {@code {ascent, descent}} in pixels: the body font's plus the padding
-   */
-  int[] padMetrics() {
-    if (ascent < 0) {
-      GC gc = new GC(text);
-      try {
-        gc.setFont(fonts.get(false, SWT.NORMAL, 0, false));
-        FontMetrics metrics = gc.getFontMetrics();
-        ascent = metrics.getAscent() + metrics.getLeading();
-        descent = metrics.getDescent();
-      } finally {
-        gc.dispose();
-      }
-    }
-    return new int[] {ascent + PAD_ABOVE, descent + PAD_BELOW};
-  }
-
   /** Counts the UI turns, for tests. */
   int turns() {
-    return turns;
+    return turns.turns();
   }
 
   /** Returns the longest turn so far in nanoseconds, for measurements. */
   long longestTurn() {
-    return longestTurn;
+    return turns.longestTurn();
   }
 
   /** Stops measuring. */
   void cancel() {
-    generation++;
-    queue.clear();
+    turns.cancel();
   }
 
-  /** Reports whether measuring or a layout is still to run, for tests. */
+  /**
+   * Reports whether a table waits for the view to come near before its layout.
+   *
+   * @param table the table's index in the render
+   * @return true while it waits
+   */
+  boolean waiting(int table) {
+    return turns.waiting(table);
+  }
+
+  /** Reports whether measuring or a layout is still to run, for tests; a waiting table is not. */
   boolean busy() {
-    return !queue.isEmpty();
-  }
-
-  private void schedule() {
-    final long scheduled = generation;
-    ui.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            if (scheduled == generation && rendered != null && !text.isDisposed()) {
-              turn();
-            }
-          }
-        });
-  }
-
-  private void turn() {
-    turns++;
-    long start = System.nanoTime();
-    try {
-      step(start + TURN_MILLIS * 1_000_000L);
-    } finally {
-      longestTurn = Math.max(longestTurn, System.nanoTime() - start);
-    }
-    if (!queue.isEmpty()) {
-      schedule();
-    }
+    return turns.busy();
   }
 
   /**
@@ -337,9 +310,9 @@ final class TableColumns {
     try {
       int budget = CELLS_PER_TURN;
       long last = 0;
-      while (budget > 0 && !queue.isEmpty() && System.nanoTime() + last < deadline) {
+      while (budget > 0 && turns.busy() && TableTurns.fits(last, deadline)) {
         long stepStart = System.nanoTime();
-        int index = queue.get(0);
+        int index = turns.head();
         Table t = tables[index];
         MarkdownTable table = rendered.tables().get(index);
         int room = room(table);
@@ -359,14 +332,18 @@ final class TableColumns {
           continue;
         }
         if (width <= 1) {
-          queue.remove(0);
+          turns.done();
+          continue;
+        }
+        if (t.next < 0 && !turns.near(index)) {
+          turns.park();
           continue;
         }
         if (budget < CELLS_PER_TURN) {
           return;
         }
         if (layOut(t, table, current, room, deadline)) {
-          queue.remove(0);
+          turns.done();
         }
         return;
       }
@@ -401,34 +378,7 @@ final class TableColumns {
       }
       t.next = 0;
     }
-    int top = text.getTopIndex();
-    int topLine = map.renderedLine(top);
-    int sub = map.subLine(top);
-    Point selection = text.getSelectionRange();
-    int[] selected =
-        selection.y > 0 ? map.renderedRange(selection.x, selection.x + selection.y) : null;
-    long last;
-    do {
-      long stepStart = System.nanoTime();
-      int from = t.next;
-      int to = Math.min(table.rowCount(), from + ROWS_PER_STEP);
-      MarkdownDisplayMap.Change change =
-          map.replace(
-              table.firstLine() + from,
-              TableWrap.rows(table, rendered.text(), t.layout, t.words, from, to));
-      text.replaceTextRange(change.start(), change.length(), change.text());
-      int nextTop = map.displayLine(topLine) + Math.min(sub, map.displayLineCount(topLine) - 1);
-      if (text.getTopIndex() != nextTop) {
-        text.setTopIndex(nextTop);
-      }
-      t.next = to;
-      last = System.nanoTime() - stepStart;
-    } while (t.next < table.rowCount() && System.nanoTime() + last < deadline);
-    if (selected != null) {
-      int from = map.display(selected[0]);
-      int to = map.display(selected[1]);
-      text.setSelection(Math.min(from, to), Math.max(from, to));
-    }
+    t.next = rows.show(map, table, rendered.text(), t.layout, t.words, t.next, deadline);
     if (t.next < table.rowCount()) {
       return false;
     }

@@ -1,9 +1,11 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import io.github.ajdailey.qcaret.app.editor.BlockSpacing;
 import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
+import io.github.ajdailey.qcaret.core.markdown.CodeBlock;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownAlert;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownHeading;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
@@ -17,15 +19,19 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Rectangle;
 
 /**
- * Paints what line styles cannot show over the display lines in view: a bar per quote level,
+ * Paints what line styles cannot show over the display lines in view: a box around each code block,
+ * its padding in the separator lines beside it ({@link BlockSpacing}); a bar per quote level,
  * colored by the alert's kind inside an alert; thematic breaks; a rule under level 1 and 2
- * headings; table borders, and the header row's shade cut to the table's width, once the table's
- * rows are laid out; and each image, or a placeholder box with its file name when it does not
- * decode. Rendered lines and offsets reach the widget through the {@link MarkdownDisplayMap}. Call
- * on the UI thread.
+ * headings, below the gap the separator after them adds; table borders, and the header row's shade
+ * cut to the table's width, once the table's rows are laid out; and each image, or a placeholder
+ * box with its file name when it does not decode. Rendered lines and offsets reach the widget
+ * through the {@link MarkdownDisplayMap}. Call on the UI thread.
  */
 final class MarkdownPainter {
   private static final int BAR_WIDTH = 3;
+
+  /** A code block box's corner radius. */
+  static final int RADIUS = 4;
 
   private final StyledText text;
   private final MarkdownStyler styler;
@@ -69,6 +75,13 @@ final class MarkdownPainter {
         clearBesideHeader(gc, header, first, last, edges, left, area.width);
       }
     }
+    for (CodeBlock code : rendered.codeBlocks()) {
+      int first = map.displayLine(code.firstLine());
+      int last = map.displayLine(code.firstLine() + code.lineCount() - 1);
+      if (last >= top - 1 && first <= bottom + 1) {
+        codeBox(gc, code, first, last, top, bottom, left, right, area);
+      }
+    }
     for (int line = top; line <= bottom; line++) {
       int y0 = text.getLinePixel(line);
       int y1 = y0 + lineHeight(line);
@@ -90,7 +103,8 @@ final class MarkdownPainter {
     for (MarkdownHeading heading : rendered.headings()) {
       int line = map.displayLine(heading.line());
       if (heading.level() <= 2 && line >= top && line <= bottom) {
-        int y = text.getLinePixel(line) + lineHeight(line) - 1;
+        int gap = styler.spacing().above(heading.line() + 1);
+        int y = text.getLinePixel(line) + lineHeight(line) + gap - 1;
         gc.drawLine(left + styler.baseIndent(heading.line()), y, right, y);
       }
     }
@@ -104,6 +118,54 @@ final class MarkdownPainter {
         borders(gc, table, edges, left, Math.max(first, top), Math.min(last, bottom), last);
       }
     }
+  }
+
+  /**
+   * Paints a code block's box: the shade over its padding in the separator lines beside it, the
+   * pane's background over the code lines' shade outside the box and at its rounded corners, and
+   * its border. Only the pixel positions of lines in view are read; an edge outside the view is
+   * placed beyond the client area.
+   */
+  private void codeBox(
+      GC gc,
+      CodeBlock code,
+      int first,
+      int last,
+      int top,
+      int bottom,
+      int left,
+      int right,
+      Rectangle area) {
+    BlockSpacing spacing = styler.spacing();
+    int x0 = left + styler.textStart(code.firstLine());
+    int x1 = Math.max(x0 + 2 * RADIUS, right);
+    int lastLine = code.firstLine() + code.lineCount() - 1;
+    int textTop = first >= top ? text.getLinePixel(first) : -2 * RADIUS;
+    int y0 = first >= top ? textTop - spacing.below(code.firstLine() - 1) : textTop;
+    int textBottom =
+        last <= bottom ? text.getLinePixel(last) + lineHeight(last) : area.height + 2 * RADIUS;
+    int pad = spacing.above(lastLine + 1);
+    int y1 = last <= bottom && pad > 0 ? textBottom + pad - MarkdownPane.LINE_SPACING : textBottom;
+    Color shade = MarkdownStyler.color(styler.palette().gutter());
+    Color background = MarkdownStyler.color(styler.palette().background());
+    gc.setBackground(background);
+    gc.fillRectangle(0, textTop, Math.max(0, x0), textBottom - textTop);
+    gc.fillRectangle(x1, textTop, Math.max(0, area.width - x1), textBottom - textTop);
+    gc.setBackground(shade);
+    gc.fillRectangle(x0, y0, x1 - x0, textTop - y0);
+    gc.fillRectangle(x0, textBottom, x1 - x0, y1 - textBottom);
+    int[][] corners = {{x0, y0}, {x1 - RADIUS, y0}, {x0, y1 - RADIUS}, {x1 - RADIUS, y1 - RADIUS}};
+    Rectangle clip = gc.getClipping();
+    for (int[] corner : corners) {
+      gc.setClipping(clip.intersection(new Rectangle(corner[0], corner[1], RADIUS, RADIUS)));
+      gc.setBackground(background);
+      gc.fillRectangle(corner[0], corner[1], RADIUS, RADIUS);
+      gc.setBackground(shade);
+      gc.fillRoundRectangle(x0, y0, x1 - x0, y1 - y0, 2 * RADIUS, 2 * RADIUS);
+    }
+    gc.setClipping(clip);
+    gc.setForeground(MarkdownStyler.color(styler.palette().lineNumbers()));
+    gc.drawRoundRectangle(x0, y0, x1 - x0 - 1, y1 - y0 - 1, 2 * RADIUS, 2 * RADIUS);
   }
 
   /**

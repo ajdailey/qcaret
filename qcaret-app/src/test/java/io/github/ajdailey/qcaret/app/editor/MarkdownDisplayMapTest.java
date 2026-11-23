@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -143,5 +145,69 @@ class MarkdownDisplayMapTest {
     assertEquals(r.text(), map.text());
     assertNull(map.row(table.firstLine()));
     assertEquals(r.lineCount(), map.lineCount());
+  }
+
+  @Test
+  void paddedSeparatorsMapBothWaysBesideAWrappedTable() {
+    for (String[] shape : SHAPES) {
+      RenderedMarkdown r = render(shape);
+      List<Integer> separators = new ArrayList<Integer>();
+      for (int line = 0; line < r.lineCount(); line++) {
+        if (BlockSpacing.separator(r, line)) {
+          separators.add(line);
+        }
+      }
+      int[] padded = new int[separators.size()];
+      for (int i = 0; i < padded.length; i++) {
+        padded[i] = separators.get(i);
+      }
+      assertEquals(2, padded.length, shape[0]);
+      MarkdownDisplayMap map = new MarkdownDisplayMap(r, padded);
+      MarkdownTable table = r.tables().get(0);
+      map.replace(table.firstLine(), TableWrapTest.wrap(r, Integer.parseInt(shape[2])));
+      String display = map.text();
+      for (int line : padded) {
+        assertTrue(map.padded(line), shape[0]);
+        assertEquals(0, map.pieces(map.displayLine(line)).length, shape[0]);
+        assertEquals(TableWrap.PAD, display.charAt(map.lineStart(line)), shape[0]);
+        assertEquals(map.lineStart(line) + 1, map.lineEnd(line), shape[0]);
+      }
+      int tableStart = r.lineStart(table.firstLine());
+      int tableEnd = r.lineStart(table.firstLine() + table.rowCount()) - 1;
+      for (int i = 0; i <= r.text().length(); i++) {
+        if (i < tableStart || i >= tableEnd) {
+          assertEquals(i, map.rendered(map.display(i)), shape[0] + " offset " + i);
+        }
+      }
+      assertArrayEquals(
+          new int[] {0, r.text().length()}, map.renderedRange(0, display.length()), shape[0]);
+      assertEquals(display.split("\n", -1).length, map.lineCount(), shape[0]);
+      assertTrue(display.startsWith("Before.\n" + TableWrap.PAD + "\n"), shape[0]);
+    }
+  }
+
+  /** Find across a wrapped cell's break selected other cells' segments between its ends. */
+  @Test
+  void aRangeAcrossACellBreakSelectsItsFirstLine() {
+    RenderedMarkdown r = render(SHAPES[2]);
+    MarkdownDisplayMap map = mapped(r, 170);
+    String display = map.text();
+    int start = r.text().indexOf("one two");
+    int end = start + "one two".length();
+    int from = map.display(start);
+    assertTrue(display.substring(from, map.display(end)).contains("\n"), "the cell wraps");
+    int[] range = map.displayRange(start, end);
+    assertEquals(from, range[0]);
+    assertEquals("one", display.substring(range[0], range[1]));
+    // "three" is on the cell's third line, "four" on the row's first.
+    int across = r.text().indexOf("three");
+    int after = r.text().indexOf("four") + 4;
+    assertArrayEquals(
+        new int[] {map.display(after), map.display(across)},
+        map.displayRange(across, after),
+        "a range over two cells is not cut");
+    int five = r.text().indexOf("five");
+    assertArrayEquals(
+        new int[] {map.display(five), map.display(five + 4)}, map.displayRange(five, five + 4));
   }
 }

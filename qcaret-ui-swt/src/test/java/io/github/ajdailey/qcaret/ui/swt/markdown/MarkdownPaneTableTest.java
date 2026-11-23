@@ -345,14 +345,14 @@ class MarkdownPaneTableTest {
     int last = wrapped + map().displayLineCount(r.tables().get(0).firstLine() + 1) - 1;
     int single = last + 1;
     int height = text.getLinePixel(single + 1) - text.getLinePixel(single);
-    assertEquals(intro + TableColumns.PAD_ABOVE + TableColumns.PAD_BELOW, height, "one-line row");
+    assertEquals(intro + PadGlyphs.PAD_ABOVE + PadGlyphs.PAD_BELOW, height, "one-line row");
     String pad = String.valueOf(TableWrap.PAD);
     assertTrue(last > wrapped, "the row wraps");
     for (int line = wrapped; line <= last; line++) {
       int expected =
           intro
-              + (line == wrapped ? TableColumns.PAD_ABOVE : 0)
-              + (line == last ? TableColumns.PAD_BELOW : 0);
+              + (line == wrapped ? PadGlyphs.PAD_ABOVE : 0)
+              + (line == last ? PadGlyphs.PAD_BELOW : 0);
       assertEquals(expected, text.getLinePixel(line + 1) - text.getLinePixel(line), "line " + line);
       assertEquals(line == wrapped || line == last, text.getLine(line).endsWith(pad));
     }

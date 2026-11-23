@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import io.github.ajdailey.qcaret.app.editor.BlockSpacing;
 import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -137,7 +138,7 @@ public final class MarkdownPane {
     fonts = new MarkdownFonts(text.getDisplay(), text.getFont().getFontData()[0], monospace);
     images = new PaneImages(text.getDisplay());
     tables = new TableColumns(text, fonts, ui);
-    styler = new MarkdownStyler(fonts, images, tables, palette);
+    styler = new MarkdownStyler(fonts, images, tables, new PadGlyphs(text, fonts), palette);
     painter = new MarkdownPainter(text, styler, tables, images);
     listen();
     menu();
@@ -178,6 +179,7 @@ public final class MarkdownPane {
           public void handleEvent(Event event) {
             painter.paint(event.gc);
             int top = renderedTop();
+            tables.setView(top, renderedBottom());
             if (top != reportedTop) {
               reportedTop = top;
               input.previewScrolled(top);
@@ -190,9 +192,7 @@ public final class MarkdownPane {
           @Override
           public void handleEvent(Event event) {
             styler.setPaneWidth(textWidth());
-            int bottom = Math.max(text.getTopIndex(), bottomLine());
-            tables.setWidth(
-                textWidth(), renderedTop(), map == null ? bottom : map.renderedLine(bottom));
+            tables.setWidth(textWidth(), renderedTop(), renderedBottom());
             if (images.offsets().length > 0) {
               restyle();
             }
@@ -343,11 +343,12 @@ public final class MarkdownPane {
     int top = text.getTopIndex();
     String shown = map == null ? "" : map.text();
     int topLine = map == null ? 0 : map.renderedLine(top);
-    int bottomLine = map == null ? bottomLine() : map.renderedLine(Math.max(top, bottomLine()));
+    int bottomLine = renderedBottom();
     content = next;
-    map = new MarkdownDisplayMap(next.rendered());
+    BlockSpacing spacing = BlockSpacing.of(next.rendered());
+    map = new MarkdownDisplayMap(next.rendered(), spacing.lines());
     images.reset(next.images());
-    styler.setContent(next, map);
+    styler.setContent(next, map, spacing);
     painter.setRendered(next.rendered(), map);
     tables.reset(next, map, topLine, bottomLine);
     String nextText = map.text();
@@ -411,8 +412,8 @@ public final class MarkdownPane {
 
   /**
    * Selects the display text of a rendered range and scrolls it into view; the scroll is not
-   * reported back. A range crossing a wrapped table cell's break selects the display text between
-   * its ends, which holds other cells' segments.
+   * reported back. A range crossing a wrapped table cell's break selects its part before the break
+   * ({@link MarkdownDisplayMap#displayRange}).
    *
    * @param start the first rendered offset
    * @param end the rendered offset after the text
@@ -420,9 +421,8 @@ public final class MarkdownPane {
   public void selectRendered(int start, int end) {
     int length = text.isDisposed() || content == null ? -1 : content.rendered().text().length();
     if (start >= 0 && start <= end && end <= length) {
-      int from = map.display(start);
-      int to = map.display(end);
-      text.setSelection(Math.min(from, to), Math.max(from, to));
+      int[] range = map.displayRange(start, end);
+      text.setSelection(range[0], range[1]);
       reportedTop = renderedTop();
     }
   }
@@ -477,6 +477,12 @@ public final class MarkdownPane {
 
   private int bottomLine() {
     return text.getLineIndex(Math.max(0, text.getClientArea().height - 1));
+  }
+
+  /** The rendered line of the last display line in view. */
+  private int renderedBottom() {
+    int bottom = Math.max(text.getTopIndex(), bottomLine());
+    return map == null ? bottom : map.renderedLine(bottom);
   }
 
   /** The rendered line of the top display line. */

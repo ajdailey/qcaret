@@ -696,8 +696,8 @@ an `http`, `https`, `mailto` or `ftp` address in the system browser; a link
 with another scheme does nothing, and nothing loads without a click.
 
 The Basic renderer draws headings, emphasis, lists and task lists, quotes,
-alerts, footnotes, tables, code colored by QCaret's grammars and local PNG,
-JPEG, GIF, BMP and TIFF images in the current theme. A table narrows its
+alerts, footnotes, tables, code blocks in a bordered box with QCaret's grammar
+colors, and local PNG, JPEG, GIF, BMP and TIFF images in the current theme. A table narrows its
 columns to the preview's width, and a long cell wraps inside its column. An SVG
 or an image that does not decode shows as a box with its name; a remote image
 shows its alt text and address. View > Markdown View, or the Appearance tab of Preferences,

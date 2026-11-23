@@ -348,9 +348,12 @@ class MarkdownPaneTest {
     MarkdownPreviewContent c = content(text.toString());
     pane.showRendered(c);
     assertNull(pane.tables().measured(0));
-    awaitShown(1);
+    awaitShown(0);
     assertTrue(pane.tables().turns() > 3, "turns " + pane.tables().turns());
-    assertTrue(pane.tables().laidOut(0));
+    assertTrue(pane.tables().waiting(1), "the far table waits");
+    pane.scrollToLine(c.rendered().tables().get(1).firstLine());
+    flush();
+    awaitShown(1);
     int row = pane.map().displayLine(c.rendered().tables().get(0).firstLine() + 5);
     MarkdownStyler.LineStyle event = line(row);
     assertNotNull(event.tabStops);

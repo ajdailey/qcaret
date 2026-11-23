@@ -2,14 +2,16 @@ package io.github.ajdailey.qcaret.app.editor;
 
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * The text a Basic preview pane shows and its offset and line maps to the rendered text. The
  * display text is the rendered text with some table rows replaced by a {@link TableWrap.Row}: one
  * rendered line becomes the row's display lines, whose chars come from the rendered row in another
- * order, plus the tabs, line breaks and {@link TableWrap#PAD} chars the layout adds. Every other
- * line is the rendered line.
+ * order, plus the tabs, line breaks and {@link TableWrap#PAD} chars the layout adds. A padded
+ * separator line ({@link BlockSpacing}) holds one {@link TableWrap#PAD}. Every other line is the
+ * rendered line.
  *
  * <p>Maps:
  *
@@ -35,12 +37,14 @@ public final class MarkdownDisplayMap {
    */
   public record Change(int start, int length, String text) {}
 
+  /** The row of a padded separator line. */
+  private static final TableWrap.Row SPACER =
+      new TableWrap.Row(
+          String.valueOf(TableWrap.PAD), 1, new int[0], new int[] {0}, new int[][] {{}});
+
   private final RenderedMarkdown rendered;
   private String text;
-  private int[] lines = new int[0];
-  private TableWrap.Row[] rows = new TableWrap.Row[0];
-  private int[] displayLines = new int[0];
-  private int[] displayStarts = new int[0];
+  private DisplayRows index;
 
   /**
    * Creates the identity map of a render.
@@ -48,8 +52,44 @@ public final class MarkdownDisplayMap {
    * @param rendered the render
    */
   public MarkdownDisplayMap(RenderedMarkdown rendered) {
+    this(rendered, new int[0]);
+  }
+
+  /**
+   * Creates the map of a render whose empty separator lines in {@code padded} hold a {@link
+   * TableWrap#PAD}.
+   *
+   * @param rendered the render
+   * @param padded ascending empty rendered lines, as {@link BlockSpacing#lines}
+   */
+  public MarkdownDisplayMap(RenderedMarkdown rendered, int[] padded) {
     this.rendered = rendered;
-    this.text = rendered.text();
+    String source = rendered.text();
+    TableWrap.Row[] spacers = new TableWrap.Row[padded.length];
+    Arrays.fill(spacers, SPACER);
+    index = new DisplayRows(rendered, padded.clone(), spacers);
+    if (padded.length == 0) {
+      this.text = source;
+      return;
+    }
+    StringBuilder out = new StringBuilder(source.length() + padded.length);
+    int at = 0;
+    for (int i = 0; i < padded.length; i++) {
+      int start = rendered.lineStart(padded[i]);
+      out.append(source, at, start).append(TableWrap.PAD);
+      at = start;
+    }
+    this.text = out.append(source, at, source.length()).toString();
+  }
+
+  /**
+   * Reports whether a rendered line is a padded separator line.
+   *
+   * @param line a rendered line
+   * @return true when the line shows as one {@link TableWrap#PAD}
+   */
+  public boolean padded(int line) {
+    return row(line) == SPACER;
   }
 
   /**
@@ -67,8 +107,8 @@ public final class MarkdownDisplayMap {
    * @return at least 1
    */
   public int lineCount() {
-    int n = rows.length;
-    return rendered.lineCount() + (n == 0 ? 0 : extraLinesThrough(n - 1));
+    int n = index.rows.length;
+    return rendered.lineCount() + (n == 0 ? 0 : index.extraLinesThrough(n - 1));
   }
 
   /**
@@ -78,8 +118,8 @@ public final class MarkdownDisplayMap {
    * @return the row, or null for a line shown as rendered
    */
   public TableWrap.Row row(int line) {
-    int i = rowAtLine(line);
-    return i >= 0 && lines[i] == line ? rows[i] : null;
+    int i = index.atLine(line);
+    return i >= 0 && index.lines[i] == line ? index.rows[i] : null;
   }
 
   /**
@@ -89,14 +129,14 @@ public final class MarkdownDisplayMap {
    * @return the rendered line
    */
   public int renderedLine(int displayLine) {
-    int i = rowAtDisplayLine(displayLine);
+    int i = index.atDisplayLine(displayLine);
     if (i < 0) {
       return displayLine;
     }
-    if (displayLine < displayLines[i] + rows[i].lines()) {
-      return lines[i];
+    if (displayLine < index.displayLines[i] + index.rows[i].lines()) {
+      return index.lines[i];
     }
-    return displayLine - extraLinesThrough(i);
+    return displayLine - index.extraLinesThrough(i);
   }
 
   /**
@@ -106,9 +146,9 @@ public final class MarkdownDisplayMap {
    * @return 0 for a row's first line and for a line shown as rendered
    */
   public int subLine(int displayLine) {
-    int i = rowAtDisplayLine(displayLine);
-    return i >= 0 && displayLine < displayLines[i] + rows[i].lines()
-        ? displayLine - displayLines[i]
+    int i = index.atDisplayLine(displayLine);
+    return i >= 0 && displayLine < index.displayLines[i] + index.rows[i].lines()
+        ? displayLine - index.displayLines[i]
         : 0;
   }
 
@@ -119,11 +159,11 @@ public final class MarkdownDisplayMap {
    * @return the display line
    */
   public int displayLine(int line) {
-    int i = rowAtLine(line);
+    int i = index.atLine(line);
     if (i < 0) {
       return line;
     }
-    return lines[i] == line ? displayLines[i] : line + extraLinesThrough(i);
+    return index.lines[i] == line ? index.displayLines[i] : line + index.extraLinesThrough(i);
   }
 
   /**
@@ -144,16 +184,16 @@ public final class MarkdownDisplayMap {
    * @return the rendered offset
    */
   public int rendered(int offset) {
-    int i = rowAtOffset(offset);
+    int i = index.atOffset(offset);
     if (i < 0) {
       return offset;
     }
-    int local = offset - displayStarts[i];
-    if (local >= rows[i].text().length()) {
-      return offset - shiftThrough(i);
+    int local = offset - index.displayStarts[i];
+    if (local >= index.rows[i].text().length()) {
+      return offset - index.shiftThrough(i);
     }
-    int[] p = rows[i].pieces();
-    int rowStart = rendered.lineStart(lines[i]);
+    int[] p = index.rows[i].pieces();
+    int rowStart = rendered.lineStart(index.lines[i]);
     int after = 0;
     for (int k = 0; k < p.length && p[k] <= local; k += 3) {
       if (local < p[k] + p[k + 2]) {
@@ -171,21 +211,21 @@ public final class MarkdownDisplayMap {
    * @return the display offset
    */
   public int display(int offset) {
-    int i = rowAtRenderedOffset(offset);
+    int i = index.atRenderedOffset(offset);
     if (i < 0) {
       return offset;
     }
-    int rowStart = rendered.lineStart(lines[i]);
+    int rowStart = rendered.lineStart(index.lines[i]);
     int local = offset - rowStart;
-    if (offset >= rowEnd(lines[i])) {
-      return offset + shiftThrough(i);
+    if (offset >= rowEnd(index.lines[i])) {
+      return offset + index.shiftThrough(i);
     }
-    int[] p = rows[i].pieces();
+    int[] p = index.rows[i].pieces();
     int best = -1;
     int bestEnd = 0;
     for (int k = 0; k < p.length; k += 3) {
       if (p[k + 1] <= local && local < p[k + 1] + p[k + 2]) {
-        return displayStarts[i] + p[k] + local - p[k + 1];
+        return index.displayStarts[i] + p[k] + local - p[k + 1];
       }
       int end = p[k + 1] + p[k + 2];
       if (end <= local && (best < 0 || end >= bestEnd)) {
@@ -193,7 +233,7 @@ public final class MarkdownDisplayMap {
         bestEnd = end;
       }
     }
-    return displayStarts[i] + (best < 0 ? 0 : p[best] + p[best + 2]);
+    return index.displayStarts[i] + (best < 0 ? 0 : p[best] + p[best + 2]);
   }
 
   /**
@@ -208,20 +248,20 @@ public final class MarkdownDisplayMap {
     int lo = Integer.MAX_VALUE;
     int hi = Integer.MIN_VALUE;
     int at = start;
-    int i = rowAtOffset(start);
-    if (i < 0 || start >= displayStarts[i] + rows[i].text().length()) {
+    int i = index.atOffset(start);
+    if (i < 0 || start >= index.displayStarts[i] + index.rows[i].text().length()) {
       i++;
     }
     while (at < end) {
-      if (i < rows.length && displayStarts[i] <= at) {
-        int rowEnd = displayStarts[i] + rows[i].text().length();
-        int rowStart = rendered.lineStart(lines[i]);
-        int[] p = rows[i].pieces();
+      if (i < index.rows.length && index.displayStarts[i] <= at) {
+        int rowEnd = index.displayStarts[i] + index.rows[i].text().length();
+        int rowStart = rendered.lineStart(index.lines[i]);
+        int[] p = index.rows[i].pieces();
         for (int k = 0; k < p.length; k += 3) {
-          int s = Math.max(at, displayStarts[i] + p[k]);
-          int e = Math.min(end, displayStarts[i] + p[k] + p[k + 2]);
+          int s = Math.max(at, index.displayStarts[i] + p[k]);
+          int e = Math.min(end, index.displayStarts[i] + p[k] + p[k + 2]);
           if (s < e) {
-            int r = rowStart + p[k + 1] - displayStarts[i] - p[k];
+            int r = rowStart + p[k + 1] - index.displayStarts[i] - p[k];
             lo = Math.min(lo, s + r);
             hi = Math.max(hi, e + r);
           }
@@ -229,8 +269,8 @@ public final class MarkdownDisplayMap {
         at = rowEnd;
         i++;
       } else {
-        int next = i < rows.length ? Math.min(end, displayStarts[i]) : end;
-        int shift = i == 0 ? 0 : shiftThrough(i - 1);
+        int next = i < index.rows.length ? Math.min(end, index.displayStarts[i]) : end;
+        int shift = i == 0 ? 0 : index.shiftThrough(i - 1);
         lo = Math.min(lo, at - shift);
         hi = Math.max(hi, next - shift);
         at = next;
@@ -244,22 +284,62 @@ public final class MarkdownDisplayMap {
   }
 
   /**
+   * Returns the display range a rendered range selects. A range inside one table cell whose display
+   * ends fall on different lines of a laid-out row selects its part on the first line, not the
+   * other cells' segments between its ends.
+   *
+   * @param start the first rendered offset
+   * @param end the rendered offset after the range
+   * @return {@code {start, end}} in the display text, ascending
+   */
+  public int[] displayRange(int start, int end) {
+    int from = display(start);
+    int to = display(end);
+    int i = index.atRenderedOffset(start);
+    if (end > start
+        && i >= 0
+        && index.rows[i] != SPACER
+        && end <= rowEnd(index.lines[i])
+        && !tab(start, end)) {
+      int local = start - rendered.lineStart(index.lines[i]);
+      int[] p = index.rows[i].pieces();
+      for (int k = 0; k < p.length; k += 3) {
+        if (p[k + 1] <= local && local < p[k + 1] + p[k + 2]) {
+          to = Math.min(to, index.displayStarts[i] + p[k] + p[k + 2]);
+        }
+      }
+    }
+    return new int[] {Math.min(from, to), Math.max(from, to)};
+  }
+
+  /** Reports whether the rendered range holds a tab, which separates cells. */
+  private boolean tab(int start, int end) {
+    String s = rendered.text();
+    for (int k = start; k < end; k++) {
+      if (s.charAt(k) == '\t') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns the pieces of a display line: the runs of its chars copied from the rendered text.
    *
    * @param displayLine a display line
    * @return {@code display, rendered, length} triples in absolute offsets, ascending in display
    */
   public int[] pieces(int displayLine) {
-    int i = rowAtDisplayLine(displayLine);
-    if (i < 0 || displayLine >= displayLines[i] + rows[i].lines()) {
+    int i = index.atDisplayLine(displayLine);
+    if (i < 0 || displayLine >= index.displayLines[i] + index.rows[i].lines()) {
       int line = renderedLine(displayLine);
       int start = rendered.lineStart(line);
       int length = rowEnd(line) - start;
       return length == 0 ? new int[0] : new int[] {display(start), start, length};
     }
-    TableWrap.Row row = rows[i];
+    TableWrap.Row row = index.rows[i];
     String s = row.text();
-    int sub = displayLine - displayLines[i];
+    int sub = displayLine - index.displayLines[i];
     int lineStart = 0;
     for (int j = 0; j < sub; j++) {
       lineStart = s.indexOf('\n', lineStart) + 1;
@@ -268,12 +348,12 @@ public final class MarkdownDisplayMap {
     if (lineEnd < 0) {
       lineEnd = s.length();
     }
-    int rowStart = rendered.lineStart(lines[i]);
+    int rowStart = rendered.lineStart(index.lines[i]);
     int[] p = row.pieces();
     List<int[]> out = new ArrayList<int[]>();
     for (int k = 0; k < p.length; k += 3) {
       if (p[k] >= lineStart && p[k] < lineEnd) {
-        out.add(new int[] {displayStarts[i] + p[k], rowStart + p[k + 1], p[k + 2]});
+        out.add(new int[] {index.displayStarts[i] + p[k], rowStart + p[k + 1], p[k + 2]});
       }
     }
     int[] flat = new int[3 * out.size()];
@@ -291,18 +371,9 @@ public final class MarkdownDisplayMap {
    * @return the change to the display text
    */
   public Change replace(int first, TableWrap.Row[] next) {
-    int last = first + next.length - 1;
     int start = lineStart(first);
-    int end = lineEnd(last);
+    int end = lineEnd(first + next.length - 1);
     StringBuilder inserted = new StringBuilder();
-    List<Integer> newLines = new ArrayList<Integer>();
-    List<TableWrap.Row> newRows = new ArrayList<TableWrap.Row>();
-    int k = 0;
-    while (k < lines.length && lines[k] < first) {
-      newLines.add(lines[k]);
-      newRows.add(rows[k]);
-      k++;
-    }
     for (int j = 0; j < next.length; j++) {
       int line = first + j;
       if (j > 0) {
@@ -312,34 +383,11 @@ public final class MarkdownDisplayMap {
         inserted.append(rendered.text(), rendered.lineStart(line), rowEnd(line));
       } else {
         inserted.append(next[j].text());
-        newLines.add(line);
-        newRows.add(next[j]);
       }
-    }
-    while (k < lines.length && lines[k] <= last) {
-      k++;
-    }
-    while (k < lines.length) {
-      newLines.add(lines[k]);
-      newRows.add(rows[k]);
-      k++;
     }
     String replacement = inserted.toString();
     text = text.substring(0, start) + replacement + text.substring(end);
-    lines = new int[newLines.size()];
-    rows = newRows.toArray(new TableWrap.Row[0]);
-    displayLines = new int[lines.length];
-    displayStarts = new int[lines.length];
-    int extraLines = 0;
-    int shift = 0;
-    for (int i = 0; i < lines.length; i++) {
-      lines[i] = newLines.get(i);
-      displayLines[i] = lines[i] + extraLines;
-      int rowStart = rendered.lineStart(lines[i]);
-      displayStarts[i] = rowStart + shift;
-      extraLines += rows[i].lines() - 1;
-      shift += rows[i].text().length() - (rowEnd(lines[i]) - rowStart);
-    }
+    index = index.replace(first, next);
     return new Change(start, end - start, replacement);
   }
 
@@ -350,8 +398,10 @@ public final class MarkdownDisplayMap {
    * @return the offset
    */
   public int lineStart(int line) {
-    int i = rowAtLine(line);
-    return i >= 0 && lines[i] == line ? displayStarts[i] : display(rendered.lineStart(line));
+    int i = index.atLine(line);
+    return i >= 0 && index.lines[i] == line
+        ? index.displayStarts[i]
+        : display(rendered.lineStart(line));
   }
 
   /**
@@ -366,63 +416,6 @@ public final class MarkdownDisplayMap {
 
   /** The offset after a rendered line's last char, before its line break. */
   private int rowEnd(int line) {
-    return line + 1 < rendered.lineCount()
-        ? rendered.lineStart(line + 1) - 1
-        : rendered.text().length();
-  }
-
-  /** Display lines added by rows 0 to {@code i}. */
-  private int extraLinesThrough(int i) {
-    return displayLines[i] + rows[i].lines() - 1 - lines[i];
-  }
-
-  /** Display chars added by rows 0 to {@code i}. */
-  private int shiftThrough(int i) {
-    return displayStarts[i] + rows[i].text().length() - rowEnd(lines[i]);
-  }
-
-  /** The last row at or before a rendered line, or -1. */
-  private int rowAtLine(int line) {
-    return last(lines, line);
-  }
-
-  /** The last row starting at or before a display line, or -1. */
-  private int rowAtDisplayLine(int displayLine) {
-    return last(displayLines, displayLine);
-  }
-
-  /** The last row starting at or before a display offset, or -1. */
-  private int rowAtOffset(int offset) {
-    return last(displayStarts, offset);
-  }
-
-  /** The last row starting at or before a rendered offset, or -1. */
-  private int rowAtRenderedOffset(int offset) {
-    int lo = 0;
-    int hi = lines.length;
-    while (lo < hi) {
-      int mid = (lo + hi) >>> 1;
-      if (rendered.lineStart(lines[mid]) <= offset) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return lo - 1;
-  }
-
-  /** The last index whose value is at most {@code key}, or -1. */
-  private static int last(int[] sorted, int key) {
-    int lo = 0;
-    int hi = sorted.length;
-    while (lo < hi) {
-      int mid = (lo + hi) >>> 1;
-      if (sorted[mid] <= key) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return lo - 1;
+    return DisplayRows.rowEnd(rendered, line);
   }
 }
