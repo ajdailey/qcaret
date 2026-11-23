@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -37,6 +38,9 @@ class ToolbarOverflowSurfaceTest {
   private MarkdownWindow w;
   private ToolbarOverflow row;
 
+  /** A row width that shows every plain-tab button. */
+  private static final int WIDE = 900;
+
   @BeforeEach
   void open() {
     w = new MarkdownWindow(temp);
@@ -48,17 +52,25 @@ class ToolbarOverflowSurfaceTest {
     w.close();
   }
 
+  /**
+   * Sizes the toolbar row inside a shell with no layout and waits until the More button matches the
+   * width. It sizes the row, not the shell: GTK 3 can apply a shell size late and then restore the
+   * earlier one, after the shell has reported the new size.
+   */
   private void width(final int width) {
-    w.window.shell().setSize(width, 500);
+    w.window.shell().setLayout(null);
+    final Composite bar = row.row();
+    bar.setSize(width, bar.getSize().y);
     w.await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return w.window.shell().getSize().x == width
-                && row.row().getSize().x == w.window.shell().getClientArea().width;
+            int preferred = row.bar().computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+            return bar.getSize().x == width
+                && row.moreShown() == preferred > bar.getClientArea().width;
           }
         },
-        "width " + width);
+        "row width " + width);
     w.flush();
   }
 
@@ -113,23 +125,23 @@ class ToolbarOverflowSurfaceTest {
   @Test
   void aNarrowWindowListsTheHiddenButtonsAndAWideOneHidesTheButton() throws Exception {
     w.open("notes.txt", "plain\n", false);
-    width(1200);
+    width(WIDE);
     assertFalse(row.moreShown());
     assertTrue(row.hidden().isEmpty());
     width(260);
     assertTrue(row.moreShown());
     assertFalse(row.hidden().isEmpty());
-    int client = w.window.shell().getClientArea().width;
+    int client = row.row().getClientArea().width;
     assertTrue(
         row.more().getParent().getBounds().x + row.more().getParent().getBounds().width <= client);
     Menu menu = row.menu();
     assertEquals(buttons(), reachable(menu));
     MenuItem last = menu.getItem(menu.getItemCount() - 1);
     assertEquals(CommandId.ZOOM_OUT, last.getData());
-    if (!"1".equals(System.getenv("SWT_GTK4"))) {
+    if (PlatformTraits.PLATFORM.menuImages() && !"1".equals(System.getenv("SWT_GTK4"))) {
       assertNotNull(last.getImage());
     }
-    width(1200);
+    width(WIDE);
     assertFalse(row.moreShown());
     assertTrue(row.hidden().isEmpty());
   }
