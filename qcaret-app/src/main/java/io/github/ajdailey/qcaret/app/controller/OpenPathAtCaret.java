@@ -98,6 +98,7 @@ final class OpenPathAtCaret {
     }
     final PathAtCaret.Found found = target.found();
     final String heading = target.heading();
+    final boolean fresh = documents.documentAnywhere(target.file()) == null;
     documents.open(
         target.file(),
         new Consumer<EditorController>() {
@@ -106,7 +107,7 @@ final class OpenPathAtCaret {
             if (found.line() > 0) {
               editor.goTo(found.line() - 1, Math.max(0, found.column() - 1));
             } else if (heading != null) {
-              documents.jumpToHeading(editor, heading);
+              documents.jumpToHeading(editor, heading, fresh);
             }
           }
         });

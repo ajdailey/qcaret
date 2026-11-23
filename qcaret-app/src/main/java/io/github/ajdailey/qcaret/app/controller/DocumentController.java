@@ -2327,11 +2327,12 @@ public final class DocumentController {
    * @param file the file and its options
    */
   public void open(final FileRequest file) {
+    final boolean fresh = documentAnywhere(file.path()) == null;
     Consumer<EditorController> then =
         new Consumer<EditorController>() {
           @Override
           public void accept(EditorController editor) {
-            placed(editor, file);
+            placed(editor, file, fresh);
           }
         };
     OpenDocument d = find(file.path());
@@ -2348,14 +2349,14 @@ public final class DocumentController {
         open);
   }
 
-  private void placed(EditorController editor, FileRequest file) {
+  private void placed(EditorController editor, FileRequest file, boolean fresh) {
     if (file.readOnly()) {
       setReadOnly(editor.document());
     }
     if (file.line() > 0) {
       editor.goTo(file.line() - 1, Math.max(0, file.column() - 1));
     } else if (file.heading() != null) {
-      jumpToHeading(editor, file.heading());
+      jumpToHeading(editor, file.heading(), fresh);
     }
   }
 
@@ -2366,13 +2367,14 @@ public final class DocumentController {
    * @param heading the heading's GitLab id ({@link HeadingJumps}), or null to leave the caret
    */
   void openAtHeading(Path path, final String heading) {
+    final boolean fresh = documentAnywhere(path) == null;
     open(
         path,
         new Consumer<EditorController>() {
           @Override
           public void accept(EditorController editor) {
             if (heading != null) {
-              jumpToHeading(editor, heading);
+              jumpToHeading(editor, heading, fresh);
             }
           }
         });
@@ -2383,12 +2385,14 @@ public final class DocumentController {
    *
    * @param editor the editor
    * @param heading the heading's GitLab id ({@link HeadingJumps})
+   * @param fresh true when the open that ends here read the file: an unknown id then puts the caret
+   *     on the first line, where a file already open keeps its caret
    */
-  void jumpToHeading(EditorController editor, String heading) {
+  void jumpToHeading(EditorController editor, String heading, boolean fresh) {
     DocumentController holder = holderOf(editor.document());
     OpenDocument d = holder == null ? null : holder.entry(editor.document());
     if (d != null) {
-      holder.headings.jump(d, editor, heading);
+      holder.headings.jump(d, editor, heading, fresh);
     }
   }
 

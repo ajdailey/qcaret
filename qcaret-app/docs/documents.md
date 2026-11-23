@@ -511,7 +511,9 @@ the document.
   `MARKDOWN_HEADING_TOO_LARGE`.
 - The UI thread puts the caret at the heading line's start and that line at
   the editor's top, and calls `MarkdownPreview.revealSource`. An unknown id
-  puts the caret on line 0 and shows `MARKDOWN_NO_HEADING`.
+  shows `MARKDOWN_NO_HEADING`; it puts the caret on line 0 when the open that
+  ends in the jump read the file (`fresh`: no window held the path before the
+  open), and leaves a file already open with its caret and scroll.
 - A tab holds one jump; a later one replaces it. A pass whose tab closed or
   whose document was edited since the snapshot is dropped.
 - `openLink` checks on a `qcaret-io-` worker for a regular file named with the

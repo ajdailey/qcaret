@@ -730,9 +730,9 @@ Quick Open take this form, and a file already open has its tab selected and its
 caret moved. The heading is named as a link inside the document names it, by
 GitLab's rules: lower case, a space as `-`, other punctuation dropped, and `-1`,
 `-2` added to repeated headings. An escape such as `%20` is decoded once. An id
-no heading has opens the file at its first line, and a file that is not Markdown
-ignores the `#heading`; both show `No heading #<id> in <file>` in the status
-bar. A file whose name holds the `#`, such as `notes.md#1`, opens as named.
+no heading has opens the file at its first line, or leaves a file already open
+where it was, and a file that is not Markdown ignores the `#heading`; each shows
+`No heading #<id> in <file>` in the status bar. A file whose name holds the `#`, such as `notes.md#1`, opens as named.
 
 The preview has its own zoom, kept apart from the editor's: `Ctrl+=`, `Ctrl+-`
 and `Ctrl+0` (`Cmd` on macOS), the toolbar's Zoom buttons and View > Zoom In,

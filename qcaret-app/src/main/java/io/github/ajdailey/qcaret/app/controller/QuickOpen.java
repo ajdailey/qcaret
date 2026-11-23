@@ -596,30 +596,31 @@ final class QuickOpen implements QuickOpenInput {
     if (index < documentTargets.size()) {
       EditorController editor = documents.show(documentTargets.get(index));
       if (editor != null) {
-        arrive(editor, chosen);
+        arrive(editor, chosen, false);
       }
       return;
     }
     int file = index - documentTargets.size();
     if (file < fileTargets.size()) {
+      final boolean fresh = documents.documentAnywhere(fileTargets.get(file)) == null;
       documents.open(
           fileTargets.get(file),
           new Consumer<EditorController>() {
             @Override
             public void accept(EditorController editor) {
-              arrive(editor, chosen);
+              arrive(editor, chosen, fresh);
             }
           });
     }
   }
 
-  private void arrive(EditorController editor, Query chosen) {
+  private void arrive(EditorController editor, Query chosen, boolean fresh) {
     if (chosen.symbol() != null) {
       symbols.jumpToBest(editor, chosen.symbol());
     } else if (chosen.line() > 0) {
       editor.goTo(chosen.line() - 1, Math.max(0, chosen.column() - 1));
     } else if (chosen.heading() != null && !named(editor, chosen.heading())) {
-      documents.jumpToHeading(editor, chosen.heading());
+      documents.jumpToHeading(editor, chosen.heading(), fresh);
     }
     if (editor.view() != null) {
       editor.view().focus();

@@ -167,13 +167,24 @@ class HeadingJumpTest {
   }
 
   @Test
-  void anUnknownIdOpensAtTheTopWithANotice() throws Exception {
+  void anUnknownIdOpensAFileAtItsFirstLineWithANotice() throws Exception {
     Path file = write("a.md", TEXT);
-    harness.open(file);
-    documents.activeEditor().selections().set(SelectionSet.caret(TEXT.length()));
-    documents.open(new FileRequest(file, 0, 0, false, null, "absent"));
+    open(new FileRequest(file, 0, 0, false, null, "absent"), 1);
     awaitNotice(UiText.MARKDOWN_NO_HEADING.format("absent", "a.md"));
     assertEquals(0, caretLine());
+    assertEquals(0, harness.view.selected.topRow);
+  }
+
+  @Test
+  void anUnknownIdKeepsTheCaretAndScrollOfAFileAlreadyOpen() throws Exception {
+    Path file = write("a.md", TEXT);
+    harness.open(file);
+    documents.activeEditor().selections().set(SelectionSet.caret(TEXT.indexOf("more")));
+    harness.view.selected.topRow = 5;
+    documents.open(new FileRequest(file, 0, 0, false, null, "absent"));
+    awaitNotice(UiText.MARKDOWN_NO_HEADING.format("absent", "a.md"));
+    assertEquals(10, caretLine());
+    assertEquals(5, harness.view.selected.topRow);
   }
 
   @Test

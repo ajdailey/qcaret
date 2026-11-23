@@ -33,7 +33,8 @@ import java.util.function.BiConsumer;
  *       MarkdownPreviews#LIVE_LIMIT_CHARS} chars is not parsed and shows a notice.
  *   <li>The UI thread applies the line: the caret at its start, the line at the editor's top, and
  *       outside Source the preview scrolled to it ({@link MarkdownPreview#revealSource}). An id no
- *       heading has puts the caret on the first line and shows a notice naming the id.
+ *       heading has shows a notice naming the id; a file the jump's open read puts the caret on the
+ *       first line, a file already open keeps its caret and scroll.
  *   <li>A tab holds one jump: a later jump to it replaces the earlier. A tab leaving the window
  *       drops its jump ({@link #closed}); a pass whose document was edited since the snapshot is
  *       dropped.
@@ -55,15 +56,17 @@ final class HeadingJumps {
     final OpenDocument d;
     final EditorController editor;
     final String id;
+    final boolean fresh;
     boolean started;
     long revision;
     volatile int line = -1;
     volatile boolean done;
 
-    Jump(OpenDocument d, EditorController editor, String id) {
+    Jump(OpenDocument d, EditorController editor, String id, boolean fresh) {
       this.d = d;
       this.editor = editor;
       this.id = id;
+      this.fresh = fresh;
     }
   }
 
@@ -127,9 +130,10 @@ final class HeadingJumps {
    * @param d the tab
    * @param editor the tab's editor that moves
    * @param id the heading's GitLab id
+   * @param fresh true when the open that ends here read the file
    */
-  void jump(OpenDocument d, EditorController editor, String id) {
-    Jump jump = new Jump(d, editor, id);
+  void jump(OpenDocument d, EditorController editor, String id, boolean fresh) {
+    Jump jump = new Jump(d, editor, id, fresh);
     pending.put(d, jump);
     if (known(d)) {
       start(jump);
@@ -225,6 +229,9 @@ final class HeadingJumps {
     int line = jump.line;
     if (line < 0) {
       view.showNotice(UiText.MARKDOWN_NO_HEADING.format(jump.id, d.name()));
+      if (!jump.fresh) {
+        return;
+      }
       line = 0;
     }
     EditorController editor = jump.editor;
