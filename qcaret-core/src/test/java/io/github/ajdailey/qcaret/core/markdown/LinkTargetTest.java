@@ -19,6 +19,18 @@ class LinkTargetTest {
   }
 
   @Test
+  void aFileTargetsFragmentIsItsHeading() {
+    assertEquals("part", LinkTarget.of("docs/My%20Notes.md?plain=1#part", folder).anchor());
+    assertEquals("set up", LinkTarget.of("n.md#set%20up", folder).anchor());
+    assertNull(LinkTarget.of("n.md#", folder).anchor());
+    assertNull(LinkTarget.of("n.md", folder).anchor());
+    Path absolute = folder.resolve("u.md");
+    LinkTarget t = LinkTarget.of(absolute.toUri() + "#caf%C3%A9", null);
+    assertEquals(absolute, t.path());
+    assertEquals("café", t.anchor());
+  }
+
+  @Test
   void parentStepsAreNormalized() {
     assertEquals(folder.getParent().resolve("x.png"), LinkTarget.of("../x.png", folder).path());
   }

@@ -22,6 +22,7 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryStore;
 import io.github.ajdailey.qcaret.app.recovery.RecoveryTexts;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
+import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.RecoveryRow;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
@@ -367,6 +368,41 @@ class RecoveryControllerTest {
         "saved");
     awaitFiles(second, 0);
     assertEquals("mock alpha\n", Files.readString(a));
+  }
+
+  /** A Markdown buffer restored with no session tab takes {@code markdown.openMode}, as an open. */
+  @Test
+  void aRecoveredMarkdownFileOpensInTheOpenMode() throws Exception {
+    Path a = file("a.md", "# Mock\n");
+    Harness first = start(false);
+    first.open(a);
+    edit(first, "mock ");
+    end(first);
+
+    final Harness second = start(false);
+    final GrammarLibrary library = second.application.grammars();
+    second.application.loadGrammars();
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return library.set() != null;
+          }
+        },
+        "grammars read");
+    second.await(offered(second), "the dialog");
+    second.view.recovery.restore(new int[] {0});
+    second.await(rowsLeft(second, 0), "restored");
+    second.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return second.application.documents().markdownMode() == MarkdownViewMode.SPLIT;
+          }
+        },
+        "Split");
+    second.awaitIdle("restore");
+    assertEquals(a, second.application.documents().activePath());
   }
 
   /**

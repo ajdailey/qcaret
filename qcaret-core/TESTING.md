@@ -113,7 +113,8 @@ and tests of a read-only file skip where the user writes read-only files.
 | `MarkdownRendererTest` | Headings, paragraphs and their separator lines; each inline style's range; `<br>`, `<kbd>`, `<sub>`, `<sup>` and other inline HTML as text; HTML blocks and `<details>`; hard breaks and their source lines; nested and loose lists, empty items, numbers and task states; nested quotes and a quote in a list; rules; GFM tables with alignment, inline styles and a short row; code lines and the info string's language; a supplementary char before a run; CR LF and CR input equal to LF; the leaf block list; images by target; a cancel before the parse and one between blocks (a block whose walk cancels, then the next block's check); 3,000 generated sections over 256 KiB |
 | `GitLabMarkdownTest` | Heading ids against the examples of GitLab's Markdown documentation, a `-` run joined; the heading list (ATX, setext, in a quote, none from a fence); `[[_TOC_]]` and `[TOC]` linking the same anchors; `>>>` quotes; autolinks; footnote numbering, order and the unused definition; alerts with the default and a custom title; front matter; image width and height |
 | `SourceMapTest` | Rendered to source and back at a heading, a wrapped paragraph, a link reference definition, a fence and a list |
-| `LinkTargetTest` | Relative, parent, absolute and `file:` paths, an untitled document, URLs and `//`, anchors, percent decoding with malformed escapes |
+| `LinkTargetTest` | Relative, parent, absolute and `file:` paths, an untitled document, URLs and `//`, anchors, a local file's fragment, percent decoding with malformed escapes |
+| `HeadingPathTest` | `name#id` split at the name's last `#` and decoded once; an existing `name#id` file kept whole; a missing file before the `#` keeping the whole name; `headingSourceLine` with repeats, setext, a fence, punctuation, non-ASCII and a quote, against every rendered heading's anchor and source line |
 
 ### Search and replace
 

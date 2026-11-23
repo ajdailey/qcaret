@@ -312,7 +312,7 @@ final class MarkdownHtmlWriter {
   private String previewHref(String destination) {
     LinkTarget target = LinkTarget.of(destination, folder);
     if (target.kind() == LinkTarget.Kind.FILE && target.path() != null) {
-      return MarkdownLinks.previewFileUrl(target.path());
+      return MarkdownLinks.previewFileUrl(target.path(), target.anchor());
     }
     return null;
   }

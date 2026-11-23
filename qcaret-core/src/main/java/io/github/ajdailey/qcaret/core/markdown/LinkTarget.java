@@ -21,13 +21,16 @@ import java.util.regex.Pattern;
  *   <li>Anything else is a {@link Kind#FILE} path: the query and fragment dropped, percent-decoded,
  *       and resolved against the document's folder unless absolute. A one-letter scheme is a
  *       Windows drive.
+ *   <li>A {@link Kind#FILE} target's fragment, the text after its first {@code #}, is its {@link
+ *       #anchor}, percent-decoded once: the heading the file opens at.
  * </ul>
  *
  * @param kind the classification
  * @param destination the destination as written, after Markdown escapes
  * @param path for {@link Kind#FILE}, the normalized absolute path; null for any other kind, for a
  *     relative path in an untitled document and for a path the file system rejects
- * @param anchor for {@link Kind#ANCHOR}, the name after {@code #}; null otherwise
+ * @param anchor for {@link Kind#ANCHOR}, the name after {@code #}; for {@link Kind#FILE}, the
+ *     fragment, null when none or empty; null for {@link Kind#URL}
  */
 public record LinkTarget(Kind kind, String destination, Path path, String anchor) {
   /** What a destination points at. */
@@ -62,15 +65,28 @@ public record LinkTarget(Kind kind, String destination, Path path, String anchor
       if (!destination.regionMatches(true, 0, "file:", 0, 5)) {
         return new LinkTarget(Kind.URL, destination, null, null);
       }
+      int hash = destination.indexOf('#');
       Path path;
       try {
-        path = Path.of(URI.create(destination)).normalize();
+        path =
+            Path.of(URI.create(hash < 0 ? destination : destination.substring(0, hash)))
+                .normalize();
       } catch (IllegalArgumentException | FileSystemNotFoundException e) {
         path = null;
       }
-      return new LinkTarget(Kind.FILE, destination, path, null);
+      return new LinkTarget(Kind.FILE, destination, path, fragment(destination));
     }
-    return new LinkTarget(Kind.FILE, destination, resolve(destination, folder), null);
+    return new LinkTarget(
+        Kind.FILE, destination, resolve(destination, folder), fragment(destination));
+  }
+
+  /** The decoded text after the first {@code #}; null when there is none or it is empty. */
+  private static String fragment(String destination) {
+    int hash = destination.indexOf('#');
+    if (hash < 0 || hash == destination.length() - 1) {
+      return null;
+    }
+    return decode(destination.substring(hash + 1));
   }
 
   private static Path resolve(String destination, Path folder) {

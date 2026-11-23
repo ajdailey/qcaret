@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.markdown.LinkTarget;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownFootnote;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownLink;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -19,16 +20,36 @@ final class MarkdownLinks {
    */
   static final String PREVIEW_FILE_SCHEME = "qcaret-file:";
 
+  private static final String HEX = "0123456789ABCDEF";
+
   private MarkdownLinks() {}
 
   /**
    * Returns the preview link of a local file.
    *
    * @param target the file
-   * @return its {@code file:} URL with {@link #PREVIEW_FILE_SCHEME} as the scheme
+   * @param heading the heading's id, or null
+   * @return its {@code file:} URL with {@link #PREVIEW_FILE_SCHEME} as the scheme, and the heading
+   *     as the fragment: its UTF-8 bytes other than letters, digits and {@code -._~} as {@code %XX}
    */
-  static String previewFileUrl(Path target) {
-    return PREVIEW_FILE_SCHEME + target.toUri().toString().substring("file:".length());
+  static String previewFileUrl(Path target, String heading) {
+    StringBuilder url = new StringBuilder(PREVIEW_FILE_SCHEME);
+    url.append(target.toUri().toString().substring("file:".length()));
+    if (heading != null) {
+      url.append('#');
+      for (byte b : heading.getBytes(StandardCharsets.UTF_8)) {
+        char c = (char) (b & 0xff);
+        if ((c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9')
+            || "-._~".indexOf(c) >= 0) {
+          url.append(c);
+        } else {
+          url.append('%').append(HEX.charAt(c >> 4)).append(HEX.charAt(c & 0xf));
+        }
+      }
+    }
+    return url.toString();
   }
 
   /** Scrolls the shown preview. */
@@ -42,8 +63,9 @@ final class MarkdownLinks {
 
   /**
    * Follows a click on Basic text: a footnote reference scrolls to its footnote, an anchor to its
-   * heading, a local file opens in QCaret, an {@code http}, {@code https}, {@code mailto} or {@code
-   * ftp} URL opens in the system browser; anything else is dropped.
+   * heading, a local file opens in QCaret at the heading its fragment names, an {@code http},
+   * {@code https}, {@code mailto} or {@code ftp} URL opens in the system browser; anything else is
+   * dropped.
    *
    * @param r the shown render
    * @param offset the rendered offset clicked
@@ -75,7 +97,7 @@ final class MarkdownLinks {
       }
       case FILE -> {
         if (target.path() != null) {
-          tab.openFile(target.path());
+          tab.openFile(target.path(), target.anchor());
         }
       }
       default -> {
@@ -88,8 +110,9 @@ final class MarkdownLinks {
 
   /**
    * Follows a Browser navigation: {@code about:} with a fragment scrolls to that id, a {@code
-   * file:} or {@link #PREVIEW_FILE_SCHEME} URL opens in QCaret, an {@code http}, {@code https},
-   * {@code mailto} or {@code ftp} URL opens in the system browser; anything else is dropped.
+   * file:} or {@link #PREVIEW_FILE_SCHEME} URL opens in QCaret at its fragment's heading, an {@code
+   * http}, {@code https}, {@code mailto} or {@code ftp} URL opens in the system browser; anything
+   * else is dropped.
    *
    * @param location the location the browser was about to load
    * @param tab opens files and URLs
@@ -111,7 +134,7 @@ final class MarkdownLinks {
     LinkTarget target = LinkTarget.of(url, null);
     if (target.kind() == LinkTarget.Kind.FILE) {
       if (target.path() != null) {
-        tab.openFile(target.path());
+        tab.openFile(target.path(), target.anchor());
       }
     } else if (target.kind() == LinkTarget.Kind.URL && webScheme(location)) {
       tab.openUrl(location);

@@ -93,8 +93,13 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     /** Shows a message in the window's status bar. */
     void notice(String message);
 
-    /** Opens a local file in QCaret. */
-    void openFile(Path path);
+    /**
+     * Opens a local file in QCaret.
+     *
+     * @param path the file
+     * @param heading the id of the heading the caret goes to, or null
+     */
+    void openFile(Path path, String heading);
 
     /** Opens a URL in the system browser. */
     void openUrl(String url);
@@ -134,6 +139,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   private final HeldMatch held = new HeldMatch();
   private int scrolledPreview = -1;
   private int scrolledSource = -1;
+  private int heldSource = -1;
   private CancellationToken decoding;
 
   private final MarkdownLinks.Scroller scroller =
@@ -213,6 +219,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
                   if (view != null) {
                     view.showRendered(next);
                     revealHeld();
+                    revealHeldSource();
                   }
                 }
               }
@@ -397,17 +404,30 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   }
 
   /**
-   * Scrolls the preview to the rendered line showing a source line, outside Source and once a
-   * render shows; the scroll is not mapped back to the editor.
+   * Scrolls the preview to the rendered line showing a source line, outside Source; the scroll is
+   * not mapped back to the editor. Before the first render shows, the line waits for it; an edit
+   * drops it.
    *
    * @param line a zero-based source line
    */
   void revealSource(int line) {
-    if (mode == MarkdownViewMode.SOURCE || shown == null) {
+    if (shown == null) {
+      heldSource = line;
       return;
     }
-    scrolledPreview = shown.rendered().renderedLine(line);
-    scrollPreview(scrolledPreview);
+    if (mode != MarkdownViewMode.SOURCE) {
+      scrolledPreview = shown.rendered().renderedLine(line);
+      scrollPreview(scrolledPreview);
+    }
+  }
+
+  /** Reveals the source line {@link #revealSource} held for the first render. */
+  private void revealHeldSource() {
+    int line = heldSource;
+    heldSource = -1;
+    if (line >= 0) {
+      revealSource(line);
+    }
   }
 
   /**
@@ -463,6 +483,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   }
 
   private void edited() {
+    heldSource = -1;
     if (mode == MarkdownViewMode.SOURCE) {
       return;
     }
@@ -606,6 +627,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
       view.showRendered(shown);
       decode();
       revealHeld();
+      revealHeldSource();
     }
   }
 }

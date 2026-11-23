@@ -73,7 +73,13 @@ an image's line is the line holding `MarkdownImage.start`.
 leading `//` is a URL, except `file:`, which is a local file with the URI's
 path; anything else is a local path with the query and fragment dropped,
 percent-decoded and resolved against the document's folder. A relative path in
-an untitled document, and a path the file system rejects, has a null path.
+an untitled document, and a path the file system rejects, has a null path. A
+local file's fragment, decoded once, is its `anchor`: the heading the file
+opens at.
+
+`HeadingPath` splits `name#id` at the file name's last `#` (`split`, no file
+read). `resolve` splits only when the whole path names no file and the part
+before the `#` names a regular file, since `#` is legal in a file name.
 
 ## Heading anchors
 
@@ -82,7 +88,8 @@ so a table of contents links to headings below it. The id follows GitLab: the
 text without HTML, lower case; letters, digits, `_` and `-` kept; spaces to
 `-`; other chars dropped; a run of `-` joined; a repeat gets `-1`, `-2`.
 commonmark's `heading-anchor` extension keeps `-` runs (`a  b` gives `a--b`),
-so it is not a dependency.
+so it is not a dependency. `MarkdownTree.headingSourceLine` finds a heading's
+source line by its id from a parse alone, with the ids a render gives.
 
 ## Source map
 

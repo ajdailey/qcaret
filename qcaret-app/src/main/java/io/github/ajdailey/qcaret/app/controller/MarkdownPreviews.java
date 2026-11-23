@@ -12,7 +12,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
 import java.nio.file.Path;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * The {@link MarkdownPreview} of each tab of one {@link DocumentController}, created on first use
@@ -37,7 +37,7 @@ final class MarkdownPreviews {
   private final MarkdownRenderer renderer = new MarkdownRenderer();
   private final DocumentGrammars grammars;
   private final MainView view;
-  private final Consumer<Path> openFile;
+  private final BiConsumer<Path, String> openFile;
   private final MemoryBudget budget;
   private final MarkdownImages images;
   private boolean browserChosen;
@@ -53,7 +53,7 @@ final class MarkdownPreviews {
    * @param ui receives results
    * @param grammars the window's grammars and highlight line limit
    * @param view opens URLs in the system browser and shows notices
-   * @param openFile opens a local file in the window
+   * @param openFile opens a local file in the window, with the caret at a heading or null
    * @param budget charged for a render above {@link #LIVE_LIMIT_CHARS}
    */
   MarkdownPreviews(
@@ -61,7 +61,7 @@ final class MarkdownPreviews {
       UiDispatcher ui,
       DocumentGrammars grammars,
       MainView view,
-      Consumer<Path> openFile,
+      BiConsumer<Path, String> openFile,
       MemoryBudget budget) {
     this.workers = workers;
     this.ui = ui;
@@ -123,8 +123,8 @@ final class MarkdownPreviews {
                 }
 
                 @Override
-                public void openFile(Path path) {
-                  openFile.accept(path);
+                public void openFile(Path path, String heading) {
+                  openFile.accept(path, heading);
                 }
 
                 @Override

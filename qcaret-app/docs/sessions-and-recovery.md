@@ -260,7 +260,10 @@ the dialog shows in the window activated last.
 | Original cannot be read | Listed as `UNREADABLE`, restorable; the other files of the instance are unaffected |
 | `recovery.keepDays` | Older files in dead directories go at start |
 
-`addRecovered` opens the buffer dirty and writes nothing. When the original
+`addRecovered` opens the buffer dirty and writes nothing. A buffer with no
+session tab takes its file's remembered Markdown pick, else
+`markdown.openMode`, as an open does (`DocumentSessions.applyRecovered`). When
+the original
 still holds the buffer's base, the document takes the file's current baseline;
 otherwise, or when the file cannot be read, it keeps the recorded base, so
 `ExternalChanges` shows the change prompt and a save asks first. The recorded

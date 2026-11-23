@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.cli.CommandLine;
 import io.github.ajdailey.qcaret.app.cli.CommandLineException;
 import io.github.ajdailey.qcaret.app.cli.CommandLineParser;
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
+import io.github.ajdailey.qcaret.app.cli.HeadingFiles;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.app.cli.Version;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
@@ -114,7 +115,7 @@ public final class Launcher {
   /** Runs the launch after the command line parsed; ends the log hold before {@link Gui}. */
   private int start(CommandLine line, UnopenedNames unopened) {
     Thread.setDefaultUncaughtExceptionHandler(new FailureLogger());
-    StartupRequest request = unopened.apply(line.request());
+    StartupRequest request = HeadingFiles.resolve(unopened.apply(line.request()));
     String message = unopened.message();
     if (message != null && LOG.isInfoEnabled()) {
       LOG.info("{}", LogText.oneLine(message));

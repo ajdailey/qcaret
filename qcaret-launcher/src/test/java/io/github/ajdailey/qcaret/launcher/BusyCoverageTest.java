@@ -179,6 +179,9 @@ class BusyCoverageTest {
     // User-started with a small input, or rerun on each keystroke in their own popup or dialog.
     String[] quick = {
       "controller.DateTimeInsert#choose",
+      // A heading pass over at most MarkdownPreviews.LIVE_LIMIT_CHARS, and a link's file check.
+      "controller.HeadingJumps#openLink",
+      "controller.HeadingJumps#start",
       "controller.QuickOpen#matchOnWorker",
       "controller.SessionController#forgetSearches",
       "controller.Settings#refresh",

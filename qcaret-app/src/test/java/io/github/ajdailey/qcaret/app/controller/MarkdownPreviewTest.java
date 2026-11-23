@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -98,6 +99,7 @@ class MarkdownPreviewTest {
   private final class FakeTab implements MarkdownPreview.Tab {
     final List<Integer> scrolled = new ArrayList<Integer>();
     final List<Path> files = new ArrayList<Path>();
+    final List<String> headings = new ArrayList<String>();
     final List<String> urls = new ArrayList<String>();
     final List<String> notices = new ArrayList<String>();
     int lastTop = Integer.MAX_VALUE;
@@ -145,8 +147,9 @@ class MarkdownPreviewTest {
     }
 
     @Override
-    public void openFile(Path path) {
+    public void openFile(Path path, String heading) {
       files.add(path);
+      headings.add(heading);
     }
 
     @Override
@@ -549,7 +552,7 @@ class MarkdownPreviewTest {
     tab.folder = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
     Document d =
         document(
-            "[top](#part-two) [file](notes.md) [web](https://example.com) note[^n]\n\n"
+            "[top](#part-two) [file](notes.md#set%20up) [web](https://example.com) note[^n]\n\n"
                 + "# Part two\n\n[^n]: The note.\n");
     MarkdownPreview p = preview(d, 1000);
     p.setMode(MarkdownViewMode.PREVIEW);
@@ -559,6 +562,7 @@ class MarkdownPreviewTest {
     assertEquals(List.of(r.headingLine("part-two")), pane.scrolls);
     p.clicked(r.links().get(1).start());
     assertEquals(List.of(tab.folder.resolve("notes.md")), tab.files);
+    assertEquals(List.of("set up"), tab.headings);
     p.clicked(r.links().get(2).start());
     assertEquals(List.of("https://example.com"), tab.urls);
     p.clicked(r.footnoteReferences().get(0).start());
@@ -848,7 +852,7 @@ class MarkdownPreviewTest {
     Path file = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("a.md");
     p.linkFollowed(file.toUri().toString());
     Path spaced = file.resolveSibling("mock notes.txt");
-    p.linkFollowed(MarkdownLinks.previewFileUrl(spaced));
+    p.linkFollowed(MarkdownLinks.previewFileUrl(spaced, "mock part \u00e9"));
     p.linkFollowed("https://example.invalid/x");
     p.linkFollowed("MAILTO:someone@example.invalid");
     p.linkFollowed("javascript:alert(1)");
@@ -856,6 +860,7 @@ class MarkdownPreviewTest {
     p.linkFollowed("other.txt");
     assertEquals(List.of("part two"), pane.anchors);
     assertEquals(List.of(file, spaced), tab.files);
+    assertEquals(Arrays.asList(null, "mock part \u00e9"), tab.headings);
     assertEquals(List.of("https://example.invalid/x", "MAILTO:someone@example.invalid"), tab.urls);
     p.dispose();
   }

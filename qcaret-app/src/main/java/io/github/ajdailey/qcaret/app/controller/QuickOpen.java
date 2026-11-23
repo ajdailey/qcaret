@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.markdown.HeadingPath;
 import io.github.ajdailey.qcaret.core.workspace.FileIndex;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -35,8 +36,10 @@ import java.util.regex.Pattern;
  * hold real paths, so a file is listed once; a link inside the workspace is indexed under its own
  * path and can list beside its target. A row's detail is the path below the workspace folder, the
  * whole path outside it, or empty for an untitled document. A query ending in {@code :line} or
- * {@code :line:column} (from 1) matches the text before it and moves the caret there on open.
- * Confined to the UI thread.
+ * {@code :line:column} (from 1) matches the text before it and moves the caret there on open. A
+ * query {@code name#heading}, with no {@code /} after the {@code #}, matches the text before it and
+ * moves the caret to that Markdown heading on open ({@link DocumentController#jumpToHeading}),
+ * unless the chosen file's name holds the {@code #heading}. Confined to the UI thread.
  *
  * <p>A query with {@code @} matches symbols: {@code @symbol} lists the selected document's symbols
  * ({@link SymbolRows}), and {@code file@symbol} matches the file before the {@code @} and on open
@@ -78,10 +81,15 @@ final class QuickOpen implements QuickOpenInput {
    * @param line the line from 1, or 0 when none was given
    * @param column the column from 1, or 0 when none was given
    * @param symbol the text after the first {@code @}, or null without one
+   * @param heading the heading id after the last {@code #}, percent-decoded once; null without one
    */
-  record Query(String text, int line, int column, String symbol) {
+  record Query(String text, int line, int column, String symbol, String heading) {
     Query(String text, int line, int column) {
-      this(text, line, column, null);
+      this(text, line, column, null, null);
+    }
+
+    Query(String text, int line, int column, String symbol) {
+      this(text, line, column, symbol, null);
     }
 
     static Query parse(String input) {
@@ -91,9 +99,17 @@ final class QuickOpen implements QuickOpenInput {
             input.substring(0, at).strip().replace('\\', '/'),
             0,
             0,
-            input.substring(at + 1).strip());
+            input.substring(at + 1).strip(),
+            null);
       }
       String query = input.strip().replace('\\', '/');
+      int hash = query.lastIndexOf('#');
+      if (hash > 0 && query.indexOf('/', hash) < 0) {
+        String heading = HeadingPath.heading(query.substring(hash + 1));
+        if (heading != null) {
+          return new Query(query.substring(0, hash), 0, 0, null, heading);
+        }
+      }
       Matcher m = POSITION.matcher(query);
       if (m.matches() && !m.group(1).isEmpty()) {
         int column = m.group(3) == null ? 0 : Integer.parseInt(m.group(3));
@@ -602,10 +618,18 @@ final class QuickOpen implements QuickOpenInput {
       symbols.jumpToBest(editor, chosen.symbol());
     } else if (chosen.line() > 0) {
       editor.goTo(chosen.line() - 1, Math.max(0, chosen.column() - 1));
+    } else if (chosen.heading() != null && !named(editor, chosen.heading())) {
+      documents.jumpToHeading(editor, chosen.heading());
     }
     if (editor.view() != null) {
       editor.view().focus();
     }
+  }
+
+  /** Reports whether an editor's file name holds {@code #heading}, which then names no heading. */
+  private boolean named(EditorController editor, String heading) {
+    String name = documents.nameOf(editor.document());
+    return name != null && name.contains("#" + heading);
   }
 
   @Override

@@ -37,8 +37,8 @@ line opens, tab moves out, Window menu list and placement record.
 
 `openHandoff` opens a handed launch in the window activated last, or a new one
 with `-n`, and raises it. `DocumentController.open(FileRequest)` applies the
-options; `+<line>` and `-r` also apply to a file already open, `-e` only to a
-file read now.
+options; `+<line>`, the heading and `-r` also apply to a file already open,
+`-e` only to a file read now.
 
 While the session restores, a launch (`-n` and `--diff` included) or a macOS
 open waits in `WindowSet`, unbounded, and opens in arrival order after the

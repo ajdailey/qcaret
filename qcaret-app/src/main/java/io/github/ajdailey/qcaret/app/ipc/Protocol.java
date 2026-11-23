@@ -18,7 +18,9 @@ import javax.crypto.spec.SecretKeySpec;
  * S: QCARET 1 PROOF nonceS HMAC(token, "server" nonceC nonceS)
  * C: AUTH HMAC(token, "client" nonceS nonceC)
  * C: WINDOW 0|1 x y width height          (1 = new window; - = not given)
- * C: OPEN path line column readOnly encoding   (repeated; 0 = none, encoding - = none)
+ * C: OPEN path line column readOnly encoding [heading]
+ *                                        (repeated; 0 = none, encoding - = none; heading only when
+ *                                        given)
  * C: DIFF left right                      (at most once)
  * C: END
  * S: OK | ERR

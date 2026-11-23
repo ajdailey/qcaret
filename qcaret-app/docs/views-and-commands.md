@@ -13,6 +13,10 @@ the `--window-*` geometry, `--settings`, `-m`, `-n`, `--session` or
 
 - Each `FileRequest` carries its `+<line>[:<column>]`, which goes to the next
   file only, and the `-r` and `-e` in force, which apply to every later file.
+- The launcher passes the request through `HeadingFiles.resolve` before the
+  handoff: `file.md#id` becomes the file and `FileRequest.heading`
+  (`HeadingPath.resolve`, which reads the file system). A `+<line>` wins over
+  the heading.
 - It accepts `--opt value`, `--opt=value`, `-o value`, combined short options
   (`-ml`, `-md2`) and `--`, after which every argument is a file, a `+<line>`
   too. `--diff` takes the next two arguments. `-e` is checked against the

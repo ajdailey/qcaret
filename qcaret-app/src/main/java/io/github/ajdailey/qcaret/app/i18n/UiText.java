@@ -2025,7 +2025,11 @@ public enum UiText {
   /** Tool tip and name of a Markdown tab's toolbar drop-down. */
   MARKDOWN_ACTIONS,
   /** Tool tip and name of the button listing the toolbar buttons a narrow window hides. */
-  TOOLBAR_MORE;
+  TOOLBAR_MORE,
+  /** Notice: a {@code file.md#id} target names no heading of the file; the id, the file's name. */
+  MARKDOWN_NO_HEADING,
+  /** Notice: a {@code file.md#id} target in a file too large to look in; name, limit, id. */
+  MARKDOWN_HEADING_TOO_LARGE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

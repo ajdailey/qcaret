@@ -33,6 +33,7 @@ final class DocumentGrammars {
   private Consumer<String> chosen;
   private Runnable applied;
   private Consumer<OpenDocument> markdownOpening;
+  private Consumer<OpenDocument> headingWaiting;
   private int maxLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
 
   DocumentGrammars(Workers workers, UiDispatcher ui, MainView view, List<OpenDocument> documents) {
@@ -75,6 +76,11 @@ final class DocumentGrammars {
   /** Sets what takes a document whose grammar is applied while it waits for its open mode. */
   void setMarkdownOpening(Consumer<OpenDocument> value) {
     markdownOpening = value;
+  }
+
+  /** Sets what takes a document after its grammar is applied, for a heading jump waiting on it. */
+  void setHeadingWaiting(Consumer<OpenDocument> value) {
+    headingWaiting = value;
   }
 
   /** Sets what runs after a document's grammar is applied, or null for nothing. */
@@ -210,6 +216,9 @@ final class DocumentGrammars {
     }
     if (d.markdownOpening && markdownOpening != null) {
       markdownOpening.accept(d);
+    }
+    if (headingWaiting != null) {
+      headingWaiting.accept(d);
     }
     for (EditorController e : d.editors) {
       e.setGrammar(editorGrammar(d));

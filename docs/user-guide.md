@@ -56,7 +56,8 @@ changes it asks first, and Undo brings them back.
 
 File > Open Path at Caret opens the file whose path is at the caret, such as
 `src/Main.java` or `C:\work\notes.txt`, and goes to a trailing `:line` or
-`:line:column`. A relative path is read from the document's folder, or from
+`:line:column`, or to a Markdown heading after `#` (see [Opening at a
+heading](#opening-at-a-heading)). A relative path is read from the document's folder, or from
 the workspace folder for an untitled document. A path with spaces needs quotes
 around it; otherwise the path ends at a space, a quote or one of
 `< > | ( ) [ ] { } , ; = * ?`, and a period or colon ending it is dropped. A
@@ -714,11 +715,24 @@ be selected and copied.
 The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on
 a link scrolls to a heading or footnote, opens a local file in QCaret (a path
-relative to the document or a `file:` address, in either renderer), or opens
-an `http`, `https`, `mailto` or `ftp` address in the system browser after
-asking: the dialog shows the full address, and Cancel, the default for Enter
-and Esc, opens nothing. A link with another scheme does nothing, and nothing
-loads without a click.
+relative to the document or a `file:` address, in either renderer; with a
+`#heading`, at that heading), or opens an `http`, `https`, `mailto` or `ftp`
+address in the system browser after asking: the dialog shows the full address,
+and Cancel, the default for Enter and Esc, opens nothing. A link with another
+scheme does nothing, and nothing loads without a click.
+
+### Opening at a heading
+
+`guide.md#setup` opens `guide.md` with the caret at the start of the heading
+`setup` names and that line at the top of the editor; in Split or Preview the
+preview scrolls to it. Preview links, the command line, Open Path at Caret and
+Quick Open take this form, and a file already open has its tab selected and its
+caret moved. The heading is named as a link inside the document names it, by
+GitLab's rules: lower case, a space as `-`, other punctuation dropped, and `-1`,
+`-2` added to repeated headings. An escape such as `%20` is decoded once. An id
+no heading has opens the file at its first line, and a file that is not Markdown
+ignores the `#heading`; both show `No heading #<id> in <file>` in the status
+bar. A file whose name holds the `#`, such as `notes.md#1`, opens as named.
 
 The preview has its own zoom, kept apart from the editor's: `Ctrl+=`, `Ctrl+-`
 and `Ctrl+0` (`Cmd` on macOS), the toolbar's Zoom buttons and View > Zoom In,
@@ -899,7 +913,8 @@ them hidden and system, so they show only with Hidden checked.
 File > Quick Open (`Ctrl+P`) matches a typed name against the open documents, in
 bold, then the workspace files, up to 200,000 indexed, then Recent Files. The
 query's letters match in order and need not be adjacent. A query ending in
-`:line` or `:line:column` opens there. With nothing typed it lists the open
+`:line` or `:line:column` opens there, and `guide#setup` opens `guide.md` at
+that heading (see [Opening at a heading](#opening-at-a-heading)). With nothing typed it lists the open
 documents and Recent Files. Window > Switch Document (`Ctrl+Shift+O`) is the same
 list over the open documents.
 
@@ -1244,6 +1259,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `-r`, `--read-only` | Open the following files read-only |
 | `-e`, `--encoding <name>` | Open the following files in this encoding |
 | `+<line>[:<column>]` | Place the caret in the next file |
+| `file.md#heading` | Place the caret at a Markdown heading, unless `+<line>` is given (see [Opening at a heading](#opening-at-a-heading)) |
 | `--session`, `--no-session` | Restore the previous session also with files or with "Restore the session at start" off, or skip it; a launch handed to the running instance ignores both |
 | `--diff <a> <b>` | Open the comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |

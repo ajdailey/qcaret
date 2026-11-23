@@ -14,7 +14,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 
 | Package | Contents | Detail |
 |---|---|---|
-| `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `Version` | [Views and commands](docs/views-and-commands.md) |
+| `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `HeadingFiles`, `Version` | [Views and commands](docs/views-and-commands.md) |
 | `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `MemoryFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
 | `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `StatusBarText`, `CommandPalette`, `MemoryIndicator`, `MemoryStatus`, `MemoryProbe`, `BusyWork`, `LaunchCursor` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
@@ -57,8 +57,8 @@ Controllers run work on these `Workers` pools:
 
 | Thread prefix | Work |
 |---|---|
-| `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Document Statistics, Insert Date and Time rows, text and selection checksums |
-| `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks |
+| `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Markdown heading passes, Document Statistics, Insert Date and Time rows, text and selection checksums |
+| `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks, preview link file checks |
 | `qcaret-search-` | Folder walks of HyperSearch, the workspace file index, a replace run or restore across files |
 | `qcaret-bulk-` | The CPU steps of the blocking tasks (`CpuSteps`): decode, encode and digest blocks of loads, reloads, saves, recovery files, searches and checksums; a load's text build and layout; replace matching, preview and encoding; save cleanup; grammar parsing |
 | `qcaret-watch-` | External change checks |

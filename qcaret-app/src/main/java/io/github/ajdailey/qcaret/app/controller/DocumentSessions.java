@@ -59,6 +59,22 @@ final class DocumentSessions {
   }
 
   /**
+   * Gives a recovered buffer with no session tab the Markdown mode its file's memory keeps, else
+   * {@code markdown.openMode}, as an open does.
+   *
+   * @param d the buffer's tab
+   * @param path the buffer's file, or null for an untitled buffer
+   */
+  void applyRecovered(OpenDocument d, Path path) {
+    Session.FileState state = path == null ? null : state(path);
+    if (state == null || state.markdown().isEmpty()) {
+      markdown.opened(d);
+    } else {
+      markdown.restore(d, state.markdown());
+    }
+  }
+
+  /**
    * Applies a file's remembered state to a document that opened it. Without a remembered Markdown
    * mode the tab takes {@code markdown.openMode} ({@link MarkdownPreviews#opened}).
    */

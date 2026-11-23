@@ -154,7 +154,14 @@ class HandoffTest {
     List<FileRequest> files = new ArrayList<FileRequest>();
     for (int i = 0; i < names.length; i++) {
       Path path = temp.resolve(names[i]).toAbsolutePath();
-      files.add(new FileRequest(path, i * 10, i, i % 2 == 1, i == 1 ? "UTF-16" : null));
+      files.add(
+          new FileRequest(
+              path,
+              i * 10,
+              i,
+              i % 2 == 1,
+              i == 1 ? "UTF-16" : null,
+              i == 0 ? "mock-part-\u00e9" : null));
     }
     return StartupRequest.handoff(files, false, null, null, null, null, null, null);
   }
@@ -504,6 +511,12 @@ class HandoffTest {
     assertNull(InstanceServer.parseOpen(path + " -1 0 0 -"));
     assertNull(InstanceServer.parseOpen(path + " 1 0 2 -"));
     assertNull(InstanceServer.parseOpen(path + " 1"));
+    String heading = Protocol.encode("mock-part".getBytes(StandardCharsets.UTF_8));
+    assertEquals(
+        new FileRequest(absolute, 0, 0, false, null, "mock-part"),
+        InstanceServer.parseOpen(path + " 0 0 0 - " + heading));
+    assertNull(InstanceServer.parseOpen(path + " 0 0 0 - "));
+    assertNull(InstanceServer.parseOpen(path + " 0 0 0 - " + heading + " " + heading));
     String unknown = Protocol.encode("no-such-charset".getBytes(StandardCharsets.UTF_8));
     assertNull(InstanceServer.parseOpen(path + " 1 0 0 " + unknown));
   }

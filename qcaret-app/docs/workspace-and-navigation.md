@@ -211,6 +211,9 @@ order among equals, then the index's files, at most 100 rows.
 - A row's detail is the path below the folder, the whole path outside it, or
   empty for an untitled document; `QuickOpenRow.open` marks an open document.
 - A query ending in `:line` or `:line:column` opens there.
+- A query `name#id`, with no `/` after the last `#`, matches `name` and on open
+  calls `DocumentController.jumpToHeading` with the decoded id, unless the
+  chosen file's name holds `#id`.
 - A query with `@` matches symbols ([Go to Symbol](#go-to-symbol)). `@text`
   lists the selected document's symbols; `file@text` matches files by the text
   before the first `@` and, on open, moves the caret to the symbol that `Fuzzy`

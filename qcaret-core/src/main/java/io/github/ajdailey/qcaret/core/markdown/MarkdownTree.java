@@ -71,6 +71,22 @@ public final class MarkdownTree {
   }
 
   /**
+   * Finds the heading a link to this document names, as {@link RenderedMarkdown#headingLine} does,
+   * without rendering.
+   *
+   * @param anchor the GitLab id, compared exactly
+   * @return the heading's first 0-based source line, or -1 when no heading has the id
+   */
+  public int headingSourceLine(String anchor) {
+    for (HeadingAnchors.Entry e : anchors.entries()) {
+      if (e.anchor().equals(anchor)) {
+        return firstLine(e.heading());
+      }
+    }
+    return -1;
+  }
+
+  /**
    * Returns a block's first source line.
    *
    * @param block a block of this tree

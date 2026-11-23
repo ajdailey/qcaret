@@ -145,7 +145,8 @@ public final class InstanceClient {
         + " "
         + (file.readOnly() ? "1" : "0")
         + " "
-        + (file.encoding() == null ? Protocol.NONE : text(file.encoding()));
+        + (file.encoding() == null ? Protocol.NONE : text(file.encoding()))
+        + (file.heading() == null ? "" : " " + text(file.heading()));
   }
 
   private static String number(Integer value) {

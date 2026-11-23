@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
@@ -146,6 +147,7 @@ public final class DocumentController {
   private boolean wrap;
   private final DocumentGrammars grammars;
   private final MarkdownPreviews markdown;
+  private final HeadingJumps headings;
   private final MarkdownExport htmlExport;
   private final DocumentEncodings encodings;
   private final TabClosing closing;
@@ -472,23 +474,28 @@ public final class DocumentController {
     this.options = options;
     this.declared = new DocumentSettings(workers, ui, view);
     this.grammars = new DocumentGrammars(workers, ui, view, documents);
+    this.headings =
+        new HeadingJumps(
+            workers,
+            ui,
+            view,
+            grammars,
+            new BiConsumer<Path, String>() {
+              @Override
+              public void accept(Path path, String heading) {
+                openAtHeading(path, heading);
+              }
+            });
     this.markdown =
         new MarkdownPreviews(
             workers,
             ui,
             grammars,
             view,
-            new Consumer<Path>() {
+            new BiConsumer<Path, String>() {
               @Override
-              public void accept(Path path) {
-                open(
-                    path,
-                    new Consumer<EditorController>() {
-                      @Override
-                      public void accept(EditorController editor) {
-                        // The tab shows; nothing else to do.
-                      }
-                    });
+              public void accept(Path path, String heading) {
+                headings.openLink(path, heading);
               }
             },
             budget);
@@ -501,6 +508,13 @@ public final class DocumentController {
           @Override
           public void accept(OpenDocument d) {
             markdown.grammarApplied(d);
+          }
+        });
+    grammars.setHeadingWaiting(
+        new Consumer<OpenDocument>() {
+          @Override
+          public void accept(OpenDocument d) {
+            headings.grammarApplied(d);
           }
         });
     this.changes =
@@ -1366,6 +1380,7 @@ public final class DocumentController {
     }
     d.document.removeListener(d);
     markdown.closed(d);
+    headings.closed(d);
     release.run();
     int index = documents.indexOf(d);
     documents.remove(d);
@@ -2306,8 +2321,8 @@ public final class DocumentController {
   }
 
   /**
-   * Opens a file with its command-line options. {@code +<line>[:<column>]} and {@code -r} also
-   * apply to a file already open; {@code -e} applies only to a file read now.
+   * Opens a file with its command-line options. {@code +<line>[:<column>]}, a heading and {@code
+   * -r} also apply to a file already open; {@code -e} applies only to a file read now.
    *
    * @param file the file and its options
    */
@@ -2339,6 +2354,41 @@ public final class DocumentController {
     }
     if (file.line() > 0) {
       editor.goTo(file.line() - 1, Math.max(0, file.column() - 1));
+    } else if (file.heading() != null) {
+      jumpToHeading(editor, file.heading());
+    }
+  }
+
+  /**
+   * Opens a file, or selects its tab, with the caret at a Markdown heading.
+   *
+   * @param path the file
+   * @param heading the heading's GitLab id ({@link HeadingJumps}), or null to leave the caret
+   */
+  void openAtHeading(Path path, final String heading) {
+    open(
+        path,
+        new Consumer<EditorController>() {
+          @Override
+          public void accept(EditorController editor) {
+            if (heading != null) {
+              jumpToHeading(editor, heading);
+            }
+          }
+        });
+  }
+
+  /**
+   * Moves an editor's caret to a Markdown heading of its document, in the window holding it.
+   *
+   * @param editor the editor
+   * @param heading the heading's GitLab id ({@link HeadingJumps})
+   */
+  void jumpToHeading(EditorController editor, String heading) {
+    DocumentController holder = holderOf(editor.document());
+    OpenDocument d = holder == null ? null : holder.entry(editor.document());
+    if (d != null) {
+      holder.headings.jump(d, editor, heading);
     }
   }
 
@@ -2889,6 +2939,7 @@ public final class DocumentController {
       d.file.forced = tab.encoding().isEmpty() ? null : document.encoding().charset();
     } else {
       grammars.restore(d, header.language());
+      sessions.applyRecovered(d, r.real());
       SelectionSet set = SessionText.selections(header.selection(), document.text().length());
       d.editor.restoreView(set, 0, new int[0]);
       d.tab.showCaret();

@@ -405,13 +405,17 @@ public final class InstanceServer implements AutoCloseable {
   }
 
   /**
-   * Parses {@code <path> <line> <column> <readOnly> <encoding>}.
+   * Parses {@code <path> <line> <column> <readOnly> <encoding> [<heading>]}.
    *
    * @return the file; null when malformed, not absolute or in an encoding the runtime lacks
    */
   static FileRequest parseOpen(String text) {
     String[] parts = text.split(" ", -1);
-    if (parts.length != 5 || !("0".equals(parts[3]) || "1".equals(parts[3]))) {
+    if (parts.length < 5 || parts.length > 6 || !("0".equals(parts[3]) || "1".equals(parts[3]))) {
+      return null;
+    }
+    String heading = parts.length == 6 ? decodeText(parts[5]) : null;
+    if (parts.length == 6 && (heading == null || heading.isEmpty())) {
       return null;
     }
     Path path = absolutePath(parts[0]);
@@ -423,7 +427,7 @@ public final class InstanceServer implements AutoCloseable {
       if (path == null || line < 0 || column < 0 || (named && !supported(encoding))) {
         return null;
       }
-      return new FileRequest(path, line, column, "1".equals(parts[3]), encoding);
+      return new FileRequest(path, line, column, "1".equals(parts[3]), encoding, heading);
     } catch (NumberFormatException e) {
       return null;
     }

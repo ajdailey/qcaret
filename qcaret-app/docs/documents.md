@@ -290,10 +290,12 @@ its heap reservation.
   `:line:column` ([rules](../../qcaret-core/docs/documents.md#path-at-the-caret));
   a relative path resolves against the document's folder, or
   `WorkspaceController.root` for an untitled document, and must name a regular
-  file. The file opens through `open(Path, Consumer)`, so an open file selects
-  its tab and a new one goes through `DocumentOpener`; the caret then goes to
-  the line and visual column. No path, a URL, no base folder or no regular file
-  shows a notice instead. A newer run drops an older result.
+  file. A path naming no file is split by `HeadingPath.resolve` into a file
+  and a Markdown heading. The file opens through `open(Path, Consumer)`, so an
+  open file selects its tab and a new one goes through `DocumentOpener`; the
+  caret then goes to the line and visual column, or the heading
+  ([Heading jumps](#heading-jumps)). No path, a URL, no base folder or no
+  regular file shows a notice instead. A newer run drops an older result.
 - Read-Only, the tab width and indentation with spaces are per document.
 - Go to Line asks for `line`, `line:column` or `line,column`, from 1, and
   passes `parsePosition` to the view as the validator that enables OK; other
@@ -405,7 +407,8 @@ report of that line is ignored. With `markdown.syncScroll` off
 other side; `revealSource`, a find match and a link still scroll the preview.
 `MarkdownLinks` follows links. A click
 (`clicked`) on Basic text follows its link: an anchor scrolls the preview to
-its heading, a local file opens in the window, an `http`, `https`, `mailto` or
+its heading, a local file opens in the window at the heading its fragment
+names (`HeadingJumps.openLink`), an `http`, `https`, `mailto` or
 `ftp` URL goes to `MainView.askOpenUrl`, whose Open runs `MainView.launchUrl`
 and whose Cancel opens nothing, and any other URL, such as
 `javascript:` or `smb:`, is dropped; a footnote reference scrolls to its
@@ -447,7 +450,7 @@ HTML stays as written.
 | `>>>`, `[[_TOC_]]` | `blockquote`; nested `ul.section-nav` of links to the headings |
 | Local image | `data:` URI when its type is known, it is at most 16 MiB and the document's embedded total stays within 64 MiB; else its alt text |
 | Remote image | A link with its alt text |
-| Link to a local file | Preview: the file's `file:` URL with `qcaret-file:` as the scheme (`MarkdownLinks.previewFileUrl`; see [Browser pane](../../qcaret-ui-swt/docs/markdown-preview.md#browser-pane)). Export: as written |
+| Link to a local file | Preview: the file's `file:` URL with `qcaret-file:` as the scheme and the fragment kept (`MarkdownLinks.previewFileUrl`; see [Browser pane](../../qcaret-ui-swt/docs/markdown-preview.md#browser-pane)). Export: as written |
 
 Code colors and image bytes are read in a pass before rendering, so file reads
 stay in `@WorkerThread` methods. `MarkdownPage` (app.editor) wraps a fragment
@@ -488,7 +491,32 @@ dock is hidden.
   `MarkdownPreview.revealSource`, which scrolls the preview to the heading's
   rendered line without mapping the scroll back. Heading lines come from the
   last finished render, so after an edit they can be off until the next one;
-  the line is clamped to the document.
+  the line is clamped to the document. Before a tab's first render shows,
+  `revealSource` holds the line for it; an edit drops the held line.
+
+### Heading jumps
+
+`HeadingJumps` moves a tab's caret to the heading a `file.md#id` target names,
+for the command line and its handoff (`DocumentController.open(FileRequest)`),
+preview links, Open Path at Caret and Quick Open, all through
+`DocumentController.jumpToHeading`, which uses the jumps of the window holding
+the document.
+
+- A tab whose grammar is not known yet waits for `DocumentGrammars` to apply
+  one (`setHeadingWaiting`). A grammar other than `markdown` ignores the id
+  and shows `MARKDOWN_NO_HEADING`.
+- A heading pass on a `qcaret-cpu-` worker parses a text snapshot
+  (`MarkdownTree.headingSourceLine`), with the ids a render gives; nothing is
+  rendered. A document over `LIVE_LIMIT_CHARS` is not parsed and shows
+  `MARKDOWN_HEADING_TOO_LARGE`.
+- The UI thread puts the caret at the heading line's start and that line at
+  the editor's top, and calls `MarkdownPreview.revealSource`. An unknown id
+  puts the caret on line 0 and shows `MARKDOWN_NO_HEADING`.
+- A tab holds one jump; a later one replaces it. A pass whose tab closed or
+  whose document was edited since the snapshot is dropped.
+- `openLink` checks on a `qcaret-io-` worker for a regular file named with the
+  whole `name#id` (`HeadingPath.whole`); one that exists opens with no
+  heading.
 
 ## Printing
 

@@ -46,7 +46,8 @@ C: QCARET 1 HELLO nonceC
 S: QCARET 1 PROOF nonceS HMAC(token, "server" nonceC nonceS)
 C: AUTH HMAC(token, "client" nonceS nonceC)
 C: WINDOW 0|1 x y width height                (1 = -n; - = not given)
-C: OPEN path line column readOnly encoding    (repeated; 0 and - = none)
+C: OPEN path line column readOnly encoding [heading]
+                                              (repeated; 0 and - = none)
 C: DIFF left right                            (at most once)
 C: END
 S: OK | ERR
@@ -54,8 +55,10 @@ S: OK | ERR
 
 - Nonces are 32 bytes from `SecureRandom`, compared with
   `MessageDigest.isEqual`.
-- Paths and encoding names travel as base64url of their UTF-8 bytes, so a file
-  name holding a line break cannot split a line.
+- Paths, encoding names and headings travel as base64url of their UTF-8 bytes,
+  so a file name holding a line break cannot split a line.
+- The client sends the heading field only for a file with a heading, so a
+  primary that reads five fields still takes every other file.
 - The server proves the token first, so a client sends no file to a process
   without it; a peer that fails `AUTH` gets no reply.
 - A path must be absolute and an encoding known to the runtime, else the
