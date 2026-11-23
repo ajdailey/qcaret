@@ -463,6 +463,7 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `lightChecksUnderDark` | yes | - | - | - | `SwtThemeService.check` |
 | `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
 | `colorsTreesUnderDark` | yes | - | - | - | `BrowserColors`: the Workspace Browser's tree, header and fields under a dark palette |
+| `colorsChromeUnderDark` | yes | - | - | - | `ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks and preview notices under a dark palette (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |

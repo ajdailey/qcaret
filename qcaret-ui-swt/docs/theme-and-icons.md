@@ -1,6 +1,6 @@
 # Theme and icons
 
-`SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, tab colors, `ToolIcons` and `MenuIcons` in
+`SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, `ChromeColors`, tab colors, `ToolIcons` and `MenuIcons` in
 `ui.swt` of [qcaret-ui-swt](../README.md). The palette and theme modes are in
 [qcaret-app help and themes](../../qcaret-app/docs/help-and-themes.md#themes).
 
@@ -18,7 +18,7 @@ at the event.
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
 | GTK | `setDarkThemePreferred` before the first Shell for light and dark, and at every switch; under System the GTK theme's own setting | Applies at once. The system setting is read once at Display creation, so a desktop change applies at the next start |
-| win32 | `setDarkThemePreferred` before the first Shell, under System from `Display.isSystemDarkTheme` at start (`PlatformTraits.themesAtCreation`); controls read it only when created | Native controls, tool tips included, change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark, and `DialogSurfaces` colors dialogs; see [win32](#win32) |
+| win32 | `setDarkThemePreferred` before the first Shell, under System from `Display.isSystemDarkTheme` at start (`PlatformTraits.themesAtCreation`); controls read it only when created | Native controls, tool tips included, change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark, and `DialogSurfaces` colors dialogs; `ChromeColors` and `BrowserColors` color the main window's own surfaces at once; see [win32](#win32) |
 | cocoa | Never set: always the system appearance | Only the text view and tab strip recolor; a system appearance change recolors the rest through `CocoaChrome` |
 
 DO NOT PIN THE COCOA APPEARANCE, live or at startup. Cocoa SWT reads its widget
@@ -65,7 +65,7 @@ Measured on `windows-2025` with SWT 3.135.0 under a dark startup setting
 `getBackground` reports the light window color for a push button as well, so an
 icon inked from it is dark on dark. Icons therefore sit only on tool bars,
 which draw light like the window; the main toolbar and the workspace browser's
-row read `#f0f0f0`. `Text.setBackground` and `setForeground` do color a field
+row read `#f0f0f0` until `ChromeColors` colors them. `Text.setBackground` and `setForeground` do color a field
 under the dark setting, a disabled field's background included (disabled text
 stays system gray). The hint (`setMessage`) stays the theme's gray: 87,87,87 on
 `Palette.DARK`'s background, measured on Windows 11 at 150 %. The first color puts the field under the dark
@@ -78,6 +78,42 @@ after a live switch, on the light dock row, and `FieldHint` draws the fields'
 hints in `Palette.DARK`'s unselected tab label color. After a dark start the two fields
 keep `Palette.DARK`'s colors on the light side until the next start
 ([dialogs and docks](dialogs-and-docks.md#workspace-browser)).
+
+#### Chrome colors
+
+`ChromeColors` (`PlatformTraits.colorsChromeUnderDark`) colors the main
+window's own surfaces while `ui.theme` resolves to dark, at once after a live
+switch either way: `Palette.DARK`'s `gutter` (`#162638`, the tab strip's) as
+background and its `text` as foreground, a link its link color raised to 4.5
+contrast, and `SWT.INHERIT_DEFAULT` on each composite so push button corners
+match. On the light side every such color is null. `MainWindow` registers the
+toolbar row (its clip, the `ToolBar` and the More button's bar), the status bar,
+the find bar, the load and print rows, the side sash with every dock under it,
+and each preview's notice strip; a control created later under one takes its
+colors from `SWT.Skin`.
+
+| Control | Under dark |
+|---|---|
+| `Composite`, `SashForm`, `Label`, `Link`, `ToolBar`, `Canvas` (the memory gauge), check box | Palette colors |
+| Push and arrow `Button`, `Text`, `Combo`, `List`, `Table`, `Tree`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into; `BrowserColors` colors the docks' trees and the browser fields |
+| `CTabFolder`, a control with `EditorPane.PALETTE_COLORED` | Unchanged, not descended into |
+
+A check box keeps `SwtThemeService.check`'s light-theme creation, so under the
+dark palette its enabled label takes the palette text; a disabled label stays
+system gray. win32 `ToolBar` passes its foreground to text items (Source,
+Split, Preview) through `NMTBCUSTOMDRAW.clrText` (SWT 3.135.0 source, unverified
+on Windows).
+
+After each change `ChromeColors` re-inks the main toolbar's and the Workspace
+Browser's `ToolIcons` from the toolbar's background and calls
+`fadeDisabled`: every tool item takes the faded copy (40% opacity) as its
+`setDisabledImage`. SWT's own disabled copy (`ImageColorTransformer`, gray
+`0.2 * (2.9 * gray - 128) + 128`) maps the light ink `#d4d4d4` to `#e1e1e1`,
+brighter than the enabled icon, so a disabled item would look enabled.
+Measured by `ChromeColorsTest` on `#162638` with SWT 3.135.0 (the transformer is
+shared by GTK and win32): the enabled icons 9.1 or more, SWT's copy 10.1 or
+more, the faded copy 2.6 to 2.9. Menus keep their startup ink
+(`fixedMenuInk`), which matches the startup menus.
 
 #### Dialog colors
 
@@ -159,7 +195,7 @@ so every surface takes its colors from one of the two, never a mix:
 | Colors from | Surfaces |
 |---|---|
 | `Palette` | Editor text, gutter, caret, overview strip, tab strip, compare window views, replace preview |
-| Native theme | Menus, toolbar and its icons, docks, find bar, status bar, dialogs, title bars, About logo |
+| Native theme | Menus, toolbar and its icons, docks, find bar, status bar, dialogs, title bars, About logo; under dark on win32 `ChromeColors` colors the bars and docks, `DialogSurfaces` the dialogs |
 
 The replace preview takes the palette's text and background, because its
 removed and added tints derive from the palette background: under native colors

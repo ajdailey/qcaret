@@ -127,6 +127,11 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
+  public boolean colorsChromeUnderDark() {
+    return true;
+  }
+
+  @Override
   public boolean macKeys() {
     return false;
   }

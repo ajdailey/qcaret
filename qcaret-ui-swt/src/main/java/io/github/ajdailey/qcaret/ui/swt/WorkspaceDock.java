@@ -240,6 +240,15 @@ final class WorkspaceDock {
   }
 
   /**
+   * Returns the icons of the button row and the navigation row.
+   *
+   * @return the icons
+   */
+  ToolIcons icons() {
+    return icons;
+  }
+
+  /**
    * Returns the row of icon tool bars.
    *
    * @return the row

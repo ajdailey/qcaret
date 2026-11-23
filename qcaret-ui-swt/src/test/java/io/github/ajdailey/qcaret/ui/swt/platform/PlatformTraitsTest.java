@@ -41,6 +41,7 @@ class PlatformTraitsTest {
     "lightChecksUnderDark",
     "colorsDialogs",
     "colorsTreesUnderDark",
+    "colorsChromeUnderDark",
     "macKeys",
     "linuxKeys",
     "opensPrintDialog",
@@ -80,6 +81,7 @@ class PlatformTraitsTest {
     answers.add(traits.lightChecksUnderDark());
     answers.add(traits.colorsDialogs());
     answers.add(traits.colorsTreesUnderDark());
+    answers.add(traits.colorsChromeUnderDark());
     answers.add(traits.macKeys());
     answers.add(traits.linuxKeys());
     answers.add(traits.opensPrintDialog());
@@ -129,6 +131,7 @@ class PlatformTraitsTest {
         true,
         true,
         true,
+        true,
         false,
         false,
         true,
@@ -164,6 +167,7 @@ class PlatformTraitsTest {
         false,
         false,
         true,
+        false,
         false,
         false,
         false,
@@ -211,6 +215,7 @@ class PlatformTraitsTest {
         false,
         false,
         false,
+        false,
         true,
         true,
         SWT.CURSOR_APPSTARTING,
@@ -247,6 +252,7 @@ class PlatformTraitsTest {
         false,
         false,
         true,
+        false,
         false,
         false,
         false,

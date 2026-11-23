@@ -235,6 +235,15 @@ public interface PlatformTraits {
   boolean colorsTreesUnderDark();
 
   /**
+   * Reports whether the main window's toolbar row, status bar, docks, find bar and preview notices
+   * take the palette's colors under a dark palette. win32 SWT draws a {@code ToolBar}, {@code
+   * Composite}, {@code Label} and {@code Link} light under the dark theme.
+   *
+   * @return true on win32
+   */
+  boolean colorsChromeUnderDark();
+
+  /**
    * Reports whether key names follow macOS.
    *
    * @return true on cocoa

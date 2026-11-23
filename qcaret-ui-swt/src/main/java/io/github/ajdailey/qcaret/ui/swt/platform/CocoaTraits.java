@@ -127,6 +127,11 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
+  public boolean colorsChromeUnderDark() {
+    return false;
+  }
+
+  @Override
   public boolean macKeys() {
     return true;
   }

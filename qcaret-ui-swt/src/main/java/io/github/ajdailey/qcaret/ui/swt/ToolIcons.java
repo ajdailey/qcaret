@@ -239,6 +239,7 @@ final class ToolIcons {
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
   private final boolean fixedInk;
   private final boolean faded = PlatformTraits.PLATFORM.fadesDisabledIcons();
+  private boolean disabledCopies;
   private Image blank;
   private boolean darkBackground;
 
@@ -327,6 +328,9 @@ final class ToolIcons {
     }
     keepIconSize(item);
     item.setImage(image);
+    if (disabledCopies) {
+      item.setDisabledImage(get(name + FADED));
+    }
     if (items.put(item, name) == null) {
       item.addListener(
           SWT.Dispose,
@@ -470,6 +474,24 @@ final class ToolIcons {
   }
 
   /**
+   * Gives every tool item given to {@link #apply} a faded copy of its icon as its disabled image
+   * while on, and the platform's disabled image while off. SWT's disabled copy on win32 maps the
+   * light ink to gray 225, brighter than the enabled ink, so on a dark surface QCaret paints
+   * ({@link ChromeColors}) a disabled item would look enabled.
+   *
+   * @param on true for the faded copies
+   */
+  void fadeDisabled(boolean on) {
+    if (on == disabledCopies) {
+      return;
+    }
+    disabledCopies = on;
+    for (ToolItem item : items.keySet()) {
+      showState(item);
+    }
+  }
+
+  /**
    * Shows the image of an item's enabled state; call after changing it. An item not given to {@link
    * #apply} keeps its image.
    *
@@ -483,6 +505,10 @@ final class ToolIcons {
     Image image = get(faded && darkBackground && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
+    }
+    Image disabled = disabledCopies ? get(name + FADED) : null;
+    if (item.getDisabledImage() != disabled) {
+      item.setDisabledImage(disabled);
     }
   }
 

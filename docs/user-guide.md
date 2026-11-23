@@ -348,10 +348,12 @@ apply (measured on Linux, one million lines):
   saved; it is off at first.
 - View > Theme chooses Light, Dark or System. On Windows native controls change
   at the next start, and System takes them from the Windows setting at start;
-  under a dark start, dialogs are dark while the main window's docks, fields and
-  toolbar stay light. The Workspace Browser's file list and its path and filter
-  fields are dark whenever the theme is, switching at once; after a dark start
-  the two fields stay dark until the next start. On macOS they
+  under a dark start, dialogs are dark. The toolbar and its icons, the status
+  bar, the find bar, the docks' rows and the Markdown preview's notice, and the
+  Workspace Browser's file list and its path and filter fields, are dark
+  whenever the theme is, switching at once. Push buttons and the other
+  fields keep the Windows look of the start; after a dark start the
+  Workspace Browser's two fields stay dark until the next start. On macOS they
   follow the system appearance, also while QCaret runs. On Linux a GTK theme
   with no dark variant keeps native controls light; the editor and tabs still
   change.

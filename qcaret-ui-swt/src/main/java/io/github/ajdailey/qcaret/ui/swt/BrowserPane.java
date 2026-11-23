@@ -274,6 +274,15 @@ final class BrowserPane {
     return root;
   }
 
+  /**
+   * Returns the size notice strip above the browser.
+   *
+   * @return the strip
+   */
+  Composite notice() {
+    return notice;
+  }
+
   /** Focuses the browser. */
   void focus() {
     if (!browser.isDisposed()) {

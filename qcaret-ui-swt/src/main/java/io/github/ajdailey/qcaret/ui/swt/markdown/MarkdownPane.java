@@ -324,6 +324,15 @@ public final class MarkdownPane {
     return text;
   }
 
+  /**
+   * Returns the size notice strip above the text.
+   *
+   * @return the strip
+   */
+  public Composite notice() {
+    return notice;
+  }
+
   /** Focuses the text. */
   public void focus() {
     if (!text.isDisposed()) {

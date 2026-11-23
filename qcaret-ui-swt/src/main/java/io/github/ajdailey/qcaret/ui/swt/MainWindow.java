@@ -164,6 +164,7 @@ public final class MainWindow implements MainView {
   private final List<Image> icons;
   private final ToolIcons toolIcons;
   private final MenuIcons menuIcons;
+  private final ChromeColors chrome;
   private final SwtUiDispatcher dispatcher;
 
   private final Composite statusBar;
@@ -308,6 +309,7 @@ public final class MainWindow implements MainView {
                     new MarkdownPane(frame, input, MainWindow.this.palette, dispatcher, fontName);
                 PaneFocus.mark(pane.text(), true);
                 PreviewWheel.attach(pane.text(), controller);
+                chrome.add(pane.notice());
                 return pane;
               }
 
@@ -318,6 +320,7 @@ public final class MainWindow implements MainView {
                     new BrowserPane(frame, input, browserFactory, browserDispatcher, failure);
                 PaneFocus.mark(pane.control(), true);
                 PreviewWheel.attach(pane.browser(), controller);
+                chrome.add(pane.notice());
                 return pane;
               }
 
@@ -426,6 +429,7 @@ public final class MainWindow implements MainView {
     busy = new BusyCounter(dispatcher, busyCursor);
     toolIcons = new ToolIcons(toolBar);
     menuIcons = new MenuIcons(toolBar);
+    chrome = new ChromeColors(PlatformTraits.PLATFORM, display);
     applyPalette(palette);
     trackWindowState();
     acceptDroppedFiles();
@@ -437,6 +441,7 @@ public final class MainWindow implements MainView {
             if (controller != null) {
               controller.theme().removeListener(paletteListener);
             }
+            chrome.dispose();
             font.dispose();
             for (Image image : icons) {
               image.dispose();
@@ -548,11 +553,21 @@ public final class MainWindow implements MainView {
           @Override
           public void themeChanged(boolean dark) {
             workspaceDock.setDark(dark);
+            chrome.apply(dark);
           }
         };
     controller.theme().addListener(paletteListener);
     applyPalette(controller.theme().palette());
     workspaceDock.setDark(controller.theme().dark());
+    chrome.add(toolbarRow.row());
+    chrome.add(statusBar);
+    chrome.add(findBar.control());
+    chrome.add(loadBar.control());
+    chrome.add(printBar.control());
+    chrome.add(side);
+    chrome.add(toolIcons);
+    chrome.add(workspaceDock.icons());
+    chrome.apply(controller.theme().dark());
   }
 
   /**
