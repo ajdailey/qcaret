@@ -21,11 +21,13 @@ class OverviewMarksTest {
   @Test
   void eachKindMarksItsRows() {
     OverviewMarks marks =
-        OverviewMarks.of(10, 3, 10, new int[] {1, 1}, new int[] {1, 9}, new int[] {20, 4});
+        OverviewMarks.of(
+            10, 3, 10, new int[] {1, 1}, new int[] {1, 9}, new int[] {20, 4}, new int[] {6});
     assertEquals(10, marks.height());
     assertEquals(OverviewMarks.FIND | OverviewMarks.SEARCH, marks.rows()[1]);
     assertEquals(OverviewMarks.SEARCH, marks.rows()[9]);
     assertEquals(OverviewMarks.BOOKMARK, marks.rows()[4]);
+    assertEquals(OverviewMarks.ERROR, marks.rows()[6]);
     assertEquals(0, marks.rows()[0]);
     assertEquals(3, marks.revision());
   }

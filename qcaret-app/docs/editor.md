@@ -199,7 +199,21 @@ break is the document's line ending. `editor.strictJson` limits JSON to RFC
 
 A failure changes nothing, moves the caret to the error and shows a notice
 with the format, line, column and reason; the column is the status bar's, with
-tabs expanded. Check shows a notice naming the format; for JSON with comments,
+tabs expanded. `FormatErrorMark` marks the error through
+`EditorView.showErrorMark` and as an `OverviewMarks.ERROR` row: the run of
+letters, digits and `_-.:` holding the error offset, or else the char there
+with the run ending at it, since the parser reports a name joined to what
+follows (`<bookid="1">`) at the first char after the name. The next document
+change, the next error or the next run that completes replaces or clears the
+mark. It belongs to the view that ran the command; a split's other view shows
+none.
+
+A Pretty Print or Minify with no edit shows `FormatUnchanged`'s notice: the
+first kept content from `FormatResult.kept`, with its line and, for text of
+invisible chars only, the first one's code and Unicode name; else that the
+text is already formatted or minified.
+
+Check shows a notice naming the format; for JSON with comments,
 that the comments are not standard JSON; for an XML selection parsed as a
 fragment, that the selection is a well-formed XML fragment. Pretty Print and Minify do
 nothing on a read-only document; Check runs on any. Each range's output is
@@ -314,8 +328,8 @@ chunks or buffer fills.
 Each editor view has an `OverviewUpdater` that computes its strip's
 `OverviewMarks` on a `qcaret-cpu-` worker: the find bar's matches over the
 whole document while the bar is open on the selected document (at most
-1,000,000), the matches of the set last navigated or else the newest set, and
-the bookmarks.
+1,000,000), the matches of the set last navigated or else the newest set, the
+bookmarks and the format error line.
 
 - A request waits 150 ms, so an edit burst computes once; edits, bookmark
   changes, the find query, the results and the strip's height request it.

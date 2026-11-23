@@ -251,6 +251,17 @@ it, or the first `FormatError` (offset, line, UTF-16 column, reason), never
 both. An error in any range fails the run. Pretty Print and Minify refuse what
 Check reports. The whole text must hold one complete document.
 
+An XML Pretty Print or Minify with neither an edit nor an error sets
+`FormatResult.kept` (`KeptContent`, found by `XmlKept`): in the first range
+that has one, the first element in text order whose content stays as written
+and holds an element, comment or PI beside text (`TEXT`), beside CDATA and no
+text (`CDATA`), or under `xml:space="preserve"` (`PRESERVE`); a fragment's top
+level holding text reports a null element. It carries the start tag's offset
+and line, and for `TEXT` whose chars outside XML whitespace are all spaces,
+format or control chars (U+00A0, U+200B), the first of them. Content of text
+and CDATA only is not reported: laying it out would change nothing. JSON and
+an edit leave `kept` null.
+
 An XML selection holding anything but one top-level element (siblings, or text
 beside an element) is a fragment: `XmlCheck` parses it inside a synthetic root
 that adds no line, so a parser column on the first line drops the root's

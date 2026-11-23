@@ -47,6 +47,15 @@ final class OpenDocument implements DocumentListener {
   /** The Markdown preview, created on first use by {@link MarkdownPreviews}; null before. */
   MarkdownPreview markdown;
 
+  /** True from the open of a file with no saved Markdown mode until its grammar is applied. */
+  boolean markdownOpening;
+
+  /**
+   * True once the user picks a Markdown view mode, or a saved pick is restored; only then do the
+   * session and the file memory keep the mode.
+   */
+  boolean markdownPicked;
+
   /** The running reopen of this document, or null. */
   DocumentController.Open reopen;
 

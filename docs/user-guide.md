@@ -303,8 +303,8 @@ apply (measured on Linux, one million lines):
   the Convert Case cascade for that view. A click in a selection keeps it; a
   click elsewhere moves the caret there first.
 - The overview strip beside the scroll bar marks find matches, HyperSearch
-  matches and bookmarks across the whole document; a click or drag scrolls
-  there.
+  matches, bookmarks and an XML or JSON format error across the whole
+  document; a click or drag scrolls there.
 - View > Split shows a document in two views, side by side or one above the
   other, each with its own carets and scroll position. `F6` moves between them.
 - View > Workspace Browser, Search > Search Results, Search > Bookmarks >
@@ -462,8 +462,17 @@ mixed with tags, text-only elements and `xml:space="preserve"` stay as written.
 Each command is one undo step, and `Esc` stops one still computing.
 
 A document that is not well-formed is not changed: the status bar names the
-line, column and reason, and the caret moves to the error. Check Well-Formed
-reports the same, or that the text is well-formed.
+line, column and reason, the caret moves to the error, and a wavy underline
+at the error and a mark in the overview strip, both in the color of invalid
+text, show it until the next edit or the next format command that succeeds. Check
+Well-Formed reports the same, or that the text is well-formed.
+
+When Pretty Print or Minify has nothing to change, the status bar says why. It
+names the first element whose content stays as written, with its line: one
+holding text or CDATA beside child elements, or under `xml:space="preserve"`.
+When that text is only a character that looks like a space or nothing, such
+as a no-break space, the notice names the character. Otherwise it says the
+text is already formatted or minified.
 
 A selection may hold several XML elements, with comments or text between them,
 without one enclosing element: it is formatted as a fragment, each element on
@@ -687,8 +696,10 @@ opens a menu of Basic and Browser, Sync Scrolling, Outline, Export as HTML and
 Print Rendered Markdown, each doing what its menu item does and showing the
 same state. `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
 steps the tab from Source to Split to Preview and back to Source, from the editor or
-the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
-it had after that, and a session restores each tab's mode. Find, Replace and
+the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in the
+mode chosen in Tools > Preferences, Appearance, Markdown files open in (Split
+by default). Once you pick a mode for a file, it opens in that mode from then
+on, whatever the setting; a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
 match. In Preview, each match Find, Replace or a HyperSearch result selects
 scrolls the preview to the match's paragraph, heading or other block, and the
@@ -1071,7 +1082,7 @@ running windows without a restart.
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
-| Appearance | Theme, editor font size, editor font, Markdown preview renderer, Sync Scrolling |
+| Appearance | Theme, editor font size, editor font, Markdown preview renderer, Sync Scrolling, the mode Markdown files open in |
 | Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults |
 
 Restore Defaults fills every tab with the default values; nothing changes until

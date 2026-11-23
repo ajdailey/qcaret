@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.config.Appearance;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
@@ -110,7 +111,8 @@ final class PreferencesController implements PreferencesInput {
         o.sessionRestore(),
         o.strictJson(),
         o.previewRenderer().key(),
-        o.markdownSyncScroll());
+        o.markdownSyncScroll(),
+        o.markdownOpenMode().key());
   }
 
   @Override
@@ -280,7 +282,8 @@ final class PreferencesController implements PreferencesInput {
                     form.strictJson(),
                     renderer(form.previewRenderer()),
                     form.markdownSyncScroll(),
-                    settings.current().options().previewZoom()));
+                    settings.current().options().previewZoom(),
+                    openMode(form.markdownOpenMode())));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));
@@ -306,6 +309,12 @@ final class PreferencesController implements PreferencesInput {
   private PreviewRenderer renderer(String key) {
     PreviewRenderer parsed = PreviewRenderer.parse(key);
     return parsed == null ? settings.current().options().previewRenderer() : parsed;
+  }
+
+  /** Parses the form's Markdown open mode; anything else keeps the current one. */
+  private MarkdownOpenMode openMode(String key) {
+    MarkdownOpenMode parsed = MarkdownOpenMode.parse(key);
+    return parsed == null ? settings.current().options().markdownOpenMode() : parsed;
   }
 
   @Override

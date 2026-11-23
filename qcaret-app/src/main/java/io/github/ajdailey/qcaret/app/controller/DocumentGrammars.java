@@ -32,6 +32,7 @@ final class DocumentGrammars {
   private Consumer<GrammarSet> listener;
   private Consumer<String> chosen;
   private Runnable applied;
+  private Consumer<OpenDocument> markdownOpening;
   private int maxLineChars = SyntaxEngine.DEFAULT_MAX_LINE_CHARS;
 
   DocumentGrammars(Workers workers, UiDispatcher ui, MainView view, List<OpenDocument> documents) {
@@ -69,6 +70,11 @@ final class DocumentGrammars {
     if (library != null) {
       library.removeListener(listener);
     }
+  }
+
+  /** Sets what takes a document whose grammar is applied while it waits for its open mode. */
+  void setMarkdownOpening(Consumer<OpenDocument> value) {
+    markdownOpening = value;
   }
 
   /** Sets what runs after a document's grammar is applied, or null for nothing. */
@@ -201,6 +207,9 @@ final class DocumentGrammars {
     d.syntax.setSyntax(GrammarSet.PLAIN.equals(id) ? null : set.syntax(id));
     if (d.markdown != null) {
       d.markdown.grammarChanged(MarkdownPreviews.MARKDOWN.equals(id));
+    }
+    if (d.markdownOpening && markdownOpening != null) {
+      markdownOpening.accept(d);
     }
     for (EditorController e : d.editors) {
       e.setGrammar(editorGrammar(d));

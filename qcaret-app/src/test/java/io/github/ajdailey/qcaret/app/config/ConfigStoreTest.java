@@ -415,7 +415,8 @@ class ConfigStoreTest {
             false,
             PreviewRenderer.BASIC,
             true,
-            100);
+            100,
+            MarkdownOpenMode.SPLIT);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -526,12 +527,31 @@ class ConfigStoreTest {
                 options.strictJson(),
                 PreviewRenderer.BROWSER,
                 true,
-                100));
+                100,
+                MarkdownOpenMode.SPLIT));
     assertTrue(store(temp).save(Preferences.DEFAULTS, browser));
     assertTrue(
         Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)
             .contains("markdown.previewRenderer=browser"));
     assertEquals(browser, store(temp).load());
+  }
+
+  @Test
+  void theOpenModeKeyDefaultsToSplitReadsWritesAndFallsBack() throws IOException {
+    assertEquals(MarkdownOpenMode.SPLIT, store(temp).load().options().markdownOpenMode());
+    Files.writeString(conf(), "markdown.openMode= preview \n");
+    assertEquals(MarkdownOpenMode.PREVIEW, store(temp).load().options().markdownOpenMode());
+    Files.writeString(conf(), "markdown.openMode=both\n");
+    assertEquals(MarkdownOpenMode.SPLIT, store(temp).load().options().markdownOpenMode());
+    Files.writeString(conf(), "markdown.openMode=source\n");
+    Preferences source = store(temp).load();
+    assertEquals(MarkdownOpenMode.SOURCE, source.options().markdownOpenMode());
+    Files.delete(conf());
+    assertTrue(store(temp).save(Preferences.DEFAULTS, source));
+    assertTrue(
+        Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)
+            .contains("markdown.openMode=source"));
+    assertEquals(source, store(temp).load());
   }
 
   @Test

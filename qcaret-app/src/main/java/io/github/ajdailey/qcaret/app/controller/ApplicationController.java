@@ -289,6 +289,7 @@ public final class ApplicationController {
     this.markdown = new MarkdownCommands(settings, documents, view);
     documents.setMarkdownBrowser(markdown.browserChosen());
     documents.setMarkdownSyncScroll(markdown.syncScroll());
+    documents.setMarkdownOpenMode(markdown.openMode());
     documents.setMarkdownPalette(theme.palette());
     documents.setMarkdownZoom(settings.current().options().previewZoom());
     this.zooms = new ZoomCommands(settings, view);
@@ -372,6 +373,7 @@ public final class ApplicationController {
     memory.apply(before, after);
     documents.setMarkdownBrowser(markdown.browserChosen());
     documents.setMarkdownSyncScroll(markdown.syncScroll());
+    documents.setMarkdownOpenMode(markdown.openMode());
     documents.setMarkdownZoom(now.previewZoom());
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());

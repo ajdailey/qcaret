@@ -24,9 +24,10 @@ import java.util.concurrent.CancellationException;
  * qcaret-cpu-} worker and applies on the UI thread as one undo step, with the editor's busy cursor
  * ({@link EditorController#busyCursor}) from the command to the apply. A newer run or Esc cancels
  * the running one; a result for an older revision is dropped with a notice. A failure changes
- * nothing, names the format, line, column and reason in a notice and moves the caret to the error;
- * the column is the status bar's. Pretty Print and Minify do nothing on a read-only document; Check
- * runs on any. Confined to the UI thread.
+ * nothing, names the format, line, column and reason in a notice, marks the token there ({@link
+ * FormatErrorMark}) and moves the caret to it; the column is the status bar's. A Pretty Print or
+ * Minify that changes nothing says why ({@link FormatUnchanged}). Pretty Print and Minify do
+ * nothing on a read-only document; Check runs on any. Confined to the UI thread.
  */
 final class FormatRuns {
   private final EditorController editor;
@@ -34,6 +35,7 @@ final class FormatRuns {
   private final SelectionModel selections;
   private final Workers workers;
   private final UiDispatcher ui;
+  private final FormatErrorMark mark;
   private CancellationToken work;
 
   FormatRuns(EditorController editor, Workers workers, UiDispatcher ui) {
@@ -42,6 +44,22 @@ final class FormatRuns {
     this.selections = editor.selections();
     this.workers = workers;
     this.ui = ui;
+    this.mark = new FormatErrorMark(editor);
+  }
+
+  /**
+   * Returns the error mark.
+   *
+   * @return the mark
+   */
+  FormatErrorMark mark() {
+    return mark;
+  }
+
+  /** Cancels the running format and stops following the document. */
+  void dispose() {
+    cancel();
+    mark.dispose();
   }
 
   /** Cancels the running format. */
@@ -125,7 +143,10 @@ final class FormatRuns {
     FormatError error = result.error();
     if (error != null) {
       showError(name, error);
-    } else if (mode == Formats.Mode.CHECK) {
+      return;
+    }
+    mark.clear();
+    if (mode == Formats.Mode.CHECK) {
       String notice;
       if (result.comments()) {
         notice = UiText.FORMAT_WELL_FORMED_COMMENTS.text();
@@ -139,11 +160,14 @@ final class FormatRuns {
       document.clearPreedit();
       boolean moved = !set.equals(selections.selections());
       editor.applyEdit(new Edit(result.batch(), moved ? null : result.after()));
+    } else if (result.batch() == null) {
+      editor.notice(FormatUnchanged.notice(mode, result.kept()));
     }
   }
 
   private void showError(String name, FormatError error) {
     editor.notice(errorNotice(document, name, error));
+    mark.set(error.offset());
     selections.set(SelectionSet.caret(error.offset()));
     editor.showCaret();
   }

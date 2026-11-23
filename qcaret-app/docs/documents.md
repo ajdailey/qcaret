@@ -332,8 +332,15 @@ tab to Source. A tab moved to another window keeps its mode; closing or moving
 disposes the preview. `MarkdownPreviews.of` attaches the tab's pane
 (`TabView.markdownView`) when it creates the preview.
 
-The mode is kept as `markdown` (`split`, `preview`, empty for Source) in the
-session tab and the per-file state. `MarkdownPreviews.restore` applies it
+The session tab and the per-file state keep the mode as `markdown` (`source`,
+`split`, `preview`) only once the user picks one: `setMarkdownMode`, which the
+toolbar, View > Markdown View and Cycle Markdown View run, sets
+`OpenDocument.markdownPicked`, and restoring a kept pick sets it again. A tab
+with no pick keeps an empty value, and its next open or session restore takes
+`markdown.openMode` (`MarkdownPreviews.opened`): at once when its grammar is
+already `markdown`, else when detection applies `markdown`
+(`DocumentGrammars.setMarkdownOpening`). `MarkdownPreviews.restore` applies a
+kept pick
 through `MarkdownRestore` once the grammar is known: at once for a Markdown
 tab, after the detection that runs for a just-opened file, and not at all when
 the grammar is another.

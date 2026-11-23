@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -466,7 +467,8 @@ class SaveCopyTest {
                     o.strictJson(),
                     PreviewRenderer.BASIC,
                     true,
-                    100)));
+                    100,
+                    MarkdownOpenMode.SPLIT)));
   }
 
   /**

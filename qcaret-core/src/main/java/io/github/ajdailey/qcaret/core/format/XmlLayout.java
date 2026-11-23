@@ -30,10 +30,10 @@ final class XmlLayout {
   static final byte OTHER = 6;
 
   /** A start tag's content holds text or CDATA. */
-  private static final byte MIXED = 1;
+  static final byte MIXED = 1;
 
   /** {@code xml:space="preserve"} applies to a start tag's element. */
-  private static final byte PRESERVE = 2;
+  static final byte PRESERVE = 2;
 
   private final String s;
   private final Output out;
@@ -58,11 +58,21 @@ final class XmlLayout {
    * @param source the range's text
    * @param out receives the text
    * @param pretty true for Pretty Print, false for Minify
+   * @return the first content kept as written ({@link XmlKept}), with its offset in the range and
+   *     line 0; null when there is none
    */
-  static void layout(String source, Output out, boolean pretty) {
+  static KeptContent layout(String source, Output out, boolean pretty) {
     XmlLayout layout = new XmlLayout(source, out, pretty);
     layout.scan();
     layout.emit();
+    return XmlKept.find(
+        source,
+        layout.count,
+        layout.starts,
+        layout.ends,
+        layout.types,
+        layout.flags,
+        layout.topMixed);
   }
 
   /**

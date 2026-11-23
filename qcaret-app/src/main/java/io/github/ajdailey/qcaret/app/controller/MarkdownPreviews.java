@@ -27,6 +27,7 @@ final class MarkdownPreviews {
 
   private static final String SPLIT = "split";
   private static final String PREVIEW = "preview";
+  private static final String SOURCE = "source";
 
   /** The longest document, in chars, rendered on a switch or an edit. */
   static final int LIVE_LIMIT_CHARS = 1024 * 1024;
@@ -43,6 +44,7 @@ final class MarkdownPreviews {
   private boolean syncScroll = true;
   private Palette palette = Palette.LIGHT;
   private int zoom = ZoomCommands.NORMAL;
+  private MarkdownViewMode openMode = MarkdownViewMode.SPLIT;
 
   /**
    * Creates the previews of one window.
@@ -215,8 +217,50 @@ final class MarkdownPreviews {
     return changed;
   }
 
+  /**
+   * Sets the mode of a Markdown file opened with no saved mode ({@code markdown.openMode}).
+   *
+   * @param mode the mode
+   */
+  void setOpenMode(MarkdownViewMode mode) {
+    openMode = mode;
+  }
+
+  /**
+   * Gives a tab with no saved pick the open mode: at once on a Markdown tab, else after its grammar
+   * is detected ({@link #grammarApplied}) when that grammar is {@code markdown}. A tab the user
+   * already picked a mode for keeps it.
+   *
+   * @param d the tab
+   */
+  void opened(OpenDocument d) {
+    d.markdownOpening = false;
+    if (d.markdownPicked || openMode == MarkdownViewMode.SOURCE) {
+      return;
+    }
+    if (MARKDOWN.equals(d.grammar)) {
+      of(d).setMode(openMode);
+    } else {
+      d.markdownOpening = true;
+    }
+  }
+
+  /**
+   * Applies the open mode to a tab waiting for it, once its grammar is applied; any grammar ends
+   * the wait.
+   *
+   * @param d the tab
+   */
+  void grammarApplied(OpenDocument d) {
+    d.markdownOpening = false;
+    if (MARKDOWN.equals(d.grammar) && openMode != MarkdownViewMode.SOURCE) {
+      of(d).setMode(openMode);
+    }
+  }
+
   /** Gives a tab moved in from another window the mode it had there. */
   void adopt(OpenDocument d, OpenDocument from) {
+    d.markdownPicked = from.markdownPicked;
     if (from.markdown != null) {
       of(d).setMode(from.markdown.mode());
     }
@@ -230,12 +274,14 @@ final class MarkdownPreviews {
   }
 
   /**
-   * Applies a tab's saved mode once its grammar is known.
+   * Applies a tab's saved pick once its grammar is known; the tab keeps it as its pick.
    *
    * @param d the tab
-   * @param saved the mode as {@link #saved} wrote it
+   * @param saved the mode as {@link #saved} wrote it, not empty
    */
   void restore(OpenDocument d, String saved) {
+    d.markdownOpening = false;
+    d.markdownPicked = true;
     MarkdownViewMode mode = parse(saved);
     if (mode != MarkdownViewMode.SOURCE || d.markdown != null) {
       of(d).restoreMode(mode, d.detecting > 0 || grammars.current() == null);
@@ -243,21 +289,25 @@ final class MarkdownPreviews {
   }
 
   /**
-   * Returns a tab's mode as the session and the file memory keep it.
+   * Returns a tab's mode as the session and the file memory keep it: the user's pick only.
    *
    * @param d the tab
-   * @return {@code split} or {@code preview}; empty for Source
+   * @return {@code source}, {@code split} or {@code preview}; empty while the user has picked none,
+   *     so the next open takes {@code markdown.openMode}
    */
   static String saved(OpenDocument d) {
+    if (!d.markdownPicked) {
+      return "";
+    }
     MarkdownViewMode mode = d.markdown == null ? MarkdownViewMode.SOURCE : d.markdown.mode();
     return switch (mode) {
       case SPLIT -> SPLIT;
       case PREVIEW -> PREVIEW;
-      case SOURCE -> "";
+      case SOURCE -> SOURCE;
     };
   }
 
-  /** Parses a saved mode; anything else is Source. */
+  /** Parses a saved mode; anything else, empty included, is Source. */
   static MarkdownViewMode parse(String saved) {
     return switch (saved) {
       case SPLIT -> MarkdownViewMode.SPLIT;

@@ -79,6 +79,22 @@ public enum UiText {
   FORMAT_WELL_FORMED_FRAGMENT,
   /** Notice: a format run dropped its result because the document changed. */
   FORMAT_STALE,
+  /** Notice: Pretty Print changed nothing and no XML content stays as written. */
+  FORMAT_ALREADY_FORMATTED,
+  /** Notice: Minify changed nothing and no XML content stays as written. */
+  FORMAT_ALREADY_MINIFIED,
+  /** Notice: a format run changed nothing; the kept content's subject and line; it holds text. */
+  FORMAT_KEPT_TEXT,
+  /** Notice: as {@link #FORMAT_KEPT_TEXT}, holding CDATA. */
+  FORMAT_KEPT_CDATA,
+  /** Notice: as {@link #FORMAT_KEPT_TEXT}, its only text an invisible char; that char. */
+  FORMAT_KEPT_CHARACTER,
+  /** Notice: as {@link #FORMAT_KEPT_TEXT}, under {@code xml:space="preserve"}. */
+  FORMAT_KEPT_PRESERVE,
+  /** A kept element in those notices; its name. */
+  FORMAT_KEPT_ELEMENT,
+  /** A selection's top level in those notices. */
+  FORMAT_KEPT_SELECTION,
   /** Preferences field. */
   PREFERENCES_STRICT_JSON,
   /** Command label. */
@@ -1950,6 +1966,14 @@ public enum UiText {
   COMMAND_MARKDOWN_SYNC_SCROLL,
   /** Preferences: the Markdown scroll sync box. */
   PREFERENCES_MARKDOWN_SYNC_SCROLL,
+  /** Preferences: the label of the Markdown open mode list. */
+  PREFERENCES_MARKDOWN_OPEN_MODE,
+  /** That list's Source choice. */
+  MARKDOWN_OPEN_SOURCE,
+  /** That list's Split choice. */
+  MARKDOWN_OPEN_SPLIT,
+  /** That list's Preview choice. */
+  MARKDOWN_OPEN_PREVIEW,
   /** Accessible name of a Markdown preview pane. */
   ACCESSIBLE_MARKDOWN_PREVIEW,
   /** Why the Browser renderer is disabled after the browser control failed: the error. */

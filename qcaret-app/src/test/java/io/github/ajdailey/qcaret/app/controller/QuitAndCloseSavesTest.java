@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -271,6 +272,7 @@ class QuitAndCloseSavesTest {
                     o.strictJson(),
                     PreviewRenderer.BASIC,
                     true,
-                    100)));
+                    100,
+                    MarkdownOpenMode.SPLIT)));
   }
 }

@@ -204,6 +204,7 @@ public final class EditorController implements EditorInput {
     }
     highlights.viewAttached();
     lineChanges.viewAttached();
+    formatRuns.mark().viewAttached();
   }
 
   /** Lets go of the view before its tab moves to another window; closes the completion list. */
@@ -1571,6 +1572,11 @@ public final class EditorController implements EditorInput {
     return overview;
   }
 
+  /** Returns the format error mark. */
+  FormatErrorMark formatErrorMark() {
+    return formatRuns.mark();
+  }
+
   /** Shows or hides the view's overview strip. */
   void setOverviewShown(boolean shown) {
     overviewShown = shown;
@@ -1622,7 +1628,7 @@ public final class EditorController implements EditorInput {
     highlights.dispose();
     lineRuns.cancel();
     codecRuns.cancel();
-    formatRuns.cancel();
+    formatRuns.dispose();
     pathRuns.cancel();
     if (partnerSearch != null) {
       partnerSearch.cancel();

@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
+import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.OutlineEntry;
@@ -39,6 +41,12 @@ class MarkdownOutlineTest {
     harness = new Harness(temp);
     documents = harness.application.documents();
     outline = harness.application.outline();
+    // These cases start each file in Source and switch from there.
+    Preferences current = harness.application.settings().current();
+    harness
+        .application
+        .settings()
+        .set(current.withOptions(current.options().withMarkdownOpenMode(MarkdownOpenMode.SOURCE)));
     final GrammarLibrary library = harness.application.grammars();
     harness.application.loadGrammars();
     harness.await(

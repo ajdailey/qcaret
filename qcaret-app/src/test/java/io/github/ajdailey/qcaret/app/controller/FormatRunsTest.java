@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
@@ -155,7 +156,8 @@ class FormatRunsTest {
                     true,
                     PreviewRenderer.BASIC,
                     true,
-                    100)));
+                    100,
+                    MarkdownOpenMode.SPLIT)));
     EditorController editor = open("[1 /* c */]");
     run(CommandId.PRETTY_PRINT_JSON);
     assertEquals("[1 /* c */]", text(editor));

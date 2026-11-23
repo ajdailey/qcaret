@@ -124,7 +124,7 @@ the UI thread and returns without waiting for the user. It extends these parts:
   `MarkdownImageDecoder` it hands out.
 - An editor view shows its overview strip's `OverviewMarks` (`showOverview`,
   `setOverviewShown`) and reports the strip's height through
-  `EditorInput.overviewResized`.
+  `EditorInput.overviewResized`, and the format error mark (`showErrorMark`).
 - The find bar reads `FindState` and listens as a `FindListener`.
 
 ### Window placement

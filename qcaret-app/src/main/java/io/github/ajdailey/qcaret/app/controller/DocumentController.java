@@ -496,6 +496,13 @@ public final class DocumentController {
     this.encodings = new DocumentEncodings(workers, ui, view);
     this.sessions =
         new DocumentSessions(this, documents, selected, view, grammars, markdown, closedPaths);
+    grammars.setMarkdownOpening(
+        new Consumer<OpenDocument>() {
+          @Override
+          public void accept(OpenDocument d) {
+            markdown.grammarApplied(d);
+          }
+        });
     this.changes =
         new ExternalChanges(
             workers,
@@ -2004,14 +2011,19 @@ public final class DocumentController {
   }
 
   /**
-   * Switches the selected tab's Markdown view mode; leaving Source renders under the busy cursor.
+   * Switches the selected tab's Markdown view mode as the user's pick, which the tab then keeps
+   * ({@link MarkdownPreviews#saved}); leaving Source renders under the busy cursor.
    *
    * @param mode the mode
    * @return false, changing nothing, without a document or for Split or Preview on a tab whose
    *     grammar is not {@code markdown}
    */
   public boolean setMarkdownMode(MarkdownViewMode mode) {
-    return active != null && markdown.of(active).setMode(mode);
+    if (active == null || !markdown.of(active).setMode(mode)) {
+      return false;
+    }
+    active.markdownPicked = true;
+    return true;
   }
 
   /**
@@ -2039,6 +2051,15 @@ public final class DocumentController {
    */
   void setMarkdownSyncScroll(boolean on) {
     markdown.setSyncScroll(on);
+  }
+
+  /**
+   * Sets the mode of a Markdown file opened with no saved mode.
+   *
+   * @param mode the mode
+   */
+  void setMarkdownOpenMode(MarkdownViewMode mode) {
+    markdown.setOpenMode(mode);
   }
 
   /**

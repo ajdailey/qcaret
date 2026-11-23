@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
@@ -96,7 +97,8 @@ class FilePollSurfaceTest {
         o.strictJson(),
         PreviewRenderer.BASIC,
         true,
-        100);
+        100,
+        MarkdownOpenMode.SPLIT);
   }
 
   private MainWindow open(Preferences preferences) {

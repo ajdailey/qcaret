@@ -53,6 +53,7 @@ final class PreferencesDialog {
   private static final String[] LINE_ENDINGS = {"lf", "crlf", "platform"};
 
   private static final String[] RENDERERS = {"basic", "browser"};
+  private static final String[] OPEN_MODES = {"source", "split", "preview"};
 
   private final Shell shell;
   private final PreferencesInput input;
@@ -95,6 +96,7 @@ final class PreferencesDialog {
   private Combo newEncoding;
   private Combo previewRenderer;
   private Button syncScroll;
+  private Combo openMode;
   private PreferencesViewTab view;
   private WorkspaceDefaultRow workspaceDefault;
 
@@ -265,6 +267,10 @@ final class PreferencesDialog {
     previewRenderer.add(UiText.PREVIEW_RENDERER_BASIC.text());
     previewRenderer.add(UiText.PREVIEW_RENDERER_BROWSER.text());
     syncScroll = check(page, UiText.PREFERENCES_MARKDOWN_SYNC_SCROLL);
+    openMode = list(page, UiText.PREFERENCES_MARKDOWN_OPEN_MODE);
+    openMode.add(UiText.MARKDOWN_OPEN_SOURCE.text());
+    openMode.add(UiText.MARKDOWN_OPEN_SPLIT.text());
+    openMode.add(UiText.MARKDOWN_OPEN_PREVIEW.text());
   }
 
   private static Combo list(Composite page, UiText label) {
@@ -461,6 +467,7 @@ final class PreferencesDialog {
     newEncoding.select(newEncoding.indexOf(form.newEncoding()));
     previewRenderer.select(Math.max(0, List.of(RENDERERS).indexOf(form.previewRenderer())));
     syncScroll.setSelection(form.markdownSyncScroll());
+    openMode.select(Math.max(0, List.of(OPEN_MODES).indexOf(form.markdownOpenMode())));
     view.show(form.view());
     workspaceDefault.show(form.workspaceDefault());
     for (TableColumn column : commands.getColumns()) {
@@ -506,7 +513,8 @@ final class PreferencesDialog {
         sessionRestore.getSelection(),
         strictJson.getSelection(),
         RENDERERS[Math.max(0, previewRenderer.getSelectionIndex())],
-        syncScroll.getSelection());
+        syncScroll.getSelection(),
+        OPEN_MODES[Math.max(0, openMode.getSelectionIndex())]);
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -700,6 +708,10 @@ final class PreferencesDialog {
 
   Button syncScroll() {
     return syncScroll;
+  }
+
+  Combo openMode() {
+    return openMode;
   }
 
   PreferencesViewTab view() {

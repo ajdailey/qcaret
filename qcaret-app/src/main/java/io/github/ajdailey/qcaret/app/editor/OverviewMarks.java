@@ -7,7 +7,8 @@ package io.github.ajdailey.qcaret.app.editor;
  *
  * @param lineCount the document's lines when computed
  * @param revision the document revision the marks were computed from
- * @param rows a bit set of {@link #FIND}, {@link #SEARCH} and {@link #BOOKMARK} per pixel row
+ * @param rows a bit set of {@link #FIND}, {@link #SEARCH}, {@link #BOOKMARK} and {@link #ERROR} per
+ *     pixel row
  */
 public record OverviewMarks(int lineCount, long revision, byte[] rows) {
   /** A find-bar match. */
@@ -18,6 +19,9 @@ public record OverviewMarks(int lineCount, long revision, byte[] rows) {
 
   /** A bookmark. */
   public static final int BOOKMARK = 4;
+
+  /** A format error. */
+  public static final int ERROR = 8;
 
   /** No marks. */
   public static final OverviewMarks EMPTY = new OverviewMarks(0, -1, new byte[0]);
@@ -71,14 +75,22 @@ public record OverviewMarks(int lineCount, long revision, byte[] rows) {
    * @param find find-bar match lines, ascending
    * @param search HyperSearch match lines, ascending
    * @param bookmarks bookmarked lines, ascending
+   * @param errors format error lines, ascending
    * @return the marks
    */
   public static OverviewMarks of(
-      int lineCount, long revision, int height, int[] find, int[] search, int[] bookmarks) {
+      int lineCount,
+      long revision,
+      int height,
+      int[] find,
+      int[] search,
+      int[] bookmarks,
+      int[] errors) {
     byte[] rows = new byte[Math.max(0, height)];
     mark(rows, lineCount, find, FIND);
     mark(rows, lineCount, search, SEARCH);
     mark(rows, lineCount, bookmarks, BOOKMARK);
+    mark(rows, lineCount, errors, ERROR);
     return new OverviewMarks(lineCount, revision, rows);
   }
 

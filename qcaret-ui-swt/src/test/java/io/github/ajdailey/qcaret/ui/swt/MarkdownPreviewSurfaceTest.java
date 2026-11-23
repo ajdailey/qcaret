@@ -12,6 +12,8 @@ import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
@@ -101,7 +103,9 @@ class MarkdownPreviewSurfaceTest {
             new SwtUiDispatcher(display),
             window,
             new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("conf"))),
-            Preferences.DEFAULTS,
+            // These windows start each Markdown file in Source and switch from there.
+            Preferences.DEFAULTS.withOptions(
+                Options.DEFAULTS.withMarkdownOpenMode(MarkdownOpenMode.SOURCE)),
             SwtThemeService.open(display, ThemeMode.LIGHT),
             new MemoryBudget(Runtime.getRuntime().maxMemory(), 60),
             Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),

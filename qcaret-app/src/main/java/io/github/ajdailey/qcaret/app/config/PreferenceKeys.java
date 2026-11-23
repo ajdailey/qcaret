@@ -56,6 +56,7 @@ final class PreferenceKeys {
   static final String PREVIEW_RENDERER = "markdown.previewRenderer";
   static final String SYNC_SCROLL = "markdown.syncScroll";
   static final String PREVIEW_ZOOM = "markdown.previewZoom";
+  static final String OPEN_MODE = "markdown.openMode";
   static final String CLOSE_WINDOW_WITH_LAST_TAB = "tabs.closeWindowWithLastTab";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
@@ -139,6 +140,7 @@ final class PreferenceKeys {
     keys.put(PREVIEW_RENDERER, o.previewRenderer().key());
     keys.put(SYNC_SCROLL, Boolean.toString(o.markdownSyncScroll()));
     keys.put(PREVIEW_ZOOM, Integer.toString(o.previewZoom()));
+    keys.put(OPEN_MODE, o.markdownOpenMode().key());
     keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
@@ -359,7 +361,8 @@ final class PreferenceKeys {
             Options.MIN_PREVIEW_ZOOM,
             Options.MAX_PREVIEW_ZOOM,
             d.previewZoom(),
-            file));
+            file),
+        openMode(p, d.markdownOpenMode(), file));
   }
 
   /** Reads a font size: 0, or {@link Options#MIN_FONT_SIZE} to {@link Options#MAX_FONT_SIZE}. */
@@ -395,6 +398,19 @@ final class PreferenceKeys {
     }
     invalid(WORKSPACE_DEFAULT, file);
     return fallback;
+  }
+
+  private static MarkdownOpenMode openMode(Properties p, MarkdownOpenMode fallback, Path file) {
+    String value = p.getProperty(OPEN_MODE);
+    if (value == null) {
+      return fallback;
+    }
+    MarkdownOpenMode parsed = MarkdownOpenMode.parse(value);
+    if (parsed == null) {
+      invalid(OPEN_MODE, file);
+      return fallback;
+    }
+    return parsed;
   }
 
   private static PreviewRenderer previewRenderer(

@@ -134,4 +134,12 @@ public interface EditorView {
    * @param changes the marks, {@link LineChanges#NONE} for none
    */
   void showLineChanges(LineChanges changes);
+
+  /**
+   * Shows the format error mark; replaces the one shown before.
+   *
+   * @param start the marked token's model offset, or -1 for none
+   * @param end the offset after it; equal to start for a mark one char wide at a line end
+   */
+  void showErrorMark(int start, int end);
 }

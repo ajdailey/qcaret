@@ -111,6 +111,19 @@ final class MarkdownCommands {
     return settings.current().options().markdownSyncScroll();
   }
 
+  /**
+   * Returns the mode of a Markdown file opened with no saved mode ({@code markdown.openMode}).
+   *
+   * @return the mode
+   */
+  MarkdownViewMode openMode() {
+    return switch (settings.current().options().markdownOpenMode()) {
+      case SOURCE -> MarkdownViewMode.SOURCE;
+      case SPLIT -> MarkdownViewMode.SPLIT;
+      case PREVIEW -> MarkdownViewMode.PREVIEW;
+    };
+  }
+
   /** {@link CommandStates#checked} for a Markdown command. */
   boolean checked(CommandId command) {
     return switch (command) {

@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
@@ -151,6 +152,25 @@ class PreferencesSurfaceTest {
     assertEquals(9, controller.preferences().options().pollSeconds());
     dialog.shell().dispose();
     assertEquals(9, controller.preferences().options().pollSeconds());
+  }
+
+  @Test
+  void theMarkdownOpenModeRoundTrips() {
+    PreferencesDialog dialog = dialog();
+    assertEquals(1, dialog.openMode().getSelectionIndex());
+    assertEquals(UiText.MARKDOWN_OPEN_SPLIT.text(), dialog.openMode().getText());
+    dialog.openMode().select(2);
+    assertTrue(dialog.apply());
+    assertEquals(MarkdownOpenMode.PREVIEW, controller.preferences().options().markdownOpenMode());
+    dialog.shell().dispose();
+    dialog = dialog();
+    assertEquals(2, dialog.openMode().getSelectionIndex());
+    dialog.openMode().select(0);
+    assertTrue(dialog.apply());
+    assertEquals(MarkdownOpenMode.SOURCE, controller.preferences().options().markdownOpenMode());
+    dialog.restoreDefaults();
+    assertEquals(1, dialog.openMode().getSelectionIndex());
+    dialog.shell().dispose();
   }
 
   @Test

@@ -12,6 +12,13 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
  * @param error the first error; null when every range is well-formed and fit the output limit
  * @param comments true when a JSON range holds a comment
  * @param fragment true when an XML selection was parsed as a fragment, not one document
+ * @param kept for an XML Pretty Print or Minify that changes nothing, the first content kept as
+ *     written in the first range holding one; otherwise null
  */
 public record FormatResult(
-    EditBatch batch, SelectionSet after, FormatError error, boolean comments, boolean fragment) {}
+    EditBatch batch,
+    SelectionSet after,
+    FormatError error,
+    boolean comments,
+    boolean fragment,
+    KeptContent kept) {}

@@ -58,15 +58,23 @@ final class DocumentSessions {
     return memory == null ? null : memory.state(path);
   }
 
-  /** Applies a file's remembered state to a document that opened it; none does nothing. */
+  /**
+   * Applies a file's remembered state to a document that opened it. Without a remembered Markdown
+   * mode the tab takes {@code markdown.openMode} ({@link MarkdownPreviews#opened}).
+   */
   void applyFile(OpenDocument d, Path path) {
     Session.FileState state = state(path);
     if (state == null) {
+      markdown.opened(d);
       return;
     }
     d.setTabSettings(state.tabWidth(), state.insertSpaces());
     grammars.restore(d, state.language());
-    markdown.restore(d, state.markdown());
+    if (state.markdown().isEmpty()) {
+      markdown.opened(d);
+    } else {
+      markdown.restore(d, state.markdown());
+    }
     SelectionSet set = SessionText.selections(state.selections(), d.document.text().length());
     d.editor.restoreView(set, state.top(), new int[0]);
     view.documentStateChanged();
@@ -76,7 +84,11 @@ final class DocumentSessions {
   void applyTab(OpenDocument d, Session.Tab tab) {
     d.setTabSettings(tab.tabWidth(), tab.insertSpaces());
     grammars.restore(d, tab.language());
-    markdown.restore(d, tab.markdown());
+    if (tab.markdown().isEmpty()) {
+      markdown.opened(d);
+    } else {
+      markdown.restore(d, tab.markdown());
+    }
     int lines = d.document.text().lineCount();
     for (int line : SessionText.numbers(tab.bookmarks())) {
       if (line < lines && !d.bookmarks.contains(line)) {

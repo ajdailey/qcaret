@@ -60,6 +60,8 @@ import java.time.format.DateTimeFormatter;
  *     preview scrolls the other
  * @param previewZoom {@code markdown.previewZoom}: the Markdown preview's text size the zoom
  *     commands chose, in percent of its normal size
+ * @param markdownOpenMode {@code markdown.openMode}: the view mode of a Markdown file opened with
+ *     no saved mode
  */
 public record Options(
     int completionChars,
@@ -90,7 +92,8 @@ public record Options(
     boolean strictJson,
     PreviewRenderer previewRenderer,
     boolean markdownSyncScroll,
-    int previewZoom) {
+    int previewZoom,
+    MarkdownOpenMode markdownOpenMode) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -186,7 +189,8 @@ public record Options(
           false,
           PreviewRenderer.BASIC,
           true,
-          100);
+          100,
+          MarkdownOpenMode.SPLIT);
 
   /** Checks the components. */
   public Options {
@@ -217,6 +221,9 @@ public record Options(
     }
     if (previewRenderer == null) {
       throw new IllegalArgumentException("previewRenderer");
+    }
+    if (markdownOpenMode == null) {
+      throw new IllegalArgumentException("markdownOpenMode");
     }
     if (!validEncoding(newEncoding)) {
       throw new IllegalArgumentException("newEncoding");
@@ -343,7 +350,8 @@ public record Options(
         strictJson,
         previewRenderer,
         markdownSyncScroll,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -382,7 +390,8 @@ public record Options(
         strictJson,
         previewRenderer,
         markdownSyncScroll,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -421,7 +430,8 @@ public record Options(
         strictJson,
         previewRenderer,
         markdownSyncScroll,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -460,7 +470,8 @@ public record Options(
         strictJson,
         previewRenderer,
         markdownSyncScroll,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -499,7 +510,8 @@ public record Options(
         strictJson,
         renderer,
         markdownSyncScroll,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -538,7 +550,8 @@ public record Options(
         strictJson,
         previewRenderer,
         on,
-        previewZoom);
+        previewZoom,
+        markdownOpenMode);
   }
 
   /**
@@ -577,6 +590,47 @@ public record Options(
         strictJson,
         previewRenderer,
         markdownSyncScroll,
-        percent);
+        percent,
+        markdownOpenMode);
+  }
+
+  /**
+   * Returns a copy with another Markdown open mode.
+   *
+   * @param mode the mode of a Markdown file opened with no saved mode
+   * @return the copy
+   */
+  public Options withMarkdownOpenMode(MarkdownOpenMode mode) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        markdownSyncScroll,
+        previewZoom,
+        mode);
   }
 }

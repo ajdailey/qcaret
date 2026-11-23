@@ -42,6 +42,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param strictJson the box making Edit > Format XML and JSON accept RFC 8259 JSON only
  * @param previewRenderer the Markdown preview renderer: {@code basic} or {@code browser}
  * @param markdownSyncScroll the box making Split scroll the editor and the preview together
+ * @param markdownOpenMode the mode of a Markdown file opened with no saved mode: {@code source},
+ *     {@code split} or {@code preview}
  */
 public record PreferencesForm(
     String completionChars,
@@ -76,7 +78,8 @@ public record PreferencesForm(
     boolean sessionRestore,
     boolean strictJson,
     String previewRenderer,
-    boolean markdownSyncScroll) {
+    boolean markdownSyncScroll,
+    String markdownOpenMode) {
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

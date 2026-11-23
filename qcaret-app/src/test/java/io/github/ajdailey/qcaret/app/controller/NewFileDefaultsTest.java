@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.NewLineEnding;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
@@ -83,7 +84,8 @@ class NewFileDefaultsTest {
                     o.strictJson(),
                     PreviewRenderer.BASIC,
                     true,
-                    100)));
+                    100,
+                    MarkdownOpenMode.SPLIT)));
   }
 
   private Document newDocument() {
@@ -192,7 +194,8 @@ class NewFileDefaultsTest {
         true,
         f.strictJson(),
         f.previewRenderer(),
-        f.markdownSyncScroll());
+        f.markdownSyncScroll(),
+        "split");
   }
 
   @Test

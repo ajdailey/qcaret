@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.TokenRole;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -118,6 +119,7 @@ import org.eclipse.swt.widgets.Slider;
  *       after {@link #setRightMargin}.
  *   <li>Indent guides: {@link IndentGuidePainter} after {@link #setIndentGuides}, before the
  *       whitespace marks.
+ *   <li>Format error mark: {@link ErrorMarkPainter} after {@link #showErrorMark}.
  *   <li>Modified-line marks: {@link LineChangePainter} in the gap between the gutter and the text
  *       after {@link #setLineChangesShown}, which tells {@link EditorInput#lineChangesShown}. While
  *       a document is too large for marks, the gutter's tooltip says so where no bookmark comment
@@ -194,6 +196,7 @@ public final class EditorPane implements EditorView {
   private final MarginPainter margin = new MarginPainter();
   private final IndentGuidePainter guides = new IndentGuidePainter();
   private final LineChangePainter lineChanges = new LineChangePainter();
+  private final ErrorMarkPainter errorMark = new ErrorMarkPainter();
 
   /** Takes a wheel turn with Ctrl (Command on macOS): +1 zooms in, -1 out; null scrolls. */
   private IntConsumer wheelZoom;
@@ -393,7 +396,7 @@ public final class EditorPane implements EditorView {
   /**
    * Returns the overview strip's colors, for tests.
    *
-   * @return background, frame, find mark, HyperSearch mark, bookmark
+   * @return background, frame, find mark, HyperSearch mark, bookmark, format error
    */
   public Color[] overviewColors() {
     return strip.colors();
@@ -523,6 +526,32 @@ public final class EditorPane implements EditorView {
       lineChanges.setChanges(changes);
       text.redraw();
     }
+  }
+
+  @Override
+  public void showErrorMark(int start, int end) {
+    errorMark.set(start, end);
+    if (!text.isDisposed()) {
+      text.redraw();
+    }
+  }
+
+  /**
+   * Returns the format error mark shown, for tests.
+   *
+   * @return {start, end} model offsets; {-1, -1} for none
+   */
+  public int[] errorMark() {
+    return errorMark.mark();
+  }
+
+  /**
+   * Returns the error mark segments the last paint drew, for tests.
+   *
+   * @return {x0, x1, y} per segment, in widget pixels
+   */
+  public int[] errorMarkPainted() {
+    return errorMark.painted();
   }
 
   /**
@@ -673,6 +702,7 @@ public final class EditorPane implements EditorView {
     guides.setColor(color(palette.indentGuide()));
     lineChanges.setColors(
         color(palette.lineAdded()), color(palette.lineChanged()), color(palette.lineRemoved()));
+    errorMark.setColor(color(palette.style(TokenRole.INVALID).foreground()));
     if (strip != null) {
       strip.setPalette(palette);
     }
@@ -1037,6 +1067,7 @@ public final class EditorPane implements EditorView {
             painter.paintBookmarks(event.gc);
             guides.paint(event.gc, text, projection);
             painter.paintMarks(event.gc);
+            errorMark.paint(event.gc, text, projection);
             margin.paint(event.gc, text, metrics, event.y, event.height);
             if (selections.block() != null) {
               painter.paintBlock(event.gc);

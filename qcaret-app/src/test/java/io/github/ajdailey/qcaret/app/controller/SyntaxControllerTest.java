@@ -123,7 +123,7 @@ class SyntaxControllerTest {
     assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
     open("README.md", "# Other\n");
     awaitLanguage("Markdown");
-    assertEquals(MarkdownViewMode.SOURCE, documents.markdownMode());
+    assertEquals(MarkdownViewMode.SPLIT, documents.markdownMode());
     assertNotNull(documents.markdownPreview());
   }
 

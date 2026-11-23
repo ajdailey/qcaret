@@ -157,6 +157,11 @@ final class EditorTab implements TabView, SelectionListener {
     public void showLineChanges(LineChanges changes) {
       editor.showLineChanges(changes);
     }
+
+    @Override
+    public void showErrorMark(int start, int end) {
+      editor.showErrorMark(start, end);
+    }
   }
 
   /**

@@ -19,9 +19,10 @@ import java.util.concurrent.CancellationException;
  * DOCTYPE. Formatting changes only whitespace between tokens; every token's text stays as it is.
  *
  * <p>An error in any range fails the run and changes nothing. Pretty Print and Minify refuse what
- * Check reports. Each inserted line of a selection starts with the leading spaces and tabs of the
- * selection's first line. A selection endpoint keeps its place in a token and moves after a gap
- * that changed.
+ * Check reports. An XML Pretty Print or Minify that changes nothing names the first content kept as
+ * written ({@link KeptContent}). Each inserted line of a selection starts with the leading spaces
+ * and tabs of the selection's first line. A selection endpoint keeps its place in a token and moves
+ * after a gap that changed.
  */
 public final class Formats {
   /** A text format. */
@@ -69,6 +70,7 @@ public final class Formats {
     int[] deltas = new int[ranges.size()];
     boolean comments = false;
     boolean fragment = false;
+    KeptContent kept = null;
     boolean selected = selected(set);
     for (int r = 0; r < ranges.size(); r++) {
       int start = ranges.get(r)[0];
@@ -88,7 +90,11 @@ public final class Formats {
             XmlCheck.check(source, token);
           }
           if (out.enabled()) {
-            XmlLayout.layout(source, out, mode == Mode.PRETTY_PRINT);
+            KeptContent k = XmlLayout.layout(source, out, mode == Mode.PRETTY_PRINT);
+            if (kept == null && k != null) {
+              int at = start + k.offset();
+              kept = new KeptContent(k.kind(), k.element(), at, text.lineAt(at) + 1, k.character());
+            }
           }
         } else {
           comments |=
@@ -96,7 +102,7 @@ public final class Formats {
         }
       } catch (FormatException e) {
         return new FormatResult(
-            null, null, error(text, start + e.at(), e.getMessage()), comments, fragment);
+            null, null, error(text, start + e.at(), e.getMessage()), comments, fragment, null);
       }
       token.check();
       String formatted = out.text();
@@ -108,11 +114,11 @@ public final class Formats {
       add(replacements, trimmed(start, source, formatted));
     }
     if (replacements.isEmpty()) {
-      return new FormatResult(null, null, null, comments, fragment);
+      return new FormatResult(null, null, null, comments, fragment, kept);
     }
     SelectionSet after = after(set, ranges, maps, deltas);
     return new FormatResult(
-        EditBatch.of(EditBatch.Kind.COMMAND, replacements), after, null, comments, fragment);
+        EditBatch.of(EditBatch.Kind.COMMAND, replacements), after, null, comments, fragment, null);
   }
 
   private static boolean selected(SelectionSet set) {

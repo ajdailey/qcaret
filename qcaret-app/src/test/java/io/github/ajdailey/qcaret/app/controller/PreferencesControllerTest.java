@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
@@ -133,7 +134,8 @@ class PreferencesControllerTest {
         field.equals("sessionRestore") ? Boolean.parseBoolean(value) : f.sessionRestore(),
         f.strictJson(),
         f.previewRenderer(),
-        f.markdownSyncScroll());
+        f.markdownSyncScroll(),
+        "split");
   }
 
   @Test
@@ -208,7 +210,8 @@ class PreferencesControllerTest {
                 true,
                 f.strictJson(),
                 f.previewRenderer(),
-                f.markdownSyncScroll()));
+                f.markdownSyncScroll(),
+                "split"));
     assertEquals(PreferencesForm.Group.EDITOR, refused.group());
     assertNull(
         input.apply(
@@ -245,7 +248,8 @@ class PreferencesControllerTest {
                 true,
                 f.strictJson(),
                 f.previewRenderer(),
-                f.markdownSyncScroll())));
+                f.markdownSyncScroll(),
+                "split")));
     assertEquals(2, harness.application.preferences().options().tabWidth());
     assertTrue(harness.application.preferences().options().insertSpaces());
   }
@@ -290,7 +294,8 @@ class PreferencesControllerTest {
                 f.sessionRestore(),
                 f.strictJson(),
                 f.previewRenderer(),
-                false)));
+                false,
+                "split")));
     assertFalse(harness.application.preferences().options().markdownSyncScroll());
     assertFalse(input.form().markdownSyncScroll());
   }
@@ -399,7 +404,8 @@ class PreferencesControllerTest {
                 true,
                 f.strictJson(),
                 f.previewRenderer(),
-                f.markdownSyncScroll())));
+                f.markdownSyncScroll(),
+                "split")));
     assertEquals(Palette.DARK, harness.application.theme().palette());
   }
 
@@ -577,7 +583,8 @@ class PreferencesControllerTest {
                 true,
                 f.strictJson(),
                 f.previewRenderer(),
-                f.markdownSyncScroll())));
+                f.markdownSyncScroll(),
+                "split")));
     assertEquals(key, harness.view.keymap.accelerator(CommandId.COMPARE_DOCUMENTS));
     assertEquals(key, harness.application.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
     harness.application.execute(CommandId.KEYBOARD_SHORTCUTS);
@@ -627,7 +634,8 @@ class PreferencesControllerTest {
         o.strictJson(),
         PreviewRenderer.BASIC,
         true,
-        100);
+        100,
+        MarkdownOpenMode.SPLIT);
   }
 
   @Test

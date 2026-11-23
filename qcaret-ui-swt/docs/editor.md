@@ -154,6 +154,10 @@ and sets the gutter's tooltip.
   until the next result, so they lag an edit by one computation. While a
   document is over the mark limit, the tooltip left of the text says so where
   no bookmark comment shows.
+- `ErrorMarkPainter` draws the format error mark (`showErrorMark`): a 2 px
+  wavy line along the bottom of each row part of the marked range, one average
+  char wide for an empty range at a line end, in the `INVALID` token role's
+  color. A line inside a collapsed fold shows none.
 
 ## Painting
 
@@ -252,10 +256,11 @@ Page and caret moves scroll the widget, folding and word wrap change its rows,
 and the next paint sets the slider.
 
 `OverviewStrip` (14 px) paints the last `OverviewMarks`: a HyperSearch mark per
-pixel row holding a match, a find mark over it, and a bookmark tick at the left
-edge, then a line down its left edge and lines at the first and last visible
-line, in the palette's gutter, line-number, `overviewFind`, `overviewSearch`
-and caret colors; a palette change recolors it. A commented bookmark is marked
+pixel row holding a match, a find mark over it, a bookmark tick at the left
+edge and a taller full-width format error mark over all of them, then a line
+down its left edge and lines at the first and last visible line, in the
+palette's gutter, line-number, `overviewFind`, `overviewSearch`, caret and
+`INVALID` token colors; a palette change recolors it. A commented bookmark is marked
 like any other. A click or drag scrolls the line under the pointer to the
 middle of the view. Each resize reports the height, 0 while View > Overview
 Strip hides it. Split views have one strip each.

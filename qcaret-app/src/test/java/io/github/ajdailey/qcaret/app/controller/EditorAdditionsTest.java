@@ -144,7 +144,8 @@ class EditorAdditionsTest {
         true,
         f.strictJson(),
         f.previewRenderer(),
-        f.markdownSyncScroll());
+        f.markdownSyncScroll(),
+        "split");
   }
 
   // Document statistics.

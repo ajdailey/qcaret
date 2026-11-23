@@ -20,11 +20,12 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
- * Computes one editor view's overview strip marks: the find bar's matches, the HyperSearch matches
- * and the bookmarks over the whole document. A request waits {@value #DELAY_MILLIS} ms, so a burst
- * of edits computes once; the marks are computed on a {@code qcaret-cpu-} worker from a snapshot
- * and shown only while the document is still at that revision and the strip has the same height.
- * Nothing is computed while the strip is hidden or has no height. Confined to the UI thread.
+ * Computes one editor view's overview strip marks: the find bar's matches, the HyperSearch matches,
+ * the bookmarks and the format error ({@link FormatErrorMark}) over the whole document. A request
+ * waits {@value #DELAY_MILLIS} ms, so a burst of edits computes once; the marks are computed on a
+ * {@code qcaret-cpu-} worker from a snapshot and shown only while the document is still at that
+ * revision and the strip has the same height. Nothing is computed while the strip is hidden or has
+ * no height. Confined to the UI thread.
  */
 final class OverviewUpdater implements DocumentListener {
   /** Wait after a request before computing. */
@@ -142,6 +143,8 @@ final class OverviewUpdater implements DocumentListener {
     final TextMatcher find = from == null ? null : from.findMatcher(document);
     final int[] search = from == null ? new int[0] : from.searchOffsets(document);
     final int[] marked = bookmarks.lines();
+    int errorLine = editor.formatErrorMark().line();
+    final int[] errors = errorLine < 0 ? new int[0] : new int[] {errorLine};
     final TextSnapshot text = document.text();
     final long revision = document.revision();
     final int rows = height;
@@ -154,7 +157,7 @@ final class OverviewUpdater implements DocumentListener {
             public void run() {
               final OverviewMarks computed;
               try {
-                computed = marks(text, revision, rows, find, search, marked, token);
+                computed = marks(text, revision, rows, find, search, marked, errors, token);
               } catch (CancellationException e) {
                 return;
               }
@@ -196,6 +199,7 @@ final class OverviewUpdater implements DocumentListener {
    * @param find the find query, or null
    * @param search HyperSearch match starts in {@code text}
    * @param bookmarks bookmarked lines, ascending
+   * @param errors format error lines, ascending
    * @param token checked while matching
    * @return the marks
    */
@@ -207,6 +211,7 @@ final class OverviewUpdater implements DocumentListener {
       TextMatcher find,
       int[] search,
       int[] bookmarks,
+      int[] errors,
       CancellationToken token) {
     int[] findLines = new int[0];
     if (find != null) {
@@ -226,6 +231,7 @@ final class OverviewUpdater implements DocumentListener {
     }
     Arrays.sort(searchLines);
     token.check();
-    return OverviewMarks.of(text.lineCount(), revision, height, findLines, searchLines, bookmarks);
+    return OverviewMarks.of(
+        text.lineCount(), revision, height, findLines, searchLines, bookmarks, errors);
   }
 }

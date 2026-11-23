@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.TokenRole;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import org.eclipse.swt.SWT;
@@ -20,11 +21,12 @@ import org.eclipse.swt.widgets.Listener;
 /**
  * The overview strip between an editor's text and its scroll bar: the whole document in its height,
  * a mark per pixel row holding a HyperSearch match, a find-bar match over it, and a tick at the
- * left edge for a bookmark. A line down its left edge separates it from the text, and a line across
- * it marks the first and the last visible line. A click or drag scrolls that line to the middle of
- * the view and runs {@code scrolled}. Painting reads the last {@link OverviewMarks} only; each
- * resize reports the height through {@link EditorInput#overviewResized}, 0 while hidden. Its
- * accessible name is {@link UiText#ACCESSIBLE_OVERVIEW}.
+ * left edge for a bookmark, and a taller full-width mark for a format error over all of them. A
+ * line down its left edge separates it from the text, and a line across it marks the first and the
+ * last visible line. A click or drag scrolls that line to the middle of the view and runs {@code
+ * scrolled}. Painting reads the last {@link OverviewMarks} only; each resize reports the height
+ * through {@link EditorInput#overviewResized}, 0 while hidden. Its accessible name is {@link
+ * UiText#ACCESSIBLE_OVERVIEW}.
  */
 final class OverviewStrip {
   /** Width in pixels. */
@@ -44,6 +46,7 @@ final class OverviewStrip {
   private Color find;
   private Color search;
   private Color bookmark;
+  private Color error;
   private boolean dragging;
   private int reported = -1;
 
@@ -138,14 +141,17 @@ final class OverviewStrip {
     find = color(palette.overviewFind());
     search = color(palette.overviewSearch());
     bookmark = color(palette.caret());
+    error = color(palette.style(TokenRole.INVALID).foreground());
     if (!canvas.isDisposed()) {
       canvas.redraw();
     }
   }
 
-  /** Returns the colors in paint order, for tests: background, frame, find, search, bookmark. */
+  /**
+   * Returns the colors in paint order, for tests: background, frame, find, search, bookmark, error.
+   */
   Color[] colors() {
-    return new Color[] {background, frame, find, search, bookmark};
+    return new Color[] {background, frame, find, search, bookmark, error};
   }
 
   private static Color color(Rgb rgb) {
@@ -188,6 +194,10 @@ final class OverviewStrip {
         if ((kinds & OverviewMarks.BOOKMARK) != 0) {
           gc.setBackground(bookmark);
           gc.fillRectangle(1, y, 2, MARK_HEIGHT + 1);
+        }
+        if ((kinds & OverviewMarks.ERROR) != 0) {
+          gc.setBackground(error);
+          gc.fillRectangle(1, Math.max(0, y - 1), area.width - 2, MARK_HEIGHT + 2);
         }
       }
     }

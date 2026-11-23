@@ -29,7 +29,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.syntax` | 7 | Grammar reader, compiler, `Tokenizer`, `SyntaxEngine`, `FoldRegionPass`, `GrammarSet`, `FoldRegions`, `SymbolScanner`, `SymbolScan`, `SymbolKind` | [Grammars](docs/grammars.md) |
 | `core.search` | 7 | `TextMatcher`, `TextSearch`, `FileSearch`, `FileReplace`, `ReplaceBackups` | [Search](docs/search.md) |
 | `core.diff` | 7 | `LineDiff` | [Search](docs/search.md#line-diff) |
-| `core.format` | 7 | `Formats`, `FormatLayout`, `FormatResult`, `FormatError`: XML and JSON Pretty Print, Minify and Check; `CaretPath` | [Documents](docs/documents.md#xml-and-json-formatting) |
+| `core.format` | 7 | `Formats`, `FormatLayout`, `FormatResult`, `FormatError`, `KeptContent`: XML and JSON Pretty Print, Minify and Check; `CaretPath` | [Documents](docs/documents.md#xml-and-json-formatting) |
 | `core.markdown` | 7, on `util`, `concurrent`, `text` and `document` | `MarkdownRenderer`, `RenderedMarkdown` and its records (`StyleRun`, `MarkdownBlock`, `CodeBlock`, `MarkdownTable`, `MarkdownImage`, `MarkdownLink`, `LinkTarget`, `MarkdownHeading`, `MarkdownAlert`, `MarkdownFootnote`) | [Markdown](docs/markdown.md) |
 | `core.xml` | uses no QCaret package | `SecureXml`: every JDK XML parser and schema factory, each locked down | [Grammars](docs/grammars.md#xml-parsers) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |
