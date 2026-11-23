@@ -31,11 +31,15 @@ final class MarkdownSwitch {
   private final MarkdownToolItems tools;
 
   MarkdownSwitch(
-      ToolBar bar, ToolIcons icons, ApplicationController controller, CommandStates states) {
+      ToolBar bar,
+      ToolIcons icons,
+      MenuIcons menuIcons,
+      ApplicationController controller,
+      CommandStates states) {
     this.bar = bar;
     this.controller = controller;
     this.states = states;
-    this.tools = new MarkdownToolItems(bar, icons, controller, states);
+    this.tools = new MarkdownToolItems(bar, icons, menuIcons, controller, states);
   }
 
   /** Sets the items' tool tips from the key bindings. */
@@ -70,7 +74,6 @@ final class MarkdownSwitch {
           items[i].setSelection(checked);
         }
       }
-      tools.sync();
     }
   }
 

@@ -359,7 +359,8 @@ pane receives all three as `MarkdownPreviewContent`, with the local images to
 decode. While `markdown.previewRenderer` is Browser and
 `MainView.previewBrowserUnavailable` gives no reason, the render also writes
 the tree as HTML (`MarkdownHtmlWriter`, below), wraps it in its page
-(`MarkdownHtml.page`) in `MarkdownPreviews`' palette, and requests no image
+(`MarkdownPage.page`, held as `MarkdownHtml.page`) in `MarkdownPreviews`'
+palette and zoom, and requests no image
 decode; the pane only calls `setText`. Each render carries a generation, raised
 by every edit, switch, grammar reload and new render, and the revision it read;
 a result whose generation or revision is not current is dropped.
@@ -368,13 +369,13 @@ A palette change reaches `MarkdownPreviews.setPalette` through
 `DocumentController.setMarkdownPalette`, from the `ThemeController` listener
 `ApplicationController` registers. `MarkdownRepage` rebuilds the shown Browser
 page on a `qcaret-cpu-` worker without the busy cursor; a page whose request was
-overtaken by a later palette change or render, or whose content no longer
-shows, is dropped. A render started in the palette a change replaced shows only
-after its page is rebuilt. A change of `markdown.previewZoom` reaches
+overtaken by a later palette or zoom change or render, or whose content no
+longer shows, is dropped. A render started in a palette or zoom a change
+replaced shows only after its page is rebuilt. A change of `markdown.previewZoom` reaches
 `MarkdownPreviews.setZoom` through `DocumentController.setMarkdownZoom`; each
 `MarkdownPreview.zoomChanged` passes the size to its pane
-(`MarkdownPreviewView.setZoom`) and rebuilds a shown Browser page the same way,
-with every pixel length of the page's stylesheet scaled. A render over the limit
+(`MarkdownPreviewView.setZoom`) and rebuilds a shown Browser page the same way
+([Markdown preview](../../qcaret-ui-swt/docs/markdown-preview.md#zoom)). A render over the limit
 reserves 24 bytes per char from the `MemoryBudget` through `MarkdownCharge`
 (assumed, not measured) until a later render replaces it or the tab closes; a
 refused reservation renders nothing and posts `MARKDOWN_NO_MEMORY`.

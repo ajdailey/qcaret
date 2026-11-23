@@ -14,7 +14,8 @@ right: a `BrowserPane` while the content carries HTML, else a `MarkdownPane`.
 editors, Split shows both at equal weights the first time, Preview maximizes
 the pane and hides the editors: `SashForm` moves a control it does not show to
 a 0 by 0 box off the frame, and GTK 4 still paints that box's children over the
-pane. A mode change moves the focus to the control that shows. In
+pane. Entering Preview moves the focus from the editors to the pane, and leaving
+it moves the focus from the pane to the focused editor. In
 Preview, focusing a view (`EditorView.focus`, as closing the find bar does) or
 selecting the tab focuses the pane: the hidden editors would take keys unseen. An editor
 split stays inside the editors' sash, so the preview stands right of both
@@ -28,17 +29,17 @@ before it checks the clicked item and sends that one its own (SWT 3.135.0 on
 GTK, win32 and cocoa), so only the checked item's event runs the command and
 syncs the items; a sync on the first event unchecks the clicked item.
 
-`MarkdownToolItems` follows the switch and comes and goes with it: check items
-for Browser (checked while Browser draws; a click runs Basic or Browser), Sync
-Scrolling and Outline, and push items for Export as HTML and Print Rendered
-Markdown. Each runs its menu command and takes that item's checked and enabled
-state from `CommandStates` on every sync. The Browser item's tool tip names the
-renderer shown and the one a click picks (`PREVIEW_TOGGLE_BASIC`,
-`PREVIEW_TOGGLE_BROWSER`), with the keys of the command a click runs. It is
-disabled where Browser cannot run, with `MENU_ITEM_REASON` in its tool tip.
-The five icons are the buttons' own: `MenuIcons.icon` maps none of these
-commands, so their menu items show no icon (Print Rendered Markdown's button
-shows `print`).
+`MarkdownToolItems` follows the switch and comes and goes with it: one
+`SWT.DROP_DOWN` item, Markdown actions, whose button and arrow both open a menu
+of `MarkdownToolItems.COMMANDS`: Basic and Browser as radio items, Sync
+Scrolling and Outline as check items, Export as HTML and Print Rendered
+Markdown. The menu is built when it opens, so each item takes its checked and
+enabled state from `CommandStates` then; a disabled item gives its reason as
+the menu bar does, and a radio item runs its command only on the event that
+checks it. Icons follow `MenuIcons.decorate`: Export as HTML and Print
+Rendered Markdown show `export-html` and `print`, the radio and check items
+none. The item carries itself as a `ToolMenu`, which names it for
+`ToolBarNames` and lets `ToolbarOverflow` list it as a cascade.
 
 ## Browser availability
 
@@ -46,8 +47,8 @@ shows `print`).
 
 | Cause | Reason |
 |---|---|
-| GTK 4 (`PlatformTraits.opensBrowser` false) | WebKitGTK does not start under GTK 4 |
-| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or its start or load bound expired (Browser pane) | The error's message, or `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 60 s" or "15 s") for a bound, for the rest of the Display's life |
+| GTK 4 (`PlatformTraits.opensBrowser` false) | `MARKDOWN_BROWSER_GTK4`: WebKitGTK does not start under GTK 4 |
+| A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or its start or load bound expired (Browser pane) | `MARKDOWN_BROWSER_FAILED` with the error's message, or with `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 60 s" or "15 s") for a bound, for the rest of the Display's life |
 
 `PreviewSlot` catches the failure, shows the content in the `MarkdownPane` and
 calls `browserFailed`; the controller posts "Browser preview unavailable;
@@ -62,7 +63,8 @@ dispatcher that runs the panes' timers and bounds.
 
 `BrowserPane` shows `MarkdownHtml.page` through `Browser.setText(page, false)`.
 The controller builds the page, the fragment inside `MarkdownPage.page` with
-the palette's stylesheet, on a worker for each render and theme switch, so the
+the palette's stylesheet, on a worker for each render, theme switch and zoom
+change, so the
 pane's UI-thread work is the `setText` call.
 
 - JavaScript is off, and the page's content security policy, `default-src
@@ -149,8 +151,10 @@ chars on macOS. Nothing is styled ahead of painting:
 | `PaintObjectListener` | `MarkdownPainter` | An image, or a box with the file name for one that did not decode |
 | `Paint` | `MarkdownPainter` | Code block boxes, quote bars (an alert's in its kind's color), rules, the line under level 1 and 2 headings, table borders; the pane background over the header row's shade outside the table |
 
-UI-thread work per new render is the text change (`TextDelta`), the scroll
-restore and styling of the lines in view. The wrapping `StyledText` measures a
+UI-thread work per new render is the separator spacing and display map
+(`BlockSpacing.of`, `MarkdownDisplayMap`, each one pass over the text), the
+table keys, the text change (`TextDelta`), the scroll restore and styling of
+the lines in view. The wrapping `StyledText` measures a
 line's height once, and both ways of changing its text measure lines:
 
 | Call | Lines measured |
@@ -160,9 +164,9 @@ line's height once, and both ways of changing its text measure lines:
 
 `TextDelta` takes the call that measures fewer. At 1 MiB with the top at the
 end, a render after typing near the end took 1.9 s with `setText` and 6.5 ms
-with the replace (median of 10, Xvfb, GTK 3); the first show of 951 KB took
-3.3 s as a replace from the empty text. Table layout is the only
-other work that grows with the document ([Tables](#tables)).
+with the replace (median of 10, Xvfb, GTK 3); as one replace from the empty
+text, the first show of 951 KB took 3.3 s, so a first show is a `setText`.
+Table layout runs in its own turns ([Tables](#tables)).
 
 After a replace the pane styles the lines in view again with `redrawRange`,
 since a span change can restyle text the replace kept. After a `setText` it
@@ -187,6 +191,11 @@ margins, 2 px between lines, and no top margin: `getTopIndex` returns the first
 fully visible line, and a line scrolled under a top margin would read as the
 next one. Space between blocks is in the separator lines ([Block
 spacing](#block-spacing)), so it adds no line and moves no line index.
+
+Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
+for subscript and superscript, and the editor font's family for code, all
+scaled by the zoom) belong to the pane and are disposed with it. `setPalette`
+recolors in place on a theme switch.
 
 ## Block spacing
 
@@ -215,11 +224,6 @@ and a 1 px border in the line number color. Code lines are indented 12 px.
 Do not use `StyledText.setLineSpacingProvider` for this: in SWT 3.135.0 each
 line laid out with a spacing other than its cached layout's, in view or not,
 resets that line's cache and redraws the whole widget.
-
-Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
-for subscript and superscript, and the editor font's family for code, all
-scaled by the zoom) belong to the pane and are disposed with it. `setPalette`
-recolors in place on a theme switch.
 
 ## Zoom
 
@@ -262,7 +266,7 @@ line crosses the map:
 | Call site | Map |
 |---|---|
 | `MarkdownStyler.style`, `background` | Display line to rendered line; each display piece takes its rendered chars' styles, shifted to display offsets |
-| `MarkdownPainter.paint` | Rendered lines of quotes, rules, headings and table rows to display lines |
+| `MarkdownPainter.paint` | Rendered lines of code blocks, quotes, rules, headings and table rows to display lines |
 | `MarkdownPainter.paintObject`, click, link cursor | Display offset to rendered offset |
 | Copy, from the keys bound to it and the context menu | The selection to the rendered range from its first to its last copied char |
 | `selectRendered`, `showImage` | Rendered offsets to display offsets; a match inside one cell across its break selects its part before the break (`displayRange`) |
@@ -288,12 +292,14 @@ before that limit, and a layout step starts a turn of its own:
    cell's `j`th segment, tab-separated, with the indent and tab stops that
    start each segment in its column (`TableRowStyle`). `RowSteps` replaces the
    table's lines in the map and the widget through `replaceTextRange`, 16 rows
-   in the first step and then as many as the last step's rate fits in 4 ms,
-   from 4 to 64. Steps starting above the top line, in view and below the view
-   each keep their own rate.
+   in the pane's first step at each position and then as many as the last
+   step's rate fits in 4 ms, from 4 to 64. Steps starting above the top line,
+   in view and below the view each keep their own rate, carried over between
+   tables and renders.
 
 A table starting more than one view height below the rendered lines in view, or
-above them and never laid out, is measured but waits for steps 2 and 3. A table
+above them and never laid out, is measured, its words included, but waits for
+the fit and step 3. A table
 laid out before a width change is laid out again while it ends within one view
 height above the view. Each paint passes the lines in view to
 `TableTurns.setView`, which queues the waiting tables near them. Outline go-to, Sync Scrolling and Find move the view first, and
@@ -350,7 +356,8 @@ scrolls the shown pane through `scrollToLine`; the go-to is in
 
 ## Printing
 
-File > Print Rendered Markdown prints Basic's rendering. `MarkdownStyler.apply`
+File > Print Rendered Markdown prints Basic's styles and table layout without
+block spacing or code boxes. `MarkdownStyler.apply`
 maps a span's bits to a `TextStyle` for both the pane's `StyleRange` and the
 printer's `TextLayout`, so a style change reaches both. The printing classes
 are in [Printing](printing.md#rendered-markdown).

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -26,9 +27,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The Markdown toolbar buttons after {@code Source | Split | Preview} and the status bar's renderer
- * popup: present for a Markdown tab only, each showing and driving its menu item's state, and
- * Browser disabled with its reason where it cannot run.
+ * The Markdown actions drop-down after {@code Source | Split | Preview} and the status bar's
+ * renderer popup: the drop-down is present for a Markdown tab only, its menu items follow and run
+ * their commands, and Browser is disabled with its reason where it cannot run.
  */
 @Tag("swt")
 class MarkdownToolbarSurfaceTest {
@@ -50,17 +51,17 @@ class MarkdownToolbarSurfaceTest {
     w.close();
   }
 
-  private ToolItem item(CommandId command) {
-    return w.window.markdownSwitch().tools().item(command);
+  private MarkdownToolItems tools() {
+    return w.window.markdownSwitch().tools();
   }
 
-  /** A click: SWT flips a check item's selection before its Selection event. */
-  private void click(ToolItem item) {
-    if ((item.getStyle() & SWT.CHECK) != 0) {
-      item.setSelection(!item.getSelection());
+  private MenuItem entry(Menu menu, CommandId command) {
+    for (MenuItem item : menu.getItems()) {
+      if (item.getData() == command) {
+        return item;
+      }
     }
-    item.notifyListeners(SWT.Selection, new Event());
-    w.flush();
+    return null;
   }
 
   private void select(MenuItem item) {
@@ -81,60 +82,80 @@ class MarkdownToolbarSurfaceTest {
   }
 
   @Test
-  void theButtonsShowForAMarkdownTabOnly() throws Exception {
+  void theDropDownShowsForAMarkdownTabOnly() throws Exception {
     w.open("notes.txt", "plain\n", false);
-    for (CommandId command : MarkdownToolItems.COMMANDS) {
-      assertNull(item(command), command.name());
-    }
+    assertNull(tools().item());
     w.open("guide.md", "# Mock guide\n", true);
-    for (CommandId command : MarkdownToolItems.COMMANDS) {
-      ToolItem item = item(command);
-      assertNotNull(item, command.name());
-      assertNotNull(item.getImage(), command.name() + " icon");
-      assertEquals(states.enabled(command), item.getEnabled(), command.name());
-    }
-    assertTrue(item(CommandId.EXPORT_HTML).getEnabled());
-    assertTrue(item(CommandId.PRINT_MARKDOWN).getEnabled());
-    assertTrue(item(CommandId.MARKDOWN_SYNC_SCROLL).getSelection());
-    assertFalse(item(CommandId.MARKDOWN_OUTLINE).getSelection());
-    assertFalse(item(CommandId.PREVIEW_BROWSER).getSelection());
-    assertTrue(item(CommandId.EXPORT_HTML).getToolTipText().startsWith("Export as HTML"));
-    w.controller.documents().select(0);
+    ToolItem item = tools().item();
+    assertNotNull(item);
+    assertTrue((item.getStyle() & SWT.DROP_DOWN) != 0);
+    assertNotNull(item.getImage());
+    assertEquals(UiText.MARKDOWN_ACTIONS.text(), item.getToolTipText());
+    assertTrue(item.getData() instanceof ToolMenu);
+    w.controller.documents().select(w.window.tabs().getItemCount() - 2);
     w.flush();
-    assertNull(item(CommandId.EXPORT_HTML));
+    assertNull(tools().item());
   }
 
   @Test
-  void theTogglesFollowAndDriveTheirMenuItems() throws Exception {
+  void theMenuListsTheActionsInOrderWithTheirState() throws Exception {
     w.open("guide.md", "# Mock guide\n", true);
-    w.controller.execute(CommandId.MARKDOWN_SYNC_SCROLL);
-    w.flush();
-    assertFalse(w.options().markdownSyncScroll());
-    assertFalse(item(CommandId.MARKDOWN_SYNC_SCROLL).getSelection());
-    click(item(CommandId.MARKDOWN_SYNC_SCROLL));
-    assertTrue(w.options().markdownSyncScroll());
-    assertTrue(item(CommandId.MARKDOWN_SYNC_SCROLL).getSelection());
+    Menu menu = tools().menu();
+    MenuItem[] items = menu.getItems();
+    assertEquals(MarkdownToolItems.COMMANDS.length, items.length);
+    for (int i = 0; i < items.length; i++) {
+      CommandId command = MarkdownToolItems.COMMANDS[i];
+      if (command == null) {
+        assertTrue((items[i].getStyle() & SWT.SEPARATOR) != 0, "separator " + i);
+        continue;
+      }
+      assertEquals(command, items[i].getData());
+      assertTrue(items[i].getText().startsWith(command.label()), items[i].getText());
+      assertEquals(states.enabled(command), items[i].getEnabled(), command.name());
+    }
+    assertTrue((items[0].getStyle() & SWT.RADIO) != 0);
+    assertTrue((items[1].getStyle() & SWT.RADIO) != 0);
+    assertTrue((items[3].getStyle() & SWT.CHECK) != 0);
+    assertTrue((items[4].getStyle() & SWT.CHECK) != 0);
+    assertTrue((items[6].getStyle() & SWT.PUSH) != 0);
+    assertTrue(items[0].getSelection());
+    assertFalse(items[1].getSelection());
+    assertTrue(items[3].getSelection());
+    assertFalse(items[4].getSelection());
+    // Radio and check items carry no icon: the GTK 3 alignment blank or none.
+    assertSame(items[0].getImage(), items[3].getImage());
+  }
 
-    click(item(CommandId.MARKDOWN_OUTLINE));
+  @Test
+  void eachToggleRunsItsCommandAndTheMenuFollows() throws Exception {
+    w.open("guide.md", "# Mock guide\n", true);
+    select(entry(tools().menu(), CommandId.MARKDOWN_SYNC_SCROLL));
+    assertFalse(w.options().markdownSyncScroll());
+    assertFalse(entry(tools().menu(), CommandId.MARKDOWN_SYNC_SCROLL).getSelection());
+    select(entry(tools().menu(), CommandId.MARKDOWN_OUTLINE));
     assertTrue(states.checked(CommandId.MARKDOWN_OUTLINE));
-    assertTrue(item(CommandId.MARKDOWN_OUTLINE).getSelection());
+    assertTrue(entry(tools().menu(), CommandId.MARKDOWN_OUTLINE).getSelection());
     w.controller.execute(CommandId.MARKDOWN_OUTLINE);
     w.flush();
-    assertFalse(item(CommandId.MARKDOWN_OUTLINE).getSelection());
+    assertFalse(entry(tools().menu(), CommandId.MARKDOWN_OUTLINE).getSelection());
   }
 
   @Test
-  void theRendererToggleAndTheStatusFieldChooseTheRenderer() throws Exception {
+  void theRendererItemsAndTheStatusFieldChooseTheRenderer() throws Exception {
     assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
     w.open("guide.md", "# Mock guide\n", true);
-    ToolItem toggle = item(CommandId.PREVIEW_BROWSER);
-    assertTrue(toggle.getEnabled());
-    click(toggle);
+    Menu menu = tools().menu();
+    MenuItem basic = entry(menu, CommandId.PREVIEW_BASIC);
+    MenuItem browser = entry(menu, CommandId.PREVIEW_BROWSER);
+    assertTrue(browser.getEnabled());
+    // An unchecked radio item's event runs nothing.
+    basic.setSelection(false);
+    basic.notifyListeners(SWT.Selection, new Event());
+    select(browser);
     assertEquals(PreviewRenderer.BROWSER, w.options().previewRenderer());
-    assertTrue(toggle.getSelection());
-    w.controller.execute(CommandId.PREVIEW_BASIC);
-    w.flush();
-    assertFalse(toggle.getSelection());
+    assertTrue(entry(tools().menu(), CommandId.PREVIEW_BROWSER).getSelection());
+    select(entry(tools().menu(), CommandId.PREVIEW_BASIC));
+    assertEquals(PreviewRenderer.BASIC, w.options().previewRenderer());
 
     w.controller.execute(CommandId.MARKDOWN_SPLIT);
     w.flush();
@@ -149,39 +170,21 @@ class MarkdownToolbarSurfaceTest {
     w.controller.execute(CommandId.MARKDOWN_SOURCE);
     select(popup.getItem(1));
     assertEquals(PreviewRenderer.BROWSER, w.options().previewRenderer());
-    assertTrue(toggle.getSelection());
+    assertTrue(entry(tools().menu(), CommandId.PREVIEW_BROWSER).getSelection());
   }
 
   @Test
-  void theRendererToggleToolTipNamesTheRendererShownAndTheClick() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
-    w.open("guide.md", "# Mock guide\n", true);
-    ToolItem toggle = item(CommandId.PREVIEW_BROWSER);
-    assertTrue(
-        toggle.getToolTipText().startsWith(UiText.PREVIEW_TOGGLE_BASIC.text()),
-        toggle.getToolTipText());
-    w.controller.execute(CommandId.PREVIEW_BROWSER);
-    w.flush();
-    assertTrue(
-        toggle.getToolTipText().startsWith(UiText.PREVIEW_TOGGLE_BROWSER.text()),
-        toggle.getToolTipText());
-    click(toggle);
-    assertEquals(PreviewRenderer.BASIC, w.options().previewRenderer());
-    assertTrue(
-        toggle.getToolTipText().startsWith(UiText.PREVIEW_TOGGLE_BASIC.text()),
-        toggle.getToolTipText());
-  }
-
-  @Test
-  void browserUnavailableDisablesTheToggleAndThePopupItemWithTheReason() throws Exception {
+  void browserUnavailableDisablesTheMenuItemAndThePopupItemWithTheReason() throws Exception {
     BrowserPreview.failed(w.display, MOCK_REASON);
     String reason = w.window.previewBrowserUnavailable();
     w.openSplit("guide.md", "# Mock guide\n", "Mock guide");
     w.window.documentStateChanged();
-    ToolItem toggle = item(CommandId.PREVIEW_BROWSER);
-    assertFalse(toggle.getEnabled());
-    assertFalse(toggle.getSelection());
-    assertTrue(toggle.getToolTipText().contains(reason), toggle.getToolTipText());
+    MenuItem item = entry(tools().menu(), CommandId.PREVIEW_BROWSER);
+    assertFalse(item.getEnabled());
+    assertFalse(item.getSelection());
+    String text =
+        PlatformTraits.PLATFORM.showsMenuToolTips() ? item.getToolTipText() : item.getText();
+    assertTrue(text.contains(reason), text);
     Menu popup = renderers();
     MenuItem browser = popup.getItem(1);
     assertFalse(browser.getEnabled());

@@ -82,6 +82,8 @@ class MenuIconsTest {
     table.put(CommandId.SAVE_AS, "save-as");
     table.put(CommandId.SAVE_ALL, "save-all");
     table.put(CommandId.PRINT, "print");
+    table.put(CommandId.PRINT_MARKDOWN, "print");
+    table.put(CommandId.EXPORT_HTML, "export-html");
     table.put(CommandId.RELOAD, "reload");
     table.put(CommandId.CLOSE, "close");
     table.put(CommandId.QUIT, "quit");

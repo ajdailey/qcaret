@@ -16,7 +16,8 @@ import org.eclipse.swt.widgets.ToolItem;
  * The main toolbar's buttons: each runs its menu command, takes its enabled state from {@link
  * CommandStates}, shows the command and its keys as the tool tip, and carries the command as its
  * data, which {@link ToolBarNames} reads. A command missing an icon shows its title. After a click
- * that left the focus on the toolbar the focus returns to the editor. Call on the UI thread.
+ * that left the focus on the toolbar the focus returns to the editor or preview that had it last.
+ * Call on the UI thread.
  */
 final class MainToolBar {
   /** The buttons in order; null is a separator. */
@@ -25,6 +26,7 @@ final class MainToolBar {
     CommandId.OPEN,
     CommandId.SAVE,
     CommandId.SAVE_ALL,
+    CommandId.PRINT,
     null,
     CommandId.UNDO,
     CommandId.REDO,
@@ -53,14 +55,14 @@ final class MainToolBar {
    * @param icons the icon set
    * @param controller runs the commands
    * @param states the commands' enabled state
-   * @param focusEditor returns the focus to the editor
+   * @param focusPane returns the focus to the editor or preview that had it last
    */
   MainToolBar(
       ToolBar bar,
       ToolIcons icons,
       final ApplicationController controller,
       CommandStates states,
-      final Runnable focusEditor) {
+      final Runnable focusPane) {
     this.bar = bar;
     this.icons = icons;
     this.states = states;
@@ -83,7 +85,7 @@ final class MainToolBar {
               if (!MainToolBar.this.bar.isDisposed()) {
                 sync();
                 if (MainToolBar.this.bar.isFocusControl()) {
-                  focusEditor.run();
+                  focusPane.run();
                 }
               }
             }

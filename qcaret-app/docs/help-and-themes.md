@@ -32,15 +32,13 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
   in the find bar, the toolbar or a dialog leaves the record, and a hidden
   preview counts as not focused.
 - On the editor (`EditorZoom`) Zoom In and Zoom Out step `editor.fontZoom` one
-  point from the size drawn, from 4 to 72; a step back to `editor.fontSize`
-  stores 0. Reset Zoom sets it to 0, returning to the Preferences size. The view
+  point from the size drawn, from 4 to 72; a step back to `editor.fontSize`, or
+  to the platform size when that is 0, stores 0. Reset Zoom sets it to 0, returning to the Preferences size. The view
   changes the font in place. A change of `editor.fontFamily` reaches the view
   through `MainView.setFontFamily`.
 - On the preview they step `markdown.previewZoom` 10 percent, from 50 to 300,
-  and Reset Zoom sets 100. Basic panes build their fonts again at that size;
-  Browser pages scale every pixel length of their stylesheet by it
-  ([Documents](documents.md#markdown-preview)). Images keep their size, and
-  print and export do not zoom.
+  and Reset Zoom sets 100; the previews draw again at that size
+  ([Documents](documents.md#markdown-preview)).
 - A wheel turn with Ctrl (Command on macOS) zooms the pane under the pointer,
   whatever has the focus: `EditorPane` and `PreviewWheel` call
   `ApplicationController.wheelZoom` with the pane's kind.

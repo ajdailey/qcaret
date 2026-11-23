@@ -188,14 +188,8 @@ final class ToolIcons {
   /** Lists every tab, at the end of the tab strip; a right arrow. */
   static final String TAB_LIST_RIGHT = "tab-list-right";
 
-  /** The Markdown preview's Browser renderer. */
-  static final String PREVIEW_BROWSER = "preview-browser";
-
-  /** Scrolls a Markdown tab's editor and preview together. */
-  static final String SYNC_SCROLL = "sync-scroll";
-
-  /** Shows the Markdown Outline dock. */
-  static final String OUTLINE = "outline";
+  /** Opens a Markdown tab's actions menu. */
+  static final String MARKDOWN_ACTIONS = "markdown-actions";
 
   /** Exports a Markdown tab as HTML. */
   static final String EXPORT_HTML = "export-html";

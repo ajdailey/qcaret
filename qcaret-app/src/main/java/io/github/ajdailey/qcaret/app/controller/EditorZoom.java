@@ -35,7 +35,8 @@ final class EditorZoom {
 
   /**
    * Zooms by whole points, clamped to {@link Options#MIN_FONT_SIZE} and {@link
-   * Options#MAX_FONT_SIZE}. A zoom back to the Preferences size clears the zoom.
+   * Options#MAX_FONT_SIZE}. A zoom back to the Preferences size, or to {@code platformSize} when
+   * that is 0, clears the zoom.
    *
    * @param options the settings
    * @param platformSize the platform's default size in points
@@ -47,7 +48,8 @@ final class EditorZoom {
         Math.max(
             Options.MIN_FONT_SIZE,
             Math.min(Options.MAX_FONT_SIZE, points(options, platformSize) + steps));
-    return options.withFontZoom(next == options.fontSize() ? 0 : next);
+    int preferred = options.fontSize() == 0 ? platformSize : options.fontSize();
+    return options.withFontZoom(next == preferred ? 0 : next);
   }
 
   /**

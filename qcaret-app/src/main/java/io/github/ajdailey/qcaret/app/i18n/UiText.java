@@ -1998,10 +1998,10 @@ public enum UiText {
   OPEN_LINK_TITLE,
   /** That dialog's question. */
   OPEN_LINK_MESSAGE,
-  /** Tool tip of the toolbar's renderer toggle while Basic shows. */
-  PREVIEW_TOGGLE_BASIC,
-  /** Tool tip of the toolbar's renderer toggle while Browser shows. */
-  PREVIEW_TOGGLE_BROWSER;
+  /** Tool tip and name of a Markdown tab's toolbar drop-down. */
+  MARKDOWN_ACTIONS,
+  /** Tool tip and name of the button listing the toolbar buttons a narrow window hides. */
+  TOOLBAR_MORE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

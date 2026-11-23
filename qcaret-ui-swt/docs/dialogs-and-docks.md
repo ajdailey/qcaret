@@ -288,13 +288,14 @@ the list has rows.
 
 `OutlineDock` shows the `OutlineInput` model, the selected Markdown tab's
 headings, as a `Tree` under Hide and the model's summary, right of the editors
-and the bottom docks. View > Markdown View > Outline shows and hides it; the
+and the bottom docks. View > Markdown View > Outline and the same item in the toolbar's Markdown actions menu show and hide it; the
 window's session keeps it shown.
 
 - A heading's parent is the closest earlier heading of a higher level, so an
   H3 under an H1 is one step in. Every level shows expanded.
 - A click on a heading's text calls `goTo` and keeps the focus in the tree;
-  Enter and a double click call it and focus the editor. Arrows and the
+  Enter and a double click call it and focus the tab's view (the preview in
+  Preview). Arrows and the
   platform's type-ahead move the selection only. `outlineSelected` selects the
   heading holding the caret without an event.
 - `refresh` keeps the items before the first entry whose parent changed, with

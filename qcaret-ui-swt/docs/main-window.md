@@ -216,8 +216,10 @@ All of it is unverified on cocoa.
 ## Toolbar
 
 `MainToolBar` is a fixed row under the menu bar, shown unless `ui.toolbar` is
-false: New, Open, Save, Save All, Undo, Redo, Cut, Copy, Paste, Find, Replace,
-HyperSearch, Zoom In, Zoom Out.
+false: New, Open, Save, Save All, Print, Undo, Redo, Cut, Copy, Paste, Find,
+Replace, HyperSearch, Zoom In, Zoom Out. The bar has `SWT.RIGHT`, so a text
+item's label sits on the icon row; without it GTK 3 puts the label under an
+empty icon slot and the row grows 15 px for a Markdown tab.
 
 - Each button runs its command through `ApplicationController.execute`, shows
   the command and its keys as the tool tip, and carries the command as data
@@ -225,15 +227,21 @@ HyperSearch, Zoom In, Zoom Out.
 - Enablement syncs from `CommandStates` with the menu bar, and `EDIT_STATE` on
   each status read, coalesced with the status bar.
 - `MarkdownSwitch` adds Source, Split and Preview at the end while the selected
-  tab is a Markdown tab, and `MarkdownToolItems` the renderer, Sync Scrolling
-  and Outline toggles, Export as HTML and Print Rendered Markdown after them
-  ([Markdown preview](markdown-preview.md#tab-frame)).
+  tab is a Markdown tab, and `MarkdownToolItems` the Markdown actions drop-down
+  after them ([Markdown preview](markdown-preview.md#tab-frame)).
 - A click that left the focus on the bar returns it to the pane that had it
   last, the preview or the editor (`PaneFocus`), so Zoom In from the toolbar
   zooms the same pane again.
-- The GTK window's minimum width is the menu bar's (437 px measured); the
-  toolbar prefers 441 px there, and below its width GTK moves the last buttons
-  behind an overflow arrow. Every button's command is also in a menu.
+- `ToolbarOverflow` holds the bar in a clipping composite at no less than its
+  preferred width, and shows a More button at the row's end while an item lies
+  past the clip. Its menu lists the hidden items in toolbar order, built when
+  it opens: each with its command's title, `MenuIcons` icon, checked and
+  enabled state and a disabled item's reason; a `ToolMenu` drop-down as a
+  cascade of its own menu. Choosing an item runs the item's `Selection` as a
+  click does, a check item flipped first. A GTK 3 toolbar allocated less than
+  its preferred width shows its own overflow arrow, whose entries run no
+  command, so the bar is never narrowed. Neither GTK 3 nor GTK 4 wraps a
+  `SWT.WRAP` toolbar into a second row (measured, Xvfb).
 
 ## Status bar and title
 
@@ -382,7 +390,8 @@ does not read its name. `attachKeepingRole` leaves the control's own role.
 
 SWT on GTK calls Java accessibility listeners only for the controls it draws,
 not for native widgets such as a tool item or a `Tree`. `ToolBarNames.attach`
-names each toolbar item that carries a `CommandId` by the command's title,
+names each toolbar item that carries a `CommandId` by the command's title, and
+`ToolBarNames.name` a `ToolMenu` drop-down added later by its title,
 through the toolbar's `Accessible` and through `NativeNames`
 (`ui.swt.platform`); `OutlineDock` names its `Tree` Outline through
 `AccessibleName` and `NativeNames`. `NativeNames` is

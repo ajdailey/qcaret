@@ -31,7 +31,7 @@ final class RowSteps {
   private static final int MOST_ROWS_PER_STEP = 64;
 
   /**
-   * The fewest rows one text replace lays out: a replace above the top line takes 3-7 ms for one
+   * The fewest rows one text replace lays out: a replace above the top line takes 3-12 ms for one
    * row or several (GTK 3), so its rate says little about a smaller step.
    */
   private static final int FEWEST_ROWS_PER_STEP = 4;

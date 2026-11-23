@@ -431,7 +431,7 @@ class PreferencesSurfaceTest {
     assertEquals(NewLineEnding.CRLF, p.options().newLineEnding());
     assertEquals("windows-1252", p.options().newEncoding());
     assertFalse(controller.documents().wrap());
-    assertFalse(window.mainToolBar().bar().getVisible());
+    assertFalse(window.toolbarRow().row().getVisible());
     assertTrue(p.state().memoryIndicator());
     assertTrue(window.memoryGauge().control().getVisible());
     dialog.shell().dispose();

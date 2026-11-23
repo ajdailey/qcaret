@@ -416,7 +416,7 @@ class GuideScreenshotsTest {
   }
 
   /** Returns the image's width without the columns at its right that match its last column. */
-  private static int contentWidth(ImageData data) {
+  static int contentWidth(ImageData data) {
     int[] last = column(data, data.width - 1);
     for (int x = data.width - 2; x > 0; x--) {
       if (!Arrays.equals(last, column(data, x))) {
@@ -550,7 +550,7 @@ class GuideScreenshotsTest {
   }
 
   /** Returns the image's height without the rows at its bottom that match its last row. */
-  private static int contentHeight(ImageData data) {
+  static int contentHeight(ImageData data) {
     int[] last = new int[data.width];
     int[] row = new int[data.width];
     data.getPixels(0, data.height - 1, data.width, last, 0);

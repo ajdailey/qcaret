@@ -5,160 +5,172 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import java.util.EnumMap;
-import java.util.Map;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 
 /**
- * The Markdown buttons after the toolbar's {@link MarkdownSwitch}, created and disposed with it:
- * the renderer toggle, checked for Browser; the Sync Scrolling and Outline toggles; Export as HTML;
- * Print Rendered Markdown. Each runs its menu command and shows that item's checked and enabled
- * state from {@link CommandStates}. The renderer toggle's tool tip names the renderer shown and the
- * one a click picks, with that command's keys; where Browser cannot run the toggle is disabled with
- * the reason as its tool tip. Call on the UI thread.
+ * The Markdown actions drop-down after the toolbar's {@link MarkdownSwitch}, created and disposed
+ * with it. A click on the button or its arrow opens a menu of {@link #COMMANDS}: Basic and Browser
+ * as radio items, Sync Scrolling and Outline as check items, Export as HTML and Print Rendered
+ * Markdown. Each item shows its title and keys, takes its checked and enabled state from {@link
+ * CommandStates} when the menu opens, gives a disabled item's reason as the menus do, and runs its
+ * menu command. Call on the UI thread.
  */
-final class MarkdownToolItems {
-  /** The buttons in toolbar order. */
+final class MarkdownToolItems implements ToolMenu {
+  /** The menu's commands in order; null is a separator. */
   static final CommandId[] COMMANDS = {
+    CommandId.PREVIEW_BASIC,
     CommandId.PREVIEW_BROWSER,
+    null,
     CommandId.MARKDOWN_SYNC_SCROLL,
     CommandId.MARKDOWN_OUTLINE,
+    null,
     CommandId.EXPORT_HTML,
     CommandId.PRINT_MARKDOWN
   };
 
   private final ToolBar bar;
   private final ToolIcons icons;
+  private final MenuIcons menuIcons;
   private final ApplicationController controller;
   private final CommandStates states;
-  private final Map<CommandId, ToolItem> items = new EnumMap<CommandId, ToolItem>(CommandId.class);
   private ToolItem separator;
+  private ToolItem item;
+  private Menu menu;
   private Keymap keymap;
 
   MarkdownToolItems(
-      ToolBar bar, ToolIcons icons, ApplicationController controller, CommandStates states) {
+      ToolBar bar,
+      ToolIcons icons,
+      MenuIcons menuIcons,
+      ApplicationController controller,
+      CommandStates states) {
     this.bar = bar;
     this.icons = icons;
+    this.menuIcons = menuIcons;
     this.controller = controller;
     this.states = states;
   }
 
-  /** Adds the buttons at the toolbar's end. */
+  /** Adds the drop-down at the toolbar's end. */
   void create() {
     separator = new ToolItem(bar, SWT.SEPARATOR);
-    for (final CommandId command : COMMANDS) {
-      boolean push = command == CommandId.EXPORT_HTML || command == CommandId.PRINT_MARKDOWN;
-      ToolItem item = new ToolItem(bar, push ? SWT.PUSH : SWT.CHECK);
-      item.setData(command);
-      if (!icons.apply(item, icon(command))) {
-        item.setText(command.title());
-      }
-      item.addListener(
-          SWT.Selection,
-          new Listener() {
-            @Override
-            public void handleEvent(Event event) {
-              ToolItem clicked = (ToolItem) event.widget;
-              boolean browser = clicked.getSelection();
-              if (command == CommandId.PREVIEW_BROWSER) {
-                controller.execute(browser ? CommandId.PREVIEW_BROWSER : CommandId.PREVIEW_BASIC);
-              } else {
-                controller.execute(command);
-              }
-              if (!clicked.isDisposed()) {
-                sync();
-              }
-            }
-          });
-      items.put(command, item);
+    item = new ToolItem(bar, SWT.DROP_DOWN);
+    item.setData(this);
+    String title = title();
+    if (!icons.apply(item, ToolIcons.MARKDOWN_ACTIONS)) {
+      item.setText(title);
     }
-    sync();
+    item.setToolTipText(title);
+    ToolBarNames.name(item, title);
+    item.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            Menu shown = menu();
+            Rectangle bounds = ((ToolItem) event.widget).getBounds();
+            shown.setLocation(bar.toDisplay(bounds.x, bounds.y + bounds.height));
+            shown.setVisible(true);
+          }
+        });
   }
 
-  /** Removes the buttons. */
+  /** Removes the drop-down. */
   void dispose() {
-    if (separator == null) {
+    if (separator == null || item == null) {
       return;
     }
-    separator.dispose();
-    separator = null;
-    for (ToolItem item : items.values()) {
-      item.dispose();
+    if (menu != null && !menu.isDisposed()) {
+      menu.dispose();
     }
-    items.clear();
+    separator.dispose();
+    item.dispose();
+    separator = null;
+    item = null;
   }
 
   /**
-   * Sets the tool tips' keys.
+   * Sets the menu's keys.
    *
    * @param value the key bindings
    */
   void setKeymap(Keymap value) {
     keymap = value;
-    sync();
   }
 
-  /** Shows each command's checked and enabled state and its tool tip. */
-  void sync() {
-    for (Map.Entry<CommandId, ToolItem> entry : items.entrySet()) {
-      CommandId command = entry.getKey();
-      ToolItem item = entry.getValue();
-      boolean enabled = states.enabled(command);
-      if (item.getEnabled() != enabled) {
-        item.setEnabled(enabled);
-        icons.showState(item);
-      }
-      if ((item.getStyle() & SWT.CHECK) != 0) {
-        boolean checked = states.checked(command);
-        if (item.getSelection() != checked) {
-          item.setSelection(checked);
-        }
-      }
-      String tip = tip(command, enabled);
-      if (!tip.equals(item.getToolTipText())) {
-        item.setToolTipText(tip);
-      }
-    }
-  }
-
-  private String tip(CommandId command, boolean enabled) {
-    String title = command.qualifiedTitle();
-    String reason = enabled ? null : states.unavailable(command);
-    if (reason != null) {
-      return UiText.MENU_ITEM_REASON.format(title, reason);
-    }
-    CommandId runs = command;
-    if (command == CommandId.PREVIEW_BROWSER) {
-      boolean browser = states.checked(CommandId.PREVIEW_BROWSER);
-      title = (browser ? UiText.PREVIEW_TOGGLE_BROWSER : UiText.PREVIEW_TOGGLE_BASIC).text();
-      runs = browser ? CommandId.PREVIEW_BASIC : CommandId.PREVIEW_BROWSER;
-    }
-    String keys = keymap == null ? "" : keymap.keysText(runs);
-    return keys.isEmpty() ? title : title + " (" + keys + ")";
-  }
-
-  /** The button's icon; the menu items keep none ({@link MenuIcons#icon} returns null). */
-  private static String icon(CommandId command) {
-    return switch (command) {
-      case PREVIEW_BROWSER -> ToolIcons.PREVIEW_BROWSER;
-      case MARKDOWN_SYNC_SCROLL -> ToolIcons.SYNC_SCROLL;
-      case MARKDOWN_OUTLINE -> ToolIcons.OUTLINE;
-      case EXPORT_HTML -> ToolIcons.EXPORT_HTML;
-      default -> ToolIcons.PRINT;
-    };
+  @Override
+  public String title() {
+    return UiText.MARKDOWN_ACTIONS.text();
   }
 
   /**
-   * Returns a command's button.
+   * Builds the drop-down's menu from the current command states, replacing the last one.
    *
-   * @param command one of {@link #COMMANDS}
-   * @return the button, or null while hidden
+   * @return the menu, not yet visible
    */
-  ToolItem item(CommandId command) {
-    return items.get(command);
+  Menu menu() {
+    if (menu != null && !menu.isDisposed()) {
+      menu.dispose();
+    }
+    menu = new Menu(bar.getShell(), SWT.POP_UP);
+    fill(menu);
+    return menu;
+  }
+
+  @Override
+  public void fill(Menu target) {
+    for (final CommandId command : COMMANDS) {
+      if (command == null) {
+        new MenuItem(target, SWT.SEPARATOR);
+        continue;
+      }
+      boolean radio = command == CommandId.PREVIEW_BASIC || command == CommandId.PREVIEW_BROWSER;
+      int style = radio ? SWT.RADIO : command.check() ? SWT.CHECK : SWT.PUSH;
+      MenuItem entry = new MenuItem(target, style);
+      boolean enabled = states.enabled(command);
+      String reason = enabled ? null : states.unavailable(command);
+      String label = command.label();
+      if (reason != null && !PlatformTraits.PLATFORM.showsMenuToolTips()) {
+        label = UiText.MENU_ITEM_REASON.format(label, reason);
+      }
+      String keys = keymap == null ? "" : keymap.menuKeyText(command);
+      entry.setText(keys.isEmpty() ? label : label + "\t" + keys);
+      entry.setToolTipText(reason);
+      entry.setEnabled(enabled);
+      entry.setData(command);
+      if (style != SWT.PUSH) {
+        entry.setSelection(states.checked(command));
+      }
+      entry.addListener(
+          SWT.Selection,
+          new Listener() {
+            @Override
+            public void handleEvent(Event event) {
+              MenuItem chosen = (MenuItem) event.widget;
+              // A radio choice also sends the item it unchecks an event; only the checked one acts.
+              if ((chosen.getStyle() & SWT.RADIO) == 0 || chosen.getSelection()) {
+                controller.execute(command);
+              }
+            }
+          });
+    }
+    menuIcons.decorate(target);
+  }
+
+  /**
+   * Returns the drop-down.
+   *
+   * @return the item, or null while hidden
+   */
+  ToolItem item() {
+    return item;
   }
 }

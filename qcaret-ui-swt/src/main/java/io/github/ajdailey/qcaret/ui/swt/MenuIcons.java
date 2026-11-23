@@ -64,7 +64,8 @@ final class MenuIcons {
       case SAVE -> ToolIcons.SAVE;
       case SAVE_AS -> ToolIcons.SAVE_AS;
       case SAVE_ALL -> ToolIcons.SAVE_ALL;
-      case PRINT -> ToolIcons.PRINT;
+      case PRINT, PRINT_MARKDOWN -> ToolIcons.PRINT;
+      case EXPORT_HTML -> ToolIcons.EXPORT_HTML;
       case RELOAD -> ToolIcons.RELOAD;
       case CLOSE -> ToolIcons.CLOSE;
       case QUIT -> ToolIcons.QUIT;

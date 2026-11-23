@@ -54,6 +54,33 @@ class ZoomCommandsTest {
     assertEquals(100, options().previewZoom());
   }
 
+  /**
+   * A step back to the size drawn without a zoom clears the zoom, at the platform size as at a
+   * Preferences size. Regression: with {@code editor.fontSize} 0, zooming in and out stored the
+   * platform size, so the zoom stayed set.
+   */
+  @Test
+  void aStepBackToTheDrawnSizeClearsTheZoom() {
+    assertEquals(0, options().fontSize());
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertEquals(11, options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_OUT);
+    assertEquals(0, options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_OUT);
+    assertEquals(9, options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertEquals(0, options().fontZoom());
+
+    Preferences current = harness.application.preferences();
+    harness.application.settings().set(current.withOptions(current.options().withFontSize(14)));
+    harness.application.execute(CommandId.ZOOM_IN);
+    assertEquals(15, options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_OUT);
+    assertEquals(0, options().fontZoom());
+    harness.application.execute(CommandId.ZOOM_OUT);
+    assertEquals(13, options().fontZoom());
+  }
+
   @Test
   void thePreviewZoomLeavesTheEditorUnchanged() {
     harness.view.previewFocused = true;

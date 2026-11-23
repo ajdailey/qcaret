@@ -50,8 +50,9 @@ import java.util.concurrent.RejectedExecutionException;
  *   <li>A restored mode follows {@link MarkdownRestore}.
  *   <li>A reload of the grammars renders again, so code blocks take the new grammars.
  *   <li>A click on a link follows it: an anchor scrolls the preview to its heading, a local file
- *       opens in QCaret, a URL opens in the system browser. A click on a footnote reference scrolls
- *       to the footnote. The Browser preview reports its links through {@link #linkFollowed}.
+ *       opens in QCaret, a web address opens in the system browser after the confirmation dialog
+ *       ({@code MainView.askOpenUrl}). A click on a footnote reference scrolls to the footnote. The
+ *       Browser preview reports its links through {@link #linkFollowed}.
  * </ul>
  */
 final class MarkdownPreview implements MarkdownPreviewInput {

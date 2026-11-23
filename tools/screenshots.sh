@@ -1,7 +1,8 @@
 #!/bin/sh
 # Writes docs/images/qcaret-light.png and qcaret-dark.png (the main window,
 # 1100x700) and the user guide's docs/images/guide/*.png from generated mock
-# files under Xvfb. Linux (GTK) only. Needs xvfb-run and a JDK 21 in JAVA_HOME;
+# files under Xvfb. Linux (GTK 3) only. Needs xvfb-run, WebKitGTK for the Browser
+# preview image and a JDK 21 in JAVA_HOME;
 # the test JVMs use target/test-home as user.home, so nothing is written to the
 # real home directory. The files are written to /tmp/qcaret-demo, the path the
 # screenshots show, created owner-only (the run stops if it exists) and removed
@@ -19,7 +20,7 @@ cd "$root"
 XDG_CONFIG_HOME="$root/qcaret-ui-swt/src/test/resources/gtk-config/adwaita"
 export XDG_CONFIG_HOME
 xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -q package -pl qcaret-launcher -am \
-    -Dtest='ScreenshotsTest,GuideScreenshotsTest,EditorSchemeShotsTest' -Dsurefire.failIfNoSpecifiedTests=false \
+    -Dtest='ScreenshotsTest,GuideScreenshotsTest,MarkdownGuideShotsTest,EditorSchemeShotsTest' -Dsurefire.failIfNoSpecifiedTests=false \
     -Dqcaret.screenshots="$root/docs/images" -Dqcaret.guide.shots="$root/docs/images/guide" \
     -Dqcaret.screenshots.files="$files"
 ls -l "$root/docs/images" "$root/docs/images/guide"

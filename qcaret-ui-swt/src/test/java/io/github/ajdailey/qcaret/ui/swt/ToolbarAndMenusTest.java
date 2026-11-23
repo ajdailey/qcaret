@@ -52,6 +52,7 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
@@ -283,7 +284,7 @@ class ToolbarAndMenusTest {
 
   @Test
   void viewToolbarHidesTheRowAndSavesTheChoice() throws Exception {
-    final ToolBar bar = window.mainToolBar().bar();
+    final Composite bar = window.toolbarRow().row();
     int shownTop = window.tabs().toDisplay(0, 0).y;
     MenuItem toggle = window.menuBar().item(CommandId.TOOLBAR);
     window.menuBar().sync(CommandGroup.VIEW);
@@ -720,7 +721,7 @@ class ToolbarAndMenusTest {
     window.shell().setSize(240, 400);
     drain();
     int client = window.shell().getClientArea().width;
-    assertTrue(window.mainToolBar().bar().getBounds().width <= client);
+    assertTrue(window.toolbarRow().row().getBounds().width <= client);
     assertTrue(window.tabs().getBounds().width <= client);
     assertTrue(window.tabs().getBounds().height > 100);
   }

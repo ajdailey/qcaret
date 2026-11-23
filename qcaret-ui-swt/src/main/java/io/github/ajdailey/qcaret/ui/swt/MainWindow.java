@@ -202,6 +202,7 @@ public final class MainWindow implements MainView {
   private EditorMenu editorMenu;
   private StatusMenus statusMenus;
   private final ToolBar toolBar;
+  private final ToolbarOverflow toolbarRow;
   private boolean lineNumbersShown = true;
   private int rightMargin;
   private boolean indentGuides;
@@ -252,8 +253,8 @@ public final class MainWindow implements MainView {
     layout.marginHeight = 0;
     layout.verticalSpacing = 0;
     shell.setLayout(layout);
-    toolBar = new ToolBar(shell, SWT.FLAT | SWT.HORIZONTAL);
-    toolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    toolbarRow = new ToolbarOverflow(shell, SWT.FLAT | SWT.HORIZONTAL | SWT.RIGHT);
+    toolBar = toolbarRow.bar();
     side = new SashForm(shell, SWT.HORIZONTAL);
     side.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     center = new SashForm(side, SWT.HORIZONTAL);
@@ -462,8 +463,9 @@ public final class MainWindow implements MainView {
     menuBar.build(keymap);
     mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusPane);
     mainToolBar.setKeymap(keymap);
-    markdownSwitch = new MarkdownSwitch(toolBar, toolIcons, owner, menuBar.states());
+    markdownSwitch = new MarkdownSwitch(toolBar, toolIcons, menuIcons, owner, menuBar.states());
     markdownSwitch.setKeymap(keymap);
+    toolbarRow.attach(toolIcons, menuIcons, menuBar.states());
     setToolbarShown(owner.toolbarShown());
     editorMenu = new EditorMenu(shell, owner, menuBar.states(), menuIcons, keymap);
     statusMenus = new StatusMenus(shell, menuBar, owner, keymap);
@@ -816,6 +818,15 @@ public final class MainWindow implements MainView {
   }
 
   /**
+   * Returns the toolbar's row and its More button.
+   *
+   * @return the row
+   */
+  ToolbarOverflow toolbarRow() {
+    return toolbarRow;
+  }
+
+  /**
    * Returns the selected tab's Markdown preview pane.
    *
    * @return the pane, or null before the tab showed a preview
@@ -890,11 +901,12 @@ public final class MainWindow implements MainView {
 
   @Override
   public void setToolbarShown(boolean shown) {
-    if (shell.isDisposed() || toolBar.getVisible() == shown) {
+    Composite row = toolbarRow.row();
+    if (shell.isDisposed() || row.getVisible() == shown) {
       return;
     }
-    toolBar.setVisible(shown);
-    ((GridData) toolBar.getLayoutData()).exclude = !shown;
+    row.setVisible(shown);
+    ((GridData) row.getLayoutData()).exclude = !shown;
     shell.layout(true);
     toolIcons.reink();
     menuIcons.reink();

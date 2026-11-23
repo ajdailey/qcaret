@@ -222,13 +222,16 @@ apply (measured on Linux, one million lines):
 
 ![Main window with the workspace browser, a highlighted file, the find bar and search results](images/guide/main.png)
 
-- The toolbar under the menu bar holds New, Open, Save, Save All, Undo, Redo,
-  Cut, Copy, Paste, Find, Replace, HyperSearch, Zoom In and Zoom Out. Each button
-  runs its menu command, and its tool tip names the keys. Undo and Redo are
+- The toolbar under the menu bar holds New, Open, Save, Save All, Print, Undo,
+  Redo, Cut, Copy, Paste, Find, Replace, HyperSearch, Zoom In and Zoom Out, and
+  for a Markdown tab the [Markdown preview](#markdown-preview) mode buttons and
+  Markdown actions menu. Each button runs its menu command, and its tool tip
+  names the keys. Undo and Redo are
   available when the document has a step to take, Cut and Copy with a selection;
   the keys work the same in the find bar and in dialogs. View > Toolbar hides it
-  in every window, and the choice is saved. In a narrow window the last buttons
-  leave the row; the menus hold the same commands. A screen reader reads each
+  in every window, and the choice is saved. In a window too narrow for every
+  button, a More button at the row's end lists the ones that do not fit, with
+  their state; choosing one runs it. A screen reader reads each
   button by its command, or on Linux with `--gtk4` by its tool tip.
 - Common menu items show an icon on Linux and Windows, the same one as their
   toolbar button. macOS menus show none.
@@ -269,8 +272,9 @@ apply (measured on Linux, one million lines):
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl`+wheel
   (`Cmd` on macOS); `Ctrl+0` returns to the Preferences size, and a new size
-  or font in Preferences ends the zoom. While a Markdown preview has the focus,
-  the keys zoom the preview instead ([Markdown preview](#markdown-preview)).
+  or font in Preferences ends the zoom. When a Markdown preview, not the
+  editor, had the focus last, the zoom keys, buttons and menu items act on the
+  preview instead ([Markdown preview](#markdown-preview)).
 - Those five and View > Workspace Browser change only their window, and the
   choice is saved as the start for new windows and for a start without the
   session; a window the session restores keeps its own. Preferences, View sets
@@ -675,12 +679,13 @@ chosen in View > Syntax, shows its document in one of three modes:
 | Split | The editor with the preview on its right, scrolling together while Sync Scrolling is on; with a split editor, right of both views |
 | Preview | The preview alone |
 
+![A Markdown file in Split, the Basic renderer wrapping a table to the preview's width, and the Markdown buttons at the end of the toolbar](images/guide/markdown-basic.png)
+
 The `Source | Split | Preview` buttons at the end of the toolbar and View >
-Markdown View switch the selected tab. After them, a Markdown tab's toolbar
-holds Browser (on for the Browser renderer, off for Basic; its tool tip names
-the renderer showing and what a click switches to), Sync Scrolling,
-Outline, Export as HTML and Print Rendered Markdown, each doing what its menu
-item does and showing the same state. `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
+Markdown View switch the selected tab. After them, the Markdown actions button
+opens a menu of Basic and Browser, Sync Scrolling, Outline, Export as HTML and
+Print Rendered Markdown, each doing what its menu item does and showing the
+same state. `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
 steps the tab from Source to Split to Preview and back to Source, from the editor or
 the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
@@ -693,6 +698,8 @@ address, only scrolls. The find bar keeps the focus, and closing it returns to
 the preview. Preview text can
 be selected and copied.
 
+![The Markdown actions menu open below its toolbar button](images/guide/markdown-actions.png)
+
 The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on
 a link scrolls to a heading or footnote, opens a local file in QCaret (a path
@@ -703,8 +710,9 @@ and Esc, opens nothing. A link with another scheme does nothing, and nothing
 loads without a click.
 
 The preview has its own zoom, kept apart from the editor's: `Ctrl+=`, `Ctrl+-`
-and `Ctrl+0` (`Cmd` on macOS) and View > Zoom In, Zoom Out and Reset Zoom act on
-the preview while it has the focus, and `Ctrl`+wheel over the preview zooms it
+and `Ctrl+0` (`Cmd` on macOS), the toolbar's Zoom buttons and View > Zoom In,
+Zoom Out and Reset Zoom act on the preview when it, not the editor, had the
+focus last, and `Ctrl`+wheel over the preview zooms it
 whatever has the focus. Each step is 10 percent, from 50 to 300 percent; every
 window's previews follow, and `qcaret.conf` keeps the size as
 `markdown.previewZoom`. Images keep their size, and Print Rendered Markdown and
@@ -727,6 +735,8 @@ Preferences has the same check box, and `qcaret.conf` keeps it as
 other; the Outline dock, a find match and a link to a heading still scroll the
 preview.
 
+![The same file in Split with the Browser renderer](images/guide/markdown-browser.png)
+
 The Browser renderer shows the preview as a web page in the system's browser
 control, with a stylesheet resembling GitLab's in the current theme, and shows
 HTML in the document as written. JavaScript is off and nothing outside the
@@ -738,8 +748,8 @@ Browser is disabled under GTK 4, where WebKitGTK does not start, and for the
 rest of the run after the browser control fails to start or a page does not
 load in time (60 seconds for the browser control to start, then 15 seconds);
 its tool tip, or its
-label under GTK 4, gives the reason. The toolbar's Browser button and Browser
-in the status bar's renderer menu are disabled with the same reason. A saved Browser choice then shows Basic
+label under GTK 4, gives the reason. Browser in the Markdown actions menu and in
+the status bar's renderer menu is disabled with the same reason. A saved Browser choice then shows Basic
 with the notice "Browser preview unavailable; showing Basic".
 
 File > Export as HTML writes the selected Markdown tab, unsaved edits
@@ -750,24 +760,26 @@ one that would take the document's embedded images past 64 MiB, shows as its
 alt text. Choosing the document's own file as the target writes nothing and
 says so.
 
-View > Markdown View > Outline shows the Outline dock right of the editor: the
+View > Markdown View > Outline, also in the Markdown actions menu, shows the Outline dock right of the editor: the
 selected Markdown tab's headings as a tree, in any mode, updated 0.3 seconds
 after you stop typing. Clicking a heading moves the caret to it and puts it at
 the top of the editor and the preview; Enter or a double click also returns the
-focus to the editor. The arrow keys and typing a heading's first letters move
+focus to the editor, or to the preview in Preview. The arrow keys and typing a heading's first letters move
 the selection without moving the caret, and the selection follows the caret.
 The dock lists nothing for a document over 1 MiB of chars. A screen reader reads
 the tree as Outline, except on Linux with `--gtk4`.
 
 File > Print Rendered Markdown, enabled on a Markdown tab, prints the document
-as the Basic renderer draws it, in any mode. It opens the same dialog as File >
+in the Basic renderer's fonts, colors and table layout, in any mode, with code
+blocks on a plain shade and no extra space between blocks. It opens the same dialog as File >
 Print (on Linux with GTK 4, the PDF file name) and prints the whole document; a
 page range applies, a selection does not. Each page has the file name and Page
 N of M at the top, and the colors are the light theme's on white. A table row,
 a code line or an image never splits across pages, a heading does not end a
 page, and a table continued on a new page repeats its header row. A table wider
 than the page has its columns narrowed to fit, each cell wrapping inside its
-column. It has no
+column; a column keeps its longest word, so a table of long words can stay
+wider than the page. It has no
 default key; progress, Cancel and the one-job limit are as for File > Print.
 
 ## External changes
@@ -1059,7 +1071,7 @@ running windows without a restart.
 | View | What a new window starts with: word wrap, whitespace and line-ending marks, overview strip, line numbers, workspace browser. What every window shows: toolbar, right margin, indent guides, modified line marks, memory indicator |
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
-| Appearance | Theme, editor font size, editor font, Markdown preview renderer |
+| Appearance | Theme, editor font size, editor font, Markdown preview renderer, Sync Scrolling |
 | Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults |
 
 Restore Defaults fills every tab with the default values; nothing changes until
