@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Point;
@@ -130,6 +131,10 @@ class MarkdownPaneTableTest {
     assertTrue(EventLoop.runUntil(display, condition, BOUND), what);
   }
 
+  private void await(BooleanSupplier condition, Supplier<String> what) {
+    assertTrue(EventLoop.runUntil(display, condition, BOUND), what);
+  }
+
   private void flush() {
     while (display.readAndDispatch()) {
       // Paint.
@@ -231,19 +236,44 @@ class MarkdownPaneTableTest {
 
   @Test
   void aNarrowerPaneWrapsMoreAndKeepsTheTopLine() {
-    resize(450, true);
+    resize(700, 450, true);
   }
 
   @Test
   void aWiderPaneWrapsLessAndKeepsTheTopLine() {
-    resize(1_200, false);
+    resize(450, 700, false);
   }
 
   /**
-   * Resizes the shell once from 700 px with "Paragraph after" at the top. GTK 4 applies a resize in
-   * a later event, and two resizes in a row can end at the first size.
+   * Resizes the shell from {@code from} px to {@code width} px with "Paragraph after" at the top.
+   * GTK 4 can apply the shell's opening size after a later resize, so the test waits for the
+   * opening size before it sets {@code from}, and checks the pane width again once the table is
+   * laid out. Both sizes stay below the narrowest CI screen, which caps a Windows shell's size.
    */
-  private void resize(int width, final boolean narrower) {
+  private void resize(final int from, int width, final boolean narrower) {
+    final StyledText text = pane.text();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getClientArea().width > 600;
+          }
+        },
+        "opening width");
+    flush();
+    final int opening = text.getClientArea().width;
+    if (from < 700) {
+      shell.setSize(from, 300);
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return text.getClientArea().width < opening - 100;
+            }
+          },
+          "starting width");
+      flush();
+    }
     RenderedMarkdown r = show(DOCUMENT);
     int after = r.text().indexOf("Paragraph after");
     int line = r.lineCount() - 1;
@@ -252,7 +282,9 @@ class MarkdownPaneTableTest {
         line = i;
       }
     }
-    StyledText text = pane.text();
+    if (from < 700) {
+      assertTrue(text.getClientArea().width < opening - 100, "starting width held");
+    }
     final int row = r.tables().get(0).firstLine() + 1;
     final int lines = map().displayLineCount(row);
     pane.scrollToLine(line);
@@ -266,7 +298,20 @@ class MarkdownPaneTableTest {
             return (narrower ? now > lines : now < lines) && !pane.tables().busy();
           }
         },
-        narrower ? "narrower wraps more" : "wider wraps less");
+        new Supplier<String>() {
+          @Override
+          public String get() {
+            return (narrower ? "narrower wraps more" : "wider wraps less")
+                + ": shell "
+                + shell.getSize().x
+                + " px, pane "
+                + pane.text().getClientArea().width
+                + " px, row lines "
+                + lines
+                + " -> "
+                + map().displayLineCount(row);
+          }
+        });
     flush();
     assertTrue(text.getLine(text.getTopIndex()).startsWith("Paragraph after"));
   }
