@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.config.MarkdownOpenMode;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,6 +102,20 @@ class MarkdownOpenModeTest {
     awaitMode(MarkdownViewMode.SOURCE);
   }
 
+  /**
+   * Returns the file memory's entry for a file. The memory keys a file by the path the document
+   * holds, which can differ from the written path (macOS resolves {@code /var} to {@code
+   * /private/var}; Windows can change case or expand a short name).
+   */
+  private Session.FileState keptFor(Path file) throws IOException {
+    for (Session.FileState state : kept.values()) {
+      if (Files.isSameFile(Path.of(state.path()), file)) {
+        return state;
+      }
+    }
+    return null;
+  }
+
   @Test
   void aDefaultOpenedFileFollowsTheSettingOnItsNextOpen() throws Exception {
     Path file = write("a.md");
@@ -108,7 +123,7 @@ class MarkdownOpenModeTest {
     awaitMode(MarkdownViewMode.SPLIT);
     assertEquals("", documents.sessionTabs(false).get(0).markdown());
     closeTab();
-    assertEquals("", kept.get(file.toString()).markdown());
+    assertEquals("", keptFor(file).markdown());
     setOpenMode(MarkdownOpenMode.PREVIEW);
     harness.open(file);
     awaitMode(MarkdownViewMode.PREVIEW);
@@ -121,7 +136,7 @@ class MarkdownOpenModeTest {
     awaitMode(MarkdownViewMode.SPLIT);
     documents.setMarkdownMode(MarkdownViewMode.PREVIEW);
     closeTab();
-    assertEquals("preview", kept.get(file.toString()).markdown());
+    assertEquals("preview", keptFor(file).markdown());
     setOpenMode(MarkdownOpenMode.SOURCE);
     harness.open(file);
     awaitMode(MarkdownViewMode.PREVIEW);
@@ -134,11 +149,11 @@ class MarkdownOpenModeTest {
     awaitMode(MarkdownViewMode.SPLIT);
     documents.setMarkdownMode(MarkdownViewMode.SOURCE);
     closeTab();
-    assertEquals("source", kept.get(file.toString()).markdown());
+    assertEquals("source", keptFor(file).markdown());
     harness.open(file);
     awaitMode(MarkdownViewMode.SOURCE);
     closeTab();
-    assertEquals("source", kept.get(file.toString()).markdown());
+    assertEquals("source", keptFor(file).markdown());
   }
 
   @Test
