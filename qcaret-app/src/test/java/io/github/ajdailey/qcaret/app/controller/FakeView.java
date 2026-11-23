@@ -1413,6 +1413,29 @@ final class FakeView implements MainView {
     return browserUnavailable;
   }
 
+  /** What {@link #previewFocused} reports. */
+  boolean previewFocused;
+
+  /** The addresses {@link #askOpenUrl} asked about. */
+  final List<String> urlsAsked = new ArrayList<String>();
+
+  /** Answers {@link #askOpenUrl} with Open; false answers Cancel. */
+  boolean openUrls = true;
+
+  @Override
+  public boolean previewFocused() {
+    return previewFocused;
+  }
+
+  @Override
+  public void askOpenUrl(String url, Runnable open) {
+    ui.checkUiThread();
+    urlsAsked.add(url);
+    if (openUrls) {
+      open.run();
+    }
+  }
+
   @Override
   public Runnable askUnfinishedCopies(List<String> targets, Runnable quit, Runnable wait) {
     ui.checkUiThread();

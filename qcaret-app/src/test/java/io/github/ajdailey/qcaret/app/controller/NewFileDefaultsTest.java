@@ -82,7 +82,8 @@ class NewFileDefaultsTest {
                     true,
                     o.strictJson(),
                     PreviewRenderer.BASIC,
-                    true)));
+                    true,
+                    100)));
   }
 
   private Document newDocument() {

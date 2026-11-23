@@ -262,7 +262,8 @@ class FileCommandsTest {
                     true,
                     o.strictJson(),
                     PreviewRenderer.BASIC,
-                    true)));
+                    true,
+                    100)));
   }
 
   @Test

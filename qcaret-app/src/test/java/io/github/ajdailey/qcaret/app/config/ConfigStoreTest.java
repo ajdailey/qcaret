@@ -414,7 +414,8 @@ class ConfigStoreTest {
             false,
             false,
             PreviewRenderer.BASIC,
-            true);
+            true,
+            100);
     UiState state =
         new UiState(
                 new SearchToggles(true, true, true, true),
@@ -524,7 +525,8 @@ class ConfigStoreTest {
                 options.sessionRestore(),
                 options.strictJson(),
                 PreviewRenderer.BROWSER,
-                true));
+                true,
+                100));
     assertTrue(store(temp).save(Preferences.DEFAULTS, browser));
     assertTrue(
         Files.readAllLines(conf(), StandardCharsets.ISO_8859_1)

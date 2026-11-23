@@ -51,6 +51,7 @@ transient parent.
 | `GoToDialog` | Search > Go to Line; modal, without a nested event loop; OK is enabled while the controller's validator accepts the text |
 | `TabWidthDialog` | Edit > Tab Width > Other: a modal width field; OK answers it, Cancel and Esc close without an answer |
 | `ReloadDialog` | Asks before Reload from Disk replaces unsaved changes; modal, Cancel is the default |
+| `OpenLinkDialog` | Asks before a Markdown preview link opens a web address (`MainView.askOpenUrl`): the full address in a read-only field, Open and Cancel; modal, without a nested event loop, Cancel is the default and has the focus |
 | `ReplaceOpenDialog` | Asks before Save As replaces a file another tab holds with unsaved changes |
 | `ClearHistoryDialog` | Asks before Clear History |
 | `DocumentChooser` | Asks for the document Compare Documents compares with |

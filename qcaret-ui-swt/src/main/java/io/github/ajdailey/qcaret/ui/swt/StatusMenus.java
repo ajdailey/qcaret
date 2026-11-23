@@ -7,10 +7,12 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -22,9 +24,14 @@ import org.eclipse.swt.widgets.Shell;
  * menu's Reopen with Encoding and Save with Encoding cascades as {@link EncodingCascade}s; it is
  * built on the first click and kept, since its Other cascades list every charset. The line-ending
  * popup holds {@link MenuTable#LINE_ENDING_MENU} as radio items running the Encoding menu's
- * commands; each click builds it again and disposes the previous one. Call on the UI thread.
+ * commands; each click builds it again and disposes the previous one. The preview field's popup
+ * holds View > Markdown View's Basic and Browser the same way; Browser is disabled with the reason
+ * where it cannot run, in its tool tip or, where menus show none, its label. Call on the UI thread.
  */
 final class StatusMenus {
+  /** The renderer popup's items. */
+  private static final CommandId[] RENDERERS = {CommandId.PREVIEW_BASIC, CommandId.PREVIEW_BROWSER};
+
   private final Shell shell;
   private final MainMenuBar bar;
   private final ApplicationController controller;
@@ -33,6 +40,7 @@ final class StatusMenus {
   private EncodingCascade reopen;
   private EncodingCascade saveAs;
   private Menu endings;
+  private Menu renderers;
   private Keymap keymap;
 
   /**
@@ -146,6 +154,73 @@ final class StatusMenus {
           });
     }
     return show(endings, below);
+  }
+
+  /**
+   * Gives the preview field its tool tip and opens the renderer popup on a left click while it
+   * names a renderer.
+   *
+   * @param preview the preview field
+   */
+  void hookPreview(final Label preview) {
+    preview.setToolTipText(UiText.STATUS_PREVIEW_TIP.text());
+    preview.addListener(
+        SWT.MouseUp,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.button == 1 && !preview.getText().isEmpty()) {
+              showRenderers(preview);
+            }
+          }
+        });
+  }
+
+  /**
+   * Shows the renderer popup below a field, the renderer shown checked.
+   *
+   * @param below the field
+   * @return the popup, already visible
+   */
+  Menu showRenderers(Control below) {
+    if (renderers != null && !renderers.isDisposed()) {
+      renderers.dispose();
+    }
+    renderers = new Menu(shell, SWT.POP_UP);
+    for (final CommandId command : RENDERERS) {
+      MenuItem item = new MenuItem(renderers, SWT.RADIO);
+      String reason = states.enabled(command) ? null : states.unavailable(command);
+      String label = command.label();
+      if (reason != null && !PlatformTraits.PLATFORM.showsMenuToolTips()) {
+        label = UiText.MENU_ITEM_REASON.format(label, reason);
+      }
+      String keys = keymap.menuKeyText(command);
+      item.setText(keys.isEmpty() ? label : label + "\t" + keys);
+      item.setToolTipText(reason);
+      item.setData(command);
+      item.setEnabled(states.enabled(command));
+      item.setSelection(states.checked(command));
+      item.addListener(
+          SWT.Selection,
+          new Listener() {
+            @Override
+            public void handleEvent(Event event) {
+              if (((MenuItem) event.widget).getSelection()) {
+                controller.execute(command);
+              }
+            }
+          });
+    }
+    return show(renderers, below);
+  }
+
+  /**
+   * Returns the last renderer popup, for tests.
+   *
+   * @return the popup, or null before the first show
+   */
+  Menu rendererPopup() {
+    return renderers;
   }
 
   /**

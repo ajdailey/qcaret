@@ -221,7 +221,7 @@ final class MarkdownPainter {
 
   /** Draws an image, or a placeholder for one that does not decode. */
   void paintObject(PaintObjectEvent event) {
-    if (map.text().charAt(event.style.start) == TableWrap.PAD) {
+    if (map.charAt(event.style.start) == TableWrap.PAD) {
       return;
     }
     int offset = map.rendered(event.style.start);

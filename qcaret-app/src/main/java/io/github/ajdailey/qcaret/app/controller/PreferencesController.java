@@ -279,7 +279,8 @@ final class PreferencesController implements PreferencesInput {
                     form.sessionRestore(),
                     form.strictJson(),
                     renderer(form.previewRenderer()),
-                    form.markdownSyncScroll()));
+                    form.markdownSyncScroll(),
+                    settings.current().options().previewZoom()));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));

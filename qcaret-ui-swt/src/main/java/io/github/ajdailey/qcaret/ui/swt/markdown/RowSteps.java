@@ -10,16 +10,22 @@ import org.eclipse.swt.graphics.Point;
 
 /**
  * Shows a table's laid-out rows in the map and the widget through {@code replaceTextRange}: {@value
- * #ROWS_PER_STEP} rows in the first step, then as many as the last step's rate fits in about 2 ms,
- * from 4 to 64. Across the steps the top line keeps its rendered line and pixel offset, and the
- * selection its rendered text. Call on the UI thread.
+ * #ROWS_PER_STEP} rows in the first step, then as many as the last step's rate fits in about 4 ms,
+ * from 4 to 64. Steps starting above the top line, in view and below the view each keep their own
+ * rate: a replace above the top line also measures the lines down to the top line. Across the steps
+ * the top line keeps its rendered line and pixel offset, and the selection its rendered text. Call
+ * on the UI thread.
  */
 final class RowSteps {
   /** Rows laid out by the first text replace. */
   static final int ROWS_PER_STEP = 16;
 
-  /** The time a text replace aims at; later replaces take as many rows as the last rate fits. */
-  private static final long STEP_NANOS = 2_000_000L;
+  /**
+   * The time a text replace aims at; later replaces take as many rows as the last rate fits. Part
+   * of a replace's cost does not grow with its rows: 2 ms steps took 8 percent more turn time for
+   * 2,000 rows than 4 ms steps, and twice the collector pauses (GTK 3).
+   */
+  private static final long STEP_NANOS = 4_000_000L;
 
   /** The most rows one text replace lays out. */
   private static final int MOST_ROWS_PER_STEP = 64;
@@ -31,7 +37,9 @@ final class RowSteps {
   private static final int FEWEST_ROWS_PER_STEP = 4;
 
   private final StyledText text;
-  private int rowsPerStep = ROWS_PER_STEP;
+
+  /** Rows per step starting above the top line, in view and below the view. */
+  private final int[] rowsPerStep = {ROWS_PER_STEP, ROWS_PER_STEP, ROWS_PER_STEP};
 
   RowSteps(StyledText text) {
     this.text = text;
@@ -69,7 +77,8 @@ final class RowSteps {
     long last;
     do {
       long stepStart = System.nanoTime();
-      int to = Math.min(table.rowCount(), next + rowsPerStep);
+      int where = where(map.displayLine(table.firstLine() + next));
+      int to = Math.min(table.rowCount(), next + rowsPerStep[where]);
       MarkdownDisplayMap.Change change =
           map.replace(
               table.firstLine() + next, TableWrap.rows(table, rendered, layout, words, next, to));
@@ -77,7 +86,7 @@ final class RowSteps {
       int nextTop = map.displayLine(topLine) + Math.min(sub, map.displayLineCount(topLine) - 1);
       keepTop(nextTop, topY);
       last = System.nanoTime() - stepStart;
-      rowsPerStep =
+      rowsPerStep[where] =
           (int)
               Math.max(
                   FEWEST_ROWS_PER_STEP,
@@ -89,6 +98,17 @@ final class RowSteps {
       text.setSelection(range[0], range[1]);
     }
     return next;
+  }
+
+  /**
+   * The rate index of a step starting at a display line: 0 above the top line, 1 in view, 2 below.
+   */
+  private int where(int displayLine) {
+    int top = text.getTopIndex();
+    if (displayLine < top) {
+      return 0;
+    }
+    return displayLine <= text.getLineIndex(Math.max(0, text.getClientArea().height - 1)) ? 1 : 2;
   }
 
   /**

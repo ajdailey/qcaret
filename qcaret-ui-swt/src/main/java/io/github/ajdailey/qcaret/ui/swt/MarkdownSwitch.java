@@ -13,7 +13,8 @@ import org.eclipse.swt.widgets.ToolItem;
 /**
  * The toolbar's {@code Source | Split | Preview} switch: a separator and three radio items at the
  * toolbar's end, present only while the selected tab is a Markdown tab. Each item runs its Markdown
- * View command; the checked one follows {@link CommandStates}. Call on the UI thread.
+ * View command; the checked one follows {@link CommandStates}. The {@link MarkdownToolItems} follow
+ * the switch and come and go with it. Call on the UI thread.
  */
 final class MarkdownSwitch {
   /** The modes in toolbar order. */
@@ -27,17 +28,21 @@ final class MarkdownSwitch {
   private Keymap keymap;
   private ToolItem separator;
   private final ToolItem[] items = new ToolItem[MODES.length];
+  private final MarkdownToolItems tools;
 
-  MarkdownSwitch(ToolBar bar, ApplicationController controller, CommandStates states) {
+  MarkdownSwitch(
+      ToolBar bar, ToolIcons icons, ApplicationController controller, CommandStates states) {
     this.bar = bar;
     this.controller = controller;
     this.states = states;
+    this.tools = new MarkdownToolItems(bar, icons, controller, states);
   }
 
   /** Sets the items' tool tips from the key bindings. */
   void setKeymap(Keymap value) {
     keymap = value;
     tips();
+    tools.setKeymap(value);
   }
 
   /** Adds or removes the switch for the selected tab and checks its mode. */
@@ -55,6 +60,7 @@ final class MarkdownSwitch {
         items[i].dispose();
         items[i] = null;
       }
+      tools.dispose();
       bar.getParent().layout(true);
     }
     if (separator != null) {
@@ -64,6 +70,7 @@ final class MarkdownSwitch {
           items[i].setSelection(checked);
         }
       }
+      tools.sync();
     }
   }
 
@@ -90,6 +97,7 @@ final class MarkdownSwitch {
           });
       items[i] = item;
     }
+    tools.create();
     tips();
     bar.getParent().layout(true);
   }
@@ -112,5 +120,14 @@ final class MarkdownSwitch {
    */
   ToolItem[] items() {
     return items.clone();
+  }
+
+  /**
+   * Returns the Markdown buttons after the switch.
+   *
+   * @return the buttons
+   */
+  MarkdownToolItems tools() {
+    return tools;
   }
 }

@@ -2071,6 +2071,22 @@ public final class DocumentController {
     }
   }
 
+  /**
+   * Sets the Markdown previews' text size; a change resizes every preview and rebuilds every shown
+   * Browser page.
+   *
+   * @param percent {@code markdown.previewZoom}
+   */
+  void setMarkdownZoom(int percent) {
+    if (markdown.setZoom(percent)) {
+      for (OpenDocument d : documents) {
+        if (d.markdown != null) {
+          d.markdown.zoomChanged();
+        }
+      }
+    }
+  }
+
   /** File > Export as HTML of the selected Markdown tab. */
   public void exportHtml() {
     if (active != null && MarkdownPreviews.MARKDOWN.equals(active.grammar)) {

@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
  * session and the recovery files span the windows and are in {@link WindowSet}.
  *
  * <p>Help commands run through {@link HelpController}. Menu check and enable state is read through
- * {@link CommandStates}. A zoom command steps the font one point through {@link EditorZoom}.
+ * {@link CommandStates}. A zoom command zooms the focused editor or preview through {@link
+ * ZoomCommands}.
  *
  * <p>{@link Settings} holds the settings and saves each change on a worker; {@link #apply} brings
  * this window's controllers and view in line with a change, wherever it came from. A window that
@@ -93,6 +94,7 @@ public final class ApplicationController {
   private final EditorAids aids;
   private final ViewToggles views;
   private final MarkdownCommands markdown;
+  private final ZoomCommands zooms;
   private final MemoryIndicator memory;
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
@@ -288,6 +290,8 @@ public final class ApplicationController {
     documents.setMarkdownBrowser(markdown.browserChosen());
     documents.setMarkdownSyncScroll(markdown.syncScroll());
     documents.setMarkdownPalette(theme.palette());
+    documents.setMarkdownZoom(settings.current().options().previewZoom());
+    this.zooms = new ZoomCommands(settings, view);
     theme.addListener(markdownPalette);
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
     this.tips =
@@ -368,6 +372,7 @@ public final class ApplicationController {
     memory.apply(before, after);
     documents.setMarkdownBrowser(markdown.browserChosen());
     documents.setMarkdownSyncScroll(markdown.syncScroll());
+    documents.setMarkdownZoom(now.previewZoom());
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -684,9 +689,19 @@ public final class ApplicationController {
     return help.debugLogFile();
   }
 
-  /** Returns the editor font size in points; for {@link CommandStates}. */
-  int fontPoints() {
-    return EditorZoom.points(settings.current().options(), view.defaultFontSize());
+  /** Returns the zoom commands; for {@link CommandStates}. */
+  ZoomCommands zooms() {
+    return zooms;
+  }
+
+  /**
+   * Zooms the pane a wheel turn with Ctrl (Command on macOS) went to.
+   *
+   * @param preview true for the Markdown preview, false for the editor
+   * @param steps +1 zooms in, -1 out
+   */
+  public void wheelZoom(boolean preview, int steps) {
+    zooms.wheel(preview, steps);
   }
 
   /**
@@ -905,9 +920,7 @@ public final class ApplicationController {
       case GO_TO_LINE -> documents.goToLine();
       case READ_ONLY -> documents.toggleReadOnly();
       case WORD_WRAP -> views.toggleWrap();
-      case ZOOM_IN -> zoom(1);
-      case ZOOM_OUT -> zoom(-1);
-      case ZOOM_RESET -> setOptions(settings.current().options().withFontZoom(0));
+      case ZOOM_IN, ZOOM_OUT, ZOOM_RESET -> zooms.execute(command);
       case PREFERENCES -> preferences.open();
       case THEME_LIGHT -> setTheme(ThemeMode.LIGHT);
       case THEME_DARK -> setTheme(ThemeMode.DARK);
@@ -1094,14 +1107,6 @@ public final class ApplicationController {
     if (editor != null) {
       editor.execute(command);
     }
-  }
-
-  private void zoom(int steps) {
-    setOptions(EditorZoom.step(settings.current().options(), view.defaultFontSize(), steps));
-  }
-
-  private void setOptions(Options options) {
-    settings.set(settings.current().withOptions(options));
   }
 
   /**

@@ -370,7 +370,11 @@ A palette change reaches `MarkdownPreviews.setPalette` through
 page on a `qcaret-cpu-` worker without the busy cursor; a page whose request was
 overtaken by a later palette change or render, or whose content no longer
 shows, is dropped. A render started in the palette a change replaced shows only
-after its page is rebuilt. A render over the limit
+after its page is rebuilt. A change of `markdown.previewZoom` reaches
+`MarkdownPreviews.setZoom` through `DocumentController.setMarkdownZoom`; each
+`MarkdownPreview.zoomChanged` passes the size to its pane
+(`MarkdownPreviewView.setZoom`) and rebuilds a shown Browser page the same way,
+with every pixel length of the page's stylesheet scaled. A render over the limit
 reserves 24 bytes per char from the `MemoryBudget` through `MarkdownCharge`
 (assumed, not measured) until a later render replaces it or the tab closes; a
 refused reservation renders nothing and posts `MARKDOWN_NO_MEMORY`.
@@ -394,11 +398,12 @@ other side; `revealSource`, a find match and a link still scroll the preview.
 `MarkdownLinks` follows links. A click
 (`clicked`) on Basic text follows its link: an anchor scrolls the preview to
 its heading, a local file opens in the window, an `http`, `https`, `mailto` or
-`ftp` URL goes to `MainView.launchUrl`, and any other URL, such as
+`ftp` URL goes to `MainView.askOpenUrl`, whose Open runs `MainView.launchUrl`
+and whose Cancel opens nothing, and any other URL, such as
 `javascript:` or `smb:`, is dropped; a footnote reference scrolls to its
 footnote. A Browser navigation (`linkFollowed`) is followed by its location:
 `about:` with a fragment calls `scrollToAnchor`, a `file:` or `qcaret-file:`
-URL opens in the window, a URL of those four schemes goes to `launchUrl`, and
+URL opens in the window, a URL of those four schemes goes to `askOpenUrl`, and
 anything else is dropped. The pane (`MarkdownPreviewView`) only
 applies these requests.
 

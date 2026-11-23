@@ -1991,7 +1991,17 @@ public enum UiText {
   /** Startup message: file arguments holding {@code ?} or {@code *}, not opened. */
   LAUNCH_NAMES_UNPASSED,
   /** Startup message: the Java launcher expanded these patterns; no command-line file opened. */
-  LAUNCH_NAMES_EXPANDED;
+  LAUNCH_NAMES_EXPANDED,
+  /** Tool tip of the status bar's preview field. */
+  STATUS_PREVIEW_TIP,
+  /** Title of the dialog asking before a preview link opens a web address. */
+  OPEN_LINK_TITLE,
+  /** That dialog's question. */
+  OPEN_LINK_MESSAGE,
+  /** Tool tip of the toolbar's renderer toggle while Basic shows. */
+  PREVIEW_TOGGLE_BASIC,
+  /** Tool tip of the toolbar's renderer toggle while Browser shows. */
+  PREVIEW_TOGGLE_BROWSER;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

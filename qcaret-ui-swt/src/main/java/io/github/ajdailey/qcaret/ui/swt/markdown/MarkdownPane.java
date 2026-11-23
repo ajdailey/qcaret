@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.LineBackgroundEvent;
 import org.eclipse.swt.custom.LineBackgroundListener;
@@ -26,6 +27,7 @@ import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -57,6 +59,7 @@ import org.eclipse.swt.widgets.MenuItem;
  *       finds another top line reports it through {@link MarkdownPreviewInput#previewScrolled},
  *       except after {@link #scrollToLine}.
  *   <li>Theme: {@link #setPalette} recolors in place.
+ *   <li>Zoom: {@link #setZoom} builds the fonts again and lays out every table again.
  * </ul>
  *
  * Call on the UI thread.
@@ -330,8 +333,10 @@ public final class MarkdownPane {
 
   /**
    * Shows new content, keeping the top line where the new text has it; hides the size notice. A
-   * table equal to one shown before keeps its rows; {@link TextDelta} changes the text; the visible
-   * lines are styled again.
+   * table equal to one shown before keeps its rows; {@link TextDelta} changes the text. After a
+   * replace the lines in view are styled again; after a {@code setText}, which styles every line,
+   * they are not: {@code redrawRange} would measure each line in view a second time (3-12 ms, GTK
+   * 3).
    *
    * @param next the render and its styles
    */
@@ -352,9 +357,12 @@ public final class MarkdownPane {
     painter.setRendered(next.rendered(), map);
     tables.reset(next, map, topLine, bottomLine);
     String nextText = map.text();
-    TextDelta.apply(text, shown, nextText);
+    boolean reset = TextDelta.apply(text, shown, nextText);
     text.setTopIndex(Math.min(top, text.getLineCount() - 1));
     reportedTop = renderedTop();
+    if (reset) {
+      return;
+    }
     int bottom = bottomLine();
     int start = text.getOffsetAtLine(text.getTopIndex());
     int end =
@@ -462,6 +470,29 @@ public final class MarkdownPane {
     text.setSelectionBackground(MarkdownStyler.color(palette.selection()));
     text.setSelectionForeground(MarkdownStyler.color(palette.selectionText()));
     restyle();
+  }
+
+  /**
+   * Sets the text size: the fonts are built again at that size, the widget takes the body font, and
+   * every table is measured and laid out again; the top line stays. Images keep their size.
+   *
+   * @param percent the size in percent of the normal size
+   */
+  public void setZoom(int percent) {
+    if (text.isDisposed() || fonts.zoom() == percent) {
+      return;
+    }
+    List<Font> old = fonts.setZoom(percent);
+    int top = renderedTop();
+    text.setFont(percent == 100 ? null : fonts.get(false, SWT.NORMAL, 0, false));
+    tables.fontsChanged();
+    if (content != null) {
+      tables.reset(content, map, top, renderedBottom());
+      scrollToLine(top);
+    }
+    for (Font font : old) {
+      font.dispose();
+    }
   }
 
   /** Styles every line again on its next paint. */

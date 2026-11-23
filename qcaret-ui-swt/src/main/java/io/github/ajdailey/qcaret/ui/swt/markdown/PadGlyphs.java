@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.editor.TableWrap;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontMetrics;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.GlyphMetrics;
@@ -12,8 +13,8 @@ import org.eclipse.swt.graphics.GlyphMetrics;
 /**
  * Styles the zero-width {@link TableWrap#PAD} chars that add space to a body font line: the char of
  * a padded separator line ({@link BlockSpacing}) and the char ending a laid-out table row's first
- * and last display lines. The body font's ascent and descent are measured once, with a {@link GC}
- * on the widget. Call on the UI thread.
+ * and last display lines. The body font's ascent and descent are measured once per body font, with
+ * a {@link GC} on the widget. Call on the UI thread.
  */
 final class PadGlyphs {
   /** Pixels above a row's text. */
@@ -24,7 +25,8 @@ final class PadGlyphs {
 
   private final StyledText text;
   private final MarkdownFonts fonts;
-  private int ascent = -1;
+  private Font measured;
+  private int ascent;
   private int descent;
 
   PadGlyphs(StyledText text, MarkdownFonts fonts) {
@@ -41,10 +43,12 @@ final class PadGlyphs {
    * @return the style
    */
   StyleRange glyph(int offset, int above, int below) {
-    if (ascent < 0) {
+    Font body = fonts.get(false, SWT.NORMAL, 0, false);
+    if (body != measured) {
+      measured = body;
       GC gc = new GC(text);
       try {
-        gc.setFont(fonts.get(false, SWT.NORMAL, 0, false));
+        gc.setFont(body);
         FontMetrics metrics = gc.getFontMetrics();
         ascent = metrics.getAscent() + metrics.getLeading();
         descent = metrics.getDescent();

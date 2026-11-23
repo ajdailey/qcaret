@@ -26,13 +26,24 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
   at the next start (`ThemeService.showsNow`), the view shows a notice.
 - `Settings` queues each change for a worker; see
   [Settings](settings.md#running-settings).
-- Zoom In and Zoom Out (`EditorZoom`) step `editor.fontZoom` one point from
-  the size drawn, from 4 to 72; a step back to `editor.fontSize` stores 0.
-  Reset Zoom sets it to 0, returning to the Preferences size. `EditorPane`
-  sends a wheel turn with Ctrl (Command on macOS) to the same commands. The
-  view changes the font in place. A change of `editor.fontFamily` reaches the
-  view through
-  `MainView.setFontFamily`.
+- Zoom In, Zoom Out and Reset Zoom (`ZoomCommands`) act on the Markdown
+  preview while `MainView.previewFocused` holds, else on the editor font.
+  `PaneFocus` records whether an editor or a preview had the focus last; focus
+  in the find bar, the toolbar or a dialog leaves the record, and a hidden
+  preview counts as not focused.
+- On the editor (`EditorZoom`) Zoom In and Zoom Out step `editor.fontZoom` one
+  point from the size drawn, from 4 to 72; a step back to `editor.fontSize`
+  stores 0. Reset Zoom sets it to 0, returning to the Preferences size. The view
+  changes the font in place. A change of `editor.fontFamily` reaches the view
+  through `MainView.setFontFamily`.
+- On the preview they step `markdown.previewZoom` 10 percent, from 50 to 300,
+  and Reset Zoom sets 100. Basic panes build their fonts again at that size;
+  Browser pages scale every pixel length of their stylesheet by it
+  ([Documents](documents.md#markdown-preview)). Images keep their size, and
+  print and export do not zoom.
+- A wheel turn with Ctrl (Command on macOS) zooms the pane under the pointer,
+  whatever has the focus: `EditorPane` and `PreviewWheel` call
+  `ApplicationController.wheelZoom` with the pane's kind.
 - View > Right Margin toggles `ui.rightMargin`; `MainView.setRightMargin`
   passes every editor `editor.rightMargin` while it is on, else 0, and again
   when either setting changes.

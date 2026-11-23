@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -209,5 +210,47 @@ class MarkdownDisplayMapTest {
     int five = r.text().indexOf("five");
     assertArrayEquals(
         new int[] {map.display(five), map.display(five + 4)}, map.displayRange(five, five + 4));
+  }
+
+  /**
+   * Rows replaced a few at a time, out of order and back to rendered, between padded separators,
+   * index and text the same as one replace of the final rows: a replace copies the rows before it
+   * and shifts the rows after it.
+   */
+  @Test
+  void stepwiseReplacesMatchOneReplace() {
+    for (String[] shape : SHAPES) {
+      RenderedMarkdown r = render(shape);
+      List<Integer> separators = new ArrayList<Integer>();
+      for (int line = 0; line < r.lineCount(); line++) {
+        if (BlockSpacing.separator(r, line)) {
+          separators.add(line);
+        }
+      }
+      int[] padded = {separators.get(0), separators.get(1)};
+      MarkdownTable table = r.tables().get(0);
+      TableWrap.Row[] rows = TableWrapTest.wrap(r, Integer.parseInt(shape[2]));
+      MarkdownDisplayMap steps = new MarkdownDisplayMap(r, padded);
+      int first = table.firstLine();
+      for (int k = rows.length - 1; k >= 0; k -= 2) {
+        int from = Math.max(0, k - 1);
+        steps.replace(first + from, Arrays.copyOfRange(rows, from, k + 1));
+        assertEquals('B', steps.charAt(0), shape[0]);
+      }
+      steps.replace(first, new TableWrap.Row[] {null});
+      steps.replace(first, new TableWrap.Row[] {rows[0]});
+      MarkdownDisplayMap once = new MarkdownDisplayMap(r, padded);
+      once.replace(first, rows);
+      assertEquals(once.text(), steps.text(), shape[0]);
+      assertEquals(once.lineCount(), steps.lineCount(), shape[0]);
+      for (int line = 0; line < r.lineCount(); line++) {
+        assertEquals(once.displayLine(line), steps.displayLine(line), shape[0] + " line " + line);
+        assertEquals(once.lineStart(line), steps.lineStart(line), shape[0] + " start " + line);
+        assertEquals(once.lineEnd(line), steps.lineEnd(line), shape[0] + " end " + line);
+      }
+      for (int d = 0; d <= once.text().length(); d++) {
+        assertEquals(once.rendered(d), steps.rendered(d), shape[0] + " offset " + d);
+      }
+    }
   }
 }

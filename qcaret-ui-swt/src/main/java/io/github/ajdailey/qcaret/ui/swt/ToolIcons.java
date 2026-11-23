@@ -188,6 +188,18 @@ final class ToolIcons {
   /** Lists every tab, at the end of the tab strip; a right arrow. */
   static final String TAB_LIST_RIGHT = "tab-list-right";
 
+  /** The Markdown preview's Browser renderer. */
+  static final String PREVIEW_BROWSER = "preview-browser";
+
+  /** Scrolls a Markdown tab's editor and preview together. */
+  static final String SYNC_SCROLL = "sync-scroll";
+
+  /** Shows the Markdown Outline dock. */
+  static final String OUTLINE = "outline";
+
+  /** Exports a Markdown tab as HTML. */
+  static final String EXPORT_HTML = "export-html";
+
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 
@@ -307,20 +319,30 @@ final class ToolIcons {
   }
 
   /**
-   * Shows an icon on a tool item and keeps it in the owner's ink across {@link #reink}.
+   * Shows an icon on a tool item and keeps it in the owner's ink across {@link #reink} until the
+   * item is disposed.
    *
    * @param item the item
    * @param name one of the name constants
    * @return false when the PNG is missing from the jar and the item shows no image
    */
-  boolean apply(ToolItem item, String name) {
+  boolean apply(final ToolItem item, String name) {
     Image image = get(name);
     if (image == null) {
       return false;
     }
     keepIconSize(item);
     item.setImage(image);
-    items.put(item, name);
+    if (items.put(item, name) == null) {
+      item.addListener(
+          SWT.Dispose,
+          new Listener() {
+            @Override
+            public void handleEvent(Event event) {
+              items.remove(item);
+            }
+          });
+    }
     return true;
   }
 

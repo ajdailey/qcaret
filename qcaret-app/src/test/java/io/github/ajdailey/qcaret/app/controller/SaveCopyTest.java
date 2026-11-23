@@ -465,7 +465,8 @@ class SaveCopyTest {
                     true,
                     o.strictJson(),
                     PreviewRenderer.BASIC,
-                    true)));
+                    true,
+                    100)));
   }
 
   /**

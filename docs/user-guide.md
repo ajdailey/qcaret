@@ -269,7 +269,8 @@ apply (measured on Linux, one million lines):
   Word Wrap, Show Whitespace, Show Line Endings, Overview Strip and Line Numbers
   apply to the window's editors. Zoom is `Ctrl+=`, `Ctrl+-` and `Ctrl`+wheel
   (`Cmd` on macOS); `Ctrl+0` returns to the Preferences size, and a new size
-  or font in Preferences ends the zoom.
+  or font in Preferences ends the zoom. While a Markdown preview has the focus,
+  the keys zoom the preview instead ([Markdown preview](#markdown-preview)).
 - Those five and View > Workspace Browser change only their window, and the
   choice is saved as the start for new windows and for a start without the
   session; a window the session restores keeps its own. Preferences, View sets
@@ -675,8 +676,12 @@ chosen in View > Syntax, shows its document in one of three modes:
 | Preview | The preview alone |
 
 The `Source | Split | Preview` buttons at the end of the toolbar and View >
-Markdown View switch the selected tab; `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
-steps it from Source to Split to Preview and back to Source, from the editor or
+Markdown View switch the selected tab. After them, a Markdown tab's toolbar
+holds Browser (on for the Browser renderer, off for Basic; its tool tip names
+the renderer showing and what a click switches to), Sync Scrolling,
+Outline, Export as HTML and Print Rendered Markdown, each doing what its menu
+item does and showing the same state. `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS)
+steps the tab from Source to Split to Preview and back to Source, from the editor or
 the preview; View > Markdown View > Cycle Markdown View does the same. A file opens in Source the first time and in the mode
 it had after that, and a session restores each tab's mode. Find, Replace and
 HyperSearch act on the source; in Split the preview follows the editor to a
@@ -692,8 +697,18 @@ The preview renders again 0.3 seconds after you stop typing. A document over
 1 MiB of chars renders only when you click Render above the preview. A click on
 a link scrolls to a heading or footnote, opens a local file in QCaret (a path
 relative to the document or a `file:` address, in either renderer), or opens
-an `http`, `https`, `mailto` or `ftp` address in the system browser; a link
-with another scheme does nothing, and nothing loads without a click.
+an `http`, `https`, `mailto` or `ftp` address in the system browser after
+asking: the dialog shows the full address, and Cancel, the default for Enter
+and Esc, opens nothing. A link with another scheme does nothing, and nothing
+loads without a click.
+
+The preview has its own zoom, kept apart from the editor's: `Ctrl+=`, `Ctrl+-`
+and `Ctrl+0` (`Cmd` on macOS) and View > Zoom In, Zoom Out and Reset Zoom act on
+the preview while it has the focus, and `Ctrl`+wheel over the preview zooms it
+whatever has the focus. Each step is 10 percent, from 50 to 300 percent; every
+window's previews follow, and `qcaret.conf` keeps the size as
+`markdown.previewZoom`. Images keep their size, and Print Rendered Markdown and
+Export as HTML do not zoom.
 
 The Basic renderer draws headings, emphasis, lists and task lists, quotes,
 alerts, footnotes, tables, code blocks in a bordered box with QCaret's grammar
@@ -701,9 +716,9 @@ colors, and local PNG, JPEG, GIF, BMP and TIFF images in the current theme. A ta
 columns to the preview's width, and a long cell wraps inside its column. An SVG
 or an image that does not decode shows as a box with its name; a remote image
 shows its alt text and address. View > Markdown View, or the Appearance tab of Preferences,
-chooses the renderer for every window; the status bar names it, and
-`qcaret.conf` keeps the choice as `markdown.previewRenderer` (`basic` or
-`browser`).
+chooses the renderer for every window; the status bar names it, a click on
+that name offers Basic and Browser, and `qcaret.conf` keeps the choice as
+`markdown.previewRenderer` (`basic` or `browser`).
 
 View > Markdown View > Sync Scrolling, on by default, makes the editor and the
 preview in Split scroll together in every window; the Appearance tab of
@@ -723,7 +738,8 @@ Browser is disabled under GTK 4, where WebKitGTK does not start, and for the
 rest of the run after the browser control fails to start or a page does not
 load in time (60 seconds for the browser control to start, then 15 seconds);
 its tool tip, or its
-label under GTK 4, gives the reason. A saved Browser choice then shows Basic
+label under GTK 4, gives the reason. The toolbar's Browser button and Browser
+in the status bar's renderer menu are disabled with the same reason. A saved Browser choice then shows Basic
 with the notice "Browser preview unavailable; showing Basic".
 
 File > Export as HTML writes the selected Markdown tab, unsaved edits

@@ -20,7 +20,8 @@ import java.util.concurrent.CancellationException;
 /**
  * One preview render: what it reads, and its result once {@link #run} returns. The text parses
  * once; Basic content takes the render, its code colors, spans and image requests, and Browser
- * content adds the HTML and its page in {@link #palette}, and leaves image decoding to the browser.
+ * content adds the HTML and its page in {@link #palette} and {@link #zoom}, and leaves image
+ * decoding to the browser.
  */
 final class MarkdownRenderJob {
   final long generation;
@@ -30,6 +31,9 @@ final class MarkdownRenderJob {
 
   /** The palette of a Browser page; null for Basic content. */
   final Palette palette;
+
+  /** The text size of a Browser page, in percent. */
+  final int zoom;
 
   private final TextSnapshot text;
   private final MarkdownRenderer renderer;
@@ -47,6 +51,7 @@ final class MarkdownRenderJob {
       GrammarSet grammars,
       int maxLineChars,
       Palette palette,
+      int zoom,
       CancellationToken cancel,
       long charge) {
     this.generation = generation;
@@ -57,6 +62,7 @@ final class MarkdownRenderJob {
     this.grammars = grammars;
     this.maxLineChars = maxLineChars;
     this.palette = palette;
+    this.zoom = zoom;
     this.cancel = cancel;
     this.charge = charge;
   }
@@ -76,7 +82,7 @@ final class MarkdownRenderJob {
       if (palette != null) {
         html = MarkdownHtmlWriter.preview(tree, folder, grammars, maxLineChars, cancel);
         cancel.check();
-        html = html.withPage(MarkdownPage.page("", html.body(), palette));
+        html = html.withPage(MarkdownPage.page("", html.body(), palette, zoom));
       }
       List<MarkdownImageRequest> images =
           palette != null ? List.<MarkdownImageRequest>of() : MarkdownImages.requests(rendered);

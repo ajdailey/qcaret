@@ -95,7 +95,8 @@ class FilePollSurfaceTest {
         true,
         o.strictJson(),
         PreviewRenderer.BASIC,
-        true);
+        true,
+        100);
   }
 
   private MainWindow open(Preferences preferences) {

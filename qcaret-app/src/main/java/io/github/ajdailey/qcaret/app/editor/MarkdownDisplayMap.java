@@ -43,7 +43,13 @@ public final class MarkdownDisplayMap {
           String.valueOf(TableWrap.PAD), 1, new int[0], new int[] {0}, new int[][] {{}});
 
   private final RenderedMarkdown rendered;
+
+  /** The display text, or null while {@link #edits} holds a newer one. */
   private String text;
+
+  /** The display text after a {@link #replace}, edited in place; null before the first. */
+  private StringBuilder edits;
+
   private DisplayRows index;
 
   /**
@@ -93,12 +99,26 @@ public final class MarkdownDisplayMap {
   }
 
   /**
-   * Returns the display text.
+   * Returns the display text. After a {@link #replace} the first call copies it out of the edit
+   * buffer.
    *
    * @return the text
    */
   public String text() {
+    if (text == null) {
+      text = edits.toString();
+    }
     return text;
+  }
+
+  /**
+   * Returns a display char without copying the text.
+   *
+   * @param offset a display offset
+   * @return the char
+   */
+  public char charAt(int offset) {
+    return text != null ? text.charAt(offset) : edits.charAt(offset);
   }
 
   /**
@@ -364,7 +384,8 @@ public final class MarkdownDisplayMap {
   }
 
   /**
-   * Replaces the display rows of consecutive rendered lines.
+   * Replaces the display rows of consecutive rendered lines. The text is edited in place, so a
+   * layout's steps do not copy the whole display text each.
    *
    * @param first the first rendered line
    * @param next one row per line from {@code first}; null shows a line as rendered
@@ -386,7 +407,11 @@ public final class MarkdownDisplayMap {
       }
     }
     String replacement = inserted.toString();
-    text = text.substring(0, start) + replacement + text.substring(end);
+    if (edits == null) {
+      edits = new StringBuilder(text);
+    }
+    edits.replace(start, end, replacement);
+    text = null;
     index = index.replace(first, next);
     return new Change(start, end - start, replacement);
   }

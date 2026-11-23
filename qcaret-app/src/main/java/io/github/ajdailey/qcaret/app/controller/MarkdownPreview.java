@@ -39,9 +39,9 @@ import java.util.concurrent.RejectedExecutionException;
  *       while {@link Tab#browser} holds. It carries a generation and the revision it read; a result
  *       whose generation was overtaken, or whose revision is not the document's, is dropped. {@link
  *       #rendererChanged} and {@link #browserFailed} render again under the busy cursor.
- *   <li>{@link #paletteChanged}, and a Browser result built in a palette since replaced, rebuild
- *       the page on a worker through {@link MarkdownRepage}; a page built for content no longer
- *       shown is dropped.
+ *   <li>{@link #paletteChanged} and {@link #zoomChanged}, and a Browser result built in a palette
+ *       or text size since replaced, rebuild the page on a worker through {@link MarkdownRepage}; a
+ *       page built for content other than the shown content is dropped.
  *   <li>A shown render's local images decode through {@link MarkdownImages}; the next render, a
  *       switch to Source and a close cancel the decode.
  *   <li>In Split, the editor's and the preview's top lines map through the shown render's source
@@ -103,6 +103,9 @@ final class MarkdownPreview implements MarkdownPreviewInput {
 
     /** The palette of the Browser preview's page. */
     Palette palette();
+
+    /** The preview's text size in percent ({@code markdown.previewZoom}). */
+    int previewZoom();
 
     /** Posts the Browser preview's failure: the notice and the renderer shown. */
     void browserFailed();
@@ -220,6 +223,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
   public void attach(MarkdownPreviewView value) {
     view = value;
     if (view != null) {
+      view.setZoom(tab.previewZoom());
       view.showMode(mode);
       if (shown != null && mode != MarkdownViewMode.SOURCE) {
         view.showRendered(shown);
@@ -312,10 +316,24 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     }
   }
 
+  /**
+   * Sets Basic content's text size, and rebuilds a shown Browser page in {@link Tab#previewZoom} on
+   * a worker.
+   */
+  void zoomChanged() {
+    if (disposed) {
+      return;
+    }
+    if (view != null) {
+      view.setZoom(tab.previewZoom());
+    }
+    paletteChanged();
+  }
+
   /** Rebuilds the shown Browser page in {@link Tab#palette} on a worker. */
   void paletteChanged() {
     if (!disposed && mode != MarkdownViewMode.SOURCE && shown != null && shown.html() != null) {
-      repage.start(shown, tab.palette());
+      repage.start(shown, tab.palette(), tab.previewZoom());
     }
   }
 
@@ -516,6 +534,7 @@ final class MarkdownPreview implements MarkdownPreviewInput {
             tab.grammars(),
             tab.maxLineChars(),
             tab.browser() ? tab.palette() : null,
+            tab.previewZoom(),
             running,
             reserved);
     if (user) {
@@ -579,7 +598,8 @@ final class MarkdownPreview implements MarkdownPreviewInput {
     shownRevision = job.revision;
     charge.shown(job.charge);
     repage.cancel();
-    if (job.palette != null && !job.palette.equals(tab.palette())) {
+    if (job.palette != null
+        && (!job.palette.equals(tab.palette()) || job.zoom != tab.previewZoom())) {
       paletteChanged();
     } else if (view != null) {
       view.showRendered(shown);

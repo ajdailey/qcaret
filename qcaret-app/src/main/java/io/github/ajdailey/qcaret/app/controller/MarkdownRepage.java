@@ -9,9 +9,9 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Rebuilds a Browser render's page in another palette on a {@code qcaret-cpu-} worker, for a theme
- * switch. Each {@link #start} takes a new generation; a page whose generation was overtaken by a
- * later {@link #start} or {@link #cancel} is dropped. Confined to the UI thread.
+ * Rebuilds a Browser render's page in another palette or text size on a {@code qcaret-cpu-} worker,
+ * for a theme switch or a zoom. Each {@link #start} takes a new generation; a page whose generation
+ * was overtaken by a later {@link #start} or {@link #cancel} is dropped. Confined to the UI thread.
  */
 final class MarkdownRepage {
   /** Receives a rebuilt page on the UI thread. */
@@ -41,8 +41,9 @@ final class MarkdownRepage {
    *
    * @param from content with HTML
    * @param palette the palette
+   * @param zoom the text size in percent
    */
-  void start(final MarkdownPreviewContent from, final Palette palette) {
+  void start(final MarkdownPreviewContent from, final Palette palette, final int zoom) {
     final long started = ++generation;
     try {
       workers.executeCpu(
@@ -50,7 +51,7 @@ final class MarkdownRepage {
             @Override
             @WorkerThread
             public void run() {
-              final MarkdownPreviewContent next = repaged(from, palette);
+              final MarkdownPreviewContent next = repaged(from, palette, zoom);
               ui.asyncExec(
                   new Runnable() {
                     @Override
@@ -72,9 +73,10 @@ final class MarkdownRepage {
     generation++;
   }
 
-  /** Returns content with its page built in a palette. */
-  private static MarkdownPreviewContent repaged(MarkdownPreviewContent from, Palette palette) {
-    String page = MarkdownPage.page("", from.html().body(), palette);
+  /** Returns content with its page built in a palette and text size. */
+  private static MarkdownPreviewContent repaged(
+      MarkdownPreviewContent from, Palette palette, int zoom) {
+    String page = MarkdownPage.page("", from.html().body(), palette, zoom);
     return new MarkdownPreviewContent(
         from.rendered(),
         from.codeTokens(),

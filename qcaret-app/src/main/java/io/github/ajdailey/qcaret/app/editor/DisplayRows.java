@@ -1,8 +1,6 @@
 package io.github.ajdailey.qcaret.app.editor;
 
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * The rendered lines a {@link MarkdownDisplayMap} shows as a {@link TableWrap.Row}, ascending, with
@@ -24,14 +22,29 @@ final class DisplayRows {
    * @param rows one row per line
    */
   DisplayRows(RenderedMarkdown rendered, int[] lines, TableWrap.Row[] rows) {
+    this(rendered, lines, rows, new int[lines.length], new int[lines.length]);
+    place(0, lines.length, 0, 0);
+  }
+
+  private DisplayRows(
+      RenderedMarkdown rendered,
+      int[] lines,
+      TableWrap.Row[] rows,
+      int[] displayLines,
+      int[] displayStarts) {
     this.rendered = rendered;
     this.lines = lines;
     this.rows = rows;
-    displayLines = new int[lines.length];
-    displayStarts = new int[lines.length];
-    int extraLines = 0;
-    int shift = 0;
-    for (int i = 0; i < lines.length; i++) {
+    this.displayLines = displayLines;
+    this.displayStarts = displayStarts;
+  }
+
+  /**
+   * Sets the first display line and start offset of rows {@code from} up to {@code to}, after rows
+   * before them that add {@code extraLines} lines and {@code shift} chars.
+   */
+  private void place(int from, int to, int extraLines, int shift) {
+    for (int i = from; i < to; i++) {
       displayLines[i] = lines[i] + extraLines;
       int rowStart = rendered.lineStart(lines[i]);
       displayStarts[i] = rowStart + shift;
@@ -41,41 +54,59 @@ final class DisplayRows {
   }
 
   /**
-   * Returns the index with the rows of consecutive rendered lines replaced.
+   * Returns the index with the rows of consecutive rendered lines replaced. The rows before them
+   * are copied as they are and the rows after them shifted, so only the replaced rows are placed
+   * again.
    *
    * @param first the first rendered line
    * @param next one row per line from {@code first}; null shows a line as rendered
    * @return the new index
    */
   DisplayRows replace(int first, TableWrap.Row[] next) {
-    int last = first + next.length - 1;
-    List<Integer> newLines = new ArrayList<Integer>();
-    List<TableWrap.Row> newRows = new ArrayList<TableWrap.Row>();
-    int k = 0;
-    while (k < lines.length && lines[k] < first) {
-      newLines.add(lines[k]);
-      newRows.add(rows[k]);
-      k++;
-    }
-    for (int j = 0; j < next.length; j++) {
-      if (next[j] != null) {
-        newLines.add(first + j);
-        newRows.add(next[j]);
+    int before = atLine(first - 1) + 1;
+    int after = atLine(first + next.length - 1) + 1;
+    int added = 0;
+    for (TableWrap.Row row : next) {
+      if (row != null) {
+        added++;
       }
     }
-    while (k < lines.length && lines[k] <= last) {
-      k++;
+    int size = lines.length - (after - before) + added;
+    int[] newLines = new int[size];
+    TableWrap.Row[] newRows = new TableWrap.Row[size];
+    int[] newDisplayLines = new int[size];
+    int[] newDisplayStarts = new int[size];
+    System.arraycopy(lines, 0, newLines, 0, before);
+    System.arraycopy(rows, 0, newRows, 0, before);
+    System.arraycopy(displayLines, 0, newDisplayLines, 0, before);
+    System.arraycopy(displayStarts, 0, newDisplayStarts, 0, before);
+    int k = before;
+    for (int j = 0; j < next.length; j++) {
+      if (next[j] != null) {
+        newLines[k] = first + j;
+        newRows[k] = next[j];
+        k++;
+      }
     }
-    while (k < lines.length) {
-      newLines.add(lines[k]);
-      newRows.add(rows[k]);
-      k++;
+    int tail = lines.length - after;
+    System.arraycopy(lines, after, newLines, k, tail);
+    System.arraycopy(rows, after, newRows, k, tail);
+    DisplayRows out =
+        new DisplayRows(rendered, newLines, newRows, newDisplayLines, newDisplayStarts);
+    int extraLines = before == 0 ? 0 : extraLinesThrough(before - 1);
+    int shift = before == 0 ? 0 : shiftThrough(before - 1);
+    out.place(before, k, extraLines, shift);
+    if (k > before) {
+      extraLines = out.extraLinesThrough(k - 1);
+      shift = out.shiftThrough(k - 1);
     }
-    int[] flat = new int[newLines.size()];
-    for (int i = 0; i < flat.length; i++) {
-      flat[i] = newLines.get(i);
+    int lineDelta = extraLines - (after == 0 ? 0 : extraLinesThrough(after - 1));
+    int shiftDelta = shift - (after == 0 ? 0 : shiftThrough(after - 1));
+    for (int i = 0; i < tail; i++) {
+      newDisplayLines[k + i] = displayLines[after + i] + lineDelta;
+      newDisplayStarts[k + i] = displayStarts[after + i] + shiftDelta;
     }
-    return new DisplayRows(rendered, flat, newRows.toArray(new TableWrap.Row[0]));
+    return out;
   }
 
   /**

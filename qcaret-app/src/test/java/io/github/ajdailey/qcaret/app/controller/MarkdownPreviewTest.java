@@ -106,6 +106,7 @@ class MarkdownPreviewTest {
     boolean browser;
     int browserFailures;
     volatile Palette palette = Palette.LIGHT;
+    volatile int zoom = 100;
 
     @Override
     public Path folder() {
@@ -164,6 +165,11 @@ class MarkdownPreviewTest {
     }
 
     @Override
+    public int previewZoom() {
+      return zoom;
+    }
+
+    @Override
     public void browserFailed() {
       browserFailures++;
     }
@@ -177,6 +183,7 @@ class MarkdownPreviewTest {
     final List<Integer> scrolls = new ArrayList<Integer>();
     final List<String> anchors = new ArrayList<String>();
     final List<int[]> selects = new ArrayList<int[]>();
+    final List<Integer> zooms = new ArrayList<Integer>();
     final FakeMarkdownPane delegate = new FakeMarkdownPane(null);
 
     @Override
@@ -213,6 +220,12 @@ class MarkdownPreviewTest {
     public void scrollToAnchor(String id) {
       ui.checkUiThread();
       anchors.add(id);
+    }
+
+    @Override
+    public void setZoom(int percent) {
+      ui.checkUiThread();
+      zooms.add(percent);
     }
 
     @Override
@@ -702,6 +715,32 @@ class MarkdownPreviewTest {
     assertTrue(second.rendered() == first.rendered(), "no new render");
     assertEquals(second, p.shown());
     assertEquals(1, busy.started.get());
+    p.dispose();
+  }
+
+  @Test
+  void aZoomSizesBasicContentAndRebuildsTheBrowserPage() throws InterruptedException {
+    MarkdownPreview p = preview(document("# Title\n"), 1000);
+    p.setMode(MarkdownViewMode.PREVIEW);
+    awaitShown(1);
+    tab.zoom = 150;
+    p.zoomChanged();
+    assertEquals(150, pane.zooms.get(pane.zooms.size() - 1));
+    ui.runPending();
+    assertEquals(1, pane.shown.size(), "Basic content takes the size without a new page");
+    tab.browser = true;
+    p.rendererChanged();
+    awaitShown(2);
+    MarkdownPreviewContent first = pane.shown.get(1);
+    assertEquals(
+        MarkdownPage.page("", first.html().body(), Palette.LIGHT, 150), first.html().page());
+    tab.zoom = 200;
+    p.zoomChanged();
+    awaitShown(3);
+    MarkdownPreviewContent second = pane.shown.get(2);
+    assertEquals(
+        MarkdownPage.page("", first.html().body(), Palette.LIGHT, 200), second.html().page());
+    assertTrue(second.rendered() == first.rendered(), "no new render");
     p.dispose();
   }
 

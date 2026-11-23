@@ -16,6 +16,9 @@ public final class MarkdownPage {
   public static final String POLICY =
       "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 
+  /** The body font size at zoom 100, in CSS pixels. */
+  public static final int FONT_PIXELS = 14;
+
   private static final String SANS =
       "-apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", Ubuntu, Cantarell, \"Helvetica Neue\","
           + " sans-serif";
@@ -34,7 +37,20 @@ public final class MarkdownPage {
    * @return the page
    */
   public static String page(String title, String body, Palette palette) {
-    String css = stylesheet(palette);
+    return page(title, body, palette, 100);
+  }
+
+  /**
+   * Returns a page whose text is zoomed.
+   *
+   * @param title the page title, escaped here
+   * @param body the HTML fragment; its {@code <meta>} tags become inert ({@link InertMeta})
+   * @param palette the colors
+   * @param zoom percent of the stylesheet's pixel lengths ({@link #stylesheet(Palette, int)})
+   * @return the page
+   */
+  public static String page(String title, String body, Palette palette, int zoom) {
+    String css = stylesheet(palette, zoom);
     StringBuilder out = new StringBuilder(body.length() + css.length() + 512);
     out.append("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n")
         .append("<meta http-equiv=\"Content-Security-Policy\" content=\"")
@@ -56,6 +72,19 @@ public final class MarkdownPage {
    * @return CSS
    */
   public static String stylesheet(Palette p) {
+    return stylesheet(p, 100);
+  }
+
+  /**
+   * Returns the stylesheet in a palette's colors with every pixel length zoomed: the body font,
+   * margins, padding, borders and the content width. Every other font size is relative to the
+   * body's.
+   *
+   * @param p the palette
+   * @param zoom percent of the lengths at 100, where the body font is {@value #FONT_PIXELS} px
+   * @return CSS
+   */
+  public static String stylesheet(Palette p, int zoom) {
     String text = hex(p.text());
     String border = hex(p.lineNumbers());
     String shade = hex(p.gutter());
@@ -71,18 +100,27 @@ public final class MarkdownPage {
         .append("; }\n")
         .append("body { font-family: ")
         .append(SANS)
-        .append("; font-size: 14px; line-height: 1.5; }\n")
-        .append(".markdown-body { max-width: 980px; padding: 16px 24px; overflow-wrap: break-word;")
+        .append("; font-size: ")
+        .append(px(FONT_PIXELS, zoom))
+        .append("; line-height: 1.5; }\n")
+        .append(
+            ".markdown-body { max-width: "
+                + px(980, zoom)
+                + "; padding: "
+                + px(16, zoom)
+                + " "
+                + px(24, zoom)
+                + "; overflow-wrap: break-word;")
         .append(" }\n")
         .append("h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.25;")
-        .append(" margin: 24px 0 16px; }\n")
+        .append(" margin: " + px(24, zoom) + " 0 " + px(16, zoom) + "; }\n")
         .append("h1 { font-size: 1.75em; } h2 { font-size: 1.5em; } h3 { font-size: 1.3em; }")
         .append(" h4 { font-size: 1.1em; } h5, h6 { font-size: 1em; }\n")
-        .append("h1, h2 { padding-bottom: 0.3em; border-bottom: 1px solid ")
+        .append("h1, h2 { padding-bottom: 0.3em; border-bottom: " + px(1, zoom) + " solid ")
         .append(border)
         .append("; }\n")
         .append("p, blockquote, ul, ol, dl, table, pre, details, .markdown-alert")
-        .append(" { margin: 0 0 16px; }\n")
+        .append(" { margin: 0 0 " + px(16, zoom) + "; }\n")
         .append("a { color: ")
         .append(link)
         .append("; text-decoration: none; } a:hover { text-decoration: underline; }\n")
@@ -91,41 +129,68 @@ public final class MarkdownPage {
         .append("; font-size: 90%; }\n")
         .append("code { background: ")
         .append(shade)
-        .append("; border-radius: 4px; padding: 2px 4px; }\n")
+        .append(
+            "; border-radius: "
+                + px(4, zoom)
+                + "; padding: "
+                + px(2, zoom)
+                + " "
+                + px(4, zoom)
+                + "; }\n")
         .append("pre { background: ")
         .append(shade)
-        .append("; border: 1px solid ")
+        .append("; border: " + px(1, zoom) + " solid ")
         .append(border)
-        .append("; border-radius: 4px; padding: 8px 12px; overflow: auto; line-height: 1.45; }\n")
+        .append(
+            "; border-radius: "
+                + px(4, zoom)
+                + "; padding: "
+                + px(8, zoom)
+                + " "
+                + px(12, zoom)
+                + "; overflow: auto; line-height: 1.45; }\n")
         .append("pre code { background: none; padding: 0; font-size: 100%; }\n")
-        .append("blockquote { margin-left: 0; padding: 0 16px; border-left: 3px solid ")
+        .append(
+            "blockquote { margin-left: 0; padding: 0 "
+                + px(16, zoom)
+                + "; border-left: "
+                + px(3, zoom)
+                + " solid ")
         .append(border)
         .append("; }\n")
-        .append("hr { border: 0; border-top: 1px solid ")
+        .append("hr { border: 0; border-top: " + px(1, zoom) + " solid ")
         .append(border)
-        .append("; margin: 24px 0; }\n")
+        .append("; margin: " + px(24, zoom) + " 0; }\n")
         .append("table { border-collapse: collapse; display: block; overflow: auto; }\n")
-        .append("th, td { border: 1px solid ")
+        .append("th, td { border: " + px(1, zoom) + " solid ")
         .append(border)
-        .append("; padding: 6px 13px; }\n")
+        .append("; padding: " + px(6, zoom) + " " + px(13, zoom) + "; }\n")
         .append("th { background: ")
         .append(shade)
         .append("; font-weight: 600; }\n")
         .append("img { max-width: 100%; }\n")
         .append("li > input[type=checkbox] { margin: 0 0.4em 0 -1.3em; }\n")
         .append("li:has(> input[type=checkbox]) { list-style: none; }\n")
-        .append(".markdown-alert { padding: 8px 16px; border-left: 4px solid ")
+        .append(
+            ".markdown-alert { padding: "
+                + px(8, zoom)
+                + " "
+                + px(16, zoom)
+                + "; border-left: "
+                + px(4, zoom)
+                + " solid ")
         .append(link)
         .append("; }\n")
-        .append(".markdown-alert-title { font-weight: 600; margin-bottom: 4px; }\n");
+        .append(
+            ".markdown-alert-title { font-weight: 600; margin-bottom: " + px(4, zoom) + "; }\n");
     alert(css, "note", p.style(TokenRole.LINK));
     alert(css, "tip", p.style(TokenRole.TYPE));
     alert(css, "important", p.style(TokenRole.NUMBER));
     alert(css, "warning", p.style(TokenRole.STRING));
     alert(css, "caution", p.style(TokenRole.INVALID));
-    css.append(".footnotes { font-size: 90%; border-top: 1px solid ")
+    css.append(".footnotes { font-size: 90%; border-top: " + px(1, zoom) + " solid ")
         .append(border)
-        .append("; margin-top: 24px; }\n")
+        .append("; margin-top: " + px(24, zoom) + "; }\n")
         .append(".front-matter { border-style: dashed; }\n")
         .append(".image-missing { font-style: italic; }\n");
     for (TokenRole role : TokenRole.values()) {
@@ -146,6 +211,11 @@ public final class MarkdownPage {
       css.append("; }\n");
     }
     return css.toString();
+  }
+
+  /** A CSS length of some pixels at a zoom, at least 1 px. */
+  private static String px(int pixels, int zoom) {
+    return Math.max(1, Math.round(pixels * zoom / 100f)) + "px";
   }
 
   private static void alert(StringBuilder css, String kind, TokenStyle style) {

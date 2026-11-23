@@ -58,6 +58,8 @@ import java.time.format.DateTimeFormatter;
  * @param previewRenderer {@code markdown.previewRenderer}: what draws the Markdown preview
  * @param markdownSyncScroll {@code markdown.syncScroll}: in Split, a scroll of the editor or the
  *     preview scrolls the other
+ * @param previewZoom {@code markdown.previewZoom}: the Markdown preview's text size the zoom
+ *     commands chose, in percent of its normal size
  */
 public record Options(
     int completionChars,
@@ -87,7 +89,8 @@ public record Options(
     boolean sessionRestore,
     boolean strictJson,
     PreviewRenderer previewRenderer,
-    boolean markdownSyncScroll) {
+    boolean markdownSyncScroll,
+    int previewZoom) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -106,6 +109,12 @@ public record Options(
 
   /** Largest {@code fontSize} and {@code fontZoom}, in points. */
   public static final int MAX_FONT_SIZE = 72;
+
+  /** Smallest {@code previewZoom}, in percent. */
+  public static final int MIN_PREVIEW_ZOOM = 50;
+
+  /** Largest {@code previewZoom}, in percent. */
+  public static final int MAX_PREVIEW_ZOOM = 300;
 
   /** Shortest {@code pollSeconds}. */
   public static final int MIN_POLL_SECONDS = 1;
@@ -176,7 +185,8 @@ public record Options(
           true,
           false,
           PreviewRenderer.BASIC,
-          true);
+          true,
+          100);
 
   /** Checks the components. */
   public Options {
@@ -198,6 +208,7 @@ public record Options(
       throw new IllegalArgumentException("excludedDirectories");
     }
     range(rightMargin, 1, MAX_RIGHT_MARGIN);
+    range(previewZoom, MIN_PREVIEW_ZOOM, MAX_PREVIEW_ZOOM);
     if (!validDateFormat(dateFormat)) {
       throw new IllegalArgumentException("dateFormat");
     }
@@ -331,7 +342,8 @@ public record Options(
         sessionRestore,
         strictJson,
         previewRenderer,
-        markdownSyncScroll);
+        markdownSyncScroll,
+        previewZoom);
   }
 
   /**
@@ -369,7 +381,8 @@ public record Options(
         sessionRestore,
         strictJson,
         previewRenderer,
-        markdownSyncScroll);
+        markdownSyncScroll,
+        previewZoom);
   }
 
   /**
@@ -407,7 +420,8 @@ public record Options(
         sessionRestore,
         strictJson,
         previewRenderer,
-        markdownSyncScroll);
+        markdownSyncScroll,
+        previewZoom);
   }
 
   /**
@@ -445,7 +459,8 @@ public record Options(
         sessionRestore,
         strictJson,
         previewRenderer,
-        markdownSyncScroll);
+        markdownSyncScroll,
+        previewZoom);
   }
 
   /**
@@ -483,7 +498,8 @@ public record Options(
         sessionRestore,
         strictJson,
         renderer,
-        markdownSyncScroll);
+        markdownSyncScroll,
+        previewZoom);
   }
 
   /**
@@ -521,6 +537,46 @@ public record Options(
         sessionRestore,
         strictJson,
         previewRenderer,
-        on);
+        on,
+        previewZoom);
+  }
+
+  /**
+   * Returns a copy with another Markdown preview zoom.
+   *
+   * @param percent the text size in percent of its normal size
+   * @return the copy
+   */
+  public Options withPreviewZoom(int percent) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        markdownSyncScroll,
+        percent);
   }
 }

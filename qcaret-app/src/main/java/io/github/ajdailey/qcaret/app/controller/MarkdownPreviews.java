@@ -18,7 +18,8 @@ import java.util.function.Consumer;
  * The {@link MarkdownPreview} of each tab of one {@link DocumentController}, created on first use
  * with its tab's pane attached. A tab is a Markdown tab while its grammar is {@code markdown}. In
  * Split with scroll sync on, the tab's focused editor reports its top line through {@link
- * #sourceScrolled}. Confined to the UI thread.
+ * #sourceScrolled}. A web link asks before it opens ({@link MainView#askOpenUrl}). Confined to the
+ * UI thread.
  */
 final class MarkdownPreviews {
   /** The grammar id of a Markdown tab. */
@@ -41,6 +42,7 @@ final class MarkdownPreviews {
   private boolean browserChosen;
   private boolean syncScroll = true;
   private Palette palette = Palette.LIGHT;
+  private int zoom = ZoomCommands.NORMAL;
 
   /**
    * Creates the previews of one window.
@@ -124,8 +126,15 @@ final class MarkdownPreviews {
                 }
 
                 @Override
-                public void openUrl(String url) {
-                  view.launchUrl(url);
+                public void openUrl(final String url) {
+                  view.askOpenUrl(
+                      url,
+                      new Runnable() {
+                        @Override
+                        public void run() {
+                          view.launchUrl(url);
+                        }
+                      });
                 }
 
                 @Override
@@ -136,6 +145,11 @@ final class MarkdownPreviews {
                 @Override
                 public Palette palette() {
                   return palette;
+                }
+
+                @Override
+                public int previewZoom() {
+                  return zoom;
                 }
 
                 @Override
@@ -186,6 +200,18 @@ final class MarkdownPreviews {
   boolean setPalette(Palette next) {
     boolean changed = !palette.equals(next);
     palette = next;
+    return changed;
+  }
+
+  /**
+   * Sets the previews' text size ({@code markdown.previewZoom}).
+   *
+   * @param percent the size in percent
+   * @return true when it changed
+   */
+  boolean setZoom(int percent) {
+    boolean changed = zoom != percent;
+    zoom = percent;
     return changed;
   }
 

@@ -18,11 +18,12 @@ final class TextDelta {
    * @param text the widget, holding {@code shown}
    * @param shown the widget's text
    * @param next the text it gets
+   * @return true when {@code setText} showed it: the widget then styles every line again
    */
-  static void apply(StyledText text, String shown, String next) {
+  static boolean apply(StyledText text, String shown, String next) {
     int prefix = prefix(shown, next);
     if (prefix == shown.length() && prefix == next.length()) {
-      return;
+      return false;
     }
     int suffix = suffix(shown, next, prefix);
     String inserted = next.substring(prefix, next.length() - suffix);
@@ -32,9 +33,10 @@ final class TextDelta {
     int replaceCost = Math.max(Math.abs(first - top), Math.abs(last - top));
     if (top <= replaceCost) {
       text.setText(next);
-    } else {
-      text.replaceTextRange(prefix, shown.length() - prefix - suffix, inserted);
+      return true;
     }
+    text.replaceTextRange(prefix, shown.length() - prefix - suffix, inserted);
+    return false;
   }
 
   private static int newlines(String s) {

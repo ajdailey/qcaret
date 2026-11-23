@@ -93,7 +93,8 @@ class SearchControllerTest {
                     true,
                     o.strictJson(),
                     PreviewRenderer.BASIC,
-                    true)));
+                    true,
+                    100)));
     search.run(form("needle", SearchScope.CURRENT_DOCUMENT, ""));
     settle();
     assertEquals(1, search.sets().get(0).matches());

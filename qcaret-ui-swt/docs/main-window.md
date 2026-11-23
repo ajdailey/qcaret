@@ -224,9 +224,13 @@ HyperSearch, Zoom In, Zoom Out.
   for its accessible name ([Accessible names](#accessible-names)).
 - Enablement syncs from `CommandStates` with the menu bar, and `EDIT_STATE` on
   each status read, coalesced with the status bar.
-- A click that left the focus on the bar returns it to the editor.
 - `MarkdownSwitch` adds Source, Split and Preview at the end while the selected
-  tab is a Markdown tab ([Markdown preview](markdown-preview.md#tab-frame)).
+  tab is a Markdown tab, and `MarkdownToolItems` the renderer, Sync Scrolling
+  and Outline toggles, Export as HTML and Print Rendered Markdown after them
+  ([Markdown preview](markdown-preview.md#tab-frame)).
+- A click that left the focus on the bar returns it to the pane that had it
+  last, the preview or the editor (`PaneFocus`), so Zoom In from the toolbar
+  zooms the same pane again.
 - The GTK window's minimum width is the menu bar's (437 px measured); the
   toolbar prefers 441 px there, and below its width GTK moves the last buttons
   behind an overflow arrow. Every button's command is also in a menu.
@@ -250,7 +254,11 @@ field opens LF, CRLF and CR as radio items running the Line Endings commands;
 both open below the field as the language popup does, and each field's tool
 tip names its action (`StatusMenus`). The encoding popup is built on the first
 click and kept, since its Other cascades list every charset; the line-ending
-popup is built on each click and replaces the previous one.
+popup is built on each click and replaces the previous one. A click on the
+preview field, while it names a renderer, opens Basic and Browser the same way
+as radio items running View > Markdown View's commands; Browser is disabled
+where it cannot run, with the reason in its tool tip, or in its label where
+`PlatformTraits.showsMenuToolTips` is false.
 
 `MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
 from the layout while it is off. It paints `MemoryFields.text` over a bar

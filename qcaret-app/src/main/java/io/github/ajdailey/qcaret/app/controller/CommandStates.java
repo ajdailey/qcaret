@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
-import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.StatusFields;
@@ -274,8 +273,7 @@ public final class CommandStates {
     }
     if (WINDOW_COMMANDS.contains(command) || command.group() == CommandGroup.HELP) {
       return switch (command) {
-        case ZOOM_IN -> application.fontPoints() < Options.MAX_FONT_SIZE;
-        case ZOOM_OUT -> application.fontPoints() > Options.MIN_FONT_SIZE;
+        case ZOOM_IN, ZOOM_OUT -> application.zooms().enabled(command);
         case NEXT_RESULT, PREVIOUS_RESULT, REPLACE_IN_RESULTS -> application.search().hasResults();
         case OPEN_ALL_RECENT, CLEAR_RECENT_FILES, CLEAN_UP_RECENT ->
             !application.recentFiles().paths().isEmpty();

@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.markdown;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Device;
@@ -10,7 +12,7 @@ import org.eclipse.swt.graphics.FontData;
 /**
  * The fonts of one preview pane, created on first use and disposed together: the body font with
  * bold and italic, the six heading sizes, a smaller size for subscript and superscript, and the
- * monospace family for code. Call on the UI thread.
+ * monospace family for code, all scaled by the zoom. Call on the UI thread.
  */
 final class MarkdownFonts {
   /** Heading sizes as a share of the body size, level 1 first. */
@@ -22,7 +24,8 @@ final class MarkdownFonts {
   private final Device device;
   private final FontData body;
   private final String mono;
-  private final Map<String, Font> fonts = new HashMap<String, Font>();
+  private Map<String, Font> fonts = new HashMap<String, Font>();
+  private int zoom = 100;
 
   /**
    * Creates the fonts of a pane.
@@ -51,7 +54,7 @@ final class MarkdownFonts {
     if (small) {
       scale *= SMALL;
     }
-    int points = Math.max(1, Math.round(body.getHeight() * scale));
+    int points = Math.max(1, Math.round(body.getHeight() * scale * zoom / 100f));
     String name = monospace ? mono : body.getName();
     String key = name + "/" + points + "/" + style;
     Font font = fonts.get(key);
@@ -60,6 +63,29 @@ final class MarkdownFonts {
       fonts.put(key, font);
     }
     return font;
+  }
+
+  /**
+   * Sets the zoom. The fonts created so far stay valid until the caller disposes them, since
+   * widgets may still hold them.
+   *
+   * @param percent the size in percent of the body font's
+   * @return the fonts created before
+   */
+  List<Font> setZoom(int percent) {
+    zoom = percent;
+    List<Font> before = new ArrayList<Font>(fonts.values());
+    fonts = new HashMap<String, Font>();
+    return before;
+  }
+
+  /**
+   * Returns the zoom.
+   *
+   * @return percent of the body font's size
+   */
+  int zoom() {
+    return zoom;
   }
 
   /** Disposes every font created. */

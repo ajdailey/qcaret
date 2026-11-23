@@ -60,6 +60,14 @@ class FakeMarkdownPane implements MarkdownPreviewView {
     anchors.add(id);
   }
 
+  /** The sizes {@link #setZoom} set, in percent. */
+  final List<Integer> zooms = new ArrayList<Integer>();
+
+  @Override
+  public void setZoom(int percent) {
+    zooms.add(percent);
+  }
+
   @Override
   public MarkdownImageDecoder imageDecoder() {
     return new MarkdownImageDecoder() {

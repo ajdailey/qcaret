@@ -283,6 +283,15 @@ final class TableColumns {
   }
 
   /**
+   * Stops measuring and drops every table's widths and layout, which hold the old fonts' sizes; the
+   * next {@link #reset} measures and lays out each table again.
+   */
+  void fontsChanged() {
+    turns.cancel();
+    tables = new Table[0];
+  }
+
+  /**
    * Reports whether a table waits for the view to come near before its layout.
    *
    * @param table the table's index in the render

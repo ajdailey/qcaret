@@ -28,6 +28,18 @@ before it checks the clicked item and sends that one its own (SWT 3.135.0 on
 GTK, win32 and cocoa), so only the checked item's event runs the command and
 syncs the items; a sync on the first event unchecks the clicked item.
 
+`MarkdownToolItems` follows the switch and comes and goes with it: check items
+for Browser (checked while Browser draws; a click runs Basic or Browser), Sync
+Scrolling and Outline, and push items for Export as HTML and Print Rendered
+Markdown. Each runs its menu command and takes that item's checked and enabled
+state from `CommandStates` on every sync. The Browser item's tool tip names the
+renderer shown and the one a click picks (`PREVIEW_TOGGLE_BASIC`,
+`PREVIEW_TOGGLE_BROWSER`), with the keys of the command a click runs. It is
+disabled where Browser cannot run, with `MENU_ITEM_REASON` in its tool tip.
+The five icons are the buttons' own: `MenuIcons.icon` maps none of these
+commands, so their menu items show no icon (Print Rendered Markdown's button
+shows `print`).
+
 ## Browser availability
 
 `BrowserPreview.unavailable` is the one check of the Browser renderer:
@@ -152,6 +164,16 @@ with the replace (median of 10, Xvfb, GTK 3); the first show of 951 KB took
 3.3 s as a replace from the empty text. Table layout is the only
 other work that grows with the document ([Tables](#tables)).
 
+After a replace the pane styles the lines in view again with `redrawRange`,
+since a span change can restyle text the replace kept. After a `setText` it
+does not: `setText` styles every line, and `redrawRange` would measure each
+line in view a second time (3-12 ms, measured, Xvfb, GTK 3). A first show
+from an empty pane is a `setText`, and the widget's measuring of the lines in
+view takes 7-11 ms of it on a 1,194 by 900 px pane (README.md and 2,000-row
+tables, measured as above). Do not split that change by showing the lines in
+view first and appending the rest in a later turn: `replaceTextRange` measures
+each line it adds below the top line, so the append took 35-440 ms.
+
 The pane reports a new top line from `Paint` as a rendered line;
 `scrollToLine` and `selectRendered` record the line they leave at the top, so
 the controller's own scroll, and a table layout that keeps the top line, is
@@ -195,9 +217,37 @@ line laid out with a spacing other than its cached layout's, in view or not,
 resets that line's cache and redraws the whole widget.
 
 Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
-for subscript and superscript, and the editor font's family for code) belong
-to the pane and are disposed with it. `setPalette` recolors in place on a theme
-switch.
+for subscript and superscript, and the editor font's family for code, all
+scaled by the zoom) belong to the pane and are disposed with it. `setPalette`
+recolors in place on a theme switch.
+
+## Zoom
+
+`MarkdownPane.setZoom` takes `markdown.previewZoom` in percent; `PreviewSlot`
+passes it to a pane created later. The pane:
+
+1. Builds `MarkdownFonts` again at the size and gives the widget the body font
+   (the system font at 100): a line is never shorter than the widget font's
+   height, so a smaller body font alone would leave the old line height.
+   `setFont` drops the widget's line heights and cached layouts.
+2. Calls `TableColumns.fontsChanged`, which drops every table's cached cell
+   and word widths, then `TableColumns.reset` with the content and map shown,
+   so each table is measured in the new fonts and laid out again under the
+   rules in [Tables](#tables): a table far from the view waits, and its rows
+   keep the old layout until it nears the view.
+3. Scrolls the top rendered line back to the top, then disposes the replaced
+   fonts. `PadGlyphs` measures the body font again on its next style.
+
+Images keep their size. Print builds its own fonts and does not zoom. The
+Browser pane's page carries the size in its stylesheet: `MarkdownPage.stylesheet`
+scales every pixel length (body font, margins, padding, borders at least 1 px,
+the 980 px content width), and heading and code sizes follow the body font in
+`em` and percent. The controller builds the page
+([Documents](../../qcaret-app/docs/documents.md#markdown-preview)), and
+JavaScript stays off. `PreviewWheel` sends a wheel turn with Ctrl (Command
+on macOS) over the text or the browser control to
+`ApplicationController.wheelZoom`; whether a `Browser` reports the wheel on
+each platform is not yet checked.
 
 ## Tables
 
@@ -238,8 +288,9 @@ before that limit, and a layout step starts a turn of its own:
    cell's `j`th segment, tab-separated, with the indent and tab stops that
    start each segment in its column (`TableRowStyle`). `RowSteps` replaces the
    table's lines in the map and the widget through `replaceTextRange`, 16 rows
-   in the first step and then as many as the last step's rate fits in 2 ms, at
-   least 4.
+   in the first step and then as many as the last step's rate fits in 4 ms,
+   from 4 to 64. Steps starting above the top line, in view and below the view
+   each keep their own rate.
 
 A table starting more than one view height below the rendered lines in view, or
 above them and never laid out, is measured but waits for steps 2 and 3. A table
@@ -265,8 +316,14 @@ and the widget then measures the whole text again in its 50 ms idle steps
 replace lays out the unmeasured lines between the top line and its rows: a
 table far below the view took single replaces of up to 15 ms on README.md, and
 a table just above the view after a jump took 3-12 ms for every replace, one
-row or several (measured, as above). A single replace can still take 5-13 ms
-now and again, so a turn can pass 8 ms by a few milliseconds.
+row or several (measured, as above). A replace also has a cost that does not
+grow with its rows, so 2 ms steps took 2,887 ms of turns for a 2,000-row table
+and 4 ms steps 2,665 ms, with half the collector pauses (measured, as above).
+A single replace can still take 6-33 ms now and again (widget work, the
+collector included), so a turn can pass 8 ms.
+
+`MarkdownDisplayMap.replace` edits the display text in place and copies only
+the row index, so a step does not copy the whole display text.
 
 Cells have 13 px of padding left and right. A row's first and last display
 lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics

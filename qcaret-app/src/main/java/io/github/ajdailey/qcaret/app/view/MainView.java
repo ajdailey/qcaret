@@ -358,4 +358,21 @@ public interface MainView
    * @return the reason, or null when the platform's browser control is available
    */
   String previewBrowserUnavailable();
+
+  /**
+   * Reports whether the zoom commands act on the selected tab's Markdown preview: the preview had
+   * the focus last of the tab's panes, and it shows.
+   *
+   * @return true for the preview, false for the editor
+   */
+  boolean previewFocused();
+
+  /**
+   * Asks whether to open a web address from a Markdown preview link: a modal dialog with the full
+   * address, Open and Cancel, Cancel the default. Returns at once.
+   *
+   * @param url the address
+   * @param open runs on Open; Cancel and closing the dialog run nothing
+   */
+  void askOpenUrl(String url, Runnable open);
 }

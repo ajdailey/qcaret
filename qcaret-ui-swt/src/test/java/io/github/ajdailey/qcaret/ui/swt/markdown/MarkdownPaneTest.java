@@ -31,7 +31,9 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -578,6 +580,45 @@ class MarkdownPaneTest {
     assertEquals(top, pane.text().getTopIndex());
     pane.showRendered(content(edited));
     assertEquals(2, changes.size(), "an equal text is not replaced");
+  }
+
+  /**
+   * A render shown with {@code setText} styles each line in view once while it shows: a restyle
+   * after it measured each line in view a second time (3-12 ms, GTK 3). A render shown with a
+   * replace styles the lines in view again, since a span change can restyle unchanged text.
+   */
+  @Test
+  void aSetTextStylesEachLineInViewOnce() {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 200; i++) {
+      text.append("para ").append(i).append("\n\n");
+    }
+    final Map<Integer, Integer> styled = new HashMap<Integer, Integer>();
+    pane.text()
+        .addLineStyleListener(
+            new LineStyleListener() {
+              @Override
+              public void lineGetStyle(LineStyleEvent event) {
+                styled.merge(event.lineOffset, 1, Integer::sum);
+              }
+            });
+    pane.showRendered(content(text.toString()));
+    StyledText widget = pane.text();
+    int bottom = widget.getLineIndex(widget.getClientArea().height - 1);
+    assertTrue(bottom > 10, "bottom " + bottom);
+    for (int line = 0; line <= bottom; line++) {
+      assertEquals(1, styled.get(widget.getOffsetAtLine(line)), "line " + line);
+    }
+    flush();
+    pane.scrollToLine(300);
+    flush();
+    styled.clear();
+    pane.showRendered(content(text + "end\n"));
+    int top = widget.getTopIndex();
+    assertEquals(300, top);
+    for (int line = top; line <= widget.getLineIndex(widget.getClientArea().height - 1); line++) {
+      assertNotNull(styled.get(widget.getOffsetAtLine(line)), "line " + line);
+    }
   }
 
   /**

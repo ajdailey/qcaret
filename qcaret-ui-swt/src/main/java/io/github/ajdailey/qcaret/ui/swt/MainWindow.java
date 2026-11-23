@@ -185,6 +185,8 @@ public final class MainWindow implements MainView {
   private final Link warnings;
   private final BusyCounter busy;
   private final WindowBusyCursor busyCursor;
+  private final PaneFocus paneFocus;
+  private OpenLinkDialog openLinkDialog;
   private final int baseFontSize;
   private final List<TextWindow> textWindows = new ArrayList<TextWindow>();
   private int fontPoints;
@@ -286,9 +288,10 @@ public final class MainWindow implements MainView {
                     new IntConsumer() {
                       @Override
                       public void accept(int steps) {
-                        controller.execute(steps > 0 ? CommandId.ZOOM_IN : CommandId.ZOOM_OUT);
+                        controller.wheelZoom(false, steps);
                       }
                     });
+                PaneFocus.mark(added.text(), false);
                 busyCursor.paneAdded(added);
                 return added;
               }
@@ -300,14 +303,21 @@ public final class MainWindow implements MainView {
 
               @Override
               public MarkdownPane newPreview(Composite frame, MarkdownPreviewInput input) {
-                return new MarkdownPane(
-                    frame, input, MainWindow.this.palette, dispatcher, fontName);
+                MarkdownPane pane =
+                    new MarkdownPane(frame, input, MainWindow.this.palette, dispatcher, fontName);
+                PaneFocus.mark(pane.text(), true);
+                PreviewWheel.attach(pane.text(), controller);
+                return pane;
               }
 
               @Override
               public BrowserPane newBrowserPreview(
                   Composite frame, MarkdownPreviewInput input, Runnable failure) {
-                return new BrowserPane(frame, input, browserFactory, browserDispatcher, failure);
+                BrowserPane pane =
+                    new BrowserPane(frame, input, browserFactory, browserDispatcher, failure);
+                PaneFocus.mark(pane.control(), true);
+                PreviewWheel.attach(pane.browser(), controller);
+                return pane;
               }
 
               @Override
@@ -403,6 +413,15 @@ public final class MainWindow implements MainView {
               }
             });
     busyCursor = new WindowBusyCursor(shell, tabStrip);
+    paneFocus =
+        new PaneFocus(
+            shell,
+            new Runnable() {
+              @Override
+              public void run() {
+                documentStateChanged();
+              }
+            });
     busy = new BusyCounter(dispatcher, busyCursor);
     toolIcons = new ToolIcons(toolBar);
     menuIcons = new MenuIcons(toolBar);
@@ -441,14 +460,15 @@ public final class MainWindow implements MainView {
     menuBar = new MainMenuBar(shell, owner, menuIcons);
     tabMenu = new TabMenu(shell, owner, menuBar.states());
     menuBar.build(keymap);
-    mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusEditor);
+    mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusPane);
     mainToolBar.setKeymap(keymap);
-    markdownSwitch = new MarkdownSwitch(toolBar, owner, menuBar.states());
+    markdownSwitch = new MarkdownSwitch(toolBar, toolIcons, owner, menuBar.states());
     markdownSwitch.setKeymap(keymap);
     setToolbarShown(owner.toolbarShown());
     editorMenu = new EditorMenu(shell, owner, menuBar.states(), menuIcons, keymap);
     statusMenus = new StatusMenus(shell, menuBar, owner, keymap);
     statusMenus.hook(encoding, lineEnding);
+    statusMenus.hookPreview(preview);
     int fontSize = owner.fontSize();
     if (fontSize != 0) {
       setFontSize(fontSize);
@@ -725,6 +745,16 @@ public final class MainWindow implements MainView {
     }
   }
 
+  /** Focuses the pane that had the focus last: the selected tab's preview, else its editor. */
+  private void focusPane() {
+    Control last = paneFocus.last();
+    if (paneFocus.preview() && last != null) {
+      last.setFocus();
+    } else {
+      focusEditor();
+    }
+  }
+
   /**
    * Opens the editor menu over a view. The pointer's point first places the caret, unless it lies
    * in a selection; a menu opened from the keyboard shows below the caret and moves nothing.
@@ -824,6 +854,29 @@ public final class MainWindow implements MainView {
   @Override
   public String previewBrowserUnavailable() {
     return BrowserPreview.unavailable(shell.getDisplay());
+  }
+
+  @Override
+  public boolean previewFocused() {
+    return paneFocus.preview();
+  }
+
+  @Override
+  public void askOpenUrl(String url, Runnable open) {
+    if (shell.isDisposed()) {
+      return;
+    }
+    openLinkDialog = new OpenLinkDialog(shell, url, open);
+    openLinkDialog.open();
+  }
+
+  /**
+   * Returns the last dialog that asked before opening a preview link.
+   *
+   * @return the dialog, or null before one opened
+   */
+  OpenLinkDialog openLinkDialog() {
+    return openLinkDialog;
   }
 
   /**

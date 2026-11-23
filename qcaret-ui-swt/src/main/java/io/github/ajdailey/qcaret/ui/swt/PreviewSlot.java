@@ -35,6 +35,7 @@ final class PreviewSlot implements MarkdownPreviewView {
   private MarkdownPreviewContent content;
   private MarkdownViewMode mode = MarkdownViewMode.SOURCE;
   private boolean weighted;
+  private int zoom = 100;
 
   /**
    * Creates the slot; the pane waits for the first mode other than Source.
@@ -65,6 +66,7 @@ final class PreviewSlot implements MarkdownPreviewView {
   private MarkdownPane pane() {
     if (pane == null) {
       pane = factory.apply(input);
+      pane.setZoom(zoom);
       if (browser != null) {
         pane.control().setVisible(false);
       }
@@ -289,6 +291,14 @@ final class PreviewSlot implements MarkdownPreviewView {
   public void scrollToAnchor(String id) {
     if (browser != null) {
       browser.scrollToAnchor(id);
+    }
+  }
+
+  @Override
+  public void setZoom(int percent) {
+    zoom = percent;
+    if (pane != null) {
+      pane.setZoom(percent);
     }
   }
 

@@ -68,4 +68,12 @@ public interface MarkdownPreviewView {
    * @param id the id, percent-decoded
    */
   void scrollToAnchor(String id);
+
+  /**
+   * Sets the size of Basic content's text; Browser content takes its size from its page. Images
+   * keep their size.
+   *
+   * @param percent the size in percent of the normal size
+   */
+  void setZoom(int percent);
 }
