@@ -245,35 +245,16 @@ class MarkdownPaneTableTest {
   }
 
   /**
-   * Resizes the shell from {@code from} px to {@code width} px with "Paragraph after" at the top.
-   * GTK 4 can apply the shell's opening size after a later resize, so the test waits for the
-   * opening size before it sets {@code from}, and checks the pane width again once the table is
-   * laid out. Both sizes stay below the narrowest CI screen, which caps a Windows shell's size.
+   * Resizes the pane from {@code from} px to {@code width} px with "Paragraph after" at the top.
+   * The test sets the pane control's size inside the shell, not the shell's: SWT applies a child's
+   * size at once, while a shell's size waits for the display server, which applies it late or not
+   * at all on some hosts.
    */
-  private void resize(final int from, int width, final boolean narrower) {
+  private void resize(int from, int width, final boolean narrower) {
     final StyledText text = pane.text();
-    await(
-        new BooleanSupplier() {
-          @Override
-          public boolean getAsBoolean() {
-            return text.getClientArea().width > 600;
-          }
-        },
-        "opening width");
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, from, 300);
     flush();
-    final int opening = text.getClientArea().width;
-    if (from < 700) {
-      shell.setSize(from, 300);
-      await(
-          new BooleanSupplier() {
-            @Override
-            public boolean getAsBoolean() {
-              return text.getClientArea().width < opening - 100;
-            }
-          },
-          "starting width");
-      flush();
-    }
     RenderedMarkdown r = show(DOCUMENT);
     int after = r.text().indexOf("Paragraph after");
     int line = r.lineCount() - 1;
@@ -282,14 +263,12 @@ class MarkdownPaneTableTest {
         line = i;
       }
     }
-    if (from < 700) {
-      assertTrue(text.getClientArea().width < opening - 100, "starting width held");
-    }
+    final int starting = text.getClientArea().width;
     final int row = r.tables().get(0).firstLine() + 1;
     final int lines = map().displayLineCount(row);
     pane.scrollToLine(line);
     flush();
-    shell.setSize(width, 300);
+    pane.control().setSize(width, 300);
     await(
         new BooleanSupplier() {
           @Override
@@ -302,9 +281,9 @@ class MarkdownPaneTableTest {
           @Override
           public String get() {
             return (narrower ? "narrower wraps more" : "wider wraps less")
-                + ": shell "
-                + shell.getSize().x
-                + " px, pane "
+                + ": pane "
+                + starting
+                + " -> "
                 + pane.text().getClientArea().width
                 + " px, row lines "
                 + lines
