@@ -214,7 +214,8 @@ class Win32DarkBrowserTest {
         },
         "light tree");
     final RGB text = rgb(Palette.DARK.text());
-    assertEquals(dark, dock.bar().filter().getBackground().getRGB());
+    // An empty field takes the system colors on the light side; one holding text stays dark.
+    assertEquals(system, dock.bar().filter().getBackground().getRGB());
     assertEquals(dark, drawn(dock.bar().path()));
     assertEquals(text, dock.bar().path().getForeground().getRGB());
     dock.bar().path().setFocus();
