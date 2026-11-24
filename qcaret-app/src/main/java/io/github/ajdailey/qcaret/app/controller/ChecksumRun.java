@@ -241,9 +241,14 @@ abstract class ChecksumRun<R> implements ChecksumInput {
    * Returns a short reason a file operation failed.
    *
    * @param e the failure
-   * @return for example {@code access denied} or the platform's reason
+   * @return for example {@code access denied}, a rejected path's reason ({@link PathFormText}) or
+   *     the platform's reason
    */
   static String reason(Exception e) {
+    String form = PathFormText.reason(e);
+    if (form != null) {
+      return form;
+    }
     if (e instanceof AccessDeniedException) {
       return "access denied";
     }

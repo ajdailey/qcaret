@@ -3,7 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.core.io.DevicePathException;
+import io.github.ajdailey.qcaret.core.io.PathFormException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
@@ -31,7 +31,10 @@ class OpenFailureTest {
         OpenFailure.text(file, new NoSuchFileException(path)));
     assertEquals(
         "Cannot open CON: the path names a Windows device",
-        OpenFailure.text(Path.of("CON"), new DevicePathException()));
+        OpenFailure.text(
+            Path.of("CON"),
+            new PathFormException(
+                PathFormException.Reason.DEVICE, "Path names a Windows device", null)));
     assertEquals(
         UiText.OPEN_FAILED.format("x.log", "Device busy"),
         OpenFailure.text(file, new FileSystemException(path, null, "Device busy")));

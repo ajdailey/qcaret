@@ -295,16 +295,20 @@ its heap reservation.
   open file selects its tab and a new one goes through `DocumentOpener`; the
   caret then goes to the line and visual column, or the heading
   ([Heading jumps](#heading-jumps)). No path, a URL, no base folder or no
-  regular file shows a notice instead. A newer run drops an older result.
+  regular file shows a notice instead. A path whose text
+  `SafePaths.checkForm` rejects, such as a Windows device name, shows
+  `OPEN_FAILED` with its `PathFormText` reason before any disk check. A newer
+  run drops an older result.
 - Read-Only, the tab width and indentation with spaces are per document.
 - Go to Line asks for `line`, `line:column` or `line,column`, from 1, and
   passes `parsePosition` to the view as the validator that enables OK; other
   input reaching the answer shows a notice.
 - A failed open shows `OPEN_FAILED` with the file name and a reason from
   `OpenFailure`: fixed text for `AccessDeniedException` and
-  `NoSuchFileException`, whose messages are the path alone, and for
-  `DevicePathException` (`Cannot open CON: the path names a Windows device`;
-  the log keeps `Path names a Windows device`), the reason of another
+  `NoSuchFileException`, whose messages are the path alone, and for a
+  `PathFormException`, checked first through `PathFormText` (`Cannot open CON:
+  the path names a Windows device`; the log keeps `Path names a Windows
+  device`), the reason of another
   `FileSystemException`, else the message.
 - Word wrap, Show Whitespace, Show Line Endings and the completion trigger are
   settings for the window's editors.

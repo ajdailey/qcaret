@@ -84,7 +84,7 @@ blocks.
 | OK | The digest matches |
 | FAILED | The digest differs |
 | MISSING | The lookup reports no file at the name (`NoSuchFileException`), a broken link included |
-| unreadable | Any other lookup, open or read failure (access denied, a folder on the way without search permission), not a regular file (a folder, FIFO or device), a name `ChecksumCheck.file` refuses or that is not a valid path here, or the algorithm is unavailable |
+| unreadable | Any other lookup, open or read failure (access denied, a folder on the way without search permission), not a regular file (a folder, FIFO or device), a name `ChecksumCheck.file` refuses (a refused path's text shows its `PathFormText` reason, such as `the path names a Windows device`) or that is not a valid path here, or the algorithm is unavailable |
 
 A list written on Windows with backslash separators resolves on Linux and
 macOS as one name holding backslashes, so its entries report MISSING.

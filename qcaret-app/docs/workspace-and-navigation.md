@@ -125,7 +125,7 @@ link or a Windows junction.
   the row's directory, or a file row's parent; the user still presses Search.
 - A name must be one file name: not blank, `.` or `..`, and without `/`, `\` or
   NUL, on every platform; `SafePaths.userFile` then rejects a Windows device
-  name, and on Windows `SafePaths.checkNewName` rejects a name ending in a dot
+  name, which the failure notice names through `PathFormText`, and on Windows `SafePaths.checkNewName` rejects a name ending in a dot
   or space, which Windows would drop (`a.` creates `a`). A taken name is
   refused, so nothing is replaced. New File opens the new
   file in a tab.

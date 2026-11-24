@@ -6,7 +6,10 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.io.PathFormException;
+import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.markdown.HeadingPath;
+import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.PathAtCaret;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -134,6 +137,14 @@ final class OpenPathAtCaret {
     }
     if (found.url()) {
       return new Target(null, null, UiText.OPEN_PATH_URL.format(found.path()));
+    }
+    try {
+      SafePaths.checkForm(found.path());
+    } catch (PathFormException e) {
+      return new Target(
+          null,
+          null,
+          UiText.OPEN_FAILED.format(LogText.oneLine(found.path()), PathFormText.message(e)));
     }
     Path path;
     try {

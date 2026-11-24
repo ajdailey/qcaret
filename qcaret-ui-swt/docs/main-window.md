@@ -506,6 +506,16 @@ name. `behaviorOnlyThroughSeams` fails on a call, outside `ui.swt.platform` and
 the value traits `macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden` and
 `runsInsteadOfOpening`.
 
+`platformQueriesOnlyInThePlatformPackage` fails on a call outside
+`ui.swt.platform` of `Display.getSystemMenu`, `getSystemTray`,
+`getSystemTaskBar`, `isSystemDarkTheme` or `Program.findProgram`;
+`SwtThemeService` reads the system setting through `NativeTheme.systemDark`.
+`valueTraitsOnlyInReviewedCallers` lists the callers of each boolean or enum
+value trait (`VALUE_TRAIT_CALLERS`) and fails on any other. ArchUnit sees the
+call, not the condition around it, so a new caller is reviewed before it is
+added: one that passes the value on stays, and one that would choose platform
+code calls a seam instead.
+
 ### Values
 
 | Method | win32 | cocoa | GTK 3 | GTK 4 | Caller |
@@ -515,7 +525,7 @@ the value traits `macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden` and
 | `caretBlend` | XOR | difference | difference | over | `CaretInk.platform` |
 | `toolkitVersion` | null | null | GTK version | GTK version | `MainWindow.toolkitDescription` |
 | `shownBackground` | `getBackground` | `getBackground` | A drawn pixel of a visible control | As GTK 3 | `ToolIcons.reink` |
-| `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
+| `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui`, `PreferencesDialog` and `WorkspaceDock`: `Keymap.defaults`, key names, and Backspace deleting in the workspace browser on macOS (`BrowserKeys`) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
 
 ### Seams

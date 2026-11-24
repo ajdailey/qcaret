@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.core.document.BlockSelection;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.edit.NumberSequence;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -188,6 +189,21 @@ class CaretCommandsTest {
     openPath();
     assertEquals(UiText.OPEN_PATH_NONE.text(), lastNotice());
     assertEquals(2, harness.application.documents().count());
+  }
+
+  /** A Windows device name at the caret names that reason on Windows instead of a missing file. */
+  @Test
+  void aDeviceNameAtTheCaretNamesItsReasonOnWindows() throws Exception {
+    EditorController editor = open("a.txt", "see nul.txt here\n");
+    carets(editor, 6);
+    openPath();
+    Path folder = harness.application.documents().activePath().toAbsolutePath().getParent();
+    assertEquals(
+        File.separatorChar == '\\'
+            ? UiText.OPEN_FAILED.format("nul.txt", UiText.OPEN_REASON_DEVICE.text())
+            : UiText.OPEN_PATH_MISSING.format(folder.resolve("nul.txt")),
+        lastNotice());
+    assertEquals(1, harness.application.documents().count());
   }
 
   @Test

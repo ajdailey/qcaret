@@ -1440,6 +1440,113 @@ class ArchitectureTest {
         behaviorOnlyThroughSeamsRule(), VIEW_FIXTURES + "BranchesOnATrait", "drawsSomethingElse");
   }
 
+  /**
+   * Toolkit calls whose answer is the platform: the application menu, the tray, the task bar, the
+   * system theme setting and the program registry.
+   */
+  private static final List<String> PLATFORM_QUERIES =
+      List.of(
+          "org.eclipse.swt.widgets.Display.getSystemMenu",
+          "org.eclipse.swt.widgets.Display.getSystemTray",
+          "org.eclipse.swt.widgets.Display.getSystemTaskBar",
+          "org.eclipse.swt.widgets.Display.isSystemDarkTheme",
+          "org.eclipse.swt.program.Program.findProgram");
+
+  /**
+   * The classes outside the platform packages that call each boolean or enum value trait, the
+   * answers a condition can switch on. Each passes the value on (key names, the default keymap, a
+   * file's answer) or computes with it for every value; none chooses platform code with it. A new
+   * caller is reviewed and added here; one that would choose platform code calls a seam instead.
+   */
+  private static final Map<String, List<String>> VALUE_TRAIT_CALLERS =
+      Map.of(
+          "macKeys",
+          List.of(
+              ROOT + ".launcher.Gui",
+              ROOT + ".ui.swt.PreferencesDialog",
+              ROOT + ".ui.swt.WorkspaceDock"),
+          "linuxKeys",
+          List.of(ROOT + ".launcher.Gui"),
+          "fileNamesIgnoreCase",
+          List.of(ROOT + ".core.workspace.NameFilter"),
+          "hidden",
+          List.of(ROOT + ".core.io.HiddenFiles"),
+          "runsInsteadOfOpening",
+          List.of(ROOT + ".app.controller.WorkspaceController"),
+          "caretBlend",
+          List.of(ROOT + ".ui.swt.editor.CaretInk"),
+          "fileLock",
+          List.of(ROOT + ".core.io.ProcessLock"));
+
+  /** Only {@code ui.swt.platform} calls a {@link #PLATFORM_QUERIES} method. */
+  @Test
+  void platformQueriesOnlyInThePlatformPackage() {
+    platformQueriesOnlyInThePlatformPackageRule().check(classes);
+  }
+
+  /** A value trait is called only by its {@link #VALUE_TRAIT_CALLERS}. */
+  @Test
+  void valueTraitsOnlyInReviewedCallers() {
+    valueTraitsOnlyInReviewedCallersRule().check(classes);
+  }
+
+  @Test
+  void auditRulesFailOnTheirFixtures() throws ClassNotFoundException {
+    assertViolations(
+        platformQueriesOnlyInThePlatformPackageRule(),
+        VIEW_FIXTURES + "AsksThePlatform",
+        "getSystemMenu",
+        "getSystemTray",
+        "getSystemTaskBar",
+        "isSystemDarkTheme",
+        "findProgram");
+    assertViolations(
+        valueTraitsOnlyInReviewedCallersRule(),
+        VIEW_FIXTURES + "BranchesOnAValue",
+        "macKeys",
+        "runsInsteadOfOpening");
+  }
+
+  private static ArchRule platformQueriesOnlyInThePlatformPackageRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
+        .should()
+        .callMethodWhere(
+            new DescribedPredicate<JavaMethodCall>("call a toolkit platform query") {
+              @Override
+              public boolean test(JavaMethodCall call) {
+                return PLATFORM_QUERIES.contains(
+                    call.getTargetOwner().getName() + "." + call.getTarget().getName());
+              }
+            })
+        .because("a platform's answer reaches shared code through a seam method or a value trait");
+  }
+
+  private static ArchRule valueTraitsOnlyInReviewedCallersRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackages(ROOT + ".ui.swt.platform..", ROOT + ".core.util.os..")
+        .should()
+        .callMethodWhere(
+            new DescribedPredicate<JavaMethodCall>("call a value trait outside its callers") {
+              @Override
+              public boolean test(JavaMethodCall call) {
+                JavaClass owner = call.getTargetOwner();
+                List<String> callers = VALUE_TRAIT_CALLERS.get(call.getTarget().getName());
+                if (callers == null
+                    || !(owner.isAssignableTo(ROOT + ".ui.swt.platform.PlatformTraits")
+                        || owner.isAssignableTo(ROOT + ".core.util.os.OsTraits"))) {
+                  return false;
+                }
+                String origin = call.getOriginOwner().getName();
+                int nested = origin.indexOf('$');
+                return !callers.contains(nested < 0 ? origin : origin.substring(0, nested));
+              }
+            })
+        .because("a value trait a condition switches on chooses platform code; a seam does that");
+  }
+
   // Collection declarations.
 
   /**

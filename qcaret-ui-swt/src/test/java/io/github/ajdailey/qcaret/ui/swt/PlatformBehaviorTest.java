@@ -115,7 +115,7 @@ class PlatformBehaviorTest {
     try {
       for (String platform : new String[] {"win32", "cocoa", "gtk"}) {
         rebuilds[0] = 0;
-        display.setData(ChromeColors.NATIVE_DARK, false);
+        display.setData(DialogColors.NATIVE_DARK, false);
         ThemeFollow follow = PlatformTraits.of(platform, false).themeFollow(display);
         follow.showOnWindows(false, windows);
         assertEquals(0, rebuilds[0], platform);

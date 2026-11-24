@@ -67,7 +67,7 @@ final class Win32Traits implements PlatformTraits {
 
   @Override
   public DialogTabs dialogTabs(Composite parent) {
-    return ChromeColors.nativeDark(parent.getDisplay())
+    return DialogColors.nativeDark(parent.getDisplay())
         ? new Win32DialogTabs(parent)
         : new NativeDialogTabs(parent);
   }

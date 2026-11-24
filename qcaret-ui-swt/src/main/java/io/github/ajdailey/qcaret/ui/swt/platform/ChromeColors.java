@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Display;
 
 /**
  * Colors of a main window's own surfaces under the theme, one implementation per platform: {@link
@@ -20,22 +19,6 @@ public interface ChromeColors {
 
   /** Control data key on a text field: its {@link Hint}. */
   String HINT = ChromeColors.class.getName() + ".hint";
-
-  /**
-   * Display data key: {@code Boolean.TRUE} while native controls are set to the dark theme, from
-   * the start and after each live switch on win32 and cocoa.
-   */
-  String NATIVE_DARK = ChromeColors.class.getName() + ".nativeDark";
-
-  /**
-   * Reports the native controls' setting, as {@link #NATIVE_DARK} records it.
-   *
-   * @param display the Display
-   * @return true while the dark native theme is set
-   */
-  static boolean nativeDark(Display display) {
-    return Boolean.TRUE.equals(display.getData(NATIVE_DARK));
-  }
 
   /**
    * Colors a surface and its controls for the current side, and again at each {@link #apply}, until

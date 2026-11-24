@@ -4,6 +4,7 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
 /**
@@ -12,6 +13,22 @@ import org.eclipse.swt.widgets.Shell;
  * PlatformTraits#dialogColors} picks it.
  */
 public interface DialogColors {
+  /**
+   * Display data key: {@code Boolean.TRUE} while native controls are set to the dark theme, from
+   * the start and after each live switch on win32 and cocoa.
+   */
+  String NATIVE_DARK = DialogColors.class.getName() + ".nativeDark";
+
+  /**
+   * Reports the native controls' setting, as {@link #NATIVE_DARK} records it.
+   *
+   * @param display the Display
+   * @return true while the dark native theme is set
+   */
+  static boolean nativeDark(Display display) {
+    return Boolean.TRUE.equals(display.getData(NATIVE_DARK));
+  }
+
   /**
    * Returns the running platform's implementation.
    *

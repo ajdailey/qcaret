@@ -218,8 +218,9 @@ final class HelpController {
             try {
               created = SafePaths.settingsDirectory(folder);
             } catch (IOException e) {
-              failure = LogText.oneLine(e.getMessage());
-              LOG.warn("Cannot create {}: {}", LogText.oneLine(folder), failure);
+              failure = PathFormText.message(e);
+              LOG.warn(
+                  "Cannot create {}: {}", LogText.oneLine(folder), LogText.oneLine(e.getMessage()));
             }
             final Path target = created;
             final String notice =

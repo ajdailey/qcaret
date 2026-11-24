@@ -55,8 +55,8 @@ public final class SwtKeys {
     if ((stateMask & SWT.MOD3) != 0) {
       modifiers |= KeyStroke.ALT;
     }
-    // MOD4 is Control on macOS and 0 elsewhere.
-    if (SWT.MOD4 != 0 && (stateMask & SWT.MOD4) != 0) {
+    // MOD4 is Control on macOS and 0 elsewhere, where the mask matches nothing.
+    if ((stateMask & SWT.MOD4) != 0) {
       modifiers |= KeyStroke.CONTROL;
     }
     if ((modifiers & (KeyStroke.PRIMARY | KeyStroke.ALT)) != 0) {

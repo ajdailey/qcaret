@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -24,6 +25,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.SwtCallable;
 import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -175,6 +177,24 @@ final class ViewViolations {
               return 1;
             }
           });
+    }
+  }
+
+  /** Asks the toolkit platform questions outside the platform package. */
+  static final class AsksThePlatform {
+    boolean ask(Display display) {
+      return display.getSystemMenu() != null
+          || display.getSystemTray() != null
+          || display.getSystemTaskBar() != null
+          || Display.isSystemDarkTheme()
+          || Program.findProgram("txt") != null;
+    }
+  }
+
+  /** Branches on value traits outside their reviewed callers. */
+  static final class BranchesOnAValue {
+    int pick(PlatformTraits traits, OsTraits os, Path file) {
+      return traits.macKeys() || os.runsInsteadOfOpening(file) ? 1 : 0;
     }
   }
 }

@@ -92,7 +92,7 @@ on `6449df6`), so `Win32EmptyField` fills it with its background from an
 field is colored again when it becomes empty or takes text, typed or set
 through `setText` alike ([dialogs and
 docks](dialogs-and-docks.md#workspace-browser)). `Win32ChromeColors` reads the
-native setting (`ChromeColors.nativeDark`) at its first use and keeps it, so a
+native setting (`DialogColors.nativeDark`) at its first use and keeps it, so a
 window created before the theme service records it follows the rule too, and a
 window waiting for its rebuild keeps the setting its controls were created
 under.
@@ -221,7 +221,7 @@ outside `ui.swt.platform`.
 
 | Class | When | Folder |
 |---|---|---|
-| `Win32DialogTabs` | win32 under the dark native setting (`ChromeColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
+| `Win32DialogTabs` | win32 under the dark native setting (`DialogColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
 | `NativeDialogTabs` | win32 under the light native setting, GTK, cocoa | The native `TabFolder` |
 
 `CTabFolder` draws the selected tab `#2b2b2b` only while focus is in the
@@ -262,6 +262,13 @@ with SWT 3.135.0.
 - `CocoaChrome`'s window, list and text colors are constants measured on macOS
   15; a control class `walk` does not list keeps SWT's colors behind pinned
   AppKit text, so a new control type needs a row there.
+- The control types QCaret creates that `walk` leaves alone: `Composite`,
+  `SashForm`, `ToolBar`, `Label` and push buttons take the forced shell
+  background, and AppKit draws their text in the pinned appearance; a `Canvas`
+  paints itself (`TabStripButtons` and `OverviewStrip` from the palette,
+  `MemoryGauge` raising its ink against the background it inherits); a `Browser`
+  shows its page. Unverified on macOS: a `Link`, whose text is all link, in
+  AppKit's link color, and `ProgressBar` and `Slider`, which AppKit draws.
 - `ReplaceDialog` marks its computing note with a style range, because
   `setForeground(null)` returns a field to the startup color.
 

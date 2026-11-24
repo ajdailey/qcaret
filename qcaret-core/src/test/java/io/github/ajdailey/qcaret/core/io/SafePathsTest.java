@@ -134,6 +134,29 @@ class SafePathsTest {
     rejects("");
   }
 
+  /** Each rejection of a path's text carries its reason, which the user's notice names. */
+  @Test
+  void aRejectedFormCarriesItsReason() {
+    assertEquals(PathFormException.Reason.EMPTY, formReason(""));
+    assertEquals(PathFormException.Reason.NUL, formReason("a\0b"));
+    if (File.separatorChar == '\\') {
+      assertEquals(PathFormException.Reason.INVALID, formReason("C:\\notes\\a<b.txt"));
+    }
+  }
+
+  private static PathFormException.Reason formReason(final String path) {
+    return assertThrows(
+            PathFormException.class,
+            new Executable() {
+              @Override
+              public void execute() throws IOException {
+                SafePaths.userFile(path);
+              }
+            },
+            path)
+        .reason();
+  }
+
   @Test
   void rejectsFifo() throws Exception {
     assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");
@@ -165,7 +188,8 @@ class SafePathsTest {
         assertFalse(windows, name);
       } catch (IOException e) {
         assertTrue(windows, name + ": " + e);
-        assertTrue(e instanceof DevicePathException, e.toString());
+        assertTrue(e instanceof PathFormException, e.toString());
+        assertEquals(PathFormException.Reason.DEVICE, ((PathFormException) e).reason());
         assertEquals("Path names a Windows device", e.getMessage());
       }
     }
@@ -174,15 +198,16 @@ class SafePathsTest {
   @Test
   void deviceFormsAreCheckedWhereNamesOpenDevices() throws IOException {
     final OsTraits windows = OsTraits.of("Windows 11");
-    IOException refused =
+    PathFormException refused =
         assertThrows(
-            DevicePathException.class,
+            PathFormException.class,
             new Executable() {
               @Override
               public void execute() throws IOException {
                 SafePaths.checkForm("C:\\logs\\COM1", windows);
               }
             });
+    assertEquals(PathFormException.Reason.DEVICE, refused.reason());
     assertEquals("Path names a Windows device", refused.getMessage());
     SafePaths.checkForm("C:\\logs\\COM1", OsTraits.of("Linux"));
     SafePaths.checkForm("COM1", OsTraits.of("Mac OS X"));

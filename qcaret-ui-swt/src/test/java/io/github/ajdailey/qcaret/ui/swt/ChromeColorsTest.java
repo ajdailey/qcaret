@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.Contrast;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -194,7 +195,7 @@ class ChromeColorsTest {
 
   /** Creates a platform's colors for the surface and the icons after a light or dark start. */
   private ChromeColors chrome(PlatformTraits traits, boolean nativeDark) {
-    display.setData(ChromeColors.NATIVE_DARK, nativeDark);
+    display.setData(DialogColors.NATIVE_DARK, nativeDark);
     ChromeColors chrome = traits.chromeColors(display);
     chrome.add(surface);
     chrome.add(icons);

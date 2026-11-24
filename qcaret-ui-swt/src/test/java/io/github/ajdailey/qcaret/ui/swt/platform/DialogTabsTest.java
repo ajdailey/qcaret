@@ -48,7 +48,7 @@ class DialogTabsTest {
   @BeforeEach
   void open() {
     display = new Display();
-    display.setData(ChromeColors.NATIVE_DARK, Boolean.TRUE);
+    display.setData(DialogColors.NATIVE_DARK, Boolean.TRUE);
     owner = new Shell(display);
   }
 
@@ -93,7 +93,7 @@ class DialogTabsTest {
 
   @Test
   void win32AfterALightStartCreatesTheNativeFolder() {
-    display.setData(ChromeColors.NATIVE_DARK, null);
+    display.setData(DialogColors.NATIVE_DARK, null);
     DialogTabs tabs = new Win32Traits().dialogTabs(owner);
     assertSame(NativeDialogTabs.class, tabs.getClass());
     assertSame(TabFolder.class, tabs.control().getClass());

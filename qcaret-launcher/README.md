@@ -263,6 +263,8 @@ classes, so the rules over the main classes never see them.
 | No `SWT.getPlatform()` or string `SWT_GTK4` in `core`, `app` or `launcher` | Toolkit platform questions stay in the view layer |
 | No string `SWT_GTK4` outside `ui.swt.platform` (`platformOnlyInTraits`) | The traits answer which GTK SWT loaded |
 | Outside `ui.swt.platform` and `core.util.os`, no call of a boolean `PlatformTraits` or `OsTraits` method other than the value traits (`macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden`, `runsInsteadOfOpening`; `behaviorOnlyThroughSeams`) | Platform behavior goes through a seam interface the traits choose; a trait answers a value |
+| No call of `Display.getSystemMenu`, `getSystemTray`, `getSystemTaskBar`, `isSystemDarkTheme` or `Program.findProgram` outside `ui.swt.platform` (`platformQueriesOnlyInThePlatformPackage`) | Their answer is the platform; shared code takes it from a seam or a value trait |
+| A boolean or enum value trait is called only by the classes `VALUE_TRAIT_CALLERS` names (`valueTraitsOnlyInReviewedCallers`) | ArchUnit does not see a condition, so each new caller is reviewed: it passes the value on, or calls a seam instead |
 
 ## Testing
 

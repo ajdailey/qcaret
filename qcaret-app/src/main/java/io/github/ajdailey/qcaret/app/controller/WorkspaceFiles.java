@@ -10,7 +10,6 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
-import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.workspace.FileOperations;
 import io.github.ajdailey.qcaret.core.workspace.WalkRules;
 import java.io.File;
@@ -194,7 +193,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
         } catch (FileAlreadyExistsException e) {
           error = UiText.FILE_EXISTS.format(name);
         } catch (IOException | InvalidPathException e) {
-          error = UiText.CREATE_FAILED.format(name, LogText.oneLine(e.getMessage()));
+          error = UiText.CREATE_FAILED.format(name, PathFormText.message(e));
         }
         final Path result = made;
         final boolean listed = indexed;
@@ -306,8 +305,7 @@ final class WorkspaceFiles implements WorkspaceFilesInput {
         } catch (FileAlreadyExistsException e) {
           error = UiText.FILE_EXISTS.format(name);
         } catch (IOException | InvalidPathException e) {
-          error =
-              UiText.RENAME_FAILED.format(source.getFileName(), LogText.oneLine(e.getMessage()));
+          error = UiText.RENAME_FAILED.format(source.getFileName(), PathFormText.message(e));
         }
         final PathMove move = error == null ? new PathMove(from, to) : null;
         final boolean indexedName = indexed;

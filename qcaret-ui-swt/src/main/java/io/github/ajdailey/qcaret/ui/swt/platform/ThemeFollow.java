@@ -63,7 +63,7 @@ public interface ThemeFollow {
   /**
    * Shows a palette side on the windows' native controls, after {@link #preferDark}, at every
    * change of the side the theme resolves to. On win32, when the side differs from {@link
-   * ChromeColors#NATIVE_DARK}, it sets the native theme and rebuilds the main windows; on cocoa it
+   * DialogColors#NATIVE_DARK}, it sets the native theme and rebuilds the main windows; on cocoa it
    * pins the appearance and {@link CocoaChrome} recolors every shell.
    *
    * @param dark true for dark

@@ -37,7 +37,7 @@ final class Win32ThemeFollow implements ThemeFollow {
 
   @Override
   public void showOnWindows(boolean dark, WindowRebuild windows) {
-    if (dark != ChromeColors.nativeDark(display)) {
+    if (dark != DialogColors.nativeDark(display)) {
       NativeTheme.set(display, dark);
       windows.rebuild();
     }

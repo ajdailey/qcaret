@@ -76,7 +76,7 @@ final class Win32DialogColors implements DialogColors {
   @Override
   public void apply(Shell shell) {
     Display display = shell.getDisplay();
-    if (!ChromeColors.nativeDark(display)) {
+    if (!DialogColors.nativeDark(display)) {
       return;
     }
     shell.setData(COLORED, Boolean.TRUE);
@@ -119,7 +119,7 @@ final class Win32DialogColors implements DialogColors {
   @Override
   public Button check(Composite parent) {
     Display display = parent.getDisplay();
-    boolean light = ChromeColors.nativeDark(display) && !colored(parent);
+    boolean light = DialogColors.nativeDark(display) && !colored(parent);
     if (light) {
       display.setDarkThemePreferred(false);
     }
@@ -134,7 +134,7 @@ final class Win32DialogColors implements DialogColors {
 
   @Override
   public Color background(Shell owner) {
-    return ChromeColors.nativeDark(owner.getDisplay()) ? WINDOW : owner.getBackground();
+    return DialogColors.nativeDark(owner.getDisplay()) ? WINDOW : owner.getBackground();
   }
 
   private static void walk(Control control) {

@@ -17,7 +17,7 @@ final class Win32MenuBehavior implements MenuBehavior {
 
   @Override
   public <T> T ink(Display display, Ink<T> ink) {
-    return ink.fixed(ChromeColors.nativeDark(display));
+    return ink.fixed(DialogColors.nativeDark(display));
   }
 
   @Override

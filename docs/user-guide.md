@@ -53,7 +53,8 @@ running load, and no tab opens.
 
 A file that does not open shows a notice with the reason, for example `Cannot
 open CON: the path names a Windows device` for a Windows device name such as
-`CON` or `nul.txt`.
+`CON` or `nul.txt`. Open Path at Caret, the workspace browser's New File, New
+Folder and Rename, and a checksum list's entries name the same reason.
 
 File > Reload from Disk reads the selected document's file again. With unsaved
 changes it asks first, and Undo brings them back.

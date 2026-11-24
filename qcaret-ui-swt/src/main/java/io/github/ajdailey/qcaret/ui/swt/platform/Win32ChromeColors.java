@@ -36,7 +36,7 @@ import org.eclipse.swt.widgets.Tree;
  * 5.9:1 on the field. While it resolves to light every such color is null and composites take
  * {@code SWT.INHERIT_NONE}. Both directions apply live.
  *
- * <p>Under the dark native setting ({@link ChromeColors#nativeDark}) a field holding text keeps the
+ * <p>Under the dark native setting ({@link DialogColors#nativeDark}) a field holding text keeps the
  * dark colors on the light side until its window is rebuilt, because the dark native field draws
  * near-black with dark text under any light colors; an empty field takes the system list colors,
  * set explicitly, and {@link Win32EmptyField} paints it while unfocused, since the dark native
@@ -111,7 +111,7 @@ final class Win32ChromeColors implements ChromeColors {
   private Boolean built;
 
   /**
-   * Creates the colors for a window. The native setting ({@link ChromeColors#nativeDark}) is read
+   * Creates the colors for a window. The native setting ({@link DialogColors#nativeDark}) is read
    * at the first use and kept, so the theme service may record it after this, and a window waiting
    * for its rebuild keeps the setting its controls were created under.
    *
@@ -125,7 +125,7 @@ final class Win32ChromeColors implements ChromeColors {
   /** Returns the native setting at the first call, the one the window's controls take. */
   private boolean nativeDark() {
     if (built == null) {
-      built = ChromeColors.nativeDark(display);
+      built = DialogColors.nativeDark(display);
     }
     return built;
   }

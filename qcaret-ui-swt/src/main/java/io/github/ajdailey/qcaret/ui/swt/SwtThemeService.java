@@ -3,9 +3,9 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
-import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.Contrast;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.NativeTheme;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
 import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
@@ -42,7 +42,7 @@ public final class SwtThemeService implements ThemeService {
       new BooleanSupplier() {
         @Override
         public boolean getAsBoolean() {
-          return Display.isSystemDarkTheme();
+          return NativeTheme.systemDark();
         }
       };
 
@@ -135,13 +135,13 @@ public final class SwtThemeService implements ThemeService {
   }
 
   /**
-   * Reports the native controls' setting ({@link ChromeColors#nativeDark}).
+   * Reports the native controls' setting ({@link DialogColors#nativeDark}).
    *
    * @param display the Display
    * @return true while the dark native theme is set
    */
   static boolean nativeDark(Display display) {
-    return ChromeColors.nativeDark(display);
+    return DialogColors.nativeDark(display);
   }
 
   /**

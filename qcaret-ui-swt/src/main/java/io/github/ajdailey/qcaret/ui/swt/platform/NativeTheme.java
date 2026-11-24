@@ -3,15 +3,27 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.widgets.Display;
 
-/** The native theme's setting and the system setting's poll, for {@link ThemeFollow}. */
-final class NativeTheme {
+/**
+ * The native theme's setting, the system setting and its poll. Only this package reads {@link
+ * Display#isSystemDarkTheme}.
+ */
+public final class NativeTheme {
   /** Milliseconds between reads of the system setting on win32 and cocoa. */
   static final int POLL_MILLIS = 500;
 
   private NativeTheme() {}
 
   /**
-   * Sets the native theme and records it as {@link ChromeColors#NATIVE_DARK}, which the win32
+   * Reads the system's light or dark setting.
+   *
+   * @return {@link Display#isSystemDarkTheme}
+   */
+  public static boolean systemDark() {
+    return Display.isSystemDarkTheme();
+  }
+
+  /**
+   * Sets the native theme and records it as {@link DialogColors#NATIVE_DARK}, which the win32
    * chrome and dialog colors read at each use: before the first Shell, and at a live switch on
    * win32 and cocoa.
    *
@@ -21,7 +33,7 @@ final class NativeTheme {
    */
   static boolean set(Display display, boolean dark) {
     display.setDarkThemePreferred(dark);
-    display.setData(ChromeColors.NATIVE_DARK, dark);
+    display.setData(DialogColors.NATIVE_DARK, dark);
     return dark;
   }
 
