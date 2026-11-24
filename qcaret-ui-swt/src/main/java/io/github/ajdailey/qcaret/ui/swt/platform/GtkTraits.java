@@ -7,6 +7,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 
 /** What GTK 3 and GTK 4 share. */
 abstract class GtkTraits implements PlatformTraits {
@@ -117,23 +118,13 @@ abstract class GtkTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean lightChecksUnderDark() {
-    return false;
+  public final ChromeColors chromeColors(Display display) {
+    return new NativeChromeColors();
   }
 
   @Override
-  public boolean colorsDialogs() {
-    return false;
-  }
-
-  @Override
-  public boolean colorsTreesUnderDark() {
-    return false;
-  }
-
-  @Override
-  public boolean colorsChromeUnderDark() {
-    return false;
+  public final DialogSurfaces dialogSurfaces() {
+    return NativeDialogSurfaces.INSTANCE;
   }
 
   @Override

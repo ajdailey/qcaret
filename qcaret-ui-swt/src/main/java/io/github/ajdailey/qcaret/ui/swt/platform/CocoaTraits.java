@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 
 /** cocoa. */
 final class CocoaTraits implements PlatformTraits {
@@ -112,23 +113,13 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean lightChecksUnderDark() {
-    return false;
+  public ChromeColors chromeColors(Display display) {
+    return new NativeChromeColors();
   }
 
   @Override
-  public boolean colorsDialogs() {
-    return false;
-  }
-
-  @Override
-  public boolean colorsTreesUnderDark() {
-    return false;
-  }
-
-  @Override
-  public boolean colorsChromeUnderDark() {
-    return false;
+  public DialogSurfaces dialogSurfaces() {
+    return NativeDialogSurfaces.INSTANCE;
   }
 
   @Override

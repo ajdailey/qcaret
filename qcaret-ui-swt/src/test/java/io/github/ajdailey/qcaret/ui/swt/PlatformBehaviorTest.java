@@ -8,6 +8,8 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -126,10 +128,17 @@ class PlatformBehaviorTest {
   }
 
   @Test
-  void dialogColors() {
+  void dialogAndChromeColors() {
     assertEquals(
-        WIN32 ? Win32DialogSurfaces.class : NativeDialogSurfaces.class,
-        DialogSurfaces.platform().getClass());
+        WIN32 ? "Win32DialogSurfaces" : "NativeDialogSurfaces",
+        DialogSurfaces.platform().getClass().getSimpleName());
+    ChromeColors chrome = PlatformTraits.PLATFORM.chromeColors(display);
+    try {
+      assertEquals(
+          WIN32 ? "Win32ChromeColors" : "NativeChromeColors", chrome.getClass().getSimpleName());
+    } finally {
+      chrome.dispose();
+    }
   }
 
   @Test

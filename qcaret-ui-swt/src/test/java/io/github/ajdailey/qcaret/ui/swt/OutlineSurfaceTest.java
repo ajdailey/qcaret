@@ -351,29 +351,29 @@ class OutlineSurfaceTest {
   void aThemeSwitchReachesTheTree() throws Exception {
     openFile("guide.md", GUIDE, true);
     showOutline();
-    final OutlineDock dock = window.outlineDock();
-    assertFalse(dock.dark());
+    final Tree tree = window.outlineDock().tree();
+    final RGB dark =
+        new RGB(
+            Palette.DARK.background().red(),
+            Palette.DARK.background().green(),
+            Palette.DARK.background().blue());
+    // Only win32's chrome colors paint the tree; the native tree follows the theme elsewhere.
+    final boolean painted = "win32".equals(PlatformTraits.PLATFORM.name());
     controller.execute(CommandId.THEME_DARK);
     await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return dock.dark();
+            return dark.equals(tree.getBackground().getRGB()) == painted;
           }
         },
         "dark");
-    if (PlatformTraits.PLATFORM.colorsTreesUnderDark()) {
-      Palette dark = Palette.DARK;
-      assertEquals(
-          new RGB(dark.background().red(), dark.background().green(), dark.background().blue()),
-          dock.tree().getBackground().getRGB());
-    }
     controller.execute(CommandId.THEME_LIGHT);
     await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return !dock.dark();
+            return !dark.equals(tree.getBackground().getRGB());
           }
         },
         "light");

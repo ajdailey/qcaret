@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +22,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.graphics.PaletteData;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -43,7 +45,7 @@ import org.eclipse.swt.widgets.ToolItem;
  * so the same faded copy serves menu items. Images are created on first use on the UI thread and
  * disposed with the owner control.
  */
-final class ToolIcons {
+final class ToolIcons implements ChromeColors.Icons {
   /** Opens files. */
   static final String OPEN = "open";
 
@@ -194,6 +196,11 @@ final class ToolIcons {
   /** Exports a Markdown tab as HTML. */
   static final String EXPORT_HTML = "export-html";
 
+  /** Text of a checked item that takes the dark ink: {@link Palette#LIGHT}'s text. */
+  static final RGB CHECKED_TEXT =
+      new RGB(
+          Palette.LIGHT.text().red(), Palette.LIGHT.text().green(), Palette.LIGHT.text().blue());
+
   /** Background luminance, 0-255, below which the light ink is used. */
   private static final int DARK_BACKGROUND = 128;
 
@@ -237,9 +244,14 @@ final class ToolIcons {
   private final Map<String, Image> images = new HashMap<String, Image>();
   private final Map<ToolItem, String> items = new LinkedHashMap<ToolItem, String>();
   private final Map<MenuItem, String> menuItems = new LinkedHashMap<MenuItem, String>();
+
+  /** Check and radio text items, each with whether its text shows the dark ink. */
+  private final Map<ToolItem, Boolean> checkItems = new LinkedHashMap<ToolItem, Boolean>();
+
   private final boolean fixedInk;
   private final boolean faded = PlatformTraits.PLATFORM.fadesDisabledIcons();
   private boolean disabledCopies;
+  private boolean lightChecked = true;
   private Image blank;
   private boolean darkBackground;
 
@@ -433,7 +445,8 @@ final class ToolIcons {
    * image of every item given to {@link #apply}. Native controls change background with the theme.
    * A set of fixed ink stays as it is.
    */
-  void reink() {
+  @Override
+  public void reink() {
     if (fixedInk || owner.isDisposed() || source.isDisposed()) {
       return;
     }
@@ -466,6 +479,7 @@ final class ToolIcons {
     for (MenuItem item : menuItems.keySet()) {
       showState(item);
     }
+    showChecked();
     for (Image image : old) {
       if (image != null) {
         image.dispose();
@@ -481,13 +495,72 @@ final class ToolIcons {
    *
    * @param on true for the faded copies
    */
-  void fadeDisabled(boolean on) {
+  @Override
+  public void fadeDisabled(boolean on) {
     if (on == disabledCopies) {
       return;
     }
     disabledCopies = on;
     for (ToolItem item : items.keySet()) {
       showState(item);
+    }
+  }
+
+  /**
+   * Sets whether a checked text item given to {@link #applyChecked} keeps the set's light ink. Off,
+   * a checked item's text takes {@link #CHECKED_TEXT} while the set takes the light ink, for a
+   * checked background that stays light on a dark surface.
+   *
+   * @param on false for the dark ink on checked items
+   */
+  @Override
+  public void lightChecked(boolean on) {
+    if (on != lightChecked) {
+      lightChecked = on;
+      showChecked();
+    }
+  }
+
+  /**
+   * Keeps a check or radio text item's text in the ink its checked background calls for ({@link
+   * #lightChecked}) until the item is disposed.
+   *
+   * @param item the item
+   */
+  void applyChecked(final ToolItem item) {
+    checkItems.put(item, Boolean.FALSE);
+    item.addListener(
+        SWT.Dispose,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            checkItems.remove(item);
+          }
+        });
+    showChecked(item);
+  }
+
+  /**
+   * Shows a text item's ink for its checked state; call after {@code setSelection}. An item not
+   * given to {@link #applyChecked} keeps its colors.
+   *
+   * @param item the item
+   */
+  void showChecked(ToolItem item) {
+    Boolean shown = checkItems.get(item);
+    if (shown == null || item.isDisposed()) {
+      return;
+    }
+    boolean darkInk = darkBackground && !lightChecked && item.getSelection();
+    if (darkInk != shown) {
+      checkItems.put(item, darkInk);
+      item.setForeground(darkInk ? new Color(CHECKED_TEXT) : null);
+    }
+  }
+
+  private void showChecked() {
+    for (ToolItem item : new ArrayList<ToolItem>(checkItems.keySet())) {
+      showChecked(item);
     }
   }
 

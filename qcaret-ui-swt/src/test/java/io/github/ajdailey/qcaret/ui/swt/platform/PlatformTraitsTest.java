@@ -1,10 +1,12 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -38,10 +40,6 @@ class PlatformTraitsTest {
     "followsSystemAppearance",
     "themesAtCreation",
     "raisesLinkContrast",
-    "lightChecksUnderDark",
-    "colorsDialogs",
-    "colorsTreesUnderDark",
-    "colorsChromeUnderDark",
     "macKeys",
     "linuxKeys",
     "opensPrintDialog",
@@ -78,10 +76,6 @@ class PlatformTraitsTest {
     answers.add(traits.followsSystemAppearance());
     answers.add(traits.themesAtCreation());
     answers.add(traits.raisesLinkContrast());
-    answers.add(traits.lightChecksUnderDark());
-    answers.add(traits.colorsDialogs());
-    answers.add(traits.colorsTreesUnderDark());
-    answers.add(traits.colorsChromeUnderDark());
     answers.add(traits.macKeys());
     answers.add(traits.linuxKeys());
     answers.add(traits.opensPrintDialog());
@@ -128,10 +122,6 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        true,
-        true,
-        true,
-        true,
         false,
         false,
         true,
@@ -167,10 +157,6 @@ class PlatformTraitsTest {
         false,
         false,
         true,
-        false,
-        false,
-        false,
-        false,
         false,
         false,
         true,
@@ -212,10 +198,6 @@ class PlatformTraitsTest {
         false,
         true,
         false,
-        false,
-        false,
-        false,
-        false,
         true,
         true,
         SWT.CURSOR_APPSTARTING,
@@ -252,10 +234,6 @@ class PlatformTraitsTest {
         false,
         false,
         true,
-        false,
-        false,
-        false,
-        false,
         false,
         true,
         false,
@@ -369,6 +347,32 @@ class PlatformTraitsTest {
     assertInstanceOf(Gtk3Traits.class, PlatformTraits.of("gtk", false));
     assertInstanceOf(Win32Traits.class, PlatformTraits.of("win32", true));
     assertInstanceOf(CocoaTraits.class, PlatformTraits.of("cocoa", true));
+  }
+
+  @Test
+  void onlyWin32PaintsDialogs() {
+    assertInstanceOf(Win32DialogSurfaces.class, PlatformTraits.of("win32", false).dialogSurfaces());
+    assertInstanceOf(
+        NativeDialogSurfaces.class, PlatformTraits.of("cocoa", false).dialogSurfaces());
+    assertInstanceOf(NativeDialogSurfaces.class, PlatformTraits.of("gtk", false).dialogSurfaces());
+    assertInstanceOf(NativeDialogSurfaces.class, PlatformTraits.of("gtk", true).dialogSurfaces());
+  }
+
+  /**
+   * The win32 dark chrome, fields, trees, dialogs and check boxes sit behind {@link ChromeColors}
+   * and {@link DialogSurfaces}; no trait switches them in a shared class.
+   */
+  @Test
+  void noTraitSwitchesTheDarkChrome() {
+    List<String> removed =
+        List.of(
+            "colorsChromeUnderDark",
+            "colorsTreesUnderDark",
+            "colorsDialogs",
+            "lightChecksUnderDark");
+    for (Method method : PlatformTraits.class.getMethods()) {
+      assertFalse(removed.contains(method.getName()), method.getName());
+    }
   }
 
   @Test

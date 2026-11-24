@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 
 /** win32. */
 final class Win32Traits implements PlatformTraits {
@@ -112,23 +113,13 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
-  public boolean lightChecksUnderDark() {
-    return true;
+  public ChromeColors chromeColors(Display display) {
+    return new Win32ChromeColors(display);
   }
 
   @Override
-  public boolean colorsDialogs() {
-    return true;
-  }
-
-  @Override
-  public boolean colorsTreesUnderDark() {
-    return true;
-  }
-
-  @Override
-  public boolean colorsChromeUnderDark() {
-    return true;
+  public DialogSurfaces dialogSurfaces() {
+    return Win32DialogSurfaces.INSTANCE;
   }
 
   @Override

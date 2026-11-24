@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
@@ -13,10 +14,11 @@ import org.eclipse.swt.widgets.Text;
  * color, the native message is empty and a Paint listener draws the hint in that color while the
  * field is empty and not focused, at the text's origin inside the trim. Windows draws the native
  * message in the theme's gray whatever the field's colors, 87,87,87 on {@code Palette.DARK}'s
- * background. Only win32 sets a color ({@link BrowserColors}); a GTK 3 entry does not show the
- * Paint listener's drawing (measured).
+ * background. The hint is the field's {@link ChromeColors#HINT} data; only win32's {@link
+ * ChromeColors} set a color, and a GTK 3 entry does not show the Paint listener's drawing
+ * (measured).
  */
-final class FieldHint {
+final class FieldHint implements ChromeColors.Hint {
   private final Text field;
   private String hint = "";
   private Color color;
@@ -28,6 +30,7 @@ final class FieldHint {
    */
   FieldHint(Text field) {
     this.field = field;
+    field.setData(ChromeColors.HINT, this);
     field.addListener(
         SWT.Paint,
         new Listener() {
@@ -74,7 +77,8 @@ final class FieldHint {
    *
    * @param drawn the color, or null for the native message
    */
-  void setColor(Color drawn) {
+  @Override
+  public void setColor(Color drawn) {
     color = drawn;
     show();
   }

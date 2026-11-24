@@ -14,7 +14,8 @@ import org.eclipse.swt.widgets.ToolItem;
  * The toolbar's {@code Source | Split | Preview} switch: a separator and three radio items at the
  * toolbar's end, present only while the selected tab is a Markdown tab. Each item runs its Markdown
  * View command; the checked one follows {@link CommandStates}. The {@link MarkdownToolItems} follow
- * the switch and come and go with it. Call on the UI thread.
+ * the switch and come and go with it. The items' text takes the ink of their checked background
+ * ({@link ToolIcons#applyChecked}). Call on the UI thread.
  */
 final class MarkdownSwitch {
   /** The modes in toolbar order. */
@@ -23,6 +24,7 @@ final class MarkdownSwitch {
   };
 
   private final ToolBar bar;
+  private final ToolIcons icons;
   private final ApplicationController controller;
   private final CommandStates states;
   private Keymap keymap;
@@ -37,6 +39,7 @@ final class MarkdownSwitch {
       ApplicationController controller,
       CommandStates states) {
     this.bar = bar;
+    this.icons = icons;
     this.controller = controller;
     this.states = states;
     this.tools = new MarkdownToolItems(bar, icons, menuIcons, controller, states);
@@ -73,6 +76,7 @@ final class MarkdownSwitch {
         if (items[i].getSelection() != checked) {
           items[i].setSelection(checked);
         }
+        icons.showChecked(items[i]);
       }
     }
   }
@@ -99,6 +103,7 @@ final class MarkdownSwitch {
             }
           });
       items[i] = item;
+      icons.applyChecked(item);
     }
     tools.create();
     tips();

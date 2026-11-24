@@ -53,6 +53,7 @@ import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
@@ -429,7 +430,7 @@ public final class MainWindow implements MainView {
     busy = new BusyCounter(dispatcher, busyCursor);
     toolIcons = new ToolIcons(toolBar);
     menuIcons = new MenuIcons(toolBar);
-    chrome = new ChromeColors(PlatformTraits.PLATFORM, display);
+    chrome = PlatformTraits.PLATFORM.chromeColors(display);
     applyPalette(palette);
     trackWindowState();
     acceptDroppedFiles();
@@ -517,7 +518,6 @@ public final class MainWindow implements MainView {
     body.setWeights(new int[] {3, 1});
     body.setMaximizedControl(tabs);
     outlineDock = new OutlineDock(center, dispatcher);
-    outlineDock.follow(owner.theme());
     center.setWeights(new int[] {4, 1});
     center.setMaximizedControl(body);
     workspaceDock = new WorkspaceDock(side, toolBar);
@@ -552,13 +552,11 @@ public final class MainWindow implements MainView {
 
           @Override
           public void themeChanged(boolean dark) {
-            workspaceDock.setDark(dark);
             chrome.apply(dark);
           }
         };
     controller.theme().addListener(paletteListener);
     applyPalette(controller.theme().palette());
-    workspaceDock.setDark(controller.theme().dark());
     chrome.add(toolbarRow.row());
     chrome.add(statusBar);
     chrome.add(findBar.control());

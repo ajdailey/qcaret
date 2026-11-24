@@ -1,6 +1,5 @@
-package io.github.ajdailey.qcaret.ui.swt;
+package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
@@ -27,9 +26,14 @@ import org.eclipse.swt.widgets.Tree;
  * color, forced onto its children so push button corners match, and sets each control's colors:
  * fields, lists, tables and trees the field colors, read-only combos the push button face, since a
  * forced background otherwise draws their native text dark on dark. Push buttons keep their native
- * faces, a {@link ProgressBar} its bar color, and a control with {@link EditorPane#PALETTE_COLORED}
- * the palette. Controls created after the shell shows take their colors from {@link SWT#Skin}.
- * Under a light startup setting nothing changes. Confined to the UI thread.
+ * faces, a {@link ProgressBar} its bar color, and a control with {@link
+ * ChromeColors#PALETTE_COLORED} the palette. Controls created after the shell shows take their
+ * colors from {@link SWT#Skin}. Under a light startup setting nothing changes.
+ *
+ * <p>The dark native theme draws a check box label near-white, or light gray when disabled, and
+ * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
+ * created, so under a dark startup setting {@link #check} creates a box outside a colored dialog
+ * with the theme off. Confined to the UI thread.
  */
 final class Win32DialogSurfaces implements DialogSurfaces {
   static final Win32DialogSurfaces INSTANCE = new Win32DialogSurfaces();
@@ -57,7 +61,7 @@ final class Win32DialogSurfaces implements DialogSurfaces {
   @Override
   public void apply(Shell shell) {
     Display display = shell.getDisplay();
-    if (!SwtThemeService.nativeDark(display)) {
+    if (!ChromeColors.nativeDark(display)) {
       return;
     }
     shell.setData(COLORED, Boolean.TRUE);
@@ -98,8 +102,24 @@ final class Win32DialogSurfaces implements DialogSurfaces {
   }
 
   @Override
+  public Button check(Composite parent) {
+    Display display = parent.getDisplay();
+    boolean light = ChromeColors.nativeDark(display) && !colored(parent);
+    if (light) {
+      display.setDarkThemePreferred(false);
+    }
+    try {
+      return new Button(parent, SWT.CHECK);
+    } finally {
+      if (light) {
+        display.setDarkThemePreferred(true);
+      }
+    }
+  }
+
+  @Override
   public Color background(Shell owner) {
-    return SwtThemeService.nativeDark(owner.getDisplay()) ? WINDOW : owner.getBackground();
+    return ChromeColors.nativeDark(owner.getDisplay()) ? WINDOW : owner.getBackground();
   }
 
   private static void walk(Control control) {
@@ -119,7 +139,7 @@ final class Win32DialogSurfaces implements DialogSurfaces {
    * @param control a control of a colored dialog
    */
   static void style(Control control) {
-    if (control.getData(EditorPane.PALETTE_COLORED) != null) {
+    if (control.getData(ChromeColors.PALETTE_COLORED) != null) {
       return;
     }
     if (control instanceof Button button && (button.getStyle() & SWT.PUSH) != 0) {
@@ -147,7 +167,7 @@ final class Win32DialogSurfaces implements DialogSurfaces {
     }
     if (control instanceof Link link) {
       RGB theme = link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND).getRGB();
-      link.setLinkForeground(new Color(SwtThemeService.readable(theme, WINDOW.getRGB())));
+      link.setLinkForeground(new Color(Contrast.readable(theme, WINDOW.getRGB())));
     }
   }
 }

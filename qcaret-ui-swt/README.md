@@ -17,10 +17,10 @@ by reflection.
 | `ui.swt` | `WindowDialogs`, prompts, `ShortcutsWindow`, `TableFit`, `PreferencesDialog`, `PreferencesViewTab`, `WorkspaceDefaultRow`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowserColumns`, `BrowserSideWidth`, `BrowseBar`, `BrowserRowTip`, `BrowserDrag`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `HashTextDialog`, `ChecksumDialog`, `DateFormatChooser`, `NumberSequenceDialog`, `FindBar`, `HistoryField`, `SearchDialog`, `BookmarksDock`, `BookmarksMenu`, `ChangeDialog`, `DiffWindow`, `GuideWindow`, `TipDialog` | [Dialogs and docks](docs/dialogs-and-docks.md) |
 | `ui.swt.search` | `ResultsDock`, `ResultsMenu`, `ResultRows`, `ReplaceDialog`, `ReportWindow`, `RunChooser` | [Dialogs and docks](docs/dialogs-and-docks.md#results-dock) |
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `PaneHighlights`, `PanePainter`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
-| `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes | [Main window](docs/main-window.md#platform-traits) |
+| `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes, the `ChromeColors` and `DialogSurfaces` seams | [Main window](docs/main-window.md#platform-traits) |
 | `ui.swt`, `ui.swt.markdown` | `PrintJob`, `PdfPrinter`, the printer calls; `MarkdownPrinting`, `PrintLines`, `PrintMeasurer` | [Printing](docs/printing.md) |
 | `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch` | [Markdown preview](docs/markdown-preview.md) |
-| `ui.swt` | `SwtThemeService`, `CocoaChrome`, `DialogSurfaces`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
+| `ui.swt`, `ui.swt.platform` | `SwtThemeService`, `CocoaChrome`, `ChromeColors`, `DialogSurfaces`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 
 ## UI thread
 

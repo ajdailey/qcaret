@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;

@@ -1,15 +1,26 @@
-package io.github.ajdailey.qcaret.ui.swt;
+package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 
 /**
  * Dialog colors where a platform's native theme leaves a dialog body unmatched to its title bar and
- * buttons. One class per platform; {@link #platform} picks it.
+ * buttons, and check boxes readable on their page. One class per platform; {@link
+ * PlatformTraits#dialogSurfaces} picks it.
  */
-interface DialogSurfaces {
+public interface DialogSurfaces {
+  /**
+   * Returns the running platform's implementation.
+   *
+   * @return {@link PlatformTraits#dialogSurfaces} of {@link PlatformTraits#PLATFORM}
+   */
+  static DialogSurfaces platform() {
+    return PlatformTraits.PLATFORM.dialogSurfaces();
+  }
+
   /**
    * Colors a dialog shell and every control later created in it. Call right after creating the
    * shell, before its children.
@@ -35,13 +46,10 @@ interface DialogSurfaces {
   Color background(Shell owner);
 
   /**
-   * Returns this platform's implementation.
+   * Creates a check box readable on its page.
    *
-   * @return the win32 colors on Windows, otherwise native colors
+   * @param parent the parent
+   * @return the check box
    */
-  static DialogSurfaces platform() {
-    return PlatformTraits.PLATFORM.colorsDialogs()
-        ? Win32DialogSurfaces.INSTANCE
-        : NativeDialogSurfaces.INSTANCE;
-  }
+  Button check(Composite parent);
 }

@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.time.Duration;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -39,6 +41,15 @@ import org.junit.jupiter.api.Test;
 @Tag("swt")
 class DialogSurfacesTest {
   private static final Duration BOUND = Duration.ofSeconds(10);
+  private static final DialogSurfaces WIN32 = PlatformTraits.of("win32", false).dialogSurfaces();
+
+  /** Dialog body: the dark title bar's color, measured on {@code windows-2025}. */
+  private static final Color WINDOW = new Color(0x20, 0x20, 0x20);
+
+  /** Text fields, lists, tables, trees and table headers. */
+  private static final Color FIELD = new Color(0x2b, 0x2b, 0x2b);
+
+  private static final Color TEXT = new Color(0xff, 0xff, 0xff);
 
   private Display display;
 
@@ -60,7 +71,7 @@ class DialogSurfacesTest {
   void dialogsKeepNativeColorsOffWin32() {
     assumeFalse("win32".equals(SWT.getPlatform()), "win32 colors its dialogs");
     Shell owner = owner(ThemeMode.DARK);
-    assertSame(NativeDialogSurfaces.INSTANCE, DialogSurfaces.platform());
+    assertSame(PlatformTraits.of("gtk", false).dialogSurfaces(), DialogSurfaces.platform());
     Shell plain = new Shell(owner, SWT.DIALOG_TRIM);
     Shell dialog = Dialogs.shell(owner, "Dialog", true);
     Label label = new Label(dialog, SWT.NONE);
@@ -77,7 +88,7 @@ class DialogSurfacesTest {
     assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa reads back system colors");
     Shell owner = owner(ThemeMode.DARK);
     Shell dialog = new Shell(owner, SWT.DIALOG_TRIM);
-    Win32DialogSurfaces.INSTANCE.apply(dialog);
+    WIN32.apply(dialog);
     Composite composite = new Composite(dialog, SWT.NONE);
     Label label = new Label(composite, SWT.NONE);
     Link link = new Link(dialog, SWT.NONE);
@@ -95,20 +106,20 @@ class DialogSurfacesTest {
     palette.setBackground(paletteBackground);
     dialog.open();
     for (Control surface : new Control[] {dialog, composite, label, link, check}) {
-      assertColors(surface, Win32DialogSurfaces.WINDOW);
+      assertColors(surface, WINDOW);
     }
     for (Control field : new Control[] {text, dropDown, list, table, tree, spinner}) {
-      assertColors(field, Win32DialogSurfaces.FIELD);
+      assertColors(field, FIELD);
     }
-    assertEquals(Win32DialogSurfaces.FIELD.getRGB(), table.getHeaderBackground().getRGB());
-    assertEquals(Win32DialogSurfaces.TEXT.getRGB(), table.getHeaderForeground().getRGB());
-    assertNotEquals(Win32DialogSurfaces.FIELD.getRGB(), readOnly.getBackground().getRGB());
+    assertEquals(FIELD.getRGB(), table.getHeaderBackground().getRGB());
+    assertEquals(TEXT.getRGB(), table.getHeaderForeground().getRGB());
+    assertNotEquals(FIELD.getRGB(), readOnly.getBackground().getRGB());
     assertEquals(paletteBackground.getRGB(), palette.getBackground().getRGB());
     RGB linkColor = link.getLinkForeground().getRGB();
-    assertTrue(SwtThemeService.contrast(linkColor, Win32DialogSurfaces.WINDOW.getRGB()) >= 4.5);
-    assertTrue(Win32DialogSurfaces.INSTANCE.colored(label));
-    assertFalse(Win32DialogSurfaces.INSTANCE.colored(owner));
-    assertSame(Win32DialogSurfaces.WINDOW, Win32DialogSurfaces.INSTANCE.background(owner));
+    assertTrue(SwtThemeService.contrast(linkColor, WINDOW.getRGB()) >= 4.5);
+    assertTrue(WIN32.colored(label));
+    assertFalse(WIN32.colored(owner));
+    assertEquals(WINDOW.getRGB(), WIN32.background(owner).getRGB());
   }
 
   /** Quick Open and the command palette fill their tables while open. */
@@ -117,7 +128,7 @@ class DialogSurfacesTest {
     // cocoa reads a Shell background back as the system color whatever was set.
     assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa reads back system colors");
     Shell dialog = new Shell(owner(ThemeMode.DARK), SWT.DIALOG_TRIM);
-    Win32DialogSurfaces.INSTANCE.apply(dialog);
+    WIN32.apply(dialog);
     dialog.open();
     final Table table = new Table(dialog, SWT.BORDER);
     assertTrue(
@@ -126,11 +137,11 @@ class DialogSurfacesTest {
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
-                return Win32DialogSurfaces.FIELD.getRGB().equals(table.getBackground().getRGB());
+                return FIELD.getRGB().equals(table.getBackground().getRGB());
               }
             },
             BOUND));
-    assertEquals(Win32DialogSurfaces.TEXT.getRGB(), table.getForeground().getRGB());
+    assertEquals(TEXT.getRGB(), table.getForeground().getRGB());
   }
 
   @Test
@@ -138,21 +149,19 @@ class DialogSurfacesTest {
     Shell owner = owner(ThemeMode.LIGHT);
     Shell plain = new Shell(owner, SWT.DIALOG_TRIM);
     Shell dialog = new Shell(owner, SWT.DIALOG_TRIM);
-    Win32DialogSurfaces.INSTANCE.apply(dialog);
+    WIN32.apply(dialog);
     Text text = new Text(dialog, SWT.BORDER);
     dialog.open();
     assertEquals(plain.getBackground().getRGB(), dialog.getBackground().getRGB());
     assertEquals(
         new Text(plain, SWT.BORDER).getBackground().getRGB(), text.getBackground().getRGB());
-    assertFalse(Win32DialogSurfaces.INSTANCE.colored(text));
-    assertEquals(
-        owner.getBackground().getRGB(), Win32DialogSurfaces.INSTANCE.background(owner).getRGB());
+    assertFalse(WIN32.colored(text));
+    assertEquals(owner.getBackground().getRGB(), WIN32.background(owner).getRGB());
   }
 
   private static void assertColors(Control control, Color background) {
     String name = control.getClass().getSimpleName();
     assertEquals(background.getRGB(), control.getBackground().getRGB(), name + " background");
-    assertEquals(
-        Win32DialogSurfaces.TEXT.getRGB(), control.getForeground().getRGB(), name + " foreground");
+    assertEquals(TEXT.getRGB(), control.getForeground().getRGB(), name + " foreground");
   }
 }

@@ -1107,7 +1107,7 @@ class ArchitectureTest {
   private static boolean callsDialogSurfaces(JavaCodeUnit unit) {
     for (JavaMethodCall call : unit.getMethodCallsFromSelf()) {
       if (call.getTarget().getName().equals("apply")
-          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.DialogSurfaces")) {
+          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.platform.DialogSurfaces")) {
         return true;
       }
     }

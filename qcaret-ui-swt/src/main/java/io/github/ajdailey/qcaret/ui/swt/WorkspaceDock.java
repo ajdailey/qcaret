@@ -51,7 +51,6 @@ final class WorkspaceDock {
   private final BrowserColumns columns;
   private Menu menu;
   private WorkspaceInput input;
-  private boolean dark;
 
   /** What a button does. */
   private enum Action {
@@ -82,16 +81,6 @@ final class WorkspaceDock {
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     icons = new ToolIcons(bar, inkSource);
     browseBar = new BrowseBar(root, bar, icons);
-    for (FieldHint hint : browseBar.hints()) {
-      BrowserColors.follow(
-          hint.field(),
-          new Runnable() {
-            @Override
-            public void run() {
-              setDark(dark);
-            }
-          });
-    }
     button(bar, ToolIcons.RELOAD, UiText.WORKSPACE_REFRESH, Action.REFRESH);
     button(bar, ToolIcons.REVEAL, UiText.WORKSPACE_REVEAL, Action.REVEAL);
     button(bar, ToolIcons.HIDE, UiText.WORKSPACE_HIDE, Action.HIDE);
@@ -229,21 +218,6 @@ final class WorkspaceDock {
    */
   BrowserDrag drag() {
     return drag;
-  }
-
-  /**
-   * Colors the tree and the fields for a side of the theme ({@link BrowserColors}).
-   *
-   * @param dark true when the theme setting resolves to dark
-   */
-  void setDark(boolean dark) {
-    this.dark = dark;
-    BrowserColors.apply(
-        PlatformTraits.PLATFORM,
-        dark,
-        SwtThemeService.nativeDark(tree.getDisplay()),
-        tree,
-        browseBar.hints());
   }
 
   /** Re-reads the button row's background and re-inks the icons; see {@link ToolIcons#reink}. */

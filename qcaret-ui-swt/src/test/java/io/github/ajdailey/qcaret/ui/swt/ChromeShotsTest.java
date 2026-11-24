@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -162,7 +163,7 @@ class ChromeShotsTest {
         },
         "open");
     controller.execute(CommandId.FIND);
-    ChromeColors chrome = new ChromeColors(PlatformTraits.of("win32", false), display);
+    ChromeColors chrome = PlatformTraits.of("win32", false).chromeColors(display);
     chrome.add(window.toolbarRow().row());
     chrome.add(window.statusBar());
     chrome.add(window.findBar().control());

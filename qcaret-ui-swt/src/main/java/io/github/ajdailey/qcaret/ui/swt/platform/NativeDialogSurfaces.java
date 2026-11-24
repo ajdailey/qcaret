@@ -1,10 +1,15 @@
-package io.github.ajdailey.qcaret.ui.swt;
+package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 
-/** GTK and cocoa: dialogs keep the native theme's colors, which match their chrome. */
+/**
+ * GTK and cocoa: dialogs and check boxes keep the native theme's colors, which match their page.
+ */
 final class NativeDialogSurfaces implements DialogSurfaces {
   static final NativeDialogSurfaces INSTANCE = new NativeDialogSurfaces();
 
@@ -23,5 +28,10 @@ final class NativeDialogSurfaces implements DialogSurfaces {
   @Override
   public Color background(Shell owner) {
     return owner.getBackground();
+  }
+
+  @Override
+  public Button check(Composite parent) {
+    return new Button(parent, SWT.CHECK);
   }
 }

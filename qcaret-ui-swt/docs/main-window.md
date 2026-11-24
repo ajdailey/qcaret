@@ -470,10 +470,6 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `themesAtCreation` | yes | - | - | - | `SwtThemeService.open`: sets the native theme under System |
 | `pollsSystemTheme` | yes | yes | - | - | `SwtThemeService`: reads `Display.isSystemDarkTheme()` every 500 ms under System |
 | `raisesLinkContrast` | - | - | yes | yes | `SwtThemeService.colorLink` and its `SWT.Settings` recolor |
-| `lightChecksUnderDark` | yes | - | - | - | `SwtThemeService.check` |
-| `colorsDialogs` | yes | - | - | - | `DialogSurfaces.platform` |
-| `colorsTreesUnderDark` | yes | - | - | - | `BrowserColors`: the Workspace Browser's tree, header and fields under a dark palette |
-| `colorsChromeUnderDark` | yes | - | - | - | `ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks and preview notices under a dark palette (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
 | `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
@@ -487,6 +483,16 @@ starting `org.eclipse.swt.internal.`, such as a GTK property name.
 | `namesThroughAtk` | - | - | yes | - | `NativeNames.forPlatform`: `Gtk3NativeNames`, otherwise `NONE` (see [Accessible names](#accessible-names)) |
 | `followsLinksWithoutGesture` | yes | - | - | - | `BrowserPane`: `LinkGestures` follows every canceled top-frame navigation (see [Markdown preview](markdown-preview.md#browser-pane)) |
 | `browserKeysSkipAccelerators` | yes | - | - | - | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators for a key in a `Browser` (see [Menus](#menus)) |
+
+A seam is an interface in `ui.swt.platform` with one class per platform, which
+`PlatformTraits` picks; callers call every method on every platform, and the
+GTK and cocoa classes implement each method with an empty body where nothing
+changes.
+
+| Seam | Chosen by | win32 | GTK and cocoa | Caller |
+|---|---|---|---|---|
+| `ChromeColors` | `chromeColors(display)`, once per window | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink | `NativeChromeColors`, no-op | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
+| `DialogSurfaces` | `dialogSurfaces()` | `Win32DialogSurfaces`: dialog colors and light-theme check boxes under a dark start | `NativeDialogSurfaces`: native colors, plain check boxes | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 
 Operating-system checks outside the views go
 through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets

@@ -4,6 +4,9 @@ import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.Contrast;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,20 +47,8 @@ import org.eclipse.swt.widgets.Shell;
 public final class SwtThemeService implements ThemeService {
   private static final PlatformTraits PLATFORM = PlatformTraits.PLATFORM;
 
-  /** Display data key: true when controls start with the dark native theme. */
-  private static final String NATIVE_DARK = SwtThemeService.class.getName() + ".nativeDark";
-
   /** Milliseconds between reads of the system setting on win32 and cocoa. */
   private static final int POLL_MILLIS = 500;
-
-  /** Lowest contrast of link text on its background: the WCAG AA ratio for normal text. */
-  private static final double LINK_CONTRAST = 4.5;
-
-  /** Percent of the way to white or black each step moves a link color. */
-  private static final int LINK_STEP_PERCENT = 5;
-
-  private static final RGB WHITE = new RGB(255, 255, 255);
-  private static final RGB BLACK = new RGB(0, 0, 0);
 
   private static final BooleanSupplier SYSTEM_SETTING =
       new BooleanSupplier() {
@@ -174,7 +165,7 @@ public final class SwtThemeService implements ThemeService {
     }
     boolean value = ThemeController.resolve(mode, system.getAsBoolean()).dark();
     display.setDarkThemePreferred(value);
-    display.setData(NATIVE_DARK, value);
+    display.setData(ChromeColors.NATIVE_DARK, value);
     return new SwtThemeService(display, value, system, platform.pollsSystemTheme());
   }
 
@@ -185,35 +176,17 @@ public final class SwtThemeService implements ThemeService {
    * @return true when {@link #open} turned the dark native theme on
    */
   static boolean nativeDark(Display display) {
-    return Boolean.TRUE.equals(display.getData(NATIVE_DARK));
+    return ChromeColors.nativeDark(display);
   }
 
   /**
-   * Creates a check box readable on its page. win32's dark native theme draws a check box label
-   * near-white, or light gray when disabled, and the main window's docks and bars stay light;
-   * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
-   * created, so under a dark startup setting a box outside a {@link DialogSurfaces} dialog is
-   * created with the theme off.
+   * Creates a check box readable on its page ({@link DialogSurfaces#check}).
    *
    * @param parent the parent
    * @return the check box
    */
   static Button check(Composite parent) {
-    Display display = parent.getDisplay();
-    boolean light =
-        PLATFORM.lightChecksUnderDark()
-            && Boolean.TRUE.equals(display.getData(NATIVE_DARK))
-            && !DialogSurfaces.platform().colored(parent);
-    if (light) {
-      display.setDarkThemePreferred(false);
-    }
-    try {
-      return new Button(parent, SWT.CHECK);
-    } finally {
-      if (light) {
-        display.setDarkThemePreferred(true);
-      }
-    }
+    return DialogSurfaces.platform().check(parent);
   }
 
   /**
@@ -245,52 +218,25 @@ public final class SwtThemeService implements ThemeService {
   }
 
   /**
-   * Moves a text color toward white or black, whichever contrasts more with the ground, until it
-   * reaches the link contrast.
+   * Returns a text color raised to the link contrast on a ground ({@link Contrast#readable}).
    *
    * @param text the text color
    * @param ground the background color
-   * @return the text color when already readable, otherwise the first readable step
+   * @return the readable color
    */
   static RGB readable(RGB text, RGB ground) {
-    RGB target = contrast(WHITE, ground) >= contrast(BLACK, ground) ? WHITE : BLACK;
-    RGB result = text;
-    for (int percent = LINK_STEP_PERCENT;
-        percent <= 100 && contrast(result, ground) < LINK_CONTRAST;
-        percent += LINK_STEP_PERCENT) {
-      result =
-          new RGB(
-              mix(text.red, target.red, percent),
-              mix(text.green, target.green, percent),
-              mix(text.blue, target.blue, percent));
-    }
-    return result;
-  }
-
-  private static int mix(int from, int to, int percent) {
-    return from + (to - from) * percent / 100;
+    return Contrast.readable(text, ground);
   }
 
   /**
-   * Returns the WCAG contrast ratio of two colors.
+   * Returns the WCAG contrast ratio of two colors ({@link Contrast#ratio}).
    *
    * @param first a color
    * @param second the other color
    * @return the ratio, from 1 to 21
    */
   static double contrast(RGB first, RGB second) {
-    double a = luminance(first);
-    double b = luminance(second);
-    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  }
-
-  private static double luminance(RGB rgb) {
-    return 0.2126 * linear(rgb.red) + 0.7152 * linear(rgb.green) + 0.0722 * linear(rgb.blue);
-  }
-
-  private static double linear(int channel) {
-    double value = channel / 255.0;
-    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    return Contrast.ratio(first, second);
   }
 
   @Override

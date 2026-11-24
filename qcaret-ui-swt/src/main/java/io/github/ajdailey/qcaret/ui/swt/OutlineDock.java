@@ -1,15 +1,12 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.app.theme.Palette;
-import io.github.ajdailey.qcaret.app.theme.PaletteListener;
-import io.github.ajdailey.qcaret.app.theme.ThemeController;
 import io.github.ajdailey.qcaret.app.view.OutlineEntry;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.NativeNames;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
@@ -29,8 +26,7 @@ import org.eclipse.swt.widgets.TreeItem;
  * Enter and a double click go to it and focus the editor. Arrows and type-ahead move the selection
  * only, as the platform's tree does. A refresh creates the missing items in slices of {@value
  * #SLICE_ITEMS}, one per UI turn, so a long heading list never holds the UI thread; a newer refresh
- * abandons the running fill. Under the dark theme the tree takes {@link BrowserColors}' colors
- * where the native tree stays light.
+ * abandons the running fill. The window's {@link ChromeColors} color the tree under the theme.
  */
 final class OutlineDock {
   /** Items created per UI turn. */
@@ -49,7 +45,6 @@ final class OutlineDock {
   private int filled;
   private long generation;
   private int selected = -1;
-  private boolean dark;
   private int slices;
   private int created;
   private int[] plan = new int[0];
@@ -124,47 +119,6 @@ final class OutlineDock {
     if (input != null && item.getData() instanceof Integer index) {
       input.goTo(index, focus);
     }
-  }
-
-  /**
-   * Follows the theme's side until the dock is disposed.
-   *
-   * @param theme the window's theme
-   */
-  void follow(final ThemeController theme) {
-    final PaletteListener listener =
-        new PaletteListener() {
-          @Override
-          public void paletteChanged(Palette palette) {
-            // The tree takes the theme's side only.
-          }
-
-          @Override
-          public void themeChanged(boolean value) {
-            setDark(value);
-          }
-        };
-    theme.addListener(listener);
-    root.addListener(
-        SWT.Dispose,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            theme.removeListener(listener);
-          }
-        });
-    setDark(theme.dark());
-  }
-
-  /**
-   * Colors the tree for a side of the theme ({@link BrowserColors}).
-   *
-   * @param value true when the theme setting resolves to dark
-   */
-  void setDark(boolean value) {
-    dark = value;
-    BrowserColors.apply(
-        PlatformTraits.PLATFORM, value, SwtThemeService.nativeDark(tree.getDisplay()), tree);
   }
 
   /**
@@ -408,14 +362,5 @@ final class OutlineDock {
    */
   int slices() {
     return slices;
-  }
-
-  /**
-   * Reports the side of the theme last applied.
-   *
-   * @return true for dark
-   */
-  boolean dark() {
-    return dark;
   }
 }

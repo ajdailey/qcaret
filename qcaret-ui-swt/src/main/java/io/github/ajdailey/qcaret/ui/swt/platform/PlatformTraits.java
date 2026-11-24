@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 
 /**
  * The view layer's platform differences: one class per SWT platform, win32, cocoa, GTK 3 and GTK 4,
@@ -210,38 +211,19 @@ public interface PlatformTraits {
   boolean raisesLinkContrast();
 
   /**
-   * Reports whether a check box outside a colored dialog is created with the native dark theme off.
-   * The dark theme draws a check box label near-white on win32 while docks and bars stay light.
+   * Creates a main window's chrome colors.
    *
-   * @return true on win32
+   * @param display the Display, after the theme service records the native start
+   * @return {@link Win32ChromeColors} on win32, else {@link NativeChromeColors}
    */
-  boolean lightChecksUnderDark();
+  ChromeColors chromeColors(Display display);
 
   /**
-   * Reports whether dialogs take QCaret's dialog colors under a dark startup setting. win32 draws a
-   * dark title bar over a light dialog body.
+   * Returns the dialog colors and check box creation.
    *
-   * @return true on win32
+   * @return {@link Win32DialogSurfaces} on win32, else {@link NativeDialogSurfaces}
    */
-  boolean colorsDialogs();
-
-  /**
-   * Reports whether the Workspace Browser's tree, its header and its fields take the palette's
-   * colors under a dark palette. win32 SWT draws a native {@code Tree} and {@code Text} light under
-   * the dark theme.
-   *
-   * @return true on win32
-   */
-  boolean colorsTreesUnderDark();
-
-  /**
-   * Reports whether the main window's toolbar row, status bar, docks, find bar and preview notices
-   * take the palette's colors under a dark palette. win32 SWT draws a {@code ToolBar}, {@code
-   * Composite}, {@code Label} and {@code Link} light under the dark theme.
-   *
-   * @return true on win32
-   */
-  boolean colorsChromeUnderDark();
+  DialogSurfaces dialogSurfaces();
 
   /**
    * Reports whether key names follow macOS.

@@ -20,6 +20,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
@@ -131,7 +132,7 @@ public final class EditorPane implements EditorView {
    * Control data key: the owner colors this control from the palette, so an appearance change
    * leaves it alone.
    */
-  public static final String PALETTE_COLORED = "qcaret.paletteColored";
+  public static final String PALETTE_COLORED = ChromeColors.PALETTE_COLORED;
 
   /** Pixels left of the line numbers, holding the bookmark marks. */
   public static final int BOOKMARK_COLUMN = 14;

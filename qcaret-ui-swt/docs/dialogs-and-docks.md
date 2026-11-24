@@ -152,18 +152,15 @@ the dialog cancels a running match.
   `workspaceChanged(null)` sets the fields, the check box and Workspace's
   enablement from it. Favorites builds its pop-up menu at each opening from
   `favorites()`.
-- `BrowserColors` colors the tree, its header and the two fields on win32
-  (`PlatformTraits.colorsTreesUnderDark`), where they draw light under the dark
-  theme: while `ThemeController.dark` holds they take `Palette.DARK`'s
-  background and text, the header its gutter, and at
-  `PaletteListener.themeChanged` to light they return to the system colors;
-  after a dark start a field holding text stays dark until the next start, and
-  an empty one takes the system colors; `BrowserColors.follow` colors the
-  fields again when one takes text or empties. A dark field's
-  empty, unfocused hint is drawn by `FieldHint` in `Palette.DARK`'s unselected
-  tab label color (5.9:1), since Windows draws the native hint in the theme's
-  gray (1.9:1). The icon row
-  and the Hidden check box stay native
+- On win32 the window's `ChromeColors` color the tree, its header and the two
+  fields, which draw light under the dark theme: while `ThemeController.dark`
+  holds they take `Palette.DARK`'s background and text, the header its gutter,
+  and after a switch to light they return to the system colors; after a dark
+  start a field holding text stays dark until the next start, and an empty one
+  takes the system colors, colored again when it takes text or empties. A dark
+  field's empty, unfocused hint is drawn by `FieldHint` in `Palette.DARK`'s
+  unselected tab label color (5.9:1), since Windows draws the native hint in
+  the theme's gray (1.9:1). The Hidden check box keeps the native theme
   ([theme and icons](theme-and-icons.md#win32)).
 - `BrowserColumns`: Size and Modified start as wide as their headers and widen
   to the widest text a fill adds; Name takes the rest of the tree's width at
@@ -311,9 +308,8 @@ window's session keeps it shown.
   last first, inserted after its kept children (a prepend when it has none),
   and expands the rows once the fill ends: 178 ms, longest turn 13 ms.
 - The tree is not virtual: GTK disables type-ahead in a virtual `Tree`.
-- The dock follows `PaletteListener.themeChanged` through `BrowserColors`, as
-  the workspace browser's tree does; elsewhere the native tree follows the
-  system theme.
+- On win32 the window's `ChromeColors` color the tree under the theme, as the
+  workspace browser's tree; elsewhere the native tree follows the theme.
 
 ## Replace windows
 
