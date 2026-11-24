@@ -1,11 +1,8 @@
 package io.github.ajdailey.qcaret.core.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
@@ -66,26 +63,6 @@ class ChecksumNamesTest {
     ChecksumList.Entry entry = entry(name);
     return ChecksumCheck.verify(
         folder, entry, entry.algorithm().newDigest(), new CancellationToken(), NONE);
-  }
-
-  @Test
-  void uncShareTakesServerAndShareWithEitherSeparator() {
-    assertEquals("\\\\SRV\\Share", ChecksumCheck.uncShare("\\\\SRV\\Share\\dir\\x.txt"));
-    assertEquals("\\\\srv\\share", ChecksumCheck.uncShare("//srv/share/x.txt"));
-    assertEquals("\\\\srv\\share", ChecksumCheck.uncShare("\\/srv\\share"));
-    assertEquals("\\\\srv", ChecksumCheck.uncShare("\\\\srv"));
-    for (String path : List.of("C:\\lists\\x", "\\x", "/home/x", "x.txt", "")) {
-      assertNull(ChecksumCheck.uncShare(path), path);
-    }
-  }
-
-  /** Only ASCII letters fold: the Kelvin sign lower-cases to {@code k} but names another host. */
-  @Test
-  void sameShareFoldsAsciiCaseOnly() {
-    assertTrue(ChecksumCheck.sameShare("\\\\SRV\\Share", "\\\\srv\\sHARE"));
-    assertFalse(ChecksumCheck.sameShare("\\\\\u212Asrv\\share", "\\\\ksrv\\share"));
-    assertFalse(ChecksumCheck.sameShare("\\\\srv\\share", "\\\\srv\\share2"));
-    assertFalse(ChecksumCheck.sameShare("\\\\srv\\share", null));
   }
 
   @Test

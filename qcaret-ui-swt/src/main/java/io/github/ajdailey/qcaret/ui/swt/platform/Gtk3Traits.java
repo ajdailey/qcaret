@@ -8,37 +8,55 @@ final class Gtk3Traits extends GtkTraits {
   }
 
   @Override
-  public boolean opensBrowser() {
-    return true;
+  public MenuBehavior menuBehavior() {
+    return new Gtk3MenuBehavior();
   }
 
   @Override
-  public boolean positionsWindows() {
-    return !"wayland".equals(System.getProperty(GDK_BACKEND));
+  public ToolItemSizing toolItemSizing() {
+    return new NativeToolItemSizing();
   }
 
   @Override
-  public boolean sizesToolPictures() {
-    return false;
+  public KeyBehavior keyBehavior() {
+    return new Gtk3KeyBehavior();
   }
 
   @Override
-  public boolean opensPrintDialog() {
-    return true;
+  public BrowserBehavior browserBehavior() {
+    return new Gtk3BrowserBehavior();
   }
 
   @Override
-  public boolean stacksOnX11() {
-    return "x11".equals(System.getProperty(GDK_BACKEND));
+  public PrintSupport printSupport() {
+    return new Gtk3PrintSupport();
+  }
+
+  /** Returns {@link GtkX11Stacking} when the GDK backend is {@code x11}. */
+  @Override
+  public WindowStacking stacking() {
+    return "x11".equals(System.getProperty(GDK_BACKEND))
+        ? new GtkX11Stacking()
+        : new WindowManagerStacking();
   }
 
   @Override
-  public boolean showsMenuToolTips() {
-    return true;
+  public NativeNames nativeNames() {
+    return new Gtk3NativeNames();
   }
 
   @Override
-  public boolean namesThroughAtk() {
-    return true;
+  public AccessibleLabels accessibleLabels() {
+    return new NativeAccessibleLabels();
+  }
+
+  @Override
+  public WindowPlacement windowPlacement() {
+    return new GtkWindowPlacement(false);
+  }
+
+  @Override
+  public GuideDisplay guideDisplay() {
+    return new BrowserGuideDisplay();
   }
 }

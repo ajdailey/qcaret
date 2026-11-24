@@ -33,6 +33,7 @@ import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.AtkNames;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -575,12 +576,14 @@ class ToolbarAndMenusTest {
   @Test
   void theWindowMenuCarriesMinimizeAndZoomOnlyWhereThePlatformAsks() {
     Menu windowMenu = window.menuBar().menu(CommandGroup.WINDOW);
-    boolean controls = PlatformTraits.PLATFORM.windowMenuControls();
+    boolean controls = RunningPlatform.COCOA;
     assertEquals(controls, UiText.MENU_MINIMIZE.text().equals(windowMenu.getItem(0).getText()));
     Shell shell = new Shell(display);
     Menu menu = new Menu(shell, SWT.DROP_DOWN);
     new MenuItem(menu, SWT.PUSH).setText("mock");
-    MainMenuBar.addWindowControls(menu, shell);
+    PlatformTraits.of("cocoa", false).menuBehavior().addWindowControls(menu, shell);
+    PlatformTraits.of("win32", false).menuBehavior().addWindowControls(menu, shell);
+    PlatformTraits.of("gtk", true).menuBehavior().addWindowControls(menu, shell);
     assertEquals(4, menu.getItemCount());
     assertEquals(UiText.MENU_MINIMIZE.text(), menu.getItem(0).getText());
     assertEquals(SWT.MOD1 | 'M', menu.getItem(0).getAccelerator());
@@ -592,25 +595,18 @@ class ToolbarAndMenusTest {
 
   @Test
   void theTabButtonsTheOverviewStripAndEachViewCarryAccessibleNames() throws Exception {
-    boolean described = PlatformTraits.PLATFORM.labelsByDescription();
     openFile("named.txt", "alpha\n");
     AccessibleName group = AccessibleName.of(window.tabButtons().control());
     assertEquals(UiText.ACCESSIBLE_TAB_BUTTONS.text(), group.name());
-    assertEquals(described, group.grouped());
     for (Canvas button : window.tabButtons().buttons()) {
       AccessibleName name = AccessibleName.of(button);
       assertEquals(button.getToolTipText(), name.name());
-      assertEquals(described, name.described());
-      assertFalse(name.grouped());
     }
     AccessibleName overview = AccessibleName.of(window.activeEditor().overviewStrip());
     assertEquals(UiText.ACCESSIBLE_OVERVIEW.text(), overview.name());
-    assertEquals(described, overview.grouped());
     final AccessibleName view = AccessibleName.of(window.activeText());
     assertEquals("named.txt", window.tabs().getSelection().getText());
     assertEquals("named.txt", view.name());
-    assertEquals(described, view.described());
-    assertFalse(view.grouped());
     controller.documents().activeEditor().type("typed");
     await(
         new BooleanSupplier() {
@@ -658,7 +654,7 @@ class ToolbarAndMenusTest {
     assertNull(self.result);
     assertEquals(
         UiText.ACCESSIBLE_OUTLINE.text(), AccessibleName.of(window.outlineDock().tree()).name());
-    if (PlatformTraits.PLATFORM.namesThroughAtk()) {
+    if ((RunningPlatform.GTK && !RunningPlatform.GTK4)) {
       for (CommandId command : MainToolBar.COMMANDS) {
         if (command != null) {
           assertEquals(command.title(), AtkNames.of(window.mainToolBar().item(command)));

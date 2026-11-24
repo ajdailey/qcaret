@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.KeyBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
@@ -1144,12 +1145,7 @@ public final class EditorPane implements EditorView {
       input.execute(command);
       return true;
     }
-    boolean typed =
-        character >= ' '
-            && character != SWT.DEL
-            && (mods == 0
-                || mods == (SWT.CTRL | SWT.ALT)
-                || (PlatformTraits.PLATFORM.typesWithAlt() && mods == SWT.ALT));
+    boolean typed = character >= ' ' && character != SWT.DEL && KeyBehavior.PLATFORM.types(mods);
     if (typed || (character == '\t' && mods == 0)) {
       input.type(String.valueOf(character));
       return true;

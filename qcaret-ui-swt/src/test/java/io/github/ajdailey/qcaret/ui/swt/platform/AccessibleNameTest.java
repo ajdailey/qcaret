@@ -1,10 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.accessibility.ACC;
@@ -18,7 +16,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** The name, the description and the group role a screen reader reads for a control. */
+/**
+ * The name, the description listener and the group role a screen reader reads for a control. Which
+ * listeners the platform adds ({@link AccessibleLabels}) shows only to a screen reader: VoiceOver
+ * on macOS (G2).
+ */
 @Tag("swt")
 class AccessibleNameTest {
   private Display display;
@@ -45,44 +47,35 @@ class AccessibleNameTest {
   private static String description(Canvas control, AccessibleName name) {
     AccessibleEvent event = new AccessibleEvent(control.getAccessible());
     event.childID = ACC.CHILDID_SELF;
-    name.getDescription(event);
+    name.description().getDescription(event);
     return event.result;
   }
 
   @Test
-  void aDescribedNameIsAlsoTheDescriptionAndAGroupedOneReportsTheGroupRole() {
-    Canvas plain = new Canvas(shell, SWT.NONE);
-    Canvas described = new Canvas(shell, SWT.NONE);
-    AccessibleName plainName = AccessibleName.attach(plain, "mock view", false, false);
-    AccessibleName describedName = AccessibleName.attach(described, "mock view", true, true);
-    assertEquals("mock view", name(plain, plainName));
-    assertNull(description(plain, plainName));
-    assertEquals("mock view", name(described, describedName));
-    assertEquals("mock view", description(described, describedName));
-    describedName.set("mock other");
-    assertEquals("mock other", name(described, describedName));
-    assertEquals("mock other", description(described, describedName));
-    AccessibleControlEvent role = new AccessibleControlEvent(described.getAccessible());
-    role.childID = ACC.CHILDID_SELF;
-    role.detail = -1;
-    AccessibleName.GROUP_ROLE.getRole(role);
-    assertEquals(ACC.ROLE_GROUP, role.detail);
-    assertSame(plainName, AccessibleName.of(plain));
-    assertSame(describedName, AccessibleName.of(described));
+  void theNameAndItsDescriptionFollowEachChange() {
+    Canvas canvas = new Canvas(shell, SWT.NONE);
+    AccessibleName name = AccessibleName.attach(canvas, "mock view");
+    assertEquals("mock view", name(canvas, name));
+    assertEquals("mock view", description(canvas, name));
+    name.set("mock other");
+    assertEquals("mock other", name(canvas, name));
+    assertEquals("mock other", description(canvas, name));
+    assertSame(name, AccessibleName.of(canvas));
+    Canvas kept = new Canvas(shell, SWT.NONE);
+    assertSame(AccessibleName.attachKeepingRole(kept, "mock kept"), AccessibleName.of(kept));
+    assertNull(AccessibleName.of(new Canvas(shell, SWT.NONE)));
   }
 
   @Test
-  void theRunningPlatformDecidesTheDescriptionAndAKeptRoleIsNeverGrouped() {
-    boolean described = PlatformTraits.PLATFORM.labelsByDescription();
-    Canvas grouped = new Canvas(shell, SWT.NONE);
-    Canvas kept = new Canvas(shell, SWT.NONE);
-    AccessibleName groupedName = AccessibleName.attach(grouped, "mock");
-    AccessibleName keptName = AccessibleName.attachKeepingRole(kept, "mock");
-    assertEquals(described, groupedName.described());
-    assertEquals(described, groupedName.grouped());
-    assertEquals(described, keptName.described());
-    assertFalse(keptName.grouped());
-    assertNull(AccessibleName.of(new Canvas(shell, SWT.NONE)));
-    assertTrue(PlatformTraits.of("cocoa", false).labelsByDescription());
+  void cocoaReportsTheGroupRole() {
+    Canvas canvas = new Canvas(shell, SWT.NONE);
+    AccessibleControlEvent role = new AccessibleControlEvent(canvas.getAccessible());
+    role.childID = ACC.CHILDID_SELF;
+    role.detail = -1;
+    CocoaAccessibleLabels.GROUP_ROLE.getRole(role);
+    assertEquals(ACC.ROLE_GROUP, role.detail);
+    PlatformTraits.of("cocoa", false)
+        .accessibleLabels()
+        .describe(canvas, AccessibleName.attach(new Canvas(shell, SWT.NONE), "mock").description());
   }
 }

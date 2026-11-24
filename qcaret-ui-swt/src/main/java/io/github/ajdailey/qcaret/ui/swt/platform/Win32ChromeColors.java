@@ -38,8 +38,11 @@ import org.eclipse.swt.widgets.Tree;
  *
  * <p>After a dark start ({@link ChromeColors#nativeDark}) a field holding text keeps the dark
  * colors on the light side until the next start, because the dark native field draws near-black
- * with dark text under any light colors; an empty field takes the system colors. A field is colored
- * again when it becomes empty or takes text ({@code SWT.Modify}).
+ * with dark text under any light colors; an empty field takes the system list colors, set
+ * explicitly, since with none it draws the dark native field. A field is colored again when it
+ * becomes empty or takes text ({@code SWT.Modify}). A tree whose side differs from the native start
+ * draws its selected row in the palette's selection colors ({@link #selection}) on {@link
+ * SWT#EraseItem}; the native expander keeps the startup theme's colors.
  *
  * <p>Push and arrow buttons, combos, lists, tables, spinners, progress bars, a {@link StyledText},
  * a {@link Browser}, a {@link CTabFolder} and a control with {@link #PALETTE_COLORED} keep their
@@ -67,8 +70,10 @@ final class Win32ChromeColors implements ChromeColors {
   /** Control data key: set on a field once it follows {@code SWT.Modify}. */
   private static final String FOLLOWED = Win32ChromeColors.class.getName() + ".followed";
 
+  /** Control data key: set on a tree once it draws its own selection. */
+  private static final String SELECTION = Win32ChromeColors.class.getName() + ".selection";
+
   private final Display display;
-  private final boolean nativeDark;
   private final Listener skin =
       new Listener() {
         @Override
@@ -87,13 +92,13 @@ final class Win32ChromeColors implements ChromeColors {
   private boolean painted;
 
   /**
-   * Creates the colors for a window; call after the theme service records the native start.
+   * Creates the colors for a window. The native start ({@link ChromeColors#nativeDark}) is read at
+   * each use, so the theme service may record it after this.
    *
    * @param display the Display
    */
   Win32ChromeColors(Display display) {
     this.display = display;
-    this.nativeDark = ChromeColors.nativeDark(display);
     display.addListener(SWT.Skin, skin);
   }
 
@@ -126,7 +131,7 @@ final class Win32ChromeColors implements ChromeColors {
   @Override
   public void add(Icons set) {
     icons.add(set);
-    set.lightChecked(nativeDark);
+    set.lightChecked(ChromeColors.nativeDark(display));
     set.fadeDisabled(dark);
   }
 
@@ -143,6 +148,7 @@ final class Win32ChromeColors implements ChromeColors {
       }
     }
     for (Icons set : icons) {
+      set.lightChecked(ChromeColors.nativeDark(display));
       set.fadeDisabled(value);
       set.reink();
     }
@@ -178,12 +184,51 @@ final class Win32ChromeColors implements ChromeColors {
     tree.setForeground(dark ? color(TEXT) : null);
     tree.setHeaderBackground(dark ? color(BACKGROUND) : null);
     tree.setHeaderForeground(dark ? color(TEXT) : null);
+    if (tree.getData(SELECTION) != null) {
+      return;
+    }
+    tree.setData(SELECTION, Boolean.TRUE);
+    tree.addListener(
+        SWT.EraseItem,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if ((event.detail & SWT.SELECTED) != 0
+                && painted
+                && dark != ChromeColors.nativeDark(display)) {
+              RGB[] colors = selection(dark);
+              event.gc.setBackground(new Color(colors[0]));
+              event.gc.fillRectangle(event.x, event.y, event.width, event.height);
+              event.gc.setForeground(new Color(colors[1]));
+              event.detail &= ~(SWT.SELECTED | SWT.HOT);
+            }
+          }
+        });
+  }
+
+  /**
+   * Returns the selected row's background and text where the tree's side differs from the native
+   * start, whose selection colors the native tree keeps: black on {@code #333333} after a dark
+   * start on the light side, 1.66:1, measured on Windows 11.
+   *
+   * @param dark true when {@code ui.theme} resolves to dark
+   * @return the palette's selection background and its text raised to {@link Contrast#LINK}
+   */
+  static RGB[] selection(boolean dark) {
+    Palette palette = dark ? Palette.DARK : Palette.LIGHT;
+    RGB background = color(palette.selection()).getRGB();
+    RGB text = Contrast.readable(color(palette.selectionText()).getRGB(), background);
+    return new RGB[] {background, text};
   }
 
   private void colorField(final Text field) {
+    boolean nativeDark = ChromeColors.nativeDark(display);
     boolean darkField = dark || (nativeDark && field.getCharCount() > 0);
-    field.setBackground(darkField ? color(FIELD) : null);
-    field.setForeground(darkField ? color(TEXT) : null);
+    // An empty field with no colors draws the dark native field after a dark start.
+    Color light = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_BACKGROUND) : null;
+    Color lightText = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_FOREGROUND) : null;
+    field.setBackground(darkField ? color(FIELD) : light);
+    field.setForeground(darkField ? color(TEXT) : lightText);
     if (field.getData(HINT) instanceof Hint hint) {
       hint.setColor(darkField ? color(HINT_TEXT) : null);
     }

@@ -44,7 +44,9 @@ import org.junit.jupiter.api.io.TempDir;
 class SmokeTest {
   private static final long BOUND_SECONDS = 60;
   private static final Pattern OPENED =
-      Pattern.compile("Main window open: client area (\\d+)x(\\d+), location (-?\\d+),(-?\\d+)");
+      Pattern.compile(
+          "Main window open: client area (\\d+)x(\\d+), location (-?\\d+),(-?\\d+),"
+              + " size (\\d+)x(\\d+), work area (-?\\d+),(-?\\d+) (\\d+)x(\\d+), zoom (\\d+)");
 
   @TempDir Path temp;
 
@@ -139,13 +141,31 @@ class SmokeTest {
     return args;
   }
 
+  /**
+   * Checks the logged window against the request: exact at a whole zoom, within one point at a
+   * fractional one, where SWT rounds each value on its own; the location as the request clamped
+   * into the work area, as placement moves a window the screen is too short for.
+   */
   private static void assertOpened(Run run) throws InterruptedException {
     Matcher m = run.await(OPENED);
     assertNotNull(m, "no window line in " + run.seen);
-    assertEquals("900", m.group(1));
-    assertEquals("600", m.group(2));
-    assertEquals("50", m.group(3));
-    assertEquals("40", m.group(4));
+    int slack = Integer.parseInt(m.group(11)) % 100 == 0 ? 0 : 1;
+    int workX = Integer.parseInt(m.group(7));
+    int workY = Integer.parseInt(m.group(8));
+    int x = Math.max(workX, Math.min(50, workX + Integer.parseInt(m.group(9)) - number(m, 5)));
+    int y = Math.max(workY, Math.min(40, workY + Integer.parseInt(m.group(10)) - number(m, 6)));
+    assertNear(900, number(m, 1), slack, m.group());
+    assertNear(600, number(m, 2), slack, m.group());
+    assertNear(x, number(m, 3), slack, m.group());
+    assertNear(y, number(m, 4), slack, m.group());
+  }
+
+  private static int number(Matcher m, int group) {
+    return Integer.parseInt(m.group(group));
+  }
+
+  private static void assertNear(int expected, int actual, int slack, String line) {
+    assertTrue(Math.abs(expected - actual) <= slack, expected + " +-" + slack + ": " + line);
   }
 
   @Test

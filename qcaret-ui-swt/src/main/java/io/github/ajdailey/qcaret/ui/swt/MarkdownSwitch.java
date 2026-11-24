@@ -72,11 +72,7 @@ final class MarkdownSwitch {
     }
     if (separator != null) {
       for (int i = 0; i < items.length; i++) {
-        boolean checked = states.checked(MODES[i]);
-        if (items[i].getSelection() != checked) {
-          items[i].setSelection(checked);
-        }
-        icons.showChecked(items[i]);
+        icons.check(items[i], states.checked(MODES[i]));
       }
     }
   }

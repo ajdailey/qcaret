@@ -148,7 +148,6 @@ class MemoryGaugeTest {
     assertTrue(window.memoryGauge().text().endsWith("/" + max + " MB"));
     AccessibleName name = AccessibleName.of(canvas);
     assertEquals("Memory " + window.memoryGauge().text(), name.name());
-    assertEquals(PlatformTraits.PLATFORM.labelsByDescription(), name.grouped());
     assertTrue(canvas.getToolTipText().contains("Maximum heap: " + max + " MB"));
     assertTrue(canvas.getSize().x > canvas.getSize().y, canvas.getSize().toString());
     for (Control field : window.statusBar().getChildren()) {

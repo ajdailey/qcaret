@@ -1,6 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -38,7 +38,7 @@ final class Dialogs {
 
   /**
    * Creates a dialog shell with a given style, carrying its owner's icons and the platform's {@link
-   * DialogSurfaces} colors.
+   * DialogColors} colors.
    *
    * @param parent the owning shell
    * @param title the title
@@ -49,7 +49,7 @@ final class Dialogs {
     Shell shell = new Shell(parent, style);
     shell.setText(title);
     inheritIcons(shell, parent);
-    DialogSurfaces.platform().apply(shell);
+    DialogColors.platform().apply(shell);
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 12;
     layout.marginHeight = 12;
@@ -81,7 +81,7 @@ final class Dialogs {
    * @return the color
    */
   static Color background(Shell owner) {
-    return DialogSurfaces.platform().background(owner);
+    return DialogColors.platform().background(owner);
   }
 
   /**

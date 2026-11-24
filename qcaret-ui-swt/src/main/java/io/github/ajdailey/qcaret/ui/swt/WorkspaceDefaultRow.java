@@ -29,7 +29,7 @@ final class WorkspaceDefaultRow {
     row.setLayout(layout);
     row.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     folder = new Text(row, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
-    folder.setMessage(UiText.PREFERENCES_WORKSPACE_DEFAULT_NONE.text());
+    new FieldHint(folder).setHint(UiText.PREFERENCES_WORKSPACE_DEFAULT_NONE.text());
     GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false);
     data.widthHint = 200;
     folder.setLayoutData(data);

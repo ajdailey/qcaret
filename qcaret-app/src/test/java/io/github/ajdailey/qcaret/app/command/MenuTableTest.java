@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -26,15 +27,23 @@ import org.junit.jupiter.api.Test;
 class MenuTableTest {
   @Test
   void theApplicationMenuTakesAboutExitAndPreferences() {
-    assertTrue(MenuTable.commands(CommandGroup.HELP, false).contains(CommandId.ABOUT));
-    assertTrue(MenuTable.commands(CommandGroup.FILE, false).contains(CommandId.QUIT));
-    assertTrue(MenuTable.commands(CommandGroup.TOOLS, false).contains(CommandId.PREFERENCES));
-    assertFalse(MenuTable.commands(CommandGroup.HELP, true).contains(CommandId.ABOUT));
-    assertFalse(MenuTable.commands(CommandGroup.FILE, true).contains(CommandId.QUIT));
-    assertFalse(MenuTable.commands(CommandGroup.TOOLS, true).contains(CommandId.PREFERENCES));
+    assertTrue(MenuTable.commands(CommandGroup.HELP, Set.of()).contains(CommandId.ABOUT));
+    assertTrue(MenuTable.commands(CommandGroup.FILE, Set.of()).contains(CommandId.QUIT));
+    assertTrue(MenuTable.commands(CommandGroup.TOOLS, Set.of()).contains(CommandId.PREFERENCES));
+    assertFalse(
+        MenuTable.commands(CommandGroup.HELP, MenuTable.APP_MENU_COMMANDS)
+            .contains(CommandId.ABOUT));
+    assertFalse(
+        MenuTable.commands(CommandGroup.FILE, MenuTable.APP_MENU_COMMANDS)
+            .contains(CommandId.QUIT));
+    assertFalse(
+        MenuTable.commands(CommandGroup.TOOLS, MenuTable.APP_MENU_COMMANDS)
+            .contains(CommandId.PREFERENCES));
     assertEquals(
-        MenuTable.commands(CommandGroup.VIEW, false), MenuTable.commands(CommandGroup.VIEW, true));
-    List<MenuTable.Entry> tools = MenuTable.entries(CommandGroup.TOOLS, true);
+        MenuTable.commands(CommandGroup.VIEW, Set.of()),
+        MenuTable.commands(CommandGroup.VIEW, MenuTable.APP_MENU_COMMANDS));
+    List<MenuTable.Entry> tools =
+        MenuTable.entries(CommandGroup.TOOLS, MenuTable.APP_MENU_COMMANDS);
     assertEquals(CommandId.DOCUMENT_STATISTICS, tools.get(tools.size() - 1).command());
   }
 
@@ -43,7 +52,7 @@ class MenuTableTest {
     for (CommandId command : CommandId.values()) {
       int count = 0;
       for (CommandGroup group : CommandGroup.values()) {
-        for (CommandId listed : MenuTable.commands(group, false)) {
+        for (CommandId listed : MenuTable.commands(group, Set.of())) {
           if (listed == command) {
             assertEquals(command.group(), group, command.name());
             count++;
@@ -59,7 +68,7 @@ class MenuTableTest {
     for (CommandGroup group : CommandGroup.values()) {
       List<String> closed = new ArrayList<String>();
       String open = null;
-      for (CommandId command : MenuTable.commands(group, false)) {
+      for (CommandId command : MenuTable.commands(group, Set.of())) {
         String submenu = command.submenu();
         if (submenu != null && !submenu.equals(open)) {
           assertFalse(closed.contains(submenu), group + ": " + submenu + " split by " + command);
@@ -205,7 +214,8 @@ class MenuTableTest {
     Map<String, List<String>> menus = new LinkedHashMap<String, List<String>>();
     List<String> top = new ArrayList<String>();
     menus.put(group.label(), top);
-    for (CommandId command : MenuTable.commands(group, appMenu)) {
+    for (CommandId command :
+        MenuTable.commands(group, appMenu ? MenuTable.APP_MENU_COMMANDS : Set.<CommandId>of())) {
       String submenu = command.submenu();
       if (submenu == null) {
         top.add(command.label());
@@ -273,7 +283,7 @@ class MenuTableTest {
 
   @Test
   void theEditorMenuEndsWithTheEditMenusCascadesAndToggleLineComment() {
-    List<CommandId> edit = MenuTable.commands(CommandGroup.EDIT, false);
+    List<CommandId> edit = MenuTable.commands(CommandGroup.EDIT, Set.of());
     List<String> top = editorMenus().get("editor menu");
     assertEquals(
         List.of(
@@ -301,7 +311,7 @@ class MenuTableTest {
         }
       }
       List<Boolean> editSeparators = new ArrayList<Boolean>();
-      for (MenuTable.Entry entry : MenuTable.entries(CommandGroup.EDIT, false)) {
+      for (MenuTable.Entry entry : MenuTable.entries(CommandGroup.EDIT, Set.of())) {
         if (cascade.text().equals(entry.command().submenu())) {
           editSeparators.add(entry.separatorBefore());
         }

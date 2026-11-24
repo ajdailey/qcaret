@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.workspace;
 
+import io.github.ajdailey.qcaret.core.util.os.FileConfinement;
 import java.nio.file.Path;
 
 /** The user's home folder, the workspace browser's Home. */
@@ -8,7 +9,7 @@ public final class HomeFolder {
    * The system property holding {@code user.home} as the JVM started, set by the launcher before it
    * points {@code user.home} at the settings directory (explicit and portable mode on Linux).
    */
-  public static final String PROPERTY = "qcaret.userHome";
+  public static final String PROPERTY = FileConfinement.HOME_FOLDER;
 
   private HomeFolder() {}
 

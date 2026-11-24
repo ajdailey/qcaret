@@ -70,8 +70,8 @@ name stands as written. The dialog shows a line per entry in list order, then
 each bad line, then the totals.
 
 `ChecksumCheck.file` checks each name before the size total or the digest
-touches it. Where `OsTraits.opensDeviceNames` (Windows), it refuses a name
-`SafePaths.checkForm` refuses (`CON`, `\\.\`, `\\?\`) and a UNC name whose
+touches it. On Windows (`OsTraits.deviceNames`, `WindowsDeviceNames`) it refuses a
+name `SafePaths.checkForm` refuses (`CON`, `\\.\`, `\\?\`) and a UNC name whose
 `\\server\share` differs from the list folder's, ignoring the case of ASCII
 letters only: opening a UNC name connects to the host with the user's
 credentials. `Checksums.ofFile` then opens only a regular file, so a FIFO

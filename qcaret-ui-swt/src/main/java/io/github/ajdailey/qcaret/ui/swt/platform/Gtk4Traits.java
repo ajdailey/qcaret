@@ -8,42 +8,52 @@ final class Gtk4Traits extends GtkTraits {
   }
 
   @Override
-  public boolean opensBrowser() {
-    return false;
+  public MenuBehavior menuBehavior() {
+    return new Gtk4MenuBehavior();
   }
 
   @Override
-  public boolean positionsWindows() {
-    return false;
+  public ToolItemSizing toolItemSizing() {
+    return new Gtk4ToolItemSizing();
   }
 
   @Override
-  public boolean sizesToolPictures() {
-    return true;
+  public KeyBehavior keyBehavior() {
+    return new Gtk4KeyBehavior();
   }
 
   @Override
-  public boolean opensPrintDialog() {
-    return false;
+  public BrowserBehavior browserBehavior() {
+    return new Gtk4BrowserBehavior();
   }
 
   @Override
-  public boolean stacksOnX11() {
-    return false;
+  public PrintSupport printSupport() {
+    return new Gtk4PrintSupport();
   }
 
   @Override
-  public boolean showsMenuToolTips() {
-    return false;
+  public WindowStacking stacking() {
+    return new WindowManagerStacking();
   }
 
   @Override
-  public boolean acceleratorsFollowFocusControl() {
-    return true;
+  public NativeNames nativeNames() {
+    return new NoNativeNames();
   }
 
   @Override
-  public boolean namesThroughAtk() {
-    return false;
+  public AccessibleLabels accessibleLabels() {
+    return new NativeAccessibleLabels();
+  }
+
+  @Override
+  public WindowPlacement windowPlacement() {
+    return new GtkWindowPlacement(true);
+  }
+
+  @Override
+  public GuideDisplay guideDisplay() {
+    return new NoticeGuideDisplay();
   }
 }

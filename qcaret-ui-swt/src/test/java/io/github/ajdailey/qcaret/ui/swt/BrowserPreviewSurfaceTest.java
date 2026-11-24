@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -238,7 +239,7 @@ class BrowserPreviewSurfaceTest {
 
   @Test
   void aBrowserThatFailsToCreateLeavesBasicWithTheReason() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
+    assumeTrue(!RunningPlatform.GTK4, "no Browser under GTK 4");
     window.setPreviewBrowserFactory(
         new GuideWindow.BrowserFactory() {
           @Override
@@ -271,8 +272,7 @@ class BrowserPreviewSurfaceTest {
   void theCycleKeyRunsWhileTheBrowserHasFocus() throws Exception {
     String platform = SWT.getPlatform();
     assumeTrue(
-        ("gtk".equals(platform) && PlatformTraits.PLATFORM.opensBrowser())
-            || "win32".equals(platform),
+        ("gtk".equals(platform) && !RunningPlatform.GTK4) || "win32".equals(platform),
         "keys posted through Display.post: GTK 3 and win32 only");
     assumeTrue(
         !"win32".equals(platform) || !"aarch64".equals(System.getProperty("os.arch")),
@@ -307,7 +307,7 @@ class BrowserPreviewSurfaceTest {
    */
   @Test
   void aWindowKeyTheBrowserReportsRunsItsCommandOnce() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.browserKeysSkipAccelerators(), "Edge's key path: win32");
+    assumeTrue(RunningPlatform.WIN32, "Edge's key path: win32");
     BrowserHosts.assumeBrowser(window.shell());
     openMarkdown("# Mock guide\n");
     controller.execute(CommandId.PREVIEW_BROWSER);
@@ -330,7 +330,7 @@ class BrowserPreviewSurfaceTest {
   @Test
   void aClickOnALocalFileLinkOpensTheFile() throws Exception {
     PostedInput.assumeGtk();
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
+    assumeTrue(!RunningPlatform.GTK4, "no Browser under GTK 4");
     BrowserHosts.assumeBrowser(window.shell());
     Files.writeString(temp.resolve("other.txt"), "mock other\n", StandardCharsets.UTF_8);
     Path absolute =

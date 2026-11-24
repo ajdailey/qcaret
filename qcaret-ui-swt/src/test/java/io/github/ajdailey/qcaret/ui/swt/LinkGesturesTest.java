@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,7 +27,7 @@ class LinkGesturesTest {
   private LinkGestures gestures(boolean ungestured) {
     return new LinkGestures(
         timers,
-        ungestured,
+        PlatformTraits.of(ungestured ? "win32" : "gtk", false).browserBehavior(),
         new Consumer<String>() {
           @Override
           public void accept(String location) {

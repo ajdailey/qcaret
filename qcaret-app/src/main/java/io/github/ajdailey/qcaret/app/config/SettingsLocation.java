@@ -77,23 +77,32 @@ public record SettingsLocation(SettingsMode mode, Path directory, Path home) {
   }
 
   /**
-   * Reports whether QCaret keeps its files out of the user's home directory: explicit and portable
-   * mode on Linux. There {@code user.home} is the settings directory and the user guide opens
-   * outside the process, since WebKitGTK writes under the XDG cache and data directories.
+   * Reports whether QCaret uses the per-user settings directory, not one of its own.
    *
-   * @param os the system
-   * @return true in explicit and portable mode on Linux
+   * @return true in per-user mode
    */
-  public boolean confined(OsTraits os) {
-    return mode != SettingsMode.PER_USER && os.confinesToSettings();
+  public boolean perUser() {
+    return mode == SettingsMode.PER_USER;
   }
 
   /**
-   * Reports {@link #confined(OsTraits)} for this process's system.
+   * Reports whether the user guide may open in an embedded browser ({@link
+   * io.github.ajdailey.qcaret.core.util.os.FileConfinement#embedsGuide}): not in explicit and
+   * portable mode on Linux, where WebKitGTK writes under the XDG cache and data directories.
    *
-   * @return true in explicit and portable mode on Linux
+   * @param os the system
+   * @return false in explicit and portable mode on Linux
    */
-  public boolean confined() {
-    return confined(OsTraits.current());
+  public boolean embedsGuide(OsTraits os) {
+    return os.fileConfinement().embedsGuide(perUser());
+  }
+
+  /**
+   * Reports {@link #embedsGuide(OsTraits)} for this process's system.
+   *
+   * @return false in explicit and portable mode on Linux
+   */
+  public boolean embedsGuide() {
+    return embedsGuide(OsTraits.current());
   }
 }

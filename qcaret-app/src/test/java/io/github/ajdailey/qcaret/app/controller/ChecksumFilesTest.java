@@ -11,7 +11,6 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.core.io.ChecksumList;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
-import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -204,7 +203,7 @@ class ChecksumFilesTest {
                 + ChecksumList.line(ABC_SHA256, unc)
                 + "\n");
     String refused =
-        OsTraits.current().opensDeviceNames()
+        System.getProperty("os.name", "").startsWith("Windows")
             ? UiText.CHECKSUM_UNREADABLE.format(unc, "names a network share the list is not on")
             : UiText.CHECKSUM_MISSING.format(unc);
     assertEquals(List.of(UiText.CHECKSUM_OK.format(absolute), refused), shown.lines);

@@ -2,7 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
-import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
@@ -244,7 +244,7 @@ final class HistoryField {
     if (popup == null) {
       popup = new Shell(text.getShell(), SWT.ON_TOP | SWT.TOOL | SWT.NO_FOCUS | SWT.NO_TRIM);
       Dialogs.inheritIcons(popup, text.getShell());
-      DialogSurfaces.platform().apply(popup);
+      DialogColors.platform().apply(popup);
       popup.setLayout(new FillLayout());
       table =
           new Table(

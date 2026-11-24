@@ -47,17 +47,17 @@ none. The item carries itself as a `ToolMenu`, which names it for
 
 | Cause | Reason |
 |---|---|
-| GTK 4 (`PlatformTraits.opensBrowser` false) | `MARKDOWN_BROWSER_GTK4`: WebKitGTK does not start under GTK 4 |
+| GTK 4 (`BrowserBehavior.unavailable`, `Gtk4BrowserBehavior`) | `MARKDOWN_BROWSER_GTK4`: WebKitGTK does not start under GTK 4 |
 | A preview's `Browser` failed to create, a call on it threw `SWTException` or `SWTError`, or its start or load bound expired (Browser pane) | `MARKDOWN_BROWSER_FAILED` with the error's message, or with `MARKDOWN_BROWSER_TIMEOUT` ("the page did not load within 60 s" or "15 s") for a bound, for the rest of the Display's life |
 
 `PreviewSlot` catches the failure, shows the content in the `MarkdownPane` and
 calls `browserFailed`; the controller posts "Browser preview unavailable;
 showing Basic" and renders Basic. View > Markdown View > Browser is disabled
-with the reason as its tool tip, or, where
-`PlatformTraits.showsMenuToolTips` is false (GTK 4, where SWT drops menu tool
-tips), in its label. For tests, `MainWindow.setPreviewBrowserFactory` replaces
-the `GuideWindow.BrowserFactory` and `setPreviewBrowserDispatcher` the
-dispatcher that runs the panes' timers and bounds.
+with the reason as its tool tip, or on GTK 4, where SWT drops menu tool tips,
+in its label (`MenuBehavior.label`). For tests,
+`MainWindow.setPreviewBrowserFactory` replaces the `GuideWindow.BrowserFactory`
+and `setPreviewBrowserDispatcher` the dispatcher that runs the panes' timers
+and bounds.
 
 ## Browser pane
 
@@ -84,7 +84,7 @@ pane's UI-thread work is the `setText` call.
   to `linkFollowed`, once per gesture; any other one is dropped. Each followed
   navigation is logged at debug with its gesture's source and age, and each
   dropped one with the time since the last gesture ended, or `none`.
-- Where `PlatformTraits.followsLinksWithoutGesture` holds (win32), every
+- On win32 (`BrowserBehavior.followUngestured`, `Win32BrowserBehavior`), every
   canceled top-frame navigation goes to `linkFollowed` with no gesture and is
   logged as followed `with no gesture`. SWT's Edge with JavaScript off reports
   no mouse or key event to the `Browser`, so on the gesture rule every link
@@ -99,8 +99,8 @@ pane's UI-thread work is the `setText` call.
   URL commonmark's sanitizer refuses, such as `javascript:` or `smb:`, has no
   `href`.
 - WebKitGTK loads `about:blank` without a `changing` event, so a raw-HTML link
-  to it replaces the page with an empty one. Where
-  `PlatformTraits.blankLinksReplacePage` holds (GTK), a `changed` to
+  to it replaces the page with an empty one. On GTK
+  (`BrowserBehavior.pageChanged`, `Gtk3BrowserBehavior`), a `changed` to
   `about:blank` that is not the pane's own load marks the page replaced; its
   `completed` loads the shown content's page again, once, and neither meets a
   bound nor scrolls. A `completed` that met the stray page's state would
@@ -108,8 +108,8 @@ pane's UI-thread work is the `setText` call.
 - `scrollToLine` maps a rendered line to its source line and the last element
   starting at or above it (`MarkdownHtml.idAt`), and `scrollToAnchor` takes an
   id; both navigate to `about:blank#id` once the page loaded, and a new page
-  returns to the last id. Where `PlatformTraits.scrollsBrowserToFragments` is
-  false, neither scrolls:
+  returns to the last id. Off GTK (`BrowserBehavior.scrollToAnchor`) neither
+  scrolls:
   - win32: SWT's Edge shows `setText` content from a temporary file through
     `document.write`. An anchor link scrolls inside WebView2 without a
     navigation event.

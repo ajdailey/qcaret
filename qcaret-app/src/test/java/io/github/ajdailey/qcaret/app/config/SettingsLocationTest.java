@@ -80,14 +80,14 @@ class SettingsLocationTest {
   }
 
   @Test
-  void onlyExplicitAndPortableModeOnLinuxAreConfined() {
+  void onlyExplicitAndPortableModeOnLinuxOpenTheGuideOutside() {
     String[] systems = {"Linux", "Windows 11", "Mac OS X"};
     for (SettingsMode mode : SettingsMode.values()) {
       SettingsLocation location = new SettingsLocation(mode, temp);
       for (String os : systems) {
         assertEquals(
-            mode != SettingsMode.PER_USER && os.equals("Linux"),
-            location.confined(OsTraits.of(os)),
+            !(mode != SettingsMode.PER_USER && os.equals("Linux")),
+            location.embedsGuide(OsTraits.of(os)),
             mode + " " + os);
       }
     }

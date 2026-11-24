@@ -157,23 +157,6 @@ class SafePathsTest {
   }
 
   @Test
-  void windowsDeviceForms() {
-    for (String path :
-        List.of(
-            "CON",
-            "nul.txt",
-            "C:\\logs\\COM1",
-            "\\\\.\\PhysicalDrive0",
-            "\\\\?\\GLOBALROOT\\x",
-            "lpt9.txt")) {
-      assertTrue(SafePaths.windowsDevice(path), path);
-    }
-    for (String path : List.of("C:\\docs\\console.txt", "context", "COM10", "notes.txt")) {
-      assertFalse(SafePaths.windowsDevice(path), path);
-    }
-  }
-
-  @Test
   void deviceNamesAreRefusedOnlyOnWindows() throws IOException {
     boolean windows = File.separatorChar == '\\';
     for (String name : List.of("nul.txt", "COM1")) {

@@ -1,13 +1,14 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.BrowserBehavior;
 import org.eclipse.swt.widgets.Display;
 
 /**
  * Whether the Browser Markdown preview renderer can run: the one check every window asks. It cannot
- * under GTK 4 ({@link PlatformTraits#opensBrowser}), nor on a Display where a preview's browser
- * control failed to create or failed a call; that failure holds until the Display ends.
+ * where the platform allows no browser ({@link BrowserBehavior#unavailable}), nor on a Display
+ * where a preview's browser control failed to create or failed a call; that failure holds until the
+ * Display ends.
  */
 final class BrowserPreview {
   private static final String FAILURE = "qcaret.browserPreviewFailure";
@@ -21,8 +22,9 @@ final class BrowserPreview {
    * @return the reason, or null when it can run
    */
   static String unavailable(Display display) {
-    if (!PlatformTraits.PLATFORM.opensBrowser()) {
-      return UiText.MARKDOWN_BROWSER_GTK4.text();
+    String platform = BrowserBehavior.PLATFORM.unavailable();
+    if (platform != null) {
+      return platform;
     }
     Object failure = display.getData(FAILURE);
     return failure == null ? null : UiText.MARKDOWN_BROWSER_FAILED.format(failure);

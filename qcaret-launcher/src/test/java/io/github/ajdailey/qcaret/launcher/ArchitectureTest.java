@@ -165,11 +165,11 @@ class ArchitectureTest {
 
   /** The view classes sanctioned to reach SWT internals by reflection, which no import shows. */
   private static final String[] SWT_REFLECTION = {
-    ROOT + ".ui.swt.ToolIcons",
-    ROOT + ".ui.swt.Win32Stacking",
-    ROOT + ".ui.swt.CocoaStacking",
-    ROOT + ".ui.swt.GtkX11Stacking",
-    ROOT + ".ui.swt.CocoaPrintJobNaming",
+    ROOT + ".ui.swt.platform.Gtk4ToolItemSizing",
+    ROOT + ".ui.swt.platform.Win32Stacking",
+    ROOT + ".ui.swt.platform.CocoaStacking",
+    ROOT + ".ui.swt.platform.GtkX11Stacking",
+    ROOT + ".ui.swt.platform.CocoaPrintJobNaming",
     ROOT + ".ui.swt.platform.Gtk3NativeNames"
   };
 
@@ -219,7 +219,8 @@ class ArchitectureTest {
         platformOnlyInTraitsRule(),
         ROOT + ".ui.swt.archfixture.ViewViolations$ReadsPlatform",
         "SWT.getPlatform",
-        "System.getenv");
+        "System.getenv",
+        "SWT_GTK4");
   }
 
   private static ArchRule platformOnlyInTraitsRule() {
@@ -228,6 +229,7 @@ class ArchitectureTest {
         .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
         .should()
         .callMethodWhere(callNamed("org.eclipse.swt.SWT", "getPlatform"))
+        .orShould(holdTheString("SWT_GTK4"))
         .orShould()
         .callMethodWhere(
             new DescribedPredicate<JavaMethodCall>("call System.getenv in ui.swt or launcher") {
@@ -1074,9 +1076,8 @@ class ArchitectureTest {
   }
 
   /**
-   * A code unit that creates an owned shell calls {@code DialogSurfaces.apply}, so every dialog
-   * takes the platform's dialog colors. The main window and the completion popup keep native
-   * colors.
+   * A code unit that creates an owned shell calls {@code DialogColors.apply}, so every dialog takes
+   * the platform's dialog colors. The main window and the completion popup keep native colors.
    */
   @Test
   void ownedShellsTakeDialogColors() {
@@ -1086,7 +1087,7 @@ class ArchitectureTest {
   private static ArchRule ownedShellsTakeDialogColorsRule() {
     return classes()
         .should(
-            new ArchCondition<JavaClass>("call DialogSurfaces.apply where they create a Shell") {
+            new ArchCondition<JavaClass>("call DialogColors.apply where they create a Shell") {
               @Override
               public void check(JavaClass type, ConditionEvents events) {
                 if (type.getName().equals(ROOT + ".ui.swt.editor.CompletionPopup")) {
@@ -1096,12 +1097,11 @@ class ArchitectureTest {
                   for (JavaConstructorCall call : unit.getConstructorCallsFromSelf()) {
                     if (call.getTargetOwner().isAssignableTo(Shell.class)
                         && !topLevelInMainWindow(call)
-                        && !callsDialogSurfaces(unit)) {
+                        && !callsDialogColors(unit)) {
                       events.add(
                           SimpleConditionEvent.violated(
                               call,
-                              "new Shell without DialogSurfaces.apply in "
-                                  + call.getDescription()));
+                              "new Shell without DialogColors.apply in " + call.getDescription()));
                     }
                   }
                 }
@@ -1109,10 +1109,10 @@ class ArchitectureTest {
             });
   }
 
-  private static boolean callsDialogSurfaces(JavaCodeUnit unit) {
+  private static boolean callsDialogColors(JavaCodeUnit unit) {
     for (JavaMethodCall call : unit.getMethodCallsFromSelf()) {
       if (call.getTarget().getName().equals("apply")
-          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.platform.DialogSurfaces")) {
+          && call.getTargetOwner().getName().equals(ROOT + ".ui.swt.platform.DialogColors")) {
         return true;
       }
     }
@@ -1324,7 +1324,7 @@ class ArchitectureTest {
     assertViolations(
         ownedShellsTakeDialogColorsRule(),
         VIEW_FIXTURES + "CreatesShell",
-        "new Shell without DialogSurfaces.apply");
+        "new Shell without DialogColors.apply");
   }
 
   // Operating system checks.
@@ -1369,6 +1369,49 @@ class ArchitectureTest {
         ROOT + ".launcher.archfixture.ToolkitChecks",
         "SWT.getPlatform",
         "SWT_GTK4");
+  }
+
+  // Platform seams.
+
+  /**
+   * The boolean {@code PlatformTraits} and {@code OsTraits} methods that answer a value; every
+   * other boolean would switch behavior in a shared class, which belongs in a seam interface.
+   */
+  private static final List<String> VALUE_TRAITS =
+      List.of("macKeys", "linuxKeys", "fileNamesIgnoreCase", "hidden", "runsInsteadOfOpening");
+
+  /**
+   * Outside the platform packages no class calls a boolean trait that is not a value: platform
+   * behavior goes through a seam the traits choose.
+   */
+  @Test
+  void behaviorOnlyThroughSeams() {
+    behaviorOnlyThroughSeamsRule().check(classes);
+  }
+
+  private static ArchRule behaviorOnlyThroughSeamsRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackages(ROOT + ".ui.swt.platform..", ROOT + ".core.util.os..")
+        .should()
+        .callMethodWhere(
+            new DescribedPredicate<JavaMethodCall>("call a boolean trait that is not a value") {
+              @Override
+              public boolean test(JavaMethodCall call) {
+                JavaClass owner = call.getTargetOwner();
+                return (owner.isAssignableTo(ROOT + ".ui.swt.platform.PlatformTraits")
+                        || owner.isAssignableTo(ROOT + ".core.util.os.OsTraits"))
+                    && call.getTarget().getRawReturnType().isEquivalentTo(boolean.class)
+                    && !VALUE_TRAITS.contains(call.getTarget().getName());
+              }
+            })
+        .because("a platform behavior is a seam interface; a trait answers a value");
+  }
+
+  @Test
+  void seamRulesFailOnTheirFixtures() throws ClassNotFoundException {
+    assertViolations(
+        behaviorOnlyThroughSeamsRule(), VIEW_FIXTURES + "BranchesOnATrait", "drawsSomethingElse");
   }
 
   // Collection declarations.

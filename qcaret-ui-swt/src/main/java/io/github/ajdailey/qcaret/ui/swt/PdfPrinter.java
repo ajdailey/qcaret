@@ -46,6 +46,18 @@ final class PdfPrinter {
   }
 
   /**
+   * Returns the print job name for a document: {@link #fileName} without {@code .pdf}, since the
+   * macOS save sheet appends it.
+   *
+   * @param document the document's name
+   * @return the job name
+   */
+  static String jobName(String document) {
+    String pdf = fileName(document);
+    return pdf.substring(0, pdf.length() - ".pdf".length());
+  }
+
+  /**
    * Returns the Print to File printer set to write a file. Must run on the UI thread, as {@code new
    * Printer} does.
    *

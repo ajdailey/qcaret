@@ -11,10 +11,12 @@ import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.controller.SyntaxMenu;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowStacking;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Control;
@@ -28,8 +30,8 @@ import org.eclipse.swt.widgets.Shell;
  * The main window's menu bar: one menu per {@link CommandGroup} with its {@link MenuTable} entries,
  * a {@link MenuTable#RADIO} command as a radio item that runs on selection only, the Encoding
  * menu's Reopen with Encoding and Save with Encoding cascades, and the Window menu's open
- * documents, below Minimize and Zoom where {@link PlatformTraits#windowMenuControls} holds. Item
- * state comes from {@link CommandStates}; this class only applies it.
+ * documents, below any controls {@link MenuBehavior#addWindowControls} adds (cocoa). Item state
+ * comes from {@link CommandStates}; this class only applies it.
  *
  * <p>Showing a top menu, or running one of its items, syncs that menu only. Enablement of every
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
@@ -98,7 +100,7 @@ final class MainMenuBar {
     items.clear();
     menus.clear();
     Menu bar = new Menu(shell, SWT.BAR);
-    boolean appMenu = AppMenu.present(shell.getDisplay());
+    Set<CommandId> systemCommands = MenuBehavior.PLATFORM.systemCommands(shell.getDisplay());
     for (final CommandGroup group : CommandGroup.values()) {
       if (!group.menu()) {
         continue;
@@ -114,7 +116,7 @@ final class MainMenuBar {
       }
       Menu target = menu;
       String cascade = null;
-      for (MenuTable.Entry entry : MenuTable.entries(group, appMenu)) {
+      for (MenuTable.Entry entry : MenuTable.entries(group, systemCommands)) {
         final CommandId command = entry.command();
         String submenu = command.submenu();
         if (submenu == null) {
@@ -163,17 +165,15 @@ final class MainMenuBar {
               }
             });
         items.put(command, item);
-        if (command == CommandId.ALWAYS_ON_TOP
-            && PlatformTraits.PLATFORM.explainsUnsupportedStacking()
-            && !states.enabled(command)) {
-          item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
+        if (command == CommandId.ALWAYS_ON_TOP && !states.enabled(command)) {
+          WindowStacking.PLATFORM.explainUnsupported(item);
         }
         if (command == CommandId.PREVIEW_BROWSER) {
           showReason(item, command);
         }
       }
-      if (group == CommandGroup.WINDOW && PlatformTraits.PLATFORM.windowMenuControls()) {
-        addWindowControls(menu, shell);
+      if (group == CommandGroup.WINDOW) {
+        MenuBehavior.PLATFORM.addWindowControls(menu, shell);
       }
       icons.decorate(menu);
       menu.addListener(
@@ -193,38 +193,6 @@ final class MainMenuBar {
       encodingsLoaded(encodings);
     }
     syncAll();
-  }
-
-  /**
-   * Puts Minimize ({@code Cmd+M}) and Zoom, then a separator, at the top of a Window menu. Zoom
-   * toggles the maximized state.
-   *
-   * @param menu the Window menu
-   * @param shell the window they act on
-   */
-  static void addWindowControls(Menu menu, final Shell shell) {
-    MenuItem minimize = new MenuItem(menu, SWT.PUSH, 0);
-    minimize.setText(UiText.MENU_MINIMIZE.text());
-    minimize.setAccelerator(SWT.MOD1 | 'M');
-    minimize.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            shell.setMinimized(true);
-          }
-        });
-    MenuItem zoom = new MenuItem(menu, SWT.PUSH, 1);
-    zoom.setText(UiText.MENU_ZOOM.text());
-    zoom.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            shell.setMaximized(!shell.getMaximized());
-          }
-        });
-    new MenuItem(menu, SWT.SEPARATOR, 2);
   }
 
   /**
@@ -308,14 +276,7 @@ final class MainMenuBar {
    */
   private void showReason(MenuItem item, CommandId command) {
     String reason = states.unavailable(command);
-    if (PlatformTraits.PLATFORM.showsMenuToolTips()) {
-      item.setToolTipText(reason);
-    } else {
-      item.setText(
-          reason == null
-              ? command.label()
-              : UiText.MENU_ITEM_REASON.format(command.label(), reason));
-    }
+    MenuBehavior.PLATFORM.showReason(item, command.label(), reason);
   }
 
   private void syncSyntax() {

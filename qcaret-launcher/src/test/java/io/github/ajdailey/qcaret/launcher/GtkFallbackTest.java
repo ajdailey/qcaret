@@ -57,8 +57,8 @@ class GtkFallbackTest {
     assertTrue(text.contains("toolkit=3."), text);
     assertTrue(
         text.contains(
-            "caretBlend=DIFFERENCE opensBrowser=true opensPrintDialog=true"
-                + " sizesToolPictures=false"),
+            "caretBlend=DIFFERENCE browser=Gtk3BrowserBehavior print=Gtk3PrintSupport"
+                + " sizing=NativeToolItemSizing"),
         text);
     assertTrue(
         text.contains("SWT_GTK4=1 is set but GTK 4 failed to load; running on GTK 3."), text);
@@ -118,12 +118,12 @@ class GtkFallbackTest {
               + traits.toolkitVersion()
               + " caretBlend="
               + traits.caretBlend()
-              + " opensBrowser="
-              + traits.opensBrowser()
-              + " opensPrintDialog="
-              + traits.opensPrintDialog()
-              + " sizesToolPictures="
-              + traits.sizesToolPictures());
+              + " browser="
+              + traits.browserBehavior().getClass().getSimpleName()
+              + " print="
+              + traits.printSupport().getClass().getSimpleName()
+              + " sizing="
+              + traits.toolItemSizing().getClass().getSimpleName());
     }
   }
 }

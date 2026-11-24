@@ -26,13 +26,8 @@ final class WindowsTraits implements OsTraits {
   }
 
   @Override
-  public boolean opensDeviceNames() {
-    return true;
-  }
-
-  @Override
-  public boolean dropsTrailingDotsAndSpaces() {
-    return true;
+  public DeviceNames deviceNames() {
+    return WindowsDeviceNames.INSTANCE;
   }
 
   @Override
@@ -50,13 +45,8 @@ final class WindowsTraits implements OsTraits {
   }
 
   @Override
-  public boolean confinesToSettings() {
-    return false;
-  }
-
-  @Override
-  public boolean webView2() {
-    return true;
+  public FileConfinement fileConfinement() {
+    return WindowsFileConfinement.INSTANCE;
   }
 
   @Override

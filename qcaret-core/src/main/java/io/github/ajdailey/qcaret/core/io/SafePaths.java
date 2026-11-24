@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.io;
 
+import io.github.ajdailey.qcaret.core.util.os.DeviceNames;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,10 +21,6 @@ import java.util.regex.Pattern;
  * files QCaret owns are contained in their directory.
  */
 public final class SafePaths {
-  private static final Pattern WINDOWS_RESERVED =
-      Pattern.compile(
-          "(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9]|CONIN\\$|CONOUT\\$)(\\..*)?",
-          Pattern.CASE_INSENSITIVE);
   private static final Pattern CHILD_NAME = Pattern.compile("[A-Za-z0-9._-]+");
   private static final Set<PosixFilePermission> OWNER_DIR =
       PosixFilePermissions.fromString("rwx------");
@@ -173,28 +170,6 @@ public final class SafePaths {
   }
 
   /**
-   * Reports whether a path names a Windows device or uses a device or raw namespace prefix: {@code
-   * \\.\}, {@code \\?\}, or a component that is a reserved device name such as {@code CON} or
-   * {@code COM1}, with or without an extension.
-   *
-   * @param path the path text
-   * @return true when Windows would open a device rather than a file
-   */
-  static boolean windowsDevice(String path) {
-    String text = path.replace('/', '\\');
-    if (text.startsWith("\\\\.\\") || text.startsWith("\\\\?\\")) {
-      return true;
-    }
-    for (String part : text.split("[\\\\:]")) {
-      String name = part.strip();
-      if (WINDOWS_RESERVED.matcher(name).matches()) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
    * Rejects a name for a new or renamed entry that the file system would change: a name ending in a
    * dot or space where the system drops them.
    *
@@ -206,16 +181,14 @@ public final class SafePaths {
   }
 
   /**
-   * Rejects a name ending in a dot or space where the system drops them.
+   * Rejects a name the system would change ({@link DeviceNames#checkNewName}).
    *
    * @param name one file name
    * @param os the system the name is for
    * @throws IOException naming the reason
    */
   static void checkNewName(String name, OsTraits os) throws IOException {
-    if (os.dropsTrailingDotsAndSpaces() && (name.endsWith(".") || name.endsWith(" "))) {
-      throw new IOException("Name ends in a dot or space, which Windows drops");
-    }
+    os.deviceNames().checkNewName(name);
   }
 
   private static void checkForm(String path) throws IOException {
@@ -223,7 +196,7 @@ public final class SafePaths {
   }
 
   /**
-   * Rejects an empty path, a NUL character, and a Windows device form where names open devices.
+   * Rejects an empty path, a NUL character, and a device form ({@link DeviceNames#opensDevice}).
    *
    * @param path the path text
    * @param os the system the path is for
@@ -236,7 +209,7 @@ public final class SafePaths {
     if (path.indexOf('\0') >= 0) {
       throw new IOException("Path contains a NUL character");
     }
-    if (os.opensDeviceNames() && windowsDevice(path)) {
+    if (os.deviceNames().opensDevice(path)) {
       throw new IOException("Path names a Windows device");
     }
   }

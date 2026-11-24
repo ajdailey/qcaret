@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.core.document.EditBatch;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
@@ -141,6 +142,18 @@ final class ViewViolations {
 
     String gtkVersion() {
       return System.getProperty("org.eclipse.swt.internal.gtk.version");
+    }
+  }
+
+  /** Traits with a boolean that switches behavior. */
+  interface SwitchingTraits extends PlatformTraits {
+    boolean drawsSomethingElse();
+  }
+
+  /** Branches on a behavior trait instead of calling a seam. */
+  static final class BranchesOnATrait {
+    int pick(SwitchingTraits traits) {
+      return traits.drawsSomethingElse() ? 1 : 0;
     }
   }
 

@@ -5,7 +5,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
-import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
 import org.eclipse.swt.custom.CaretListener;
@@ -53,7 +53,7 @@ final class DiffWindow {
     this.palette = palette;
     shell = new Shell(parent, SWT.SHELL_TRIM);
     Dialogs.inheritIcons(shell, parent);
-    DialogSurfaces.platform().apply(shell);
+    DialogColors.platform().apply(shell);
     shell.setText(
         UiText.COMPARE_WINDOW_TITLE.format(comparison.leftTitle(), comparison.rightTitle()));
     GridLayout layout = new GridLayout(4, false);

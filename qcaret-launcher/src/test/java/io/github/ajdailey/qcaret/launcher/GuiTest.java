@@ -38,10 +38,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Shell;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -67,18 +69,28 @@ class GuiTest {
 
   /**
    * Waits for the client area and the title, records them and the location, then quits. The title
-   * follows a document on a later UI turn, which SWT runs only once the startup events drain.
+   * follows a document on a later UI turn, which SWT runs only once the startup events drain. At a
+   * fractional monitor zoom a length reads back up to one point off ({@code ScaleSlack} in ui-swt),
+   * so a size or location within that of the expected one is recorded as expected. A screen too
+   * short for the window moves it up into the work area (150 % on 1080 px), as {@code
+   * WindowGeometry.place} does, so the expected location is the requested one clamped there.
    */
   private static final class Recorder implements Gui.Observer {
     final int width;
     final int height;
+    final Point requested;
     final String title;
     final List<String> observed = new ArrayList<String>();
     Workers workers;
 
     Recorder(int width, int height, String title) {
+      this(width, height, null, title);
+    }
+
+    Recorder(int width, int height, Point requested, String title) {
       this.width = width;
       this.height = height;
+      this.requested = requested;
       this.title = title;
     }
 
@@ -93,14 +105,18 @@ class GuiTest {
           new Runnable() {
             @Override
             public void run() {
-              Rectangle area = window.shell().getClientArea();
-              String shown = window.shell().getText();
-              boolean ready = area.width == width && area.height == height && title.equals(shown);
+              Shell shell = window.shell();
+              int slack = shell.getMonitor().getZoom() % 100 == 0 ? 0 : 1;
+              Rectangle area = shell.getClientArea();
+              String shown = shell.getText();
+              int shownWidth = near(area.width, width, slack);
+              int shownHeight = near(area.height, height, slack);
+              boolean ready = shownWidth == width && shownHeight == height && title.equals(shown);
               if (ready || System.nanoTime() > deadline) {
                 observed.add(shown);
-                observed.add(area.width + "x" + area.height);
+                observed.add(shownWidth + "x" + shownHeight);
                 if (POSITIONED) {
-                  observed.add(window.shell().getLocation().toString());
+                  observed.add(location(shell, slack).toString());
                 }
                 controller.quit();
               } else {
@@ -108,6 +124,23 @@ class GuiTest {
               }
             }
           });
+    }
+
+    /** Returns the location, recorded as the requested one when it is where placement puts it. */
+    private Point location(Shell shell, int slack) {
+      Point at = shell.getLocation();
+      if (requested == null) {
+        return at;
+      }
+      Rectangle work = shell.getMonitor().getClientArea();
+      Point size = shell.getSize();
+      int x = Math.max(work.x, Math.min(requested.x, work.x + work.width - size.x));
+      int y = Math.max(work.y, Math.min(requested.y, work.y + work.height - size.y));
+      return Math.abs(at.x - x) <= slack && Math.abs(at.y - y) <= slack ? requested : at;
+    }
+
+    private static int near(int actual, int expected, int slack) {
+      return Math.abs(actual - expected) <= slack ? expected : actual;
     }
   }
 
@@ -293,7 +326,7 @@ class GuiTest {
   void opensAtTheRequestedSizeThenShutsDownWithoutLeakingThreads() throws Exception {
     Path file = Files.createFile(temp.resolve("notes.txt"));
     String title = "notes.txt - " + file.toRealPath() + " - QCaret";
-    final Recorder recorder = new Recorder(900, 600, title);
+    final Recorder recorder = new Recorder(900, 600, new Point(50, 40), title);
     StartupRequest request = request(List.of(new FileRequest(file)), 900, 600, 50, 40, true);
     assertEquals(0, run(request, Preferences.DEFAULTS, recorder));
     assertEquals(placed(title, "900x600", "Point {50, 40}"), recorder.observed);
@@ -351,7 +384,7 @@ class GuiTest {
     Preferences remembered =
         Preferences.DEFAULTS.withWindow(new WindowState(60, 50, 700, 500, false));
     assertTrue(config().save(Preferences.DEFAULTS, remembered));
-    Recorder recorder = new Recorder(700, 500, UNTITLED);
+    Recorder recorder = new Recorder(700, 500, new Point(60, 50), UNTITLED);
     assertEquals(0, run(request(List.of(), null, null, null, null, false), remembered, recorder));
     assertEquals(placed(UNTITLED, "700x500", "Point {60, 50}"), recorder.observed);
     WindowState saved = config().load().window();

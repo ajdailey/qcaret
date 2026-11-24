@@ -3,17 +3,15 @@ package io.github.ajdailey.qcaret.launcher;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.FileConfinement;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
-import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.IOException;
+import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Process-wide settings applied before the Display exists. */
 final class PlatformSetup {
-  /** The SWT property naming the WebView2 user data folder. */
-  static final String EDGE_DATA_DIR = "org.eclipse.swt.browser.EdgeDataDir";
-
   /** The settings directory's cache folder. */
   static final String CACHE = "cache";
 
@@ -25,30 +23,26 @@ final class PlatformSetup {
   private PlatformSetup() {}
 
   /**
-   * In explicit and portable mode on Linux, sets {@code user.home} to the settings directory so GTK
-   * SWT writes its {@code .swt/trims.prefs} there instead of the user's home, keeping the first
-   * value in {@link HomeFolder#PROPERTY} for the workspace browser's Home. On Windows, in every
-   * mode, sets {@link #EDGE_DATA_DIR} to {@code <settings>/cache/webview2}, so an embedded WebView2
-   * browser writes its data inside the settings directory.
+   * Applies the system's {@link FileConfinement}: in explicit and portable mode on Linux, moves
+   * {@code user.home} to the settings directory; on Windows, in every mode, places WebView2's data
+   * in {@code <settings>/cache/webview2}.
    *
    * @param os the system
    * @param settings the settings directory
    */
-  static void apply(OsTraits os, SettingsLocation settings) {
-    if (settings.confined(os)) {
-      if (System.getProperty(HomeFolder.PROPERTY) == null) {
-        System.setProperty(HomeFolder.PROPERTY, System.getProperty("user.home", ""));
-      }
-      System.setProperty("user.home", settings.directory().toString());
-    }
-    if (os.webView2()) {
-      try {
-        System.setProperty(
-            EDGE_DATA_DIR,
-            SafePaths.child(SafePaths.child(settings.directory(), CACHE), WEBVIEW2).toString());
-      } catch (IOException e) {
-        LOG.warn("No WebView2 data folder: {}", LogText.oneLine(e.getMessage()));
-      }
+  static void apply(OsTraits os, final SettingsLocation settings) {
+    FileConfinement confinement = os.fileConfinement();
+    confinement.confineHome(settings.perUser(), settings.directory());
+    try {
+      confinement.placeBrowserData(
+          new FileConfinement.BrowserData() {
+            @Override
+            public Path folder() throws IOException {
+              return SafePaths.child(SafePaths.child(settings.directory(), CACHE), WEBVIEW2);
+            }
+          });
+    } catch (IOException e) {
+      LOG.warn("No WebView2 data folder: {}", LogText.oneLine(e.getMessage()));
     }
   }
 }

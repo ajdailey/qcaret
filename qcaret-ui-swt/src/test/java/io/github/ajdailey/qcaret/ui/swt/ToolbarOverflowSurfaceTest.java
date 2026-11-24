@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,7 +200,7 @@ class ToolbarOverflowSurfaceTest {
     assertEquals(buttons(), reachable(menu));
     MenuItem last = menu.getItem(menu.getItemCount() - 1);
     assertEquals(CommandId.ZOOM_OUT, last.getData());
-    if (PlatformTraits.PLATFORM.menuImages() && !"1".equals(System.getenv("SWT_GTK4"))) {
+    if (!RunningPlatform.COCOA && !"1".equals(System.getenv("SWT_GTK4"))) {
       assertNotNull(last.getImage());
     }
     width(WIDE);
@@ -297,8 +297,7 @@ class ToolbarOverflowSurfaceTest {
     MenuItem browser = entry(row.menu(), CommandId.PREVIEW_BROWSER);
     assertNotNull(browser);
     assertFalse(browser.getEnabled());
-    String shown =
-        PlatformTraits.PLATFORM.showsMenuToolTips() ? browser.getToolTipText() : browser.getText();
+    String shown = !RunningPlatform.GTK4 ? browser.getToolTipText() : browser.getText();
     assertTrue(shown.contains(reason), shown);
   }
 }

@@ -2,12 +2,11 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.ToolItemSizing;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.InaccessibleObjectException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,10 +39,10 @@ import org.eclipse.swt.widgets.ToolItem;
  * #follow}). GTK refreshes {@code getBackground} and sends {@code SWT.Settings} only on the first
  * {@code Display.sleep} after {@code setDarkThemePreferred}, so a native ink source is read through
  * {@link PlatformTraits#shownBackground}, a drawn pixel on GTK. GTK's disabled effect lightens an
- * image, which on a dark background brightens it, so there {@link #showState} shows a disabled item
- * a faded copy. SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha,
- * so the same faded copy serves menu items. Images are created on first use on the UI thread and
- * disposed with the owner control.
+ * image, which on a dark background brightens it, so there a disabled item shows a faded copy: tool
+ * items through {@link #fadeDisabled}, menu items through {@link MenuBehavior#disabledOnDark}.
+ * SWT's disabled copy of a GTK menu image brightens the same way and keeps the alpha. Images are
+ * created on first use on the UI thread and disposed with the owner control.
  */
 final class ToolIcons implements ChromeColors.Icons {
   /** Opens files. */
@@ -213,31 +212,6 @@ final class ToolIcons implements ChromeColors.Icons {
   /** Side of an icon at 100% zoom. */
   private static final int SIDE = 16;
 
-  /** SWT's {@code ToolItem.imageHandle}, the item's GtkPicture; null off GTK 4. */
-  private static final Field PICTURE;
-
-  /** SWT's internal {@code GTK4.gtk_picture_set_can_shrink}; null off GTK 4. */
-  private static final Method CAN_SHRINK;
-
-  static {
-    Field picture = null;
-    Method canShrink = null;
-    if (PlatformTraits.PLATFORM.sizesToolPictures()) {
-      try {
-        picture = ToolItem.class.getDeclaredField("imageHandle");
-        picture.setAccessible(true);
-        canShrink =
-            Class.forName("org.eclipse.swt.internal.gtk4.GTK4")
-                .getMethod("gtk_picture_set_can_shrink", long.class, boolean.class);
-      } catch (ReflectiveOperationException | SecurityException | InaccessibleObjectException e) {
-        picture = null;
-        canShrink = null;
-      }
-    }
-    PICTURE = picture;
-    CAN_SHRINK = canShrink;
-  }
-
   private final Display display;
   private final Control owner;
   private final Control source;
@@ -249,7 +223,6 @@ final class ToolIcons implements ChromeColors.Icons {
   private final Map<ToolItem, Boolean> checkItems = new LinkedHashMap<ToolItem, Boolean>();
 
   private final boolean fixedInk;
-  private final boolean faded = PlatformTraits.PLATFORM.fadesDisabledIcons();
   private boolean disabledCopies;
   private boolean lightChecked = true;
   private Image blank;
@@ -338,9 +311,9 @@ final class ToolIcons implements ChromeColors.Icons {
     if (image == null) {
       return false;
     }
-    keepIconSize(item);
+    ToolItemSizing.PLATFORM.keepIconSize(item);
     item.setImage(image);
-    if (disabledCopies) {
+    if (disabledCopies && darkBackground) {
       item.setDisabledImage(get(name + FADED));
     }
     if (items.put(item, name) == null) {
@@ -488,10 +461,12 @@ final class ToolIcons implements ChromeColors.Icons {
   }
 
   /**
-   * Gives every tool item given to {@link #apply} a faded copy of its icon as its disabled image
-   * while on, and the platform's disabled image while off. SWT's disabled copy on win32 maps the
-   * light ink to gray 225, brighter than the enabled ink, so on a dark surface QCaret paints
-   * ({@link ChromeColors}) a disabled item would look enabled.
+   * Gives every tool item given to {@link #apply} a faded copy of its icon, as its image while
+   * disabled and as its disabled image, while on and the set takes the light ink; while off, the
+   * platform's disabled image. SWT's disabled copy maps the light ink to gray 225, brighter than
+   * the enabled ink, and GTK's disabled effect brightens an image on a dark background, so a
+   * disabled item would look enabled. The chrome colors turn it on ({@link ChromeColors}): on win32
+   * under dark, on GTK always.
    *
    * @param on true for the faded copies
    */
@@ -541,12 +516,20 @@ final class ToolIcons implements ChromeColors.Icons {
   }
 
   /**
-   * Shows a text item's ink for its checked state; call after {@code setSelection}. An item not
-   * given to {@link #applyChecked} keeps its colors.
+   * Sets a tool item's selection and shows the ink of its checked state. An item not given to
+   * {@link #applyChecked} keeps its colors.
    *
    * @param item the item
+   * @param selected true to check the item
    */
-  void showChecked(ToolItem item) {
+  void check(ToolItem item, boolean selected) {
+    if (!item.isDisposed() && item.getSelection() != selected) {
+      item.setSelection(selected);
+    }
+    showChecked(item);
+  }
+
+  private void showChecked(ToolItem item) {
     Boolean shown = checkItems.get(item);
     if (shown == null || item.isDisposed()) {
       return;
@@ -575,11 +558,12 @@ final class ToolIcons implements ChromeColors.Icons {
     if (name == null || item.isDisposed()) {
       return;
     }
-    Image image = get(faded && darkBackground && !item.getEnabled() ? name + FADED : name);
+    boolean fade = disabledCopies && darkBackground;
+    Image image = get(fade && !item.getEnabled() ? name + FADED : name);
     if (item.getImage() != image) {
       item.setImage(image);
     }
-    Image disabled = disabledCopies ? get(name + FADED) : null;
+    Image disabled = fade ? get(name + FADED) : null;
     if (item.getDisabledImage() != disabled) {
       item.setDisabledImage(disabled);
     }
@@ -596,29 +580,25 @@ final class ToolIcons implements ChromeColors.Icons {
     if (name == null || item.isDisposed()) {
       return;
     }
-    Image image = get(faded && darkBackground && !item.getEnabled() ? name + FADED : name);
+    Image image = shown(name, item.getEnabled());
     if (item.getImage() != image) {
       item.setImage(image);
     }
   }
 
-  /**
-   * Gives a GTK 4 item's picture the icon's size as its minimum. GTK 4 SWT wraps the GtkPicture in
-   * a box that measures 0 high for any width under GTK 4.14, so the tool bar lays the item out at
-   * its padding and draws no icon. Without the SWT internals this names, the item stays blank.
-   */
-  private static void keepIconSize(ToolItem item) {
-    if (CAN_SHRINK == null) {
-      return;
+  private Image shown(final String name, boolean enabled) {
+    Image plain = get(name);
+    if (enabled || !darkBackground) {
+      return plain;
     }
-    try {
-      long picture = PICTURE.getLong(item);
-      if (picture != 0) {
-        CAN_SHRINK.invoke(null, picture, false);
-      }
-    } catch (ReflectiveOperationException | IllegalArgumentException e) {
-      // The item keeps SWT's layout.
-    }
+    return MenuBehavior.PLATFORM.disabledOnDark(
+        plain,
+        new MenuBehavior.FadedImage() {
+          @Override
+          public Image get() {
+            return ToolIcons.this.get(name + FADED);
+          }
+        });
   }
 
   /**

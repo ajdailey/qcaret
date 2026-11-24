@@ -79,20 +79,11 @@ public interface OsTraits {
   LockKind fileLock();
 
   /**
-   * Reports whether a reserved device name such as {@code CON} or a {@code \\.\} prefix opens a
-   * device rather than a file.
+   * Returns the file name forms this system changes or opens as a device.
    *
-   * @return true on Windows
+   * @return {@link WindowsDeviceNames} on Windows, else {@link FileNames}
    */
-  boolean opensDeviceNames();
-
-  /**
-   * Reports whether the file system drops a trailing dot or space from a file name, so creating
-   * {@code a.} creates {@code a}.
-   *
-   * @return true on Windows
-   */
-  boolean dropsTrailingDotsAndSpaces();
+  DeviceNames deviceNames();
 
   /**
    * Returns the per-user settings directory: {@code %APPDATA%\QCaret} on Windows, {@code
@@ -117,20 +108,11 @@ public interface OsTraits {
   Path launcherDirectory(Path home);
 
   /**
-   * Reports whether explicit and portable mode keep QCaret's files out of the user's home: the
-   * toolkit writes under {@code user.home} and the embedded browser under the XDG directories, so
-   * {@code user.home} moves to the settings directory and the user guide opens outside the process.
+   * Returns where the toolkit and the embedded browser keep their files.
    *
-   * @return true on Linux
+   * @return the system's {@link FileConfinement}
    */
-  boolean confinesToSettings();
-
-  /**
-   * Reports whether the embedded browser is WebView2, which keeps a user data folder.
-   *
-   * @return true on Windows
-   */
-  boolean webView2();
+  FileConfinement fileConfinement();
 
   /**
    * Returns the folders the system keeps fonts in.

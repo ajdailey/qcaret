@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -36,16 +35,16 @@ class Gtk3NativeNamesTest {
 
   @Test
   void onlyGtk3NamesThroughAtk() {
-    if (PlatformTraits.PLATFORM.namesThroughAtk()) {
+    if (RunningPlatform.GTK && !RunningPlatform.GTK4) {
       assertInstanceOf(Gtk3NativeNames.class, NativeNames.PLATFORM);
     } else {
-      assertSame(NativeNames.NONE, NativeNames.PLATFORM);
+      assertInstanceOf(NoNativeNames.class, NativeNames.PLATFORM);
     }
   }
 
   @Test
   void anIconItemAndATreeReadTheirNames() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.namesThroughAtk(), "ATK names: GTK 3 only");
+    assumeTrue(RunningPlatform.GTK && !RunningPlatform.GTK4, "ATK names: GTK 3 only");
     Display display = new Display();
     Image image = new Image(display, 16, 16);
     try {

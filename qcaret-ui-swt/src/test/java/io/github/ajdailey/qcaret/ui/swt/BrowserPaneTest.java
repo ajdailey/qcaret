@@ -19,7 +19,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -436,7 +436,7 @@ class BrowserPaneTest {
 
   @Test
   void theFragmentScrollIsTheOneNavigationLetThrough() {
-    assumeTrue(PlatformTraits.PLATFORM.scrollsBrowserToFragments(), "no fragment scroll");
+    assumeTrue(RunningPlatform.GTK, "no fragment scroll");
     BrowserPane pane = pane();
     final List<String> allowed = new ArrayList<String>();
     pane.browser()

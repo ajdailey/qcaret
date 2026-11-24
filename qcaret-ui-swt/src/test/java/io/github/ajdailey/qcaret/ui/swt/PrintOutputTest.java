@@ -29,6 +29,8 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.PrintSupport;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -406,15 +408,11 @@ class PrintOutputTest {
     String[] platforms = {"win32", "cocoa", "gtk", "gtk"};
     boolean[] gtk4 = {false, false, false, true};
     for (int i = 0; i < platforms.length; i++) {
-      PlatformTraits traits = PlatformTraits.of(platforms[i], gtk4[i]);
-      int scope =
-          traits.printDialogOmitsSelection() ? PrinterData.ALL_PAGES : PrinterData.SELECTION;
+      PrintSupport print = PlatformTraits.of(platforms[i], gtk4[i]).printSupport();
+      int scope = i == 0 ? PrinterData.ALL_PAGES : PrinterData.SELECTION;
       assertEquals(
-          PrinterData.ALL_PAGES,
-          PrintDialogs.create(window.shell(), false, traits).getScope(),
-          platforms[i]);
-      assertEquals(
-          scope, PrintDialogs.create(window.shell(), true, traits).getScope(), platforms[i]);
+          PrinterData.ALL_PAGES, print.dialog(window.shell(), false).getScope(), platforms[i]);
+      assertEquals(scope, print.dialog(window.shell(), true).getScope(), platforms[i]);
     }
   }
 
@@ -433,7 +431,7 @@ class PrintOutputTest {
     openFile("first\nsecond\nthird\n");
     select(6, 12);
     data.scope =
-        PrintDialogs.create(window.shell(), true, PlatformTraits.of("win32", false)).getScope();
+        PlatformTraits.of("win32", false).printSupport().dialog(window.shell(), true).getScope();
     print(data);
     awaitOutput();
     String text = pageText(1);
@@ -513,7 +511,7 @@ class PrintOutputTest {
   /** GTK 4, where SWT's PrintDialog throws UnsatisfiedLinkError. */
   @Test
   void withoutAPrintDialogPrintWritesThePdfASaveDialogNames() throws Exception {
-    assumeFalse(PlatformTraits.PLATFORM.opensPrintDialog(), "PrintDialog opens here");
+    assumeFalse(!RunningPlatform.GTK4, "PrintDialog opens here");
     requirePrinter();
     openFile(numbered(3));
     choosePdf(pdf.toString());
@@ -526,7 +524,7 @@ class PrintOutputTest {
 
   @Test
   void aCanceledPdfSaveDialogPrintsNothing() throws Exception {
-    assumeFalse(PlatformTraits.PLATFORM.opensPrintDialog(), "PrintDialog opens here");
+    assumeFalse(!RunningPlatform.GTK4, "PrintDialog opens here");
     openFile(numbered(3));
     choosePdf(null);
     controller.execute(CommandId.PRINT);

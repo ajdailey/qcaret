@@ -135,12 +135,12 @@ scroll.
   menu's `Show`. Showing a menu or running one of its items syncs that menu's
   checks.
 - A Display key filter runs window bindings that are not accelerators (Ctrl
-  plus keypad +), when enabled, whichever control of the shell has focus.
-  Where `PlatformTraits.acceleratorsFollowFocusControl` holds (GTK 4), it runs
+  plus keypad +), when enabled, whichever control of the shell has focus;
+  `KeyBehavior.windowCommand` names the command. On GTK 4 (`Gtk4KeyBehavior`) it runs
   the accelerators too and consumes the key: SWT runs a GTK 4 accelerator from
   the window's shortcut controller after the focused control, and the editor's
-  `StyledText` inserted the CR that Ctrl+Shift+M carries. Where
-  `PlatformTraits.browserKeysSkipAccelerators` holds (win32), it runs the
+  `StyledText` inserted the CR that Ctrl+Shift+M carries. On win32
+  (`Win32KeyBehavior`) it runs the
   accelerators too for a key in a `Browser`: SWT's Edge sends a key with Ctrl
   or Alt, or one that types no character, to the `Browser` from WebView2's
   `AcceleratorKeyPressed`, and the window's native accelerators never see it.
@@ -155,9 +155,8 @@ scroll.
   when a keymap change rebuilds the menus. Reopen with Encoding starts with
   Automatic Detection, which calls `ApplicationController.reopenWithDetection`.
 - The Window menu lists the windows, when there are several, and the open
-  documents, numbered in that order, the first nine as mnemonics. Where
-  `PlatformTraits.windowMenuControls` holds (cocoa),
-  `MainMenuBar.addWindowControls` puts Minimize (`Cmd+M`,
+  documents, numbered in that order, the first nine as mnemonics. On cocoa
+  `MenuBehavior.addWindowControls` (`CocoaMenuBehavior`) puts Minimize (`Cmd+M`,
   `Shell.setMinimized`) and Zoom (toggles `Shell.setMaximized`), then a
   separator, at its top; SWT adds neither to an application-defined Window
   menu. No default binding uses `Cmd+M`. Minimize is no `CommandId`, so the
@@ -188,8 +187,10 @@ popup holds the view weakly, so it does not keep a closed document.
 
 ### macOS application menu
 
-`AppMenu.hook` wires the system's application menu on cocoa; elsewhere there is
-no application menu and `hook` does nothing.
+`AppMenu.hook` passes the window set's actions to `MenuBehavior.hookAppMenu`,
+which `CocoaMenuBehavior` wires to the system's application menu; elsewhere it
+hooks nothing. `MenuBehavior.systemCommands` names the commands the menu bar
+leaves out: About, Preferences and Quit on cocoa, none elsewhere.
 
 - About, Quit and Preferences run `ABOUT`, `QUIT` and `PREFERENCES` in the
   window activated last and are left out of the menu bar; Hide, Hide Others and
@@ -202,7 +203,8 @@ no application menu and `hook` does nothing.
   opens nothing, and a name that does not parse logs a warning, since an
   exception there reaches the event loop. A cold start gets the files as
   events in its first event-loop passes, after it chose to restore the session:
-  a start that names nothing runs `LaunchDocuments.collect` right after the
+  a start that names nothing runs `LaunchDocuments.collect` (`CocoaLaunchDocuments`,
+  `DocumentEventLoop`) right after the
   Display, before `AppMenu.hook`, and starts with any files it collects as file
   arguments, releasing `SessionLock` (the drain is unverified on cocoa).
   A launch that hands off to a running instance takes them with
@@ -276,7 +278,7 @@ popup is built on each click and replaces the previous one. A click on the
 preview field, while it names a renderer, opens Basic and Browser the same way
 as radio items running View > Markdown View's commands; Browser is disabled
 where it cannot run, with the reason in its tool tip, or in its label where
-`PlatformTraits.showsMenuToolTips` is false.
+GTK 4, which drops menu tool tips (`MenuBehavior.label`).
 
 `MemoryGauge` ends the bar while `ui.memoryIndicator` is on and is excluded
 from the layout while it is off. It paints `MemoryFields.text` over a bar
@@ -310,7 +312,8 @@ list lacks, so OK does not drop it.
 
 ## Placement
 
-- `place` sizes and positions the shell through `WindowGeometry` before `open`.
+- `place` sizes and positions the shell through `WindowGeometry` before `open`,
+  as `WindowPlacement` runs it.
   On Wayland (`org.eclipse.swt.internal.gdk.backend` is `wayland`) the position
   is skipped and the size applies. On win32 `computeTrim` overstates the height
   once a menu bar is set, so the window is placed again with the trim measured
@@ -326,22 +329,23 @@ list lacks, so OK does not drop it.
 
 ## Always on Top
 
-View > Always on Top runs `AlwaysOnTop` in app, which calls
-`MainView.setOnTop` and reads `onTopSupported`; `MainWindow` passes both to
-`WindowStacking.PLATFORM`, one implementation chosen on first use, after the
-Display exists. SWT has no public call, so each implementation reaches SWT
-internals by reflection and the product compiles against every platform's SWT
-jar. `ArchitectureTest.reflectionOnlyInSanctionedClasses` allows reflection
-only in these classes, `ToolIcons`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
-([Accessible names](#accessible-names)) and `core.io.Flock`;
-`noSwtInternals` is unchanged.
+View > Always on Top runs `AlwaysOnTop` in app, which calls `MainView.setOnTop`
+and reads `onTopSupported`; `MainWindow` passes both to
+`WindowStacking.PLATFORM` (`ui.swt.platform`), which `PlatformTraits.stacking`
+chooses on first use, after the Display exists. SWT has no public call, so each
+implementation reaches SWT internals by reflection and the product compiles
+against every platform's SWT jar.
+`ArchitectureTest.reflectionOnlyInSanctionedClasses` allows reflection only in
+these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
+([Accessible names](#accessible-names)), all in `ui.swt.platform`, and
+`core.io.Flock`; `noSwtInternals` is unchanged.
 
 | Platform | Class | Call | Verified |
 |---|---|---|---|
 | win32 | `Win32Stacking` | `OS.SetWindowPos` on `Control.handle` with `HWND_TOPMOST` or `HWND_NOTOPMOST`, no move, size or activation | In CI: `WS_EX_TOPMOST` each way |
 | cocoa | `CocoaStacking` | `NSWindow.setLevel` on `Shell.window`, floating (3) or normal (0), also on the window's dialogs | In CI: the window's level and a dialog's, each way |
 | GTK 3 on X11 | `GtkX11Stacking` | `GTK3.gtk_window_set_keep_above` on `Shell.shellHandle` | Under Xvfb: `_NET_WM_STATE_ABOVE` set and cleared when the window maps |
-| GTK 3 on Wayland, GTK 4 | `WindowStacking.NONE` | None | Item disabled |
+| GTK 3 on Wayland, GTK 4 | `WindowManagerStacking` | None | Item disabled |
 
 - A member that does not resolve, or a call that fails, logs one WARN and
   leaves the stacking unsupported (`PlatformStacking`); nothing throws to the
@@ -359,20 +363,22 @@ only in these classes, `ToolIcons`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
   Native file and message dialogs are sheets or modal panels, which AppKit
   stacks above. Only GTK on X11 is measured.
 - When unsupported on GTK 3 the item's tool tip names the window manager's
-  window menu. SWT drops menu item tool tips on GTK 4.
+  window menu (`WindowStacking.explainUnsupported`, a no-op on win32 and
+  cocoa). SWT drops menu item tool tips on GTK 4.
 
 ## Full Screen
 
 View > Full Screen (F11; Control+Command+F on macOS) calls
 `MainView.setFullScreen` with the opposite of `fullScreen`; `MainWindow` passes
-both to `FullScreen`. The state is not saved. While full screen, the bounds
+both to `FullScreen` (`ui.swt.platform`), which `PlatformTraits.fullScreen`
+creates per window. The state is not saved. While full screen, the bounds
 tracking skips every event, so `windowBounds` and `windowMaximized` report the
 window before full screen, which a quit saves. Esc does not leave full screen.
 
-| | win32, GTK | cocoa (`PlatformTraits.fullScreenSpace`) |
+| | win32, GTK (`NativeFullScreen`) | cocoa (`CocoaFullScreen`) |
 |---|---|---|
 | State | The last request: set before `Shell.setFullScreen(true)` and cleared after `setFullScreen(false)`, so the size events win32 sends inside the call count as full screen | `Shell.getFullScreen`, which the title bar button also changes |
-| Change | During the call on win32; a window manager request on GTK | An AppKit animation into a space of its own, after the call returns. AppKit ignores a change requested during the animation, so `FullScreen` holds a request made within `SETTLE_MS` (1 s) of the previous change until then, makes it again while the shell does not show it (at most `RETRIES`), and the check item shows the held request |
+| Change | During the call on win32; a window manager request on GTK | An AppKit animation into a space of its own, after the call returns. AppKit ignores a change requested during the animation, so `CocoaFullScreen` holds a request made within `SETTLE_MS` (1 s) of the previous change until then, makes it again while the shell does not show it (at most `RETRIES`), and the check item shows the held request |
 | Menu bar | Stays in the window | The system menu bar, shown when the pointer reaches the top edge |
 
 SWT's `Shell.setBounds` and `setSize` leave full screen on cocoa and GTK
@@ -385,10 +391,11 @@ screen about 1 s after it was made.
 ## Accessible names
 
 `AccessibleName` (`ui.swt.platform`) sets the name a screen reader reads for a
-control. Where `PlatformTraits.labelsByDescription` holds (cocoa), the name is
-also the accessible description, and `attach` adds `ACC.ROLE_GROUP`: VoiceOver
-reads a `Canvas` without a role as `SWTComposite` with a blank description and
-does not read its name. `attachKeepingRole` leaves the control's own role.
+control, and passes a description listener to `AccessibleLabels.describe`. On
+cocoa (`CocoaAccessibleLabels`) the name is also the accessible description,
+and `attach` adds `ACC.ROLE_GROUP`: VoiceOver reads a `Canvas` without a role as `SWTComposite`
+with a blank description and does not read its name. `attachKeepingRole` leaves
+the control's own role.
 
 | Control | Name | Role on cocoa |
 |---|---|---|
@@ -401,13 +408,13 @@ does not read its name. `attachKeepingRole` leaves the control's own role.
 SWT on GTK calls Java accessibility listeners only for the controls it draws,
 not for native widgets such as a tool item or a `Tree`. `ToolBarNames.attach`
 names each toolbar item that carries a `CommandId` by the command's title, and
-`ToolBarNames.name` a `ToolMenu` drop-down added later by its title,
-through the toolbar's `Accessible` and through `NativeNames`
-(`ui.swt.platform`); `OutlineDock` names its `Tree` Outline through
-`AccessibleName` and `NativeNames`. `NativeNames` is
-`Gtk3NativeNames` on GTK 3, which sets `accessible-name` on the widget's ATK
-object through SWT internals (a tool item's on the GtkButton inside it), and
-`NONE` elsewhere. Read through AT-SPI under Xvfb (GTK 3.24.41, GTK 4.14.5):
+`ToolBarNames.name` a `ToolMenu` drop-down added later by its title, through
+the toolbar's `Accessible` and through `NativeNames` (`ui.swt.platform`);
+`OutlineDock` names its `Tree` Outline through `AccessibleName` and
+`NativeNames`. `NativeNames` is `Gtk3NativeNames` on GTK 3, which sets
+`accessible-name` on the widget's ATK object through SWT internals (a tool
+item's on the GtkButton inside it); its elsewhere `NoNativeNames` sets nothing.
+Read through AT-SPI under Xvfb (GTK 3.24.41, GTK 4.14.5):
 
 | Platform | Toolbar icon buttons | Outline `Tree` |
 |---|---|---|
@@ -423,15 +430,18 @@ in Results take the `Label` before them (`StyledText.getAssociatedLabel`).
 
 ## Platform traits
 
-Every platform difference in the view layer is a method of `PlatformTraits`
+Every platform difference in the view layer goes through `PlatformTraits`
 (`ui.swt.platform`), answered by `Win32Traits`, `CocoaTraits`, `Gtk3Traits` and
-`Gtk4Traits`; the GTK pair share `GtkTraits`. `PlatformTraits.PLATFORM` is
-chosen by `LoadedToolkit` when the interface is first used: from
-`SWT.getPlatform()`, and on GTK from the version SWT records in
-`org.eclipse.swt.internal.gtk.version`. `LoadedToolkit` initializes `Display`
-first, whose static initializer loads SWT's GTK library and records the
-version, so the choice holds before a `Display` exists. SWT 3.135.0 falls back
-in both directions (`OS` static initializer, verified with `javap`):
+`Gtk4Traits`; the GTK pair share `GtkTraits`. A value a view class needs is a
+`PlatformTraits` method; behavior that differs is a seam interface whose
+implementation a `PlatformTraits` method returns. The seams QLogg shares carry
+QLogg's names. `PlatformTraits.PLATFORM` is chosen by `LoadedToolkit` when the
+interface is first used: from `SWT.getPlatform()`, and on GTK from the version
+SWT records in `org.eclipse.swt.internal.gtk.version`. `LoadedToolkit`
+initializes `Display` first, whose static initializer loads SWT's GTK library
+and records the version, so the choice holds before a `Display` exists. SWT
+3.135.0 falls back in both directions (`OS` static initializer, verified with
+`javap`):
 
 | Requested | Fails to load | SWT loads | `LoadedToolkit` |
 |---|---|---|---|
@@ -440,67 +450,70 @@ in both directions (`OS` static initializer, verified with `javap`):
 | Either | Both | Nothing | Logs the `LinkageError` or `SWTError` at DEBUG and picks `Gtk3Traits`; the launcher's `Gui` then ends the launch with exit status 3 |
 
 `PlatformTraits.of` builds any platform's traits, so `PlatformTraitsTest`
-checks all four tables on Linux.
-`ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call
-outside that package, and on a `System.getenv` call in `ui.swt` or the launcher
-outside it. `swtInternalNamesOnlyInPlatformClasses` fails on a class outside
-that package and the reflection classes whose constant pool holds a string
-starting `org.eclipse.swt.internal.`, such as a GTK property name.
+checks every value and seam class of all four on Linux, and fails on a boolean
+`PlatformTraits` method other than `macKeys` and `linuxKeys`.
+`ArchitectureTest.platformOnlyInTraits` fails on a `SWT.getPlatform()` call or
+an `SWT_GTK4` string outside that package, and on a `System.getenv` call in
+`ui.swt` or the launcher outside it. `swtInternalNamesOnlyInPlatformClasses`
+fails on a class outside that package and the reflection classes whose constant
+pool holds a string starting `org.eclipse.swt.internal.`, such as a GTK property
+name. `behaviorOnlyThroughSeams` fails on a call, outside `ui.swt.platform` and
+`core.util.os`, of a boolean `PlatformTraits` or `OsTraits` method other than
+the value traits `macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden` and
+`runsInsteadOfOpening`.
+
+### Values
 
 | Method | win32 | cocoa | GTK 3 | GTK 4 | Caller |
 |---|---|---|---|---|---|
 | `name` | `win32` | `cocoa` | `gtk` | `gtk` | `MainWindow.toolkitDescription` |
 | `monospaceFamily`, `monospaceSize` | Consolas 10 | Menlo 12 | Monospace 10 | Monospace 10 | `Dialogs.monospaceName`, `monospaceSize` |
 | `caretBlend` | XOR | difference | difference | over | `CaretInk.platform` |
-| `typesWithAlt` | - | yes | - | - | `EditorPane.route`: Option and a key types the character |
-| `systemAppMenu` | - | yes | - | - | `AppMenu.present` |
-| `checksPrinterList` | yes | yes | - | - | `MainWindow.choosePrinter`: an empty list shows a notice |
-| `opensBrowser` | yes | yes | yes | - | `MainWindow.showGuide`: otherwise a notice names the guide's file |
-| `positionsWindows` | yes | yes | X11 only | - | `MainWindow` placement |
-| `remeasuresTrim` | yes | - | - | - | `MainWindow` placement: places again with the measured trim |
-| `explainsUnsupportedStacking` | - | - | yes | yes | `MainMenuBar`: Always on Top tool tip |
-| `stacksOnX11` | - | - | X11 only | - | `WindowStacking.forPlatform`: `GtkX11Stacking`, otherwise `NONE` (see [Always on Top](#always-on-top)) |
 | `toolkitVersion` | null | null | GTK version | GTK version | `MainWindow.toolkitDescription` |
-| `menuImages`, `padsMenuImages`, `fixedMenuInk` | yes, -, yes | -, -, - | yes, yes, - | yes, yes, - | `MenuIcons` |
 | `shownBackground` | `getBackground` | `getBackground` | A drawn pixel of a visible control | As GTK 3 | `ToolIcons.reink` |
-| `fadesDisabledIcons` | - | - | yes | yes | `ToolIcons.showState` |
-| `sizesToolPictures` | - | - | - | yes | `ToolIcons.apply` (see [Icons](theme-and-icons.md#icons)) |
-| `switchesThemeLive` | - | - | yes | yes | `SwtThemeService.preferDark`, `showsNow` |
-| `followsSystemAppearance` | - | yes | - | - | `SwtThemeService`: `CocoaChrome`, `open`, `showsNow` |
-| `themesAtCreation` | yes | - | - | - | `SwtThemeService.open`: sets the native theme under System |
-| `pollsSystemTheme` | yes | yes | - | - | `SwtThemeService`: reads `Display.isSystemDarkTheme()` every 500 ms under System |
-| `raisesLinkContrast` | - | - | yes | yes | `SwtThemeService.colorLink` and its `SWT.Settings` recolor |
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui` and `PreferencesDialog`: `Keymap.defaults` and key names |
-| `opensPrintDialog` | yes | yes | yes | - | `MainWindow.choosePrinter`: otherwise `PdfPrinter` (see [Printing](printing.md#gtk-4)) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
-| `handsFilesAsEvents` | - | yes | - | - | `HandoffDocuments`: collects open-document events before a handoff (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |
-| `windowMenuControls` | - | yes | - | - | `MainMenuBar`: Minimize and Zoom (see [Menus](#menus)) |
-| `labelsByDescription` | - | yes | - | - | `AccessibleName` (see [Accessible names](#accessible-names)) |
-| `printDialogOmitsSelection` | yes | - | - | - | `PrintDialogs.create`: no `SELECTION` preset (see [Printing](printing.md)) |
-| `fullScreenSpace` | - | yes | - | - | `FullScreen`: the state is the shell's (see [Full Screen](#full-screen)) |
-| `acceleratorsFollowFocusControl` | - | - | - | yes | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators (see [Menus](#menus)) |
-| `blankLinksReplacePage` | - | - | yes | yes | `BrowserPane`: loads the page again after a stray `about:blank` (see [Markdown preview](markdown-preview.md#browser-pane)) |
-| `namesThroughAtk` | - | - | yes | - | `NativeNames.forPlatform`: `Gtk3NativeNames`, otherwise `NONE` (see [Accessible names](#accessible-names)) |
-| `followsLinksWithoutGesture` | yes | - | - | - | `BrowserPane`: `LinkGestures` follows every canceled top-frame navigation (see [Markdown preview](markdown-preview.md#browser-pane)) |
-| `browserKeysSkipAccelerators` | yes | - | - | - | `MainWindow.dispatchWindowKeys`: the Display filter runs the accelerators for a key in a `Browser` (see [Menus](#menus)) |
 
-A seam is an interface in `ui.swt.platform` with one class per platform, which
-`PlatformTraits` picks; callers call every method on every platform, and the
-GTK and cocoa classes implement each method with an empty body where nothing
-changes.
+### Seams
 
-| Seam | Chosen by | win32 | GTK and cocoa | Caller |
-|---|---|---|---|---|
-| `ChromeColors` | `chromeColors(display)`, once per window | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink | `NativeChromeColors`, no-op | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
-| `DialogSurfaces` | `dialogSurfaces()` | `Win32DialogSurfaces`: dialog colors and light-theme check boxes under a dark start | `NativeDialogSurfaces`: native colors, plain check boxes | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
+A seam is an interface in `ui.swt.platform` with one class per platform where
+the behavior differs, which a `PlatformTraits` method returns; a stateless seam
+also has a `PLATFORM` constant. Callers call every method on every platform; a
+class implements each method, with an empty body where nothing happens, and no
+default method carries behavior.
 
-Operating-system checks outside the views go
-through `OsTraits` (`core.util.os`): `PlatformSetup` (launcher) sets
-`user.home` on Linux and the WebView2 folder on Windows before the Display, and
-`SettingsLocation` and `AboutInfo` (app) take the settings directory and
-About's OS line from it. `MainWindow.system` returns `OsTraits.current()`, which
-`WorkspaceController` asks whether Open in Default Application would run a
-file. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
+| Seam | win32 | cocoa | GTK 3 | GTK 4 | Caller |
+|---|---|---|---|---|---|
+| `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
+| `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
+| `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a side other than the start's needs a restart | `CocoaThemeFollow`: never sets it; polls; `CocoaChrome` recolors shells at a change | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
+| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the startup ink; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
+| `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
+| `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
+| `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |
+| `GuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `NoticeGuideDisplay`: a notice names the file | `MainWindow.showGuide` |
+| `PrintSupport` | `Win32PrintSupport`: an empty printer list shows a notice; the dialog opens on its default scope | `CocoaPrintSupport`: the empty-list notice; names the job (`CocoaPrintJobNaming`), dialog on a selection | `Gtk3PrintSupport`: dialog on a selection | `Gtk4PrintSupport`: a PDF file instead of the dialog | `MainWindow.choosePrinter` (see [Printing](printing.md)) |
+| `FullScreen` (`fullScreen(shell, ui)`, per window) | `NativeFullScreen` | `CocoaFullScreen` | `NativeFullScreen` | `NativeFullScreen` | `MainWindow` (see [Full Screen](#full-screen)) |
+| `WindowStacking` (`stacking()`) | `Win32Stacking` | `CocoaStacking` | `GtkX11Stacking` on X11, else `WindowManagerStacking`; both explain a disabled item | `WindowManagerStacking` | `MainWindow`, `MainMenuBar` (see [Always on Top](#always-on-top)) |
+| `WindowPlacement` | `Win32WindowPlacement`: placed again with the trim measured from the sized shell | `NativeWindowPlacement` | `GtkWindowPlacement`: no position under Wayland | `GtkWindowPlacement`: no position | `MainWindow.place` (see [Placement](#placement)) |
+| `NativeNames` | `NoNativeNames` | `NoNativeNames` | `Gtk3NativeNames`: names native widgets through ATK | `NoNativeNames` | `ToolBarNames`, `OutlineDock` (see [Accessible names](#accessible-names)) |
+| `AccessibleLabels` | `NativeAccessibleLabels` | `CocoaAccessibleLabels`: the name is also the description; group role | `NativeAccessibleLabels` | `NativeAccessibleLabels` | `AccessibleName` (see [Accessible names](#accessible-names)) |
+| `LaunchDocuments` | `NativeLaunchDocuments` | `CocoaLaunchDocuments`: collects open-document events at start and before a handoff (`DocumentEventLoop`) | `NativeLaunchDocuments` | `NativeLaunchDocuments` | `Gui`, `HandoffDocuments` (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |
+
+Operating-system checks outside the views go through `OsTraits`
+(`core.util.os`). Its values: `fileNamesIgnoreCase`, `fileLock`,
+`userSettings`, `launcherDirectory`, `fontDirectories`, `hidden` and
+`runsInsteadOfOpening`. Its seams: `DeviceNames` (`deviceNames()`), which on
+Windows (`WindowsDeviceNames`) reports a device path and refuses a new name
+ending in a dot or space and a checksum entry on another UNC share, and nothing
+on Linux and macOS (`FileNames`), for `SafePaths` and `ChecksumCheck`; and
+`FileConfinement` (`fileConfinement()`), which on Linux in explicit and portable
+mode moves `user.home` to the settings directory and opens the guide outside the
+process, and on Windows places WebView2's data in the settings directory, for
+`PlatformSetup` (launcher) and `SettingsLocation.embedsGuide` (app). `AboutInfo`
+takes About's OS line from `OsTraits.description`. `MainWindow.system` returns
+`OsTraits.current()`, which `WorkspaceController` asks whether Open in Default
+Application would run a file. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
 `os.name` to that package; `Target` (bootstrap) reads it before the launcher
 loads.
 

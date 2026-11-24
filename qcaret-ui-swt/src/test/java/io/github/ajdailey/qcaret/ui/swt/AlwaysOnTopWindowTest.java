@@ -21,6 +21,7 @@ import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowStacking;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.swt.SWT;

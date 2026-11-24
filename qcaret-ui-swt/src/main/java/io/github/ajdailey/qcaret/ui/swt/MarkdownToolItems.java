@@ -5,7 +5,7 @@ import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Event;
@@ -140,9 +140,7 @@ final class MarkdownToolItems implements ToolMenu {
       boolean enabled = states.enabled(command);
       String reason = enabled ? null : states.unavailable(command);
       String label = command.label();
-      if (reason != null && !PlatformTraits.PLATFORM.showsMenuToolTips()) {
-        label = UiText.MENU_ITEM_REASON.format(label, reason);
-      }
+      label = MenuBehavior.PLATFORM.label(label, reason);
       String keys = keymap == null ? "" : keymap.menuKeyText(command);
       entry.setText(keys.isEmpty() ? label : label + "\t" + keys);
       entry.setToolTipText(reason);

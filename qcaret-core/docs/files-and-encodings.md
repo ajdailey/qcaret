@@ -249,22 +249,22 @@ and LF.
 ### Operating system
 
 `OsTraits` answers each question whose answer differs by operating system, one
-class per system. `OsTraits.current()` is chosen once from `os.name`: a name
-starting `Windows` or `Mac`, ignoring case, picks that system, and any other
-name picks Linux. Only `core.util.os` reads `os.name` in core, app and the
-launcher (`ArchitectureTest.osNameOnlyInTheOsSeam`); tests take another
+class per system. A value is a method; behavior that differs is the
+`DeviceNames` and `FileConfinement` seams that `deviceNames` and
+`fileConfinement` return. `OsTraits.current()` is chosen once from `os.name`: a
+name starting `Windows` or `Mac`, ignoring case, picks that system, and any
+other name picks Linux. Only `core.util.os` reads `os.name` in core, app and
+the launcher (`ArchitectureTest.osNameOnlyInTheOsSeam`); tests take another
 system's answers from `OsTraits.of(name)`.
 
 | Method | Caller | Windows | macOS | Linux |
 |---|---|---|---|---|
 | `fileNamesIgnoreCase` | `NameFilter.PLATFORM_IGNORES_CASE` | true | true | false |
 | `fileLock` | `ProcessLock`, `Flock.Constants` | `CHANNEL` | `FLOCK_MACOS` | `FLOCK_LINUX` |
-| `opensDeviceNames` | `SafePaths` device-form check | true | false | false |
-| `dropsTrailingDotsAndSpaces` | `SafePaths.checkNewName` | true | false | false |
+| `deviceNames` | `SafePaths.checkNewName` and its device-form check, `ChecksumCheck.file` | `WindowsDeviceNames`: refuses a new name ending in a dot or space, a device path, a UNC entry off the list's share | `FileNames`: refuses nothing | `FileNames` |
 | `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret`, else `~/.config/qcaret` |
 | `launcherDirectory` | `SettingsLocation` portable marker beside `bin/qcaret` | null | null | `<qcaret.home>/bin` |
-| `confinesToSettings` | `SettingsLocation.confined` | false | false | true |
-| `webView2` | `PlatformSetup` | true | false | false |
+| `fileConfinement` | `PlatformSetup`, `SettingsLocation.embedsGuide` | `WindowsFileConfinement`: WebView2's data in `<settings>\cache\webview2` | `MacFileConfinement`: nothing moves | `LinuxFileConfinement`: in explicit and portable mode `user.home` moves to the settings directory and the guide opens outside the process |
 | `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
 | `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
 | `runsInsteadOfOpening` | `WorkspaceController` Open in Default Application | `RunnableTypes.windows` with `PATHEXT` | `RunnableTypes.mac`, or the execute bit | the execute bit |

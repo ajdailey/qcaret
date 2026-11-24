@@ -4,27 +4,22 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
 import io.github.ajdailey.qcaret.core.text.LogText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.MenuItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The macOS application menu: About, Preferences and Quit run {@link CommandId#ABOUT}, {@link
- * CommandId#PREFERENCES} and {@link CommandId#QUIT} in the window activated last, so the menu bar
- * leaves them out ({@link io.github.ajdailey.qcaret.app.command.MenuTable}). Hide, Hide Others and
- * Show All stay native. A quit request from the system (Cmd-Q, logout) runs {@link
+ * What the macOS application menu and the system request ({@link MenuBehavior#hookAppMenu}): About,
+ * Preferences and Quit run {@link CommandId#ABOUT}, {@link CommandId#PREFERENCES} and {@link
+ * CommandId#QUIT} in the window activated last, so the menu bar leaves them out ({@link
+ * MenuBehavior#systemCommands}). A quit request from the system (Cmd-Q, logout) runs {@link
  * WindowSet#requestQuit}, with its unsaved-changes prompts in every window, in place of SWT's own
- * disposal. A file the system opens with QCaret (Open With, a Dock drop) arrives as {@code
- * SWT.OpenDocument} and goes to {@link WindowSet#openFile}; a name that does not parse is logged.
- * Elsewhere {@link Display#getSystemMenu()} is null and nothing is added.
+ * disposal. A file the system opens with QCaret (Open With, a Dock drop) goes to {@link
+ * WindowSet#openFile}; a name that does not parse is logged.
  */
 public final class AppMenu {
   private static final Logger LOG = LoggerFactory.getLogger(AppMenu.class);
@@ -32,64 +27,39 @@ public final class AppMenu {
   private AppMenu() {}
 
   /**
-   * Reports whether the system supplies the application menu.
-   *
-   * @param display the Display
-   * @return true on cocoa
-   */
-  public static boolean present(Display display) {
-    return PlatformTraits.PLATFORM.systemAppMenu() && display.getSystemMenu() != null;
-  }
-
-  /**
-   * Adds the listeners when the application menu is present; call once, on the UI thread.
+   * Hooks the application menu where the platform has one; call once, on the UI thread.
    *
    * @param display the Display
    * @param set the windows of the instance
-   * @return true when the listeners were added
    */
-  public static boolean hook(Display display, final WindowSet set) {
-    if (!present(display)) {
-      return false;
-    }
-    Menu menu = display.getSystemMenu();
-    for (MenuItem item : menu.getItems()) {
-      final CommandId command = command(item.getID());
-      if (command != null) {
-        item.addListener(
-            SWT.Selection,
-            new Listener() {
-              @Override
-              public void handleEvent(Event event) {
-                run(set, command);
-              }
-            });
-      }
-    }
-    display.addListener(
-        SWT.Close,
-        new Listener() {
+  public static void hook(Display display, final WindowSet set) {
+    MenuBehavior.PLATFORM.hookAppMenu(
+        display,
+        new MenuBehavior.AppMenuActions() {
           @Override
-          public void handleEvent(Event event) {
-            event.doit = false;
+          public void select(int id) {
+            CommandId command = command(id);
+            if (command != null) {
+              run(set, command);
+            }
+          }
+
+          @Override
+          public void quit() {
             set.requestQuit();
           }
-        });
-    display.addListener(
-        SWT.OpenDocument,
-        new Listener() {
+
           @Override
-          public void handleEvent(Event event) {
-            open(set, event.text);
+          public void open(String file) {
+            AppMenu.open(set, file);
           }
         });
-    return true;
   }
 
   /**
    * Returns the command an application-menu item runs.
    *
-   * @param id the item's {@link MenuItem#getID()}
+   * @param id the item's {@code MenuItem.getID()}
    * @return the command, or null for an item that stays native
    */
   static CommandId command(int id) {

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
@@ -23,7 +22,9 @@ import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -109,6 +110,21 @@ class ThemeAndDialogsTest {
     } finally {
       assertNull(failure.get());
     }
+  }
+
+  /** Starts cocoa's appearance watch ({@code CocoaChrome}) on the running platform. */
+  private ThemeFollow cocoaChrome() {
+    ThemeFollow follow = PlatformTraits.of("cocoa", false).themeFollow(display);
+    follow.watch(
+        false,
+        new SwtUiDispatcher(display),
+        new Runnable() {
+          @Override
+          public void run() {
+            // The appearance changes only through systemChanged.
+          }
+        });
+    return follow;
   }
 
   private MenuItem item(CommandId command) {
@@ -290,7 +306,7 @@ class ThemeAndDialogsTest {
                 return setting[0];
               }
             },
-            false);
+            PlatformTraits.of("gtk", false).themeFollow(display));
     final List<Boolean> changes = new ArrayList<Boolean>();
     service.addListener(
         new ThemeListener() {
@@ -328,7 +344,7 @@ class ThemeAndDialogsTest {
                 return setting[0];
               }
             },
-            true);
+            PlatformTraits.of("win32", false).themeFollow(display));
     final List<Boolean> changes = new ArrayList<Boolean>();
     service.addListener(
         new ThemeListener() {
@@ -383,9 +399,9 @@ class ThemeAndDialogsTest {
             settings[0]++;
           }
         });
-    CocoaChrome chrome = new CocoaChrome(display, false);
+    ThemeFollow chrome = cocoaChrome();
     try {
-      chrome.apply(true);
+      chrome.systemChanged(true);
       assertEquals(windowColor, row.getBackground().getRGB());
       assertEquals(new RGB(0xff, 0xff, 0xff), folder.getForeground().getRGB());
       assertEquals(new RGB(0x1e, 0x1e, 0x1e), field.getBackground().getRGB());
@@ -396,7 +412,7 @@ class ThemeAndDialogsTest {
       assertEquals(windowColor, shownRow.getBackground().getRGB());
       shown.dispose();
     } finally {
-      chrome.apply(false);
+      chrome.systemChanged(false);
     }
     assertEquals(before, row.getBackground().getRGB());
     assertEquals(fieldBefore, field.getBackground().getRGB());
@@ -416,13 +432,13 @@ class ThemeAndDialogsTest {
     tree.setHeaderVisible(true);
     Button check = new Button(shell, SWT.CHECK);
     RGB checkBefore = check.getBackground().getRGB();
-    CocoaChrome chrome = new CocoaChrome(display, false);
+    ThemeFollow chrome = cocoaChrome();
     try {
-      chrome.apply(true);
+      chrome.systemChanged(true);
       assertEquals(new RGB(0xff, 0xff, 0xff), tree.getHeaderForeground().getRGB());
       assertEquals(new RGB(0x1e, 0x1e, 0x1e), tree.getHeaderBackground().getRGB());
     } finally {
-      chrome.apply(false);
+      chrome.systemChanged(false);
     }
     assertEquals(
         display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB(),
@@ -438,7 +454,7 @@ class ThemeAndDialogsTest {
    */
   @Test
   void cocoaChromeGivesTableHeadersExplicitColorsInEveryAppearance() {
-    CocoaChrome chrome = new CocoaChrome(display, false);
+    ThemeFollow chrome = cocoaChrome();
     Shell shell = new Shell(display);
     try {
       final Table table = new Table(shell, SWT.NONE);
@@ -449,23 +465,23 @@ class ThemeAndDialogsTest {
               new BooleanSupplier() {
                 @Override
                 public boolean getAsBoolean() {
-                  return Boolean.FALSE.equals(table.getData(CocoaChrome.HEADER_DARK));
+                  return Boolean.FALSE.equals(table.getData(ThemeFollow.HEADER_DARK));
                 }
               },
               BOUND));
-      chrome.apply(true);
-      assertEquals(Boolean.TRUE, table.getData(CocoaChrome.HEADER_DARK));
+      chrome.systemChanged(true);
+      assertEquals(Boolean.TRUE, table.getData(ThemeFollow.HEADER_DARK));
       assertEquals(new RGB(0x1e, 0x1e, 0x1e), table.getHeaderBackground().getRGB());
       assertEquals(new RGB(0xff, 0xff, 0xff), table.getHeaderForeground().getRGB());
       assertTrue(table.getHeaderVisible());
-      chrome.apply(false);
-      assertEquals(Boolean.FALSE, table.getData(CocoaChrome.HEADER_DARK));
+      chrome.systemChanged(false);
+      assertEquals(Boolean.FALSE, table.getData(ThemeFollow.HEADER_DARK));
       assertEquals(
           display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(),
           table.getHeaderBackground().getRGB());
       assertTrue(table.getHeaderVisible());
     } finally {
-      chrome.apply(false);
+      chrome.systemChanged(false);
       shell.dispose();
     }
   }
@@ -477,28 +493,28 @@ class ThemeAndDialogsTest {
     RGB editor = window.activeText().getBackground().getRGB();
     RGB strip = window.tabs().getForeground().getRGB();
     RGB selected = window.tabs().getSelectionBackground().getRGB();
-    CocoaChrome chrome = new CocoaChrome(display, false);
+    ThemeFollow chrome = cocoaChrome();
     try {
-      chrome.apply(true);
+      chrome.systemChanged(true);
       assertEquals(editor, window.activeText().getBackground().getRGB());
       assertEquals(strip, window.tabs().getForeground().getRGB());
       assertEquals(selected, window.tabs().getSelectionBackground().getRGB());
       assertEquals(list, window.workspaceDock().tree().getBackground().getRGB());
-      chrome.apply(false);
+      chrome.systemChanged(false);
       assertEquals(editor, window.activeText().getBackground().getRGB());
       assertEquals(strip, window.tabs().getForeground().getRGB());
     } finally {
-      chrome.apply(false);
+      chrome.systemChanged(false);
     }
   }
 
   /** The docks replace their tables while the window is open, with no {@code SWT.Show}. */
   @Test
   void cocoaChromeColorsAControlCreatedWhileTheAppearanceDiffers() {
-    CocoaChrome chrome = new CocoaChrome(display, false);
+    ThemeFollow chrome = cocoaChrome();
     Shell shell = new Shell(display);
     try {
-      chrome.apply(true);
+      chrome.systemChanged(true);
       final Table table = new Table(shell, SWT.NONE);
       assertTrue(
           EventLoop.runUntil(
@@ -511,7 +527,7 @@ class ThemeAndDialogsTest {
               },
               BOUND));
     } finally {
-      chrome.apply(false);
+      chrome.systemChanged(false);
       shell.dispose();
     }
   }
@@ -600,7 +616,9 @@ class ThemeAndDialogsTest {
 
   @Test
   void withoutTheApplicationMenuTheMenuBarKeepsAboutAndExit() {
-    assumeFalse(AppMenu.present(display), "Cocoa always has the application menu");
+    assumeTrue(
+        MenuBehavior.PLATFORM.systemCommands(display).isEmpty(),
+        "Cocoa always has the application menu");
     assertSame(CommandId.ABOUT, AppMenu.command(SWT.ID_ABOUT));
     assertSame(CommandId.QUIT, AppMenu.command(SWT.ID_QUIT));
     assertSame(CommandId.PREFERENCES, AppMenu.command(SWT.ID_PREFERENCES));

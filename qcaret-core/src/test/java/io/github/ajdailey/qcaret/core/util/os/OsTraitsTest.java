@@ -56,29 +56,46 @@ class OsTraitsTest {
         + os.fileNamesIgnoreCase()
         + " lock="
         + os.fileLock()
-        + " devices="
-        + os.opensDeviceNames()
-        + " confines="
-        + os.confinesToSettings()
-        + " webView2="
-        + os.webView2()
-        + " dropsDots="
-        + os.dropsTrailingDotsAndSpaces();
+        + " names="
+        + os.deviceNames().getClass().getSimpleName()
+        + " confinement="
+        + os.fileConfinement().getClass().getSimpleName();
+  }
+
+  /**
+   * Only Linux opens the guide outside in its own directory; only Windows reads the browser's data
+   * folder. {@code LauncherTest} checks the properties each system sets.
+   */
+  @Test
+  void eachSystemConfinesItsFiles() throws IOException {
+    for (OsTraits os : List.of(MAC, LINUX)) {
+      os.fileConfinement()
+          .placeBrowserData(
+              new FileConfinement.BrowserData() {
+                @Override
+                public Path folder() {
+                  throw new AssertionError("asked for the browser data folder");
+                }
+              });
+    }
+    for (OsTraits os : List.of(WINDOWS, MAC, LINUX)) {
+      for (boolean perUser : new boolean[] {false, true}) {
+        assertEquals(
+            os != LINUX || perUser, os.fileConfinement().embedsGuide(perUser), os + " " + perUser);
+      }
+    }
   }
 
   @Test
   void eachSystemAnswersItsQuestions() {
     assertEquals(
-        "ignoresCase=true lock=CHANNEL devices=true confines=false webView2=true"
-            + " dropsDots=true",
+        "ignoresCase=true lock=CHANNEL names=WindowsDeviceNames confinement=WindowsFileConfinement",
         answers(WINDOWS));
     assertEquals(
-        "ignoresCase=true lock=FLOCK_MACOS devices=false confines=false webView2=false"
-            + " dropsDots=false",
+        "ignoresCase=true lock=FLOCK_MACOS names=FileNames confinement=MacFileConfinement",
         answers(MAC));
     assertEquals(
-        "ignoresCase=false lock=FLOCK_LINUX devices=false confines=true webView2=false"
-            + " dropsDots=false",
+        "ignoresCase=false lock=FLOCK_LINUX names=FileNames confinement=LinuxFileConfinement",
         answers(LINUX));
   }
 

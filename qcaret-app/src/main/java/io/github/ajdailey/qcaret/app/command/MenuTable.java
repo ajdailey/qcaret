@@ -145,12 +145,12 @@ public final class MenuTable {
    * Returns the commands a menu lists.
    *
    * @param group a group whose {@link CommandGroup#menu()} is true
-   * @param appMenu true when the system's application menu holds About, Quit and Preferences
+   * @param systemCommands the commands the system's application menu holds, left out
    * @return the commands in menu order
    */
-  public static List<CommandId> commands(CommandGroup group, boolean appMenu) {
+  public static List<CommandId> commands(CommandGroup group, Set<CommandId> systemCommands) {
     List<CommandId> commands = new ArrayList<CommandId>();
-    for (Entry entry : entries(group, appMenu)) {
+    for (Entry entry : entries(group, systemCommands)) {
       commands.add(entry.command());
     }
     return commands;
@@ -161,21 +161,21 @@ public final class MenuTable {
    * the view adds; a separator before a command the application menu takes is dropped.
    *
    * @param group a group whose {@link CommandGroup#menu()} is true
-   * @param appMenu true when the system's application menu holds About, Quit and Preferences
+   * @param systemCommands the commands the system's application menu holds, left out
    * @return the entries in menu order
    */
-  public static List<Entry> entries(CommandGroup group, boolean appMenu) {
+  public static List<Entry> entries(CommandGroup group, Set<CommandId> systemCommands) {
     List<CommandId> layout = LAYOUT.get(group);
-    return layout == null ? new ArrayList<Entry>() : entries(layout, appMenu);
+    return layout == null ? new ArrayList<Entry>() : entries(layout, systemCommands);
   }
 
   /**
-   * Returns the editor menu's entries, as {@link #entries(CommandGroup, boolean)} gives a menu's.
+   * Returns the editor menu's entries, as {@link #entries(CommandGroup, Set)} gives a menu's.
    *
    * @return the entries of {@link #EDITOR_MENU} in order
    */
   public static List<Entry> editorEntries() {
-    return entries(EDITOR_MENU, false);
+    return entries(EDITOR_MENU, Set.of());
   }
 
   /**
@@ -193,13 +193,13 @@ public final class MenuTable {
         : null;
   }
 
-  private static List<Entry> entries(List<CommandId> layout, boolean appMenu) {
+  private static List<Entry> entries(List<CommandId> layout, Set<CommandId> systemCommands) {
     List<Entry> entries = new ArrayList<Entry>();
     boolean separator = false;
     for (CommandId command : layout) {
       if (command == null) {
         separator = true;
-      } else if (appMenu && APP_MENU_COMMANDS.contains(command)) {
+      } else if (systemCommands.contains(command)) {
         separator = false;
       } else {
         entries.add(new Entry(command, separator));

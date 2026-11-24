@@ -1,9 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
-import java.util.ArrayList;
-import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
@@ -12,20 +11,12 @@ import org.eclipse.swt.widgets.MenuItem;
 /**
  * The icons of a window's menu items: {@link #icon} maps a command to its icon, and {@link
  * #decorate} shows them on the push items of a built menu. Check, radio, cascade and listing items
- * show none. cocoa menus show no images.
- *
- * <p>The ink follows the native menu background. On GTK that is the theme the owner toolbar shows,
- * so the ink follows the toolbar's, a live switch included. win32 menus take the startup setting
- * and keep it, so the ink is fixed; the toolbar stays light there and says nothing about menus.
- *
- * <p>GTK 3 reserves no image column: a label moves right when its item has an image. On GTK every
- * other item of a menu with an icon therefore holds {@link ToolIcons#blank}. GTK 4 SWT ignores
- * {@code MenuItem.setImage}. win32 reserves the column. Call on the UI thread.
+ * show none. The ink, the padding and whether menus show images at all differ by platform ({@link
+ * MenuBehavior}). GTK 4 SWT ignores {@code MenuItem.setImage}. Call on the UI thread.
  */
 final class MenuIcons {
   private final ToolIcons icons;
-  private final boolean images;
-  private final boolean aligns;
+  private final MenuBehavior platform;
 
   /**
    * Creates the icons of the running platform.
@@ -33,22 +24,31 @@ final class MenuIcons {
    * @param owner the control whose background the theme shows; the images are disposed with it
    */
   MenuIcons(Control owner) {
-    this(owner, PlatformTraits.PLATFORM);
+    this(owner, PlatformTraits.PLATFORM.menuBehavior());
   }
 
   /**
    * Creates the icons of a platform.
    *
    * @param owner the control whose background the theme shows; the images are disposed with it
-   * @param platform the platform's traits
+   * @param platform the platform's menu behavior
    */
-  MenuIcons(Control owner, PlatformTraits platform) {
-    images = platform.menuImages();
-    aligns = platform.padsMenuImages();
+  MenuIcons(final Control owner, MenuBehavior platform) {
+    this.platform = platform;
     icons =
-        platform.fixedMenuInk()
-            ? new ToolIcons(owner, SwtThemeService.nativeDark(owner.getDisplay()))
-            : new ToolIcons(owner);
+        platform.ink(
+            owner.getDisplay(),
+            new MenuBehavior.Ink<ToolIcons>() {
+              @Override
+              public ToolIcons live() {
+                return new ToolIcons(owner);
+              }
+
+              @Override
+              public ToolIcons fixed(boolean dark) {
+                return new ToolIcons(owner, dark);
+              }
+            });
   }
 
   /**
@@ -97,30 +97,20 @@ final class MenuIcons {
    * @param menu the menu
    */
   void decorate(Menu menu) {
-    if (!images) {
-      return;
-    }
-    boolean any = false;
-    List<MenuItem> plain = new ArrayList<MenuItem>();
-    for (MenuItem item : menu.getItems()) {
-      if ((item.getStyle() & SWT.SEPARATOR) != 0) {
-        continue;
-      }
-      if (item.getMenu() != null) {
-        decorate(item.getMenu());
-      }
-      String name = pushIcon(item);
-      if (name != null && icons.apply(item, name)) {
-        any = true;
-      } else {
-        plain.add(item);
-      }
-    }
-    if (any && aligns) {
-      for (MenuItem item : plain) {
-        icons.applyBlank(item);
-      }
-    }
+    platform.decorate(
+        menu,
+        new MenuBehavior.ItemImages() {
+          @Override
+          public boolean apply(MenuItem item) {
+            String name = pushIcon(item);
+            return name != null && icons.apply(item, name);
+          }
+
+          @Override
+          public void applyBlank(MenuItem item) {
+            icons.applyBlank(item);
+          }
+        });
   }
 
   private static String pushIcon(MenuItem item) {

@@ -2,12 +2,14 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.Contrast;
@@ -22,6 +24,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
@@ -31,6 +34,7 @@ import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
@@ -201,6 +205,92 @@ class ChromeColorsTest {
     return ToolIcons.CHECKED_TEXT.equals(item.getForeground().getRGB());
   }
 
+  /**
+   * After a dark start a win32 field holding text stays dark on the light side, whether the window
+   * creates its chrome before the theme service records the start ({@code Win32DarkBrowserTest}'s
+   * order) or after it ({@code Gui}'s). Read once at construction, the first order took a light
+   * start and turned the field white under the dark native field's near-white text (CI on {@code
+   * 92bc3f8}).
+   */
+  @Test
+  void aFieldHoldingTextStaysDarkWhenTheServiceRecordsTheDarkStartAfterTheChrome() {
+    darkStartKeepsAFieldHoldingTextDark(true);
+  }
+
+  @Test
+  void aFieldHoldingTextStaysDarkWhenTheServiceRecordsTheDarkStartBeforeTheChrome() {
+    darkStartKeepsAFieldHoldingTextDark(false);
+  }
+
+  private void darkStartKeepsAFieldHoldingTextDark(boolean chromeFirst) {
+    ChromeColors chrome = chromeFirst ? WIN32.chromeColors(display) : null;
+    try {
+      SwtThemeService.open(display, ThemeMode.DARK, WIN32.themeFollow(display));
+      if (chrome == null) {
+        chrome = WIN32.chromeColors(display);
+      }
+      chrome.add(surface);
+      chrome.apply(true);
+      field.setText("*.md");
+      chrome.apply(false);
+      assertEquals(FIELD, field.getBackground().getRGB());
+      assertEquals(TEXT, field.getForeground().getRGB());
+      field.setText("");
+      assertNotEquals(FIELD, field.getBackground().getRGB());
+    } finally {
+      if (chrome != null) {
+        chrome.dispose();
+      }
+      display.setDarkThemePreferred(false);
+    }
+  }
+
+  /**
+   * Where the tree's side differs from the native start the selected row is drawn in the palette's
+   * selection colors at 4.5:1 or more; the native tree kept its startup selection, 1.66:1 after a
+   * dark start on the light side and 1.39:1 after a light start on the dark side (OBERON G1).
+   */
+  @Test
+  void aSelectedTreeRowOnTheOtherSideIsDrawnReadable() {
+    boolean[][] cases = {{true, false}, {false, true}};
+    for (boolean[] start : cases) {
+      boolean nativeDark = start[0];
+      boolean dark = start[1];
+      tree = new Tree(surface, SWT.NONE);
+      ChromeColors chrome = chrome(WIN32, nativeDark);
+      try {
+        chrome.apply(true);
+        chrome.apply(dark);
+        Event selected = eraseSelected();
+        assertEquals(0, selected.detail & SWT.SELECTED, "start " + nativeDark);
+        double ratio =
+            Contrast.ratio(
+                selected.gc.getForeground().getRGB(), selected.gc.getBackground().getRGB());
+        assertTrue(ratio >= 4.5, "start " + nativeDark + ": " + ratio);
+        selected.gc.dispose();
+        chrome.apply(nativeDark);
+        Event nativeSide = eraseSelected();
+        assertEquals(SWT.SELECTED, nativeSide.detail & SWT.SELECTED, "native side");
+        nativeSide.gc.dispose();
+      } finally {
+        chrome.dispose();
+      }
+    }
+  }
+
+  /** Sends the tree an {@code SWT.EraseItem} for a selected row, on a GC the caller disposes. */
+  private Event eraseSelected() {
+    Event event = new Event();
+    event.gc = new GC(tree);
+    event.detail = SWT.SELECTED | SWT.FOREGROUND | SWT.BACKGROUND;
+    event.x = 0;
+    event.y = 0;
+    event.width = 20;
+    event.height = 10;
+    tree.notifyListeners(SWT.EraseItem, event);
+    return event;
+  }
+
   @Test
   void aDarkThemeOnWin32ColorsTheSurfacesAndKeepsNativeControls() {
     chrome(WIN32, false).apply(true);
@@ -250,11 +340,15 @@ class ChromeColorsTest {
   /**
    * After a dark start a field holding text stays dark on the light side, while the tree follows
    * the theme; an empty field, such as the path field with no workspace folder, takes the system
-   * colors and its native message.
+   * list colors, set explicitly, and its native message. With no colors the find and replace fields
+   * drew the dark native field, {@code #212121} (Windows 11, OBERON G1).
    */
   @Test
   void afterADarkStartOnlyAFieldHoldingTextStaysDarkOnTheLightSide() {
-    List<RGB> systemField = fieldColors();
+    List<RGB> systemField =
+        List.of(
+            display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(),
+            display.getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB());
     List<RGB> systemTree = treeColors();
     ChromeColors chrome = chrome(WIN32, true);
     chrome.apply(true);
@@ -402,10 +496,8 @@ class ChromeColorsTest {
     light.apply(true);
     assertTrue(darkInk(source), "light start, dark");
     assertFalse(darkInk(preview));
-    source.setSelection(false);
-    preview.setSelection(true);
-    icons.showChecked(source);
-    icons.showChecked(preview);
+    icons.check(source, false);
+    icons.check(preview, true);
     assertFalse(darkInk(source), "unchecked");
     assertTrue(darkInk(preview), "checked");
     light.apply(false);

@@ -26,13 +26,8 @@ final class MacTraits implements OsTraits {
   }
 
   @Override
-  public boolean opensDeviceNames() {
-    return false;
-  }
-
-  @Override
-  public boolean dropsTrailingDotsAndSpaces() {
-    return false;
+  public DeviceNames deviceNames() {
+    return FileNames.INSTANCE;
   }
 
   @Override
@@ -46,13 +41,8 @@ final class MacTraits implements OsTraits {
   }
 
   @Override
-  public boolean confinesToSettings() {
-    return false;
-  }
-
-  @Override
-  public boolean webView2() {
-    return false;
+  public FileConfinement fileConfinement() {
+    return MacFileConfinement.INSTANCE;
   }
 
   @Override

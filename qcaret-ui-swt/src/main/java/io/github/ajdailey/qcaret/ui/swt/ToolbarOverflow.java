@@ -3,7 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -43,6 +43,7 @@ final class ToolbarOverflow {
   private ToolItem more;
   private CommandStates states;
   private MenuIcons menuIcons;
+  private ToolIcons toolIcons;
   private Menu menu;
   private ToolBar probe;
   private int shownWidth = Integer.MAX_VALUE;
@@ -88,6 +89,7 @@ final class ToolbarOverflow {
   void attach(ToolIcons icons, MenuIcons menuIcon, CommandStates commandStates) {
     states = commandStates;
     menuIcons = menuIcon;
+    toolIcons = icons;
     more = icons.item(row, ToolIcons.TAB_LIST_DOWN, UiText.TOOLBAR_MORE.text());
     more.getParent().setVisible(false);
     probe = new ToolBar(row, bar.getStyle() & (SWT.FLAT | SWT.HORIZONTAL | SWT.RIGHT));
@@ -177,13 +179,14 @@ final class ToolbarOverflow {
    * @throws IllegalStateException before {@link #attach}
    */
   Menu menu() {
-    if (states == null || menuIcons == null) {
+    if (states == null || menuIcons == null || toolIcons == null) {
       throw new IllegalStateException("not attached");
     }
     if (menu != null && !menu.isDisposed()) {
       menu.dispose();
     }
     menu = new Menu(row.getShell(), SWT.POP_UP);
+    final ToolIcons checks = toolIcons;
     for (final ToolItem item : hidden()) {
       if (item.getData() instanceof ToolMenu drop) {
         MenuItem holder = new MenuItem(menu, SWT.CASCADE);
@@ -202,9 +205,7 @@ final class ToolbarOverflow {
       MenuItem entry = new MenuItem(menu, kind == 0 ? SWT.PUSH : kind);
       String label = command.title();
       String reason = item.getEnabled() ? null : states.unavailable(command);
-      if (reason != null && !PlatformTraits.PLATFORM.showsMenuToolTips()) {
-        label = UiText.MENU_ITEM_REASON.format(label, reason);
-      }
+      label = MenuBehavior.PLATFORM.label(label, reason);
       entry.setText(label.replace("&", "&&"));
       entry.setToolTipText(reason);
       entry.setEnabled(item.getEnabled());
@@ -217,7 +218,7 @@ final class ToolbarOverflow {
           new Listener() {
             @Override
             public void handleEvent(Event event) {
-              choose(item);
+              choose(item, checks);
             }
           });
     }
@@ -226,18 +227,18 @@ final class ToolbarOverflow {
   }
 
   /** Runs a button as a click does: a check button flips first, a radio button checks itself. */
-  private static void choose(ToolItem item) {
+  private static void choose(ToolItem item, ToolIcons icons) {
     if (item.isDisposed() || !item.getEnabled()) {
       return;
     }
     int style = item.getStyle();
     if ((style & SWT.CHECK) != 0) {
-      item.setSelection(!item.getSelection());
+      icons.check(item, !item.getSelection());
     } else if ((style & SWT.RADIO) != 0) {
       if (item.getSelection()) {
         return;
       }
-      item.setSelection(true);
+      icons.check(item, true);
     }
     item.notifyListeners(SWT.Selection, new Event());
   }

@@ -53,7 +53,8 @@ UI thread:
 4. The window is placed from the `--window-*` options, else the session's first
    window on a restoring start, else the `window.*` bounds of `qcaret.conf`, and
    maximized when it was maximized and no `--window-*` option is given. It opens
-   and logs `Main window open: client area <w>x<h>, location <x>,<y>` at INFO.
+   and logs `Main window open: client area <w>x<h>, location <x>,<y>, size
+   <w>x<h>, work area <x>,<y> <w>x<h>, zoom <percent>` at INFO.
 5. `ApplicationController.startSession` restores every saved window, then file
    arguments and `--diff` open through `ApplicationController.open`; without a
    file, a window left empty opens an untitled document. After an error exit
@@ -88,12 +89,14 @@ launches `ERR`.
 On macOS a Finder Open With can start a second registered copy of the bundle
 with no file arguments; the files arrive only as `SWT.OpenDocument` events.
 When the lock is held and the launch names no file, diff or session mode,
-`HandoffDocuments.beforeHandoff` creates a Display without a window and runs
-`LaunchDocuments.await`, then disposes the Display and hands off the collected
-files, or none. The wait ends 200 ms after the last event, or after 1 s without
-one (`QUIET_MILLIS`, `FIRST_MILLIS`; unmeasured on a Mac). Those files also
-open in a `BESIDE` or new-primary window. The choice is
-`PlatformTraits.handsFilesAsEvents`, true on cocoa only.
+`HandoffDocuments.beforeHandoff` calls `LaunchDocuments.await` with a wait that
+creates a Display without a window, runs `DocumentEventLoop.await`, then
+disposes the Display; cocoa (`CocoaLaunchDocuments`) runs the wait and the
+launch hands off the collected files, or none. Elsewhere
+`NativeLaunchDocuments` returns none without a Display. The wait
+ends 200 ms after the last event, or after 1 s without one (`QUIET_MILLIS`,
+`FIRST_MILLIS`; unmeasured on a Mac). Those files also open in a `BESIDE` or
+new-primary window.
 
 After a failed handoff `Launcher.awaitSuccessor` polls for up to 2 s, so when a
 primary quits or dies one launch becomes the primary and the others hand over to
@@ -228,8 +231,8 @@ classes, so the rules over the main classes never see them.
 |---|---|
 | SWT only in `ui.swt` and `launcher` | Model and controllers test without a display |
 | No dependency on `org.eclipse.swt.internal` | Public SWT API only, so GTK3 and GTK4 behave the same |
-| `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `ToolIcons`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking`, `CocoaPrintJobNaming`, `Gtk3NativeNames` and `core.io.Flock` | SWT internals differ per platform, and `Flock` links the Java 21 foreign-function API; only these classes reach them by reflection |
-| `SWT.getPlatform()` only in `ui.swt.platform`; `System.getenv` in `ui.swt` and `launcher` only there | Each view-layer platform difference is a `PlatformTraits` method |
+| `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `Gtk4ToolItemSizing`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking`, `CocoaPrintJobNaming`, `Gtk3NativeNames` (all `ui.swt.platform`) and `core.io.Flock` | SWT internals differ per platform, and `Flock` links the Java 21 foreign-function API; only these classes reach them by reflection |
+| `SWT.getPlatform()` only in `ui.swt.platform`; `System.getenv` in `ui.swt` and `launcher` only there | Each view-layer platform difference goes through `PlatformTraits`: a value or a seam it chooses |
 | A string starting `org.eclipse.swt.internal.` only in `ui.swt.platform` and the reflection classes above | SWT internal properties and class names go through `PlatformTraits`; the check reads each class file's constant pool |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
 | `app.view` not on `app.{controller, search, config, session, recovery, cli, ipc}`; `app.editor` not on `app.controller`; `ui.swt` not on `core.{concurrent, io, buffer, edit, syntax, search, diff, watch, workspace}` or `app.{config, session, recovery, cli, ipc}` | Layering |
@@ -251,18 +254,20 @@ classes, so the rules over the main classes never see them.
 | No `synchronized` methods in `core.concurrent`, `core.io` and `app.ipc` | A monitor pins a virtual thread; blocking code uses `ReentrantLock`. Synchronized blocks are not visible to ArchUnit |
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |
 | `setImage` on `ToolItem`, `MenuItem`, `Button`, `TableItem`, `TreeItem`, `Item` and `CTabItem` only in `ToolIcons` | `ToolIcons` picks the icon's ink for the background it shows on |
-| A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogSurfaces.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
+| A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogColors.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
 | `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory` and `SchemaFactory` only in `core.xml` | `SecureXml` sets up every parser with external DTD, schema and entity access off ([XML parsers](../qcaret-core/docs/grammars.md#xml-parsers)) |
 | The string `os.name` only in `core.util.os` | Operating system questions go through `OsTraits`; the check reads each class file's constant pool, since ArchUnit does not see call arguments |
 | No `SWT.getPlatform()` or string `SWT_GTK4` in `core`, `app` or `launcher` | Toolkit platform questions stay in the view layer |
+| No string `SWT_GTK4` outside `ui.swt.platform` (`platformOnlyInTraits`) | The traits answer which GTK SWT loaded |
+| Outside `ui.swt.platform` and `core.util.os`, no call of a boolean `PlatformTraits` or `OsTraits` method other than the value traits (`macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden`, `runsInsteadOfOpening`; `behaviorOnlyThroughSeams`) | Platform behavior goes through a seam interface the traits choose; a trait answers a value |
 
 ## Testing
 
 | Class | Covers |
 |---|---|
-| `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts; a listener that throws costs one event and the loop runs the next one |
+| `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts; a listener that throws costs one event and the loop runs the next one. A size or location one point off at a fractional zoom counts as exact, and a location is expected clamped into the work area as `WindowGeometry.place` clamps it |
 | `UiFailuresTest` | 10 failures within 1 s keep running, the 11th quits once and later failures start no second quit, failures more than 1 s apart keep running, an `Error` quits; each quit writes the marker, and a failed write still quits; a quit that throws sets `quitFailed` once |
 | `ErrorExitStartTest` | Without the marker nothing changes; a restoring start skips, shows the notice and deletes the marker; a start without the session shows the short notice once and marks it shown, and a later restoring start skips without a notice; only a skipping start moves the snapshot files to `recovery/` |
 | `ErrorExitGuiTest` (tag `swt`) | An `Error` twice from UI tasks after a restored tab is typed into: status 4, the marker written, one recovery file, the session still listing the tab. The next restoring start with a file shows the notice, opens only that file, offers the buffer and deletes the marker; the start after it restores that file without a notice. A start with a file shows the short notice once; a later restoring start skips the saved tab. A skipped session's snapshot buffer is offered for recovery. A quit that throws (a quit listener, run on the UI thread after the workers are closed) ends the loop with status 4 and the marker written |
@@ -284,7 +289,7 @@ classes, so the rules over the main classes never see them.
 | `RetainingLogManagerTest` | `reset()` keeping the handlers once retained |
 | `FileRelayHandlerTest` | Held records written first and once, in order, then later records; records past the bound dropped and counted in one WARN; a release discarding them; nothing kept without a hold |
 | `FileLogTest` | The file's location and levels, the folder holding only the file after a detach, the per-process name, the roll to `.1`, a failed roll (a non-empty directory named `qcaret.log.1`) writing on with one WARN, not tried again before the file grows by the size, and rolling then, a failed reopen (a read-only file) detaching the file with its ERROR in the recent lines, which files prune deletes; a hold's DEBUG line written once before the attach's lines, the level back to INFO after the hold and the detach, and a hold ended without a file writing nothing |
-| `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `LaunchDocumentsTest` |
+| `HandoffDocumentsTest` (tag `swt`) | Which launches take the system's files, the files becoming the request's, a launch naming a file or off cocoa handed as it is; on Linux the wait ends with no files and a later Display opens. The open-document events and stop rule are in `DocumentEventLoopTest` |
 | `LauncherTest` | Help, version, exit 1 for a bad option or settings path, `user.home` per settings mode on Linux, the WebView2 data folder on Windows; a handoff a live primary does not take runs `BESIDE`, and a launch claims the lock a primary releases during its handoff |
 | `UnopenedNamesTest` | After an expansion the request keeps its options and loses its files and comparison; without one it stands; the message for unpassed names and for an expansion, none when every name opens |
 | `LauncherProcessTest` | 16 `LaunchMain` child JVMs against a closing primary and against a killed one: one `PRIMARY`, 15 `HANDED`, 15 launches received. A primary that reads every file in the settings directory keeps the lock and a second launch is `HANDED`; so does a primary refused a save over its lock. A primary refused a save over its `owner.lock` leaves a second start no buffers to claim. A child denied native access is `ALONE` with one WARN and no `instance.lock` |

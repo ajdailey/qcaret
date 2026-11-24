@@ -7,7 +7,7 @@ import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.controller.EncodingChoices;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Control;
@@ -191,9 +191,7 @@ final class StatusMenus {
       MenuItem item = new MenuItem(renderers, SWT.RADIO);
       String reason = states.enabled(command) ? null : states.unavailable(command);
       String label = command.label();
-      if (reason != null && !PlatformTraits.PLATFORM.showsMenuToolTips()) {
-        label = UiText.MENU_ITEM_REASON.format(label, reason);
-      }
+      label = MenuBehavior.PLATFORM.label(label, reason);
       String keys = keymap.menuKeyText(command);
       item.setText(keys.isEmpty() ? label : label + "\t" + keys);
       item.setToolTipText(reason);

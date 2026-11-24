@@ -23,10 +23,10 @@ import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.ui.swt.AppMenu;
-import io.github.ajdailey.qcaret.ui.swt.LaunchDocuments;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.platform.LaunchDocuments;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -253,13 +253,13 @@ final class Gui {
   /**
    * Returns the command line with the files the system handed this start as open-document events,
    * or the command line itself. Only a start that restores the session because it names nothing
-   * collects them, and only where the application menu is present (macOS).
+   * collects them ({@link LaunchDocuments#collect}).
    */
   private StartupRequest withLaunchDocuments(Display display) {
-    if (!HandoffDocuments.namesNothing(request) || !AppMenu.present(display)) {
+    if (!HandoffDocuments.namesNothing(request)) {
       return request;
     }
-    List<Path> launched = LaunchDocuments.collect(display);
+    List<Path> launched = LaunchDocuments.PLATFORM.collect(display);
     if (!launched.isEmpty()) {
       LOG.info(
           "Started with {} files from the system; the session is not restored", launched.size());
@@ -492,11 +492,21 @@ final class Gui {
     }
     Rectangle area = shell.getClientArea();
     Point location = shell.getLocation();
+    Point size = shell.getSize();
+    Rectangle work = shell.getMonitor().getClientArea();
     LOG.info(
-        "Main window open: client area {}x{}, location {},{}",
+        "Main window open: client area {}x{}, location {},{}, size {}x{}, work area {},{} {}x{},"
+            + " zoom {}",
         area.width,
         area.height,
         location.x,
-        location.y);
+        location.y,
+        size.x,
+        size.y,
+        work.x,
+        work.y,
+        work.width,
+        work.height,
+        shell.getMonitor().getZoom());
   }
 }

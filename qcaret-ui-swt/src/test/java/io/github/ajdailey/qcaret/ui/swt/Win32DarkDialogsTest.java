@@ -19,6 +19,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +93,12 @@ class Win32DarkDialogsTest {
   /** Controls whose text win32 draws in a system color public API cannot set. */
   private static final Set<String> LIMITS =
       Set.of("Button check disabled", "Label disabled", "ProgressBar", "Text disabled");
+
+  /** Opens the service as a System start under a dark system setting does. */
+  private SwtThemeService darkSystemStart() {
+    ThemeFollow follow = PlatformTraits.PLATFORM.themeFollow(display);
+    return new SwtThemeService(display, follow.start(ThemeMode.DARK), DARK_SYSTEM, follow);
+  }
 
   private static final BooleanSupplier DARK_SYSTEM =
       new BooleanSupplier() {
@@ -308,9 +315,7 @@ class Win32DarkDialogsTest {
             });
     // A System start reads a dark system setting, whatever the runner's.
     SwtThemeService system =
-        mode == ThemeMode.SYSTEM
-            ? SwtThemeService.open(display, mode, PlatformTraits.PLATFORM, DARK_SYSTEM)
-            : SwtThemeService.open(display, mode);
+        mode == ThemeMode.SYSTEM ? darkSystemStart() : SwtThemeService.open(display, mode);
     assertEquals(dark, SwtThemeService.nativeDark(display));
     window = new MainWindow(display, dark ? Palette.DARK : Palette.LIGHT);
     controller =

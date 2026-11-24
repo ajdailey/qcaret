@@ -54,7 +54,13 @@ import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.FullScreen;
+import io.github.ajdailey.qcaret.ui.swt.platform.GuideDisplay;
+import io.github.ajdailey.qcaret.ui.swt.platform.KeyBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.PrintSupport;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowPlacement;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowStacking;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
 import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
@@ -69,7 +75,6 @@ import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
-import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
@@ -246,7 +251,7 @@ public final class MainWindow implements MainView {
     this.dispatcher = new SwtUiDispatcher(display);
     this.browserDispatcher = dispatcher;
     shell = new Shell(display, SWT.SHELL_TRIM);
-    fullScreen = new FullScreen(shell, dispatcher, PlatformTraits.PLATFORM);
+    fullScreen = PlatformTraits.PLATFORM.fullScreen(shell, dispatcher);
     shell.setText(UiText.WINDOW_TITLE.text());
     icons = Icons.load(display, Icons.Variant.DARK);
     shell.setImages(icons.toArray(new Image[0]));
@@ -1184,21 +1189,27 @@ public final class MainWindow implements MainView {
     PrinterData data;
     Printer printer;
     try {
-      if (PlatformTraits.PLATFORM.checksPrinterList() && Printer.getPrinterList().length == 0) {
+      if (PrintSupport.PLATFORM.noPrinter()) {
         showNotice(UiText.PRINT_NO_PRINTER.text());
         return;
       }
       if (printerChooser != null) {
         data = printerChooser.get();
-      } else if (PlatformTraits.PLATFORM.opensPrintDialog()) {
-        EditorPane pane = activeEditor();
-        PrintJobNaming.PLATFORM.name(document);
-        data =
-            PrintDialogs.create(shell, pane != null && pane.hasSelection(), PlatformTraits.PLATFORM)
-                .open();
       } else {
-        String file = pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell, document);
-        data = file == null ? null : PdfPrinter.printer(file);
+        EditorPane pane = activeEditor();
+        data =
+            PrintSupport.PLATFORM.choose(
+                shell,
+                PdfPrinter.jobName(document),
+                pane != null && pane.hasSelection(),
+                new Supplier<PrinterData>() {
+                  @Override
+                  public PrinterData get() {
+                    String file =
+                        pdfChooser != null ? pdfChooser.get() : PdfPrinter.choose(shell, document);
+                    return file == null ? null : PdfPrinter.printer(file);
+                  }
+                });
       }
       if (data == null) {
         return;
@@ -1343,18 +1354,30 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Shows the user guide in a {@link GuideWindow}. Where {@link PlatformTraits#opensBrowser} is
-   * false (GTK 4) it shows a notice naming the file instead and never creates a {@code Browser}.
+   * Shows the user guide in a {@link GuideWindow}, or on GTK 4 a notice naming the file ({@link
+   * GuideDisplay}).
    */
   @Override
   public boolean showGuide(Path file) {
     if (shell.isDisposed()) {
       return true;
     }
-    if (!PlatformTraits.PLATFORM.opensBrowser()) {
-      showNotice(UiText.NOTICE_GUIDE_AT.format(file));
-      return true;
-    }
+    return GuideDisplay.PLATFORM.show(
+        file,
+        new GuideDisplay.Shows() {
+          @Override
+          public boolean browser(Path guideFile) {
+            return showGuideWindow(guideFile);
+          }
+
+          @Override
+          public void notice(Path guideFile) {
+            showNotice(UiText.NOTICE_GUIDE_AT.format(guideFile));
+          }
+        });
+  }
+
+  private boolean showGuideWindow(Path file) {
     if (guide != null && !guide.shell().isDisposed()) {
       guide.show(file);
       return true;
@@ -1512,16 +1535,11 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Runs window bindings that are not a menu item's accelerator, such as a command's second window
-   * key, from a Display filter while this window has a key event, and the accelerators too where
-   * {@link PlatformTraits#acceleratorsFollowFocusControl} holds, or for a key in a {@code Browser}
-   * where {@link PlatformTraits#browserKeysSkipAccelerators} holds. The key is consumed; a disabled
-   * command does not run.
+   * Runs the window command {@link KeyBehavior#windowCommand} names for a key from a Display filter
+   * while this window has a key event. The key is consumed; a disabled command does not run.
    */
   private void dispatchWindowKeys() {
     final Display display = shell.getDisplay();
-    final boolean accelerators = PlatformTraits.PLATFORM.acceleratorsFollowFocusControl();
-    final boolean browserKeys = PlatformTraits.PLATFORM.browserKeysSkipAccelerators();
     final Listener filter =
         new Listener() {
           @Override
@@ -1534,11 +1552,7 @@ public final class MainWindow implements MainView {
             }
             KeyStroke stroke = SwtKeys.stroke(event.stateMask, event.keyCode, event.character);
             CommandId command =
-                stroke == null
-                    ? null
-                    : accelerators || (browserKeys && control instanceof Browser)
-                        ? keymap.windowBinding(stroke)
-                        : keymap.windowCommand(stroke);
+                stroke == null ? null : KeyBehavior.PLATFORM.windowCommand(keymap, stroke, control);
             if (command != null) {
               event.type = SWT.None;
               event.doit = false;
@@ -1587,38 +1601,27 @@ public final class MainWindow implements MainView {
    * @return the placement applied
    */
   public WindowGeometry.Placement place(
-      WindowGeometry.Request request, WindowGeometry.Request persisted) {
+      final WindowGeometry.Request request, final WindowGeometry.Request persisted) {
     Display display = shell.getDisplay();
-    List<WindowGeometry.Screen> screens = new ArrayList<WindowGeometry.Screen>();
+    final List<WindowGeometry.Screen> screens = new ArrayList<WindowGeometry.Screen>();
     for (Monitor monitor : display.getMonitors()) {
       screens.add(screen(monitor));
     }
-    WindowGeometry.Screen primary = screen(display.getPrimaryMonitor());
-    Rectangle trim = shell.computeTrim(0, 0, 100, 100);
-    boolean positionSupported = PlatformTraits.PLATFORM.positionsWindows();
-    WindowGeometry.Placement placement =
-        WindowGeometry.place(
-            request,
-            persisted,
-            screens,
-            primary,
-            trim.width - 100,
-            trim.height - 100,
-            positionSupported);
-    apply(placement);
-    if (PlatformTraits.PLATFORM.remeasuresTrim()) {
-      Point size = shell.getSize();
-      Rectangle client = shell.getClientArea();
-      int trimWidth = size.x - client.width;
-      int trimHeight = size.y - client.height;
-      if (trimWidth != trim.width - 100 || trimHeight != trim.height - 100) {
-        placement =
-            WindowGeometry.place(
-                request, persisted, screens, primary, trimWidth, trimHeight, positionSupported);
-        apply(placement);
-      }
-    }
-    return placement;
+    final WindowGeometry.Screen primary = screen(display.getPrimaryMonitor());
+    final List<WindowGeometry.Placement> placed = new ArrayList<WindowGeometry.Placement>();
+    WindowPlacement.PLATFORM.place(
+        shell,
+        new WindowPlacement.Placer() {
+          @Override
+          public void place(int trimWidth, int trimHeight, boolean positioned) {
+            WindowGeometry.Placement placement =
+                WindowGeometry.place(
+                    request, persisted, screens, primary, trimWidth, trimHeight, positioned);
+            apply(placement);
+            placed.add(placement);
+          }
+        });
+    return placed.get(placed.size() - 1);
   }
 
   private void apply(WindowGeometry.Placement placement) {

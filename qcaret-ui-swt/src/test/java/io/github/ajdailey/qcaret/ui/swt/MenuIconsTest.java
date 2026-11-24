@@ -199,7 +199,7 @@ class MenuIconsTest {
   @Test
   void cocoaItemsShowNoImage() {
     Menu menu = menu();
-    new MenuIcons(bar, PlatformTraits.of("cocoa", false)).decorate(menu);
+    new MenuIcons(bar, PlatformTraits.of("cocoa", false).menuBehavior()).decorate(menu);
     for (MenuItem item : menu.getItems()) {
       assertNull(item.getImage());
     }
@@ -209,7 +209,7 @@ class MenuIconsTest {
   void gtkMenusAlignTheirItemsWithTheBlankImage() {
     assumeFalse(gtk4(), "GTK 4 SWT ignores MenuItem.setImage");
     Menu menu = menu();
-    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("gtk", false));
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("gtk", false).menuBehavior());
     icons.decorate(menu);
     Image blank = icons.icons().blank();
     MenuItem[] items = menu.getItems();
@@ -226,7 +226,7 @@ class MenuIconsTest {
   void win32LeavesCheckAndPlainItemsBare() {
     assumeFalse(gtk4(), "GTK 4 SWT ignores MenuItem.setImage");
     Menu menu = menu();
-    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false));
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false).menuBehavior());
     icons.decorate(menu);
     MenuItem[] items = menu.getItems();
     assertSame(icons.icons().get(ToolIcons.SAVE), items[0].getImage());
@@ -239,7 +239,7 @@ class MenuIconsTest {
   @Test
   void win32InkKeepsTheStartupSetting() {
     bar.setBackground(new Color(240, 240, 240));
-    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false));
+    MenuIcons icons = new MenuIcons(bar, PlatformTraits.of("win32", false).menuBehavior());
     assertFalse(icons.icons().darkBackground());
     bar.setBackground(new Color(30, 30, 30));
     icons.reink();

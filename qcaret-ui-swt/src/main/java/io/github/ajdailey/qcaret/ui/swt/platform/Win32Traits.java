@@ -1,9 +1,11 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 
 /** win32. */
 final class Win32Traits implements PlatformTraits {
@@ -28,98 +30,13 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
-  public boolean typesWithAlt() {
-    return false;
-  }
-
-  @Override
-  public boolean systemAppMenu() {
-    return false;
-  }
-
-  @Override
-  public boolean checksPrinterList() {
-    return true;
-  }
-
-  @Override
-  public boolean opensBrowser() {
-    return true;
-  }
-
-  @Override
-  public boolean positionsWindows() {
-    return true;
-  }
-
-  @Override
-  public boolean remeasuresTrim() {
-    return true;
-  }
-
-  @Override
-  public boolean explainsUnsupportedStacking() {
-    return false;
-  }
-
-  @Override
-  public boolean menuImages() {
-    return true;
-  }
-
-  @Override
-  public boolean padsMenuImages() {
-    return false;
-  }
-
-  @Override
-  public boolean fixedMenuInk() {
-    return true;
+  public String toolkitVersion() {
+    return null;
   }
 
   @Override
   public Color shownBackground(Control source) {
     return source.getBackground();
-  }
-
-  @Override
-  public boolean fadesDisabledIcons() {
-    return false;
-  }
-
-  @Override
-  public boolean sizesToolPictures() {
-    return false;
-  }
-
-  @Override
-  public boolean switchesThemeLive() {
-    return false;
-  }
-
-  @Override
-  public boolean followsSystemAppearance() {
-    return false;
-  }
-
-  @Override
-  public boolean themesAtCreation() {
-    return true;
-  }
-
-  @Override
-  public boolean raisesLinkContrast() {
-    return false;
-  }
-
-  @Override
-  public ChromeColors chromeColors(Display display) {
-    return new Win32ChromeColors(display);
-  }
-
-  @Override
-  public DialogSurfaces dialogSurfaces() {
-    return Win32DialogSurfaces.INSTANCE;
   }
 
   @Override
@@ -133,87 +50,82 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
-  public boolean opensPrintDialog() {
-    return true;
-  }
-
-  @Override
   public int busyCursor() {
     return SWT.CURSOR_APPSTARTING;
   }
 
   @Override
-  public boolean handsFilesAsEvents() {
-    return false;
+  public ChromeColors chromeColors(Display display) {
+    return new Win32ChromeColors(display);
   }
 
   @Override
-  public boolean pollsSystemTheme() {
-    return true;
+  public DialogColors dialogColors() {
+    return Win32DialogColors.INSTANCE;
   }
 
   @Override
-  public boolean windowMenuControls() {
-    return false;
+  public ThemeFollow themeFollow(Display display) {
+    return new Win32ThemeFollow(display);
   }
 
   @Override
-  public boolean labelsByDescription() {
-    return false;
+  public MenuBehavior menuBehavior() {
+    return new Win32MenuBehavior();
   }
 
   @Override
-  public boolean printDialogOmitsSelection() {
-    return true;
+  public ToolItemSizing toolItemSizing() {
+    return new NativeToolItemSizing();
   }
 
   @Override
-  public boolean fullScreenSpace() {
-    return false;
+  public KeyBehavior keyBehavior() {
+    return new Win32KeyBehavior();
   }
 
   @Override
-  public boolean stacksOnX11() {
-    return false;
+  public BrowserBehavior browserBehavior() {
+    return new Win32BrowserBehavior();
   }
 
   @Override
-  public String toolkitVersion() {
-    return null;
+  public PrintSupport printSupport() {
+    return new Win32PrintSupport();
   }
 
   @Override
-  public boolean showsMenuToolTips() {
-    return true;
+  public FullScreen fullScreen(Shell shell, UiDispatcher ui) {
+    return new NativeFullScreen(shell);
   }
 
   @Override
-  public boolean scrollsBrowserToFragments() {
-    return false;
+  public WindowStacking stacking() {
+    return new Win32Stacking();
   }
 
   @Override
-  public boolean acceleratorsFollowFocusControl() {
-    return false;
+  public WindowPlacement windowPlacement() {
+    return new Win32WindowPlacement();
   }
 
   @Override
-  public boolean blankLinksReplacePage() {
-    return false;
+  public NativeNames nativeNames() {
+    return new NoNativeNames();
   }
 
   @Override
-  public boolean namesThroughAtk() {
-    return false;
+  public AccessibleLabels accessibleLabels() {
+    return new NativeAccessibleLabels();
   }
 
   @Override
-  public boolean followsLinksWithoutGesture() {
-    return true;
+  public LaunchDocuments launchDocuments() {
+    return new NativeLaunchDocuments();
   }
 
   @Override
-  public boolean browserKeysSkipAccelerators() {
-    return true;
+  public GuideDisplay guideDisplay() {
+    return new BrowserGuideDisplay();
   }
 }

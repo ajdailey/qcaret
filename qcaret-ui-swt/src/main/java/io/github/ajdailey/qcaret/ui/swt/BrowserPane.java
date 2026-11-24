@@ -6,7 +6,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.text.LogText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.BrowserBehavior;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -40,14 +40,14 @@ import org.slf4j.LoggerFactory;
  *       loads nothing but inline styles and {@code data:} images.
  *   <li>Every navigation is canceled except the page this pane loads and the {@code about:blank#id}
  *       scroll it asks for. {@link LinkGestures} sends a canceled navigation that a primary-button
- *       release or an Enter or Space key on the browser started, or every top-frame one where
- *       {@link PlatformTraits#followsLinksWithoutGesture} holds, to {@link
- *       MarkdownPreviewInput#linkFollowed}; any other one, such as a meta refresh, is dropped.
- *   <li>Where {@link PlatformTraits#blankLinksReplacePage} holds, an empty {@code about:blank} page
+ *       release or an Enter or Space key on the browser started, or a top-frame one {@link
+ *       BrowserBehavior#followUngestured} takes, to {@link MarkdownPreviewInput#linkFollowed}; any
+ *       other one, such as a meta refresh, is dropped.
+ *   <li>Where {@link BrowserBehavior#pageChanged} runs the check, an empty {@code about:blank} page
  *       the pane did not load is replaced by the shown content's page once, after it loads; its
  *       {@code completed} event neither meets a bound nor scrolls.
  *   <li>Scrolling to a line or an anchor navigates to {@code about:blank#id} where {@link
- *       PlatformTraits#scrollsBrowserToFragments} holds, after the page loaded; a new page returns
+ *       BrowserBehavior#scrollToAnchor} runs the scroll, after the page loaded; a new page returns
  *       to the last id asked for. The browser's own scroll is not reported: with JavaScript off the
  *       page position cannot be read.
  *   <li>An {@link SWTException} or {@link SWTError} from a browser call, a page whose navigation
@@ -109,7 +109,7 @@ final class BrowserPane {
     this.gestures =
         new LinkGestures(
             ui,
-            PlatformTraits.PLATFORM.followsLinksWithoutGesture(),
+            BrowserBehavior.PLATFORM,
             new Consumer<String>() {
               @Override
               public void accept(String location) {
@@ -182,17 +182,23 @@ final class BrowserPane {
           }
 
           @Override
-          public void changed(LocationEvent event) {
-            if (!event.top || !PlatformTraits.PLATFORM.blankLinksReplacePage()) {
+          public void changed(final LocationEvent event) {
+            if (!event.top) {
               return;
             }
-            if (committing != null && same(event.location, committing)) {
-              committing = null;
-              stray = false;
-            } else if (BLANK.equals(event.location)) {
-              stray = true;
-              LOG.debug("Markdown preview page replaced by an empty one");
-            }
+            BrowserBehavior.PLATFORM.pageChanged(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (committing != null && same(event.location, committing)) {
+                      committing = null;
+                      stray = false;
+                    } else if (BLANK.equals(event.location)) {
+                      stray = true;
+                      LOG.debug("Markdown preview page replaced by an empty one");
+                    }
+                  }
+                });
           }
         });
     browser.addProgressListener(
@@ -379,14 +385,17 @@ final class BrowserPane {
    *
    * @param id the id
    */
-  void scrollToAnchor(String id) {
-    if (!PlatformTraits.PLATFORM.scrollsBrowserToFragments()) {
-      return;
-    }
-    anchor = id;
-    if (loaded) {
-      scroll(id);
-    }
+  void scrollToAnchor(final String id) {
+    BrowserBehavior.PLATFORM.scrollToAnchor(
+        new Runnable() {
+          @Override
+          public void run() {
+            anchor = id;
+            if (loaded) {
+              scroll(id);
+            }
+          }
+        });
   }
 
   private void scroll(String id) {

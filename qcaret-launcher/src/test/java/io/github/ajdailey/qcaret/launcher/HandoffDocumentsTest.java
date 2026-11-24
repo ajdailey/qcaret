@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.SessionMode;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.file.Path;
 import java.util.List;
 import org.eclipse.swt.widgets.Display;
@@ -18,7 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * G2-D: on macOS a launch that hands off and names nothing takes the files of open-document events
  * first. Linux raises no such event, so the wait here ends at its first bound with no files; the
- * collection and stop rule are in {@code LaunchDocumentsTest}.
+ * collection and stop rule are in {@code DocumentEventLoopTest}.
  */
 @Tag("swt")
 class HandoffDocumentsTest {
@@ -56,9 +57,13 @@ class HandoffDocumentsTest {
   void aLaunchThatNamesAFileOrRunsWithoutEventsIsHandedAsItIs() {
     StartupRequest named =
         request(List.of(new FileRequest(temp.resolve("mock.txt"))), SessionMode.DEFAULT, null);
-    assertSame(named, HandoffDocuments.beforeHandoff(named, true));
+    assertSame(
+        named,
+        HandoffDocuments.beforeHandoff(named, PlatformTraits.of("cocoa", false).launchDocuments()));
     StartupRequest empty = request(List.of(), SessionMode.DEFAULT, null);
-    assertSame(empty, HandoffDocuments.beforeHandoff(empty, false));
+    assertSame(
+        empty,
+        HandoffDocuments.beforeHandoff(empty, PlatformTraits.of("win32", false).launchDocuments()));
     assertSame(empty, HandoffDocuments.beforeHandoff(empty));
   }
 
@@ -66,7 +71,9 @@ class HandoffDocumentsTest {
   @Test
   void theWaitDisposesItsDisplay() {
     StartupRequest empty = request(List.of(), SessionMode.DEFAULT, null);
-    assertSame(empty, HandoffDocuments.beforeHandoff(empty, true));
+    assertSame(
+        empty,
+        HandoffDocuments.beforeHandoff(empty, PlatformTraits.of("cocoa", false).launchDocuments()));
     Display next = new Display();
     try {
       assertFalse(next.isDisposed());

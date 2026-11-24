@@ -1,13 +1,17 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 
 /**
- * The view layer's platform differences: one class per SWT platform, win32, cocoa, GTK 3 and GTK 4,
- * answers each question a view class asks. {@link #PLATFORM} is the running one.
+ * The view layer's platform differences: one class per SWT platform, win32, cocoa, GTK 3 and GTK 4.
+ * A value a view class needs (a font, a size, a cursor, the key names) is a method here; behavior
+ * that differs is a seam interface, whose implementation for the platform a method here returns.
+ * {@link #PLATFORM} is the running one.
  */
 public interface PlatformTraits {
   /** System property SWT sets on GTK to {@code x11}, {@code wayland} or {@code unknown}. */
@@ -32,6 +36,8 @@ public interface PlatformTraits {
       default -> throw new IllegalArgumentException(platform);
     };
   }
+
+  // Values.
 
   /**
    * Returns the SWT platform name.
@@ -62,94 +68,11 @@ public interface PlatformTraits {
   CaretBlend caretBlend();
 
   /**
-   * Reports whether Alt and a key types the key's character, as Option does on macOS.
-   *
-   * @return true on cocoa
-   */
-  boolean typesWithAlt();
-
-  /**
-   * Reports whether the system supplies the application menu.
-   *
-   * @return true on cocoa
-   */
-  boolean systemAppMenu();
-
-  /**
-   * Reports whether an empty printer list means no printer. GTK lists printers only after every
-   * print backend answers, and its dialog always offers Print to File.
-   *
-   * @return false on GTK
-   */
-  boolean checksPrinterList();
-
-  /**
-   * Reports whether a {@code Browser} can show the user guide. WebKitGTK 6.0 aborts the JVM when
-   * the browser starts under GTK 4 ("Failed to fully launch dbus-proxy").
-   *
-   * @return false on GTK 4
-   */
-  boolean opensBrowser();
-
-  /**
-   * Reports whether a shell can be moved to a location; read at each placement.
-   *
-   * @return false on GTK 4 and on GTK 3 under Wayland
-   */
-  boolean positionsWindows();
-
-  /**
-   * Reports whether a placement is made again with the trim measured from the sized shell. win32's
-   * {@code computeTrim} overstates the height once a menu bar is set.
-   *
-   * @return true on win32
-   */
-  boolean remeasuresTrim();
-
-  /**
-   * Reports whether a disabled Always on Top item carries a tool tip saying the platform cannot
-   * keep a window on top.
-   *
-   * @return true on GTK, the platform whose stacking can be unsupported
-   */
-  boolean explainsUnsupportedStacking();
-
-  /**
-   * Reports whether Always on Top goes through GTK 3's X11 calls; read when the stacking is chosen.
-   *
-   * @return true on GTK 3 when the GDK backend is {@code x11}
-   */
-  boolean stacksOnX11();
-
-  /**
    * Returns the native toolkit version SWT records, for the About text.
    *
    * @return the GTK version, or null on win32 and cocoa or when SWT recorded none
    */
   String toolkitVersion();
-
-  /**
-   * Reports whether menu items show images.
-   *
-   * @return false on cocoa
-   */
-  boolean menuImages();
-
-  /**
-   * Reports whether every other item of a menu with an icon holds a blank image, since the menu
-   * reserves no image column and a label moves right when its item has an image.
-   *
-   * @return true on GTK
-   */
-  boolean padsMenuImages();
-
-  /**
-   * Reports whether menu icon ink comes from the native theme's startup setting. win32 menus take
-   * that setting and keep it, and the toolbar stays light under a dark one.
-   *
-   * @return true on win32
-   */
-  boolean fixedMenuInk();
 
   /**
    * Returns the background a control shows now. GTK refreshes {@code getBackground} only on the
@@ -160,70 +83,6 @@ public interface PlatformTraits {
    * @return the color
    */
   Color shownBackground(Control source);
-
-  /**
-   * Reports whether a disabled icon on a dark background takes a faded copy. GTK's disabled effect
-   * brightens an image there.
-   *
-   * @return true on GTK
-   */
-  boolean fadesDisabledIcons();
-
-  /**
-   * Reports whether a tool item's picture needs its icon's size as a minimum through SWT internals,
-   * because the box GTK 4 SWT wraps it in measures 0 high under GTK 4.14.
-   *
-   * @return true on GTK 4
-   */
-  boolean sizesToolPictures();
-
-  /**
-   * Reports whether {@code Display.setDarkThemePreferred} restyles native controls at once.
-   * Elsewhere win32 controls read it when created and cocoa follows the system appearance.
-   *
-   * @return true on GTK
-   */
-  boolean switchesThemeLive();
-
-  /**
-   * Reports whether native controls always take the system appearance, which QCaret never sets and
-   * polls for changes.
-   *
-   * @return true on cocoa
-   */
-  boolean followsSystemAppearance();
-
-  /**
-   * Reports whether native controls read the dark theme setting only when created, so a system
-   * theme start sets it from the system setting.
-   *
-   * @return true on win32
-   */
-  boolean themesAtCreation();
-
-  /**
-   * Reports whether a {@code Link} takes a link color raised to readable contrast, and again at
-   * each theme change. Adwaita's dark link color has 3.25 contrast on its window background, and a
-   * link keeps the color of its creation.
-   *
-   * @return true on GTK
-   */
-  boolean raisesLinkContrast();
-
-  /**
-   * Creates a main window's chrome colors.
-   *
-   * @param display the Display, after the theme service records the native start
-   * @return {@link Win32ChromeColors} on win32, else {@link NativeChromeColors}
-   */
-  ChromeColors chromeColors(Display display);
-
-  /**
-   * Returns the dialog colors and check box creation.
-   *
-   * @return {@link Win32DialogSurfaces} on win32, else {@link NativeDialogSurfaces}
-   */
-  DialogSurfaces dialogSurfaces();
 
   /**
    * Reports whether key names follow macOS.
@@ -240,14 +99,6 @@ public interface PlatformTraits {
   boolean linuxKeys();
 
   /**
-   * Reports whether SWT's {@code PrintDialog} opens. On GTK 4 SWT 3.135's {@code PrintDialog.open}
-   * throws {@code UnsatisfiedLinkError} for {@code gtk_dialog_run}.
-   *
-   * @return false on GTK 4
-   */
-  boolean opensPrintDialog();
-
-  /**
    * Returns the system cursor over a busy window or editor, an arrow with a busy mark. SWT 3.135
    * cocoa shows {@code CURSOR_APPSTARTING} as a plain arrow and {@code CURSOR_WAIT} as AppKit's
    * {@code busyButClickableCursor}.
@@ -256,121 +107,114 @@ public interface PlatformTraits {
    */
   int busyCursor();
 
-  /**
-   * Reports whether the system hands a launch its files as {@code SWT.OpenDocument} events, with no
-   * file arguments: Finder's Open With and a Dock drop on macOS.
-   *
-   * @return true on cocoa
-   */
-  boolean handsFilesAsEvents();
+  // Seams.
 
   /**
-   * Reports whether the system light or dark setting is polled. cocoa SWT sends no {@code
-   * SWT.Settings} for an appearance change; win32 SWT sends it 2 s after {@code WM_SETTINGCHANGE}.
+   * Creates a main window's chrome colors.
    *
-   * @return true on win32 and cocoa
+   * @param display the Display, after the theme service records the native start
+   * @return {@link Win32ChromeColors} on win32, else {@link NativeChromeColors}
    */
-  boolean pollsSystemTheme();
+  ChromeColors chromeColors(Display display);
 
   /**
-   * Reports whether the Window menu carries Minimize ({@code Cmd+M}) and Zoom, which SWT does not
-   * add to an application-defined Window menu.
+   * Returns the dialog colors and check box creation.
    *
-   * @return true on cocoa
+   * @return {@link Win32DialogColors} on win32, else {@link NativeDialogColors}
    */
-  boolean windowMenuControls();
+  DialogColors dialogColors();
 
   /**
-   * Reports whether a screen reader takes a custom control's label from its accessible description
-   * and needs an explicit role: VoiceOver reads a {@code Canvas} without a role as {@code
-   * SWTComposite} with a blank description and does not read the accessible name.
+   * Creates how native controls follow the theme on a Display.
    *
-   * @return true on cocoa
+   * @param display the Display
+   * @return the platform's {@link ThemeFollow}
    */
-  boolean labelsByDescription();
+  ThemeFollow themeFollow(Display display);
 
   /**
-   * Reports whether the print dialog offers no Selection scope. Windows 11's dialog offers All
-   * pages and a custom range; opened with {@code PrinterData.SELECTION} it shows All pages and
-   * returns Selection.
+   * Returns the menu differences.
    *
-   * @return true on win32
+   * @return the platform's {@link MenuBehavior}
    */
-  boolean printDialogOmitsSelection();
+  MenuBehavior menuBehavior();
 
   /**
-   * Reports whether full screen moves the window to a space of its own: the system animates the
-   * change after {@code Shell.setFullScreen} returns, the window's title bar button also enters and
-   * leaves it, and the system menu bar shows when the pointer reaches the top edge. Elsewhere the
-   * window keeps its menu bar and only {@code setFullScreen} changes the state.
+   * Returns how tool items keep their icon's size.
    *
-   * @return true on cocoa
+   * @return {@link Gtk4ToolItemSizing} on GTK 4, else {@link NativeToolItemSizing}
    */
-  boolean fullScreenSpace();
+  ToolItemSizing toolItemSizing();
 
   /**
-   * Reports whether a menu item shows its tool tip. SWT drops menu item tool tips on GTK 4, so a
-   * disabled item there names its reason in its label.
+   * Returns the key handling differences.
    *
-   * @return false on GTK 4
+   * @return the platform's {@link KeyBehavior}
    */
-  boolean showsMenuToolTips();
+  KeyBehavior keyBehavior();
 
   /**
-   * Reports whether {@code Browser.setUrl("about:blank#id")} after {@code setText} scrolls the same
-   * page to the id. On win32, SWT's Edge shows {@code setText} content in a temporary file's page,
-   * so the call would navigate away from it. On cocoa, SWT escapes the {@code #} as {@code %23}, so
-   * the URL has no fragment and WebKit loads it as another page.
+   * Returns the embedded browser differences.
    *
-   * @return false on win32 and cocoa
+   * @return the platform's {@link BrowserBehavior}
    */
-  boolean scrollsBrowserToFragments();
+  BrowserBehavior browserBehavior();
 
   /**
-   * Reports whether a menu accelerator's key reaches the focused control before the menu item runs,
-   * and that control's default action then also runs: SWT on GTK 4 runs accelerators from the
-   * window's shortcut controller, after the focused widget, so a {@code StyledText} inserts
-   * Ctrl+Shift+M's CR. A key the focused control consumes never reaches the shortcut.
+   * Returns the print differences.
    *
-   * @return true on GTK 4
+   * @return the platform's {@link PrintSupport}
    */
-  boolean acceleratorsFollowFocusControl();
+  PrintSupport printSupport();
 
   /**
-   * Reports whether a click on a link to {@code about:blank}, such as {@code href=""} on a {@code
-   * setText} page, replaces the page with an empty one without a {@code LocationListener.changing}
-   * event to cancel: WebKitGTK asks no navigation policy for {@code about:blank}. The {@code
-   * changed} and {@code completed} events follow.
+   * Creates a main window's full screen state.
    *
-   * @return true on GTK
+   * @param shell the main window's shell
+   * @param ui runs the cocoa transition's timer
+   * @return {@link CocoaFullScreen} on cocoa, else {@link NativeFullScreen}
    */
-  boolean blankLinksReplacePage();
+  FullScreen fullScreen(Shell shell, UiDispatcher ui);
 
   /**
-   * Reports whether a native widget's accessible name goes on its ATK object through SWT internals,
-   * since SWT asks no Java listener for it ({@link NativeNames}).
+   * Creates the Always on Top stacking; GTK 3 reads {@link #GDK_BACKEND} here.
    *
-   * @return true on GTK 3
+   * @return the platform's {@link WindowStacking}
    */
-  boolean namesThroughAtk();
+  WindowStacking stacking();
 
   /**
-   * Reports whether the Markdown preview follows every navigation it cancels, with no click or key
-   * on the browser. SWT's Edge with JavaScript off reports no mouse or key event to the {@code
-   * Browser}, so no link would follow on a gesture; with no script, meta refresh made inert and the
-   * content policy, the page starts no navigation by itself.
+   * Returns how a main window is placed.
    *
-   * @return true on win32
+   * @return the platform's {@link WindowPlacement}
    */
-  boolean followsLinksWithoutGesture();
+  WindowPlacement windowPlacement();
 
   /**
-   * Reports whether a key pressed in a {@code Browser} reaches its {@code KeyDown} listeners and no
-   * menu accelerator runs: SWT's Edge receives keys in WebView2's process and sends them to the
-   * {@code Browser} from {@code AcceleratorKeyPressed}, so the window's native accelerators never
-   * see them. A key a listener consumes is marked handled, and WebView2 does not act on it.
+   * Returns how native widgets take the names a screen reader reads.
    *
-   * @return true on win32
+   * @return the platform's {@link NativeNames}
    */
-  boolean browserKeysSkipAccelerators();
+  NativeNames nativeNames();
+
+  /**
+   * Returns how controls named through a listener are labeled.
+   *
+   * @return {@link CocoaAccessibleLabels} on cocoa, else {@link NativeAccessibleLabels}
+   */
+  AccessibleLabels accessibleLabels();
+
+  /**
+   * Returns how the user guide shows in the application.
+   *
+   * @return {@link NoticeGuideDisplay} on GTK 4, else {@link BrowserGuideDisplay}
+   */
+  GuideDisplay guideDisplay();
+
+  /**
+   * Returns the open-document events a launch receives.
+   *
+   * @return {@link CocoaLaunchDocuments} on cocoa, else {@link NativeLaunchDocuments}
+   */
+  LaunchDocuments launchDocuments();
 }

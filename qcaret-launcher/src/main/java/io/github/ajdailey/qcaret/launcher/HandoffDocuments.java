@@ -4,8 +4,9 @@ import io.github.ajdailey.qcaret.app.cli.FileRequest;
 import io.github.ajdailey.qcaret.app.cli.SessionMode;
 import io.github.ajdailey.qcaret.app.cli.StartupRequest;
 import io.github.ajdailey.qcaret.core.text.LogText;
-import io.github.ajdailey.qcaret.ui.swt.LaunchDocuments;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.platform.DocumentEventLoop;
+import io.github.ajdailey.qcaret.ui.swt.platform.LaunchDocuments;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +18,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The files the system hands a launch that names nothing as open-document events. On macOS a Finder
  * Open With can start a second registered copy with no file arguments while another instance is the
- * primary; {@link #beforeHandoff} runs a Display without a window to take the events, so the
- * handoff carries the files. A launch that becomes the primary takes them in {@link Gui}.
+ * primary; {@link #beforeHandoff} takes the events through {@link LaunchDocuments}, so the handoff
+ * carries the files. A launch that becomes the primary takes them in {@link Gui}.
  */
 final class HandoffDocuments {
   private static final Logger LOG = LoggerFactory.getLogger(HandoffDocuments.class);
@@ -63,30 +64,46 @@ final class HandoffDocuments {
    * @return the request with the system's files, or the command line itself
    */
   static StartupRequest beforeHandoff(StartupRequest request) {
-    return beforeHandoff(request, PlatformTraits.PLATFORM.handsFilesAsEvents());
+    return beforeHandoff(request, LaunchDocuments.PLATFORM);
   }
 
   /**
    * Returns the request to hand off; see {@link #beforeHandoff(StartupRequest)}.
    *
    * @param request the command line
-   * @param events true where the system hands files as open-document events
+   * @param events the platform's open-document events
    * @return the request
    */
-  static StartupRequest beforeHandoff(StartupRequest request, boolean events) {
-    if (!events || !namesNothing(request)) {
+  static StartupRequest beforeHandoff(StartupRequest request, LaunchDocuments events) {
+    if (!namesNothing(request)) {
       return request;
     }
+    List<Path> files = new ArrayList<Path>();
+    for (String name : events.await(HandoffDocuments::waitForEvents)) {
+      files.add(Path.of(name));
+    }
+    return withFiles(request, files);
+  }
+
+  /**
+   * Runs a Display without a window until the open-document events stop, then disposes it. A
+   * Display that cannot be created gives no files.
+   */
+  private static List<String> waitForEvents() {
     Display.setAppName("QCaret");
     Display display;
     try {
       display = new Display();
     } catch (UnsatisfiedLinkError | SWTError e) {
       LOG.debug("No open-document events without SWT: {}", LogText.oneLine(e.getMessage()));
-      return request;
+      return List.of();
     }
     try {
-      return withFiles(request, LaunchDocuments.await(display));
+      List<String> names = new ArrayList<String>();
+      for (Path path : DocumentEventLoop.await(display, new SwtUiDispatcher(display))) {
+        names.add(path.toString());
+      }
+      return names;
     } finally {
       display.dispose();
     }

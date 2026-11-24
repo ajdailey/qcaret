@@ -14,4 +14,12 @@ class PdfPrinterTest {
     assertEquals(".bashrc.pdf", PdfPrinter.fileName(".bashrc"));
     assertEquals("Untitled 1.pdf", PdfPrinter.fileName("Untitled 1"));
   }
+
+  @Test
+  void theJobNameIsThePdfNameWithoutItsExtension() {
+    assertEquals("d1d", PdfPrinter.jobName("d1d.txt"));
+    assertEquals("archive.tar", PdfPrinter.jobName("archive.tar.gz"));
+    assertEquals("Makefile", PdfPrinter.jobName("Makefile"));
+    assertEquals(".bashrc", PdfPrinter.jobName(".bashrc"));
+  }
 }

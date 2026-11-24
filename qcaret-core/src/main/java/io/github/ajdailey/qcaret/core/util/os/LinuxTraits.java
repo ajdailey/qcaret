@@ -26,13 +26,8 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
-  public boolean opensDeviceNames() {
-    return false;
-  }
-
-  @Override
-  public boolean dropsTrailingDotsAndSpaces() {
-    return false;
+  public DeviceNames deviceNames() {
+    return FileNames.INSTANCE;
   }
 
   @Override
@@ -50,13 +45,8 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
-  public boolean confinesToSettings() {
-    return true;
-  }
-
-  @Override
-  public boolean webView2() {
-    return false;
+  public FileConfinement fileConfinement() {
+    return LinuxFileConfinement.INSTANCE;
   }
 
   @Override

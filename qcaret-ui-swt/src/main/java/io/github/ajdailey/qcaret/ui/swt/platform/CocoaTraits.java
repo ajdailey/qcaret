@@ -1,9 +1,11 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 
 /** cocoa. */
 final class CocoaTraits implements PlatformTraits {
@@ -28,98 +30,13 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean typesWithAlt() {
-    return true;
-  }
-
-  @Override
-  public boolean systemAppMenu() {
-    return true;
-  }
-
-  @Override
-  public boolean checksPrinterList() {
-    return true;
-  }
-
-  @Override
-  public boolean opensBrowser() {
-    return true;
-  }
-
-  @Override
-  public boolean positionsWindows() {
-    return true;
-  }
-
-  @Override
-  public boolean remeasuresTrim() {
-    return false;
-  }
-
-  @Override
-  public boolean explainsUnsupportedStacking() {
-    return false;
-  }
-
-  @Override
-  public boolean menuImages() {
-    return false;
-  }
-
-  @Override
-  public boolean padsMenuImages() {
-    return false;
-  }
-
-  @Override
-  public boolean fixedMenuInk() {
-    return false;
+  public String toolkitVersion() {
+    return null;
   }
 
   @Override
   public Color shownBackground(Control source) {
     return source.getBackground();
-  }
-
-  @Override
-  public boolean fadesDisabledIcons() {
-    return false;
-  }
-
-  @Override
-  public boolean sizesToolPictures() {
-    return false;
-  }
-
-  @Override
-  public boolean switchesThemeLive() {
-    return false;
-  }
-
-  @Override
-  public boolean followsSystemAppearance() {
-    return true;
-  }
-
-  @Override
-  public boolean themesAtCreation() {
-    return false;
-  }
-
-  @Override
-  public boolean raisesLinkContrast() {
-    return false;
-  }
-
-  @Override
-  public ChromeColors chromeColors(Display display) {
-    return new NativeChromeColors();
-  }
-
-  @Override
-  public DialogSurfaces dialogSurfaces() {
-    return NativeDialogSurfaces.INSTANCE;
   }
 
   @Override
@@ -133,87 +50,82 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean opensPrintDialog() {
-    return true;
-  }
-
-  @Override
   public int busyCursor() {
     return SWT.CURSOR_WAIT;
   }
 
   @Override
-  public boolean handsFilesAsEvents() {
-    return true;
+  public ChromeColors chromeColors(Display display) {
+    return new NativeChromeColors();
   }
 
   @Override
-  public boolean pollsSystemTheme() {
-    return true;
+  public DialogColors dialogColors() {
+    return NativeDialogColors.INSTANCE;
   }
 
   @Override
-  public boolean windowMenuControls() {
-    return true;
+  public ThemeFollow themeFollow(Display display) {
+    return new CocoaThemeFollow(display);
   }
 
   @Override
-  public boolean labelsByDescription() {
-    return true;
+  public MenuBehavior menuBehavior() {
+    return new CocoaMenuBehavior();
   }
 
   @Override
-  public boolean printDialogOmitsSelection() {
-    return false;
+  public ToolItemSizing toolItemSizing() {
+    return new NativeToolItemSizing();
   }
 
   @Override
-  public boolean fullScreenSpace() {
-    return true;
+  public KeyBehavior keyBehavior() {
+    return new CocoaKeyBehavior();
   }
 
   @Override
-  public boolean stacksOnX11() {
-    return false;
+  public BrowserBehavior browserBehavior() {
+    return new CocoaBrowserBehavior();
   }
 
   @Override
-  public String toolkitVersion() {
-    return null;
+  public PrintSupport printSupport() {
+    return new CocoaPrintSupport();
   }
 
   @Override
-  public boolean showsMenuToolTips() {
-    return true;
+  public FullScreen fullScreen(Shell shell, UiDispatcher ui) {
+    return new CocoaFullScreen(shell, ui);
   }
 
   @Override
-  public boolean scrollsBrowserToFragments() {
-    return false;
+  public WindowStacking stacking() {
+    return new CocoaStacking();
   }
 
   @Override
-  public boolean acceleratorsFollowFocusControl() {
-    return false;
+  public WindowPlacement windowPlacement() {
+    return new NativeWindowPlacement();
   }
 
   @Override
-  public boolean blankLinksReplacePage() {
-    return false;
+  public NativeNames nativeNames() {
+    return new NoNativeNames();
   }
 
   @Override
-  public boolean namesThroughAtk() {
-    return false;
+  public AccessibleLabels accessibleLabels() {
+    return new CocoaAccessibleLabels();
   }
 
   @Override
-  public boolean followsLinksWithoutGesture() {
-    return false;
+  public LaunchDocuments launchDocuments() {
+    return new CocoaLaunchDocuments();
   }
 
   @Override
-  public boolean browserKeysSkipAccelerators() {
-    return false;
+  public GuideDisplay guideDisplay() {
+    return new BrowserGuideDisplay();
   }
 }

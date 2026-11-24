@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
@@ -8,6 +9,7 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
 
 /** What GTK 3 and GTK 4 share. */
 abstract class GtkTraits implements PlatformTraits {
@@ -18,62 +20,27 @@ abstract class GtkTraits implements PlatformTraits {
   static final String GTK_VERSION = "org.eclipse.swt.internal.gtk.version";
 
   @Override
-  public String name() {
+  public final String name() {
     return "gtk";
   }
 
   @Override
-  public String monospaceFamily() {
+  public final String monospaceFamily() {
     return "Monospace";
   }
 
   @Override
-  public int monospaceSize() {
+  public final int monospaceSize() {
     return 10;
   }
 
   @Override
-  public boolean typesWithAlt() {
-    return false;
+  public final String toolkitVersion() {
+    return System.getProperty(GTK_VERSION);
   }
 
   @Override
-  public boolean systemAppMenu() {
-    return false;
-  }
-
-  @Override
-  public boolean checksPrinterList() {
-    return false;
-  }
-
-  @Override
-  public boolean remeasuresTrim() {
-    return false;
-  }
-
-  @Override
-  public boolean explainsUnsupportedStacking() {
-    return true;
-  }
-
-  @Override
-  public boolean menuImages() {
-    return true;
-  }
-
-  @Override
-  public boolean padsMenuImages() {
-    return true;
-  }
-
-  @Override
-  public boolean fixedMenuInk() {
-    return false;
-  }
-
-  @Override
-  public Color shownBackground(Control source) {
+  public final Color shownBackground(Control source) {
     if (!source.isVisible()) {
       return source.getBackground();
     }
@@ -93,112 +60,42 @@ abstract class GtkTraits implements PlatformTraits {
   }
 
   @Override
-  public boolean fadesDisabledIcons() {
-    return true;
-  }
-
-  @Override
-  public boolean switchesThemeLive() {
-    return true;
-  }
-
-  @Override
-  public boolean followsSystemAppearance() {
+  public final boolean macKeys() {
     return false;
   }
 
   @Override
-  public boolean themesAtCreation() {
-    return false;
-  }
-
-  @Override
-  public boolean raisesLinkContrast() {
+  public final boolean linuxKeys() {
     return true;
   }
 
   @Override
-  public final ChromeColors chromeColors(Display display) {
-    return new NativeChromeColors();
-  }
-
-  @Override
-  public final DialogSurfaces dialogSurfaces() {
-    return NativeDialogSurfaces.INSTANCE;
-  }
-
-  @Override
-  public boolean macKeys() {
-    return false;
-  }
-
-  @Override
-  public boolean linuxKeys() {
-    return true;
-  }
-
-  @Override
-  public int busyCursor() {
+  public final int busyCursor() {
     return SWT.CURSOR_APPSTARTING;
   }
 
   @Override
-  public boolean handsFilesAsEvents() {
-    return false;
+  public final ChromeColors chromeColors(Display display) {
+    return new GtkChromeColors();
   }
 
   @Override
-  public boolean pollsSystemTheme() {
-    return false;
+  public final DialogColors dialogColors() {
+    return NativeDialogColors.INSTANCE;
   }
 
   @Override
-  public boolean windowMenuControls() {
-    return false;
+  public final ThemeFollow themeFollow(Display display) {
+    return new GtkThemeFollow(display);
   }
 
   @Override
-  public boolean labelsByDescription() {
-    return false;
+  public final FullScreen fullScreen(Shell shell, UiDispatcher ui) {
+    return new NativeFullScreen(shell);
   }
 
   @Override
-  public boolean printDialogOmitsSelection() {
-    return false;
-  }
-
-  @Override
-  public boolean fullScreenSpace() {
-    return false;
-  }
-
-  @Override
-  public String toolkitVersion() {
-    return System.getProperty(GTK_VERSION);
-  }
-
-  @Override
-  public boolean scrollsBrowserToFragments() {
-    return true;
-  }
-
-  @Override
-  public boolean acceleratorsFollowFocusControl() {
-    return false;
-  }
-
-  @Override
-  public boolean blankLinksReplacePage() {
-    return true;
-  }
-
-  @Override
-  public boolean followsLinksWithoutGesture() {
-    return false;
-  }
-
-  @Override
-  public boolean browserKeysSkipAccelerators() {
-    return false;
+  public final LaunchDocuments launchDocuments() {
+    return new NativeLaunchDocuments();
   }
 }

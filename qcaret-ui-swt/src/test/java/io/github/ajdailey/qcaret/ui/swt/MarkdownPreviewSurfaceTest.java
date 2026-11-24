@@ -33,6 +33,7 @@ import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -442,7 +443,7 @@ class MarkdownPreviewSurfaceTest {
     }
     assertNotNull(browser);
     window.menuBar().syncAll();
-    if (PlatformTraits.PLATFORM.opensBrowser()) {
+    if (!RunningPlatform.GTK4) {
       assertTrue(browser.getEnabled());
       assertNull(browser.getToolTipText());
       assertEquals(CommandId.PREVIEW_BROWSER.label(), browser.getText());
@@ -469,7 +470,7 @@ class MarkdownPreviewSurfaceTest {
             + Keymap.defaults(PlatformTraits.PLATFORM.macKeys())
                 .menuKeyText(CommandId.MARKDOWN_CYCLE);
     String browser =
-        PlatformTraits.PLATFORM.opensBrowser()
+        !RunningPlatform.GTK4
             ? "B&rowser"
             : UiText.MENU_ITEM_REASON.format("B&rowser", UiText.MARKDOWN_BROWSER_GTK4.text());
     assertEquals(

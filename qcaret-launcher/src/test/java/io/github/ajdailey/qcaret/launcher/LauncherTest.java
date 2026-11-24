@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.ipc.InstanceServer;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.util.os.FileConfinement;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import java.io.ByteArrayOutputStream;
@@ -144,12 +145,12 @@ class LauncherTest {
 
   @Test
   void onWindowsTheWebView2DataFolderIsInTheSettingsCache() throws Exception {
-    String before = System.getProperty(PlatformSetup.EDGE_DATA_DIR);
+    String before = System.getProperty(FileConfinement.EDGE_DATA_DIR);
     String home = System.getProperty("user.home");
     try {
-      System.clearProperty(PlatformSetup.EDGE_DATA_DIR);
+      System.clearProperty(FileConfinement.EDGE_DATA_DIR);
       PlatformSetup.apply(OsTraits.of("Linux"), new SettingsLocation(SettingsMode.PER_USER, temp));
-      assertNull(System.getProperty(PlatformSetup.EDGE_DATA_DIR));
+      assertNull(System.getProperty(FileConfinement.EDGE_DATA_DIR));
 
       Path roaming = temp.resolve("roaming");
       SettingsLocation perUser =
@@ -175,9 +176,9 @@ class LauncherTest {
       assertEquals(home, System.getProperty("user.home"));
     } finally {
       if (before == null) {
-        System.clearProperty(PlatformSetup.EDGE_DATA_DIR);
+        System.clearProperty(FileConfinement.EDGE_DATA_DIR);
       } else {
-        System.setProperty(PlatformSetup.EDGE_DATA_DIR, before);
+        System.setProperty(FileConfinement.EDGE_DATA_DIR, before);
       }
     }
   }
@@ -186,6 +187,6 @@ class LauncherTest {
     PlatformSetup.apply(OsTraits.of("Windows 11"), location);
     assertEquals(
         settings.resolve("cache").resolve("webview2").toString(),
-        System.getProperty(PlatformSetup.EDGE_DATA_DIR));
+        System.getProperty(FileConfinement.EDGE_DATA_DIR));
   }
 }

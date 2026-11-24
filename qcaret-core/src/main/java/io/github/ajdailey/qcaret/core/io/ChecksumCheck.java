@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.io;
 
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.util.os.DeviceNames;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
@@ -39,10 +40,9 @@ public final class ChecksumCheck {
   private ChecksumCheck() {}
 
   /**
-   * Resolves an entry's name against the list's folder; an absolute local name stands as written.
-   * Where names open devices (Windows), a device name or namespace ({@code CON}, {@code \\.\},
-   * {@code \\?\}) is refused, and so is a UNC name ({@code \\server\share\...}) unless the folder
-   * is on that share: opening a UNC name connects to its host with the user's credentials.
+   * Resolves an entry's name against the list's folder; an absolute local name stands as written. A
+   * device name and a UNC name on another share are refused where the system opens them ({@link
+   * DeviceNames#opensDevice}, {@link DeviceNames#checkShare}).
    *
    * @param folder the folder holding the list
    * @param entry the line
@@ -68,53 +68,7 @@ public final class ChecksumCheck {
    */
   static void checkName(String folder, String name, OsTraits os) throws IOException {
     SafePaths.checkForm(name, os);
-    if (os.opensDeviceNames()) {
-      String share = uncShare(name);
-      if (share != null && !sameShare(share, uncShare(folder))) {
-        throw new IOException("names a network share the list is not on");
-      }
-    }
-  }
-
-  /**
-   * Returns the {@code \\server\share} prefix of a UNC path, with either separator.
-   *
-   * @param path the path text
-   * @return the prefix with backslashes; the whole text when it starts with two separators but
-   *     names no share; null when it does not start with two separators
-   */
-  static String uncShare(String path) {
-    String text = path.replace('/', '\\');
-    if (!text.startsWith("\\\\")) {
-      return null;
-    }
-    int server = text.indexOf('\\', 2);
-    int share = server < 0 ? -1 : text.indexOf('\\', server + 1);
-    return share < 0 ? text : text.substring(0, share);
-  }
-
-  /**
-   * Compares two share prefixes, ignoring the case of ASCII letters only: a Unicode case mapping
-   * could match a different host's name.
-   *
-   * @param a a prefix
-   * @param b a prefix, or null
-   * @return true when they name the same share
-   */
-  static boolean sameShare(String a, String b) {
-    if (b == null || a.length() != b.length()) {
-      return false;
-    }
-    for (int i = 0; i < a.length(); i++) {
-      if (asciiLower(a.charAt(i)) != asciiLower(b.charAt(i))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static char asciiLower(char c) {
-    return c >= 'A' && c <= 'Z' ? (char) (c + ('a' - 'A')) : c;
+    os.deviceNames().checkShare(folder, name);
   }
 
   /**

@@ -9,7 +9,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
-import io.github.ajdailey.qcaret.ui.swt.platform.DialogSurfaces;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
@@ -45,14 +46,6 @@ class PlatformBehaviorTest {
         }
       };
 
-  private static final BooleanSupplier DARK_SYSTEM =
-      new BooleanSupplier() {
-        @Override
-        public boolean getAsBoolean() {
-          return true;
-        }
-      };
-
   private Display display;
 
   @BeforeEach
@@ -79,7 +72,7 @@ class PlatformBehaviorTest {
 
   @Test
   void applicationMenu() {
-    assertEquals(COCOA, AppMenu.present(display));
+    assertEquals(COCOA, !MenuBehavior.PLATFORM.systemCommands(display).isEmpty());
   }
 
   @Test
@@ -96,46 +89,51 @@ class PlatformBehaviorTest {
 
   @Test
   void restartForNativeTheme() {
-    SwtThemeService service = new SwtThemeService(display, false, LIGHT_SYSTEM, false);
+    SwtThemeService service =
+        new SwtThemeService(
+            display, false, LIGHT_SYSTEM, PlatformTraits.PLATFORM.themeFollow(display));
     assertTrue(service.showsNow(false));
     assertEquals(!WIN32, service.showsNow(true));
   }
 
   @Test
   void systemStartSetsNativeDarkWhereControlsThemeAtCreation() {
+    boolean systemDark = Display.isSystemDarkTheme();
     try {
-      assertEquals(WIN32, systemStart(PlatformTraits.PLATFORM, DARK_SYSTEM));
       for (String platform : new String[] {"win32", "cocoa", "gtk"}) {
         for (boolean gtk4 : new boolean[] {false, true}) {
           PlatformTraits traits = PlatformTraits.of(platform, gtk4);
+          String name = platform + " " + gtk4;
           assertEquals(
-              "win32".equals(platform), systemStart(traits, DARK_SYSTEM), platform + " " + gtk4);
+              "win32".equals(platform) && systemDark, start(traits, ThemeMode.SYSTEM), name);
+          assertEquals(!"cocoa".equals(platform), start(traits, ThemeMode.DARK), name);
+          assertFalse(start(traits, ThemeMode.LIGHT), name);
         }
       }
-      assertFalse(systemStart(PlatformTraits.of("win32", false), LIGHT_SYSTEM));
     } finally {
       display.setDarkThemePreferred(false);
     }
   }
 
-  /** Opens the theme service on a new Display under System and returns its native setting. */
-  private boolean systemStart(PlatformTraits traits, BooleanSupplier system) {
+  /** Opens the theme service on a new Display for a platform and returns its native setting. */
+  private boolean start(PlatformTraits traits, ThemeMode mode) {
     display.setDarkThemePreferred(false);
     display.dispose();
     display = new Display();
-    SwtThemeService.open(display, ThemeMode.SYSTEM, traits, system);
+    SwtThemeService.open(display, mode, traits.themeFollow(display));
     return SwtThemeService.nativeDark(display);
   }
 
   @Test
   void dialogAndChromeColors() {
     assertEquals(
-        WIN32 ? "Win32DialogSurfaces" : "NativeDialogSurfaces",
-        DialogSurfaces.platform().getClass().getSimpleName());
+        WIN32 ? "Win32DialogColors" : "NativeDialogColors",
+        DialogColors.platform().getClass().getSimpleName());
     ChromeColors chrome = PlatformTraits.PLATFORM.chromeColors(display);
     try {
       assertEquals(
-          WIN32 ? "Win32ChromeColors" : "NativeChromeColors", chrome.getClass().getSimpleName());
+          WIN32 ? "Win32ChromeColors" : GTK ? "GtkChromeColors" : "NativeChromeColors",
+          chrome.getClass().getSimpleName());
     } finally {
       chrome.dispose();
     }
@@ -157,6 +155,7 @@ class PlatformBehaviorTest {
     Shell shell = new Shell(display);
     ToolBar bar = new ToolBar(shell, SWT.FLAT);
     ToolIcons icons = new ToolIcons(bar, true);
+    PlatformTraits.PLATFORM.chromeColors(display).add(icons);
     ToolItem item = new ToolItem(bar, SWT.PUSH);
     icons.apply(item, ToolIcons.SAVE);
     item.setEnabled(false);

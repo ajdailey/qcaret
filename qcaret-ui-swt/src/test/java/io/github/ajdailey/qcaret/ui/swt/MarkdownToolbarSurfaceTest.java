@@ -12,7 +12,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.PreviewRenderer;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
-import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.file.Path;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.ImageData;
@@ -158,7 +158,7 @@ class MarkdownToolbarSurfaceTest {
 
   @Test
   void theRendererItemsAndTheStatusFieldChooseTheRenderer() throws Exception {
-    assumeTrue(PlatformTraits.PLATFORM.opensBrowser(), "no Browser under GTK 4");
+    assumeTrue(!RunningPlatform.GTK4, "no Browser under GTK 4");
     w.open("guide.md", "# Mock guide\n", true);
     Menu menu = tools().menu();
     MenuItem basic = entry(menu, CommandId.PREVIEW_BASIC);
@@ -198,14 +198,12 @@ class MarkdownToolbarSurfaceTest {
     MenuItem item = entry(tools().menu(), CommandId.PREVIEW_BROWSER);
     assertFalse(item.getEnabled());
     assertFalse(item.getSelection());
-    String text =
-        PlatformTraits.PLATFORM.showsMenuToolTips() ? item.getToolTipText() : item.getText();
+    String text = !RunningPlatform.GTK4 ? item.getToolTipText() : item.getText();
     assertTrue(text.contains(reason), text);
     Menu popup = renderers();
     MenuItem browser = popup.getItem(1);
     assertFalse(browser.getEnabled());
-    String shown =
-        PlatformTraits.PLATFORM.showsMenuToolTips() ? browser.getToolTipText() : browser.getText();
+    String shown = !RunningPlatform.GTK4 ? browser.getToolTipText() : browser.getText();
     assertTrue(shown.contains(reason), shown);
     assertTrue(popup.getItem(0).getSelection());
   }
