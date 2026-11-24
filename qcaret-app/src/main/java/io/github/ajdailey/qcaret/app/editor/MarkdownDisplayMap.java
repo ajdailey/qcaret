@@ -10,9 +10,10 @@ import java.util.List;
  * The text a Basic preview pane shows and its offset and line maps to the rendered text. The
  * display text is the rendered text with some table rows replaced by a {@link TableWrap.Row}: one
  * rendered line becomes the row's display lines, whose chars come from the rendered row in another
- * order, plus the tabs, line breaks and {@link TableWrap#PAD} chars the layout adds. A padded
- * separator line ({@link BlockSpacing}) holds one {@link TableWrap#PAD}. Every other line is the
- * rendered line, except that a code line's leading spaces show as {@link #INDENT}: a wrapping
+ * order, plus the tabs, line breaks and {@link TableWrap#PAD} chars the layout adds. A row of no
+ * display lines ({@link TableWrap#notice}) shows nothing and drops the line break before it. A
+ * padded separator line ({@link BlockSpacing}) holds one {@link TableWrap#PAD}. Every other line is
+ * the rendered line, except that a code line's leading spaces show as {@link #INDENT}: a wrapping
  * widget breaks after a space, so a first word too long to follow the indent would leave the indent
  * alone on a visual line.
  *
@@ -198,7 +199,8 @@ public final class MarkdownDisplayMap {
   }
 
   /**
-   * Maps a rendered line to its first display line.
+   * Maps a rendered line to its first display line; a row of no display lines maps to the line
+   * before it.
    *
    * @param line a rendered line
    * @return the display line
@@ -208,14 +210,17 @@ public final class MarkdownDisplayMap {
     if (i < 0) {
       return line;
     }
-    return index.lines[i] == line ? index.displayLines[i] : line + index.extraLinesThrough(i);
+    if (index.lines[i] != line) {
+      return line + index.extraLinesThrough(i);
+    }
+    return index.rows[i].lines() == 0 ? index.displayLines[i] - 1 : index.displayLines[i];
   }
 
   /**
    * Counts a rendered line's display lines.
    *
    * @param line a rendered line
-   * @return 1 for a line shown as rendered
+   * @return 1 for a line shown as rendered, 0 for a row joined into the line before it
    */
   public int displayLineCount(int line) {
     TableWrap.Row row = row(line);
@@ -420,9 +425,17 @@ public final class MarkdownDisplayMap {
     int start = lineStart(first);
     int end = lineEnd(first + next.length - 1);
     StringBuilder inserted = new StringBuilder();
+    TableWrap.Row before = row(first);
+    boolean wasJoined = before != null && before.lines() == 0;
+    boolean joins = next.length > 0 && next[0] != null && next[0].lines() == 0;
+    if (joins && !wasJoined) {
+      start--;
+    } else if (wasJoined && !joins) {
+      inserted.append('\n');
+    }
     for (int j = 0; j < next.length; j++) {
       int line = first + j;
-      if (j > 0) {
+      if (j > 0 && (next[j] == null || next[j].lines() > 0)) {
         inserted.append('\n');
       }
       if (next[j] == null) {

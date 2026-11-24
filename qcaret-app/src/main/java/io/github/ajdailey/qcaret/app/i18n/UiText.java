@@ -2029,7 +2029,9 @@ public enum UiText {
   /** Notice: a {@code file.md#id} target names no heading of the file; the id, the file's name. */
   MARKDOWN_NO_HEADING,
   /** Notice: a {@code file.md#id} target in a file too large to look in; name, limit, id. */
-  MARKDOWN_HEADING_TOO_LARGE;
+  MARKDOWN_HEADING_TOO_LARGE,
+  /** Basic preview: the line shown in place of a table too wide for the pane. */
+  MARKDOWN_TABLE_TOO_WIDE;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

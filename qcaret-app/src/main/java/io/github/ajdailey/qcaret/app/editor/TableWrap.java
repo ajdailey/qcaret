@@ -24,7 +24,7 @@ public final class TableWrap {
    * A row's display lines.
    *
    * @param text the lines, separated by {@code \n}, without a final one
-   * @param lines the line count, at least 1
+   * @param lines the line count, at least 1, or 0 for a row joined into the line before it
    * @param pieces {@code display, rendered, length} triples, offsets from the row's display and
    *     rendered starts, ascending in display order: each run of display chars copied from the
    *     rendered row. Shared: do not modify
@@ -34,6 +34,24 @@ public final class TableWrap {
   public record Row(String text, int lines, int[] pieces, int[] indents, int[][] tabStops) {}
 
   private TableWrap() {}
+
+  /**
+   * Returns the rows that show a table as one line of text: the header row holds the text and ends
+   * with {@link #PAD}, and every other row has no display lines.
+   *
+   * @param text the line, without line breaks
+   * @param rowCount the table's rows, at least 1
+   * @return one row per table row
+   */
+  public static Row[] notice(String text, int rowCount) {
+    Row[] rows = new Row[rowCount];
+    rows[0] = new Row(text + PAD, 1, new int[0], new int[] {0}, new int[][] {{}});
+    Row joined = new Row("", 0, new int[0], new int[0], new int[0][]);
+    for (int r = 1; r < rowCount; r++) {
+      rows[r] = joined;
+    }
+    return rows;
+  }
 
   /**
    * Lays out rows of a table fitted with {@link MarkdownTableLayout#fit(int[], int, boolean)}.

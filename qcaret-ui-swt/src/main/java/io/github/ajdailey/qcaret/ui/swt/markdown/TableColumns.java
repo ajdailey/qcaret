@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.editor.TableWords;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
@@ -32,7 +33,9 @@ import org.eclipse.swt.graphics.Rectangle;
  *       int, int, int)}): the padding, {@value #PADDING} pixels scaled by the zoom, narrows to
  *       {@value #LEAST_PADDING} before a cell wraps or a word breaks; a word that fits under the
  *       width the breaking columns share never breaks, and no column is narrower than the widest of
- *       {@link #WIDEST_CHARS} in the header's bold font while the columns at that width fit.
+ *       {@link #WIDEST_CHARS} in the header's bold font. A table whose columns at that floor, with
+ *       no padding, are wider than the pane shows as one {@link UiText#MARKDOWN_TABLE_TOO_WIDE}
+ *       line ({@link TableWrap#notice}) until a width change fits it.
  *   <li>{@link TableWrap} lays out its rows, breaking a word after the longest part that fits,
  *       which {@link RowSteps} shows in the {@link MarkdownDisplayMap} and the widget until the
  *       turn's time runs out. A layout starts a turn of its own and ends it.
@@ -62,6 +65,9 @@ final class TableColumns {
 
   /** The chars whose wider width, in the header's bold body font, is the narrowest column. */
   static final String WIDEST_CHARS = "WM";
+
+  /** The edges of a table shown as {@link UiText#MARKDOWN_TABLE_TOO_WIDE}: none. */
+  private static final int[] NOTICE = new int[0];
 
   private final StyledText text;
   private final MarkdownFonts fonts;
@@ -269,6 +275,16 @@ final class TableColumns {
   }
 
   /**
+   * Reports whether a table shows as {@link UiText#MARKDOWN_TABLE_TOO_WIDE} in place of its rows.
+   *
+   * @param table the table's index in the render, or -1
+   * @return true while the pane is too narrow for its columns at the floor
+   */
+  boolean noticed(int table) {
+    return table >= 0 && table < tables.length && tables[table].shown == NOTICE;
+  }
+
+  /**
    * Returns the column edges of a table whose rows the map shows.
    *
    * @param table the table's index in the render
@@ -393,15 +409,31 @@ final class TableColumns {
       Table t, MarkdownTable table, MarkdownDisplayMap map, int room, GC gc, long deadline) {
     if (t.next < 0) {
       int[] widest = t.words != null && t.words.measured() ? t.words.widest() : null;
+      int floor = narrowest(gc);
+      if (widest != null && t.layout.belowFloor(widest, room, floor)) {
+        if (t.shown != NOTICE) {
+          // Noticed before the replace: the widget styles the new line during it.
+          t.shown = NOTICE;
+          rows.replace(
+              map,
+              table.firstLine(),
+              TableWrap.notice(UiText.MARKDOWN_TABLE_TOO_WIDE.text(), table.rowCount()));
+        }
+        t.room = room;
+        return true;
+      }
       t.layout.fit(
           widest != null ? widest : new int[table.alignments().size()],
           room,
-          narrowest(gc),
+          floor,
           fonts.scaled(LEAST_PADDING));
       int[] edges = t.layout.edges();
       if (t.shown != null && Arrays.equals(edges, t.shown)) {
         t.room = room;
         return true;
+      }
+      if (t.shown == NOTICE) {
+        t.shown = null;
       }
       t.next = 0;
     }

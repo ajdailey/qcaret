@@ -250,6 +250,29 @@ public final class MarkdownTableLayout {
     return total;
   }
 
+  /**
+   * Reports whether the columns at {@code floor}, or at their widest word where that is narrower,
+   * are wider than a width with no padding: {@link #fit(int[], int, int, int)} then narrows a
+   * column below one glyph.
+   *
+   * @param words each column's widest word
+   * @param width the widest the table may be
+   * @param floor the narrowest column a word breaks into
+   * @return true when even the floor does not fit
+   * @throws IllegalStateException before every row is measured
+   */
+  public boolean belowFloor(int[] words, int width, int floor) {
+    if (edges == null) {
+      throw new IllegalStateException("not measured");
+    }
+    long total = 0;
+    int[] widest = least(words);
+    for (int c = 0; c < columns; c++) {
+      total += Math.min(widest[c], floor);
+    }
+    return total > width;
+  }
+
   /** Each column's widest word, no wider than its measured width. */
   private int[] least(int[] words) {
     int[] least = new int[columns];

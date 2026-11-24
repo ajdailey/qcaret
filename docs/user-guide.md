@@ -753,7 +753,9 @@ colors, and local PNG, JPEG, GIF, BMP and TIFF images in the current theme. A ta
 columns to the preview's width, and a long cell wraps inside its column. In a
 narrow preview the cell padding narrows before a cell wraps or a word breaks,
 a word breaks only when it is wider than its column's share of the preview,
-and the table stays inside the preview. A wrapped code line continues under
+and the table stays inside the preview. A preview too narrow for one character
+per column shows "Table too wide for this pane" in place of the table until it
+is widened, for example by switching to Preview mode. A wrapped code line continues under
 its own indent. The cell and code box padding follow the preview's zoom. An SVG
 or an image that does not decode shows as a box with its name; a remote image
 shows its alt text and address. View > Markdown View, or the Appearance tab of Preferences,

@@ -230,7 +230,8 @@ starts under the line's own text. The display text shows a code line's leading
 spaces as no-break spaces (`MarkdownDisplayMap.INDENT`; Copy gives the rendered
 spaces): the widget breaks after a space, so a first word too long to follow
 the indent would leave the indent alone on a visual line. A leading tab still
-breaks there.
+breaks there, and on macOS the first word still starts on the next visual line
+(measured in CI; the cocoa line breaker was not investigated on a Mac).
 Do not use `StyledText.setLineSpacingProvider` for this: in SWT 3.135.0 each
 line laid out with a spacing other than its cached layout's, in view or not,
 resets that line's cache and redraws the whole widget.
@@ -308,7 +309,18 @@ before that limit, and a layout step starts a turn of its own:
    | 4 | The common width below the floor; a glyph can be wider than its column | Narrowed to 0 first |
 
    The fitted table is never wider than the pane. Step 3 keeps short words
-   whole while the columns of long words break them.
+   whole while the columns of long words break them. The pane does not use
+   step 4: when the columns at the floor (or at a narrower widest word) are
+   wider than the pane with no padding (`MarkdownTableLayout.belowFloor`), the
+   table shows as one line, "Table too wide for this pane: widen the preview
+   or use Preview mode" (`UiText.MARKDOWN_TABLE_TOO_WIDE`), in the line number
+   color, italic, with no borders or header shade. `TableWrap.notice` gives the
+   header row that line and every other row no display lines; the display map
+   drops the line break before such a row and maps the row to the notice line,
+   so Sync Scrolling, Outline go-to and Find land on the notice. Copy of the
+   notice alone copies nothing. A width change that fits the floor lays the
+   rows out again with the top line kept. Print lays out tables to its own
+   page width and never shows the notice.
 3. `TableWrap` breaks a cell wider than its column at its spaces, a word wider
    than its column after the longest part that fits, found by measuring
    (`SpanWidths`, binary search), and gives a row
@@ -358,8 +370,8 @@ the row index, so a step does not copy the whole display text.
 A line wider than the pane wraps in the widget, which shows each wrapped row's
 columns on two visual lines: the fit keeps the table inside the pane. A tab at
 or left of the text before it skips to a later stop, so `TableWrap` starts a
-segment a pixel after the one before it when a glyph wider than its column
-(step 4) reaches past its stop. Cells have 13 px of padding left and right at
+segment a pixel after the one before it when a glyph is wider than its column
+(step 4, which the pane does not reach). Cells have 13 px of padding left and right at
 100 %. A row's first and last display
 lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics
 (`PadGlyphs`) add 6 px above the body font's ascent and 4 px below its

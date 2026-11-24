@@ -182,6 +182,14 @@ final class MarkdownStyler {
         out.get(i).start += pieces[k] - s;
       }
     }
+    if (row != null && end - 1 > start && tables != null && tables.noticed(tableAt(line))) {
+      StyleRange notice = new StyleRange();
+      notice.start = start;
+      notice.length = end - 1 - start;
+      notice.foreground = color(palette.lineNumbers());
+      notice.fontStyle = SWT.ITALIC;
+      out.add(notice);
+    }
     StyleRange glyph = row != null && end > start ? pads.row(end - 1, row, sub) : null;
     if (glyph != null) {
       out.add(glyph);
@@ -221,7 +229,10 @@ final class MarkdownStyler {
     int line = map.renderedLine(displayLine);
     boolean shaded =
         content.rendered().code(line)
-            || (header(line) && tables != null && tables.laidOut(tableAt(line)));
+            || (header(line)
+                && tables != null
+                && tables.laidOut(tableAt(line))
+                && !tables.noticed(tableAt(line)));
     return shaded ? color(palette.gutter()) : null;
   }
 

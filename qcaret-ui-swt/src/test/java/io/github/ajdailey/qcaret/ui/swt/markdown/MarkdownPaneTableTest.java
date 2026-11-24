@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -225,7 +227,12 @@ class MarkdownPaneTableTest {
       pane.control().setBounds(0, 0, width, 300);
       flush();
       RenderedMarkdown r = show(EIGHT);
-      assertCellsInColumns(r.tables().get(0), width);
+      if (pane.tables().noticed(0)) {
+        // Wider fonts (cocoa) put 220 px below the floor: the notice test covers that case.
+        assertEquals(220, width, "only the narrowest width shows the notice");
+      } else {
+        assertCellsInColumns(r.tables().get(0), width);
+      }
     }
   }
 
@@ -255,12 +262,8 @@ class MarkdownPaneTableTest {
           Rectangle bounds = text.getTextBounds(at, at + segments[c].length() - 1);
           String where = "'" + segments[c] + "' at " + width + ": " + bounds;
           assertTrue(bounds.x >= left + edges[c], "starts in its column, " + where);
-          // Where the floor does not fit (wider fonts, cocoa) a column can be narrower than a
-          // glyph.
-          boolean glyphWider = segments[c].length() == 1 && bounds.width > edges[c + 1] - edges[c];
           assertTrue(
-              glyphWider || bounds.x + bounds.width <= left + edges[c + 1],
-              "ends in its column, " + where);
+              bounds.x + bounds.width <= left + edges[c + 1], "ends in its column, " + where);
           assertTrue(bounds.y + bounds.height <= next, "one visual line, " + where);
         }
         at += segments[c].length() + 1;
@@ -268,32 +271,70 @@ class MarkdownPaneTableTest {
     }
   }
 
-  /** A pane narrower than eight columns at the floor: the widget wrapped each row into two. */
+  /**
+   * A pane narrower than eight columns at the floor showed glyphs across the column lines and the
+   * first column's letters twice (Windows, Split at 420 px).
+   */
   @Test
-  void aPaneNarrowerThanTheColumnFloorsKeepsTheTableAndEachLineInside() {
+  void aTableTooWideForThePaneShowsANoticeUntilThePaneWidens() {
     shell.setLayout(null);
-    for (int width : new int[] {120, 150}) {
-      pane.control().setBounds(0, 0, width, 300);
-      flush();
-      RenderedMarkdown r = show(EIGHT);
-      MarkdownTable table = r.tables().get(0);
-      StyledText text = pane.text();
-      int[] edges = pane.tables().edges(0);
-      int left = text.getLeftMargin() - text.getHorizontalPixel();
-      int right = text.getClientArea().width - text.getRightMargin();
-      assertTrue(left + edges[edges.length - 1] <= right, "table inside the pane at " + width);
-      int lastRow = table.firstLine() + table.rowCount() - 1;
-      int first = map().displayLine(table.firstLine());
-      int last = map().displayLine(lastRow) + map().displayLineCount(lastRow) - 1;
-      for (int line = first; line <= last; line++) {
-        int offset = text.getOffsetAtLine(line);
-        int end = offset + text.getLine(line).length();
-        Rectangle bounds = text.getTextBounds(offset, Math.max(offset, end - 1));
-        assertTrue(
-            bounds.y + bounds.height <= text.getLinePixel(line + 1),
-            "line " + line + " is one visual line at " + width + ": " + text.getLine(line));
-      }
+    pane.control().setBounds(0, 0, 120, 300);
+    flush();
+    RenderedMarkdown r = show(EIGHT);
+    MarkdownTable table = r.tables().get(0);
+    StyledText text = pane.text();
+    int header = table.firstLine();
+    assertTrue(pane.tables().noticed(0), "noticed at 120 px");
+    assertEquals(0, pane.tables().edges(0).length, "no borders");
+    int notice = map().displayLine(header);
+    assertEquals(
+        UiText.MARKDOWN_TABLE_TOO_WIDE.text() + TableWrap.PAD, text.getLine(notice), "notice line");
+    int noticeStart = text.getOffsetAtLine(notice);
+    StyleRange style =
+        pane.styler()
+            .style(notice, noticeStart, noticeStart + text.getLine(notice).length())
+            .styles[0];
+    assertTrue((style.fontStyle & SWT.ITALIC) != 0, "italic: " + style);
+    for (int row = 1; row < table.rowCount(); row++) {
+      assertEquals(0, map().displayLineCount(header + row), "row " + row + " shows nothing");
+      assertEquals(notice, map().displayLine(header + row), "row " + row + " maps to the notice");
     }
+    assertEquals(r.lineCount() - (table.rowCount() - 1), text.getLineCount());
+    assertEquals(map().text(), text.getText());
+    int after = header + table.rowCount() + 1;
+    assertTrue(text.getLine(map().displayLine(after)).startsWith("Filler"));
+
+    int cell = r.text().indexOf("gamma");
+    pane.selectRendered(cell, cell + 5);
+    assertEquals("", pane.text().getSelectionText(), "Find in a noticed row selects nothing");
+    pane.scrollToLine(header + 2);
+    flush();
+    assertEquals(notice, text.getTopIndex(), "Sync Scrolling to a row lands on the notice");
+    int start = text.getOffsetAtLine(notice);
+    text.setSelection(start, start + text.getLine(notice).length());
+    assertEquals("", pane.selectedRendered(), "the notice copies nothing");
+
+    text.setSelection(text.getOffsetAtLine(map().displayLine(after)));
+    pane.scrollToLine(after);
+    flush();
+    assertEquals(map().displayLine(after), text.getTopIndex(), "the top line at 120 px");
+    pane.control().setSize(700, 300);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !pane.tables().noticed(0) && pane.tables().laidOut(0) && !pane.tables().busy();
+          }
+        },
+        "the table returns at 700 px");
+    flush();
+    assertTrue(pane.tables().edges(0).length > 0);
+    for (int row = 0; row < table.rowCount(); row++) {
+      assertTrue(map().displayLineCount(header + row) >= 1, "row " + row);
+    }
+    assertEquals(map().text(), text.getText());
+    assertEquals(map().displayLine(after), text.getTopIndex(), "the top line kept");
+    assertCellsInColumns(table, 700);
   }
 
   /** Short words broke mid-word while the columns of long words kept the room (Windows, 100 %). */

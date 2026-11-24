@@ -87,7 +87,8 @@ final class RowSteps {
               table.firstLine() + next,
               TableWrap.rows(table, rendered, layout, words, measurer, next, to));
       text.replaceTextRange(change.start(), change.length(), change.text());
-      int nextTop = map.displayLine(topLine) + Math.min(sub, map.displayLineCount(topLine) - 1);
+      int nextTop =
+          map.displayLine(topLine) + Math.min(sub, Math.max(0, map.displayLineCount(topLine) - 1));
       keepTop(nextTop, topY);
       last = System.nanoTime() - stepStart;
       rowsPerStep[where] =
@@ -102,6 +103,33 @@ final class RowSteps {
       text.setSelection(range[0], range[1]);
     }
     return next;
+  }
+
+  /**
+   * Replaces the rows of consecutive rendered lines in one step, keeping the top line and the
+   * selection as {@link #show} does.
+   *
+   * @param map the map the widget shows
+   * @param first the first rendered line
+   * @param next one row per line
+   */
+  void replace(MarkdownDisplayMap map, int first, TableWrap.Row[] next) {
+    int top = text.getTopIndex();
+    int topLine = map.renderedLine(top);
+    int sub = map.subLine(top);
+    int topY = text.getLinePixel(top);
+    Point selection = text.getSelectionRange();
+    int[] selected =
+        selection.y > 0 ? map.renderedRange(selection.x, selection.x + selection.y) : null;
+    MarkdownDisplayMap.Change change = map.replace(first, next);
+    text.replaceTextRange(change.start(), change.length(), change.text());
+    keepTop(
+        map.displayLine(topLine) + Math.min(sub, Math.max(0, map.displayLineCount(topLine) - 1)),
+        topY);
+    if (selected != null) {
+      int[] range = map.displayRange(selected[0], selected[1]);
+      text.setSelection(range[0], range[1]);
+    }
   }
 
   /**

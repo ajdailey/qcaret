@@ -153,6 +153,57 @@ class MarkdownDisplayMapTest {
   }
 
   @Test
+  void aNoticeShowsATableAsOneLineAndMapsEveryRowToIt() {
+    RenderedMarkdown r = render(SHAPES[2]);
+    MarkdownTable table = r.tables().get(0);
+    int header = table.firstLine();
+    int rows = table.rowCount();
+    MarkdownDisplayMap map = new MarkdownDisplayMap(r);
+    MarkdownDisplayMap.Change change = map.replace(header, TableWrap.notice("mock notice", rows));
+    String noticeLine = "mock notice" + TableWrap.PAD;
+    String expected =
+        r.text().substring(0, r.lineStart(header))
+            + noticeLine
+            + r.text().substring(r.lineStart(header + rows) - 1);
+    assertEquals(expected, map.text());
+    assertEquals(
+        map.text(),
+        r.text().substring(0, change.start())
+            + change.text()
+            + r.text().substring(change.start() + change.length()));
+    assertEquals(r.lineCount() - (rows - 1), map.lineCount());
+    for (int row = 0; row < rows; row++) {
+      assertEquals(header, map.displayLine(header + row));
+      assertEquals(row == 0 ? 1 : 0, map.displayLineCount(header + row));
+    }
+    assertEquals(header + rows, map.renderedLine(header + 1), "the line after the table");
+    assertEquals(header + 1, map.displayLine(header + rows));
+    int after = r.text().indexOf("After.");
+    assertEquals(after, map.rendered(map.display(after)));
+    for (int offset = 0; offset <= r.text().length(); offset++) {
+      int shown = map.display(offset);
+      assertTrue(shown >= 0 && shown <= map.text().length(), "offset " + offset);
+      map.rendered(shown);
+    }
+    int[] range = map.renderedRange(map.lineStart(header), map.lineEnd(header));
+    assertEquals(range[0], range[1], "the notice copies nothing");
+
+    // Back in steps, as a layout shows rows, and at once.
+    TableWrap.Row[] wrapped = TableWrapTest.wrap(r, 200);
+    map.replace(header, Arrays.copyOfRange(wrapped, 0, 1));
+    map.replace(header + 1, Arrays.copyOfRange(wrapped, 1, rows));
+    MarkdownDisplayMap fresh = mapped(r, 200);
+    assertEquals(fresh.text(), map.text());
+    assertEquals(fresh.lineCount(), map.lineCount());
+    map.replace(header, TableWrap.notice("mock notice", rows));
+    map.replace(header, wrapped);
+    assertEquals(fresh.text(), map.text());
+    for (int offset = 0; offset <= r.text().length(); offset++) {
+      assertEquals(fresh.display(offset), map.display(offset), "offset " + offset);
+    }
+  }
+
+  @Test
   void aReplaceWithNullRowsRestoresTheRenderedText() {
     RenderedMarkdown r = render(SHAPES[1]);
     MarkdownDisplayMap map = mapped(r, 140);

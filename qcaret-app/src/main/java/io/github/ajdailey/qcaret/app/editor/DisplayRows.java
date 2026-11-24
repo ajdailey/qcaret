@@ -4,7 +4,8 @@ import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 
 /**
  * The rendered lines a {@link MarkdownDisplayMap} shows as a {@link TableWrap.Row}, ascending, with
- * each row's first display line and display start offset, and the lookups over them. Immutable; the
+ * each row's first display line and display start offset, and the lookups over them. A row of no
+ * display lines starts where the line before it ends, at the display line after it. Immutable; the
  * arrays are shared, do not modify them.
  */
 final class DisplayRows {
@@ -47,9 +48,11 @@ final class DisplayRows {
     for (int i = from; i < to; i++) {
       displayLines[i] = lines[i] + extraLines;
       int rowStart = rendered.lineStart(lines[i]);
-      displayStarts[i] = rowStart + shift;
+      // A row of no display lines drops the line break before it.
+      int joined = rows[i].lines() == 0 ? 1 : 0;
+      displayStarts[i] = rowStart + shift - joined;
       extraLines += rows[i].lines() - 1;
-      shift += rows[i].text().length() - (rowEnd(rendered, lines[i]) - rowStart);
+      shift += rows[i].text().length() - (rowEnd(rendered, lines[i]) - rowStart) - joined;
     }
   }
 
