@@ -90,6 +90,8 @@ class DialogColorsTest {
    */
   @Test
   void win32DrawsAReadOnlyFieldsHintReadableUnderADarkStart() {
+    // cocoa's start records no native dark theme, so the win32 class leaves the dialog alone.
+    assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa records no native dark start");
     Shell owner = owner(ThemeMode.DARK);
     Shell dialog = new Shell(owner, SWT.DIALOG_TRIM);
     WIN32.apply(dialog);
