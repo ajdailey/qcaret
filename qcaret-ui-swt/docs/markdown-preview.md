@@ -204,7 +204,8 @@ extra pixels; `MarkdownDisplayMap` shows each such line as one zero-width
 `TableWrap.PAD`, and `PadGlyphs` sets that char's glyph metrics to the
 body font's ascent and descent plus the extra pixels. A block with no separator
 beside it, such as a code block on the first line or inside a tight list item,
-gets no space on that side.
+gets no space on that side; below a code block on the last line, the box takes
+its padding from the widget's 8 px bottom margin.
 
 | Separator | Pixels added | Browser |
 |---|---|---|
@@ -224,7 +225,12 @@ the shade over its padding in the separators, the pane background over the code
 lines' shade outside the box and at its 4 px corners, and a 1 px border in the
 line number color. Code lines are indented by the code padding, 12 px scaled
 by the zoom. A wrapped code line's continuation adds the width of the line's
-leading spaces and tabs (`CodeIndent`), so it starts under the line's own text.
+leading spaces and tabs (`CodeIndent`, a run of spaces measured whole), so it
+starts under the line's own text. The display text shows a code line's leading
+spaces as no-break spaces (`MarkdownDisplayMap.INDENT`; Copy gives the rendered
+spaces): the widget breaks after a space, so a first word too long to follow
+the indent would leave the indent alone on a visual line. A leading tab still
+breaks there.
 Do not use `StyledText.setLineSpacingProvider` for this: in SWT 3.135.0 each
 line laid out with a spacing other than its cached layout's, in view or not,
 resets that line's cache and redraws the whole widget.
@@ -248,8 +254,9 @@ passes it to a pane created later. The pane:
 
 The table cell padding (13 px left and right, at least 3), the row padding (6
 and 4 px) and the code padding scale by the zoom (`MarkdownFonts.scaled`): a
-fixed padding takes a larger share of each column as the text shrinks, so cells
-wrap with room to spare at 50 %. Images keep their
+fixed padding takes a larger share of each column as the text shrinks. At 50 %
+a table a little wider than the pane at the full padding fits with a narrower
+one (step 1 of the fit), so its cells do not wrap. Images keep their
 size. Print builds its own fonts and does not zoom. The
 Browser pane's page carries the size in its stylesheet: `MarkdownPage.stylesheet`
 scales every pixel length (body font, margins, padding, borders at least 1 px,
@@ -290,14 +297,18 @@ before that limit, and a layout step starts a turn of its own:
    italic).
 2. A table wider than the pane's text width less its quote and list indent has
    its words and the spaces between them measured (`TableWords`) and is fitted
-   with `MarkdownTableLayout.fit(words, width, floor, leastPadding)`: each
-   column keeps its widest word and shares the rest by how far its widest cell
-   exceeds that word. When the widest words do not fit, the cell padding
-   narrows first, down to 3 px; then the columns narrow in proportion to their
-   widest words, none below the floor, the wider of `W` and `M` in the header's
-   bold font. That floor is the narrowest column a word breaks into. A table
-   whose columns at the floor and 3 px padding do not fit is wider than the
-   pane, and the widget wraps its lines.
+   with `MarkdownTableLayout.fit(words, width, floor, leastPadding)`, the
+   first of these that fits:
+
+   | Step | Columns | Padding |
+   |---|---|---|
+   | 1 | Measured widths, no cell wraps | Narrowed, down to 3 px |
+   | 2 | Each its widest word, the rest shared by how far its widest cell exceeds that word | 13 px, then narrowed down to 3 px |
+   | 3 | A column whose widest word fits under a common width keeps it; the others take that width, no less than the floor (the wider of `W` and `M` in the header's bold font) | 3 px |
+   | 4 | The common width below the floor; a glyph can be wider than its column | Narrowed to 0 first |
+
+   The fitted table is never wider than the pane. Step 3 keeps short words
+   whole while the columns of long words break them.
 3. `TableWrap` breaks a cell wider than its column at its spaces, a word wider
    than its column after the longest part that fits, found by measuring
    (`SpanWidths`, binary search), and gives a row
@@ -344,10 +355,12 @@ collector included), so a turn can pass 8 ms.
 `MarkdownDisplayMap.replace` edits the display text in place and copies only
 the row index, so a step does not copy the whole display text.
 
-A segment wider than its column pushes the tab after it to a later stop and
-the rest of the line out of its columns, and a line wider than the pane wraps in
-the widget: the floor and the measured break keep every segment inside its
-column. Cells have 13 px of padding left and right at 100 %. A row's first and last display
+A line wider than the pane wraps in the widget, which shows each wrapped row's
+columns on two visual lines: the fit keeps the table inside the pane. A tab at
+or left of the text before it skips to a later stop, so `TableWrap` starts a
+segment a pixel after the one before it when a glyph wider than its column
+(step 4) reaches past its stop. Cells have 13 px of padding left and right at
+100 %. A row's first and last display
 lines end with a zero-width space, `TableWrap.PAD`, whose glyph metrics
 (`PadGlyphs`) add 6 px above the body font's ascent and 4 px below its
 descent; with the 2 px line spacing that is 6 px above and below the row's text. At a line's start,

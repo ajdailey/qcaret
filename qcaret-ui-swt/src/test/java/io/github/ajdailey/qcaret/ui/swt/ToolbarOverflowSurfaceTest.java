@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
@@ -77,6 +78,23 @@ class ToolbarOverflowSurfaceTest {
         },
         "row width " + width);
     w.flush();
+  }
+
+  /**
+   * Sizes the row so that a button and every one after it are hidden at any scale: the row ends at
+   * the button's left edge as a row twice {@link #WIDE} places it.
+   */
+  private void hideFrom(CommandId command) {
+    width(2 * WIDE);
+    ToolItem button = null;
+    for (ToolItem item : row.bar().getItems()) {
+      if (item.getData() == command) {
+        button = item;
+      }
+    }
+    assertNotNull(button, command + " on the row");
+    Point left = row.row().toControl(row.bar().toDisplay(button.getBounds().x, 0));
+    width(left.x);
   }
 
   /**
@@ -236,7 +254,7 @@ class ToolbarOverflowSurfaceTest {
     w.open("notes.txt", "plain\n", false);
     final int plain = w.window.tabs().getItemCount() - 1;
     w.open("guide.md", "# Mock guide\n", true);
-    width(420);
+    hideFrom(CommandId.MARKDOWN_SOURCE);
     assertTrue(row.moreShown());
     Menu menu = row.menu();
     assertEquals(buttons(), reachable(menu));
@@ -275,7 +293,7 @@ class ToolbarOverflowSurfaceTest {
     String reason = w.window.previewBrowserUnavailable();
     w.open("guide.md", "# Mock guide\n", true);
     w.window.documentStateChanged();
-    width(420);
+    hideFrom(CommandId.MARKDOWN_SOURCE);
     MenuItem browser = entry(row.menu(), CommandId.PREVIEW_BROWSER);
     assertNotNull(browser);
     assertFalse(browser.getEnabled());

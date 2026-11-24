@@ -75,10 +75,10 @@ alike. The main window keeps its fields native
 except the Workspace Browser's: `BrowserColors` gives its tree, tree header and
 two fields `Palette.DARK`'s colors while `ui.theme` resolves to dark, at once
 after a live switch, on the light dock row, and `FieldHint` draws the fields'
-hints in `Palette.DARK`'s unselected tab label color. After a dark start an
-enabled field keeps `Palette.DARK`'s colors on the light side until the next
-start; a disabled one, empty while no workspace folder is set, takes the system
-colors ([dialogs and docks](dialogs-and-docks.md#workspace-browser)).
+hints in `Palette.DARK`'s unselected tab label color. After a dark start a
+field holding text keeps `Palette.DARK`'s colors on the light side until the
+next start; an empty one, such as the path field while no workspace folder is
+set, takes the system colors ([dialogs and docks](dialogs-and-docks.md#workspace-browser)).
 `CTabFolderRenderer` draws the tab strip's line under the tabs and around the
 selected tab in `SWT.COLOR_WIDGET_NORMAL_SHADOW` (#a0a0a0) with no API to
 change it, so that 1 px line stays light under the dark palette, as do the

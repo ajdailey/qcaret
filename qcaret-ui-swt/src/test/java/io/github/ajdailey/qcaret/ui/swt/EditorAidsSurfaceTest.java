@@ -350,15 +350,20 @@ class EditorAidsSurfaceTest {
     assumeTrue(hidden != null, "Control.print not supported here");
     assertEquals(0, inkedRow(hidden, y, x0, x1, Palette.LIGHT.whitespace()));
     controller.execute(CommandId.SHOW_WHITESPACE);
-    ImageData shown = print(text);
-    // At a fractional zoom the one-pixel arrow can fall between the sampled rows next to y.
-    int slack = ScaleSlack.of(text);
+    flush();
+    // Device pixels: at 150 % the line drawn at y rounds to a device row that logical sampling,
+    // one row per 1.5, can skip.
+    int zoom = text.getMonitor().getZoom();
+    ImageData shown = ControlPrint.atZoom(display, text);
+    assumeTrue(shown != null, "Control.print not supported here");
+    int d0 = (x0 * zoom + 99) / 100;
+    int d1 = x1 * zoom / 100;
     int inked = 0;
-    for (int row = y - slack; row <= y + slack; row++) {
-      inked = Math.max(inked, inkedRow(shown, row, x0, x1, Palette.LIGHT.whitespace()));
+    for (int row = (y - 1) * zoom / 100; row <= ((y + 1) * zoom + 99) / 100; row++) {
+      inked = Math.max(inked, inkedRow(shown, row, d0, d1, Palette.LIGHT.whitespace()));
     }
     // GTK 3 inks all but the two end pixels of the line in the whitespace color.
-    assertTrue(inked >= x1 - x0 - 1, inked + " of " + (x1 - x0 + 1));
+    assertTrue(inked >= d1 - d0 - 1, inked + " of " + (d1 - d0 + 1));
   }
 
   @Test

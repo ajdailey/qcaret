@@ -147,10 +147,20 @@ class TableWrapTest {
   }
 
   @Test
-  void thePaddingNarrowsBeforeAWordBreaks() {
-    // Widest words 60 and 60 (strong "Alpha", "Bravo"), cells 70: 120 plus 4 x 13 is 172.
+  void thePaddingNarrowsBeforeACellWraps() {
+    // Cells 70 and 70: 140 plus 4 x 13 is 192, plus 4 x 3 is 152.
     String table = "| Alpha | Bravo |\n|---|---|\n| one two | six ten |\n";
-    MarkdownTableLayout full = floorFit(table, 172, 12);
+    MarkdownTableLayout narrowed = floorFit(table, 172, 12);
+    assertEquals(8, narrowed.padding(), "(172 - 140) / 4");
+    assertEquals(70, narrowed.columnWidth(0), "each column keeps its widest cell");
+    assertEquals(70, narrowed.columnWidth(1));
+  }
+
+  @Test
+  void thePaddingNarrowsBeforeAWordBreaks() {
+    // Widest words 60 and 60 (strong "Alpha", "Bravo"), cells 110: 120 plus 4 x 13 is 172.
+    String table = "| Alpha | Bravo |\n|---|---|\n| one two six | ten one two |\n";
+    MarkdownTableLayout full = floorFit(table, 200, 12);
     assertEquals(13, full.padding());
     MarkdownTableLayout narrowed = floorFit(table, 160, 12);
     assertEquals(10, narrowed.padding(), "(160 - 120) / 4");
@@ -159,22 +169,57 @@ class TableWrapTest {
     assertEquals(160, narrowed.edges()[2]);
   }
 
+  /** Columns shared the room in proportion to their widest words and broke short ones. */
   @Test
-  void aColumnNarrowsToTheFloorWithTheLeastPadding() {
+  void aShortWordKeepsItsColumnBesideLongWords() {
+    String table =
+        "| a | b | c |\n|---|---|---|\n| xxxx | yyyyyyyyyyyyyyyyyyyy | zzzzzzzzzzzzzzzzzzzz |\n";
+    // Widest words 40, 200 and 200; at 3 px padding the columns share 200 - 18 px.
+    MarkdownTableLayout layout = floorFit(table, 200, 12);
+    assertEquals(3, layout.padding());
+    assertEquals(40, layout.columnWidth(0), "the short word fits");
+    assertEquals(71, layout.columnWidth(1));
+    assertEquals(71, layout.columnWidth(2));
+    assertEquals(200, layout.edges()[3]);
+  }
+
+  @Test
+  void aColumnNarrowsToTheFloorAndBelowItToFitTheWidth() {
     String table = "| Alpha | Bravo | Charlie |\n|---|---|---|\n| one | two | six |\n";
-    // Widest words 60, 60 and 84; at 3 px padding the columns share 90 - 18 px, 12 each first.
+    // Widest words 60, 60 and 84; at 3 px padding the columns share 90 - 18 px.
     MarkdownTableLayout layout = floorFit(table, 90, 12);
     assertEquals(3, layout.padding());
-    int[] edges = layout.edges();
-    assertTrue(edges[3] <= 90, "the table fits: " + edges[3]);
     for (int c = 0; c < 3; c++) {
-      assertTrue(layout.columnWidth(c) >= 12, "column " + c + " at the floor or above");
+      assertEquals(24, layout.columnWidth(c), "column " + c);
     }
-    MarkdownTableLayout floored = floorFit(table, 30, 12);
+    assertEquals(90, layout.edges()[3]);
+    // Three columns at the floor take 36 px: the padding goes, then the floor.
+    MarkdownTableLayout floored = floorFit(table, 40, 12);
+    assertEquals(0, floored.padding(), "(40 - 36) / 6");
+    assertEquals(40, floored.edges()[3]);
+    MarkdownTableLayout below = floorFit(table, 30, 12);
+    assertEquals(0, below.padding());
     for (int c = 0; c < 3; c++) {
-      assertEquals(12, floored.columnWidth(c), "no column under the floor");
+      assertEquals(10, below.columnWidth(c), "column " + c + " under the floor");
     }
-    assertEquals(3 * (12 + 6), floored.edges()[3], "wider than the width");
+    assertEquals(30, below.edges()[3], "never wider than the width");
+  }
+
+  /** A glyph wider than its column pushed the next cell's tab to a later stop. */
+  @Test
+  void aCellAfterAGlyphWiderThanItsColumnStartsAfterIt() {
+    RenderedMarkdown r = render("| W | b |\n|---|---|\n| c | d |\n");
+    MarkdownTable table = r.tables().get(0);
+    MarkdownTableLayout layout = new MarkdownTableLayout(table, r.text(), 13);
+    layout.measure(FAKE, Integer.MAX_VALUE);
+    TableWords words = new TableWords(table, r.text(), layout, MarkdownSpans.of(r, List.of()));
+    words.measure(FAKE, Integer.MAX_VALUE);
+    layout.fit(words.widest(), 16, 12, 3);
+    // Columns 8 px, no padding; the strong "W" is 12 px.
+    assertEquals(0, layout.padding());
+    TableWrap.Row header = TableWrap.rows(table, r.text(), layout, words, FAKE, 0, 1)[0];
+    assertEquals(0, header.indents()[0]);
+    assertArrayEquals(new int[] {13}, header.tabStops()[0], "after the 12 px glyph, not at 8");
   }
 
   @Test

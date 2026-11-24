@@ -8,11 +8,13 @@ import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
  * longest part that a {@link TextMeasurer} finds fits (without one, at a char count in proportion
  * to its width), and a row takes as many display lines as its tallest cell. Display line {@code j}
  * of a row holds every cell's {@code j}th segment, tab-separated, with the indent and tab stops
- * that start each segment at its column, aligned as the column says. A row's first and last display
- * lines end with {@link #PAD}, which the pane draws as the cell padding above and below the row; at
- * a line's start, before a tab, it moves the tab off its stop (GTK 3). Widths come from {@link
- * MarkdownTableLayout} and {@link TableWords}; only the parts of a word wider than its column are
- * measured here.
+ * that start each segment at its column, aligned as the column says. A segment that would start at
+ * or before the end of the one before it, which only a glyph wider than its column causes, starts a
+ * pixel after that end: a tab at or left of the text skips to a later stop. A row's first and last
+ * display lines end with {@link #PAD}, which the pane draws as the cell padding above and below the
+ * row; at a line's start, before a tab, it moves the tab off its stop (GTK 3). Widths come from
+ * {@link MarkdownTableLayout} and {@link TableWords}; only the parts of a word wider than its
+ * column are measured here.
  */
 public final class TableWrap {
   /** A zero-width space that ends a row's first and last display lines. */
@@ -129,6 +131,7 @@ public final class TableWrap {
         display.append('\n');
       }
       int[] starts = new int[columns];
+      int end = 0;
       for (int c = 0; c < columns; c++) {
         if (c > 0) {
           if (j == 0) {
@@ -157,6 +160,10 @@ public final class TableWrap {
               default -> 0;
             };
         starts[c] = edges[c] + padding + offset;
+        if (c > 0 && starts[c] <= end) {
+          starts[c] = end + 1;
+        }
+        end = starts[c] + width;
       }
       if (j == 0 || j == lines - 1) {
         display.append(PAD);

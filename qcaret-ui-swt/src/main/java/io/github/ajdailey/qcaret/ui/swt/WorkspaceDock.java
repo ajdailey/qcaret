@@ -82,6 +82,16 @@ final class WorkspaceDock {
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     icons = new ToolIcons(bar, inkSource);
     browseBar = new BrowseBar(root, bar, icons);
+    for (FieldHint hint : browseBar.hints()) {
+      BrowserColors.follow(
+          hint.field(),
+          new Runnable() {
+            @Override
+            public void run() {
+              setDark(dark);
+            }
+          });
+    }
     button(bar, ToolIcons.RELOAD, UiText.WORKSPACE_REFRESH, Action.REFRESH);
     button(bar, ToolIcons.REVEAL, UiText.WORKSPACE_REVEAL, Action.REVEAL);
     button(bar, ToolIcons.HIDE, UiText.WORKSPACE_HIDE, Action.HIDE);
@@ -277,8 +287,6 @@ final class WorkspaceDock {
     input = workspace;
     browseBar.setInput(workspace == null ? null : workspace.browse());
     rebuild();
-    // The fields' enabled state follows the input, and their colors follow it.
-    setDark(dark);
   }
 
   /** Rebuilds the whole tree from the root's rows. */

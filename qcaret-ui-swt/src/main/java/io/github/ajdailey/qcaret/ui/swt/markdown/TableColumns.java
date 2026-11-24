@@ -28,9 +28,11 @@ import org.eclipse.swt.graphics.Rectangle;
  *   <li>{@link SpanWidths} measures each cell in its spans' fonts with a {@link GC} ({@link
  *       MarkdownTableLayout}).
  *   <li>A table wider than the pane's text width less its indent has its words measured ({@link
- *       TableWords}) and its columns fitted to that width: the padding, {@value #PADDING} pixels
- *       scaled by the zoom, narrows to {@value #LEAST_PADDING} before a word breaks, and no column
- *       is narrower than the widest of {@link #WIDEST_CHARS} in the header's bold font.
+ *       TableWords}) and its columns fitted to that width ({@link MarkdownTableLayout#fit(int[],
+ *       int, int, int)}): the padding, {@value #PADDING} pixels scaled by the zoom, narrows to
+ *       {@value #LEAST_PADDING} before a cell wraps or a word breaks; a word that fits under the
+ *       width the breaking columns share never breaks, and no column is narrower than the widest of
+ *       {@link #WIDEST_CHARS} in the header's bold font while the columns at that width fit.
  *   <li>{@link TableWrap} lays out its rows, breaking a word after the longest part that fits,
  *       which {@link RowSteps} shows in the {@link MarkdownDisplayMap} and the widget until the
  *       turn's time runs out. A layout starts a turn of its own and ends it.

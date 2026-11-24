@@ -138,6 +138,21 @@ class MarkdownDisplayMapTest {
   }
 
   @Test
+  void aCodeLinesLeadingSpacesShowAsNoBreakSpaces() {
+    RenderedMarkdown r = TableWrapTest.render("Text  with spaces.\n\n```\n  two  more\n\tx\n```\n");
+    MarkdownDisplayMap map = new MarkdownDisplayMap(r, new int[] {1});
+    String indent = String.valueOf(MarkdownDisplayMap.INDENT).repeat(2);
+    int code = r.codeBlocks().get(0).firstLine();
+    assertEquals(
+        indent + "two  more", map.text().substring(map.lineStart(code), map.lineEnd(code)));
+    assertEquals("\tx", map.text().substring(map.lineStart(code + 1), map.lineEnd(code + 1)));
+    assertEquals("Text  with spaces.", map.text().substring(0, map.lineEnd(0)));
+    for (int offset = 0; offset < r.text().length(); offset++) {
+      assertEquals(offset, map.rendered(map.display(offset)));
+    }
+  }
+
+  @Test
   void aReplaceWithNullRowsRestoresTheRenderedText() {
     RenderedMarkdown r = render(SHAPES[1]);
     MarkdownDisplayMap map = mapped(r, 140);

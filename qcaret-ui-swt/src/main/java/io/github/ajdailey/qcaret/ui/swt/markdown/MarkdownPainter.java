@@ -21,12 +21,12 @@ import org.eclipse.swt.graphics.Rectangle;
 /**
  * Paints what line styles cannot show over the display lines in view: a box around each code block,
  * reaching the code padding into the right margin, its padding in the separator lines beside it
- * ({@link BlockSpacing}); a bar per quote level, colored by the alert's kind inside an alert;
- * thematic breaks; a rule under level 1 and 2 headings, below the gap the separator after them
- * adds; table borders, and the header row's shade cut to the table's width, once the table's rows
- * are laid out; and each image, or a placeholder box with its file name when it does not decode.
- * Rendered lines and offsets reach the widget through the {@link MarkdownDisplayMap}. Call on the
- * UI thread.
+ * ({@link BlockSpacing}), or in the bottom margin below the last block; a bar per quote level,
+ * colored by the alert's kind inside an alert; thematic breaks; a rule under level 1 and 2
+ * headings, below the gap the separator after them adds; table borders, and the header row's shade
+ * cut to the table's width, once the table's rows are laid out; and each image, or a placeholder
+ * box with its file name when it does not decode. Rendered lines and offsets reach the widget
+ * through the {@link MarkdownDisplayMap}. Call on the UI thread.
  */
 final class MarkdownPainter {
   private static final int BAR_WIDTH = 3;
@@ -149,6 +149,11 @@ final class MarkdownPainter {
         last <= bottom ? text.getLinePixel(last) + lineHeight(last) : area.height + 2 * RADIUS;
     int pad = spacing.above(lastLine + 1);
     int y1 = last <= bottom && pad > 0 ? textBottom + pad - MarkdownPane.LINE_SPACING : textBottom;
+    if (last <= bottom && pad == 0 && lastLine == rendered.lineCount() - 1) {
+      // No separator follows the last line, whose height has no line spacing: the padding goes
+      // in the bottom margin.
+      y1 = textBottom + Math.min(BlockSpacing.CODE_PADDING, text.getBottomMargin());
+    }
     Color shade = MarkdownStyler.color(styler.palette().gutter());
     Color background = MarkdownStyler.color(styler.palette().background());
     gc.setBackground(background);

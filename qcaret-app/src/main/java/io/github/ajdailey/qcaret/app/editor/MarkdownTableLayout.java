@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.editor;
 
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
+import java.util.Arrays;
 
 /**
  * One rendered table's columns: each cell measured through a {@link TextMeasurer}, the header row
@@ -149,42 +150,104 @@ public final class MarkdownTableLayout {
   }
 
   /**
-   * Fits the measured columns to a width, never wider than it while each column can be as narrow as
-   * {@code floor} with {@code leastPadding} on each side. A table that fits gets its measured
-   * widths back, and one whose widest words fit is fitted as {@link #fit(int[], int, boolean)}
-   * does. When the widest words do not fit at the full padding, the padding narrows first, to no
-   * less than {@code leastPadding}; then each column gets the smaller of its widest word and {@code
-   * floor}, and the room above those goes to each column in proportion to how far its widest word
-   * exceeds that. A table whose columns at those least widths do not fit is wider than {@code
-   * width}.
+   * Fits the measured columns to a width and keeps the table no wider than it. In order, the first
+   * that fits the width wins:
+   *
+   * <ol>
+   *   <li>the measured widths at the full padding;
+   *   <li>the measured widths with the padding narrowed, to no less than {@code leastPadding}, so
+   *       no cell wraps;
+   *   <li>{@link #fit(int[], int, boolean)}: each column its widest word, the room above those in
+   *       proportion to how far each measured width exceeds it, at the full padding, then at a
+   *       padding narrowed to no less than {@code leastPadding};
+   *   <li>at {@code leastPadding}, a column whose widest word fits under a common width keeps it,
+   *       and every other column takes that width, no less than {@code floor}: a short word never
+   *       breaks while a long word takes the room;
+   *   <li>when the columns at {@code floor} do not fit, the padding narrows to 0 and then the
+   *       columns share the width below {@code floor}, so a glyph can be wider than its column.
+   * </ol>
    *
    * @param words each column's widest word; read only when the table is {@link #wider} than the
    *     width
    * @param width the widest the table may be, padding included
-   * @param floor the narrowest column a word breaks into
-   * @param leastPadding the narrowest padding on each side of a cell's text
+   * @param floor the narrowest column a word breaks into while the columns at it fit
+   * @param leastPadding the narrowest padding on each side of a cell's text before a word breaks
    * @throws IllegalStateException before every row is measured
    */
   public void fit(int[] words, int width, int floor, int leastPadding) {
     fit(words, width, false);
-    int[] least = least(words);
-    long leastTotal = sum(least);
-    if (columns == 0 || !wider(width) || leastTotal <= width - 2L * fullPadding * columns) {
+    if (columns == 0 || !wider(width)) {
       return;
     }
-    long shrunk = (width - leastTotal) / (2L * columns);
-    if (shrunk >= leastPadding) {
-      padding = (int) shrunk;
-      share(width - 2L * padding * columns, least, natural);
-    } else {
-      padding = Math.min(leastPadding, fullPadding);
-      int[] lowest = new int[columns];
-      for (int c = 0; c < columns; c++) {
-        lowest[c] = Math.min(least[c], floor);
-      }
-      share(width - 2L * padding * columns, lowest, least);
+    int least = Math.min(leastPadding, fullPadding);
+    long cells = sum(natural);
+    if (cells + 2L * least * columns <= width) {
+      padding = (int) ((width - cells) / (2L * columns));
+      System.arraycopy(natural, 0, inner, 0, columns);
+      setEdges();
+      return;
     }
+    int[] widest = least(words);
+    long widestTotal = sum(widest);
+    if (widestTotal <= width - 2L * fullPadding * columns) {
+      return;
+    }
+    long shrunk = (width - widestTotal) / (2L * columns);
+    if (shrunk >= least) {
+      padding = (int) shrunk;
+      share(width - 2L * padding * columns, widest, natural);
+      setEdges();
+      return;
+    }
+    int[] lowest = new int[columns];
+    for (int c = 0; c < columns; c++) {
+      lowest[c] = Math.min(widest[c], floor);
+    }
+    long floors = sum(lowest);
+    padding = (int) Math.max(0, Math.min(least, (width - floors) / (2L * columns)));
+    long room = Math.max(0, width - 2L * padding * columns);
+    if (floors > room) {
+      Arrays.fill(lowest, 0);
+    }
+    level(room, lowest, widest);
     setEdges();
+  }
+
+  /**
+   * Gives each column the same width between its lower and upper width, the widest that keeps the
+   * total within the room, and the pixels left over one each to the first columns below their upper
+   * width.
+   */
+  private void level(long room, int[] lower, int[] upper) {
+    int lo = 0;
+    int hi = 0;
+    for (int value : upper) {
+      hi = Math.max(hi, value);
+    }
+    while (lo < hi) {
+      int mid = (lo + hi + 1) >>> 1;
+      if (levelTotal(mid, lower, upper) <= room) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    long left = room - levelTotal(lo, lower, upper);
+    for (int c = 0; c < columns; c++) {
+      inner[c] = Math.min(upper[c], Math.max(lower[c], lo));
+      if (left > 0 && inner[c] < upper[c] && inner[c] == lo) {
+        inner[c]++;
+        left--;
+      }
+    }
+  }
+
+  private long levelTotal(int level, int[] lower, int[] upper) {
+    long total = 0;
+    for (int c = 0; c < columns; c++) {
+      total += Math.min(upper[c], Math.max(lower[c], level));
+    }
+    return total;
   }
 
   /** Each column's widest word, no wider than its measured width. */

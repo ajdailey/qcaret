@@ -40,7 +40,34 @@ final class ControlPrint {
     return printed[0];
   }
 
+  /**
+   * Prints a control as {@link #of} does and returns its device pixels at the control's monitor
+   * zoom.
+   *
+   * @param display the Display, on the calling thread
+   * @param control the control to print
+   * @return the pixels, or null when no print succeeded within 5 s
+   */
+  static ImageData atZoom(final Display display, final Control control) {
+    final ImageData[] printed = new ImageData[1];
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            printed[0] = once(display, control, true);
+            return printed[0] != null;
+          }
+        },
+        BOUND);
+    return printed[0];
+  }
+
   private static ImageData once(Display display, Control control) {
+    return once(display, control, false);
+  }
+
+  private static ImageData once(Display display, Control control, boolean device) {
     Image image = new Image(display, control.getSize().x, control.getSize().y);
     try {
       GC gc = new GC(image);
@@ -51,7 +78,9 @@ final class ControlPrint {
       } finally {
         gc.dispose();
       }
-      return Pixels.read(image, control);
+      return device
+          ? image.getImageData(control.getMonitor().getZoom())
+          : Pixels.read(image, control);
     } finally {
       image.dispose();
     }

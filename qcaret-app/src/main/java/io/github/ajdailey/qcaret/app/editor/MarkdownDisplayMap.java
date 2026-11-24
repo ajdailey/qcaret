@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.editor;
 
+import io.github.ajdailey.qcaret.core.markdown.CodeBlock;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,7 +12,9 @@ import java.util.List;
  * rendered line becomes the row's display lines, whose chars come from the rendered row in another
  * order, plus the tabs, line breaks and {@link TableWrap#PAD} chars the layout adds. A padded
  * separator line ({@link BlockSpacing}) holds one {@link TableWrap#PAD}. Every other line is the
- * rendered line.
+ * rendered line, except that a code line's leading spaces show as {@link #INDENT}: a wrapping
+ * widget breaks after a space, so a first word too long to follow the indent would leave the indent
+ * alone on a visual line.
  *
  * <p>Maps:
  *
@@ -36,6 +39,9 @@ public final class MarkdownDisplayMap {
    * @param text the chars that replace them
    */
   public record Change(int start, int length, String text) {}
+
+  /** The no-break space a code line's leading space shows as. */
+  public static final char INDENT = (char) 0x00A0;
 
   /** The row of a padded separator line. */
   private static final TableWrap.Row SPACER =
@@ -70,7 +76,7 @@ public final class MarkdownDisplayMap {
    */
   public MarkdownDisplayMap(RenderedMarkdown rendered, int[] padded) {
     this.rendered = rendered;
-    String source = rendered.text();
+    String source = codeIndents(rendered);
     TableWrap.Row[] spacers = new TableWrap.Row[padded.length];
     Arrays.fill(spacers, SPACER);
     index = new DisplayRows(rendered, padded.clone(), spacers);
@@ -86,6 +92,25 @@ public final class MarkdownDisplayMap {
       at = start;
     }
     this.text = out.append(source, at, source.length()).toString();
+  }
+
+  /** Returns the rendered text with each code line's leading spaces as {@link #INDENT}. */
+  private static String codeIndents(RenderedMarkdown rendered) {
+    String source = rendered.text();
+    char[] chars = null;
+    for (CodeBlock block : rendered.codeBlocks()) {
+      for (int line = block.firstLine(); line < block.firstLine() + block.lineCount(); line++) {
+        for (int i = rendered.lineStart(line);
+            i < source.length() && source.charAt(i) == ' ';
+            i++) {
+          if (chars == null) {
+            chars = source.toCharArray();
+          }
+          chars[i] = INDENT;
+        }
+      }
+    }
+    return chars == null ? source : new String(chars);
   }
 
   /**

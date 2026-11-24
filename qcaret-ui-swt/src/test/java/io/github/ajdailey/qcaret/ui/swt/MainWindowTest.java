@@ -55,8 +55,11 @@ class MainWindowTest {
             BOUND),
         "client area " + shell.getClientArea());
     // SWT on GTK 4 cannot move a window; place() skips the position there.
+    // A screen too short for the window moves it up into the work area (150 % on 1080 px).
     if (!"1".equals(System.getenv("SWT_GTK4"))) {
-      assertEquals(new Point(50, 40), shell.getLocation());
+      Rectangle work = shell.getMonitor().getClientArea();
+      int y = Math.max(work.y, Math.min(40, work.y + work.height - shell.getSize().y));
+      assertEquals(new Point(50, y), shell.getLocation());
     }
     assertTrue(shell.getImages().length > 0);
     window.dispose();

@@ -157,9 +157,9 @@ the dialog cancels a running match.
   theme: while `ThemeController.dark` holds they take `Palette.DARK`'s
   background and text, the header its gutter, and at
   `PaletteListener.themeChanged` to light they return to the system colors;
-  after a dark start an enabled field stays dark until the next start, and a
-  disabled one takes the system colors; `WorkspaceDock.setInput` colors the
-  fields again after it enables or disables them. A dark field's
+  after a dark start a field holding text stays dark until the next start, and
+  an empty one takes the system colors; `BrowserColors.follow` colors the
+  fields again when one takes text or empties. A dark field's
   empty, unfocused hint is drawn by `FieldHint` in `Palette.DARK`'s unselected
   tab label color (5.9:1), since Windows draws the native hint in the theme's
   gray (1.9:1). The icon row

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
@@ -77,7 +78,10 @@ class BrowserColorsTest {
     assertEquals("filter", field.getMessage());
     assertNull(hint.color());
     BrowserColors.apply(win32, false, true, tree, hint);
-    assertEquals("", field.getMessage());
+    assertEquals("filter", field.getMessage(), "an empty field after a dark start");
+    field.setText("mock");
+    BrowserColors.apply(win32, false, true, tree, hint);
+    assertEquals("", field.getMessage(), "a field holding text after a dark start");
   }
 
   @Test
@@ -96,6 +100,7 @@ class BrowserColorsTest {
     RGB background = rgb(Palette.DARK.background());
     RGB text = rgb(Palette.DARK.text());
     List<RGB> darkTree = List.of(background, text, rgb(Palette.DARK.gutter()), text);
+    field.setText("mock");
     for (boolean dark : new boolean[] {true, false, true, false}) {
       BrowserColors.apply(win32, dark, true, tree, hint);
       assertEquals(dark ? darkTree : system.subList(0, 4), colors().subList(0, 4));
@@ -104,21 +109,39 @@ class BrowserColorsTest {
   }
 
   /**
-   * The path field, disabled and showing "No workspace folder" as its hint, after a live switch.
+   * The path field, enabled and empty while no workspace folder is set, after a live switch: keyed
+   * on the enabled state it stayed dark on win32.
    */
   @Test
-  void aDisabledFieldTakesTheSystemColorsOnTheLightSideAfterADarkStart() {
+  void anEmptyFieldTakesTheSystemColorsOnTheLightSideAfterADarkStart() {
     List<RGB> system = colors();
     PlatformTraits win32 = PlatformTraits.of("win32", false);
-    field.setEnabled(false);
     BrowserColors.apply(win32, true, true, tree, hint);
     assertEquals(rgb(Palette.DARK.background()), field.getBackground().getRGB());
     BrowserColors.apply(win32, false, true, tree, hint);
     assertEquals(system.subList(4, 6), colors().subList(4, 6));
     assertNull(hint.color());
-    field.setEnabled(true);
+    field.setText("mock");
     BrowserColors.apply(win32, false, true, tree, hint);
     assertEquals(rgb(Palette.DARK.background()), field.getBackground().getRGB());
+  }
+
+  @Test
+  void aFieldIsColoredAgainWhenItTakesTextOrEmpties() {
+    final List<String> runs = new ArrayList<String>();
+    BrowserColors.follow(
+        field,
+        new Runnable() {
+          @Override
+          public void run() {
+            runs.add(field.getText());
+          }
+        });
+    field.setText("m");
+    field.setText("mo");
+    field.setText("");
+    field.setText("");
+    assertEquals(List.of("m", ""), runs);
   }
 
   @Test

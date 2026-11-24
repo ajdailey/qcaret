@@ -3,7 +3,11 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 
 /**
@@ -16,11 +20,12 @@ import org.eclipse.swt.widgets.Tree;
  * nothing, so cocoa's header colors from {@code CocoaChrome} stay.
  *
  * <p>Under a dark startup setting where controls take the native theme at creation ({@link
- * PlatformTraits#themesAtCreation}), an enabled field keeps {@link Palette#DARK}'s background and
- * text on the light side until the next start, while the tree and its header follow the theme: a
- * field holding text under the dark native theme draws near-black with dark text under any light
- * colors. A disabled field, empty and showing only its hint while no workspace folder is set, takes
- * the system colors there; call {@link #apply} again when a field's enabled state changes.
+ * PlatformTraits#themesAtCreation}), a field holding text keeps {@link Palette#DARK}'s background
+ * and text on the light side until the next start, while the tree and its header follow the theme:
+ * a field holding text under the dark native theme draws near-black with dark text under any light
+ * colors. An empty field, showing only its hint, takes the system colors there; {@link #follow}
+ * colors the fields again when one becomes empty or takes text. The path field is enabled and empty
+ * while no workspace folder is set.
  */
 final class BrowserColors {
   private BrowserColors() {}
@@ -48,11 +53,34 @@ final class BrowserColors {
     tree.setHeaderForeground(text);
     boolean darkStart = nativeDark && traits.themesAtCreation();
     for (FieldHint field : fields) {
-      boolean darkField = dark || darkStart && field.field().getEnabled();
+      boolean darkField = dark || darkStart && field.field().getCharCount() > 0;
       field.field().setBackground(darkField ? color(Palette.DARK.background()) : null);
       field.field().setForeground(darkField ? color(Palette.DARK.text()) : null);
       field.setColor(darkField ? color(Palette.DARK.accents().tabText()) : null);
     }
+  }
+
+  /**
+   * Runs a recoloring each time a field becomes empty or takes text.
+   *
+   * @param field the field
+   * @param recolor calls {@link #apply}
+   */
+  static void follow(final Text field, final Runnable recolor) {
+    field.addListener(
+        SWT.Modify,
+        new Listener() {
+          private boolean empty = field.getCharCount() == 0;
+
+          @Override
+          public void handleEvent(Event event) {
+            boolean now = field.getCharCount() == 0;
+            if (now != empty) {
+              empty = now;
+              recolor.run();
+            }
+          }
+        });
   }
 
   private static Color color(Rgb rgb) {

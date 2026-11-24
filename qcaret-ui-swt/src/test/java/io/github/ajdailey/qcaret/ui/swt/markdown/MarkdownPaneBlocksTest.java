@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.editor.BlockSpacing;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -23,6 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -203,7 +209,96 @@ class MarkdownPaneBlocksTest {
     int own = text.getLocationAtOffset(start + 4).x;
     assertEquals(
         text.getLeftMargin() + MarkdownStyler.CODE_INDENT, text.getLocationAtOffset(start).x);
-    assertEquals(own, text.getLocationAtOffset(wrapped).x, "continuation under the line's text");
+    // The indent and the hanging indent round apart by a point: at a fractional zoom on win32, and
+    // on cocoa, whose glyph advances are fractional.
+    assertEquals(
+        own,
+        text.getLocationAtOffset(wrapped).x,
+        Math.max(1, ScaleSlack.of(text)),
+        "continuation under the line's text");
+  }
+
+  /** A first word too long to follow the indent left the indent alone on a line (Windows). */
+  @Test
+  void aCodeLinesFirstWordStartsOnItsFirstVisualLine() {
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, 320, 300);
+    flush();
+    String code = "mock.alpha.beta.gamma.delta(\"epsilon zeta eta theta iota kappa\");";
+    RenderedMarkdown r = show("```\n            " + code + "\n```\n");
+    StyledText text = pane.text();
+    int start = text.getOffsetAtLine(pane.map().displayLine(r.codeBlocks().get(0).firstLine()));
+    int y = text.getLocationAtOffset(start).y;
+    assertEquals(y, text.getLocationAtOffset(start + 12).y, "the first word's first char");
+    assertTrue(text.getLocationAtOffset(start + 12 + code.length() - 1).y > y, "the line wraps");
+    pane.selectRendered(r.lineStart(r.codeBlocks().get(0).firstLine()), r.text().indexOf("mock"));
+    assertEquals(" ".repeat(12), pane.selectedRendered(), "the indent copies as spaces");
+  }
+
+  /** The closing line of a code block at the document's end sat on the box's border. */
+  @Test
+  void theLastBlocksCodeBoxKeepsItsBottomPadding() {
+    int separated = gapBelowCode("Intro\n\n```\nmock\n```\n\nAfter.\n");
+    RenderedMarkdown r = show("Intro\n\n```\nmock\n```");
+    assertTrue(r.code(r.lineCount() - 1), "the code is the last line");
+    int last = gapBelowCode("Intro\n\n```\nmock\n```");
+    assertTrue(separated > 0, "padding above a separator: " + separated);
+    assertEquals(separated, last, ScaleSlack.of(pane.text()), "padding at the document's end");
+  }
+
+  /**
+   * Prints the widget at a zoom. GTK 4 prints the last drawn frame and {@code print} returns false
+   * while a redraw is queued, so a failed print dispatches events and retries.
+   */
+  private ImageData print(final StyledText text, final int zoom) {
+    final ImageData[] shot = new ImageData[1];
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            Point size = text.getSize();
+            Image image = new Image(display, size.x, size.y);
+            try {
+              GC gc = new GC(image);
+              try {
+                if (!text.print(gc)) {
+                  return false;
+                }
+              } finally {
+                gc.dispose();
+              }
+              shot[0] = image.getImageData(zoom);
+              return true;
+            } finally {
+              image.dispose();
+            }
+          }
+        },
+        "printed");
+    return shot[0];
+  }
+
+  /**
+   * Shows a document and returns the pixels from its code line's top to the box's bottom border.
+   */
+  private int gapBelowCode(String markdown) {
+    RenderedMarkdown r = show(markdown);
+    StyledText text = pane.text();
+    int line = pane.map().displayLine(r.codeBlocks().get(0).firstLine());
+    int top = text.getLinePixel(line);
+    int zoom = text.getMonitor().getZoom();
+    ImageData shot = print(text, zoom);
+    Rgb border = Palette.LIGHT.lineNumbers();
+    RGB ink = new RGB(border.red(), border.green(), border.blue());
+    int x = (text.getLeftMargin() + 4 * MarkdownStyler.CODE_INDENT) * zoom / 100;
+    int lowest = -1;
+    int end = Math.min(shot.height, (text.getLinePixel(line + 1) + 20) * zoom / 100);
+    for (int y = top * zoom / 100; y < end; y++) {
+      if (ink.equals(shot.palette.getRGB(shot.getPixel(x, y)))) {
+        lowest = y * 100 / zoom;
+      }
+    }
+    return lowest - top;
   }
 
   /** Find across a wrapped cell's break selected the other cells' segments between its ends. */

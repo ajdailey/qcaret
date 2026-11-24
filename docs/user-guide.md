@@ -354,8 +354,8 @@ apply (measured on Linux, one million lines):
   Workspace Browser's file list and its path and filter fields, are dark
   whenever the theme is, switching at once. Push buttons and the other
   fields keep the Windows look of the start; after a dark start the
-  Workspace Browser's two fields stay dark until the next start while a
-  workspace folder is set. On macOS they
+  Workspace Browser's two fields stay dark until the next start while they
+  hold text. On macOS they
   follow the system appearance, also while QCaret runs. On Linux a GTK theme
   with no dark variant keeps native controls light; the editor and tabs still
   change.
@@ -751,9 +751,10 @@ The Basic renderer draws headings, emphasis, lists and task lists, quotes,
 alerts, footnotes, tables, code blocks in a bordered box with QCaret's grammar
 colors, and local PNG, JPEG, GIF, BMP and TIFF images in the current theme. A table narrows its
 columns to the preview's width, and a long cell wraps inside its column. In a
-narrow preview the cell padding narrows before a word breaks, and a word breaks
-down to one character per line. A wrapped code line continues under its own
-indent. The cell and code box padding follow the preview's zoom. An SVG
+narrow preview the cell padding narrows before a cell wraps or a word breaks,
+a word breaks only when it is wider than its column's share of the preview,
+and the table stays inside the preview. A wrapped code line continues under
+its own indent. The cell and code box padding follow the preview's zoom. An SVG
 or an image that does not decode shows as a box with its name; a remote image
 shows its alt text and address. View > Markdown View, or the Appearance tab of Preferences,
 chooses the renderer for every window; the status bar names it, a click on

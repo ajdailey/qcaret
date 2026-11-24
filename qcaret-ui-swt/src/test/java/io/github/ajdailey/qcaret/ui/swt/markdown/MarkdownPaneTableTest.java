@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
+import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
@@ -80,6 +81,20 @@ class MarkdownPaneTableTest {
               "| alpha alpha alpha | beta beta beta | gamma gamma gamma | delta delta delta"
                   + " | epsilon epsilon | zeta zeta zeta | eta eta eta | theta theta theta |",
               "| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |",
+              "")
+          + "\nFiller.\n".repeat(40);
+
+  /** Eight columns, four of them holding a word longer than 20 chars. */
+  private static final String LONG_WORDS =
+      String.join(
+              "\n",
+              "| Column one | Column two | Column three | Column four | Column five | Column six"
+                  + " | Column seven | Column eight |",
+              "|---|---|---|---|---|---|---|---|",
+              "| alpha alpha alpha | beta beta beta | gamma gamma gamma | delta delta delta"
+                  + " | epsilon epsilon | zeta zeta zeta | eta eta eta | theta theta theta |",
+              "| Supercalifragilistic | Antidisestablishmentarianism | x | Pneumonoultramicroscopic"
+                  + " | y | z | Floccinaucinihilipilification | w |",
               "")
           + "\nFiller.\n".repeat(40);
 
@@ -240,13 +255,132 @@ class MarkdownPaneTableTest {
           Rectangle bounds = text.getTextBounds(at, at + segments[c].length() - 1);
           String where = "'" + segments[c] + "' at " + width + ": " + bounds;
           assertTrue(bounds.x >= left + edges[c], "starts in its column, " + where);
+          // Where the floor does not fit (wider fonts, cocoa) a column can be narrower than a
+          // glyph.
+          boolean glyphWider = segments[c].length() == 1 && bounds.width > edges[c + 1] - edges[c];
           assertTrue(
-              bounds.x + bounds.width <= left + edges[c + 1], "ends in its column, " + where);
+              glyphWider || bounds.x + bounds.width <= left + edges[c + 1],
+              "ends in its column, " + where);
           assertTrue(bounds.y + bounds.height <= next, "one visual line, " + where);
         }
         at += segments[c].length() + 1;
       }
     }
+  }
+
+  /** A pane narrower than eight columns at the floor: the widget wrapped each row into two. */
+  @Test
+  void aPaneNarrowerThanTheColumnFloorsKeepsTheTableAndEachLineInside() {
+    shell.setLayout(null);
+    for (int width : new int[] {120, 150}) {
+      pane.control().setBounds(0, 0, width, 300);
+      flush();
+      RenderedMarkdown r = show(EIGHT);
+      MarkdownTable table = r.tables().get(0);
+      StyledText text = pane.text();
+      int[] edges = pane.tables().edges(0);
+      int left = text.getLeftMargin() - text.getHorizontalPixel();
+      int right = text.getClientArea().width - text.getRightMargin();
+      assertTrue(left + edges[edges.length - 1] <= right, "table inside the pane at " + width);
+      int lastRow = table.firstLine() + table.rowCount() - 1;
+      int first = map().displayLine(table.firstLine());
+      int last = map().displayLine(lastRow) + map().displayLineCount(lastRow) - 1;
+      for (int line = first; line <= last; line++) {
+        int offset = text.getOffsetAtLine(line);
+        int end = offset + text.getLine(line).length();
+        Rectangle bounds = text.getTextBounds(offset, Math.max(offset, end - 1));
+        assertTrue(
+            bounds.y + bounds.height <= text.getLinePixel(line + 1),
+            "line " + line + " is one visual line at " + width + ": " + text.getLine(line));
+      }
+    }
+  }
+
+  /** Short words broke mid-word while the columns of long words kept the room (Windows, 100 %). */
+  @Test
+  void aWordShorterThanTheBreakingColumnsNeverBreaks() {
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, 700, 300);
+    flush();
+    RenderedMarkdown r = show(LONG_WORDS);
+    MarkdownTable table = r.tables().get(0);
+    StyledText text = pane.text();
+    String pad = String.valueOf(TableWrap.PAD);
+    List<String> broken = new ArrayList<String>();
+    for (int row = 0; row < table.rowCount(); row++) {
+      int line = table.firstLine() + row;
+      int first = map().displayLine(line);
+      List<String[]> lines = new ArrayList<String[]>();
+      for (int j = 0; j < map().displayLineCount(line); j++) {
+        lines.add(text.getLine(first + j).replace(pad, "").split("\t", -1));
+      }
+      int[] cells = table.cells()[row];
+      for (int c = 0; 2 * c + 1 < cells.length; c++) {
+        String cell = r.text().substring(cells[2 * c], cells[2 * c + 1]);
+        broken.addAll(brokenWords(cell, lines, c));
+      }
+    }
+    assertTrue(broken.size() > 0, "the long words break");
+    for (String word : broken) {
+      assertTrue(word.length() >= 20, "broken: " + word + " in " + broken);
+    }
+  }
+
+  /** Returns the words of a cell that its segments on successive display lines break inside. */
+  private static List<String> brokenWords(String cell, List<String[]> lines, int column) {
+    List<String> broken = new ArrayList<String>();
+    int at = 0;
+    for (String[] segments : lines) {
+      String segment = column < segments.length ? segments[column] : "";
+      if (segment.isEmpty()) {
+        continue;
+      }
+      while (at < cell.length() && cell.charAt(at) == ' ') {
+        at++;
+      }
+      assertTrue(cell.startsWith(segment, at), "'" + segment + "' at " + at + " of " + cell);
+      at += segment.length();
+      if (at < cell.length() && cell.charAt(at) != ' ' && cell.charAt(at - 1) != ' ') {
+        int start = cell.lastIndexOf(' ', at - 1) + 1;
+        int end = cell.indexOf(' ', at);
+        broken.add(cell.substring(start, end < 0 ? cell.length() : end));
+      }
+    }
+    return broken;
+  }
+
+  /** At 50 % zoom cells wrapped where a narrower padding kept each on one line (Windows). */
+  @Test
+  void thePaddingNarrowsBeforeACellWraps() {
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, 1600, 300);
+    flush();
+    pane.setZoom(50);
+    RenderedMarkdown r = show(EIGHT);
+    MarkdownTable table = r.tables().get(0);
+    MarkdownTableLayout layout = pane.tables().measured(0);
+    int cells = 0;
+    for (int c = 0; c < table.alignments().size(); c++) {
+      int widest = 0;
+      for (int row = 0; row < table.rowCount(); row++) {
+        widest = Math.max(widest, layout.width(row, c));
+      }
+      cells += widest;
+    }
+    StyledText text = pane.text();
+    int textWidth = text.getClientArea().width - text.getLeftMargin() - text.getRightMargin();
+    int columns = table.alignments().size();
+    // Between the cells at the least padding, 2 px, and at the full padding, 7 px.
+    int target = cells + 2 * columns * 4;
+    pane.control().setBounds(0, 0, 1600 - textWidth + target, 300);
+    flush();
+    show(EIGHT);
+    for (int row = 0; row < table.rowCount(); row++) {
+      assertEquals(
+          1, map().displayLineCount(table.firstLine() + row), "row " + row + ": " + map().text());
+    }
+    int[] edges = pane.tables().edges(0);
+    assertTrue(edges[edges.length - 1] <= target, "table inside " + target);
   }
 
   @Test
