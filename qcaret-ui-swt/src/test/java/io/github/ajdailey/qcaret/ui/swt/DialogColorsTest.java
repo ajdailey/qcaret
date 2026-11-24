@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.ui.swt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -18,6 +17,7 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
@@ -53,6 +53,12 @@ class DialogColorsTest {
 
   private static final Color TEXT = new Color(0xff, 0xff, 0xff);
 
+  /** Hint text of an empty single-line field. */
+  private static final Color HINT = new Color(0x9a, 0x9a, 0x9a);
+
+  /** Fills the image a test Paint event draws on, so a skipped draw shows. */
+  private static final RGB OWN = new RGB(0x12, 0x34, 0x56);
+
   private Display display;
 
   @AfterEach
@@ -85,23 +91,50 @@ class DialogColorsTest {
   }
 
   /**
-   * A read-only field's hint in a dark dialog is readable: the native cue drew {@code #6d6d6d} on
-   * the field, 2.74:1 (Preferences, Default workspace folder; OBERON G1).
+   * An empty single-line field's hint, read-only or a search filter, draws in {@code HINT} on the
+   * field color at 4.5:1 or more; a field holding text and a multi-line field draw no hint. The
+   * native hint drew {@code #6d6d6d} read-only and {@code #575757} editable (Preferences, Default
+   * workspace folder, and the dialog filters; OBERON G1).
    */
   @Test
-  void win32DrawsAReadOnlyFieldsHintReadableUnderADarkStart() {
+  void win32DrawsAnEmptyFieldsHintReadablyUnderADarkStart() {
     // cocoa's start records no native dark theme, so the win32 class leaves the dialog alone.
     assumeFalse("cocoa".equals(SWT.getPlatform()), "cocoa records no native dark start");
     Shell owner = owner(ThemeMode.DARK);
     Shell dialog = new Shell(owner, SWT.DIALOG_TRIM);
     WIN32.apply(dialog);
-    Text folder = new Text(dialog, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
-    FieldHint hint = new FieldHint(folder);
-    hint.setHint("mock none");
+    Button focus = new Button(dialog, SWT.PUSH);
+    focus.setBounds(0, 0, 60, 30);
+    Text readOnly = new Text(dialog, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
+    Text filter = new Text(dialog, SWT.SEARCH | SWT.BORDER);
+    Text multi = new Text(dialog, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER);
+    int y = 40;
+    for (Text text : new Text[] {readOnly, filter, multi}) {
+      text.setMessage("MMMM mock hint");
+      text.setBounds(0, y, 200, 30);
+      y += 40;
+    }
     dialog.open();
-    assertNotNull(hint.color());
-    double ratio = Contrast.ratio(hint.color().getRGB(), FIELD.getRGB());
-    assertTrue(ratio >= 4.5, "hint " + ratio);
+    focus.setFocus();
+    while (display.readAndDispatch()) {
+      // Runs the Skin events, which color each control a second time.
+    }
+    assertTrue(Contrast.ratio(HINT.getRGB(), FIELD.getRGB()) >= 4.5);
+    assertTrue(Contrast.ratio(TEXT.getRGB(), FIELD.getRGB()) >= 4.5);
+    for (Text text : new Text[] {readOnly, filter}) {
+      assertEquals(1, text.getListeners(SWT.Paint).length, "one hint listener");
+      ImageData drawn = TextPaint.paint(text, OWN);
+      assertEquals(FIELD.getRGB(), TextPaint.at(drawn, 1, 1));
+      RGB ink = TextPaint.farthest(drawn, FIELD.getRGB());
+      assertTrue(Contrast.ratio(ink, FIELD.getRGB()) >= 4.5, text + " " + ink);
+    }
+    filter.setText("mock");
+    // SWT 3.135 on GTK 4 reads getCharCount 0 for this shown entry holding text (measured); the
+    // listener reads getCharCount, which win32 takes from the edit control.
+    if (filter.getCharCount() > 0) {
+      assertEquals(OWN, TextPaint.at(TextPaint.paint(filter, OWN), 1, 1), "holding text");
+    }
+    assertEquals(0, multi.getListeners(SWT.Paint).length);
   }
 
   @Test

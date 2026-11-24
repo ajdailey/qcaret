@@ -39,10 +39,11 @@ import org.eclipse.swt.widgets.Tree;
  * <p>After a dark start ({@link ChromeColors#nativeDark}) a field holding text keeps the dark
  * colors on the light side until the next start, because the dark native field draws near-black
  * with dark text under any light colors; an empty field takes the system list colors, set
- * explicitly, since with none it draws the dark native field. A field is colored again when it
- * becomes empty or takes text ({@code SWT.Modify}). A tree whose side differs from the native start
- * draws its selected row in the palette's selection colors ({@link #selection}) on {@link
- * SWT#EraseItem}; the native expander keeps the startup theme's colors.
+ * explicitly, and {@link Win32EmptyField} paints it while unfocused, since the dark native field
+ * draws {@code #212121} there under any colors. A field is colored again when it becomes empty or
+ * takes text ({@code SWT.Modify}). A tree whose side differs from the native start draws its
+ * selected row in the palette's selection colors ({@link #selection}) on {@link SWT#EraseItem}; the
+ * native expander keeps the startup theme's colors.
  *
  * <p>Push and arrow buttons, combos, lists, tables, spinners, progress bars, a {@link StyledText},
  * a {@link Browser}, a {@link CTabFolder} and a control with {@link #PALETTE_COLORED} keep their
@@ -86,6 +87,23 @@ final class Win32ChromeColors implements ChromeColors {
           }
         }
       };
+
+  /**
+   * The light side after a dark start: {@link Win32EmptyField} fills an empty field with its system
+   * background and draws the hint in the system gray raised to {@link Contrast#LINK}.
+   */
+  private final Win32EmptyField.Ink lightInk =
+      new Win32EmptyField.Ink() {
+        @Override
+        public Color hint(Text text) {
+          if (dark || !ChromeColors.nativeDark(display)) {
+            return null;
+          }
+          RGB gray = display.getSystemColor(SWT.COLOR_WIDGET_DISABLED_FOREGROUND).getRGB();
+          return new Color(Contrast.readable(gray, text.getBackground().getRGB()));
+        }
+      };
+
   private final List<Control> surfaces = new ArrayList<Control>();
   private final List<Icons> icons = new ArrayList<Icons>();
   private boolean dark;
@@ -236,6 +254,7 @@ final class Win32ChromeColors implements ChromeColors {
       return;
     }
     field.setData(FOLLOWED, Boolean.TRUE);
+    Win32EmptyField.draw(field, lightInk);
     field.addListener(
         SWT.Modify,
         new Listener() {

@@ -24,12 +24,15 @@ import org.eclipse.swt.widgets.Tree;
  * win32: under a dark startup setting SWT draws a dialog's title bar, push buttons and read-only
  * combos dark and every other surface light. {@link #apply} gives the dialog body the title bar's
  * color, forced onto its children so push button corners match, and sets each control's colors:
- * fields, lists, tables and trees the field colors, a field's {@link ChromeColors.Hint} {@link
- * #HINT}, read-only combos the push button face, since a forced background otherwise draws their
- * native text dark on dark. Push buttons keep their native faces, a {@link ProgressBar} its bar
- * color, and a control with {@link ChromeColors#PALETTE_COLORED} the palette. Controls created
- * after the shell shows take their colors from {@link SWT#Skin}. Under a light startup setting
- * nothing changes.
+ * fields, lists, tables and trees the field colors, read-only combos the push button face, since a
+ * forced background otherwise draws their native text dark on dark. Push buttons keep their native
+ * faces, a {@link ProgressBar} its bar color, and a control with {@link
+ * ChromeColors#PALETTE_COLORED} the palette. Controls created after the shell shows take their
+ * colors from {@link SWT#Skin}. Under a light startup setting nothing changes.
+ *
+ * <p>A single-line {@link Text}'s hint draws {@code #6d6d6d} when read-only (SWT draws it in {@code
+ * COLOR_GRAYTEXT}) and {@code #575757} when editable, 2.74:1 and 1.96:1 on {@link #FIELD} (measured
+ * on {@code windows-2025}); {@link Win32EmptyField} draws it in {@link #HINT} over that.
  *
  * <p>The dark native theme draws a check box label near-white, or light gray when disabled, and
  * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
@@ -51,11 +54,16 @@ final class Win32DialogColors implements DialogColors {
   /** Text on every surface. */
   static final Color TEXT = new Color(0xff, 0xff, 0xff);
 
-  /**
-   * A field's hint: the gray Windows draws a read-only field's cue in, {@code #6d6d6d}, 2.74:1 on
-   * {@link #FIELD} (measured on Windows 11), raised to {@link Contrast#LINK}.
-   */
-  static final Color HINT = new Color(Contrast.readable(new RGB(0x6d, 0x6d, 0x6d), FIELD.getRGB()));
+  /** Hint text of an empty single-line field: 5.0 contrast on {@link #FIELD}. */
+  static final Color HINT = new Color(0x9a, 0x9a, 0x9a);
+
+  private static final Win32EmptyField.Ink DIALOG_INK =
+      new Win32EmptyField.Ink() {
+        @Override
+        public Color hint(Text text) {
+          return HINT;
+        }
+      };
 
   /** Shell data key on a colored dialog. */
   private static final String COLORED = Win32DialogColors.class.getName() + ".colored";
@@ -168,8 +176,8 @@ final class Win32DialogColors implements DialogColors {
     if (!(control instanceof ProgressBar)) {
       control.setForeground(TEXT);
     }
-    if (control.getData(ChromeColors.HINT) instanceof ChromeColors.Hint hint) {
-      hint.setColor(HINT);
+    if (control instanceof Text text) {
+      Win32EmptyField.draw(text, DIALOG_INK);
     }
     if (control instanceof Table table) {
       table.setHeaderBackground(FIELD);

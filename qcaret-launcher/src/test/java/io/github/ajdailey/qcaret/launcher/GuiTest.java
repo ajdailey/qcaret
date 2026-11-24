@@ -83,6 +83,9 @@ class GuiTest {
     final List<String> observed = new ArrayList<String>();
     Workers workers;
 
+    /** One point at a fractional monitor zoom, else 0; set when the window is recorded. */
+    int slack;
+
     Recorder(int width, int height, String title) {
       this(width, height, null, title);
     }
@@ -106,7 +109,7 @@ class GuiTest {
             @Override
             public void run() {
               Shell shell = window.shell();
-              int slack = shell.getMonitor().getZoom() % 100 == 0 ? 0 : 1;
+              slack = shell.getMonitor().getZoom() % 100 == 0 ? 0 : 1;
               Rectangle area = shell.getClientArea();
               String shown = shell.getText();
               int shownWidth = near(area.width, width, slack);
@@ -388,11 +391,20 @@ class GuiTest {
     assertEquals(0, run(request(List.of(), null, null, null, null, false), remembered, recorder));
     assertEquals(placed(UNTITLED, "700x500", "Point {60, 50}"), recorder.observed);
     WindowState saved = config().load().window();
-    assertEquals(remembered.window().width(), saved.width());
-    assertEquals(remembered.window().height(), saved.height());
+    WindowState expected = remembered.window();
+    assertNear(expected.width(), saved.width(), recorder.slack);
+    assertNear(expected.height(), saved.height(), recorder.slack);
+    assertEquals(expected.maximized(), saved.maximized());
     if (POSITIONED) {
-      assertEquals(remembered.window(), saved);
+      assertNear(expected.x(), saved.x(), recorder.slack);
+      assertNear(expected.y(), saved.y(), recorder.slack);
     }
+  }
+
+  private static void assertNear(int expected, Integer actual, int slack) {
+    assertTrue(
+        actual != null && Math.abs(expected - actual) <= slack,
+        expected + " +-" + slack + ": " + actual);
   }
 
   @Test

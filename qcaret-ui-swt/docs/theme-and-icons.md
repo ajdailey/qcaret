@@ -82,8 +82,10 @@ resolves to dark, at once after a live switch, and `FieldHint` draws a field's
 hint in `Palette.DARK`'s unselected tab label color. After a dark start a field
 holding text keeps `Palette.DARK`'s colors on the light side until the next
 start; an empty one, such as the path field while no workspace folder is set,
-takes the system list colors, set explicitly: with none, an empty find or
-replace field drew the dark native field, `#212121` (OBERON G1 on `92bc3f8`). A
+takes the system list colors, set explicitly. The dark native field still draws
+an empty editable field `#212121` while unfocused under those colors (OBERON G1
+on `6449df6`), so `Win32EmptyField` fills it with its background from an
+`SWT.Paint` listener and draws its hint in the system gray raised to 4.5:1. A
 field is colored again when it becomes empty or takes text, typed or set
 through `setText` alike ([dialogs and
 docks](dialogs-and-docks.md#workspace-browser)). `Win32ChromeColors` reads the
@@ -173,7 +175,12 @@ keep native colors. GTK and cocoa (`NativeDialogColors`) change nothing.
 Under a dark startup setting `Win32DialogColors` sets the colors below, forces
 the body color onto children so push button corners match, and colors controls
 created after the shell shows from `SWT.Skin`. A control with
-`EditorPane.PALETTE_COLORED` keeps the palette. `Dialogs.background` returns the
+`EditorPane.PALETTE_COLORED` keeps the palette. An empty, unfocused single-line
+`Text` with a hint (`setMessage`) draws it in `#9a9a9a` (5.03:1) from
+`Win32EmptyField`'s `SWT.Paint` listener over the native hint, which is `#6d6d6d` read-only (SWT's
+`COLOR_GRAYTEXT`, 2.74:1) and `#575757` editable (1.96:1), measured on
+`windows-2025` in QLogg. The dialog filters, the key capture field and
+Preferences' Default workspace folder take it. `Dialogs.background` returns the
 body color, so About picks the dark logo. Dialogs follow the startup setting:
 after a light start and a live switch to dark a dialog stays native light,
 fields included, until the next start, and after a dark start it stays dark on
@@ -201,10 +208,7 @@ Public API leaves these light or gray:
 - `Table` grid lines and header dividers (the Keys page).
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
-  field (2.7 contrast), `#808080` on the body. A read-only field's cue draws the
-  same gray, so a field that needs one takes a `FieldHint`, which
-  `Win32DialogColors` colors `HINT`, the gray raised to 4.5:1 (Preferences'
-  Default workspace folder).
+  field (2.7 contrast), `#808080` on the body.
 
 - The Guide's page, which its HTML colors.
 

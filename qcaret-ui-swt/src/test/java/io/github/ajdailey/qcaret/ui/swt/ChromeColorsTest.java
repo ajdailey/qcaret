@@ -364,6 +364,46 @@ class ChromeColorsTest {
     assertEquals("filter", field.getMessage());
   }
 
+  /**
+   * After a dark start an empty, unfocused field on the light side is painted in its system
+   * background, with its hint at 4.5:1 or more: the dark native field drew {@code #212121} there
+   * under explicit light colors (find and replace fields, Windows 11, OBERON G1). A field holding
+   * text, the dark side and a light start leave the native drawing.
+   */
+  @Test
+  void afterADarkStartAnEmptyFieldOnTheLightSideIsPaintedInItsSystemColors() {
+    Text find = new Text(surface, SWT.SINGLE);
+    field.setSize(200, 30);
+    find.setSize(200, 30);
+    RGB system = display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB();
+    ChromeColors chrome = chrome(WIN32, true);
+    chrome.apply(true);
+    chrome.apply(false);
+    ImageData hinted = TextPaint.paint(field, OWN_BACKGROUND);
+    assertEquals(system, TextPaint.at(hinted, 1, 1));
+    RGB ink = TextPaint.farthest(hinted, system);
+    assertTrue(Contrast.ratio(ink, system) >= 4.5, "hint " + ink);
+    ImageData plain = TextPaint.paint(find, OWN_BACKGROUND);
+    assertEquals(system, TextPaint.at(plain, 1, 1));
+    assertEquals(system, TextPaint.farthest(plain, system), "no hint");
+    find.setText("mock");
+    assertEquals(OWN_BACKGROUND, TextPaint.at(TextPaint.paint(find, OWN_BACKGROUND), 1, 1));
+    chrome.apply(true);
+    // FieldHint draws the dark side's hint with no fill, so the far corner keeps the image color.
+    ImageData dark = TextPaint.paint(field, OWN_BACKGROUND);
+    assertEquals(OWN_BACKGROUND, TextPaint.at(dark, dark.width - 2, dark.height - 2), "dark side");
+  }
+
+  @Test
+  void aLightStartLeavesAnEmptyFieldToTheNativeDrawing() {
+    field.setSize(200, 30);
+    ChromeColors chrome = chrome(WIN32, false);
+    chrome.apply(true);
+    chrome.apply(false);
+    ImageData drawn = TextPaint.paint(field, OWN_BACKGROUND);
+    assertEquals(OWN_BACKGROUND, TextPaint.at(drawn, drawn.width - 2, drawn.height - 2));
+  }
+
   @Test
   void aLightStartLeavesAFieldHoldingTextToTheSystemOnTheLightSide() {
     List<RGB> systemField = fieldColors();
