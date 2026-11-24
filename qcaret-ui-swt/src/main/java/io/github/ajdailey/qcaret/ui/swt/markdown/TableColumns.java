@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Rectangle;
@@ -27,10 +28,12 @@ import org.eclipse.swt.graphics.Rectangle;
  *   <li>{@link SpanWidths} measures each cell in its spans' fonts with a {@link GC} ({@link
  *       MarkdownTableLayout}).
  *   <li>A table wider than the pane's text width less its indent has its words measured ({@link
- *       TableWords}) and its columns fitted to that width.
- *   <li>{@link TableWrap} lays out its rows, which {@link RowSteps} shows in the {@link
- *       MarkdownDisplayMap} and the widget until the turn's time runs out. A layout starts a turn
- *       of its own and ends it.
+ *       TableWords}) and its columns fitted to that width: the padding, {@value #PADDING} pixels
+ *       scaled by the zoom, narrows to {@value #LEAST_PADDING} before a word breaks, and no column
+ *       is narrower than the widest of {@link #WIDEST_CHARS} in the header's bold font.
+ *   <li>{@link TableWrap} lays out its rows, breaking a word after the longest part that fits,
+ *       which {@link RowSteps} shows in the {@link MarkdownDisplayMap} and the widget until the
+ *       turn's time runs out. A layout starts a turn of its own and ends it.
  * </ol>
  *
  * A replace lays out each line between the top line and the replaced rows whose height the widget
@@ -49,8 +52,14 @@ final class TableColumns {
   /** Cells measured between two time checks. */
   private static final int CELLS_PER_STEP = 16;
 
-  /** Pixels left and right of a cell's text. */
+  /** Pixels left and right of a cell's text at 100 percent zoom. */
   static final int PADDING = 13;
+
+  /** The least pixels left and right of a cell's text at 100 percent zoom. */
+  static final int LEAST_PADDING = 3;
+
+  /** The chars whose wider width, in the header's bold body font, is the narrowest column. */
+  static final String WIDEST_CHARS = "WM";
 
   private final StyledText text;
   private final MarkdownFonts fonts;
@@ -150,7 +159,7 @@ final class TableColumns {
           t.room = old.room;
         }
       } else {
-        t.layout = new MarkdownTableLayout(table, rendered.text(), PADDING);
+        t.layout = new MarkdownTableLayout(table, rendered.text(), fonts.scaled(PADDING));
       }
       tables[i] = t;
       if (t.shown == null) {
@@ -351,7 +360,10 @@ final class TableColumns {
         if (budget < CELLS_PER_TURN) {
           return;
         }
-        if (layOut(t, table, current, room, deadline)) {
+        if (gc == null) {
+          gc = new GC(text);
+        }
+        if (layOut(t, table, current, room, gc, deadline)) {
           turns.done();
         }
         return;
@@ -376,10 +388,14 @@ final class TableColumns {
    * @return true once every row is shown
    */
   private boolean layOut(
-      Table t, MarkdownTable table, MarkdownDisplayMap map, int room, long deadline) {
+      Table t, MarkdownTable table, MarkdownDisplayMap map, int room, GC gc, long deadline) {
     if (t.next < 0) {
       int[] widest = t.words != null && t.words.measured() ? t.words.widest() : null;
-      t.layout.fit(widest != null ? widest : new int[table.alignments().size()], room, true);
+      t.layout.fit(
+          widest != null ? widest : new int[table.alignments().size()],
+          room,
+          narrowest(gc),
+          fonts.scaled(LEAST_PADDING));
       int[] edges = t.layout.edges();
       if (t.shown != null && Arrays.equals(edges, t.shown)) {
         t.room = room;
@@ -387,7 +403,8 @@ final class TableColumns {
       }
       t.next = 0;
     }
-    t.next = rows.show(map, table, rendered.text(), t.layout, t.words, t.next, deadline);
+    SpanWidths measurer = new SpanWidths(gc, fonts, rendered.text(), spans);
+    t.next = rows.show(map, table, rendered.text(), t.layout, t.words, measurer, t.next, deadline);
     if (t.next < table.rowCount()) {
       return false;
     }
@@ -395,6 +412,16 @@ final class TableColumns {
     t.shown = t.layout.edges();
     t.room = room;
     return true;
+  }
+
+  /** The narrowest column: the widest of {@link #WIDEST_CHARS} in the header's bold body font. */
+  private int narrowest(GC gc) {
+    gc.setFont(fonts.get(false, SWT.BOLD, 0, false));
+    int widest = 0;
+    for (int i = 0; i < WIDEST_CHARS.length(); i++) {
+      widest = Math.max(widest, gc.textExtent(WIDEST_CHARS.substring(i, i + 1), 0).x);
+    }
+    return widest;
   }
 
   /**

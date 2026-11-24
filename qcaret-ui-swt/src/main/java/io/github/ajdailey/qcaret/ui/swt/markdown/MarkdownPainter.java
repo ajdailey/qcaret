@@ -20,12 +20,13 @@ import org.eclipse.swt.graphics.Rectangle;
 
 /**
  * Paints what line styles cannot show over the display lines in view: a box around each code block,
- * its padding in the separator lines beside it ({@link BlockSpacing}); a bar per quote level,
- * colored by the alert's kind inside an alert; thematic breaks; a rule under level 1 and 2
- * headings, below the gap the separator after them adds; table borders, and the header row's shade
- * cut to the table's width, once the table's rows are laid out; and each image, or a placeholder
- * box with its file name when it does not decode. Rendered lines and offsets reach the widget
- * through the {@link MarkdownDisplayMap}. Call on the UI thread.
+ * reaching the code padding into the right margin, its padding in the separator lines beside it
+ * ({@link BlockSpacing}); a bar per quote level, colored by the alert's kind inside an alert;
+ * thematic breaks; a rule under level 1 and 2 headings, below the gap the separator after them
+ * adds; table borders, and the header row's shade cut to the table's width, once the table's rows
+ * are laid out; and each image, or a placeholder box with its file name when it does not decode.
+ * Rendered lines and offsets reach the widget through the {@link MarkdownDisplayMap}. Call on the
+ * UI thread.
  */
 final class MarkdownPainter {
   private static final int BAR_WIDTH = 3;
@@ -138,7 +139,9 @@ final class MarkdownPainter {
       Rectangle area) {
     BlockSpacing spacing = styler.spacing();
     int x0 = left + styler.textStart(code.firstLine());
-    int x1 = Math.max(x0 + 2 * RADIUS, right);
+    // Code wraps at the right margin: the box takes its padding from up to half the margin.
+    int margin = text.getRightMargin() / 2;
+    int x1 = Math.max(x0 + 2 * RADIUS, right + Math.min(styler.codePadding(), margin));
     int lastLine = code.firstLine() + code.lineCount() - 1;
     int textTop = first >= top ? text.getLinePixel(first) : -2 * RADIUS;
     int y0 = first >= top ? textTop - spacing.below(code.firstLine() - 1) : textTop;
@@ -154,6 +157,8 @@ final class MarkdownPainter {
     gc.setBackground(shade);
     gc.fillRectangle(x0, y0, x1 - x0, textTop - y0);
     gc.fillRectangle(x0, textBottom, x1 - x0, y1 - textBottom);
+    // The code lines' own shade ends at the right margin.
+    gc.fillRectangle(right, textTop, Math.max(0, x1 - right), textBottom - textTop);
     int[][] corners = {{x0, y0}, {x1 - RADIUS, y0}, {x0, y1 - RADIUS}, {x1 - RADIUS, y1 - RADIUS}};
     Rectangle clip = gc.getClipping();
     for (int[] corner : corners) {

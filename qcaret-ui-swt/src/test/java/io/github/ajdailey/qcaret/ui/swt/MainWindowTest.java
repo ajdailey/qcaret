@@ -39,6 +39,7 @@ class MainWindowTest {
     window.place(new WindowGeometry.Request(50, 40, 900, 600), null);
     window.open();
     final Shell shell = window.shell();
+    final int slack = ScaleSlack.of(shell);
     assertTrue(
         EventLoop.runUntil(
             display,
@@ -46,7 +47,9 @@ class MainWindowTest {
               @Override
               public boolean getAsBoolean() {
                 Rectangle area = shell.getClientArea();
-                return shell.isVisible() && area.width == 900 && area.height == 600;
+                return shell.isVisible()
+                    && Math.abs(area.width - 900) <= slack
+                    && Math.abs(area.height - 600) <= slack;
               }
             },
             BOUND),

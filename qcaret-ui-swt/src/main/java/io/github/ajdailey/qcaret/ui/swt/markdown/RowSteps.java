@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.editor.MarkdownDisplayMap;
 import io.github.ajdailey.qcaret.app.editor.MarkdownTableLayout;
 import io.github.ajdailey.qcaret.app.editor.TableWords;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
+import io.github.ajdailey.qcaret.app.editor.TextMeasurer;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Point;
@@ -54,6 +55,7 @@ final class RowSteps {
    * @param rendered the rendered text
    * @param layout the table's fitted layout
    * @param words its measured words, or null
+   * @param measurer measures the parts of a word wider than its column
    * @param from the first row to show
    * @param deadline a {@link System#nanoTime} value
    * @return the row after the last one shown
@@ -64,6 +66,7 @@ final class RowSteps {
       String rendered,
       MarkdownTableLayout layout,
       TableWords words,
+      TextMeasurer measurer,
       int from,
       long deadline) {
     int top = text.getTopIndex();
@@ -81,7 +84,8 @@ final class RowSteps {
       int to = Math.min(table.rowCount(), next + rowsPerStep[where]);
       MarkdownDisplayMap.Change change =
           map.replace(
-              table.firstLine() + next, TableWrap.rows(table, rendered, layout, words, next, to));
+              table.firstLine() + next,
+              TableWrap.rows(table, rendered, layout, words, measurer, next, to));
       text.replaceTextRange(change.start(), change.length(), change.text());
       int nextTop = map.displayLine(topLine) + Math.min(sub, map.displayLineCount(topLine) - 1);
       keepTop(nextTop, topY);

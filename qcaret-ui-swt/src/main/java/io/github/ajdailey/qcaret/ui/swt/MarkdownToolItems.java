@@ -16,12 +16,14 @@ import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 
 /**
- * The Markdown actions drop-down after the toolbar's {@link MarkdownSwitch}, created and disposed
- * with it. A click on the button or its arrow opens a menu of {@link #COMMANDS}: Basic and Browser
- * as radio items, Sync Scrolling and Outline as check items, Export as HTML and Print Rendered
- * Markdown. Each item shows its title and keys, takes its checked and enabled state from {@link
- * CommandStates} when the menu opens, gives a disabled item's reason as the menus do, and runs its
- * menu command. Call on the UI thread.
+ * The Markdown actions button after the toolbar's {@link MarkdownSwitch}, created and disposed with
+ * it. The button is a push item whose icon carries a down arrow in the toolbar's ink: an {@code
+ * SWT.DROP_DOWN} item's arrow is drawn by win32 in black whatever the toolbar's colors, 1.36:1 on
+ * the dark toolbar. A click opens a menu of {@link #COMMANDS}: Basic and Browser as radio items,
+ * Sync Scrolling and Outline as check items, Export as HTML and Print Rendered Markdown. Each item
+ * shows its title and keys, takes its checked and enabled state from {@link CommandStates} when the
+ * menu opens, gives a disabled item's reason as the menus do, and runs its menu command. Call on
+ * the UI thread.
  */
 final class MarkdownToolItems implements ToolMenu {
   /** The menu's commands in order; null is a separator. */
@@ -59,10 +61,10 @@ final class MarkdownToolItems implements ToolMenu {
     this.states = states;
   }
 
-  /** Adds the drop-down at the toolbar's end. */
+  /** Adds the button at the toolbar's end. */
   void create() {
     separator = new ToolItem(bar, SWT.SEPARATOR);
-    item = new ToolItem(bar, SWT.DROP_DOWN);
+    item = new ToolItem(bar, SWT.PUSH);
     item.setData(this);
     String title = title();
     if (!icons.apply(item, ToolIcons.MARKDOWN_ACTIONS)) {
@@ -83,7 +85,7 @@ final class MarkdownToolItems implements ToolMenu {
         });
   }
 
-  /** Removes the drop-down. */
+  /** Removes the button. */
   void dispose() {
     if (separator == null || item == null) {
       return;
@@ -112,7 +114,7 @@ final class MarkdownToolItems implements ToolMenu {
   }
 
   /**
-   * Builds the drop-down's menu from the current command states, replacing the last one.
+   * Builds the button's menu from the current command states, replacing the last one.
    *
    * @return the menu, not yet visible
    */
@@ -166,7 +168,7 @@ final class MarkdownToolItems implements ToolMenu {
   }
 
   /**
-   * Returns the drop-down.
+   * Returns the button.
    *
    * @return the item, or null while hidden
    */

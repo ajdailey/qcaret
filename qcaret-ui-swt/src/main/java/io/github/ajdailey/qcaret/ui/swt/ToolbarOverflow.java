@@ -22,13 +22,19 @@ import org.eclipse.swt.widgets.ToolItem;
 
 /**
  * The main toolbar's row: the toolbar at its full width inside a clipping composite, and a More
- * button at the row's end, shown only while a button lies past the clip. The More button's menu
- * lists the hidden buttons in toolbar order, with the menus' icons, checked and enabled state, and
- * a disabled one's reason as the menus give it; choosing one runs the button's own Selection. A
- * hidden drop-down ({@link ToolMenu}) shows as a cascade of its menu. Call on the UI thread.
+ * button at the row's end, shown only while a button lies past the clip. While More shows, the clip
+ * ends at the right edge of the last button that fits whole beside it, so no button shows cut. The
+ * More button's menu lists the hidden buttons in toolbar order, with the menus' icons, checked and
+ * enabled state, and a disabled one's reason as the menus give it; choosing one runs the button's
+ * own Selection. A hidden drop-down ({@link ToolMenu}) shows as a cascade of its menu. Call on the
+ * UI thread.
  *
  * <p>The toolbar is never allocated less than its preferred width: a narrower GTK 3 toolbar shows
  * its own overflow arrow, whose items carry no command.
+ *
+ * <p>The row is as high as a toolbar holding an icon button and a text button, measured on a hidden
+ * probe toolbar, whatever the toolbar holds: the Markdown switch's text buttons make a win32
+ * toolbar taller (26 against 20 points at 150 %), and the row keeps one height across tabs.
  */
 final class ToolbarOverflow {
   private final Composite row;
@@ -38,6 +44,8 @@ final class ToolbarOverflow {
   private CommandStates states;
   private MenuIcons menuIcons;
   private Menu menu;
+  private ToolBar probe;
+  private int shownWidth = Integer.MAX_VALUE;
   private boolean laying;
 
   /**
@@ -82,6 +90,10 @@ final class ToolbarOverflow {
     menuIcons = menuIcon;
     more = icons.item(row, ToolIcons.TAB_LIST_DOWN, UiText.TOOLBAR_MORE.text());
     more.getParent().setVisible(false);
+    probe = new ToolBar(row, bar.getStyle() & (SWT.FLAT | SWT.HORIZONTAL | SWT.RIGHT));
+    probe.setVisible(false);
+    icons.apply(new ToolItem(probe, SWT.PUSH), ToolIcons.TAB_LIST_DOWN);
+    new ToolItem(probe, SWT.RADIO).setText(UiText.TOOLBAR_MORE.text());
     more.addListener(
         SWT.Selection,
         new Listener() {
@@ -133,13 +145,22 @@ final class ToolbarOverflow {
   }
 
   /**
+   * Returns the clip's width, which ends at the last whole button while More shows.
+   *
+   * @return the width from the toolbar's left edge
+   */
+  int shownWidth() {
+    return clip.getClientArea().width;
+  }
+
+  /**
    * Returns the buttons past the clip, in toolbar order, separators left out.
    *
    * @return the hidden buttons
    */
   List<ToolItem> hidden() {
     List<ToolItem> hidden = new ArrayList<ToolItem>();
-    int width = clip.getClientArea().width;
+    int width = shownWidth;
     for (ToolItem item : bar.getItems()) {
       Rectangle bounds = item.getBounds();
       if ((item.getStyle() & SWT.SEPARATOR) == 0 && bounds.x + bounds.width > width) {
@@ -221,11 +242,37 @@ final class ToolbarOverflow {
     item.notifyListeners(SWT.Selection, new Event());
   }
 
+  /**
+   * Returns the right edge of the last button, separators left out, that ends within a width.
+   *
+   * @param width the room from the toolbar's left edge
+   * @return the edge, or {@code width} while a button is not yet placed
+   */
+  private int wholeButtons(int width) {
+    int end = 0;
+    for (ToolItem item : bar.getItems()) {
+      Rectangle bounds = item.getBounds();
+      if (bounds.width <= 0) {
+        return width;
+      }
+      if (bounds.x + bounds.width > width) {
+        break;
+      }
+      if ((item.getStyle() & SWT.SEPARATOR) == 0) {
+        end = bounds.x + bounds.width;
+      }
+    }
+    return end;
+  }
+
   /** Places the clip and the More button; the toolbar keeps its preferred width inside the clip. */
   private final class RowLayout extends Layout {
     @Override
     protected Point computeSize(Composite composite, int wHint, int hHint, boolean flush) {
       Point size = bar.computeSize(SWT.DEFAULT, SWT.DEFAULT, flush);
+      if (probe != null) {
+        size.y = Math.max(size.y, probe.computeSize(SWT.DEFAULT, SWT.DEFAULT, flush).y);
+      }
       if (wHint != SWT.DEFAULT) {
         size.x = wHint;
       }
@@ -242,21 +289,24 @@ final class ToolbarOverflow {
         Rectangle area = composite.getClientArea();
         Point preferred = bar.computeSize(SWT.DEFAULT, SWT.DEFAULT, true);
         boolean overflow = more != null && preferred.x > area.width;
+        int barY = Math.max(0, (area.height - preferred.y) / 2);
+        int barHeight = Math.min(area.height, preferred.y);
         int clipWidth = area.width;
+        bar.setBounds(0, barY, Math.max(preferred.x, clipWidth), barHeight);
         if (more != null) {
           Control button = more.getParent();
           if (overflow) {
             Point size = button.computeSize(SWT.DEFAULT, SWT.DEFAULT);
-            clipWidth = Math.max(0, area.width - size.x);
-            button.setBounds(
-                area.x + clipWidth, area.y + (area.height - size.y) / 2, size.x, size.y);
+            int room = Math.max(0, area.width - size.x);
+            clipWidth = Math.min(room, wholeButtons(room));
+            button.setBounds(area.x + room, area.y + (area.height - size.y) / 2, size.x, size.y);
           }
           if (button.getVisible() != overflow) {
             button.setVisible(overflow);
           }
         }
         clip.setBounds(area.x, area.y, clipWidth, area.height);
-        bar.setBounds(0, 0, Math.max(preferred.x, clipWidth), area.height);
+        shownWidth = clipWidth;
       } finally {
         laying = false;
       }

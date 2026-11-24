@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.nio.file.Path;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
@@ -81,15 +82,30 @@ class MarkdownToolbarSurfaceTest {
     return popup;
   }
 
+  /** Reports whether the icon's lower right corner, where its down arrow sits, has opaque ink. */
+  private static boolean arrowInked(ImageData data) {
+    int side = data.width;
+    for (int y = side * 9 / 16; y < side * 13 / 16; y++) {
+      for (int x = side * 10 / 16; x < side; x++) {
+        if (data.getAlpha(x, y) > 128) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   @Test
-  void theDropDownShowsForAMarkdownTabOnly() throws Exception {
+  void theActionsButtonShowsForAMarkdownTabOnly() throws Exception {
     w.open("notes.txt", "plain\n", false);
     assertNull(tools().item());
     w.open("guide.md", "# Mock guide\n", true);
     ToolItem item = tools().item();
     assertNotNull(item);
-    assertTrue((item.getStyle() & SWT.DROP_DOWN) != 0);
+    assertTrue(
+        (item.getStyle() & SWT.PUSH) != 0, "a push item: win32 draws a drop-down arrow black");
     assertNotNull(item.getImage());
+    assertTrue(arrowInked(item.getImage().getImageData()), "the icon carries its down arrow");
     assertEquals(UiText.MARKDOWN_ACTIONS.text(), item.getToolTipText());
     assertTrue(item.getData() instanceof ToolMenu);
     w.controller.documents().select(w.window.tabs().getItemCount() - 2);

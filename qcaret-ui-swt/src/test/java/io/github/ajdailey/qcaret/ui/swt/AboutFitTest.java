@@ -167,12 +167,18 @@ class AboutFitTest {
         BOUND);
   }
 
+  /**
+   * Asserts that the dialog's client area holds its content. At a fractional zoom the content size
+   * rounds up and the client area and trim round to nearest, so a client area that holds the
+   * content in device pixels can read one point short ({@link ScaleSlack}).
+   */
   private static void assertFits(Shell dialog) {
     Rectangle area = dialog.getClientArea();
     Point outer = dialog.computeSize(SWT.DEFAULT, SWT.DEFAULT, true);
     Rectangle trim = dialog.computeTrim(0, 0, 0, 0);
+    int slack = ScaleSlack.of(dialog);
     assertTrue(
-        area.width >= outer.x - trim.width && area.height >= outer.y - trim.height,
+        area.width + slack >= outer.x - trim.width && area.height + slack >= outer.y - trim.height,
         "client " + area + " under content " + outer + " less trim " + trim);
     assertLabelsFit(dialog);
   }

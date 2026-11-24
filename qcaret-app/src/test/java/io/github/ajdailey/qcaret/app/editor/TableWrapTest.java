@@ -13,8 +13,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link TableWords}, {@link MarkdownTableLayout#fit(int[], int, boolean)} and {@link TableWrap}
- * over a fake measurer that gives each char 10 pixels, 12 when strong.
+ * {@link TableWords}, {@link MarkdownTableLayout#fit(int[], int, boolean)}, {@link
+ * MarkdownTableLayout#fit(int[], int, int, int)} and {@link TableWrap} over a fake measurer that
+ * gives each char 10 pixels, 12 when strong.
  */
 class TableWrapTest {
   static final int PADDING = 4;
@@ -97,6 +98,83 @@ class TableWrapTest {
     assertEquals(256, layout.edges()[2], "unbounded keeps the widest words");
     layout.fit(new int[] {120, 120}, 1_000, true);
     assertEquals(256, layout.edges()[2], "a wider width restores the measured widths");
+  }
+
+  @Test
+  void aMeasuredBreakKeepsEachPartWithinItsColumn() {
+    final RenderedMarkdown r = render("| h |\n|---|\n| aaaammmmaaaa |\n");
+    TextMeasurer uneven =
+        new TextMeasurer() {
+          @Override
+          public int width(int start, int end, boolean strong) {
+            int width = 0;
+            for (int i = start; i < end; i++) {
+              width += r.text().charAt(i) == 'm' ? 30 : 10;
+            }
+            return strong ? width * 6 / 5 : width;
+          }
+        };
+    int start = r.text().indexOf("aaaamm");
+    int[] word = {start, start + 12, uneven.width(start, start + 12, false), 0};
+    int[] proportional = TableWrap.breakCell(r.text(), word, 50);
+    boolean over = false;
+    for (int i = 0; i < proportional.length; i += 3) {
+      over |= uneven.width(proportional[i], proportional[i + 1], false) > 50;
+    }
+    assertTrue(over, "a char-count break overruns the column on uneven chars");
+    int[] measured = TableWrap.breakCell(r.text(), word, 50, uneven, false);
+    StringBuilder joined = new StringBuilder();
+    for (int i = 0; i < measured.length; i += 3) {
+      int width = uneven.width(measured[i], measured[i + 1], false);
+      assertTrue(width <= 50, "part " + i / 3 + " is " + width);
+      assertEquals(width, measured[i + 2]);
+      joined.append(r.text(), measured[i], measured[i + 1]);
+    }
+    assertEquals("aaaammmmaaaa", joined.toString());
+    assertEquals(start + 4, measured[1], "the first part takes every char that fits");
+  }
+
+  /** Measures a table and fits it with a floor and the least padding. */
+  private static MarkdownTableLayout floorFit(String markdown, int width, int floor) {
+    RenderedMarkdown r = render(markdown);
+    MarkdownTable table = r.tables().get(0);
+    MarkdownTableLayout layout = new MarkdownTableLayout(table, r.text(), 13);
+    layout.measure(FAKE, Integer.MAX_VALUE);
+    TableWords words = new TableWords(table, r.text(), layout, MarkdownSpans.of(r, List.of()));
+    words.measure(FAKE, Integer.MAX_VALUE);
+    layout.fit(words.widest(), width, floor, 3);
+    return layout;
+  }
+
+  @Test
+  void thePaddingNarrowsBeforeAWordBreaks() {
+    // Widest words 60 and 60 (strong "Alpha", "Bravo"), cells 70: 120 plus 4 x 13 is 172.
+    String table = "| Alpha | Bravo |\n|---|---|\n| one two | six ten |\n";
+    MarkdownTableLayout full = floorFit(table, 172, 12);
+    assertEquals(13, full.padding());
+    MarkdownTableLayout narrowed = floorFit(table, 160, 12);
+    assertEquals(10, narrowed.padding(), "(160 - 120) / 4");
+    assertEquals(60, narrowed.columnWidth(0), "each column keeps its widest word");
+    assertEquals(60, narrowed.columnWidth(1));
+    assertEquals(160, narrowed.edges()[2]);
+  }
+
+  @Test
+  void aColumnNarrowsToTheFloorWithTheLeastPadding() {
+    String table = "| Alpha | Bravo | Charlie |\n|---|---|---|\n| one | two | six |\n";
+    // Widest words 60, 60 and 84; at 3 px padding the columns share 90 - 18 px, 12 each first.
+    MarkdownTableLayout layout = floorFit(table, 90, 12);
+    assertEquals(3, layout.padding());
+    int[] edges = layout.edges();
+    assertTrue(edges[3] <= 90, "the table fits: " + edges[3]);
+    for (int c = 0; c < 3; c++) {
+      assertTrue(layout.columnWidth(c) >= 12, "column " + c + " at the floor or above");
+    }
+    MarkdownTableLayout floored = floorFit(table, 30, 12);
+    for (int c = 0; c < 3; c++) {
+      assertEquals(12, floored.columnWidth(c), "no column under the floor");
+    }
+    assertEquals(3 * (12 + 6), floored.edges()[3], "wider than the width");
   }
 
   @Test

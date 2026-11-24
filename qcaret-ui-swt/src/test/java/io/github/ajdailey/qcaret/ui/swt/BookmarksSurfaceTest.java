@@ -240,8 +240,10 @@ class BookmarksSurfaceTest {
     ImageData light = print();
     int bar = EditorPane.BOOKMARK_BAR;
     int column = EditorPane.BOOKMARK_COLUMN;
+    // At a fractional zoom the bar's right edge rounds into the first point after it.
+    int flag = bar + ScaleSlack.of(text);
     assertTrue(gutterHas(light, 1, Palette.LIGHT.caret(), 0, bar), "plain bar");
-    assertTrue(!gutterHas(light, 1, Palette.LIGHT.caret(), bar, column), "plain bookmark flag");
+    assertTrue(!gutterHas(light, 1, Palette.LIGHT.caret(), flag, column), "plain bookmark flag");
     assertTrue(gutterHas(light, 4, Palette.LIGHT.bookmarkComment(), 0, bar), "commented bar");
     assertTrue(gutterHas(light, 4, Palette.LIGHT.bookmarkComment(), bar, column), "flag");
     assertTrue(!gutterHas(light, 4, Palette.LIGHT.caret()), "commented bookmark in caret color");
@@ -256,7 +258,7 @@ class BookmarksSurfaceTest {
         "dark flag");
     ImageData dark = print();
     assertTrue(gutterHas(dark, 1, Palette.DARK.caret(), 0, bar), "dark plain bar");
-    assertTrue(!gutterHas(dark, 1, Palette.DARK.caret(), bar, column), "dark plain bookmark flag");
+    assertTrue(!gutterHas(dark, 1, Palette.DARK.caret(), flag, column), "dark plain bookmark flag");
   }
 
   @Test

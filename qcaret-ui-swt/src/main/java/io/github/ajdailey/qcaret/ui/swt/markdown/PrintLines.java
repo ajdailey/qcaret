@@ -68,7 +68,7 @@ final class PrintLines {
     this.scale = dpi.x / SCREEN_DPI;
     this.pixelsPerPoint = dpi.y / 72f;
     this.color = color;
-    this.styler = new MarkdownStyler(fonts, null, null, null, Palette.LIGHT);
+    this.styler = new MarkdownStyler(fonts, null, null, null, Palette.LIGHT, null);
     styler.setContent(content, new MarkdownDisplayMap(content.rendered()));
     this.imageOffsets = new int[content.images().size()];
     for (int i = 0; i < imageOffsets.length; i++) {

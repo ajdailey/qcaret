@@ -88,6 +88,16 @@ final class MarkdownFonts {
     return zoom;
   }
 
+  /**
+   * Scales a pixel length by the zoom.
+   *
+   * @param pixels the length at 100 percent
+   * @return the length at the zoom, at least 1 for a positive length
+   */
+  int scaled(int pixels) {
+    return pixels <= 0 ? pixels : Math.max(1, Math.round(pixels * zoom / 100f));
+  }
+
   /** Disposes every font created. */
   void dispose() {
     for (Font font : fonts.values()) {

@@ -32,10 +32,11 @@ import org.eclipse.swt.graphics.TextStyle;
  * reserve each image's space, the indent of quotes and lists with a bullet, number or checkbox on
  * an item's first line, a laid-out table row's indent and tab stops ({@link TableRowStyle}), the
  * pad chars of rows and separator lines ({@link PadGlyphs}), the code block padding left of code
- * lines, and the shade of code lines and of a laid-out table's header row. A display line takes the
- * styles of the rendered chars the {@link MarkdownDisplayMap} maps it to. Nothing is applied ahead
- * of painting, so the work per UI turn follows the lines in view, not the document. Colors follow
- * {@link #setPalette}. Call on the UI thread.
+ * lines and a wrapped code line's indent under its own text ({@link CodeIndent}), and the shade of
+ * code lines and of a laid-out table's header row. A display line takes the styles of the rendered
+ * chars the {@link MarkdownDisplayMap} maps it to. Nothing is applied ahead of painting, so the
+ * work per UI turn follows the lines in view, not the document. Colors follow {@link #setPalette}.
+ * Call on the UI thread.
  */
 final class MarkdownStyler {
   /** Pixels a quote level indents. */
@@ -44,7 +45,10 @@ final class MarkdownStyler {
   /** Pixels a list level indents. */
   static final int LIST_INDENT = 24;
 
-  /** Pixels between a code block's box and its text, left of each code line in a pane. */
+  /**
+   * Pixels between a code block's box and its text at 100 percent zoom, left of each code line in a
+   * pane and right of the widest.
+   */
   static final int CODE_INDENT = 12;
 
   /** The space a list marker takes before an item's text. */
@@ -76,6 +80,7 @@ final class MarkdownStyler {
   private final PaneImages images;
   private final TableColumns tables;
   private final PadGlyphs pads;
+  private final CodeIndent codeIndent;
   private MarkdownPreviewContent content;
   private MarkdownDisplayMap map;
   private BlockSpacing spacing = BlockSpacing.none();
@@ -88,12 +93,14 @@ final class MarkdownStyler {
       PaneImages images,
       TableColumns tables,
       PadGlyphs pads,
-      Palette palette) {
+      Palette palette,
+      CodeIndent codeIndent) {
     this.fonts = fonts;
     this.images = images;
     this.tables = tables;
     this.pads = pads;
     this.palette = palette;
+    this.codeIndent = codeIndent;
   }
 
   /** Takes new content and the map of the text the printer lays out: no spacing, no code boxes. */
@@ -119,6 +126,11 @@ final class MarkdownStyler {
   /** Returns the separator spacing. */
   BlockSpacing spacing() {
     return spacing;
+  }
+
+  /** Returns the code block padding at the zoom: pixels between a box and its text. */
+  int codePadding() {
+    return fonts.scaled(CODE_INDENT);
   }
 
   /** Takes a new palette. */
@@ -315,9 +327,13 @@ final class MarkdownStyler {
   private void indent(LineStyle event, RenderedMarkdown r, int line, int sub, TableWrap.Row row) {
     int base = baseIndent(line);
     int textStart = textStart(line);
-    int padding = codeBoxes && r.code(line) ? CODE_INDENT : 0;
+    int padding = codeBoxes && r.code(line) ? codePadding() : 0;
     event.indent = textStart + padding;
     event.wrapIndent = textStart + padding;
+    if (padding > 0 && codeIndent != null) {
+      int end = line + 1 < r.lineCount() ? r.lineStart(line + 1) : r.text().length();
+      event.wrapIndent += codeIndent.of(r.text(), r.lineStart(line), end);
+    }
     if (sub == 0 && r.marker(line) != RenderedMarkdown.ListMarker.NONE) {
       // StyledText draws a bullet right-aligned in its metrics from the margin, ignoring the
       // indent, and starts the text after both: the metrics span the whole indent.

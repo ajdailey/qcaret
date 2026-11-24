@@ -227,14 +227,19 @@ empty icon slot and the row grows 15 px for a Markdown tab.
 - Enablement syncs from `CommandStates` with the menu bar, and `EDIT_STATE` on
   each status read, coalesced with the status bar.
 - `MarkdownSwitch` adds Source, Split and Preview at the end while the selected
-  tab is a Markdown tab, and `MarkdownToolItems` the Markdown actions drop-down
-  after them ([Markdown preview](markdown-preview.md#tab-frame)).
+  tab is a Markdown tab, and `MarkdownToolItems` the Markdown actions button
+  after them ([Markdown preview](markdown-preview.md#tab-frame)). The button is
+  an `SWT.PUSH` item whose icon draws its down arrow in the toolbar's ink, on
+  every platform: win32 draws an `SWT.DROP_DOWN` item's arrow black whatever
+  the toolbar's colors (1.36:1 on the dark toolbar, measured at 150 %).
 - A click that left the focus on the bar returns it to the pane that had it
   last, the preview or the editor (`PaneFocus`), so Zoom In from the toolbar
   zooms the same pane again.
 - `ToolbarOverflow` holds the bar in a clipping composite at no less than its
   preferred width, and shows a More button at the row's end while an item lies
-  past the clip. Its menu lists the hidden items in toolbar order, built when
+  past the clip. While More shows, the clip ends at the right edge of the last
+  item that fits whole beside it, so no item shows cut; `hidden()` lists the
+  items past that edge. Its menu lists the hidden items in toolbar order, built when
   it opens: each with its command's title, `MenuIcons` icon, checked and
   enabled state and a disabled item's reason; a `ToolMenu` drop-down as a
   cascade of its own menu. Choosing an item runs the item's `Selection` as a
@@ -242,6 +247,11 @@ empty icon slot and the row grows 15 px for a Markdown tab.
   its preferred width shows its own overflow arrow, whose entries run no
   command, so the bar is never narrowed. Neither GTK 3 nor GTK 4 wraps a
   `SWT.WRAP` toolbar into a second row (measured, Xvfb).
+- The row is as high as a hidden probe toolbar holding an icon item and a text
+  item, and centers the bar in it, so it keeps one height across tabs. A win32
+  toolbar with the Markdown switch's text items is 26 points high against 20
+  without them (150 %, measured on Windows 11); on GTK 3 and GTK 4 the two are
+  equal (31 and 36 px, measured, Xvfb).
 
 ## Status bar and title
 

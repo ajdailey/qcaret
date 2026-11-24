@@ -93,9 +93,6 @@ class ChromeColorsTest {
       assertTrue(icons.apply(item, name), name);
       items.add(item);
     }
-    ToolItem actions = new ToolItem(bar, SWT.DROP_DOWN);
-    icons.apply(actions, ToolIcons.MARKDOWN_ACTIONS);
-    items.add(actions);
     items.add(icons.item(surface, ToolIcons.TAB_LIST_DOWN, "More"));
     // A kept control carries its own colors, as the editor, tab strip and fields do.
     for (Control control : kept) {
@@ -226,8 +223,8 @@ class ChromeColorsTest {
 
   /**
    * The icons take the light ink on the painted toolbar, the More button and the Markdown actions
-   * drop-down included, and every item a faded copy as its disabled image; a light switch returns
-   * the dark ink and SWT's own disabled image.
+   * button with its arrow included, and every item a faded copy as its disabled image; a light
+   * switch returns the dark ink and SWT's own disabled image.
    */
   @Test
   void theIconsFollowThePaintedToolbar() {

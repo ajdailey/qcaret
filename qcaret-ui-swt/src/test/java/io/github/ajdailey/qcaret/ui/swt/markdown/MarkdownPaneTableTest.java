@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.EventLoop;
+import io.github.ajdailey.qcaret.ui.swt.ScaleSlack;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.time.Duration;
@@ -27,6 +28,7 @@ import java.util.function.Supplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -38,8 +40,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@link MarkdownPane} over a table whose cells wrap in their columns: the display rows, Copy, the
- * controller's offsets and lines below the table, a refit on resize, a link in a wrapped cell, and
- * the cell padding.
+ * controller's offsets and lines below the table, a refit on resize, a link in a wrapped cell, the
+ * cell padding, and an eight-column table in a narrow pane.
  */
 @Tag("swt")
 class MarkdownPaneTableTest {
@@ -67,6 +69,19 @@ class MarkdownPaneTableTest {
               "Last words.",
               "")
           + "\nFiller.\n".repeat(60);
+
+  /** Eight columns whose header words do not fit a narrow pane. */
+  private static final String EIGHT =
+      String.join(
+              "\n",
+              "| Column one | Column two | Column three | Column four | Column five | Column six"
+                  + " | Column seven | Column eight |",
+              "|---|---|---|---|---|---|---|---|",
+              "| alpha alpha alpha | beta beta beta | gamma gamma gamma | delta delta delta"
+                  + " | epsilon epsilon | zeta zeta zeta | eta eta eta | theta theta theta |",
+              "| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |",
+              "")
+          + "\nFiller.\n".repeat(40);
 
   private Display display;
   private Shell shell;
@@ -186,6 +201,52 @@ class MarkdownPaneTableTest {
     assertEquals(second, text.getLineAtOffset(segment), "one visual line per display line");
     Point end = text.getLocationAtOffset(text.getOffsetAtLine(second + 1) - 1);
     assertTrue(end.y < text.getLinePixel(second + 1), "the display line does not wrap");
+  }
+
+  @Test
+  void aNarrowPaneKeepsEveryCellInsideItsColumn() {
+    shell.setLayout(null);
+    for (int width : new int[] {220, 300, 420, 560}) {
+      pane.control().setBounds(0, 0, width, 300);
+      flush();
+      RenderedMarkdown r = show(EIGHT);
+      assertCellsInColumns(r.tables().get(0), width);
+    }
+  }
+
+  /**
+   * Asserts that each display line of a table is one visual line and that each cell segment starts
+   * and ends inside its column, and the table inside the pane.
+   */
+  private void assertCellsInColumns(MarkdownTable table, int width) {
+    StyledText text = pane.text();
+    int[] edges = pane.tables().edges(0);
+    int left = text.getLeftMargin() - text.getHorizontalPixel();
+    int right = text.getClientArea().width - text.getRightMargin();
+    assertTrue(left + edges[edges.length - 1] <= right, "table inside the pane at " + width);
+    int lastRow = table.firstLine() + table.rowCount() - 1;
+    int first = map().displayLine(table.firstLine());
+    int last = map().displayLine(lastRow) + map().displayLineCount(lastRow) - 1;
+    String pad = String.valueOf(TableWrap.PAD);
+    for (int line = first; line <= last; line++) {
+      String shown = text.getLine(line);
+      int offset = text.getOffsetAtLine(line);
+      int next = text.getLinePixel(line + 1);
+      String[] segments = shown.replace(pad, "").split("\t", -1);
+      assertEquals(edges.length - 1, segments.length, "cells on line " + line);
+      int at = offset;
+      for (int c = 0; c < segments.length; c++) {
+        if (!segments[c].isEmpty()) {
+          Rectangle bounds = text.getTextBounds(at, at + segments[c].length() - 1);
+          String where = "'" + segments[c] + "' at " + width + ": " + bounds;
+          assertTrue(bounds.x >= left + edges[c], "starts in its column, " + where);
+          assertTrue(
+              bounds.x + bounds.width <= left + edges[c + 1], "ends in its column, " + where);
+          assertTrue(bounds.y + bounds.height <= next, "one visual line, " + where);
+        }
+        at += segments[c].length() + 1;
+      }
+    }
   }
 
   @Test
@@ -345,7 +406,8 @@ class MarkdownPaneTableTest {
     int last = wrapped + map().displayLineCount(r.tables().get(0).firstLine() + 1) - 1;
     int single = last + 1;
     int height = text.getLinePixel(single + 1) - text.getLinePixel(single);
-    assertEquals(intro + PadGlyphs.PAD_ABOVE + PadGlyphs.PAD_BELOW, height, "one-line row");
+    int slack = ScaleSlack.of(text);
+    assertEquals(intro + PadGlyphs.PAD_ABOVE + PadGlyphs.PAD_BELOW, height, slack, "one-line row");
     String pad = String.valueOf(TableWrap.PAD);
     assertTrue(last > wrapped, "the row wraps");
     for (int line = wrapped; line <= last; line++) {
@@ -353,7 +415,8 @@ class MarkdownPaneTableTest {
           intro
               + (line == wrapped ? PadGlyphs.PAD_ABOVE : 0)
               + (line == last ? PadGlyphs.PAD_BELOW : 0);
-      assertEquals(expected, text.getLinePixel(line + 1) - text.getLinePixel(line), "line " + line);
+      assertEquals(
+          expected, text.getLinePixel(line + 1) - text.getLinePixel(line), slack, "line " + line);
       assertEquals(line == wrapped || line == last, text.getLine(line).endsWith(pad));
     }
   }

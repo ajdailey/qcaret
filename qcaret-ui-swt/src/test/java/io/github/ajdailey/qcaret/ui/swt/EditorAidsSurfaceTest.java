@@ -209,7 +209,12 @@ class EditorAidsSurfaceTest {
     int lineHeight = text.getLineHeight();
     int top = text.getLinePixel(1);
     int x = pane.indentGuides(1)[1];
-    assertEquals(lineHeight, inked(data, x, top, lineHeight, Palette.LIGHT.indentGuide()));
+    int slack = ScaleSlack.of(text);
+    assertEquals(
+        lineHeight,
+        inked(data, x, top, lineHeight, Palette.LIGHT.indentGuide()),
+        slack,
+        "guide down the line");
     assertEquals(0, inked(data, x, text.getLinePixel(0), lineHeight, Palette.LIGHT.indentGuide()));
 
     text.setHorizontalPixel(pane.metrics().x(2));
@@ -268,7 +273,11 @@ class EditorAidsSurfaceTest {
       int lineHeight = text.getLineHeight();
       int x = pane.lineChangeColumn() + 1;
       Rgb changed = Palette.LIGHT.lineChanged();
-      assertEquals(lineHeight, inked(data, x, text.getLinePixel(1), lineHeight, changed));
+      assertEquals(
+          lineHeight,
+          inked(data, x, text.getLinePixel(1), lineHeight, changed),
+          ScaleSlack.of(text),
+          "mark down the line");
       assertEquals(0, inked(data, x, text.getLinePixel(0), lineHeight, changed));
       assertTrue(x < text.getLeftMargin(), x + " in the text");
     }
@@ -342,7 +351,12 @@ class EditorAidsSurfaceTest {
     assertEquals(0, inkedRow(hidden, y, x0, x1, Palette.LIGHT.whitespace()));
     controller.execute(CommandId.SHOW_WHITESPACE);
     ImageData shown = print(text);
-    int inked = inkedRow(shown, y, x0, x1, Palette.LIGHT.whitespace());
+    // At a fractional zoom the one-pixel arrow can fall between the sampled rows next to y.
+    int slack = ScaleSlack.of(text);
+    int inked = 0;
+    for (int row = y - slack; row <= y + slack; row++) {
+      inked = Math.max(inked, inkedRow(shown, row, x0, x1, Palette.LIGHT.whitespace()));
+    }
     // GTK 3 inks all but the two end pixels of the line in the whitespace color.
     assertTrue(inked >= x1 - x0 - 1, inked + " of " + (x1 - x0 + 1));
   }

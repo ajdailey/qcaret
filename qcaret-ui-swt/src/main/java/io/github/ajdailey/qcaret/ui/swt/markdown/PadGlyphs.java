@@ -17,10 +17,10 @@ import org.eclipse.swt.graphics.GlyphMetrics;
  * a {@link GC} on the widget. Call on the UI thread.
  */
 final class PadGlyphs {
-  /** Pixels above a row's text. */
+  /** Pixels above a row's text at 100 percent zoom. */
   static final int PAD_ABOVE = 6;
 
-  /** Pixels below a row's text, before the pane's line spacing. */
+  /** Pixels below a row's text, before the pane's line spacing, at 100 percent zoom. */
   static final int PAD_BELOW = 4;
 
   private final StyledText text;
@@ -65,7 +65,7 @@ final class PadGlyphs {
 
   /**
    * Returns the style of the pad char ending a display line of a laid-out row: {@link #PAD_ABOVE}
-   * on its first line, {@link #PAD_BELOW} on its last.
+   * on its first line, {@link #PAD_BELOW} on its last, both scaled by the zoom.
    *
    * @param offset the char's display offset
    * @param row the row
@@ -78,7 +78,7 @@ final class PadGlyphs {
     if (!first && !last) {
       return null;
     }
-    StyleRange glyph = glyph(offset, PAD_ABOVE, PAD_BELOW);
+    StyleRange glyph = glyph(offset, fonts.scaled(PAD_ABOVE), fonts.scaled(PAD_BELOW));
     glyph.metrics =
         new GlyphMetrics(first ? glyph.metrics.ascent : 0, last ? glyph.metrics.descent : 0, 0);
     return glyph;

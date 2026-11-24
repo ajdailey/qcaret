@@ -51,6 +51,7 @@ final class WorkspaceDock {
   private final BrowserColumns columns;
   private Menu menu;
   private WorkspaceInput input;
+  private boolean dark;
 
   /** What a button does. */
   private enum Action {
@@ -226,6 +227,7 @@ final class WorkspaceDock {
    * @param dark true when the theme setting resolves to dark
    */
   void setDark(boolean dark) {
+    this.dark = dark;
     BrowserColors.apply(
         PlatformTraits.PLATFORM,
         dark,
@@ -275,6 +277,8 @@ final class WorkspaceDock {
     input = workspace;
     browseBar.setInput(workspace == null ? null : workspace.browse());
     rebuild();
+    // The fields' enabled state follows the input, and their colors follow it.
+    setDark(dark);
   }
 
   /** Rebuilds the whole tree from the root's rows. */

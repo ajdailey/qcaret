@@ -180,6 +180,22 @@ class MarkdownPaneZoomTest {
   }
 
   @Test
+  void theCellAndCodePaddingFollowTheZoom() {
+    show("| a | b |\n|---|---|\n| c | d |\n\n```\ncode\n```\n");
+    awaitTable(0);
+    assertEquals(TableColumns.PADDING, pane.tables().measured(0).padding());
+    assertEquals(MarkdownStyler.CODE_INDENT, pane.styler().codePadding());
+    pane.setZoom(200);
+    awaitTable(0);
+    assertEquals(2 * TableColumns.PADDING, pane.tables().measured(0).padding());
+    assertEquals(2 * MarkdownStyler.CODE_INDENT, pane.styler().codePadding());
+    pane.setZoom(50);
+    awaitTable(0);
+    assertEquals(Math.round(TableColumns.PADDING / 2f), pane.tables().measured(0).padding());
+    assertEquals(MarkdownStyler.CODE_INDENT / 2, pane.styler().codePadding());
+  }
+
+  @Test
   void aTableAwayFromTheViewWaitsAfterAZoom() {
     RenderedMarkdown r = show(DOCUMENT);
     pane.scrollToLine(r.tables().get(0).firstLine());

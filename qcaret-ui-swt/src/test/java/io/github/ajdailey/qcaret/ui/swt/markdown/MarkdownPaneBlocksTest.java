@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
 import io.github.ajdailey.qcaret.ui.swt.EventLoop;
+import io.github.ajdailey.qcaret.ui.swt.ScaleSlack;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.time.Duration;
@@ -167,15 +168,42 @@ class MarkdownPaneBlocksTest {
     int two = r.headings().get(0).line();
     int code = r.codeBlocks().get(0).firstLine();
     int body = height(0);
-    assertEquals(body + BlockSpacing.HEADING_ABOVE, height(two - 1), "above the heading");
+    int slack = ScaleSlack.of(pane.text());
+    assertEquals(body + BlockSpacing.HEADING_ABOVE, height(two - 1), slack, "above the heading");
     assertEquals(
         body + BlockSpacing.RULE_GAP + BlockSpacing.CODE_PADDING,
         height(two + 1),
+        slack,
         "rule gap and code padding");
-    assertEquals(body + BlockSpacing.CODE_PADDING, height(code + 1), "below the code");
+    assertEquals(body + BlockSpacing.CODE_PADDING, height(code + 1), slack, "below the code");
     StyledText text = pane.text();
     int at = pane.map().display(r.lineStart(code));
     assertEquals(text.getLeftMargin() + MarkdownStyler.CODE_INDENT, text.getLocationAtOffset(at).x);
+  }
+
+  @Test
+  void aWrappedCodeLineContinuesUnderItsOwnText() {
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, 320, 300);
+    flush();
+    RenderedMarkdown r =
+        show("```\n    mock(alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota);\n```\n");
+    StyledText text = pane.text();
+    int line = pane.map().displayLine(r.codeBlocks().get(0).firstLine());
+    int start = text.getOffsetAtLine(line);
+    int y = text.getLocationAtOffset(start).y;
+    int wrapped = -1;
+    for (int i = start; i < start + text.getLine(line).length(); i++) {
+      if (text.getLocationAtOffset(i).y > y) {
+        wrapped = i;
+        break;
+      }
+    }
+    assertTrue(wrapped > 0, "the code line wraps");
+    int own = text.getLocationAtOffset(start + 4).x;
+    assertEquals(
+        text.getLeftMargin() + MarkdownStyler.CODE_INDENT, text.getLocationAtOffset(start).x);
+    assertEquals(own, text.getLocationAtOffset(wrapped).x, "continuation under the line's text");
   }
 
   /** Find across a wrapped cell's break selected the other cells' segments between its ends. */

@@ -141,7 +141,14 @@ public final class MarkdownPane {
     fonts = new MarkdownFonts(text.getDisplay(), text.getFont().getFontData()[0], monospace);
     images = new PaneImages(text.getDisplay());
     tables = new TableColumns(text, fonts, ui);
-    styler = new MarkdownStyler(fonts, images, tables, new PadGlyphs(text, fonts), palette);
+    styler =
+        new MarkdownStyler(
+            fonts,
+            images,
+            tables,
+            new PadGlyphs(text, fonts),
+            palette,
+            new CodeIndent(text, fonts));
     painter = new MarkdownPainter(text, styler, tables, images);
     listen();
     menu();

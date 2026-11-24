@@ -16,8 +16,11 @@ import org.eclipse.swt.widgets.Tree;
  * nothing, so cocoa's header colors from {@code CocoaChrome} stay.
  *
  * <p>Under a dark startup setting where controls take the native theme at creation ({@link
- * PlatformTraits#themesAtCreation}), the fields keep {@link Palette#DARK}'s background and text on
- * the light side until the next start, while the tree and its header follow the theme.
+ * PlatformTraits#themesAtCreation}), an enabled field keeps {@link Palette#DARK}'s background and
+ * text on the light side until the next start, while the tree and its header follow the theme: a
+ * field holding text under the dark native theme draws near-black with dark text under any light
+ * colors. A disabled field, empty and showing only its hint while no workspace folder is set, takes
+ * the system colors there; call {@link #apply} again when a field's enabled state changes.
  */
 final class BrowserColors {
   private BrowserColors() {}
@@ -43,14 +46,12 @@ final class BrowserColors {
     tree.setForeground(text);
     tree.setHeaderBackground(dark ? color(Palette.DARK.gutter()) : null);
     tree.setHeaderForeground(text);
-    boolean darkFields = dark || nativeDark && traits.themesAtCreation();
-    Color fieldBackground = darkFields ? color(Palette.DARK.background()) : null;
-    Color fieldText = darkFields ? color(Palette.DARK.text()) : null;
-    Color hint = darkFields ? color(Palette.DARK.accents().tabText()) : null;
+    boolean darkStart = nativeDark && traits.themesAtCreation();
     for (FieldHint field : fields) {
-      field.field().setBackground(fieldBackground);
-      field.field().setForeground(fieldText);
-      field.setColor(hint);
+      boolean darkField = dark || darkStart && field.field().getEnabled();
+      field.field().setBackground(darkField ? color(Palette.DARK.background()) : null);
+      field.field().setForeground(darkField ? color(Palette.DARK.text()) : null);
+      field.setColor(darkField ? color(Palette.DARK.accents().tabText()) : null);
     }
   }
 

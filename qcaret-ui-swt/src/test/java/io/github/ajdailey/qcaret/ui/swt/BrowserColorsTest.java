@@ -103,6 +103,24 @@ class BrowserColorsTest {
     }
   }
 
+  /**
+   * The path field, disabled and showing "No workspace folder" as its hint, after a live switch.
+   */
+  @Test
+  void aDisabledFieldTakesTheSystemColorsOnTheLightSideAfterADarkStart() {
+    List<RGB> system = colors();
+    PlatformTraits win32 = PlatformTraits.of("win32", false);
+    field.setEnabled(false);
+    BrowserColors.apply(win32, true, true, tree, hint);
+    assertEquals(rgb(Palette.DARK.background()), field.getBackground().getRGB());
+    BrowserColors.apply(win32, false, true, tree, hint);
+    assertEquals(system.subList(4, 6), colors().subList(4, 6));
+    assertNull(hint.color());
+    field.setEnabled(true);
+    BrowserColors.apply(win32, false, true, tree, hint);
+    assertEquals(rgb(Palette.DARK.background()), field.getBackground().getRGB());
+  }
+
   @Test
   void otherPlatformsKeepTheSystemColorsUnderADarkTheme() {
     List<RGB> system = colors();

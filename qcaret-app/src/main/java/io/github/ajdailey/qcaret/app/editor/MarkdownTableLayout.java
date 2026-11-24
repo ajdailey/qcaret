@@ -25,7 +25,8 @@ public final class MarkdownTableLayout {
 
   private final MarkdownTable table;
   private final String text;
-  private final int padding;
+  private final int fullPadding;
+  private int padding;
   private final int columns;
   private final int[][] widths;
   private final int[] inner;
@@ -43,6 +44,7 @@ public final class MarkdownTableLayout {
   public MarkdownTableLayout(MarkdownTable table, String text, int padding) {
     this.table = table;
     this.text = text;
+    this.fullPadding = padding;
     this.padding = padding;
     this.columns = table.alignments().size();
     this.widths = new int[table.rowCount()][columns];
@@ -127,31 +129,94 @@ public final class MarkdownTableLayout {
     if (edges == null) {
       throw new IllegalStateException("not measured");
     }
+    padding = fullPadding;
     System.arraycopy(natural, 0, inner, 0, columns);
     if (!wider(width)) {
       setEdges();
       return;
     }
     int room = width - 2 * padding * columns;
-    int[] least = new int[columns];
-    long leastTotal = 0;
-    long flex = 0;
-    for (int c = 0; c < columns; c++) {
-      least[c] = Math.min(words[c], natural[c]);
-      leastTotal += least[c];
-      flex += natural[c] - least[c];
-    }
+    int[] least = least(words);
+    long leastTotal = sum(least);
     if (bounded && leastTotal > room) {
       for (int c = 0; c < columns; c++) {
         inner[c] = (int) (Math.max(0, room) * least[c] / leastTotal);
       }
     } else {
-      long spare = Math.max(0, room - leastTotal);
-      for (int c = 0; c < columns; c++) {
-        inner[c] = least[c] + (int) (flex == 0 ? 0 : spare * (natural[c] - least[c]) / flex);
-      }
+      share(room, least, natural);
     }
     setEdges();
+  }
+
+  /**
+   * Fits the measured columns to a width, never wider than it while each column can be as narrow as
+   * {@code floor} with {@code leastPadding} on each side. A table that fits gets its measured
+   * widths back, and one whose widest words fit is fitted as {@link #fit(int[], int, boolean)}
+   * does. When the widest words do not fit at the full padding, the padding narrows first, to no
+   * less than {@code leastPadding}; then each column gets the smaller of its widest word and {@code
+   * floor}, and the room above those goes to each column in proportion to how far its widest word
+   * exceeds that. A table whose columns at those least widths do not fit is wider than {@code
+   * width}.
+   *
+   * @param words each column's widest word; read only when the table is {@link #wider} than the
+   *     width
+   * @param width the widest the table may be, padding included
+   * @param floor the narrowest column a word breaks into
+   * @param leastPadding the narrowest padding on each side of a cell's text
+   * @throws IllegalStateException before every row is measured
+   */
+  public void fit(int[] words, int width, int floor, int leastPadding) {
+    fit(words, width, false);
+    int[] least = least(words);
+    long leastTotal = sum(least);
+    if (columns == 0 || !wider(width) || leastTotal <= width - 2L * fullPadding * columns) {
+      return;
+    }
+    long shrunk = (width - leastTotal) / (2L * columns);
+    if (shrunk >= leastPadding) {
+      padding = (int) shrunk;
+      share(width - 2L * padding * columns, least, natural);
+    } else {
+      padding = Math.min(leastPadding, fullPadding);
+      int[] lowest = new int[columns];
+      for (int c = 0; c < columns; c++) {
+        lowest[c] = Math.min(least[c], floor);
+      }
+      share(width - 2L * padding * columns, lowest, least);
+    }
+    setEdges();
+  }
+
+  /** Each column's widest word, no wider than its measured width. */
+  private int[] least(int[] words) {
+    int[] least = new int[columns];
+    for (int c = 0; c < columns; c++) {
+      least[c] = Math.min(words[c], natural[c]);
+    }
+    return least;
+  }
+
+  private static long sum(int[] values) {
+    long total = 0;
+    for (int value : values) {
+      total += value;
+    }
+    return total;
+  }
+
+  /**
+   * Gives each column its lower width, then the room above their total in proportion to how far
+   * each column's upper width exceeds its lower one, up to the upper width.
+   */
+  private void share(long room, int[] lower, int[] upper) {
+    long flex = 0;
+    for (int c = 0; c < columns; c++) {
+      flex += upper[c] - lower[c];
+    }
+    long spare = Math.min(flex, Math.max(0, room - sum(lower)));
+    for (int c = 0; c < columns; c++) {
+      inner[c] = lower[c] + (int) (flex == 0 ? 0 : spare * (upper[c] - lower[c]) / flex);
+    }
   }
 
   /**
@@ -169,7 +234,7 @@ public final class MarkdownTableLayout {
     for (int c = 0; c < columns; c++) {
       total += natural[c];
     }
-    return total > width - 2 * padding * columns;
+    return total > width - 2 * fullPadding * columns;
   }
 
   private int widestWord(TextMeasurer measurer, int start, int end, int row) {
@@ -231,7 +296,7 @@ public final class MarkdownTableLayout {
   }
 
   /**
-   * Returns the pixels on each side of a cell's text.
+   * Returns the pixels on each side of a cell's text after the last fit.
    *
    * @return the padding
    */
