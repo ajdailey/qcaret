@@ -44,6 +44,34 @@ final class TextPaint {
     }
   }
 
+  /**
+   * Sends a Paint event over an image, as {@link #paint}, and returns the GC's foreground after the
+   * listeners: the ink they drew in. Glyph pixels are no measure of it, since font smoothing tints
+   * every glyph pixel (ClearType at 150 %, OBERON G1).
+   *
+   * @param text the field
+   * @param own the fill and the starting foreground, returned where the listeners set no ink
+   * @return the foreground
+   */
+  static RGB ink(Text text, RGB own) {
+    Rectangle area = text.getClientArea();
+    Image image = new Image(text.getDisplay(), Math.max(1, area.width), Math.max(1, area.height));
+    GC gc = new GC(image);
+    try {
+      gc.setBackground(new Color(own));
+      gc.setForeground(new Color(own));
+      gc.fillRectangle(0, 0, area.width, area.height);
+      Event event = new Event();
+      event.gc = gc;
+      event.setBounds(new Rectangle(0, 0, area.width, area.height));
+      text.notifyListeners(SWT.Paint, event);
+      return gc.getForeground().getRGB();
+    } finally {
+      gc.dispose();
+      image.dispose();
+    }
+  }
+
   /** Returns a pixel's color. */
   static RGB at(ImageData data, int x, int y) {
     return data.palette.getRGB(data.getPixel(x, y));

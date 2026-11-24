@@ -381,7 +381,8 @@ class ChromeColorsTest {
     chrome.apply(false);
     ImageData hinted = TextPaint.paint(field, OWN_BACKGROUND);
     assertEquals(system, TextPaint.at(hinted, 1, 1));
-    RGB ink = TextPaint.farthest(hinted, system);
+    assertNotEquals(system, TextPaint.farthest(hinted, system), "the hint draws");
+    RGB ink = TextPaint.ink(field, OWN_BACKGROUND);
     assertTrue(Contrast.ratio(ink, system) >= 4.5, "hint " + ink);
     ImageData plain = TextPaint.paint(find, OWN_BACKGROUND);
     assertEquals(system, TextPaint.at(plain, 1, 1));
