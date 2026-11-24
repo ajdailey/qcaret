@@ -405,32 +405,46 @@ row and Always on Top calls, and `replace` pushes them to the new window.
 `MainWindowSlotTest` calls every `MainView` method by reflection and fails on
 one the slot does not forward.
 
-`WindowViews` runs the rebuild on a later UI turn, one window per turn, and
-only for a window built under the other side; a switch back before a window's
-turn leaves it alone. A rebuild:
+`WindowViews` rebuilds one window at a time on later UI turns, and only a
+window built under the other side. Each turn does one step, so the longest
+block is the window's creation or one tab:
 
-1. Reads the old window's bounds, maximized, full screen and minimized state,
-   the side, dock and results weights and the Workspace Browser's expanded
-   folders.
-2. Creates a `MainWindow` through `Gui`'s factory, attaches it to the same
-   controller and registers its shell with the event loop.
-3. Calls `MainWindowSlot.replace`, then
-   `DocumentController.rebindViews`: each tab closes in the old window and
-   opens in the new one with its editors, split arrangement and weights,
+1. Creates a `MainWindow` through `Gui`'s factory, attached to the same
+   controller, registered with the event loop and hidden at the old window's
+   bounds, and starts `DocumentController.stageViews`.
+2. Builds one tab's views in the hidden window per turn (`StagedTabs.step`).
+   The old window stays shown, keeps every tab bound and takes all input.
+3. Swaps: reads the old window's bounds, maximized, full screen and minimized
+   state, the side, dock and results weights and the Workspace Browser's
+   expanded folders, calls `MainWindowSlot.replace`, then
+   `DocumentController.rebindViews`: each tab closes in the old window and its
+   editors attach to the staged views, with the split arrangement and weights,
    focused pane, top rows, Markdown preview content and an open completion
-   list. An input method composition is first kept as typed text.
-4. Opens the new shell, then disposes the old one, and activates the new window
-   when the old one was active.
+   list. An input method composition is first kept as typed text. It then
+   opens the new shell, hides the old one and activates the new window when
+   the old one was active.
+4. Disposes the old shell on the next turn.
 
-A window waits, checked every 250 ms, while `MainWindowSlot.holdsDialog`
+A staged pane follows its document and selections, since `DisplayProjection`
+takes one listener per pane. Its `StagedInput` holds the width, viewport,
+overview height and modified-line reports the hidden pane would send to the
+editor, and forwards the last of each at the swap. Each step first closes the
+staged views of a tab that closed, moved to another window, was split or
+unsplit, or was moved out of the staged tabs' order, and stages it again later;
+a tab opened during the build is staged at its place. The swap adds views for
+a tab still without staged ones, so no tab is lost or shown twice.
+
+The swap waits, checked every 250 ms, while `MainWindowSlot.holdsDialog`
 reports a modal dialog or prompt (Quick Open and the command palette
 included), Preferences, the recovery dialog, the external change prompt or a
 native file, folder or print dialog: disposing the shell would answer for the
-user (Later, Keep Mine, Cancel) or drop the answer. Other windows rebuild
-meanwhile. The modeless windows the old shell owns close with it: Statistics
-and Checksums, whose `closed` cancels a running count or checksum run,
-Generate, Tip of the Day, Keyboard Shortcuts, Show Log, the user guide, replace
-reports and comparison windows.
+user (Later, Keep Mine, Cancel) or drop the answer. Staging continues meanwhile,
+and other windows rebuild. A switch back during a build disposes the hidden
+window and leaves the old one; a later switch starts again. The modeless
+windows the old shell owns close with it: Statistics and Checksums, whose
+`closed` cancels a running count or checksum run, Generate, Tip of the Day,
+Keyboard Shortcuts, Show Log, the user guide, replace reports and comparison
+windows.
 
 ## Accessible names
 

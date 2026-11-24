@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.StagedTabs;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
@@ -15,15 +16,20 @@ import org.eclipse.swt.widgets.Shell;
  * read it only when created. Each window's {@link MainWindowSlot} gets a new {@link MainWindow} for
  * the same {@link ApplicationController}, so documents, workers, history and results stay.
  *
- * <p>{@link #rebuild} runs on a later UI turn, one window per turn, and only for a window built
- * under the other side of {@link SwtThemeService#nativeDark}; switching back before a window's turn
- * leaves it alone. A window waits, rechecked every {@link #RECHECK_MILLIS}, while {@link
- * MainWindowSlot#holdsDialog} reports a dialog its rebuild would dispose. A rebuild carries the
- * bounds, maximized, full screen and minimized state, the dock weights, the Workspace Browser's
- * expanded folders, the slot's pushed state, the tabs ({@link
- * io.github.ajdailey.qcaret.app.controller.DocumentController#rebindViews}) and the active window;
- * the new shell opens before the old one is disposed, so the event loop always holds an open shell.
- * Other windows the old shell owns close with it. Confined to the UI thread.
+ * <p>{@link #rebuild} works on later UI turns, one window at a time, and only on a window built
+ * under the other side of {@link SwtThemeService#nativeDark}. One turn creates the new window,
+ * hidden; each later turn builds one tab's views in it ({@link StagedTabs}), while the old window
+ * stays shown and takes all input. The last turn swaps: it carries the bounds, maximized, full
+ * screen and minimized state, the dock weights, the Workspace Browser's expanded folders, the
+ * slot's pushed state, the tabs ({@link
+ * io.github.ajdailey.qcaret.app.controller.DocumentController#rebindViews}) and the active window,
+ * opens the new shell and hides the old one, which the next turn disposes, so the event loop always
+ * holds an open shell. Other windows the old shell owns close with it, which cancels a running
+ * checksum or statistics job.
+ *
+ * <p>The swap waits, rechecked every {@link #RECHECK_MILLIS}, while {@link
+ * MainWindowSlot#holdsDialog} reports a dialog it would dispose. A switch back during a build
+ * disposes the new window; a later switch starts over. Confined to the UI thread.
  */
 public final class WindowViews implements WindowRebuild {
   /** Milliseconds between checks of a window that waits for a dialog to close. */
@@ -41,10 +47,25 @@ public final class WindowViews implements WindowRebuild {
     MainWindow create(ApplicationController controller);
   }
 
+  /** A replacement window under construction. */
+  private static final class Build {
+    final MainWindow next;
+    final boolean dark;
+    final StagedTabs tabs;
+    boolean staged;
+
+    Build(MainWindow next, boolean dark, StagedTabs tabs) {
+      this.next = next;
+      this.dark = dark;
+      this.tabs = tabs;
+    }
+  }
+
   private static final class Entry {
     final MainWindowSlot slot;
     final ApplicationController controller;
     boolean builtDark;
+    Build build;
 
     Entry(MainWindowSlot slot, ApplicationController controller, boolean builtDark) {
       this.slot = slot;
@@ -128,6 +149,21 @@ public final class WindowViews implements WindowRebuild {
     return false;
   }
 
+  /**
+   * Returns the replacement window under construction for a slot.
+   *
+   * @param slot the slot
+   * @return the hidden window, or null when none is built
+   */
+  MainWindow building(MainWindowSlot slot) {
+    for (Entry e : entries) {
+      if (e.slot == slot && e.build != null) {
+        return e.build.next;
+      }
+    }
+    return null;
+  }
+
   private void schedule() {
     if (!scheduled && !display.isDisposed()) {
       scheduled = true;
@@ -135,21 +171,34 @@ public final class WindowViews implements WindowRebuild {
     }
   }
 
+  /** Does one turn's work: at most one window created, one tab staged or one swap. */
   private void step() {
     boolean dark = SwtThemeService.nativeDark(display);
     boolean waiting = false;
     for (Entry e : new ArrayList<Entry>(entries)) {
-      if (closed(e)) {
+      boolean gone = closed(e);
+      // Hidden while its quit completes.
+      boolean hidden = !gone && !e.slot.window().shell().getVisible();
+      if (e.build != null && (gone || hidden || e.build.dark != dark)) {
+        cancel(e);
+      }
+      if (gone) {
         entries.remove(e);
       } else if (e.builtDark != dark) {
-        if (!e.slot.window().shell().getVisible()) {
-          // Hidden while its quit completes.
+        if (hidden) {
           e.builtDark = dark;
+        } else if (e.build == null) {
+          start(e, dark);
+          schedule();
+          return;
+        } else if (!e.build.staged) {
+          e.build.staged = e.build.tabs.step();
+          schedule();
+          return;
         } else if (e.slot.holdsDialog()) {
           waiting = true;
         } else {
-          e.builtDark = dark;
-          rebuild(e);
+          swap(e);
           schedule();
           return;
         }
@@ -165,7 +214,23 @@ public final class WindowViews implements WindowRebuild {
     return e.slot.window().shell().isDisposed() || e.controller.isQuitting();
   }
 
-  private void rebuild(Entry e) {
+  private void start(Entry e, boolean dark) {
+    MainWindow next = factory.create(e.controller);
+    next.shell().setBounds(e.slot.window().shell().getBounds());
+    e.build = new Build(next, dark, e.controller.documents().stageViews(next));
+  }
+
+  private static void cancel(Entry e) {
+    e.build.tabs.cancel();
+    e.build.next.shell().dispose();
+    e.build = null;
+  }
+
+  private void swap(Entry e) {
+    MainWindow next = e.build.next;
+    StagedTabs tabs = e.build.tabs;
+    e.builtDark = e.build.dark;
+    e.build = null;
     MainWindow old = e.slot.window();
     Shell oldShell = old.shell();
     boolean active = display.getActiveShell() == oldShell;
@@ -178,7 +243,6 @@ public final class WindowViews implements WindowRebuild {
     int[] docks = old.dockWeights();
     int[] results = old.resultsWeights();
     List<WorkspaceNode> expanded = old.expandedWorkspace();
-    MainWindow next = factory.create(e.controller);
     if (maximized || fullScreen) {
       next.place(normal, null);
       next.shell().setMaximized(maximized);
@@ -192,7 +256,7 @@ public final class WindowViews implements WindowRebuild {
     for (WorkspaceNode directory : expanded) {
       next.expandWorkspace(directory);
     }
-    e.controller.documents().rebindViews();
+    e.controller.documents().rebindViews(tabs);
     next.open();
     if (fullScreen) {
       next.setFullScreen(true);
@@ -200,11 +264,18 @@ public final class WindowViews implements WindowRebuild {
     if (minimized) {
       next.shell().setMinimized(true);
     }
-    oldShell.dispose();
+    oldShell.setVisible(false);
     if (active && !minimized) {
       next.shell().setActive();
     }
     next.showStatusNow();
-    rebuilds++;
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            oldShell.dispose();
+            rebuilds++;
+          }
+        });
   }
 }

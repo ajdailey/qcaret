@@ -31,7 +31,7 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
   ContentAdapter(DisplayProjection projection, EditorInput input) {
     this.projection = projection;
     this.input = input;
-    projection.setListener(this);
+    projection.addListener(this);
   }
 
   /**
@@ -50,7 +50,7 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
 
   /** Detaches from the projection. */
   void dispose() {
-    projection.setListener(null);
+    projection.removeListener(this);
   }
 
   @Override

@@ -253,7 +253,9 @@ class MarkdownPaneBlocksTest {
 
   /**
    * Prints the widget at a zoom. GTK 4 prints the last drawn frame and {@code print} returns false
-   * while a redraw is queued, so a failed print dispatches events and retries.
+   * while a redraw is queued, so a failed print dispatches events and retries. On win32 the first
+   * print of a new shell can return true with every pixel black (2.5 percent on {@code
+   * windows-2025}): a print whose corner is black is retried too.
    */
   private ImageData print(final StyledText text, final int zoom) {
     final ImageData[] shot = new ImageData[1];
@@ -272,7 +274,11 @@ class MarkdownPaneBlocksTest {
               } finally {
                 gc.dispose();
               }
-              shot[0] = image.getImageData(zoom);
+              ImageData data = image.getImageData(zoom);
+              if (data.palette.getRGB(data.getPixel(0, 0)).equals(new RGB(0, 0, 0))) {
+                return false;
+              }
+              shot[0] = data;
               return true;
             } finally {
               image.dispose();

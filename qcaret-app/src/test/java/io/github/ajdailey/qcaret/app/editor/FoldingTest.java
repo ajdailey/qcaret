@@ -151,7 +151,7 @@ class FoldingTest {
   private static StringBuilder mirror(final DisplayProjection p) {
     final StringBuilder mirror = new StringBuilder(p.textRange(0, p.length()));
     final int[] rowsBefore = new int[1];
-    p.setListener(
+    p.addListener(
         new DisplayProjection.Listener() {
           @Override
           public void changing(DisplayProjection.DisplayChange change) {
@@ -272,7 +272,7 @@ class FoldingTest {
     Document document = document(manyLines());
     final DisplayProjection p = manyRegions(document);
     final long[] lookups = new long[2];
-    p.setListener(
+    p.addListener(
         new DisplayProjection.Listener() {
           @Override
           public void changing(DisplayProjection.DisplayChange change) {

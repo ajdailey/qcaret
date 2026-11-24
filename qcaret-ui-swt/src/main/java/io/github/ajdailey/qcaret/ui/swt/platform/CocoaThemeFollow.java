@@ -55,11 +55,6 @@ final class CocoaThemeFollow implements ThemeFollow {
   }
 
   @Override
-  public boolean showsNow(boolean dark, boolean nativeDark) {
-    return true;
-  }
-
-  @Override
   public void settingsChanged() {}
 
   @Override

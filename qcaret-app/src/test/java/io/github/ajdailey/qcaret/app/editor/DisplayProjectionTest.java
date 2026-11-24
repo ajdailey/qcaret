@@ -117,7 +117,7 @@ class DisplayProjectionTest {
       final StringBuilder mirror = new StringBuilder(p.textRange(0, p.length()));
       final DisplayProjection projection = p;
       final int[] rowsBefore = new int[1];
-      p.setListener(
+      p.addListener(
           new DisplayProjection.Listener() {
             @Override
             public void changing(DisplayProjection.DisplayChange change) {
@@ -249,7 +249,7 @@ class DisplayProjectionTest {
     Document document = document(text.toString());
     final DisplayProjection p = projection(document, 0);
     final List<String> seen = new ArrayList<String>();
-    p.setListener(
+    p.addListener(
         new DisplayProjection.Listener() {
           @Override
           public void changing(DisplayProjection.DisplayChange change) {

@@ -227,14 +227,6 @@ class PlatformTraitsTest {
   }
 
   @Test
-  void noPlatformNeedsARestartForTheNativeTheme() {
-    for (PlatformTraits traits : List.of(WIN32, COCOA, GTK3, GTK4)) {
-      assertTrue(traits.themeFollow(null).showsNow(true, false), traits.name());
-      assertTrue(traits.themeFollow(null).showsNow(false, true), traits.name());
-    }
-  }
-
-  @Test
   void onlyGtkReportsAToolkitVersion() {
     String gtk = System.getProperty("org.eclipse.swt.internal.gtk.version");
     assertEquals(gtk, GTK3.toolkitVersion());

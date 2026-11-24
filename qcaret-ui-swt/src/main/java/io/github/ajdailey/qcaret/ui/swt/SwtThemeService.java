@@ -50,7 +50,6 @@ public final class SwtThemeService implements ThemeService {
   private final BooleanSupplier system;
   private final ThemeFollow follow;
   private boolean dark;
-  private final boolean nativeDark;
   private WindowRebuild windows = WindowRebuild.NONE;
 
   /**
@@ -59,20 +58,17 @@ public final class SwtThemeService implements ThemeService {
    * @param display the Display
    */
   public SwtThemeService(Display display) {
-    this(display, false, SYSTEM_SETTING, PlatformTraits.PLATFORM.themeFollow(display));
+    this(display, SYSTEM_SETTING, PlatformTraits.PLATFORM.themeFollow(display));
   }
 
   /**
    * Creates the service over a given setting.
    *
    * @param display the Display
-   * @param nativeDark the native controls' startup setting
    * @param system reads the system setting
    * @param follow how native controls follow the theme
    */
-  SwtThemeService(
-      final Display display, boolean nativeDark, BooleanSupplier system, ThemeFollow follow) {
-    this.nativeDark = nativeDark;
+  SwtThemeService(final Display display, BooleanSupplier system, ThemeFollow follow) {
     this.system = system;
     this.follow = follow;
     dark = system.getAsBoolean();
@@ -130,8 +126,8 @@ public final class SwtThemeService implements ThemeService {
    * @return the service
    */
   static SwtThemeService open(Display display, ThemeMode mode, ThemeFollow follow) {
-    boolean value = follow.start(mode);
-    return new SwtThemeService(display, value, SYSTEM_SETTING, follow);
+    follow.start(mode);
+    return new SwtThemeService(display, SYSTEM_SETTING, follow);
   }
 
   /**
@@ -210,10 +206,5 @@ public final class SwtThemeService implements ThemeService {
    */
   public void setWindowRebuild(WindowRebuild rebuild) {
     windows = rebuild;
-  }
-
-  @Override
-  public boolean showsNow(boolean value) {
-    return follow.showsNow(value, nativeDark);
   }
 }

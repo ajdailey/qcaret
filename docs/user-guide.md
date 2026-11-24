@@ -353,9 +353,11 @@ apply (measured on Linux, one million lines):
   The figures refresh every 2 seconds while the indicator shows. The choice is
   saved; it is off at first.
 - View > Theme chooses Light, Dark or System, and the whole window changes at
-  once. On Windows each window is rebuilt for the new theme: tabs, unsaved
-  text, carets, split views, the find bar, the docks and running searches stay,
-  while windows it owns, such as Show Log, Statistics or a comparison, close.
+  once. On Windows each window is rebuilt for the new theme while you keep
+  working in it, and the new window then takes its place: tabs, unsaved text,
+  carets, split views, the find bar, the docks and running searches stay,
+  while windows it owns, such as Show Log, Statistics or a comparison, close,
+  and a running Statistics count or Checksums run stops.
   A window with an open dialog, Preferences included, changes once the dialog
   closes. Under dark, dialogs are dark, fields included. On macOS menus from
   the menu bar keep the system appearance. Under System the theme follows a

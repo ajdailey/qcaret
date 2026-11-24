@@ -23,7 +23,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** {@link DocumentController#rebindViews}: the window's controls replaced under its controllers. */
+/**
+ * {@link DocumentController#stageViews} and {@link DocumentController#rebindViews}: the window's
+ * controls replaced under its controllers, one tab staged per step.
+ */
 class ViewRebindTest {
   @TempDir Path temp;
 
@@ -39,6 +42,19 @@ class ViewRebindTest {
   @AfterEach
   void tearDown() throws Exception {
     harness.close();
+  }
+
+  /** Stages every tab in a new view and rebinds the tabs to it. */
+  private FakeView rebind() {
+    FakeView target = new FakeView(harness.ui);
+    StagedTabs staged = documents.stageViews(target);
+    int steps = 1;
+    while (!staged.step()) {
+      steps++;
+    }
+    assertEquals(Math.max(1, documents.count()), steps);
+    documents.rebindViews(staged);
+    return target;
   }
 
   private Document open(String name, String text) throws Exception {
@@ -59,11 +75,11 @@ class ViewRebindTest {
     before.topRow = 1;
     List<FakeView.FakeTab> old = new ArrayList<FakeView.FakeTab>(harness.view.tabs);
 
-    documents.rebindViews();
+    FakeView target = rebind();
     harness.ui.runPending();
 
     assertEquals(List.of(first, second, third), documents.openDocuments());
-    assertEquals(3, harness.view.tabs.size());
+    assertEquals(3, target.tabs.size());
     for (FakeView.FakeTab tab : old) {
       assertTrue(tab.closed);
       assertFalse(harness.view.tabs.contains(tab));
@@ -71,9 +87,9 @@ class ViewRebindTest {
     assertEquals(1, documents.activeIndex());
     assertSame(second, documents.activeDocument());
     assertSame(editor, documents.activeEditor());
-    FakeView.FakeTab after = harness.view.selected;
+    FakeView.FakeTab after = target.selected;
     assertNotSame(before, after);
-    assertSame(harness.view.tabs.get(1), after);
+    assertSame(target.tabs.get(1), after);
     assertEquals("*second.txt", after.title);
     assertEquals(1, after.topRow);
     assertEquals(5, editor.selections().selections().primary().caret());
@@ -88,9 +104,9 @@ class ViewRebindTest {
     EditorController focused = documents.activeEditor();
     harness.view.selected.weights = new int[] {3, 7};
 
-    documents.rebindViews();
+    FakeView target = rebind();
 
-    FakeView.FakeTab tab = harness.view.selected;
+    FakeView.FakeTab tab = target.selected;
     assertEquals(1, tab.splits.size());
     assertTrue(tab.sideBySide);
     assertArrayEquals(new int[] {3, 7}, tab.weights);
@@ -106,7 +122,7 @@ class ViewRebindTest {
     editor.preeditFromView("XY");
     assertFalse(document.isDirty());
 
-    documents.rebindViews();
+    rebind();
 
     assertNull(document.preeditRange());
     assertEquals("aXYb\n", document.text().toString());
@@ -131,9 +147,9 @@ class ViewRebindTest {
         },
         "completion list");
 
-    documents.rebindViews();
+    FakeView target = rebind();
 
-    assertEquals(List.of("mockwind", "mockword"), harness.view.selected.shown.completions);
+    assertEquals(List.of("mockwind", "mockword"), target.selected.shown.completions);
   }
 
   @Test
@@ -168,11 +184,108 @@ class ViewRebindTest {
         },
         "rendered preview");
 
-    documents.rebindViews();
+    FakeView target = rebind();
 
-    FakeMarkdownPane pane = harness.view.selected.markdown;
+    FakeMarkdownPane pane = target.selected.markdown;
     assertEquals(List.of(MarkdownViewMode.SPLIT), pane.modes);
     assertEquals(1, pane.shown.size());
     assertEquals(MarkdownViewMode.SPLIT, documents.markdownMode());
+  }
+
+  @Test
+  void stagingLeavesTheShownPanesBoundAndHoldsTheStagedPanesReports() throws Exception {
+    Document document = open("held.txt", "one\ntwo\nthree\n");
+    EditorController editor = documents.activeEditor();
+    FakeView.FakeTab shown = harness.view.selected;
+    FakeView target = new FakeView(harness.ui);
+    StagedTabs staged = documents.stageViews(target);
+    assertTrue(staged.step());
+    FakeView.FakeTab building = target.tabs.get(0);
+    assertNotSame(editor, building.editor);
+    building.editor.viewportChanged(4, 8);
+    editor.type("X");
+
+    assertSame(shown, editor.view());
+    assertEquals(0, editor.visibleStart());
+    assertEquals("Xone\ntwo\nthree\n", document.text().toString());
+
+    documents.rebindViews(staged);
+
+    assertSame(building, editor.view());
+    assertSame(building, target.selected);
+    assertTrue(shown.closed);
+    assertEquals(4, editor.visibleStart());
+    assertEquals(1, target.tabs.size());
+  }
+
+  @Test
+  void tabsOpenedClosedOrMovedDuringStagingAreNeitherLostNorDuplicated() throws Exception {
+    Document first = open("first.txt", "1\n");
+    Document second = open("second.txt", "2\n");
+    open("third.txt", "3\n");
+    FakeView target = new FakeView(harness.ui);
+    StagedTabs staged = documents.stageViews(target);
+    assertFalse(staged.step());
+    assertFalse(staged.step());
+    FakeView.FakeTab stagedFirst = target.tabs.get(0);
+    FakeView.FakeTab stagedSecond = target.tabs.get(1);
+
+    documents.select(2);
+    documents.closeActive();
+    Document fourth = open("fourth.txt", "4\n");
+    documents.select(1);
+    harness.view.selected.input.moved(0);
+    assertEquals(List.of(second, first, fourth), documents.openDocuments());
+    assertFalse(staged.step());
+    assertTrue(staged.step());
+    documents.rebindViews(staged);
+
+    assertEquals(List.of(second, first, fourth), documents.openDocuments());
+    assertEquals(3, target.tabs.size());
+    for (int i = 0; i < 3; i++) {
+      documents.select(i);
+      assertSame(target.tabs.get(i), documents.activeEditor().view());
+    }
+    assertSame(stagedFirst, target.tabs.get(1));
+    assertFalse(stagedFirst.closed);
+    assertTrue(stagedSecond.closed);
+    assertTrue(harness.view.tabs.isEmpty());
+  }
+
+  @Test
+  void aTabSplitDuringStagingIsStagedAgainAndATabOpenedAfterTheLastStepIsBound() throws Exception {
+    open("split.txt", "a\nb\n");
+    FakeView target = new FakeView(harness.ui);
+    StagedTabs staged = documents.stageViews(target);
+    assertTrue(staged.step());
+    FakeView.FakeTab before = target.tabs.get(0);
+    documents.split(false);
+    Document late = open("late.txt", "late\n");
+
+    documents.rebindViews(staged);
+
+    assertTrue(before.closed);
+    assertEquals(2, target.tabs.size());
+    assertSame(late, documents.activeDocument());
+    assertSame(target.tabs.get(1), documents.activeEditor().view());
+    documents.select(0);
+    assertEquals(1, target.tabs.get(0).splits.size());
+    assertSame(target.tabs.get(0), target.selected);
+  }
+
+  @Test
+  void aCanceledStagingClosesItsViewsAndLeavesTheTabsBound() throws Exception {
+    open("kept.txt", "kept\n");
+    EditorController editor = documents.activeEditor();
+    FakeView.FakeTab shown = harness.view.selected;
+    FakeView target = new FakeView(harness.ui);
+    StagedTabs staged = documents.stageViews(target);
+    staged.step();
+
+    staged.cancel();
+
+    assertTrue(target.tabs.isEmpty());
+    assertSame(shown, editor.view());
+    assertFalse(shown.closed);
   }
 }

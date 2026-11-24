@@ -46,7 +46,7 @@ public final class FoldHarness {
 
     AccessibleReader(DisplayProjection projection) {
       this.projection = projection;
-      projection.setListener(this);
+      projection.addListener(this);
     }
 
     @Override

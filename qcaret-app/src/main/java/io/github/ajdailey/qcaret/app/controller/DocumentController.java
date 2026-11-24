@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.view.DocumentsView;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -1164,7 +1165,7 @@ public final class DocumentController {
       @Override
       public void viewFocused(EditorInput editor) {
         for (EditorController e : d.editors) {
-          if (e == editor && d.editor != e) {
+          if (e == StagedInput.editor(editor) && d.editor != e) {
             d.editor = e;
             view.documentStateChanged();
             viewsChanged();
@@ -2624,13 +2625,27 @@ public final class DocumentController {
   }
 
   /**
-   * Gives every tab new views from this window's view after it replaced its controls, in tab order:
-   * the editor panes with their split arrangement and weights, the Markdown preview with its
-   * content, each pane's top row, an open completion list and the focused pane. An input method
-   * composition is first kept as typed text, and the old tab closes before its replacement is
-   * added, so its panes stop following the document. The selected tab stays selected.
+   * Starts building every tab's views in a replacement view, one tab per {@link StagedTabs#step},
+   * for {@link #rebindViews}.
+   *
+   * @param target the replacement view
+   * @return the staging
    */
-  public void rebindViews() {
+  public StagedTabs stageViews(DocumentsView target) {
+    return new StagedTabs(target, documents);
+  }
+
+  /**
+   * Moves every tab to its views in the staging's view, in tab order: the editor panes with their
+   * split arrangement and weights, the Markdown preview with its content, each pane's top row, an
+   * open completion list and the focused pane. A tab without staged views gets new ones there. An
+   * input method composition is first kept as typed text, and the old tab closes before the editors
+   * attach, so its panes stop following the document. The selected tab stays selected.
+   *
+   * @param staged the staging, from {@link #stageViews}
+   */
+  public void rebindViews(StagedTabs staged) {
+    staged.prune();
     OpenDocument shown = active;
     for (int i = 0; i < documents.size(); i++) {
       OpenDocument d = documents.get(i);
@@ -2638,7 +2653,11 @@ public final class DocumentController {
       int[] weights = d.editors.size() > 1 ? d.tab.splitWeights() : null;
       d.editor.commitComposition();
       d.tab.close();
-      bindViews(d, i);
+      if (staged.bind(d)) {
+        viewSettings(d);
+      } else {
+        bindViews(staged.target(), d, i);
+      }
       if (weights != null) {
         d.tab.setSplitWeights(weights);
       }
@@ -2659,19 +2678,28 @@ public final class DocumentController {
 
   /** Adds a tab for an entry's editors at an index and attaches each editor to its pane. */
   private void bindViews(OpenDocument d, int index) {
+    bindViews(view, d, index);
+  }
+
+  private void bindViews(DocumentsView into, OpenDocument d, int index) {
     EditorController focused = d.editor;
     EditorController first = d.editors.get(0);
-    d.tab = view.addTab(first.projection(), first.selections(), first, d.input, index);
+    d.tab = into.addTab(first.projection(), first.selections(), first, d.input, index);
     first.attach(d.tab.firstView());
     for (int i = 1; i < d.editors.size(); i++) {
       EditorController e = d.editors.get(i);
       e.attach(d.tab.split(e.projection(), e.selections(), e, d.sideBySide));
     }
+    viewSettings(d);
+    d.editor = focused;
+  }
+
+  /** Gives an entry's attached panes the grammar and the wrap setting. */
+  private void viewSettings(OpenDocument d) {
     for (EditorController e : d.editors) {
       e.view().setSyntax(d.syntax);
       e.setWrap(wrap);
     }
-    d.editor = focused;
   }
 
   private static int[] topRows(OpenDocument d) {

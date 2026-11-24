@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -240,6 +241,16 @@ class LiveThemeGuiTest {
     controller.execute(CommandId.WORKSPACE_BROWSER);
     controller.execute(CommandId.BOOKMARKS_LIST);
     settle();
+    // FindState.running is true while the search for the text runs on a worker.
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !controller.find().state().running();
+              }
+            }),
+        "search done");
     MainWindowSlot slot = slots.get(0);
     MainWindow old = slot.window();
     List<String> titles = titles(old);
@@ -290,6 +301,119 @@ class LiveThemeGuiTest {
         "busy cursor cleared");
     editor.execute(CommandId.UNDO);
     assertFalse(document.text().toString().contains("XYZ"));
+  }
+
+  @Test
+  void eachTurnStagesOneTabInAHiddenWindowWhileTheOldOneTakesInput() throws Exception {
+    final ApplicationController controller = first();
+    open(controller, "a.txt", "b.txt", "c.txt");
+    MainWindowSlot slot = slots.get(0);
+    MainWindow old = slot.window();
+
+    dark = true;
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    int staged = 0;
+    boolean typed = false;
+    List<String> during = null;
+    int selected = -1;
+    Document typedInto = null;
+    long end = System.nanoTime() + BOUND.toNanos();
+    while (slot.window() == old && System.nanoTime() < end) {
+      display.readAndDispatch();
+      MainWindow next = views.building(slot);
+      if (next != null && slot.window() == old) {
+        assertFalse(next.shell().getVisible(), "the new window stays hidden");
+        assertTrue(old.shell().getVisible());
+        int count = next.tabs().getItemCount();
+        assertTrue(count - staged <= 1, "one tab per turn: " + staged + " -> " + count);
+        staged = count;
+        if (count == 1 && !typed) {
+          typed = true;
+          controller.documents().select(0);
+          typedInto = controller.documents().activeEditor().document();
+          controller.documents().activeEditor().type("Q");
+          assertEquals(firstLine(typedInto), old.activeEditors().get(0).text().getLine(0));
+          typeAtEnd(controller.documents().activeEditor(), "staging\n");
+          controller.documents().newDocument();
+          assertEquals(4, old.tabs().getItemCount());
+          during = titles(old);
+          selected = old.tabs().getSelectionIndex();
+        }
+      }
+    }
+    assertTrue(typed, "input during the rebuild");
+    assertNotSame(old, slot.window());
+    assertFalse(old.shell().getVisible());
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return old.shell().isDisposed();
+              }
+            }),
+        "old window disposed on the next turn");
+    assertEquals(during, titles(slot.window()));
+    assertEquals(selected, slot.window().tabs().getSelectionIndex());
+    controller.documents().select(0);
+    assertSame(typedInto, controller.documents().activeEditor().document());
+    assertTrue(firstLine(typedInto).startsWith("Q"));
+    assertEquals(firstLine(typedInto), slot.window().activeEditors().get(0).text().getLine(0));
+    typeAtEnd(controller.documents().activeEditor(), "swapped\n");
+    assertTrue(typedInto.text().toString().endsWith("staging\nswapped\n"));
+  }
+
+  /** Types past the end of the text a pane was created with, so a pane not following it fails. */
+  private static void typeAtEnd(EditorController editor, String text) {
+    editor.selections().set(SelectionSet.caret(editor.document().text().length()));
+    editor.type(text);
+  }
+
+  private static String firstLine(Document document) {
+    String text = document.text().toString();
+    return text.substring(0, text.indexOf('\n'));
+  }
+
+  @Test
+  void aSwitchBackDuringARebuildDisposesTheHiddenWindow() throws Exception {
+    ApplicationController controller = first();
+    open(controller, "a.txt", "b.txt", "c.txt");
+    final MainWindowSlot slot = slots.get(0);
+    MainWindow old = slot.window();
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                MainWindow next = views.building(slot);
+                return next != null && next.tabs().getItemCount() == 1;
+              }
+            }),
+        "a tab staged");
+    final MainWindow next = views.building(slot);
+
+    set.settings().set(set.settings().current().withTheme(ThemeMode.LIGHT));
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return next.shell().isDisposed();
+              }
+            }),
+        "the hidden window disposed");
+    settle();
+
+    assertNull(views.building(slot));
+    assertSame(old, slot.window());
+    assertFalse(views.pending());
+    assertEquals(0, views.rebuilds());
+    assertEquals(3, old.tabs().getItemCount());
+    controller.documents().activeEditor().type("Q");
+    Document typed = controller.documents().activeEditor().document();
+    assertTrue(firstLine(typed).startsWith("Q"));
+    assertEquals(firstLine(typed), old.activeEditors().get(0).text().getLine(0));
   }
 
   @Test

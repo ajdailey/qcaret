@@ -123,7 +123,7 @@ public final class DisplayProjection implements DocumentListener {
   private final Document document;
   private final int maxRowChars;
   private final Map<Integer, String> rowCache = new HashMap<Integer, String>();
-  private Listener listener;
+  private final List<Listener> listeners = new ArrayList<Listener>();
   private TextSnapshot text;
   private RowIndex index;
   private int appliedColumns;
@@ -297,12 +297,22 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   /**
-   * Sets the listener, the view's content adapter.
+   * Adds a listener: a view's content adapter. A tab's panes in a window being rebuilt follow the
+   * projection beside the panes the window shows.
    *
-   * @param value the listener, or null
+   * @param value the listener
    */
-  public void setListener(Listener value) {
-    listener = value;
+  public void addListener(Listener value) {
+    listeners.add(value);
+  }
+
+  /**
+   * Removes a listener.
+   *
+   * @param value the listener
+   */
+  public void removeListener(Listener value) {
+    listeners.remove(value);
   }
 
   /**
@@ -653,14 +663,14 @@ public final class DisplayProjection implements DocumentListener {
   }
 
   private void fireChanging(DisplayChange change) {
-    if (listener != null) {
-      listener.changing(change);
+    for (int i = 0; i < listeners.size(); i++) {
+      listeners.get(i).changing(change);
     }
   }
 
   private void fireChanged(DisplayChange change) {
-    if (listener != null) {
-      listener.changed(change);
+    for (int i = 0; i < listeners.size(); i++) {
+      listeners.get(i).changed(change);
     }
   }
 

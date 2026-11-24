@@ -94,15 +94,6 @@ class PlatformBehaviorTest {
   }
 
   @Test
-  void noRestartForNativeTheme() {
-    SwtThemeService service =
-        new SwtThemeService(
-            display, false, LIGHT_SYSTEM, PlatformTraits.PLATFORM.themeFollow(display));
-    assertTrue(service.showsNow(false));
-    assertTrue(service.showsNow(true));
-  }
-
-  @Test
   void onlyWin32RebuildsTheWindowsAndOnlyWhenTheSideChanges() {
     final int[] rebuilds = new int[1];
     WindowRebuild windows =
@@ -135,7 +126,7 @@ class PlatformBehaviorTest {
     final WindowRebuild windows = WindowRebuild.NONE;
     ThemeFollow inner = PlatformTraits.of("gtk", false).themeFollow(display);
     SwtThemeService service =
-        new SwtThemeService(display, false, LIGHT_SYSTEM, new RecordingFollow(inner, calls));
+        new SwtThemeService(display, LIGHT_SYSTEM, new RecordingFollow(inner, calls));
     service.setWindowRebuild(windows);
     service.preferDark(false);
     assertEquals(List.of("preferDark false", "showOnWindows false true"), calls);
@@ -174,11 +165,6 @@ class PlatformBehaviorTest {
     @Override
     public void showOnWindows(boolean dark, WindowRebuild windows) {
       calls.add("showOnWindows " + dark + " " + (windows == WindowRebuild.NONE));
-    }
-
-    @Override
-    public boolean showsNow(boolean dark, boolean nativeDark) {
-      return inner.showsNow(dark, nativeDark);
     }
 
     @Override

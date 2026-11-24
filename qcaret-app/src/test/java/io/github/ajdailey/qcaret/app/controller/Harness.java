@@ -87,11 +87,6 @@ final class Harness {
         public void preferDark(boolean dark) {
           // No native controls.
         }
-
-        @Override
-        public boolean showsNow(boolean dark) {
-          return true;
-        }
       };
 
   Harness(Path temp) {

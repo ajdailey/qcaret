@@ -27,7 +27,6 @@ class ThemeControllerTest {
     boolean dark;
     final List<ThemeListener> listeners = new ArrayList<ThemeListener>();
     final List<Boolean> preferred = new ArrayList<Boolean>();
-    boolean live = true;
 
     @Override
     public boolean systemDark() {
@@ -42,11 +41,6 @@ class ThemeControllerTest {
     @Override
     public void preferDark(boolean value) {
       preferred.add(value);
-    }
-
-    @Override
-    public boolean showsNow(boolean value) {
-      return live;
     }
 
     void flip(boolean value) {
@@ -99,15 +93,6 @@ class ThemeControllerTest {
     theme.setMode(ThemeMode.LIGHT);
     system.flip(true);
     assertEquals(List.of(true, true, false, false), system.preferred);
-  }
-
-  @Test
-  void setModeReportsWhetherNativeControlsChangeNow() {
-    FakeSystem system = new FakeSystem();
-    ThemeController theme = new ThemeController(system, ThemeMode.LIGHT, EditorSchemes.FOLLOW);
-    assertTrue(theme.setMode(ThemeMode.DARK));
-    system.live = false;
-    assertFalse(theme.setMode(ThemeMode.LIGHT));
   }
 
   @Test

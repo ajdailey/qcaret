@@ -307,7 +307,6 @@ class ThemeAndDialogsTest {
     SwtThemeService service =
         new SwtThemeService(
             display,
-            false,
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
@@ -344,7 +343,6 @@ class ThemeAndDialogsTest {
     SwtThemeService service =
         new SwtThemeService(
             display,
-            false,
             new BooleanSupplier() {
               @Override
               public boolean getAsBoolean() {
@@ -543,13 +541,6 @@ class ThemeAndDialogsTest {
       chrome.showOnWindows(false, WindowRebuild.NONE);
       shell.dispose();
     }
-  }
-
-  @Test
-  void everySideShowsWithoutARestart() {
-    SwtThemeService service = SwtThemeService.open(display, ThemeMode.DARK);
-    assertTrue(service.showsNow(true));
-    assertTrue(service.showsNow(false));
   }
 
   @Test

@@ -96,7 +96,8 @@ class Win32DarkDialogsTest {
   /** Opens the service as a System start under a dark system setting does. */
   private SwtThemeService darkSystemStart() {
     ThemeFollow follow = PlatformTraits.PLATFORM.themeFollow(display);
-    return new SwtThemeService(display, follow.start(ThemeMode.DARK), DARK_SYSTEM, follow);
+    follow.start(ThemeMode.DARK);
+    return new SwtThemeService(display, DARK_SYSTEM, follow);
   }
 
   private static final BooleanSupplier DARK_SYSTEM =

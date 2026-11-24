@@ -72,15 +72,6 @@ public interface ThemeFollow {
   void showOnWindows(boolean dark, WindowRebuild windows);
 
   /**
-   * Reports whether native controls show a side without a restart: true on every platform.
-   *
-   * @param dark the side
-   * @param nativeDark the startup setting
-   * @return true when the side shows now
-   */
-  boolean showsNow(boolean dark, boolean nativeDark);
-
-  /**
    * Takes an {@code SWT.Settings} event. GTK refreshes its system colors at a theme change, but a
    * {@link Link} keeps the color of its creation, so on GTK every link gets the new link color.
    */

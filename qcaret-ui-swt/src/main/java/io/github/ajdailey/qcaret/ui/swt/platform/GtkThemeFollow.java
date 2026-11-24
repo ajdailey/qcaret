@@ -47,11 +47,6 @@ final class GtkThemeFollow implements ThemeFollow {
   public void showOnWindows(boolean dark, WindowRebuild windows) {}
 
   @Override
-  public boolean showsNow(boolean dark, boolean nativeDark) {
-    return true;
-  }
-
-  @Override
   public void settingsChanged() {
     for (Shell shell : display.getShells()) {
       recolorLinks(shell);

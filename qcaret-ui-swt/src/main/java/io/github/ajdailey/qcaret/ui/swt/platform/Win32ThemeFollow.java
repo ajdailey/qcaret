@@ -44,11 +44,6 @@ final class Win32ThemeFollow implements ThemeFollow {
   }
 
   @Override
-  public boolean showsNow(boolean dark, boolean nativeDark) {
-    return true;
-  }
-
-  @Override
   public void settingsChanged() {}
 
   @Override

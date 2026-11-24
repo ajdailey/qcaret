@@ -107,12 +107,6 @@ class TabColorsGuiTest {
               public void preferDark(boolean dark) {
                 system.preferDark(dark);
               }
-
-              /** True, so win32 opens no modal restart notice in the test. */
-              @Override
-              public boolean showsNow(boolean dark) {
-                return true;
-              }
             },
             new MemoryBudget(1L << 30, 60),
             Keymap.defaults(PlatformTraits.PLATFORM.macKeys()),
