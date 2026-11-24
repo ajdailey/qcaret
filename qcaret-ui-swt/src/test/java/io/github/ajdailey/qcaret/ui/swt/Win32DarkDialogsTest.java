@@ -18,6 +18,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
 import java.io.IOException;
@@ -56,8 +57,6 @@ import org.eclipse.swt.widgets.List;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Spinner;
-import org.eclipse.swt.widgets.TabFolder;
-import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
@@ -213,23 +212,20 @@ class Win32DarkDialogsTest {
     ProgressBar bar = new ProgressBar(dialog, SWT.HORIZONTAL);
     bar.setSelection(40);
     controls.put("ProgressBar", bar);
-    TabFolder folder = new TabFolder(dialog, SWT.TOP);
-    folder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
+    DialogTabs folder = Dialogs.tabs(dialog);
+    ((GridData) folder.control().getLayoutData()).horizontalSpan = 3;
     for (String title : new String[] {"First tab", "Second tab"}) {
-      TabItem item = new TabItem(folder, SWT.NONE);
-      item.setText(title);
-      Composite page = new Composite(folder, SWT.NONE);
+      Composite page = folder.add(title);
       page.setLayout(new GridLayout(2, false));
       new Label(page, SWT.NONE).setText("Label on " + title);
       Button box = SwtThemeService.check(page);
       box.setText("Check on " + title);
       text(page, SWT.BORDER, true);
-      item.setControl(page);
-      if (controls.get("TabFolder page") == null) {
-        controls.put("TabFolder page", page);
+      if (controls.get("Dialog tabs page") == null) {
+        controls.put("Dialog tabs page", page);
       }
     }
-    controls.put("TabFolder", folder);
+    controls.put("Dialog tabs", folder.control());
     Composite buttons = Dialogs.buttonRow(dialog, 3);
     Dialogs.button(buttons, "OK", Dialogs.closer(dialog));
     Dialogs.open(dialog, SWT.DEFAULT, SWT.DEFAULT);
@@ -350,11 +346,12 @@ class Win32DarkDialogsTest {
     controller.execute(CommandId.PREFERENCES);
     Shell preferences = owned(UiText.PREFERENCES_TITLE.text());
     preferences.forceActive();
-    TabFolder folder = window.preferencesDialog().folder();
-    for (int i = 0; i < folder.getItemCount(); i++) {
-      folder.setSelection(i);
+    DialogTabs folder = window.preferencesDialog().folder();
+    for (int i = 0; i < folder.count(); i++) {
+      folder.select(i);
       settle();
-      walkCheck(folder.getItem(i).getControl(), unreadable);
+      check("Preferences tabs " + i, folder.control(), true, unreadable);
+      walkCheck(folder.page(i), unreadable);
       save("preferences-" + i + "-" + name, capture(preferences.getBounds(), preferences));
       report.setLength(0);
     }

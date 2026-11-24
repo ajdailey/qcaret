@@ -131,6 +131,13 @@ final class ViewViolations {
     }
   }
 
+  /** Creates a native tab folder outside the platform package. */
+  static final class CreatesTabFolder {
+    org.eclipse.swt.widgets.TabFolder open(Shell parent) {
+      return new org.eclipse.swt.widgets.TabFolder(parent, SWT.TOP);
+    }
+  }
+
   /**
    * Reads the SWT platform, the GTK 4 environment and an SWT internal property outside {@code
    * PlatformTraits}.

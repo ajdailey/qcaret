@@ -113,7 +113,7 @@ class EditorColorsSurfaceTest {
     PreferencesDialog dialog = dialog();
     assertEquals(0, dialog.editorColors().getSelectionIndex());
     Control page = dialog.editorColors();
-    while (page != null && page != dialog.folder().getItem(0).getControl()) {
+    while (page != null && page != dialog.folder().page(0)) {
       page = page.getParent();
     }
     assertTrue(page != null, "Editor colors is not on the Editor tab");

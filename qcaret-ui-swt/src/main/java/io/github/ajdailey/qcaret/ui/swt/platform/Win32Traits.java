@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -62,6 +63,13 @@ final class Win32Traits implements PlatformTraits {
   @Override
   public DialogColors dialogColors() {
     return Win32DialogColors.INSTANCE;
+  }
+
+  @Override
+  public DialogTabs dialogTabs(Composite parent) {
+    return ChromeColors.nativeDark(parent.getDisplay())
+        ? new Win32DialogTabs(parent)
+        : new NativeDialogTabs(parent);
   }
 
   @Override

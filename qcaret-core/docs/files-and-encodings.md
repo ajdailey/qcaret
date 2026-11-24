@@ -10,7 +10,7 @@ Every path from outside the process goes through `SafePaths`.
 
 | Method | Rule |
 |---|---|
-| `userFile` | Rejects empty, NUL and, on Windows, device forms (`\\.\`, `\\?\`, `CON`, `NUL`, `COM1`...). Made absolute and normalized. An existing path resolves to its real path and must be a regular file: a FIFO blocks the reader and a device never ends. A missing path needs an existing parent directory |
+| `userFile` | Rejects empty, NUL and, on Windows, device forms (`\\.\`, `\\?\`, `CON`, `NUL`, `COM1`...) with `DevicePathException`. Made absolute and normalized. An existing path resolves to its real path and must be a regular file: a FIFO blocks the reader and a device never ends. A missing path needs an existing parent directory |
 | `settingsDirectory` | Absolute, normalized, created with POSIX `rwx------` where supported, resolved to its real path, must be a directory |
 | `child` | A fixed name matching `[A-Za-z0-9._-]+`, resolved inside the directory |
 | `holdLock`, `releaseLock` | Name and forget a lock file the process holds, any number at once, compared by real path and file key, so a hard link matches. `userFile` and `SafeSave.save` then reject it under any name: a save replaces the file, the lock stays on the old one, and the next process to try the lock takes the new one |

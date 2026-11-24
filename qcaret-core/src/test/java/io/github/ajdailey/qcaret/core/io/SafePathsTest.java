@@ -165,6 +165,7 @@ class SafePathsTest {
         assertFalse(windows, name);
       } catch (IOException e) {
         assertTrue(windows, name + ": " + e);
+        assertTrue(e instanceof DevicePathException, e.toString());
         assertEquals("Path names a Windows device", e.getMessage());
       }
     }
@@ -175,7 +176,7 @@ class SafePathsTest {
     final OsTraits windows = OsTraits.of("Windows 11");
     IOException refused =
         assertThrows(
-            IOException.class,
+            DevicePathException.class,
             new Executable() {
               @Override
               public void execute() throws IOException {

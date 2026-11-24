@@ -47,7 +47,6 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
@@ -313,10 +312,8 @@ class GuideScreenshotsTest {
     saveDialog("number-sequence.png");
 
     controller.execute(CommandId.PREFERENCES);
-    Shell preferences = dialog("preferences.png");
-    TabFolder tabs = find(preferences, TabFolder.class);
-    assertNotNull(tabs);
-    tabs.setSelection(PreferencesForm.Group.EDITOR.ordinal());
+    dialog("preferences.png");
+    window.preferencesDialog().folder().select(PreferencesForm.Group.EDITOR.ordinal());
     settle();
     saveDialog("preferences.png");
 

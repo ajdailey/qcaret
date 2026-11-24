@@ -255,6 +255,7 @@ classes, so the rules over the main classes never see them.
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |
 | `setImage` on `ToolItem`, `MenuItem`, `Button`, `TableItem`, `TreeItem`, `Item` and `CTabItem` only in `ToolIcons` | `ToolIcons` picks the icon's ink for the background it shows on |
 | A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogColors.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
+| A native `TabFolder` is created only in `ui.swt.platform` (`tabFoldersOnlyThroughDialogTabs`) | A dialog takes its folder from `PlatformTraits.dialogTabs`, dark after a dark win32 start |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
 | `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory` and `SchemaFactory` only in `core.xml` | `SecureXml` sets up every parser with external DTD, schema and entity access off ([XML parsers](../qcaret-core/docs/grammars.md#xml-parsers)) |

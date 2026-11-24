@@ -242,7 +242,7 @@ class EditorSchemeShotsTest {
     // Tall enough that the dropped list lies over the dialog, not the bare screen.
     Point size = dialog.shell().getSize();
     dialog.shell().setBounds(0, 0, size.x, size.y + 400);
-    dialog.folder().setSelection(0);
+    dialog.folder().select(0);
     Combo list = dialog.editorColors();
     assertNotNull(list);
     settle();

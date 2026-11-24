@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -170,6 +171,19 @@ final class Dialogs {
         size.x,
         size.y);
     shell.open();
+  }
+
+  /**
+   * Creates the platform's dialog tab folder ({@link PlatformTraits#dialogTabs}), filling a grid
+   * cell.
+   *
+   * @param parent the dialog composite, laid out as a grid
+   * @return the tabs
+   */
+  static DialogTabs tabs(Composite parent) {
+    DialogTabs tabs = PlatformTraits.PLATFORM.dialogTabs(parent);
+    tabs.control().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    return tabs;
   }
 
   /**

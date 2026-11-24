@@ -75,7 +75,10 @@ size overrides that. A cell cut off shows its full text as the table's tool tip
 
 Tools > Preferences (the application menu on macOS) opens `PreferencesDialog`, a
 modeless window with one tab per `PreferencesForm.Group`, over
-`PreferencesInput`.
+`PreferencesInput`. The tab folder comes from `Dialogs.tabs`: a dark
+`CTabFolder` after a dark win32 start, else the native `TabFolder` ([Dialog
+tabs](theme-and-icons.md#dialog-tabs)). After a dark start the selected tab
+shows its own color only while focus is in the folder.
 
 - The Editor tab's Editor colors list (`EditorColorsChoice`) holds the bundled
   schemes, then the theme files a worker lists; a saved theme file missing from

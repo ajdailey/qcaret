@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -123,6 +124,14 @@ public interface PlatformTraits {
    * @return {@link Win32DialogColors} on win32, else {@link NativeDialogColors}
    */
   DialogColors dialogColors();
+
+  /**
+   * Creates a dialog's tab folder. On win32 this reads {@link ChromeColors#nativeDark}.
+   *
+   * @param parent the dialog composite holding it
+   * @return {@link Win32DialogTabs} on win32 after a dark start, else {@link NativeDialogTabs}
+   */
+  DialogTabs dialogTabs(Composite parent);
 
   /**
    * Creates how native controls follow the theme on a Display.

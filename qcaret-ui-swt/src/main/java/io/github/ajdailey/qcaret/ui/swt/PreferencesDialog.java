@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +29,6 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.TabFolder;
-import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
@@ -58,7 +57,7 @@ final class PreferencesDialog {
   private final Shell shell;
   private final PreferencesInput input;
   private final List<CommandId> rows = new ArrayList<CommandId>();
-  private final TabFolder folder;
+  private final DialogTabs folder;
   private final Label message;
   private Text completionChars;
   private Button autoClose;
@@ -103,8 +102,7 @@ final class PreferencesDialog {
   PreferencesDialog(Shell parent, PreferencesInput input) {
     this.input = input;
     shell = Dialogs.shell(parent, UiText.PREFERENCES_TITLE.text(), false);
-    folder = new TabFolder(shell, SWT.TOP);
-    folder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    folder = Dialogs.tabs(shell);
     editor(tab(UiText.PREFERENCES_TAB_EDITOR));
     view = new PreferencesViewTab(tab(UiText.PREFERENCES_TAB_VIEW));
     files(tab(UiText.PREFERENCES_TAB_FILES));
@@ -161,14 +159,11 @@ final class PreferencesDialog {
   }
 
   private Composite tab(UiText title) {
-    TabItem item = new TabItem(folder, SWT.NONE);
-    item.setText(title.text());
-    Composite page = new Composite(folder, SWT.NONE);
+    Composite page = folder.add(title.text());
     GridLayout layout = new GridLayout(2, false);
     layout.marginWidth = 10;
     layout.marginHeight = 10;
     page.setLayout(layout);
-    item.setControl(page);
     return page;
   }
 
@@ -532,7 +527,7 @@ final class PreferencesDialog {
     PreferencesForm.Problem problem = input.apply(form());
     message.setText(problem == null ? "" : problem.message());
     if (problem != null) {
-      folder.setSelection(problem.group().ordinal());
+      folder.select(problem.group().ordinal());
     }
     shell.layout(true, true);
     return problem == null;
@@ -654,7 +649,7 @@ final class PreferencesDialog {
     return shell;
   }
 
-  TabFolder folder() {
+  DialogTabs folder() {
     return folder;
   }
 

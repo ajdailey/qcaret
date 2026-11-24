@@ -25,6 +25,7 @@ import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -46,6 +48,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.TabFolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -130,7 +133,7 @@ class PreferencesSurfaceTest {
     PreferencesDialog dialog = dialog();
     dialog.pollSeconds().setText("0");
     assertFalse(dialog.apply());
-    assertEquals(PreferencesForm.Group.FILES.ordinal(), dialog.folder().getSelectionIndex());
+    assertEquals(PreferencesForm.Group.FILES.ordinal(), dialog.folder().selection());
     assertTrue(
         dialog.message().getText().startsWith("Seconds between"), dialog.message().getText());
     assertFalse(dialog.shell().isDisposed());
@@ -290,7 +293,7 @@ class PreferencesSurfaceTest {
   @Test
   void aKeyIsRefusedWhenItTypesOrIsTakenAndTheCommandTakesAFreeOne() {
     PreferencesDialog dialog = dialog();
-    dialog.folder().setSelection(PreferencesForm.Group.KEYS.ordinal());
+    dialog.folder().select(PreferencesForm.Group.KEYS.ordinal());
     dialog.select(CommandId.COMPARE_DOCUMENTS);
     dialog.record(new KeyStroke(0, 'k'));
     dialog.addCaptured();
@@ -320,7 +323,7 @@ class PreferencesSurfaceTest {
   void theKeysTabButtonsHaveDistinctMnemonicsWithTheDialogButtons() {
     PreferencesDialog dialog = dialog();
     List<Button> keys = new ArrayList<Button>();
-    buttons(dialog.folder().getItem(PreferencesForm.Group.KEYS.ordinal()).getControl(), keys);
+    buttons(dialog.folder().page(PreferencesForm.Group.KEYS.ordinal()), keys);
     List<String> texts = new ArrayList<String>();
     for (Button button : keys) {
       texts.add(button.getText());
@@ -329,7 +332,7 @@ class PreferencesSurfaceTest {
         List.of("Clear", "A&dd", "&Remove", "Default &Keys", "Re&store All Defaults"), texts);
     List<Button> all = new ArrayList<Button>(keys);
     for (Control child : dialog.shell().getChildren()) {
-      if (child != dialog.folder()) {
+      if (child != dialog.folder().control()) {
         buttons(child, all);
       }
     }
@@ -349,7 +352,7 @@ class PreferencesSurfaceTest {
   @Test
   void restoreAllDefaultsDropsEveryKeyOverride() {
     PreferencesDialog dialog = dialog();
-    dialog.folder().setSelection(PreferencesForm.Group.KEYS.ordinal());
+    dialog.folder().select(PreferencesForm.Group.KEYS.ordinal());
     KeyStroke free = new KeyStroke(KeyStroke.PRIMARY | KeyStroke.ALT, 'k');
     dialog.select(CommandId.COMPARE_DOCUMENTS);
     dialog.record(free);
@@ -384,6 +387,14 @@ class PreferencesSurfaceTest {
   }
 
   /** Adds the push buttons under a control, in order. */
+  /** Returns a tab's title from either dialog folder class. */
+  private static String tabText(DialogTabs tabs, int index) {
+    Composite folder = tabs.control();
+    return folder instanceof CTabFolder dark
+        ? dark.getItem(index).getText()
+        : ((TabFolder) folder).getItem(index).getText();
+  }
+
   private static void buttons(Control control, List<Button> found) {
     if (control instanceof Button button && (button.getStyle() & SWT.PUSH) != 0) {
       found.add(button);
@@ -433,7 +444,7 @@ class PreferencesSurfaceTest {
     PreferencesDialog dialog = dialog();
     assertEquals(
         UiText.PREFERENCES_TAB_VIEW.text(),
-        dialog.folder().getItem(PreferencesForm.Group.VIEW.ordinal()).getText());
+        tabText(dialog.folder(), PreferencesForm.Group.VIEW.ordinal()));
     assertEquals(0, dialog.newLineEnding().getSelectionIndex());
     assertEquals("UTF-8", dialog.newEncoding().getText());
     assertFalse(dialog.view().wordWrap().getSelection());
@@ -512,10 +523,10 @@ class PreferencesSurfaceTest {
     dialog.shell().forceActive();
     String[] names = {"editor", "view", "files", "search", "appearance", "keys"};
     for (int i = 0; i < names.length; i++) {
-      dialog.folder().setSelection(i);
+      dialog.folder().select(i);
       capture(dir, "preferences-" + names[i]);
     }
-    dialog.folder().setSelection(PreferencesForm.Group.FILES.ordinal());
+    dialog.folder().select(PreferencesForm.Group.FILES.ordinal());
     dialog.pollSeconds().setText("0");
     dialog.apply();
     capture(dir, "preferences-invalid");
@@ -524,7 +535,7 @@ class PreferencesSurfaceTest {
     PreferencesDialog dark = dialog();
     dark.shell().forceActive();
     dark.workspaceDefault().show(temp.getRoot().resolve("projects").resolve("site").toString());
-    dark.folder().setSelection(PreferencesForm.Group.SEARCH.ordinal());
+    dark.folder().select(PreferencesForm.Group.SEARCH.ordinal());
     capture(dir, "preferences-search-dark");
     dark.shell().dispose();
   }

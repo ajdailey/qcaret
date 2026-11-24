@@ -200,6 +200,7 @@ public final class SafePaths {
    *
    * @param path the path text
    * @param os the system the path is for
+   * @throws DevicePathException for a device form
    * @throws IOException naming the reason
    */
   static void checkForm(String path, OsTraits os) throws IOException {
@@ -210,7 +211,7 @@ public final class SafePaths {
       throw new IOException("Path contains a NUL character");
     }
     if (os.deviceNames().opensDevice(path)) {
-      throw new IOException("Path names a Windows device");
+      throw new DevicePathException();
     }
   }
 }

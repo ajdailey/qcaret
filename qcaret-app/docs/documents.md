@@ -302,8 +302,10 @@ its heap reservation.
   input reaching the answer shows a notice.
 - A failed open shows `OPEN_FAILED` with the file name and a reason from
   `OpenFailure`: fixed text for `AccessDeniedException` and
-  `NoSuchFileException`, whose messages are the path alone, the reason of
-  another `FileSystemException`, else the message.
+  `NoSuchFileException`, whose messages are the path alone, and for
+  `DevicePathException` (`Cannot open CON: the path names a Windows device`;
+  the log keeps `Path names a Windows device`), the reason of another
+  `FileSystemException`, else the message.
 - Word wrap, Show Whitespace, Show Line Endings and the completion trigger are
   settings for the window's editors.
 - Each document has one `Bookmarks`, shared by its views and disposed on close.

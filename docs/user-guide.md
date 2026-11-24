@@ -51,6 +51,10 @@ A load still running after 0.3 seconds shows a row above the status bar with its
 progress and Cancel. The window stays usable. Cancel or `Esc` stops every
 running load, and no tab opens.
 
+A file that does not open shows a notice with the reason, for example `Cannot
+open CON: the path names a Windows device` for a Windows device name such as
+`CON` or `nul.txt`.
+
 File > Reload from Disk reads the selected document's file again. With unsaved
 changes it asks first, and Undo brings them back.
 
@@ -1101,7 +1105,8 @@ File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 ![Preferences on the Editor tab](images/guide/preferences.png)
 
 Tools > Preferences (`Ctrl+,`; the application menu on macOS) applies to the
-running windows without a restart.
+running windows without a restart. `Ctrl+PageDown` and `Ctrl+PageUp` from a
+field select the next and previous tab.
 
 | Tab | Holds |
 |---|---|

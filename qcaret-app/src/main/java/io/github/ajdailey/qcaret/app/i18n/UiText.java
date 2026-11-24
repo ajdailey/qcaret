@@ -950,6 +950,8 @@ public enum UiText {
   OPEN_REASON_DENIED,
   /** Open failure reason: the file is missing. */
   OPEN_REASON_MISSING,
+  /** Open failure reason: the path names a Windows device. */
+  OPEN_REASON_DEVICE,
   /** Reason of an open ended by an internal failure, such as running out of memory. */
   OPEN_STOPPED,
   /** The file is the running instance's lock. */

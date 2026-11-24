@@ -1,7 +1,7 @@
 # Theme and icons
 
 `SwtThemeService`, tab colors, `ToolIcons` and `MenuIcons` in `ui.swt`, and
-`ChromeColors`, `DialogColors`, `ThemeFollow` and `CocoaChrome` in
+`ChromeColors`, `DialogColors`, `DialogTabs`, `ThemeFollow` and `CocoaChrome` in
 `ui.swt.platform`, of [qcaret-ui-swt](../README.md). The palette and theme
 modes are in [qcaret-app help and
 themes](../../qcaret-app/docs/help-and-themes.md#themes).
@@ -203,8 +203,6 @@ window over the desktop and skips it.
 
 Public API leaves these light or gray:
 
-- `TabFolder`'s tab strip and frame (Preferences): the native tab control draws
-  them.
 - `Table` grid lines and header dividers (the Keys page).
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
@@ -214,6 +212,28 @@ Public API leaves these light or gray:
 
 The colors follow the startup setting, as native controls do: after a live
 switch an open dialog and a newly opened one keep them until the next start.
+
+#### Dialog tabs
+
+A native `TabFolder` keeps a light tab row and a white frame around the page
+after a dark start, and no public API colors either. Preferences takes its
+folder from `Dialogs.tabs`, which calls `PlatformTraits.dialogTabs`;
+`ArchitectureTest.tabFoldersOnlyThroughDialogTabs` fails a `TabFolder` created
+outside `ui.swt.platform`.
+
+| Class | When | Folder |
+|---|---|---|
+| `Win32DialogTabs` | win32 after a dark start (`ChromeColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
+| `NativeDialogTabs` | win32 after a light start, GTK, cocoa | The native `TabFolder` |
+
+`CTabFolder` draws the selected tab `#2b2b2b` only while focus is in the
+folder, and `#202020` while a dialog button holds it (a known limit). It
+outlines the selected tab, separates unselected ones and draws its selection
+bar in system colors, read in package-private renderer code. Ctrl+PageDown and Ctrl+PageUp from a page
+control reach either folder and wrap at the ends; Ctrl+Tab changes no tab in
+either, and a mnemonic reaches the shown page's buttons only (measured on
+`windows-2025` in QLogg). `DialogTabsTest` posts these keys to both folders on
+win32 and fails where they differ.
 
 ### cocoa
 

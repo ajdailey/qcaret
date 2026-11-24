@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.core.io.DevicePathException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
@@ -11,7 +12,10 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The open failure text: a fixed reason for a denied or missing file, never the path alone. */
+/**
+ * The open failure text: a fixed reason for a denied or missing file and a Windows device path,
+ * never the path alone.
+ */
 class OpenFailureTest {
   @TempDir Path temp;
 
@@ -25,6 +29,9 @@ class OpenFailureTest {
     assertEquals(
         UiText.OPEN_FAILED.format("x.log", UiText.OPEN_REASON_MISSING.text()),
         OpenFailure.text(file, new NoSuchFileException(path)));
+    assertEquals(
+        "Cannot open CON: the path names a Windows device",
+        OpenFailure.text(Path.of("CON"), new DevicePathException()));
     assertEquals(
         UiText.OPEN_FAILED.format("x.log", "Device busy"),
         OpenFailure.text(file, new FileSystemException(path, null, "Device busy")));
