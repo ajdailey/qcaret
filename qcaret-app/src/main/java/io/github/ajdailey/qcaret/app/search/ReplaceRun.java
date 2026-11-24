@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
@@ -169,7 +170,7 @@ public final class ReplaceRun {
   private final Buffers buffers;
   private final Listener listener;
   private final CancellationToken token = new CancellationToken();
-  private final ConcurrentLinkedQueue<Done> queue = new ConcurrentLinkedQueue<Done>();
+  private final Queue<Done> queue = new ConcurrentLinkedQueue<Done>();
   private final AtomicBoolean pending = new AtomicBoolean();
   private final Runnable flush =
       new Runnable() {

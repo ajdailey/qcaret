@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.log;
 import io.github.ajdailey.qcaret.core.util.Checks;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -23,7 +24,7 @@ public final class RecentLog {
 
   private final int capacity;
   private final int maxChars;
-  private final ArrayDeque<String> lines;
+  private final Deque<String> lines;
   private final AtomicLong warnings = new AtomicLong();
   private volatile Runnable warningListener;
 

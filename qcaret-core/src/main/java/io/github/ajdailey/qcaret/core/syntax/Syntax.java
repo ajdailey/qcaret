@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -528,8 +530,8 @@ public final class Syntax {
   /** Builds a keyword rule's regex: the words, not preceded or followed by a word char. */
   static Pattern keywords(Grammar.Keywords k) {
     String word = "\\p{L}\\p{N}" + quoteClass(k.wordChars());
-    TreeSet<Character> first = new TreeSet<Character>();
-    TreeSet<String> words = new TreeSet<String>();
+    SortedSet<Character> first = new TreeSet<Character>();
+    SortedSet<String> words = new TreeSet<String>();
     for (String w : k.words()) {
       words.add(k.ignoreCase() ? GrammarSet.asciiLower(w) : w);
       char c = w.charAt(0);
@@ -562,9 +564,9 @@ public final class Syntax {
    * compares each char once per branch instead of once per word.
    */
   private static String trie(Set<String> words) {
-    TreeMap<Character, TreeSet<String>> groups = new TreeMap<Character, TreeSet<String>>();
+    SortedMap<Character, SortedSet<String>> groups = new TreeMap<Character, SortedSet<String>>();
     for (String w : words) {
-      TreeSet<String> rests = groups.get(w.charAt(0));
+      SortedSet<String> rests = groups.get(w.charAt(0));
       if (rests == null) {
         rests = new TreeSet<String>();
         groups.put(w.charAt(0), rests);
@@ -572,12 +574,12 @@ public final class Syntax {
       rests.add(w.substring(1));
     }
     StringBuilder out = new StringBuilder();
-    for (Map.Entry<Character, TreeSet<String>> group : groups.entrySet()) {
+    for (Map.Entry<Character, SortedSet<String>> group : groups.entrySet()) {
       if (out.length() > 0) {
         out.append('|');
       }
       out.append(quoteClass(String.valueOf(group.getKey())));
-      TreeSet<String> rests = group.getValue();
+      SortedSet<String> rests = group.getValue();
       boolean ends = rests.remove("");
       if (!rests.isEmpty()) {
         out.append("(?:").append(trie(rests)).append(ends ? ")?" : ")");

@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
@@ -502,7 +503,7 @@ final class QuickOpen implements QuickOpenInput {
             return pa.compareTo(pb);
           }
         };
-    PriorityQueue<int[]> best = new PriorityQueue<int[]>(Math.max(1, max), better.reversed());
+    Queue<int[]> best = new PriorityQueue<int[]>(Math.max(1, max), better.reversed());
     int matched = 0;
     Set<String> indexed = new HashSet<String>();
     for (int i = 0; i < index.size(); i++) {
@@ -530,7 +531,7 @@ final class QuickOpen implements QuickOpenInput {
       if (best.size() < max) {
         best.add(candidate);
       } else if (max > 0 && better.compare(candidate, best.peek()) < 0) {
-        best.poll();
+        best.remove();
         best.add(candidate);
       }
     }

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.ArrayDeque;
+import java.util.Queue;
 
 /**
  * Runs tasks on the UI thread in arrival order, at most {@code perTurn} in one UI task; the rest
@@ -12,7 +13,7 @@ import java.util.ArrayDeque;
 final class UiPacer {
   private final UiDispatcher ui;
   private final int perTurn;
-  private final ArrayDeque<Runnable> waiting = new ArrayDeque<Runnable>();
+  private final Queue<Runnable> waiting = new ArrayDeque<Runnable>();
   private boolean posted;
   private final Runnable turn =
       new Runnable() {

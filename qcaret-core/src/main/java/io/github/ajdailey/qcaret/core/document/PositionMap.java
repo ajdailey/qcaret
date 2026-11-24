@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.document;
 
 import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Iterator;
 
 /**
@@ -18,7 +19,7 @@ public final class PositionMap {
   /** Replacements kept over all batches; the newest batch is kept whatever its size. */
   static final int MAX_REPLACEMENTS = 1_000_000;
 
-  private final ArrayDeque<Entry> log = new ArrayDeque<Entry>();
+  private final Deque<Entry> log = new ArrayDeque<Entry>();
   private long replacements;
   private long current;
 

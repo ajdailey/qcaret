@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -58,7 +59,7 @@ class SmokeTest {
   /** A started process whose merged output is read into a queue on a reader thread. */
   private static final class Run implements AutoCloseable {
     final Process process;
-    final LinkedBlockingQueue<String> lines = new LinkedBlockingQueue<String>();
+    final BlockingQueue<String> lines = new LinkedBlockingQueue<String>();
     final List<String> seen = new ArrayList<String>();
 
     Run(List<String> command, Map<String, String> env, boolean clearEnv) throws IOException {

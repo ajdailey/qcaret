@@ -32,7 +32,7 @@ public final class TokenCache {
   private static final int[] ROLES = roles();
 
   private final int capacity;
-  private LinkedHashMap<Integer, int[]> lines;
+  private Map<Integer, int[]> lines;
 
   /**
    * Creates an empty cache.
@@ -77,7 +77,7 @@ public final class TokenCache {
     return out;
   }
 
-  private LinkedHashMap<Integer, int[]> newMap() {
+  private Map<Integer, int[]> newMap() {
     return new Lru(capacity);
   }
 
@@ -211,7 +211,7 @@ public final class TokenCache {
 
   /** Drops lines {@code line + 1} to {@code line + removed} and moves the lines after them. */
   private void shift(int line, int removed, int delta) {
-    LinkedHashMap<Integer, int[]> next = newMap();
+    Map<Integer, int[]> next = newMap();
     for (Map.Entry<Integer, int[]> entry : lines.entrySet()) {
       int key = entry.getKey();
       if (key <= line) {

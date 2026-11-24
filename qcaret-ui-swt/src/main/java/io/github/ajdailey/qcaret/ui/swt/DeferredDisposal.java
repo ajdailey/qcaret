@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.ArrayDeque;
+import java.util.Queue;
 import org.eclipse.swt.widgets.Control;
 
 /**
@@ -15,7 +16,7 @@ final class DeferredDisposal {
   static final int SLICE_MILLIS = 20;
 
   private final UiDispatcher ui;
-  private final ArrayDeque<Control> queue = new ArrayDeque<Control>();
+  private final Queue<Control> queue = new ArrayDeque<Control>();
   private boolean scheduled;
   private final Runnable drain =
       new Runnable() {

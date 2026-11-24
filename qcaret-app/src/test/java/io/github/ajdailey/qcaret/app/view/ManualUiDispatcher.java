@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -25,7 +26,7 @@ public final class ManualUiDispatcher implements UiDispatcher {
   /** Longest wait before the condition of {@link #runUntil} is checked again. */
   private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
 
-  private final LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
+  private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
   private final Map<Runnable, Integer> longTimers = new LinkedHashMap<Runnable, Integer>();
   private final Thread uiThread = Thread.currentThread();
   private volatile boolean disposed;

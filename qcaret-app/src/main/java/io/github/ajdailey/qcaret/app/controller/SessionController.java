@@ -86,7 +86,7 @@ final class SessionController implements DocumentController.FileMemory {
   private final RecoveryController recovery;
   private final Workers workers;
   private final UiDispatcher ui;
-  private final FileLru files = new FileLru();
+  private final Map<String, Session.FileState> files = new FileLru();
   private final List<String> skipped = new ArrayList<String>();
   private final List<Restored> restored = new ArrayList<Restored>();
   private final List<WindowState> placements = new ArrayList<WindowState>();

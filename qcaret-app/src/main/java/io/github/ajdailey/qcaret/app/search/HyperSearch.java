@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -104,7 +105,7 @@ public final class HyperSearch {
   private final Listener listener;
   private final List<Document> order = new ArrayList<Document>();
   private final CancellationToken token = new CancellationToken();
-  private final ConcurrentLinkedQueue<Queued> queue = new ConcurrentLinkedQueue<Queued>();
+  private final Queue<Queued> queue = new ConcurrentLinkedQueue<Queued>();
   private final AtomicBoolean pending = new AtomicBoolean();
   private final AtomicInteger parts = new AtomicInteger();
   private final AtomicInteger room;

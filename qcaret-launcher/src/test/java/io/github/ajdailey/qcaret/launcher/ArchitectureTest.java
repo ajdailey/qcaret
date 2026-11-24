@@ -18,9 +18,11 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaConstructorCall;
 import com.tngtech.archunit.core.domain.JavaField;
+import com.tngtech.archunit.core.domain.JavaMember;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
+import com.tngtech.archunit.core.domain.JavaType;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
@@ -70,8 +72,11 @@ import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Timer;
 import java.util.concurrent.AbstractExecutorService;
@@ -1364,6 +1369,64 @@ class ArchitectureTest {
         ROOT + ".launcher.archfixture.ToolkitChecks",
         "SWT.getPlatform",
         "SWT_GTK4");
+  }
+
+  // Collection declarations.
+
+  /**
+   * Field, parameter and return types, generic arguments included, name a collection interface
+   * ({@code List}, {@code Map}, {@code Deque}), never a class that implements {@code Collection} or
+   * {@code Map}; the class appears only after {@code new}. An exception names the class and the
+   * class-only member it calls. Locals are a review item.
+   *
+   * <p>Exception: {@code Properties}, for {@code getProperty}, {@code load} and {@code store}.
+   */
+  @Test
+  void collectionsDeclaredByInterface() {
+    collectionsDeclaredByInterfaceRule().check(classes);
+  }
+
+  @Test
+  void collectionRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        collectionsDeclaredByInterfaceRule(),
+        ROOT + ".core.archfixture.CoreViolations$DeclaresClasses",
+        "items> declares java.util.ArrayList",
+        "index(java.util.Map)> declares java.util.TreeSet",
+        "pending()> declares java.util.ArrayDeque",
+        "!names>");
+  }
+
+  private static ArchRule collectionsDeclaredByInterfaceRule() {
+    return classes()
+        .should(
+            new ArchCondition<JavaClass>("declare collection interfaces, not classes") {
+              @Override
+              public void check(JavaClass type, ConditionEvents events) {
+                for (JavaField field : type.getFields()) {
+                  reportCollectionClasses(field, field.getType(), events);
+                }
+                for (JavaCodeUnit unit : type.getCodeUnits()) {
+                  reportCollectionClasses(unit, unit.getReturnType(), events);
+                  for (JavaType parameter : unit.getParameterTypes()) {
+                    reportCollectionClasses(unit, parameter, events);
+                  }
+                }
+              }
+            });
+  }
+
+  private static void reportCollectionClasses(
+      JavaMember member, JavaType declared, ConditionEvents events) {
+    for (JavaClass raw : declared.getAllInvolvedRawTypes()) {
+      if (!raw.isInterface()
+          && !raw.isEquivalentTo(Properties.class)
+          && (raw.isAssignableTo(Collection.class) || raw.isAssignableTo(Map.class))) {
+        events.add(
+            SimpleConditionEvent.violated(
+                member, "<" + member.getFullName() + "> declares " + raw.getName()));
+      }
+    }
   }
 
   /**

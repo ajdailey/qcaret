@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -116,7 +117,7 @@ class ShellCommandsTest {
     harness.view.clipboard = "pasted";
     Path target = dir.resolve("copy.bin");
     // Every command but those that open, close or switch documents.
-    EnumSet<CommandId> skipped =
+    Set<CommandId> skipped =
         EnumSet.of(
             CommandId.QUIT,
             CommandId.NEW,

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.core.document;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 /**
@@ -34,8 +35,8 @@ final class UndoHistory {
   }
 
   private final UndoLimits limits;
-  private final ArrayDeque<Step> undo = new ArrayDeque<Step>();
-  private final ArrayDeque<Step> redo = new ArrayDeque<Step>();
+  private final Deque<Step> undo = new ArrayDeque<Step>();
+  private final Deque<Step> redo = new ArrayDeque<Step>();
   private long bytes;
 
   UndoHistory(UndoLimits limits) {

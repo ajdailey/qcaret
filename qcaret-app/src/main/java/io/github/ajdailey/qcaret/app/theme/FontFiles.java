@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +102,7 @@ public final class FontFiles {
    */
   @WorkerThread
   public static List<String> monospaceFamilies(List<Path> folders) {
-    final TreeSet<String> families = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    final SortedSet<String> families = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
     final int[] opened = {0};
     for (Path folder : folders) {
       if (!Files.isDirectory(folder)) {
@@ -143,7 +145,7 @@ public final class FontFiles {
   }
 
   @WorkerThread
-  private static void read(Path file, TreeSet<String> families) {
+  private static void read(Path file, Set<String> families) {
     try (SeekableByteChannel channel = Files.newByteChannel(file)) {
       readFaces(channel, families);
     } catch (IOException | IndexOutOfBoundsException e) {
@@ -153,7 +155,7 @@ public final class FontFiles {
 
   /** Adds the monospace families of an sfnt file or collection. */
   @WorkerThread
-  static void readFaces(SeekableByteChannel channel, TreeSet<String> families) throws IOException {
+  static void readFaces(SeekableByteChannel channel, Set<String> families) throws IOException {
     ByteBuffer head = bytes(channel, 0, 12);
     if (head.getInt(0) == TTC) {
       int faces = Math.max(0, Math.min(head.getInt(8), MAX_FACES));
@@ -166,7 +168,7 @@ public final class FontFiles {
     }
   }
 
-  private static void readFace(SeekableByteChannel channel, long at, TreeSet<String> families)
+  private static void readFace(SeekableByteChannel channel, long at, Set<String> families)
       throws IOException {
     ByteBuffer head = bytes(channel, at, 12);
     int version = head.getInt(0);
