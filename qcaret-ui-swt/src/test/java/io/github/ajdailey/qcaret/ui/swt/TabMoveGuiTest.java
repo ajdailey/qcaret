@@ -8,10 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
+import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.controller.Settings;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
@@ -361,5 +363,88 @@ class TabMoveGuiTest {
             }));
     assertFalse(first.shell().isDisposed());
     assertEquals(1, set.windows().size());
+  }
+
+  /** The user's sequence with Quit without asking on: drag a new tab out, close the source. */
+  @Test
+  void closingTheSourceAfterADragOutMovesItsUnsavedTabsWithoutADialog() {
+    snapshotOn(set.settings());
+    controller.documents().activeEditor().type("X");
+    controller.documents().newDocument();
+    controller.documents().activeEditor().type("draft");
+    controller.documents().newDocument();
+    controller.documents().activeEditor().type("dragged");
+    CTabFolder tabs = first.tabs();
+    Rectangle bounds = first.shell().getBounds();
+    probe(first, null);
+    drag(tabs, 3, new Point(bounds.x + bounds.width + 40, bounds.y + 30));
+    assertEquals(2, windows.size());
+    final MainWindow second = windows.get(1);
+    assertEquals(0, dialogs(), "the drag opened a dialog");
+
+    first.shell().close();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return first.shell().isDisposed() || dialogs() > 0;
+              }
+            }));
+    assertEquals(0, dialogs(), "the close opened a dialog");
+    assertEquals(1, set.windows().size());
+    assertEquals(3, second.tabs().getItemCount());
+    for (int i = 0; i < 3; i++) {
+      assertTrue(second.tabs().getItem(i).getText().startsWith("*"));
+    }
+  }
+
+  private int dialogs() {
+    int count = 0;
+    for (Shell shell : display.getShells()) {
+      if (!shell.isDisposed() && shell.isVisible() && shell.getParent() != null) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private static void snapshotOn(Settings running) {
+    Options o = running.current().options();
+    running.set(
+        running
+            .current()
+            .withOptions(
+                new Options(
+                    o.completionChars(),
+                    o.autoClose(),
+                    o.maxHighlightLineChars(),
+                    o.fontSize(),
+                    o.pollSeconds(),
+                    o.autoReloadClean(),
+                    o.backupDays(),
+                    o.searchMaxLineChars(),
+                    o.excludedDirectories(),
+                    o.recoveryIntervalSeconds(),
+                    o.recoveryKeepDays(),
+                    true,
+                    o.tabWidth(),
+                    o.insertSpaces(),
+                    o.rightMargin(),
+                    o.dateFormat(),
+                    o.editorConfig(),
+                    o.modelines(),
+                    o.closeWindowWithLastTab(),
+                    o.closeShowsLastUsed(),
+                    o.newLineEnding(),
+                    o.newEncoding(),
+                    o.workspaceDefault(),
+                    o.fontZoom(),
+                    o.sessionRestore(),
+                    o.strictJson(),
+                    o.previewRenderer(),
+                    o.markdownSyncScroll(),
+                    o.previewZoom(),
+                    o.markdownOpenMode())));
   }
 }

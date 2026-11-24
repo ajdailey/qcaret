@@ -30,7 +30,8 @@ import java.time.format.DateTimeFormatter;
  *     changed dirty buffer's recovery file
  * @param recoveryKeepDays {@code recovery.keepDays}: days a dead instance's recovery files are kept
  * @param sessionSnapshot {@code session.snapshot}: a quit asks nothing and the next start restores
- *     unsaved and untitled buffers
+ *     unsaved and untitled buffers; closing a window that is not the last moves its unsaved tabs to
+ *     the other window activated last
  * @param tabWidth {@code editor.tabWidth}: columns per tab stop of a document without saved state
  * @param insertSpaces {@code editor.insertSpaces}: such a document indents with spaces
  * @param rightMargin {@code editor.rightMargin}: the column the right margin line sits left of

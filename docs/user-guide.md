@@ -1026,7 +1026,9 @@ buffers are listed as usual.
 
 Recovery files left by a crash are kept for 30 days. With Preferences, Files,
 Quit without asking on, Exit asks nothing and the next start restores unsaved
-and untitled buffers. Exit during a restore waits for the restore to end; Cancel
+and untitled buffers, and closing one of several windows moves its unsaved tabs
+to another window (see [Windows and the running
+instance](#windows-and-the-running-instance)). Exit during a restore waits for the restore to end; Cancel
 on the load row ends a slow one, and that tab leaves the next session.
 
 When QCaret closes on an internal error, it asks nothing and keeps every
@@ -1070,7 +1072,10 @@ Search results stay in their window and still lead to the moved tab.
 File > Exit (Quit in the application menu on macOS) asks about unsaved documents
 in every window before anything closes; Cancel leaves everything as it was, and
 a save that fails stops the quit. Closing a window asks about its own documents;
-closing the last one quits. While Exit runs, closing a window does nothing. A
+closing the last one quits. With Quit without asking on, closing a window that
+is not the last asks nothing: its unsaved tabs, untitled ones included, move to
+the window used last, as a tab move does, and its saved tabs close. A tab whose
+save or other file operation is running stays and is asked about. While Exit runs, closing a window does nothing. A
 document edited while its save from a close prompt runs stays open and asks
 again.
 

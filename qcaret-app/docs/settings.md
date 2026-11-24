@@ -195,7 +195,7 @@ Shortcuts.
 | `recovery.intervalSeconds` | 5 to 600: seconds between writes of each changed unsaved buffer's recovery file | 30 | Tools > Preferences, Files |
 | `recovery.keepDays` | 1 to 365: days a recovery file left by a crash is kept | 30 | Tools > Preferences, Files |
 | `tabs.closeWindowWithLastTab` | `true`, `false`: closing a window's last tab closes the window, and the last window quits; off, an untitled document takes the tab's place | `false` | Tools > Preferences, Files |
-| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers | `false` | Tools > Preferences, Files |
+| `session.snapshot` | `true`, `false`: a quit asks nothing and the next start restores unsaved and untitled buffers; closing a window that is not the last moves its unsaved tabs to the other window activated last | `false` | Tools > Preferences, Files |
 | `session.restore` | `true`, `false`: a start that names no file opens the session's windows; off, it opens one window and keeps Recent Files and file positions, and `--session` still restores ([Session restore preference](sessions-and-recovery.md#session-restore-preference)) | `true` | Tools > Preferences, Files |
 | `search.maxLineChars` | 10,000 to 100,000,000: HyperSearch and replace skip and count a longer line | 1000000 | Tools > Preferences, Search and Workspace |
 | `replace.backupDays` | 1 to 365: days a replace run's backups are kept | 7 | Tools > Preferences, Search and Workspace |

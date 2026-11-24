@@ -46,16 +46,19 @@ import org.slf4j.LoggerFactory;
  * buffer per file. New Window opens a window through the {@link Factory}. {@link #moveDocument}
  * moves a tab with its live document, through {@link TabTransfer}.
  *
- * <p>Closing a window that is not the last asks about its unsaved documents and closes them.
- * Closing the last one, or Quit from any window, runs {@link QuitPrompts}: every dirty document of
- * every window is asked about before anything closes or saves. With {@code session.snapshot} on and
- * this instance owning the session, Quit writes the dirty buffers as a snapshot instead and asks
- * nothing; a failed write falls back to asking. {@link #quit} then asks nothing: capture the
- * session, queue the last recovery writes (a dirty buffer it finds stays in a recovery file for the
- * next start), stop every window and record the placement of the window activated last on the UI
- * thread, hide the windows, on a {@code qcaret-lifecycle-} worker save, finish recovery, run the
- * quit listeners, close {@link Workers} and run the finish listeners, and dispose the windows on
- * the UI thread, which ends the event loop. {@link QuitSequence} runs window close and quit.
+ * <p>Closing a window that is not the last asks about its unsaved documents and closes them. With
+ * {@code session.snapshot} on it first moves its unsaved tabs, untitled ones included, into the
+ * other window activated last, with their state as a tab move carries it, and asks only about a tab
+ * that cannot move. Closing the last one, or Quit from any window, runs {@link QuitPrompts}: every
+ * dirty document of every window is asked about before anything closes or saves. With {@code
+ * session.snapshot} on and this instance owning the session, Quit writes the dirty buffers as a
+ * snapshot instead and asks nothing; a failed write falls back to asking. {@link #quit} then asks
+ * nothing: capture the session, queue the last recovery writes (a dirty buffer it finds stays in a
+ * recovery file for the next start), stop every window and record the placement of the window
+ * activated last on the UI thread, hide the windows, on a {@code qcaret-lifecycle-} worker save,
+ * finish recovery, run the quit listeners, close {@link Workers} and run the finish listeners, and
+ * dispose the windows on the UI thread, which ends the event loop. {@link QuitSequence} runs window
+ * close and quit.
  */
 public final class WindowSet {
   /** Creates and opens a main window. */
@@ -789,9 +792,11 @@ public final class WindowSet {
   }
 
   /**
-   * Closes one window, asking about its unsaved documents; a Cancel keeps it open. The last open
-   * window quits instead. Nothing closes while the session restores (the restore holds the window)
-   * or while a quit asks, writes its snapshot or runs.
+   * Closes one window, asking about its unsaved documents; a Cancel keeps it open. With {@code
+   * session.snapshot} on its unsaved tabs move to the other window activated last first, and only a
+   * tab that cannot move ({@link DocumentController#canMove}) is asked about. The last open window
+   * quits instead. Nothing closes while the session restores (the restore holds the window) or
+   * while a quit asks, writes its snapshot or runs.
    *
    * @param window the window
    */

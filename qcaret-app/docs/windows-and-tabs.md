@@ -90,7 +90,11 @@ snapshot write.
 
 A window's close button runs `requestClose`, which asks about that window's
 documents and closes it alone; the last window quits instead, and a further
-window stays open while the session restores.
+window stays open while the session restores. With `session.snapshot` on,
+`UnsavedTabsMove` first moves each dirty tab, untitled ones included, to the
+end of the other window activated last through `moveDocument`, so the close
+asks nothing. A tab `canMove` refuses stays and is asked about, with no move
+notice.
 
 `quit` asks nothing and runs once: it logs `Quitting with <n> windows open` at
 INFO, captures the session, queues the last recovery writes, stops every window, records the normal bounds and maximized

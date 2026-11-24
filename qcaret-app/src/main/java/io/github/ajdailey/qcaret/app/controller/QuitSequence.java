@@ -11,10 +11,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Window close and quit for a {@link WindowSet}: the close of one window, the quit that asks
- * ({@link QuitPrompts}), the snapshot quit ({@link SnapshotQuit}), the quit itself and its quit and
- * finish listeners. The contracts are on the {@link WindowSet} methods that delegate here. Confined
- * to the UI thread, except {@link #isQuitting} and {@link #addFinishListener}.
+ * Window close and quit for a {@link WindowSet}: the close of one window ({@link UnsavedTabsMove}
+ * with {@code session.snapshot} on), the quit that asks ({@link QuitPrompts}), the snapshot quit
+ * ({@link SnapshotQuit}), the quit itself and its quit and finish listeners. The contracts are on
+ * the {@link WindowSet} methods that delegate here. Confined to the UI thread, except {@link
+ * #isQuitting} and {@link #addFinishListener}.
  */
 final class QuitSequence {
   private static final Logger LOG = LoggerFactory.getLogger(QuitSequence.class);
@@ -26,6 +27,7 @@ final class QuitSequence {
   private final Workers workers;
   private final UiDispatcher ui;
   private final SnapshotQuit snapshot;
+  private final UnsavedTabsMove unsavedTabs;
   private final List<Runnable> quitListeners = new CopyOnWriteArrayList<Runnable>();
   private final List<Runnable> finishListeners = new CopyOnWriteArrayList<Runnable>();
   private final AtomicBoolean finished = new AtomicBoolean();
@@ -59,6 +61,7 @@ final class QuitSequence {
     this.workers = workers;
     this.ui = ui;
     this.snapshot = new SnapshotQuit(set, recovery, copies);
+    this.unsavedTabs = new UnsavedTabsMove(set);
   }
 
   /** See {@link WindowSet#isQuitting}. */
@@ -112,6 +115,9 @@ final class QuitSequence {
     }
     if (session.restoring()) {
       return;
+    }
+    if (settings.current().options().sessionSnapshot()) {
+      unsavedTabs.move(window);
     }
     window
         .documents()
