@@ -75,7 +75,7 @@ final class Dialogs {
   }
 
   /**
-   * Returns the background of a dialog owned by a shell, which on win32 under a dark startup
+   * Returns the background of a dialog owned by a shell, which on win32 under the dark native
    * setting differs from the owner's.
    *
    * @param owner the owning shell

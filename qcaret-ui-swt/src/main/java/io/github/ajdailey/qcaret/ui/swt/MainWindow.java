@@ -1297,6 +1297,15 @@ public final class MainWindow implements MainView {
     return busy;
   }
 
+  /**
+   * Returns the busy cursor, for a {@link MainWindowSlot}'s count.
+   *
+   * @return the indicator
+   */
+  BusyCounter.Indicator busyIndicator() {
+    return busyCursor;
+  }
+
   @Override
   public void showNotice(String message) {
     if (notice.isDisposed()) {
@@ -1788,9 +1797,9 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Picks the About logo for a dialog background. Native chrome can differ from the palette (cocoa,
-   * win32 before a restart, a GTK theme with no dark variant), so the background decides, not the
-   * theme setting.
+   * Picks the About logo for a dialog background. Native chrome can differ from the palette (a
+   * win32 window waiting for its rebuild, a GTK theme with no dark variant), so the background
+   * decides, not the theme setting.
    *
    * @param background the dialog's background
    * @return the navy-tile logo on a dark background, the light logo otherwise

@@ -6,17 +6,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.editor.CaretInk;
 import io.github.ajdailey.qcaret.ui.swt.platform.CaretBlend;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
@@ -88,16 +94,106 @@ class PlatformBehaviorTest {
   }
 
   @Test
-  void restartForNativeTheme() {
+  void noRestartForNativeTheme() {
     SwtThemeService service =
         new SwtThemeService(
             display, false, LIGHT_SYSTEM, PlatformTraits.PLATFORM.themeFollow(display));
     assertTrue(service.showsNow(false));
-    assertEquals(!WIN32, service.showsNow(true));
+    assertTrue(service.showsNow(true));
   }
 
   @Test
-  void systemStartSetsNativeDarkWhereControlsThemeAtCreation() {
+  void onlyWin32RebuildsTheWindowsAndOnlyWhenTheSideChanges() {
+    final int[] rebuilds = new int[1];
+    WindowRebuild windows =
+        new WindowRebuild() {
+          @Override
+          public void rebuild() {
+            rebuilds[0]++;
+          }
+        };
+    try {
+      for (String platform : new String[] {"win32", "cocoa", "gtk"}) {
+        rebuilds[0] = 0;
+        display.setData(ChromeColors.NATIVE_DARK, false);
+        ThemeFollow follow = PlatformTraits.of(platform, false).themeFollow(display);
+        follow.showOnWindows(false, windows);
+        assertEquals(0, rebuilds[0], platform);
+        follow.showOnWindows(true, windows);
+        follow.showOnWindows(true, windows);
+        assertEquals("win32".equals(platform) ? 1 : 0, rebuilds[0], platform);
+        assertEquals(!"gtk".equals(platform), SwtThemeService.nativeDark(display), platform);
+      }
+    } finally {
+      display.setDarkThemePreferred(false);
+    }
+  }
+
+  @Test
+  void preferDarkShowsTheSideOnTheWindowsAfterTheNativeControls() {
+    final List<String> calls = new ArrayList<String>();
+    final WindowRebuild windows = WindowRebuild.NONE;
+    ThemeFollow inner = PlatformTraits.of("gtk", false).themeFollow(display);
+    SwtThemeService service =
+        new SwtThemeService(display, false, LIGHT_SYSTEM, new RecordingFollow(inner, calls));
+    service.setWindowRebuild(windows);
+    service.preferDark(false);
+    assertEquals(List.of("preferDark false", "showOnWindows false true"), calls);
+  }
+
+  /** Records {@link ThemeFollow#preferDark} and {@link ThemeFollow#showOnWindows} calls. */
+  private static final class RecordingFollow implements ThemeFollow {
+    private final ThemeFollow inner;
+    private final List<String> calls;
+
+    RecordingFollow(ThemeFollow inner, List<String> calls) {
+      this.inner = inner;
+      this.calls = calls;
+    }
+
+    @Override
+    public boolean start(ThemeMode mode) {
+      return inner.start(mode);
+    }
+
+    @Override
+    public void watch(boolean dark, UiDispatcher timers, Runnable refresh) {
+      inner.watch(dark, timers, refresh);
+    }
+
+    @Override
+    public void systemChanged(boolean dark) {
+      inner.systemChanged(dark);
+    }
+
+    @Override
+    public void preferDark(boolean dark) {
+      calls.add("preferDark " + dark);
+    }
+
+    @Override
+    public void showOnWindows(boolean dark, WindowRebuild windows) {
+      calls.add("showOnWindows " + dark + " " + (windows == WindowRebuild.NONE));
+    }
+
+    @Override
+    public boolean showsNow(boolean dark, boolean nativeDark) {
+      return inner.showsNow(dark, nativeDark);
+    }
+
+    @Override
+    public void settingsChanged() {
+      inner.settingsChanged();
+    }
+
+    @Override
+    public void colorLink(Link link) {
+      inner.colorLink(link);
+    }
+  }
+
+  @Test
+  void systemStartSetsNativeDarkOnWin32AndCocoa() {
     boolean systemDark = Display.isSystemDarkTheme();
     try {
       for (String platform : new String[] {"win32", "cocoa", "gtk"}) {
@@ -105,8 +201,8 @@ class PlatformBehaviorTest {
           PlatformTraits traits = PlatformTraits.of(platform, gtk4);
           String name = platform + " " + gtk4;
           assertEquals(
-              "win32".equals(platform) && systemDark, start(traits, ThemeMode.SYSTEM), name);
-          assertEquals(!"cocoa".equals(platform), start(traits, ThemeMode.DARK), name);
+              !"gtk".equals(platform) && systemDark, start(traits, ThemeMode.SYSTEM), name);
+          assertTrue(start(traits, ThemeMode.DARK), name);
           assertFalse(start(traits, ThemeMode.LIGHT), name);
         }
       }

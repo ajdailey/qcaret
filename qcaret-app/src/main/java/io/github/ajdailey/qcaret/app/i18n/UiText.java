@@ -896,10 +896,6 @@ public enum UiText {
   STATUS_WARNINGS,
   /** Tooltip of the warnings link. */
   STATUS_WARNINGS_TIP,
-  /** Title of the notice that native controls change at the next start. */
-  THEME_RESTART_TITLE,
-  /** The notice that native controls change at the next start. */
-  THEME_RESTART_MESSAGE,
   /** About heading: the version. */
   ABOUT_NAME,
   /** About tagline. */

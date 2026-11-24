@@ -1,0 +1,210 @@
+package io.github.ajdailey.qcaret.ui.swt;
+
+import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
+import java.util.ArrayList;
+import java.util.List;
+import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
+
+/**
+ * Rebuilds the main windows for a live switch of the native theme on win32, where native controls
+ * read it only when created. Each window's {@link MainWindowSlot} gets a new {@link MainWindow} for
+ * the same {@link ApplicationController}, so documents, workers, history and results stay.
+ *
+ * <p>{@link #rebuild} runs on a later UI turn, one window per turn, and only for a window built
+ * under the other side of {@link SwtThemeService#nativeDark}; switching back before a window's turn
+ * leaves it alone. A window waits, rechecked every {@link #RECHECK_MILLIS}, while {@link
+ * MainWindowSlot#holdsDialog} reports a dialog its rebuild would dispose. A rebuild carries the
+ * bounds, maximized, full screen and minimized state, the dock weights, the Workspace Browser's
+ * expanded folders, the slot's pushed state, the tabs ({@link
+ * io.github.ajdailey.qcaret.app.controller.DocumentController#rebindViews}) and the active window;
+ * the new shell opens before the old one is disposed, so the event loop always holds an open shell.
+ * Other windows the old shell owns close with it. Confined to the UI thread.
+ */
+public final class WindowViews implements WindowRebuild {
+  /** Milliseconds between checks of a window that waits for a dialog to close. */
+  static final int RECHECK_MILLIS = 250;
+
+  /** Creates a replacement window. */
+  public interface Factory {
+    /**
+     * Creates a window attached to a controller and registered with the event loop, not yet placed
+     * or open.
+     *
+     * @param controller the window's controller
+     * @return the window
+     */
+    MainWindow create(ApplicationController controller);
+  }
+
+  private static final class Entry {
+    final MainWindowSlot slot;
+    final ApplicationController controller;
+    boolean builtDark;
+
+    Entry(MainWindowSlot slot, ApplicationController controller, boolean builtDark) {
+      this.slot = slot;
+      this.controller = controller;
+      this.builtDark = builtDark;
+    }
+  }
+
+  private final Display display;
+  private final SwtUiDispatcher ui;
+  private final Factory factory;
+  private final List<Entry> entries = new ArrayList<Entry>();
+  private final Runnable step =
+      new Runnable() {
+        @Override
+        public void run() {
+          scheduled = false;
+          step();
+        }
+      };
+  private final Runnable recheck =
+      new Runnable() {
+        @Override
+        public void run() {
+          timer = false;
+          schedule();
+        }
+      };
+  private boolean scheduled;
+  private boolean timer;
+  private int rebuilds;
+
+  /**
+   * Creates the window side of a rebuild.
+   *
+   * @param display the Display
+   * @param factory creates replacement windows
+   */
+  public WindowViews(Display display, Factory factory) {
+    this.display = display;
+    this.ui = new SwtUiDispatcher(display);
+    this.factory = factory;
+  }
+
+  /**
+   * Adds a window, built under the native setting now.
+   *
+   * @param slot the window's slot
+   * @param controller the controller over the slot
+   */
+  public void add(MainWindowSlot slot, ApplicationController controller) {
+    entries.add(new Entry(slot, controller, SwtThemeService.nativeDark(display)));
+  }
+
+  @Override
+  public void rebuild() {
+    schedule();
+  }
+
+  /**
+   * Counts the windows rebuilt so far.
+   *
+   * @return the count
+   */
+  int rebuilds() {
+    return rebuilds;
+  }
+
+  /**
+   * Reports whether a window still waits for its rebuild.
+   *
+   * @return true while one does
+   */
+  boolean pending() {
+    boolean dark = SwtThemeService.nativeDark(display);
+    for (Entry e : entries) {
+      if (e.builtDark != dark && !closed(e)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private void schedule() {
+    if (!scheduled && !display.isDisposed()) {
+      scheduled = true;
+      ui.asyncExec(step);
+    }
+  }
+
+  private void step() {
+    boolean dark = SwtThemeService.nativeDark(display);
+    boolean waiting = false;
+    for (Entry e : new ArrayList<Entry>(entries)) {
+      if (closed(e)) {
+        entries.remove(e);
+      } else if (e.builtDark != dark) {
+        if (!e.slot.window().shell().getVisible()) {
+          // Hidden while its quit completes.
+          e.builtDark = dark;
+        } else if (e.slot.holdsDialog()) {
+          waiting = true;
+        } else {
+          e.builtDark = dark;
+          rebuild(e);
+          schedule();
+          return;
+        }
+      }
+    }
+    if (waiting && !timer) {
+      timer = true;
+      ui.timerExec(RECHECK_MILLIS, recheck);
+    }
+  }
+
+  private static boolean closed(Entry e) {
+    return e.slot.window().shell().isDisposed() || e.controller.isQuitting();
+  }
+
+  private void rebuild(Entry e) {
+    MainWindow old = e.slot.window();
+    Shell oldShell = old.shell();
+    boolean active = display.getActiveShell() == oldShell;
+    boolean minimized = oldShell.getMinimized();
+    boolean maximized = old.windowMaximized();
+    boolean fullScreen = old.fullScreen();
+    WindowGeometry.Request normal = old.windowBounds();
+    Rectangle bounds = oldShell.getBounds();
+    int[] side = old.sideWeights();
+    int[] docks = old.dockWeights();
+    int[] results = old.resultsWeights();
+    List<WorkspaceNode> expanded = old.expandedWorkspace();
+    MainWindow next = factory.create(e.controller);
+    if (maximized || fullScreen) {
+      next.place(normal, null);
+      next.shell().setMaximized(maximized);
+    } else {
+      next.shell().setBounds(bounds);
+    }
+    e.slot.replace(next);
+    next.setSideWeights(side);
+    next.setDockWeights(docks);
+    next.setResultsWeights(results);
+    for (WorkspaceNode directory : expanded) {
+      next.expandWorkspace(directory);
+    }
+    e.controller.documents().rebindViews();
+    next.open();
+    if (fullScreen) {
+      next.setFullScreen(true);
+    }
+    if (minimized) {
+      next.shell().setMinimized(true);
+    }
+    oldShell.dispose();
+    if (active && !minimized) {
+      next.shell().setActive();
+    }
+    next.showStatusNow();
+    rebuilds++;
+  }
+}

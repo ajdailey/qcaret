@@ -21,22 +21,22 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 
 /**
- * Keeps every shell readable after the system appearance changes on cocoa. AppKit redraws native
- * text in the new appearance at once, while SWT keeps the widget colors it read when the Display
- * was created and paints composites, tabs, lists and fields with them. So while the appearance
- * differs from the one at startup, each shell's background is the window color of the current
- * appearance, forced onto its children. That inheritance stops at a {@link TabFolder}, so check
- * boxes turn transparent over its native panel, its titles get the text color, and tables, trees,
- * lists and text fields get the list colors. Back in the startup appearance every color returns to
- * the default. Menus stay native, and a {@link Canvas} that paints from the palette keeps its
- * colors, as does a control with {@link ChromeColors#PALETTE_COLORED} set.
+ * Keeps every shell readable while the pinned appearance differs from the one cocoa SWT read its
+ * widget colors under, the system appearance at Display creation. AppKit draws native text in the
+ * pinned appearance, while SWT paints composites, tabs, lists and fields with the colors it read.
+ * So while the two differ, each shell's background is the window color of the pinned appearance,
+ * forced onto its children. That inheritance stops at a {@link TabFolder}, so check boxes turn
+ * transparent over its native panel, its titles get the text color, and tables, trees, lists and
+ * text fields get the list colors. In the appearance SWT read every color returns to the default.
+ * Menus stay native, and a {@link Canvas} that paints from the palette keeps its colors, as does a
+ * control with {@link ChromeColors#PALETTE_COLORED} set.
  *
- * <p>Table and tree headers always carry explicit list colors of the current appearance, from
- * creation on: a null header draws blank labels in dark. In the startup appearance they are the
+ * <p>Table and tree headers always carry explicit list colors of the pinned appearance, from
+ * creation on: a null header draws blank labels in dark. In the appearance SWT read they are the
  * Display's list colors, the header's own default. A visible {@link Table} header repaints new
  * colors only when shown again, so a change hides and shows it; a {@link Tree} repaints at once.
  *
- * <p>A control created during such a change, as the docks' replaced tables are, takes its colors
+ * <p>A control created while the two differ, as the docks' replaced tables are, takes its colors
  * from {@link SWT#Skin}. Each control of a recolored shell receives {@link SWT#Settings}, since the
  * Display sends none for an appearance change. Confined to the UI thread.
  */
@@ -52,19 +52,19 @@ final class CocoaChrome {
   private static final Color CLEAR = new Color(0, 0, 0, 0);
 
   private final Display display;
-  private final boolean startDark;
+  private final boolean cachedDark;
   private boolean dark;
 
   /**
    * Creates the chrome and covers each shell as it is shown and each control as it is created.
    *
    * @param display the Display
-   * @param startDark the appearance SWT read its widget colors under
+   * @param cachedDark the appearance SWT read its widget colors under
    */
-  CocoaChrome(Display display, boolean startDark) {
+  CocoaChrome(Display display, boolean cachedDark) {
     this.display = display;
-    this.startDark = startDark;
-    this.dark = startDark;
+    this.cachedDark = cachedDark;
+    this.dark = cachedDark;
     display.addFilter(
         SWT.Show,
         new Listener() {
@@ -92,11 +92,11 @@ final class CocoaChrome {
   }
 
   /**
-   * Applies an appearance to every shell.
+   * Applies the pinned appearance to every shell.
    *
    * @param value true for dark
    */
-  void changed(boolean value) {
+  void apply(boolean value) {
     dark = value;
     for (Shell shell : display.getShells()) {
       restyle(shell);
@@ -104,7 +104,7 @@ final class CocoaChrome {
   }
 
   private boolean differs() {
-    return dark != startDark;
+    return dark != cachedDark;
   }
 
   private void restyle(Shell shell) {

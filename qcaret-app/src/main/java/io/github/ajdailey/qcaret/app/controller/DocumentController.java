@@ -2580,11 +2580,7 @@ public final class DocumentController {
    */
   void moveTo(Document document, DocumentController target, int index) {
     final OpenDocument from = entry(document);
-    int[] rows = new int[from.editors.size()];
-    for (int i = 0; i < rows.length; i++) {
-      EditorController e = from.editors.get(i);
-      rows[i] = e.view() == null ? 0 : e.view().topRow();
-    }
+    int[] rows = topRows(from);
     FileBaseline baseline = from.file.watch == null ? null : from.file.watch.baseline();
     from.closed = true;
     detach(
@@ -2604,11 +2600,66 @@ public final class DocumentController {
   private void adopt(OpenDocument from, FileBaseline baseline, final int[] rows, int index) {
     final OpenDocument d = new OpenDocument(from, view, selected);
     d.input = tabInput(d);
-    EditorController focused = from.editor;
     for (EditorController e : d.editors) {
       e.rebind(view, cancelSaveOf(d));
       connect(d, e);
     }
+    bindViews(d, index);
+    d.document.addListener(d);
+    documents.add(index, d);
+    active = d;
+    if (d.file.given != null) {
+      d.file.watch = changes.watch(d.file.given, baseline);
+      d.file.watch.setMissing(d.file.missing);
+    }
+    d.updateTitle();
+    d.editor.view().focus();
+    view.documentStateChanged();
+    viewsChanged();
+    if (from.detecting > 0) {
+      grammars.detect(d);
+    }
+    markdown.adopt(d, from);
+    scrollLater(d, rows);
+  }
+
+  /**
+   * Gives every tab new views from this window's view after it replaced its controls, in tab order:
+   * the editor panes with their split arrangement and weights, the Markdown preview with its
+   * content, each pane's top row, an open completion list and the focused pane. An input method
+   * composition is first kept as typed text, and the old tab closes before its replacement is
+   * added, so its panes stop following the document. The selected tab stays selected.
+   */
+  public void rebindViews() {
+    OpenDocument shown = active;
+    for (int i = 0; i < documents.size(); i++) {
+      OpenDocument d = documents.get(i);
+      int[] rows = topRows(d);
+      int[] weights = d.editors.size() > 1 ? d.tab.splitWeights() : null;
+      d.editor.commitComposition();
+      d.tab.close();
+      bindViews(d, i);
+      if (weights != null) {
+        d.tab.setSplitWeights(weights);
+      }
+      d.updateTitle();
+      if (d.markdown != null) {
+        d.markdown.attach(d.tab.markdownView(d.markdown));
+      }
+      scrollLater(d, rows);
+    }
+    active = shown;
+    if (shown != null) {
+      shown.tab.select();
+      shown.editor.view().focus();
+    }
+    view.documentStateChanged();
+    viewsChanged();
+  }
+
+  /** Adds a tab for an entry's editors at an index and attaches each editor to its pane. */
+  private void bindViews(OpenDocument d, int index) {
+    EditorController focused = d.editor;
     EditorController first = d.editors.get(0);
     d.tab = view.addTab(first.projection(), first.selections(), first, d.input, index);
     first.attach(d.tab.firstView());
@@ -2621,21 +2672,19 @@ public final class DocumentController {
       e.setWrap(wrap);
     }
     d.editor = focused;
-    d.document.addListener(d);
-    documents.add(index, d);
-    active = d;
-    if (d.file.given != null) {
-      d.file.watch = changes.watch(d.file.given, baseline);
-      d.file.watch.setMissing(d.file.missing);
+  }
+
+  private static int[] topRows(OpenDocument d) {
+    int[] rows = new int[d.editors.size()];
+    for (int i = 0; i < rows.length; i++) {
+      EditorController e = d.editors.get(i);
+      rows[i] = e.view() == null ? 0 : e.view().topRow();
     }
-    d.updateTitle();
-    focused.view().focus();
-    view.documentStateChanged();
-    viewsChanged();
-    if (from.detecting > 0) {
-      grammars.detect(d);
-    }
-    markdown.adopt(d, from);
+    return rows;
+  }
+
+  /** Scrolls each pane to its row on the next UI turn, once the new panes have a size. */
+  private void scrollLater(final OpenDocument d, final int[] rows) {
     ui.asyncExec(
         new Runnable() {
           @Override

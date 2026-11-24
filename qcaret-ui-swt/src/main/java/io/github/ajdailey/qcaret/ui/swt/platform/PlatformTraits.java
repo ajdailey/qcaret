@@ -129,7 +129,8 @@ public interface PlatformTraits {
    * Creates a dialog's tab folder. On win32 this reads {@link ChromeColors#nativeDark}.
    *
    * @param parent the dialog composite holding it
-   * @return {@link Win32DialogTabs} on win32 after a dark start, else {@link NativeDialogTabs}
+   * @return {@link Win32DialogTabs} on win32 under the dark native setting, else {@link
+   *     NativeDialogTabs}
    */
   DialogTabs dialogTabs(Composite parent);
 

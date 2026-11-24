@@ -44,6 +44,9 @@ final class GtkThemeFollow implements ThemeFollow {
   }
 
   @Override
+  public void showOnWindows(boolean dark, WindowRebuild windows) {}
+
+  @Override
   public boolean showsNow(boolean dark, boolean nativeDark) {
     return true;
   }

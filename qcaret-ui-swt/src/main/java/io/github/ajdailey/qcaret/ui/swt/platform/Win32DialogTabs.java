@@ -8,13 +8,13 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 
 /**
- * Dialog tabs on win32 after a dark start: a flat {@link CTabFolder} whose row, unselected tabs and
- * pages take the {@link Win32DialogColors} body color and whose selected tab takes the field color,
- * with white text on every tab. The native {@code TabFolder} keeps a light tab row and a white
- * frame around the page under the dark native theme, and no public API colors either. {@code
- * CTabFolder} draws the selected tab's color only while focus is in the folder, else the row's.
- * Ctrl+PageDown and Ctrl+PageUp reach the folder from a page control, as they reach the native
- * folder.
+ * Dialog tabs on win32 under the dark native setting: a flat {@link CTabFolder} whose row,
+ * unselected tabs and pages take the {@link Win32DialogColors} body color and whose selected tab
+ * takes the field color, with white text on every tab. The native {@code TabFolder} keeps a light
+ * tab row and a white frame around the page under the dark native theme, and no public API colors
+ * either. {@code CTabFolder} draws the selected tab's color only while focus is in the folder, else
+ * the row's. Ctrl+PageDown and Ctrl+PageUp reach the folder from a page control, as they reach the
+ * native folder.
  */
 final class Win32DialogTabs implements DialogTabs {
   private final CTabFolder folder;

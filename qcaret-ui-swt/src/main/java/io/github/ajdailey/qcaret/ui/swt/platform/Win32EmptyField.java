@@ -13,8 +13,8 @@ import org.eclipse.swt.widgets.Text;
  * message ({@code setMessage}) in the color an {@link Ink} gives, or leaves the native drawing when
  * that color is null. The native drawing ignores the field's colors in two cases (measured on
  * {@code windows-2025}): a hint draws {@code #6d6d6d} read-only and {@code #575757} editable
- * whatever the background, and after a dark start an empty editable field with light colors set
- * draws {@code #212121} while unfocused. Confined to the UI thread.
+ * whatever the background, and under the dark native setting an empty editable field with light
+ * colors set draws {@code #212121} while unfocused. Confined to the UI thread.
  */
 final class Win32EmptyField {
   /** Hint x in the client area: where win32 draws a read-only field's hint at 100 % zoom. */

@@ -68,6 +68,14 @@ final class CompletionInput {
     completionShown = null;
   }
 
+  /** Shows the list again in a newly attached view while it is open. */
+  void reshow() {
+    EditorView view = editor.view();
+    if (completionShown != null && view != null) {
+      view.showCompletions(completionShown, completionSelected);
+    }
+  }
+
   /** Narrows the list after a selection change while it shows. */
   void selectionsChanged() {
     if (completionShown != null) {

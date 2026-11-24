@@ -36,14 +36,14 @@ import org.eclipse.swt.widgets.Tree;
  * 5.9:1 on the field. While it resolves to light every such color is null and composites take
  * {@code SWT.INHERIT_NONE}. Both directions apply live.
  *
- * <p>After a dark start ({@link ChromeColors#nativeDark}) a field holding text keeps the dark
- * colors on the light side until the next start, because the dark native field draws near-black
- * with dark text under any light colors; an empty field takes the system list colors, set
- * explicitly, and {@link Win32EmptyField} paints it while unfocused, since the dark native field
- * draws {@code #212121} there under any colors. A field is colored again when it becomes empty or
- * takes text ({@code SWT.Modify}). A tree whose side differs from the native start draws its
- * selected row in the palette's selection colors ({@link #selection}) on {@link SWT#EraseItem}; the
- * native expander keeps the startup theme's colors.
+ * <p>Under the dark native setting ({@link ChromeColors#nativeDark}) a field holding text keeps the
+ * dark colors on the light side until its window is rebuilt, because the dark native field draws
+ * near-black with dark text under any light colors; an empty field takes the system list colors,
+ * set explicitly, and {@link Win32EmptyField} paints it while unfocused, since the dark native
+ * field draws {@code #212121} there under any colors. A field is colored again when it becomes
+ * empty or takes text ({@code SWT.Modify}). A tree whose side differs from the native start draws
+ * its selected row in the palette's selection colors ({@link #selection}) on {@link SWT#EraseItem};
+ * the native expander keeps the native setting's colors.
  *
  * <p>Push and arrow buttons, combos, lists, tables, spinners, progress bars, a {@link StyledText},
  * a {@link Browser}, a {@link CTabFolder} and a control with {@link #PALETTE_COLORED} keep their
@@ -52,8 +52,8 @@ import org.eclipse.swt.widgets.Tree;
  *
  * <p>Each {@link #apply} colors the surfaces first and then re-inks every icon set, since the ink
  * is read from a colored tool bar; under dark a set's disabled items show faded copies. A checked
- * tool item draws the checked background of the startup native theme, light after a light start, so
- * a checked item takes the light ink only after a dark start.
+ * tool item draws the checked background of the native setting it was created under, light under
+ * the light one, so a checked item takes the light ink only under the dark setting.
  */
 final class Win32ChromeColors implements ChromeColors {
   /** Background of every surface under dark. */
@@ -89,14 +89,14 @@ final class Win32ChromeColors implements ChromeColors {
       };
 
   /**
-   * The light side after a dark start: {@link Win32EmptyField} fills an empty field with its system
-   * background and draws the hint in the system gray raised to {@link Contrast#LINK}.
+   * The light side under the dark native setting: {@link Win32EmptyField} fills an empty field with
+   * its system background and draws the hint in the system gray raised to {@link Contrast#LINK}.
    */
   private final Win32EmptyField.Ink lightInk =
       new Win32EmptyField.Ink() {
         @Override
         public Color hint(Text text) {
-          if (dark || !ChromeColors.nativeDark(display)) {
+          if (dark || !nativeDark()) {
             return null;
           }
           RGB gray = display.getSystemColor(SWT.COLOR_WIDGET_DISABLED_FOREGROUND).getRGB();
@@ -108,16 +108,26 @@ final class Win32ChromeColors implements ChromeColors {
   private final List<Icons> icons = new ArrayList<Icons>();
   private boolean dark;
   private boolean painted;
+  private Boolean built;
 
   /**
-   * Creates the colors for a window. The native start ({@link ChromeColors#nativeDark}) is read at
-   * each use, so the theme service may record it after this.
+   * Creates the colors for a window. The native setting ({@link ChromeColors#nativeDark}) is read
+   * at the first use and kept, so the theme service may record it after this, and a window waiting
+   * for its rebuild keeps the setting its controls were created under.
    *
    * @param display the Display
    */
   Win32ChromeColors(Display display) {
     this.display = display;
     display.addListener(SWT.Skin, skin);
+  }
+
+  /** Returns the native setting at the first call, the one the window's controls take. */
+  private boolean nativeDark() {
+    if (built == null) {
+      built = ChromeColors.nativeDark(display);
+    }
+    return built;
   }
 
   @Override
@@ -149,7 +159,7 @@ final class Win32ChromeColors implements ChromeColors {
   @Override
   public void add(Icons set) {
     icons.add(set);
-    set.lightChecked(ChromeColors.nativeDark(display));
+    set.lightChecked(nativeDark());
     set.fadeDisabled(dark);
   }
 
@@ -166,7 +176,7 @@ final class Win32ChromeColors implements ChromeColors {
       }
     }
     for (Icons set : icons) {
-      set.lightChecked(ChromeColors.nativeDark(display));
+      set.lightChecked(nativeDark());
       set.fadeDisabled(value);
       set.reink();
     }
@@ -211,9 +221,7 @@ final class Win32ChromeColors implements ChromeColors {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            if ((event.detail & SWT.SELECTED) != 0
-                && painted
-                && dark != ChromeColors.nativeDark(display)) {
+            if ((event.detail & SWT.SELECTED) != 0 && painted && dark != nativeDark()) {
               RGB[] colors = selection(dark);
               event.gc.setBackground(new Color(colors[0]));
               event.gc.fillRectangle(event.x, event.y, event.width, event.height);
@@ -240,9 +248,9 @@ final class Win32ChromeColors implements ChromeColors {
   }
 
   private void colorField(final Text field) {
-    boolean nativeDark = ChromeColors.nativeDark(display);
+    boolean nativeDark = nativeDark();
     boolean darkField = dark || (nativeDark && field.getCharCount() > 0);
-    // An empty field with no colors draws the dark native field after a dark start.
+    // An empty field with no colors draws the dark native field under the dark setting.
     Color light = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_BACKGROUND) : null;
     Color lightText = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_FOREGROUND) : null;
     field.setBackground(darkField ? color(FIELD) : light);

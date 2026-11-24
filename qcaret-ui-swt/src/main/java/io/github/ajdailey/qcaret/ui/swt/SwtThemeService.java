@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.ui.swt.platform.Contrast;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.platform.ThemeFollow;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -28,8 +29,9 @@ import org.eclipse.swt.widgets.Listener;
  * first.
  *
  * <p>Native controls take the theme from {@link Display#setDarkThemePreferred}, as {@link
- * ThemeFollow} applies it per platform: {@link #open} sets the startup theme, {@link #preferDark}
- * switches it live on GTK, and {@link #showsNow} reports whether a side shows without a restart.
+ * ThemeFollow} applies it per platform: {@link #open} sets the startup theme, and {@link
+ * #preferDark} shows a new side at once, through {@link ThemeFollow#preferDark} and then {@link
+ * ThemeFollow#showOnWindows} with the {@link WindowRebuild} the launcher sets.
  *
  * <p>A GTK theme with no dark variant ignores {@code setDarkThemePreferred}, and so does a named
  * theme that is not installed: GTK falls back to light Adwaita. Native controls then stay light
@@ -49,6 +51,7 @@ public final class SwtThemeService implements ThemeService {
   private final ThemeFollow follow;
   private boolean dark;
   private final boolean nativeDark;
+  private WindowRebuild windows = WindowRebuild.NONE;
 
   /**
    * Creates the service with native controls following the system; call on the UI thread.
@@ -63,7 +66,7 @@ public final class SwtThemeService implements ThemeService {
    * Creates the service over a given setting.
    *
    * @param display the Display
-   * @param nativeDark the startup setting of native controls
+   * @param nativeDark the native controls' startup setting
    * @param system reads the system setting
    * @param follow how native controls follow the theme
    */
@@ -132,10 +135,10 @@ public final class SwtThemeService implements ThemeService {
   }
 
   /**
-   * Reports the startup setting of native controls.
+   * Reports the native controls' setting ({@link ChromeColors#nativeDark}).
    *
    * @param display the Display
-   * @return true when {@link #open} turned the dark native theme on
+   * @return true while the dark native theme is set
    */
   static boolean nativeDark(Display display) {
     return ChromeColors.nativeDark(display);
@@ -196,6 +199,17 @@ public final class SwtThemeService implements ThemeService {
   @Override
   public void preferDark(boolean value) {
     follow.preferDark(value);
+    follow.showOnWindows(value, windows);
+  }
+
+  /**
+   * Sets what rebuilds the main windows for {@link ThemeFollow#showOnWindows}; call on the UI
+   * thread.
+   *
+   * @param rebuild the window side
+   */
+  public void setWindowRebuild(WindowRebuild rebuild) {
+    windows = rebuild;
   }
 
   @Override

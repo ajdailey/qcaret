@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
+import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.LineBackgroundEvent;
@@ -128,6 +129,7 @@ public final class MarkdownPane {
           }
         });
     text = new StyledText(root, SWT.READ_ONLY | SWT.WRAP | SWT.MULTI | SWT.V_SCROLL);
+    text.setData(ChromeColors.PALETTE_COLORED, Boolean.TRUE);
     GridData textData = new GridData(SWT.FILL, SWT.FILL, true, true);
     // Zero hints: the layout gives the text the space left and never calls computeSize, which
     // measures every line of a wrapping StyledText.

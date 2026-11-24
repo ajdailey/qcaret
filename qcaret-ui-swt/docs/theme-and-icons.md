@@ -21,14 +21,17 @@ at the event.
 | Platform | Native controls | A switch at runtime |
 |---|---|---|
 | GTK | `setDarkThemePreferred` before the first Shell for light and dark, and at every switch; under System the GTK theme's own setting | Applies at once. The system setting is read once at Display creation, so a desktop change applies at the next start |
-| win32 | `setDarkThemePreferred` before the first Shell, under System from `Display.isSystemDarkTheme` at start (`Win32ThemeFollow.start`); controls read it only when created | Native controls, tool tips included, change at the next start; `showsNow` is false and the controller shows a notice. Under a dark start only the title bar, menu bar, push buttons and read-only combos draw dark, and `DialogColors` colors dialogs; `ChromeColors` colors the main window's own surfaces at once; see [win32](#win32) |
-| cocoa | Never set: always the system appearance | Only the text view and tab strip recolor; a system appearance change recolors the rest through `CocoaChrome` |
+| win32 | `setDarkThemePreferred` before the first Shell, under System from `Display.isSystemDarkTheme` at start (`Win32ThemeFollow.start`); controls read it only when created | `Win32ThemeFollow.showOnWindows` sets it again and rebuilds every main window ([theme rebuild](main-window.md#theme-rebuild)). Under the dark setting only the title bar, menu bar, push buttons and read-only combos draw dark, and `DialogColors` colors dialogs; `ChromeColors` colors the main window's own surfaces at once; see [win32](#win32) |
+| cocoa | `setDarkThemePreferred` pins the application appearance to the side `ui.theme` resolves to, before the first Shell and at each change, System included (`CocoaThemeFollow`) | Applies at once: `CocoaChrome` recolors every shell from the pinned side. Under System the pin follows a system change on the next 500 ms poll |
 
-DO NOT PIN THE COCOA APPEARANCE, live or at startup. Cocoa SWT reads its widget
-colors once, under the system appearance; an application appearance that
-differs draws text in its own appearance over those backgrounds, white on light
-gray or black on dark gray. Both a live `setDarkThemePreferred` and a startup
-Display replacement failed this way.
+PIN THE COCOA APPEARANCE ONLY TOGETHER WITH `CocoaChrome`. Cocoa SWT reads its
+widget colors once, under the system appearance at Display creation, and
+`Display.runSettings` reads them again under that same appearance. A pinned
+appearance that differs draws AppKit text in its own appearance over those
+backgrounds, white on light gray or black on dark gray, unless `CocoaChrome`
+forces the pinned side's colors. A pin alone, live or at startup, and a startup
+Display replacement failed this way. SWT has no call that removes a pin, so
+System pins the system side and re-pins at each change.
 
 ### GTK
 
@@ -51,13 +54,13 @@ because both read the native background.
 
 ### win32
 
-Under a dark startup setting win32 draws check box labels near-white while the
+Under the dark native setting win32 draws check box labels near-white while the
 main window's docks and bars stay light, so every check box comes from
 `SwtThemeService.check`. It calls `DialogColors.check`, which on win32
 creates the box with the theme off outside a dialog `DialogColors` colored. A
 `MenuItem` or `Table` with `SWT.CHECK` has no such label and does not use it.
 
-Measured on `windows-2025` with SWT 3.135.0 under a dark startup setting
+Measured on `windows-2025` with SWT 3.135.0 under the dark native setting
 (`Win32DarkInkTest` saves the window and the readings to
 `target/diagnostics/win32-dark/`):
 
@@ -79,9 +82,9 @@ alike. `ChromeColors` gives the main window's fields (find and replace, the
 Workspace Browser's path and filter) and trees (the Workspace Browser's and the
 Outline's, with their headers) `Palette.DARK`'s colors while `ui.theme`
 resolves to dark, at once after a live switch, and `FieldHint` draws a field's
-hint in `Palette.DARK`'s unselected tab label color. After a dark start a field
-holding text keeps `Palette.DARK`'s colors on the light side until the next
-start; an empty one, such as the path field while no workspace folder is set,
+hint in `Palette.DARK`'s unselected tab label color. Under the dark native
+setting a field holding text keeps `Palette.DARK`'s colors on the light side
+until its window is rebuilt; an empty one, such as the path field while no workspace folder is set,
 takes the system list colors, set explicitly. The dark native field still draws
 an empty editable field `#212121` while unfocused under those colors (OBERON G1
 on `6449df6`), so `Win32EmptyField` fills it with its background from an
@@ -89,31 +92,30 @@ on `6449df6`), so `Win32EmptyField` fills it with its background from an
 field is colored again when it becomes empty or takes text, typed or set
 through `setText` alike ([dialogs and
 docks](dialogs-and-docks.md#workspace-browser)). `Win32ChromeColors` reads the
-start (`ChromeColors.nativeDark`) at each use, so a window created before the
-theme service records it follows the rule too.
+native setting (`ChromeColors.nativeDark`) at its first use and keeps it, so a
+window created before the theme service records it follows the rule too, and a
+window waiting for its rebuild keeps the setting its controls were created
+under.
 
-A tree whose side differs from the startup setting (light after a dark start,
-dark after a light start) keeps the native selection of the startup theme:
+A tree whose side differs from the native setting (light under the dark one,
+dark under the light one) keeps the native selection of that setting:
 black on `#333333` (1.66:1) and black on `#17273a` (1.39:1), measured. On
 `SWT.EraseItem` it draws a selected row in the palette's `selection` and
 `selectionText`, raised to 4.5:1, and clears `SWT.SELECTED` and `SWT.HOT`, so
 the Outline and Workspace Browser trees stay readable. The native expander keeps
-the startup theme's colors (white on white, `#1b1b1b` on `#1b2e44`): no public
+the native setting's colors (white on white, `#1b1b1b` on `#1b2e44`): no public
 API reaches it.
 
 The history arrow beside a find field is an owner-drawn `Button` that SWT draws
-with the scroll bar theme of the startup setting (`Display.useDarkModeExplorerTheme`,
-SWT 3.135.0 source), so like a push button it stays light after a light start
-until the next start. The main window has no editable `Combo`, and dialogs use
+with the scroll bar theme of the native setting at its creation
+(`Display.useDarkModeExplorerTheme`, SWT 3.135.0 source), like a push button. The main window has no editable `Combo`, and dialogs use
 read-only ones only; win32 SWT colors a `Combo` through `WM_CTLCOLOR`, a
 read-only one by forcing the `ExtTextOut` branch (`Combo.wmColorChild`, source,
 unverified on Windows).
 `CTabFolderRenderer` draws the tab strip's line under the tabs and around the
 selected tab in `SWT.COLOR_WIDGET_NORMAL_SHADOW` (#a0a0a0) with no API to
 change it, so that 1 px line stays light under the dark palette, as do the
-native list header's borders. After a light start and a live switch to dark,
-the main window's fields keep a light 1 px native edit border, which public API
-does not color.
+native list header's borders.
 
 #### Chrome colors
 
@@ -143,11 +145,11 @@ system gray. win32 `ToolBar` passes its foreground to text items (Source,
 Split, Preview) through `NMTBCUSTOMDRAW.clrText`, and an item's own foreground
 first (`ToolBar.getForegroundPixel(ToolItem)`, SWT 3.135.0 source).
 
-A checked tool item draws the checked background of the startup setting
-whatever the bar's color, measured on Windows 11: `#455160` after a dark start,
-`#c0c0c0` after a dark start on the light side, `#cce8ff` after a light start.
-The light text (`#dce6f0`) on `#cce8ff` computes to 1.0:1, so after a light
-start `Win32ChromeColors` calls `ToolIcons.lightChecked(false)`: while the set
+A checked tool item draws the checked background of the native setting
+whatever the bar's color, measured on Windows 11: `#455160` under the dark
+setting, `#c0c0c0` under the dark setting on the light side, `#cce8ff` under the
+light setting. The light text (`#dce6f0`) on `#cce8ff` computes to 1.0:1, so
+under the light setting `Win32ChromeColors` calls `ToolIcons.lightChecked(false)`: while the set
 takes the light ink, a checked item given to `applyChecked` (Source, Split,
 Preview) takes `Palette.LIGHT`'s text (`#1b2e44`, 10.9:1) as its foreground.
 Code checks such an item only through `ToolIcons.check`, which sets the
@@ -162,8 +164,8 @@ Browser's `ToolIcons` from the toolbar's background and calls
 brighter than the enabled icon, so a disabled item would look enabled.
 Measured by `ChromeColorsTest` on `#162638` with SWT 3.135.0 (the transformer is
 shared by GTK and win32): the enabled icons 9.1 or more, SWT's copy 10.1 or
-more, the faded copy 2.6 to 2.9. Menus keep their startup ink
-(`MenuBehavior.ink`, `Win32MenuBehavior`), which matches the startup menus.
+more, the faded copy 2.6 to 2.9. Menus keep the ink of their window's native
+setting (`MenuBehavior.ink`, `Win32MenuBehavior`), which matches the menus.
 
 #### Dialog colors
 
@@ -172,7 +174,7 @@ beside `inheritIcons`, and `ArchitectureTest.ownedShellsTakeDialogColors` fails
 on a `new Shell` elsewhere without it. The main window and the completion popup
 keep native colors. GTK and cocoa (`NativeDialogColors`) change nothing.
 
-Under a dark startup setting `Win32DialogColors` sets the colors below, forces
+Under the dark native setting `Win32DialogColors` sets the colors below, forces
 the body color onto children so push button corners match, and colors controls
 created after the shell shows from `SWT.Skin`. A control with
 `EditorPane.PALETTE_COLORED` keeps the palette. An empty, unfocused single-line
@@ -181,11 +183,10 @@ created after the shell shows from `SWT.Skin`. A control with
 `COLOR_GRAYTEXT`, 2.74:1) and `#575757` editable (1.96:1), measured on
 `windows-2025` in QLogg. The dialog filters, the key capture field and
 Preferences' Default workspace folder take it. `Dialogs.background` returns the
-body color, so About picks the dark logo. Dialogs follow the startup setting:
-after a light start and a live switch to dark a dialog stays native light,
-fields included, until the next start, and after a dark start it stays dark on
-the light side. Quick Open's and the command palette's filters and a find
-field's history list are dialog controls.
+body color, so About picks the dark logo. A dialog takes the native setting at
+its creation; after a switch a new dialog takes the new side. Quick Open's and
+the command palette's filters and a find field's history list are dialog
+controls.
 
 | Control | Background | Text |
 |---|---|---|
@@ -210,21 +211,18 @@ Public API leaves these light or gray:
 
 - The Guide's page, which its HTML colors.
 
-The colors follow the startup setting, as native controls do: after a live
-switch an open dialog and a newly opened one keep them until the next start.
-
 #### Dialog tabs
 
 A native `TabFolder` keeps a light tab row and a white frame around the page
-after a dark start, and no public API colors either. Preferences takes its
+under the dark native setting, and no public API colors either. Preferences takes its
 folder from `Dialogs.tabs`, which calls `PlatformTraits.dialogTabs`;
 `ArchitectureTest.tabFoldersOnlyThroughDialogTabs` fails a `TabFolder` created
 outside `ui.swt.platform`.
 
 | Class | When | Folder |
 |---|---|---|
-| `Win32DialogTabs` | win32 after a dark start (`ChromeColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
-| `NativeDialogTabs` | win32 after a light start, GTK, cocoa | The native `TabFolder` |
+| `Win32DialogTabs` | win32 under the dark native setting (`ChromeColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
+| `NativeDialogTabs` | win32 under the light native setting, GTK, cocoa | The native `TabFolder` |
 
 `CTabFolder` draws the selected tab `#2b2b2b` only while focus is in the
 folder, and `#202020` while a dialog button holds it (a known limit). It
@@ -237,15 +235,16 @@ win32 and fails where they differ.
 
 ### cocoa
 
-Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps its
-startup colors (measured on macOS 15 and 27 in QLogg). `SwtThemeService` tells
-`CocoaThemeFollow.systemChanged`, which passes it to `CocoaChrome`, each
-change its poll reads. While the appearance differs from the startup one,
+Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps the
+colors it read under the system appearance at Display creation (measured on
+macOS 15 and 27 in QLogg, and on macOS 15 arm64 and Intel in QCaret's LTM
+spike). `CocoaThemeFollow.watch` creates `CocoaChrome` with that side and
+applies the pinned one; `showOnWindows` pins each new side and passes it to
+`CocoaChrome.apply`. While the pinned side differs from the one SWT read,
 `CocoaChrome` sets each shell's, table's, tree's, list's and field's colors to
-the current appearance, at the change, at `SWT.Show` of a shell and at
-`SWT.Skin` of a new control, since the docks replace their tables while open.
-Back in the startup appearance it sets those colors to null, the default, check
-boxes included. It follows the system appearance, not `ui.theme`.
+the pinned side, at the change, at `SWT.Show` of a shell and at `SWT.Skin` of a
+new control, since the docks replace their tables while open. On the side SWT
+read it sets those colors to null, the default, check boxes included.
 
 Table and tree headers never have null colors: a null header in dark draws
 blank labels. From `SWT.Skin` at creation on, `CocoaChrome` gives each header
@@ -258,8 +257,11 @@ shows a visible one. A `Tree` header repaints at once. Measured on macOS 27.2
 with SWT 3.135.0.
 
 - A control with `EditorPane.PALETTE_COLORED` keeps its colors: the editor,
-  compare and replace preview `StyledText` and the tab strip, which the palette
-  owns and nothing would restore.
+  Basic Markdown preview, compare and replace preview `StyledText` and the tab
+  strip, which the palette owns and nothing would restore.
+- `CocoaChrome`'s window, list and text colors are constants measured on macOS
+  15; a control class `walk` does not list keeps SWT's colors behind pinned
+  AppKit text, so a new control type needs a row there.
 - `ReplaceDialog` marks its computing note with a style range, because
   `setForeground(null)` returns a field to the startup color.
 
@@ -300,8 +302,8 @@ ink, and `MainWindow.applyPalette` changes it through `setPalette`, which calls
 `follow(palette)`.
 
 About picks its logo the same way from the dialog background
-(`MainWindow.logoVariant`): native chrome can differ from the palette on cocoa,
-on win32 before a restart and on a GTK theme with no dark variant.
+(`MainWindow.logoVariant`): native chrome can differ from the palette in a win32
+window waiting for its rebuild and on a GTK theme with no dark variant.
 
 ## Tab colors
 
@@ -359,7 +361,7 @@ fails in the GTK 4 lane.
 |---|---|---|---|
 | GTK 3 | `MenuItem.setImage` | Same reading as the toolbar, live switch included | Hold `ToolIcons.blank` in a menu with an icon, because GTK 3 SWT reserves no image column and the label would move 22 px |
 | GTK 4 | SWT ignores `setImage` | - | - |
-| win32 | `MenuItem.setImage` | Fixed from `SwtThemeService.nativeDark`: menus take the startup setting, and the toolbar stays light under a dark one | Bare; the system reserves the column |
+| win32 | `MenuItem.setImage` | Fixed from `SwtThemeService.nativeDark`: menus take the native setting of their window's creation, and the toolbar stays light under a dark one | Bare; the system reserves the column |
 | cocoa | None; the application menu stays native | - | - |
 
 A disabled GTK menu item shows SWT's disabled copy of its image, which keeps

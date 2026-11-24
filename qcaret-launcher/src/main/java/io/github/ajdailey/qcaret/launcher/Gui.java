@@ -24,8 +24,10 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.ui.swt.AppMenu;
 import io.github.ajdailey.qcaret.ui.swt.MainWindow;
+import io.github.ajdailey.qcaret.ui.swt.MainWindowSlot;
 import io.github.ajdailey.qcaret.ui.swt.SwtThemeService;
 import io.github.ajdailey.qcaret.ui.swt.SwtUiDispatcher;
+import io.github.ajdailey.qcaret.ui.swt.WindowViews;
 import io.github.ajdailey.qcaret.ui.swt.platform.LaunchDocuments;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.eclipse.swt.SWTError;
@@ -303,6 +306,16 @@ final class Gui {
     final UiFailures failures = new UiFailures(System::nanoTime, set::quit, marker);
     display.setRuntimeExceptionHandler(failures::runtime);
     display.setErrorHandler(failures::error);
+    final WindowViews views =
+        new WindowViews(
+            display,
+            new WindowViews.Factory() {
+              @Override
+              public MainWindow create(ApplicationController controller) {
+                return register(new MainWindow(display, controller.theme().palette()), controller);
+              }
+            });
+    system.setWindowRebuild(views);
     set.setFactory(
         new WindowSet.Factory() {
           @Override
@@ -310,9 +323,10 @@ final class Gui {
               WindowSet owner, WindowGeometry.Request at, boolean maximized) {
             WindowState remembered = owner.settings().current().window();
             MainWindow window = new MainWindow(display, palette);
-            ApplicationController controller = new ApplicationController(owner, window);
-            window.attach(controller);
-            shells.add(window.shell());
+            MainWindowSlot slot = new MainWindowSlot(window);
+            ApplicationController controller = new ApplicationController(owner, slot);
+            register(window, controller);
+            views.add(slot, controller);
             window.place(
                 at,
                 new WindowGeometry.Request(null, null, remembered.width(), remembered.height()));
@@ -326,9 +340,10 @@ final class Gui {
     // macOS application menu.
     AppMenu.hook(display, set);
     final MainWindow window = new MainWindow(display, palette);
-    ApplicationController controller = new ApplicationController(set, window);
-    window.attach(controller);
-    shells.add(window.shell());
+    MainWindowSlot slot = new MainWindowSlot(window);
+    ApplicationController controller = new ApplicationController(set, slot);
+    register(window, controller);
+    views.add(slot, controller);
     controller.loadGrammars();
     boolean restore = !start.multi() && !without && start.restoresSession();
     WindowState remembered =
@@ -415,6 +430,20 @@ final class Gui {
             return true;
           }
         });
+  }
+
+  /**
+   * Attaches a window to its controller and adds its shell to the loop's, dropping disposed ones.
+   */
+  private MainWindow register(MainWindow window, ApplicationController controller) {
+    window.attach(controller);
+    for (Iterator<Shell> i = shells.iterator(); i.hasNext(); ) {
+      if (i.next().isDisposed()) {
+        i.remove();
+      }
+    }
+    shells.add(window.shell());
+    return window;
   }
 
   private boolean anyOpen() {

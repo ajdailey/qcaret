@@ -22,8 +22,9 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 
 ## View settings from the controller
 
-- A theme change pushes the palette. When native controls show the change only
-  at the next start (`ThemeService.showsNow`), the view shows a notice.
+- A theme change pushes the palette and passes the resolved side to
+  `ThemeService.preferDark`, which shows it on native controls at once on every
+  platform.
 - `Settings` queues each change for a worker; see
   [Settings](settings.md#running-settings).
 - Zoom In, Zoom Out and Reset Zoom (`ZoomCommands`) act on the Markdown
@@ -91,8 +92,8 @@ to the other side (`dark`), which a fixed scheme leaves out of the palette.
 
 `ThemeService.preferDark` takes `ui.theme`'s side only.
 `ThemeController.setEditorColors` changes the palette and never native
-controls, so it shows no restart notice; under the light or dark scheme a
-system change moves native controls and leaves the palette.
+controls; under the light or dark scheme a system change moves native controls
+and leaves the palette.
 
 `Palette` is the editor color scheme as toolkit-free `Rgb` values: text,
 background, selection and selected text, current line, gutter and line numbers,

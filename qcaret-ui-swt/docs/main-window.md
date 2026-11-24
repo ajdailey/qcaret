@@ -388,6 +388,50 @@ maximized state while full screen, and a second toggle during the transition,
 on every CI platform; the macOS jobs measured the held request leaving full
 screen about 1 s after it was made.
 
+## Theme rebuild
+
+win32 controls read the native theme only when created, so a switch of the
+side `ui.theme` resolves to replaces each main window's controls.
+`Win32ThemeFollow.showOnWindows` sets the native theme and calls
+`WindowRebuild.rebuild`, which `WindowViews` implements; GTK and cocoa never
+call it ([native controls](theme-and-icons.md#native-controls)).
+
+Each window's controllers hold a `MainWindowSlot`, not the `MainWindow`. The
+slot implements `MainView` by forwarding every call to the current window, so
+`ApplicationController`, its sub-controllers, their running workers,
+navigation history and search results stay across a rebuild. The slot keeps
+the busy count and the last dock, editor display, memory, warning, progress
+row and Always on Top calls, and `replace` pushes them to the new window.
+`MainWindowSlotTest` calls every `MainView` method by reflection and fails on
+one the slot does not forward.
+
+`WindowViews` runs the rebuild on a later UI turn, one window per turn, and
+only for a window built under the other side; a switch back before a window's
+turn leaves it alone. A rebuild:
+
+1. Reads the old window's bounds, maximized, full screen and minimized state,
+   the side, dock and results weights and the Workspace Browser's expanded
+   folders.
+2. Creates a `MainWindow` through `Gui`'s factory, attaches it to the same
+   controller and registers its shell with the event loop.
+3. Calls `MainWindowSlot.replace`, then
+   `DocumentController.rebindViews`: each tab closes in the old window and
+   opens in the new one with its editors, split arrangement and weights,
+   focused pane, top rows, Markdown preview content and an open completion
+   list. An input method composition is first kept as typed text.
+4. Opens the new shell, then disposes the old one, and activates the new window
+   when the old one was active.
+
+A window waits, checked every 250 ms, while `MainWindowSlot.holdsDialog`
+reports a modal dialog or prompt (Quick Open and the command palette
+included), Preferences, the recovery dialog, the external change prompt or a
+native file, folder or print dialog: disposing the shell would answer for the
+user (Later, Keep Mine, Cancel) or drop the answer. Other windows rebuild
+meanwhile. The modeless windows the old shell owns close with it: Statistics
+and Checksums, whose `closed` cancels a running count or checksum run,
+Generate, Tip of the Day, Keyboard Shortcuts, Show Log, the user guide, replace
+reports and comparison windows.
+
 ## Accessible names
 
 `AccessibleName` (`ui.swt.platform`) sets the name a screen reader reads for a
@@ -486,9 +530,9 @@ default method carries behavior.
 |---|---|---|---|---|---|
 | `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
-| `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` after a dark start: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `NativeDialogTabs`: the native `TabFolder` | As cocoa | As cocoa | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
-| `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a side other than the start's needs a restart | `CocoaThemeFollow`: never sets it; polls; `CocoaChrome` recolors shells at a change | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
-| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the startup ink; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
+| `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `NativeDialogTabs`: the native `TabFolder` | As cocoa | As cocoa | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
+| `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
+| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the window's native setting; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
 | `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
 | `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |

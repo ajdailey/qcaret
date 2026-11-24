@@ -21,14 +21,14 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 
 /**
- * win32: under a dark startup setting SWT draws a dialog's title bar, push buttons and read-only
+ * win32: under the dark native setting SWT draws a dialog's title bar, push buttons and read-only
  * combos dark and every other surface light. {@link #apply} gives the dialog body the title bar's
  * color, forced onto its children so push button corners match, and sets each control's colors:
  * fields, lists, tables and trees the field colors, read-only combos the push button face, since a
  * forced background otherwise draws their native text dark on dark. Push buttons keep their native
  * faces, a {@link ProgressBar} its bar color, and a control with {@link
  * ChromeColors#PALETTE_COLORED} the palette. Controls created after the shell shows take their
- * colors from {@link SWT#Skin}. Under a light startup setting nothing changes.
+ * colors from {@link SWT#Skin}. Under the light native setting nothing changes.
  *
  * <p>A single-line {@link Text}'s hint draws {@code #6d6d6d} when read-only (SWT draws it in {@code
  * COLOR_GRAYTEXT}) and {@code #575757} when editable, 2.74:1 and 1.96:1 on {@link #FIELD} (measured
@@ -36,7 +36,7 @@ import org.eclipse.swt.widgets.Tree;
  *
  * <p>The dark native theme draws a check box label near-white, or light gray when disabled, and
  * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
- * created, so under a dark startup setting {@link #check} creates a box outside a colored dialog
+ * created, so under the dark native setting {@link #check} creates a box outside a colored dialog
  * with the theme off. Confined to the UI thread.
  */
 final class Win32DialogColors implements DialogColors {

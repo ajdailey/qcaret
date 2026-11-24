@@ -226,13 +226,11 @@ class PlatformTraitsTest {
     }
   }
 
-  /** Only win32 needs a restart to show a side other than the startup one. */
   @Test
-  void onlyWin32NeedsARestartForTheNativeTheme() {
-    assertFalse(WIN32.themeFollow(null).showsNow(true, false));
-    assertTrue(WIN32.themeFollow(null).showsNow(false, false));
-    for (PlatformTraits traits : List.of(COCOA, GTK3, GTK4)) {
+  void noPlatformNeedsARestartForTheNativeTheme() {
+    for (PlatformTraits traits : List.of(WIN32, COCOA, GTK3, GTK4)) {
       assertTrue(traits.themeFollow(null).showsNow(true, false), traits.name());
+      assertTrue(traits.themeFollow(null).showsNow(false, true), traits.name());
     }
   }
 

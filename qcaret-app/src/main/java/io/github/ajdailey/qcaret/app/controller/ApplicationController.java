@@ -381,11 +381,6 @@ public final class ApplicationController {
     }
   }
 
-  /** Says that native controls show the theme from the next start. */
-  void showThemeRestart() {
-    view.showInfo(UiText.THEME_RESTART_TITLE.text(), UiText.THEME_RESTART_MESSAGE.text());
-  }
-
   private void rememberGrammar(String id) {
     Preferences current = settings.current();
     List<String> recent = new ArrayList<String>(current.state().recentGrammars());

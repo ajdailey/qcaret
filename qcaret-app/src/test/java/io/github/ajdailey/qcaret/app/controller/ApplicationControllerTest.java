@@ -41,10 +41,9 @@ class ApplicationControllerTest {
   private FakeView view;
   private Workers workers;
   private ConfigStore config;
-  private boolean showsNow = true;
   private final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
 
-  /** A system setting that stays light; {@link #showsNow} answers the restart question. */
+  /** A system setting that stays light. */
   private final ThemeService system =
       new ThemeService() {
         @Override
@@ -64,7 +63,7 @@ class ApplicationControllerTest {
 
         @Override
         public boolean showsNow(boolean dark) {
-          return showsNow;
+          return true;
         }
       };
 
@@ -126,13 +125,6 @@ class ApplicationControllerTest {
   void unopenedNamesShowAMessageDialog() {
     controller(true).noticeUnopenedNames("Not opened: ??.txt.");
     assertEquals(List.of("Open: Not opened: ??.txt."), view.infos);
-  }
-
-  @Test
-  void aThemeNativeControlsShowLaterGetsANotice() throws Exception {
-    showsNow = false;
-    controller(true).execute(CommandId.THEME_DARK);
-    assertEquals(1, view.infos.size());
   }
 
   @Test

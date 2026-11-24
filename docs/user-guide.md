@@ -351,20 +351,16 @@ apply (measured on Linux, one million lines):
   click runs a garbage collection and the status bar names the memory it freed.
   The figures refresh every 2 seconds while the indicator shows. The choice is
   saved; it is off at first.
-- View > Theme chooses Light, Dark or System. On Windows native controls change
-  at the next start, and System takes them from the Windows setting at start;
-  under a dark start, dialogs are dark, fields included, and they keep the look
-  of the start until the next start. The toolbar and its icons, the status
-  bar, the find bar and its find and replace fields, the docks' rows and the
-  Markdown preview's notice, the Workspace Browser's file list and its path and
-  filter fields, and the Outline, are dark whenever the theme is, switching at
-  once. Source, Split and Preview stay readable when checked. Push buttons and
-  the find fields' history arrows keep the Windows look of the start; after a
-  dark start a main window field stays dark until the next start while it
-  holds text. On macOS they
-  follow the system appearance, also while QCaret runs. On Linux a GTK theme
-  with no dark variant keeps native controls light; the editor and tabs still
-  change.
+- View > Theme chooses Light, Dark or System, and the whole window changes at
+  once. On Windows each window is rebuilt for the new theme: tabs, unsaved
+  text, carets, split views, the find bar, the docks and running searches stay,
+  while windows it owns, such as Show Log, Statistics or a comparison, close.
+  A window with an open dialog, Preferences included, changes once the dialog
+  closes. Under dark, dialogs are dark, fields included. On macOS menus from
+  the menu bar keep the system appearance. Under System the theme follows a
+  change of the system setting while QCaret runs, on Windows and macOS. On Linux
+  a GTK theme with no dark variant keeps native controls light; the editor and
+  tabs still change.
 - Editor colors, on the Editor tab of Tools > Preferences, colors the editors,
   the tab strip, comparison windows and the replace preview, as a terminal
   profile colors only its text area; see [Editor colors](#editor-colors). Menus,

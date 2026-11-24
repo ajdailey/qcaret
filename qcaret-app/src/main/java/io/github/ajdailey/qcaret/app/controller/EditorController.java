@@ -205,6 +205,15 @@ public final class EditorController implements EditorInput {
     highlights.viewAttached();
     lineChanges.viewAttached();
     formatRuns.mark().viewAttached();
+    completions.reshow();
+  }
+
+  /** Keeps an input method's composition text as typed text, for a view about to be replaced. */
+  void commitComposition() {
+    int[] range = document.preeditRange();
+    if (range != null && !disposed && !document.isReadOnly()) {
+      type(document.text().subSequence(range[0], range[0] + range[1]).toString());
+    }
   }
 
   /** Lets go of the view before its tab moves to another window; closes the completion list. */

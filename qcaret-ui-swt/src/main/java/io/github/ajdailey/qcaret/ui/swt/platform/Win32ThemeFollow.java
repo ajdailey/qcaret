@@ -8,7 +8,8 @@ import org.eclipse.swt.widgets.Link;
 
 /**
  * The theme on win32: native controls read {@code setDarkThemePreferred} only when created, so it
- * is set once before the first Shell, under the system theme from the system setting at start.
+ * is set before the first Shell, under the system theme from the system setting at start, and a
+ * change of side sets it again and rebuilds the main windows.
  */
 final class Win32ThemeFollow implements ThemeFollow {
   private final Display display;
@@ -35,8 +36,16 @@ final class Win32ThemeFollow implements ThemeFollow {
   public void preferDark(boolean dark) {}
 
   @Override
+  public void showOnWindows(boolean dark, WindowRebuild windows) {
+    if (dark != ChromeColors.nativeDark(display)) {
+      NativeTheme.set(display, dark);
+      windows.rebuild();
+    }
+  }
+
+  @Override
   public boolean showsNow(boolean dark, boolean nativeDark) {
-    return dark == nativeDark;
+    return true;
   }
 
   @Override

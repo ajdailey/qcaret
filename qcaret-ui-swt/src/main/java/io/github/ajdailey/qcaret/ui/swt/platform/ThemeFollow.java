@@ -12,9 +12,9 @@ import org.eclipse.swt.widgets.Link;
  *   <caption>Implementation per platform</caption>
  *   <tr><th>Platform</th><th>Class</th><th>Native theme</th><th>System setting</th></tr>
  *   <tr><td>win32</td><td>{@link Win32ThemeFollow}</td>
- *       <td>set before the first Shell, read by controls at creation</td><td>polled</td></tr>
+ *       <td>read by controls at creation; a change rebuilds the main windows</td><td>polled</td></tr>
  *   <tr><td>cocoa</td><td>{@link CocoaThemeFollow}</td>
- *       <td>the system appearance; {@link CocoaChrome} recolors shells</td><td>polled</td></tr>
+ *       <td>pinned to the resolved side; {@link CocoaChrome} recolors shells</td><td>polled</td></tr>
  *   <tr><td>GTK</td><td>{@link GtkThemeFollow}</td><td>switched live; links recolored</td>
  *       <td>{@code SWT.Settings}</td></tr>
  * </table>
@@ -25,9 +25,8 @@ public interface ThemeFollow {
 
   /**
    * Sets the native controls' startup theme for a mode through {@link NativeTheme#set}: for light
-   * and dark on GTK and win32, and for system on win32 from the system setting. cocoa controls
-   * always follow the system appearance, and GTK's do for system. Call before the first Shell
-   * exists.
+   * and dark on GTK, and for every mode on win32 and cocoa, system from the system setting. GTK's
+   * controls follow the GTK theme under system. Call before the first Shell exists.
    *
    * @param mode the theme setting
    * @return the startup setting: true when the dark native theme was set
@@ -37,17 +36,18 @@ public interface ThemeFollow {
   /**
    * Starts following the system setting. win32 and cocoa run {@code refresh} every 500 ms while the
    * Display lives: cocoa SWT sends no {@code SWT.Settings} for an appearance change, and win32 SWT
-   * sends it 2 s after {@code WM_SETTINGCHANGE}. cocoa also starts {@link CocoaChrome}. GTK reads
-   * the setting once, when the Display is created.
+   * sends it 2 s after {@code WM_SETTINGCHANGE}. cocoa also starts {@link CocoaChrome} and applies
+   * the startup side. GTK reads the setting once, when the Display is created.
    *
-   * @param dark the system setting now
+   * @param dark the system setting now, the appearance cocoa SWT read its colors under
    * @param timers runs the poll's timer
    * @param refresh reads the system setting and reports a change
    */
   void watch(boolean dark, UiDispatcher timers, Runnable refresh);
 
   /**
-   * Applies a changed system setting: on cocoa {@link CocoaChrome} recolors every shell.
+   * Takes a changed system setting; every platform ignores it. Under system the theme controller
+   * passes the new side to {@link #preferDark} and {@link #showOnWindows}.
    *
    * @param dark true for dark
    */
@@ -61,8 +61,18 @@ public interface ThemeFollow {
   void preferDark(boolean dark);
 
   /**
-   * Reports whether native controls show a side without a restart. win32 controls read the theme
-   * only when created, so there only the startup side shows.
+   * Shows a palette side on the windows' native controls, after {@link #preferDark}, at every
+   * change of the side the theme resolves to. On win32, when the side differs from {@link
+   * ChromeColors#NATIVE_DARK}, it sets the native theme and rebuilds the main windows; on cocoa it
+   * pins the appearance and {@link CocoaChrome} recolors every shell.
+   *
+   * @param dark true for dark
+   * @param windows rebuilds the main windows
+   */
+  void showOnWindows(boolean dark, WindowRebuild windows);
+
+  /**
+   * Reports whether native controls show a side without a restart: true on every platform.
    *
    * @param dark the side
    * @param nativeDark the startup setting

@@ -21,14 +21,17 @@ public interface ChromeColors {
   /** Control data key on a text field: its {@link Hint}. */
   String HINT = ChromeColors.class.getName() + ".hint";
 
-  /** Display data key: {@code Boolean.TRUE} when native controls started with the dark theme. */
+  /**
+   * Display data key: {@code Boolean.TRUE} while native controls are set to the dark theme, from
+   * the start and after each live switch on win32 and cocoa.
+   */
   String NATIVE_DARK = ChromeColors.class.getName() + ".nativeDark";
 
   /**
-   * Reports the startup setting of native controls, as {@link #NATIVE_DARK} records it.
+   * Reports the native controls' setting, as {@link #NATIVE_DARK} records it.
    *
    * @param display the Display
-   * @return true when the dark native theme was set before the first Shell
+   * @return true while the dark native theme is set
    */
   static boolean nativeDark(Display display) {
     return Boolean.TRUE.equals(display.getData(NATIVE_DARK));

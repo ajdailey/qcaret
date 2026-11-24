@@ -314,12 +314,15 @@ class Win32DarkDialogsTest {
         mode == ThemeMode.SYSTEM ? darkSystemStart() : SwtThemeService.open(display, mode);
     assertEquals(dark, SwtThemeService.nativeDark(display));
     window = new MainWindow(display, dark ? Palette.DARK : Palette.LIGHT);
+    // Preferences rereads the file at opening; a file holding another theme switches it live.
+    ConfigStore config = new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp));
+    config.save(Preferences.DEFAULTS, Preferences.DEFAULTS.withTheme(mode));
     controller =
         new ApplicationController(
             workers,
             new SwtUiDispatcher(display),
             window,
-            new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp)),
+            config,
             Preferences.DEFAULTS.withTheme(mode),
             system,
             new MemoryBudget(1L << 30, 60),

@@ -286,11 +286,8 @@ public final class WindowSet {
       keymap = defaultKeymap.withOverrides(after.shortcuts());
       logConflicts();
     }
-    if (after.theme() != before.theme() && !theme.setMode(after.theme())) {
-      ApplicationController window = target();
-      if (window != null) {
-        window.showThemeRestart();
-      }
+    if (after.theme() != before.theme()) {
+      theme.setMode(after.theme());
     }
     if (!after.appearance().themeFile().equals(before.appearance().themeFile())) {
       loadTheme();
