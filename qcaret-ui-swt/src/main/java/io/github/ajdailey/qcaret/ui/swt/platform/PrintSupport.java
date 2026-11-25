@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.eclipse.swt.printing.PrintDialog;
 import org.eclipse.swt.printing.PrinterData;
@@ -42,10 +43,16 @@ public interface PrintSupport {
    * @param parent the owning shell
    * @param jobName the job name
    * @param selected true when the document has a non-empty selection
+   * @param open opens the dialog and returns its result
    * @param pdf chooses a PDF file printer, or returns null when canceled
    * @return the printer data, or null when canceled
    */
-  PrinterData choose(Shell parent, String jobName, boolean selected, Supplier<PrinterData> pdf);
+  PrinterData choose(
+      Shell parent,
+      String jobName,
+      boolean selected,
+      Function<PrintDialog, PrinterData> open,
+      Supplier<PrinterData> pdf);
 
   /**
    * Creates the dialog {@link #choose} opens, not yet open, on the scope {@link #choose} describes.

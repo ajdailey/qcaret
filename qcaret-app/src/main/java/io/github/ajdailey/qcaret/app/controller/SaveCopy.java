@@ -15,7 +15,6 @@ import io.github.ajdailey.qcaret.core.document.Replacement;
 import io.github.ajdailey.qcaret.core.edit.Edit;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
-import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,6 +117,19 @@ final class SaveCopy {
       @Override
       @WorkerThread
       void work() {
+        final String refused = PathFormText.refusal(target.toString());
+        if (refused != null) {
+          ui.asyncExec(
+              new Runnable() {
+                @Override
+                public void run() {
+                  view.showInfo(
+                      UiText.SAVE_TITLE.text(),
+                      UiText.SAVE_FAILED.format(String.valueOf(target.getFileName()), refused));
+                }
+              });
+          return;
+        }
         final Path real = sameFile(target, own) ? own : SaveAndReload.realFile(target);
         ui.asyncExec(
             new Runnable() {
@@ -243,7 +255,7 @@ final class SaveCopy {
       shown.showInfo(
           UiText.SAVE_TITLE.text(),
           UiText.SAVE_FAILED.format(
-              String.valueOf(target.getFileName()), LogText.oneLine(error.getMessage())));
+              String.valueOf(target.getFileName()), PathFormText.message(error)));
     }
     if (window.copies() != null) {
       window.copies().ended(target, error != null);

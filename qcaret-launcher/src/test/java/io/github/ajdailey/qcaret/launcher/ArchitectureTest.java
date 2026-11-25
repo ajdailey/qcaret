@@ -1145,6 +1145,32 @@ class ArchitectureTest {
         .because("a native TabFolder keeps a light tab row under a dark win32 start");
   }
 
+  /**
+   * Only {@code NativeDialogs} opens an SWT {@code Dialog}, so a window rebuild sees every nested
+   * event loop of a file, folder or print dialog.
+   */
+  @Test
+  void nativeChoosersOnlyThroughNativeDialogs() {
+    nativeChoosersOnlyThroughNativeDialogsRule().check(classes);
+  }
+
+  @Test
+  void nativeChooserRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        nativeChoosersOnlyThroughNativeDialogsRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$OpensFileDialog",
+        "OpensFileDialog.choose");
+  }
+
+  private static ArchRule nativeChoosersOnlyThroughNativeDialogsRule() {
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(ROOT + ".ui.swt.NativeDialogs")
+        .should()
+        .callMethodWhere(call(org.eclipse.swt.widgets.Dialog.class, "open"))
+        .because("a window rebuild waits only for a chooser NativeDialogs counts");
+  }
+
   // Each rule reports the fixture class that breaks it.
 
   private static final String VIEW_FIXTURES = ROOT + ".ui.swt.archfixture.ViewViolations$";

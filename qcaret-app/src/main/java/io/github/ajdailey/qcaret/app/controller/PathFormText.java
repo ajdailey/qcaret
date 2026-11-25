@@ -1,17 +1,57 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.io.PathFormException;
+import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The user's wording for a path {@code SafePaths} rejects by its text, shared by every notice that
- * names such a path: opening, Open Path at Caret, the workspace browser's New File, New Folder and
- * Rename, a checksum list's entries, and Open Settings Folder and Open Log Folder. The log keeps
- * the exception's message.
+ * names such a path: opening, Open Path at Caret, save, Save As, Save a Copy, Export as HTML, a
+ * checksum list's save and entries, the HyperSearch folder, the workspace browser's path field, New
+ * File, New Folder and Rename, and Open Settings Folder and Open Log Folder. The log keeps the
+ * exception's message.
  */
 final class PathFormText {
+  private static final Logger LOG = LoggerFactory.getLogger(PathFormText.class);
+
   private PathFormText() {}
+
+  /**
+   * Checks a path the user gave by its text ({@link SafePaths#checkForm(String)}), before any file
+   * system access, and logs a rejection at WARN with the exception's message.
+   *
+   * @param path the path text
+   * @throws PathFormException when the text is rejected
+   */
+  @WorkerThread
+  static void check(String path) throws PathFormException {
+    try {
+      SafePaths.checkForm(path);
+    } catch (PathFormException e) {
+      LOG.warn("Path {} refused: {}", LogText.oneLine(path), LogText.oneLine(e.getMessage()));
+      throw e;
+    }
+  }
+
+  /**
+   * Checks a path's text as {@link #check} does.
+   *
+   * @param path the path text
+   * @return the reason for the notice ({@link #reason}), or null when the text is accepted
+   */
+  @WorkerThread
+  static String refusal(String path) {
+    try {
+      check(path);
+      return null;
+    } catch (PathFormException e) {
+      return reason(e);
+    }
+  }
 
   /**
    * Returns the reason for a rejected path's text.

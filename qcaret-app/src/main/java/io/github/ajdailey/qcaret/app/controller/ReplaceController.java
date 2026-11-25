@@ -771,14 +771,18 @@ public final class ReplaceController implements ReplaceInput {
     final List<FileResult> groups;
     ReplaceRun run;
     boolean restoring;
+    boolean busy;
 
     Report(String title, List<FileResult> groups) {
       this.title = title;
       this.groups = groups;
     }
 
+    /** Takes the started run; the window shows the busy cursor until it ends. */
     void start(ReplaceRun started) {
       run = started;
+      busy = true;
+      view.setActive();
       if (run.isFinished()) {
         finished();
       }
@@ -793,7 +797,14 @@ public final class ReplaceController implements ReplaceInput {
 
     @Override
     public void finished() {
-      if (run == null || disposed) {
+      if (run == null) {
+        return;
+      }
+      if (busy) {
+        busy = false;
+        view.setIdle();
+      }
+      if (disposed) {
         return;
       }
       if (groups != null) {

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.eclipse.swt.printing.PrintDialog;
 import org.eclipse.swt.printing.PrinterData;
@@ -14,8 +15,12 @@ class Gtk3PrintSupport implements PrintSupport {
 
   @Override
   public PrinterData choose(
-      Shell parent, String jobName, boolean selected, Supplier<PrinterData> pdf) {
-    return dialog(parent, selected).open();
+      Shell parent,
+      String jobName,
+      boolean selected,
+      Function<PrintDialog, PrinterData> open,
+      Supplier<PrinterData> pdf) {
+    return open.apply(dialog(parent, selected));
   }
 
   @Override

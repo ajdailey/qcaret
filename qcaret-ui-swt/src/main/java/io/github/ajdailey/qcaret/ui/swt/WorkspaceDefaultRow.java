@@ -60,7 +60,7 @@ final class WorkspaceDefaultRow {
     if (!folder.getText().isEmpty()) {
       chooser.setFilterPath(folder.getText());
     }
-    String chosen = chooser.open();
+    String chosen = NativeDialogs.open(chooser);
     if (chosen != null && !folder.isDisposed()) {
       folder.setText(chosen);
     }

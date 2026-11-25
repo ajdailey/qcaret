@@ -107,12 +107,18 @@ class ReplaceControllerTest {
         "preview computed");
   }
 
-  /** Applies and waits for the newest report to end. */
+  /**
+   * Applies and waits for the newest report to end; the run holds the busy cursor until it ends.
+   */
   private ReportInput apply(ReplaceInput input) throws Exception {
     int before = harness.view.reports.size();
+    int activations = harness.view.activations.get();
     assertTrue(input.apply());
     assertEquals(before + 1, harness.view.reports.size());
-    return awaitReport(harness.view.reports.get(before));
+    assertEquals(activations + 1, harness.view.activations.get());
+    ReportInput report = awaitReport(harness.view.reports.get(before));
+    harness.awaitIdle("replace");
+    return report;
   }
 
   private ReportInput awaitReport(final ReportInput report) throws Exception {

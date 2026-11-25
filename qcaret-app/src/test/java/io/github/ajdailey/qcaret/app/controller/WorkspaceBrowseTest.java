@@ -229,8 +229,10 @@ class WorkspaceBrowseTest {
     before = harness.view.notices.size();
     browse().go(root.resolve("notes.txt").toString());
     assertEquals(root.resolve("notes.txt") + " is not a folder", notice(before));
+    before = harness.view.notices.size();
     browse().go("bad\0name");
-    assertEquals("bad\0name is not a valid path", lastNotice());
+    assertEquals(
+        UiText.BROWSE_REFUSED.format("bad_name", UiText.OPEN_REASON_NUL.text()), notice(before));
     browse().setFilter("*.{java");
     assertEquals("Not a valid filter: *.{java", lastNotice());
     assertEquals("", browse().filter());

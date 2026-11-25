@@ -53,8 +53,10 @@ running load, and no tab opens.
 
 A file that does not open shows a notice with the reason, for example `Cannot
 open CON: the path names a Windows device` for a Windows device name such as
-`CON` or `nul.txt`. Open Path at Caret, the workspace browser's New File, New
-Folder and Rename, and a checksum list's entries name the same reason.
+`CON` or `nul.txt`. Open Path at Caret, Save, Save As, Save a Copy As, Export
+as HTML, a checksum list's Save As and entries, the HyperSearch folder, and the
+workspace browser's path field, New File, New Folder and Rename name the same
+reason.
 
 File > Reload from Disk reads the selected document's file again. With unsaved
 changes it asks first, and Undo brings them back.
@@ -358,8 +360,9 @@ apply (measured on Linux, one million lines):
   carets, split views, the find bar, the docks and running searches stay,
   while windows it owns, such as Show Log, Statistics or a comparison, close,
   and a running Statistics count or Checksums run stops.
-  A window with an open dialog, Preferences included, changes once the dialog
-  closes. Under dark, dialogs are dark, fields included. On macOS menus from
+  A window with an open dialog, Preferences included, or an open menu changes
+  once it closes. On Windows, menus and context menus keep the theme QCaret
+  started with until the next start. Under dark, dialogs are dark, fields included. On macOS menus from
   the menu bar keep the system appearance. Under System the theme follows a
   change of the system setting while QCaret runs, on Windows and macOS. On Linux
   a GTK theme with no dark variant keeps native controls light; the editor and

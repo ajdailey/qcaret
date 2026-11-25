@@ -95,6 +95,7 @@ class BusyCoverageTest {
       "controller.SelectionChecksum#copy",
       "controller.SelectionDelete#delete",
       "controller.SelectionDelete#deleteNow",
+      "controller.WorkspaceBrowse#go",
       "controller.WorkspaceBrowse#show",
       "controller.WorkspaceController#openInDefaultApplication",
       "controller.WorkspaceController#set",

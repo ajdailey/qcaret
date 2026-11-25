@@ -79,7 +79,9 @@ directory or tree scope and when the workspace folder is set. A rerun uses the
 stored root. Without that, a folder reached through a link (macOS `/var`) or a
 Windows short name holds no open document, the walk reads the file on disk, and
 a link at the root is not walked at all. A root that does not resolve keeps its
-absolute path and reports as unreadable.
+absolute path and reports as unreadable. The worker first checks the entered
+folder's text (`PathFormText.check`); a rejected one, such as a Windows device
+name, shows `SEARCH_DIRECTORY_REFUSED` with its reason and starts no search.
 
 ### Result sets
 

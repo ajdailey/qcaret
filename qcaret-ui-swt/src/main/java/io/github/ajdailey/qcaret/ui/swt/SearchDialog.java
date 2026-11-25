@@ -171,7 +171,7 @@ final class SearchDialog {
   private void browse() {
     DirectoryDialog chooser = new DirectoryDialog(shell);
     chooser.setFilterPath(directory.text().getText());
-    String chosen = chooser.open();
+    String chosen = NativeDialogs.open(chooser);
     if (chosen != null && !directory.text().isDisposed()) {
       directory.text().setText(chosen);
     }

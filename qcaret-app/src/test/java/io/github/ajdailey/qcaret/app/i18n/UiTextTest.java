@@ -9,7 +9,10 @@ import java.util.Enumeration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** {@link UiText} constants match the bundle keys, and patterns and counts format. */
+/**
+ * {@link UiText} constants match the bundle keys, patterns and counts format, and titles carry no
+ * mnemonic.
+ */
 class UiTextTest {
   @Test
   void constantsAndBundleKeysMatch() {
@@ -58,5 +61,24 @@ class UiTextTest {
             UiText.count(2, UiText.COUNT_MATCH, UiText.COUNT_MATCHES),
             1,
             UiText.count(1, UiText.COUNT_FILE, UiText.COUNT_FILES)));
+  }
+
+  /**
+   * A window title shows no mnemonic and no ellipsis: every {@code *_TITLE} text, and {@code
+   * CommandId.title} for titles taken from a command (regression: QLogg showed "Rena&me Tab...").
+   */
+  @Test
+  void titlesCarryNoMnemonicOrEllipsis() {
+    for (UiText text : UiText.values()) {
+      if (text.name().endsWith("_TITLE")) {
+        assertFalse(text.text().contains("&"), text.name());
+        assertFalse(text.text().endsWith("..."), text.name());
+      }
+    }
+    for (io.github.ajdailey.qcaret.app.command.CommandId command :
+        io.github.ajdailey.qcaret.app.command.CommandId.values()) {
+      assertFalse(command.title().contains("&"), command.name());
+      assertFalse(command.title().endsWith("..."), command.name());
+    }
   }
 }

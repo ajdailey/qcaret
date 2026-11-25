@@ -144,6 +144,18 @@ class SearchControllerTest {
   }
 
   @Test
+  void aSearchHoldsTheBusyCursorUntilItEnds() throws Exception {
+    open("doc.txt", TEXT);
+    harness.awaitIdle("open");
+    int before = harness.view.activations.get();
+    search.run(form("key", SearchScope.CURRENT_DOCUMENT, ""));
+    assertEquals(before + 1, harness.view.activations.get());
+    assertEquals(1, harness.view.active.get());
+    settle();
+    harness.awaitIdle("search");
+  }
+
+  @Test
   void aDocumentSearchFillsTheDockAndOpensAMatch() throws Exception {
     EditorController editor = open("doc.txt", TEXT);
     run("key", SearchScope.CURRENT_DOCUMENT, "");
@@ -399,6 +411,19 @@ class SearchControllerTest {
     assertTrue(info().startsWith("Invalid file mask"));
     run("key", SearchScope.TREE, "");
     assertEquals(UiText.SEARCH_NO_DIRECTORY.format(""), info());
+    final int infos = harness.view.infos.size();
+    search.run(form("key", SearchScope.TREE, "bad\0folder"));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.infos.size() > infos;
+          }
+        },
+        "the folder's notice");
+    assertEquals(
+        UiText.SEARCH_DIRECTORY_REFUSED.format("bad_folder", UiText.OPEN_REASON_NUL.text()),
+        info());
     EditorController editor = open("doc.txt", TEXT);
     editor.selections().set(SelectionSet.caret(0));
     run("key", SearchScope.SELECTION, "");

@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.app.view.WorkspaceBrowseInput;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.workspace.ListingOptions;
 import io.github.ajdailey.qcaret.core.workspace.NameFilter;
 import java.nio.file.Files;
@@ -70,22 +71,41 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
 
   @Override
   public void go(String typed) {
-    String text = typed.strip();
+    final String text = typed.strip();
     if (text.isEmpty()) {
       return;
     }
-    Path target;
-    try {
-      target = resolve(text);
-    } catch (InvalidPathException e) {
-      view.showNotice(UiText.BROWSE_INVALID.format(text));
-      return;
-    }
-    show(target);
+    final Path top = workspace.listings().shownFolder();
+    final int request = ++generation;
+    new BusyWork(ui, view) {
+      @Override
+      @WorkerThread
+      void work() {
+        String refused = PathFormText.refusal(text);
+        if (refused != null) {
+          post(request, UiText.BROWSE_REFUSED.format(LogText.oneLine(text), refused));
+          return;
+        }
+        Path target;
+        try {
+          target = resolve(text, top);
+        } catch (InvalidPathException e) {
+          post(request, UiText.BROWSE_INVALID.format(text));
+          return;
+        }
+        check(target, request);
+      }
+    }.start(workers, Workers.Kind.IO);
   }
 
-  /** Resolves a typed path: {@code ~} names the home folder; a relative path the shown folder's. */
-  private Path resolve(String text) {
+  /**
+   * Resolves a typed path: {@code ~} names the home folder; a relative path the shown folder's.
+   *
+   * @param text the typed path
+   * @param top the shown folder, or null
+   * @return the absolute, normalized path
+   */
+  private Path resolve(String text, Path top) {
     if (text.equals("~")) {
       return home;
     }
@@ -93,7 +113,6 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
       return home.resolve(text.substring(2)).normalize();
     }
     Path path = Path.of(text);
-    Path top = workspace.listings().shownFolder();
     if (path.isAbsolute()) {
       return path.normalize();
     }
@@ -126,33 +145,50 @@ final class WorkspaceBrowse implements WorkspaceBrowseInput {
       @Override
       @WorkerThread
       void work() {
-        Path real = null;
-        UiText refusal = null;
-        if (!Files.exists(target)) {
-          refusal = UiText.BROWSE_MISSING;
-        } else if (!Files.isDirectory(target)) {
-          refusal = UiText.BROWSE_NOT_FOLDER;
-        } else {
-          real = WorkspaceController.realFolder(target);
-        }
-        final Path folder = real;
-        final UiText failure = refusal;
-        ui.asyncExec(
-            new Runnable() {
-              @Override
-              public void run() {
-                if (request != generation) {
-                  return;
-                }
-                if (failure != null) {
-                  view.showNotice(failure.format(target));
-                } else {
-                  workspace.showFolder(folder);
-                }
-              }
-            });
+        check(target, request);
       }
     }.start(workers, Workers.Kind.IO);
+  }
+
+  /** Shows a folder that exists, or says why not, unless a later request came meanwhile. */
+  @WorkerThread
+  private void check(final Path target, final int request) {
+    Path real = null;
+    UiText refusal = null;
+    if (!Files.exists(target)) {
+      refusal = UiText.BROWSE_MISSING;
+    } else if (!Files.isDirectory(target)) {
+      refusal = UiText.BROWSE_NOT_FOLDER;
+    } else {
+      real = WorkspaceController.realFolder(target);
+    }
+    if (refusal != null) {
+      post(request, refusal.format(target));
+      return;
+    }
+    final Path folder = real;
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (request == generation) {
+              workspace.showFolder(folder);
+            }
+          }
+        });
+  }
+
+  /** Shows a notice on the UI thread unless a later request came meanwhile. */
+  private void post(final int request, final String notice) {
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (request == generation) {
+              view.showNotice(notice);
+            }
+          }
+        });
   }
 
   @Override

@@ -218,6 +218,11 @@ worker while editing goes on, then calls `markSaved`.
   (`OpenFile.writing`) and its result follows that write's; a conflict whose
   stamp is the one that write recorded writes again without asking.
 - A file without write permission fails with `SAVE_FAILED`.
+- Save, Save As, Save a Copy As, Export as HTML and the checksum list's Save
+  As check the target's text with `PathFormText.check` (`SafePaths.checkForm`)
+  on their worker before any disk access. A rejected path, such as a Windows
+  device name, shows the save or export failure with its `PathFormText`
+  reason; the log keeps the exception's message.
 - Each running Save, Save As, Save a Copy As and checksum list Save As lists
   its target in `RunningWrites` until its result reaches the UI thread; a
   workspace Rename or Delete of a folder holding one refuses.

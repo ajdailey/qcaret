@@ -435,11 +435,15 @@ a tab opened during the build is staged at its place. The swap adds views for
 a tab still without staged ones, so no tab is lost or shown twice.
 
 The swap waits, checked every 250 ms, while `MainWindowSlot.holdsDialog`
-reports a modal dialog or prompt (Quick Open and the command palette
-included), Preferences, the recovery dialog, the external change prompt or a
-native file, folder or print dialog: disposing the shell would answer for the
-user (Later, Keep Mine, Cancel) or drop the answer. Staging continues meanwhile,
-and other windows rebuild. A switch back during a build disposes the hidden
+reports a modal dialog or prompt (Quick Open and the command palette included)
+or a native file, folder or print dialog (`NativeDialogs`): disposing the shell
+would answer for the user or drop the answer. Staging continues meanwhile. The
+create turn and the swap both wait while the window shows a menu bar menu,
+cascade or context menu (`ShownMenus`, from `SWT.Show` and `SWT.Hide`) or owns a
+visible window `WindowViews.holdWhile` marks as holding input. Preferences, the
+recovery dialog and the external change prompt hold while open, since closing
+them answers for the user (Later, Keep Mine, Cancel). Other windows rebuild
+meanwhile. A switch back during a build disposes the hidden
 window and leaves the old one; a later switch starts again. The modeless
 windows the old shell owns close with it: Statistics and Checksums, whose
 `closed` cancels a running count or checksum run, Generate, Tip of the Day,

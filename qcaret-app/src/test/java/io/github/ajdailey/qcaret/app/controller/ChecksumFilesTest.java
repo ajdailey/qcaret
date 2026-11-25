@@ -129,6 +129,15 @@ class ChecksumFilesTest {
   }
 
   @Test
+  void saveAsOntoAPathRejectedByItsTextNamesTheReason() throws Exception {
+    FakeView.Checksums shown = generated();
+    saveAs(
+        shown,
+        Path.of(""),
+        notice(UiText.CHECKSUM_SAVE_FAILED.format(UiText.OPEN_REASON_EMPTY.text())));
+  }
+
+  @Test
   void saveAsIntoAFolderARenameHoldsIsRefused() throws Exception {
     FakeView.Checksums shown = generated();
     Path folder = Files.createDirectory(dir.resolve("held"));

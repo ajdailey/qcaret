@@ -5,13 +5,16 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 
 /**
  * Paints a control into an image through {@code Control.print}. GTK 4 prints the render node of the
  * widget's last drawn frame, and {@code print} returns false while a redraw is queued; a failed
- * print dispatches events and retries, so the frame clock draws the pending frame.
+ * print dispatches events and retries, so the frame clock draws the pending frame. On win32 the
+ * first print of a new shell can return true with every pixel black (19 of 1,000 runs of a {@code
+ * MarkdownPaneBlocksTest} case on {@code windows-2025}); such a print is retried too.
  */
 final class ControlPrint {
   private static final Duration BOUND = Duration.ofSeconds(5);
@@ -78,11 +81,24 @@ final class ControlPrint {
       } finally {
         gc.dispose();
       }
-      return device
-          ? image.getImageData(control.getMonitor().getZoom())
-          : Pixels.read(image, control);
+      ImageData data =
+          device ? image.getImageData(control.getMonitor().getZoom()) : Pixels.read(image, control);
+      return black(data) ? null : data;
     } finally {
       image.dispose();
     }
+  }
+
+  /** Reports whether every pixel is black. */
+  private static boolean black(ImageData data) {
+    RGB black = new RGB(0, 0, 0);
+    for (int y = 0; y < data.height; y++) {
+      for (int x = 0; x < data.width; x++) {
+        if (!data.palette.getRGB(data.getPixel(x, y)).equals(black)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 }

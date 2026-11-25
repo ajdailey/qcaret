@@ -30,7 +30,7 @@ final class PdfPrinter {
     dialog.setOverwrite(true);
     dialog.setFilterExtensions(new String[] {"*.pdf"});
     dialog.setFileName(fileName(document));
-    return dialog.open();
+    return NativeDialogs.open(dialog);
   }
 
   /**

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -17,6 +18,7 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.FindState;
@@ -39,11 +41,15 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.DeviceData;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolItem;
 import org.junit.jupiter.api.AfterEach;
@@ -72,6 +78,7 @@ class LiveThemeGuiTest {
   private WindowSet set;
   private WindowViews views;
   private boolean dark;
+  private Menu shownMenu;
 
   @BeforeEach
   void open() {
@@ -110,7 +117,16 @@ class LiveThemeGuiTest {
                 window.attach(controller);
                 return window;
               }
-            });
+            },
+            // The menu test sends SWT.Show and SWT.Hide to a menu that is never mapped.
+            new ShownMenus(
+                display,
+                new Predicate<Menu>() {
+                  @Override
+                  public boolean test(Menu menu) {
+                    return menu == shownMenu || menu.getVisible();
+                  }
+                }));
     theme.setWindowRebuild(views);
     set.setFactory(
         new WindowSet.Factory() {
@@ -513,6 +529,136 @@ class LiveThemeGuiTest {
 
     assertSame(waiting, slots.get(0).window());
     assertEquals(0, views.rebuilds());
+  }
+
+  @Test
+  void aShownMenuDefersTheCreateAndTheSwap() throws Exception {
+    ApplicationController controller = first();
+    open(controller, "menu.txt");
+    final MainWindowSlot slot = slots.get(0);
+    MainWindow old = slot.window();
+    Menu menu = new Menu(old.shell(), SWT.POP_UP);
+    shownMenu = menu;
+    try {
+      menu.notifyListeners(SWT.Show, new Event());
+      set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+      settle();
+      assertNull(views.building(slot), "no window created while the menu shows");
+      assertTrue(views.pending());
+
+      menu.notifyListeners(SWT.Hide, new Event());
+      assertTrue(
+          runUntil(
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  MainWindow next = views.building(slot);
+                  return next != null && next.tabs().getItemCount() == 1;
+                }
+              }),
+          "the tab staged");
+      menu.notifyListeners(SWT.Show, new Event());
+      settle();
+      assertSame(old, slot.window(), "no swap while the menu shows");
+
+      menu.notifyListeners(SWT.Hide, new Event());
+      assertTrue(
+          runUntil(
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return !views.pending();
+                }
+              }),
+          "rebuilt after the menu closed");
+      assertNotSame(old, slot.window());
+    } finally {
+      menu.dispose();
+    }
+  }
+
+  @Test
+  void aNativeDialogOverAnOwnedWindowDefersTheSwap() throws Exception {
+    first();
+    MainWindowSlot slot = slots.get(0);
+    MainWindow old = slot.window();
+    Shell owned = new Shell(old.shell());
+    Shell top = NativeDialogs.enter(owned);
+    assertSame(old.shell(), top);
+    assertTrue(slot.holdsDialog());
+
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    settle();
+    assertSame(old, slot.window());
+    assertTrue(views.pending());
+
+    NativeDialogs.leave(top);
+    assertFalse(slot.holdsDialog());
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !views.pending();
+              }
+            }),
+        "rebuilt after the dialog returned");
+    assertNotSame(old, slot.window());
+  }
+
+  @Test
+  void aHoldDefersTheRebuildOnlyWhileItHolds() throws Exception {
+    first();
+    MainWindowSlot slot = slots.get(0);
+    MainWindow old = slot.window();
+    Shell owned = new Shell(old.shell());
+    owned.setSize(200, 100);
+    owned.open();
+    final boolean[] holding = {true};
+    WindowViews.holdWhile(
+        owned,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return holding[0];
+          }
+        });
+
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    settle();
+    assertNull(views.building(slot));
+    assertTrue(views.pending());
+
+    holding[0] = false;
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !views.pending();
+              }
+            }),
+        "rebuilt once the hold ended");
+    assertNotSame(old, slot.window());
+  }
+
+  @Test
+  void aHiddenTabTakesAPaletteWhenItIsSelected() throws Exception {
+    ApplicationController controller = first();
+    open(controller, "shown.txt", "hidden.txt");
+    controller.documents().select(0);
+    MainWindow window = slots.get(0).window();
+    EditorTab hidden = (EditorTab) window.tabs().getItem(1).getData();
+    EditorTab shown = (EditorTab) window.tabs().getItem(0).getData();
+    Color before = hidden.panes.get(0).text().getBackground();
+
+    controller.theme().setEditorColors(EditorSchemes.MIDNIGHT);
+    Color after = shown.panes.get(0).text().getBackground();
+    assertNotEquals(before.getRGB(), after.getRGB());
+    assertEquals(before.getRGB(), hidden.panes.get(0).text().getBackground().getRGB());
+
+    controller.documents().select(1);
+    assertEquals(after.getRGB(), hidden.panes.get(0).text().getBackground().getRGB());
   }
 
   @Test

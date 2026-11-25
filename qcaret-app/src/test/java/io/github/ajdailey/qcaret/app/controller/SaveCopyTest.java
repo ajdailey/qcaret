@@ -119,6 +119,18 @@ class SaveCopyTest {
   }
 
   @Test
+  void aCopyToAPathRejectedByItsTextNamesTheReason() throws Exception {
+    Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
+    harness.open(a);
+    copyTo(Path.of(""));
+    assertEquals(
+        UiText.SAVE_TITLE.text()
+            + ": "
+            + UiText.SAVE_FAILED.format("", UiText.OPEN_REASON_EMPTY.text()),
+        harness.view.infos.get(harness.view.infos.size() - 1));
+  }
+
+  @Test
   void aCopyWithUnsavedEditsLeavesTheDocumentDirtyOnItsFile() throws Exception {
     Path a = Files.writeString(dir.resolve("a.txt"), "one\n");
     harness.open(a);

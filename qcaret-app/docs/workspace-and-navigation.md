@@ -91,6 +91,9 @@ operation under the workspace folder.
   the JVM started (`HomeFolder`): in explicit and portable mode on Linux the
   launcher points `user.home` at the settings directory and keeps the first
   value in `qcaret.userHome`.
+- A typed path's text is checked first on a `qcaret-io-` worker
+  (`PathFormText.check`); a rejected one, such as a Windows device name, shows
+  `BROWSE_REFUSED` with its reason.
 - A folder is checked and resolved to its real path on a `qcaret-io-` worker;
   a later request drops an earlier one still being checked. A missing path, a
   file, or a path that does not parse leaves the tree as it is and shows a

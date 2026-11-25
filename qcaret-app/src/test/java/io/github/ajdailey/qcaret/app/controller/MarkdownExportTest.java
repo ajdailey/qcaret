@@ -89,6 +89,26 @@ class MarkdownExportTest {
   }
 
   @Test
+  void anExportToAPathRejectedByItsTextNamesTheReason() throws Exception {
+    openMarkdown();
+    final int infos = harness.view.infos.size();
+    choose(Path.of(""));
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return harness.view.infos.size() > infos;
+          }
+        },
+        "the export's notice");
+    assertEquals(
+        UiText.EXPORT_HTML_TITLE.text()
+            + ": "
+            + UiText.EXPORT_HTML_FAILED.format("", UiText.OPEN_REASON_EMPTY.text()),
+        harness.view.infos.get(infos));
+  }
+
+  @Test
   void theExportedPageOpensOffline() throws Exception {
     openMarkdown();
     Path target = temp.resolve("out").resolve("notes.html");

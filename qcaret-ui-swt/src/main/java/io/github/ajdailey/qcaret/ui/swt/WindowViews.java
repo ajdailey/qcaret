@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -27,13 +28,29 @@ import org.eclipse.swt.widgets.Shell;
  * holds an open shell. Other windows the old shell owns close with it, which cancels a running
  * checksum or statistics job.
  *
- * <p>The swap waits, rechecked every {@link #RECHECK_MILLIS}, while {@link
- * MainWindowSlot#holdsDialog} reports a dialog it would dispose. A switch back during a build
- * disposes the new window; a later switch starts over. Confined to the UI thread.
+ * <p>The create and swap turns wait, rechecked every {@link #RECHECK_MILLIS}, while the window
+ * shows a menu ({@link ShownMenus}) or owns a visible window {@link #holdWhile} marks as holding
+ * input; the swap also waits while {@link MainWindowSlot#holdsDialog} reports a dialog it would
+ * dispose. A switch back during a build disposes the new window; a later switch starts over.
+ * Confined to the UI thread.
  */
 public final class WindowViews implements WindowRebuild {
   /** Milliseconds between checks of a window that waits for a dialog to close. */
   static final int RECHECK_MILLIS = 250;
+
+  /**
+   * Shell data key: a {@link BooleanSupplier} that is true while the shell's disposal loses input.
+   */
+  private static final String HOLD = WindowViews.class.getName() + ".hold";
+
+  /** A hold for a window that holds input while it is open. */
+  static final BooleanSupplier WHILE_OPEN =
+      new BooleanSupplier() {
+        @Override
+        public boolean getAsBoolean() {
+          return true;
+        }
+      };
 
   /** Creates a replacement window. */
   public interface Factory {
@@ -77,6 +94,7 @@ public final class WindowViews implements WindowRebuild {
   private final Display display;
   private final SwtUiDispatcher ui;
   private final Factory factory;
+  private final ShownMenus menus;
   private final List<Entry> entries = new ArrayList<Entry>();
   private final Runnable step =
       new Runnable() {
@@ -105,9 +123,57 @@ public final class WindowViews implements WindowRebuild {
    * @param factory creates replacement windows
    */
   public WindowViews(Display display, Factory factory) {
+    this(display, factory, new ShownMenus(display));
+  }
+
+  /**
+   * Creates the window side of a rebuild over a given menu tracker.
+   *
+   * @param display the Display
+   * @param factory creates replacement windows
+   * @param menus the Display's shown menus
+   */
+  WindowViews(Display display, Factory factory, ShownMenus menus) {
     this.display = display;
     this.ui = new SwtUiDispatcher(display);
     this.factory = factory;
+    this.menus = menus;
+  }
+
+  /**
+   * Marks a window owned by a main window whose disposal loses the user's input while a condition
+   * holds, so the main window's rebuild waits for it.
+   *
+   * @param shell the window
+   * @param holding true while closing the window would lose input; read on the UI thread
+   */
+  static void holdWhile(Shell shell, BooleanSupplier holding) {
+    shell.setData(HOLD, holding);
+  }
+
+  /**
+   * Reports whether a main window owns a visible window {@link #holdWhile} marks while it holds
+   * input.
+   *
+   * @param shell the main window's shell
+   * @return true while one holds
+   */
+  static boolean held(Shell shell) {
+    for (Shell owned : shell.getShells()) {
+      if (!owned.isDisposed()
+          && owned.isVisible()
+          && owned.getData(HOLD) instanceof BooleanSupplier holding
+          && holding.getAsBoolean()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Reports whether the window shows a menu or a window that holds input. */
+  private boolean inUse(Entry e) {
+    Shell shell = e.slot.window().shell();
+    return menus.shownOver(shell) || held(shell);
   }
 
   /**
@@ -187,6 +253,8 @@ public final class WindowViews implements WindowRebuild {
       } else if (e.builtDark != dark) {
         if (hidden) {
           e.builtDark = dark;
+        } else if (e.build == null && inUse(e)) {
+          waiting = true;
         } else if (e.build == null) {
           start(e, dark);
           schedule();
@@ -195,7 +263,7 @@ public final class WindowViews implements WindowRebuild {
           e.build.staged = e.build.tabs.step();
           schedule();
           return;
-        } else if (e.slot.holdsDialog()) {
+        } else if (e.slot.holdsDialog() || inUse(e)) {
           waiting = true;
         } else {
           swap(e);

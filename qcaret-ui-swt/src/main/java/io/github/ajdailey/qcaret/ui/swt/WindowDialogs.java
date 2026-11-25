@@ -160,6 +160,7 @@ final class WindowDialogs {
       return;
     }
     preferencesDialog = new PreferencesDialog(shell, input);
+    WindowViews.holdWhile(preferencesDialog.shell(), WindowViews.WHILE_OPEN);
     preferencesDialog.open();
     rememberSize(preferencesDialog.shell(), "preferences");
   }
@@ -205,6 +206,7 @@ final class WindowDialogs {
   void showRecovery(RecoveryInput input) {
     if (!shell.isDisposed()) {
       recoveryDialog = new RecoveryDialog(shell, input);
+      WindowViews.holdWhile(recoveryDialog.shell(), WindowViews.WHILE_OPEN);
       recoveryDialog.open();
     }
   }
@@ -348,6 +350,7 @@ final class WindowDialogs {
       return;
     }
     changeDialog = new ChangeDialog(shell, name, saving, answer);
+    WindowViews.holdWhile(changeDialog.shell(), WindowViews.WHILE_OPEN);
     changeDialog.open();
   }
 

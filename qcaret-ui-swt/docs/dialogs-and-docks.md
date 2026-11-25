@@ -16,7 +16,10 @@ shows whole; a caller passes the text unescaped.
 Four calls do run a nested event loop, so code around them must tolerate
 re-entrant events: `FileDialog.open`, `DirectoryDialog.open`,
 `PrintDialog.open`, and `Clipboard.getContents` on GTK, which
-`MainWindow.clipboardText` uses.
+`MainWindow.clipboardText` uses. Open a native dialog through `NativeDialogs`,
+which counts it on its top-level shell so a window rebuild waits for it;
+`ArchitectureTest` fails any other `Dialog.open` call. `PrintSupport.choose`
+takes `NativeDialogs::open` as its opener.
 
 ## Window icons
 

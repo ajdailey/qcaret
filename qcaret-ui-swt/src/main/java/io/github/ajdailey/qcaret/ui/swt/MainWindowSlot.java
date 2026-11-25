@@ -42,21 +42,18 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
-import org.eclipse.swt.widgets.Shell;
 
 /**
  * A window's {@link MainView} for its controllers: forwards every call to the current {@link
  * MainWindow}, so the controllers, their workers and their state stay when {@link WindowViews}
  * replaces the window with a new one. The slot keeps the busy count, and the dock, editor display
  * and status settings the controllers pushed, and pushes them again to a replacement ({@link
- * #replace}). It also counts the native file, folder and print dialogs running a nested event loop
- * through it. Confined to the UI thread, except {@link #setActive} and {@link #setIdle}.
+ * #replace}). Confined to the UI thread, except {@link #setActive} and {@link #setIdle}.
  */
 public final class MainWindowSlot implements MainView {
   private MainWindow window;
   private MainView view;
   private final BusyCounter busy;
-  private int nativeDialogs;
   private WorkspaceInput workspace;
   private boolean workspaceShown;
   private ResultsInput results;
@@ -193,21 +190,12 @@ public final class MainWindowSlot implements MainView {
 
   /**
    * Reports whether a dialog that a rebuild of the window would dispose is open: a modal dialog or
-   * prompt, Preferences, the recovery dialog, the external change prompt, or a native dialog's
-   * nested event loop.
+   * prompt, or a native dialog's nested event loop ({@link NativeDialogs}).
    *
    * @return true while one is open
    */
   boolean holdsDialog() {
-    return nativeDialogs > 0
-        || window.promptShown()
-        || open(window.preferencesDialog() == null ? null : window.preferencesDialog().shell())
-        || open(window.recoveryDialog() == null ? null : window.recoveryDialog().shell())
-        || open(window.changeDialog() == null ? null : window.changeDialog().shell());
-  }
-
-  private static boolean open(Shell shell) {
-    return shell != null && !shell.isDisposed();
+    return NativeDialogs.openOver(window.shell()) || window.promptShown();
   }
 
   /**
@@ -231,42 +219,22 @@ public final class MainWindowSlot implements MainView {
 
   @Override
   public void chooseFilesToOpen(Path directory, Consumer<List<Path>> chosen) {
-    nativeDialogs++;
-    try {
-      view.chooseFilesToOpen(directory, chosen);
-    } finally {
-      nativeDialogs--;
-    }
+    view.chooseFilesToOpen(directory, chosen);
   }
 
   @Override
   public void chooseSaveTarget(Path directory, String name, Consumer<Path> chosen) {
-    nativeDialogs++;
-    try {
-      view.chooseSaveTarget(directory, name, chosen);
-    } finally {
-      nativeDialogs--;
-    }
+    view.chooseSaveTarget(directory, name, chosen);
   }
 
   @Override
   public void chooseFolder(Path start, Consumer<Path> chosen) {
-    nativeDialogs++;
-    try {
-      view.chooseFolder(start, chosen);
-    } finally {
-      nativeDialogs--;
-    }
+    view.chooseFolder(start, chosen);
   }
 
   @Override
   public void choosePrinter(String document, Consumer<PrintTarget> chosen) {
-    nativeDialogs++;
-    try {
-      view.choosePrinter(document, chosen);
-    } finally {
-      nativeDialogs--;
-    }
+    view.choosePrinter(document, chosen);
   }
 
   @Override

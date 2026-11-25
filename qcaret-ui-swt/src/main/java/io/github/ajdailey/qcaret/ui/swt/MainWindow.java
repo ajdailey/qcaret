@@ -669,9 +669,7 @@ public final class MainWindow implements MainView {
       resultsDock.setPalette(next);
     }
     dialogs.setPalette(next);
-    for (EditorPane pane : allPanes()) {
-      pane.setPalette(next);
-    }
+    tabStrip.setPalette(next);
     for (MarkdownPane pane : tabStrip.allPreviews()) {
       pane.setPalette(next);
     }
@@ -1155,7 +1153,7 @@ public final class MainWindow implements MainView {
     if (directory != null) {
       dialog.setFilterPath(directory.toString());
     }
-    if (dialog.open() == null) {
+    if (NativeDialogs.open(dialog) == null) {
       return;
     }
     List<Path> paths = new ArrayList<Path>();
@@ -1177,7 +1175,7 @@ public final class MainWindow implements MainView {
     if (directory != null) {
       dialog.setFilterPath(directory.toString());
     }
-    String chosenPath = dialog.open();
+    String chosenPath = NativeDialogs.open(dialog);
     chosen.accept(chosenPath == null ? null : Path.of(chosenPath));
   }
 
@@ -1202,6 +1200,7 @@ public final class MainWindow implements MainView {
                 shell,
                 PdfPrinter.jobName(document),
                 pane != null && pane.hasSelection(),
+                NativeDialogs::open,
                 new Supplier<PrinterData>() {
                   @Override
                   public PrinterData get() {
@@ -2118,7 +2117,7 @@ public final class MainWindow implements MainView {
     if (start != null) {
       dialog.setFilterPath(start.toString());
     }
-    String folder = dialog.open();
+    String folder = NativeDialogs.open(dialog);
     if (folder != null) {
       chosen.accept(Path.of(folder));
     }

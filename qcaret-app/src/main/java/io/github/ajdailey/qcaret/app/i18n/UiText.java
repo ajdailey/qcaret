@@ -954,6 +954,10 @@ public enum UiText {
   OPEN_REASON_NUL,
   /** Path refusal reason: the file system does not accept the path. */
   OPEN_REASON_INVALID,
+  /** A search folder whose text is rejected: the folder and the reason. */
+  SEARCH_DIRECTORY_REFUSED,
+  /** A Workspace Browser path whose text is rejected: the path and the reason. */
+  BROWSE_REFUSED,
   /** Reason of an open ended by an internal failure, such as running out of memory. */
   OPEN_STOPPED,
   /** The file is the running instance's lock. */

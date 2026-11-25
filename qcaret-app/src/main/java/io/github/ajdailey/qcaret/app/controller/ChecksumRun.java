@@ -201,6 +201,7 @@ abstract class ChecksumRun<R> implements ChecksumInput {
     }
     final byte[] bytes = text.toString().getBytes(StandardCharsets.UTF_8);
     try {
+      PathFormText.check(target.toString());
       SafeSave.save(
           target,
           null,

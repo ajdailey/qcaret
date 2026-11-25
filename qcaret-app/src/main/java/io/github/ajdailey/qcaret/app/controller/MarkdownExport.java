@@ -14,7 +14,6 @@ import io.github.ajdailey.qcaret.core.io.SafeSave;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownRenderer;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTree;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
-import io.github.ajdailey.qcaret.core.text.LogText;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -84,6 +83,7 @@ final class MarkdownExport {
       @WorkerThread
       void work() {
         try {
+          PathFormText.check(target.toString());
           if (own != null && sameFile(target, own)) {
             refused = true;
             return;
@@ -103,7 +103,7 @@ final class MarkdownExport {
           view.showInfo(
               UiText.EXPORT_HTML_TITLE.text(),
               UiText.EXPORT_HTML_FAILED.format(
-                  String.valueOf(target.getFileName()), LogText.oneLine(error.getMessage())));
+                  String.valueOf(target.getFileName()), PathFormText.message(error)));
         } else if (completed) {
           view.showNotice(UiText.EXPORT_HTML_DONE.format(title, target));
         }

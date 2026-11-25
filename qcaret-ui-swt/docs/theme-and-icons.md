@@ -54,6 +54,19 @@ because both read the native background.
 
 ### win32
 
+Popup menus (menu bar menus, cascades, context menus) keep the native side of
+the start until QCaret restarts, after a View > Theme switch and after a
+Windows mode change under System. The popup menu theme is process-wide:
+`setDarkThemePreferred` reaches `SetPreferredAppMode` (through SWT's
+`useDarkModeExplorerTheme`), but SWT 3.135.0 never calls `FlushMenuThemes` and
+no public API reaches it. A native call is declined (user decision, shared with
+QLogg).
+
+A read-only `Combo`'s drop list stays light under a dark start with native
+colors (`#ffffff`, `windows-2025`); a `setBackground` reaches it, so the dialog
+colors (`DialogColors`) make it dark. QCaret has read-only combos only in
+dialogs.
+
 Under the dark native setting win32 draws check box labels near-white while the
 main window's docks and bars stay light, so every check box comes from
 `SwtThemeService.check`. It calls `DialogColors.check`, which on win32
@@ -277,7 +290,12 @@ with SWT 3.135.0.
 `MainWindow` applies a palette to the `StyledText` colors, the editors' painted
 marks (margin, indent guides, modified-line marks) and the tab strip, then
 re-inks its `ToolIcons` on the next UI turn, after native controls have
-restyled.
+restyled. Only the selected tab's editors take the palette at once; another
+tab's take it when the tab is next selected (`EditorTab.setPalette`, on
+`SWT.Show` of the tab's frame, before it paints). Each `StyledText` color
+change resets the widget's line cache over the whole document, so a hidden
+tab's recolor would lengthen a theme switch's settings turn by its length; a
+window a rebuild replaces never recolors its hidden tabs.
 
 `ui.editorColors` can put the palette on the other side from native controls,
 so every surface takes its colors from one of the two, never a mix:

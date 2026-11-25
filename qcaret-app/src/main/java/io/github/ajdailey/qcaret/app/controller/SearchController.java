@@ -23,6 +23,7 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
+import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -250,30 +251,44 @@ public final class SearchController implements ResultsInput {
         return;
       }
     } else if (form.scope().folder()) {
-      String entered = form.directory().strip();
-      try {
-        folder = entered.isEmpty() ? null : Path.of(entered).toAbsolutePath().normalize();
-      } catch (InvalidPathException e) {
-        folder = null;
-      }
-      if (folder == null) {
+      final String entered = form.directory().strip();
+      if (entered.isEmpty()) {
         view.showInfo(UiText.SEARCH_TITLE.text(), UiText.SEARCH_NO_DIRECTORY.format(entered));
         return;
       }
-      final Path given = folder;
       resolving++;
       boolean started =
           new BusyWork(ui, view) {
             @Override
             @WorkerThread
             void work() {
-              final Path real = WorkspaceController.realFolder(given);
+              final String refused = PathFormText.refusal(entered);
+              Path given = null;
+              if (refused == null) {
+                try {
+                  given = Path.of(entered).toAbsolutePath().normalize();
+                } catch (InvalidPathException e) {
+                  given = null;
+                }
+              }
+              final Path real = given == null ? null : WorkspaceController.realFolder(given);
               ui.asyncExec(
                   new Runnable() {
                     @Override
                     public void run() {
                       resolving--;
-                      if (!disposed) {
+                      if (disposed) {
+                        return;
+                      }
+                      if (refused != null) {
+                        view.showInfo(
+                            UiText.SEARCH_TITLE.text(),
+                            UiText.SEARCH_DIRECTORY_REFUSED.format(
+                                LogText.oneLine(entered), refused));
+                      } else if (real == null) {
+                        view.showInfo(
+                            UiText.SEARCH_TITLE.text(), UiText.SEARCH_NO_DIRECTORY.format(entered));
+                      } else {
                         rememberDirectory(real.toString());
                         SearchController.this.start(form, real);
                       }
@@ -381,6 +396,8 @@ public final class SearchController implements ResultsInput {
     final ResultSet set = new ResultSet(id, request, System.currentTimeMillis());
     final Entry entry = rerunOf == null ? new Entry(set) : rerunOf;
     final HyperSearch[] started = new HyperSearch[1];
+    // The busy cursor shows over the window and its search dialog until the search ends.
+    view.setActive();
     started[0] =
         HyperSearch.start(
             set,
@@ -403,6 +420,7 @@ public final class SearchController implements ResultsInput {
 
               @Override
               public void finished() {
+                view.setIdle();
                 ended(entry, started[0]);
               }
             });

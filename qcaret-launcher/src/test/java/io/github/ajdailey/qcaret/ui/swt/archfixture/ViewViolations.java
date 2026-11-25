@@ -140,6 +140,13 @@ final class ViewViolations {
     }
   }
 
+  /** Opens a native chooser outside NativeDialogs. */
+  static final class OpensFileDialog {
+    String choose(Shell parent) {
+      return new org.eclipse.swt.widgets.FileDialog(parent).open();
+    }
+  }
+
   /**
    * Reads the SWT platform, the GTK 4 environment and an SWT internal property outside {@code
    * PlatformTraits}.

@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -48,6 +49,7 @@ final class EditorTab implements TabView, SelectionListener {
   CTabItem item;
   private final TabStrip strip;
   private final TabStrip.Host host;
+  private Palette pending;
 
   /** A view as its controller sees it; focusing it makes it the tab's focused view. */
   private final class View implements EditorView {
@@ -188,6 +190,39 @@ final class EditorTab implements TabView, SelectionListener {
     frame.setMaximizedControl(sash);
     this.input = input;
     this.item = strip.newItem(this, index);
+    frame.addListener(
+        SWT.Show,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (pending != null) {
+              Palette next = pending;
+              pending = null;
+              for (EditorPane each : panes) {
+                each.setPalette(next);
+              }
+            }
+          }
+        });
+  }
+
+  /**
+   * Gives the tab's editors a palette: at once while the tab is the selected one, else when it is
+   * next selected ({@code SWT.Show} on the frame, before it paints). {@code StyledText} resets its
+   * line cache on each color change, so a hidden tab's recolor would only lengthen the turn, and a
+   * window a rebuild replaces never recolors its hidden tabs.
+   *
+   * @param next the palette
+   */
+  void setPalette(Palette next) {
+    if (frame.getVisible()) {
+      pending = null;
+      for (EditorPane each : panes) {
+        each.setPalette(next);
+      }
+    } else {
+      pending = next;
+    }
   }
 
   /** Adds a view; its focus selects it as the tab's focused view. */

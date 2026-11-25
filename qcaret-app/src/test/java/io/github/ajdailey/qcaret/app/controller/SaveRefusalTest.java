@@ -28,6 +28,8 @@ import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /** The saves that end in a notice, with the file as it was. */
@@ -121,6 +123,39 @@ class SaveRefusalTest {
     assertTrue(document.isReadOnly());
     assertFalse(document.isDirty());
     return document;
+  }
+
+  @Test
+  void saveAsToAPathRejectedByItsTextNamesTheReason() throws Exception {
+    Path file = Files.writeString(temp.resolve("a.txt"), "one\n");
+    open(file);
+    documents.activeEditor().type("x");
+    saveAsRefused(Path.of(""), UiText.OPEN_REASON_EMPTY.text());
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void saveAsToAWindowsDeviceNameNamesTheReason() throws Exception {
+    Path file = Files.writeString(temp.resolve("a.txt"), "one\n");
+    open(file);
+    documents.activeEditor().type("x");
+    saveAsRefused(temp.resolve("nul.txt"), UiText.OPEN_REASON_DEVICE.text());
+  }
+
+  /** Runs Save As onto a target and expects the save notice with a reason. */
+  private void saveAsRefused(Path target, String reason) throws Exception {
+    Document document = documents.activeDocument();
+    int infos = view.infos.size();
+    view.saveChooser = null;
+    documents.saveAs();
+    assertNotNull(view.saveChooser);
+    view.saveChooser.accept(target);
+    idle();
+    assertEquals(
+        UiText.SAVE_TITLE.text() + ": " + UiText.SAVE_FAILED.format("a.txt", reason),
+        view.infos.get(infos));
+    assertTrue(document.isDirty());
+    assertEquals("one\n", Files.readString(temp.resolve("a.txt")));
   }
 
   @Test

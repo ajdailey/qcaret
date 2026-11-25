@@ -291,6 +291,19 @@ final class TabStrip {
   }
 
   /**
+   * Gives every tab's editors a palette ({@link EditorTab#setPalette}).
+   *
+   * @param next the palette
+   */
+  void setPalette(Palette next) {
+    for (CTabItem item : tabs.getItems()) {
+      if (item.getData() instanceof EditorTab tab) {
+        tab.setPalette(next);
+      }
+    }
+  }
+
+  /**
    * Returns every Markdown preview pane of every tab, in strip order.
    *
    * @return the panes created so far

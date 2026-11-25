@@ -17,7 +17,6 @@ import io.github.ajdailey.qcaret.core.io.ExternalModificationException;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.text.FileSettings;
-import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -196,6 +195,19 @@ final class SaveAndReload {
           @Override
           @WorkerThread
           void work() {
+            final String refused = PathFormText.refusal(target.toString());
+            if (refused != null) {
+              ui.asyncExec(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      view.showInfo(
+                          UiText.SAVE_TITLE.text(), UiText.SAVE_FAILED.format(d.name(), refused));
+                      end.stop();
+                    }
+                  });
+              return;
+            }
             final Path real = realFile(target);
             final FileSettings found = reader == null ? null : reader.read(real, text);
             ui.asyncExec(
@@ -379,6 +391,7 @@ final class SaveAndReload {
                 d.file.writing.lock();
                 try {
                   try {
+                    PathFormText.check(target.toString());
                     FileStamp expected = sameFile(target, known) ? baseline : null;
                     stamp = DocumentFiles.save(target, snapshot, expected, token);
                     try {
@@ -515,7 +528,7 @@ final class SaveAndReload {
     if (error != null) {
       view.showInfo(
           UiText.SAVE_TITLE.text(),
-          UiText.SAVE_FAILED.format(d.name(), LogText.oneLine(error.getMessage())));
+          UiText.SAVE_FAILED.format(d.name(), PathFormText.message(error)));
     }
     end.stop();
   }
