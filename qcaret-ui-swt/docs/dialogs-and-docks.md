@@ -299,7 +299,12 @@ starts a new row for a control that does not fit after the others and wraps the
 summary's text where it is wider than the dock. `TableFit.spread` keeps Line at
 its width and gives Comment and Text the rest of the table's width at each
 resize, in proportion to their starting widths (260 and 480), less a hidden
-vertical scroll bar's width, so the table shows no horizontal scroll bar. While
+vertical scroll bar's width, so the table shows no horizontal scroll bar. It
+sets the columns that narrow before those that widen: widening across the
+switch to header minima with Comment first took the columns past the table for
+a moment, and win32 then kept a horizontal and a vertical scroll bar under
+columns that fit (Windows 11 at 150 %). At a fractional zoom it reads the zoom
+from a numeric `swt.autoScale` value before the monitor's. While
 the rest holds both header texts plus `TableFit.HEADER_PADDING`, neither column
 is narrower than its header text: under a dark theme on win32 the header colors
 make SWT 3.135.0 draw the header itself, which clips the text with no ellipsis

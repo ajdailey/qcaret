@@ -49,7 +49,9 @@ run.
 Tests take the theme from `XDG_CONFIG_HOME`, set in the module POM to
 `src/test/resources/gtk-config/adwaita`, so the dark switch runs on every Linux
 host. `LightOnlyThemeTest` runs in a second surefire execution against a
-missing theme and skips in the first.
+missing theme and skips in the first. `TableFitSurfaceTest` runs in both the
+first and a third execution with `-Dswt.autoScale=150`, which rounds between
+points and pixels on win32 at any monitor scale; GTK places widgets unscaled.
 
 ### GTK 4
 
@@ -158,7 +160,8 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 | `ResultRowsTest` | Row paths through expansion, expansion kept by set id, groups collapsed when a search ends |
 | `ReplaceSurfaceTest` | The preview opened from the dock over a tree search, a typed replacement, an unchecked match, Apply, the report's rows and the files, the run restored from the report |
 | `BookmarksSurfaceTest` | A plain bookmark's bar and a commented bookmark's flag in pixels, by color and by x range, in both themes; the tooltip over the gutter and its absence elsewhere; the comment prompt; the list's cells, Go To, Edit Comment, Remove and Hide; both docks shown at once |
-| `TableFitTest` | `TableFit.shares`: widths in proportion to the weights, a column below its header minimum taking it while every minimum fits, plain proportion when they do not. Regression: under the dark theme on win32 at 150%, SWT's custom-drawn Bookmarks header clipped Comment to "Commer" |
+| `TableFitTest` | `TableFit.shares`: widths in proportion to the weights, a column below its header minimum taking it while every minimum fits, plain proportion when they do not. `TableFit.room` with SWT's per-value rounding modeled at 125, 150 and 175%: the columns and a hidden vertical bar fit in pixels on both sides of the switch to minima. `TableFit.order`: narrowing columns first. Regression: under the dark theme on win32 at 150%, SWT's custom-drawn Bookmarks header clipped Comment to "Commer" |
+| `TableFitSurfaceTest` | A three-column table with three rows, sized inside a shell with no layout, narrowed until Comment drops below its header minimum and widened back 1 to 12 points: the columns at `TableFit.widths` within the client area, their total within it at every column resize while widening, and the horizontal scroll bar as it reads at a wide width. Regression: on Windows 11 at 150% (OBERON), widening across the switch set Comment before Text and left both scroll bars under columns that fit; the total assertion fails on every platform with that order, the scroll bar assertion on win32 |
 | `DockFitSurfaceTest` | The Bookmarks and Outline docks sized inside a shell with no layout, wider and narrower than their header row: every header control inside the dock, the whole summary shown, wrapped where needed, and the list below the header; the Bookmarks columns filling the table's width without overflow, Line left-aligned, and Comment and Text never narrower than their header text where the dock holds both. The G1 gate at 150% found the Bookmarks summary clipped to "f19.tx", the Outline summary past the window edge and a horizontal scroll bar under two fitting columns |
 | `DockShotsTest` | With `-Dqcaret.screenshots`, the Search Results, Bookmarks and Outline docks after a light and a dark start and a live switch, the Outline collapsed on a plain tab; on win32 the dock tables' drawn background read on the dark side |
 | `WorkspaceSurfaceTest` | The browser's icon row in one row at the default width in a 960 and a 640 pixel window, and wrapped inside the dock at restored narrow weights; browser rows expanded, a file opened with Enter, a path copied, the active file revealed, a Quick Open match chosen at `:2`, the Recent Files entry, an empty Quick Open (the open document in bold, then a closed recent file) |

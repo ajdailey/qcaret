@@ -136,6 +136,13 @@ selected tab in `SWT.COLOR_WIDGET_NORMAL_SHADOW` (#a0a0a0) with no API to
 change it, so that 1 px line stays light under the dark palette, as do the
 native list header's borders.
 
+Windows: under the dark theme, a column header narrowed below its text is cut
+off without an ellipsis. Header colors make SWT 3.135's win32 header custom
+draw paint the text, and it calls `DrawText` without `DT_END_ELLIPSIS`.
+`TableFit.spread` keeps the Bookmarks headers whole while the dock holds them
+([dialogs and docks](dialogs-and-docks.md#bookmarks-dock)); a header the user
+narrows by hand clips.
+
 #### Chrome colors
 
 `MainWindow` takes a `ChromeColors` from `PlatformTraits.chromeColors` and

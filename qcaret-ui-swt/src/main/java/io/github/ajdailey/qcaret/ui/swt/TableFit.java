@@ -1,10 +1,12 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import java.util.Arrays;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.ScrollBar;
@@ -56,9 +58,7 @@ final class TableFit {
   /**
    * Keeps a table's columns within its width at each resize: the first column keeps its width and
    * the others share the rest in proportion to their widths at this call, each at least its header
-   * text's width while the rest holds every such minimum. The share leaves room for a hidden
-   * vertical scroll bar, so rows added later do not bring a horizontal one, and one point at a
-   * fractional zoom, where each column's width rounds on its own.
+   * text's width while the rest holds every such minimum, within {@link #room}.
    *
    * @param table the table, with its columns
    */
@@ -85,7 +85,8 @@ final class TableFit {
   }
 
   /**
-   * Sets the widths of every column after the first to fill the table's width.
+   * Sets the widths of every column after the first to fill the table's width, narrowing columns
+   * before widening any ({@link #order}).
    *
    * @param table the table
    * @param weights each column's share, from index 1
@@ -95,19 +96,89 @@ final class TableFit {
     if (table.isDisposed() || weights.length < 2) {
       return;
     }
-    int width = table.getClientArea().width;
-    ScrollBar bar = table.getVerticalBar();
-    if (bar != null && !bar.getVisible()) {
-      width -= bar.getSize().x;
-    }
-    if (table.getMonitor().getZoom() % 100 != 0) {
-      width--;
-    }
-    int rest = Math.max(0, width - table.getColumn(0).getWidth());
-    int[] widths = shares(rest, weights, minima);
+    int[] widths = widths(table, weights, minima);
+    int[] current = new int[widths.length];
     for (int i = 1; i < widths.length; i++) {
+      current[i] = table.getColumn(i).getWidth();
+    }
+    for (int i : order(current, widths)) {
       table.getColumn(i).setWidth(widths[i]);
     }
+  }
+
+  /**
+   * Returns the widths {@link #spread(Table, int[], int[])} gives every column after the first at
+   * the table's current size.
+   *
+   * @param table the table, with its columns
+   * @param weights each column's share, from index 1
+   * @param minima each column's smallest width, from index 1
+   * @return each column's width, from index 1
+   */
+  static int[] widths(Table table, int[] weights, int[] minima) {
+    ScrollBar bar = table.getVerticalBar();
+    int hidden = bar != null && !bar.getVisible() ? bar.getSize().x : 0;
+    int width = room(table.getClientArea().width, hidden, zoom(table) % 100 != 0);
+    return shares(Math.max(0, width - table.getColumn(0).getWidth()), weights, minima);
+  }
+
+  /**
+   * Returns the width the columns may fill: the client width less a hidden vertical scroll bar, so
+   * rows added later do not bring a horizontal one, and less one point at a fractional zoom, where
+   * each column's width rounds to pixels on its own.
+   *
+   * @param client the client area's width
+   * @param hiddenBar the vertical scroll bar's width while it is hidden, else 0
+   * @param fractional whether the zoom is not a whole multiple of 100
+   * @return the width
+   */
+  static int room(int client, int hiddenBar, boolean fractional) {
+    return client - hiddenBar - (fractional ? 1 : 0);
+  }
+
+  /**
+   * Returns the zoom SWT scales a control's points by: a numeric {@code swt.autoScale} value, else
+   * the control's monitor zoom.
+   *
+   * @param control the control
+   * @return the zoom in percent
+   */
+  static int zoom(Control control) {
+    String scale = System.getProperty("swt.autoScale");
+    if (scale != null) {
+      try {
+        return Integer.parseInt(scale.trim());
+      } catch (NumberFormatException named) {
+        return control.getMonitor().getZoom();
+      }
+    }
+    return control.getMonitor().getZoom();
+  }
+
+  /**
+   * Returns the columns from index 1 in the order to set their widths: each column that narrows
+   * before any that widens, so the columns' total never passes the larger of the two totals. A
+   * total past the client area for a moment makes the win32 list view show a horizontal scroll bar,
+   * and the vertical one that bar forces, which stay after the columns fit.
+   *
+   * @param current each column's width now, from index 1
+   * @param widths each column's new width, from index 1
+   * @return the column indexes whose width changes, narrowing ones first
+   */
+  static int[] order(int[] current, int[] widths) {
+    int[] order = new int[widths.length];
+    int count = 0;
+    for (int i = 1; i < widths.length; i++) {
+      if (widths[i] < current[i]) {
+        order[count++] = i;
+      }
+    }
+    for (int i = 1; i < widths.length; i++) {
+      if (widths[i] > current[i]) {
+        order[count++] = i;
+      }
+    }
+    return Arrays.copyOf(order, count);
   }
 
   /**

@@ -147,6 +147,19 @@
                             </environmentVariables>
                         </configuration>
                     </execution>
+                    <!-- Rounding between points and pixels at 150%, on any
+                         monitor; GTK places widgets unscaled. -->
+                    <execution>
+                        <id>autoscale-150</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <test>TableFitSurfaceTest</test>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                            <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs} -Dswt.autoScale=150</argLine>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

@@ -1376,3 +1376,5 @@ To give QCaret more heap for large files, see [Large files](#large-files).
 - On Windows a folder above the folder of an open file cannot be renamed
   outside QCaret while QCaret runs: Windows reports it in use. Rename it from
   the Workspace Browser, or close the file first.
+- Windows: under the dark theme, a column header narrowed below its text is cut
+  off without an ellipsis.
