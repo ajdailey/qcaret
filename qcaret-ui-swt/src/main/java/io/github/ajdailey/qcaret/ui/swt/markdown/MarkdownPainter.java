@@ -223,10 +223,13 @@ final class MarkdownPainter {
     }
   }
 
+  /**
+   * Returns a display line's height over all its visual rows; the last line's without the line
+   * spacing below it.
+   */
   private int lineHeight(int line) {
-    return line + 1 < text.getLineCount()
-        ? text.getLinePixel(line + 1) - text.getLinePixel(line)
-        : text.getLineHeight(text.getOffsetAtLine(line));
+    int height = text.getLinePixel(line + 1) - text.getLinePixel(line);
+    return line + 1 < text.getLineCount() ? height : height - MarkdownPane.LINE_SPACING;
   }
 
   /** Draws an image, or a placeholder for one that does not decode. */

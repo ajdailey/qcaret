@@ -46,7 +46,7 @@ final class CocoaMenuBehavior implements MenuBehavior {
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            shell.setMinimized(true);
+            WindowStacking.PLATFORM.minimize(shell);
           }
         });
     MenuItem zoom = new MenuItem(menu, SWT.PUSH, 1);

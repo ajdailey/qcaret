@@ -4,9 +4,10 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Keeps a shell above other windows (View > Always on Top). SWT has no public call for it, so each
- * supported platform has a class that reaches SWT internals by reflection, and the product compiles
- * against every platform's SWT jar. Confined to the UI thread.
+ * Keeps a shell above other windows (View > Always on Top), and minimizes a tool window without its
+ * owner on cocoa ({@link #minimize}). SWT has no public call for either, so each supported platform
+ * has a class that reaches SWT internals by reflection, and the product compiles against every
+ * platform's SWT jar. Confined to the UI thread.
  *
  * <table>
  *   <caption>Implementation per platform</caption>
@@ -47,4 +48,14 @@ public interface WindowStacking {
    * @param item the menu item
    */
   void explainUnsupported(MenuItem item);
+
+  /**
+   * Minimizes a shell (Window &gt; Minimize). On cocoa a tool window first leaves its owner's
+   * child-window group, which AppKit otherwise takes off screen with it, and rejoins the group when
+   * restored; {@link CocoaStacking} also brings the owner back after a minimize through the title
+   * bar. Elsewhere {@code setMinimized(true)}.
+   *
+   * @param shell the shell
+   */
+  void minimize(Shell shell);
 }

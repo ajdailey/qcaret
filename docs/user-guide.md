@@ -1063,7 +1063,9 @@ On macOS the Window menu starts with Minimize (`Cmd+M`) and Zoom, which
 switches the window between its size and filling the screen.
 While a tool window such as Preferences, Statistics or a comparison is in front,
 the menu bar keeps the main menus, and their commands act on the window that
-opened it; Close (`Cmd+W`), Minimize and Zoom act on the tool window.
+opened it; Close (`Cmd+W`), Minimize and Zoom act on the tool window, and
+minimizing a tool window, from the menu or its title bar, leaves the
+main window on screen.
 
 View > Always on Top keeps a window above other applications' windows, with its
 dialogs above it; the session restores it per window. It has no default key. On
@@ -1084,7 +1086,9 @@ they last closed with.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
 window's tab strip to dock it there; Window > Move to New Window and the tab
-menu do the first. The document moves live and nothing is read again: undo
+menu do the first. A dragged-out tab's window opens with its top-left corner at
+the drop point, moved onto the screen where it does not fit there. The document
+moves live and nothing is read again: undo
 history, unsaved changes, carets, scroll, folds, bookmarks and its recovery file
 go with it. A tab with a save, copy, reload, conversion, Reopen with Encoding or
 workspace browser rename running, or with a change question open, does not move,
@@ -1129,7 +1133,8 @@ File associations: on Linux run `bin/install-desktop-entry`; on Windows run
 
 Tools > Preferences (`Ctrl+,`; the application menu on macOS) applies to the
 running windows without a restart. `Ctrl+PageDown` and `Ctrl+PageUp` from a
-field select the next and previous tab.
+field select the next and previous tab; on macOS focus moves into the new tab,
+so the keys repeat.
 
 | Tab | Holds |
 |---|---|

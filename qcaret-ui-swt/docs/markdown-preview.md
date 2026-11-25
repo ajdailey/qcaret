@@ -223,7 +223,10 @@ the right margin by the code padding, at most half the margin: code wraps at
 the right margin, so the box takes its right padding from the margin. It paints
 the shade over its padding in the separators, the pane background over the code
 lines' shade outside the box and at its 4 px corners, and a 1 px border in the
-line number color. Code lines are indented by the code padding, 12 px scaled
+line number color. The box encloses every visual row of a wrapped code line,
+the document's last line included: that line's height is
+`getLinePixel(lineCount)` less its line spacing, since `getLineHeight(offset)`
+gives one visual row. Code lines are indented by the code padding, 12 px scaled
 by the zoom. A wrapped code line's continuation adds the width of the line's
 leading spaces and tabs (`CodeIndent`, a run of spaces measured whole), so it
 starts under the line's own text. The display text shows a code line's leading

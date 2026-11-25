@@ -62,4 +62,9 @@ final class Win32Stacking extends PlatformStacking {
 
   @Override
   public void explainUnsupported(MenuItem item) {}
+
+  @Override
+  public void minimize(Shell shell) {
+    shell.setMinimized(true);
+  }
 }

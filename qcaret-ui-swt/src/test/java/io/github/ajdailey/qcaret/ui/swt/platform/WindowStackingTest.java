@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -129,6 +130,153 @@ class WindowStackingTest {
     assertEquals(0, cocoaLevel(nested));
     assertTrue(stacking.raised().isEmpty());
     assertTrue(stacking.supported());
+  }
+
+  /**
+   * Each SWT member {@link CocoaStacking} reflects on, by name, so an upgrade names the one lost.
+   */
+  @Test
+  @EnabledOnOs(OS.MAC)
+  void cocoaReflectedMembersExist() throws Exception {
+    ClassLoader loader = Shell.class.getClassLoader();
+    Class<?> nsWindow = Class.forName("org.eclipse.swt.internal.cocoa.NSWindow", false, loader);
+    Class<?> id = Class.forName("org.eclipse.swt.internal.cocoa.id", false, loader);
+    assertEquals(nsWindow, Shell.class.getDeclaredField("window").getType(), "Shell.window");
+    assertNotNull(nsWindow.getMethod("setLevel", long.class), "setLevel");
+    assertNotNull(nsWindow.getMethod("removeChildWindow", nsWindow), "removeChildWindow");
+    assertNotNull(nsWindow.getMethod("addChildWindow", nsWindow, long.class), "addChildWindow");
+    assertNotNull(nsWindow.getMethod("orderFront", id), "orderFront");
+    assertTrue(new CocoaStacking().supported());
+  }
+
+  /**
+   * The title bar's minimize button on a tool window took its owner off screen; the Iconify filter
+   * brings the owner back and the tool window rejoins its children when restored.
+   */
+  @Test
+  @EnabledOnOs(OS.MAC)
+  void cocoaKeepsTheOwnerWhenTheTitleBarMinimizesAToolWindow() throws Exception {
+    CocoaStacking stacking = new CocoaStacking();
+    shell.open();
+    final Shell tool = new Shell(shell, SWT.SHELL_TRIM);
+    tool.setSize(200, 120);
+    tool.open();
+    assumeTrue(occlusion(shell, true), "the owner never shows on screen (screen locked?)");
+    cocoaSend(tool, "performMiniaturize:");
+    awaitCocoa(tool, "isMiniaturized", true);
+    awaitOcclusion(tool, false);
+    awaitOcclusion(shell, true);
+    assertEquals(0, cocoaParentId(tool), "out of the owner's children while minimized");
+    tool.setMinimized(false);
+    awaitCocoa(tool, "isMiniaturized", false);
+    assertEquals(cocoaId(shell), cocoaParentId(tool), "a child window again once restored");
+    assertTrue(stacking.supported());
+  }
+
+  /** Sends a one-argument selector, with a nil argument, to the shell's {@code NSWindow}. */
+  private static void cocoaSend(Shell shell, String selector) throws ReflectiveOperationException {
+    long id = cocoaId(shell);
+    Class<?> os = Class.forName("org.eclipse.swt.internal.cocoa.OS");
+    long sel = (Long) os.getMethod("sel_registerName", String.class).invoke(null, selector);
+    os.getMethod("objc_msgSend", long.class, long.class, long.class).invoke(null, id, sel, 0L);
+  }
+
+  /** Minimize on a tool window took its owner off screen until the tool window was restored. */
+  @Test
+  @EnabledOnOs(OS.MAC)
+  void cocoaMinimizesAToolWindowWithoutItsOwner() throws Exception {
+    CocoaStacking stacking = new CocoaStacking();
+    shell.open();
+    final Shell tool = new Shell(shell, SWT.SHELL_TRIM);
+    tool.setSize(200, 120);
+    tool.open();
+    assertEquals(cocoaId(shell), cocoaParentId(tool), "a child window of its owner");
+    assumeTrue(occlusion(shell, true), "the owner never shows on screen (screen locked?)");
+    stacking.minimize(tool);
+    awaitCocoa(tool, "isMiniaturized", true);
+    // NSWindowOcclusionStateVisible: isVisible stays true while AppKit hides the owner.
+    awaitOcclusion(tool, false);
+    assertTrue(cocoaVisibleOnScreen(shell), "the owner stays on screen");
+    assertFalse(cocoaFlag(shell, "isMiniaturized"));
+    assertEquals(0, cocoaParentId(tool), "out of the owner's children while minimized");
+    tool.setMinimized(false);
+    awaitCocoa(tool, "isMiniaturized", false);
+    assertEquals(cocoaId(shell), cocoaParentId(tool), "a child window again once restored");
+    assertTrue(stacking.supported());
+  }
+
+  /** Waits for a no-argument boolean {@code NSWindow} method to return a value. */
+  private void awaitCocoa(final Shell target, final String method, final boolean value) {
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                try {
+                  return cocoaFlag(target, method) == value;
+                } catch (ReflectiveOperationException e) {
+                  throw new IllegalStateException(e);
+                }
+              }
+            },
+            BOUND),
+        method + " " + value);
+  }
+
+  private void awaitOcclusion(Shell target, boolean visible) {
+    assertTrue(occlusion(target, visible), "occlusion visible " + visible);
+  }
+
+  /** Waits for the window's on-screen state; false when it does not reach it in time. */
+  private boolean occlusion(final Shell target, final boolean visible) {
+    return EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            try {
+              return cocoaVisibleOnScreen(target) == visible;
+            } catch (ReflectiveOperationException e) {
+              throw new IllegalStateException(e);
+            }
+          }
+        },
+        BOUND);
+  }
+
+  /** Reads {@code NSWindowOcclusionStateVisible} from {@code occlusionState}. */
+  private static boolean cocoaVisibleOnScreen(Shell shell) throws ReflectiveOperationException {
+    long id = cocoaId(shell);
+    Class<?> os = Class.forName("org.eclipse.swt.internal.cocoa.OS");
+    long selector =
+        (Long) os.getMethod("sel_registerName", String.class).invoke(null, "occlusionState");
+    long state =
+        (Long) os.getMethod("objc_msgSend", long.class, long.class).invoke(null, id, selector);
+    return (state & 2) != 0;
+  }
+
+  private static Object cocoaWindow(Shell shell) throws ReflectiveOperationException {
+    Field window = Shell.class.getDeclaredField("window");
+    window.setAccessible(true);
+    return window.get(shell);
+  }
+
+  private static long cocoaId(Shell shell) throws ReflectiveOperationException {
+    Object nsWindow = cocoaWindow(shell);
+    return nsWindow.getClass().getField("id").getLong(nsWindow);
+  }
+
+  /** Returns the id of the shell's parent {@code NSWindow}, or 0 with none. */
+  private static long cocoaParentId(Shell shell) throws ReflectiveOperationException {
+    Object nsWindow = cocoaWindow(shell);
+    Object parent = nsWindow.getClass().getMethod("parentWindow").invoke(nsWindow);
+    return parent == null ? 0 : parent.getClass().getField("id").getLong(parent);
+  }
+
+  private static boolean cocoaFlag(Shell shell, String method) throws ReflectiveOperationException {
+    Object nsWindow = cocoaWindow(shell);
+    return (Boolean) nsWindow.getClass().getMethod(method).invoke(nsWindow);
   }
 
   @Test

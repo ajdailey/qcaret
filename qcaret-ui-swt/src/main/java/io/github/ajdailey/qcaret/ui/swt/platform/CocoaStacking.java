@@ -21,6 +21,15 @@ import org.eclipse.swt.widgets.Shell;
  * under a floating shell, at any depth, is raised to the floating level when it shows, and returns
  * to the normal level when its top shell does; an {@link SWT#ON_TOP} shell keeps its own level.
  * Native file and message dialogs are sheets or modal panels, which AppKit stacks itself.
+ *
+ * <p>SWT makes a shell with a parent an AppKit child window of it, and AppKit takes the parent off
+ * screen when a child window miniaturizes. {@link #minimize} removes a tool window from its owner's
+ * children ({@code NSWindow.removeChildWindow}) before it miniaturizes. A Display {@code
+ * SWT.Iconify} filter covers the title bar's button: it removes the minimized tool window from the
+ * children and brings the owner back ({@code orderFront}). Either way the tool window rejoins the
+ * children above the owner ({@code addChildWindow}) when it is restored. The filter goes on the
+ * Display current when the stacking is created, and on the Display of each shell passed to {@link
+ * #minimize} or {@link #setOnTop}.
  */
 final class CocoaStacking extends PlatformStacking {
   /** AppKit {@code NSNormalWindowLevel}. */
@@ -29,8 +38,25 @@ final class CocoaStacking extends PlatformStacking {
   /** AppKit {@code NSFloatingWindowLevel}. */
   private static final long FLOATING = 3;
 
+  /** AppKit {@code NSWindowAbove}. */
+  private static final long ABOVE = 1;
+
   private final Field window;
   private final Method setLevel;
+  private final Method removeChild;
+  private final Method addChild;
+  private final Method orderFront;
+  private final Set<Shell> detached = new LinkedHashSet<Shell>();
+  private final Listener iconified =
+      new Listener() {
+        @Override
+        public void handleEvent(Event event) {
+          if (event.widget instanceof Shell tool) {
+            bringOwnerBack(tool);
+          }
+        }
+      };
+  private Display iconifyFiltered;
   private final Set<Shell> floating = new LinkedHashSet<Shell>();
   private final Set<Shell> raised = new LinkedHashSet<Shell>();
   private final Listener shown =
@@ -48,22 +74,40 @@ final class CocoaStacking extends PlatformStacking {
   CocoaStacking() {
     Field field = null;
     Method method = null;
+    Method remove = null;
+    Method add = null;
+    Method front = null;
     try {
       field = Shell.class.getDeclaredField("window");
       field.setAccessible(true);
-      method =
+      Class<?> nsWindow =
           Class.forName(
-                  "org.eclipse.swt.internal.cocoa.NSWindow", false, Shell.class.getClassLoader())
-              .getMethod("setLevel", long.class);
+              "org.eclipse.swt.internal.cocoa.NSWindow", false, Shell.class.getClassLoader());
+      method = nsWindow.getMethod("setLevel", long.class);
+      remove = nsWindow.getMethod("removeChildWindow", nsWindow);
+      add = nsWindow.getMethod("addChildWindow", nsWindow, long.class);
+      front =
+          nsWindow.getMethod(
+              "orderFront",
+              Class.forName(
+                  "org.eclipse.swt.internal.cocoa.id", false, Shell.class.getClassLoader()));
     } catch (ReflectiveOperationException | SecurityException | InaccessibleObjectException e) {
       fail(e);
     }
     window = field;
     setLevel = method;
+    removeChild = remove;
+    addChild = add;
+    orderFront = front;
+    Display display = Display.getCurrent();
+    if (display != null) {
+      watchIconify(display);
+    }
   }
 
   @Override
   void apply(Shell shell, boolean onTop) throws ReflectiveOperationException {
+    watchIconify(shell.getDisplay());
     level(shell, onTop ? FLOATING : NORMAL);
     if (onTop) {
       floating.add(shell);
@@ -134,12 +178,16 @@ final class CocoaStacking extends PlatformStacking {
     }
   }
 
-  private void level(Shell shell, long level) throws ReflectiveOperationException {
-    Object nsWindow = window.get(shell);
-    if (nsWindow == null) {
-      throw new IllegalStateException("The shell has no NSWindow");
+  /** Adds the Iconify filter that keeps an owner on screen, once per Display. */
+  private void watchIconify(Display display) {
+    if (iconifyFiltered != display && !display.isDisposed()) {
+      display.addFilter(SWT.Iconify, iconified);
+      iconifyFiltered = display;
     }
-    setLevel.invoke(nsWindow, level);
+  }
+
+  private void level(Shell shell, long level) throws ReflectiveOperationException {
+    setLevel.invoke(nsWindow(shell), level);
   }
 
   /**
@@ -153,4 +201,88 @@ final class CocoaStacking extends PlatformStacking {
 
   @Override
   public void explainUnsupported(MenuItem item) {}
+
+  @Override
+  public void minimize(Shell shell) {
+    watchIconify(shell.getDisplay());
+    if (supported()
+        && !shell.getMinimized()
+        && shell.isVisible()
+        && shell.getParent() instanceof Shell owner) {
+      try {
+        removeChild.invoke(nsWindow(owner), nsWindow(shell));
+        rejoinOnRestore(shell, owner);
+      } catch (ReflectiveOperationException
+          | IllegalArgumentException
+          | IllegalStateException
+          | LinkageError e) {
+        fail(e);
+      }
+    }
+    shell.setMinimized(true);
+  }
+
+  /**
+   * Brings a minimized tool window's owner back when the tool window is still among its children:
+   * minimized through the title bar's button.
+   */
+  private void bringOwnerBack(Shell tool) {
+    prune(detached);
+    if (!supported()
+        || detached.contains(tool)
+        || !(tool.getParent() instanceof Shell owner)
+        || owner.isDisposed()
+        || !owner.isVisible()
+        || owner.getMinimized()) {
+      return;
+    }
+    try {
+      Object ownerWindow = nsWindow(owner);
+      removeChild.invoke(ownerWindow, nsWindow(tool));
+      rejoinOnRestore(tool, owner);
+      orderFront.invoke(ownerWindow, (Object) null);
+    } catch (ReflectiveOperationException
+        | IllegalArgumentException
+        | IllegalStateException
+        | LinkageError e) {
+      fail(e);
+    }
+  }
+
+  /** Adds the tool window back to its owner's children once, when it is restored. */
+  private void rejoinOnRestore(final Shell tool, final Shell owner) {
+    detached.add(tool);
+    tool.addListener(
+        SWT.Deiconify,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            tool.removeListener(SWT.Deiconify, this);
+            detached.remove(tool);
+            if (!supported()
+                || owner.isDisposed()
+                || !owner.isVisible()
+                || owner.getMinimized()
+                || !tool.isVisible()) {
+              return;
+            }
+            try {
+              addChild.invoke(nsWindow(owner), nsWindow(tool), ABOVE);
+            } catch (ReflectiveOperationException
+                | IllegalArgumentException
+                | IllegalStateException
+                | LinkageError e) {
+              fail(e);
+            }
+          }
+        });
+  }
+
+  private Object nsWindow(Shell shell) throws ReflectiveOperationException {
+    Object nsWindow = window.get(shell);
+    if (nsWindow == null) {
+      throw new IllegalStateException("The shell has no NSWindow");
+    }
+    return nsWindow;
+  }
 }

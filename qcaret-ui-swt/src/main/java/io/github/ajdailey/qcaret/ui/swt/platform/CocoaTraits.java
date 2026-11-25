@@ -67,7 +67,7 @@ final class CocoaTraits implements PlatformTraits {
 
   @Override
   public DialogTabs dialogTabs(Composite parent) {
-    return new NativeDialogTabs(parent);
+    return new CocoaDialogTabs(parent);
   }
 
   @Override

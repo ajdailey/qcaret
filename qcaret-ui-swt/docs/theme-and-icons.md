@@ -245,7 +245,8 @@ outside `ui.swt.platform`.
 | Class | When | Folder |
 |---|---|---|
 | `Win32DialogTabs` | win32 under the dark native setting (`DialogColors.nativeDark`, read when the dialog is built) | A flat `CTabFolder` without a border: tab row, unselected tabs and pages `#202020`, selected tab `#2b2b2b`, tab text `#ffffff` (16.3:1 and 14.2:1) |
-| `NativeDialogTabs` | win32 under the light native setting, GTK, cocoa | The native `TabFolder` |
+| `NativeDialogTabs` | win32 under the light native setting, GTK | The native `TabFolder` |
+| `CocoaDialogTabs` | cocoa | The native `TabFolder`, keeping keyboard focus on a control across a tab change |
 
 `CTabFolder` draws the selected tab `#2b2b2b` only while focus is in the
 folder, and `#202020` while a dialog button holds it (a known limit). It
@@ -255,6 +256,15 @@ control reach either folder and wrap at the ends; Ctrl+Tab changes no tab in
 either, and a mnemonic reaches the shown page's buttons only (measured on
 `windows-2025` in QLogg). `DialogTabsTest` posts these keys to both folders on
 win32 and fails where they differ.
+
+On cocoa SWT hides the old page on a tab change, and when no ancestor of the
+focused control takes focus, AppKit's first responder becomes the window:
+`NSTabView` takes no focus with Full Keyboard Access off. The next Ctrl+PageDown
+then reaches no control. `CocoaDialogTabs` runs on each tab change: when no
+visible control has focus, the new page's first control that takes focus gets
+it, else a childless 1x1 `Canvas` below the pages, whose page traversals reach
+the folder. A page of check boxes (Preferences > View) has no control that
+takes focus there.
 
 ### cocoa
 

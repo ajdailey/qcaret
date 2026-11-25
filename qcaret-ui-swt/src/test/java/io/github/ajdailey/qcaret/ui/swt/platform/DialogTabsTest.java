@@ -33,9 +33,10 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link Win32DialogTabs} and {@link NativeDialogTabs} on any platform: which folder each
- * platform's {@link PlatformTraits#dialogTabs} creates, the dark colors, and selection through the
- * interface. On win32, keys posted to both folders must move the selection the same way.
+ * {@link Win32DialogTabs}, {@link CocoaDialogTabs} and {@link NativeDialogTabs} on any platform:
+ * which folder each platform's {@link PlatformTraits#dialogTabs} creates, the dark colors,
+ * selection through the interface, and focus across page traversals. On win32, keys posted to both
+ * folders must move the selection the same way.
  */
 @Tag("swt")
 class DialogTabsTest {
@@ -104,9 +105,66 @@ class DialogTabsTest {
     PlatformTraits[] natives = {new Gtk3Traits(), new Gtk4Traits(), new CocoaTraits()};
     for (PlatformTraits traits : natives) {
       DialogTabs tabs = traits.dialogTabs(owner);
-      assertSame(NativeDialogTabs.class, tabs.getClass(), traits.name());
+      Class<?> expected =
+          traits instanceof CocoaTraits ? CocoaDialogTabs.class : NativeDialogTabs.class;
+      assertSame(expected, tabs.getClass(), traits.name());
       assertSame(TabFolder.class, tabs.control().getClass(), traits.name());
     }
+  }
+
+  /**
+   * Repeated Ctrl+PageDown and Ctrl+PageUp from the focused control keep moving through the cocoa
+   * tabs, across a page with no control that takes focus. On macOS with Full Keyboard Access off,
+   * focus fell to the window after one move and the second press reached no control.
+   */
+  @Test
+  void cocoaTabsKeepFocusOnAControlAcrossPageTraversals() {
+    Shell shell = newShell();
+    CocoaDialogTabs tabs = new CocoaDialogTabs(shell);
+    List<Text> fields = new ArrayList<Text>();
+    for (int i = 0; i < 3; i++) {
+      Composite page = tabs.add("Mock " + i);
+      page.setLayout(new FillLayout());
+      if (i == 1) {
+        new Label(page, SWT.NONE).setText("mock label");
+      } else {
+        fields.add(new Text(page, SWT.SINGLE | SWT.BORDER));
+      }
+    }
+    shell.setSize(400, 300);
+    shell.open();
+    shell.forceActive();
+    final Text first = fields.get(0);
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return first.forceFocus() && first.isFocusControl();
+              }
+            },
+            BOUND),
+        "the first field takes focus");
+    int[] traversals = {
+      SWT.TRAVERSE_PAGE_NEXT,
+      SWT.TRAVERSE_PAGE_NEXT,
+      SWT.TRAVERSE_PAGE_PREVIOUS,
+      SWT.TRAVERSE_PAGE_PREVIOUS
+    };
+    int[] selections = {1, 2, 1, 0};
+    for (int i = 0; i < traversals.length; i++) {
+      Control focus = display.getFocusControl();
+      assertTrue(
+          focus != null && focus.isVisible(), "a visible control has focus before move " + i);
+      Event key = new Event();
+      key.keyCode = traversals[i] == SWT.TRAVERSE_PAGE_NEXT ? SWT.PAGE_DOWN : SWT.PAGE_UP;
+      key.stateMask = SWT.CTRL;
+      assertTrue(focus.traverse(traversals[i], key), "move " + i + " from " + focus);
+      settle();
+      assertEquals(selections[i], tabs.selection(), "move " + i);
+    }
+    assertTrue(first.isFocusControl(), "back on the first page: " + display.getFocusControl());
   }
 
   /**

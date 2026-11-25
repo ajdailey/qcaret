@@ -4,9 +4,10 @@ import org.eclipse.swt.widgets.Composite;
 
 /**
  * A dialog's tab folder, one implementation per platform: {@link NativeDialogTabs} is the native
- * {@code TabFolder}; {@link Win32DialogTabs} is a {@code CTabFolder} in the dark dialog colors. A
- * dialog takes one from {@link PlatformTraits#dialogTabs}. The first tab added is selected.
- * Confined to the UI thread.
+ * {@code TabFolder}; {@link CocoaDialogTabs} is the native folder keeping keyboard focus on a
+ * control across tab changes; {@link Win32DialogTabs} is a {@code CTabFolder} in the dark dialog
+ * colors. A dialog takes one from {@link PlatformTraits#dialogTabs}. The first tab added is
+ * selected. Confined to the UI thread.
  */
 public interface DialogTabs {
   /**

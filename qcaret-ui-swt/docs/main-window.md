@@ -67,6 +67,9 @@ control under the point:
   point or last;
 - no QCaret control and a point outside the source shell opens a new window
   with its corner at the point, which GTK 4 and Wayland place themselves.
+  `WindowGeometry.place` moves a window that does not fit there into the work
+  area, so a drop near the bottom-right corner opens it flush with that corner
+  (416,104 for a 1024x768 window on a 1440x900 Mac).
 
 The shell's data names its `TabStrip`. A moved tab is a new `EditorTab` with new
 `EditorPane`s over the same projection and selections; widgets do not cross
@@ -157,7 +160,7 @@ scroll.
 - The Window menu lists the windows, when there are several, and the open
   documents, numbered in that order, the first nine as mnemonics. On cocoa
   `MenuBehavior.addWindowControls` (`CocoaMenuBehavior`) puts Minimize (`Cmd+M`,
-  `Shell.setMinimized`) and Zoom (toggles `Shell.setMaximized`), then a
+  `WindowStacking.minimize`) and Zoom (toggles `Shell.setMaximized`), then a
   separator, at its top; SWT adds neither to an application-defined Window
   menu. No default binding uses `Cmd+M`. Minimize is no `CommandId`, so the
   Keys tab accepts `Cmd+M` for a command and the two accelerators then
@@ -220,7 +223,8 @@ leaves out: About, Preferences and Quit on cocoa, none elsewhere.
   `MainMenuBar` over the main window's controller; other platforms build
   none. Its items act on the main window, except Close (`Cmd+W`,
   `MainMenuBar.closesToolWindow`), which closes the tool window and stays
-  enabled, and Minimize and Zoom, which act on the tool window. The bars sync
+  enabled, and Minimize and Zoom, which act on the tool window (Minimize
+  through [`WindowStacking.minimize`](#always-on-top)). The bars sync
   enablement with the main window's and are rebuilt on a keymap change. A
   modal dialog gets none, so no command runs in a main window it blocks.
 
@@ -384,6 +388,22 @@ these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
 - When unsupported on GTK 3 the item's tool tip names the window manager's
   window menu (`WindowStacking.explainUnsupported`, a no-op on win32 and
   cocoa). SWT drops menu item tool tips on GTK 4.
+- Window > Minimize calls `WindowStacking.minimize`, `Shell.setMinimized`
+  everywhere except cocoa. SWT makes a shell with a parent an AppKit child
+  window of it (`Shell.updateParent`), and AppKit takes the parent off screen
+  while a child window is miniaturized. `CocoaStacking.minimize` removes a
+  tool window from its owner's children (`NSWindow.removeChildWindow`) before
+  it miniaturizes and adds it back above the owner (`addChildWindow`) on
+  `SWT.Deiconify`, unless the owner is hidden or minimized then. The title
+  bar's button minimizes without `WindowStacking`: a Display
+  `SWT.Iconify` filter in `CocoaStacking`, added on the Display current when
+  the stacking is created, removes such a tool window from the children and
+  brings the owner back (`NSWindow.orderFront`); it rejoins on restore the
+  same way. `isVisible` stays true for the hidden owner; `occlusionState`
+  shows it. Measured in CI on macOS 15 arm64 and Intel
+  (`cocoaMinimizesAToolWindowWithoutItsOwner`, and
+  `cocoaKeepsTheOwnerWhenTheTitleBarMinimizesAToolWindow` through
+  `performMiniaturize:`).
 
 ## Full Screen
 
@@ -584,7 +604,7 @@ default method carries behavior.
 |---|---|---|---|---|---|
 | `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
-| `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `NativeDialogTabs`: the native `TabFolder` | As cocoa | As cocoa | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
+| `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `CocoaDialogTabs`: the native `TabFolder`, keeping keyboard focus on a control across a tab change | `NativeDialogTabs`: the native `TabFolder` | As GTK 3 | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
 | `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the native side the Display started with; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
@@ -593,7 +613,7 @@ default method carries behavior.
 | `GuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `NoticeGuideDisplay`: a notice names the file | `MainWindow.showGuide` |
 | `PrintSupport` | `Win32PrintSupport`: an empty printer list shows a notice; the dialog opens on its default scope | `CocoaPrintSupport`: the empty-list notice; names the job (`CocoaPrintJobNaming`), dialog on a selection | `Gtk3PrintSupport`: dialog on a selection | `Gtk4PrintSupport`: a PDF file instead of the dialog | `MainWindow.choosePrinter` (see [Printing](printing.md)) |
 | `FullScreen` (`fullScreen(shell, ui)`, per window) | `NativeFullScreen` | `CocoaFullScreen` | `NativeFullScreen` | `NativeFullScreen` | `MainWindow` (see [Full Screen](#full-screen)) |
-| `WindowStacking` (`stacking()`) | `Win32Stacking` | `CocoaStacking` | `GtkX11Stacking` on X11, else `WindowManagerStacking`; both explain a disabled item | `WindowManagerStacking` | `MainWindow`, `MainMenuBar` (see [Always on Top](#always-on-top)) |
+| `WindowStacking` (`stacking()`) | `Win32Stacking` | `CocoaStacking` | `GtkX11Stacking` on X11, else `WindowManagerStacking`; both explain a disabled item | `WindowManagerStacking` | `MainWindow`, `MainMenuBar`, `CocoaMenuBehavior` (Minimize; see [Always on Top](#always-on-top)) |
 | `WindowPlacement` | `Win32WindowPlacement`: placed again with the trim measured from the sized shell, then fitted into the work area | `NativeWindowPlacement` | `GtkWindowPlacement`: no position under Wayland | `Gtk4WindowPlacement`: no position; maximized again after `open` | `MainWindow.place`, `MainWindow.open` (see [Placement](#placement)) |
 | `NativeNames` | `NoNativeNames` | `NoNativeNames` | `Gtk3NativeNames`: names native widgets through ATK | `NoNativeNames` | `ToolBarNames`, `OutlineDock` (see [Accessible names](#accessible-names)) |
 | `AccessibleLabels` | `NativeAccessibleLabels` | `CocoaAccessibleLabels`: the name is also the description; group role | `NativeAccessibleLabels` | `NativeAccessibleLabels` | `AccessibleName` (see [Accessible names](#accessible-names)) |

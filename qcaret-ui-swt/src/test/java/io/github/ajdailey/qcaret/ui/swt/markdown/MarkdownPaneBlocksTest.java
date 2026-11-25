@@ -251,6 +251,38 @@ class MarkdownPaneBlocksTest {
     assertEquals(separated, last, ScaleSlack.of(pane.text()), "padding at the document's end");
   }
 
+  /** A wrapped code line at the document's end had a box around its first visual row only. */
+  @Test
+  void aWrappedCodeLineAtTheDocumentsEndStaysInsideItsBox() {
+    shell.setLayout(null);
+    pane.control().setBounds(0, 0, 320, 300);
+    flush();
+    for (String after : new String[] {"\n\nAfter.\n", ""}) {
+      StyledText text = pane.text();
+      int right = text.getClientArea().width - text.getRightMargin();
+      // A first word longer than the pane, whose last visual row ends left of the middle.
+      int measured = -1;
+      for (int length = 60; length < 140 && measured < 0; length++) {
+        String markdown = "Intro\n\n```\nmock" + "x".repeat(length) + "\n```" + after;
+        RenderedMarkdown r = show(markdown);
+        int line = pane.map().displayLine(r.codeBlocks().get(0).firstLine());
+        int end = text.getOffsetAtLine(line) + text.getLine(line).length();
+        Point last = text.getLocationAtOffset(end);
+        if (last.x > (text.getLeftMargin() + right) / 2) {
+          continue;
+        }
+        int top = text.getLinePixel(line);
+        assertTrue(last.y > top, "the code line wraps");
+        int rows = last.y + text.getLineHeight(end) - top;
+        int border = gapBelowCode(markdown, (last.x + right) / 2);
+        assumeTrue(border > 0, "the print shows no code box border here: " + border);
+        assertTrue(border >= rows, "border " + border + " above the last row's bottom " + rows);
+        measured = length;
+      }
+      assertTrue(measured > 0, "no word length leaves a short last row");
+    }
+  }
+
   /**
    * Prints the widget at a zoom. GTK 4 prints the last drawn frame and {@code print} returns false
    * while a redraw is queued, so a failed print dispatches events and retries. On win32 the first
@@ -293,6 +325,11 @@ class MarkdownPaneBlocksTest {
    * Shows a document and returns the pixels from its code line's top to the box's bottom border.
    */
   private int gapBelowCode(String markdown) {
+    return gapBelowCode(markdown, pane.text().getLeftMargin() + 4 * MarkdownStyler.CODE_INDENT);
+  }
+
+  /** Shows a document and returns the pixels from its code line's top to the lowest border ink. */
+  private int gapBelowCode(String markdown, int column) {
     RenderedMarkdown r = show(markdown);
     StyledText text = pane.text();
     int line = pane.map().displayLine(r.codeBlocks().get(0).firstLine());
@@ -301,7 +338,7 @@ class MarkdownPaneBlocksTest {
     ImageData shot = print(text, zoom);
     RGB ink = rgb(Palette.LIGHT.lineNumbers());
     RGB[] others = {rgb(Palette.LIGHT.gutter()), rgb(Palette.LIGHT.background())};
-    int x = (text.getLeftMargin() + 4 * MarkdownStyler.CODE_INDENT) * zoom / 100;
+    int x = column * zoom / 100;
     int lowest = -1;
     int end = Math.min(shot.height, (text.getLinePixel(line + 1) + 20) * zoom / 100);
     for (int y = top * zoom / 100; y < end; y++) {

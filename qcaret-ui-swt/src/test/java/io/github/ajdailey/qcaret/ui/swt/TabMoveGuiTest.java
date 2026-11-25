@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
@@ -265,6 +266,39 @@ class TabMoveGuiTest {
     assertEquals(1, tabs.getItemCount());
     assertEquals(dragged, windows.get(1).tabs().getItem(0).getText());
     assertTrue(windows.get(1).activeText().getText().contains(" line 120"));
+  }
+
+  /**
+   * The new window's top-left corner is the drop point, moved into the work area where the window
+   * does not fit there. A drop near the work area's bottom-right corner puts the window flush with
+   * that corner (macOS check: 416,104 on a 1440x900 screen).
+   */
+  @Test
+  void aTabDraggedOutOpensItsWindowAtTheDropPointInsideTheWorkArea() {
+    assumeTrue(!"1".equals(System.getenv("SWT_GTK4")), "GTK 4 cannot position a shell");
+    CTabFolder tabs = first.tabs();
+    Rectangle bounds = first.shell().getBounds();
+    Rectangle work = first.shell().getMonitor().getClientArea();
+    probe(first, null);
+    Point[] drops = {
+      new Point(bounds.x + bounds.width + 40, bounds.y + 30),
+      new Point(work.x + work.width - 10, work.y + work.height - 10)
+    };
+    for (Point drop : drops) {
+      if (bounds.contains(drop)) {
+        continue;
+      }
+      int before = windows.size();
+      drag(tabs, 0, drop);
+      assertEquals(before + 1, windows.size(), "a window opens for " + drop);
+      Rectangle opened = windows.get(before).shell().getBounds();
+      WindowGeometry.Rect expected =
+          WindowGeometry.fit(
+              new WindowGeometry.Rect(drop.x, drop.y, opened.width, opened.height),
+              new WindowGeometry.Rect(work.x, work.y, work.width, work.height));
+      assertEquals(expected.x(), opened.x, "x for " + drop);
+      assertEquals(expected.y(), opened.y, "y for " + drop);
+    }
   }
 
   @Test
