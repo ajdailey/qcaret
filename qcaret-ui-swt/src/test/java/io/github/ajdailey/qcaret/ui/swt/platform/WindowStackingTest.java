@@ -99,6 +99,33 @@ class WindowStackingTest {
     assertFalse(shell.getMinimized());
   }
 
+  /** Minimize on cocoa follows the reflected members; this host resolves or fails them. */
+  @Test
+  void cocoaMinimizesWhileItsMembersResolve() {
+    CocoaStacking stacking = new CocoaStacking();
+    assertEquals(stacking.supported(), stacking.minimizeSupported());
+  }
+
+  /** win32 minimizes through {@code setMinimized}, even with its members unresolved. */
+  @Test
+  void win32AlwaysMinimizes() {
+    assertTrue(new Win32Stacking().minimizeSupported());
+  }
+
+  /** GTK 3 on X11 minimizes through {@code setMinimized}, even with its members unresolved. */
+  @Test
+  void gtkX11AlwaysMinimizes() {
+    assertTrue(new GtkX11Stacking().minimizeSupported());
+  }
+
+  /** GTK 3 under Wayland and GTK 4 minimize though Always on Top is unsupported. */
+  @Test
+  void windowManagerStackingMinimizesWithoutAlwaysOnTop() {
+    WindowManagerStacking stacking = new WindowManagerStacking();
+    assertFalse(stacking.supported());
+    assertTrue(stacking.minimizeSupported());
+  }
+
   @Test
   @EnabledOnOs(OS.WINDOWS)
   void win32MembersResolveAndATogglesSetTheTopmostStyle() throws Exception {

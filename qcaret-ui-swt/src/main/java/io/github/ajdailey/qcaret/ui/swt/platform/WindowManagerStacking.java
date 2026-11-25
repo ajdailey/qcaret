@@ -6,11 +6,17 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * Always on Top on GTK 3 under Wayland and on GTK 4: unsupported, {@link #setOnTop} does nothing.
+ * {@link #minimize} calls {@code setMinimized}.
  */
 final class WindowManagerStacking implements WindowStacking {
   @Override
   public boolean supported() {
     return false;
+  }
+
+  @Override
+  public boolean minimizeSupported() {
+    return true;
   }
 
   @Override

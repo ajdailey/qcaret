@@ -24,8 +24,8 @@ import org.eclipse.swt.widgets.Shell;
  *       <td>application menu; main menus on tool windows</td></tr>
  *   <tr><td>GTK 3</td><td>{@link Gtk3MenuBehavior}</td><td>blank-padded, live ink</td>
  *       <td>tool tip</td><td>title bar</td></tr>
- *   <tr><td>GTK 4</td><td>{@link Gtk4MenuBehavior}</td><td>as GTK 3</td><td>label</td>
- *       <td>title bar</td></tr>
+ *   <tr><td>GTK 4</td><td>{@link Gtk4MenuBehavior}</td><td>none (SWT ignores {@code setImage})</td>
+ *       <td>label</td><td>title bar</td></tr>
  * </table>
  */
 public interface MenuBehavior {
@@ -33,9 +33,9 @@ public interface MenuBehavior {
   MenuBehavior PLATFORM = PlatformTraits.PLATFORM.menuBehavior();
 
   /**
-   * Shows the icons of a menu's push items and of its cascades. cocoa menus show no images. GTK 3
-   * reserves no image column, so on GTK every other item of a menu with an icon holds a blank
-   * image; win32 reserves the column.
+   * Shows the icons of a menu's push items and of its cascades. cocoa menus show no images, and GTK
+   * 4 SWT ignores them. GTK 3 reserves no image column, so on GTK every other item of a menu with
+   * an icon holds a blank image; win32 reserves the column.
    *
    * @param menu the menu
    * @param images sets each item's image

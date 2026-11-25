@@ -270,7 +270,7 @@ enabled state from the same call.
 | Open All, Clean Up, Clear Recent Files, Clear Recently Closed | A listed file |
 | Reload from Disk | A file on the document |
 | Close to the Left, Close to the Right | A tab on that side of the selected one |
-| Minimize | `MainView.minimizeSupported`: false while the macOS window stacking is unsupported |
+| Minimize | `MainView.minimizeSupported`: false only on macOS while the window calls `CocoaStacking` reflects on are unavailable |
 
 Undo, Redo, Cut and Copy are `EDIT_STATE`: their keys are editor bindings, not
 accelerators, so a disabled item leaves them live in the editor and in native

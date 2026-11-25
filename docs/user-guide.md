@@ -402,7 +402,7 @@ the grammar's rules.
 | `Ctrl+Space` (`Option+Esc` on macOS) | Complete the word from the open documents |
 | `Ctrl+B`, `Ctrl+Shift+B` | Go or select to the matching bracket |
 | `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column`; OK stays disabled until the text is one |
-| `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
+| `Alt+Left`, `Alt+Right` (`Ctrl+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
 Edit > Sort Lines (Ascending, Descending, Ignoring Case or Numerically), and
 Remove Duplicate Lines, Remove Blank Lines, Reverse Lines, Trim Leading and
@@ -530,7 +530,7 @@ errors after the caret do not matter.
 | `Ctrl+E` | Select the word, then add its next occurrence |
 | `Ctrl+K` | Skip Occurrence: drop the occurrence added last and select the next one |
 | `Alt+Enter` | Select every occurrence of the selection, or of the word at the caret |
-| `Ctrl+Shift+Space` (`Control+Cmd+Shift+Right` on macOS) | Expand Selection: word, quotes, brackets, line, then the whole text |
+| `Ctrl+Shift+Space` (`Ctrl+Cmd+Shift+Right` on macOS) | Expand Selection: word, quotes, brackets, line, then the whole text |
 | `Ctrl+L` (`Control+L` on macOS) | Select the line; again to add the next line |
 | Selection > Split into Lines | One selection per line of each selection |
 | `Alt`+drag, `Ctrl+Alt`+drag | Select a block |
@@ -1081,7 +1081,7 @@ dialogs above it; the session restores it per window. It has no default key. On
 Linux it needs GTK 3 on X11; under Wayland or GTK 4 the item is disabled, and
 the window manager's window menu (`Alt+Space` on most desktops) offers the same.
 
-View > Full Screen (`F11`; `Control+Cmd+F` on macOS) fills the screen with the
+View > Full Screen (`F11`; `Ctrl+Cmd+F` on macOS) fills the screen with the
 window; the same command returns it. On Linux and Windows the menu bar stays;
 on macOS the window moves to its own space, the menu bar shows at the top edge,
 and the window's green button does the same. `Esc` does not leave full screen.

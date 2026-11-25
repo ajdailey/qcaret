@@ -365,7 +365,7 @@ and reads `onTopSupported`; `MainWindow` passes both to
 chooses on first use, after the Display exists. SWT has no public call, so each
 implementation reaches SWT internals by reflection and the product compiles
 against every platform's SWT jar.
-`ArchitectureTest.reflectionOnlyInSanctionedClasses` allows reflection only in
+`ArchitectureTest.reflectionOnlyInExceptionClasses` allows reflection only in
 these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
 ([Accessible names](#accessible-names)), all in `ui.swt.platform`, and
 `core.io.Flock`; `noSwtInternals` is unchanged.
@@ -414,7 +414,9 @@ these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
   `performMiniaturize:`).
 - While the cocoa stacking is unsupported, Minimize is disabled
   (`CommandStates` reads `MainView.minimizeSupported`, which is
-  `WindowStacking.supported`), `CocoaStacking.minimize` does nothing, also after
+  `WindowStacking.minimizeSupported`: `supported` on cocoa, true elsewhere, so
+  Minimize stays enabled on GTK 3 under Wayland and on GTK 4),
+  `CocoaStacking.minimize` does nothing, also after
   a failed `removeChildWindow`, and so does the `SWT.Iconify` filter: the title
   bar's button then takes the owner off screen with the tool window, as AppKit
   does by default.
@@ -556,8 +558,8 @@ Every platform difference in the view layer goes through `PlatformTraits`
 (`ui.swt.platform`), answered by `Win32Traits`, `CocoaTraits`, `Gtk3Traits` and
 `Gtk4Traits`; the GTK pair share `GtkTraits`. A value a view class needs is a
 `PlatformTraits` method; behavior that differs is a seam interface whose
-implementation a `PlatformTraits` method returns. The seams QLogg shares carry
-QLogg's names. `PlatformTraits.PLATFORM` is chosen by `LoadedToolkit` when the
+implementation a `PlatformTraits` method returns. A seam QLogg also has carries
+the same names in both apps. `PlatformTraits.PLATFORM` is chosen by `LoadedToolkit` when the
 interface is first used: from `SWT.getPlatform()`, and on GTK from the version
 SWT records in `org.eclipse.swt.internal.gtk.version`. `LoadedToolkit`
 initializes `Display` first, whose static initializer loads SWT's GTK library
@@ -601,7 +603,7 @@ code calls a seam instead.
 | `name` | `win32` | `cocoa` | `gtk` | `gtk` | `MainWindow.toolkitDescription` |
 | `monospaceFamily`, `monospaceSize` | Consolas 10 | Menlo 12 | Monospace 10 | Monospace 10 | `Dialogs.monospaceName`, `monospaceSize` |
 | `caretBlend` | XOR | difference | difference | over | `CaretInk.platform` |
-| `toolkitVersion` | null | null | GTK version | GTK version | `MainWindow.toolkitDescription` |
+| `toolkitVersion` | empty | empty | `GTK` and the GTK version | As GTK 3 | `MainWindow.toolkitDescription` |
 | `shownBackground` | `getBackground` | `getBackground` | A drawn pixel of a visible control | As GTK 3 | `ToolIcons.reink` |
 | `macKeys`, `linuxKeys` | -, - | yes, - | -, yes | -, yes | `Gui`, `PreferencesDialog` and `WorkspaceDock`: `Keymap.defaults`, key names, and Backspace deleting in the workspace browser on macOS (`BrowserKeys`) |
 | `busyCursor` | `CURSOR_APPSTARTING` | `CURSOR_WAIT` | `CURSOR_APPSTARTING` | `CURSOR_APPSTARTING` | `WindowBusyCursor`, `EditorPane` (see [Status bar and title](#status-bar-and-title)) |
@@ -620,7 +622,7 @@ default method carries behavior.
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `CocoaDialogTabs`: the native `TabFolder`, keeping keyboard focus on a control across a tab change | `NativeDialogTabs`: the native `TabFolder` | As GTK 3 | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
-| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the native side the Display started with; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
+| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the native side the Display started with; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: no menu icons (SWT ignores `setImage`); a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
 | `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
 | `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |

@@ -163,7 +163,7 @@ class ArchitectureTest {
         .resideInAPackage("org.eclipse.swt.internal..");
   }
 
-  /** The view classes sanctioned to reach SWT internals by reflection, which no import shows. */
+  /** The view classes excepted to reach SWT internals by reflection, which no import shows. */
   private static final String[] SWT_REFLECTION = {
     ROOT + ".ui.swt.platform.Gtk4ToolItemSizing",
     ROOT + ".ui.swt.platform.Win32Stacking",
@@ -174,15 +174,15 @@ class ArchitectureTest {
   };
 
   /**
-   * Only the sanctioned view classes and {@code Flock}, which links the Java 21 foreign-function
+   * Only the exception view classes and {@code Flock}, which links the Java 21 foreign-function
    * API, load classes by name or open members by reflection. The bootstrap has its own test.
    */
   @Test
-  void reflectionOnlyInSanctionedClasses() {
-    reflectionOnlyInSanctionedClassesRule().check(classes);
+  void reflectionOnlyInExceptionClasses() {
+    reflectionOnlyInExceptionClassesRule().check(classes);
   }
 
-  private static ArchRule reflectionOnlyInSanctionedClassesRule() {
+  private static ArchRule reflectionOnlyInExceptionClassesRule() {
     return noClasses()
         .that()
         .resideOutsideOfPackage(ROOT + ".bootstrap..")
@@ -247,7 +247,7 @@ class ArchitectureTest {
   }
 
   /**
-   * Only {@code ui.swt.platform} and the sanctioned reflection classes name an {@code
+   * Only {@code ui.swt.platform} and the reflection exception classes name an {@code
    * org.eclipse.swt.internal} property or class, which no import shows.
    */
   @Test
@@ -1189,12 +1189,12 @@ class ArchitectureTest {
         VIEW_FIXTURES + "UsesSwtInternals",
         "org.eclipse.swt.internal.Library");
     assertViolations(
-        reflectionOnlyInSanctionedClassesRule(),
+        reflectionOnlyInExceptionClassesRule(),
         VIEW_FIXTURES + "ReflectsIntoSwt",
         "Class.forName",
         "Field.setAccessible");
     assertViolations(
-        reflectionOnlyInSanctionedClassesRule(),
+        reflectionOnlyInExceptionClassesRule(),
         ROOT + ".core.archfixture.CoreViolations$Reflects",
         "Class.forName",
         "Class.getDeclaredConstructor");

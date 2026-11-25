@@ -20,11 +20,12 @@ import org.eclipse.swt.widgets.TableItem;
  * The Bookmarks list dock: a row of buttons and a summary over a virtual {@link Table} of a {@link
  * BookmarksInput}'s rows, with the line (from 1), the comment and the line's text in three columns.
  * The buttons and summary wrap within the dock ({@link DockBarLayout}), and the comment and text
- * columns share the table's width ({@link TableFit#spread}). Rows load as they show. Enter and a
- * double click go to the selected row's line, Delete removes its bookmark; Go To, Edit Comment and
- * Remove act on the selected row, Hide hides the dock. The table's context menu is a {@link
- * BookmarksMenu}. The selection keeps its index across changes, within the row count. A cut of over
- * {@value #REMOVE_ROWS} rows replaces the table, as GTK removes rows one by one.
+ * columns share the table's width ({@link TableFit#spread}). The line column is left-aligned, as
+ * win32 forces a table's first column. Rows load as they show. Enter and a double click go to the
+ * selected row's line, Delete removes its bookmark; Go To, Edit Comment and Remove act on the
+ * selected row, Hide hides the dock. The table's context menu is a {@link BookmarksMenu}. The
+ * selection keeps its index across changes, within the row count. A cut of over {@value
+ * #REMOVE_ROWS} rows replaces the table, as GTK removes rows one by one.
  */
 final class BookmarksDock {
   /** Rows removed one by one at most; a larger cut replaces the table. */
@@ -77,7 +78,7 @@ final class BookmarksDock {
             root, SWT.VIRTUAL | SWT.SINGLE | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.H_SCROLL);
     table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     table.setHeaderVisible(true);
-    column(UiText.BOOKMARKS_LINE, SWT.RIGHT, 70);
+    column(UiText.BOOKMARKS_LINE, SWT.LEFT, 70);
     column(UiText.BOOKMARKS_COMMENT, SWT.LEFT, 260);
     column(UiText.BOOKMARKS_TEXT, SWT.LEFT, 480);
     TableFit.spread(table);

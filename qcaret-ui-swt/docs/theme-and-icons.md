@@ -313,6 +313,8 @@ with SWT 3.135.0.
   AppKit's link color, and `ProgressBar` and `Slider`, which AppKit draws.
 - `ReplaceDialog` marks its computing note with a style range, because
   `setForeground(null)` returns a field to the startup color.
+- Menus and the menu bar follow the system appearance, not the pinned side.
+  AppKit draws them whole, so they stay readable.
 
 ## Palette application
 

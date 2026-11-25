@@ -69,9 +69,10 @@ public interface PlatformTraits {
   CaretBlend caretBlend();
 
   /**
-   * Returns the native toolkit version SWT records, for the About text.
+   * Returns the native toolkit and its version, for the About text.
    *
-   * @return the GTK version, or null on win32 and cocoa or when SWT recorded none
+   * @return {@code GTK} and the GTK version SWT records, or empty on win32 and cocoa or when SWT
+   *     recorded none
    */
   String toolkitVersion();
 

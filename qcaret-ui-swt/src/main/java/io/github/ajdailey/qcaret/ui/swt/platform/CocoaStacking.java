@@ -201,6 +201,11 @@ final class CocoaStacking extends PlatformStacking {
   }
 
   @Override
+  public boolean minimizeSupported() {
+    return supported();
+  }
+
+  @Override
   public void explainUnsupported(MenuItem item) {}
 
   @Override

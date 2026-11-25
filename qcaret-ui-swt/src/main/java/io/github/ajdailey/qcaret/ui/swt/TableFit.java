@@ -17,6 +17,12 @@ import org.eclipse.swt.widgets.TableItem;
  * the full text of a cell still cut off, and a dock table's columns spread over its width.
  */
 final class TableFit {
+  /**
+   * Points added to a header text's width for the padding SWT's win32 custom-drawn header leaves (6
+   * pixels each side), which clips the text without an ellipsis.
+   */
+  static final int HEADER_PADDING = 16;
+
   private TableFit() {}
 
   /**
@@ -49,23 +55,31 @@ final class TableFit {
 
   /**
    * Keeps a table's columns within its width at each resize: the first column keeps its width and
-   * the others share the rest in proportion to their widths at this call. The share leaves room for
-   * a hidden vertical scroll bar, so rows added later do not bring a horizontal one, and one point
-   * at a fractional zoom, where each column's width rounds on its own.
+   * the others share the rest in proportion to their widths at this call, each at least its header
+   * text's width while the rest holds every such minimum. The share leaves room for a hidden
+   * vertical scroll bar, so rows added later do not bring a horizontal one, and one point at a
+   * fractional zoom, where each column's width rounds on its own.
    *
    * @param table the table, with its columns
    */
   static void spread(final Table table) {
     final int[] weights = new int[table.getColumnCount()];
-    for (int i = 1; i < weights.length; i++) {
-      weights[i] = Math.max(1, table.getColumn(i).getWidth());
+    final int[] minima = new int[weights.length];
+    GC gc = new GC(table);
+    try {
+      for (int i = 1; i < weights.length; i++) {
+        weights[i] = Math.max(1, table.getColumn(i).getWidth());
+        minima[i] = gc.textExtent(table.getColumn(i).getText()).x + HEADER_PADDING;
+      }
+    } finally {
+      gc.dispose();
     }
     table.addListener(
         SWT.Resize,
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            spread(table, weights);
+            spread(table, weights, minima);
           }
         });
   }
@@ -75,8 +89,9 @@ final class TableFit {
    *
    * @param table the table
    * @param weights each column's share, from index 1
+   * @param minima each column's smallest width, from index 1, kept while the rest holds them all
    */
-  static void spread(Table table, int[] weights) {
+  static void spread(Table table, int[] weights, int[] minima) {
     if (table.isDisposed() || weights.length < 2) {
       return;
     }
@@ -89,16 +104,59 @@ final class TableFit {
       width--;
     }
     int rest = Math.max(0, width - table.getColumn(0).getWidth());
-    int total = 0;
-    for (int i = 1; i < weights.length; i++) {
-      total += weights[i];
+    int[] widths = shares(rest, weights, minima);
+    for (int i = 1; i < widths.length; i++) {
+      table.getColumn(i).setWidth(widths[i]);
     }
-    int given = 0;
+  }
+
+  /**
+   * Divides a width among columns 1 and up in proportion to their weights. When the width holds
+   * every minimum, a column whose share falls below its minimum takes the minimum and the others
+   * share what is left. The widths sum to the width.
+   *
+   * @param rest the width to divide
+   * @param weights each column's share, from index 1
+   * @param minima each column's smallest width, from index 1
+   * @return each column's width, from index 1
+   */
+  static int[] shares(int rest, int[] weights, int[] minima) {
+    int[] widths = new int[weights.length];
+    boolean[] pinned = new boolean[weights.length];
+    int needed = 0;
     for (int i = 1; i < weights.length; i++) {
-      int share = i == weights.length - 1 ? rest - given : rest * weights[i] / total;
-      table.getColumn(i).setWidth(share);
-      given += share;
+      needed += minima[i];
     }
+    boolean pinning = rest >= needed;
+    boolean changed = true;
+    while (changed) {
+      changed = false;
+      int free = rest;
+      int total = 0;
+      int last = 0;
+      for (int i = 1; i < weights.length; i++) {
+        if (pinned[i]) {
+          free -= minima[i];
+        } else {
+          total += weights[i];
+          last = i;
+        }
+      }
+      int given = 0;
+      for (int i = 1; i < weights.length; i++) {
+        if (pinned[i]) {
+          widths[i] = minima[i];
+        } else {
+          widths[i] = i == last ? free - given : free * weights[i] / total;
+          given += widths[i];
+          if (pinning && widths[i] < minima[i]) {
+            pinned[i] = true;
+            changed = true;
+          }
+        }
+      }
+    }
+    return widths;
   }
 
   /**

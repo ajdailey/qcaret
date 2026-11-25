@@ -32,7 +32,7 @@ final class CocoaTraits implements PlatformTraits {
 
   @Override
   public String toolkitVersion() {
-    return null;
+    return "";
   }
 
   @Override

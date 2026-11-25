@@ -1818,12 +1818,12 @@ public final class MainWindow implements MainView {
 
   @Override
   public String toolkitDescription() {
-    String gtk = PlatformTraits.PLATFORM.toolkitVersion();
+    String toolkit = PlatformTraits.PLATFORM.toolkitVersion();
     return "SWT "
         + SWT.getVersion()
         + " "
         + PlatformTraits.PLATFORM.name()
-        + (gtk == null ? "" : " (GTK " + gtk + ")");
+        + (toolkit.isEmpty() ? "" : " (" + toolkit + ")");
   }
 
   @Override
@@ -2415,7 +2415,7 @@ public final class MainWindow implements MainView {
 
   @Override
   public boolean minimizeSupported() {
-    return WindowStacking.PLATFORM.supported();
+    return WindowStacking.PLATFORM.minimizeSupported();
   }
 
   @Override

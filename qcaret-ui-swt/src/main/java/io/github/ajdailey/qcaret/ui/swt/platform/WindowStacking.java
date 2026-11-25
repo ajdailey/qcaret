@@ -26,12 +26,20 @@ public interface WindowStacking {
   WindowStacking PLATFORM = PlatformTraits.PLATFORM.stacking();
 
   /**
-   * Reports whether {@link #setOnTop} and cocoa's {@link #minimize} take effect; false after a
-   * reflective call failed.
+   * Reports whether {@link #setOnTop} and cocoa's {@link #minimize} take effect; false on GTK 3
+   * under Wayland and on GTK 4, and after a reflective call failed.
    *
    * @return true when supported
    */
   boolean supported();
+
+  /**
+   * Reports whether {@link #minimize} takes effect: on cocoa while {@link #supported} holds,
+   * elsewhere always, since {@code setMinimized} needs no SWT internals.
+   *
+   * @return true when minimize takes effect
+   */
+  boolean minimizeSupported();
 
   /**
    * Keeps the shell above other windows, or returns it to normal stacking, without moving, resizing

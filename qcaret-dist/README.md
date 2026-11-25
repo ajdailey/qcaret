@@ -54,8 +54,9 @@ The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 `--strip-java-debug-attributes`, `--no-header-files` and `--no-man-pages`.
 jlink on a POSIX host writes the `legal/<module>/` notices as links into
 `legal/java.base/`; the `runtime` macro replaces them with copies for every
-target, so an extractor that drops links keeps the notices and the macOS seal
-matches what unzips.
+target before signing, because Ant's `zip` stores a link as a regular file and
+the macOS seal must match what unzips. The copies also keep the notices for an
+extractor that drops links.
 `jdk.charsets` carries the legacy encodings (Big5, EUC-JP, EUC-KR, GBK,
 Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
 macOS. `jdk.localedata` carries the date and number formats of every locale
@@ -172,9 +173,23 @@ The `bundle` CI job runs `codesign --verify
 
 ## Testing
 
+`SmokeTest` (tag `swt`) runs at `integration-test` against the built jar and,
+on linux-x86_64, the extracted bundle:
+
+| Case | Checks |
+|---|---|
+| `java -jar qcaret.jar -v` | Prints the manifest version as its first line |
+| Jar content | Digests hold no CR and each `natives.` list is in name order |
+| Jar notices | `META-INF/` holds `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` |
+| `java -jar qcaret.jar` | Opens a 900 x 600 window at 50,40 (within one point at a fractional zoom, the location clamped into the work area as placement clamps it) and writes no `logs` folder |
+| Linux bundle with `-l`, `PATH` holding only `uname` and `readlink` | Reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs` |
+| Linux bundle runtime | `runtime/release` lists `jdk.charsets`, `jdk.localedata` and `java.management`; `runtime/bin` holds no `keytool`; every encoding in `SmokeTest.ENCODINGS` is supported (`CharsetProbe`) |
+| Linux bundle `bin/qcaret`, stub `runtime/bin/java` | `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |
+
+The module's other test classes and probes:
+
 | Class | Covers |
 |---|---|
-| `SmokeTest` (tag `swt`, at `integration-test`) | `java -jar qcaret.jar -v` prints the manifest version as its first line; `java -jar qcaret.jar` opens a 900 x 600 window at 50,40 (within one point at a fractional zoom, the location clamped into the work area as placement clamps it) and writes no `logs` folder; the jar's digests hold no CR and each `natives.` list is in name order; the jar holds `META-INF/LICENSE`, `NOTICE` and `THIRD-PARTY.txt`. On linux-x86_64 the extracted bundle runs with `-l` and `PATH` holding only `uname` and `readlink`, reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs`. The bundle's `runtime/release` must list `jdk.charsets`, `jdk.localedata` and `java.management`, and `runtime/bin` must hold no `keytool`. A copy of the bundle's `bin/qcaret` over a stub `runtime/bin/java` run as `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |
 | `DesktopEntryTest` (POSIX) | `install-desktop-entry` run from install folders whose names hold a space, `%`, `\`, `"`, `$`, a backtick, `&`, `\|`, `;`, `'` and `(` writes an `Exec` that decodes, by the Desktop Entry rules, to the folder's `bin/qcaret` and `%F`, and that `desktop-file-validate` accepts where installed; `--uninstall` removes the entry |
 | `CharsetProbe` | Run by the bundle's `java`; fails unless every encoding in `SmokeTest.ENCODINGS` is supported |
 | `LauncherProbe` | Run as `lib\qcaret.jar` under `qcaret.cmd` by `check-bundle.ps1`; writes `java.home`, the class path, the JVM options and the arguments, as the bundle's `CmdArguments` reads them, to the file `QCARET_PROBE_OUT` names |

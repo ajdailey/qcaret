@@ -40,6 +40,11 @@ final class GtkX11Stacking extends PlatformStacking {
   }
 
   @Override
+  public boolean minimizeSupported() {
+    return true;
+  }
+
+  @Override
   public void explainUnsupported(MenuItem item) {
     item.setToolTipText(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text());
   }

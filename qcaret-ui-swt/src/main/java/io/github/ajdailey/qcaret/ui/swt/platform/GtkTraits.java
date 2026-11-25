@@ -37,7 +37,8 @@ abstract class GtkTraits implements PlatformTraits {
 
   @Override
   public final String toolkitVersion() {
-    return System.getProperty(GTK_VERSION);
+    String version = System.getProperty(GTK_VERSION);
+    return version == null ? "" : "GTK " + version;
   }
 
   @Override

@@ -3,7 +3,6 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -239,11 +238,12 @@ class PlatformTraitsTest {
 
   @Test
   void onlyGtkReportsAToolkitVersion() {
-    String gtk = System.getProperty("org.eclipse.swt.internal.gtk.version");
+    String version = System.getProperty("org.eclipse.swt.internal.gtk.version");
+    String gtk = version == null ? "" : "GTK " + version;
     assertEquals(gtk, GTK3.toolkitVersion());
     assertEquals(gtk, GTK4.toolkitVersion());
-    assertNull(WIN32.toolkitVersion());
-    assertNull(COCOA.toolkitVersion());
+    assertEquals("", WIN32.toolkitVersion());
+    assertEquals("", COCOA.toolkitVersion());
   }
 
   @Test

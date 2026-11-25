@@ -303,7 +303,7 @@ public interface MainView
   /**
    * Reports whether {@link #minimize} takes effect.
    *
-   * @return false where the platform's window stacking is unsupported
+   * @return false only on macOS while the window calls the minimize needs are unavailable
    */
   boolean minimizeSupported();
 

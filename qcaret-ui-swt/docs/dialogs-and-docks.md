@@ -298,8 +298,14 @@ the model's summary. The buttons and summary sit in a `DockBarLayout`, which
 starts a new row for a control that does not fit after the others and wraps the
 summary's text where it is wider than the dock. `TableFit.spread` keeps Line at
 its width and gives Comment and Text the rest of the table's width at each
-resize, in proportion to their starting widths (260 and 480), less a hidden vertical scroll bar's width, so the table shows no
-horizontal scroll bar. Enter and a double click go to the selected row, and
+resize, in proportion to their starting widths (260 and 480), less a hidden
+vertical scroll bar's width, so the table shows no horizontal scroll bar. While
+the rest holds both header texts plus `TableFit.HEADER_PADDING`, neither column
+is narrower than its header text: under a dark theme on win32 the header colors
+make SWT 3.135.0 draw the header itself, which clips the text with no ellipsis
+and aligns it by the column's style. Line is left-aligned, because win32 always
+shows a table's first column left-aligned while that custom draw would follow
+an `SWT.RIGHT` style. Enter and a double click go to the selected row, and
 Delete removes its bookmark; a cut of more than 2,000 rows replaces the table,
 as in the results dock. `BookmarksMenu` is the context menu
 (`BookmarksInput.MENU`: Go To, Edit Comment, Copy Line, Remove, Clear All),

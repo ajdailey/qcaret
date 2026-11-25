@@ -54,7 +54,7 @@ class GtkFallbackTest {
     }
     String text = Files.readString(out, StandardCharsets.UTF_8);
     assertEquals(0, child.exitValue(), text);
-    assertTrue(text.contains("toolkit=3."), text);
+    assertTrue(text.contains("toolkit=GTK 3."), text);
     assertTrue(
         text.contains(
             "caretBlend=DIFFERENCE browser=Gtk3BrowserBehavior print=Gtk3PrintSupport"

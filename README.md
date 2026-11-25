@@ -132,7 +132,8 @@ scripts/container.sh ./mvnw -B spotless:check
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request,
 every pushed `v*` tag and on demand, with Temurin 21.0.13.1+2 (21.0.12.1+1 on
 windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
-`persist-credentials: false`.
+`persist-credentials: false`. Linux jobs install Xvfb and GTK 3 from the Ubuntu
+archive when the runner image lacks them.
 
 | Job | Runners | Does |
 |---|---|---|
@@ -160,7 +161,11 @@ macOS it also runs
 
 The `package` job caches the JDK archives and `rcodesign` under
 `~/.cache/qcaret-build`, apart from the Maven cache, keyed on
-`qcaret-dist/src/build/dist.xml`; the `release` job shares that cache.
+`qcaret-dist/src/build/dist.xml`; the `release` job shares that cache. Only the
+`test` jobs save the Maven cache; `test-gtk4`, `test-ibus`, `package` and
+`release` restore it, since a cache saved by a job that skips `verify` or builds
+part of the reactor would lack plugins and send every later job to Maven Central
+for them.
 
 #### Releases
 
@@ -232,8 +237,14 @@ To fix a bad draft, delete the draft and the tag
   `-Daether.remoteRepositoryFilter.groupId.noInputOutcome.<mirror-id>=true`.
   It also retries an HTTP 429 or 503 from the repository 8 times, starting 10
   seconds apart: Maven Central rate-limits GitHub runners.
+- The `bannedDependencies` enforcer rule fails the build when the SWT host
+  artifact `org.eclipse.platform:org.eclipse.swt` reaches a module: its
+  OS-activated profiles add the build host's fragment, a second SWT on the
+  class path.
 - `.github/workflows/dependency-check.yml` scans the dependencies for known
-  vulnerabilities weekly.
+  vulnerabilities weekly and on demand, failing on CVSS 7 or higher. It reads
+  the NVD API key from the optional `NVD_API_KEY` repository secret and
+  reviewed false positives from `config/dependency-check-suppressions.xml`.
 - Dependabot proposes Maven, Actions and build image updates.
 
 ## Targets
@@ -282,12 +293,14 @@ signed and not notarized. A downloaded copy therefore needs one approval:
 On Windows, unblock the downloaded zip before extracting it (Properties,
 Unblock, or `Unblock-File`): nothing extracted from it then carries the
 internet mark, and neither launcher prompts. Neither leaves a console window
-open. Measured on Windows 11 26H2.
+open. Measured on Windows 11 26H2 with SmartScreen at its default and Smart App
+Control off.
 
-A copy that did not come from a browser download, such as one copied from
-removable media, usually shows no prompt. The universal jar needs none:
-`java -jar lib/qcaret.jar` runs under an installed, signed Java 21. Each
-release lists the SHA-256 of every archive in `SHA256SUMS`.
+The prompt follows the download mark (the Windows Mark of the Web, the macOS
+quarantine attribute), so a copy without it, such as one from removable media,
+shows none. The universal jar needs none: `java -jar lib/qcaret.jar` runs under
+an installed, signed Java 21. Each release lists the SHA-256 of every archive
+in `SHA256SUMS`.
 
 ## Command line
 

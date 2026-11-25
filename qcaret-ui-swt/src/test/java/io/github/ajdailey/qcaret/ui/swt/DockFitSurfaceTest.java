@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.view.OutlineEntry;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import java.util.List;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
@@ -16,6 +17,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableColumn;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -203,6 +205,32 @@ class DockFitSurfaceTest {
       int bar = table.getVerticalBar() == null ? 0 : table.getVerticalBar().getSize().x;
       assertTrue(
           sum >= client - bar - 2 - slack, "columns " + sum + " in " + client + " at " + width);
+    }
+  }
+
+  /**
+   * Comment and Text keep their header text whole at a dock width that holds both: win32's
+   * custom-drawn dark header clips with no ellipsis (G1 at 150%: "Commer").
+   */
+  @Test
+  void theBookmarksColumnsShowTheirWholeHeaders() {
+    BookmarksDock dock = bookmarks(FILE_SUMMARY);
+    Table table = dock.table();
+    assertTrue((table.getColumn(0).getStyle() & SWT.LEFT) != 0, "Line left-aligned");
+    for (int width : new int[] {260, 400}) {
+      size(dock.control(), width);
+      GC gc = new GC(table);
+      try {
+        for (int i = 1; i < table.getColumnCount(); i++) {
+          TableColumn column = table.getColumn(i);
+          int header = gc.textExtent(column.getText()).x + TableFit.HEADER_PADDING;
+          assertTrue(
+              column.getWidth() >= header,
+              column.getText() + " " + column.getWidth() + " < " + header + " at " + width);
+        }
+      } finally {
+        gc.dispose();
+      }
     }
   }
 }

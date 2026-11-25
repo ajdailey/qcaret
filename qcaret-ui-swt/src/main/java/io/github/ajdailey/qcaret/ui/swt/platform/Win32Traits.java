@@ -32,7 +32,7 @@ final class Win32Traits implements PlatformTraits {
 
   @Override
   public String toolkitVersion() {
-    return null;
+    return "";
   }
 
   @Override

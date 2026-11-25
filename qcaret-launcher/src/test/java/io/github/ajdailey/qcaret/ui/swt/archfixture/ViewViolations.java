@@ -42,7 +42,7 @@ final class ViewViolations {
     }
   }
 
-  /** Reaches an SWT internal by reflection, outside the sanctioned classes. */
+  /** Reaches an SWT internal by reflection, outside the exception classes. */
   static final class ReflectsIntoSwt {
     Object handle(Display display) throws ReflectiveOperationException {
       Class.forName("org.eclipse.swt.internal.Library");
