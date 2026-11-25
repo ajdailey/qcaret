@@ -56,7 +56,9 @@ final class CocoaDialogTabs implements DialogTabs {
       return;
     }
     int index = tabs.selection();
-    if (index < 0 || !tabs.page(index).setFocus()) {
+    // win32 selects the first item, with an event, before add() sets its page.
+    Composite page = index < 0 ? null : tabs.page(index);
+    if (page == null || !page.setFocus()) {
       Rectangle area = tabs.control().getClientArea();
       sink.setBounds(area.x, area.y, 1, 1);
       sink.forceFocus();
