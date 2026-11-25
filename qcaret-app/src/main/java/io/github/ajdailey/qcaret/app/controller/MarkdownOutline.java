@@ -24,7 +24,9 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * The Outline dock's model: the headings of the selected tab while its grammar is {@code markdown},
  * as a tree ({@link OutlineTree}). It follows the selected tab, its grammar and its focused view.
- * Nothing is rendered while the dock is hidden. Confined to the UI thread.
+ * Nothing is rendered while the dock is hidden. While shown, the view shows the dock for a Markdown
+ * tab only and collapses it otherwise; {@link #shown} stays the user's choice. Confined to the UI
+ * thread.
  *
  * <p>The outline renders on its own, in every view mode, so Source lists headings too: on binding a
  * Markdown tab at once, and {@value #DELAY_MILLIS} ms after the last edit, on a {@code qcaret-cpu-}
@@ -79,6 +81,7 @@ public final class MarkdownOutline implements OutlineInput {
       };
 
   private boolean shown;
+  private boolean docked;
   private boolean disposed;
   private Document document;
   private EditorController editor;
@@ -133,18 +136,26 @@ public final class MarkdownOutline implements OutlineInput {
     }
     shown = value;
     if (shown) {
-      view.showOutline(this, true);
       documents.addActiveListener(activeChanged);
       documents.setGrammarListener(activeChanged);
       bind();
+      dock(markdown);
     } else {
       documents.removeActiveListener(activeChanged);
       documents.setGrammarListener(null);
       unbind();
-      view.showOutline(this, false);
+      dock(false);
     }
     view.documentStateChanged();
     documents.sessionChanged();
+  }
+
+  /** Shows or collapses the dock in the view when that changes. */
+  private void dock(boolean value) {
+    if (value != docked) {
+      docked = value;
+      view.showOutline(this, value);
+    }
   }
 
   /** Stops following the documents. */
@@ -184,6 +195,9 @@ public final class MarkdownOutline implements OutlineInput {
     markdown = nextMarkdown;
     if (document != null) {
       document.addListener(edits);
+    }
+    if (shown) {
+      dock(markdown);
     }
     show(List.<OutlineEntry>of(), 0);
     if (markdown) {
@@ -282,7 +296,9 @@ public final class MarkdownOutline implements OutlineInput {
     entries = next;
     total = count;
     selected = caretEntry();
-    view.outlineChanged();
+    if (docked) {
+      view.outlineChanged();
+    }
   }
 
   /** Selects the entry holding the caret when it changed. */

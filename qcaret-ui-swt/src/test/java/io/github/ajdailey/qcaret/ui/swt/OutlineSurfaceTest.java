@@ -213,11 +213,36 @@ class OutlineSurfaceTest {
     assertEquals("guide.md: 4 headings", window.outlineDock().summary().getText());
 
     openFile("notes.txt", "# plain text\n", false);
-    awaitTop("an empty tree");
-    assertEquals(UiText.OUTLINE_NOT_MARKDOWN.text(), window.outlineDock().summary().getText());
+    assertFalse(window.outlineShown());
+    assertTrue(new CommandStates(controller).checked(CommandId.MARKDOWN_OUTLINE));
 
     controller.execute(CommandId.PREVIOUS_TAB);
     awaitTop("the guide's tree again", "Mock guide");
+    assertTrue(window.outlineShown());
+  }
+
+  /**
+   * On a plain tab the dock collapses and the editors and bottom docks take its width; turned on
+   * there, it shows at the next Markdown tab.
+   */
+  @Test
+  void theDockCollapsesOnAPlainTab() throws Exception {
+    openFile("notes.txt", "plain\n", false);
+    flush();
+    final Control body = window.tabs().getParent();
+    final int full = body.getBounds().width;
+    controller.execute(CommandId.MARKDOWN_OUTLINE);
+    flush();
+    assertFalse(window.outlineShown());
+    assertEquals(full, body.getBounds().width);
+    openFile("guide.md", GUIDE, true);
+    assertTrue(window.outlineShown());
+    awaitTop("the guide's tree", "Mock guide");
+    assertTrue(body.getBounds().width < full, body.getBounds() + " of " + full);
+    controller.execute(CommandId.PREVIOUS_TAB);
+    flush();
+    assertFalse(window.outlineShown());
+    assertEquals(full, body.getBounds().width);
   }
 
   @Test

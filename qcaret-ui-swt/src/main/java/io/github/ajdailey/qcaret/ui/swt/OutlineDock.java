@@ -14,6 +14,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
@@ -21,12 +22,13 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 
 /**
- * The Outline dock: a summary and Hide over a {@link Tree} of an {@link OutlineInput}'s headings,
- * every level expanded. A click on a heading's text goes to it and keeps the focus in the tree;
- * Enter and a double click go to it and focus the editor. Arrows and type-ahead move the selection
- * only, as the platform's tree does. A refresh creates the missing items in slices of {@value
- * #SLICE_ITEMS}, one per UI turn, so a long heading list never holds the UI thread; a newer refresh
- * abandons the running fill. The window's {@link ChromeColors} color the tree under the theme.
+ * The Outline dock: Hide and a summary, wrapped within the dock ({@link DockBarLayout}), over a
+ * {@link Tree} of an {@link OutlineInput}'s headings, every level expanded. A click on a heading's
+ * text goes to it and keeps the focus in the tree; Enter and a double click go to it and focus the
+ * editor. Arrows and type-ahead move the selection only, as the platform's tree does. A refresh
+ * creates the missing items in slices of {@value #SLICE_ITEMS}, one per UI turn, so a long heading
+ * list never holds the UI thread; a newer refresh abandons the running fill. The window's {@link
+ * ChromeColors} color the tree under the theme.
  */
 final class OutlineDock {
   /** Items created per UI turn. */
@@ -65,11 +67,7 @@ final class OutlineDock {
     layout.verticalSpacing = 0;
     root.setLayout(layout);
     Composite bar = new Composite(root, SWT.NONE);
-    GridLayout barLayout = new GridLayout(2, false);
-    barLayout.marginHeight = 2;
-    barLayout.marginWidth = 0;
-    barLayout.horizontalSpacing = 4;
-    bar.setLayout(barLayout);
+    bar.setLayout(new DockBarLayout());
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     Button hide = new Button(bar, SWT.PUSH);
     hide.setText(UiText.OUTLINE_HIDE.text());
@@ -83,8 +81,7 @@ final class OutlineDock {
             }
           }
         });
-    summary = new Label(bar, SWT.NONE);
-    summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    summary = new Label(bar, SWT.WRAP);
     tree = new Tree(root, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL);
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     AccessibleName.attachKeepingRole(tree, UiText.ACCESSIBLE_OUTLINE.text());
@@ -140,7 +137,7 @@ final class OutlineDock {
       return;
     }
     summary.setText(input.summary());
-    summary.getParent().layout();
+    root.layout(new Control[] {summary});
     List<OutlineEntry> next = input.entries();
     int keep = 0;
     int same = Math.min(filled == plan.length ? items.length : created, next.size());

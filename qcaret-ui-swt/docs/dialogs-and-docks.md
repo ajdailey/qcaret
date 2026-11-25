@@ -294,19 +294,29 @@ Xvfb); `ResultRows` maps rows to paths.
 
 `BookmarksDock` shows the `BookmarksInput` model in a virtual `Table` with Line
 (from 1), Comment and Text columns under Go To, Edit Comment, Remove, Hide and
-the model's summary. Enter and a double click go to the selected row, and
+the model's summary. The buttons and summary sit in a `DockBarLayout`, which
+starts a new row for a control that does not fit after the others and wraps the
+summary's text where it is wider than the dock. `TableFit.spread` keeps Line at
+its width and gives Comment and Text the rest of the table's width at each
+resize, in proportion to their starting widths (260 and 480), less a hidden vertical scroll bar's width, so the table shows no
+horizontal scroll bar. Enter and a double click go to the selected row, and
 Delete removes its bookmark; a cut of more than 2,000 rows replaces the table,
 as in the results dock. `BookmarksMenu` is the context menu
 (`BookmarksInput.MENU`: Go To, Edit Comment, Copy Line, Remove, Clear All),
 built and selecting its row as `ResultsMenu` does; Clear All is enabled while
-the list has rows.
+the list has rows. On win32 the window's `ChromeColors` color this table and the
+Search Results table under the theme, as the Outline tree.
 
 ## Outline dock
 
 `OutlineDock` shows the `OutlineInput` model, the selected Markdown tab's
-headings, as a `Tree` under Hide and the model's summary, right of the editors
-and the bottom docks. View > Markdown View > Outline and the same item in the toolbar's Markdown actions menu show and hide it; the
-window's session keeps it shown.
+headings, as a `Tree` under Hide and the model's summary (a `DockBarLayout`, as
+in the Bookmarks dock), right of the editors and the bottom docks. View >
+Markdown View > Outline and the same item in the toolbar's Markdown actions
+menu show and hide it; the window's session keeps it shown. While shown it
+collapses on a tab that is not Markdown, or with no tab, and the editors and
+bottom docks take its width; `MarkdownOutline` decides, and the check item stays
+on.
 
 - A heading's parent is the closest earlier heading of a higher level, so an
   H3 under an H1 is one step in. Every level shows expanded.

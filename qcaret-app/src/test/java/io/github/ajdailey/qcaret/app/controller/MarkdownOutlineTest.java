@@ -155,15 +155,21 @@ class MarkdownOutlineTest {
     open("guide.md", TEXT);
     harness.application.execute(CommandId.MARKDOWN_OUTLINE);
     awaitNames("Markdown tab", "Guide", "Setup", "Usage");
+    assertTrue(harness.view.outlineVisible);
     open("notes.txt", "# not markdown\n");
     awaitNames("plain tab");
     assertEquals(UiText.OUTLINE_NOT_MARKDOWN.text(), outline.summary());
+    assertFalse(harness.view.outlineVisible);
+    assertTrue(outline.shown());
     harness.view.tabs.get(0).select();
     awaitNames("Markdown tab again", "Guide", "Setup", "Usage");
+    assertTrue(harness.view.outlineVisible);
     documents.setSyntax("plain");
     awaitNames("plain text chosen");
+    assertFalse(harness.view.outlineVisible);
     documents.setSyntax("markdown");
     awaitNames("Markdown chosen", "Guide", "Setup", "Usage");
+    assertTrue(harness.view.outlineVisible);
   }
 
   @Test

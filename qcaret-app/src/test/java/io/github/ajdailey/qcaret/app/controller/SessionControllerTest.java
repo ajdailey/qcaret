@@ -547,13 +547,14 @@ class SessionControllerTest {
   void theOutlineDockReturns() throws Exception {
     Harness first = start(true);
     first.application.execute(CommandId.MARKDOWN_OUTLINE);
-    assertTrue(first.view.outlineVisible);
+    assertTrue(first.application.outline().shown());
     quit(first);
     assertTrue(store().load().windows().get(0).display().outline());
 
     Harness second = start(true);
     assertTrue(second.application.outline().shown());
-    assertTrue(second.view.outlineVisible);
+    // The restored tab is plain text, so the dock stays collapsed.
+    assertFalse(second.view.outlineVisible);
     second.application.execute(CommandId.MARKDOWN_OUTLINE);
     quit(second);
     assertFalse(store().load().windows().get(0).display().outline());

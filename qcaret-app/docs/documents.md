@@ -483,7 +483,10 @@ shows `EXPORT_HTML_FAILED`.
 selected tab's headings while its grammar is `markdown`, empty otherwise. It
 follows the selected tab and focused view (`addActiveListener`) and grammar
 changes (`DocumentController.setGrammarListener`), and reads nothing while the
-dock is hidden.
+dock is hidden. While shown it calls `showOutline` with true for a Markdown tab
+and false otherwise, so the dock collapses on a plain tab and returns on a
+Markdown one, and posts `outlineChanged` only while the dock shows; `shown` stays
+the user's choice, which the session saves.
 
 - It renders on its own in every mode, so Source lists headings too: at once
   when it binds a Markdown tab, and 300 ms after the last edit, on a

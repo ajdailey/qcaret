@@ -39,6 +39,7 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
@@ -78,6 +79,7 @@ class ChromeColorsTest {
   private Text field;
   private FieldHint hint;
   private Tree tree;
+  private Table table;
   private List<Control> kept;
   private ToolIcons icons;
   private List<ToolItem> items;
@@ -100,6 +102,8 @@ class ChromeColorsTest {
     hint.setHint("filter");
     tree = new Tree(surface, SWT.NONE);
     tree.setHeaderVisible(true);
+    table = new Table(surface, SWT.NONE);
+    table.setHeaderVisible(true);
     CTabFolder tabs = new CTabFolder(surface, SWT.NONE);
     Composite marked = new Composite(surface, SWT.NONE);
     marked.setData(EditorPane.PALETTE_COLORED, Boolean.TRUE);
@@ -181,12 +185,17 @@ class ChromeColorsTest {
     return colors;
   }
 
+  /** Returns the tree's colors, then the table's: background, text, header, header text. */
   private List<RGB> treeColors() {
     return List.of(
         tree.getBackground().getRGB(),
         tree.getForeground().getRGB(),
         tree.getHeaderBackground().getRGB(),
-        tree.getHeaderForeground().getRGB());
+        tree.getHeaderForeground().getRGB(),
+        table.getBackground().getRGB(),
+        table.getForeground().getRGB(),
+        table.getHeaderBackground().getRGB(),
+        table.getHeaderForeground().getRGB());
   }
 
   private List<RGB> fieldColors() {
@@ -247,48 +256,55 @@ class ChromeColorsTest {
   }
 
   /**
-   * Where the tree's side differs from the native start the selected row is drawn in the palette's
-   * selection colors at 4.5:1 or more; the native tree kept its startup selection, 1.66:1 after a
-   * dark start on the light side and 1.39:1 after a light start on the dark side (OBERON G1).
+   * Where a tree's or table's side differs from the native start the selected row is drawn in the
+   * palette's selection colors at 4.5:1 or more; the native tree kept its startup selection, 1.66:1
+   * after a dark start on the light side and 1.39:1 after a light start on the dark side (OBERON
+   * G1).
    */
   @Test
-  void aSelectedTreeRowOnTheOtherSideIsDrawnReadable() {
+  void aSelectedRowOnTheOtherSideIsDrawnReadable() {
     boolean[][] cases = {{true, false}, {false, true}};
     for (boolean[] start : cases) {
       boolean nativeDark = start[0];
       boolean dark = start[1];
-      tree = new Tree(surface, SWT.NONE);
+      List<Composite> lists =
+          List.<Composite>of(new Tree(surface, SWT.NONE), new Table(surface, SWT.NONE));
       ChromeColors chrome = chrome(WIN32, nativeDark);
       try {
         chrome.apply(true);
         chrome.apply(dark);
-        Event selected = eraseSelected();
-        assertEquals(0, selected.detail & SWT.SELECTED, "start " + nativeDark);
-        double ratio =
-            Contrast.ratio(
-                selected.gc.getForeground().getRGB(), selected.gc.getBackground().getRGB());
-        assertTrue(ratio >= 4.5, "start " + nativeDark + ": " + ratio);
-        selected.gc.dispose();
+        for (Composite list : lists) {
+          String what = list + ", start " + nativeDark;
+          Event selected = eraseSelected(list);
+          assertEquals(0, selected.detail & SWT.SELECTED, what);
+          double ratio =
+              Contrast.ratio(
+                  selected.gc.getForeground().getRGB(), selected.gc.getBackground().getRGB());
+          assertTrue(ratio >= 4.5, what + ": " + ratio);
+          selected.gc.dispose();
+        }
         chrome.apply(nativeDark);
-        Event nativeSide = eraseSelected();
-        assertEquals(SWT.SELECTED, nativeSide.detail & SWT.SELECTED, "native side");
-        nativeSide.gc.dispose();
+        for (Composite list : lists) {
+          Event nativeSide = eraseSelected(list);
+          assertEquals(SWT.SELECTED, nativeSide.detail & SWT.SELECTED, list + ", native side");
+          nativeSide.gc.dispose();
+        }
       } finally {
         chrome.dispose();
       }
     }
   }
 
-  /** Sends the tree an {@code SWT.EraseItem} for a selected row, on a GC the caller disposes. */
-  private Event eraseSelected() {
+  /** Sends a list an {@code SWT.EraseItem} for a selected row, on a GC the caller disposes. */
+  private static Event eraseSelected(Composite list) {
     Event event = new Event();
-    event.gc = new GC(tree);
+    event.gc = new GC(list);
     event.detail = SWT.SELECTED | SWT.FOREGROUND | SWT.BACKGROUND;
     event.x = 0;
     event.y = 0;
     event.width = 20;
     event.height = 10;
-    tree.notifyListeners(SWT.EraseItem, event);
+    list.notifyListeners(SWT.EraseItem, event);
     return event;
   }
 
@@ -308,10 +324,11 @@ class ChromeColorsTest {
   }
 
   @Test
-  void aDarkThemeOnWin32ColorsTheFieldsAndTheTree() {
+  void aDarkThemeOnWin32ColorsTheFieldsTheTreeAndTheTable() {
     chrome(WIN32, false).apply(true);
     assertEquals(List.of(FIELD, TEXT), fieldColors());
-    assertEquals(List.of(FIELD, TEXT, BACKGROUND, TEXT), treeColors());
+    assertEquals(
+        List.of(FIELD, TEXT, BACKGROUND, TEXT, FIELD, TEXT, BACKGROUND, TEXT), treeColors());
     assertEquals("", field.getMessage());
     assertEquals(rgb(Palette.DARK.accents().tabText()), hint.color().getRGB());
   }

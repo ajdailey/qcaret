@@ -812,7 +812,8 @@ after you stop typing. Clicking a heading moves the caret to it and puts it at
 the top of the editor and the preview; Enter or a double click also returns the
 focus to the editor, or to the preview in Preview. The arrow keys and typing a heading's first letters move
 the selection without moving the caret, and the selection follows the caret.
-The dock lists nothing for a document over 1 MiB of chars. A screen reader reads
+The dock lists nothing for a document over 1 MiB of chars. On a tab that is not
+Markdown the dock folds away and returns at the next Markdown tab. A screen reader reads
 the tree as Outline, except on Linux with `--gtk4`.
 
 File > Print Rendered Markdown, enabled on a Markdown tab, prints the document

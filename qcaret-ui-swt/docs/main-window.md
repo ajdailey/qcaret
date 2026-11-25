@@ -16,8 +16,8 @@ by side. Below them are the find bar, the `ProgressRow` rows and a status bar.
 
 - A hidden results or Bookmarks dock is an invisible control the sash leaves
   out; with both hidden the folder is maximized. With the browser hidden the
-  sash right of it is maximized, and with the Outline dock hidden the vertical
-  sash is.
+  sash right of it is maximized, and with the Outline dock hidden or collapsed
+  the vertical sash is.
 - A tab's control is a horizontal `SashForm`, the frame, holding the editors'
   `SashForm` and, for a Markdown tab out of Source, the preview pane
   ([Markdown preview](markdown-preview.md#tab-frame)). The editors' sash holds

@@ -7,13 +7,14 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.ScrollBar;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 
 /**
- * Fits a dialog's table to its packed columns: the dialog width that shows every column, and a tool
- * tip with the full text of a cell still cut off.
+ * Fits a table and its columns: the dialog width that shows every packed column, a tool tip with
+ * the full text of a cell still cut off, and a dock table's columns spread over its width.
  */
 final class TableFit {
   private TableFit() {}
@@ -44,6 +45,60 @@ final class TableFit {
       data.widthHint = hint;
     }
     return Math.min(width, screen.width - trim);
+  }
+
+  /**
+   * Keeps a table's columns within its width at each resize: the first column keeps its width and
+   * the others share the rest in proportion to their widths at this call. The share leaves room for
+   * a hidden vertical scroll bar, so rows added later do not bring a horizontal one, and one point
+   * at a fractional zoom, where each column's width rounds on its own.
+   *
+   * @param table the table, with its columns
+   */
+  static void spread(final Table table) {
+    final int[] weights = new int[table.getColumnCount()];
+    for (int i = 1; i < weights.length; i++) {
+      weights[i] = Math.max(1, table.getColumn(i).getWidth());
+    }
+    table.addListener(
+        SWT.Resize,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            spread(table, weights);
+          }
+        });
+  }
+
+  /**
+   * Sets the widths of every column after the first to fill the table's width.
+   *
+   * @param table the table
+   * @param weights each column's share, from index 1
+   */
+  static void spread(Table table, int[] weights) {
+    if (table.isDisposed() || weights.length < 2) {
+      return;
+    }
+    int width = table.getClientArea().width;
+    ScrollBar bar = table.getVerticalBar();
+    if (bar != null && !bar.getVisible()) {
+      width -= bar.getSize().x;
+    }
+    if (table.getMonitor().getZoom() % 100 != 0) {
+      width--;
+    }
+    int rest = Math.max(0, width - table.getColumn(0).getWidth());
+    int total = 0;
+    for (int i = 1; i < weights.length; i++) {
+      total += weights[i];
+    }
+    int given = 0;
+    for (int i = 1; i < weights.length; i++) {
+      int share = i == weights.length - 1 ? rest - given : rest * weights[i] / total;
+      table.getColumn(i).setWidth(share);
+      given += share;
+    }
   }
 
   /**

@@ -8,6 +8,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
@@ -18,11 +19,12 @@ import org.eclipse.swt.widgets.TableItem;
 /**
  * The Bookmarks list dock: a row of buttons and a summary over a virtual {@link Table} of a {@link
  * BookmarksInput}'s rows, with the line (from 1), the comment and the line's text in three columns.
- * Rows load as they show. Enter and a double click go to the selected row's line, Delete removes
- * its bookmark; Go To, Edit Comment and Remove act on the selected row, Hide hides the dock. The
- * table's context menu is a {@link BookmarksMenu}. The selection keeps its index across changes,
- * within the row count. A cut of over {@value #REMOVE_ROWS} rows replaces the table, as GTK removes
- * rows one by one.
+ * The buttons and summary wrap within the dock ({@link DockBarLayout}), and the comment and text
+ * columns share the table's width ({@link TableFit#spread}). Rows load as they show. Enter and a
+ * double click go to the selected row's line, Delete removes its bookmark; Go To, Edit Comment and
+ * Remove act on the selected row, Hide hides the dock. The table's context menu is a {@link
+ * BookmarksMenu}. The selection keeps its index across changes, within the row count. A cut of over
+ * {@value #REMOVE_ROWS} rows replaces the table, as GTK removes rows one by one.
  */
 final class BookmarksDock {
   /** Rows removed one by one at most; a larger cut replaces the table. */
@@ -58,18 +60,13 @@ final class BookmarksDock {
     layout.verticalSpacing = 0;
     root.setLayout(layout);
     Composite bar = new Composite(root, SWT.NONE);
-    GridLayout barLayout = new GridLayout(5, false);
-    barLayout.marginHeight = 2;
-    barLayout.marginWidth = 0;
-    barLayout.horizontalSpacing = 4;
-    bar.setLayout(barLayout);
+    bar.setLayout(new DockBarLayout());
     bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     goTo = button(bar, UiText.BOOKMARKS_GO_TO, Action.GO_TO);
     edit = button(bar, UiText.BOOKMARKS_EDIT, Action.EDIT);
     remove = button(bar, UiText.BOOKMARKS_REMOVE, Action.REMOVE);
     button(bar, UiText.BOOKMARKS_HIDE, Action.HIDE);
-    summary = new Label(bar, SWT.NONE);
-    summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    summary = new Label(bar, SWT.WRAP);
     createTable();
     syncButtons();
   }
@@ -83,6 +80,7 @@ final class BookmarksDock {
     column(UiText.BOOKMARKS_LINE, SWT.RIGHT, 70);
     column(UiText.BOOKMARKS_COMMENT, SWT.LEFT, 260);
     column(UiText.BOOKMARKS_TEXT, SWT.LEFT, 480);
+    TableFit.spread(table);
     table.addListener(
         SWT.SetData,
         new Listener() {
@@ -205,7 +203,7 @@ final class BookmarksDock {
       table.setSelection(Math.min(selected, count - 1));
     }
     summary.setText(input == null ? "" : input.summary());
-    summary.getParent().layout(true);
+    root.layout(new Control[] {summary});
     syncButtons();
   }
 

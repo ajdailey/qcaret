@@ -98,8 +98,9 @@ Windows 11 at 150 %. The first color puts the field under the dark Explorer
 theme for the life of the control; unfocused and holding text, it then draws
 near-black (33,33,33) with dark text under null and explicit light colors
 alike. `ChromeColors` gives the main window's fields (find and replace, the
-Workspace Browser's path and filter) and trees (the Workspace Browser's and the
-Outline's, with their headers) `Palette.DARK`'s colors while `ui.theme`
+Workspace Browser's path and filter), trees (the Workspace Browser's and the
+Outline's) and tables (Search Results and Bookmarks), with their headers,
+`Palette.DARK`'s colors while `ui.theme`
 resolves to dark, at once after a live switch, and `FieldHint` draws a field's
 hint in `Palette.DARK`'s unselected tab label color. Under the dark native
 setting a field holding text keeps `Palette.DARK`'s colors on the light side
@@ -119,9 +120,9 @@ under.
 A tree whose side differs from the native setting (light under the dark one,
 dark under the light one) keeps the native selection of that setting:
 black on `#333333` (1.66:1) and black on `#17273a` (1.39:1), measured. On
-`SWT.EraseItem` it draws a selected row in the palette's `selection` and
-`selectionText`, raised to 4.5:1, and clears `SWT.SELECTED` and `SWT.HOT`, so
-the Outline and Workspace Browser trees stay readable. The native expander keeps
+`SWT.EraseItem` a tree or table on the other side draws a selected row in the
+palette's `selection` and `selectionText`, raised to 4.5:1, and clears
+`SWT.SELECTED` and `SWT.HOT`, so the dock lists stay readable. The native expander keeps
 the native setting's colors (white on white, `#1b1b1b` on `#1b2e44`): no public
 API reaches it.
 
@@ -154,8 +155,8 @@ preview's notice strip; a control created later under one takes its colors from
 | Control | Under dark |
 |---|---|
 | `Composite`, `SashForm`, `Label`, `Link`, `ToolBar`, `Canvas` (the memory gauge), check box | Palette colors |
-| `Text`, `Tree` | `Palette.DARK`'s `background` and `text`; a tree header the `gutter`; the field rule above |
-| Push and arrow `Button`, `Combo`, `List`, `Table`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into |
+| `Text`, `Tree`, `Table` | `Palette.DARK`'s `background` and `text`; a tree or table header the `gutter`; the field rule above |
+| Push and arrow `Button`, `Combo`, `List`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into |
 | `CTabFolder`, a control with `ChromeColors.PALETTE_COLORED` | Unchanged, not descended into |
 
 A check box keeps `DialogColors.check`'s light-theme creation, so under the
