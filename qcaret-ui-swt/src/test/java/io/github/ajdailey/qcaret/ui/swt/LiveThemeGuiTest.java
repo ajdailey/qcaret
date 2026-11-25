@@ -723,9 +723,18 @@ class LiveThemeGuiTest {
     WindowViews.holdWhile(owned, WindowViews.WHILE_OPEN);
 
     set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
-    settle();
+    final Shell shell = old.shell();
+    // GTK 4 applies the theme change over several turns; the hold releases the window after it.
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !WindowViews.replacing(shell);
+              }
+            }),
+        "released");
     assertTrue(views.pending());
-    assertFalse(WindowViews.replacing(old.shell()));
     assertNotEquals(before, selection(old, selected));
     owned.dispose();
   }
