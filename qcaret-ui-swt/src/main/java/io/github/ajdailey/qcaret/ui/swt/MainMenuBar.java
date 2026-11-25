@@ -64,6 +64,31 @@ final class MainMenuBar {
   private final RecentMenus recent;
   private EncodingChoices encodings;
 
+  // Tool window menus.
+  private Shell closes;
+
+  /**
+   * Makes Close close a tool window that carries this bar, always enabled; every other item still
+   * runs on the controller. Call before {@link #build}.
+   *
+   * @param tool the tool window the bar is on
+   */
+  void closesToolWindow(Shell tool) {
+    closes = tool;
+  }
+
+  private void run(CommandId command) {
+    if (command == CommandId.CLOSE && closes != null) {
+      closes.close();
+    } else {
+      controller.execute(command);
+    }
+  }
+
+  private boolean enabled(CommandId command) {
+    return (command == CommandId.CLOSE && closes != null) || states.enabled(command);
+  }
+
   /**
    * Creates the menu bar's owner; {@link #build} creates the menus.
    *
@@ -158,7 +183,7 @@ final class MainMenuBar {
                 if (radio && !((MenuItem) event.widget).getSelection()) {
                   return;
                 }
-                controller.execute(command);
+                run(command);
                 if (!shell.isDisposed()) {
                   sync(group);
                 }
@@ -207,7 +232,7 @@ final class MainMenuBar {
       if (command.group() != group || item.isDisposed()) {
         continue;
       }
-      setEnabled(item, states.enabled(command));
+      setEnabled(item, enabled(command));
       if (command.check()) {
         boolean checked = states.checked(command);
         if (item.getSelection() != checked) {
@@ -381,7 +406,7 @@ final class MainMenuBar {
   void syncEnablement() {
     for (Map.Entry<CommandId, MenuItem> entry : items.entrySet()) {
       if (!entry.getValue().isDisposed()) {
-        setEnabled(entry.getValue(), states.enabled(entry.getKey()));
+        setEnabled(entry.getValue(), enabled(entry.getKey()));
       }
     }
     if (reopen.holder() != null && !reopen.holder().isDisposed()) {

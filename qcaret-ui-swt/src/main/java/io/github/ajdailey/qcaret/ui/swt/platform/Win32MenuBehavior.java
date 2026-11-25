@@ -29,6 +29,9 @@ final class Win32MenuBehavior implements MenuBehavior {
   public void addWindowControls(Menu menu, Shell shell) {}
 
   @Override
+  public void toolWindowMenus(Shell tool, ToolMenus menus) {}
+
+  @Override
   public void hookAppMenu(Display display, AppMenuActions actions) {}
 
   @Override

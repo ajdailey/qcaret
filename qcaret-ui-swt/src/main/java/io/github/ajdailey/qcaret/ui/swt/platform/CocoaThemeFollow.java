@@ -34,7 +34,7 @@ final class CocoaThemeFollow implements ThemeFollow {
 
   @Override
   public void watch(boolean dark, UiDispatcher timers, Runnable refresh) {
-    chrome = new CocoaChrome(display, dark);
+    chrome = new CocoaChrome(display, dark, timers);
     chrome.apply(started ? pinned : dark);
     NativeTheme.poll(display, timers, refresh);
   }

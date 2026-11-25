@@ -212,6 +212,17 @@ leaves out: About, Preferences and Quit on cocoa, none elsewhere.
   after the last ([qcaret-launcher](../../qcaret-launcher/README.md)).
 - The Workspace Browser deletes on Backspace too (`BrowserKeys`): the key
   labeled delete on a Mac keyboard sends Backspace; Delete is fn-Delete.
+- A tool window has the main menus. The menu bar shows the key window's menus,
+  and a window without a menu bar shows only the application menu, so
+  `Dialogs.shell`, for each modeless shell, and `DiffWindow` call
+  `MenuBehavior.toolWindowMenus` with `ToolMenuBars.of(owner)`, the main
+  window's `ToolMenuBars` found through the owner chain. On cocoa that builds a
+  `MainMenuBar` over the main window's controller; other platforms build
+  none. Its items act on the main window, except Close (`Cmd+W`,
+  `MainMenuBar.closesToolWindow`), which closes the tool window and stays
+  enabled, and Minimize and Zoom, which act on the tool window. The bars sync
+  enablement with the main window's and are rebuilt on a keymap change. A
+  modal dialog gets none, so no command runs in a main window it blocks.
 
 All of it is unverified on cocoa.
 
@@ -560,7 +571,7 @@ default method carries behavior.
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `NativeDialogTabs`: the native `TabFolder` | As cocoa | As cocoa | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
-| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the window's native setting; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
+| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the window's native setting; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; Minimize and Zoom; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: as GTK 3, and a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
 | `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
 | `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |

@@ -32,6 +32,9 @@ class Gtk3MenuBehavior implements MenuBehavior {
   public final void addWindowControls(Menu menu, Shell shell) {}
 
   @Override
+  public final void toolWindowMenus(Shell tool, ToolMenus menus) {}
+
+  @Override
   public final void hookAppMenu(Display display, AppMenuActions actions) {}
 
   @Override

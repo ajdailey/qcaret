@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
 import org.eclipse.swt.custom.CaretListener;
@@ -53,6 +54,7 @@ final class DiffWindow {
     this.palette = palette;
     shell = new Shell(parent, SWT.SHELL_TRIM);
     Dialogs.inheritIcons(shell, parent);
+    MenuBehavior.PLATFORM.toolWindowMenus(shell, ToolMenuBars.of(parent));
     DialogColors.platform().apply(shell);
     shell.setText(
         UiText.COMPARE_WINDOW_TITLE.format(comparison.leftTitle(), comparison.rightTitle()));

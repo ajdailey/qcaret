@@ -14,9 +14,9 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Menus on cocoa: no menu images, Minimize and Zoom in the Window menu, and the system's
- * application menu, where About, Preferences and Quit run in the window activated last. Hide, Hide
- * Others and Show All stay native.
+ * Menus on cocoa: no menu images, Minimize and Zoom in the Window menu, the main menus on tool
+ * windows, and the system's application menu, where About, Preferences and Quit run in the window
+ * activated last. Hide, Hide Others and Show All stay native.
  */
 final class CocoaMenuBehavior implements MenuBehavior {
   /** The application-menu items QCaret runs: About, Preferences and Quit. */
@@ -60,6 +60,11 @@ final class CocoaMenuBehavior implements MenuBehavior {
           }
         });
     new MenuItem(menu, SWT.SEPARATOR, 2);
+  }
+
+  @Override
+  public void toolWindowMenus(Shell tool, ToolMenus menus) {
+    menus.build(tool);
   }
 
   @Override

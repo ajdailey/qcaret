@@ -32,6 +32,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.AtkNames;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
 import java.nio.charset.StandardCharsets;
@@ -70,9 +71,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The main toolbar, the editor menu, the tab menu's close and folder items, the line-number toggle,
- * the macOS Window menu controls and the accessible names in a real window. Popups are never shown
- * to a pump: each test hides one before draining, since a win32 popup would hold the test in its
- * loop.
+ * the macOS Window menu controls, the tool windows' main menus and the accessible names in a real
+ * window. Popups are never shown to a pump: each test hides one before draining, since a win32
+ * popup would hold the test in its loop.
  */
 @Tag("swt")
 class ToolbarAndMenusTest {
@@ -591,6 +592,60 @@ class ToolbarAndMenusTest {
     assertTrue((menu.getItem(2).getStyle() & SWT.SEPARATOR) != 0);
     assertEquals("mock", menu.getItem(3).getText());
     shell.dispose();
+  }
+
+  @Test
+  void aToolWindowRunsTheMainMenusInItsMainWindowAndClosesItselfWhereThePlatformGivesThem() {
+    ToolMenuBars menus =
+        new ToolMenuBars(window.shell(), controller, window.menuIcons(), controller.keymap());
+    MenuBehavior cocoa = PlatformTraits.of("cocoa", false).menuBehavior();
+    Shell tool = new Shell(window.shell(), SWT.SHELL_TRIM);
+    cocoa.toolWindowMenus(tool, ToolMenuBars.of(window.shell()));
+    Shell nested = new Shell(tool, SWT.SHELL_TRIM);
+    cocoa.toolWindowMenus(nested, ToolMenuBars.of(tool));
+    assertNotNull(tool.getMenuBar());
+    assertNotNull(nested.getMenuBar());
+    assertEquals(2, menus.bars().size());
+    assertSame(ToolMenuBars.NONE, ToolMenuBars.of(new Shell(display)));
+    int tabs = window.tabs().getItemCount();
+    MenuItem fresh = menus.bars().get(0).item(CommandId.NEW);
+    assertSame(tool, fresh.getParent().getShell());
+    fresh.notifyListeners(SWT.Selection, new Event());
+    drain();
+    assertEquals(tabs + 1, window.tabs().getItemCount());
+    Menu before = tool.getMenuBar();
+    menus.rebuild(controller.keymap());
+    assertTrue(before.isDisposed());
+    assertNotNull(tool.getMenuBar().getItem(0).getMenu());
+    nested.dispose();
+    assertEquals(1, menus.bars().size());
+    int open = window.tabs().getItemCount();
+    MenuItem close = menus.bars().get(0).item(CommandId.CLOSE);
+    menus.syncEnablement();
+    assertTrue(close.getEnabled());
+    close.notifyListeners(SWT.Selection, new Event());
+    drain();
+    assertTrue(tool.isDisposed());
+    assertEquals(open, window.tabs().getItemCount());
+    assertTrue(menus.bars().isEmpty());
+    for (String platform : new String[] {"win32", "gtk"}) {
+      Shell plain = new Shell(window.shell(), SWT.SHELL_TRIM);
+      PlatformTraits.of(platform, false)
+          .menuBehavior()
+          .toolWindowMenus(plain, ToolMenuBars.of(window.shell()));
+      assertNull(plain.getMenuBar(), platform);
+      plain.dispose();
+    }
+  }
+
+  @Test
+  void dialogsGiveTheMainMenusToModelessShellsOnlyOnCocoa() {
+    Shell tool = Dialogs.shell(window.shell(), "Tool", false);
+    Shell modal = Dialogs.shell(window.shell(), "Modal", true);
+    assertEquals(RunningPlatform.COCOA, tool.getMenuBar() != null);
+    assertNull(modal.getMenuBar());
+    modal.dispose();
+    tool.dispose();
   }
 
   @Test

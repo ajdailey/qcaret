@@ -11,8 +11,8 @@ import org.eclipse.swt.widgets.Shell;
 /**
  * Menu differences, one implementation per platform, from {@link PlatformTraits#menuBehavior}: menu
  * icons and their ink, the image a disabled icon shows on a dark background, the Window menu's own
- * controls, the macOS application menu, and where a disabled item names its reason. Call on the UI
- * thread.
+ * controls, the macOS application menu, the main menus on tool windows, and where a disabled item
+ * names its reason. Call on the UI thread.
  *
  * <table>
  *   <caption>Implementation per platform</caption>
@@ -21,7 +21,7 @@ import org.eclipse.swt.widgets.Shell;
  *   <tr><td>win32</td><td>{@link Win32MenuBehavior}</td><td>startup ink</td><td>tool tip</td>
  *       <td>none</td></tr>
  *   <tr><td>cocoa</td><td>{@link CocoaMenuBehavior}</td><td>none</td><td>tool tip</td>
- *       <td>application menu; Minimize and Zoom</td></tr>
+ *       <td>application menu; Minimize and Zoom; main menus on tool windows</td></tr>
  *   <tr><td>GTK 3</td><td>{@link Gtk3MenuBehavior}</td><td>blank-padded, live ink</td>
  *       <td>tool tip</td><td>none</td></tr>
  *   <tr><td>GTK 4</td><td>{@link Gtk4MenuBehavior}</td><td>as GTK 3</td><td>label</td>
@@ -75,6 +75,16 @@ public interface MenuBehavior {
    * @param shell the window they act on
    */
   void addWindowControls(Menu menu, Shell shell);
+
+  /**
+   * Gives a tool window its owner's menus on cocoa, where the menu bar shows the key window's menus
+   * and a window without a menu bar shows only the application menu. Does nothing elsewhere, where
+   * a menu bar draws inside its window.
+   *
+   * @param tool a modeless window a main window owns
+   * @param menus builds the owner's menus on the tool window
+   */
+  void toolWindowMenus(Shell tool, ToolMenus menus);
 
   /**
    * Hooks the system's application menu on cocoa: About, Preferences and Quit, a quit request from
@@ -182,5 +192,16 @@ public interface MenuBehavior {
      * @param file the event's text, possibly null or not a path
      */
     void open(String file);
+  }
+
+  /** Builds a main window's menus on one of its tool windows. */
+  interface ToolMenus {
+    /**
+     * Sets the owner's menus as the tool window's menu bar; Close closes the tool window and every
+     * other item acts on the owner.
+     *
+     * @param tool the tool window
+     */
+    void build(Shell tool);
   }
 }

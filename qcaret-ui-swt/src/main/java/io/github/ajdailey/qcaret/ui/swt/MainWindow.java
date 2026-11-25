@@ -204,6 +204,7 @@ public final class MainWindow implements MainView {
   private final FullScreen fullScreen;
   private ApplicationController controller;
   private MainMenuBar menuBar;
+  private ToolMenuBars toolMenus;
   private MainToolBar mainToolBar;
   private TabStripButtons tabButtons;
   private EditorMenu editorMenu;
@@ -472,6 +473,7 @@ public final class MainWindow implements MainView {
     menuBar = new MainMenuBar(shell, owner, menuIcons);
     tabMenu = new TabMenu(shell, owner, menuBar.states());
     menuBar.build(keymap);
+    toolMenus = new ToolMenuBars(shell, owner, menuIcons, keymap);
     mainToolBar = new MainToolBar(toolBar, toolIcons, owner, menuBar.states(), this::focusPane);
     mainToolBar.setKeymap(keymap);
     markdownSwitch = new MarkdownSwitch(toolBar, toolIcons, menuIcons, owner, menuBar.states());
@@ -493,6 +495,7 @@ public final class MainWindow implements MainView {
           public void loaded(EncodingChoices choices) {
             if (!shell.isDisposed()) {
               menuBar.encodingsLoaded(choices);
+              toolMenus.encodingsLoaded(choices);
             }
           }
         });
@@ -752,6 +755,7 @@ public final class MainWindow implements MainView {
   /** Enables the menu items and the toolbar's buttons from the command states. */
   private void syncCommands() {
     menuBar.syncEnablement();
+    toolMenus.syncEnablement();
     mainToolBar.sync();
     markdownSwitch.sync();
   }
@@ -1929,6 +1933,7 @@ public final class MainWindow implements MainView {
     }
     keymap = bindings;
     menuBar.build(bindings);
+    toolMenus.rebuild(bindings);
     mainToolBar.setKeymap(bindings);
     tabButtons.setKeymap(bindings);
     editorMenu.setKeymap(bindings);

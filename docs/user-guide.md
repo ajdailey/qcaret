@@ -1054,6 +1054,9 @@ at a time.
 
 On macOS the Window menu starts with Minimize (`Cmd+M`) and Zoom, which
 switches the window between its size and filling the screen.
+While a tool window such as Preferences, Statistics or a comparison is in front,
+the menu bar keeps the main menus, and their commands act on the window that
+opened it; Close (`Cmd+W`), Minimize and Zoom act on the tool window.
 
 View > Always on Top keeps a window above other applications' windows, with its
 dialogs above it; the session restores it per window. It has no default key. On

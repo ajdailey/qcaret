@@ -259,6 +259,17 @@ the pinned side, at the change, at `SWT.Show` of a shell and at `SWT.Skin` of a
 new control, since the docks replace their tables while open. On the side SWT
 read it sets those colors to null, the default, check boxes included.
 
+SWT sends `SWT.Skin` from `readAndDispatch` and layout, neither of which runs
+while a menu tracks, so a control a timer creates then keeps the cached side
+until the menu closes (QLogg Mac lab, macOS 27.2.1: a field drew `#ffffff`
+under white text). `CocoaChrome` records the side it colored each control for,
+and colors a control whose record is stale at its `SWT.Show` and, while any
+menu shows, at a sweep of every shell each 100 ms through the `UiDispatcher`
+timer. Timers are the only work measured to run during tracking on both macOS
+15 hosts: on macos-15-intel the new field drew with no SWT paint event and a
+posted `asyncExec` did not run before the menu closed. A menu bar sends
+`SWT.Show` with its shell and no `SWT.Hide`, so it does not start the sweep.
+
 Table and tree headers never have null colors: a null header in dark draws
 blank labels. From `SWT.Skin` at creation on, `CocoaChrome` gives each header
 the list background and text color of the current appearance; in the startup

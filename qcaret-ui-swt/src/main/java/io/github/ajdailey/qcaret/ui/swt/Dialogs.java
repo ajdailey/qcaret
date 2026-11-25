@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
+import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -39,7 +40,8 @@ final class Dialogs {
 
   /**
    * Creates a dialog shell with a given style, carrying its owner's icons and the platform's {@link
-   * DialogColors} colors.
+   * DialogColors} colors. A modeless shell is a tool window and takes its main window's menus where
+   * the platform shows them ({@link MenuBehavior#toolWindowMenus}).
    *
    * @param parent the owning shell
    * @param title the title
@@ -50,6 +52,9 @@ final class Dialogs {
     Shell shell = new Shell(parent, style);
     shell.setText(title);
     inheritIcons(shell, parent);
+    if ((style & (SWT.APPLICATION_MODAL | SWT.PRIMARY_MODAL | SWT.SYSTEM_MODAL)) == 0) {
+      MenuBehavior.PLATFORM.toolWindowMenus(shell, ToolMenuBars.of(parent));
+    }
     DialogColors.platform().apply(shell);
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 12;
