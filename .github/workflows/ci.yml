@@ -158,17 +158,24 @@ jobs:
           path: ~/.cache/qcaret-build
           key: qcaret-build-${{ hashFiles('qcaret-dist/src/build/dist.xml') }}
       # A v* tag builds the tag's version; anything else <revision>+<short commit>.
+      # sed reads <revision> from pom.xml; a Maven call would first download
+      # from Central.
       - name: Version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             revision="${GITHUB_REF_NAME#v}"
           else
-            revision=$(./mvnw -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
-              -Dexpression=revision -DforceStdout)
+            revision=$(sed -n 's|.*<revision>\(.*\)</revision>.*|\1|p' pom.xml)
+            if [ -z "$revision" ]; then
+              echo "::error::No <revision> in pom.xml"
+              exit 1
+            fi
             revision="$revision+${GITHUB_SHA:0:7}"
           fi
-          echo "REVISION=$revision" >> "$GITHUB_ENV"
-      - run: ./mvnw -B package -Pall-targets,sbom -DskipTests "-Drevision=$REVISION"
+          echo "REVISION=$revision" | tee -a "$GITHUB_ENV"
+      - run: >-
+          ./mvnw -B package -Pall-targets,sbom -DskipTests cyclonedx:makeAggregateBom
+          "-Drevision=$REVISION"
       - name: SBOM runtime and launcher components
         run: .github/scripts/sbom-components.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -248,8 +255,11 @@ jobs:
       # commit's <revision>, with or without -SNAPSHOT.
       - name: Tag matches the POM revision
         run: |
-          revision=$(./mvnw -B -q -N org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
-            -Dexpression=revision -DforceStdout)
+          revision=$(sed -n 's|.*<revision>\(.*\)</revision>.*|\1|p' pom.xml)
+          if [ -z "$revision" ]; then
+            echo "::error::No <revision> in pom.xml"
+            exit 1
+          fi
           if [ "$GITHUB_REF_NAME" != "v${revision%-SNAPSHOT}" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match the POM revision $revision"
             exit 1

@@ -114,9 +114,12 @@ SHA-256 of every archive, `qcaret.exe` and module jar.
 
 ## Release artifacts
 
-`-Psbom` writes `dist/qcaret-<version>-sbom.cdx.json`, a CycloneDX aggregate
-SBOM of the compile and runtime dependencies (cyclonedx-maven-plugin
-`makeAggregateBom`, run once in the parent, `qcaret-bench` excluded). The
+`package -Psbom cyclonedx:makeAggregateBom` writes
+`dist/qcaret-<version>-sbom.cdx.json`, a CycloneDX aggregate SBOM of the modules
+and their compile and runtime dependencies (`qcaret-bench` excluded). The goal
+runs once, in the parent, after every module has packaged, and reads the module
+jars from the reactor. Do not bind it to `package`: the parent's `package` runs
+before the modules build, so the goal requests their jars from Maven Central. The
 `sbom` profile here adds the six SWT fragments as dependencies so the SBOM
 lists them; `stage-lib` excludes `org.eclipse.platform`, so the archives are
 unchanged.

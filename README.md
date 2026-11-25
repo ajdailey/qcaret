@@ -137,7 +137,7 @@ windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
 | `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom cyclonedx:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
 | `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
 | `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
@@ -212,9 +212,10 @@ To fix a bad draft, delete the draft and the tag
 
 #### Dependencies
 
-- `-Psbom` writes the CycloneDX SBOM to `dist/`: every compile and runtime
-  dependency of the shipped modules, plus the six SWT fragments `qcaret.jar`
-  carries. It leaves out build-only tools and `qcaret-bench`.
+- `package -Psbom cyclonedx:makeAggregateBom` writes the CycloneDX SBOM to
+  `dist/`: the shipped modules and every compile and runtime dependency, plus
+  the six SWT fragments `qcaret.jar` carries. It leaves out build-only tools
+  and `qcaret-bench`.
   `.github/scripts/sbom-components.sh`, run by the `package` job, adds the
   Temurin releases `dist.xml` downloads and launch4j's header.
 - `.mvn/maven.config` sets `--strict-checksums` and a resolver filter that
