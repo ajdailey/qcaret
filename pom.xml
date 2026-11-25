@@ -71,13 +71,13 @@
         <maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
         <spotbugs.version>4.10.5</spotbugs.version>
         <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
-        <spotless-maven-plugin.version>3.11.0</spotless-maven-plugin.version>
+        <spotless-maven-plugin.version>3.12.0</spotless-maven-plugin.version>
 
         <!-- ===== Libraries (alphabetical) ===== -->
         <archunit.version>1.5.1</archunit.version>
         <!-- Shipped in qcaret-core (Markdown preview, BSD-2-Clause); qcaret-app's
              build also converts docs/user-guide.md with it. -->
-        <commonmark.version>0.32.0</commonmark.version>
+        <commonmark.version>0.33.0</commonmark.version>
         <!-- Benchmarks only (qcaret-bench); not shipped. -->
         <jmh.version>1.37</jmh.version>
         <!-- Build only: renders the qcaret-ui-swt SVG icons to PNG; not shipped. -->
