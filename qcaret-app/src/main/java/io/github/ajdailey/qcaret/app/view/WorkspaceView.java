@@ -68,8 +68,8 @@ public interface WorkspaceView {
   void quickOpenChanged();
 
   /**
-   * Returns the operating system whose rules decide which files Open in Default Application
-   * refuses.
+   * Returns the operating system whose rules decide which files Open in Default Application refuses
+   * and whether User Guide opens in an embedded browser.
    *
    * @return this process's system
    */

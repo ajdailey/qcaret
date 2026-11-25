@@ -316,6 +316,7 @@ apply (measured on Linux, one million lines):
   document; a click or drag scrolls there.
 - View > Split shows a document in two views, side by side or one above the
   other, each with its own carets and scroll position. `F6` moves between them.
+  View > Split > Unsplit returns to one view.
 - View > Workspace Browser, Search > Search Results, Search > Bookmarks >
   Bookmarks List and View > Markdown View > Outline show the docks around the
   editor.
@@ -403,9 +404,10 @@ the grammar's rules.
 | `Ctrl+G` (`Cmd+L` on macOS) | Go to a line, as `line`, `line:column` or `line,column`; OK stays disabled until the text is one |
 | `Alt+Left`, `Alt+Right` (`Control+Cmd+Left` and `Right` on macOS) | Go Back and Go Forward through jumps, across documents |
 
-Edit > Sort Lines, and Remove Duplicate Lines, Remove Blank Lines, Reverse
-Lines, Trim Leading and Trailing Whitespace and Convert Indentation to Spaces
-and to Tabs in Edit > Line, act on the selected lines, or every line. Each is
+Edit > Sort Lines (Ascending, Descending, Ignoring Case or Numerically), and
+Remove Duplicate Lines, Remove Blank Lines, Reverse Lines, Trim Leading and
+Trailing Whitespace and Convert Indentation to Spaces and to Tabs in Edit >
+Line, act on the selected lines, or every line. Each is
 one undo step, and `Esc` stops one still computing, as it stops a running
 comparison. A line holding only spaces and tabs is blank. Sort Lines >
 Numerically orders lines by the number at their start (after spaces and tabs:
@@ -645,7 +647,8 @@ A bookmark shows as a bar in the gutter and a commented one as a flag, with the
 comment as its tooltip. Bookmarks follow their lines through edits. Search >
 Bookmarks > Bookmarks List shows the document's bookmarks with Go To, Edit
 Comment and Remove. Right-click a row for those, Copy Line, which copies the
-whole line, and Clear All. A document holds up to 1,000 comments of 1,000
+whole line, and Clear All. Search > Bookmarks > Clear Bookmarks removes every
+bookmark of the document. A document holds up to 1,000 comments of 1,000
 chars.
 
 ## Folding
@@ -1249,7 +1252,9 @@ In explicit and portable mode on Linux, User Guide opens the guide in the
 system's HTML application instead of its own window, because the embedded
 browser writes under `~/.cache` and `~/.local/share`. The one write left outside
 the settings directory is an empty `~/.config/ibus/bus`, which the GTK input
-method module creates.
+method module creates, unless the Markdown preview uses the Browser renderer:
+it runs the same embedded browser, which writes under `~/.cache` and
+`~/.local/share`.
 
 In explicit and portable mode QCaret saves a path inside the installation
 directory relative to it: tabs, Recent Files, the remembered state of closed
@@ -1286,8 +1291,9 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
 - Debug Log File writes the log at DEBUG to `logs/` in the settings directory
   until turned off. Open Log Folder and Open Settings Folder open those folders.
 - Report an Issue copies the About details to the clipboard and opens the
-  project's issue page in the system browser. Together with the project link in
-  About, it is the only web address QCaret opens, and only when you pick it.
+  project's issue page in the system browser. QCaret opens a web address only
+  when you pick Report an Issue, the project link in About or a web link in a
+  Markdown preview, and asks first for a preview link.
 - About shows the version, runtime and settings directory; Licenses shows the
   license notices and Copy Details copies the details.
 

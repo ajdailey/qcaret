@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * User Guide in each settings mode, over a view with a guide window: per-user mode shows the
  * window, and explicit and portable mode on Linux open the copy without asking the view for a
- * window.
+ * window. The view's {@code system} sets the platform, so every platform's route runs on each host.
  */
 class UserGuideRouteTest {
   @TempDir Path temp;
@@ -45,32 +46,37 @@ class UserGuideRouteTest {
 
   @Test
   void explicitAndPortableModeOpenTheCopyOutsideOnLinux() throws Exception {
-    boolean linux = "Linux".equals(System.getProperty("os.name"));
+    String[] systems = {"Linux", "Windows 11", "Mac OS X"};
     SettingsMode[] modes = {SettingsMode.EXPLICIT, SettingsMode.PORTABLE};
-    for (SettingsMode mode : modes) {
-      final Harness harness = new Harness(temp.resolve(mode.name()), mode);
-      try {
-        harness.view.guideWindow = true;
-        harness.application.execute(CommandId.USER_GUIDE);
-        harness.await(
-            new BooleanSupplier() {
-              @Override
-              public boolean getAsBoolean() {
-                return harness.view.guides.size() + harness.view.launched.size() == 1;
-              }
-            },
-            "guide in " + mode);
-        if (linux) {
-          assertEquals(List.of(), harness.view.guides, mode.name());
-          assertEquals(1, harness.view.launched.size(), mode.name());
-          assertTrue(harness.view.launched.get(0).endsWith("guide.html"), mode.name());
-        } else {
-          assertEquals(1, harness.view.guides.size(), mode.name());
-          assertEquals(List.of(), harness.view.launched, mode.name());
+    for (String os : systems) {
+      boolean linux = os.equals("Linux");
+      for (SettingsMode mode : modes) {
+        String name = os + " " + mode;
+        final Harness harness = new Harness(temp.resolve(os.replace(' ', '-') + mode), mode);
+        try {
+          harness.view.guideWindow = true;
+          harness.view.system = OsTraits.of(os);
+          harness.application.execute(CommandId.USER_GUIDE);
+          harness.await(
+              new BooleanSupplier() {
+                @Override
+                public boolean getAsBoolean() {
+                  return harness.view.guides.size() + harness.view.launched.size() == 1;
+                }
+              },
+              "guide in " + name);
+          if (linux) {
+            assertEquals(List.of(), harness.view.guides, name);
+            assertEquals(1, harness.view.launched.size(), name);
+            assertTrue(harness.view.launched.get(0).endsWith("guide.html"), name);
+          } else {
+            assertEquals(1, harness.view.guides.size(), name);
+            assertEquals(List.of(), harness.view.launched, name);
+          }
+        } finally {
+          harness.application.documents().dispose();
+          harness.close();
         }
-      } finally {
-        harness.application.documents().dispose();
-        harness.close();
       }
     }
   }

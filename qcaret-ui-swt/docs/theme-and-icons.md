@@ -59,8 +59,7 @@ the start until QCaret restarts, after a View > Theme switch and after a
 Windows mode change under System. The popup menu theme is process-wide:
 `setDarkThemePreferred` reaches `SetPreferredAppMode` (through SWT's
 `useDarkModeExplorerTheme`), but SWT 3.135.0 never calls `FlushMenuThemes` and
-no public API reaches it. A native call is declined (user decision, shared with
-QLogg).
+no public API reaches it. QCaret makes no native call for it.
 
 A read-only `Combo`'s drop list stays light under a dark start with native
 colors (`#ffffff`, `windows-2025`); a `setBackground` reaches it, so the dialog
@@ -106,8 +105,8 @@ hint in `Palette.DARK`'s unselected tab label color. Under the dark native
 setting a field holding text keeps `Palette.DARK`'s colors on the light side
 until its window is rebuilt; an empty one, such as the path field while no workspace folder is set,
 takes the system list colors, set explicitly. The dark native field still draws
-an empty editable field `#212121` while unfocused under those colors (OBERON G1
-on `6449df6`), so `Win32EmptyField` fills it with its background from an
+an empty editable field `#212121` while unfocused under those colors (measured
+on Windows 11), so `Win32EmptyField` fills it with its background from an
 `SWT.Paint` listener and draws its hint in the system gray raised to 4.5:1. A
 field is colored again when it becomes empty or takes text, typed or set
 through `setText` alike ([dialogs and
@@ -188,7 +187,7 @@ more, the faded copy 2.6 to 2.9. Menu icons take the ink of the native side
 the Display started with (`MenuBehavior.ink`, `Win32MenuBehavior`,
 `NativeTheme.startDark`), which the popup menus keep; the window's current
 side gave `#3e3e3e` on `#2c2c2c` (1.31) after a dark start and a switch to
-Light (OBERON, 150%).
+Light (measured on Windows 11 at 150 %).
 
 #### Dialog colors
 
@@ -232,7 +231,6 @@ Public API leaves these light or gray:
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
   field (2.7 contrast), `#808080` on the body.
-
 - The Guide's page, which its HTML colors.
 
 #### Dialog tabs
@@ -255,7 +253,7 @@ outlines the selected tab, separates unselected ones and draws its selection
 bar in system colors, read in package-private renderer code. Ctrl+PageDown and Ctrl+PageUp from a page
 control reach either folder and wrap at the ends; Ctrl+Tab changes no tab in
 either, and a mnemonic reaches the shown page's buttons only (measured on
-`windows-2025` in QLogg). `DialogTabsTest` posts these keys to both folders on
+Windows 11 at 150 %). `DialogTabsTest` posts these keys to both folders on
 win32 and fails where they differ.
 
 On cocoa SWT hides the old page on a tab change, and when no ancestor of the
@@ -271,8 +269,7 @@ takes focus there.
 
 Cocoa SWT sends no `SWT.Settings` for an appearance change and keeps the
 colors it read under the system appearance at Display creation (measured on
-macOS 15 and 27 in QLogg, and on macOS 15 arm64 and Intel in QCaret's LTM
-spike). `CocoaThemeFollow.watch` creates `CocoaChrome` with that side and
+macOS 15 and 27 in QLogg, and on macOS 15 arm64 and Intel in QCaret). `CocoaThemeFollow.watch` creates `CocoaChrome` with that side and
 applies the pinned one; `showOnWindows` pins each new side and passes it to
 `CocoaChrome.apply`. While the pinned side differs from the one SWT read,
 `CocoaChrome` sets each shell's, table's, tree's, list's and field's colors to
@@ -419,7 +416,7 @@ fails in the GTK 4 lane.
 |---|---|---|---|
 | GTK 3 | `MenuItem.setImage` | Same reading as the toolbar, live switch included | Hold `ToolIcons.blank` in a menu with an icon, because GTK 3 SWT reserves no image column and the label would move 22 px |
 | GTK 4 | SWT ignores `setImage` | - | - |
-| win32 | `MenuItem.setImage` | Fixed from `SwtThemeService.nativeDark`: menus take the native setting of their window's creation, and the toolbar stays light under a dark one | Bare; the system reserves the column |
+| win32 | `MenuItem.setImage` | Fixed from `NativeTheme.startDark` (`MenuBehavior.ink`): the native side the Display started with, which pop-up menus keep after a live switch, and the toolbar stays light under a dark one | Bare; the system reserves the column |
 | cocoa | None; the application menu stays native | - | - |
 
 A disabled GTK menu item shows SWT's disabled copy of its image, which keeps

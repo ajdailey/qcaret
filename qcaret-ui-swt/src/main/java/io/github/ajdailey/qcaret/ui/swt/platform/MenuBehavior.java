@@ -68,8 +68,8 @@ public interface MenuBehavior {
 
   /**
    * Puts Minimize ({@code Cmd+M}) and Zoom, then a separator, at the top of a Window menu on cocoa,
-   * where SWT adds neither to an application-defined Window menu. Zoom toggles the maximized state.
-   * Elsewhere adds nothing.
+   * where SWT adds neither to an application-defined Window menu. Minimize is enabled while {@link
+   * WindowStacking#supported}; Zoom toggles the maximized state. Elsewhere adds nothing.
    *
    * @param menu the Window menu
    * @param shell the window they act on

@@ -57,9 +57,9 @@ black at depth 1).
 | `MarkdownPrinting` | Decodes images, draws placed rows clipped to the body, and paints what Basic's `MarkdownPainter` paints except block spacing and code boxes: a flat code shade, the header row's shade, quote bars, rules, heading lines, table borders, list markers, images and placeholders |
 
 Measuring and drawing run on the job's worker. `TextLayout` measuring on a
-`Printer` off the UI thread is verified on GTK 3 and GTK 4 (`PrintMeasurerTest`);
-win32 and cocoa are unverified until that test runs on their CI jobs. Should
-either fail, the fallback, measuring on the UI thread in bounded turns, goes in
+`Printer` off the UI thread is verified on GTK 3, GTK 4 and win32
+(`PrintMeasurerTest`); the macOS runners have no printer, so cocoa is
+unverified. Should it fail there, the fallback, measuring on the UI thread in bounded turns, goes in
 `PrintMeasurer` alone; drawing stays on the worker.
 
 An image decodes with `ImageLoader` from the bytes the job read, first frame

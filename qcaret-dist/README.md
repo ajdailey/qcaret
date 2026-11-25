@@ -61,7 +61,7 @@ Shift_JIS, windows-31j and others) that `java.base` lacks on Windows and
 macOS. `jdk.localedata` carries the date and number formats of every locale
 but English, used by the Workspace Browser's Size and Modified texts and Insert
 Date and Time; it adds 28.9 MB to the linux-x86_64 runtime (70.4 to 99.3 MB,
-measured). `java.management` carries the heap pool figures the memory
+measured on Temurin 21.0.13.1+2). `java.management` carries the heap pool figures the memory
 indicator reads. `jdeps` reports `java.desktop` too, used only by `SWT_AWT`, so
 it is left out. `--strip-debug` is not used: it runs the host `objcopy` on target
 binaries and fails across targets.
@@ -125,7 +125,8 @@ lists them; `stage-lib` excludes `org.eclipse.platform`, so the archives are
 unchanged.
 
 A pushed `v*` tag ends in a draft GitHub Release holding the seven archives,
-`SHA256SUMS` and the SBOM; the maintainer reviews and publishes it. Steps and
+`SHA256SUMS` and the SBOM, a pre-release when the tag has a suffix
+(`v0.2.0-rc1`); the maintainer reviews and publishes it. Steps and
 recovery are in the root [README](../README.md#releases).
 
 ## Launchers
@@ -186,7 +187,7 @@ The CI `bundle` job runs each archive on its own runner through
 
 | Check | Linux, macOS | Windows |
 |---|---|---|
-| Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml`, `java.management` | The same, plus the `javaw.exe` child's image and PE machine |
+| Runtime | `os.arch`, `jdk.charsets`, `jdk.localedata`, `java.xml`, `java.management`, no `bin/keytool` | The same, with no `keytool.exe`, plus the `javaw.exe` child's image and PE machine |
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
 | Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` or `UI task failed` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` exits 0 whatever the child's status (measured: `qcaret.exe --bogus` exits 0) |

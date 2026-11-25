@@ -33,8 +33,11 @@ the `--window-*` geometry, `--settings`, `-m`, `-n`, `--session` or
   with `-m` throws `CommandLineException` with one line naming the argument.
 
 `StartupRequest.placesWindow` reports whether any `--window-*` option was
-given; `restoresSession` applies the session default, and `ownsSession` adds
-`-m` and a session lock held elsewhere. `Version.get` reads
+given; `restoresSession` applies the session default, `ownsSession` adds `-m`
+and a session lock held elsewhere, and `restoresWindows` applies
+`session.restore`
+([Session restore preference](sessions-and-recovery.md#session-restore-preference)).
+`Version.get` reads
 `Implementation-Version` from this module's jar manifest.
 
 ## UI thread
@@ -141,6 +144,10 @@ containing the requested or remembered top-left corner, else the primary; the
 size is clamped to its work area, then the location so the whole window lies
 inside it. Without a position, the window system places the window, and where
 it ignores a position (Wayland) only the size applies.
+
+`WindowGeometry.fit` clamps a window's size to a work area, then moves it
+inside; dialogs, tool windows and the Windows main window use it
+([Dialog placement](../../qcaret-ui-swt/docs/dialogs-and-docks.md#dialog-placement)).
 
 ## Commands and menus
 

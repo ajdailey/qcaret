@@ -96,13 +96,4 @@ public record SettingsLocation(SettingsMode mode, Path directory, Path home) {
   public boolean embedsGuide(OsTraits os) {
     return os.fileConfinement().embedsGuide(perUser());
   }
-
-  /**
-   * Reports {@link #embedsGuide(OsTraits)} for this process's system.
-   *
-   * @return false in explicit and portable mode on Linux
-   */
-  public boolean embedsGuide() {
-    return embedsGuide(OsTraits.current());
-  }
 }

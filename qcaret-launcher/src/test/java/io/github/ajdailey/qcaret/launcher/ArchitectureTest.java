@@ -242,7 +242,8 @@ class ArchitectureTest {
                         .matches(".*\\.(ui\\.swt|launcher)(\\..*)?");
               }
             })
-        .because("each view-layer platform difference is a PlatformTraits method");
+        .because(
+            "each view-layer platform difference goes through PlatformTraits: a value or a seam");
   }
 
   /**

@@ -22,9 +22,9 @@ parse: the Browser preview's HTML is written from it in qcaret-app.
 `MarkdownTree.MULTILINE_QUOTE` and `TOC` are the node classes of the two
 GitLab blocks, for a renderer to register.
 
-`core.markdown` uses no other core layer but `concurrent`
-(`ArchitectureTest.coreLayers`), so code blocks carry their language and the
-caller colors them.
+`core.markdown` uses only `concurrent` of the core layers
+(`ArchitectureTest.coreLayers` also admits `util`, `text` and `document`), so
+code blocks carry their language and the caller colors them.
 
 ## Rendered text
 

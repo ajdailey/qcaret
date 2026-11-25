@@ -44,12 +44,16 @@ save comes first. It runs on the calling thread, which becomes the
 UI thread:
 
 1. `Display.setAppName("QCaret")`, then the Display.
-2. `SwtThemeService.open`, before the first Shell: for light
-   and dark it sets the native controls' theme (system leaves them to the OS);
-   on macOS native controls always follow the OS.
+2. `SwtThemeService.open`, before the first Shell, starts the platform's
+   `ThemeFollow`: `GtkThemeFollow` sets the native theme for light and dark and
+   leaves system to the OS; `Win32ThemeFollow` sets it for every mode, and a
+   later change of side rebuilds the main windows through the `WindowViews`
+   passed to `setWindowRebuild`; `CocoaThemeFollow` pins the application
+   appearance to the resolved side, and `CocoaChrome` recolors the shells.
 3. The `WindowSet`, whose documents draw on `MemoryBudget.fromRuntime()`, and
    its factory for later windows; `AppMenu.hook` connects the macOS application
-   menu (a no-op elsewhere). Then the first `MainWindow` with the resolved
+   menu through `MenuBehavior.hookAppMenu` (a no-op except
+   `CocoaMenuBehavior`). Then the first `MainWindow` with the resolved
    palette and its `ApplicationController`.
 4. The window is placed from the `--window-*` options, else the session's first
    window on a restoring start, else the `window.*` bounds of `qcaret.conf`, and
@@ -239,7 +243,7 @@ classes, so the rules over the main classes never see them.
 | A string starting `org.eclipse.swt.internal.` only in `ui.swt.platform` and the reflection classes above | SWT internal properties and class names go through `PlatformTraits`; the check reads each class file's constant pool |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
 | `app.view` not on `app.{controller, search, config, session, recovery, cli, ipc}`; `app.editor` not on `app.controller`; `ui.swt` not on `core.{concurrent, io, buffer, edit, syntax, search, diff, watch, workspace}` or `app.{config, session, recovery, cli, ipc}` | Layering |
-| Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, `format`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |
+| Core layers, lowest first: `util`, `concurrent`, `io`, `text`, `buffer`, `document`, then `edit`, `syntax`, `search`, `diff`, `format`, `markdown`, which do not use each other; `watch` and `workspace` use `io` and below | Layering; an empty layer passes |
 | No package cycles | Layering |
 | `core.util` depends on no other QCaret package | Utilities stay leaf classes |
 | Every `UiText` constant is read outside `UiText` | No unused bundle entry |
@@ -258,7 +262,7 @@ classes, so the rules over the main classes never see them.
 | `StyledTextContent` implemented only in `ui.swt.editor` | One content adapter |
 | `setImage` on `ToolItem`, `MenuItem`, `Button`, `TableItem`, `TreeItem`, `Item` and `CTabItem` only in `ToolIcons` | `ToolIcons` picks the icon's ink for the background it shows on |
 | A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogColors.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
-| A native `TabFolder` is created only in `ui.swt.platform` (`tabFoldersOnlyThroughDialogTabs`) | A dialog takes its folder from `PlatformTraits.dialogTabs`, dark after a dark win32 start |
+| A native `TabFolder` is created only in `ui.swt.platform` (`tabFoldersOnlyThroughDialogTabs`) | A dialog takes its folder from `PlatformTraits.dialogTabs`: `Win32DialogTabs` while win32's native theme is dark, `NativeDialogTabs` or `CocoaDialogTabs` otherwise |
 | `Dialog.open` is called only in `ui.swt.NativeDialogs` (`nativeChoosersOnlyThroughNativeDialogs`) | A window rebuild waits only for a native dialog `NativeDialogs` counts |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |
@@ -268,6 +272,7 @@ classes, so the rules over the main classes never see them.
 | No string `SWT_GTK4` outside `ui.swt.platform` (`platformOnlyInTraits`) | The traits answer which GTK SWT loaded |
 | Outside `ui.swt.platform` and `core.util.os`, no call of a boolean `PlatformTraits` or `OsTraits` method other than the value traits (`macKeys`, `linuxKeys`, `fileNamesIgnoreCase`, `hidden`, `runsInsteadOfOpening`; `behaviorOnlyThroughSeams`) | Platform behavior goes through a seam interface the traits choose; a trait answers a value |
 | No call of `Display.getSystemMenu`, `getSystemTray`, `getSystemTaskBar`, `isSystemDarkTheme` or `Program.findProgram` outside `ui.swt.platform` (`platformQueriesOnlyInThePlatformPackage`) | Their answer is the platform; shared code takes it from a seam or a value trait |
+| Fields, parameters and return types declare a collection interface, never a class implementing `Collection` or `Map`; `Properties` excepted (`collectionsDeclaredByInterface`) | One declared type per role; locals are a review item |
 | A boolean or enum value trait is called only by the classes `VALUE_TRAIT_CALLERS` names (`valueTraitsOnlyInReviewedCallers`) | ArchUnit does not see a condition, so each new caller is reviewed: it passes the value on, or calls a seam instead |
 
 ## Testing

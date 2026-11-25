@@ -30,8 +30,9 @@ GTK, win32 and cocoa), so only the checked item's event runs the command and
 syncs the items; a sync on the first event unchecks the clicked item.
 
 `MarkdownToolItems` follows the switch and comes and goes with it: one
-`SWT.DROP_DOWN` item, Markdown actions, whose button and arrow both open a menu
-of `MarkdownToolItems.COMMANDS`: Basic and Browser as radio items, Sync
+`SWT.PUSH` item, Markdown actions, whose icon carries a down arrow in the
+toolbar's ink ([Toolbar](main-window.md#toolbar)); a click opens a menu of
+`MarkdownToolItems.COMMANDS`: Basic and Browser as radio items, Sync
 Scrolling and Outline as check items, Export as HTML and Print Rendered
 Markdown. The menu is built when it opens, so each item takes its checked and
 enabled state from `CommandStates` then; a disabled item gives its reason as

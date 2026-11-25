@@ -125,8 +125,10 @@ against its file. The Tools menu built on them is in
 BOM is not text, and a save writes it back. BOM-sensing `UTF-16` and `UTF-32`
 are taken as their big-endian forms. `TextEncoding.forName` returns null for a
 name this Java lacks, so a remembered encoding the runtime does not have reads
-as none. `TextEncoding.MENU` lists the Encoding menu's charsets; the
-distribution smoke test checks that every bundle runtime has them.
+as none. `TextEncoding.MENU` lists the Encoding menu's charsets; `SmokeTest`
+runs `CharsetProbe` in the linux-x86_64 bundle's runtime to check that it has
+them, and the CI `bundle` job checks that every bundle runtime lists
+`jdk.charsets`.
 
 `Encoders.writable` reports whether a charset has an encoder; a decode-only
 charset such as `x-JISAutoDetect` has none, and `Charset.newEncoder` throws for

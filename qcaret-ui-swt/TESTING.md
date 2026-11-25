@@ -109,7 +109,7 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 | `ToolWindowFitGuiTest` | A dialog twice as tall as a fake work area opening at the area's height and inside it; HyperSearch resized, closed and reopened at the closed size; a remembered HyperSearch size larger than the monitor fitted to its work area. GTK 4 checks the size only |
 | `AlwaysOnTopWindowTest` | View > Always on Top's check item enabled where `WindowStacking` supports it, its GTK 3 tool tip where not, and the command toggling the check |
 | `CaretCommandsSurfaceTest` | The Insert Number Sequence dialog refusing a start outside 64 bits, inserting hex at three carets and starting again from the values used; View > Full Screen's check item each way, polled for cocoa's animation, the saved bounds and maximized state unchanged by entering, and a second toggle during the transition still leaving full screen. With `-Dqcaret.rm.out=<dir>`, the dialog light and dark |
-| `WindowStackingTest` | Each platform's reflected SWT members resolving; on win32 `WS_EX_TOPMOST` and on cocoa the window level each way, with a dialog opened while on top raised; on cocoa every reflected member resolving by name, and a tool window minimized through `minimize` or the title bar (`performMiniaturize:`) leaving its owner on screen, out of the owner's child windows while minimized and back among them once restored; GTK 4 and Wayland unsupported; on GTK 3 under X11 `_NET_WM_STATE_ABOVE` each way, a dialog transient for the window and the combo list override-redirect; GTK's stacking explaining a disabled item |
+| `WindowStackingTest` | Each platform's reflected SWT members resolving; on win32 `WS_EX_TOPMOST` and on cocoa the window level each way, with a dialog opened while on top raised; on cocoa every reflected member resolving by name, and a tool window minimized through `minimize` or the title bar (`performMiniaturize:`) leaving its owner on screen, out of the owner's child windows while minimized and back among them once restored; cocoa's Minimize item enabled while the stacking reports supported, at build and at each menu show, and an unsupported `CocoaStacking` minimizing nothing on any host; GTK 4 and Wayland unsupported; on GTK 3 under X11 `_NET_WM_STATE_ABOVE` each way, a dialog transient for the window and the combo list override-redirect; GTK's stacking explaining a disabled item |
 | `PrintJobNamingTest` | Only cocoa's `PrintSupport` names the job; on macOS the reflected SWT members resolving and the name in a copy of the shared print info after `updateFromPMPrintSettings`, the steps `PrintDialog.open` takes before the panel |
 | `WindowIconsTest` | Every dialog carrying the main window's images, a nested dialog taking its owner's and never disposing them, and on GTK under X11 a dialog's `_NET_WM_ICON` (skips without `xprop` and `xwininfo`) |
 | `WindowBusyCursorTest` | Through `getCursor`: the window counter's cursor over the shell, an editor, a modeless owned shell and a modal one it owns, with their `StyledText`, and their own cursors back at idle; an editor and an owned shell opened while busy starting busy, an unowned shell untouched, and none after idle; an editor busy on its own staying busy when the window goes idle, and the window keeping it busy past the editor's idle |
@@ -178,7 +178,21 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 | `GuideWindowTest` | User Guide to its window or fallback, the fallback's launch recorded by a proxy view instead of opening the system browser, GTK 4's notice, the locations `allowed` takes, a result arriving after the window closed, a throwing browser factory, `LoadBound`; the guide's navigation replacing the start bound with the load bound and the loaded page meeting it, and an expired start or load bound closing the window and taking the fallback. A real browser's outcome is never raced against a bound: cocoa and GTK resolve that race opposite ways, so a window built in the test gets `UnboundDispatcher` and each expiry is called directly. Real loads get 90 s |
 | `PrintOutputTest` | A print through a real window and `Printer` to a PDF, read back with PDFBox: page count, header, every line, wrap, a range, a selection, copies, Cancel, the dialog opening on the selection while one exists except on win32's traits (no printer needed), Print on win32's traits with a selection printing the whole document and Print Selection printing only the selected line under All pages, and the Light token colors under the Nightwater scheme, read from the PDF's fill colors. The dialog's answer comes through `MainWindow.setPrinterChooser`; it uses only GTK's Print to File or a Windows printer named PDF, never a physical printer, and skips when neither exists |
 | `MarkdownPrintOutputTest` | Print Rendered Markdown through a real window and `Printer` to a PDF: a fixture with a heading, an image, a list, code and a 90-row table printed in order with the header and Page N of M on each page and the table header on each page it continues onto; Cancel leaving no PDF; the command disabled on a plain text tab. Same printers and skip as `PrintOutputTest`; with `qcaret.rm.out` it writes the first two pages as PNG |
-| `PrintMeasurerTest` | A heading, a wrapped paragraph and a code line measured with `TextLayout` on a `Printer` from a `qcaret-print-` worker, as a rendered job measures; a file printer where one exists, else the default printer with the job canceled; skips without a printer. On each CI platform this checks measuring off the UI thread |
+| `PrintMeasurerTest` | A heading, a wrapped paragraph and a code line measured with `TextLayout` on a `Printer` from a `qcaret-print-` worker, as a rendered job measures; a file printer where one exists, else the default printer with the job canceled; skips without a printer. On the Linux and Windows CI jobs this checks measuring off the UI thread; the macOS runners have no printer and skip it |
+
+### Markdown preview
+
+| Class | Covers |
+|---|---|
+| `MarkdownPaneTest` (`ui.swt.markdown`) | Each element mapped onto line styles; a theme switch recoloring in place; clicks forwarding their offset; a large table measured in slices, in view first; inline code inside its column; a measured table's header shaded to its width; line spacing and side margins; images decoded off the UI thread and disposed with their content; a new render replacing only the text that differs, keeping the top line and reporting one scroll; styling only the lines in view |
+| `MarkdownPaneBlocksTest` (`ui.swt.markdown`) | Space around headings and code blocks; a wrapped code line continuing under its own text, its first word on its first visual line, and inside its box at the document's end; the last block's bottom padding; a match across a wrapped cell break selecting its first line; a far table waiting until Outline Go To or Find reaches it, and laid out at the new width after a resize |
+| `MarkdownPaneTableTest` (`ui.swt.markdown`) | Cells wrapping inside their columns at any pane width; a table too wide for the pane showing a notice until the pane widens; a short word never breaking; padding narrowing before a cell wraps; copy across a wrapped row giving the rendered text; Find, Outline and sync scroll landing below a wrapped table; a resize keeping the top line; a link on a wrapped cell's second line; an equal table's rows kept through a new render; row padding |
+| `MarkdownPaneZoomTest` (`ui.swt.markdown`) | A zoom scaling the fonts and disposing the replaced ones, laying out the tables again with the top line kept, scaling cell and code padding, and leaving a table out of view waiting |
+| `MarkdownToolbarSurfaceTest` | The Markdown actions button on a Markdown tab only; the menu's actions in order with their state; each toggle running its command; the renderer items and the status field choosing the renderer; Browser unavailable disabling the menu item and the pop-up item with the reason |
+| `MarkdownZoomSurfaceTest` | Each zoom acting on the focused pane only; the find bar keeping the preview as the zoom target; a `Ctrl` wheel turn zooming the pane under it; a preview opened later taking the zoom |
+| `OutlineSurfaceTest` | The dock following tab switches and collapsing on a plain tab; a click moving the caret and putting the heading at the preview top; the selection following the caret; the toggle and Hide; a theme switch reaching the tree; a long heading list filling in slices; an edit keeping the items before it and their expansion; the dock right of the editors |
+| `PreviewLinkDialogTest` | The web link prompt's Open running the launch and Cancel not; a click on a web link asking and on a local link not |
+| `ToolbarOverflowSurfaceTest` | A narrow window listing the hidden buttons in the overflow menu and a wide one hiding its button; no button shown cut at any width; a tab switch keeping the tab strip in place; a menu entry running its button; a Markdown tab's modes and toggles in step with the buttons; a disabled button disabled in the menu with its reason |
 
 ### Theme
 
@@ -206,15 +220,18 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 
 ### Screenshots
 
-`GuideScreenshotsTest` runs only with `-Dqcaret.guide.shots=<dir>`
-(`tools/screenshots.sh`) and writes the user guide's images from generated mock
-files; `EditorSchemeShotsTest` writes `editor-colors.png` there, and with
+`GuideScreenshotsTest` and `MarkdownGuideShotsTest` run only with
+`-Dqcaret.guide.shots=<dir>` (`tools/screenshots.sh`) and write the user guide's
+images from generated mock files; `MarkdownGuideShotsTest` fails when the
+Browser renderer cannot run. `EditorSchemeShotsTest` writes `editor-colors.png` there, and with
 `-Dqcaret.scheme.shots=<dir>` one PNG per editor color scheme of a Java,
 Markdown, XML and shell file. With `-Dqcaret.rm.out=<dir>`,
-`EditorAdditionsShotsTest`, `EditorAidsShotsTest`, `SelectionCommandsShotsTest`
-and `TipShotsTest` write their feature's windows in light and dark, and the
-first two also time page scrolls on a 1,000,000-line file with the feature
-shown and hidden. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
+`EditorAdditionsShotsTest`, `EditorAidsShotsTest`, `SelectionCommandsShotsTest`,
+`TipShotsTest`, `ChromeShotsTest`, `MarkdownPreviewShotsTest` and
+`OutlineShotsTest` write their feature's windows in light and dark. The first
+two also time page scrolls on a 1,000,000-line file with the feature shown and
+hidden, `MarkdownPreviewShotsTest` the UI-thread apply of 100 KiB and 1 MiB
+documents, and `OutlineShotsTest` the fill of a 10,000-heading tree. With `-Dqcaret.screenshots=<dir>` these tests also save PNGs:
 
 | Class | Files |
 |---|---|

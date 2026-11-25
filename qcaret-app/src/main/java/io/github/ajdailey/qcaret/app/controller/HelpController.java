@@ -14,6 +14,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -273,11 +274,12 @@ final class HelpController {
   /**
    * Writes the user guide to the settings cache folder on a worker, then shows it in a browser
    * window, else as {@link #showGuideElsewhere}. When the settings location is {@link
-   * SettingsLocation#embedsGuide() embeds no guide}, it opens the copy as {@link
-   * #showGuideElsewhere} without a browser window.
+   * SettingsLocation#embedsGuide embeds no guide} on {@link MainView#system}, it opens the copy as
+   * {@link #showGuideElsewhere} without a browser window.
    */
   void showGuide() {
     final Path settings = location.directory();
+    final OsTraits system = view.system();
     start(
         "User guide not shown",
         new BusyWork(ui, view) {
@@ -300,7 +302,7 @@ final class HelpController {
                   public void run() {
                     if (guide == null) {
                       view.showNotice(notice);
-                    } else if (!location.embedsGuide() || !view.showGuide(guide)) {
+                    } else if (!location.embedsGuide(system) || !view.showGuide(guide)) {
                       showGuideElsewhere(guide);
                     }
                   }

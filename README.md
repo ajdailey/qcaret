@@ -62,7 +62,9 @@ the ones a 640x480 screen fails.
 
 `verify` runs Spotless, Checkstyle, SpotBugs with find-sec-bugs, the ArchUnit
 rules and every test, and builds the universal jar and the bundle for the build
-host. Fix formatting with `./mvnw spotless:apply`.
+host. Fix formatting with `./mvnw spotless:apply`. Archives are built on Linux
+x86_64 only; on any other host each command below builds `qcaret.jar` alone
+([Archives](#archives)).
 
 | Command | Builds |
 |---|---|
@@ -134,12 +136,12 @@ windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
 
 | Job | Runners | Does |
 |---|---|---|
-| `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`) |
-| `test-gtk4` | `ubuntu-24.04` | The SWT modules' tests with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
+| `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`); Linux installs `libwebkit2gtk-4.1-0` for the Browser preview tests |
+| `test-gtk4` | `ubuntu-24.04` | `verify` of `qcaret-ui-swt`, `qcaret-launcher` and the modules they need, with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
-| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
 | `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
@@ -164,8 +166,9 @@ The `package` job caches the JDK archives and `rcodesign` under
 
 The draft Release carries the seven archives the `bundle` jobs ran,
 `SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
-release notes. Only the `release` and `continuous` jobs have `contents:
-write`.
+release notes. A tag with a suffix (`v0.2.0-rc1`) drafts a pre-release, which
+never becomes the repository's latest release. Only the `release` and
+`continuous` jobs have `contents: write`.
 
 The [`continuous`](https://github.com/ajdailey/qcaret/releases/tag/continuous)
 pre-release holds the build of the newest `main` commit whose CI run passed,
@@ -180,8 +183,8 @@ archive names, `Implementation-Version`, `qcaret.exe`'s version text and `-v`
 carry. A local build without `-Drevision` uses `<revision>`.
 
 Publishes run one at a time, and `publish-continuous.sh` skips a commit older
-than the one `continuous` holds, so a re-run of an older run never replaces a
-newer build.
+than the one `continuous` holds unless it is the `main` head (a force push), so
+a re-run of an older run never replaces a newer build.
 
 To release:
 
@@ -302,7 +305,8 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `-r`, `--read-only` | Open the following files read-only; also applies to a file already open |
 | `-e`, `--encoding <name>` | Open the following files in this encoding; a file already open keeps its own |
 | `+<line>[:<column>]` | Place the caret in the next file, counting from 1; also applies to a file already open |
-| `--session`, `--no-session` | Restore the previous session, or skip it; by default it restores when no file is given. A launch that hands off to a running instance ignores both |
+| `file.md#heading` | Place the caret at a Markdown heading, unless `+<line>` is given ([Opening at a heading](docs/user-guide.md#opening-at-a-heading)) |
+| `--session`, `--no-session` | Restore the previous session, or skip it; by default every start restores it except `--diff`. A launch that hands off to a running instance ignores both |
 | `--diff <a> <b>` | Open the read-only comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |
 | `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
@@ -355,7 +359,9 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
   directory, so GTK's `.swt/trims.prefs` lands there too, and User Guide opens
   in the system's HTML application, since WebKitGTK writes under the home
   directory. The one write outside is an empty `~/.config/ibus/bus` from the
-  GTK input method module.
+  GTK input method module, unless the Markdown preview uses the Browser
+  renderer: it runs WebKitGTK, which writes under the XDG cache and data
+  directories.
 - On Linux and macOS a launch hands its files over only when the settings
   directory belongs to the current user and no one else can write it; otherwise
   every launch opens its own window.
@@ -365,13 +371,13 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
 | Path | Contents |
 |---|---|
 | `qcaret-bootstrap/` | Entry point of `qcaret.jar`: Java version check, target selection, SWT natives, nested-jar class loader |
-| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer, search; no SWT, no logging dependency |
+| `qcaret-core/` | Threads and the heap budget, paths and safe saves, encodings, the rope storage and the document model, grammars and the tokenizer, search, XML and JSON formatting, the Markdown preview model, the line diff, external change detection, the workspace index; no SWT, no logging dependency |
 | `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
 | `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the main toolbar and its icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
 | `qcaret-dist/` | Universal jar, launchers, runtimes and archives; icons |
 | `qcaret-bench/` | Benchmarks; not shipped |
-| `config/` | Checkstyle, SpotBugs and find-sec-bugs configuration |
+| `config/` | Checkstyle, SpotBugs, find-sec-bugs and dependency-check configuration |
 | `docker/`, `compose.yaml`, `scripts/` | Container build |
 | `.github/` | CI workflows, Dependabot and the scripts the CI steps run |
 | `tools/icons.sh` | Renders the application icon from `qcaret-dist/src/icons/*.svg` |

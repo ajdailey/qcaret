@@ -7,8 +7,8 @@ Binary distributions include the Eclipse Standard Widget Toolkit (SWT),
 licensed under the Eclipse Public License 2.0. SWT source is available at
 https://github.com/eclipse-platform/eclipse.platform.swt.
 
-Binary distributions include commonmark-java, licensed under the BSD
-2-Clause License, and autolink-java, licensed under the MIT License. Their
+Binary distributions include SLF4J and autolink-java, licensed under the MIT
+License, and commonmark-java, licensed under the BSD 2-Clause License. Their
 notices are in THIRD-PARTY.txt.
 
 The per-target bundles include a Java runtime image built from OpenJDK,

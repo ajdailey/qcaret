@@ -23,6 +23,17 @@ final class CocoaMenuBehavior implements MenuBehavior {
   private static final Set<Integer> APP_MENU_IDS =
       Set.of(SWT.ID_ABOUT, SWT.ID_PREFERENCES, SWT.ID_QUIT);
 
+  private final WindowStacking stacking;
+
+  /**
+   * Creates the behavior.
+   *
+   * @param stacking minimizes for Window &gt; Minimize, which is enabled while it is supported
+   */
+  CocoaMenuBehavior(WindowStacking stacking) {
+    this.stacking = stacking;
+  }
+
   @Override
   public void decorate(Menu menu, ItemImages images) {}
 
@@ -38,15 +49,26 @@ final class CocoaMenuBehavior implements MenuBehavior {
 
   @Override
   public void addWindowControls(Menu menu, final Shell shell) {
-    MenuItem minimize = new MenuItem(menu, SWT.PUSH, 0);
+    final MenuItem minimize = new MenuItem(menu, SWT.PUSH, 0);
     minimize.setText(UiText.MENU_MINIMIZE.text());
     minimize.setAccelerator(SWT.MOD1 | 'M');
+    minimize.setEnabled(stacking.supported());
     minimize.addListener(
         SWT.Selection,
         new Listener() {
           @Override
           public void handleEvent(Event event) {
-            WindowStacking.PLATFORM.minimize(shell);
+            stacking.minimize(shell);
+          }
+        });
+    menu.addListener(
+        SWT.Show,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (!minimize.isDisposed()) {
+              minimize.setEnabled(stacking.supported());
+            }
           }
         });
     MenuItem zoom = new MenuItem(menu, SWT.PUSH, 1);

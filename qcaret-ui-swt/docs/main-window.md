@@ -209,8 +209,7 @@ leaves out: About, Preferences and Quit on cocoa, none elsewhere.
   a start that names nothing runs `LaunchDocuments.collect` (`CocoaLaunchDocuments`,
   `DocumentEventLoop`) right after the
   Display, before `AppMenu.hook`, and starts with any files it collects as file
-  arguments, keeping the session as a start with file arguments does (the drain
-  is unverified on cocoa).
+  arguments, keeping the session as a start with file arguments does.
   A launch that hands off to a running instance takes them with
   `LaunchDocuments.await`, which waits up to 1 s for the first event and 200 ms
   after the last ([qcaret-launcher](../../qcaret-launcher/README.md)).
@@ -229,7 +228,9 @@ leaves out: About, Preferences and Quit on cocoa, none elsewhere.
   enablement with the main window's and are rebuilt on a keymap change. A
   modal dialog gets none, so no command runs in a main window it blocks.
 
-All of it is unverified on cocoa.
+Measured on macOS 27 arm64: the tool window menus, Minimize and Zoom, and
+`open -a` to a running and a stopped instance. Unverified: the Finder Open With
+menu, Hide Others and Show All.
 
 ## Toolbar
 
@@ -373,7 +374,8 @@ these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
 
 - A member that does not resolve, or a call that fails, logs one WARN and
   leaves the stacking unsupported (`PlatformStacking`); nothing throws to the
-  caller, and the item is disabled at the next menu sync.
+  caller. Always on Top is disabled at the next menu sync, and cocoa's
+  Minimize when the Window menu next shows.
 - `WindowStackingTest` fails on its platform when an SWT upgrade removes a
   reflected member.
 - On a mapped GTK window the toggle is a request to the window manager; Xvfb
@@ -389,11 +391,10 @@ these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
 - When unsupported on GTK 3 the item's tool tip names the window manager's
   window menu (`WindowStacking.explainUnsupported`, a no-op on win32 and
   cocoa). SWT drops menu item tool tips on GTK 4.
-- Window > Minimize calls `WindowStacking.minimize`, `Shell.setMinimized`
-  everywhere except cocoa. SWT makes a shell with a parent an AppKit child
-  window of it (`Shell.updateParent`), and AppKit takes the parent off screen
-  while a child window is miniaturized. `CocoaStacking.minimize` removes a
-  tool window from its owner's children (`NSWindow.removeChildWindow`) before
+- Window > Minimize, a cocoa item, calls `WindowStacking.minimize`. SWT makes
+  a shell with a parent an AppKit child window of it (`Shell.updateParent`),
+  and AppKit takes the parent off screen while a child window is miniaturized.
+  `CocoaStacking.minimize` removes a tool window from its owner's children (`NSWindow.removeChildWindow`) before
   it miniaturizes and adds it back above the owner (`addChildWindow`) on
   `SWT.Deiconify`, unless the owner is hidden or minimized then. The title
   bar's button minimizes without `WindowStacking`: a Display
@@ -405,6 +406,11 @@ these classes, `Gtk4ToolItemSizing`, `CocoaPrintJobNaming`, `Gtk3NativeNames`
   (`cocoaMinimizesAToolWindowWithoutItsOwner`, and
   `cocoaKeepsTheOwnerWhenTheTitleBarMinimizesAToolWindow` through
   `performMiniaturize:`).
+- While the cocoa stacking is unsupported, Minimize is disabled
+  (`CocoaMenuBehavior` reads `WindowStacking.supported` when the Window menu
+  shows), `CocoaStacking.minimize` does nothing, and so does the `SWT.Iconify`
+  filter: the title bar's button then takes the owner off screen with the tool
+  window, as AppKit does by default.
 
 ## Full Screen
 
@@ -603,7 +609,7 @@ default method carries behavior.
 
 | Seam | win32 | cocoa | GTK 3 | GTK 4 | Caller |
 |---|---|---|---|---|---|
-| `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields and trees, and preview notices under a dark palette; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
+| `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields, trees and tables, and preview notices under a dark palette; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints and light-theme check boxes under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `CocoaDialogTabs`: the native `TabFolder`, keeping keyboard focus on a control across a tab change | `NativeDialogTabs`: the native `TabFolder` | As GTK 3 | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
@@ -633,7 +639,8 @@ process, and on Windows places WebView2's data in the settings directory, for
 `PlatformSetup` (launcher) and `SettingsLocation.embedsGuide` (app). `AboutInfo`
 takes About's OS line from `OsTraits.description`. `MainWindow.system` returns
 `OsTraits.current()`, which `WorkspaceController` asks whether Open in Default
-Application would run a file. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
+Application would run a file and `HelpController` passes to
+`SettingsLocation.embedsGuide`. `ArchitectureTest.osNameOnlyInTheOsSeam` confines
 `os.name` to that package; `Target` (bootstrap) reads it before the launcher
 loads.
 

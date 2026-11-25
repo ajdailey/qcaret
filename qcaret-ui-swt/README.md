@@ -13,19 +13,20 @@ which reach SWT internals by reflection.
 
 | Package | Contents | Detail |
 |---|---|---|
-| `ui.swt` | `MainWindow`, `TabStrip`, `DeferredDisposal`, `EditorTab`, `MainMenuBar`, `EncodingCascade`, `RecentMenus`, `MainToolBar`, `EditorMenu`, `TabMenu`, `StatusMenus`, `TabStripButtons`, `TabList`, `AppMenu`, status bar, `MemoryGauge`, `WindowBusyCursor`, `ProgressRow`, file drop | [Main window](docs/main-window.md) |
-| `ui.swt` | `WindowDialogs`, prompts, `ShortcutsWindow`, `TableFit`, `PreferencesDialog`, `PreferencesViewTab`, `WorkspaceDefaultRow`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowserColumns`, `BrowserSideWidth`, `BrowseBar`, `BrowserRowTip`, `BrowserDrag`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `HashTextDialog`, `ChecksumDialog`, `DateFormatChooser`, `NumberSequenceDialog`, `FindBar`, `HistoryField`, `SearchDialog`, `BookmarksDock`, `BookmarksMenu`, `ChangeDialog`, `DiffWindow`, `GuideWindow`, `TipDialog` | [Dialogs and docks](docs/dialogs-and-docks.md) |
+| `ui.swt` | `MainWindow`, `TabStrip`, `DeferredDisposal`, `EditorTab`, `MainMenuBar`, `EncodingCascade`, `RecentMenus`, `MainToolBar`, `EditorMenu`, `TabMenu`, `StatusMenus`, `TabStripButtons`, `TabList`, `AppMenu`, status bar, `MemoryGauge`, `WindowBusyCursor`, `ProgressRow`, `ToolbarOverflow`, `WindowViews`, `MainWindowSlot`, file drop | [Main window](docs/main-window.md) |
+| `ui.swt` | `WindowDialogs`, prompts, `ShortcutsWindow`, `TableFit`, `PreferencesDialog`, `PreferencesViewTab`, `WorkspaceDefaultRow`, `RecoveryDialog`, `CommandPaletteWindow`, `QuickOpenWindow`, `WorkspaceDock`, `BrowserColumns`, `BrowserSideWidth`, `BrowseBar`, `BrowserRowTip`, `BrowserDrag`, `FileNameDialog`, `DeleteDialog`, `StatisticsDialog`, `HashTextDialog`, `ChecksumDialog`, `DateFormatChooser`, `NumberSequenceDialog`, `FindBar`, `HistoryField`, `SearchDialog`, `BookmarksDock`, `BookmarksMenu`, `ChangeDialog`, `DiffWindow`, `GuideWindow`, `TipDialog`, `OutlineDock`, `DockBarLayout` | [Dialogs and docks](docs/dialogs-and-docks.md) |
 | `ui.swt.search` | `ResultsDock`, `ResultsMenu`, `ResultRows`, `ReplaceDialog`, `ReportWindow`, `RunChooser` | [Dialogs and docks](docs/dialogs-and-docks.md#results-dock) |
 | `ui.swt.editor` | `EditorPane`, `ContentAdapter`, `EditorGestures`, `EditorLayout`, `CaretInk`, `CompletionPopup`, `PaneHighlights`, `PanePainter`, `OverviewStrip`, `MarginPainter`, `IndentGuidePainter`, `LineChangePainter` | [Editor pane](docs/editor.md) |
 | `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes; the seams `ChromeColors`, `DialogColors`, `DialogTabs`, `ThemeFollow`, `MenuBehavior`, `ToolItemSizing`, `KeyBehavior`, `BrowserBehavior`, `GuideDisplay`, `PrintSupport`, `FullScreen`, `WindowStacking`, `WindowPlacement`, `NativeNames`, `AccessibleLabels` and `LaunchDocuments` with their per-platform classes | [Main window](docs/main-window.md#platform-traits) |
 | `ui.swt`, `ui.swt.markdown` | `PrintJob`, `PdfPrinter`, the printer calls; `MarkdownPrinting`, `PrintLines`, `PrintMeasurer` | [Printing](docs/printing.md) |
-| `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch` | [Markdown preview](docs/markdown-preview.md) |
+| `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch`, `BrowserPane`, `BrowserPreview`, `MarkdownToolItems` | [Markdown preview](docs/markdown-preview.md) |
 | `ui.swt`, `ui.swt.platform` | `SwtThemeService`, `CocoaChrome`, `ChromeColors`, `DialogColors`, `DialogTabs`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 
 ## UI thread
 
-Every class here runs on the UI thread, except `PrintJob`'s printing and `MarkdownPrinting` on their
-worker. `SwtUiDispatcher` is the only class that posts to the Display
+Every class here runs on the UI thread, except `SwtImageDecoder` on the
+Markdown controller's worker and `PrintJob`, `MarkdownPrinting` and
+`PrintMeasurer` on the print worker. `SwtUiDispatcher` is the only class that posts to the Display
 (`asyncExec`, `timerExec`, `execute`); no code calls `Display.syncExec` or
 `syncCall`, and no call in
 `ui.swt` blocks. Submissions after the Display is disposed are dropped, and a

@@ -14,7 +14,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 
 | Package | Contents | Detail |
 |---|---|---|
-| `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `FileRequest`, `HeadingFiles`, `Version` | [Views and commands](docs/views-and-commands.md) |
+| `app.cli` | `CommandLineParser`, `CommandLine`, `StartupRequest`, `SessionMode`, `FileRequest`, `HeadingFiles`, `WildcardExpansion`, `Version` | [Views and commands](docs/views-and-commands.md) |
 | `app.view` | `UiDispatcher`, `MainView` and the views it extends, input models and row types (`WorkspaceBrowseInput`, `WorkspaceFilesInput`, `StatisticsInput`, `StatisticsDisplay`, `StatisticsReport`), `StatusFields`, `MemoryFields`, `WindowGeometry` | [Views and commands](docs/views-and-commands.md) |
 | `app.command`, `app.controller` | `CommandId`, `CommandGroup`, `Keymap`, `KeyStroke`, `MenuTable`, `Fuzzy`; `CommandStates`, `StatusBarText`, `CommandPalette`, `MemoryIndicator`, `MemoryStatus`, `MemoryProbe`, `BusyWork`, `LaunchCursor` | [Views and commands](docs/views-and-commands.md) |
 | `app.ipc` | Single-instance lock, endpoint and handoff protocol | [Single instance](docs/single-instance.md) |
@@ -25,6 +25,7 @@ is that toolkit and `qcaret-launcher` composes the two.
 | `app.controller` | Workspace folder and browser (`WorkspaceBrowse`, `BrowserListings`, `BrowserRows`, `BrowserWindows`, `WorkspaceFiles`, `BrowserPath`, `PathMove`, `WorkspaceFollow`, `DroppedFiles`), file index (`FileIndexHolder`), Quick Open, Go to Symbol (`DocumentSymbols`, `SymbolRows`, `SymbolCache`), navigation history, Recent Files | [Workspace and navigation](docs/workspace-and-navigation.md) |
 | `app.controller` | `EditorController`: edits, carets, folding, bookmarks, completion; `FoldScheduling`, `CompletionInput`, `LineTransformRuns`, `CodecRuns`, `FormatRuns`, `CaretPathRuns`, `SelectionCommands`, `SelectionHistory`, `DateTimeInsert`, `NumberSequenceInsert`, `StatisticsController`, `EditorAids`, `LineChangesUpdater`, `RecoveredBaseline`; overview strip; Bookmarks list | [Editor](docs/editor.md) |
 | `app.editor` | `DisplayProjection`, `ProjectionFolds`, `FoldLayer`, `HighlightComposer`, `TokenCache`, `SmartIndent`, `ColumnMetrics`, `Bookmarks`, `RemovedBookmarks`, `MergedFoldSource`, `LineChanges`, `TextStatistics` | [Display projection](docs/display-projection.md) |
+| `app.controller`, `app.editor` | Markdown preview: `MarkdownPreviews`, `MarkdownPreview`, `MarkdownCommands`, `MarkdownOutline`, `OutlineTree`, `MarkdownImages`, `MarkdownLinks`, `PreviewMatch`, `HeadingJumps`, `MarkdownExport`, `MarkdownHtmlWriter`, `ZoomCommands`; `MarkdownPage`, `MarkdownSpans`; the Basic pane's layout (`MarkdownDisplayMap`, `MarkdownTableLayout`, `TableWrap`, `BlockSpacing`) | [Documents](docs/documents.md#markdown-preview) |
 | `app.controller` | `GrammarLibrary`, `DocumentGrammars`: grammar detection; Syntax menu, `SyntaxHighlighter` | [Highlighting](docs/highlighting.md) |
 | `app.controller` | Tools menu: `ChecksumTools`, `TextChecksum`, `FileChecksums`, `SelectionChecksum`, `ChecksumVerify`, `ChecksumRun` | [Tools](docs/tools.md) |
 | `app.config`, `app.controller` | Settings directory, `qcaret.conf`, `Settings`, key binding overrides, the settings keys, the Preferences View tab (`ViewPreferences`), saved paths (`InstallPaths`) | [Settings](docs/settings.md) |
@@ -57,8 +58,8 @@ Controllers run work on these `Workers` pools:
 
 | Thread prefix | Work |
 |---|---|
-| `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Markdown heading passes, Document Statistics, Insert Date and Time rows, text and selection checksums |
-| `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks, preview link file checks |
+| `qcaret-cpu-` | Find matching, HyperSearch document matching, line transforms and conversions, rewraps, fold regions and Fold All, highlighting, word indexes, overview marks, the Bookmarks list, comparisons, large Quick Open matches, Go to Symbol scans, Markdown renders, Outline renders, Browser page rebuilds and heading passes, Document Statistics, Insert Date and Time rows, text and selection checksums |
+| `qcaret-io-` | Path resolution, loads, saves, reloads, directory listings, stamp checks, file replaces, recovery writes, theme files, font discovery, checksum file lists and Verify, Save a Copy As, Open All checks, Markdown image decodes, Export as HTML, preview link file checks |
 | `qcaret-search-` | Folder walks of HyperSearch, the workspace file index, a replace run or restore across files |
 | `qcaret-bulk-` | The CPU steps of the blocking tasks (`CpuSteps`): decode, encode and digest blocks of loads, reloads, saves, recovery files, searches and checksums; a load's text build and layout; replace matching, preview and encoding; save cleanup; grammar parsing |
 | `qcaret-watch-` | External change checks |

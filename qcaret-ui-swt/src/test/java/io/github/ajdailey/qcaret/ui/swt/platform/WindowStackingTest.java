@@ -22,6 +22,7 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
@@ -83,6 +84,63 @@ class WindowStackingTest {
     MenuItem managed = new MenuItem(menu, SWT.CHECK);
     new WindowManagerStacking().explainUnsupported(managed);
     assertEquals(UiText.ALWAYS_ON_TOP_UNSUPPORTED.text(), managed.getToolTipText());
+  }
+
+  /**
+   * A cocoa tool window minimized while still a child window takes its owner off screen, so
+   * Minimize follows the stacking's support when the menu is built and each time it shows.
+   */
+  @Test
+  void cocoaMinimizeIsEnabledWhileTheStackingIsSupported() {
+    final boolean[] supported = {false};
+    final List<Shell> minimized = new ArrayList<Shell>();
+    WindowStacking stacking =
+        new WindowStacking() {
+          @Override
+          public boolean supported() {
+            return supported[0];
+          }
+
+          @Override
+          public void setOnTop(Shell target, boolean onTop) {}
+
+          @Override
+          public void explainUnsupported(MenuItem item) {}
+
+          @Override
+          public void minimize(Shell target) {
+            minimized.add(target);
+          }
+        };
+    Menu menu = new Menu(shell, SWT.DROP_DOWN);
+    new CocoaMenuBehavior(stacking).addWindowControls(menu, shell);
+    MenuItem minimize = menu.getItem(0);
+    assertEquals(UiText.MENU_MINIMIZE.text(), minimize.getText());
+    assertFalse(minimize.getEnabled(), "unsupported when the menu is built");
+    menu.notifyListeners(SWT.Show, new Event());
+    assertFalse(minimize.getEnabled(), "unsupported when the menu shows");
+    supported[0] = true;
+    menu.notifyListeners(SWT.Show, new Event());
+    assertTrue(minimize.getEnabled(), "supported when the menu shows");
+    minimize.notifyListeners(SWT.Selection, new Event());
+    assertEquals(List.of(shell), minimized);
+    supported[0] = false;
+    menu.notifyListeners(SWT.Show, new Event());
+    assertFalse(minimize.getEnabled(), "unsupported after a failure");
+  }
+
+  /** Unresolved members leave a tool window and its owner as they are. */
+  @Test
+  void cocoaMinimizeDoesNothingWhileUnsupported() {
+    CocoaStacking stacking = new CocoaStacking();
+    assumeTrue(!stacking.supported(), "the cocoa members resolve");
+    shell.open();
+    Shell tool = new Shell(shell, SWT.SHELL_TRIM);
+    tool.setSize(200, 120);
+    tool.open();
+    stacking.minimize(tool);
+    assertFalse(tool.getMinimized());
+    assertFalse(shell.getMinimized());
   }
 
   @Test

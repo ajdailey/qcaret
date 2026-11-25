@@ -29,7 +29,8 @@ import org.eclipse.swt.widgets.Shell;
  * children and brings the owner back ({@code orderFront}). Either way the tool window rejoins the
  * children above the owner ({@code addChildWindow}) when it is restored. The filter goes on the
  * Display current when the stacking is created, and on the Display of each shell passed to {@link
- * #minimize} or {@link #setOnTop}.
+ * #minimize} or {@link #setOnTop}. Unsupported, {@link #minimize} and the filter do nothing: a tool
+ * window minimized while still a child window would take its owner off screen.
  */
 final class CocoaStacking extends PlatformStacking {
   /** AppKit {@code NSNormalWindowLevel}. */
@@ -205,10 +206,10 @@ final class CocoaStacking extends PlatformStacking {
   @Override
   public void minimize(Shell shell) {
     watchIconify(shell.getDisplay());
-    if (supported()
-        && !shell.getMinimized()
-        && shell.isVisible()
-        && shell.getParent() instanceof Shell owner) {
+    if (!supported() || shell.getMinimized()) {
+      return;
+    }
+    if (shell.isVisible() && shell.getParent() instanceof Shell owner) {
       try {
         removeChild.invoke(nsWindow(owner), nsWindow(shell));
         rejoinOnRestore(shell, owner);
@@ -217,6 +218,7 @@ final class CocoaStacking extends PlatformStacking {
           | IllegalStateException
           | LinkageError e) {
         fail(e);
+        return;
       }
     }
     shell.setMinimized(true);

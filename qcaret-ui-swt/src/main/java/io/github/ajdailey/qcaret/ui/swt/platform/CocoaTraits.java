@@ -77,7 +77,7 @@ final class CocoaTraits implements PlatformTraits {
 
   @Override
   public MenuBehavior menuBehavior() {
-    return new CocoaMenuBehavior();
+    return new CocoaMenuBehavior(WindowStacking.PLATFORM);
   }
 
   @Override

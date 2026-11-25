@@ -48,35 +48,35 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Composes the application and runs the SWT event loop on the calling thread, which becomes the UI
- * thread. The theme resolves before the first Shell: light and dark also set the native controls'
- * theme ({@link SwtThemeService#open}), which on win32 a later switch reaches only at the next
- * start; on cocoa native controls follow the system. The window opens at the command-line geometry,
- * else the remembered one; the placement is saved at quit only when the command line gave no {@code
- * --window-*} option and no {@code -m}. A start that owns the session ({@link
- * StartupRequest#ownsSession}), with or without files, restores it: the session's bounds place
- * every window it lists, the first included, and {@code qcaret.conf} places the first window of any
- * other start. With {@code session.restore} off and no {@code --session} ({@link
- * StartupRequest#restoresWindows}), the owning start opens none of the session's windows and moves
- * the snapshot files to a recovery directory, as an error-exit skip does. A {@code --window-*}
- * option wins over both. File arguments open in tabs, after the restore; a window left without a
- * tab opens an untitled document. On macOS a start that names nothing takes the files the system
- * hands it as open-document events before the first window ({@link LaunchDocuments}) and runs as a
- * start with those files, owning the session as it would without them. The session file is read
- * before the Display, like the settings. A start that would restore first takes {@link SessionLock}
- * and holds it until {@link #run} returns, after the last session save; when another instance holds
- * it, and for a launch whose handoff failed while a primary runs, the start reads Recent Files from
- * the file, and restores and saves no session. A lock file that cannot be created or locked leaves
- * the start restoring, with a WARN. At {@code -d 2} and above an {@link EventLoopWatchdog} logs
- * UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is
- * ended without it. On the primary instance with the debug log file attached, other processes' old
- * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
- * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
- * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
- * closes it before the workers, and so does a run that ends before the first window. {@link
- * UiFailures} handles a failure of a UI-thread task; its quit writes the {@link ErrorExitMarker},
- * which the next start reads before the Display ({@link ErrorExitStart}). The loop ends when every
- * main window is disposed or that quit threw, then the Display is disposed and {@link #run}
- * returns.
+ * thread. The theme resolves before the first Shell, and {@link SwtThemeService#open} starts the
+ * platform's theme follow: GTK sets the native theme for light and dark, win32 sets it for every
+ * mode and rebuilds the main windows on a later change of side, and cocoa pins the application
+ * appearance. The window opens at the command-line geometry, else the remembered one; the placement
+ * is saved at quit only when the command line gave no {@code --window-*} option and no {@code -m}.
+ * A start that owns the session ({@link StartupRequest#ownsSession}), with or without files,
+ * restores it: the session's bounds place every window it lists, the first included, and {@code
+ * qcaret.conf} places the first window of any other start. With {@code session.restore} off and no
+ * {@code --session} ({@link StartupRequest#restoresWindows}), the owning start opens none of the
+ * session's windows and moves the snapshot files to a recovery directory, as an error-exit skip
+ * does. A {@code --window-*} option wins over both. File arguments open in tabs, after the restore;
+ * a window left without a tab opens an untitled document. On macOS a start that names nothing takes
+ * the files the system hands it as open-document events before the first window ({@link
+ * LaunchDocuments}) and runs as a start with those files, owning the session as it would without
+ * them. The session file is read before the Display, like the settings. A start that would restore
+ * first takes {@link SessionLock} and holds it until {@link #run} returns, after the last session
+ * save; when another instance holds it, and for a launch whose handoff failed while a primary runs,
+ * the start reads Recent Files from the file, and restores and saves no session. A lock file that
+ * cannot be created or locked leaves the start restoring, with a WARN. At {@code -d 2} and above an
+ * {@link EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs
+ * the quit when the process is ended without it. On the primary instance with the debug log file
+ * attached, other processes' old log files are deleted on a lifecycle worker ({@link
+ * FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs from the start of {@link
+ * #run} and, once the first window is open and the session started, delivers handed launches to
+ * {@link WindowSet#openHandoff}; quit closes it before the workers, and so does a run that ends
+ * before the first window. {@link UiFailures} handles a failure of a UI-thread task; its quit
+ * writes the {@link ErrorExitMarker}, which the next start reads before the Display ({@link
+ * ErrorExitStart}). The loop ends when every main window is disposed or that quit threw, then the
+ * Display is disposed and {@link #run} returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);

@@ -18,8 +18,8 @@ row.
   text after it.
 - A document change becomes one display change covering the changed lines (all
   of a batch's edits in one range). `StyledText` shifts its per-line caches
-  once per change, so one change per edited line cost 10,000 spread carets
-  about 5 times as much (measured).
+  once per change, so one change per edited line cost 10,000 spread carets 3
+  to 8 times as much (measured on 1M lines).
 - `RowBreaks` places a line's breaks: a row ends where the next char would pass
   the wrap column, after the row's last space or tab when it has one, and holds
   at most `MAX_ROW_CHARS` chars. Columns count from the row start (tab stops,

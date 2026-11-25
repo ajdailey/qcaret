@@ -26,7 +26,8 @@ public interface WindowStacking {
   WindowStacking PLATFORM = PlatformTraits.PLATFORM.stacking();
 
   /**
-   * Reports whether {@link #setOnTop} takes effect; false after a reflective call failed.
+   * Reports whether {@link #setOnTop} and cocoa's {@link #minimize} take effect; false after a
+   * reflective call failed.
    *
    * @return true when supported
    */
@@ -53,7 +54,7 @@ public interface WindowStacking {
    * Minimizes a shell (Window &gt; Minimize). On cocoa a tool window first leaves its owner's
    * child-window group, which AppKit otherwise takes off screen with it, and rejoins the group when
    * restored; {@link CocoaStacking} also brings the owner back after a minimize through the title
-   * bar. Elsewhere {@code setMinimized(true)}.
+   * bar, and does nothing while unsupported. Elsewhere {@code setMinimized(true)}.
    *
    * @param shell the shell
    */

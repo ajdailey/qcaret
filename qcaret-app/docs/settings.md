@@ -12,10 +12,11 @@ the installation directory `qcaret.home` when it holds `qcaret.conf`
 (portable), else on Linux `<qcaret.home>/bin` when `qcaret.conf` sits beside
 the `bin/qcaret` script (portable, `OsTraits.launcherDirectory`), else the
 per-user directory of the OS. The bootstrap applies the
-same order to the SWT native cache. `SettingsLocation.confined` is true in
-explicit and portable mode on Linux; there `PlatformSetup` sets `user.home` to
-the settings directory and User Guide opens without the embedded browser
-([Help commands](help-and-themes.md#help-commands)).
+same order to the SWT native cache. `SettingsLocation.embedsGuide` is false in
+explicit and portable mode on Linux (`FileConfinement.embedsGuide`); there
+`PlatformSetup` moves `user.home` to the settings directory through
+`FileConfinement.confineHome`, and User Guide opens without the embedded
+browser ([Help commands](help-and-themes.md#help-commands)).
 
 ## Saved paths
 
@@ -180,8 +181,8 @@ Shortcuts.
 | `editor.dateFormat` | A `DateTimeFormatter` pattern, at most 100 chars: Insert Date and Time's first format | `yyyy-MM-dd HH:mm` | Tools > Preferences, Editor |
 | `editor.editorConfig` | `true`, `false`: an opened file takes the settings of its `.editorconfig` files | `true` | Tools > Preferences, Editor |
 | `editor.modelines` | `true`, `false`: an opened file takes the settings of its vim and Emacs modelines | `true` | Tools > Preferences, Editor |
-| `markdown.previewRenderer` | `basic`, `browser`: what draws the Markdown preview of every window; a saved `browser` shows Basic where Browser cannot run | `basic` | View > Markdown View; Tools > Preferences, Appearance |
-| `markdown.syncScroll` | `true`, `false`: in Split, a scroll of the editor or the preview scrolls the other, in every window | `true` | View > Markdown View > Sync Scrolling; Tools > Preferences, Appearance |
+| `markdown.previewRenderer` | `basic`, `browser`: what draws the Markdown preview of every window; a saved `browser` shows Basic where Browser cannot run | `basic` | View > Markdown View; Tools > Preferences, Appearance; the Markdown actions menu; the status bar's renderer menu |
+| `markdown.syncScroll` | `true`, `false`: in Split, a scroll of the editor or the preview scrolls the other, in every window | `true` | View > Markdown View > Sync Scrolling; Tools > Preferences, Appearance; the Markdown actions menu |
 | `markdown.openMode` | `source`, `split`, `preview`: the mode of a Markdown file the user has picked no mode for; a picked mode is remembered per file and in the session | `split` | Tools > Preferences, Appearance |
 | `markdown.previewZoom` | 50 to 300: the Markdown preview's text size in percent, in every window; images, print and export keep their size | 100 | `Ctrl`+wheel over the preview, View > Zoom In, Zoom Out, Reset Zoom when the preview, not the editor, had the focus last |
 | `editor.strictJson` | `true`, `false`: Edit > Format XML and JSON accepts RFC 8259 JSON only, and a comment is an error | `false` | Tools > Preferences, Editor |

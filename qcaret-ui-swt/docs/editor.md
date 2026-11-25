@@ -209,7 +209,7 @@ color that shows the caret color over the current line:
 | Platform | Operator |
 |---|---|
 | GTK 3, cocoa | Difference |
-| win32 | XOR (assumed, not yet checked on Windows) |
+| win32 | XOR (`EditingSurfaceTest`, windows-x86_64 CI) |
 | GTK 4 | Over |
 
 Under difference, a channel the background cannot reach shows the nearest
