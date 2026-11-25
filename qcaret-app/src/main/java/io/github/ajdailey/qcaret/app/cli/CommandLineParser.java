@@ -400,7 +400,7 @@ public final class CommandLineParser {
           -r, --read-only          Open the following files read-only
           -e, --encoding <name>    Open the following files in this encoding
           +<line>[:<column>]       Place the caret in the next file
-              --session            Restore the previous session, also with files
+              --session            Restore the session's windows, also with --diff
               --no-session         Start without the previous session
               --diff <a> <b>       Open the read-only comparison of two files
               --window-width <px>  Initial client-area width

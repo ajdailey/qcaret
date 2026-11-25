@@ -1000,17 +1000,20 @@ share.
 
 ## Sessions and recovery
 
-A start without files restores the last session: every window at its position,
-with its tabs, carets, scroll, splits, folds, bookmarks, read-only state, view
-options, workspace and dock contents. A file that does not open is named and
-skipped. Search results return as requests, and Rerun fills them. A closed file
-keeps its caret, tab settings, encoding and grammar for when it opens again.
-On macOS, files that start QCaret from Finder (Open With, a drop on the Dock
-icon) count as files: the start opens them and restores no session.
+A start restores the last session: every window at its position, with its
+tabs, carets, scroll, splits, folds, bookmarks, read-only state, view options,
+workspace and dock contents. A file that does not open is named and skipped.
+Search results return as requests, and Rerun fills them. A closed file keeps
+its caret, tab settings, encoding and grammar for when it opens again. Files
+named at the start (`qcaret file.txt`, a double-click in the file manager, Open
+With, on macOS a drop on the Dock icon) open after the restore in the first
+window, and the last one opened is selected; a file a restored tab already
+shows has that tab selected. A start with `--diff`, `-m` or `--no-session`, or
+while another instance owns the session, restores none.
 
-With Preferences, Files, "Restore the session at start" off, a start without
-files opens one window with an untitled document and saves that window as the
-session; Recent Files and file positions are kept, `--session` restores the
+With Preferences, Files, "Restore the session at start" off, a start opens one
+window, with an untitled document when it names no file, and saves that window
+as the session; Recent Files and file positions are kept, `--session` restores the
 windows of the previous run, and buffers that Quit without asking kept are
 offered in the recovery list.
 
@@ -1039,10 +1042,10 @@ and untitled buffers, and closing one of several windows moves its unsaved tabs
 to another window (see [Windows and the running
 instance](#windows-and-the-running-instance)). Exit during a restore waits for the restore to end; Cancel
 on the load row ends a slow one, and that tab leaves the next session.
-This holds only for the instance that owns the session, one started without
-files or with `--session`. A start that names files or `--diff`, a start with
-`-m` or `--no-session`, and a start while another instance owns the session
-own none, and their Exit asks about each unsaved document.
+This holds only for the instance that owns the session, one that restored it
+at its start, with or without files. A start with `--diff`, `-m` or
+`--no-session`, and a start while another instance owns the session, own none,
+and their Exit asks about each unsaved document.
 
 When QCaret closes on an internal error, it asks nothing and keeps every
 unsaved buffer for the recovery list. The next start shows a status bar notice
@@ -1305,7 +1308,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `-e`, `--encoding <name>` | Open the following files in this encoding |
 | `+<line>[:<column>]` | Place the caret in the next file |
 | `file.md#heading` | Place the caret at a Markdown heading, unless `+<line>` is given (see [Opening at a heading](#opening-at-a-heading)) |
-| `--session`, `--no-session` | Restore the previous session also with files or with "Restore the session at start" off, or skip it; a launch handed to the running instance ignores both |
+| `--session`, `--no-session` | Restore the previous session's windows also with `--diff` or with "Restore the session at start" off, or skip the session; a launch handed to the running instance ignores both |
 | `--diff <a> <b>` | Open the comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
 | `--window-x <px>`, `--window-y <px>` | Window position, for this run |

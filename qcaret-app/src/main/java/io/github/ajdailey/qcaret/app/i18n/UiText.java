@@ -391,7 +391,7 @@ public enum UiText {
   PREFERENCES_RECOVERY_DAYS,
   /** Preferences box: quit without asking and restore unsaved buffers. */
   PREFERENCES_SESSION_SNAPSHOT,
-  /** Preferences box: a start that names no file opens the session's windows. */
+  /** Preferences box: a start that owns the session opens its windows. */
   PREFERENCES_SESSION_RESTORE,
   /** Title of the session report. */
   SESSION_TITLE,

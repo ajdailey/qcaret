@@ -33,7 +33,8 @@ the `--window-*` geometry, `--settings`, `-m`, `-n`, `--session` or
   with `-m` throws `CommandLineException` with one line naming the argument.
 
 `StartupRequest.placesWindow` reports whether any `--window-*` option was
-given; `restoresSession` applies the session default. `Version.get` reads
+given; `restoresSession` applies the session default, and `ownsSession` adds
+`-m` and a session lock held elsewhere. `Version.get` reads
 `Implementation-Version` from this module's jar manifest.
 
 ## UI thread

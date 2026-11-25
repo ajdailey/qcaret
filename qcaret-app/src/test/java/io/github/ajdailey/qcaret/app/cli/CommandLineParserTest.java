@@ -240,7 +240,7 @@ class CommandLineParserTest {
   void sessionOptionsSetTheMode() throws Exception {
     assertEquals(SessionMode.DEFAULT, parse().request().session());
     assertTrue(parse().request().restoresSession());
-    assertFalse(parse("a.txt").request().restoresSession());
+    assertTrue(parse("a.txt").request().restoresSession());
     assertTrue(parse("--session", "a.txt").request().restoresSession());
     assertFalse(parse("--no-session").request().restoresSession());
     assertFalse(parse("--diff", "a", "b").request().restoresSession());

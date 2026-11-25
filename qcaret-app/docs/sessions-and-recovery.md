@@ -51,13 +51,19 @@ or malformed key reads as 0. The per-file LRU holds no comments.
 
 `SessionController` owns restore and save, one per `WindowSet`. Only an
 instance started with `restore` true saves, so `-m` never replaces the session.
+`Gui` passes `StartupRequest.ownsSession`: true without `-m`, `--no-session`
+or `--diff` (unless `--session`), outside `BESIDE` and with the session lock
+taken, whether or not the start names files.
 
 - The first saved window restores into the window open at start, and each
   further one into a new window at its saved bounds, in saved order; `Gui`
   places the first window from the session too.
 - A window that cannot be created gives its tabs to the first. A window left
   without a tab opens an untitled document.
-- Files on the command line (`--session` with files) open after the restore.
+- Files on the command line open after the restore, in the first window, each
+  in its own tab in load arrival order; a file a restored tab shows has that
+  tab selected (`DocumentController.open`). A tab that does not restore stops
+  none of them.
 - After a `--window-*` start each saved window keeps the bounds it loaded.
 
 | What | Restored |
@@ -145,7 +151,7 @@ saved unless the restore was running.
 | Start | Session | Notice, when the marker is empty | Marker afterwards |
 |---|---|---|---|
 | Restores and owns the session | `Session.withoutWindows`: Recent Files and per-file state | `SESSION_ERROR_EXIT` | Deleted |
-| Any other: files without `--session`, `-m`, `BESIDE`, the session lock held elsewhere | Restores none, as usual | `SESSION_ERROR_EXIT_LOG` | `noticeShown` |
+| Any other: `--no-session`, `--diff` without `--session`, `-m`, `BESIDE`, the session lock held elsewhere | Restores none, as usual | `SESSION_ERROR_EXIT_LOG` | `noticeShown` |
 
 A marker holding `noticeShown` shows no notice. `-m` never restores, so no
 start both skips and keeps the marker. A start that skips the windows opens one
@@ -170,14 +176,15 @@ whether or not the dialog is open.
 
 | Start | Owns the session | Opens its windows |
 |---|---|---|
-| `--session`, with or without files | Yes | Yes, whatever the preference |
-| No option, no file and no `--diff` | Yes | Only with `session.restore` on |
-| No option, with files or `--diff` | No | No |
+| `--session`, with or without files or `--diff` | Yes | Yes, whatever the preference |
+| No option and no `--diff`, with or without files | Yes | Only with `session.restore` on |
+| No option, with `--diff` | No | No |
 | `--no-session`, `-m` | No | No |
 
 An owning start with the preference off runs as an error-exit skip does
 ([Error exit](#error-exit)): `Session.withoutWindows`, the snapshot files moved
-to `recovery/snapshot-<ms>/`, one window with an untitled document. It still
+to `recovery/snapshot-<ms>/`, one window with the named files or an untitled
+document. It still
 takes the session lock and saves the session, so Recent Files and per-file
 state carry on. An error exit takes precedence and shows its notice.
 

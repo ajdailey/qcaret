@@ -31,9 +31,10 @@ file.
 
 `Gui` reads `qcaret_session.conf` and the theme file `ui.editorColors` names before
 the Display. Without `-m`, a start
-`StartupRequest.restoresSession` accepts (no file or `--diff`, or `--session`)
-takes `SessionLock`, then restores the session and owns it; otherwise, or when
-another instance holds the lock, only Recent Files and per-file state apply
+`StartupRequest.restoresSession` accepts (no `--diff` or `--no-session`, with or
+without files, or `--session`) takes `SessionLock`, then restores the session
+and owns it (`StartupRequest.ownsSession`); otherwise, or when another instance
+holds the lock, only Recent Files and per-file state apply
 ([session lock](../qcaret-app/docs/sessions-and-recovery.md#session-lock)).
 With `session.restore` off and no `--session`, the owning start opens none of
 the saved windows
@@ -56,7 +57,9 @@ UI thread:
    and logs `Main window open: client area <w>x<h>, location <x>,<y>, size
    <w>x<h>, work area <x>,<y> <w>x<h>, zoom <percent>` at INFO.
 5. `ApplicationController.startSession` restores every saved window, then file
-   arguments and `--diff` open through `ApplicationController.open`; without a
+   arguments and `--diff` open in the first window through
+   `ApplicationController.open`, and a file a restored tab shows has that tab
+   selected; without a
    file, a window left empty opens an untitled document. After an error exit
    the restore skips the saved windows
    ([Error exit](../qcaret-app/docs/sessions-and-recovery.md#error-exit)).
@@ -274,7 +277,8 @@ classes, so the rules over the main classes never see them.
 | `GuiTest` (tag `swt`) | The composed application: a `-m` run with a file at 900 x 600, location 50,40 shows the file's title and shuts down without a surviving `qcaret-` thread; a remembered placement opens with the untitled document's title and is saved again; a `--window-width` run and a `-m` run leave the saved placement unchanged; a saved theme file's dark colors on the first window of a dark-theme start, set before it opens; a `BESIDE` launch restores no session and saves no session or placement; a quit with a reopen's read held in the decoder exits 0 with no surviving thread. The title arrives on a later UI turn, so the test waits for it within a bound; the untitled document's title is set before the event loop starts; a listener that throws costs one event and the loop runs the next one. A size or location, shown or saved, one point off at a fractional zoom counts as exact, and a location is expected clamped into the work area as `WindowGeometry.place` clamps it |
 | `UiFailuresTest` | 10 failures within 1 s keep running, the 11th quits once and later failures start no second quit, failures more than 1 s apart keep running, an `Error` quits; each quit writes the marker, and a failed write still quits; a quit that throws sets `quitFailed` once |
 | `ErrorExitStartTest` | Without the marker nothing changes; a restoring start skips, shows the notice and deletes the marker; a start without the session shows the short notice once and marks it shown, and a later restoring start skips without a notice; only a skipping start moves the snapshot files to `recovery/` |
-| `ErrorExitGuiTest` (tag `swt`) | An `Error` twice from UI tasks after a restored tab is typed into: status 4, the marker written, one recovery file, the session still listing the tab. The next restoring start with a file shows the notice, opens only that file, offers the buffer and deletes the marker; the start after it restores that file without a notice. A start with a file shows the short notice once; a later restoring start skips the saved tab. A skipped session's snapshot buffer is offered for recovery. A quit that throws (a quit listener, run on the UI thread after the workers are closed) ends the loop with status 4 and the marker written |
+| `ErrorExitGuiTest` (tag `swt`) | An `Error` twice from UI tasks after a restored tab is typed into: status 4, the marker written, one recovery file, the session still listing the tab. The next restoring start with a file shows the notice, opens only that file, offers the buffer and deletes the marker; the start after it restores that file without a notice. A `--no-session` start with a file shows the short notice once; a later restoring start skips the saved tab. A skipped session's snapshot buffer is offered for recovery. A quit that throws (a quit listener, run on the UI thread after the workers are closed) ends the loop with status 4 and the marker written |
+| `StartWithFilesGuiTest` (tag `swt`) | With `session.snapshot` on: a start with a file over a saved session shows the saved tab and the file, selected, and its Quit asks nothing; the next plain start restores both, the file's buffer unsaved. With the session lock held in this JVM, a start with a file opens only it, its Quit asks and the session file keeps its tab. Files from open-document events (a `LaunchDocuments` stand-in for cocoa) restore and save the session as command-line files do |
 | `SessionRestoreGuiTest` (tag `swt`) | With `session.restore` off: `--session` restores the saved tab; a plain start opens an untitled document, keeps Recent Files and saves the session without the tab; a snapshot buffer is offered for recovery. With it on, a plain start restores |
 | `BusyCoverageTest` | Every `Workers` submission site in `qcaret-app` listed with what the user sees while it runs: an unlisted or vanished site fails, and so does a busy-cursor or progress row whose call its operation does not make; the call check shown to fail on a missing call |
 | `PortableRunTest` (tag `swt`) | `Gui` run twice over a portable bundle with `user.home` set as `PlatformSetup` sets it: the first run switches to the dark theme and the second starts dark; afterwards every new or changed file lies inside the bundle and the home directory is empty |

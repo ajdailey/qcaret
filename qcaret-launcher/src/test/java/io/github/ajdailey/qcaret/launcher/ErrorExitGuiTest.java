@@ -228,14 +228,14 @@ class ErrorExitGuiTest {
     saveSessionWithA();
     assertTrue(marker().write());
     Probe first = new Probe(0);
-    assertEquals(0, run(request(List.of(b), SessionMode.DEFAULT), first));
+    assertEquals(0, run(request(List.of(b), SessionMode.SKIP), first));
     assertEquals(SHORT, first.notice);
     assertEquals(1, first.tabs);
     assertEquals(b, first.active);
     assertEquals(ErrorExitMarker.State.SHOWN, marker().read());
 
     Probe second = new Probe(0);
-    assertEquals(0, run(request(List.of(b), SessionMode.DEFAULT), second));
+    assertEquals(0, run(request(List.of(b), SessionMode.SKIP), second));
     assertNull(second.notice);
 
     Probe restoring = new Probe(0);

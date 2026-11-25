@@ -205,11 +205,12 @@ leaves out: About, Preferences and Quit on cocoa, none elsewhere.
   `SWT.OpenDocument` and goes to `WindowSet.openFile`. A null or empty name
   opens nothing, and a name that does not parse logs a warning, since an
   exception there reaches the event loop. A cold start gets the files as
-  events in its first event-loop passes, after it chose to restore the session:
+  events in its first event-loop passes, after it took the session:
   a start that names nothing runs `LaunchDocuments.collect` (`CocoaLaunchDocuments`,
   `DocumentEventLoop`) right after the
   Display, before `AppMenu.hook`, and starts with any files it collects as file
-  arguments, releasing `SessionLock` (the drain is unverified on cocoa).
+  arguments, keeping the session as a start with file arguments does (the drain
+  is unverified on cocoa).
   A launch that hands off to a running instance takes them with
   `LaunchDocuments.await`, which waits up to 1 s for the first event and 200 ms
   after the last ([qcaret-launcher](../../qcaret-launcher/README.md)).

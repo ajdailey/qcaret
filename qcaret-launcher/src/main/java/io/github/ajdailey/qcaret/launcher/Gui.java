@@ -52,31 +52,31 @@ import org.slf4j.LoggerFactory;
  * theme ({@link SwtThemeService#open}), which on win32 a later switch reaches only at the next
  * start; on cocoa native controls follow the system. The window opens at the command-line geometry,
  * else the remembered one; the placement is saved at quit only when the command line gave no {@code
- * --window-*} option and no {@code -m}. A start that restores the session ({@link
- * StartupRequest#restoresSession}, never with {@code -m}) owns it: the session's bounds place every
- * window it lists, the first included, and {@code qcaret.conf} places the first window of any other
- * start. With {@code session.restore} off and no {@code --session} ({@link
+ * --window-*} option and no {@code -m}. A start that owns the session ({@link
+ * StartupRequest#ownsSession}), with or without files, restores it: the session's bounds place
+ * every window it lists, the first included, and {@code qcaret.conf} places the first window of any
+ * other start. With {@code session.restore} off and no {@code --session} ({@link
  * StartupRequest#restoresWindows}), the owning start opens none of the session's windows and moves
  * the snapshot files to a recovery directory, as an error-exit skip does. A {@code --window-*}
  * option wins over both. File arguments open in tabs, after the restore; a window left without a
  * tab opens an untitled document. On macOS a start that names nothing takes the files the system
  * hands it as open-document events before the first window ({@link LaunchDocuments}) and runs as a
- * start with those files: it releases {@link SessionLock} and restores no session. The session file
- * is read before the Display, like the settings. A start that would restore first takes {@link
- * SessionLock} and holds it until {@link #run} returns, after the last session save; when another
- * instance holds it, and for a launch whose handoff failed while a primary runs, the start reads
- * Recent Files from the file, and restores and saves no session. A lock file that cannot be created
- * or locked leaves the start restoring, with a WARN. At {@code -d 2} and above an {@link
- * EventLoopWatchdog} logs UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the
- * quit when the process is ended without it. On the primary instance with the debug log file
- * attached, other processes' old log files are deleted on a lifecycle worker ({@link
- * FileLog#prune}). A primary's {@link InstanceServer} accepts handoffs from the start of {@link
- * #run} and, once the first window is open and the session started, delivers handed launches to
- * {@link WindowSet#openHandoff}; quit closes it before the workers, and so does a run that ends
- * before the first window. {@link UiFailures} handles a failure of a UI-thread task; its quit
- * writes the {@link ErrorExitMarker}, which the next start reads before the Display ({@link
- * ErrorExitStart}). The loop ends when every main window is disposed or that quit threw, then the
- * Display is disposed and {@link #run} returns.
+ * start with those files, owning the session as it would without them. The session file is read
+ * before the Display, like the settings. A start that would restore first takes {@link SessionLock}
+ * and holds it until {@link #run} returns, after the last session save; when another instance holds
+ * it, and for a launch whose handoff failed while a primary runs, the start reads Recent Files from
+ * the file, and restores and saves no session. A lock file that cannot be created or locked leaves
+ * the start restoring, with a WARN. At {@code -d 2} and above an {@link EventLoopWatchdog} logs
+ * UI-thread stalls. A JVM shutdown hook ({@link ShutdownHook}) runs the quit when the process is
+ * ended without it. On the primary instance with the debug log file attached, other processes' old
+ * log files are deleted on a lifecycle worker ({@link FileLog#prune}). A primary's {@link
+ * InstanceServer} accepts handoffs from the start of {@link #run} and, once the first window is
+ * open and the session started, delivers handed launches to {@link WindowSet#openHandoff}; quit
+ * closes it before the workers, and so does a run that ends before the first window. {@link
+ * UiFailures} handles a failure of a UI-thread task; its quit writes the {@link ErrorExitMarker},
+ * which the next start reads before the Display ({@link ErrorExitStart}). The loop ends when every
+ * main window is disposed or that quit threw, then the Display is disposed and {@link #run}
+ * returns.
  */
 final class Gui {
   private static final Logger LOG = LoggerFactory.getLogger(Gui.class);
@@ -104,6 +104,7 @@ final class Gui {
   private SessionLock sessionLock;
   private final List<Shell> shells = new ArrayList<Shell>();
   private String message;
+  private LaunchDocuments documentEvents = LaunchDocuments.PLATFORM;
 
   /**
    * Creates the composition of an instance without a handoff listener.
@@ -169,6 +170,17 @@ final class Gui {
   }
 
   /**
+   * Sets where a start that names nothing takes the system's open-document events from.
+   *
+   * @param events the events; {@link LaunchDocuments#PLATFORM} by default
+   * @return this composition
+   */
+  Gui withDocumentEvents(LaunchDocuments events) {
+    documentEvents = events;
+    return this;
+  }
+
+  /**
    * Runs until every main window closes.
    *
    * @return 0, {@link Launcher#EXIT_SWT} when the Display cannot be created, or {@link
@@ -198,7 +210,7 @@ final class Gui {
         }
       }
       final ErrorExitMarker marker = new ErrorExitMarker(config.location());
-      boolean owns = !request.multi() && !without && request.restoresSession();
+      boolean owns = request.ownsSession(without);
       ErrorExitStart errorExit =
           ErrorExitStart.begin(
               marker, owns, config.location().directory(), System.currentTimeMillis());
@@ -223,11 +235,6 @@ final class Gui {
         return Launcher.EXIT_SWT;
       }
       StartupRequest start = withLaunchDocuments(display);
-      if (start != request) {
-        releaseSession();
-        sessionLock = null;
-        without = beside;
-      }
       return runWindows(
           display, workers, sessions, session, colors, without, marker, errorExit, start);
     } finally {
@@ -255,17 +262,16 @@ final class Gui {
 
   /**
    * Returns the command line with the files the system handed this start as open-document events,
-   * or the command line itself. Only a start that restores the session because it names nothing
-   * collects them ({@link LaunchDocuments#collect}).
+   * or the command line itself. Only a start that names nothing collects them ({@link
+   * LaunchDocuments#collect}).
    */
   private StartupRequest withLaunchDocuments(Display display) {
     if (!HandoffDocuments.namesNothing(request)) {
       return request;
     }
-    List<Path> launched = LaunchDocuments.PLATFORM.collect(display);
+    List<Path> launched = documentEvents.collect(display);
     if (!launched.isEmpty()) {
-      LOG.info(
-          "Started with {} files from the system; the session is not restored", launched.size());
+      LOG.info("Started with {} files from the system", launched.size());
     }
     return HandoffDocuments.withFiles(request, launched);
   }
@@ -345,7 +351,7 @@ final class Gui {
     register(window, controller);
     views.add(slot, controller);
     controller.loadGrammars();
-    boolean restore = !start.multi() && !without && start.restoresSession();
+    boolean restore = start.ownsSession(without);
     WindowState remembered =
         restore && !session.windows().isEmpty()
             ? session.windows().get(0).bounds()

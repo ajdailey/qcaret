@@ -52,8 +52,7 @@ import java.time.format.DateTimeFormatter;
  *     from the session, empty for none
  * @param fontZoom {@code editor.fontZoom}: the editor font size the zoom commands chose, in points;
  *     0 when not zoomed
- * @param sessionRestore {@code session.restore}: a start that names no file opens the session's
- *     windows
+ * @param sessionRestore {@code session.restore}: a start that owns the session opens its windows
  * @param strictJson {@code editor.strictJson}: Edit > Format XML and JSON accepts RFC 8259 JSON
  *     only, without comments
  * @param previewRenderer {@code markdown.previewRenderer}: what draws the Markdown preview

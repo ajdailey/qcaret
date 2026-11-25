@@ -38,7 +38,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param view the View tab's boxes
  * @param workspaceDefault the workspace folder of a window not restored from the session, empty for
  *     none
- * @param sessionRestore the box making a start that names no file open the session's windows
+ * @param sessionRestore the box making a start that owns the session open its windows
  * @param strictJson the box making Edit > Format XML and JSON accept RFC 8259 JSON only
  * @param previewRenderer the Markdown preview renderer: {@code basic} or {@code browser}
  * @param markdownSyncScroll the box making Split scroll the editor and the preview together

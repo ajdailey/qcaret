@@ -131,11 +131,22 @@ public record StartupRequest(
    * Reports whether this start takes the previous session: its Recent Files and per-file state, and
    * its windows where {@link #restoresWindows} says so.
    *
-   * @return true for {@code --session}, and by default when no file or comparison is named
+   * @return true for {@code --session}, and by default when no comparison is named, with or without
+   *     files
    */
   public boolean restoresSession() {
-    return session == SessionMode.RESTORE
-        || (session == SessionMode.DEFAULT && files.isEmpty() && diffLeft == null);
+    return session == SessionMode.RESTORE || (session == SessionMode.DEFAULT && diffLeft == null);
+  }
+
+  /**
+   * Reports whether this start restores and owns the session: it saves the session, and its quit
+   * with {@code session.snapshot} on writes the snapshot instead of asking.
+   *
+   * @param heldElsewhere true when another instance holds the session lock
+   * @return true when {@link #restoresSession} is true, without {@code -m} and with the lock free
+   */
+  public boolean ownsSession(boolean heldElsewhere) {
+    return !multi && !heldElsewhere && restoresSession();
   }
 
   /**

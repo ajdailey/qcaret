@@ -239,7 +239,7 @@ class QuitAndCloseSavesTest {
     assertTrue(set.isQuitting(), "the snapshot quit stopped");
   }
 
-  /** A start that names files owns no session, so its quit asks with session.snapshot on. */
+  /** A start without the session, as with {@code -m}, asks at its quit with session.snapshot on. */
   @Test
   void aQuitWithoutTheSessionAsksWithTheSnapshotOn() throws Exception {
     SessionStore store =
