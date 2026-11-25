@@ -349,6 +349,23 @@ class PreferencesSurfaceTest {
     dialog.shell().dispose();
   }
 
+  /**
+   * Each page's mnemonics differ from each other and from the dialog's buttons: Alt+A on the Editor
+   * page toggled Auto-close instead of pressing Apply.
+   */
+  @Test
+  void noPageSharesAMnemonicWithItselfOrTheDialogButtons() {
+    PreferencesDialog dialog = dialog();
+    Control folder = dialog.folder().control();
+    for (int i = 0; i < dialog.folder().count(); i++) {
+      List<Control> roots = new ArrayList<Control>(List.of(dialog.shell().getChildren()));
+      roots.add(dialog.folder().page(i));
+      assertEquals(
+          List.of(), Mnemonics.clashes(roots, folder), tabText(dialog.folder(), i) + " page");
+    }
+    dialog.shell().dispose();
+  }
+
   @Test
   void restoreAllDefaultsDropsEveryKeyOverride() {
     PreferencesDialog dialog = dialog();

@@ -183,8 +183,11 @@ Browser's `ToolIcons` from the toolbar's background and calls
 brighter than the enabled icon, so a disabled item would look enabled.
 Measured by `ChromeColorsTest` on `#162638` with SWT 3.135.0 (the transformer is
 shared by GTK and win32): the enabled icons 9.1 or more, SWT's copy 10.1 or
-more, the faded copy 2.6 to 2.9. Menus keep the ink of their window's native
-setting (`MenuBehavior.ink`, `Win32MenuBehavior`), which matches the menus.
+more, the faded copy 2.6 to 2.9. Menu icons take the ink of the native side
+the Display started with (`MenuBehavior.ink`, `Win32MenuBehavior`,
+`NativeTheme.startDark`), which the popup menus keep; the window's current
+side gave `#3e3e3e` on `#2c2c2c` (1.31) after a dark start and a switch to
+Light (OBERON, 150%).
 
 #### Dialog colors
 
@@ -313,7 +316,8 @@ tab's take it when the tab is next selected (`EditorTab.setPalette`, on
 `SWT.Show` of the tab's frame, before it paints). Each `StyledText` color
 change resets the widget's line cache over the whole document, so a hidden
 tab's recolor would lengthen a theme switch's settings turn by its length; a
-window a rebuild replaces never recolors its hidden tabs.
+window a rebuild replaces recolors no tab unless the rebuild waits ([theme
+rebuild](main-window.md#theme-rebuild)).
 
 `ui.editorColors` can put the palette on the other side from native controls,
 so every surface takes its colors from one of the two, never a mix:

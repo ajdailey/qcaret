@@ -43,9 +43,9 @@ public interface MenuBehavior {
   void decorate(Menu menu, ItemImages images);
 
   /**
-   * Creates a window's menu icon set. win32 menus take the native setting of their window's
-   * creation and keep it, while the toolbar stays light, so there the ink is fixed; elsewhere it
-   * follows the toolbar's.
+   * Creates a window's menu icon set. win32 pop-up menus keep the native side the Display started
+   * with through every live switch and window rebuild, while the toolbar stays light, so there the
+   * ink is fixed for that side; elsewhere it follows the toolbar's.
    *
    * @param display the Display
    * @param ink creates the set

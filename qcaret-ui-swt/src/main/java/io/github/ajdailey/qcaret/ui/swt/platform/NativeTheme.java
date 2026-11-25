@@ -11,6 +11,9 @@ public final class NativeTheme {
   /** Milliseconds between reads of the system setting on win32 and cocoa. */
   static final int POLL_MILLIS = 500;
 
+  /** Display data key: the first side {@link #set} gave, kept through live switches. */
+  private static final String START_DARK = NativeTheme.class.getName() + ".startDark";
+
   private NativeTheme() {}
 
   /**
@@ -25,7 +28,7 @@ public final class NativeTheme {
   /**
    * Sets the native theme and records it as {@link DialogColors#NATIVE_DARK}, which the win32
    * chrome and dialog colors read at each use: before the first Shell, and at a live switch on
-   * win32 and cocoa.
+   * win32 and cocoa. The first call also sets the side {@link #startDark} reports.
    *
    * @param display the Display
    * @param dark true for the dark native theme
@@ -34,7 +37,22 @@ public final class NativeTheme {
   static boolean set(Display display, boolean dark) {
     display.setDarkThemePreferred(dark);
     display.setData(DialogColors.NATIVE_DARK, dark);
+    if (display.getData(START_DARK) == null) {
+      display.setData(START_DARK, dark);
+    }
     return dark;
+  }
+
+  /**
+   * Reports the native side the Display started with. win32 pop-up menus keep it after a live
+   * switch.
+   *
+   * @param display the Display
+   * @return the first side {@link #set} gave, or {@link DialogColors#nativeDark} before any
+   */
+  static boolean startDark(Display display) {
+    Object start = display.getData(START_DARK);
+    return start == null ? DialogColors.nativeDark(display) : Boolean.TRUE.equals(start);
   }
 
   /**

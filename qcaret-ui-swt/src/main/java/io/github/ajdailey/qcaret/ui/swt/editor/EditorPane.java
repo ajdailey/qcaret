@@ -681,7 +681,8 @@ public final class EditorPane implements EditorView {
   }
 
   /**
-   * Applies a palette. A changed text or background color costs O(rows) in the widget.
+   * Applies a palette. Each changed text, background or selection color costs O(rows) in the
+   * widget.
    *
    * @param palette the colors
    */
@@ -695,8 +696,14 @@ public final class EditorPane implements EditorView {
     if (!background.equals(text.getBackground())) {
       text.setBackground(background);
     }
-    text.setSelectionBackground(color(palette.selection()));
-    text.setSelectionForeground(color(palette.selectionText()));
+    Color selection = color(palette.selection());
+    if (!selection.equals(text.getSelectionBackground())) {
+      text.setSelectionBackground(selection);
+    }
+    Color selectionText = color(palette.selectionText());
+    if (!selectionText.equals(text.getSelectionForeground())) {
+      text.setSelectionForeground(selectionText);
+    }
     currentLine = color(palette.currentLine());
     highlights.setPalette(palette);
     painter.setPalette(palette);

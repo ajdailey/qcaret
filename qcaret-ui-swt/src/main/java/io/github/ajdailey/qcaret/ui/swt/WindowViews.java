@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -32,7 +33,11 @@ import org.eclipse.swt.widgets.Shell;
  * shows a menu ({@link ShownMenus}) or owns a visible window {@link #holdWhile} marks as holding
  * input; the swap also waits while {@link MainWindowSlot#holdsDialog} reports a dialog it would
  * dispose. A switch back during a build disposes the new window; a later switch starts over.
- * Confined to the UI thread.
+ *
+ * <p>From {@link #rebuild} until the swap, the old window's selected tab keeps its editor colors
+ * ({@link #replacing}): a {@code StyledText} color change costs O(lines), seconds for a file of
+ * millions of lines, and the swap disposes those editors. A window that waits for a menu or a
+ * dialog takes the new colors at once. Confined to the UI thread.
  */
 public final class WindowViews implements WindowRebuild {
   /** Milliseconds between checks of a window that waits for a dialog to close. */
@@ -42,6 +47,9 @@ public final class WindowViews implements WindowRebuild {
    * Shell data key: a {@link BooleanSupplier} that is true while the shell's disposal loses input.
    */
   private static final String HOLD = WindowViews.class.getName() + ".hold";
+
+  /** Shell data key: {@code Boolean.TRUE} while a rebuild replaces the main window. */
+  private static final String REPLACING = WindowViews.class.getName() + ".replacing";
 
   /** A hold for a window that holds input while it is open. */
   static final BooleanSupplier WHILE_OPEN =
@@ -186,9 +194,41 @@ public final class WindowViews implements WindowRebuild {
     entries.add(new Entry(slot, controller, SwtThemeService.nativeDark(display)));
   }
 
+  /**
+   * Reports whether a rebuild replaces a main window, so its selected tab keeps its editor colors.
+   *
+   * @param shell the main window's shell
+   * @return true from {@link #rebuild} until the swap, or until the window waits for a menu or a
+   *     dialog
+   */
+  static boolean replacing(Shell shell) {
+    return Boolean.TRUE.equals(shell.getData(REPLACING));
+  }
+
   @Override
   public void rebuild() {
+    boolean dark = SwtThemeService.nativeDark(display);
+    for (Entry e : entries) {
+      if (!closed(e)) {
+        // A switch back ends the replacement; the palette change that follows recolors the tab.
+        e.slot.window().shell().setData(REPLACING, e.builtDark != dark ? Boolean.TRUE : null);
+      }
+    }
     schedule();
+  }
+
+  /** Ends {@link #replacing} for a window and gives its selected tab the colors it kept back. */
+  private static void release(Entry e) {
+    MainWindow window = e.slot.window();
+    if (!replacing(window.shell())) {
+      return;
+    }
+    window.shell().setData(REPLACING, null);
+    for (CTabItem item : window.tabs().getItems()) {
+      if (item.getData() instanceof EditorTab tab) {
+        tab.applyPending();
+      }
+    }
   }
 
   /**
@@ -254,6 +294,7 @@ public final class WindowViews implements WindowRebuild {
         if (hidden) {
           e.builtDark = dark;
         } else if (e.build == null && inUse(e)) {
+          release(e);
           waiting = true;
         } else if (e.build == null) {
           start(e, dark);
@@ -264,6 +305,7 @@ public final class WindowViews implements WindowRebuild {
           schedule();
           return;
         } else if (e.slot.holdsDialog() || inUse(e)) {
+          release(e);
           waiting = true;
         } else {
           swap(e);

@@ -278,6 +278,13 @@ class SearchDialogHistoryTest {
   }
 
   @Test
+  void noTwoControlsShareAMnemonic() {
+    SearchDialog dialog = showDialog();
+    assertEquals(List.of(), Mnemonics.clashes(List.<Control>of(dialog.shell()), null));
+    dialog.shell().dispose();
+  }
+
+  @Test
   void aQuitWithTheListOpenDisposesEveryShell() {
     SearchDialog dialog = showDialog();
     dialog.directory().show(0);

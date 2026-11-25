@@ -8,7 +8,10 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
-/** Menus on win32: icons in the startup ink, a reserved image column, reasons in tool tips. */
+/**
+ * Menus on win32: icons in the ink of the native side the Display started with, which pop-up menus
+ * keep after a live switch; a reserved image column; reasons in tool tips.
+ */
 final class Win32MenuBehavior implements MenuBehavior {
   @Override
   public void decorate(Menu menu, ItemImages images) {
@@ -17,7 +20,7 @@ final class Win32MenuBehavior implements MenuBehavior {
 
   @Override
   public <T> T ink(Display display, Ink<T> ink) {
-    return ink.fixed(DialogColors.nativeDark(display));
+    return ink.fixed(NativeTheme.startDark(display));
   }
 
   @Override

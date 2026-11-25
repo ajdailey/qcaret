@@ -46,6 +46,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.DeviceData;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -679,6 +680,64 @@ class LiveThemeGuiTest {
     Map<String, Integer> after = counts();
     assertEquals(before, after);
     assertEquals(12, views.rebuilds());
+  }
+
+  /**
+   * The old window's selected tab keeps its editor colors until the swap disposes it: each {@code
+   * StyledText} color change costs O(lines), which held a 176 MB file's rebuild for seconds.
+   */
+  @Test
+  void theReplacedWindowsSelectedTabKeepsItsColorsUntilTheSwap() throws Exception {
+    ApplicationController controller = first();
+    open(controller, "shown.txt");
+    MainWindowSlot slot = slots.get(0);
+    final MainWindow old = slot.window();
+    int selected = old.tabs().getSelectionIndex();
+    RGB before = selection(old, selected);
+
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    assertTrue(WindowViews.replacing(old.shell()));
+    assertEquals(before, selection(old, selected));
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !views.pending() && old.shell().isDisposed();
+              }
+            }),
+        "rebuilt");
+    assertNotEquals(before, selection(slot.window(), selected));
+  }
+
+  @Test
+  void aWindowThatWaitsTakesTheNewColorsAtOnce() throws Exception {
+    ApplicationController controller = first();
+    open(controller, "shown.txt");
+    MainWindow old = slots.get(0).window();
+    int selected = old.tabs().getSelectionIndex();
+    RGB before = selection(old, selected);
+    Shell owned = new Shell(old.shell());
+    owned.setSize(200, 100);
+    owned.open();
+    WindowViews.holdWhile(owned, WindowViews.WHILE_OPEN);
+
+    set.settings().set(set.settings().current().withTheme(ThemeMode.DARK));
+    settle();
+    assertTrue(views.pending());
+    assertFalse(WindowViews.replacing(old.shell()));
+    assertNotEquals(before, selection(old, selected));
+    owned.dispose();
+  }
+
+  /**
+   * Returns the selected text background of a tab's first editor. Not the text background: the
+   * light palette's white equals GTK's default, so {@code EditorPane} never sets it, and a native
+   * theme change on GTK 4 changes what the widget reports.
+   */
+  private static RGB selection(MainWindow window, int index) {
+    EditorTab tab = (EditorTab) window.tabs().getItem(index).getData();
+    return tab.panes.get(0).text().getSelectionBackground().getRGB();
   }
 
   private Map<String, Integer> counts() throws Exception {

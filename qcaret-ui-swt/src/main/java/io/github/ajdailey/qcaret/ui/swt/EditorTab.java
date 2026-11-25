@@ -208,20 +208,28 @@ final class EditorTab implements TabView, SelectionListener {
 
   /**
    * Gives the tab's editors a palette: at once while the tab is the selected one, else when it is
-   * next selected ({@code SWT.Show} on the frame, before it paints). {@code StyledText} resets its
-   * line cache on each color change, so a hidden tab's recolor would only lengthen the turn, and a
-   * window a rebuild replaces never recolors its hidden tabs.
+   * next selected ({@code SWT.Show} on the frame, before it paints) or {@link #applyPending} runs.
+   * {@code StyledText} resets its line cache on each color change, O(lines) per color, so a hidden
+   * tab's recolor would only lengthen the turn. While {@link WindowViews#replacing} reports the
+   * window, the selected tab waits too, so a window a rebuild replaces recolors no tab.
    *
    * @param next the palette
    */
   void setPalette(Palette next) {
-    if (frame.getVisible()) {
+    if (frame.getVisible() && !WindowViews.replacing(frame.getShell())) {
       pending = null;
       for (EditorPane each : panes) {
         each.setPalette(next);
       }
     } else {
       pending = next;
+    }
+  }
+
+  /** Gives the selected tab's editors the palette {@link #setPalette} kept back. */
+  void applyPending() {
+    if (pending != null && frame.getVisible()) {
+      setPalette(pending);
     }
   }
 

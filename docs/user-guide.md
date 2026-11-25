@@ -1039,6 +1039,10 @@ and untitled buffers, and closing one of several windows moves its unsaved tabs
 to another window (see [Windows and the running
 instance](#windows-and-the-running-instance)). Exit during a restore waits for the restore to end; Cancel
 on the load row ends a slow one, and that tab leaves the next session.
+This holds only for the instance that owns the session, one started without
+files or with `--session`. A start that names files or `--diff`, a start with
+`-m` or `--no-session`, and a start while another instance owns the session
+own none, and their Exit asks about each unsaved document.
 
 When QCaret closes on an internal error, it asks nothing and keeps every
 unsaved buffer for the recovery list. The next start shows a status bar notice

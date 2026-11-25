@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,8 +33,9 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * A Quit's save of a document another save is writing in place, which a cancel does not stop: the
  * quit goes on when a window close's save closed the document, and writes again over a save it
- * replaced. A window close while a quit saves or writes its snapshot does nothing. A hard link
- * makes {@link SafeSave} write in place.
+ * replaced. A window close while a quit saves or writes its snapshot does nothing. Without the
+ * session the quit asks with {@code session.snapshot} on. A hard link makes {@link SafeSave} write
+ * in place.
  */
 class QuitAndCloseSavesTest {
   /**
@@ -235,6 +237,32 @@ class QuitAndCloseSavesTest {
     assertTrue(set.windows().contains(second));
     awaitQuitEnded();
     assertTrue(set.isQuitting(), "the snapshot quit stopped");
+  }
+
+  /** A start that names files owns no session, so its quit asks with session.snapshot on. */
+  @Test
+  void aQuitWithoutTheSessionAsksWithTheSnapshotOn() throws Exception {
+    SessionStore store =
+        new SessionStore(new SettingsLocation(SettingsMode.EXPLICIT, temp.resolve("settings")));
+    first.startSession(store, store.load(), false);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return first.recovery().idle();
+          }
+        },
+        "started");
+    windows.settle("start");
+    snapshotOn(first.settings());
+    windows.open(first, Files.writeString(temp.resolve("f06.txt"), "one\n"));
+    first.documents().activeEditor().type("x ");
+    FakeView view = windows.view(first);
+    view.unsaved = null;
+    set.requestQuit();
+    assertNotNull(view.unsaved, "the quit asks");
+    view.unsaved.accept(UnsavedChoice.CANCEL);
+    assertFalse(set.quitRunning(), "Cancel ends the quit");
   }
 
   private static void snapshotOn(Settings running) {
