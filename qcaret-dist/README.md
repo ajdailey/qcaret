@@ -114,7 +114,7 @@ SHA-256 of every archive, `qcaret.exe` and module jar.
 
 ## Release artifacts
 
-`package -Psbom cyclonedx:makeAggregateBom` writes
+`package -Psbom org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom` writes
 `dist/qcaret-<version>-sbom.cdx.json`, a CycloneDX aggregate SBOM of the modules
 and their compile and runtime dependencies (`qcaret-bench` excluded). The goal
 runs once, in the parent, after every module has packaged, and reads the module

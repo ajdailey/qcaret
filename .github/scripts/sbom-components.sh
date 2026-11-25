@@ -3,7 +3,7 @@
 # Temurin JDK release dist.xml downloads (bundle runtimes and the macOS
 # jpackage launcher) and the launch4j header in qcaret.exe. Versions come from
 # qcaret-dist/src/build/dist.xml and THIRD-PARTY.txt. Run from the repository
-# root after `package -Psbom cyclonedx:makeAggregateBom`.
+# root after `package -Psbom org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom`.
 set -euo pipefail
 
 sbom=$(ls dist/*-sbom.cdx.json)

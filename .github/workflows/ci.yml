@@ -174,7 +174,7 @@ jobs:
           fi
           echo "REVISION=$revision" | tee -a "$GITHUB_ENV"
       - run: >-
-          ./mvnw -B package -Pall-targets,sbom -DskipTests cyclonedx:makeAggregateBom
+          ./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
           "-Drevision=$REVISION"
       - name: SBOM runtime and launcher components
         run: .github/scripts/sbom-components.sh
