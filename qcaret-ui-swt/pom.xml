@@ -148,7 +148,9 @@
                         </configuration>
                     </execution>
                     <!-- Rounding between points and pixels at 150%, on any
-                         monitor; GTK places widgets unscaled. -->
+                         monitor; GTK places widgets unscaled. win32 rejects
+                         a numeric swt.autoScale while monitor-specific
+                         scaling is on. -->
                     <execution>
                         <id>autoscale-150</id>
                         <goals>
@@ -157,7 +159,7 @@
                         <configuration>
                             <test>TableFitSurfaceTest</test>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-                            <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs} -Dswt.autoScale=150</argLine>
+                            <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs} -Dswt.autoScale=150 -Dswt.autoScale.updateOnRuntime=false</argLine>
                         </configuration>
                     </execution>
                 </executions>
