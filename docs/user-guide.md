@@ -362,7 +362,10 @@ apply (measured on Linux, one million lines):
   and a running Statistics count or Checksums run stops.
   A window with an open dialog, Preferences included, or an open menu changes
   once it closes. On Windows, menus and context menus keep the theme QCaret
-  started with until the next start. Under dark, dialogs are dark, fields included. On macOS menus from
+  started with until the next start. Under dark, dialogs are dark, fields included;
+  on Windows at a display scale such as 150% the selected item of an open
+  drop-down list, such as Preferences' Theme, is not visible, while the other
+  items read. On macOS menus from
   the menu bar keep the system appearance. Under System the theme follows a
   change of the system setting while QCaret runs, on Windows and macOS. On Linux
   a GTK theme with no dark variant keeps native controls light; the editor and
@@ -1068,6 +1071,12 @@ window; the same command returns it. On Linux and Windows the menu bar stays;
 on macOS the window moves to its own space, the menu bar shows at the top edge,
 and the window's green button does the same. `Esc` does not leave full screen.
 A restart opens the window at its size before full screen.
+
+Dialogs and tool windows open centered over their window and inside the
+screen, shrunk to fit when the screen is smaller. HyperSearch, Preferences,
+Keyboard Shortcuts, the command palette, Quick Open, Show Log, text windows,
+the replace preview and report, comparisons and the Guide reopen at the size
+they last closed with.
 
 Drag a tab out of every QCaret window to open it in a new window, or onto another
 window's tab strip to dock it there; Window > Move to New Window and the tab

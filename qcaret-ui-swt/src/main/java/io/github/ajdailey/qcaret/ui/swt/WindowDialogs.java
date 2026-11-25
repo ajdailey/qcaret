@@ -28,7 +28,6 @@ import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
@@ -166,17 +165,17 @@ final class WindowDialogs {
   }
 
   /**
-   * Gives an open dialog its remembered size, within the monitor; a new size is kept at close.
+   * Gives an open dialog its remembered size, else its own, centered over its owner inside the work
+   * area ({@link Dialogs#center}); a new size is kept at close.
    *
    * @param dialog the dialog's shell, open
    * @param name the key the size is kept under
    */
   void rememberSize(final Shell dialog, final String name) {
     DialogSize size = sizes.size(name);
-    if (size != null) {
-      Rectangle area = dialog.getMonitor().getClientArea();
-      dialog.setSize(Math.min(size.width(), area.width), Math.min(size.height(), area.height));
-    }
+    Point own = dialog.getSize();
+    Dialogs.center(
+        dialog, size != null ? size.width() : own.x, size != null ? size.height() : own.y);
     final Point opened = dialog.getSize();
     dialog.addListener(
         SWT.Dispose,
@@ -245,6 +244,7 @@ final class WindowDialogs {
     }
     searchDialog = new SearchDialog(shell, form, run);
     searchDialog.open();
+    rememberSize(searchDialog.shell(), "hyperSearch");
   }
 
   void askBookmarkComment(int line, String current, int maxLength, Consumer<String> answer) {
@@ -341,6 +341,8 @@ final class WindowDialogs {
               UiText.RESTORE_CHOOSE_TITLE.text(),
               SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
       new RunChooser(dialog, runs, chosen).open();
+      Point size = dialog.getSize();
+      Dialogs.center(dialog, size.x, size.y);
     }
   }
 

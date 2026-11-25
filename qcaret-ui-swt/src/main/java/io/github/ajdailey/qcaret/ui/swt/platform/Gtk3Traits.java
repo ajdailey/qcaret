@@ -52,7 +52,7 @@ final class Gtk3Traits extends GtkTraits {
 
   @Override
   public WindowPlacement windowPlacement() {
-    return new GtkWindowPlacement(false);
+    return new GtkWindowPlacement();
   }
 
   @Override

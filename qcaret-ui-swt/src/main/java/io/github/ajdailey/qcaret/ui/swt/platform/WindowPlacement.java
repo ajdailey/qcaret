@@ -8,12 +8,16 @@ import org.eclipse.swt.widgets.Shell;
  *
  * <table>
  *   <caption>Implementation per platform</caption>
- *   <tr><th>Platform</th><th>Class</th><th>Position</th><th>Trim</th></tr>
- *   <tr><td>win32</td><td>{@link Win32WindowPlacement}</td><td>applied</td>
- *       <td>computed, then measured from the sized shell</td></tr>
- *   <tr><td>cocoa</td><td>{@link NativeWindowPlacement}</td><td>applied</td><td>computed</td></tr>
- *   <tr><td>GTK</td><td>{@link GtkWindowPlacement}</td><td>skipped on GTK 4 and under Wayland</td>
- *       <td>computed</td></tr>
+ *   <tr><th>Platform</th><th>Class</th><th>Position</th><th>Trim</th><th>After open</th></tr>
+ *   <tr><td>win32</td><td>{@link Win32WindowPlacement}</td>
+ *       <td>applied, then fitted into the monitor's work area</td>
+ *       <td>computed, then measured from the sized shell</td><td>nothing</td></tr>
+ *   <tr><td>cocoa</td><td>{@link NativeWindowPlacement}</td><td>applied</td><td>computed</td>
+ *       <td>nothing</td></tr>
+ *   <tr><td>GTK 3</td><td>{@link GtkWindowPlacement}</td><td>skipped under Wayland</td>
+ *       <td>computed</td><td>nothing</td></tr>
+ *   <tr><td>GTK 4</td><td>{@link Gtk4WindowPlacement}</td><td>skipped</td><td>computed</td>
+ *       <td>maximizes again</td></tr>
  * </table>
  */
 public interface WindowPlacement {
@@ -29,6 +33,15 @@ public interface WindowPlacement {
    * @param placer places the shell for a trim
    */
   void place(Shell shell, Placer placer);
+
+  /**
+   * Runs after {@code Shell.open}. GTK 4 drops a maximize requested before the shell maps, so its
+   * class maximizes a shell that should be maximized and opened restored; the others do nothing.
+   *
+   * @param shell the opened shell
+   * @param maximized {@code getMaximized()} read before {@code open}
+   */
+  void afterOpen(Shell shell, boolean maximized);
 
   /** Places a shell for a trim. */
   interface Placer {

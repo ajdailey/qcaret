@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
@@ -160,22 +161,61 @@ final class Dialogs {
   }
 
   /**
-   * Opens a dialog centered over its parent.
+   * Opens a dialog centered over its parent, inside the work area of the parent's monitor.
    *
    * @param shell the dialog
    * @param width preferred width, or {@code SWT.DEFAULT}
    * @param height preferred height, or {@code SWT.DEFAULT}
    */
   static void open(Shell shell, int width, int height) {
+    open(shell, width, height, shell.getParent().getMonitor().getClientArea());
+  }
+
+  /**
+   * Opens a dialog centered over its parent, inside a work area.
+   *
+   * @param shell the dialog
+   * @param width preferred width, or {@code SWT.DEFAULT}
+   * @param height preferred height, or {@code SWT.DEFAULT}
+   * @param workArea the area the dialog stays inside
+   */
+  static void open(Shell shell, int width, int height, Rectangle workArea) {
     shell.pack();
     Point size = shell.computeSize(width, height);
-    Rectangle owner = shell.getParent().getBounds();
-    shell.setBounds(
-        owner.x + Math.max(0, (owner.width - size.x) / 2),
-        owner.y + Math.max(0, (owner.height - size.y) / 2),
-        size.x,
-        size.y);
+    center(shell, size.x, size.y, workArea);
     shell.open();
+  }
+
+  /**
+   * Sizes a dialog and centers it over its parent, inside the work area of the parent's monitor.
+   *
+   * @param shell the dialog
+   * @param width outer width
+   * @param height outer height
+   */
+  static void center(Shell shell, int width, int height) {
+    center(shell, width, height, shell.getParent().getMonitor().getClientArea());
+  }
+
+  /**
+   * Sizes a dialog and centers it over its parent, inside a work area ({@link WindowGeometry#fit}).
+   *
+   * @param shell the dialog
+   * @param width outer width
+   * @param height outer height
+   * @param workArea the area the dialog stays inside
+   */
+  static void center(Shell shell, int width, int height, Rectangle workArea) {
+    Rectangle owner = shell.getParent().getBounds();
+    WindowGeometry.Rect fitted =
+        WindowGeometry.fit(
+            new WindowGeometry.Rect(
+                owner.x + Math.max(0, (owner.width - width) / 2),
+                owner.y + Math.max(0, (owner.height - height) / 2),
+                width,
+                height),
+            new WindowGeometry.Rect(workArea.x, workArea.y, workArea.width, workArea.height));
+    shell.setBounds(fitted.x(), fitted.y(), fitted.width(), fitted.height());
   }
 
   /**

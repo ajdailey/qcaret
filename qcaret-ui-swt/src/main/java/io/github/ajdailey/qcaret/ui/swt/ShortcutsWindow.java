@@ -102,10 +102,10 @@ final class ShortcutsWindow {
   /**
    * Opens the dialog sized to fit an area.
    *
-   * @param screen the area the dialog width must fit in
+   * @param screen the area the dialog must fit in
    */
   void open(Rectangle screen) {
-    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 560, screen), 520);
+    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 560, screen), 520, screen);
   }
 
   Shell shell() {

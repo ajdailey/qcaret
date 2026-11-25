@@ -1338,6 +1338,7 @@ public final class MainWindow implements MainView {
       Shell owner = modalOwner();
       logWindow = textWindow(owner, UiText.SHOW_LOG_TITLE.text(), text);
       logWindow.open();
+      dialogs.rememberSize(logWindow.shell(), "log");
       logWindow.showStart();
     } else {
       logWindow.setContent(text);
@@ -1678,9 +1679,11 @@ public final class MainWindow implements MainView {
     shell.addListener(SWT.Resize, track);
   }
 
-  /** Shows the window. */
+  /** Shows the window, then runs {@link WindowPlacement#afterOpen}. */
   public void open() {
+    boolean maximized = shell.getMaximized();
     shell.open();
+    WindowPlacement.PLATFORM.afterOpen(shell, maximized);
   }
 
   /**
@@ -1747,7 +1750,9 @@ public final class MainWindow implements MainView {
       return;
     }
     Shell owner = modalOwner();
-    textWindow(owner, title, value).open();
+    TextWindow window = textWindow(owner, title, value);
+    window.open();
+    dialogs.rememberSize(window.shell(), "text");
   }
 
   /** Creates a text window that follows the font family while it is open. */

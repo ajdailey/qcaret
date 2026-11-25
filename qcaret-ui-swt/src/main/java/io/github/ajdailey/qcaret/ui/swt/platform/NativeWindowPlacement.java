@@ -11,6 +11,9 @@ class NativeWindowPlacement implements WindowPlacement {
     placer.place(trim.width - 100, trim.height - 100, positioned());
   }
 
+  @Override
+  public void afterOpen(Shell shell, boolean maximized) {}
+
   /**
    * Reports whether the window system takes a position; read at each placement.
    *

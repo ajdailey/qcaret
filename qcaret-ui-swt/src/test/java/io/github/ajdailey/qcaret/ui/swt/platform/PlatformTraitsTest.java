@@ -76,6 +76,7 @@ class PlatformTraitsTest {
         values(GTK4));
     assertTrue(((NativeWindowPlacement) COCOA.windowPlacement()).positioned());
     assertFalse(((NativeWindowPlacement) GTK4.windowPlacement()).positioned());
+    assertInstanceOf(Gtk4WindowPlacement.class, GTK4.windowPlacement());
   }
 
   @Test
@@ -134,7 +135,7 @@ class PlatformTraitsTest {
             "Gtk4KeyBehavior",
             "Gtk4BrowserBehavior",
             "Gtk4PrintSupport",
-            "GtkWindowPlacement",
+            "Gtk4WindowPlacement",
             "NoNativeNames",
             "NativeAccessibleLabels",
             "NoticeGuideDisplay",

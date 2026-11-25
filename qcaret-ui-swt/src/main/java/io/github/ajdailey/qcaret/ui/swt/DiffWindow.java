@@ -276,7 +276,7 @@ final class DiffWindow {
   }
 
   void open() {
-    shell.setSize(1000, 700);
+    Dialogs.center(shell, 1000, 700);
     shell.open();
     next();
   }

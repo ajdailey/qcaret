@@ -328,13 +328,21 @@ list lacks, so OK does not drop it.
   On Wayland (`org.eclipse.swt.internal.gdk.backend` is `wayland`) the position
   is skipped and the size applies. On win32 `computeTrim` overstates the height
   once a menu bar is set, so the window is placed again with the trim measured
-  from the sized shell.
+  from the sized shell, then fitted into its monitor's work area
+  (`WindowGeometry.fit`): a placement without a location keeps the position
+  Windows chose at creation, which can put a tall window under the taskbar.
+- `open` reads `getMaximized`, opens the shell and passes both to
+  `WindowPlacement.afterOpen`. GTK 4 drops a maximize requested before the
+  shell maps, so `Gtk4WindowPlacement` maximizes the shell again; the other
+  classes do nothing. The launcher's first window, every later window
+  (`WindowSet.Factory`) and a theme rebuild's new window open through it.
 - Every unmaximized move and resize outside full screen records the normal
   bounds, which `windowBounds` returns for the quit to save.
 - `WindowDialogs.rememberSize` gives the resizable windows (`preferences`,
-  `shortcuts`, `palette`, `quickOpen`, `replace`, `report`, `compare`, `guide`)
-  their last size, within the monitor's client area, after they open, and keeps
-  a size that changed when the window closes.
+  `shortcuts`, `palette`, `quickOpen`, `hyperSearch`, `replace`, `report`,
+  `compare`, `guide`, `text`, `log`) their last size after they open, inside
+  the monitor's work area ([dialog placement](dialogs-and-docks.md#dialog-placement)),
+  and keeps a size that changed when the window closes.
 - The window icon is the `qcaret-*.png` set at 16 to 256 px
   (`Icons.Variant.DARK`).
 
@@ -579,7 +587,7 @@ default method carries behavior.
 | `PrintSupport` | `Win32PrintSupport`: an empty printer list shows a notice; the dialog opens on its default scope | `CocoaPrintSupport`: the empty-list notice; names the job (`CocoaPrintJobNaming`), dialog on a selection | `Gtk3PrintSupport`: dialog on a selection | `Gtk4PrintSupport`: a PDF file instead of the dialog | `MainWindow.choosePrinter` (see [Printing](printing.md)) |
 | `FullScreen` (`fullScreen(shell, ui)`, per window) | `NativeFullScreen` | `CocoaFullScreen` | `NativeFullScreen` | `NativeFullScreen` | `MainWindow` (see [Full Screen](#full-screen)) |
 | `WindowStacking` (`stacking()`) | `Win32Stacking` | `CocoaStacking` | `GtkX11Stacking` on X11, else `WindowManagerStacking`; both explain a disabled item | `WindowManagerStacking` | `MainWindow`, `MainMenuBar` (see [Always on Top](#always-on-top)) |
-| `WindowPlacement` | `Win32WindowPlacement`: placed again with the trim measured from the sized shell | `NativeWindowPlacement` | `GtkWindowPlacement`: no position under Wayland | `GtkWindowPlacement`: no position | `MainWindow.place` (see [Placement](#placement)) |
+| `WindowPlacement` | `Win32WindowPlacement`: placed again with the trim measured from the sized shell, then fitted into the work area | `NativeWindowPlacement` | `GtkWindowPlacement`: no position under Wayland | `Gtk4WindowPlacement`: no position; maximized again after `open` | `MainWindow.place`, `MainWindow.open` (see [Placement](#placement)) |
 | `NativeNames` | `NoNativeNames` | `NoNativeNames` | `Gtk3NativeNames`: names native widgets through ATK | `NoNativeNames` | `ToolBarNames`, `OutlineDock` (see [Accessible names](#accessible-names)) |
 | `AccessibleLabels` | `NativeAccessibleLabels` | `CocoaAccessibleLabels`: the name is also the description; group role | `NativeAccessibleLabels` | `NativeAccessibleLabels` | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `LaunchDocuments` | `NativeLaunchDocuments` | `CocoaLaunchDocuments`: collects open-document events at start and before a handoff (`DocumentEventLoop`) | `NativeLaunchDocuments` | `NativeLaunchDocuments` | `Gui`, `HandoffDocuments` (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |

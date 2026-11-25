@@ -46,7 +46,11 @@ final class SearchDialog {
 
   SearchDialog(Shell parent, SearchForm form, final Consumer<SearchForm> run) {
     this.form = form;
-    shell = Dialogs.shell(parent, UiText.SEARCH_TITLE.text(), true);
+    shell =
+        Dialogs.shell(
+            parent,
+            UiText.SEARCH_TITLE.text(),
+            SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
     Composite fields = new Composite(shell, SWT.NONE);
     GridLayout layout = new GridLayout(3, false);
     layout.marginWidth = 0;

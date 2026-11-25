@@ -147,10 +147,10 @@ final class CommandPaletteWindow {
   /**
    * Opens the dialog sized to fit an area.
    *
-   * @param screen the area the dialog width must fit in
+   * @param screen the area the dialog must fit in
    */
   void open(Rectangle screen) {
-    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 520, screen), 420);
+    Dialogs.open(shell, TableFit.dialogWidth(shell, table, 520, screen), 420, screen);
     filter.setFocus();
   }
 

@@ -3,10 +3,11 @@ package io.github.ajdailey.qcaret.app.view;
 import java.util.List;
 
 /**
- * Places the main window before it first opens. Per dimension the command line wins over the
- * persisted geometry, which wins over 1024 x 768; the size is the client area and the trim is added
- * to it. The monitor is the one containing the requested or persisted top-left corner, else the
- * primary. The window is clamped to that monitor's work area, size first, then location.
+ * Places windows inside a monitor's work area. {@link #place} places the main window before it
+ * first opens. Per dimension the command line wins over the persisted geometry, which wins over
+ * 1024 x 768; the size is the client area and the trim is added to it. The monitor is the one
+ * containing the requested or persisted top-left corner, else the primary. The window is clamped to
+ * that monitor's work area, size first, then location.
  */
 public final class WindowGeometry {
   /** Client-area width without a requested or persisted one. */
@@ -107,6 +108,22 @@ public final class WindowGeometry {
     left = clamp(left, work.x(), work.x() + work.width() - outerWidth);
     top = clamp(top, work.y(), work.y() + work.height() - outerHeight);
     return new Placement(new Rect(left, top, outerWidth, outerHeight), positionSupported);
+  }
+
+  /**
+   * Fits a window into a work area: the size is clamped to the area, then the window moves inside
+   * it.
+   *
+   * @param bounds outer window bounds
+   * @param workArea the work area of the monitor the window opens on
+   * @return the bounds, inside the work area
+   */
+  public static Rect fit(Rect bounds, Rect workArea) {
+    int width = clamp(bounds.width(), 1, Math.max(1, workArea.width()));
+    int height = clamp(bounds.height(), 1, Math.max(1, workArea.height()));
+    int left = clamp(bounds.x(), workArea.x(), workArea.x() + workArea.width() - width);
+    int top = clamp(bounds.y(), workArea.y(), workArea.y() + workArea.height() - height);
+    return new Rect(left, top, width, height);
   }
 
   private static int first(Integer a, Integer b, int fallback) {

@@ -67,6 +67,12 @@ colors (`#ffffff`, `windows-2025`); a `setBackground` reaches it, so the dialog
 colors (`DialogColors`) make it dark. QCaret has read-only combos only in
 dialogs.
 
+Under the dark native setting at a fractional scale (150 %), every combo's open
+list draws its selected item white on white, whatever the combo's colors:
+native, created light, dialog- or palette-colored, read-only or editable
+(measured on Windows 11 in QLogg). The other items read. No public API sets the
+list's selection colors.
+
 Under the dark native setting win32 draws check box labels near-white while the
 main window's docks and bars stay light, so every check box comes from
 `SwtThemeService.check`. It calls `DialogColors.check`, which on win32
@@ -217,6 +223,7 @@ window over the desktop and skips it.
 
 Public API leaves these light or gray:
 
+- A combo list's selected item at a fractional scale, white on white.
 - `Table` grid lines and header dividers (the Keys page).
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a

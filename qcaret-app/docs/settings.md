@@ -204,7 +204,7 @@ Shortcuts.
 | `search.regex`, `.caseSensitive`, `.wholeWord`, `.hiddenFiles` | The find bar's and HyperSearch's toggles | `false` | The find bar, HyperSearch |
 | `search.history.text.N`, `.directory.N`, `.mask.N`, `.replace.N` | Search texts of the find bar and HyperSearch, HyperSearch's directories and include masks, the find bar's replacements; newest first, 20 each | none | The find bar, HyperSearch |
 | `syntax.recent` | The last five grammars chosen, ids separated by `;` | none | View > Syntax |
-| `dialog.<name>.width`, `.height` | A resizable dialog's last size | none | Closing the dialog |
+| `dialog.<name>.width`, `.height` | A resizable dialog's or tool window's last size, fitted to the monitor's work area when it opens | none | Closing the dialog |
 | `workspace.favorite.N` | The workspace browser's favorite folders in the order added, 20 at most | none | The browser's Favorites menu |
 | `tabs.closeShowsLastUsed` | `true`, `false`: closing the shown tab shows the open tab used most recently; off, the tab after it, else the one before | `false` | Tools > Preferences, Files |
 | `workspace.default` | A folder, empty for none: the workspace folder of a window not restored from the session ([Window display defaults](sessions-and-recovery.md#window-display-defaults)); a value over 4,096 chars or with a control char reads as none with one warning | empty | Tools > Preferences, Search and Workspace |

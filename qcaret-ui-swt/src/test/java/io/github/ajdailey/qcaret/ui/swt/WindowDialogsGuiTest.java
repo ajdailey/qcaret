@@ -225,6 +225,9 @@ class WindowDialogsGuiTest {
     controller.execute(CommandId.QUICK_OPEN);
     assertResizable(window.quickOpen().shell());
     window.quickOpen().shell().dispose();
+    controller.execute(CommandId.HYPERSEARCH);
+    assertResizable(window.searchDialog().shell());
+    window.searchDialog().shell().dispose();
   }
 
   private static void assertResizable(Shell shell) {

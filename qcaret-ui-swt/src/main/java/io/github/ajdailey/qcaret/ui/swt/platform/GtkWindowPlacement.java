@@ -1,18 +1,17 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import org.eclipse.swt.widgets.Shell;
+
 /**
- * Placement on GTK: the computed trim; the position is skipped on GTK 4, which SWT cannot move, and
- * on GTK 3 under Wayland ({@link PlatformTraits#GDK_BACKEND}).
+ * Placement on GTK 3: the computed trim; the position is skipped under Wayland ({@link
+ * PlatformTraits#GDK_BACKEND}).
  */
 final class GtkWindowPlacement extends NativeWindowPlacement {
-  private final boolean gtk4;
-
-  GtkWindowPlacement(boolean gtk4) {
-    this.gtk4 = gtk4;
-  }
+  @Override
+  public void afterOpen(Shell shell, boolean maximized) {}
 
   @Override
   boolean positioned() {
-    return !gtk4 && !"wayland".equals(System.getProperty(PlatformTraits.GDK_BACKEND));
+    return !"wayland".equals(System.getProperty(PlatformTraits.GDK_BACKEND));
   }
 }

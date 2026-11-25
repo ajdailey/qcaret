@@ -70,4 +70,26 @@ class WindowGeometryTest {
     assertFalse(p.setLocation());
     assertEquals(900, p.bounds().width());
   }
+
+  @Test
+  void fitShrinksATallWindowToTheWorkAreaAndMovesItInside() {
+    Rect work = new Rect(0, 0, 1280, 672);
+    assertEquals(
+        new Rect(300, 0, 758, 672), WindowGeometry.fit(new Rect(300, 120, 758, 714), work));
+  }
+
+  @Test
+  void fitMovesAWindowPastAnEdgeBack() {
+    Rect work = new Rect(1920, 0, 1280, 1024);
+    assertEquals(
+        new Rect(2600, 900, 600, 124), WindowGeometry.fit(new Rect(3000, 900, 600, 124), work));
+    assertEquals(
+        new Rect(1920, 0, 600, 400), WindowGeometry.fit(new Rect(100, -50, 600, 400), work));
+  }
+
+  @Test
+  void fitLeavesAWindowInsideUnchanged() {
+    Rect inside = new Rect(100, 100, 400, 300);
+    assertEquals(inside, WindowGeometry.fit(inside, new Rect(0, 0, 1920, 1040)));
+  }
 }

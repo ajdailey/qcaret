@@ -49,7 +49,7 @@ final class Gtk4Traits extends GtkTraits {
 
   @Override
   public WindowPlacement windowPlacement() {
-    return new GtkWindowPlacement(true);
+    return new Gtk4WindowPlacement();
   }
 
   @Override

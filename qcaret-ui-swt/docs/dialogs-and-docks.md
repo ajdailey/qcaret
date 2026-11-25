@@ -21,6 +21,18 @@ which counts it on its top-level shell so a window rebuild waits for it;
 `ArchitectureTest` fails any other `Dialog.open` call. `PrintSupport.choose`
 takes `NativeDialogs::open` as its opener.
 
+## Dialog placement
+
+`Dialogs.open` centers a dialog over its owner, and `Dialogs.center` places a
+size the same way. Both clamp the size to the work area of the owner's monitor
+(`Monitor.getClientArea`), then move the window inside it
+(`WindowGeometry.fit`), so a preferred height past the taskbar at 150 % keeps
+the buttons on screen. `WindowDialogs.rememberSize` places a window after it
+opens through `Dialogs.center`, at its remembered size or its own, which covers
+the `ui.swt.search` windows that open themselves (`ReplaceDialog`,
+`ReportWindow`). `DiffWindow` and the replace run chooser go through
+`Dialogs.center` too.
+
 ## Window icons
 
 Every dialog and tool window shows the main window's icon set.
@@ -240,7 +252,7 @@ open; that list also takes no Enter and searches on each highlight.
   it closes with it.
 - Mod+F with the bar open focuses and selects the field.
 
-`SearchDialog` (Search > HyperSearch) is modal: the text with its history,
+`SearchDialog` (Search > HyperSearch) is modal and resizable: the text with its history,
 Match case, Whole word, Regex, the scope, the workspace folder, the directory
 with its history and Browse, the include masks with their history, the exclude
 masks and Hidden files. The text, directory and include fields are
