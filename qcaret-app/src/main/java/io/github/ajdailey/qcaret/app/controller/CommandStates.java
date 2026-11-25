@@ -88,7 +88,9 @@ public final class CommandStates {
           CommandId.PREVIEW_BASIC,
           CommandId.PREVIEW_BROWSER,
           CommandId.MARKDOWN_OUTLINE,
-          CommandId.MARKDOWN_SYNC_SCROLL);
+          CommandId.MARKDOWN_SYNC_SCROLL,
+          CommandId.MINIMIZE,
+          CommandId.ZOOM_WINDOW);
 
   /** Commands that change the text. */
   public static final Set<CommandId> EDITS =
@@ -280,6 +282,7 @@ public final class CommandStates {
         case GO_BACK -> application.history().canBack();
         case GO_FORWARD -> application.history().canForward();
         case ALWAYS_ON_TOP -> application.alwaysOnTop().supported();
+        case MINIMIZE -> application.minimizeSupported();
         case PREVIEW_BASIC, PREVIEW_BROWSER -> application.markdown().enabled(command);
         default -> true;
       };

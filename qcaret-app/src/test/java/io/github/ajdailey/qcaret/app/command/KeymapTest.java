@@ -426,6 +426,28 @@ class KeymapTest {
     assertEquals("Ctrl+Cmd+F", mac.keysText(CommandId.FULL_SCREEN));
   }
 
+  /** Minimize takes Cmd+M on macOS beside Cycle Markdown View's Cmd+Shift+M, without a conflict. */
+  @Test
+  void minimizeTakesCmdMOnMacosOnly() {
+    Keymap mac = Keymap.defaults(true);
+    assertEquals(KeyStroke.of(KeyStroke.PRIMARY, 'm'), mac.accelerator(CommandId.MINIMIZE));
+    assertEquals("Cmd+M", mac.keysText(CommandId.MINIMIZE));
+    assertEquals(
+        KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'm'),
+        mac.accelerator(CommandId.MARKDOWN_CYCLE));
+    assertEquals(List.of(), mac.conflicts());
+    for (boolean linux : new boolean[] {false, true}) {
+      assertEquals(List.of(), Keymap.defaults(false, linux).strokes(CommandId.MINIMIZE));
+    }
+  }
+
+  @Test
+  void zoomWindowHasNoKey() {
+    for (boolean mac : new boolean[] {false, true}) {
+      assertEquals(List.of(), Keymap.defaults(mac).strokes(CommandId.ZOOM_WINDOW));
+    }
+  }
+
   /**
    * Cycle Markdown View's key is its menu item's accelerator; the modes have no default key, and a
    * saved key for one still binds it.

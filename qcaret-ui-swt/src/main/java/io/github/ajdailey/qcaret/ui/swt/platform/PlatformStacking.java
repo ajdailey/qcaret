@@ -50,7 +50,9 @@ abstract class PlatformStacking implements WindowStacking {
   final void fail(Throwable cause) {
     if (supported) {
       supported = false;
-      LOG.warn("Always on Top is off: a reflective call into SWT internals failed", cause);
+      LOG.warn(
+          "Always on Top, and Window > Minimize on macOS, are off: a reflective call into SWT internals failed",
+          cause);
     }
   }
 }

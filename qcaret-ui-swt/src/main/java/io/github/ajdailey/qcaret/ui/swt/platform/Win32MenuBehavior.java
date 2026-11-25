@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
+import io.github.ajdailey.qcaret.app.command.MenuTable;
 import java.util.Set;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
@@ -29,9 +30,6 @@ final class Win32MenuBehavior implements MenuBehavior {
   }
 
   @Override
-  public void addWindowControls(Menu menu, Shell shell) {}
-
-  @Override
   public void toolWindowMenus(Shell tool, ToolMenus menus) {}
 
   @Override
@@ -39,7 +37,7 @@ final class Win32MenuBehavior implements MenuBehavior {
 
   @Override
   public Set<CommandId> systemCommands(Display display) {
-    return Set.of();
+    return MenuTable.TITLE_BAR_COMMANDS;
   }
 
   @Override

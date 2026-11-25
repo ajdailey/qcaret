@@ -621,7 +621,7 @@ class ThemeAndDialogsTest {
   @Test
   void withoutTheApplicationMenuTheMenuBarKeepsAboutAndExit() {
     assumeTrue(
-        MenuBehavior.PLATFORM.systemCommands(display).isEmpty(),
+        !MenuBehavior.PLATFORM.systemCommands(display).contains(CommandId.ABOUT),
         "Cocoa always has the application menu");
     assertSame(CommandId.ABOUT, AppMenu.command(SWT.ID_ABOUT));
     assertSame(CommandId.QUIT, AppMenu.command(SWT.ID_QUIT));

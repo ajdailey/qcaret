@@ -521,6 +521,15 @@ public final class ApplicationController {
     return alwaysOnTop;
   }
 
+  /**
+   * Reports whether Window &gt; Minimize takes effect.
+   *
+   * @return {@link MainView#minimizeSupported}
+   */
+  public boolean minimizeSupported() {
+    return view.minimizeSupported();
+  }
+
   /** Returns the window's Markdown View commands. */
   MarkdownCommands markdown() {
     return markdown;
@@ -954,6 +963,8 @@ public final class ApplicationController {
       case INSERT_NUMBER_SEQUENCE -> numbers.choose();
       case OPEN_PATH_AT_CARET -> openPath.open();
       case FULL_SCREEN -> view.setFullScreen(!view.fullScreen());
+      case MINIMIZE -> view.minimize();
+      case ZOOM_WINDOW -> view.zoom();
       case MARKDOWN_SOURCE,
           MARKDOWN_SPLIT,
           MARKDOWN_PREVIEW,

@@ -48,6 +48,18 @@ class MenuTableTest {
   }
 
   @Test
+  void minimizeAndZoomLeadTheWindowMenuUnlessTheTitleBarTakesThem() {
+    List<MenuTable.Entry> mac = MenuTable.entries(CommandGroup.WINDOW, MenuTable.APP_MENU_COMMANDS);
+    assertEquals(CommandId.MINIMIZE, mac.get(0).command());
+    assertEquals(CommandId.ZOOM_WINDOW, mac.get(1).command());
+    assertEquals(new MenuTable.Entry(CommandId.NEW_WINDOW, true), mac.get(2));
+    List<MenuTable.Entry> others =
+        MenuTable.entries(CommandGroup.WINDOW, MenuTable.TITLE_BAR_COMMANDS);
+    assertEquals(new MenuTable.Entry(CommandId.NEW_WINDOW, false), others.get(0));
+    assertEquals(mac.subList(3, mac.size()), others.subList(1, others.size()));
+  }
+
+  @Test
   void everyMenuCommandSitsOnceInItsOwnMenu() {
     for (CommandId command : CommandId.values()) {
       int count = 0;

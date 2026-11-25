@@ -30,8 +30,7 @@ import org.eclipse.swt.widgets.Shell;
  * The main window's menu bar: one menu per {@link CommandGroup} with its {@link MenuTable} entries,
  * a {@link MenuTable#RADIO} command as a radio item that runs on selection only, the Encoding
  * menu's Reopen with Encoding and Save with Encoding cascades, and the Window menu's open
- * documents, below any controls {@link MenuBehavior#addWindowControls} adds (cocoa). Item state
- * comes from {@link CommandStates}; this class only applies it.
+ * documents. Item state comes from {@link CommandStates}; this class only applies it.
  *
  * <p>Showing a top menu, or running one of its items, syncs that menu only. Enablement of every
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
@@ -196,9 +195,6 @@ final class MainMenuBar {
         if (command == CommandId.PREVIEW_BROWSER) {
           showReason(item, command);
         }
-      }
-      if (group == CommandGroup.WINDOW) {
-        MenuBehavior.PLATFORM.addWindowControls(menu, shell);
       }
       icons.decorate(menu);
       menu.addListener(

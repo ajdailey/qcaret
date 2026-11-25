@@ -199,6 +199,16 @@ public enum CommandId {
   /** Convert every line break to CR. */
   LINE_ENDING_CR(
       CommandGroup.ENCODING, UiText.COMMAND_LINE_ENDING_CR, true, UiText.MENU_LINE_ENDINGS),
+  /**
+   * Minimize the active window, a tool window included. In the Window menu on macOS only; elsewhere
+   * the title bar supplies it ({@link MenuTable#TITLE_BAR_COMMANDS}).
+   */
+  MINIMIZE(CommandGroup.WINDOW, UiText.COMMAND_MINIMIZE, false, null),
+  /**
+   * Maximize the active window, a tool window included, or restore it when maximized. In the Window
+   * menu on macOS only, like {@link #MINIMIZE}.
+   */
+  ZOOM_WINDOW(CommandGroup.WINDOW, UiText.COMMAND_ZOOM_WINDOW, false, null),
   /** Open a new window with an untitled document. */
   NEW_WINDOW(CommandGroup.WINDOW, UiText.COMMAND_NEW_WINDOW, false, null),
   /** Move the selected tab to a new window. */

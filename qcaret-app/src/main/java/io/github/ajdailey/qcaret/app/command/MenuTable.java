@@ -17,12 +17,16 @@ import java.util.Set;
  * CommandId#submenu()} form one cascade. A separator before a cascade's first command sits in the
  * parent menu; one before a later command sits in the cascade. Where the system supplies an
  * application menu (macOS), About, Exit and Preferences sit there and are left out of Help, File
- * and Tools.
+ * and Tools. Outside macOS the title bar supplies Minimize and Zoom, which are left out of Window.
  */
 public final class MenuTable {
   /** Commands the macOS application menu runs instead of the menu bar. */
   public static final Set<CommandId> APP_MENU_COMMANDS =
       EnumSet.of(CommandId.ABOUT, CommandId.QUIT, CommandId.PREFERENCES);
+
+  /** Commands the title bar runs instead of the menu bar outside macOS; unmodifiable. */
+  public static final Set<CommandId> TITLE_BAR_COMMANDS =
+      Collections.unmodifiableSet(EnumSet.of(CommandId.MINIMIZE, CommandId.ZOOM_WINDOW));
 
   /** Check commands shown as radio items: one choice of several. */
   public static final Set<CommandId> RADIO =
@@ -145,7 +149,7 @@ public final class MenuTable {
    * Returns the commands a menu lists.
    *
    * @param group a group whose {@link CommandGroup#menu()} is true
-   * @param systemCommands the commands the system's application menu holds, left out
+   * @param systemCommands the commands the system supplies outside the menu bar, left out
    * @return the commands in menu order
    */
   public static List<CommandId> commands(CommandGroup group, Set<CommandId> systemCommands) {
@@ -158,10 +162,11 @@ public final class MenuTable {
 
   /**
    * Returns a menu's entries. The Encoding menu's first entry has a separator, after the cascades
-   * the view adds; a separator before a command the application menu takes is dropped.
+   * the view adds; a separator before a command the system supplies, or after nothing but such
+   * commands, is dropped.
    *
    * @param group a group whose {@link CommandGroup#menu()} is true
-   * @param systemCommands the commands the system's application menu holds, left out
+   * @param systemCommands the commands the system supplies outside the menu bar, left out
    * @return the entries in menu order
    */
   public static List<Entry> entries(CommandGroup group, Set<CommandId> systemCommands) {
@@ -196,14 +201,17 @@ public final class MenuTable {
   private static List<Entry> entries(List<CommandId> layout, Set<CommandId> systemCommands) {
     List<Entry> entries = new ArrayList<Entry>();
     boolean separator = false;
+    boolean leftOutOnly = false;
     for (CommandId command : layout) {
       if (command == null) {
-        separator = true;
+        separator = !leftOutOnly;
       } else if (systemCommands.contains(command)) {
         separator = false;
+        leftOutOnly = entries.isEmpty();
       } else {
         entries.add(new Entry(command, separator));
         separator = false;
+        leftOutOnly = false;
       }
     }
     return entries;
@@ -443,6 +451,9 @@ public final class MenuTable {
     m.put(
         CommandGroup.WINDOW,
         Arrays.asList(
+            CommandId.MINIMIZE,
+            CommandId.ZOOM_WINDOW,
+            null,
             CommandId.NEW_WINDOW,
             CommandId.MOVE_TO_NEW_WINDOW,
             null,

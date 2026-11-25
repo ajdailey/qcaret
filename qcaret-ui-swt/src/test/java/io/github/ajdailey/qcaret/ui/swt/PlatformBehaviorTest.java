@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -78,7 +79,7 @@ class PlatformBehaviorTest {
 
   @Test
   void applicationMenu() {
-    assertEquals(COCOA, !MenuBehavior.PLATFORM.systemCommands(display).isEmpty());
+    assertEquals(COCOA, MenuBehavior.PLATFORM.systemCommands(display).contains(CommandId.ABOUT));
   }
 
   @Test

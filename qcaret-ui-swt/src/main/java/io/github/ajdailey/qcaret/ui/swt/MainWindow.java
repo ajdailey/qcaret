@@ -2414,6 +2414,27 @@ public final class MainWindow implements MainView {
   }
 
   @Override
+  public boolean minimizeSupported() {
+    return WindowStacking.PLATFORM.supported();
+  }
+
+  @Override
+  public void minimize() {
+    if (!shell.isDisposed()) {
+      WindowStacking.PLATFORM.minimize(
+          ActiveWindow.ownedBy(shell, shell.getDisplay().getActiveShell()));
+    }
+  }
+
+  @Override
+  public void zoom() {
+    if (!shell.isDisposed()) {
+      Shell target = ActiveWindow.ownedBy(shell, shell.getDisplay().getActiveShell());
+      target.setMaximized(!target.getMaximized());
+    }
+  }
+
+  @Override
   public TipDisplay showTips(TipInput input) {
     return dialogs.showTips(input);
   }

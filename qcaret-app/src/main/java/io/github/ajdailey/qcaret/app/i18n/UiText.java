@@ -1928,10 +1928,10 @@ public enum UiText {
   BUTTON_CLEAR_FOLDER,
   /** Status bar notice while a large document's editor is built: the file's name, its lines. */
   LOAD_PREPARING,
-  /** Window menu on macOS: minimize the window. */
-  MENU_MINIMIZE,
-  /** Window menu on macOS: zoom the window. */
-  MENU_ZOOM,
+  /** Command label: the Window menu on macOS. */
+  COMMAND_MINIMIZE,
+  /** Command label: the Window menu on macOS. */
+  COMMAND_ZOOM_WINDOW,
   /** Accessible name of an editor's overview strip. */
   ACCESSIBLE_OVERVIEW,
   /** Accessible name of the memory indicator: its text, empty before the first reading. */

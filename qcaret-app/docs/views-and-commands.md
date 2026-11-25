@@ -175,13 +175,17 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 | View | Word Wrap and the display toggles \| Syntax, Folding \| Split, Compare \| Markdown View (Cycle Markdown View, Source, Split, Preview \| Basic, Browser \| Sync Scrolling, Outline) \| zoom \| Theme, Toolbar, Memory Indicator, Workspace Browser, Always on Top, Full Screen \| Command Palette |
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
-| Window | New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
+| Window | Minimize, Zoom (macOS) \| New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
 | Help | User Guide, Keyboard Shortcuts, Command-Line Options, Tip of the Day \| logs and folders \| Report an Issue \| About |
 
 The `EDITOR` group holds the caret moves, block selection keys, Tab, Enter,
 Backspace, Delete and Esc, which have no menu. Where the system supplies an
 application menu (macOS), About, Exit and Preferences sit there and are left
-out of Help, File and Tools.
+out of Help, File and Tools. Outside macOS the title bar supplies Minimize and
+Zoom (`MenuTable.TITLE_BAR_COMMANDS`), which are left out of Window; the
+command palette and the Keys tab list both on every platform. Minimize runs
+`MainView.minimize`, Zoom `MainView.zoom`; both act on the active window,
+a tool window included.
 
 ## Key bindings
 
@@ -221,7 +225,8 @@ Platform choices in the defaults, with the conflict each avoids:
 | Toggle Block Comment | Mod+Shift+/; Cmd+Option+/ on macOS | macOS Cmd+Shift+/ opens the Help menu search |
 | Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
 | Full Screen | F11; Control+Command+F on macOS | Each platform's full-screen key |
-| Cycle Markdown View | Mod+Shift+M | Ctrl+Alt+letter is AltGr on Windows; Cmd+M minimizes on macOS; Mod+Shift+V is paste without formatting in other programs |
+| Cycle Markdown View | Mod+Shift+M | Ctrl+Alt+letter is AltGr on Windows; Cmd+M is Minimize on macOS; Mod+Shift+V is paste without formatting in other programs |
+| Minimize | Cmd+M on macOS only | The macOS Window menu key; elsewhere the item is in the title bar |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
 Mod+Shift+[ and ], as editor bindings;
@@ -238,7 +243,7 @@ Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,
 Insert Date and Time, Insert Number Sequence, Open Path at Caret, Clear Bookmarks, Bookmarks List, Search
 Results, the View display toggles, Workspace Browser, Memory Indicator,
-Always on Top, Set Workspace Folder, Save a Copy As, Export as HTML, Print (Mod+P is Quick Open), Print Selection, Print Rendered Markdown, Close Others,
+Always on Top, Zoom (Window menu), Set Workspace Folder, Save a Copy As, Export as HTML, Print (Mod+P is Quick Open), Print Selection, Print Rendered Markdown, Close Others,
 Close to the Left and Right, Open All, Clean Up and the Clear items of Recent
 Files and Recently Closed, Undo Selection, Redo Selection, and every Tools command but
 Preferences (Mod+,). User overrides are in
@@ -265,6 +270,7 @@ enabled state from the same call.
 | Open All, Clean Up, Clear Recent Files, Clear Recently Closed | A listed file |
 | Reload from Disk | A file on the document |
 | Close to the Left, Close to the Right | A tab on that side of the selected one |
+| Minimize | `MainView.minimizeSupported`: false while the macOS window stacking is unsupported |
 
 Undo, Redo, Cut and Copy are `EDIT_STATE`: their keys are editor bindings, not
 accelerators, so a disabled item leaves them live in the editor and in native

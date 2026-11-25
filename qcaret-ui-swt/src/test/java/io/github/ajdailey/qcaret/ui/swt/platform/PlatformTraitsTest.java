@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -204,6 +205,15 @@ class PlatformTraitsTest {
     assertEquals("Mock", GTK4.menuBehavior().label("Mock", null));
     for (PlatformTraits traits : List.of(WIN32, COCOA, GTK3)) {
       assertEquals("Mock", traits.menuBehavior().label("Mock", "mock reason"), traits.name());
+    }
+  }
+
+  /** Outside cocoa the title bar runs Minimize and Zoom, so the menu bar leaves them out. */
+  @Test
+  void theTitleBarTakesMinimizeAndZoomOutsideCocoa() {
+    for (PlatformTraits traits : List.of(WIN32, GTK3, GTK4)) {
+      assertEquals(
+          MenuTable.TITLE_BAR_COMMANDS, traits.menuBehavior().systemCommands(null), traits.name());
     }
   }
 

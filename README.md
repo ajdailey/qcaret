@@ -141,7 +141,7 @@ windows-aarch64). Actions are pinned by commit SHA, and every checkout sets
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
 | `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
-| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, optionally followed by `-rc<N>`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
 | `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
@@ -194,7 +194,9 @@ To release:
 2. Check the bundled Temurin build (`jdk.*` in `qcaret-dist/src/build/dist.xml`)
    against the latest Oracle Critical Patch Update and the OpenJDK advisories;
    move the pins if a fixed build exists.
-3. Push an annotated tag:
+3. Push an annotated tag. A release candidate adds `-rc<N>` to the tag
+   (`v0.2.0-rc1`) on the same `-SNAPSHOT` commit; its archives carry the
+   tag's version.
 
    ```sh
    git tag -a v<version> -m "QCaret <version>" && git push origin v<version>

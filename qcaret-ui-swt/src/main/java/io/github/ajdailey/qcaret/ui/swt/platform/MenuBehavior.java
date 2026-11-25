@@ -10,22 +10,22 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * Menu differences, one implementation per platform, from {@link PlatformTraits#menuBehavior}: menu
- * icons and their ink, the image a disabled icon shows on a dark background, the Window menu's own
- * controls, the macOS application menu, the main menus on tool windows, and where a disabled item
- * names its reason. Call on the UI thread.
+ * icons and their ink, the image a disabled icon shows on a dark background, the commands the
+ * system supplies outside the menu bar, the macOS application menu, the main menus on tool windows,
+ * and where a disabled item names its reason. Call on the UI thread.
  *
  * <table>
  *   <caption>Implementation per platform</caption>
  *   <tr><th>Platform</th><th>Class</th><th>Menu icons</th><th>Reason</th><th>System menus</th>
  *   </tr>
  *   <tr><td>win32</td><td>{@link Win32MenuBehavior}</td><td>startup ink</td><td>tool tip</td>
- *       <td>none</td></tr>
+ *       <td>title bar</td></tr>
  *   <tr><td>cocoa</td><td>{@link CocoaMenuBehavior}</td><td>none</td><td>tool tip</td>
- *       <td>application menu; Minimize and Zoom; main menus on tool windows</td></tr>
+ *       <td>application menu; main menus on tool windows</td></tr>
  *   <tr><td>GTK 3</td><td>{@link Gtk3MenuBehavior}</td><td>blank-padded, live ink</td>
- *       <td>tool tip</td><td>none</td></tr>
+ *       <td>tool tip</td><td>title bar</td></tr>
  *   <tr><td>GTK 4</td><td>{@link Gtk4MenuBehavior}</td><td>as GTK 3</td><td>label</td>
- *       <td>none</td></tr>
+ *       <td>title bar</td></tr>
  * </table>
  */
 public interface MenuBehavior {
@@ -67,16 +67,6 @@ public interface MenuBehavior {
   Image disabledOnDark(Image plain, FadedImage faded);
 
   /**
-   * Puts Minimize ({@code Cmd+M}) and Zoom, then a separator, at the top of a Window menu on cocoa,
-   * where SWT adds neither to an application-defined Window menu. Minimize is enabled while {@link
-   * WindowStacking#supported}; Zoom toggles the maximized state. Elsewhere adds nothing.
-   *
-   * @param menu the Window menu
-   * @param shell the window they act on
-   */
-  void addWindowControls(Menu menu, Shell shell);
-
-  /**
    * Gives a tool window its owner's menus on cocoa, where the menu bar shows the key window's menus
    * and a window without a menu bar shows only the application menu. Does nothing elsewhere, where
    * a menu bar draws inside its window.
@@ -97,10 +87,11 @@ public interface MenuBehavior {
   void hookAppMenu(Display display, AppMenuActions actions);
 
   /**
-   * Returns the commands the system's application menu holds, which the regular menus leave out.
+   * Returns the commands the system supplies outside the menu bar, which the menu bar leaves out.
    *
    * @param display the Display
-   * @return About, Preferences and Quit on cocoa when SWT gives a system menu; otherwise none
+   * @return on cocoa, About, Preferences and Quit when SWT gives a system menu, else none;
+   *     elsewhere {@code MenuTable.TITLE_BAR_COMMANDS}
    */
   Set<CommandId> systemCommands(Display display);
 

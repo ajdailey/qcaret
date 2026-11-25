@@ -252,7 +252,8 @@ jobs:
           cache: maven
           cache-read-only: true
       # The package job built the tag's version; the tag must name the
-      # commit's <revision>, with or without -SNAPSHOT.
+      # commit's <revision>, with or without -SNAPSHOT, plus an optional
+      # -rc<N> (v0.2.0-rc1 on 0.2.0-SNAPSHOT).
       - name: Tag matches the POM revision
         run: |
           revision=$(sed -n 's|.*<revision>\(.*\)</revision>.*|\1|p' pom.xml)
@@ -260,7 +261,8 @@ jobs:
             echo "::error::No <revision> in pom.xml"
             exit 1
           fi
-          if [ "$GITHUB_REF_NAME" != "v${revision%-SNAPSHOT}" ]; then
+          tag=$(printf '%s' "$GITHUB_REF_NAME" | sed -E 's/-rc[0-9]+$//')
+          if [ "$tag" != "v${revision%-SNAPSHOT}" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match the POM revision $revision"
             exit 1
           fi

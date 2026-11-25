@@ -376,7 +376,7 @@ apply (measured on Linux, one million lines):
   profile colors only its text area; see [Editor colors](#editor-colors). Menus,
   docks, dialogs and title bars keep following View > Theme.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
-  name.
+  name, Window > Minimize and Zoom included on every platform.
 
 ## Editing
 
@@ -1067,7 +1067,9 @@ workspace folder and search results. A document is open in one tab of one window
 at a time.
 
 On macOS the Window menu starts with Minimize (`Cmd+M`) and Zoom, which
-switches the window between its size and filling the screen.
+switches the window between its size and filling the screen. Elsewhere the
+title bar has both and the Window menu leaves them out; the command palette and
+Tools > Preferences, Keys still list them, and they act on the window in front.
 While a tool window such as Preferences, Statistics or a comparison is in front,
 the menu bar keeps the main menus, and their commands act on the window that
 opened it; Close (`Cmd+W`), Minimize and Zoom act on the tool window, and

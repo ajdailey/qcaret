@@ -301,6 +301,25 @@ public interface MainView
   void setOnTop(boolean onTop);
 
   /**
+   * Reports whether {@link #minimize} takes effect.
+   *
+   * @return false where the platform's window stacking is unsupported
+   */
+  boolean minimizeSupported();
+
+  /**
+   * Minimizes the active window when it is this window or one it owns, such as a tool window, else
+   * this window. Does nothing where unsupported.
+   */
+  void minimize();
+
+  /**
+   * Maximizes the active window when it is this window or one it owns, else this window, or
+   * restores it when maximized.
+   */
+  void zoom();
+
+  /**
    * Asks for Edit > Insert Number Sequence's values; modal. OK is enabled while the validator
    * accepts the fields; it passes them to the answer and closes. Cancel and Esc close without one.
    *

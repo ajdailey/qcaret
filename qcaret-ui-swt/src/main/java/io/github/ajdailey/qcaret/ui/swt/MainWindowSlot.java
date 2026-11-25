@@ -485,6 +485,21 @@ public final class MainWindowSlot implements MainView {
   }
 
   @Override
+  public boolean minimizeSupported() {
+    return view.minimizeSupported();
+  }
+
+  @Override
+  public void minimize() {
+    view.minimize();
+  }
+
+  @Override
+  public void zoom() {
+    view.zoom();
+  }
+
+  @Override
   public void askNumberSequence(
       SequenceForm initial, Predicate<SequenceForm> valid, Consumer<SequenceForm> answer) {
     view.askNumberSequence(initial, valid, answer);

@@ -2,7 +2,6 @@ package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.MenuTable;
-import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.util.Set;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
@@ -14,25 +13,14 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Menus on cocoa: no menu images, Minimize and Zoom in the Window menu, the main menus on tool
- * windows, and the system's application menu, where About, Preferences and Quit run in the window
- * activated last. Hide, Hide Others and Show All stay native.
+ * Menus on cocoa: no menu images, the main menus on tool windows, and the system's application
+ * menu, where About, Preferences and Quit run in the window activated last. Hide, Hide Others and
+ * Show All stay native.
  */
 final class CocoaMenuBehavior implements MenuBehavior {
   /** The application-menu items QCaret runs: About, Preferences and Quit. */
   private static final Set<Integer> APP_MENU_IDS =
       Set.of(SWT.ID_ABOUT, SWT.ID_PREFERENCES, SWT.ID_QUIT);
-
-  private final WindowStacking stacking;
-
-  /**
-   * Creates the behavior.
-   *
-   * @param stacking minimizes for Window &gt; Minimize, which is enabled while it is supported
-   */
-  CocoaMenuBehavior(WindowStacking stacking) {
-    this.stacking = stacking;
-  }
 
   @Override
   public void decorate(Menu menu, ItemImages images) {}
@@ -45,43 +33,6 @@ final class CocoaMenuBehavior implements MenuBehavior {
   @Override
   public Image disabledOnDark(Image plain, FadedImage faded) {
     return plain;
-  }
-
-  @Override
-  public void addWindowControls(Menu menu, final Shell shell) {
-    final MenuItem minimize = new MenuItem(menu, SWT.PUSH, 0);
-    minimize.setText(UiText.MENU_MINIMIZE.text());
-    minimize.setAccelerator(SWT.MOD1 | 'M');
-    minimize.setEnabled(stacking.supported());
-    minimize.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            stacking.minimize(shell);
-          }
-        });
-    menu.addListener(
-        SWT.Show,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            if (!minimize.isDisposed()) {
-              minimize.setEnabled(stacking.supported());
-            }
-          }
-        });
-    MenuItem zoom = new MenuItem(menu, SWT.PUSH, 1);
-    zoom.setText(UiText.MENU_ZOOM.text());
-    zoom.addListener(
-        SWT.Selection,
-        new Listener() {
-          @Override
-          public void handleEvent(Event event) {
-            shell.setMaximized(!shell.getMaximized());
-          }
-        });
-    new MenuItem(menu, SWT.SEPARATOR, 2);
   }
 
   @Override

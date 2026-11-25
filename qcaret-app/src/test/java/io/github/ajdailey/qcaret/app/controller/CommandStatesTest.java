@@ -117,6 +117,8 @@ class CommandStatesTest {
           "LINE_ENDING_CRLF -- -e --",
           "LINE_ENDING_LF -- ce --",
           "LINE_ENDING_CR -- -e --",
+          "MINIMIZE -e -e -e",
+          "ZOOM_WINDOW -e -e -e",
           "NEW_WINDOW -e -e -e",
           "MOVE_TO_NEW_WINDOW -- -e -e",
           "NEXT_TAB -- -- -e",
@@ -347,6 +349,23 @@ class CommandStatesTest {
     editor.goTo(1, 1);
     assertEquals(false, states.enabled(CommandId.CUT));
     assertEquals(false, states.enabled(CommandId.COPY));
+  }
+
+  /** Minimize follows the view's stacking, so an unsupported stacking leaves it disabled. */
+  @Test
+  void aStackingReportingUnsupportedLeavesMinimizeDisabled() {
+    assertEquals(true, states.enabled(CommandId.MINIMIZE));
+    harness.application.execute(CommandId.MINIMIZE);
+    assertEquals(1, harness.view.minimizeCalls);
+    harness.view.minimizeSupported = false;
+    assertEquals(false, states.enabled(CommandId.MINIMIZE));
+  }
+
+  @Test
+  void zoomIsEnabledAndRunsTheViewsZoom() {
+    assertEquals(true, states.enabled(CommandId.ZOOM_WINDOW));
+    harness.application.execute(CommandId.ZOOM_WINDOW);
+    assertEquals(1, harness.view.zoomCalls);
   }
 
   @Test

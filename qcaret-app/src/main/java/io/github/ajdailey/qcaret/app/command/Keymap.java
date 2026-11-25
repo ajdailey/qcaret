@@ -57,7 +57,8 @@ public final class Keymap {
    * application menu's Quit has Command+Q; Find Next and Find Previous list Command+G and
    * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
    * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
-   * macOS. Full Screen is F11, and Control+Command+F on macOS.
+   * macOS. Full Screen is F11, and Control+Command+F on macOS. Minimize is Command+M on macOS only;
+   * Zoom has no key.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -98,6 +99,10 @@ public final class Keymap {
       window(b, CommandId.FULL_SCREEN, 0, F11);
     }
     window(b, CommandId.MARKDOWN_CYCLE, P | S, 'm');
+    // Minimize: the Window menu item exists on macOS only.
+    if (mac) {
+      window(b, CommandId.MINIMIZE, P, 'm');
+    }
     window(b, CommandId.NEXT_TAB, P, KeyStroke.PAGE_DOWN);
     window(b, CommandId.PREVIOUS_TAB, P, KeyStroke.PAGE_UP);
     window(b, CommandId.KEYBOARD_SHORTCUTS, 0, KeyStroke.F1);

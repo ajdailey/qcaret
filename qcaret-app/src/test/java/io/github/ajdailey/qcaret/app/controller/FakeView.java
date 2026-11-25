@@ -1326,6 +1326,33 @@ final class FakeView implements MainView {
     onTopCalls.add(onTop);
   }
 
+  /** What {@link #minimizeSupported} reports. */
+  boolean minimizeSupported = true;
+
+  /** The number of {@link #minimize} calls. */
+  int minimizeCalls;
+
+  /** The number of {@link #zoom} calls. */
+  int zoomCalls;
+
+  @Override
+  public boolean minimizeSupported() {
+    ui.checkUiThread();
+    return minimizeSupported;
+  }
+
+  @Override
+  public void minimize() {
+    ui.checkUiThread();
+    minimizeCalls++;
+  }
+
+  @Override
+  public void zoom() {
+    ui.checkUiThread();
+    zoomCalls++;
+  }
+
   /** The fields {@link #askNumberSequence} offered, its validator and its answer. */
   SequenceForm sequenceShown;
 
