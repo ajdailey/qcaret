@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.markdown.LinkTarget;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTree;
 import io.github.ajdailey.qcaret.core.syntax.GrammarSet;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +32,7 @@ import org.commonmark.node.Document;
 import org.commonmark.node.FencedCodeBlock;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Image;
+import org.commonmark.node.IndentedCodeBlock;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.node.SoftLineBreak;
@@ -47,7 +49,9 @@ import org.commonmark.renderer.html.HtmlWriter;
 /**
  * Writes a parsed document as an HTML fragment with commonmark's {@link HtmlRenderer} and the HTML
  * renderers of the parse's table, strikethrough, task list, footnote, alert and image attribute
- * extensions. Raw HTML stays as written; link and image URLs pass commonmark's sanitizer.
+ * extensions. Raw HTML stays as written; link and image URLs pass commonmark's sanitizer. Text,
+ * code and the table of contents write each {@link ControlChars#boxed} char as {@link
+ * ControlChars#visible} text, such as {@code <1B>}; attributes keep the char.
  *
  * <ul>
  *   <li>Headings carry their GitLab anchor as id; the first other block on each later source line
@@ -270,6 +274,31 @@ final class MarkdownHtmlWriter {
     }
   }
 
+  /**
+   * Returns text with each {@link ControlChars#boxed} char except a line break as its {@link
+   * ControlChars#visible} text.
+   *
+   * @param text the text
+   * @return {@code text} itself when it holds no such char, else a copy
+   */
+  static String visible(String text) {
+    StringBuilder shown = null;
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      boolean box = c != '\n' && c != '\r' && ControlChars.boxed(c);
+      if (box && shown == null) {
+        shown = new StringBuilder(text.length() + 8);
+        shown.append(text, 0, i);
+      }
+      if (box) {
+        shown.append(ControlChars.visible(String.valueOf(c)));
+      } else if (shown != null) {
+        shown.append(c);
+      }
+    }
+    return shown == null ? text : shown.toString();
+  }
+
   /** Ids, link targets and the cancel check. */
   private final class Attributes implements AttributeProvider {
     @Override
@@ -330,6 +359,9 @@ final class MarkdownHtmlWriter {
     @Override
     public Set<Class<? extends Node>> getNodeTypes() {
       return Set.of(
+          Text.class,
+          Code.class,
+          IndentedCodeBlock.class,
           FencedCodeBlock.class,
           YamlFrontMatterBlock.class,
           Image.class,
@@ -339,7 +371,15 @@ final class MarkdownHtmlWriter {
 
     @Override
     public void render(Node node) {
-      if (node instanceof FencedCodeBlock code) {
+      if (node instanceof Text text) {
+        text(text.getLiteral());
+      } else if (node instanceof Code code) {
+        html.tag("code", context.extendAttributes(node, "code", Map.of()));
+        text(code.getLiteral());
+        html.tag("/code");
+      } else if (node instanceof IndentedCodeBlock code) {
+        code(node, code.getLiteral(), null, null);
+      } else if (node instanceof FencedCodeBlock code) {
         code(node, code.getLiteral(), MarkdownTree.language(code.getInfo()), null);
       } else if (node instanceof YamlFrontMatterBlock) {
         code(node, sources.get(node), "yaml", "front-matter");
@@ -358,6 +398,11 @@ final class MarkdownHtmlWriter {
         html.tag("/blockquote");
         html.line();
       }
+    }
+
+    /** Writes text escaped, each control char as its visible text. */
+    private void text(String text) {
+      html.text(visible(text));
     }
 
     private void code(Node node, String text, String language, String preClass) {
@@ -380,15 +425,15 @@ final class MarkdownHtmlWriter {
         if (start >= end) {
           continue;
         }
-        html.text(text.substring(at, start));
+        text(text.substring(at, start));
         html.tag(
             "span",
             Map.of("class", "tk-" + TokenRole.values()[t[i + 2]].name().toLowerCase(Locale.ROOT)));
-        html.text(text.substring(start, end));
+        text(text.substring(start, end));
         html.tag("/span");
         at = end;
       }
-      html.text(text.substring(at));
+      text(text.substring(at));
       html.tag("/code");
       html.tag("/pre");
       html.line();
@@ -416,11 +461,11 @@ final class MarkdownHtmlWriter {
         attrs.put("href", href);
         attrs.put("class", "image-link");
         html.tag("a", attrs);
-        html.text(label);
+        text(label);
         html.tag("/a");
       } else {
         html.tag("span", Map.of("class", "image-missing"));
-        html.text(label);
+        text(label);
         html.tag("/span");
       }
     }
@@ -461,7 +506,7 @@ final class MarkdownHtmlWriter {
         }
         html.tag("li");
         html.tag("a", Map.of("href", "#" + e.anchor()));
-        html.text(e.text());
+        text(e.text());
         html.tag("/a");
         itemOpen = true;
       }

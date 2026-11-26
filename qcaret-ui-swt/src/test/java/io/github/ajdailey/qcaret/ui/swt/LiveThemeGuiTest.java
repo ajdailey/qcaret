@@ -17,18 +17,22 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.EditorController;
+import io.github.ajdailey.qcaret.app.controller.SearchController;
 import io.github.ajdailey.qcaret.app.controller.WindowSet;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.FindState;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
+import io.github.ajdailey.qcaret.app.view.SearchForm;
+import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.search.ResultsDock;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -318,6 +322,56 @@ class LiveThemeGuiTest {
         "busy cursor cleared");
     editor.execute(CommandId.UNDO);
     assertFalse(document.text().toString().contains("XYZ"));
+  }
+
+  @Test
+  void aSwitchKeepsTheResultsTreesExpandedGroupsAndSelectedRow() throws Exception {
+    final ApplicationController controller = first();
+    open(controller, "one.txt", "two.txt");
+    final SearchController search = controller.search();
+    search.run(
+        new SearchForm(
+            "line 7",
+            false,
+            true,
+            false,
+            SearchScope.OPEN_DOCUMENTS,
+            "",
+            "",
+            "",
+            false,
+            "",
+            List.of(),
+            List.of(),
+            List.of()));
+    MainWindowSlot slot = slots.get(0);
+    final ResultsDock old = slot.window().resultsDock();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return search.setCount() == 1
+                    && !search.running(0)
+                    && search.fileCount(0) == 2
+                    && old.row(0, 1) >= 0;
+              }
+            }),
+        "search ends");
+    old.activate(old.row(0, 1));
+    int match = old.row(0, 1, 2);
+    old.table().setSelection(match);
+    old.table().notifyListeners(SWT.Selection, new Event());
+    assertTrue(old.text(old.row(0, 1)).startsWith("    - "));
+
+    toggle();
+
+    ResultsDock now = slot.window().resultsDock();
+    assertNotSame(old, now);
+    assertTrue(now.text(now.row(0, 0)).startsWith("    + "));
+    assertTrue(now.text(now.row(0, 1)).startsWith("    - "));
+    assertEquals(match, now.row(0, 1, 2));
+    assertEquals(match, now.table().getSelectionIndex());
   }
 
   @Test

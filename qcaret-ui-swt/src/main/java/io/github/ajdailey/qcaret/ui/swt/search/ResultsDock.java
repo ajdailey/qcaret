@@ -232,6 +232,20 @@ public final class ResultsDock {
   }
 
   /**
+   * Takes another dock's expanded rows and selected row, for a window rebuilt over the same model.
+   *
+   * @param from the replaced window's dock
+   */
+  public void takeState(ResultsDock from) {
+    if (table.isDisposed()) {
+      return;
+    }
+    rows.copyExpansion(from.rows);
+    selected = from.selected;
+    refresh(false);
+  }
+
+  /**
    * Shows and selects a match's row, expanding its set and group.
    *
    * @param set the set's index

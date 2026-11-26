@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
-import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -24,7 +23,6 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
-import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -129,7 +127,7 @@ final class DiffWindow {
     left.setFont(font);
     right.setFont(font);
     for (ControlBoxes side : boxes) {
-      side.setFont(font, cellWidth(left));
+      side.setFont(font, ControlBoxes.cellWidth(left, font));
     }
     old.dispose();
   }
@@ -168,7 +166,7 @@ final class DiffWindow {
                     : null;
               }
             });
-    sideBoxes.setFont(font, cellWidth(view));
+    sideBoxes.setFont(font, ControlBoxes.cellWidth(view, font));
     boxes.add(sideBoxes);
     view.addLineStyleListener(
         new LineStyleListener() {
@@ -212,17 +210,6 @@ final class DiffWindow {
    * caret move or a paint, when they differ from the last position either side reached: the side
    * that moved leads, and a stale paint of the other side does not pull it back.
    */
-  /** Returns the width of two columns of the font {@code view} shows. */
-  private int cellWidth(StyledText view) {
-    GC gc = new GC(view);
-    try {
-      gc.setFont(font);
-      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x).x(2);
-    } finally {
-      gc.dispose();
-    }
-  }
-
   private void follow(final StyledText view, final StyledText other) {
     Listener sync =
         new Listener() {

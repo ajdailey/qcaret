@@ -365,7 +365,9 @@ on.
 the replacement field, the files and the selected file's matches as virtual
 check tables, the before and after view in a monospace `StyledText` (removed
 lines over a red tint of the editor background, added lines over a green one),
-the summary and Apply.
+the summary and Apply. The view's content is a `ShownContent`, and
+`ControlBoxes` draws its control chars over the line's tint
+([editor pane](editor.md#control-chars)); copy reads the original chars.
 
 `ReportWindow` is a run's report, modeless: the summary, a virtual table of
 file, folder and result (skips and failures in dark red), Stop, Restore Run and

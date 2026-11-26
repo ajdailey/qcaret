@@ -14,7 +14,8 @@ import java.util.Map;
  * its path ({@code {set}}, {@code {set, file}} or {@code {set, file, match}}) and back. A set is
  * expanded when it first appears; groups start collapsed, and a set's groups collapse again when
  * its search ends, since the groups are reordered then. Expansion follows a set across reruns by
- * its id. Has no SWT dependency; confined to the UI thread.
+ * its id, and to a rebuilt window's tree through {@link #copyExpansion}. Has no SWT dependency;
+ * confined to the UI thread.
  */
 final class ResultRows {
   /** Expansion of one set and the rows before each of its groups. */
@@ -62,6 +63,24 @@ final class ResultRows {
     }
     states.clear();
     states.putAll(kept);
+  }
+
+  /**
+   * Takes another tree's expansion of each set by id and recounts the rows.
+   *
+   * @param from a tree over the same model
+   */
+  void copyExpansion(ResultRows from) {
+    states.clear();
+    for (Map.Entry<Long, SetRows> entry : from.states.entrySet()) {
+      SetRows source = entry.getValue();
+      SetRows copy = new SetRows();
+      copy.expanded = source.expanded;
+      copy.running = source.running;
+      copy.files.or(source.files);
+      states.put(entry.getKey(), copy);
+    }
+    update(input);
   }
 
   private static void recount(ResultsInput model, int set, SetRows rows) {

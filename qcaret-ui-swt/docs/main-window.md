@@ -471,7 +471,9 @@ block is the window's creation or one tab:
    The old window stays shown, keeps every tab bound and takes all input.
 3. Swaps: reads the old window's bounds, maximized, full screen and minimized
    state, the side, dock and results weights and the Workspace Browser's
-   expanded folders, calls `MainWindowSlot.replace`, then
+   expanded folders, calls `MainWindowSlot.replace`, gives the new results
+   dock the old one's expanded sets and groups and selected row
+   (`ResultsDock.takeState`), then
    `DocumentController.rebindViews`: each tab closes in the old window and its
    editors attach to the staged views, with the split arrangement and weights,
    focused pane, top rows, Markdown preview content and an open completion

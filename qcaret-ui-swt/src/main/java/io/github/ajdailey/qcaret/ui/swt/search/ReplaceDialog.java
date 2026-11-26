@@ -5,9 +5,13 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.PreviewLine;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
+import io.github.ajdailey.qcaret.ui.swt.editor.ControlBoxes;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.editor.ShownContent;
 import java.util.List;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.LineStyleEvent;
+import org.eclipse.swt.custom.LineStyleListener;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
@@ -36,7 +40,8 @@ import org.eclipse.swt.widgets.Text;
  * opened without a nested event loop. Both lists are virtual tables, so a file with 100,000 matches
  * costs its visible rows. The before and after view takes the palette's text and background, so the
  * tints keep their contrast when native controls show the other theme: removed lines show over a
- * red tint of the editor background, added lines over a green one.
+ * red tint of the editor background, added lines over a green one. Its content is a {@link
+ * ShownContent}, and {@link ControlBoxes} draws its control chars over the line's tint.
  */
 public final class ReplaceDialog {
   private static final Rgb RED = Rgb.of(0xe5484d);
@@ -48,6 +53,8 @@ public final class ReplaceDialog {
   private final Table files;
   private final Table matches;
   private final StyledText preview;
+  private final ShownContent shown;
+  private final ControlBoxes boxes;
   private final Label summary;
   private final Button apply;
   private final Color removed;
@@ -56,6 +63,7 @@ public final class ReplaceDialog {
   private final int fontSize;
   private Font font;
   private int shownFile = -1;
+  private boolean computing;
   private boolean applied;
 
   /**
@@ -107,6 +115,30 @@ public final class ReplaceDialog {
     this.fontSize = fontSize;
     font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
     preview.setFont(font);
+    shown = new ShownContent(preview.getContent());
+    preview.setContent(shown);
+    boxes =
+        new ControlBoxes(
+            preview,
+            new ControlBoxes.Rows() {
+              @Override
+              public String original(int rowOffset) {
+                return shown.original(preview.getLineAtOffset(rowOffset));
+              }
+
+              @Override
+              public Color background(int rowOffset) {
+                return preview.getLineBackground(preview.getLineAtOffset(rowOffset));
+              }
+            });
+    boxes.setFont(font, ControlBoxes.cellWidth(preview, font));
+    preview.addLineStyleListener(
+        new LineStyleListener() {
+          @Override
+          public void lineGetStyle(LineStyleEvent event) {
+            event.styles = styles(event.lineOffset, event.lineText);
+          }
+        });
     sash.setWeights(new int[] {2, 3});
     summary = new Label(shell, SWT.WRAP);
     summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
@@ -260,6 +292,7 @@ public final class ReplaceDialog {
     Font old = font;
     font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
     preview.setFont(font);
+    boxes.setFont(font, ControlBoxes.cellWidth(preview, font));
     old.dispose();
   }
 
@@ -300,10 +333,9 @@ public final class ReplaceDialog {
   }
 
   private void showPreview(List<PreviewLine> lines) {
-    if (lines == null) {
-      String computing = UiText.REPLACE_COMPUTING.text();
-      preview.setText(computing);
-      preview.setStyleRange(new StyleRange(0, computing.length(), note, null));
+    computing = lines == null;
+    if (computing) {
+      preview.setText(UiText.REPLACE_COMPUTING.text());
       return;
     }
     StringBuilder text = new StringBuilder();
@@ -336,6 +368,13 @@ public final class ReplaceDialog {
     }
   }
 
+  /** Returns a row's styles: the computing note's color, and a box for each control char. */
+  private StyleRange[] styles(int rowOffset, String row) {
+    StyleRange[] styles =
+        computing ? new StyleRange[] {new StyleRange(rowOffset, row.length(), note, null)} : null;
+    return boxes.styles(rowOffset, row, styles);
+  }
+
   private static String pad(int number, int width) {
     String text = String.valueOf(number);
     return " ".repeat(Math.max(0, width - text.length())) + text;
@@ -357,6 +396,25 @@ public final class ReplaceDialog {
    */
   public String previewText() {
     return preview.getText();
+  }
+
+  /**
+   * Returns the before and after view, for tests.
+   *
+   * @return the widget
+   */
+  public StyledText previewWidget() {
+    return preview;
+  }
+
+  /**
+   * Returns a row's styles in the before and after view, for tests.
+   *
+   * @param row the row
+   * @return the styles, null for a row without any
+   */
+  public StyleRange[] previewStyles(int row) {
+    return styles(preview.getOffsetAtLine(row), shown.getLine(row));
   }
 
   /**

@@ -23,7 +23,7 @@ import org.eclipse.swt.widgets.Shell;
  * hidden; each later turn builds one tab's views in it ({@link StagedTabs}), while the old window
  * stays shown and takes all input. The last turn swaps: it carries the bounds, maximized, full
  * screen and minimized state, the dock weights, the Workspace Browser's expanded folders, the
- * slot's pushed state, the tabs ({@link
+ * results tree's expanded groups and selected row, the slot's pushed state, the tabs ({@link
  * io.github.ajdailey.qcaret.app.controller.DocumentController#rebindViews}) and the active window,
  * opens the new shell and hides the old one, which the next turn disposes, so the event loop always
  * holds an open shell. Other windows the old shell owns close with it, which cancels a running
@@ -366,6 +366,7 @@ public final class WindowViews implements WindowRebuild {
     for (WorkspaceNode directory : expanded) {
       next.expandWorkspace(directory);
     }
+    next.resultsDock().takeState(old.resultsDock());
     e.controller.documents().rebindViews(tabs);
     next.open();
     if (fullScreen) {

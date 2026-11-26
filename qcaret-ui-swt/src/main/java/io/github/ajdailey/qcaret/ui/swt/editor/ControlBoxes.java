@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.editor;
 
+import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Control;
 
 /**
  * Draws each {@link ControlChars} boxed char of a {@code StyledText} as a box holding its label,
@@ -98,6 +100,24 @@ public final class ControlBoxes {
       FontMetrics fm = gc.getFontMetrics();
       metrics = new GlyphMetrics(fm.getAscent(), fm.getDescent(), cellWidth);
       font = next;
+    } finally {
+      gc.dispose();
+    }
+  }
+
+  /**
+   * Returns the width of two columns of a font.
+   *
+   * @param control the control the font draws in
+   * @param font the font
+   * @return the width in pixels
+   */
+  public static int cellWidth(Control control, Font font) {
+    GC gc = new GC(control);
+    try {
+      gc.setFont(font);
+      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x)
+          .x(ControlChars.WIDTH);
     } finally {
       gc.dispose();
     }

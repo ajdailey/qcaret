@@ -15,12 +15,15 @@ import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
+import io.github.ajdailey.qcaret.ui.swt.editor.ControlBoxes;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import io.github.ajdailey.qcaret.ui.swt.search.ReplaceDialog;
 import io.github.ajdailey.qcaret.ui.swt.search.ReportWindow;
@@ -33,10 +36,15 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
+import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -50,9 +58,10 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Replace in a real window: the dock's Replace opens the preview over a tree search, a typed
  * replacement and an unchecked match change the before and after view, a match row shows a control
- * char as {@code <1B>}, Apply writes the files and opens the report, and the report's Restore Run
- * writes them back in a second report. With {@code -Dqcaret.screenshots=<dir>} it saves {@code
- * replace-preview.png} and {@code replace-report.png} there.
+ * char as {@code <1B>} and the before and after view draws it as a box over the line's tint, Apply
+ * writes the files and opens the report, and the report's Restore Run writes them back in a second
+ * report. With {@code -Dqcaret.screenshots=<dir>} it saves {@code replace-preview.png} and {@code
+ * replace-report.png} there.
  */
 @Tag("swt")
 class ReplaceSurfaceTest {
@@ -144,6 +153,8 @@ class ReplaceSurfaceTest {
     preview.setReplacement("beta.example");
     awaitPreview(preview, "+ host=beta.example");
     assertEquals("4: backup.host=alpha.example<1B>", preview.matchText(1));
+    awaitPreview(preview, "+ backup.host=beta.example");
+    assertBoxes(preview);
     preview.checkMatch(1, false);
     awaitPreview(preview, "backup.host=alpha.example");
     assertFalse(
@@ -171,6 +182,89 @@ class ReplaceSurfaceTest {
     restore.press(UiText.BUTTON_CLOSE);
     report.press(UiText.BUTTON_CLOSE);
     assertTrue(window.reportWindows().isEmpty());
+  }
+
+  /**
+   * Checks the removed and the added {@code backup.host} line: the ESC is a placeholder that copies
+   * as itself and takes a box style one cell wide, and where {@code Control.print} draws, the
+   * outline paints in the ink over the line's tint.
+   */
+  private void assertBoxes(ReplaceDialog preview) {
+    StyledText view = preview.previewWidget();
+    drain();
+    ImageData printed = printed(view);
+    int boxes = 0;
+    for (int row = 0; row < view.getLineCount(); row++) {
+      String shown = view.getContent().getLine(row);
+      int at = shown.indexOf(ControlChars.PLACEHOLDER);
+      if (at < 0) {
+        continue;
+      }
+      boxes++;
+      int offset = view.getOffsetAtLine(row) + at;
+      assertEquals("\u001b", view.getTextRange(offset, 1));
+      StyleRange box = null;
+      for (StyleRange style : preview.previewStyles(row)) {
+        if (style.metrics != null) {
+          box = style;
+        }
+      }
+      assertNotNull(box, shown);
+      assertEquals(offset, box.start);
+      Point left = view.getLocationAtOffset(offset);
+      assertEquals(box.metrics.width, view.getLocationAtOffset(offset + 1).x - left.x);
+      Color tint = view.getLineBackground(row);
+      assertNotNull(tint, shown);
+      if (printed == null) {
+        continue;
+      }
+      RGB ground = tint.getRGB();
+      RGB ink =
+          rgb(
+              ControlBoxes.ink(
+                  Palette.LIGHT.text(), new Rgb(ground.red, ground.green, ground.blue)));
+      int height = view.getLineHeight();
+      // The printed image includes the border; widget locations are client coordinates.
+      int x = left.x + view.getBorderWidth();
+      int top = left.y + view.getBorderWidth();
+      int edge = 0;
+      for (int y = top + 2; y < top + height - 2; y++) {
+        if (near(TextPaint.at(printed, x, y), ink, 15)) {
+          edge++;
+        }
+      }
+      assertTrue(edge >= height - 6, "outline pixels " + edge + " of " + height);
+      assertEquals(ground, TextPaint.at(printed, view.getClientArea().width - 4, top + 2));
+    }
+    assertEquals(2, boxes);
+  }
+
+  /** Returns the control's printed pixels, or null where {@code Control.print} draws nothing. */
+  private ImageData printed(StyledText control) {
+    Point size = control.getSize();
+    Image image = new Image(display, size.x, size.y);
+    try {
+      GC gc = new GC(image);
+      boolean done;
+      try {
+        done = control.print(gc);
+      } finally {
+        gc.dispose();
+      }
+      return done ? Pixels.read(image, control) : null;
+    } finally {
+      image.dispose();
+    }
+  }
+
+  private static RGB rgb(Rgb rgb) {
+    return new RGB(rgb.red(), rgb.green(), rgb.blue());
+  }
+
+  private static boolean near(RGB a, RGB b, int tolerance) {
+    int distance =
+        Math.abs(a.red - b.red) + Math.abs(a.green - b.green) + Math.abs(a.blue - b.blue);
+    return distance <= tolerance;
   }
 
   /** Runs a tree search from the dialog and waits for its set to end. */

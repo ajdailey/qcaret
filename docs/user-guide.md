@@ -293,12 +293,14 @@ apply (measured on Linux, one million lines):
   the same choices.
 - A control character (U+0000 to U+001F except tab, U+007F and U+0080 to
   U+009F) shows as its two hex digits in a small box, such as `1B`, two columns
-  wide, in the editor, a comparison and File > Print. Caret moves, Backspace
+  wide, in the editor, a comparison, the replace preview's before and after
+  view and File > Print. Caret moves, Backspace
   and Delete take it as one character; copy, save and search keep the
   character. A row holds at most 128 of them: a line with more continues on the
   next row, also with word wrap off. Search Results, the replace preview's
-  matches, the Bookmarks list and the Outline show it as text, such as `<1B>`;
-  Copy and Copy Line there copy the character.
+  matches, the Bookmarks list, the Outline, the Markdown Browser preview and
+  Export as HTML show it as text, such as `<1B>`; Copy and Copy Line there
+  copy the character.
 
 ![The editor with the right margin, indent guides and modified-line marks](images/guide/guides.png)
 

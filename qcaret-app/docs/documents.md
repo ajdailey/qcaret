@@ -451,7 +451,10 @@ before then drops it. Split keeps its scroll mapping and Source does nothing.
 and the HTML renderers of the table, strikethrough, task list, footnote, alert
 and image attribute extensions; commonmark's URL sanitizer drops
 `javascript:` and similar link targets, the link then has no `href`, and raw
-HTML stays as written.
+HTML stays as written. Text, inline and block code and the table of contents
+write each control char but a line break as `ControlChars.visible` text, such
+as `&lt;1B&gt;`, since a browser draws the char as nothing or a missing-glyph
+box; attribute values (`title`, `alt`) keep the char. The source is unchanged.
 
 | Element | HTML |
 |---|---|

@@ -139,6 +139,22 @@ class MarkdownHtmlWriterTest {
   }
 
   @Test
+  void controlCharsInTextAndCodeShowAsHexAndAttributesKeepThem() {
+    String html =
+        body(
+            "[[_TOC_]]\n\n# St\u0001eps\n\nOne \u001b two `a\u007fb` [link](x \"t\u0002\")\n\n"
+                + "```\nx\u001by\nz\n```\n\n    in\u0085dent\n");
+    assertHas(html, ">St&lt;01&gt;eps</h1>");
+    assertHas(html, ">St&lt;01&gt;eps</a>");
+    assertHas(html, "One &lt;1B&gt; two <code>a&lt;7F&gt;b</code>");
+    assertHas(html, "title=\"t\u0002\"");
+    assertHas(html, "x&lt;1B&gt;y\nz");
+    assertHas(html, "in&lt;85&gt;dent");
+    assertFalse(html.contains("\u001b"), html);
+    assertEquals("a<1B>\nb\r", MarkdownHtmlWriter.visible("a\u001b\nb\r"));
+  }
+
+  @Test
   void rawHtmlStaysAsWritten() {
     String html = body("<div class=\"mock\"><kbd>K</kbd></div>\n\nText <sub>2</sub>\n");
     assertHas(html, "<div class=\"mock\"><kbd>K</kbd></div>");
