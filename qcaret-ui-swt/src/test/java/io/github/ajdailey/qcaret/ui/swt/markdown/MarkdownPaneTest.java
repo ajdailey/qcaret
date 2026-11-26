@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.editor.MarkdownSpans;
 import io.github.ajdailey.qcaret.app.editor.TableWrap;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.TokenRole;
@@ -56,6 +57,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,8 +67,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@link MarkdownPane} in a shell of its own over a fixture holding every element: the line styles
- * of each, a theme switch, link clicks, table measuring in slices, and images decoded off the UI
- * thread, stale results dropped and every image disposed.
+ * of each, a theme switch, link clicks, the Select All key and menu item, table measuring in
+ * slices, and images decoded off the UI thread, stale results dropped and every image disposed.
  */
 @Tag("swt")
 class MarkdownPaneTest {
@@ -353,6 +355,29 @@ class MarkdownPaneTest {
     pane.text().setSelection(0, 3);
     pane.text().notifyListeners(SWT.MouseUp, up);
     assertEquals(1, clicks.size());
+  }
+
+  @Test
+  void theSelectAllKeyAndMenuItemSelectTheWholeText() {
+    pane.showRendered(content("# Mock\n\nBody text.\n"));
+    flush();
+    StyledText text = pane.text();
+    Event key = new Event();
+    key.keyCode = 'a';
+    key.character = 'a';
+    key.stateMask = SWT.MOD1;
+    text.notifyListeners(SWT.KeyDown, key);
+    assertEquals(new Point(0, text.getCharCount()), text.getSelection());
+    text.setSelection(0);
+    MenuItem all = null;
+    for (MenuItem item : text.getMenu().getItems()) {
+      if (UiText.COMMAND_SELECT_ALL.text().equals(item.getText())) {
+        all = item;
+      }
+    }
+    assertNotNull(all);
+    all.notifyListeners(SWT.Selection, new Event());
+    assertEquals(new Point(0, text.getCharCount()), text.getSelection());
   }
 
   @Test

@@ -87,6 +87,23 @@ final class PostedInput {
     xtest(display, "keys", "ffe3", "ffe1", Integer.toHexString(letter));
   }
 
+  /**
+   * Presses Ctrl and a lower-case letter together, then releases them.
+   *
+   * @param display the Display
+   * @param letter the letter, {@code a} to {@code z}
+   */
+  static void ctrl(Display display, char letter) {
+    if (!gtk4()) {
+      post(display, key(SWT.KeyDown, SWT.CTRL, 0));
+      post(display, key(SWT.KeyDown, 0, letter));
+      post(display, key(SWT.KeyUp, 0, letter));
+      post(display, key(SWT.KeyUp, SWT.CTRL, 0));
+      return;
+    }
+    xtest(display, "keys", "ffe3", Integer.toHexString(letter));
+  }
+
   private static boolean gtk4() {
     return "1".equals(System.getenv("SWT_GTK4"));
   }

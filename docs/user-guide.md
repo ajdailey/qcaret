@@ -799,6 +799,10 @@ Preferences has the same check box, and `qcaret.conf` keeps it as
 other; the Outline dock, a find match and a link to a heading still scroll the
 preview.
 
+In the Basic preview, Ctrl+A (Cmd+A on macOS) selects all its text and Ctrl+C
+(Cmd+C) copies the selection; its context menu has Copy and Select All. In
+Split, Ctrl+A selects only the side that has the focus.
+
 ![The same file in Split with the Browser renderer](images/guide/markdown-browser.png)
 
 The Browser renderer shows the preview as a web page in the system's browser

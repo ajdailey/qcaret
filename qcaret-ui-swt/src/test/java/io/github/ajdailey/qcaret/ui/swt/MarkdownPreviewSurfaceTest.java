@@ -44,6 +44,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -67,11 +71,12 @@ import org.junit.jupiter.api.io.TempDir;
  * The Markdown preview in a real window: the toolbar switch shows for a Markdown tab only, Split
  * stands right of both views of an editor split, Preview hides the editors, the status bar names
  * the renderer, a theme switch recolors the pane, an editor scroll moves the preview in Split and
- * with Sync Scrolling off neither side moves the other, the Browser menu item names its reason when
- * disabled, View > Markdown View holds the modes and the renderers, the cycle key runs from the
- * preview, Find from Preview selects in the hidden source and returns the focus to the preview, and
- * a match found in Preview scrolls into view selected. With {@code -Dqcaret.rm.out=<dir>} that
- * match is saved there as PNG, light and dark.
+ * with Sync Scrolling off neither side moves the other, Ctrl+A selects only the focused side and
+ * Copy then copies the preview's text, the Browser menu item names its reason when disabled, View >
+ * Markdown View holds the modes and the renderers, the cycle key runs from the preview, Find from
+ * Preview selects in the hidden source and returns the focus to the preview, and a match found in
+ * Preview scrolls into view selected. With {@code -Dqcaret.rm.out=<dir>} that match and the preview
+ * selected by Ctrl+A are saved there as PNG, light and dark.
  */
 @Tag("swt")
 class MarkdownPreviewSurfaceTest {
@@ -526,6 +531,81 @@ class MarkdownPreviewSurfaceTest {
           }
         },
         "Ctrl+Shift+M in the preview, mode " + controller.documents().markdownMode());
+  }
+
+  @Test
+  void ctrlAInThePreviewSelectsItsTextAndCtrlCCopiesIt() throws Exception {
+    PostedInput.assumeGtk();
+    openFile("guide.md", "# Mock guide\n\nBody text.\n");
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_PREVIEW);
+    awaitShown("Body text.");
+    final StyledText text = window.activePreview().text();
+    window.shell().forceActive();
+    text.setFocus();
+    flush();
+    PostedInput.ctrl(display, 'a');
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return text.getSelectionCount() == text.getCharCount();
+          }
+        },
+        "Ctrl+A selects the preview, selection " + text.getSelection());
+    final Clipboard clipboard = new Clipboard(display);
+    try {
+      clipboard.setContents(new Object[] {"mock"}, new Transfer[] {TextTransfer.getInstance()});
+      PostedInput.ctrl(display, 'c');
+      await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              Object copied = clipboard.getContents(TextTransfer.getInstance());
+              return copied instanceof String s
+                  && s.startsWith("Mock guide")
+                  && s.contains("Body text.");
+            }
+          },
+          "Ctrl+C copies the preview");
+    } finally {
+      clipboard.dispose();
+    }
+    String out = System.getProperty("qcaret.rm.out");
+    if (out != null) {
+      shot(Path.of(out, "select-all-preview-light.png"));
+      controller.execute(CommandId.THEME_DARK);
+      flush();
+      shot(Path.of(out, "select-all-preview-dark.png"));
+    }
+  }
+
+  @Test
+  void ctrlAInTheEditorOfSplitLeavesThePreviewSelectionAlone() throws Exception {
+    PostedInput.assumeGtk();
+    final String source = "# Mock guide\n\nBody text.\n";
+    openFile("guide.md", source);
+    awaitMarkdown(true);
+    controller.execute(CommandId.MARKDOWN_SPLIT);
+    awaitShown("Body text.");
+    StyledText preview = window.activePreview().text();
+    preview.setSelection(0, 4);
+    window.shell().forceActive();
+    window.activeEditor().text().setFocus();
+    flush();
+    PostedInput.ctrl(display, 'a');
+    final EditorController editor = controller.documents().activeEditor();
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            Selection s = editor.selections().selections().primary();
+            return s.start() == 0 && s.end() == source.length();
+          }
+        },
+        "Ctrl+A selects the source");
+    settle();
+    assertEquals(new Point(0, 4), preview.getSelection());
   }
 
   @Test

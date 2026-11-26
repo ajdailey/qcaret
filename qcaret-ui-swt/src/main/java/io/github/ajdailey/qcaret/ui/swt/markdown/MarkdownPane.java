@@ -50,7 +50,7 @@ import org.eclipse.swt.widgets.MenuItem;
  * <ul>
  *   <li>Styles: {@link MarkdownStyler} styles each line as it paints, {@link MarkdownPainter}
  *       paints quote bars, rules, table borders and images. Copy puts the rendered text of the
- *       selection on the clipboard.
+ *       selection on the clipboard; Ctrl+A (Cmd+A on macOS) selects all the text.
  *   <li>Tables: {@link TableColumns} measures columns, fits them to the pane and replaces each
  *       table's rows with display rows whose cells wrap inside their columns, in bounded UI turns,
  *       again on a width change.
@@ -139,6 +139,8 @@ public final class MarkdownPane {
     // No top margin: a line scrolled to the top is fully visible, so getTopIndex returns it.
     text.setMargins(SIDE_MARGIN, 0, SIDE_MARGIN, 8);
     text.setLineSpacing(LINE_SPACING);
+    // The editor's Select All is an editor-scope key, so it never reaches this widget.
+    text.setKeyBinding(SWT.MOD1 | 'a', ST.SELECT_ALL);
     AccessibleName.attachKeepingRole(text, UiText.ACCESSIBLE_MARKDOWN_PREVIEW.text());
     fonts = new MarkdownFonts(text.getDisplay(), text.getFont().getFontData()[0], monospace);
     images = new PaneImages(text.getDisplay());

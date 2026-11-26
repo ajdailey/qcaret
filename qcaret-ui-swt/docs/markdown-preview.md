@@ -193,6 +193,12 @@ fully visible line, and a line scrolled under a top margin would read as the
 next one. Space between blocks is in the separator lines ([Block
 spacing](#block-spacing)), so it adds no line and moves no line index.
 
+The `StyledText` binds `SWT.MOD1 | 'a'` (Ctrl+A, Cmd+A on macOS) to
+`ST.SELECT_ALL`, and its `VerifyKey` listener runs `MarkdownPane.copy` for
+each key bound to `ST.COPY`. The context menu holds Copy and Select All. The
+editor's Select All is an editor-scope `Keymap` binding, not a menu
+accelerator or window key, so in Split the key selects only the focused side.
+
 Fonts (`MarkdownFonts`: body, bold, italic, six heading sizes, a smaller size
 for subscript and superscript, and the editor font's family for code, all
 scaled by the zoom) belong to the pane and are disposed with it. `setPalette`
