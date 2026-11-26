@@ -10,7 +10,8 @@ import java.util.List;
  * <p>Rendered lines end with {@code \n}; the last has no break. Offsets are UTF-16 indexes into
  * {@link #text}. A list bullet, an item number and a task checkbox are line attributes, not text. A
  * rule is an empty line with {@link #rule}. Blocks are separated by one empty line that carries the
- * enclosing quote and list depth; items of a tight list are not.
+ * enclosing quote and list depth; items of a tight list are not. A control char shows as its {@code
+ * ControlChars.visibleKeepingBreaks} text, such as {@code <1B>}; heading text keeps the char.
  */
 public final class RenderedMarkdown {
   /** A list item's marker on its first line. */

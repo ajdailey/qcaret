@@ -303,8 +303,10 @@ public final class EditorPane implements EditorView {
     text.setTabs(projection.tabWidth());
     measure();
     setPalette(palette);
-    content = new ContentAdapter(projection, input);
+    OriginalCopy copy = new OriginalCopy();
+    content = new ContentAdapter(projection, input, copy);
     text.setContent(content);
+    copy.routeSelectionClipboard(text);
     content.onComposition(
         new Runnable() {
           @Override

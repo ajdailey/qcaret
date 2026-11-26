@@ -81,10 +81,25 @@ public final class ControlChars {
    * @return the text, the same instance when it holds no boxed char
    */
   public static String visible(String text) {
+    return visible(text, false);
+  }
+
+  /**
+   * Returns text as {@link #visible} does, keeping each CR and LF: for a view that draws no control
+   * char but breaks lines, such as a Markdown preview.
+   *
+   * @param text the text
+   * @return the text, the same instance when it holds no boxed char other than CR or LF
+   */
+  public static String visibleKeepingBreaks(String text) {
+    return visible(text, true);
+  }
+
+  private static String visible(String text, boolean keepBreaks) {
     StringBuilder shown = null;
     for (int i = 0; i < text.length(); i++) {
       char c = text.charAt(i);
-      if (boxed(c)) {
+      if (boxed(c) && !(keepBreaks && (c == '\n' || c == '\r'))) {
         if (shown == null) {
           shown = new StringBuilder(text.length() + 8);
           shown.append(text, 0, i);

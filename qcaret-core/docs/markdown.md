@@ -31,6 +31,9 @@ code blocks carry their language and the caller colors them.
 `RenderedMarkdown` is immutable. Its text is plain, lines separated by `\n`;
 offsets are UTF-16 indexes. Sibling blocks are separated by one empty line
 carrying the enclosing list and quote depth; items of a tight list are not.
+Each control char other than CR and LF is its `ControlChars.visibleKeepingBreaks`
+text, such as `<1B>`, appended by `MarkdownOutput`, so every run, link, cell
+and image range spans the widened text. Heading text and anchors keep the char.
 
 | Source | Rendered |
 |---|---|

@@ -1,23 +1,35 @@
 package io.github.ajdailey.qcaret.ui.swt.editor;
 
 import io.github.ajdailey.qcaret.core.text.ControlChars;
+import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.custom.TextChangeListener;
 
 /**
  * A read-only widget's content over another: {@link #getLine} gives {@link ControlChars#shown}
- * lines for layout and painting, every other method the original, so copy reads the original chars.
+ * lines for layout and painting, every other method the original. The widget's copy and cut keys
+ * and its selection clipboard put the original chars in every format ({@link OriginalCopy}).
  */
 public final class ShownContent implements StyledTextContent {
   private final StyledTextContent original;
+  private final OriginalCopy copy = new OriginalCopy();
+
+  private ShownContent(StyledTextContent original) {
+    this.original = original;
+  }
 
   /**
-   * Wraps a content.
+   * Wraps a read-only widget's content and routes its copies.
    *
-   * @param original the content the widget holds
+   * @param widget the widget
+   * @return the content the widget now holds
    */
-  public ShownContent(StyledTextContent original) {
-    this.original = original;
+  public static ShownContent install(StyledText widget) {
+    ShownContent shown = new ShownContent(widget.getContent());
+    widget.setContent(shown);
+    shown.copy.routeKeys(widget);
+    shown.copy.routeSelectionClipboard(widget);
+    return shown;
   }
 
   /**
@@ -32,7 +44,8 @@ public final class ShownContent implements StyledTextContent {
 
   @Override
   public String getLine(int lineIndex) {
-    return ControlChars.shown(original.getLine(lineIndex));
+    String line = original.getLine(lineIndex);
+    return copy.copying() ? line : ControlChars.shown(line);
   }
 
   @Override

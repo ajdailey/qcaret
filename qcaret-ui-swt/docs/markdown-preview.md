@@ -288,7 +288,7 @@ line crosses the map:
 | `MarkdownStyler.style`, `background` | Display line to rendered line; each display piece takes its rendered chars' styles, shifted to display offsets |
 | `MarkdownPainter.paint` | Rendered lines of code blocks, quotes, rules, headings and table rows to display lines |
 | `MarkdownPainter.paintObject`, click, link cursor | Display offset to rendered offset |
-| Copy, from the keys bound to it and the context menu | The selection to the rendered range from its first to its last copied char |
+| Copy, from the keys bound to it and the context menu | The selection to the rendered range from its first to its last copied char; a control char copies as its `<XX>` text |
 | `selectRendered`, `showImage` | Rendered offsets to display offsets; a match inside one cell across its break selects its part before the break (`displayRange`) |
 | `scrollToLine`; the top line `previewScrolled` reports | Rendered line to its first display line, and back |
 

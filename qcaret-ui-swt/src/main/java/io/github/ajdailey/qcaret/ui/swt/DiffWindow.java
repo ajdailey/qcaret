@@ -147,8 +147,7 @@ final class DiffWindow {
     view.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     view.setFont(font);
     view.setText(text);
-    final ShownContent shown = new ShownContent(view.getContent());
-    view.setContent(shown);
+    final ShownContent shown = ShownContent.install(view);
     final ControlBoxes sideBoxes =
         new ControlBoxes(
             view,

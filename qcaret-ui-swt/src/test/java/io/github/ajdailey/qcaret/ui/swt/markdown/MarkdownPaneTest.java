@@ -309,6 +309,21 @@ class MarkdownPaneTest {
   }
 
   @Test
+  void controlCharsShowAsHexTextStyledWithTheirElement() {
+    MarkdownPreviewContent c = content("# St\u0001eps\n\nA [li\u001bnk](#x) here\n");
+    pane.showRendered(c);
+    flush();
+    StyledText text = pane.text();
+    assertEquals("St<01>eps", text.getLine(0));
+    assertTrue(bold(at(c, "<01>eps")));
+    assertTrue(bold(at(c, "eps")));
+    assertTrue(at(c, "<1B>nk").underline);
+    int link = display(c.rendered().text().indexOf("<1B>"));
+    text.setSelection(link, link + 4);
+    assertEquals("<1B>", pane.selectedRendered());
+  }
+
+  @Test
   void aThemeSwitchRecolorsInPlace() {
     MarkdownPreviewContent c = content(FIXTURE);
     pane.showRendered(c);

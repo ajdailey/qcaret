@@ -13,27 +13,30 @@ import org.eclipse.swt.custom.TextChangingEvent;
 /**
  * The {@link StyledTextContent} a {@code StyledText} reads: the display text of a {@link
  * DisplayProjection}, one widget line per display row. {@link #getLine} gives {@link
- * ControlChars#shown} rows for layout and painting; {@link #getTextRange}, which copy, drag and
- * accessibility read, gives the original chars. The model is the only authority. The widget never
- * changes the text itself: {@link #replaceTextRange}, which the widget calls directly only for
- * input method composition text, goes to {@link EditorInput#preeditFromView}, outside undo; {@link
- * #setText} goes to the {@link EditorInput} as an edit. The text changes when the document reports
- * it. Each projection change becomes one {@code textChanging} and {@code textChanged} pair. The
- * adapter never sends {@code textSet}: a loaded document gets a new adapter, which the widget reads
- * whole in {@code setContent}.
+ * ControlChars#shown} rows for layout and painting, and the original row during an {@link
+ * OriginalCopy} copy; {@link #getTextRange}, which drag and accessibility read, gives the original
+ * chars. The model is the only authority. The widget never changes the text itself: {@link
+ * #replaceTextRange}, which the widget calls directly only for input method composition text, goes
+ * to {@link EditorInput#preeditFromView}, outside undo; {@link #setText} goes to the {@link
+ * EditorInput} as an edit. The text changes when the document reports it. Each projection change
+ * becomes one {@code textChanging} and {@code textChanged} pair. The adapter never sends {@code
+ * textSet}: a loaded document gets a new adapter, which the widget reads whole in {@code
+ * setContent}.
  */
 final class ContentAdapter implements StyledTextContent, DisplayProjection.Listener {
   private final DisplayProjection projection;
   private final EditorInput input;
+  private final OriginalCopy copy;
   private final List<TextChangeListener> listeners = new ArrayList<TextChangeListener>();
   private Runnable changing;
   private Runnable changed;
   private Runnable composing;
   private Runnable composed;
 
-  ContentAdapter(DisplayProjection projection, EditorInput input) {
+  ContentAdapter(DisplayProjection projection, EditorInput input, OriginalCopy copy) {
     this.projection = projection;
     this.input = input;
+    this.copy = copy;
     projection.addListener(this);
   }
 
@@ -100,7 +103,8 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
 
   @Override
   public String getLine(int lineIndex) {
-    return ControlChars.shown(projection.rowText(lineIndex));
+    String row = projection.rowText(lineIndex);
+    return copy.copying() ? row : ControlChars.shown(row);
   }
 
   @Override

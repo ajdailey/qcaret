@@ -24,6 +24,14 @@ class ControlCharsTest {
     assertSame(plain, ControlChars.visible(plain));
     assertEquals("<1B>[0m<00>x<7F><9D>", ControlChars.visible("\u001b[0m\u0000x\u007f\u009d"));
     assertEquals("a<07>\t", ControlChars.visible("a\u0007\t"));
+    assertEquals("<0D><0A>", ControlChars.visible("\r\n"));
+  }
+
+  @Test
+  void visibleKeepingBreaksKeepsCrAndLf() {
+    String lines = "a\nb\r";
+    assertSame(lines, ControlChars.visibleKeepingBreaks(lines));
+    assertEquals("a<1B>\nb\r<85>", ControlChars.visibleKeepingBreaks("a\u001b\nb\r\u0085"));
   }
 
   @Test

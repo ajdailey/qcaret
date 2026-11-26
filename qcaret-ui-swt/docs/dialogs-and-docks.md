@@ -367,7 +367,8 @@ check tables, the before and after view in a monospace `StyledText` (removed
 lines over a red tint of the editor background, added lines over a green one),
 the summary and Apply. The view's content is a `ShownContent`, and
 `ControlBoxes` draws its control chars over the line's tint
-([editor pane](editor.md#control-chars)); copy reads the original chars.
+([editor pane](editor.md#control-chars)); copy puts the original chars on the
+clipboard.
 
 `ReportWindow` is a run's report, modeless: the summary, a virtual table of
 file, folder and result (skips and failures in dark red), Stop, Restore Run and
@@ -386,7 +387,8 @@ two read-only monospace `StyledText` controls in a `SashForm`, each row's
 background from `Palette.diffRemoved`, `diffAdded` and `diffChanged` (a filler
 row in the gutter color), recolored on a palette change. Each side's content is
 a `ShownContent` over the widget's own, and `ControlBoxes` draws its control
-chars ([editor pane](editor.md#control-chars)); copy reads the original chars.
+chars ([editor pane](editor.md#control-chars)); copy puts the original chars on the
+clipboard.
 
 - After a scroll bar move, a caret move or a paint, each side copies its top
   line and horizontal offset to the other when they differ from the last

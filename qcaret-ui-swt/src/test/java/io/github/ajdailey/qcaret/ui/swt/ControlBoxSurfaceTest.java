@@ -36,6 +36,9 @@ import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.DND;
+import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
@@ -55,7 +58,8 @@ import org.junit.jupiter.api.io.TempDir;
  * Control chars in the editor and the comparison window on a real display: each draws as a boxed
  * hex code two columns wide whose pixels are read back, keeps the row height, takes a find match's
  * background, puts a click at the nearer edge, separates words, appears at once when typed, and
- * copies as the original char.
+ * copies as the original char, also through the GTK selection clipboard and a comparison's copy
+ * key.
  */
 @Tag("swt")
 class ControlBoxSurfaceTest {
@@ -293,6 +297,25 @@ class ControlBoxSurfaceTest {
   }
 
   @Test
+  void theEditorsSelectionClipboardGetsTheOriginalChars() {
+    assumeTrue("gtk".equals(SWT.getPlatform()), "only GTK has a selection clipboard");
+    StyledText text = window.activeText();
+    text.setSelection(shown(LINE_1), shown(LINE_1 + 3));
+    drain();
+    Event up = new Event();
+    up.button = 1;
+    text.notifyListeners(SWT.MouseUp, up);
+    drain();
+    Clipboard clipboard = new Clipboard(display);
+    try {
+      assertEquals(
+          "a\u0001b", clipboard.getContents(TextTransfer.getInstance(), DND.SELECTION_CLIPBOARD));
+    } finally {
+      clipboard.dispose();
+    }
+  }
+
+  @Test
   void theComparisonWindowDrawsBoxesAndCopiesTheOriginal() {
     Comparison comparison =
         new Comparison(
@@ -315,6 +338,12 @@ class ControlBoxSurfaceTest {
       int x = left.getLocationAtOffset(1).x;
       assertEquals(cell(), left.getLocationAtOffset(2).x - x);
       assertEquals(left.getLineHeight(), left.getLineHeight(0));
+      left.setSelection(1, 3);
+      Event copy = new Event();
+      copy.keyCode = 'c';
+      copy.stateMask = SWT.MOD1;
+      left.notifyListeners(SWT.KeyDown, copy);
+      assertEquals("\u0001y", window.clipboardText());
     } finally {
       diff.shell().dispose();
     }

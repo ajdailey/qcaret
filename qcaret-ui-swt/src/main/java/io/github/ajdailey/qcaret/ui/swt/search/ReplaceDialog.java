@@ -115,8 +115,7 @@ public final class ReplaceDialog {
     this.fontSize = fontSize;
     font = new Font(shell.getDisplay(), fontName, fontSize, SWT.NORMAL);
     preview.setFont(font);
-    shown = new ShownContent(preview.getContent());
-    preview.setContent(shown);
+    shown = ShownContent.install(preview);
     boxes =
         new ControlBoxes(
             preview,

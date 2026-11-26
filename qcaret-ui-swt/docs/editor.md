@@ -18,9 +18,12 @@ It sends no `textSet`; a loaded document gets a new adapter, read in
 
 `getLine`, which the widget lays out and paints, gives each row through
 `ControlChars.shown`: every control char is U+FFFC, which no toolkit treats as
-a line break ([Control chars](#control-chars)). `getTextRange`, which copy,
-drag and drop, the primary selection and accessibility read, gives the original
-chars.
+a line break ([Control chars](#control-chars)). `getTextRange`, which drag and
+drop and accessibility read, gives the original chars. `StyledText` builds
+every clipboard format from `getLine`, so `OriginalCopy` writes the GTK
+selection clipboard again after the widget's own write, with `getLine` giving
+the original rows for the length of that copy. The editor's Copy and Cut are
+the controller's.
 
 On Windows `StyledText` reads the replaced text in `textChanging` and the
 inserted text in `textChanged` through `getTextRange`, for its accessible text
@@ -209,7 +212,10 @@ and sets the gutter's tooltip.
 
 `ControlBoxes` draws each char `ControlChars.boxed` accepts as its
 `ControlChars.label` in a box two columns wide, on every platform; the toolkit's own rendering of these
-chars never shows. `DiffWindow` uses it too, over a `ShownContent`.
+chars never shows. `DiffWindow` and `ReplaceDialog` use it too, over a
+`ShownContent`: `ShownContent.install` wraps a read-only widget's content and
+runs its copy and cut keys and its selection clipboard through `OriginalCopy`,
+so plain text, RTF and HTML hold the original chars.
 
 - `styles` gives each run of placeholders within one line style a `StyleRange`
   of its own with `GlyphMetrics`: `ColumnMetrics.x(2)` wide, the font's ascent

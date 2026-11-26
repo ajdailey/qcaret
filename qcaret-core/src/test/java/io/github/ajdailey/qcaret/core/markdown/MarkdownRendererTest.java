@@ -54,6 +54,24 @@ class MarkdownRendererTest {
   }
 
   @Test
+  void controlCharsShowAsHexTextAndRangesSpanIt() {
+    RenderedMarkdown r =
+        Render.of(
+            "# St\u0001eps\n\n[li\u001bnk](x) **b\u007f**\n\n| a\u0085 | b |\n|---|---|\n"
+                + "| c | d |\n\n```\nx\u001by\n```\n");
+    assertEquals("St<01>eps", Render.line(r, 0));
+    assertEquals("St<01>eps", Render.covered(r, Render.first(r, InlineStyle.HEADING)));
+    assertEquals("St\u0001eps", r.headings().get(0).text());
+    assertEquals("li<1B>nk", Render.covered(r, Render.first(r, InlineStyle.LINK)));
+    MarkdownLink link = r.links().get(0);
+    assertEquals("li<1B>nk", r.text().substring(link.start(), link.end()));
+    assertEquals("b<7F>", Render.covered(r, Render.first(r, InlineStyle.STRONG)));
+    int[] header = r.tables().get(0).cells()[0];
+    assertEquals("a<85>", r.text().substring(header[0], header[1]));
+    assertEquals("x<1B>y", Render.line(r, r.codeBlocks().get(0).firstLine()));
+  }
+
+  @Test
   void runsAreOrderedByStart() {
     RenderedMarkdown r = Render.of("a **b *c* d** e");
     int last = -1;

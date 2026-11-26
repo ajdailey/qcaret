@@ -186,7 +186,7 @@ after the change.
 | `MarkdownOutlineTest` | The toggle showing the tree and an edit refreshing it; a render an edit overtook dropped; the dock following tabs and the grammar; the selection following the caret and Go To moving it; Go To scrolling the preview in Preview; a document over the limit listing nothing |
 | `OutlineTreeTest` | A skipped level nesting one step, headings before the first top-level one, setext headings listed and code lines not, duplicates apart, entries and text cut, the caret's entry |
 | `MarkdownImagesTest` | Sizes in pixels or as a share of the pane; decoding on a worker with the cache and placeholders; a canceled decode showing nothing |
-| `PreviewMatchTest` | A match in a heading or paragraph, or a paragraph's later line, mapped to its rendered text; only the line for markup that does not render, repeated text, a table, a block over the limit and an empty match |
+| `PreviewMatchTest` | A match in a heading or paragraph, or a paragraph's later line, mapped to its rendered text; a match holding a control char mapped to its `<XX>` text; only the line for markup that does not render, repeated text, a table, a block over the limit and an empty match |
 | `PreviewLinkAskTest` | Open launching the address, Cancel launching nothing, a local link opening without asking |
 | `SyntaxMenuTest` | The category submenus of the built-in grammars, a user grammar in its category or in User, the recent list |
 | `GrammarWiringTest` | Fold regions from the highlighter for a `brackets` grammar and from indentation for the others through switches and a reload; the grammar's indent rules and pairs; bracket matching that counts a string's bracket until the tokens arrive and skips it after |

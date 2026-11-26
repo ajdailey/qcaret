@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.core.markdown;
 
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -8,6 +9,9 @@ import java.util.List;
  * The rendered text and its attributes while {@link BlockWriter} and {@link InlineWriter} build
  * them. A line takes the list and quote depth current when it starts, and the item marker set
  * before it when it is the item's first line. Source lines are kept monotonic as they are added.
+ * Appended text shows each control char other than CR and LF as {@link
+ * ControlChars#visibleKeepingBreaks} text, such as {@code <1B>}, so every range recorded after an
+ * append spans the widened text.
  */
 final class MarkdownOutput {
   private final StringBuilder text = new StringBuilder();
@@ -43,12 +47,16 @@ final class MarkdownOutput {
     return lineStarts.size();
   }
 
-  void append(CharSequence chars) {
-    text.append(chars);
+  void append(String chars) {
+    text.append(ControlChars.visibleKeepingBreaks(chars));
   }
 
   void append(char c) {
-    text.append(c);
+    if (ControlChars.boxed(c) && c != '\n' && c != '\r') {
+      text.append('<').append(ControlChars.label(c)).append('>');
+    } else {
+      text.append(c);
+    }
   }
 
   String text(int start) {

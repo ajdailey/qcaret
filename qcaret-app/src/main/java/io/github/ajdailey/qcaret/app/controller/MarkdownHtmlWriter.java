@@ -50,8 +50,8 @@ import org.commonmark.renderer.html.HtmlWriter;
  * Writes a parsed document as an HTML fragment with commonmark's {@link HtmlRenderer} and the HTML
  * renderers of the parse's table, strikethrough, task list, footnote, alert and image attribute
  * extensions. Raw HTML stays as written; link and image URLs pass commonmark's sanitizer. Text,
- * code and the table of contents write each {@link ControlChars#boxed} char as {@link
- * ControlChars#visible} text, such as {@code <1B>}; attributes keep the char.
+ * code and the table of contents write {@link ControlChars#visibleKeepingBreaks} text, such as
+ * {@code <1B>}; attributes keep the char.
  *
  * <ul>
  *   <li>Headings carry their GitLab anchor as id; the first other block on each later source line
@@ -274,31 +274,6 @@ final class MarkdownHtmlWriter {
     }
   }
 
-  /**
-   * Returns text with each {@link ControlChars#boxed} char except a line break as its {@link
-   * ControlChars#visible} text.
-   *
-   * @param text the text
-   * @return {@code text} itself when it holds no such char, else a copy
-   */
-  static String visible(String text) {
-    StringBuilder shown = null;
-    for (int i = 0; i < text.length(); i++) {
-      char c = text.charAt(i);
-      boolean box = c != '\n' && c != '\r' && ControlChars.boxed(c);
-      if (box && shown == null) {
-        shown = new StringBuilder(text.length() + 8);
-        shown.append(text, 0, i);
-      }
-      if (box) {
-        shown.append(ControlChars.visible(String.valueOf(c)));
-      } else if (shown != null) {
-        shown.append(c);
-      }
-    }
-    return shown == null ? text : shown.toString();
-  }
-
   /** Ids, link targets and the cancel check. */
   private final class Attributes implements AttributeProvider {
     @Override
@@ -402,7 +377,7 @@ final class MarkdownHtmlWriter {
 
     /** Writes text escaped, each control char as its visible text. */
     private void text(String text) {
-      html.text(visible(text));
+      html.text(ControlChars.visibleKeepingBreaks(text));
     }
 
     private void code(Node node, String text, String language, String preClass) {

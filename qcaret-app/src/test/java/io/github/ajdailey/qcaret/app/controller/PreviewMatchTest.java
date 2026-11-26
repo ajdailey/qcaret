@@ -53,6 +53,12 @@ class PreviewMatchTest {
   }
 
   @Test
+  void aMatchHoldingAControlCharMapsToItsWidenedText() {
+    String markdown = "# A\n\none ne\u001bdle\n";
+    assertEquals(spanOf(markdown, 2, "ne<1B>dle"), match(markdown, "ne\u001bdle", 0));
+  }
+
+  @Test
   void aMatchOnAParagraphsLaterLineMapsToTheParagraph() {
     String markdown = "# A\n\none\ntwo needle\n";
     assertEquals(spanOf(markdown, 2, "needle"), match(markdown, "needle", 0));

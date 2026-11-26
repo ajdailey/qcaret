@@ -3,11 +3,12 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.core.buffer.TextSnapshot;
 import io.github.ajdailey.qcaret.core.markdown.MarkdownTable;
 import io.github.ajdailey.qcaret.core.markdown.RenderedMarkdown;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 
 /**
  * Where a source match shows in a render. The render has no source offsets, so the rendered span is
  * set only when the match's text occurs once in its block's source and once in the block's rendered
- * text, outside a table.
+ * text, outside a table; a control char in the match is looked up as its rendered {@code <XX>}.
  *
  * @param line the rendered line of the match's source line, as {@link
  *     RenderedMarkdown#renderedLine} maps it
@@ -54,9 +55,10 @@ record PreviewMatch(int line, int start, int end) {
     String text = source.subSequence(start, end).toString();
     String block = source.subSequence(sourceStart, sourceEnd).toString();
     String shown = rendered.text().substring(renderedStart, renderedEnd);
-    int at = shown.indexOf(text);
-    if (once(block, text) && at >= 0 && shown.indexOf(text, at + 1) < 0) {
-      return new PreviewMatch(line, renderedStart + at, renderedStart + at + text.length());
+    String visible = ControlChars.visibleKeepingBreaks(text);
+    int at = shown.indexOf(visible);
+    if (once(block, text) && at >= 0 && shown.indexOf(visible, at + 1) < 0) {
+      return new PreviewMatch(line, renderedStart + at, renderedStart + at + visible.length());
     }
     return new PreviewMatch(line, -1, -1);
   }

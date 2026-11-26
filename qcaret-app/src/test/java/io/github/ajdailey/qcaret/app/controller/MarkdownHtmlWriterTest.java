@@ -151,7 +151,6 @@ class MarkdownHtmlWriterTest {
     assertHas(html, "x&lt;1B&gt;y\nz");
     assertHas(html, "in&lt;85&gt;dent");
     assertFalse(html.contains("\u001b"), html);
-    assertEquals("a<1B>\nb\r", MarkdownHtmlWriter.visible("a\u001b\nb\r"));
   }
 
   @Test
