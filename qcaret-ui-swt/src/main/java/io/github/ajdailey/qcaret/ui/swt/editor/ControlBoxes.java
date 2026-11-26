@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntFunction;
 import org.eclipse.swt.custom.PaintObjectEvent;
 import org.eclipse.swt.custom.PaintObjectListener;
 import org.eclipse.swt.custom.StyleRange;
@@ -13,6 +14,7 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontMetrics;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.GlyphMetrics;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 
@@ -290,6 +292,100 @@ public final class ControlBoxes {
       gc.setForeground(oldFore);
       gc.setFont(oldFont);
     }
+  }
+
+  /**
+   * Draws one box for a printer: the outline is four filled bands {@code rule} units thick, from
+   * the cell's left edge to its right edge and {@code rule} inside the row's top and bottom. The
+   * label is centered in {@link #labelArea}: its extent across, and down the part of its extent
+   * above the descent, since hex digits have no descenders. The caller sizes {@code font} with
+   * {@link #labelHeight} so the whole extent fits there. The GC's colors and font are restored.
+   *
+   * @param gc the GC
+   * @param font the label font
+   * @param ink the outline and label color
+   * @param x the cell's left edge
+   * @param y the row's top edge
+   * @param width the cell's width
+   * @param height the row's height
+   * @param rule the outline's thickness, at least 1
+   * @param label the two digits
+   */
+  public static void drawRuled(
+      GC gc, Font font, Color ink, int x, int y, int width, int height, int rule, String label) {
+    Color oldFore = gc.getForeground();
+    Color oldBack = gc.getBackground();
+    Font oldFont = gc.getFont();
+    try {
+      gc.setForeground(ink);
+      gc.setFont(font);
+      Point at =
+          labelOrigin(
+              labelArea(x, y, width, height, rule),
+              gc.stringExtent(label),
+              gc.getFontMetrics().getDescent());
+      gc.drawString(label, at.x, at.y, true);
+      gc.setBackground(ink);
+      int top = y + rule;
+      int inner = Math.max(0, height - 4 * rule);
+      gc.fillRectangle(x, top, width, rule);
+      gc.fillRectangle(x, top + rule + inner, width, rule);
+      gc.fillRectangle(x, top + rule, rule, inner);
+      gc.fillRectangle(x + width - rule, top + rule, rule, inner);
+    } finally {
+      gc.setForeground(oldFore);
+      gc.setBackground(oldBack);
+      gc.setFont(oldFont);
+    }
+  }
+
+  /**
+   * Returns where a {@link #drawRuled} label may go: inside the outline, one {@code rule} clear of
+   * it on every side.
+   *
+   * @param x the cell's left edge
+   * @param y the row's top edge
+   * @param width the cell's width
+   * @param height the row's height
+   * @param rule the outline's thickness
+   * @return the area, empty when the box is too small
+   */
+  public static Rectangle labelArea(int x, int y, int width, int height, int rule) {
+    return new Rectangle(
+        x + 2 * rule, y + 3 * rule, Math.max(0, width - 4 * rule), Math.max(0, height - 6 * rule));
+  }
+
+  /**
+   * Returns where {@link #drawRuled} draws a label: its extent centered across {@code area}, and
+   * the part of its extent above the descent centered down it.
+   *
+   * @param area the {@link #labelArea}
+   * @param extent the label's text extent
+   * @param descent the label font's descent
+   * @return the label's top-left corner
+   */
+  static Point labelOrigin(Rectangle area, Point extent, int descent) {
+    return new Point(
+        area.x + (area.width - extent.x) / 2, area.y + (area.height - (extent.y - descent)) / 2);
+  }
+
+  /**
+   * Returns the largest font height, from {@code max} points down to 1, whose widest label extent
+   * fits {@code space}.
+   *
+   * @param max the text font's height in points
+   * @param space the size of {@link #labelArea}
+   * @param widest returns the widest label's extent at a height in points
+   * @return the height in points, 1 when none fits
+   */
+  public static int labelHeight(int max, Point space, IntFunction<Point> widest) {
+    for (int points = max; points > 1; points--) {
+      Point extent = widest.apply(points);
+      if (extent.x <= space.x && extent.y <= space.y) {
+        return points;
+      }
+    }
+    return 1;
   }
 
   /**
