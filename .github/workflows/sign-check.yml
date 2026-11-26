@@ -1,0 +1,79 @@
+name: Sign check
+
+# Manual check of Azure Artifact Signing: signs qcaret.exe from the continuous
+# windows-x86_64 zip and checks the signature on Windows. Publishes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: signing
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      JSIGN_VERSION: "7.6"
+      JSIGN_SHA256: 6cf58aa080e7ff82656f320cff8d4a3bff30408df8766806dcba3740dd839fa5
+    steps:
+      - name: Fetch qcaret.exe from the continuous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download continuous --repo "$GITHUB_REPOSITORY" --pattern '*-windows-x86_64.zip'
+          unzip -q -j ./*-windows-x86_64.zip '*/qcaret.exe' -d out
+      - name: Fetch jsign
+        run: |
+          curl -sSfLo jsign.jar "https://repo1.maven.org/maven2/net/jsign/jsign/${JSIGN_VERSION}/jsign-${JSIGN_VERSION}.jar"
+          echo "${JSIGN_SHA256}  jsign.jar" | sha256sum -c -
+      - name: Azure token
+        env:
+          TENANT: ${{ vars.AZURE_TENANT_ID }}
+          CLIENT: ${{ vars.AZURE_CLIENT_ID }}
+        run: |
+          oidc=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" | jq -r .value)
+          echo "::add-mask::$oidc"
+          token=$(curl -sSf "https://login.microsoftonline.com/$TENANT/oauth2/v2.0/token" \
+            --data-urlencode "client_id=$CLIENT" \
+            --data-urlencode "scope=https://codesigning.azure.net/.default" \
+            --data-urlencode "grant_type=client_credentials" \
+            --data-urlencode "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
+            --data-urlencode "client_assertion=$oidc" | jq -r .access_token)
+          echo "::add-mask::$token"
+          echo "SIGNING_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Sign
+        env:
+          ENDPOINT: ${{ vars.SIGNING_ENDPOINT }}
+          ALIAS: ${{ vars.SIGNING_ACCOUNT }}/${{ vars.SIGNING_PROFILE }}
+        run: |
+          java -jar jsign.jar --storetype TRUSTEDSIGNING --keystore "${ENDPOINT#https://}" \
+            --storepass "$SIGNING_TOKEN" --alias "$ALIAS" \
+            --tsaurl http://timestamp.acs.microsoft.com --tsmode RFC3161 out/qcaret.exe
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-qcaret-exe
+          path: out/qcaret.exe
+
+  verify:
+    needs: sign
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed-qcaret-exe
+      - name: Check the signature
+        shell: pwsh
+        run: |
+          $s = Get-AuthenticodeSignature .\qcaret.exe
+          $s | Format-List Status, StatusMessage
+          $s.SignerCertificate | Format-List Subject, Issuer, NotAfter
+          $s.TimeStamperCertificate | Format-List Subject
+          if ($s.Status -ne 'Valid') { throw "signature status $($s.Status)" }
+          if ($s.SignerCertificate.Subject -notlike '*CN=Adam Dailey*') { throw 'unexpected signer' }
+          if ($null -eq $s.TimeStamperCertificate) { throw 'no timestamp' }

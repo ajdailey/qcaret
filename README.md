@@ -245,6 +245,12 @@ To fix a bad draft, delete the draft and the tag
   vulnerabilities weekly and on demand, failing on CVSS 7 or higher. It reads
   the NVD API key from the optional `NVD_API_KEY` repository secret and
   reviewed false positives from `config/dependency-check-suppressions.xml`.
+- `.github/workflows/sign-check.yml`, run by hand, signs `qcaret.exe` from the
+  `continuous` Windows x86_64 zip through Azure Artifact Signing and checks the
+  signature on a Windows runner; it publishes nothing. It runs in the `signing`
+  environment (branch `main` and tags `v*` only), whose variables name the
+  Azure tenant, client, endpoint, account and certificate profile; the login
+  uses GitHub's OIDC token, so the repository stores no Azure secret.
 - Dependabot proposes Maven, Actions and build image updates.
 
 ## Targets
