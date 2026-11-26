@@ -62,10 +62,11 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * HyperSearch and the overview strip in a real window: the dialog runs a tree search into the dock,
  * two sets stay listed newest first, Enter on a match opens its file with the match selected, F4
- * steps on; the strip marks find matches, scrolls on a click, hides from the View menu, recolors on
- * a theme switch and exists in each view of a split; the slider follows wheel, page and fold
- * scrolling and scrolls the text; the find bar's fields offer the saved history. With {@code
- * -Dqcaret.screenshots=<dir>} it saves {@code find-history.png} there, the list open.
+ * steps on, a match row shows a control char as {@code <1B>} and highlights the match; the strip
+ * marks find matches, scrolls on a click, hides from the View menu, recolors on a theme switch and
+ * exists in each view of a split; the slider follows wheel, page and fold scrolling and scrolls the
+ * text; the find bar's fields offer the saved history. With {@code -Dqcaret.screenshots=<dir>} it
+ * saves {@code find-history.png} there, the list open.
  */
 @Tag("swt")
 class SearchSurfaceTest {
@@ -238,6 +239,21 @@ class SearchSurfaceTest {
     assertEquals(0, view.getItemCount());
     controller.execute(CommandId.SEARCH_RESULTS);
     assertFalse(window.resultsShown());
+  }
+
+  @Test
+  void aMatchRowShowsControlCharsAsHexAndHighlightsTheMatch() throws Exception {
+    Path tree = Files.createDirectories(temp.resolve("tree"));
+    Files.writeString(
+        tree.resolve("c.txt"),
+        "alpha beta \u001b gamma key\tdelta epsilon zeta\n",
+        StandardCharsets.UTF_8);
+    search("key", SearchScope.TREE, tree);
+    ResultsDock dock = window.resultsDock();
+    dock.activate(dock.row(0, 0));
+    int row = dock.row(0, 0, 0);
+    assertEquals("        1: alpha beta <1B> gamma key delta epsilon zeta", dock.text(row));
+    assertEquals("key", dock.highlightedText(row));
   }
 
   private static String lines(int count, int... needles) {

@@ -328,13 +328,13 @@ public final class BookmarkList implements BookmarksInput {
     }
   }
 
-  /** Cuts a line to {@link #TEXT_CHARS} chars with tabs and control chars as spaces. */
+  /** Cuts a line to {@link #TEXT_CHARS} chars with tabs as spaces; control chars stay. */
   private static String shown(LineView line) {
     int length = Math.min(line.length(), TEXT_CHARS);
     char[] out = new char[length];
     for (int i = 0; i < length; i++) {
       char c = line.charAt(i);
-      out[i] = c < 0x20 || (c >= 0x7f && c < 0xa0) ? ' ' : c;
+      out[i] = c == '\t' ? ' ' : c;
     }
     return new String(out);
   }

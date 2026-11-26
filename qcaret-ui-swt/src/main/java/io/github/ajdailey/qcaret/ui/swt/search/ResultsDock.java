@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.ResultLabel;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.Arrays;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -32,6 +33,8 @@ import org.eclipse.swt.widgets.TableItem;
  *       click on that mark, Enter, a double click, Right and Left expand and collapse it. Left on a
  *       group or match row selects its parent. Enter and a double click on a match row open it;
  *       expanding a group lets the model check its file.
+ *   <li>A row shows its label's tabs as spaces and its control chars as {@link
+ *       ControlChars#visible} text, such as {@code <1B>}.
  *   <li>A match row paints its matched text over the palette's find-match color in the palette's
  *       text color; a row whose source changed shows in the disabled color.
  *   <li>Stop, Rerun, Replace, Pin and Clear act on the set of the selected row, or the newest set;
@@ -372,7 +375,7 @@ public final class ResultsDock {
       }
     }
     item.setData(new Row(path, label, prefix));
-    item.setText(prefix + label.text());
+    item.setText(prefix + cell(label.text()));
     item.setForeground(
         label.stale()
             ? table.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DISABLED_FOREGROUND)
@@ -389,12 +392,37 @@ public final class ResultsDock {
     return null;
   }
 
+  /**
+   * Returns a cell's text: tabs as spaces and control chars as {@link ControlChars#visible} text.
+   *
+   * @param text a label's text
+   * @return the text the table shows
+   */
+  static String cell(String text) {
+    return ControlChars.visible(text.replace('\t', ' '));
+  }
+
+  /** Returns where a row's highlighted text starts and ends in the item's text. */
+  private static int[] highlight(Row row, int length) {
+    String label = row.label().text();
+    int shift = row.prefix().length();
+    int start = shift + shown(label, row.label().highlightStart());
+    int end = shift + shown(label, row.label().highlightEnd());
+    start = Math.min(start, length);
+    return new int[] {start, Math.max(start, Math.min(end, length))};
+  }
+
+  /** Maps an offset in a label's text to its cell text. */
+  private static int shown(String label, int offset) {
+    return ControlChars.visibleOffset(label, Math.min(offset, label.length()));
+  }
+
   /** Draws a match row: the text in the row's color, the matched part over the highlight. */
   private void paintMatch(GC gc, TableItem item, Row row, int y, int height) {
     String text = item.getText();
-    int shift = row.prefix().length();
-    int start = Math.min(shift + row.label().highlightStart(), text.length());
-    int end = Math.max(start, Math.min(shift + row.label().highlightEnd(), text.length()));
+    int[] range = highlight(row, text.length());
+    int start = range[0];
+    int end = range[1];
     int top = y + Math.max(0, (height - gc.getFontMetrics().getHeight()) / 2);
     int left = item.getTextBounds(0).x;
     String before = text.substring(0, start);
@@ -543,6 +571,23 @@ public final class ResultsDock {
    */
   public String text(int row) {
     return table.getItem(row).getText();
+  }
+
+  /**
+   * Returns the text a match row paints over the highlight, for tests.
+   *
+   * @param row a loaded row
+   * @return the highlighted text, or null for a row without one
+   */
+  public String highlightedText(int row) {
+    TableItem item = table.getItem(row);
+    Row loaded = highlighted(item);
+    if (loaded == null) {
+      return null;
+    }
+    String text = item.getText();
+    int[] range = highlight(loaded, text.length());
+    return text.substring(range[0], range[1]);
   }
 
   /**

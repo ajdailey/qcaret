@@ -54,6 +54,15 @@ class TextSearchTest {
   }
 
   @Test
+  void aSnippetKeepsControlCharsAndTabsAndTrimsOnlyWhitespace() {
+    String text = " \t\u001bk\tey\u0007\u001f \u0085x\t \n";
+    List<String> expected = List.of("0:2 \u001bk\tey\u0007\u001f \u0085x [\u001bk\tey\u0007]");
+    TextSearch.Outcome plain =
+        TextSearch.search(literal("\u001bk\tey\u0007"), text, null, 100, 1000, LIVE);
+    assertEquals(expected, describe(plain));
+  }
+
+  @Test
   void aLongLineIsCutAroundTheMatch() {
     String line = "x".repeat(2000) + "key" + "y".repeat(2000);
     TextSearch.Hit hit =

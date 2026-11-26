@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.BookmarkRow;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -18,14 +19,15 @@ import org.eclipse.swt.widgets.TableItem;
 
 /**
  * The Bookmarks list dock: a row of buttons and a summary over a virtual {@link Table} of a {@link
- * BookmarksInput}'s rows, with the line (from 1), the comment and the line's text in three columns.
- * The buttons and summary wrap within the dock ({@link DockBarLayout}), and the comment and text
- * columns share the table's width ({@link TableFit#spread}). The line column is left-aligned, as
- * win32 forces a table's first column. Rows load as they show. Enter and a double click go to the
- * selected row's line, Delete removes its bookmark; Go To, Edit Comment and Remove act on the
- * selected row, Hide hides the dock. The table's context menu is a {@link BookmarksMenu}. The
- * selection keeps its index across changes, within the row count. A cut of over {@value
- * #REMOVE_ROWS} rows replaces the table, as GTK removes rows one by one.
+ * BookmarksInput}'s rows, with the line (from 1), the comment and the line's text in three columns,
+ * its control chars as {@link ControlChars#visible} text. The buttons and summary wrap within the
+ * dock ({@link DockBarLayout}), and the comment and text columns share the table's width ({@link
+ * TableFit#spread}). The line column is left-aligned, as win32 forces a table's first column. Rows
+ * load as they show. Enter and a double click go to the selected row's line, Delete removes its
+ * bookmark; Go To, Edit Comment and Remove act on the selected row, Hide hides the dock. The
+ * table's context menu is a {@link BookmarksMenu}. The selection keeps its index across changes,
+ * within the row count. A cut of over {@value #REMOVE_ROWS} rows replaces the table, as GTK removes
+ * rows one by one.
  */
 final class BookmarksDock {
   /** Rows removed one by one at most; a larger cut replaces the table. */
@@ -213,7 +215,10 @@ final class BookmarksDock {
       return;
     }
     BookmarkRow row = input.row(index);
-    item.setText(new String[] {Integer.toString(row.line() + 1), row.comment(), row.text()});
+    item.setText(
+        new String[] {
+          Integer.toString(row.line() + 1), row.comment(), ControlChars.visible(row.text())
+        });
   }
 
   private void act(Action action) {

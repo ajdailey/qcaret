@@ -50,8 +50,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Bookmark comments in the gutter and the Bookmarks list dock: a commented bookmark's shape and
- * color in both themes, its tooltip, the comment prompt, the list's rows and buttons, and, with
- * {@code -Dqcaret.screenshots=<dir>}, the gutter with a tooltip and the open list as PNG.
+ * color in both themes, its tooltip, the comment prompt, the list's rows (a tab as a space, a
+ * control char as {@code <1B>}) and buttons, and, with {@code -Dqcaret.screenshots=<dir>}, the
+ * gutter with a tooltip and the open list as PNG.
  */
 @Tag("swt")
 class BookmarksSurfaceTest {
@@ -59,7 +60,7 @@ class BookmarksSurfaceTest {
 
   private static final String TEXT =
       "/** Mock totals. */\n"
-          + "final class Totals {\n"
+          + "final class Totals {\t\u001b\n"
           + "  private int total;\n"
           + "\n"
           + "  void add(int value) {\n"
@@ -275,7 +276,7 @@ class BookmarksSurfaceTest {
         },
         "two rows");
     assertTrue(dock.summary().startsWith("Totals.java"), dock.summary());
-    assertArrayEquals(new String[] {"2", "", "final class Totals {"}, dock.cells(0));
+    assertArrayEquals(new String[] {"2", "", "final class Totals { <1B>"}, dock.cells(0));
     assertArrayEquals(
         new String[] {"5", "Adds a mock value", "  void add(int value) {"}, dock.cells(1));
 

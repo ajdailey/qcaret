@@ -296,7 +296,9 @@ apply (measured on Linux, one million lines):
   wide, in the editor, a comparison and File > Print. Caret moves, Backspace
   and Delete take it as one character; copy, save and search keep the
   character. A row holds at most 128 of them: a line with more continues on the
-  next row, also with word wrap off.
+  next row, also with word wrap off. Search Results, the replace preview's
+  matches, the Bookmarks list and the Outline show it as text, such as `<1B>`;
+  Copy and Copy Line there copy the character.
 
 ![The editor with the right margin, indent guides and modified-line marks](images/guide/guides.png)
 
@@ -607,7 +609,8 @@ Clear and Clear All drop sets.
 
 Right-click a row for Open, Copy, Copy All Results, Rerun, Pin, Remove Set,
 Expand All and Collapse All. Copy puts one line per match on the clipboard, as
-`path:line: text`: the row's match, a file's matches or a set's. Copy All
+`path:line: text`: the row's match, a file's matches or a set's. The text keeps
+the line's tabs and control characters. Copy All
 Results copies every set. Expand All and Collapse All open and close every file
 of the row's set.
 

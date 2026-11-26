@@ -13,8 +13,34 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** The control chars drawn as boxes, their two columns and the block edge rule across them. */
+/**
+ * The control chars drawn as boxes, their two columns, their table cell text and the block edge
+ * rule across them.
+ */
 class ControlCharsTest {
+  @Test
+  void visibleShowsEachControlAsItsHexInAngleBrackets() {
+    String plain = "tab\tand text";
+    assertSame(plain, ControlChars.visible(plain));
+    assertEquals("<1B>[0m<00>x<7F><9D>", ControlChars.visible("\u001b[0m\u0000x\u007f\u009d"));
+    assertEquals("a<07>\t", ControlChars.visible("a\u0007\t"));
+  }
+
+  @Test
+  void visibleOffsetLandsOnTheSameCharInTheVisibleText() {
+    String text = "\u001bab\u0007c\u0081";
+    String shown = ControlChars.visible(text);
+    for (int i = 0; i < text.length(); i++) {
+      int at = ControlChars.visibleOffset(text, i);
+      char c = text.charAt(i);
+      String expected = ControlChars.boxed(c) ? "<" + ControlChars.label(c) + ">" : "" + c;
+      assertEquals(expected, shown.substring(at, at + expected.length()), String.valueOf(i));
+    }
+    assertEquals(shown.length(), ControlChars.visibleOffset(text, text.length()));
+    int start = ControlChars.visibleOffset(text, 1);
+    assertEquals("ab<07>", shown.substring(start, ControlChars.visibleOffset(text, 4)));
+  }
+
   private static TextSnapshot text(String chars) {
     return Document.of(
             chars,

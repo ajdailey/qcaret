@@ -277,6 +277,13 @@ Xvfb); `ResultRows` maps rows to paths.
   match open it.
 - A match row paints the matched text over the palette's find-match color in
   the palette's text color; a stale row shows in the disabled color.
+- A row shows a tab as a space and a control char as `ControlChars.visible`
+  text, such as `<1B>`, since a native cell draws no control char. The model's
+  text keeps the chars for Copy and Copy All Results. The highlight maps the
+  model's match offsets through `ControlChars.visibleOffset`, which adds 3 for
+  each control char before the offset. The replace preview's match table,
+  the Bookmarks Text column and the Outline tree show control chars the same
+  way.
 - Stop, Rerun, Replace, Pin and Clear act on the selected row's set, Rerun File
   on the selected row's group while it is stale, Clear All on every set, and
   Hide hides the dock.

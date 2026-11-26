@@ -3,8 +3,9 @@ package io.github.ajdailey.qcaret.core.text;
 /**
  * The control chars a view draws as a box holding their two uppercase hex digits: C0 (U+0000 to
  * U+001F) except TAB, DEL (U+007F) and C1 (U+0080 to U+009F). Each takes {@link #WIDTH} display
- * columns. A CR or LF counts only where it does not end a line; line ends are not drawn. The box is
- * display only: copy, save and search keep the char.
+ * columns. A CR or LF counts only where it does not end a line; line ends are not drawn. A native
+ * table cell, which draws no control char, shows {@link #visible} text instead. Both are display
+ * only: copy, save and search keep the char.
  */
 public final class ControlChars {
   /** Display columns of a boxed char. */
@@ -70,5 +71,46 @@ public final class ControlChars {
       }
     }
     return new String(chars);
+  }
+
+  /**
+   * Returns text for a native table cell, which draws no control char: each {@link #boxed} char as
+   * {@code <}, its {@link #label} and {@code >}.
+   *
+   * @param text the text
+   * @return the text, the same instance when it holds no boxed char
+   */
+  public static String visible(String text) {
+    StringBuilder shown = null;
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (boxed(c)) {
+        if (shown == null) {
+          shown = new StringBuilder(text.length() + 8);
+          shown.append(text, 0, i);
+        }
+        shown.append('<').append(LABELS[c]).append('>');
+      } else if (shown != null) {
+        shown.append(c);
+      }
+    }
+    return shown == null ? text : shown.toString();
+  }
+
+  /**
+   * Maps an offset in a text to the same position in its {@link #visible} text.
+   *
+   * @param text the text
+   * @param offset an offset from 0 to the text's length
+   * @return the offset plus 3 for each boxed char before it
+   */
+  public static int visibleOffset(String text, int offset) {
+    int shown = offset;
+    for (int i = 0; i < offset; i++) {
+      if (boxed(text.charAt(i))) {
+        shown += 3;
+      }
+    }
+    return shown;
   }
 }

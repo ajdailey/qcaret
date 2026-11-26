@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.OutlineEntry;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.NativeNames;
@@ -27,8 +28,9 @@ import org.eclipse.swt.widgets.TreeItem;
  * text goes to it and keeps the focus in the tree; Enter and a double click go to it and focus the
  * editor. Arrows and type-ahead move the selection only, as the platform's tree does. A refresh
  * creates the missing items in slices of {@value #SLICE_ITEMS}, one per UI turn, so a long heading
- * list never holds the UI thread; a newer refresh abandons the running fill. The window's {@link
- * ChromeColors} color the tree under the theme.
+ * list never holds the UI thread; a newer refresh abandons the running fill. A heading's control
+ * chars show as {@link ControlChars#visible} text. The window's {@link ChromeColors} color the tree
+ * under the theme.
  */
 final class OutlineDock {
   /** Items created per UI turn. */
@@ -178,7 +180,9 @@ final class OutlineDock {
   }
 
   private static String label(OutlineEntry entry) {
-    return entry.text().isEmpty() ? UiText.OUTLINE_EMPTY_HEADING.text() : entry.text();
+    return entry.text().isEmpty()
+        ? UiText.OUTLINE_EMPTY_HEADING.text()
+        : ControlChars.visible(entry.text());
   }
 
   /**

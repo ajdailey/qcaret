@@ -204,7 +204,7 @@ public final class ReplaceDialog {
             if (shownFile >= 0
                 && shownFile < input.fileCount()
                 && event.index < input.matchCount(shownFile)) {
-              item.setText(input.match(shownFile, event.index).text());
+              item.setText(ResultsDock.cell(input.match(shownFile, event.index).text()));
               item.setChecked(input.matchChecked(shownFile, event.index));
             }
           }
@@ -391,6 +391,16 @@ public final class ReplaceDialog {
     event.item = item;
     event.detail = SWT.CHECK;
     matches.notifyListeners(SWT.Selection, event);
+  }
+
+  /**
+   * Returns a match row's text as shown, for tests.
+   *
+   * @param match the match's row in the shown file
+   * @return the text
+   */
+  public String matchText(int match) {
+    return matches.getItem(match).getText();
   }
 
   /** Presses Apply, for tests. */

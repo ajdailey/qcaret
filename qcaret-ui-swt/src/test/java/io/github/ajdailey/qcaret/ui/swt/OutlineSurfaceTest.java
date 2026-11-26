@@ -53,14 +53,15 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * The Outline dock in a real window: it follows tab switches, a click on a heading moves the caret
  * and, in Split, the preview, Enter goes too, the toggle and Hide show and hide it, a theme switch
- * reaches it, and a long heading list fills in slices.
+ * reaches it, a long heading list fills in slices, and a heading's control char shows as {@code
+ * <01>}.
  */
 @Tag("swt")
 class OutlineSurfaceTest {
   private static final Duration BOUND = Duration.ofSeconds(30);
 
   private static final String GUIDE =
-      "# Mock guide\n\nIntro.\n\n## Setup\n\n### Steps\n\n## Usage\n";
+      "# Mock guide\n\nIntro.\n\n## Setup\n\n### St\u0001eps\n\n## Usage\n";
 
   @TempDir Path temp;
 
@@ -209,7 +210,7 @@ class OutlineSurfaceTest {
     assertTrue(top.getExpanded());
     assertEquals(2, top.getItemCount());
     assertEquals("Setup", top.getItem(0).getText());
-    assertEquals("Steps", top.getItem(0).getItem(0).getText());
+    assertEquals("St<01>eps", top.getItem(0).getItem(0).getText());
     assertEquals("guide.md: 4 headings", window.outlineDock().summary().getText());
 
     openFile("notes.txt", "# plain text\n", false);
@@ -345,7 +346,7 @@ class OutlineSurfaceTest {
     editor.goTo(6, 0);
     flush();
     Tree tree = window.outlineDock().tree();
-    assertEquals("Steps", tree.getSelection()[0].getText());
+    assertEquals("St<01>eps", tree.getSelection()[0].getText());
     editor.goTo(0, 0);
     flush();
     assertEquals("Mock guide", tree.getSelection()[0].getText());

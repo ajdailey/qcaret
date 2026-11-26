@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.core.buffer.ChunkVisitor;
 import io.github.ajdailey.qcaret.core.buffer.TextContent;
 import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,8 +21,8 @@ import java.util.List;
  *       range's end does not.
  *   <li>A {@link PatternTooComplexException} ends the search: the outcome keeps the matches before
  *       the line that overflowed and names that line in {@link Outcome#tooComplexLine}.
- *   <li>The snippet is the match's first line with control chars as spaces and the leading and
- *       trailing whitespace removed; a line over {@value #SNIPPET_CHARS} chars is cut to that many
+ *   <li>The snippet is the match's first line with the leading and trailing whitespace removed,
+ *       {@link ControlChars} kept; a line over {@value #SNIPPET_CHARS} chars is cut to that many
  *       around the match. A multi-line match is shown by its first line.
  * </ul>
  */
@@ -426,17 +427,12 @@ public final class TextSearch {
       to = Math.min(lineEnd, from + SNIPPET_CHARS);
     }
     char[] chars = text.subSequence(from, to).toString().toCharArray();
-    for (int i = 0; i < chars.length; i++) {
-      if (chars[i] < ' ' || chars[i] == 0x7f) {
-        chars[i] = ' ';
-      }
-    }
     int lead = 0;
-    while (lead < chars.length && lead < m.start() - from && Character.isWhitespace(chars[lead])) {
+    while (lead < chars.length && lead < m.start() - from && blank(chars[lead])) {
       lead++;
     }
     int trail = chars.length;
-    while (trail > lead && trail > m.start() - from && Character.isWhitespace(chars[trail - 1])) {
+    while (trail > lead && trail > m.start() - from && blank(chars[trail - 1])) {
       trail--;
     }
     String snippet = new String(chars, lead, trail - lead);
@@ -452,6 +448,11 @@ public final class TextSearch {
         snippetStart,
         Math.max(snippetStart, snippetEnd),
         hash);
+  }
+
+  /** Reports whether a snippet trims a char: whitespace that is not a control char. */
+  private static boolean blank(char c) {
+    return Character.isWhitespace(c) && !ControlChars.boxed(c);
   }
 
   /** Line geometry of a text. */

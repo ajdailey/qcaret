@@ -50,9 +50,9 @@ from a snapshot, and HyperSearch reuses them.
 
 `TextSearch.search` lists every match of a `TextMatcher` in one text (a
 snapshot or a decoded file) as `Hit`s: offsets, line, column, the hash of the
-matched text and a snippet of the first line, control chars as spaces, trimmed,
-and cut to 500 chars around the match on a longer line. Optional ranges limit
-it to the selections; a match then lies inside one.
+matched text and a snippet of the first line, trimmed of whitespace but not
+control chars, and cut to 500 chars around the match on a longer line. Optional
+ranges limit it to the selections; a match then lies inside one.
 
 - A line over `maxLineChars` is not searched. One chunked pass finds those
   lines; each searched stretch ends before a skipped line, so no match runs

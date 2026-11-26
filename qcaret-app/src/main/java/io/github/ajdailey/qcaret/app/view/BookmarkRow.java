@@ -5,6 +5,6 @@ package io.github.ajdailey.qcaret.app.view;
  *
  * @param line the zero-based line
  * @param comment the bookmark's comment, empty without one
- * @param text the line's first chars, tabs and control chars shown as spaces
+ * @param text the line's first chars, tabs as spaces
  */
 public record BookmarkRow(int line, String comment, String text) {}

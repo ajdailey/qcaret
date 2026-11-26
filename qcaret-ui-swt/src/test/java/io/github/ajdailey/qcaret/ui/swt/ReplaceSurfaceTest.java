@@ -49,10 +49,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Replace in a real window: the dock's Replace opens the preview over a tree search, a typed
- * replacement and an unchecked match change the before and after view, Apply writes the files and
- * opens the report, and the report's Restore Run writes them back in a second report. With {@code
- * -Dqcaret.screenshots=<dir>} it saves {@code replace-preview.png} and {@code replace-report.png}
- * there.
+ * replacement and an unchecked match change the before and after view, a match row shows a control
+ * char as {@code <1B>}, Apply writes the files and opens the report, and the report's Restore Run
+ * writes them back in a second report. With {@code -Dqcaret.screenshots=<dir>} it saves {@code
+ * replace-preview.png} and {@code replace-report.png} there.
  */
 @Tag("swt")
 class ReplaceSurfaceTest {
@@ -130,7 +130,7 @@ class ReplaceSurfaceTest {
     Path first = tree.resolve("config.properties");
     Files.writeString(
         first,
-        "# mock settings\nhost=alpha.example\nport=8080\nbackup.host=alpha.example\n",
+        "# mock settings\nhost=alpha.example\nport=8080\nbackup.host=alpha.example\u001b\n",
         StandardCharsets.UTF_8);
     Path second = Files.createDirectories(tree.resolve("sub")).resolve("notes.txt");
     Files.writeString(
@@ -143,6 +143,7 @@ class ReplaceSurfaceTest {
     assertNotNull(preview);
     preview.setReplacement("beta.example");
     awaitPreview(preview, "+ host=beta.example");
+    assertEquals("4: backup.host=alpha.example<1B>", preview.matchText(1));
     preview.checkMatch(1, false);
     awaitPreview(preview, "backup.host=alpha.example");
     assertFalse(
