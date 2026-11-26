@@ -41,6 +41,10 @@ bundled scheme or a theme file included; plain text and the header are black. A
 device depth of 1 prints all black. GTK reports depth 0 and macOS the screen's
 depth, so there the print system converts color for a monochrome printer.
 
+A control char is a span of its own (`PrintLayout`), two columns wide, which
+`PrintJob` draws with `ControlBoxes.draw` in the print font: the box and label
+in `ControlBoxes.ink` of the span's color on white, black on a depth-1 printer.
+
 ## Rendered Markdown
 
 `PrintJob.startMarkdown` starts the job as `start` does and returns a

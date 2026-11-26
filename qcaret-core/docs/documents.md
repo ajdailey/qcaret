@@ -94,7 +94,7 @@ clear it. `Document.markUnsaved` makes a document dirty until the next
 | `Selection` | Anchor, caret and preferred visual column; empty is a caret |
 | `SelectionSet` | Immutable, sorted, with one primary; selections that overlap or touch merge when the set is built. A set from `apart` (the occurrence commands) keeps two non-empty selections that only touch apart, and so does every set mapped from it |
 | `SelectionModel` | One view's selections, from `Document.newSelectionModel()`, mapped through every change: a caret moves past an insert at it, a range does not grow at either end. `set` is a user move and ends typing coalescing. An offset that `set` or a change leaves inside a CR LF or a surrogate pair moves to the pair's start, so no selection reaches the widget there |
-| `BlockSelection` | Lines and visual columns (`Columns`: tabs to the next stop, East Asian wide chars 2). `rows` gives one `BlockRow` per line with the spaces typing must insert to reach the left column on a short line; a block as wide as nothing has empty rows, before a tab or wide char its column falls inside; in block mode the model maps the block's lines and rebuilds its selections |
+| `BlockSelection` | Lines and visual columns (`Columns`: tabs to the next stop, East Asian wide chars and `ControlChars` control chars 2). `rows` gives one `BlockRow` per line with the spaces typing must insert to reach the left column on a short line; a column edge inside a tab, wide char or control char takes that char whole; a block as wide as nothing has empty rows, before a tab or wide char its column falls inside; in block mode the model maps the block's lines and rebuilds its selections |
 
 ### Line endings and encoding
 

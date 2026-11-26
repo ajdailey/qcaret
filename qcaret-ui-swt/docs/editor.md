@@ -16,6 +16,12 @@ The adapter turns each projection change into one `textChanging` and
 It sends no `textSet`; a loaded document gets a new adapter, read in
 `setContent`. `setText` goes to the controller as an edit.
 
+`getLine`, which the widget lays out and paints, gives each row through
+`ControlChars.shown`: every control char is U+FFFC, which no toolkit treats as
+a line break ([Control chars](#control-chars)). `getTextRange`, which copy,
+drag and drop, the primary selection and accessibility read, gives the original
+chars.
+
 On Windows `StyledText` reads the replaced text in `textChanging` and the
 inserted text in `textChanged` through `getTextRange`, for its accessible text
 event, whether or not a screen reader runs; on GTK it does so only once an
@@ -198,6 +204,32 @@ and sets the gutter's tooltip.
   `PlatformTraits.busyCursor` over the text and gutter while either is on.
 - Each paint that shows another display range reports it through
   `EditorInput.viewportChanged`.
+
+### Control chars
+
+`ControlBoxes` draws each char `ControlChars.boxed` accepts as its
+`ControlChars.label` in a box two columns wide, on every platform; the toolkit's own rendering of these
+chars never shows. `DiffWindow` uses it too, over a `ShownContent`.
+
+- `styles` gives each run of placeholders within one line style a `StyleRange`
+  of its own with `GlyphMetrics`: `ColumnMetrics.x(2)` wide, the font's ascent
+  and descent, so the row height stays. The run's original chars are its
+  `data`. A row without U+FFFC keeps its styles array, and a row with a real
+  U+FFFC reads its original text to tell the two apart.
+- A `PaintObjectListener` draws, inside the GC's clipping, the label in the
+  editor font from the cell's left edge on the text baseline, and a 1 px
+  outline from that edge to the pixel before the cell's right edge, 1 px below
+  the row top and 1 px above the row's last pixel. Both take `ControlBoxes.ink`:
+  the text color (selection text, a style's foreground) over the ground under
+  the cell (the selection, a style's background such as a find match, the
+  current line, else the editor's) at `ALPHA` `0xA6`, or the text color itself
+  where that blend is under 3:1 (a theme file). Light `#6B7785` on white
+  4.56:1, dark `#99A6B4` 5.57:1; geometry and alpha match QLogg.
+- `StyledText` measures each `GlyphMetrics` style with a pass over its row, so
+  a row's paint costs its boxes times its length; `RowBreaks` ends a row at 128
+  control chars ([display projection](../../qcaret-app/docs/display-projection.md)).
+- The caret steps over the cell as one char, and a click inside it lands at
+  the nearer edge (`TextLayout` trailing).
 
 ### Primary caret
 

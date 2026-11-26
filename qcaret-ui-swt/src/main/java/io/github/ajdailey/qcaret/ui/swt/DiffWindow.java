@@ -1,22 +1,30 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.view.Comparison;
+import io.github.ajdailey.qcaret.ui.swt.editor.ControlBoxes;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.editor.ShownContent;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
+import java.util.ArrayList;
+import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretEvent;
 import org.eclipse.swt.custom.CaretListener;
 import org.eclipse.swt.custom.LineBackgroundEvent;
 import org.eclipse.swt.custom.LineBackgroundListener;
+import org.eclipse.swt.custom.LineStyleEvent;
+import org.eclipse.swt.custom.LineStyleListener;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -30,9 +38,9 @@ import org.eclipse.swt.widgets.Shell;
 /**
  * A read-only side-by-side view of a {@link Comparison}: two {@code StyledText} controls in a
  * {@link SashForm}, each row's background showing its kind, the top row and horizontal offset kept
- * equal on both sides, the side that moved leading. It opens at the first difference; Next and
- * Previous Difference (F7 and Shift+F7) scroll both sides to a run of changed rows. Modeless and
- * owned by the main window; {@link #setPalette} recolors it.
+ * equal on both sides, the side that moved leading. Control chars draw as {@link ControlBoxes}. It
+ * opens at the first difference; Next and Previous Difference (F7 and Shift+F7) scroll both sides
+ * to a run of changed rows. Modeless and owned by the main window; {@link #setPalette} recolors it.
  */
 final class DiffWindow {
   /** Rows shown above a difference scrolled to. */
@@ -43,6 +51,7 @@ final class DiffWindow {
   private final StyledText left;
   private final StyledText right;
   private final Label position;
+  private final List<ControlBoxes> boxes = new ArrayList<ControlBoxes>();
   private Font font;
   private Palette palette;
   private int current = -1;
@@ -119,6 +128,9 @@ final class DiffWindow {
     font = new Font(shell.getDisplay(), fontData);
     left.setFont(font);
     right.setFont(font);
+    for (ControlBoxes side : boxes) {
+      side.setFont(font, cellWidth(left));
+    }
     old.dispose();
   }
 
@@ -137,6 +149,34 @@ final class DiffWindow {
     view.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     view.setFont(font);
     view.setText(text);
+    final ShownContent shown = new ShownContent(view.getContent());
+    view.setContent(shown);
+    final ControlBoxes sideBoxes =
+        new ControlBoxes(
+            view,
+            new ControlBoxes.Rows() {
+              @Override
+              public String original(int rowOffset) {
+                return shown.original(view.getLineAtOffset(rowOffset));
+              }
+
+              @Override
+              public Color background(int rowOffset) {
+                int row = view.getLineAtOffset(rowOffset);
+                return row < comparison.rows().size()
+                    ? DiffWindow.this.background(comparison.rows().get(row), isLeft)
+                    : null;
+              }
+            });
+    sideBoxes.setFont(font, cellWidth(view));
+    boxes.add(sideBoxes);
+    view.addLineStyleListener(
+        new LineStyleListener() {
+          @Override
+          public void lineGetStyle(LineStyleEvent event) {
+            event.styles = sideBoxes.styles(event.lineOffset, event.lineText, event.styles);
+          }
+        });
     view.addLineBackgroundListener(
         new LineBackgroundListener() {
           @Override
@@ -172,6 +212,17 @@ final class DiffWindow {
    * caret move or a paint, when they differ from the last position either side reached: the side
    * that moved leads, and a stale paint of the other side does not pull it back.
    */
+  /** Returns the width of two columns of the font {@code view} shows. */
+  private int cellWidth(StyledText view) {
+    GC gc = new GC(view);
+    try {
+      gc.setFont(font);
+      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x).x(2);
+    } finally {
+      gc.dispose();
+    }
+  }
+
   private void follow(final StyledText view, final StyledText other) {
     Listener sync =
         new Listener() {

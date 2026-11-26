@@ -227,6 +227,18 @@ class PrintLayoutTest {
   }
 
   @Test
+  void aControlCharIsASpanOfItsOwnTwoColumnsWide() {
+    PrintLayout layout = layout(source("a\u0001bc", false), 4, 9);
+    List<PrintTarget.Span> spans = layout.page(1, GO).rows().get(0).spans();
+    assertEquals(3, spans.size());
+    assertEquals("\u0001", spans.get(1).text());
+    assertEquals(1, spans.get(1).column());
+    assertEquals("b", spans.get(2).text());
+    assertEquals(3, spans.get(2).column());
+    assertEquals("c", rows(layout, 1).get(1));
+  }
+
+  @Test
   void aSpanKeepsItsColumnAfterATabAndAWideChar() {
     PrintSource source = new PrintSource("n", text("一\tint x;"), NONE, 4, false, java(), 100);
     PrintLayout layout = PrintLayout.of(source, false, new PrintTarget.Frame(40, 9), GO);

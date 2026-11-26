@@ -8,8 +8,9 @@ column metrics and bookmarks.
 
 `DisplayProjection` maps a document's text to the display text an editor shows:
 model lines split into rows at virtual breaks, one display char each, where
-word wrap ends a row or a line passes `MAX_ROW_CHARS` (16,384). A line without
-breaks maps one to one. A display offset on a virtual break maps to the model
+word wrap ends a row, a line passes `MAX_ROW_CHARS` (16,384) or a row reaches
+`RowBreaks.MAX_ROW_CONTROLS` (128) control chars. A line without breaks maps
+one to one. A display offset on a virtual break maps to the model
 offset of the break; a model offset at a break maps to the start of the next
 row.
 
@@ -22,8 +23,11 @@ row.
   to 8 times as much (measured on 1M lines).
 - `RowBreaks` places a line's breaks: a row ends where the next char would pass
   the wrap column, after the row's last space or tab when it has one, and holds
-  at most `MAX_ROW_CHARS` chars. Columns count from the row start (tab stops,
-  wide chars 2), and a surrogate pair is never split.
+  at most `MAX_ROW_CHARS` chars and 128 control chars. Columns count from the
+  row start (tab stops, wide chars and control chars 2), and a surrogate pair
+  is never split. The control cap bounds the paint of a row
+  ([editor pane](../../qcaret-ui-swt/docs/editor.md#control-chars)); without
+  wrap, the one scan that finds long lines also counts control chars.
 - `RowIndex` keeps only the lines with breaks, sorted, with their breaks in one
   array; edits replace a line range and shift the tail. A batch with several
   line groups goes through `replaceAll`, one pass over all entries, since a
@@ -132,6 +136,12 @@ measured width of 1,000 digits over 1,000, kept fractional, and column `c`
 starts at `round(c * advance)`. The gutter width, the wrap width in columns and
 the right margin line use it; text outside printable ASCII, and the indent
 guides, are placed at the widget's measured glyph positions.
+
+`Columns` in core counts a `ControlChars` control char (C0 except TAB, DEL, C1)
+as 2 columns, so the caret column, the status bar, Go to Line, block selection,
+vertical moves and wrap all count it as 2; the editor's box is
+`ColumnMetrics.x(2)` wide. QCaret's model ends a line at every CR and LF, so
+neither sits inside a line.
 
 ## Bookmarks
 

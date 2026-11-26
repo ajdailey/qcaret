@@ -349,6 +349,18 @@ class PrintOutputTest {
   }
 
   @Test
+  void aControlCharPrintsAsABoxWithItsHexDigits() throws Exception {
+    PrinterData data = requirePrinter();
+    openFile("mock\u001bvalue\u0081end\n");
+    print(data);
+    awaitOutput();
+    String text = pageText(1);
+    assertTrue(text.contains("1B"), text);
+    assertTrue(text.contains("81"), text);
+    assertFalse(text.contains("\u001b"), text);
+  }
+
+  @Test
   void aPageRangePrintsThosePagesUnderTheWholeCount() throws Exception {
     PrinterData data = requirePrinter();
     openFile(numbered(200));

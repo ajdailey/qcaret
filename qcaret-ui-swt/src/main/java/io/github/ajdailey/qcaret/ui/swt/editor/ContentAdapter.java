@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt.editor;
 
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.custom.StyledTextContent;
@@ -11,13 +12,15 @@ import org.eclipse.swt.custom.TextChangingEvent;
 
 /**
  * The {@link StyledTextContent} a {@code StyledText} reads: the display text of a {@link
- * DisplayProjection}, one widget line per display row. The model is the only authority. The widget
- * never changes the text itself: {@link #replaceTextRange}, which the widget calls directly only
- * for input method composition text, goes to {@link EditorInput#preeditFromView}, outside undo;
- * {@link #setText} goes to the {@link EditorInput} as an edit. The text changes when the document
- * reports it. Each projection change becomes one {@code textChanging} and {@code textChanged} pair.
- * The adapter never sends {@code textSet}: a loaded document gets a new adapter, which the widget
- * reads whole in {@code setContent}.
+ * DisplayProjection}, one widget line per display row. {@link #getLine} gives {@link
+ * ControlChars#shown} rows for layout and painting; {@link #getTextRange}, which copy, drag and
+ * accessibility read, gives the original chars. The model is the only authority. The widget never
+ * changes the text itself: {@link #replaceTextRange}, which the widget calls directly only for
+ * input method composition text, goes to {@link EditorInput#preeditFromView}, outside undo; {@link
+ * #setText} goes to the {@link EditorInput} as an edit. The text changes when the document reports
+ * it. Each projection change becomes one {@code textChanging} and {@code textChanged} pair. The
+ * adapter never sends {@code textSet}: a loaded document gets a new adapter, which the widget reads
+ * whole in {@code setContent}.
  */
 final class ContentAdapter implements StyledTextContent, DisplayProjection.Listener {
   private final DisplayProjection projection;
@@ -97,7 +100,7 @@ final class ContentAdapter implements StyledTextContent, DisplayProjection.Liste
 
   @Override
   public String getLine(int lineIndex) {
-    return projection.rowText(lineIndex);
+    return ControlChars.shown(projection.rowText(lineIndex));
   }
 
   @Override

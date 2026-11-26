@@ -375,7 +375,9 @@ leaves it open, and closing it answers Keep Mine, or Cancel for a save.
 `DiffWindow` shows a `Comparison`: a modeless window owned by the main window,
 two read-only monospace `StyledText` controls in a `SashForm`, each row's
 background from `Palette.diffRemoved`, `diffAdded` and `diffChanged` (a filler
-row in the gutter color), recolored on a palette change.
+row in the gutter color), recolored on a palette change. Each side's content is
+a `ShownContent` over the widget's own, and `ControlBoxes` draws its control
+chars ([editor pane](editor.md#control-chars)); copy reads the original chars.
 
 - After a scroll bar move, a caret move or a paint, each side copies its top
   line and horizontal offset to the other when they differ from the last

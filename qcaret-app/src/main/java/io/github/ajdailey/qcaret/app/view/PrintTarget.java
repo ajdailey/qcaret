@@ -18,7 +18,8 @@ public interface PrintTarget {
   record Frame(int columns, int rows) {}
 
   /**
-   * A run of text with one role.
+   * A run of text with one role. A {@link io.github.ajdailey.qcaret.core.text.ControlChars} control
+   * char is a span of its own, two columns wide, which the target draws as a box.
    *
    * @param text the chars, tabs expanded
    * @param column the row column it starts at

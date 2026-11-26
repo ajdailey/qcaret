@@ -122,6 +122,7 @@ import org.eclipse.swt.widgets.Slider;
  *   <li>Indent guides: {@link IndentGuidePainter} after {@link #setIndentGuides}, before the
  *       whitespace marks.
  *   <li>Format error mark: {@link ErrorMarkPainter} after {@link #showErrorMark}.
+ *   <li>Control chars: {@link ControlBoxes} draws each as a boxed hex code two columns wide.
  *   <li>Modified-line marks: {@link LineChangePainter} in the gap between the gutter and the text
  *       after {@link #setLineChangesShown}, which tells {@link EditorInput#lineChangesShown}. While
  *       a document is too large for marks, the gutter's tooltip says so where no bookmark comment
@@ -174,6 +175,7 @@ public final class EditorPane implements EditorView {
   private Image caretImage;
   private final PaneHighlights highlights;
   private final PanePainter painter;
+  private final ControlBoxes boxes;
   private int pendingTop = -1;
   private int reportedStart = -1;
   private int reportedEnd = -1;
@@ -244,6 +246,20 @@ public final class EditorPane implements EditorView {
     text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     highlights = new PaneHighlights(projection, selections);
     painter = new PanePainter(this, text, projection, selections);
+    boxes =
+        new ControlBoxes(
+            text,
+            new ControlBoxes.Rows() {
+              @Override
+              public String original(int rowOffset) {
+                return projection.rowText(projection.rowAt(rowOffset));
+              }
+
+              @Override
+              public Color background(int rowOffset) {
+                return changing ? null : rowBackground(rowOffset);
+              }
+            });
     strip =
         new OverviewStrip(
             frame,
@@ -772,6 +788,7 @@ public final class EditorPane implements EditorView {
     } finally {
       gc.dispose();
     }
+    boxes.setFont(font, metrics.x(2));
     gutterDigits = 0;
     updateGutter();
     updateCaret();
@@ -1033,13 +1050,8 @@ public final class EditorPane implements EditorView {
         new LineBackgroundListener() {
           @Override
           public void lineGetBackground(LineBackgroundEvent event) {
-            if (changing) {
-              return;
-            }
-            Selection primary = selections.selections().primary();
-            int row = projection.rowAt(event.lineOffset);
-            if (projection.lineOfRow(row) == projection.lineAt(primary.caret())) {
-              event.lineBackground = currentLine;
+            if (!changing) {
+              event.lineBackground = rowBackground(event.lineOffset);
             }
           }
         });
@@ -1047,7 +1059,11 @@ public final class EditorPane implements EditorView {
         new LineStyleListener() {
           @Override
           public void lineGetStyle(LineStyleEvent event) {
-            event.styles = highlights.styles(event.lineOffset, event.lineText.length());
+            event.styles =
+                boxes.styles(
+                    event.lineOffset,
+                    event.lineText,
+                    highlights.styles(event.lineOffset, event.lineText.length()));
           }
         });
     Listener tipFollower =
@@ -1235,7 +1251,16 @@ public final class EditorPane implements EditorView {
    * @return the row's styles, offsets in the display text
    */
   public StyleRange[] rowStyles(int row) {
-    return highlights.styles(projection.rowStart(row), projection.rowText(row).length());
+    int start = projection.rowStart(row);
+    String shown = text.getContent().getLine(row);
+    return boxes.styles(start, shown, highlights.styles(start, shown.length()));
+  }
+
+  /** Returns the current line's background for the caret line's rows, else null. */
+  private Color rowBackground(int rowOffset) {
+    Selection primary = selections.selections().primary();
+    int row = projection.rowAt(rowOffset);
+    return projection.lineOfRow(row) == projection.lineAt(primary.caret()) ? currentLine : null;
   }
 
   /** Reports the visible display range when it differs from the last one reported. */

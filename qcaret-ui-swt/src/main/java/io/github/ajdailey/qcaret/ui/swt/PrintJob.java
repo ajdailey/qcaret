@@ -9,6 +9,8 @@ import io.github.ajdailey.qcaret.app.view.MarkdownImageRequest;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewContent;
 import io.github.ajdailey.qcaret.app.view.MarkdownPrintSheet;
 import io.github.ajdailey.qcaret.app.view.PrintTarget;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
+import io.github.ajdailey.qcaret.ui.swt.editor.ControlBoxes;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPrinting;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
@@ -25,10 +27,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A print job on an SWT {@link Printer}: black on white, with {@link Palette#LIGHT}'s token colors.
- * The Printer is created and disposed on the UI thread: on GTK its constructor runs a main loop in
- * {@code gtk_enumerate_printers}, and on macOS it creates an {@code NSWindow}. Everything between
- * runs on one platform worker. SWT checks the thread on widgets only, not on a Printer or its GC.
+ * A print job on an SWT {@link Printer}: black on white, with {@link Palette#LIGHT}'s token colors
+ * and each boxed char span drawn as a {@link ControlBoxes} box. The Printer is created and disposed
+ * on the UI thread: on GTK its constructor runs a main loop in {@code gtk_enumerate_printers}, and
+ * on macOS it creates an {@code NSWindow}. Everything between runs on one platform worker. SWT
+ * checks the thread on widgets only, not on a Printer or its GC.
  *
  * <p>Margins are measured from the paper's edge through {@code computeTrim}. A device depth of 1
  * prints black; GTK reports 0 and macOS the screen's depth, so there the print system converts
@@ -228,6 +231,10 @@ final class PrintJob implements PrintTarget {
         }
         for (Span span : row.spans()) {
           TokenStyle style = span.role() == null ? null : Palette.LIGHT.style(span.role());
+          if (span.text().length() == 1 && ControlChars.boxed(span.text().charAt(0))) {
+            box(span, page.gutter() + span.column(), y, style == null ? null : style.foreground());
+            continue;
+          }
           gc.setFont(font(style != null && style.bold(), style != null && style.italic()));
           draw(
               span.text(),
@@ -261,6 +268,26 @@ final class PrintJob implements PrintTarget {
   private void draw(String text, int column, int y, Rgb rgb) {
     gc.setForeground(color && rgb != null ? new Color(rgb.red(), rgb.green(), rgb.blue()) : BLACK);
     gc.drawString(text, left + (int) Math.round(column * advance), y, true);
+  }
+
+  /** Draws a boxed char over two columns, in {@link ControlBoxes#ink} on white. */
+  private void box(Span span, int column, int y, Rgb rgb) {
+    int x = left + (int) Math.round(column * advance);
+    int width = left + (int) Math.round((column + 2) * advance) - x;
+    Color ink = BLACK;
+    if (color) {
+      Rgb on = ControlBoxes.ink(rgb == null ? Rgb.of(0) : rgb, Rgb.of(0xffffff));
+      ink = new Color(on.red(), on.green(), on.blue());
+    }
+    ControlBoxes.draw(
+        gc,
+        font(false, false),
+        ink,
+        x,
+        y,
+        width,
+        rowHeight,
+        ControlChars.label(span.text().charAt(0)));
   }
 
   private Font font(boolean bold, boolean italic) {

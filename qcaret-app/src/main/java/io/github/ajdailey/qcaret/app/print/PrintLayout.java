@@ -10,6 +10,7 @@ import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
 import io.github.ajdailey.qcaret.core.document.Columns;
 import io.github.ajdailey.qcaret.core.syntax.TokenList;
 import io.github.ajdailey.qcaret.core.syntax.Tokenizer;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -213,7 +214,11 @@ public final class PrintLayout {
         break;
       }
       if (out != null) {
-        out.add(i, column, Character.toString(point));
+        if (point < 0xa0 && ControlChars.boxed(c)) {
+          out.addControl(i, column, c);
+        } else {
+          out.add(i, column, Character.toString(point));
+        }
       }
       column += advance;
       i += count;
@@ -280,6 +285,13 @@ public final class PrintLayout {
         runColumn = column;
       }
       run.append(chars);
+    }
+
+    /** Adds a control char as a span of its own, which the target draws as a box. */
+    void addControl(int index, int column, char c) {
+      flush();
+      role = roleAt(index);
+      spans.add(new PrintTarget.Span(String.valueOf(c), column, role));
     }
 
     private TokenRole roleAt(int index) {

@@ -1,10 +1,13 @@
 package io.github.ajdailey.qcaret.core.document;
 
+import io.github.ajdailey.qcaret.core.text.ControlChars;
+
 /**
  * Visual columns: a tab advances to the next multiple of the tab width, an East Asian wide or
- * fullwidth code point takes 2 columns, every other code point 1. The wide ranges are the main
- * blocks of Unicode's East Asian Width W and F classes (Hangul Jamo, CJK, Hangul syllables,
- * compatibility ideographs, fullwidth forms, emoji); an ambiguous-width char counts 1.
+ * fullwidth code point and a {@link ControlChars} control char take 2 columns, every other code
+ * point 1. The wide ranges are the main blocks of Unicode's East Asian Width W and F classes
+ * (Hangul Jamo, CJK, Hangul syllables, compatibility ideographs, fullwidth forms, emoji); an
+ * ambiguous-width char counts 1.
  */
 public final class Columns {
   private Columns() {}
@@ -16,6 +19,9 @@ public final class Columns {
    * @return 1 or 2
    */
   public static int width(int codePoint) {
+    if (codePoint < 0xa0) {
+      return ControlChars.boxed((char) codePoint) ? ControlChars.WIDTH : 1;
+    }
     boolean wide =
         (codePoint >= 0x1100 && codePoint <= 0x115f)
             || (codePoint >= 0x2e80 && codePoint <= 0x303e)

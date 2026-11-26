@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.DocumentChange;
 import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.TextEdit;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -18,10 +19,11 @@ import java.util.concurrent.CancellationException;
 
 /**
  * Maps a {@link Document}'s text to the display text a view shows: model lines split into rows at
- * virtual breaks, one display char each, where word wrap ends a row or a line passes {@link
- * #maxRowChars}. A line without breaks maps one to one, so an unwrapped document of short lines
- * costs nothing. A display offset on a virtual break maps to the model offset of the break; a model
- * offset at a break maps to the start of the next row.
+ * virtual breaks, one display char each, where word wrap ends a row, a line passes {@link
+ * #maxRowChars} or a row reaches {@link RowBreaks#MAX_ROW_CONTROLS} control chars. A line without
+ * breaks maps one to one, so an unwrapped document of short lines costs nothing. A display offset
+ * on a virtual break maps to the model offset of the break; a model offset at a break maps to the
+ * start of the next row.
  *
  * <p>The projection answers for the text it last reported ({@link Listener}): during {@link
  * Listener#changing} it still answers for the text before the change, during {@link
@@ -247,12 +249,15 @@ public final class DisplayProjection implements DocumentListener {
     }
   }
 
-  /** Returns the lines in {@code [from, to]} longer than {@code max} chars, by one scan. */
+  /**
+   * Returns the lines in {@code [from, to]} longer than {@code max} chars or holding more than
+   * {@link RowBreaks#MAX_ROW_CONTROLS} control chars, by one scan.
+   */
   static List<Integer> longLines(TextSnapshot text, final int from, int to, final int max) {
     final List<Integer> out = new ArrayList<Integer>();
     int start = text.offsetOfLine(from);
     int end = to + 1 < text.lineCount() ? text.offsetOfLine(to + 1) : text.length();
-    final int[] state = {from, 0, 0};
+    final int[] state = {from, 0, 0, 0};
     text.readChunks(
         start,
         end,
@@ -262,35 +267,42 @@ public final class DisplayProjection implements DocumentListener {
             int line = state[0];
             int run = state[1];
             boolean cr = state[2] != 0;
+            int controls = state[3];
             for (int i = s; i < e; i++) {
               char c = chunk.charAt(i);
               if (c == '\n') {
                 if (!cr) {
-                  if (run > max) {
+                  if (run > max || controls > RowBreaks.MAX_ROW_CONTROLS) {
                     out.add(line);
                   }
                   line++;
                   run = 0;
+                  controls = 0;
                 }
                 cr = false;
               } else if (c == '\r') {
-                if (run > max) {
+                if (run > max || controls > RowBreaks.MAX_ROW_CONTROLS) {
                   out.add(line);
                 }
                 line++;
                 run = 0;
+                controls = 0;
                 cr = true;
               } else {
                 run++;
+                if (ControlChars.boxed(c)) {
+                  controls++;
+                }
                 cr = false;
               }
             }
             state[0] = line;
             state[1] = run;
             state[2] = cr ? 1 : 0;
+            state[3] = controls;
           }
         });
-    if (state[1] > max && state[0] <= to) {
+    if ((state[1] > max || state[3] > RowBreaks.MAX_ROW_CONTROLS) && state[0] <= to) {
       out.add(state[0]);
     }
     return out;
