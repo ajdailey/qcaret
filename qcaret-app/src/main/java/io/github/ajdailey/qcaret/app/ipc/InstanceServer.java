@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
  * at most {@link #MAX_CONNECTIONS} at once; further launches wait in the socket backlog of {@link
  * #BACKLOG}. Authentication and the request run within {@link #EXCHANGE_BOUND}. A peer that fails
  * authentication gets no reply and no file is opened. Each path must be absolute; the {@link
- * Receiver} opens it like a command-line path.
+ * Receiver} opens it like a command-line path. A malformed request gets {@code ERR} once the rest
+ * of it is read, up to {@code END}.
  *
  * <p>Until {@link #deliverTo} names the {@link Receiver}, each authenticated request stays on its
  * open connection, so at most {@link #MAX_CONNECTIONS} requests of {@link Protocol#MAX_OPEN} files
@@ -86,6 +87,9 @@ public final class InstanceServer implements AutoCloseable {
    * InstanceClient#EXCHANGE_BOUND}, so a client reads the {@code ERR} rather than timing out.
    */
   public static final Duration WINDOW_BOUND = Duration.ofSeconds(30);
+
+  /** Most lines read after a refused line: the {@code OPEN} lines, {@code DIFF} and {@code END}. */
+  private static final int SKIPPED_LINES = Protocol.MAX_OPEN + 2;
 
   private static final Logger LOG = LoggerFactory.getLogger(InstanceServer.class);
 
@@ -262,6 +266,9 @@ public final class InstanceServer implements AutoCloseable {
         return;
       }
       StartupRequest request = readRequest(line);
+      if (request == null) {
+        skipToEnd(line);
+      }
       boolean taken = request != null && hand(request);
       line.extendDeadline(System.nanoTime() + EXCHANGE_BOUND.toNanos());
       line.writeLine(taken ? Protocol.OK : Protocol.ERR);
@@ -272,6 +279,23 @@ public final class InstanceServer implements AutoCloseable {
       }
     } catch (IOException e) {
       LOG.debug("Handoff connection ended: {}", LogText.oneLine(e.getMessage()));
+    }
+  }
+
+  /**
+   * Reads and discards lines up to {@code END}, at most {@link #SKIPPED_LINES}, so the {@code ERR}
+   * that follows is not lost: closing a socket with unread bytes resets the connection, and on
+   * Windows the reset discards a reply the client has not read. The deadline or a {@link
+   * LineChannel} bound ends the skip early.
+   */
+  private static void skipToEnd(LineChannel line) {
+    try {
+      int skipped = 0;
+      while (skipped < SKIPPED_LINES && !Protocol.END.equals(line.readLine())) {
+        skipped++;
+      }
+    } catch (IOException e) {
+      LOG.debug("Refused request ended: {}", LogText.oneLine(e.getMessage()));
     }
   }
 

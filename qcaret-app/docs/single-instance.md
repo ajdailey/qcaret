@@ -62,7 +62,10 @@ S: OK | ERR
 - The server proves the token first, so a client sends no file to a process
   without it; a peer that fails `AUTH` gets no reply.
 - A path must be absolute and an encoding known to the runtime, else the
-  request gets `ERR`.
+  request gets `ERR`. The server reads a malformed request's remaining lines
+  up to `END` before it answers: a socket closed with unread bytes sends a
+  reset, and on Windows the reset discards the `ERR` before the client reads
+  it.
 - The client reads only an endpoint file `EndpointCheck` trusts (below).
 - A lost `OK` after the primary acted opens the files twice: the launch cannot
   tell.

@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -142,6 +143,18 @@ class HandoffLimitsTest {
       return line.toString(StandardCharsets.ISO_8859_1);
     }
 
+    /**
+     * Reads the end of the stream. A server that closes with unread request bytes resets the
+     * connection, and Windows then discards a reply the peer has not read.
+     */
+    void assertClosedWithoutReset() throws IOException {
+      try {
+        assertEquals(-1, in.read());
+      } catch (SocketException e) {
+        throw new AssertionError("Reset after the reply", e);
+      }
+    }
+
     @Override
     public void close() throws IOException {
       socket.close();
@@ -255,6 +268,34 @@ class HandoffLimitsTest {
         peer.send(open("f" + i + ".txt"));
       }
       peer.send(Protocol.END);
+      assertEquals(Protocol.ERR, peer.readLine());
+      peer.assertClosedWithoutReset();
+    }
+    assertTrue(received.isEmpty(), received.toString());
+    assertServesTheNextLaunch();
+  }
+
+  /** A malformed WINDOW line is refused after the rest of the request is read. */
+  @Test
+  void aMalformedLineIsRefusedAfterTheRestOfTheRequest() throws Exception {
+    try (Peer peer = new Peer().authenticate()) {
+      peer.send(Protocol.WINDOW + " 2 - - - -");
+      for (int i = 0; i < Protocol.MAX_OPEN; i++) {
+        peer.send(open("f" + i + ".txt"));
+      }
+      peer.send(Protocol.END);
+      assertEquals(Protocol.ERR, peer.readLine());
+      peer.assertClosedWithoutReset();
+    }
+    assertTrue(received.isEmpty(), received.toString());
+    assertServesTheNextLaunch();
+  }
+
+  /** A peer that sends a malformed line and never END gets ERR at the exchange bound. */
+  @Test
+  void aMalformedRequestWithoutEndIsRefusedAtTheExchangeBound() throws Exception {
+    try (Peer peer = new Peer().authenticate()) {
+      peer.send(Protocol.WINDOW);
       assertEquals(Protocol.ERR, peer.readLine());
     }
     assertTrue(received.isEmpty(), received.toString());
