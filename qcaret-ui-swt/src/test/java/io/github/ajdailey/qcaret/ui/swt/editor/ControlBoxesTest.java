@@ -13,7 +13,6 @@ import io.github.ajdailey.qcaret.core.text.ControlChars;
 import java.util.function.IntFunction;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * Splitting a row's styles around its runs of boxed chars, and the box color, without a display.
  */
 class ControlBoxesTest {
-  private static final GlyphMetrics CELL = new GlyphMetrics(10, 3, 16);
+  private static final BoxWidths CELL = new BoxWidths(16, 100, 10, 3);
 
   private static StyleRange style(int start, int length, Color background) {
     StyleRange style = new StyleRange();
@@ -58,7 +57,7 @@ class ControlBoxesTest {
     for (StyleRange s : split) {
       assertSame(back, s.background);
     }
-    assertSame(CELL, split[1].metrics);
+    assertSame(CELL.narrow(), split[1].metrics);
   }
 
   @Test
@@ -78,6 +77,41 @@ class ControlBoxesTest {
     assertEquals("0+1 1+1:7F 2+1:00 3+1", layout(split));
     assertSame(back, split[1].background);
     assertNull(split[2].background);
+  }
+
+  /**
+   * Win32 at 150%: two 11 px columns are 14.67 pt, and whole points lay out at 21 or 23 px. The
+   * text after each box or run of boxes lands within 1 px of its column; a fixed 15 pt box drifted
+   * 1 px per box.
+   */
+  @Test
+  void textAfterEachBoxStaysWithinAPixelOfItsColumnAtAFractionalScale() {
+    assertBoxesTrack(new BoxWidths(2 * 11 / 1.5, 150, 10, 3), 22.0);
+    assertBoxesTrack(new BoxWidths(2 * 7.224, 100, 10, 3), 2 * 7.224);
+    assertBoxesTrack(new BoxWidths(2 * 9.0 / 1.25, 125, 10, 3), 18.0);
+  }
+
+  /** Splits rows of boxes, alone and in a run, and checks where the text after each run starts. */
+  private static void assertBoxesTrack(BoxWidths widths, double cellPixels) {
+    String[] rows = {
+      "a\u0001b\u0002c\u0003d\u0004e\u0005f\u0006g", "\u0001\u0002\u0003\u0004\u0005\u0006\u0007x"
+    };
+    for (String row : rows) {
+      StyleRange[] split = ControlBoxes.split(null, 0, row, widths);
+      int pixels = 0;
+      int boxes = 0;
+      for (StyleRange style : split) {
+        pixels += widths.pixels(style.metrics.width) * style.length;
+        boxes += style.length;
+        int end = style.start + style.length;
+        if (end == row.length() || !ControlChars.boxed(row.charAt(end))) {
+          assertTrue(
+              Math.abs(pixels - boxes * cellPixels) <= 1.0,
+              row + ": text after box " + boxes + " at " + pixels + " for " + boxes * cellPixels);
+        }
+      }
+      assertEquals(row.equals(rows[0]) ? 6 : 7, boxes);
+    }
   }
 
   @Test

@@ -46,6 +46,11 @@ final class MacTraits implements OsTraits {
   }
 
   @Override
+  public ForegroundRights foregroundRights() {
+    return NoForegroundRights.INSTANCE;
+  }
+
+  @Override
   public List<Path> fontDirectories(Map<String, String> env, String home) {
     List<Path> folders = new ArrayList<Path>();
     for (String library : FONT_LIBRARIES) {

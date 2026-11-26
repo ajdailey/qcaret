@@ -376,8 +376,7 @@ apply (measured on Linux, one million lines):
   while windows it owns, such as Show Log, Statistics or a comparison, close,
   and a running Statistics count or Checksums run stops.
   A window with an open dialog, Preferences included, or an open menu changes
-  once it closes. On Windows, menus and context menus keep the theme QCaret
-  started with until the next start. Under dark, dialogs are dark, fields included;
+  once it closes. Under dark, dialogs are dark, fields included;
   on Windows at a display scale such as 150% the selected item of an open
   drop-down list, such as Preferences' Theme, is not visible, while the other
   items read. On macOS menus from
@@ -1139,8 +1138,6 @@ A second launch on the same settings directory passes its files to the running
 QCaret and exits. They open in the window activated last, or a new one with `-n`.
 On macOS this holds for Finder's Open With too when it starts another copy of
 QCaret, such as one installed at another path.
-On Windows a file opened from Explorer into the running instance does not raise
-its window; the window's taskbar button flashes instead.
 Launches at the same moment queue, and each file becomes a tab in the one
 instance. A launch hands its files over only when `instance.endpoint` in the
 settings folder is a file the user owns that no other account can read or
@@ -1391,11 +1388,6 @@ To give QCaret more heap for large files, see [Large files](#large-files).
 
 ## Known issues
 
-- On macOS the caret is drawn one character to the right of its position after
-  a letter with a combining mark, such as `e` followed by U+0301. Typed text
-  goes to the right place.
 - On Windows a folder above the folder of an open file cannot be renamed
   outside QCaret while QCaret runs: Windows reports it in use. Rename it from
   the Workspace Browser, or close the file first.
-- Windows: under the dark theme, a column header narrowed below its text is cut
-  off without an ellipsis.

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@link Win32MenuBehavior#ink} on any platform: the icons take the ink of the side the Display
- * started with, which win32 pop-up menus keep, and not the side of a later live switch.
+ * started with until a {@link Win32MenuThemes#flush}, then the ink of the flushed side.
  */
 @Tag("swt")
 class Win32MenuInkTest {
@@ -60,5 +60,18 @@ class Win32MenuInkTest {
   @Test
   void aLightStartKeepsTheDarkInkAfterASwitchToDark() {
     assertEquals(List.of("dark ink", "dark ink", "dark ink"), inks(false));
+  }
+
+  /** After a flush the ink follows the side the menus show. */
+  @Test
+  void aFlushedSwitchTakesTheInkOfTheNewSide() {
+    MenuBehavior menus = new Win32MenuBehavior();
+    NativeTheme.set(display, false);
+    NativeTheme.set(display, true);
+    Win32MenuThemes.shown(display, true);
+    String dark = menus.ink(display, INK);
+    NativeTheme.set(display, false);
+    Win32MenuThemes.shown(display, false);
+    assertEquals(List.of("light ink", "dark ink"), List.of(dark, menus.ink(display, INK)));
   }
 }

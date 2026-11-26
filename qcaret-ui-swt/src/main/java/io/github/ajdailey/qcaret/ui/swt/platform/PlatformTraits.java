@@ -109,6 +109,16 @@ public interface PlatformTraits {
    */
   int busyCursor();
 
+  /**
+   * Returns the percent the toolkit lays a control's points out at, in the pixels a {@code
+   * TextLayout} positions text in: on win32 a numeric {@code swt.autoScale} value, else the
+   * monitor's zoom; 100 on GTK and cocoa, which lay text out in points.
+   *
+   * @param control the control
+   * @return the zoom in percent
+   */
+  int layoutZoom(Control control);
+
   // Seams.
 
   /**
@@ -228,4 +238,11 @@ public interface PlatformTraits {
    * @return {@link CocoaLaunchDocuments} on cocoa, else {@link NativeLaunchDocuments}
    */
   LaunchDocuments launchDocuments();
+
+  /**
+   * Returns where an editor's carets go.
+   *
+   * @return the placement
+   */
+  CaretPlacement caretPlacement();
 }

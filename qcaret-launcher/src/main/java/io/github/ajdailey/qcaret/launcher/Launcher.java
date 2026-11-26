@@ -234,6 +234,12 @@ public final class Launcher {
       return Handoff.BESIDE;
     }
     sent = HandoffDocuments.beforeHandoff(request);
+    try {
+      OsTraits.current().foregroundRights().grantAny();
+    } catch (IOException e) {
+      LOG.debug(
+          "The running instance may not come to the front: {}", LogText.oneLine(e.getMessage()));
+    }
     for (int attempt = 1; ; attempt++) {
       String tried = InstanceClient.endpointId(directory);
       try {

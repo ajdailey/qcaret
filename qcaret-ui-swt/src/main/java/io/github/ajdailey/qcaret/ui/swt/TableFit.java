@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.ui.swt.platform.HeaderTexts;
 import java.util.Arrays;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.GC;
@@ -69,7 +70,7 @@ final class TableFit {
     try {
       for (int i = 1; i < weights.length; i++) {
         weights[i] = Math.max(1, table.getColumn(i).getWidth());
-        minima[i] = gc.textExtent(table.getColumn(i).getText()).x + HEADER_PADDING;
+        minima[i] = gc.textExtent(HeaderTexts.full(table.getColumn(i))).x + HEADER_PADDING;
       }
     } finally {
       gc.dispose();

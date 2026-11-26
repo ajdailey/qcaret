@@ -171,12 +171,20 @@ class ArchitectureTest {
     ROOT + ".ui.swt.platform.CocoaStacking",
     ROOT + ".ui.swt.platform.GtkX11Stacking",
     ROOT + ".ui.swt.platform.CocoaPrintJobNaming",
-    ROOT + ".ui.swt.platform.Gtk3NativeNames"
+    ROOT + ".ui.swt.platform.Gtk3NativeNames",
+    ROOT + ".ui.swt.platform.Win32BrowserBehavior"
   };
 
+  /** The view class excepted to link the Java 21 foreign-function API by reflection. */
+  private static final String VIEW_FOREIGN = ROOT + ".ui.swt.platform.Win32MenuThemes";
+
+  /** The core class excepted to link the Java 21 foreign-function API by reflection. */
+  private static final String FOREGROUND_FOREIGN = ROOT + ".core.util.os.WindowsForegroundRights";
+
   /**
-   * Only the exception view classes and {@code Flock}, which links the Java 21 foreign-function
-   * API, load classes by name or open members by reflection. The bootstrap has its own test.
+   * Only the exception view classes, {@code Flock}, {@code Win32MenuThemes} and {@code
+   * WindowsForegroundRights}, which link the Java 21 foreign-function API, load classes by name or
+   * open members by reflection. The bootstrap has its own test.
    */
   @Test
   void reflectionOnlyInExceptionClasses() {
@@ -201,6 +209,12 @@ class ArchitectureTest {
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[4])
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[5])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[6])
+        .and()
+        .doNotHaveFullyQualifiedName(VIEW_FOREIGN)
+        .and()
+        .doNotHaveFullyQualifiedName(FOREGROUND_FOREIGN)
         .should()
         .callMethodWhere(call(Class.class, "forName|getDeclared.*|getField|getMethod"))
         .orShould()

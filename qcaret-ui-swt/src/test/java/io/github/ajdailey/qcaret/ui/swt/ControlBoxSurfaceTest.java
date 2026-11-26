@@ -167,6 +167,14 @@ class ControlBoxSurfaceTest {
     return editor().projection().toDisplay(model);
   }
 
+  /**
+   * Checks a width against its columns: box widths are whole points, one point apart, mixed so the
+   * text after each box is within 1 px of its column.
+   */
+  private static void assertNear(int expected, int actual, String what) {
+    assertTrue(Math.abs(expected - actual) <= 1, what + ": " + actual + " for " + expected);
+  }
+
   private int cell() {
     return window.activeEditor().metrics().x(2);
   }
@@ -178,10 +186,10 @@ class ControlBoxSurfaceTest {
     assertEquals(shown("a#b#c#d#"), text.getLine(1));
     assertEquals("\u0001", text.getTextRange(shown(LINE_1 + 1), 1));
     int[] controls = {1, 3, 5, 7};
-    for (int at : controls) {
-      int x = text.getLocationAtOffset(shown(LINE_1 + at)).x;
-      int after = text.getLocationAtOffset(shown(LINE_1 + at + 1)).x;
-      assertEquals(cell(), after - x, "cell at " + at);
+    int start = text.getLocationAtOffset(shown(LINE_1)).x;
+    for (int k = 0; k < controls.length; k++) {
+      int after = text.getLocationAtOffset(shown(LINE_1 + controls[k] + 1)).x;
+      assertNear(pane.metrics().x(controls[k] + k + 2), after - start, "text after box " + k);
     }
     assertEquals(text.getLineHeight(), text.getLineHeight(shown(LINE_1)));
     assertEquals(text.getLineHeight(), text.getLinePixel(2) - text.getLinePixel(1));
@@ -191,7 +199,7 @@ class ControlBoxSurfaceTest {
       if (style.metrics != null) {
         boxes++;
         assertEquals(1, style.length);
-        assertEquals(cell(), style.metrics.width);
+        assertNear(cell(), style.metrics.width, "box width");
       }
     }
     assertEquals(4, boxes);
@@ -291,7 +299,7 @@ class ControlBoxSurfaceTest {
     drain();
     assertEquals(shown("c#aret here"), text.getLine(0));
     int x = text.getLocationAtOffset(shown(1)).x;
-    assertEquals(cell(), text.getLocationAtOffset(shown(2)).x - x);
+    assertNear(cell(), text.getLocationAtOffset(shown(2)).x - x, "typed box");
     text.setSelection(shown(1), shown(2));
     assertEquals("\u001b", text.getSelectionText());
   }
@@ -336,7 +344,7 @@ class ControlBoxSurfaceTest {
       assertEquals(shown("x#y"), left.getLine(0));
       assertEquals("x\u0001y", left.getTextRange(0, 3));
       int x = left.getLocationAtOffset(1).x;
-      assertEquals(cell(), left.getLocationAtOffset(2).x - x);
+      assertNear(cell(), left.getLocationAtOffset(2).x - x, "compared box");
       assertEquals(left.getLineHeight(), left.getLineHeight(0));
       left.setSelection(1, 3);
       Event copy = new Event();

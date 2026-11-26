@@ -318,8 +318,9 @@ columns that fit (Windows 11 at 150 %). At a fractional zoom it reads the zoom
 from a numeric `swt.autoScale` value before the monitor's. While
 the rest holds both header texts plus `TableFit.HEADER_PADDING`, neither column
 is narrower than its header text: under a dark theme on win32 the header colors
-make SWT 3.135.0 draw the header itself, which clips the text with no ellipsis
-and aligns it by the column's style. Line is left-aligned, because win32 always
+make SWT 3.135.0 draw the header itself, which aligns the text by the column's
+style; a header narrowed by hand shows `...`
+([theme and icons](theme-and-icons.md)). Line is left-aligned, because win32 always
 shows a table's first column left-aligned while that custom draw would follow
 an `SWT.RIGHT` style. Enter and a double click go to the selected row, and
 Delete removes its bookmark; a cut of more than 2,000 rows replaces the table,

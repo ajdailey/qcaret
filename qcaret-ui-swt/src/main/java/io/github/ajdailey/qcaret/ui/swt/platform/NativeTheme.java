@@ -44,8 +44,8 @@ public final class NativeTheme {
   }
 
   /**
-   * Reports the native side the Display started with. win32 pop-up menus keep it after a live
-   * switch.
+   * Reports the native side the Display started with. win32 pop-up menus show it until {@link
+   * Win32MenuThemes#flush}.
    *
    * @param display the Display
    * @return the first side {@link #set} gave, or {@link DialogColors#nativeDark} before any

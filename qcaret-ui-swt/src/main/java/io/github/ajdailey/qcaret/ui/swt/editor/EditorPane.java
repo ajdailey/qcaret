@@ -20,6 +20,7 @@ import io.github.ajdailey.qcaret.app.view.ViewLayout;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
+import io.github.ajdailey.qcaret.core.text.ControlChars;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
 import io.github.ajdailey.qcaret.ui.swt.platform.KeyBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
@@ -279,7 +280,7 @@ public final class EditorPane implements EditorView {
     vertical = new Slider(frame, SWT.VERTICAL);
     vertical.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, true));
     completion = new CompletionPopup(text, input);
-    primaryCaret = new Caret(text, SWT.NONE);
+    primaryCaret = PlatformTraits.PLATFORM.caretPlacement().create(text);
     text.setCaret(primaryCaret);
     text.addListener(
         SWT.Dispose,
@@ -790,7 +791,7 @@ public final class EditorPane implements EditorView {
     } finally {
       gc.dispose();
     }
-    boxes.setFont(font, metrics.x(2));
+    boxes.setFont(font, metrics.advance() * ControlChars.WIDTH);
     gutterDigits = 0;
     updateGutter();
     updateCaret();

@@ -93,6 +93,16 @@ before the session load and the Display; only the `FileLog` setup runs between
 A run that ends before the first window closes the server, which answers held
 launches `ERR`.
 
+Before a handoff the launch calls `ForegroundRights.grantAny`
+(`OsTraits.foregroundRights`). On Windows only the foreground process, or one
+it permits, brings a window to the front, and a launch from Explorer's Open
+With holds that right while the running instance does not: without the grant,
+`MainWindow.toFront` only flashes the taskbar button. `WindowsForegroundRights`
+calls `AllowSetForegroundWindow(ASFW_ANY)`; a failure is logged at debug and
+the handoff goes ahead. Measured on Windows 11: Open With from Explorer
+raised and focused the running window in 5 of 5 tries with the grant, and
+flashed its taskbar button in 5 of 5 without it.
+
 On macOS a Finder Open With can start a second registered copy of the bundle
 with no file arguments; the files arrive only as `SWT.OpenDocument` events.
 When the lock is held and the launch names no file, diff or session mode,

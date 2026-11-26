@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.editor;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.core.text.ControlChars;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
@@ -24,10 +25,10 @@ import org.eclipse.swt.widgets.Control;
  * Draws each {@link ControlChars} boxed char of a {@code StyledText} as a box holding its label,
  * two columns wide. The widget's content gives {@link ControlChars#shown} lines, so it holds {@link
  * ControlChars#PLACEHOLDER} where the text holds a boxed char; {@link #styles} gives each run of
- * such chars a {@link StyleRange} of its own with {@link GlyphMetrics} of the cell's width and the
- * font's ascent and descent, which keeps the row height, and a paint object listener draws the
- * boxes inside the GC's clipping over their cells. A row without the placeholder keeps its styles
- * array.
+ * such chars one or two {@link StyleRange}s of their own with {@link GlyphMetrics} of the cell's
+ * width from {@link BoxWidths} and the font's ascent and descent, which keeps the row height, and a
+ * paint object listener draws the boxes inside the GC's clipping over their cells. A row without
+ * the placeholder keeps its styles array.
  *
  * <p>Box: a 1 px outline from the cell's left edge to the pixel before its right edge, 1 px below
  * the row top and 1 px above the row's last pixel, around the label in the widget's font from the
@@ -63,7 +64,7 @@ public final class ControlBoxes {
 
   private final StyledText text;
   private final Rows rows;
-  private GlyphMetrics metrics;
+  private BoxWidths widths;
   private Font font;
   private RGB inkFore;
   private RGB inkBack;
@@ -91,14 +92,16 @@ public final class ControlBoxes {
    * Measures a font: the cell is {@code cellWidth} wide and as high as the font's row.
    *
    * @param next the widget's font, owned by the caller
-   * @param cellWidth the width of two columns
+   * @param cellWidth the width of two columns in points, fractional
    */
-  public void setFont(Font next, int cellWidth) {
+  public void setFont(Font next, double cellWidth) {
     GC gc = new GC(text);
     try {
       gc.setFont(next);
       FontMetrics fm = gc.getFontMetrics();
-      metrics = new GlyphMetrics(fm.getAscent(), fm.getDescent(), cellWidth);
+      widths =
+          new BoxWidths(
+              cellWidth, PlatformTraits.PLATFORM.layoutZoom(text), fm.getAscent(), fm.getDescent());
       font = next;
     } finally {
       gc.dispose();
@@ -110,22 +113,22 @@ public final class ControlBoxes {
    *
    * @param control the control the font draws in
    * @param font the font
-   * @return the width in pixels
+   * @return the width in points, fractional
    */
-  public static int cellWidth(Control control, Font font) {
+  public static double cellWidth(Control control, Font font) {
     GC gc = new GC(control);
     try {
       gc.setFont(font);
-      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x)
-          .x(ControlChars.WIDTH);
+      return ColumnMetrics.fromSample(gc.textExtent(ColumnMetrics.sample()).x).advance()
+          * ControlChars.WIDTH;
     } finally {
       gc.dispose();
     }
   }
 
-  /** Returns the cell's metrics, or null before {@link #setFont}. */
-  GlyphMetrics metrics() {
-    return metrics;
+  /** Returns the cell's widths, or null before {@link #setFont}. */
+  BoxWidths widths() {
+    return widths;
   }
 
   /**
@@ -137,57 +140,56 @@ public final class ControlBoxes {
    * @return {@code styles} itself when the row has no placeholder, else the split styles
    */
   public StyleRange[] styles(int rowOffset, String shown, StyleRange[] styles) {
-    if (metrics == null || shown.indexOf(ControlChars.PLACEHOLDER) < 0) {
+    if (widths == null || shown.indexOf(ControlChars.PLACEHOLDER) < 0) {
       return styles;
     }
-    return split(styles, rowOffset, rows.original(rowOffset), metrics);
+    return split(styles, rowOffset, rows.original(rowOffset), widths);
   }
 
   /**
    * Splits styles around the control chars of a row and gives each run of control chars within one
-   * style a style of its own, carrying {@code metrics} and the run's chars as its {@code data}.
+   * style one style per box width, carrying the width's metrics and its chars as its {@code data}.
    *
    * @param styles sorted, not overlapping, or null
    * @param rowOffset the row's first offset
    * @param original the row's text
-   * @param metrics the cell
+   * @param widths the cell widths
    * @return the styles, sorted
    */
-  static StyleRange[] split(
-      StyleRange[] styles, int rowOffset, String original, GlyphMetrics metrics) {
+  static StyleRange[] split(StyleRange[] styles, int rowOffset, String original, BoxWidths widths) {
     StyleRange[] in = styles == null ? new StyleRange[0] : styles;
-    List<StyleRange> out = new ArrayList<StyleRange>(in.length + 8);
+    Boxes out = new Boxes(in.length + 8, widths);
     int at = next(original, 0);
     for (StyleRange style : in) {
       int end = style.start + style.length;
       while (at >= 0 && rowOffset + at < style.start) {
         int to = runEnd(original, at, style.start - rowOffset);
-        out.add(box(null, rowOffset + at, original.substring(at, to), metrics));
+        out.box(null, rowOffset + at, original.substring(at, to));
         at = next(original, to);
       }
       int cursor = style.start;
       while (at >= 0 && rowOffset + at < end) {
         int offset = rowOffset + at;
         if (offset > cursor) {
-          out.add(part(style, cursor, offset - cursor));
+          out.styles.add(part(style, cursor, offset - cursor));
         }
         int to = runEnd(original, at, end - rowOffset);
-        out.add(box(style, offset, original.substring(at, to), metrics));
+        out.box(style, offset, original.substring(at, to));
         cursor = rowOffset + to;
         at = next(original, to);
       }
       if (cursor == style.start) {
-        out.add(style);
+        out.styles.add(style);
       } else if (cursor < end) {
-        out.add(part(style, cursor, end - cursor));
+        out.styles.add(part(style, cursor, end - cursor));
       }
     }
     while (at >= 0) {
       int to = runEnd(original, at, original.length());
-      out.add(box(null, rowOffset + at, original.substring(at, to), metrics));
+      out.box(null, rowOffset + at, original.substring(at, to));
       at = next(original, to);
     }
-    return out.toArray(new StyleRange[0]);
+    return out.styles.toArray(new StyleRange[0]);
   }
 
   private static int next(String original, int from) {
@@ -216,13 +218,39 @@ public final class ControlBoxes {
     return copy;
   }
 
-  private static StyleRange box(StyleRange style, int offset, String run, GlyphMetrics metrics) {
-    StyleRange box = style == null ? new StyleRange() : part(style, offset, run.length());
-    box.start = offset;
-    box.length = run.length();
-    box.metrics = metrics;
-    box.data = run;
-    return box;
+  /** A row's split styles and the boxes placed so far. */
+  private static final class Boxes {
+    final List<StyleRange> styles;
+    private final BoxWidths widths;
+    private int before;
+    private int spent;
+
+    Boxes(int capacity, BoxWidths widths) {
+      styles = new ArrayList<StyleRange>(capacity);
+      this.widths = widths;
+    }
+
+    /** Adds a run's narrow boxes, then its wide ones. */
+    void box(StyleRange style, int offset, String run) {
+      int narrow = widths.narrowCount(before, spent, run.length());
+      if (narrow > 0) {
+        add(style, offset, run.substring(0, narrow), widths.narrow());
+      }
+      if (narrow < run.length()) {
+        add(style, offset + narrow, run.substring(narrow), widths.wide());
+      }
+      before += run.length();
+    }
+
+    private void add(StyleRange style, int offset, String run, GlyphMetrics metrics) {
+      StyleRange box = style == null ? new StyleRange() : part(style, offset, run.length());
+      box.start = offset;
+      box.length = run.length();
+      box.metrics = metrics;
+      box.data = run;
+      styles.add(box);
+      spent += widths.pixels(metrics.width) * run.length();
+    }
   }
 
   private void paint(PaintObjectEvent event) {

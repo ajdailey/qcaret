@@ -115,6 +115,13 @@ public interface OsTraits {
   FileConfinement fileConfinement();
 
   /**
+   * Returns the foreground rights a launch passes to the running instance before a handoff.
+   *
+   * @return {@link WindowsForegroundRights} on Windows, else {@link NoForegroundRights}
+   */
+  ForegroundRights foregroundRights();
+
+  /**
    * Returns the folders the system keeps fonts in.
    *
    * @param env the process environment

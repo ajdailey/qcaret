@@ -144,6 +144,7 @@ final class BrowserPane {
       browser = factory.create(root);
       browser.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
       browser.setJavascriptEnabled(false);
+      BrowserBehavior.PLATFORM.menuMnemonics(browser, ui);
       listen();
     } catch (SWTException | SWTError e) {
       root.dispose();

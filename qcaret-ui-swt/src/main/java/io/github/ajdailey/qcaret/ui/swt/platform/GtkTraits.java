@@ -77,6 +77,11 @@ abstract class GtkTraits implements PlatformTraits {
   }
 
   @Override
+  public final int layoutZoom(Control control) {
+    return 100;
+  }
+
+  @Override
   public final ChromeColors chromeColors(Display display) {
     return new GtkChromeColors();
   }
@@ -104,5 +109,10 @@ abstract class GtkTraits implements PlatformTraits {
   @Override
   public final LaunchDocuments launchDocuments() {
     return new NativeLaunchDocuments();
+  }
+
+  @Override
+  public final CaretPlacement caretPlacement() {
+    return new NativeCaretPlacement();
   }
 }

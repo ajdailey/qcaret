@@ -50,6 +50,11 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
+  public ForegroundRights foregroundRights() {
+    return NoForegroundRights.INSTANCE;
+  }
+
+  @Override
   public List<Path> fontDirectories(Map<String, String> env, String home) {
     List<Path> folders = new ArrayList<Path>();
     EnvPaths.addFolder(folders, home, ".fonts");

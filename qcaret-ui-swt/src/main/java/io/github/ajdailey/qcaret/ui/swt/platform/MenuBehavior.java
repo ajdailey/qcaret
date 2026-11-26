@@ -18,7 +18,7 @@ import org.eclipse.swt.widgets.Shell;
  *   <caption>Implementation per platform</caption>
  *   <tr><th>Platform</th><th>Class</th><th>Menu icons</th><th>Reason</th><th>System menus</th>
  *   </tr>
- *   <tr><td>win32</td><td>{@link Win32MenuBehavior}</td><td>startup ink</td><td>tool tip</td>
+ *   <tr><td>win32</td><td>{@link Win32MenuBehavior}</td><td>menu side ink</td><td>tool tip</td>
  *       <td>title bar</td></tr>
  *   <tr><td>cocoa</td><td>{@link CocoaMenuBehavior}</td><td>none</td><td>tool tip</td>
  *       <td>application menu; main menus on tool windows</td></tr>
@@ -43,9 +43,8 @@ public interface MenuBehavior {
   void decorate(Menu menu, ItemImages images);
 
   /**
-   * Creates a window's menu icon set. win32 pop-up menus keep the native side the Display started
-   * with through every live switch and window rebuild, while the toolbar stays light, so there the
-   * ink is fixed for that side; elsewhere it follows the toolbar's.
+   * Creates a window's menu icon set. On win32 the toolbar stays light under a dark theme, so the
+   * ink is fixed for the side pop-up menus show; elsewhere it follows the toolbar's.
    *
    * @param display the Display
    * @param ink creates the set

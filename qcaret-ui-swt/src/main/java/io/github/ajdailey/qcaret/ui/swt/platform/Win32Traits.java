@@ -56,6 +56,19 @@ final class Win32Traits implements PlatformTraits {
   }
 
   @Override
+  public int layoutZoom(Control control) {
+    String scale = System.getProperty("swt.autoScale");
+    if (scale != null) {
+      try {
+        return Integer.parseInt(scale.trim());
+      } catch (NumberFormatException named) {
+        return control.getMonitor().getZoom();
+      }
+    }
+    return control.getMonitor().getZoom();
+  }
+
+  @Override
   public ChromeColors chromeColors(Display display) {
     return new Win32ChromeColors(display);
   }
@@ -135,5 +148,10 @@ final class Win32Traits implements PlatformTraits {
   @Override
   public GuideDisplay guideDisplay() {
     return new BrowserGuideDisplay();
+  }
+
+  @Override
+  public CaretPlacement caretPlacement() {
+    return new NativeCaretPlacement();
   }
 }

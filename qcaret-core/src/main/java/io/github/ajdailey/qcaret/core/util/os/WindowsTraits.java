@@ -50,6 +50,11 @@ final class WindowsTraits implements OsTraits {
   }
 
   @Override
+  public ForegroundRights foregroundRights() {
+    return WindowsForegroundRights.INSTANCE;
+  }
+
+  @Override
   public List<Path> fontDirectories(Map<String, String> env, String home) {
     List<Path> folders = new ArrayList<Path>();
     EnvPaths.addFolder(folders, EnvPaths.windows(env, "WINDIR"), "Fonts");

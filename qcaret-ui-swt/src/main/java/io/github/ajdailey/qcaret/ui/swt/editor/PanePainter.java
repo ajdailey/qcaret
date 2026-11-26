@@ -13,6 +13,8 @@ import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.ui.swt.platform.CaretPlacement;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -34,6 +36,7 @@ final class PanePainter {
   private final StyledText text;
   private final DisplayProjection projection;
   private final SelectionModel selections;
+  private final CaretPlacement carets = PlatformTraits.PLATFORM.caretPlacement();
   private Color gutter;
   private Color lineNumbers;
   private Color selectionBack;
@@ -205,7 +208,7 @@ final class PanePainter {
           || projection.hidden(projection.lineAt(s.caret()))) {
         continue;
       }
-      Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
+      Point at = carets.at(text, projection.toDisplay(s.caret()));
       if (at.x >= text.getLeftMargin() - EditorPane.CARET_WIDTH) {
         gc.fillRectangle(at.x, at.y, EditorPane.CARET_WIDTH, lineHeight);
       }
@@ -248,7 +251,7 @@ final class PanePainter {
       if (i == set.primaryIndex() && !virtual) {
         continue;
       }
-      Point at = text.getLocationAtOffset(projection.toDisplay(s.caret()));
+      Point at = carets.at(text, projection.toDisplay(s.caret()));
       int x = virtual ? at.x + metrics.x(block.caretColumn() - caretColumn) : at.x;
       if (x >= text.getLeftMargin() - EditorPane.CARET_WIDTH) {
         gc.setBackground(caret);

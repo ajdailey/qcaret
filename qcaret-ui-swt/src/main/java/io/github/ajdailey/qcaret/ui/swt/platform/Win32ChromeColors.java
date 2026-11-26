@@ -221,6 +221,7 @@ final class Win32ChromeColors implements ChromeColors {
       table.setHeaderBackground(header);
       table.setHeaderForeground(headerText);
     }
+    Win32HeaderText.follow(list, dark);
     if (list.getData(SELECTION) != null) {
       return;
     }

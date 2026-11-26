@@ -56,6 +56,11 @@ final class CocoaTraits implements PlatformTraits {
   }
 
   @Override
+  public int layoutZoom(Control control) {
+    return 100;
+  }
+
+  @Override
   public ChromeColors chromeColors(Display display) {
     return new NativeChromeColors();
   }
@@ -133,5 +138,10 @@ final class CocoaTraits implements PlatformTraits {
   @Override
   public GuideDisplay guideDisplay() {
     return new BrowserGuideDisplay();
+  }
+
+  @Override
+  public CaretPlacement caretPlacement() {
+    return new CocoaCaretPlacement();
   }
 }

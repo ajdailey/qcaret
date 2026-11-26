@@ -262,8 +262,8 @@ and LF.
 
 `OsTraits` answers each question whose answer differs by operating system, one
 class per system. A value is a method; behavior that differs is the
-`DeviceNames` and `FileConfinement` seams that `deviceNames` and
-`fileConfinement` return. `OsTraits.current()` is chosen once from `os.name`: a
+`DeviceNames`, `FileConfinement` and `ForegroundRights` seams that
+`deviceNames`, `fileConfinement` and `foregroundRights` return. `OsTraits.current()` is chosen once from `os.name`: a
 name starting `Windows` or `Mac`, ignoring case, picks that system, and any
 other name picks Linux. Only `core.util.os` reads `os.name` in core, app and
 the launcher (`ArchitectureTest.osNameOnlyInTheOsSeam`); tests take another
@@ -277,6 +277,7 @@ system's answers from `OsTraits.of(name)`.
 | `userSettings` | `SettingsLocation` per-user mode | `%APPDATA%\QCaret` | `~/Library/Application Support/QCaret` | `$XDG_CONFIG_HOME/qcaret`, else `~/.config/qcaret` |
 | `launcherDirectory` | `SettingsLocation` portable marker beside `bin/qcaret` | null | null | `<qcaret.home>/bin` |
 | `fileConfinement` | `PlatformSetup`, `SettingsLocation.embedsGuide` | `WindowsFileConfinement`: WebView2's data in `<settings>\cache\webview2` | `MacFileConfinement`: nothing moves | `LinuxFileConfinement`: in explicit and portable mode `user.home` moves to the settings directory and the guide opens outside the process |
+| `foregroundRights` | `Launcher.handOff`, before the handoff | `WindowsForegroundRights`: user32 `AllowSetForegroundWindow(ASFW_ANY)` through `java.lang.foreign` by reflection, linked at the first call | `NoForegroundRights`: nothing | `NoForegroundRights` |
 | `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
 | `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
 | `runsInsteadOfOpening` | `WorkspaceController` Open in Default Application | `RunnableTypes.windows` with `PATHEXT` | `RunnableTypes.mac`, or the execute bit | the execute bit |

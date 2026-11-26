@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.function.Consumer;
+import org.eclipse.swt.browser.Browser;
 
 /** The embedded browser on GTK 3: WebKitGTK. */
 class Gtk3BrowserBehavior implements BrowserBehavior {
@@ -23,4 +25,7 @@ class Gtk3BrowserBehavior implements BrowserBehavior {
   public final void pageChanged(Runnable check) {
     check.run();
   }
+
+  @Override
+  public void menuMnemonics(Browser browser, UiDispatcher ui) {}
 }

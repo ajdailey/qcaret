@@ -149,6 +149,14 @@ scroll.
   `AcceleratorKeyPressed`, and the window's native accelerators never see it.
   The consumed key is marked handled, so WebView2 does not act on it as well
   (Ctrl+F opened WebView2's own find box).
+- Alt and a letter or digit in the Markdown preview's `Browser` reaches no
+  menu bar mnemonic on win32 either: SWT's Edge never sends it to the shell as
+  `WM_SYSCHAR`. `BrowserBehavior.menuMnemonics` (`Win32BrowserBehavior`)
+  consumes such a key that the window filter left and posts
+  `WM_SYSCOMMAND` with `SC_KEYMENU` and the key to the shell, through SWT's
+  `Control.handle` and `internal.win32.OS.SendMessage` by reflection; Windows
+  then opens the menu as it does for Alt and the key. A member that does not
+  resolve logs one WARN, and the key opens nothing.
 - A `MenuTable.RADIO` command is a radio item. SWT sends `Selection` to the
   item it deselects too, so the listener runs the command only for the item
   selected.
@@ -447,7 +455,9 @@ screen about 1 s after it was made.
 
 win32 controls read the native theme only when created, so a switch of the
 side `ui.theme` resolves to replaces each main window's controls.
-`Win32ThemeFollow.showOnWindows` sets the native theme and calls
+`Win32ThemeFollow.showOnWindows` sets the native theme, flushes uxtheme's
+cached menu theme (`Win32MenuThemes.flush`, see
+[native controls](theme-and-icons.md#native-controls)) and calls
 `WindowRebuild.rebuild`, which `WindowViews` implements; GTK and cocoa never
 call it ([native controls](theme-and-icons.md#native-controls)).
 
@@ -624,10 +634,10 @@ default method carries behavior.
 | `DialogColors` | `Win32DialogColors`: dialog colors, field hints, light-theme check boxes, drawn grid lines and dark header dividers under a dark start | `NativeDialogColors`: native colors, plain check boxes | As cocoa | As cocoa | `Dialogs.shell`, `Dialogs.gridLines`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `CocoaDialogTabs`: the native `TabFolder`, keeping keyboard focus on a control across a tab change | `NativeDialogTabs`: the native `TabFolder` | As GTK 3 | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
-| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the native side the Display started with; reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: no menu icons (SWT ignores `setImage`); a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
+| `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the side pop-up menus show (`Win32MenuThemes.shownDark`); reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: no menu icons (SWT ignores `setImage`); a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
 | `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
-| `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |
+| `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture; sends Alt and a letter or digit from the page to the shell as a menu mnemonic | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |
 | `GuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `NoticeGuideDisplay`: a notice names the file | `MainWindow.showGuide` |
 | `PrintSupport` | `Win32PrintSupport`: an empty printer list shows a notice; the dialog opens on its default scope | `CocoaPrintSupport`: the empty-list notice; names the job (`CocoaPrintJobNaming`), dialog on a selection | `Gtk3PrintSupport`: dialog on a selection | `Gtk4PrintSupport`: a PDF file instead of the dialog | `MainWindow.choosePrinter` (see [Printing](printing.md)) |
 | `FullScreen` (`fullScreen(shell, ui)`, per window) | `NativeFullScreen` | `CocoaFullScreen` | `NativeFullScreen` | `NativeFullScreen` | `MainWindow` (see [Full Screen](#full-screen)) |

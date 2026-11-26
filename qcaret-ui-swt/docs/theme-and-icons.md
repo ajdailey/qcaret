@@ -54,12 +54,19 @@ because both read the native background.
 
 ### win32
 
-Popup menus (menu bar menus, cascades, context menus) keep the native side of
-the start until QCaret restarts, after a View > Theme switch and after a
-Windows mode change under System. The popup menu theme is process-wide:
-`setDarkThemePreferred` reaches `SetPreferredAppMode` (through SWT's
-`useDarkModeExplorerTheme`), but SWT 3.135.0 never calls `FlushMenuThemes` and
-no public API reaches it. QCaret makes no native call for it.
+Popup menus (menu bar menus, cascades, context menus) follow a View > Theme
+switch and a Windows mode change under System through `Win32MenuThemes.flush`,
+which `Win32ThemeFollow.showOnWindows` calls after `NativeTheme.set`. The popup
+menu theme is process-wide: `setDarkThemePreferred` reaches
+`SetPreferredAppMode` (through SWT's `useDarkModeExplorerTheme`), and uxtheme
+keeps the menus in their first side until `FlushMenuThemes` runs, which SWT
+3.135.0 never calls and no public API reaches. `Win32MenuThemes` calls it as
+uxtheme ordinal 136 (no exported name) through `java.lang.foreign` by
+reflection, the API being a preview in Java 21: `LoadLibraryA("uxtheme.dll")`,
+then `GetProcAddress` by ordinal, linked once per process. Measured on
+`windows-2025`: the popup background `#f9f9f9` after a switch to dark without
+the flush, `#2c2c2c` after it, and back. A link or call that fails logs one
+WARN, and menus keep the side of the start (`NativeTheme.startDark`).
 
 A read-only `Combo`'s drop list stays light under a dark start with native
 colors (`#ffffff`, `windows-2025`); a `setBackground` reaches it, so the dialog
@@ -136,12 +143,13 @@ selected tab in `SWT.COLOR_WIDGET_NORMAL_SHADOW` (#a0a0a0) with no API to
 change it, so that 1 px line stays light under the dark palette, as do the
 native list header's borders.
 
-Windows: under the dark theme, a column header narrowed below its text is cut
-off without an ellipsis. Header colors make SWT 3.135's win32 header custom
-draw paint the text, and it calls `DrawText` without `DT_END_ELLIPSIS`.
-`TableFit.spread` keeps the Bookmarks headers whole while the dock holds them
-([dialogs and docks](dialogs-and-docks.md#bookmarks-dock)); a header the user
-narrows by hand clips.
+Header colors make SWT 3.135's win32 header custom draw paint the text, with
+`DrawText` and no `DT_END_ELLIPSIS`, so a column narrower than its text would
+clip it. `Win32HeaderText.follow` runs wherever `Win32ChromeColors` and
+`Win32DialogColors` set header colors: at each column resize it sets the column
+text shortened to the width less the 6 px insets with `...`, and the whole text
+as the column's tool tip. `HeaderTexts.full` returns the whole text, which
+`TableFit.spread` measures (`Win32HeaderTextTest`).
 
 #### Chrome colors
 
@@ -190,11 +198,10 @@ Browser's `ToolIcons` from the toolbar's background and calls
 brighter than the enabled icon, so a disabled item would look enabled.
 Measured by `ChromeColorsTest` on `#162638` with SWT 3.135.0 (the transformer is
 shared by GTK and win32): the enabled icons 9.1 or more, SWT's copy 10.1 or
-more, the faded copy 2.6 to 2.9. Menu icons take the ink of the native side
-the Display started with (`MenuBehavior.ink`, `Win32MenuBehavior`,
-`NativeTheme.startDark`), which the popup menus keep; the window's current
-side gave `#3e3e3e` on `#2c2c2c` (1.31) after a dark start and a switch to
-Light (measured on Windows 11 at 150 %).
+more, the faded copy 2.6 to 2.9. Menu icons take the ink of the side the popup
+menus show (`MenuBehavior.ink`, `Win32MenuBehavior`,
+`Win32MenuThemes.shownDark`); ink from the window's side on menus of the other
+side gave `#3e3e3e` on `#2c2c2c` (1.31; measured on Windows 11 at 150 %).
 
 #### Dialog colors
 
@@ -449,7 +456,7 @@ fails in the GTK 4 lane.
 |---|---|---|---|
 | GTK 3 | `MenuItem.setImage` | Same reading as the toolbar, live switch included | Hold `ToolIcons.blank` in a menu with an icon, because GTK 3 SWT reserves no image column and the label would move 22 px |
 | GTK 4 | SWT ignores `setImage` | - | - |
-| win32 | `MenuItem.setImage` | Fixed from `NativeTheme.startDark` (`MenuBehavior.ink`): the native side the Display started with, which pop-up menus keep after a live switch, and the toolbar stays light under a dark one | Bare; the system reserves the column |
+| win32 | `MenuItem.setImage` | Fixed from `Win32MenuThemes.shownDark` (`MenuBehavior.ink`): the side pop-up menus show, the last flushed side or else the start side; the toolbar stays light under a dark one | Bare; the system reserves the column |
 | cocoa | None; the application menu stays native | - | - |
 
 A disabled GTK menu item shows SWT's disabled copy of its image, which keeps

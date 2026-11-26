@@ -217,10 +217,17 @@ chars never shows. `DiffWindow` and `ReplaceDialog` use it too, over a
 runs its copy and cut keys and its selection clipboard through `OriginalCopy`,
 so plain text, RTF and HTML hold the original chars.
 
-- `styles` gives each run of placeholders within one line style a `StyleRange`
-  of its own with `GlyphMetrics`: `ColumnMetrics.x(2)` wide, the font's ascent
-  and descent, so the row height stays. The run's original chars are its
-  `data`. A row without U+FFFC keeps its styles array, and a row with a real
+- `styles` gives each run of placeholders within one line style one or two
+  `StyleRange`s of their own with `GlyphMetrics` of the font's ascent and
+  descent, so the row height stays. The run's original chars are its `data`.
+  `GlyphMetrics` widths are whole points, which the toolkit lays out at
+  `round(points * zoom / 100)` pixels on win32 (`PlatformTraits.layoutZoom`;
+  GTK and cocoa lay text out in points), so one fixed width would move the text
+  after each box 1 to 1.5 px at 150%. `BoxWidths` splits a run into narrow
+  boxes, then wide ones a point wider, in the mix that ends the run within 1 px
+  of the column two columns per box reach from the row's start, counting the
+  row's earlier boxes (`BoxDriftSurfaceTest`, also run at
+  `-Dswt.autoScale=150`). A row without U+FFFC keeps its styles array, and a row with a real
   U+FFFC reads its original text to tell the two apart.
 - A `PaintObjectListener` draws, inside the GC's clipping, the label in the
   editor font from the cell's left edge on the text baseline, and a 1 px
@@ -253,12 +260,19 @@ color that shows the caret color over the current line:
 Under difference, a channel the background cannot reach shows the nearest
 value: the dark palette's amber shows red 0xdd for 0xf3.
 
-On cocoa the caret after a combining mark paints one cluster right of its
-offset; the offset, and so typing, is right. `StyledText.getPointAtOffset` takes
-the trailing edge of `TextLayout.getPreviousOffset(offset, MOVEMENT_CLUSTER)`,
-and cocoa's `TextLayout` steps one char there (an SWT `TODO`), so it measures
-from the mark. This is an SWT defect, not worked around; arrow moves still step
-by cluster (`Clusters`).
+`CaretPlacement` (`PlatformTraits.caretPlacement`) creates the primary caret
+and places the secondary carets `PanePainter` draws. `StyledText.getPointAtOffset`
+takes the trailing edge of `TextLayout.getPreviousOffset(offset,
+MOVEMENT_CLUSTER)`, and SWT 3.135's cocoa `TextLayout` steps one char there (an
+SWT `TODO`), so after `e` and U+0301 it measures from the mark and lands one
+char right. `CocoaCaretPlacement` places a caret after a cluster of more than
+one char (`BreakIterator`; a surrogate pair is SWT's own step) at the left edge
+of the next char's `getTextBounds`, or at a row's end at the cluster's right
+edge (rounded up, up to 1 pt right). SWT alone places it 7 pt right in Menlo 12 on the
+macOS CI runners. Its primary caret overrides
+`Caret.setBounds`, which every SWT caret move reaches on cocoa. A caret on
+another row than the cluster, at a wrapped row's start, keeps SWT's place.
+`NativeCaretPlacement` (win32, GTK) keeps SWT's place (`CaretPlacementTest`).
 
 ## Fonts and widget caches
 

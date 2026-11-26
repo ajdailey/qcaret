@@ -220,6 +220,7 @@ final class Win32DialogColors implements DialogColors {
     if (control instanceof Table table) {
       table.setHeaderBackground(FIELD);
       table.setHeaderForeground(TEXT);
+      Win32HeaderText.follow(table, true);
     }
     if (control instanceof Link link) {
       RGB theme = link.getDisplay().getSystemColor(SWT.COLOR_LINK_FOREGROUND).getRGB();

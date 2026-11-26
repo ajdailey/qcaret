@@ -1,6 +1,8 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.function.Consumer;
+import org.eclipse.swt.browser.Browser;
 
 /** The embedded browser on cocoa: WebKit. */
 final class CocoaBrowserBehavior implements BrowserBehavior {
@@ -19,4 +21,7 @@ final class CocoaBrowserBehavior implements BrowserBehavior {
 
   @Override
   public void pageChanged(Runnable check) {}
+
+  @Override
+  public void menuMnemonics(Browser browser, UiDispatcher ui) {}
 }
