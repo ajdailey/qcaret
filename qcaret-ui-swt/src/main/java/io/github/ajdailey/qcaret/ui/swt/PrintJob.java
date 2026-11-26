@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.view.PrintTarget;
 import io.github.ajdailey.qcaret.core.text.ControlChars;
 import io.github.ajdailey.qcaret.ui.swt.editor.ControlBoxes;
 import io.github.ajdailey.qcaret.ui.swt.markdown.MarkdownPrinting;
+import java.util.function.IntFunction;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
@@ -49,6 +50,11 @@ final class PrintJob implements PrintTarget {
 
   private static final String MEASURE = "0".repeat(100);
 
+  /** A control box's outline, in hundredths of a point. */
+  private static final int RULE = 75;
+
+  private static final String HEX_DIGITS = "0123456789ABCDEF";
+
   private final Printer printer;
   private final PrinterData data;
   private final String family;
@@ -68,6 +74,8 @@ final class PrintJob implements PrintTarget {
   private int top;
   private int bottom;
   private int body;
+  private int boxRule;
+  private Font labelFont;
 
   /**
    * Creates the job; call on the UI thread.
@@ -153,6 +161,8 @@ final class PrintJob implements PrintTarget {
     top = Math.max(client.y, trim.y + marginY);
     bottom = Math.min(client.y + client.height, trim.y + trim.height + client.height - marginY);
     body = top + rowHeight * 2;
+    boxRule = Math.max(1, Math.round(dpi.x * RULE / 7200f));
+    labelFont = labelFont();
   }
 
   /** The rendered Markdown pages of a job, drawn by {@link MarkdownPrinting}. */
@@ -270,7 +280,10 @@ final class PrintJob implements PrintTarget {
     gc.drawString(text, left + (int) Math.round(column * advance), y, true);
   }
 
-  /** Draws a boxed char over two columns, in {@link ControlBoxes#ink} on white. */
+  /**
+   * Draws a boxed char over two columns, in {@link ControlBoxes#ink} on white, with a 0.75 pt
+   * outline and the label in {@link #labelFont}.
+   */
   private void box(Span span, int column, int y, Rgb rgb) {
     int x = left + (int) Math.round(column * advance);
     int width = left + (int) Math.round((column + 2) * advance) - x;
@@ -279,15 +292,52 @@ final class PrintJob implements PrintTarget {
       Rgb on = ControlBoxes.ink(rgb == null ? Rgb.of(0) : rgb, Rgb.of(0xffffff));
       ink = new Color(on.red(), on.green(), on.blue());
     }
-    ControlBoxes.draw(
+    ControlBoxes.drawRuled(
         gc,
-        font(false, false),
+        labelFont,
         ink,
         x,
         y,
         width,
         rowHeight,
+        boxRule,
         ControlChars.label(span.text().charAt(0)));
+  }
+
+  /** Creates the box label font: the largest height whose widest label fits a box's label area. */
+  private Font labelFont() {
+    int cell = (int) Math.ceil(2 * advance - 1);
+    Rectangle area = ControlBoxes.labelArea(0, 0, cell, rowHeight, boxRule);
+    int points =
+        ControlBoxes.labelHeight(
+            POINTS,
+            new Point(area.width, area.height),
+            new IntFunction<Point>() {
+              @Override
+              public Point apply(int height) {
+                Font trial = new Font(printer, family, height, SWT.NORMAL);
+                try {
+                  gc.setFont(trial);
+                  return widestLabel();
+                } finally {
+                  gc.setFont(font(false, false));
+                  trial.dispose();
+                }
+              }
+            });
+    return new Font(printer, family, points, SWT.NORMAL);
+  }
+
+  /** Returns two of the GC font's widest hex digit, as wide and as high as its text extent. */
+  private Point widestLabel() {
+    int width = 0;
+    int height = 0;
+    for (int i = 0; i < HEX_DIGITS.length(); i++) {
+      Point digit = gc.stringExtent(HEX_DIGITS.substring(i, i + 1));
+      width = Math.max(width, digit.x);
+      height = Math.max(height, digit.y);
+    }
+    return new Point(2 * width, height);
   }
 
   private Font font(boolean bold, boolean italic) {
@@ -347,6 +397,10 @@ final class PrintJob implements PrintTarget {
     if (gc != null) {
       gc.dispose();
       gc = null;
+    }
+    if (labelFont != null) {
+      labelFont.dispose();
+      labelFont = null;
     }
     for (int i = 0; i < fonts.length; i++) {
       if (fonts[i] != null) {
