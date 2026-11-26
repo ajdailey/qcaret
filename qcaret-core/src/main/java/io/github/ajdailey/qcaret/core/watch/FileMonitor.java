@@ -25,12 +25,14 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@code qcaret-watch-} thread runs while any file is watched; it ends when the last file is
  * unwatched or on {@link #close}, and a later {@link #watch} starts another.
  *
- * <p>Each directory holding a watched file is registered once with a {@link WatchService}, on the
- * thread, and its key is canceled when its last file is unwatched. A directory that cannot be
- * registered is polled only. {@link #suspend} cancels the keys at or under a directory and
- * registers none there until {@link #resume}. The poll stays on regardless: a {@code WatchService}
- * misses events on network mounts, polls on macOS, and never reports a change to a symbolic link's
- * target in another directory.
+ * <p>With {@code useWatchService}, each directory holding a watched file is registered once with a
+ * {@link WatchService}, on the thread, and its key is canceled when its last file is unwatched. A
+ * directory that cannot be registered is polled only. {@link #suspend} cancels the keys at or under
+ * a directory and registers none there until {@link #resume}. Without it no directory is registered
+ * and only the poll and {@link #checkAll} find a change; the caller passes {@code
+ * OsTraits.watchServiceByDefault}, false on macOS, where the JDK 21 {@code WatchService} is itself
+ * a scan every 2 s. The poll stays on regardless: a {@code WatchService} misses events on network
+ * mounts and never reports a change to a symbolic link's target in another directory.
  *
  * <p>The listener runs on the thread, outside the lock. An exception from it is passed to the
  * thread's uncaught-exception handler once until a call completes, and checking goes on. Lock
@@ -53,6 +55,7 @@ public final class FileMonitor implements AutoCloseable {
 
   private final Workers workers;
   private volatile long pollMillis;
+  private final boolean useWatchService;
   private final Listener listener;
   private final ReentrantLock lock = new ReentrantLock();
   private final Map<Path, Integer> files = new HashMap<Path, Integer>();
@@ -73,11 +76,13 @@ public final class FileMonitor implements AutoCloseable {
    *
    * @param workers starts the thread
    * @param pollMillis interval between checks of every file
+   * @param useWatchService whether directories are registered with a {@link WatchService}
    * @param listener receives the files to check
    */
-  public FileMonitor(Workers workers, long pollMillis, Listener listener) {
+  public FileMonitor(Workers workers, long pollMillis, boolean useWatchService, Listener listener) {
     this.workers = workers;
     this.pollMillis = pollMillis;
+    this.useWatchService = useWatchService;
     this.listener = listener;
   }
 
@@ -398,7 +403,7 @@ public final class FileMonitor implements AutoCloseable {
       keys.remove(directory).cancel();
     }
     unregistered.retainAll(directories);
-    if (serviceFailed) {
+    if (serviceFailed || !useWatchService) {
       return;
     }
     for (Path directory : directories) {

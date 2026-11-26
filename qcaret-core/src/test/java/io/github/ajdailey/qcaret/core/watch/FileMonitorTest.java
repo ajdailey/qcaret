@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class FileMonitorTest {
   private static final Duration BOUND = Duration.ofSeconds(20);
@@ -60,10 +63,15 @@ class FileMonitorTest {
   }
 
   private FileMonitor recording(long pollMillis) {
+    return recording(pollMillis, true);
+  }
+
+  private FileMonitor recording(long pollMillis, boolean useWatchService) {
     monitor =
         new FileMonitor(
             workers,
             pollMillis,
+            useWatchService,
             new FileMonitor.Listener() {
               @Override
               public void check(List<Path> files) {
@@ -213,6 +221,7 @@ class FileMonitorTest {
         new FileMonitor(
             workers,
             10,
+            true,
             new FileMonitor.Listener() {
               @Override
               public void check(List<Path> files) {
@@ -266,5 +275,55 @@ class FileMonitorTest {
     assertTrue(Poll.until(stopped(), BOUND));
     monitor.watch(a);
     assertFalse(monitor.running());
+  }
+
+  /**
+   * Each system's {@code watchServiceByDefault} decides whether the directory is registered; a
+   * change is checked either way, through the directory event (no poll is due) or through the poll.
+   */
+  @ParameterizedTest
+  @ValueSource(strings = {"Windows 11", "Mac OS X", "Linux"})
+  void eachSystemRegistersDirectoriesExactlyWhenItsTraitSays(String osName) throws Exception {
+    final boolean watching = OsTraits.of(osName).watchServiceByDefault();
+    assertEquals(!osName.startsWith("Mac"), watching);
+    final Path a = Files.writeString(dir.resolve("a.txt"), "a");
+    final List<Path> changed = new CopyOnWriteArrayList<Path>();
+    monitor =
+        new FileMonitor(
+            workers,
+            watching ? NEVER : 50,
+            watching,
+            new FileMonitor.Listener() {
+              @Override
+              public void check(List<Path> files) {
+                checked.addAll(files);
+                try {
+                  if (Files.readString(a).equals("changed")) {
+                    changed.add(a);
+                  }
+                } catch (IOException e) {
+                  // A read during the write; the write's later events or the next poll check again.
+                }
+              }
+            });
+    monitor.watch(a);
+    if (watching) {
+      assertTrue(Poll.until(registered(1), BOUND));
+    } else {
+      assertTrue(Poll.until(checkedAtLeast(1), BOUND));
+      assertEquals(0, monitor.watchedDirectories());
+    }
+    Files.writeString(a, "changed");
+    assertTrue(
+        Poll.until(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return !changed.isEmpty();
+              }
+            },
+            BOUND));
+    assertEquals(watching ? 1 : 0, monitor.watchedDirectories());
+    assertTrue(failures.isEmpty(), failures.toString());
   }
 }

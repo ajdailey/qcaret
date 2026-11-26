@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.session;
 
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -124,7 +125,7 @@ public final class SessionText {
    */
   public static Charset charset(String name) {
     try {
-      return Charset.forName(name);
+      return Charsets.forName(name);
     } catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
       return null;
     }

@@ -9,12 +9,13 @@ import java.util.List;
  * A file's charset and whether a byte order mark precedes the text. The BOM is a property of the
  * file, not text: decoding skips it and saving writes it back.
  *
- * @param charset decodes and encodes the text; never a BOM-sensing {@code UTF-16} or {@code UTF-32}
+ * @param charset decodes and encodes the text; never a BOM-sensing {@code UTF-16} or {@code
+ *     UTF-32}; {@link Windows1252} for {@code windows-1252}
  * @param bom true when the file starts with this charset's byte order mark
  */
 public record TextEncoding(Charset charset, boolean bom) {
-  private static final Charset UTF_32BE = Charset.forName("UTF-32BE");
-  private static final Charset UTF_32LE = Charset.forName("UTF-32LE");
+  private static final Charset UTF_32BE = Charsets.forName("UTF-32BE");
+  private static final Charset UTF_32LE = Charsets.forName("UTF-32LE");
 
   /**
    * The Encoding menu's charsets, by name. The bundles' jlink runtimes must carry every one; the
@@ -42,8 +43,9 @@ public record TextEncoding(Charset charset, boolean bom) {
           "EUC-JP",
           "EUC-KR");
 
-  /** Checks the components. */
+  /** Checks the components and takes {@link Windows1252} for any {@code windows-1252}. */
   public TextEncoding {
+    charset = Windows1252.substitute(charset);
     if (charset.equals(StandardCharsets.UTF_16) || charset.name().equals("UTF-32")) {
       throw new IllegalArgumentException("BOM-sensing charset " + charset.name());
     }
@@ -84,7 +86,7 @@ public record TextEncoding(Charset charset, boolean bom) {
     } catch (IllegalCharsetNameException e) {
       return null;
     }
-    return of(Charset.forName(name), false);
+    return of(Charsets.forName(name), false);
   }
 
   /**

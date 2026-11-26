@@ -36,16 +36,19 @@ calls its listener with every watched file every `pollMillis`, on `checkAll`
 (window activation), and with the files `check` names or a directory event
 names. `pause` holds that thread for a listener waiting on a changing file.
 
-- Each directory holding a watched file is registered once with a
-  `WatchService` and released with its last file; a directory that cannot be
-  registered is polled only.
+- With `useWatchService`, each directory holding a watched file is registered
+  once with a `WatchService` and released with its last file; a directory that
+  cannot be registered is polled only. Without it no directory is registered.
+  `ExternalChanges` passes `OsTraits.watchServiceByDefault()`, false on macOS,
+  where the JDK 21 `WatchService` is a scan of each directory every 2 s; there
+  a change is found by the poll or on `checkAll`.
 - `suspend(root)` cancels the keys at or under a directory before it returns
   and registers none there until `resume(root)`; the files stay watched and
   polled. On Windows a key holds its directory open, which fails the rename or
   delete of any ancestor. After `resume` the thread registers the directories
   of the files watched then.
-- The poll stays on: a `WatchService` misses network mounts, polls on macOS,
-  and never sees a link's target change in another directory.
+- The poll stays on: a `WatchService` misses network mounts and never sees a
+  link's target change in another directory.
 - An exception from the listener goes to the thread's uncaught-exception
   handler once per run of failures, and checking goes on.
 - The thread ends within 100 ms of the last `unwatch` or of `close`.

@@ -76,7 +76,10 @@ bar.
 The file's encoding comes from its byte order mark, an XML, HTML or Python
 declaration, a modeline or `.editorconfig` file (see [Per-file
 settings](#per-file-settings)), or the content; UTF-8 is tried before
-windows-1252. Encoding >
+windows-1252. windows-1252 reads every byte: 0x81, 0x8D, 0x8F, 0x90 and 0x9D,
+which the charset leaves undefined, read as the control characters U+0081,
+U+008D, U+008F, U+0090 and U+009D, as web browsers read them, and save back as
+the same bytes. Encoding >
 Reopen with Encoding reads the file again with another charset, and QCaret
 remembers it for that file; its Automatic Detection entry returns the file to
 detection. Encoding > Save with Encoding changes what the next
@@ -834,7 +837,9 @@ default key; progress, Cancel and the one-job limit are as for File > Print.
 
 ## External changes
 
-QCaret checks each open file every 5 seconds and when a window activates.
+QCaret checks each open file every 5 seconds and when a window activates. On
+Windows and Linux a change to the file's folder also starts a check at once; on
+macOS a change shows at the next check.
 
 | The file on disk | Without unsaved changes | With unsaved changes |
 |---|---|---|

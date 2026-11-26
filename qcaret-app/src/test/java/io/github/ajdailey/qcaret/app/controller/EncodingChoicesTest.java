@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
+import io.github.ajdailey.qcaret.core.text.Windows1252;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,10 @@ class EncodingChoicesTest {
     }
     assertEquals(Charset.availableCharsets().size(), all.size());
     assertSame(choices, EncodingChoices.available());
+    assertSame(
+        Windows1252.INSTANCE,
+        choices.common().get(TextEncoding.MENU.indexOf("windows-1252")),
+        "the menu's windows-1252 decodes every byte");
   }
 
   @Test

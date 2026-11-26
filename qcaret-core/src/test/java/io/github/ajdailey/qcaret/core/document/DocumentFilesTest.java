@@ -85,6 +85,49 @@ class DocumentFilesTest {
     assertArrayEquals(bytes, Files.readAllBytes(file));
   }
 
+  /**
+   * windows-1252's five bytes the JDK leaves undefined read as C1 chars, so every byte loads in the
+   * fallback, passes the round-trip check and saves byte for byte, and a typed C1 char saves as its
+   * byte. The NUL makes the file binary, so binary loading is allowed without {@code asBinary},
+   * which forces ISO-8859-1.
+   */
+  @Test
+  void everyByteLoadsInTheWindows1252FallbackAndSavesByteForByte() throws Exception {
+    Path file = temp.resolve("every-byte.txt");
+    byte[] bytes = new byte[256];
+    for (int b = 0; b < 256; b++) {
+      bytes[b] = (byte) b;
+    }
+    Files.write(file, bytes);
+    LoadOptions d = LoadOptions.DEFAULTS;
+    LoadedFile loaded =
+        load(file, new LoadOptions(null, d.fallback(), d.empty(), d.limits(), true));
+    assertEquals(DetectionReason.FALLBACK, loaded.detection().reason());
+    assertEquals("windows-1252", loaded.document().encoding().charset().name());
+    assertTrue(loaded.roundTrips());
+    String text = loaded.document().text().toString();
+    assertEquals('€', text.charAt(0x80));
+    assertEquals("\u0081", text.substring(0x81, 0x82));
+    DocumentFiles.save(file, loaded.document().snapshot(), loaded.stamp(), new CancellationToken());
+    assertArrayEquals(bytes, Files.readAllBytes(file));
+
+    byte[] c1 = new byte[0xa0 - 0x80 + 2];
+    c1[0] = 'a';
+    for (int b = 0x80; b < 0xa0; b++) {
+      c1[b - 0x80 + 1] = (byte) b;
+    }
+    c1[c1.length - 1] = '\n';
+    Files.write(file, c1);
+    loaded = load(file, LoadOptions.DEFAULTS);
+    assertEquals(DetectionReason.FALLBACK, loaded.detection().reason());
+    assertEquals("windows-1252", loaded.document().encoding().charset().name());
+    Document doc = loaded.document();
+    doc.apply(EditBatch.replace(0, 1, "\u008d"));
+    DocumentFiles.save(file, doc.snapshot(), loaded.stamp(), new CancellationToken());
+    c1[0] = (byte) 0x8d;
+    assertArrayEquals(c1, Files.readAllBytes(file));
+  }
+
   @Test
   void aBinaryFileIsRefusedUnlessAllowed() throws Exception {
     final Path file = temp.resolve("data.bin");

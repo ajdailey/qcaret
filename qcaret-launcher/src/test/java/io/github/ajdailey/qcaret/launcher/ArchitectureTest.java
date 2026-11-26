@@ -48,6 +48,7 @@ import io.github.ajdailey.qcaret.core.document.DocumentFiles;
 import io.github.ajdailey.qcaret.core.io.AtomicFiles;
 import io.github.ajdailey.qcaret.core.io.SafePaths;
 import io.github.ajdailey.qcaret.core.io.SafeSave;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.beans.XMLDecoder;
 import java.io.IOException;
@@ -658,6 +659,8 @@ class ArchitectureTest {
         .orShould()
         .callMethodWhere(call(Charset.class, "availableCharsets"))
         .orShould()
+        .callMethodWhere(call(Charsets.class, "available"))
+        .orShould()
         .dependOnClassesThat()
         .resideInAPackage("java.nio.channels..");
   }
@@ -718,6 +721,7 @@ class ArchitectureTest {
           new Blocking(FileChannel.class, ".*"),
           new Blocking(Path.class, "toRealPath"),
           new Blocking(Charset.class, "availableCharsets"),
+          new Blocking(Charsets.class, "available"),
           new Blocking(OsTraits.class, "runsInsteadOfOpening"),
           new Blocking(AtomicFiles.class, ".*"),
           new Blocking(SafePaths.class, ".*"),
@@ -1431,7 +1435,13 @@ class ArchitectureTest {
    * other boolean would switch behavior in a shared class, which belongs in a seam interface.
    */
   private static final List<String> VALUE_TRAITS =
-      List.of("macKeys", "linuxKeys", "fileNamesIgnoreCase", "hidden", "runsInsteadOfOpening");
+      List.of(
+          "macKeys",
+          "linuxKeys",
+          "fileNamesIgnoreCase",
+          "hidden",
+          "runsInsteadOfOpening",
+          "watchServiceByDefault");
 
   /**
    * Outside the platform packages no class calls a boolean trait that is not a value: platform
@@ -1503,7 +1513,9 @@ class ArchitectureTest {
           "caretBlend",
           List.of(ROOT + ".ui.swt.editor.CaretInk"),
           "fileLock",
-          List.of(ROOT + ".core.io.ProcessLock"));
+          List.of(ROOT + ".core.io.ProcessLock"),
+          "watchServiceByDefault",
+          List.of(ROOT + ".app.controller.ExternalChanges"));
 
   /** Only {@code ui.swt.platform} calls a {@link #PLATFORM_QUERIES} method. */
   @Test
@@ -1572,6 +1584,38 @@ class ArchitectureTest {
               }
             })
         .because("a value trait a condition switches on chooses platform code; a seam does that");
+  }
+
+  // Charset lookups.
+
+  /**
+   * Only {@code Charsets} looks charsets up, so every name resolves windows-1252 the same way.
+   * Exception: {@code Flock}, which sits below {@code core.text} and looks up the platform's path
+   * encoding ({@code sun.jnu.encoding}) only on Linux and macOS.
+   */
+  @Test
+  void charsetLookupsOnlyInCharsets() {
+    charsetLookupsOnlyInCharsetsRule().check(classes);
+  }
+
+  @Test
+  void charsetRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        charsetLookupsOnlyInCharsetsRule(),
+        ROOT + ".core.archfixture.CoreViolations$LooksUpCharsets",
+        "Charset.forName",
+        "Charset.availableCharsets");
+  }
+
+  private static ArchRule charsetLookupsOnlyInCharsetsRule() {
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(ROOT + ".core.text.Charsets")
+        .and()
+        .doNotHaveFullyQualifiedName(ROOT + ".core.io.Flock")
+        .should()
+        .callMethodWhere(call(Charset.class, "forName|availableCharsets"))
+        .because("Charsets resolves windows-1252 and its aliases to Windows1252");
   }
 
   // Collection declarations.

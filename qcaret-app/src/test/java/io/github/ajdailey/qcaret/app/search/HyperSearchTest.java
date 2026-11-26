@@ -152,6 +152,71 @@ class HyperSearchTest {
     assertTrue(a.stamp() != null && a.digest().length == 32);
   }
 
+  /** windows-1252's five undefined bytes read as C1 chars, so a literal and a regex find them. */
+  @Test
+  void windows1252UndefinedBytesMatchAsC1() throws Exception {
+    byte[] bytes = {
+      'a',
+      (byte) 0x81,
+      'b',
+      '\n',
+      'a',
+      (byte) 0x8d,
+      'b',
+      '\n',
+      'a',
+      (byte) 0x8f,
+      'b',
+      '\n',
+      'a',
+      (byte) 0x90,
+      'b',
+      '\n',
+      'a',
+      (byte) 0x9d,
+      'b',
+      '\n',
+      (byte) 0x80,
+      '\n'
+    };
+    Files.write(temp.resolve("c1.txt"), bytes);
+    String[][] queries = {
+      {"\u0081", "false", "1"},
+      {"a\u009db", "false", "1"},
+      {"a[\\x{81}\\x{8d}\\x{8f}\\x{90}\\x{9d}]b", "true", "5"},
+      {"€", "false", "1"},
+      {"�", "false", "0"}
+    };
+    int id = 1;
+    for (String[] q : queries) {
+      ResultSet set =
+          new ResultSet(
+              id++,
+              new SearchRequest(
+                  q[0],
+                  Boolean.parseBoolean(q[1]),
+                  true,
+                  false,
+                  SearchScope.TREE,
+                  temp,
+                  "",
+                  "",
+                  "",
+                  false),
+              0);
+      HyperSearch search =
+          start(
+              set,
+              List.of(),
+              new HyperSearch.Folder(temp, true, FileFilter.of("", "", "", false)),
+              HyperSearch.Limits.DEFAULTS,
+              new MemoryBudget(1L << 30, 60));
+      await(search);
+      assertEquals(Integer.parseInt(q[2]), set.matches(), q[0]);
+      set.release();
+    }
+  }
+
   @Test
   void theMatchLimitTruncatesTheSet() throws Exception {
     ResultSet set = new ResultSet(1, request("a", SearchScope.CURRENT_DOCUMENT, null), 0);

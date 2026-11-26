@@ -18,9 +18,11 @@ import java.util.regex.Pattern;
  * UTF-16 zero-byte pattern in the first {@value #SAMPLE_BYTES} bytes, a declared charset (XML
  * declaration, HTML meta charset, a coding line or a modeline read by {@link Modelines}) that
  * decodes the whole file strictly, a configured charset (EditorConfig) that does, valid UTF-8, then
- * the fallback, or ISO-8859-1 when the fallback does not decode the file strictly. ISO-8859-1 maps
- * every byte. The UTF-32LE BOM {@code FF FE 00 00} is checked before the UTF-16LE BOM it starts
- * with, so a UTF-16LE file whose first char is U+0000 is detected as UTF-32LE.
+ * the fallback, or ISO-8859-1 when the fallback does not decode the file strictly. ISO-8859-1 and
+ * {@link Windows1252} map every byte, so with the product's windows-1252 fallback ISO-8859-1 is
+ * never chosen; it remains for a fallback such as UTF-8. The UTF-32LE BOM {@code FF FE 00 00} is
+ * checked before the UTF-16LE BOM it starts with, so a UTF-16LE file whose first char is U+0000 is
+ * detected as UTF-32LE.
  *
  * <p>UTF-16 pattern: at least {@value #UTF16_ZERO_PERCENT}% of the sampled bytes at one parity are
  * zero and under {@value #UTF16_OTHER_PERCENT}% at the other; zeros at odd offsets mean
@@ -40,8 +42,8 @@ public final class EncodingDetector {
   private static final int DECLARATION_BYTES = 1024;
 
   private static final int DECODE_CHARS = 8192;
-  private static final Charset UTF_32BE = Charset.forName("UTF-32BE");
-  private static final Charset UTF_32LE = Charset.forName("UTF-32LE");
+  private static final Charset UTF_32BE = Charsets.forName("UTF-32BE");
+  private static final Charset UTF_32LE = Charsets.forName("UTF-32LE");
   private static final Pattern XML =
       Pattern.compile("^<\\?xml[^>]{0,200}?encoding\\s*=\\s*[\"']([A-Za-z0-9._:-]{1,40})[\"']");
   private static final Pattern HTML =

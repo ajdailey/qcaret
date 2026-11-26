@@ -11,6 +11,7 @@ import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.FileSearch;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
 import io.github.ajdailey.qcaret.core.search.TextSearch;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -52,7 +53,7 @@ public final class HyperSearch {
   public record Limits(int maxResults, long maxFileBytes, int maxLineChars, Charset fallback) {
     /** 100,000 matches, 64 MiB files, 1,000,000-char lines, windows-1252. */
     public static final Limits DEFAULTS =
-        new Limits(100_000, 64L << 20, 1_000_000, Charset.forName("windows-1252"));
+        new Limits(100_000, 64L << 20, 1_000_000, Charsets.forName("windows-1252"));
 
     /**
      * Returns a copy with another longest line.

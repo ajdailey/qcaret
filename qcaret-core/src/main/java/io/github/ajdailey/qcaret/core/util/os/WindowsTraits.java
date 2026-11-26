@@ -65,6 +65,11 @@ final class WindowsTraits implements OsTraits {
   }
 
   @Override
+  public boolean watchServiceByDefault() {
+    return true;
+  }
+
+  @Override
   public boolean runsInsteadOfOpening(Path file) {
     Path name = file.getFileName();
     return name != null && RunnableTypes.windows(name.toString(), System.getenv("PATHEXT"));

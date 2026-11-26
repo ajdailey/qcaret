@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -59,7 +61,28 @@ class OsTraitsTest {
         + " names="
         + os.deviceNames().getClass().getSimpleName()
         + " confinement="
-        + os.fileConfinement().getClass().getSimpleName();
+        + os.fileConfinement().getClass().getSimpleName()
+        + " watch="
+        + os.watchServiceByDefault();
+  }
+
+  /** Every question is abstract and each system's class answers it itself. */
+  @Test
+  void eachSystemImplementsEveryQuestion() throws NoSuchMethodException {
+    List<Class<?>> systems = List.of(WindowsTraits.class, MacTraits.class, LinuxTraits.class);
+    for (Method question : OsTraits.class.getDeclaredMethods()) {
+      if (Modifier.isStatic(question.getModifiers())) {
+        continue;
+      }
+      assertFalse(question.isDefault(), question.getName());
+      for (Class<?> system : systems) {
+        assertEquals(
+            system,
+            system
+                .getDeclaredMethod(question.getName(), question.getParameterTypes())
+                .getDeclaringClass());
+      }
+    }
   }
 
   /**
@@ -89,13 +112,16 @@ class OsTraitsTest {
   @Test
   void eachSystemAnswersItsQuestions() {
     assertEquals(
-        "ignoresCase=true lock=CHANNEL names=WindowsDeviceNames confinement=WindowsFileConfinement",
+        "ignoresCase=true lock=CHANNEL names=WindowsDeviceNames"
+            + " confinement=WindowsFileConfinement watch=true",
         answers(WINDOWS));
     assertEquals(
-        "ignoresCase=true lock=FLOCK_MACOS names=FileNames confinement=MacFileConfinement",
+        "ignoresCase=true lock=FLOCK_MACOS names=FileNames confinement=MacFileConfinement"
+            + " watch=false",
         answers(MAC));
     assertEquals(
-        "ignoresCase=false lock=FLOCK_LINUX names=FileNames confinement=LinuxFileConfinement",
+        "ignoresCase=false lock=FLOCK_LINUX names=FileNames confinement=LinuxFileConfinement"
+            + " watch=true",
         answers(LINUX));
   }
 

@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.controller;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -189,6 +190,30 @@ class ReplaceControllerTest {
     assertEquals("edit key\n", first.document().text().toString());
     assertEquals("lock lock\n", second.document().text().toString());
     assertFalse(report.canRestore());
+  }
+
+  /**
+   * A file holding every byte but NUL, which would make it binary, is read in the windows-1252
+   * fallback: the search finds byte 0x81 as U+0081 and the replace changes that byte alone.
+   */
+  @Test
+  void aTreeReplaceFindsAWindows1252UndefinedByteAndKeepsEveryOther() throws Exception {
+    Path tree = Files.createDirectories(temp.resolve("tree"));
+    byte[] bytes = new byte[300 + 255];
+    for (int i = 0; i < 300; i++) {
+      bytes[i] = 'x';
+    }
+    for (int b = 1; b < 256; b++) {
+      bytes[300 + b - 1] = (byte) b;
+    }
+    Path file = Files.write(tree.resolve("every.txt"), bytes);
+    run("\u0081", SearchScope.TREE, tree.toString());
+    ReplaceInput input = preview("Z");
+    assertEquals(1, input.fileCount());
+    ReportInput report = apply(input);
+    assertEquals(List.of("every.txt: " + UiText.REPLACE_ROW_CHANGED.format(1)), results(report));
+    bytes[300 + 0x81 - 1] = 'Z';
+    assertArrayEquals(bytes, Files.readAllBytes(file));
   }
 
   @Test

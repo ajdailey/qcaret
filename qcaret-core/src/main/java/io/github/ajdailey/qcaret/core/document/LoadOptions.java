@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.core.document;
 
 import io.github.ajdailey.qcaret.core.text.LineEnding;
+import io.github.ajdailey.qcaret.core.text.Windows1252;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -64,8 +65,7 @@ public record LoadOptions(
 
   /** Detection with a windows-1252 fallback, LF for an empty file, default undo bounds. */
   public static final LoadOptions DEFAULTS =
-      new LoadOptions(
-          null, Charset.forName("windows-1252"), LineEnding.LF, UndoLimits.DEFAULTS, false);
+      new LoadOptions(null, Windows1252.INSTANCE, LineEnding.LF, UndoLimits.DEFAULTS, false);
 
   /**
    * Returns these options with a forced charset.

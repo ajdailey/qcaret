@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.app.cli;
 
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.file.InvalidPathException;
@@ -238,7 +239,7 @@ public final class CommandLineParser {
   private static String charsetName(String value) throws CommandLineException {
     try {
       if (Charset.isSupported(value.strip())) {
-        return Charset.forName(value.strip()).name();
+        return Charsets.forName(value.strip()).name();
       }
     } catch (IllegalCharsetNameException e) {
       // Reported below.

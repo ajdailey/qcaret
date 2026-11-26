@@ -101,7 +101,7 @@ public final class Modelines {
         return null;
       }
     }
-    return Charset.forName(n);
+    return Charsets.forName(n);
   }
 
   private static boolean supported(String name) {

@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.text.LogText;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import io.github.ajdailey.qcaret.core.watch.FileMonitor;
 import java.io.IOException;
@@ -92,8 +93,9 @@ final class ExternalChanges {
   private final CancellationToken token = new CancellationToken();
   private final AtomicLong passes = new AtomicLong();
 
-  ExternalChanges(Workers workers, UiDispatcher ui, long pollMillis, Listener listener) {
-    this(workers, ui, pollMillis, QUIET_MILLIS, listener);
+  ExternalChanges(
+      Workers workers, UiDispatcher ui, long pollMillis, OsTraits system, Listener listener) {
+    this(workers, ui, pollMillis, QUIET_MILLIS, system, listener);
   }
 
   /**
@@ -103,10 +105,16 @@ final class ExternalChanges {
    * @param ui receives the results
    * @param pollMillis interval between checks of every open file
    * @param quietMillis how long a changed file's stamp must hold
+   * @param system decides whether the monitor registers directories with a {@code WatchService}
    * @param listener receives the results
    */
   ExternalChanges(
-      Workers workers, UiDispatcher ui, long pollMillis, long quietMillis, Listener listener) {
+      Workers workers,
+      UiDispatcher ui,
+      long pollMillis,
+      long quietMillis,
+      OsTraits system,
+      Listener listener) {
     this.ui = ui;
     this.quietMillis = quietMillis;
     this.listener = listener;
@@ -114,6 +122,7 @@ final class ExternalChanges {
         new FileMonitor(
             workers,
             pollMillis,
+            system.watchServiceByDefault(),
             new FileMonitor.Listener() {
               @Override
               @WorkerThread

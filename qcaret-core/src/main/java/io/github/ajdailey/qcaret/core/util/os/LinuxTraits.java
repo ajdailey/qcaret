@@ -75,6 +75,11 @@ final class LinuxTraits implements OsTraits {
   }
 
   @Override
+  public boolean watchServiceByDefault() {
+    return true;
+  }
+
+  @Override
   public boolean runsInsteadOfOpening(Path file) {
     return Files.isExecutable(file);
   }

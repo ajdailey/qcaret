@@ -130,6 +130,14 @@ runs `CharsetProbe` in the linux-x86_64 bundle's runtime to check that it has
 them, and the CI `bundle` job checks that every bundle runtime lists
 `jdk.charsets`.
 
+`TextEncoding` replaces any charset named `windows-1252` with `Windows1252`, as
+`Charsets.forName` and `Charsets.available`, the only charset lookups (an
+ArchUnit rule; `Flock` excepted), do for that name and each alias.
+`Windows1252` decodes the five bytes the JDK leaves undefined (0x81, 0x8D, 0x8F,
+0x90, 0x9D) as the C1 code point of the same value, as the WHATWG Encoding
+Standard does, and encodes them back, so every byte decodes to one char, a load
+round-trips and search finds them.
+
 `Encoders.writable` reports whether a charset has an encoder; a decode-only
 charset such as `x-JISAutoDetect` has none, and `Charset.newEncoder` throws for
 it. Every encoder user checks it first: Save refuses the charset, Replace in
@@ -155,7 +163,9 @@ tries each over the file (`DocumentFiles.load`):
    under the same strict-decode condition.
 5. The whole file is valid UTF-8 (an empty file is).
 6. The fallback (`LoadOptions.fallback`, windows-1252 in `LoadOptions.DEFAULTS`),
-   or ISO-8859-1 when the fallback does not decode the file strictly.
+   or ISO-8859-1 when the fallback does not decode the file strictly. Both map
+   every byte, so ISO-8859-1 is reached only with another fallback, such as
+   UTF-8.
 
 A BOM or the UTF-16 pattern leaves no other candidate, so a BOM wins over a
 declared or configured charset.
@@ -270,6 +280,7 @@ system's answers from `OsTraits.of(name)`.
 | `fontDirectories` | `FontFiles.installedFamilies` | `%WINDIR%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | `~/.fonts`, the XDG data `fonts` folders |
 | `hidden` | `HiddenFiles` | the entry's own DOS hidden attribute, not a junction's or link's target's | `Files.isHidden` | `Files.isHidden` |
 | `runsInsteadOfOpening` | `WorkspaceController` Open in Default Application | `RunnableTypes.windows` with `PATHEXT` | `RunnableTypes.mac`, or the execute bit | the execute bit |
+| `watchServiceByDefault` | `ExternalChanges`, for the `FileMonitor` it creates | true | false: the JDK 21 `WatchService` scans each directory every 2 s | true |
 
 `RunnableTypes` lists the extensions a system runs, or follows to another
 target, when asked to open the file with its default application.

@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import io.github.ajdailey.qcaret.core.concurrent.WorkerThread;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ import java.util.List;
  * {@link #available()} runs on a worker; {@link #commonCharsets()} looks up the common names only.
  *
  * @param common the supported entries of {@link TextEncoding#MENU}, in that order
- * @param other every other supported charset, in {@link Charset#availableCharsets()} order
+ * @param other every other supported charset, in {@link Charsets#available()} order
  */
 public record EncodingChoices(List<Charset> common, List<Charset> other) {
   /**
@@ -49,7 +50,7 @@ public record EncodingChoices(List<Charset> common, List<Charset> other) {
   public static EncodingChoices available() {
     EncodingChoices choices = loaded;
     if (choices == null) {
-      choices = of(new ArrayList<Charset>(Charset.availableCharsets().values()));
+      choices = of(new ArrayList<Charset>(Charsets.available().values()));
       loaded = choices;
     }
     return choices;
@@ -95,7 +96,7 @@ public record EncodingChoices(List<Charset> common, List<Charset> other) {
 
   private static Charset lookup(String name) {
     try {
-      return Charset.isSupported(name) ? Charset.forName(name) : null;
+      return Charset.isSupported(name) ? Charsets.forName(name) : null;
     } catch (IllegalArgumentException e) {
       return null;
     }

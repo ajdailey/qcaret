@@ -147,7 +147,9 @@ strictly into a `DocumentBuilder` (rope leaves and line-ending counts) and the
 chars encoded back against the same bytes. A candidate that fails ends its pass
 at the failing byte and the next starts over, so a file in its first candidate
 is read once and a windows-1252 file twice. The last candidate's failure is
-`TextCodingException` with the byte offset.
+`TextCodingException` with the byte offset. The windows-1252 fallback never
+fails: 0x81, 0x8D, 0x8F, 0x90 and 0x9D read as U+0081, U+008D, U+008F, U+0090
+and U+009D and encode back ([Encodings](files-and-encodings.md#encodings)).
 
 - One channel serves every pass, so a file replaced by a rename during the load
   stays the file opened. The digest and text come from the same pass, and a

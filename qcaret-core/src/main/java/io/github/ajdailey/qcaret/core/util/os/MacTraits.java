@@ -61,6 +61,11 @@ final class MacTraits implements OsTraits {
   }
 
   @Override
+  public boolean watchServiceByDefault() {
+    return false;
+  }
+
+  @Override
   public boolean runsInsteadOfOpening(Path file) {
     Path name = file.getFileName();
     return (name != null && RunnableTypes.mac(name.toString())) || Files.isExecutable(file);

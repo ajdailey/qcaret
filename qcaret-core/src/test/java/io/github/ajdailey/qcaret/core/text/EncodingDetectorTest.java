@@ -85,10 +85,24 @@ class EncodingDetectorTest {
   }
 
   @Test
-  void theFallbackYieldsToIso88591OnItsUndefinedBytes() {
+  void theFallbackKeepsWindows1252ForItsUndefinedBytes() {
     assertDetected("windows-1252", false, DetectionReason.FALLBACK, detect(bytes('a', 0x80)));
-    assertDetected("ISO-8859-1", false, DetectionReason.FALLBACK, detect(bytes('a', 0x81)));
+    for (int b : new int[] {0x81, 0x8d, 0x8f, 0x90, 0x9d}) {
+      EncodingDetection detection = detect(bytes('a', b));
+      assertDetected("windows-1252", false, DetectionReason.FALLBACK, detection);
+      assertTrue(detection.encoding().charset() instanceof Windows1252);
+    }
     assertDetected("UTF-8", false, DetectionReason.UTF8_VALID, detect(new byte[0]));
+  }
+
+  @Test
+  void aFallbackThatFailsYieldsToIso88591() {
+    byte[] malformed = bytes('a', 0x81);
+    assertDetected(
+        "ISO-8859-1",
+        false,
+        DetectionReason.FALLBACK,
+        EncodingDetector.detect(malformed, malformed.length, StandardCharsets.UTF_8));
   }
 
   @Test

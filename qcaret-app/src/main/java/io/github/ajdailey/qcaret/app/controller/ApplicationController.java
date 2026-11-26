@@ -30,6 +30,7 @@ import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.document.LoadOptions;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.search.TextMatcher;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.workspace.HomeFolder;
 import io.github.ajdailey.qcaret.core.workspace.NameFilter;
@@ -1089,7 +1090,7 @@ public final class ApplicationController {
   /** Passes {@code editor.newLineEnding} and {@code editor.newEncoding} to the documents. */
   private void setNewFile(Options o) {
     documents.setNewFile(
-        o.newLineEnding().ending(System.lineSeparator()), Charset.forName(o.newEncoding()));
+        o.newLineEnding().ending(System.lineSeparator()), Charsets.forName(o.newEncoding()));
   }
 
   /** Returns {@code editor.rightMargin} while the line shows, else 0. */

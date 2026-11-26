@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.core.concurrent.CancellationToken;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.testkit.Poll;
+import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import io.github.ajdailey.qcaret.core.watch.FileCheck;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -45,6 +46,7 @@ class ExternalChangesTest {
               ui,
               POLL_MILLIS,
               QUIET_MILLIS,
+              OsTraits.current(),
               new ExternalChanges.Listener() {
                 @Override
                 public void found(ExternalChanges.Watch watch, FileCheck.Result result) {

@@ -42,6 +42,7 @@ import io.github.ajdailey.qcaret.core.document.TextCodingException;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
+import io.github.ajdailey.qcaret.core.text.Charsets;
 import io.github.ajdailey.qcaret.core.text.LineEnding;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
@@ -523,6 +524,7 @@ public final class DocumentController {
             workers,
             ui,
             TimeUnit.SECONDS.toMillis(Options.DEFAULTS.pollSeconds()),
+            view.system(),
             new ExternalChanges.Listener() {
               @Override
               public void found(ExternalChanges.Watch watch, FileCheck.Result result) {
@@ -2346,7 +2348,7 @@ public final class DocumentController {
     open.then = then;
     opener.open(
         file.path(),
-        file.encoding() == null ? options : options.withForced(Charset.forName(file.encoding())),
+        file.encoding() == null ? options : options.withForced(Charsets.forName(file.encoding())),
         open);
   }
 

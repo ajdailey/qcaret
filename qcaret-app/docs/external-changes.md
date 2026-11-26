@@ -9,8 +9,8 @@
 
 `ExternalChanges` checks each open document's file through `FileCheck` on the
 `FileMonitor`'s `qcaret-watch-` thread: every `file.pollSeconds`, on window
-activation (`ApplicationController.windowActivated`), on a directory event and
-after Restore Run. It checks the path the user opened, kept per document beside
+activation (`ApplicationController.windowActivated`), on a directory event
+(none on macOS) and after Restore Run. It checks the path the user opened, kept per document beside
 the real path that names the tab and deduplicates opens.
 
 A result reaches `FileReload` on the UI thread only when the document's

@@ -310,7 +310,7 @@ class FileReadCancelTest {
     assertMatchesWholeRead("invalid-utf8", concat(large(), bytes(0xc3, 'a')), utf8, "ISO-8859-1");
     assertMatchesWholeRead("fallback", concat(large(), bytes(0x80, 0x9f)), cp1252, "windows-1252");
     assertMatchesWholeRead(
-        "fallback-unmappable", concat(large(), bytes(0x80, 0x81)), cp1252, "ISO-8859-1");
+        "fallback-c1", concat(large(), bytes(0x80, 0x81)), cp1252, "windows-1252");
     assertMatchesWholeRead("binary", concat(bytes('a', 0), large()), utf8, "UTF-8");
     FileSearch.Decoded tooLarge =
         FileSearch.decode(

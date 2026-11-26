@@ -134,6 +134,15 @@ public interface OsTraits {
   boolean hidden(Path path) throws IOException;
 
   /**
+   * Reports whether the file monitor registers directories with a {@code WatchService}: false on
+   * macOS, where the JDK 21 {@code WatchService} is a scan of each directory every 2 s rather than
+   * a system notification.
+   *
+   * @return false on macOS
+   */
+  boolean watchServiceByDefault();
+
+  /**
    * Reports whether opening a file with its default application runs it: on Windows an extension in
    * {@link RunnableTypes#WINDOWS} or {@code PATHEXT}, whatever the attributes, since every readable
    * file is executable there; on macOS an extension in {@link RunnableTypes#MAC} or the execute
