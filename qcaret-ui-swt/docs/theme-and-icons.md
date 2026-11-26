@@ -231,10 +231,34 @@ foreground color, black by default, so it gets explicit colors. Measured on
 `target/diagnostics/win32-dialogs/`; the `windows-11-arm` runner shows another
 window over the desktop and skips it.
 
+A table with grid lines calls `Dialogs.gridLines` in place of
+`setLinesVisible(true)`; `ArchitectureTest.gridLinesOnlyThroughDialogColors`
+fails a `setLinesVisible` call outside `ui.swt.platform`. The win32 list view
+draws native grid lines in `COLOR_3DFACE`, `#f0f0f0` under dark (measured in
+QLogg, Windows 11 at 150 %), and no public API colors them. In a dialog
+`Win32DialogColors` colored, `gridLines` turns the native lines off and
+`Win32GridLines`, an `SWT.Paint` listener, draws `#404040` rules (1.37:1 on
+`#2b2b2b`; light lines are 1.14:1 on white) along the last pixel column of each
+column and one pixel above each shown item's top (`TableItem.getBounds`). Rules
+below the last item step by the last two items' pitch. A multiple of
+`getItemHeight` is wrong at a fractional zoom: a 29 px row at 150 % is no whole
+number of points, so such rules fall half a pixel behind per row and cross the
+text by row 12 (measured in QLogg). Elsewhere the native lines show. The Keys page and Keyboard Shortcuts show
+grid lines.
+
+SWT draws the header dividers of a table with header colors in `COLOR_3DFACE`
+unless the Display data key
+`org.eclipse.swt.internal.win32.Table.headerLineColor` holds a color. `apply`
+sets it through `Win32HeaderLines`: `#404040` under dark, cleared under light
+once no dark dialog is open. The key is Display-wide, and only a dark dialog's
+tables have header colors. This is a listed Public SWT API exception;
+`ArchitectureTest.headerLineKeyOnlyInWin32HeaderLines` keeps the key in that
+class. If an SWT upgrade drops the key, the dividers draw light and
+`DialogGridLinesTest` fails on win32.
+
 Public API leaves these light or gray:
 
 - A combo list's selected item at a fractional scale, white on white.
-- `Table` grid lines and header dividers (the Keys page).
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
   field (2.7 contrast), `#808080` on the body.

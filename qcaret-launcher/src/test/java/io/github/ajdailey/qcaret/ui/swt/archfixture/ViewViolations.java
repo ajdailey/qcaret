@@ -140,6 +140,20 @@ final class ViewViolations {
     }
   }
 
+  /** Shows a table's grid lines outside the platform package. */
+  static final class ShowsGridLines {
+    void open(org.eclipse.swt.widgets.Table table) {
+      table.setLinesVisible(true);
+    }
+  }
+
+  /** Sets SWT's win32 header divider color key outside Win32HeaderLines. */
+  static final class SetsHeaderLineColor {
+    void open(Display display) {
+      display.setData("org.eclipse.swt.internal.win32.Table.headerLineColor", null);
+    }
+  }
+
   /** Opens a native chooser outside NativeDialogs. */
   static final class OpensFileDialog {
     String choose(Shell parent) {

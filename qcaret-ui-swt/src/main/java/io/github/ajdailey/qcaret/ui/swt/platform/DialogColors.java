@@ -6,6 +6,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
 
 /**
  * Dialog colors where a platform's native theme leaves a dialog body unmatched to its title bar and
@@ -69,4 +70,13 @@ public interface DialogColors {
    * @return the check box
    */
   Button check(Composite parent);
+
+  /**
+   * Shows a dialog table's grid lines. Use in place of {@link Table#setLinesVisible}: win32 draws
+   * native grid lines in the light {@code COLOR_3DFACE} under the dark native theme, so {@link
+   * Win32DialogColors} hides them in a colored dialog and draws its own.
+   *
+   * @param table a table in a dialog shell
+   */
+  void gridLines(Table table);
 }

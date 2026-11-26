@@ -30,6 +30,10 @@ import org.eclipse.swt.widgets.Tree;
  * ChromeColors#PALETTE_COLORED} the palette. Controls created after the shell shows take their
  * colors from {@link SWT#Skin}. Under the light native setting nothing changes.
  *
+ * <p>Native grid lines and header dividers draw {@code #f0f0f0}, so {@link #gridLines} hides the
+ * lines and {@link Win32GridLines} draws {@link #GRID} rules, and {@link #apply} sets the dividers
+ * to {@link #GRID} through {@link Win32HeaderLines}.
+ *
  * <p>A single-line {@link Text}'s hint draws {@code #6d6d6d} when read-only (SWT draws it in {@code
  * COLOR_GRAYTEXT}) and {@code #575757} when editable, 2.74:1 and 1.96:1 on {@link #FIELD} (measured
  * on {@code windows-2025}); {@link Win32EmptyField} draws it in {@link #HINT} over that.
@@ -54,6 +58,12 @@ final class Win32DialogColors implements DialogColors {
   /** Text on every surface. */
   static final Color TEXT = new Color(0xff, 0xff, 0xff);
 
+  /**
+   * Table grid lines and header dividers: 1.37:1 on {@link #FIELD}; native lines on a light table
+   * are 1.14:1.
+   */
+  static final Color GRID = new Color(0x40, 0x40, 0x40);
+
   /** Hint text of an empty single-line field: 5.0 contrast on {@link #FIELD}. */
   static final Color HINT = new Color(0x9a, 0x9a, 0x9a);
 
@@ -76,6 +86,7 @@ final class Win32DialogColors implements DialogColors {
   @Override
   public void apply(Shell shell) {
     Display display = shell.getDisplay();
+    headerLines(display);
     if (!DialogColors.nativeDark(display)) {
       return;
     }
@@ -111,6 +122,24 @@ final class Win32DialogColors implements DialogColors {
     }
   }
 
+  /**
+   * Sets the header divider color for the current side: {@link #GRID} under dark; under light, the
+   * native color once no colored dialog is open, since only a colored dialog's tables have header
+   * colors, which make SWT draw the dividers.
+   */
+  private static void headerLines(Display display) {
+    if (DialogColors.nativeDark(display)) {
+      Win32HeaderLines.set(display, GRID);
+      return;
+    }
+    for (Shell open : display.getShells()) {
+      if (!open.isDisposed() && open.getData(COLORED) != null) {
+        return;
+      }
+    }
+    Win32HeaderLines.set(display, null);
+  }
+
   @Override
   public boolean colored(Control control) {
     return control.getShell().getData(COLORED) != null;
@@ -129,6 +158,15 @@ final class Win32DialogColors implements DialogColors {
       if (light) {
         display.setDarkThemePreferred(true);
       }
+    }
+  }
+
+  @Override
+  public void gridLines(Table table) {
+    if (colored(table)) {
+      Win32GridLines.draw(table, GRID);
+    } else {
+      table.setLinesVisible(true);
     }
   }
 

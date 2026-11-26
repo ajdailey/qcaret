@@ -6,6 +6,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
 
 /**
  * GTK and cocoa: dialogs and check boxes keep the native theme's colors, which match their page.
@@ -33,5 +34,10 @@ final class NativeDialogColors implements DialogColors {
   @Override
   public Button check(Composite parent) {
     return new Button(parent, SWT.CHECK);
+  }
+
+  @Override
+  public void gridLines(Table table) {
+    table.setLinesVisible(true);
   }
 }

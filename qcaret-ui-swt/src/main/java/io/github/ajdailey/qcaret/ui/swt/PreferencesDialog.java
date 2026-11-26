@@ -319,7 +319,7 @@ final class PreferencesDialog {
     filter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     commands = new Table(page, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.SINGLE);
     commands.setHeaderVisible(true);
-    commands.setLinesVisible(true);
+    Dialogs.gridLines(commands);
     GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
     tableData.heightHint = 220;
     commands.setLayoutData(tableData);

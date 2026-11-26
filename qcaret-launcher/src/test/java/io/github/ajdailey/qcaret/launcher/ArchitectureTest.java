@@ -1150,6 +1150,53 @@ class ArchitectureTest {
         .because("a native TabFolder keeps a light tab row under a dark win32 start");
   }
 
+  @Test
+  void gridLinesOnlyThroughDialogColors() {
+    gridLinesOnlyThroughDialogColorsRule().check(classes);
+  }
+
+  @Test
+  void gridLinesRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        gridLinesOnlyThroughDialogColorsRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$ShowsGridLines",
+        "ShowsGridLines.open");
+  }
+
+  private static ArchRule gridLinesOnlyThroughDialogColorsRule() {
+    return noClasses()
+        .that()
+        .resideOutsideOfPackage(ROOT + ".ui.swt.platform..")
+        .should()
+        .callMethodWhere(call(org.eclipse.swt.widgets.Table.class, "setLinesVisible"))
+        .because("win32 draws native grid lines light under the dark theme; use Dialogs.gridLines");
+  }
+
+  /** The class that holds SWT's win32 header divider color key, a Public SWT API exception. */
+  private static final String HEADER_LINE_KEY_CLASS = ROOT + ".ui.swt.platform.Win32HeaderLines";
+
+  @Test
+  void headerLineKeyOnlyInWin32HeaderLines() {
+    headerLineKeyOnlyInWin32HeaderLinesRule().check(classes);
+  }
+
+  @Test
+  void headerLineKeyRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        headerLineKeyOnlyInWin32HeaderLinesRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$SetsHeaderLineColor",
+        "SetsHeaderLineColor holds a string starting \"org.eclipse.swt.internal.win32.Table\"");
+  }
+
+  private static ArchRule headerLineKeyOnlyInWin32HeaderLinesRule() {
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(HEADER_LINE_KEY_CLASS)
+        .should(holdAStringStarting("org.eclipse.swt.internal.win32.Table"))
+        .because(
+            "the header divider color key names an SWT internal; only Win32HeaderLines sets it");
+  }
+
   /**
    * Only {@code NativeDialogs} opens an SWT {@code Dialog}, so a window rebuild sees every nested
    * event loop of a file, folder or print dialog.

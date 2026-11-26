@@ -263,6 +263,8 @@ classes, so the rules over the main classes never see them.
 | `setImage` on `ToolItem`, `MenuItem`, `Button`, `TableItem`, `TreeItem`, `Item` and `CTabItem` only in `ToolIcons` | `ToolIcons` picks the icon's ink for the background it shows on |
 | A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogColors.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
 | A native `TabFolder` is created only in `ui.swt.platform` (`tabFoldersOnlyThroughDialogTabs`) | A dialog takes its folder from `PlatformTraits.dialogTabs`: `Win32DialogTabs` while win32's native theme is dark, `NativeDialogTabs` or `CocoaDialogTabs` otherwise |
+| `Table.setLinesVisible` is called only in `ui.swt.platform` (`gridLinesOnlyThroughDialogColors`) | A table shows its lines through `Dialogs.gridLines`, drawn dark in a dark win32 dialog |
+| A string starting `org.eclipse.swt.internal.win32.Table` only in `Win32HeaderLines` (`headerLineKeyOnlyInWin32HeaderLines`) | The header divider color key is a Public SWT API exception confined to one class |
 | `Dialog.open` is called only in `ui.swt.NativeDialogs` (`nativeChoosersOnlyThroughNativeDialogs`) | A window rebuild waits only for a native dialog `NativeDialogs` counts |
 | `ui.swt` does not call `Document.apply`, `undo` or `redo` | Every edit goes through a controller |
 | `ui.swt` does not call `ThemeController.mode`, `DocumentController.wrap` or `count`, `LogFiles.attached`, or the `Document` state getters (`isReadOnly`, `isDirty`, `canUndo`, `canRedo`, `encoding`, `lineEndings`) | `CommandStates` computes menu and status state |

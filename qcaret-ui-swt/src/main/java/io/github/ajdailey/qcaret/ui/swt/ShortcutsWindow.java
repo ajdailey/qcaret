@@ -38,7 +38,7 @@ final class ShortcutsWindow {
     filter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     table = new Table(shell, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
     table.setHeaderVisible(true);
-    table.setLinesVisible(true);
+    Dialogs.gridLines(table);
     table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     for (UiText title :
         new UiText[] {UiText.SHORTCUTS_GROUP, UiText.SHORTCUTS_COMMAND, UiText.SHORTCUTS_KEYS}) {

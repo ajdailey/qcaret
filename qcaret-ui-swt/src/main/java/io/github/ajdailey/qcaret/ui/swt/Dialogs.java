@@ -19,6 +19,7 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
 
 /**
  * Shared pieces of QCaret's dialogs. Every dialog opens without a nested event loop: {@code open}
@@ -216,6 +217,15 @@ final class Dialogs {
                 height),
             new WindowGeometry.Rect(workArea.x, workArea.y, workArea.width, workArea.height));
     shell.setBounds(fitted.x(), fitted.y(), fitted.width(), fitted.height());
+  }
+
+  /**
+   * Shows a dialog table's grid lines ({@link DialogColors#gridLines}).
+   *
+   * @param table the table
+   */
+  static void gridLines(Table table) {
+    DialogColors.platform().gridLines(table);
   }
 
   /**

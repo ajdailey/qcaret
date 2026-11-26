@@ -86,7 +86,9 @@ clipboard as `Keymap.reference(filter)` writes them. A second request brings
 the open window forward. It opens at least 560 px wide and as wide as its
 packed columns need, within the screen (`TableFit.dialogWidth`); a remembered
 size overrides that. A cell cut off shows its full text as the table's tool tip
-(`TableFit.cellTips`).
+(`TableFit.cellTips`). Its table and the Preferences Keys table take their grid
+lines from `Dialogs.gridLines`, dark in a dark win32 dialog ([Dialog
+colors](theme-and-icons.md#dialog-colors)).
 
 Tools > Preferences (the application menu on macOS) opens `PreferencesDialog`, a
 modeless window with one tab per `PreferencesForm.Group`, over
