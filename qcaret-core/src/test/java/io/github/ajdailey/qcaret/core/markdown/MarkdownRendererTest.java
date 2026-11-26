@@ -72,6 +72,13 @@ class MarkdownRendererTest {
   }
 
   @Test
+  void surrogateCharacterReferencesRenderAsTheReplacementChar() {
+    RenderedMarkdown r = Render.of("# a &#xD800;\n\nb &#56320; &#x1F600;\n");
+    assertEquals(List.of("a �", "", "b � 😀"), lines(r));
+    assertEquals("a �", r.headings().get(0).text());
+  }
+
+  @Test
   void runsAreOrderedByStart() {
     RenderedMarkdown r = Render.of("a **b *c* d** e");
     int last = -1;

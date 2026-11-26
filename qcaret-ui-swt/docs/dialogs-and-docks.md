@@ -270,7 +270,9 @@ and closes.
 tree in a virtual `Table`: set rows, file group rows and match rows, a `+` or
 `-` before a set or group. A virtual table changes only its row count, where
 GTK's `Tree` took seconds to expand and clear 10,000 children (measured under
-Xvfb); `ResultRows` maps rows to paths.
+Xvfb); `ResultRows` maps rows to paths. A row whose path the model no longer
+holds loads nothing: the search controller's dispose empties the model without
+a refresh, and GTK 4 can request a row's data after it.
 
 - A click on the mark, Enter, a double click, Right and Left expand and
   collapse; Left on a child selects its parent; Enter and a double click on a

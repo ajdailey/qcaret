@@ -369,6 +369,9 @@ public final class ResultsDock {
       return;
     }
     int[] path = rows.path(index);
+    if (!rows.inModel(path)) {
+      return;
+    }
     ResultLabel label;
     String prefix;
     switch (path.length) {

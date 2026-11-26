@@ -138,7 +138,7 @@ archive when the runner image lacks them.
 | Job | Runners | Does |
 |---|---|---|
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`); Linux installs `libwebkit2gtk-4.1-0` for the Browser preview tests |
-| `test-gtk4` | `ubuntu-24.04` | `verify` of `qcaret-ui-swt`, `qcaret-launcher` and the modules they need, with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
+| `test-gtk4` | `ubuntu-24.04` | `verify` of `qcaret-ui-swt`, `qcaret-launcher`, `qcaret-dist` (the distribution tests) and the modules they need, with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
 | `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
 | `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
@@ -330,7 +330,7 @@ java -jar qcaret.jar [options] [[+<line>[:<column>]] file]...
 | `--session`, `--no-session` | Restore the previous session, or skip it; by default every start restores it except `--diff`. A launch that hands off to a running instance ignores both |
 | `--diff <a> <b>` | Open the read-only comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, each independently; overrides the remembered size for this run and is not saved back; default 1024 x 768 |
-| `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows |
+| `--window-x <px>`, `--window-y <px>` | Window position, as above; ignored on Wayland, where the compositor places windows, and under GTK 4, which cannot move a window |
 | `--settings <dir>` | Settings directory, created owner-only; holds `qcaret.conf` and QCaret's SWT native cache |
 | `--gtk4` | `bin/qcaret` only: start on SWT's GTK 4 backend by exporting `SWT_GTK4=1`; dropped before Java starts, so `java -jar`, `qcaret.exe` and `qcaret.cmd` reject it. After `--` it is a file name |
 | `--` | End of options |

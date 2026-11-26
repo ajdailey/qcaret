@@ -163,6 +163,23 @@ final class ResultRows {
   }
 
   /**
+   * Reports whether a path is in the model as it stands now, which can hold fewer sets, groups or
+   * matches than the last {@link #update} counted.
+   *
+   * @param path a row's path
+   * @return true when the model has the set, group and match the path names
+   */
+  boolean inModel(int[] path) {
+    if (input == null || path.length == 0 || path[0] >= input.setCount()) {
+      return false;
+    }
+    if (path.length > 1 && path[1] >= input.fileCount(path[0])) {
+      return false;
+    }
+    return path.length < 3 || path[2] < input.matchCount(path[0], path[1]);
+  }
+
+  /**
    * Reports whether a set or group row is expanded.
    *
    * @param path a set or group path

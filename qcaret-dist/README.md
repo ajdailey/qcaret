@@ -181,7 +181,7 @@ on linux-x86_64, the extracted bundle:
 | `java -jar qcaret.jar -v` | Prints the manifest version as its first line |
 | Jar content | Digests hold no CR and each `natives.` list is in name order |
 | Jar notices | `META-INF/` holds `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` |
-| `java -jar qcaret.jar` | Opens a 900 x 600 window at 50,40 (within one point at a fractional zoom, the location clamped into the work area as placement clamps it) and writes no `logs` folder |
+| `java -jar qcaret.jar` | Opens a 900 x 600 window at 50,40 (within one point at a fractional zoom, the location clamped into the work area as placement clamps it, and not checked under GTK 4, which cannot move a window) and writes no `logs` folder |
 | Linux bundle with `-l`, `PATH` holding only `uname` and `readlink` | Reports its own `runtime/` as `java.home`, opens the same window, logs `First paint of file text` (the line `qcaret-bench` times), and after SIGTERM leaves one `qcaret-<pid>.log` holding the shutdown hook's line and no other file in `logs` |
 | Linux bundle runtime | `runtime/release` lists `jdk.charsets`, `jdk.localedata` and `java.management`; `runtime/bin` holds no `keytool`; every encoding in `SmokeTest.ENCODINGS` is supported (`CharsetProbe`) |
 | Linux bundle `bin/qcaret`, stub `runtime/bin/java` | `qcaret -m --gtk4 -- --gtk4` passes `SWT_GTK4=1`, the JVM options, `-jar <home>/lib/qcaret.jar`, `-m`, `--`, `--gtk4` |

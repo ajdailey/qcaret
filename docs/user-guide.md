@@ -1341,7 +1341,7 @@ qcaret [options] [[+<line>[:<column>]] file]...
 | `--session`, `--no-session` | Restore the previous session's windows also with `--diff` or with "Restore the session at start" off, or skip the session; a launch handed to the running instance ignores both |
 | `--diff <a> <b>` | Open the comparison of two files |
 | `--window-width <px>`, `--window-height <px>` | Client-area size, for this run |
-| `--window-x <px>`, `--window-y <px>` | Window position, for this run |
+| `--window-x <px>`, `--window-y <px>` | Window position, for this run; ignored on Wayland and under GTK 4 |
 | `--settings <dir>` | Settings directory |
 | `--gtk4` | Linux `bin/qcaret` only: start with GTK 4 (experimental); without GTK 4 libraries QCaret starts with GTK 3 and logs a warning |
 | `--` | End of options |

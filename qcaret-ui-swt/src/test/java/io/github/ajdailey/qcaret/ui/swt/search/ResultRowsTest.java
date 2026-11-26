@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.view.ResultLabel;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -14,8 +15,11 @@ import org.junit.jupiter.api.Test;
  * by set id when sets are added, and groups collapsed when a search ends.
  */
 class ResultRowsTest {
-  /** Sets with ids and per-group match counts; running sets listed by index. */
-  private static final class Model implements ResultsInput {
+  /**
+   * Sets with ids and per-group match counts; running sets listed by index. A label past the counts
+   * throws, as the search controller's model does.
+   */
+  static final class Model implements ResultsInput {
     long[] ids;
     int[][] matches;
     boolean[] running;
@@ -38,6 +42,7 @@ class ResultRowsTest {
 
     @Override
     public ResultLabel set(int set) {
+      Objects.checkIndex(set, ids.length);
       return ResultLabel.plain("set " + set, false);
     }
 
@@ -48,6 +53,7 @@ class ResultRowsTest {
 
     @Override
     public ResultLabel file(int set, int file) {
+      Objects.checkIndex(file, matches[set].length);
       return ResultLabel.plain("file " + file, false);
     }
 
@@ -58,6 +64,7 @@ class ResultRowsTest {
 
     @Override
     public ResultLabel match(int set, int file, int match) {
+      Objects.checkIndex(match, matches[set][file]);
       return ResultLabel.plain("match " + match, false);
     }
 
@@ -173,5 +180,23 @@ class ResultRowsTest {
     rows.update(model);
     assertFalse(rows.expanded(new int[] {1, 0}));
     assertEquals(4, rows.count());
+  }
+
+  @Test
+  void aPathIsInTheModelOnlyWhileTheModelHoldsIt() {
+    Model model = new Model(new long[] {1}, new int[][] {{2}});
+    ResultRows rows = new ResultRows();
+    rows.update(model);
+    rows.setExpanded(new int[] {0, 0}, true);
+    assertTrue(rows.inModel(new int[] {0}));
+    assertTrue(rows.inModel(new int[] {0, 0, 1}));
+    assertFalse(rows.inModel(new int[] {0, 0, 2}));
+    assertFalse(rows.inModel(new int[] {0, 1}));
+    assertFalse(rows.inModel(new int[0]));
+    model.ids = new long[0];
+    model.matches = new int[0][];
+    assertEquals(4, rows.count());
+    assertFalse(rows.inModel(rows.path(0)));
+    assertFalse(rows.inModel(rows.path(3)));
   }
 }

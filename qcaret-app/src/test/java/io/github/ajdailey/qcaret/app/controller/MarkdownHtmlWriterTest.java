@@ -154,6 +154,12 @@ class MarkdownHtmlWriterTest {
   }
 
   @Test
+  void surrogateCharacterReferencesWriteTheReplacementChar() {
+    String html = body("a &#xD800; &#56320; &#x1F600; `&#xD800;`\n");
+    assertHas(html, "a � � 😀 <code>&amp;#xD800;</code>");
+  }
+
+  @Test
   void rawHtmlStaysAsWritten() {
     String html = body("<div class=\"mock\"><kbd>K</kbd></div>\n\nText <sub>2</sub>\n");
     assertHas(html, "<div class=\"mock\"><kbd>K</kbd></div>");

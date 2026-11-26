@@ -141,8 +141,8 @@ class GoToSymbolSurfaceTest {
             }
           },
           BOUND);
-      display.dispose();
     } finally {
+      display.dispose();
       assertNull(failure.get());
     }
   }

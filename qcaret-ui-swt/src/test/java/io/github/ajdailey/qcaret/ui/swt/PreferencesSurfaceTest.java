@@ -106,8 +106,8 @@ class PreferencesSurfaceTest {
     try {
       display.setDarkThemePreferred(false);
       workers.close();
-      display.dispose();
     } finally {
+      display.dispose();
       assertNull(failure.get());
     }
   }

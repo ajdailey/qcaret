@@ -68,8 +68,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The SWT tests on the experimental GTK 4 backend. Gating: a test that hits a known SWT GTK 4
-  # defect is skipped there with the SWT issue named.
+  # The SWT and distribution tests on the experimental GTK 4 backend. Gating: a test that hits a
+  # known SWT GTK 4 defect is skipped there with the SWT issue named.
   test-gtk4:
     name: test linux-x86_64 GTK 4 (experimental)
     runs-on: ubuntu-24.04
@@ -94,8 +94,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libgtk-4-1
-      - name: Verify the SWT modules
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -pl qcaret-ui-swt,qcaret-launcher -am
+      - name: Verify the SWT modules and the distribution
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -pl qcaret-ui-swt,qcaret-launcher,qcaret-dist -am
 
   # IBusCompositionTest in its required mode: a real IBus engine through GTK 3, where any skip
   # fails. Not gating, and outside release's needs, until it has a measured pass rate.

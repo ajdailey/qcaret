@@ -78,8 +78,8 @@ class TipDialogSurfaceTest {
     try {
       controller.documents().dispose();
       workers.close();
-      display.dispose();
     } finally {
+      display.dispose();
       assertNull(failure.get());
     }
   }

@@ -43,6 +43,7 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("swt")
 class SmokeTest {
   private static final long BOUND_SECONDS = 60;
+  private static final boolean POSITIONED = !"1".equals(System.getenv("SWT_GTK4"));
   private static final Pattern OPENED =
       Pattern.compile(
           "Main window open: client area (\\d+)x(\\d+), location (-?\\d+),(-?\\d+),"
@@ -144,7 +145,8 @@ class SmokeTest {
   /**
    * Checks the logged window against the request: exact at a whole zoom, within one point at a
    * fractional one, where SWT rounds each value on its own; the location as the request clamped
-   * into the work area, as placement moves a window the screen is too short for.
+   * into the work area, as placement moves a window the screen is too short for, except on SWT GTK
+   * 4, which cannot move a window.
    */
   private static void assertOpened(Run run) throws InterruptedException {
     Matcher m = run.await(OPENED);
@@ -156,8 +158,10 @@ class SmokeTest {
     int y = Math.max(workY, Math.min(40, workY + Integer.parseInt(m.group(10)) - number(m, 6)));
     assertNear(900, number(m, 1), slack, m.group());
     assertNear(600, number(m, 2), slack, m.group());
-    assertNear(x, number(m, 3), slack, m.group());
-    assertNear(y, number(m, 4), slack, m.group());
+    if (POSITIONED) {
+      assertNear(x, number(m, 3), slack, m.group());
+      assertNear(y, number(m, 4), slack, m.group());
+    }
   }
 
   private static int number(Matcher m, int group) {

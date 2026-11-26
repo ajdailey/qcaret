@@ -97,8 +97,8 @@ final class MarkdownWindow {
             }
           },
           BOUND);
-      display.dispose();
     } finally {
+      display.dispose();
       assertNull(failure.get());
     }
   }

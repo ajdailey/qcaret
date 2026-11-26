@@ -127,8 +127,8 @@ class WorkspaceBrowseSurfaceTest {
             }
           },
           BOUND);
-      display.dispose();
     } finally {
+      display.dispose();
       assertNull(failure.get());
     }
   }

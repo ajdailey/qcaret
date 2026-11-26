@@ -41,10 +41,10 @@ class ViewDefaultsSurfaceTest {
       if (workers != null) {
         workers.close();
       }
+    } finally {
       if (display != null) {
         display.dispose();
       }
-    } finally {
       assertNull(failure.get());
     }
   }
