@@ -42,15 +42,8 @@ device depth of 1 prints all black. GTK reports depth 0 and macOS the screen's
 depth, so there the print system converts color for a monochrome printer.
 
 A control char is a span of its own (`PrintLayout`), two columns wide, which
-`PrintJob` draws with `ControlBoxes.drawRuled`: the box and label in
-`ControlBoxes.ink` of the span's color on white, black on a depth-1 printer. The
-outline is four filled bands 0.75 pt thick at the printer's dpi (at least one
-device pixel), not a stroke: a 1-unit stroke is a 0.24 pt hairline at GTK's
-300 dpi and thinner at a Windows printer's 600 dpi. The label prints in the
-print font's family at the largest whole point size, at most 10, at which two
-of the widest hex digit fit inside the outline with one band's width of white
-on every side (`ControlBoxes.labelArea`), centered there. At the full 10 points
-the digits cover the box's interior and the box reads as a solid block.
+`PrintJob` draws with `ControlBoxes.draw` in the print font: the box and label
+in `ControlBoxes.ink` of the span's color on white, black on a depth-1 printer.
 
 ## Rendered Markdown
 

@@ -10,12 +10,9 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.text.ControlChars;
-import java.util.function.IntFunction;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GlyphMetrics;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -121,58 +118,5 @@ class ControlBoxesTest {
   @Test
   void noStylesGivesOneBoxPerRun() {
     assertEquals("0+2:7F00", layout(ControlBoxes.split(null, 0, "\u007f\u0000", CELL)));
-  }
-
-  /**
-   * The print label at 72, 300 and 600 dpi, for a 10 pt font 12 pt high whose label is 1.2 times
-   * the height wide and high with a fifth of it descent: the part above the descent, where digits
-   * are drawn, sits inside the outline with a rule of white on every side.
-   */
-  @Test
-  void thePrintLabelFitsInsideTheOutlineWithARuleOfMargin() {
-    int[] dpis = {72, 300, 600};
-    int[] heights = {5, 6, 6};
-    for (int i = 0; i < dpis.length; i++) {
-      final double scale = dpis[i] / 72.0;
-      int rule = Math.max(1, Math.round(dpis[i] * 75 / 7200f));
-      int row = (int) Math.round(12 * scale);
-      int cell = (int) Math.round(12 * scale);
-      Rectangle area = ControlBoxes.labelArea(40, 100, cell, row, rule);
-      IntFunction<Point> widest =
-          new IntFunction<Point>() {
-            @Override
-            public Point apply(int points) {
-              int side = (int) Math.ceil(1.2 * points * scale);
-              return new Point(side, side);
-            }
-          };
-      int points = ControlBoxes.labelHeight(10, new Point(area.width, area.height), widest);
-      assertEquals(heights[i], points, "dpi " + dpis[i]);
-      Point label = widest.apply(points);
-      int innerLeft = 40 + rule;
-      int innerTop = 100 + 2 * rule;
-      int innerRight = 40 + cell - rule;
-      int innerBottom = 100 + row - 2 * rule;
-      int above = label.y - label.y / 5;
-      Point origin = ControlBoxes.labelOrigin(area, label, label.y / 5);
-      int x = origin.x;
-      int y = origin.y;
-      assertTrue(x - innerLeft >= rule, "left at " + dpis[i]);
-      assertTrue(y - innerTop >= rule, "top at " + dpis[i]);
-      assertTrue(innerRight - (x + label.x) >= rule, "right at " + dpis[i]);
-      assertTrue(innerBottom - (y + above) >= rule, "bottom at " + dpis[i]);
-    }
-  }
-
-  @Test
-  void aLabelTooLargeForAnyHeightTakesOnePoint() {
-    IntFunction<Point> huge =
-        new IntFunction<Point>() {
-          @Override
-          public Point apply(int points) {
-            return new Point(1000, 1000);
-          }
-        };
-    assertEquals(1, ControlBoxes.labelHeight(10, new Point(5, 5), huge));
   }
 }
