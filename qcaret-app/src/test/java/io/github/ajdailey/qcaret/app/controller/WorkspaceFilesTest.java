@@ -284,12 +284,14 @@ class WorkspaceFilesTest {
     assertFalse(documents().activeDocument().isDirty());
   }
 
-  private void awaitWatchedDirectories(final int count, String what) throws InterruptedException {
+  /** Waits for the watched directory count, or for none where the system registers none. */
+  private void awaitWatchedDirectories(int count, String what) throws InterruptedException {
+    final int expected = harness.view.system.watchServiceByDefault() ? count : 0;
     await(
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
-            return documents().watchedDirectories() == count;
+            return documents().watchedDirectories() == expected;
           }
         },
         what);
