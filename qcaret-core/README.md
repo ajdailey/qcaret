@@ -34,6 +34,7 @@ A package uses only lower layers (`ArchitectureTest.coreLayers` in
 | `core.xml` | uses no QCaret package | `SecureXml`: every JDK XML parser and schema factory, each locked down | [Grammars](docs/grammars.md#xml-parsers) |
 | `core.watch` | above `io` | `FileCheck`, `FileMonitor` | [External changes](docs/external-changes.md) |
 | `core.workspace` | above `io` | `WalkRules`, `DirectoryListing`, `ListingOptions`, `NameFilter`, `FileIndex`, `FileOperations`, `HomeFolder` | [Search](docs/search.md#workspace-folder) |
+| `core.hex` | 7, on `concurrent`, `io`, `text` and `buffer` | `HexSource`, `FileHexSource`, `EncodedHexSource`, `ByteOffsets`, `HexBlocks`, `HexRows`, `HexRow`, `HexViewport`, `HexPattern`, `ByteSearch` | [Hex view model](#hex-view-model) |
 
 The layer 7 packages do not use each other.
 
@@ -53,6 +54,42 @@ The layer 7 packages do not use each other.
 - A value that did not originate in QCaret's code reaches a logger through
   `LogText.oneLine`; a failure whose log line must not carry a path, through
   `LogText.reason`.
+
+## Hex view model
+
+`core.hex` is the read-only hex view's model. A view reads bytes through a
+`HexSource`, whose size is fixed for its life:
+
+| Source | Bytes | `charset()` |
+|---|---|---|
+| `FileHexSource` | The file on disk, any size. Each read opens, reads and closes the file, so no handle is held between reads; the `FileStamp` taken at `open` is compared before and after each read, and a mismatch throws `HexSourceChangedException` | ISO-8859-1 |
+| `EncodedHexSource` | A `TextSnapshot` as Save writes it, BOM first, read through its `ByteOffsets`. A char the charset cannot encode, or a lone surrogate, reads as the encoder's replacement bytes, set in the read's `replaced` bits | The document's |
+
+- `ByteOffsets` maps char offsets to byte offsets for one text version. Blocks
+  are 64 Ki chars, one more where the boundary would split a surrogate pair.
+  One-byte-per-char charsets and UTF-16 map arithmetically; there, each char
+  of an unencodable pair gets its own replacement so the width stays fixed.
+  Every other charset keeps each block's first byte offset (8 bytes per
+  block), which `build` computes by encoding the whole text and `update`
+  recomputes from the block before the first changed char. A lookup encodes at
+  most one block.
+- `HexBlocks` caches 16 blocks of 64 KiB per source, evicting the least
+  recently used and reusing its arrays. `load` reads missing blocks; `copy` reads only
+  the cache and never blocks. A `HexSourceChangedException` from `load` clears
+  the cache, and a block read before a `clear` is dropped.
+- `HexRows` lays a row out in character cells: offset (8 hex digits, 16 above
+  4 GiB), hex pairs in groups of 8, then one text cell per byte, ASCII 0x20 to
+  0x7E and `.` otherwise. Bytes per row is 8, 16 or 32. `row` builds a `HexRow`
+  from the cache, or returns null when a block is missing.
+- `HexViewport` maps `long` rows onto an `int` scroll bar: one unit per row up
+  to 2^30 rows past the top, scaled above.
+- `HexPattern` parses hex pairs with `??` wildcards, or encodes text in the
+  source's charset, 1 to 256 bytes; `HexPatternException` names the reason and
+  the input index. `ByteSearch.find` reads the source in windows that overlap
+  by the pattern length less one byte, forward or backward, with wrap, a
+  `CancellationToken` and a progress count.
+- `ByteOffsets.build` and `update`, `HexBlocks.load`, `ByteSearch.find`,
+  `FileHexSource.open` and every `HexSource.read` are `@WorkerThread`.
 
 ## Testing
 

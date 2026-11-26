@@ -27,6 +27,7 @@ SpotBugs. Input is generated, never read from the repository.
 | `HighlightBenchmark` | `SyntaxEngine` on the 1,000,000-line `JAVA` text: `typeChar` and `openComment` run an edit to idle and fold regions; `installRegions` is the UI thread's copy and `DisplayProjection.setFoldRegions` of the region list |
 | `WorkspaceBenchmark` | Quick Open index build of 100,000 files, a 50,000-entry Workspace Browser listing, and `Fuzzy` scoring over the whole index and over the 2,000 paths matched on the UI thread |
 | `MarkdownHarness` | Markdown preview on generated 100 KiB, 1 MiB and 10 MiB documents: `MarkdownRenderer.render` and the code blocks' `SyntaxEngine` pass, median and maximum of 5 after 2 warm-ups |
+| `ByteOffsetsBenchmark` | The hex pane's `ByteOffsets` on 16 and 256 Mi chars of `ASCII` and `MIXED` in UTF-8 and GB18030: `build`, `update` from the middle, `charOffset` of a random byte, and `readPage`, one 64 KiB `EncodedHexSource` read |
 | `SymbolHarness` | Go to Symbol on generated 1,000,000-line `JAVA` (a definition every 7 lines), `JAVA_SPARSE` (every 200) and `MARKDOWN` (a heading every 120): the first scan, the filter and sort a cached list leaves, `rescan` and a whole scan after one-line edits at lines 1,006 and 500,006, clear of the Markdown fences, with their results compared, and a `SymbolScan`'s live heap against its charge |
 
 ## Running
@@ -48,6 +49,7 @@ java -jar qcaret-bench/target/benchmarks.jar MultiCaretBenchmark
 java -jar qcaret-bench/target/benchmarks.jar UndoBenchmark
 java -jar qcaret-bench/target/benchmarks.jar HighlightBenchmark
 java -jar qcaret-bench/target/benchmarks.jar WorkspaceBenchmark
+java -jar qcaret-bench/target/benchmarks.jar ByteOffsetsBenchmark
 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SearchHarness [first cancel heap]
 java -cp qcaret-bench/target/benchmarks.jar \

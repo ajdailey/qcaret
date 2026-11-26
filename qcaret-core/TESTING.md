@@ -147,3 +147,19 @@ and tests of a read-only file skip where the user writes read-only files.
 |---|---|
 | `FileCheckTest` | An untouched file read by its stamp only, a touch with the same bytes, other bytes, a truncate and regrow to the same size and time, a racy baseline settling, a file renamed over the name with other and with the same bytes (the first skipped without a file key: NTFS tunneling), a delete and the return of the same and of other bytes, a file where none was, a directory at the path, a retargeted link, a 3 MiB file changed in its last byte |
 | `FileMonitorTest` | The poll, requested checks, one registration per directory released with its last file, a throwing listener reported once while checks go on, a directory event naming its file (skipped on macOS, whose `WatchService` polls), `suspend` and `resume` around the rename of a watched folder's parent (on Windows the rename fails first without `suspend`), `close`; for Windows, macOS and Linux `OsTraits`, a directory registered exactly when `watchServiceByDefault` says so and a change checked either way |
+
+### Hex view model
+
+Large-offset cases use a generated source of 2^40 bytes; no large fixture is
+committed.
+
+| Class | Covers |
+|---|---|
+| `ByteOffsetsTest` | Which menu charsets map arithmetically; a surrogate pair across a block boundary kept in the earlier block; `byteOffset` against a whole-text encode of the prefix and `charOffset` landing on the char that holds the byte, in every menu charset with and without a BOM, on random text with pairs at block boundaries and lone surrogates; 40 `update` steps per charset, including edits that join and split a pair at a boundary, equal to a full build; a canceled build; an empty text |
+| `EncodedHexSourceTest` | Whole and random reads equal to slices of a whole-text encode in every menu charset, BOM included; replacement bytes and their marks for a pair in ISO-8859-1 (one per char), in Shift_JIS (one per pair) and for a lone surrogate in UTF-8 |
+| `FileHexSourceTest` | A file larger than the 1 MiB cache read through `HexBlocks` with LRU eviction; a rewrite between reads failing the next read and clearing the cache; another file renamed over the path between reads, which fails on Windows while a handle is held; a deleted file; a read past the end |
+| `HexBlocksTest` | Only missing blocks read; eviction order and array reuse; a block read before a `clear` dropped; a canceled load; replacement marks across a block boundary; offsets past 4 GiB |
+| `HexRowsTest` | Columns matching the design's 16-byte row; every column of each width hitting the cell drawn there; 16 offset digits above 4 GiB; the last partial row; a row from cached blocks only; text cells at 0x1F, 0x20, 0x7E, 0x7F and above |
+| `HexViewportTest` | One unit per row; a scaled scroll bar over 2^36 rows at both ends and the middle; a width change keeping the top byte in the top row; `ensureVisible` |
+| `HexPatternTest` | Spaced and packed pairs, wildcards, each refusal reason with its index, 256 bytes accepted and 257 refused, text in UTF-16LE and Shift_JIS, unencodable text |
+| `ByteSearchTest` | A match across a window and cache block boundary; forward, backward and both wraps against a check at each offset on a four-letter alphabet; a pattern longer than the source; progress reaching every start; a cancel stopping after one read; a match past 4 GiB |

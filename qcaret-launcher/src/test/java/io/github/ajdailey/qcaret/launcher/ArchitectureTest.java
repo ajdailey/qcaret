@@ -348,8 +348,8 @@ class ArchitectureTest {
   /**
    * Core layers, lowest first: util, concurrent, io, text, buffer, document, then edit, syntax,
    * search, diff and format, which do not use each other; watch and workspace sit on io; markdown
-   * uses util, concurrent, text and document. A layer uses only the layers below it. A layer with
-   * no classes yet is allowed.
+   * uses util, concurrent, text and document; hex uses concurrent, io, text and buffer. A layer
+   * uses only the layers below it. A layer with no classes yet is allowed.
    */
   @Test
   void coreLayers() {
@@ -388,6 +388,8 @@ class ArchitectureTest {
         .definedBy(ROOT + ".core.watch..")
         .layer("workspace")
         .definedBy(ROOT + ".core.workspace..")
+        .layer("hex")
+        .definedBy(ROOT + ".core.hex..")
         .whereLayer("concurrent")
         .mayOnlyBeAccessedByLayers(
             "io",
@@ -401,7 +403,8 @@ class ArchitectureTest {
             "format",
             "watch",
             "workspace",
-            "markdown")
+            "markdown",
+            "hex")
         .whereLayer("io")
         .mayOnlyBeAccessedByLayers(
             "text",
@@ -413,12 +416,13 @@ class ArchitectureTest {
             "diff",
             "format",
             "watch",
-            "workspace")
+            "workspace",
+            "hex")
         .whereLayer("text")
         .mayOnlyBeAccessedByLayers(
-            "buffer", "document", "edit", "syntax", "search", "diff", "format", "markdown")
+            "buffer", "document", "edit", "syntax", "search", "diff", "format", "markdown", "hex")
         .whereLayer("buffer")
-        .mayOnlyBeAccessedByLayers("document", "edit", "syntax", "search", "diff", "format")
+        .mayOnlyBeAccessedByLayers("document", "edit", "syntax", "search", "diff", "format", "hex")
         .whereLayer("document")
         .mayOnlyBeAccessedByLayers("edit", "syntax", "search", "diff", "format", "markdown")
         .whereLayer("edit")
@@ -436,6 +440,8 @@ class ArchitectureTest {
         .whereLayer("watch")
         .mayNotBeAccessedByAnyLayer()
         .whereLayer("workspace")
+        .mayNotBeAccessedByAnyLayer()
+        .whereLayer("hex")
         .mayNotBeAccessedByAnyLayer();
   }
 

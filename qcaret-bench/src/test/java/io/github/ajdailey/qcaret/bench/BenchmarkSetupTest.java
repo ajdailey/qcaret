@@ -210,6 +210,20 @@ class BenchmarkSetupTest {
   }
 
   @Test
+  void byteOffsetsBenchmark() throws IOException {
+    ByteOffsetsBenchmark b = new ByteOffsetsBenchmark();
+    b.corpus = Corpus.MIXED;
+    b.sizeMiB = 1;
+    b.charset = "UTF-8";
+    b.setUp();
+    long size = b.build().size();
+    assertEquals(size, b.update().size());
+    assertTrue(size > Corpus.MIB);
+    assertTrue(b.charOffset() > 0);
+    b.readPage();
+  }
+
+  @Test
   void workspaceBenchmark() throws IOException {
     WorkspaceBenchmark b = new WorkspaceBenchmark();
     WorkspaceBenchmark.Tree tree = new WorkspaceBenchmark.Tree();
