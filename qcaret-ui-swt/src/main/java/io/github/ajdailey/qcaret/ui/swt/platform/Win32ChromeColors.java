@@ -9,6 +9,9 @@ import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
@@ -34,8 +37,15 @@ import org.eclipse.swt.widgets.Tree;
  * composite passes its background to push button corners ({@code SWT.INHERIT_DEFAULT}). A {@link
  * Text}, a {@link Tree} and a {@link Table} take {@link #FIELD}, a tree's or table's header {@link
  * #BACKGROUND}, and a read-only {@link Combo} {@link #FACE}, since the dark native theme leaves its
- * drop-down list white without colors. While it resolves to light every such color is null and
- * composites take {@code SWT.INHERIT_NONE}. Both directions apply live.
+ * drop-down list white without colors. A tree with columns also takes a {@link #FIELD} background
+ * image under dark: win32 SWT fills a sorted column's cells and the area below its last row in the
+ * background plus 8 per channel ({@code #333333} on {@link #FIELD}) unless the tree has a
+ * background image. While it resolves to light every such color and image is null and composites
+ * take {@code SWT.INHERIT_NONE}. Both directions apply live.
+ *
+ * <p>A check box is created under the native setting ({@link DialogColors#check}), so its box draws
+ * dark under the dark one; on the light side under that setting its label takes the system widget
+ * text, since the dark native box draws it near-white without colors.
  *
  * <p>Under the dark native setting ({@link DialogColors#nativeDark}) a field holding text keeps the
  * dark colors on the light side until its window is rebuilt, because the dark native field draws
@@ -115,6 +125,7 @@ final class Win32ChromeColors implements ChromeColors {
   private boolean dark;
   private boolean painted;
   private Boolean built;
+  private Image ground;
 
   /**
    * Creates the colors for a window. The native setting ({@link DialogColors#nativeDark}) is read
@@ -140,6 +151,10 @@ final class Win32ChromeColors implements ChromeColors {
   public void dispose() {
     if (!display.isDisposed()) {
       display.removeListener(SWT.Skin, skin);
+    }
+    if (ground != null) {
+      ground.dispose();
+      ground = null;
     }
   }
 
@@ -206,7 +221,7 @@ final class Win32ChromeColors implements ChromeColors {
       return;
     }
     control.setBackground(dark ? BACKGROUND : null);
-    control.setForeground(dark ? TEXT : null);
+    control.setForeground(dark ? TEXT : lightText(control));
     if (control instanceof Link link) {
       link.setLinkForeground(dark ? linkColor(display) : null);
     }
@@ -227,6 +242,10 @@ final class Win32ChromeColors implements ChromeColors {
     if (list instanceof Tree tree) {
       tree.setHeaderBackground(header);
       tree.setHeaderForeground(headerText);
+      Image image = dark && tree.getColumnCount() > 0 ? ground() : null;
+      if (tree.getBackgroundImage() != image) {
+        tree.setBackgroundImage(image);
+      }
     } else if (list instanceof Table table) {
       table.setHeaderBackground(header);
       table.setHeaderForeground(headerText);
@@ -250,6 +269,17 @@ final class Win32ChromeColors implements ChromeColors {
             }
           }
         });
+  }
+
+  /** Returns a one-pixel {@link #FIELD} image, created at the first call. */
+  private Image ground() {
+    if (ground == null) {
+      PaletteData palette = new PaletteData(0xff0000, 0xff00, 0xff);
+      ImageData data = new ImageData(1, 1, 24, palette);
+      data.setPixel(0, 0, palette.getPixel(FIELD.getRGB()));
+      ground = new Image(display, data);
+    }
+    return ground;
   }
 
   /**
@@ -294,6 +324,18 @@ final class Win32ChromeColors implements ChromeColors {
             }
           }
         });
+  }
+
+  /**
+   * Returns a control's text color on the light side: the system widget text for a check box or
+   * radio button under the dark native setting, which draws its label near-white without colors;
+   * otherwise null.
+   */
+  private Color lightText(Control control) {
+    if (control instanceof Button && nativeDark()) {
+      return display.getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
+    }
+    return null;
   }
 
   /** Reports whether a new control sits under a surface with no kept control between. */

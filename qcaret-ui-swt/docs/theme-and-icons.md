@@ -99,11 +99,13 @@ window procedure and frees the callback. If an SWT upgrade drops a member, one
 WARN is logged, the native selection stays, and `Win32ComboListSelectionTest`
 fails on win32.
 
-Under the dark native setting win32 draws check box labels near-white while the
-main window's docks and bars stay light, so every check box comes from
-`SwtThemeService.check`. It calls `DialogColors.check`, which on win32
-creates the box with the theme off outside a dialog `DialogColors` colored. A
-`MenuItem` or `Table` with `SWT.CHECK` has no such label and does not use it.
+Every check box comes from `SwtThemeService.check`, which calls
+`DialogColors.check`; every implementation creates the box under the native
+setting. Under the dark one win32 draws the box dark (unchecked interior
+`#242424`) and its label near-white, in a dialog and in the dark main window
+alike; the light chrome gives the label system text ([chrome
+colors](#chrome-colors)). A `MenuItem` or `Table` with `SWT.CHECK` has no such
+label and does not use it.
 
 Measured on `windows-2025` with SWT 3.135.0 under the dark native setting
 (`Win32DarkInkTest` saves the window and the readings to
@@ -191,14 +193,23 @@ preview's notice strip; a control created later under one takes its colors from
 | Control | Under dark |
 |---|---|
 | `Composite`, `SashForm`, `Label`, `Link`, `ToolBar`, `Canvas` (the memory gauge), check box | `WINDOW` and `TEXT` |
-| `Text`, `Tree`, `Table` | `FIELD` (`#2b2b2b`, 14.16:1) and `TEXT`; a tree or table header `WINDOW`; the field rule above |
+| `Text`, `Tree`, `Table` | `FIELD` (`#2b2b2b`, 14.16:1) and `TEXT`; a tree or table header `WINDOW`; a tree with columns also a one-pixel `FIELD` background image; the field rule above |
 | Read-only `Combo` | `FACE` (`#333333`, the push button face, 12.63:1) and `TEXT`: the dark native theme draws its closed field and leaves its drop-down list white without colors |
 | Push and arrow `Button`, editable `Combo`, `List`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into |
 | `CTabFolder`, a control with `ChromeColors.PALETTE_COLORED` | Unchanged, not descended into |
 
-A check box keeps `DialogColors.check`'s light-theme creation, so under the
-dark chrome its enabled label takes `TEXT`; a disabled label stays
-system gray. win32 `ToolBar` passes its foreground to text items (Source,
+win32 SWT fills a sorted column's cells and the area below the last row in
+the background plus 8 per channel (`Tree.getSortColumnPixel`, SWT 3.135.0
+source), `#333333` on `FIELD`, unless the tree has a background image. The
+Workspace Browser sorts its Name column, so without the image that column
+draws `#333333`, measured on Windows (`windows-2025`, `windows-11-arm`); the
+light side keeps the native tint (`#f7f7f7` on white). The image leaves the
+dark native selection unchanged (`#626262`, measured).
+
+Under the dark chrome a check box's enabled label takes `TEXT`. On the light
+side under the dark native setting, a window waiting for its rebuild, an enabled
+label takes `COLOR_WIDGET_FOREGROUND`, since the dark native box draws it
+near-white without colors; a disabled label stays light gray. win32 `ToolBar` passes its foreground to text items (Source,
 Split, Preview) through `NMTBCUSTOMDRAW.clrText`, and an item's own foreground
 first (`ToolBar.getForegroundPixel(ToolItem)`, SWT 3.135.0 source).
 

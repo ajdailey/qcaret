@@ -38,10 +38,8 @@ import org.eclipse.swt.widgets.Tree;
  * COLOR_GRAYTEXT}) and {@code #575757} when editable, 2.74:1 and 1.96:1 on {@link #FIELD} (measured
  * on {@code windows-2025}); {@link Win32EmptyField} draws it in {@link #HINT} over that.
  *
- * <p>The dark native theme draws a check box label near-white, or light gray when disabled, and
- * {@code setForeground} reaches only an enabled box. The theme applies to a control when it is
- * created, so under the dark native setting {@link #check} creates a box outside a colored dialog
- * with the theme off. Confined to the UI thread.
+ * <p>{@link #check} creates a box under the native setting, so under the dark one its box draws
+ * dark in a dialog and in the dark main window alike. Confined to the UI thread.
  */
 final class Win32DialogColors implements DialogColors {
   static final Win32DialogColors INSTANCE = new Win32DialogColors();
@@ -147,18 +145,7 @@ final class Win32DialogColors implements DialogColors {
 
   @Override
   public Button check(Composite parent) {
-    Display display = parent.getDisplay();
-    boolean light = DialogColors.nativeDark(display) && !colored(parent);
-    if (light) {
-      display.setDarkThemePreferred(false);
-    }
-    try {
-      return new Button(parent, SWT.CHECK);
-    } finally {
-      if (light) {
-        display.setDarkThemePreferred(true);
-      }
-    }
+    return new Button(parent, SWT.CHECK);
   }
 
   @Override
