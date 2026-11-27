@@ -231,6 +231,17 @@ class BusyCoverageTest {
     for (String site : upkeep) {
       row(site, Shows.UPKEEP, null, null);
     }
+    // Hex views: copy, find, a switch's build and a viewer's open or reload under the busy cursor;
+    // the visible rows' read and a viewer's stamp check are bounded; a typing pause's rebuild is
+    // upkeep.
+    row("controller.HexCopier#copy", Shows.BUSY, null, null);
+    row("controller.HexFind#find", Shows.BUSY, null, null);
+    row("controller.HexText#buildNow", Shows.BUSY, null, null);
+    row("controller.HexViewers#open", Shows.BUSY, null, null);
+    row("controller.HexViewers$Viewer#reload", Shows.BUSY, null, null);
+    row("controller.HexReads#read", Shows.QUICK, null, null);
+    row("controller.HexViewers$Viewer#check", Shows.QUICK, null, null);
+    row("controller.HexText#rebuild", Shows.UPKEEP, null, null);
   }
 
   private static void row(String site, Shows shows, String method, String call) {

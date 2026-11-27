@@ -844,6 +844,60 @@ public enum UiText {
   BINARY_MESSAGE,
   /** Binary file prompt button. */
   BUTTON_OPEN_READ_ONLY,
+  /** Binary file prompt and too-large notice button. */
+  BUTTON_OPEN_IN_HEX_VIEWER,
+  /** View > Hex View. */
+  MENU_HEX_VIEW,
+  /** Menu item. */
+  COMMAND_HEX_CYCLE,
+  /** Menu item. */
+  COMMAND_HEX_TEXT,
+  /** Menu item. */
+  COMMAND_HEX_SPLIT,
+  /** Menu item. */
+  COMMAND_HEX_HEX,
+  /** Menu item. */
+  COMMAND_OPEN_IN_HEX_VIEWER,
+  /** Title of a Hex Viewer window. */
+  HEX_VIEWER_TITLE,
+  /** Hex view status line. */
+  HEX_STATUS,
+  /** Hex view status line with a selection. */
+  HEX_STATUS_SELECTION,
+  /** A hex view offset: hex, then decimal. */
+  HEX_OFFSET,
+  /** Hex Viewer notice. */
+  HEX_CHANGED_ON_DISK,
+  /** Hex Viewer notice button. */
+  HEX_RELOAD,
+  /** Hex pane notice of a document opened read-only because its bytes do not round-trip. */
+  HEX_BYTES_DIFFER,
+  /** Hex view message. */
+  HEX_READ_FAILED,
+  /** Hex view message. */
+  HEX_COPY_TOO_LARGE,
+  /** Hex view message. */
+  HEX_FIND_NOT_FOUND,
+  /** Hex view message. */
+  HEX_FIND_WRAPPED,
+  /** Hex view message. */
+  HEX_FIND_PROGRESS,
+  /** Hex view message. */
+  HEX_FIND_FAILED,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_EMPTY,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_ODD_DIGITS,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_NOT_HEX,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_WILDCARDS_ONLY,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_TOO_LONG,
+  /** Hex find pattern refused. */
+  HEX_PATTERN_UNMAPPABLE,
+  /** Hex pane refusal for a charset without an encoder. */
+  HEX_NO_ENCODER,
   /** Title of the key binding list. */
   SHORTCUTS_TITLE,
   /** Title of the command-line usage. */

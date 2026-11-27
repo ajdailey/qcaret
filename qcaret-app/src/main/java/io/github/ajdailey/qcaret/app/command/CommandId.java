@@ -158,6 +158,16 @@ public enum CommandId {
   /** Show the selected Markdown tab's headings as a tree; checked while the dock shows. */
   MARKDOWN_OUTLINE(
       CommandGroup.VIEW, UiText.COMMAND_MARKDOWN_OUTLINE, true, UiText.MENU_MARKDOWN_VIEW),
+  /** Switch the selected tab to its next hex mode: Text, Split, Hex, then Text again. */
+  HEX_CYCLE(CommandGroup.VIEW, UiText.COMMAND_HEX_CYCLE, false, UiText.MENU_HEX_VIEW),
+  /** Show the selected tab's editor alone. */
+  HEX_TEXT(CommandGroup.VIEW, UiText.COMMAND_HEX_TEXT, true, UiText.MENU_HEX_VIEW),
+  /** Show the selected tab's editor with its hex pane on the right. */
+  HEX_SPLIT(CommandGroup.VIEW, UiText.COMMAND_HEX_SPLIT, true, UiText.MENU_HEX_VIEW),
+  /** Show the selected tab's hex pane alone. */
+  HEX_HEX(CommandGroup.VIEW, UiText.COMMAND_HEX_HEX, true, UiText.MENU_HEX_VIEW),
+  /** Open files chosen in a dialog, each in a Hex Viewer window reading the file on disk. */
+  OPEN_IN_HEX_VIEWER(CommandGroup.FILE, UiText.COMMAND_OPEN_IN_HEX_VIEWER, false, null),
   /** Read the grammars again; the Syntax cascade lists the languages above it. */
   RELOAD_GRAMMARS(CommandGroup.VIEW, UiText.COMMAND_RELOAD_GRAMMARS, false, UiText.MENU_SYNTAX),
   /** Collapse the fold region the caret's line starts, or else the innermost one holding it. */

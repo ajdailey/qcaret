@@ -148,7 +148,8 @@ final class SessionReader {
         p.getProperty(key + "bookmarks", ""),
         comments,
         flag(p, key + "readOnly"),
-        p.getProperty(key + "markdown", ""));
+        p.getProperty(key + "markdown", ""),
+        p.getProperty(key + "hex", ""));
   }
 
   /** Returns a search, or null when its scope or folder does not parse. */
@@ -190,7 +191,8 @@ final class SessionReader {
               flag(p, key + "spaces"),
               p.getProperty(key + "selection", ""),
               number(p, key + "top", 0, Integer.MAX_VALUE, 0),
-              p.getProperty(key + "markdown", "")));
+              p.getProperty(key + "markdown", ""),
+              p.getProperty(key + "hex", "")));
     }
     return files;
   }

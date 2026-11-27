@@ -314,6 +314,8 @@ public record Session(
    * @param comments the bookmark comments
    * @param readOnly true when the document refuses edits
    * @param markdown the Markdown view mode, {@code split} or {@code preview}; empty for Source
+   * @param hex the hex mode the user picked, {@code text}, {@code split} or {@code hex}; empty for
+   *     none
    */
   public record Tab(
       String path,
@@ -331,11 +333,50 @@ public record Session(
       String bookmarks,
       List<Comment> comments,
       boolean readOnly,
-      String markdown) {
+      String markdown,
+      String hex) {
     /** Copies the lists. */
     public Tab {
       views = List.copyOf(views);
       comments = List.copyOf(comments);
+    }
+
+    /** A tab with no hex mode picked. */
+    public Tab(
+        String path,
+        String title,
+        String buffer,
+        String encoding,
+        String language,
+        boolean binary,
+        int tabWidth,
+        boolean insertSpaces,
+        List<View> views,
+        int focused,
+        boolean sideBySide,
+        String weights,
+        String bookmarks,
+        List<Comment> comments,
+        boolean readOnly,
+        String markdown) {
+      this(
+          path,
+          title,
+          buffer,
+          encoding,
+          language,
+          binary,
+          tabWidth,
+          insertSpaces,
+          views,
+          focused,
+          sideBySide,
+          weights,
+          bookmarks,
+          comments,
+          readOnly,
+          markdown,
+          "");
     }
 
     /** A tab in Source. */
@@ -397,7 +438,8 @@ public record Session(
           bookmarks,
           comments,
           readOnly,
-          markdown);
+          markdown,
+          hex);
     }
   }
 
@@ -437,6 +479,8 @@ public record Session(
    * @param selections in the form of {@link SessionText#selections}
    * @param top the first visible line, zero-based
    * @param markdown the Markdown view mode, {@code split} or {@code preview}; empty for Source
+   * @param hex the hex mode the user picked, {@code text}, {@code split} or {@code hex}; empty for
+   *     none
    */
   public record FileState(
       String path,
@@ -446,7 +490,21 @@ public record Session(
       boolean insertSpaces,
       String selections,
       int top,
-      String markdown) {
+      String markdown,
+      String hex) {
+    /** A file with no hex mode picked. */
+    public FileState(
+        String path,
+        String encoding,
+        String language,
+        int tabWidth,
+        boolean insertSpaces,
+        String selections,
+        int top,
+        String markdown) {
+      this(path, encoding, language, tabWidth, insertSpaces, selections, top, markdown, "");
+    }
+
     /** A file left in Source. */
     public FileState(
         String path,
@@ -456,7 +514,7 @@ public record Session(
         boolean insertSpaces,
         String selections,
         int top) {
-      this(path, encoding, language, tabWidth, insertSpaces, selections, top, "");
+      this(path, encoding, language, tabWidth, insertSpaces, selections, top, "", "");
     }
 
     /**
@@ -467,7 +525,7 @@ public record Session(
      */
     public FileState withPath(String moved) {
       return new FileState(
-          moved, encoding, language, tabWidth, insertSpaces, selections, top, markdown);
+          moved, encoding, language, tabWidth, insertSpaces, selections, top, markdown, hex);
     }
   }
 }

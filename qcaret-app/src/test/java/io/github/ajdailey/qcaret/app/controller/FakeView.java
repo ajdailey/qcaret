@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.ChecksumDisplay;
@@ -16,6 +17,9 @@ import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
+import io.github.ajdailey.qcaret.app.view.HexInput;
+import io.github.ajdailey.qcaret.app.view.HexMode;
+import io.github.ajdailey.qcaret.app.view.HexView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -795,10 +799,17 @@ final class FakeView implements MainView {
   }
 
   @Override
-  public void askOpenBinary(String name, Runnable open) {
+  public void askBinaryOpen(String name, final Consumer<BinaryChoice> answer) {
     ui.checkUiThread();
     binaryName = name;
-    openBinary = open;
+    binaryAnswer = answer;
+    openBinary =
+        new Runnable() {
+          @Override
+          public void run() {
+            answer.accept(BinaryChoice.TEXT);
+          }
+        };
   }
 
   @Override
@@ -1516,5 +1527,48 @@ final class FakeView implements MainView {
   public void outlineSelected(int index) {
     ui.checkUiThread();
     outlineSelections.add(index);
+  }
+
+  // Hex views.
+
+  Consumer<BinaryChoice> binaryAnswer;
+  String tooLarge;
+  Runnable tooLargeOpen;
+  final List<FakeHexView> hexPanes = new ArrayList<FakeHexView>();
+  final List<FakeHexView> hexViewers = new ArrayList<FakeHexView>();
+
+  @Override
+  public void showTooLarge(String message, Runnable openInHexViewer) {
+    ui.checkUiThread();
+    tooLarge = message;
+    tooLargeOpen = openInHexViewer;
+    infos.add(message);
+  }
+
+  @Override
+  public HexView hexPane(TabView tab, HexInput input) {
+    ui.checkUiThread();
+    FakeHexView pane = new FakeHexView(input, null);
+    pane.tab = tab;
+    hexPanes.add(pane);
+    return pane;
+  }
+
+  @Override
+  public void showHexMode(TabView tab, HexMode mode) {
+    ui.checkUiThread();
+    for (FakeHexView pane : hexPanes) {
+      if (pane.tab == tab) {
+        pane.mode = mode;
+      }
+    }
+  }
+
+  @Override
+  public HexView openHexViewer(String title, HexInput input) {
+    ui.checkUiThread();
+    FakeHexView window = new FakeHexView(input, title);
+    hexViewers.add(window);
+    return window;
   }
 }

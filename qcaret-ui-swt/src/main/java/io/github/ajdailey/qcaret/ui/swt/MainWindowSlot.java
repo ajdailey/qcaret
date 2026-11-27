@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -12,6 +13,9 @@ import io.github.ajdailey.qcaret.app.view.Comparison;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
+import io.github.ajdailey.qcaret.app.view.HexInput;
+import io.github.ajdailey.qcaret.app.view.HexMode;
+import io.github.ajdailey.qcaret.app.view.HexView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
@@ -576,8 +580,28 @@ public final class MainWindowSlot implements MainView {
   }
 
   @Override
-  public void askOpenBinary(String name, Runnable open) {
-    view.askOpenBinary(name, open);
+  public void askBinaryOpen(String name, Consumer<BinaryChoice> answer) {
+    view.askBinaryOpen(name, answer);
+  }
+
+  @Override
+  public void showTooLarge(String message, Runnable openInHexViewer) {
+    view.showTooLarge(message, openInHexViewer);
+  }
+
+  @Override
+  public HexView hexPane(TabView tab, HexInput input) {
+    return view.hexPane(tab, input);
+  }
+
+  @Override
+  public void showHexMode(TabView tab, HexMode mode) {
+    view.showHexMode(tab, mode);
+  }
+
+  @Override
+  public HexView openHexViewer(String title, HexInput input) {
+    return view.openHexViewer(title, input);
   }
 
   @Override

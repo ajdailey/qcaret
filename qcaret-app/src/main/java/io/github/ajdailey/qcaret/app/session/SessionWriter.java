@@ -32,6 +32,7 @@ final class SessionWriter {
       put(keys, key + "selection", f.selections());
       keys.put(key + "top", Integer.toString(f.top()));
       put(keys, key + "markdown", f.markdown());
+      put(keys, key + "hex", f.hex());
     }
     int tabs = 0;
     int comments = 0;
@@ -109,6 +110,7 @@ final class SessionWriter {
     put(keys, key + "weights", tab.weights());
     put(keys, key + "bookmarks", tab.bookmarks());
     put(keys, key + "markdown", tab.markdown());
+    put(keys, key + "hex", tab.hex());
     for (int v = 0; v < Math.min(2, tab.views().size()); v++) {
       Session.View view = tab.views().get(v);
       String viewKey = key + "view." + v + ".";

@@ -40,14 +40,6 @@ public interface DocumentsView {
   void editStateChanged();
 
   /**
-   * Asks whether to open a binary file as read-only ISO-8859-1 text.
-   *
-   * @param name the file's name
-   * @param open runs when the user accepts; not run on a decline
-   */
-  void askOpenBinary(String name, Runnable open);
-
-  /**
    * Asks for files to open.
    *
    * @param directory the directory the chooser starts in, or null

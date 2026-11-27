@@ -44,6 +44,8 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
  * @param markdownSyncScroll the box making Split scroll the editor and the preview together
  * @param markdownOpenMode the mode of a Markdown file opened with no saved mode: {@code source},
  *     {@code split} or {@code preview}
+ * @param hexBytesPerRow bytes per row in hex views, {@code 8}, {@code 16} or {@code 32}; empty
+ *     keeps the current value
  */
 public record PreferencesForm(
     String completionChars,
@@ -79,7 +81,82 @@ public record PreferencesForm(
     boolean strictJson,
     String previewRenderer,
     boolean markdownSyncScroll,
-    String markdownOpenMode) {
+    String markdownOpenMode,
+    String hexBytesPerRow) {
+  /** The form without a bytes-per-row field, which keeps the current value. */
+  public PreferencesForm(
+      String completionChars,
+      boolean autoClose,
+      String maxHighlightLineChars,
+      String tabWidth,
+      boolean insertSpaces,
+      String pollSeconds,
+      boolean autoReloadClean,
+      String recoveryIntervalSeconds,
+      String recoveryKeepDays,
+      boolean sessionSnapshot,
+      String backupDays,
+      String searchMaxLineChars,
+      String excludedDirectories,
+      ThemeMode theme,
+      String fontSize,
+      ShortcutOverrides shortcuts,
+      String themeFile,
+      String fontFamily,
+      String rightMargin,
+      String dateFormat,
+      boolean editorConfig,
+      boolean modelines,
+      String editorColors,
+      boolean closeWindowWithLastTab,
+      boolean closeShowsLastUsed,
+      String newLineEnding,
+      String newEncoding,
+      ViewChecks view,
+      String workspaceDefault,
+      boolean sessionRestore,
+      boolean strictJson,
+      String previewRenderer,
+      boolean markdownSyncScroll,
+      String markdownOpenMode) {
+    this(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        tabWidth,
+        insertSpaces,
+        pollSeconds,
+        autoReloadClean,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        theme,
+        fontSize,
+        shortcuts,
+        themeFile,
+        fontFamily,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        editorColors,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        view,
+        workspaceDefault,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        markdownSyncScroll,
+        markdownOpenMode,
+        "");
+  }
+
   /** The dialog's groups, in tab order. */
   public enum Group {
     /** Editing. */

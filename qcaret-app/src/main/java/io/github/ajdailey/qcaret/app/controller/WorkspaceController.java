@@ -374,6 +374,13 @@ public final class WorkspaceController implements WorkspaceInput {
   }
 
   @Override
+  public void openInHexViewer(WorkspaceNode node) {
+    if (node.kind() == WorkspaceNode.Kind.FILE) {
+      documents.hexViewers().open(node.path());
+    }
+  }
+
+  @Override
   public void openInDefaultApplication(WorkspaceNode node) {
     if (node.kind() != WorkspaceNode.Kind.FILE) {
       return;

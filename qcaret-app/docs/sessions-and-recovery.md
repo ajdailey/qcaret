@@ -70,7 +70,7 @@ taken, whether or not the start names files.
 |---|---|
 | Tabs | One at a time in their saved order, then the saved active tab; a tab of a file that does not open, or is too large, is skipped and every name goes in one report |
 | Per view | Selections, top line (kept through the rewraps of a wrapped window), collapsed folds; a fold applies once a region starts on its line, until an edit or a fold command |
-| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, binary view, bookmarks and comments, read-only state |
+| Per tab | Split arrangement and weights, focused view, tab width, spaces, forced charset, chosen grammar, binary view, bookmarks and comments, read-only state, Markdown view and hex modes |
 | Per window | Workspace folder, browser visibility, the browser's shown folder, filter and Hidden state, sash, expanded directories, results dock and its sash, the sash between the results and Bookmarks docks, Reopen Closed Tab's files, word wrap, whitespace and line-ending marks, overview strip, line numbers, Bookmarks list and Outline dock visibility, Always on Top (`AlwaysOnTop`; kept as saved, not applied, where the platform is unsupported) |
 | Retained searches | Requests only, as `ResultSet.State.RESTORED` sets that Rerun fills; running every search at start could read whole trees |
 
@@ -215,7 +215,7 @@ A launch that failed its handoff to a live primary gets Recent Files alone from
 `SessionController` keeps the per-file LRU (`FileLru`, `SessionStore.MAX_FILES`,
 500 entries) behind `DocumentController.FileMemory`, keyed by the opened
 document's real path (caret, top line, tab settings, forced charset, chosen
-grammar, Markdown view mode); a relative `file.N.path` reads as its resolved path. A closing
+grammar, Markdown view mode, hex mode); a relative `file.N.path` reads as its resolved path. A closing
 file's state goes in; an opening file's comes out, in
 `DocumentOpener.Listener.options` for the charset and after the load for the
 rest. Reopen Closed Tab therefore lands where the file was. A width or

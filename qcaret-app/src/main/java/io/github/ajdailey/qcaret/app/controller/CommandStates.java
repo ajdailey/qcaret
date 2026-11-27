@@ -39,7 +39,8 @@ import java.util.Set;
  * <p>Open All in Recent Files and in Recently Closed needs a listed file. The Markdown View modes
  * and Cycle Markdown View need a tab whose grammar is {@code markdown}; Markdown View's Browser
  * needs the platform's browser control, and {@link #unavailable} gives the reason it is missing.
- * Print Rendered Markdown needs a Markdown tab.
+ * Print Rendered Markdown needs a Markdown tab. Copy is also enabled while a focused hex pane has
+ * bytes selected.
  */
 public final class CommandStates {
   /** Commands that run without a document. */
@@ -47,6 +48,7 @@ public final class CommandStates {
       EnumSet.of(
           CommandId.NEW,
           CommandId.OPEN,
+          CommandId.OPEN_IN_HEX_VIEWER,
           CommandId.QUIT,
           CommandId.WORD_WRAP,
           CommandId.ZOOM_IN,
@@ -252,6 +254,7 @@ public final class CommandStates {
           MARKDOWN_SYNC_SCROLL ->
           application.markdown().checked(command);
       case MARKDOWN_OUTLINE -> application.outline().shown();
+      case HEX_TEXT, HEX_SPLIT, HEX_HEX -> application.hex().checked(command);
       default -> false;
     };
   }
@@ -309,7 +312,7 @@ public final class CommandStates {
           };
     }
     return switch (command) {
-      case COPY -> selected(documents);
+      case COPY -> selected(documents) || application.hex().copyEnabled();
       case PRINT_SELECTION -> selected(documents);
       case PRINT_MARKDOWN -> documents.activeMarkdown();
       case SAVE -> !binary && !documents.activeRefusesSave();

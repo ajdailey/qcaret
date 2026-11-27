@@ -95,6 +95,7 @@ public final class ApplicationController {
   private final EditorAids aids;
   private final ViewToggles views;
   private final MarkdownCommands markdown;
+  private final HexCommands hex;
   private final ZoomCommands zooms;
   private final MemoryIndicator memory;
   private final DroppedFiles dropped;
@@ -293,6 +294,8 @@ public final class ApplicationController {
     documents.setMarkdownOpenMode(markdown.openMode());
     documents.setMarkdownPalette(theme.palette());
     documents.setMarkdownZoom(settings.current().options().previewZoom());
+    this.hex = new HexCommands(documents, view);
+    documents.setHexBytesPerRow(settings.current().options().hexBytesPerRow());
     this.zooms = new ZoomCommands(settings, view);
     theme.addListener(markdownPalette);
     this.memory = new MemoryIndicator(settings, view, workers, ui, MemoryProbe.SYSTEM, budget);
@@ -376,6 +379,7 @@ public final class ApplicationController {
     documents.setMarkdownSyncScroll(markdown.syncScroll());
     documents.setMarkdownOpenMode(markdown.openMode());
     documents.setMarkdownZoom(now.previewZoom());
+    documents.setHexBytesPerRow(now.hexBytesPerRow());
     if (!after.shortcuts().equals(before.shortcuts())) {
       help.setKeymap(set.keymap());
       view.setKeymap(set.keymap());
@@ -534,6 +538,11 @@ public final class ApplicationController {
   /** Returns the window's Markdown View commands. */
   MarkdownCommands markdown() {
     return markdown;
+  }
+
+  /** Returns the window's Hex View commands. */
+  HexCommands hex() {
+    return hex;
   }
 
   /** Returns the Tip of the Day dialog's controller; for tests. */
@@ -786,6 +795,9 @@ public final class ApplicationController {
     if (quitting) {
       return;
     }
+    if (hex.runFocused(command)) {
+      return;
+    }
     switch (command) {
       case NEW -> documents.newDocument();
       case OPEN -> documents.open();
@@ -975,6 +987,7 @@ public final class ApplicationController {
           MARKDOWN_CYCLE ->
           markdown.execute(command);
       case MARKDOWN_OUTLINE -> outline.toggle();
+      case HEX_CYCLE, HEX_TEXT, HEX_SPLIT, HEX_HEX, OPEN_IN_HEX_VIEWER -> hex.execute(command);
       case DOCUMENT_STATISTICS -> statistics.open();
       case EXPORT_HTML -> documents.exportHtml();
       case MD5_TEXT,

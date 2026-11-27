@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -235,7 +236,9 @@ final class MarkdownPreviews {
    */
   void opened(OpenDocument d) {
     d.markdownOpening = false;
-    if (d.markdownPicked || openMode == MarkdownViewMode.SOURCE) {
+    if (d.markdownPicked
+        || openMode == MarkdownViewMode.SOURCE
+        || HexPanes.mode(d) != HexMode.TEXT) {
       return;
     }
     if (MARKDOWN.equals(d.grammar)) {
@@ -253,7 +256,9 @@ final class MarkdownPreviews {
    */
   void grammarApplied(OpenDocument d) {
     d.markdownOpening = false;
-    if (MARKDOWN.equals(d.grammar) && openMode != MarkdownViewMode.SOURCE) {
+    if (MARKDOWN.equals(d.grammar)
+        && openMode != MarkdownViewMode.SOURCE
+        && HexPanes.mode(d) == HexMode.TEXT) {
       of(d).setMode(openMode);
     }
   }

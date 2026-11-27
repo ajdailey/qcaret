@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.config;
 
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.hex.HexRows;
 import io.github.ajdailey.qcaret.core.search.FileFilter;
 import io.github.ajdailey.qcaret.core.search.ReplaceBackups;
 import io.github.ajdailey.qcaret.core.syntax.SyntaxEngine;
@@ -62,6 +63,8 @@ import java.time.format.DateTimeFormatter;
  *     commands chose, in percent of its normal size
  * @param markdownOpenMode {@code markdown.openMode}: the view mode of a Markdown file opened with
  *     no saved mode
+ * @param hexBytesPerRow {@code hex.bytesPerRow}: bytes per row in hex panes and Hex Viewer windows,
+ *     one of {@link HexRows#WIDTHS}
  */
 public record Options(
     int completionChars,
@@ -93,7 +96,8 @@ public record Options(
     PreviewRenderer previewRenderer,
     boolean markdownSyncScroll,
     int previewZoom,
-    MarkdownOpenMode markdownOpenMode) {
+    MarkdownOpenMode markdownOpenMode,
+    int hexBytesPerRow) {
   /** Formats a pattern on trial; a fixed zone keeps the check off the time-zone rules. */
   private static final ZonedDateTime SAMPLE_TIME =
       ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
@@ -190,7 +194,8 @@ public record Options(
           PreviewRenderer.BASIC,
           true,
           100,
-          MarkdownOpenMode.SPLIT);
+          MarkdownOpenMode.SPLIT,
+          16);
 
   /** Checks the components. */
   public Options {
@@ -225,12 +230,81 @@ public record Options(
     if (markdownOpenMode == null) {
       throw new IllegalArgumentException("markdownOpenMode");
     }
+    if (!HexRows.WIDTHS.contains(hexBytesPerRow)) {
+      throw new IllegalArgumentException("hexBytesPerRow");
+    }
     if (!validEncoding(newEncoding)) {
       throw new IllegalArgumentException("newEncoding");
     }
     if (!validFolder(workspaceDefault)) {
       throw new IllegalArgumentException("workspaceDefault");
     }
+  }
+
+  /** The settings with {@code hex.bytesPerRow} at its default of 16. */
+  public Options(
+      int completionChars,
+      boolean autoClose,
+      int maxHighlightLineChars,
+      int fontSize,
+      int pollSeconds,
+      boolean autoReloadClean,
+      int backupDays,
+      int searchMaxLineChars,
+      String excludedDirectories,
+      int recoveryIntervalSeconds,
+      int recoveryKeepDays,
+      boolean sessionSnapshot,
+      int tabWidth,
+      boolean insertSpaces,
+      int rightMargin,
+      String dateFormat,
+      boolean editorConfig,
+      boolean modelines,
+      boolean closeWindowWithLastTab,
+      boolean closeShowsLastUsed,
+      NewLineEnding newLineEnding,
+      String newEncoding,
+      String workspaceDefault,
+      int fontZoom,
+      boolean sessionRestore,
+      boolean strictJson,
+      PreviewRenderer previewRenderer,
+      boolean markdownSyncScroll,
+      int previewZoom,
+      MarkdownOpenMode markdownOpenMode) {
+    this(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        markdownSyncScroll,
+        previewZoom,
+        markdownOpenMode,
+        16);
   }
 
   /** Longest {@code workspaceDefault}. */
@@ -351,7 +425,8 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -391,7 +466,8 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -431,7 +507,8 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -471,7 +548,8 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -511,7 +589,8 @@ public record Options(
         renderer,
         markdownSyncScroll,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -551,7 +630,8 @@ public record Options(
         previewRenderer,
         on,
         previewZoom,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -591,7 +671,8 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         percent,
-        markdownOpenMode);
+        markdownOpenMode,
+        hexBytesPerRow);
   }
 
   /**
@@ -631,6 +712,48 @@ public record Options(
         previewRenderer,
         markdownSyncScroll,
         previewZoom,
-        mode);
+        mode,
+        hexBytesPerRow);
+  }
+
+  /**
+   * Returns a copy with other bytes per row in hex views.
+   *
+   * @param bytesPerRow one of {@link HexRows#WIDTHS}
+   * @return the copy
+   */
+  public Options withHexBytesPerRow(int bytesPerRow) {
+    return new Options(
+        completionChars,
+        autoClose,
+        maxHighlightLineChars,
+        fontSize,
+        pollSeconds,
+        autoReloadClean,
+        backupDays,
+        searchMaxLineChars,
+        excludedDirectories,
+        recoveryIntervalSeconds,
+        recoveryKeepDays,
+        sessionSnapshot,
+        tabWidth,
+        insertSpaces,
+        rightMargin,
+        dateFormat,
+        editorConfig,
+        modelines,
+        closeWindowWithLastTab,
+        closeShowsLastUsed,
+        newLineEnding,
+        newEncoding,
+        workspaceDefault,
+        fontZoom,
+        sessionRestore,
+        strictJson,
+        previewRenderer,
+        markdownSyncScroll,
+        previewZoom,
+        markdownOpenMode,
+        bytesPerRow);
   }
 }

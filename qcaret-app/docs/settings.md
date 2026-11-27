@@ -185,6 +185,7 @@ Shortcuts.
 | `markdown.syncScroll` | `true`, `false`: in Split, a scroll of the editor or the preview scrolls the other, in every window | `true` | View > Markdown View > Sync Scrolling; Tools > Preferences, Appearance; the Markdown actions menu |
 | `markdown.openMode` | `source`, `split`, `preview`: the mode of a Markdown file the user has picked no mode for; a picked mode is remembered per file and in the session | `split` | Tools > Preferences, Appearance |
 | `markdown.previewZoom` | 50 to 300: the Markdown preview's text size in percent, in every window; images, print and export keep their size | 100 | `Ctrl`+wheel over the preview, View > Zoom In, Zoom Out, Reset Zoom when the preview, not the editor, had the focus last |
+| `hex.bytesPerRow` | `8`, `16`, `32`: bytes per row in hex panes and Hex Viewer windows | `16` | Tools > Preferences |
 | `editor.strictJson` | `true`, `false`: Edit > Format XML and JSON accepts RFC 8259 JSON only, and a comment is an error | `false` | Tools > Preferences, Editor |
 | `editor.newLineEnding` | `lf`, `crlf`, `platform` (CRLF on Windows, else LF): Enter's line ending in a new document, a missing file opened by path, and a loaded text without line breaks, until per-file settings say otherwise | `lf` | Tools > Preferences, Editor |
 | `editor.newEncoding` | A charset of the Encoding menu, spelled as there (`UTF-8`, `windows-1252`, ...): the encoding of a new document, a missing file opened by path, and a file of 0 bytes, unless forced or set by `.editorconfig` | `UTF-8` | Tools > Preferences, Editor |

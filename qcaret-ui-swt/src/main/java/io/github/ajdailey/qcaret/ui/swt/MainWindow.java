@@ -12,6 +12,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
+import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -22,6 +23,9 @@ import io.github.ajdailey.qcaret.app.view.DialogSize;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.HashTextDisplay;
 import io.github.ajdailey.qcaret.app.view.HashTextInput;
+import io.github.ajdailey.qcaret.app.view.HexInput;
+import io.github.ajdailey.qcaret.app.view.HexMode;
+import io.github.ajdailey.qcaret.app.view.HexView;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
@@ -1275,10 +1279,39 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public void askOpenBinary(String name, Runnable open) {
+  public void askBinaryOpen(String name, final Consumer<BinaryChoice> answer) {
     if (!shell.isDisposed()) {
-      new BinaryDialog(shell, name, open).open();
+      new BinaryDialog(
+              shell,
+              name,
+              new Runnable() {
+                @Override
+                public void run() {
+                  answer.accept(BinaryChoice.TEXT);
+                }
+              })
+          .open();
     }
+  }
+
+  @Override
+  public void showTooLarge(String message, Runnable openInHexViewer) {
+    showInfo(UiText.OPEN_TITLE.text(), message);
+  }
+
+  @Override
+  public HexView hexPane(TabView tab, HexInput input) {
+    return null;
+  }
+
+  @Override
+  public void showHexMode(TabView tab, HexMode mode) {
+    // The hex pane is not drawn yet.
+  }
+
+  @Override
+  public HexView openHexViewer(String title, HexInput input) {
+    return null;
   }
 
   @Override

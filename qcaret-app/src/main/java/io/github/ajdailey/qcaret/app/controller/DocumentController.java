@@ -13,8 +13,10 @@ import io.github.ajdailey.qcaret.app.recovery.RecoveryFile;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.DocumentsView;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
+import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
@@ -39,6 +41,7 @@ import io.github.ajdailey.qcaret.core.document.SelectionListener;
 import io.github.ajdailey.qcaret.core.document.SelectionModel;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.core.document.TextCodingException;
+import io.github.ajdailey.qcaret.core.hex.HexRows;
 import io.github.ajdailey.qcaret.core.io.FileBaseline;
 import io.github.ajdailey.qcaret.core.io.FileStamp;
 import io.github.ajdailey.qcaret.core.syntax.Grammar;
@@ -149,6 +152,8 @@ public final class DocumentController {
   private boolean wrap;
   private final DocumentGrammars grammars;
   private final MarkdownPreviews markdown;
+  private final HexViewers hexViewers;
+  private final HexPanes hex;
   private final HeadingJumps headings;
   private final MarkdownExport htmlExport;
   private final DocumentEncodings encodings;
@@ -354,15 +359,20 @@ public final class DocumentController {
         if (!skipRestore(path)) {
           long needed = cost.reserveBytes();
           long suggested = Math.max(1, (maxHeap + (needed - available)) / (1L << 30) + 1);
-          view.showInfo(
-              UiText.OPEN_TITLE.text(),
+          view.showTooLarge(
               UiText.OPEN_TOO_LARGE.format(
                   String.valueOf(path.getFileName()),
                   mebibytes(cost.fileBytes()),
                   mebibytes(needed),
                   mebibytes(available),
                   mebibytes(maxHeap),
-                  suggested));
+                  suggested),
+              new Runnable() {
+                @Override
+                public void run() {
+                  hexViewers.open(path);
+                }
+              });
         }
       } finally {
         finishRestore();
@@ -398,12 +408,16 @@ public final class DocumentController {
 
     private void report(final Path path, IOException error) {
       if (reopened == null && error instanceof BinaryFileException) {
-        view.askOpenBinary(
+        view.askBinaryOpen(
             String.valueOf(path.getFileName()),
-            new Runnable() {
+            new Consumer<BinaryChoice>() {
               @Override
-              public void run() {
-                open(path, options.asBinary());
+              public void accept(BinaryChoice choice) {
+                if (choice == BinaryChoice.HEX_VIEWER) {
+                  hexViewers.open(path);
+                } else if (choice == BinaryChoice.TEXT) {
+                  open(path, options.asBinary());
+                }
               }
             });
         return;
@@ -503,8 +517,10 @@ public final class DocumentController {
             budget);
     this.htmlExport = new MarkdownExport(workers, ui, view, grammars);
     this.encodings = new DocumentEncodings(workers, ui, view);
+    this.hexViewers = new HexViewers(workers, ui, view, HexRows.WIDTHS.get(1));
+    this.hex = new HexPanes(workers, ui, view, hexViewers, HexRows.WIDTHS.get(1));
     this.sessions =
-        new DocumentSessions(this, documents, selected, view, grammars, markdown, closedPaths);
+        new DocumentSessions(this, documents, selected, view, grammars, markdown, closedPaths, hex);
     grammars.setMarkdownOpening(
         new Consumer<OpenDocument>() {
           @Override
@@ -1060,6 +1076,7 @@ public final class DocumentController {
   /** Routes an editor's callbacks to this window and gives it this window's editor settings. */
   private void connect(final OpenDocument d, final EditorController editor) {
     editor.selections().addListener(sessionSelections);
+    hex.connect(d, editor);
     editor.setViewportListener(
         new Runnable() {
           @Override
@@ -1306,6 +1323,7 @@ public final class DocumentController {
   /** Cancels running loads and closes every document without asking. */
   public void dispose() {
     disposing = true;
+    hexViewers.dispose();
     grammars.close();
     opener.close();
     changes.close();
@@ -1383,6 +1401,7 @@ public final class DocumentController {
     }
     d.document.removeListener(d);
     markdown.closed(d);
+    hex.closed(d);
     headings.closed(d);
     release.run();
     int index = documents.indexOf(d);
@@ -2018,6 +2037,66 @@ public final class DocumentController {
   }
 
   /**
+   * Returns the selected tab's hex mode.
+   *
+   * @return Text without a document
+   */
+  public HexMode hexMode() {
+    return HexPanes.mode(active);
+  }
+
+  /**
+   * Switches the selected tab's hex mode as the user's pick, which the tab then keeps.
+   *
+   * @param mode the mode
+   * @return false, changing nothing, without a document or when the tab shows the mode already
+   */
+  public boolean setHexMode(HexMode mode) {
+    return active != null && hex.pick(active, mode);
+  }
+
+  /**
+   * Returns the controller of the selected tab's hex pane while it shows and holds the focus.
+   *
+   * @return the controller, or null
+   */
+  HexController hexFocused() {
+    return HexPanes.focused(active);
+  }
+
+  /**
+   * Returns the controller of the selected tab's hex pane while it shows.
+   *
+   * @return the controller, or null in Text
+   */
+  HexController hexShown() {
+    return HexPanes.shown(active);
+  }
+
+  /** Returns the window's Hex Viewer windows. */
+  HexViewers hexViewers() {
+    return hexViewers;
+  }
+
+  /**
+   * File > Open Bytes in Hex Viewer: asks for files, starting in the selected document's folder.
+   */
+  public void openInHexViewer() {
+    hexViewers.choose(
+        active == null || active.file.path == null ? null : active.file.path.getParent());
+  }
+
+  /**
+   * Sets the bytes per row of every hex pane and Hex Viewer ({@code hex.bytesPerRow}).
+   *
+   * @param bytesPerRow one of {@link HexRows#WIDTHS}
+   */
+  void setHexBytesPerRow(int bytesPerRow) {
+    hex.setBytesPerRow(documents, bytesPerRow);
+    hexViewers.setBytesPerRow(bytesPerRow);
+  }
+
+  /**
    * Returns the selected tab's Markdown view mode.
    *
    * @return Source without a document or for a tab that is not Markdown
@@ -2039,6 +2118,9 @@ public final class DocumentController {
   public boolean setMarkdownMode(MarkdownViewMode mode) {
     if (active == null || !markdown.of(active).setMode(mode)) {
       return false;
+    }
+    if (mode != MarkdownViewMode.SOURCE) {
+      hex.markdownShown(active);
     }
     active.markdownPicked = true;
     return true;
@@ -2623,6 +2705,7 @@ public final class DocumentController {
       grammars.detect(d);
     }
     markdown.adopt(d, from);
+    hex.adopt(d, from);
     scrollLater(d, rows);
   }
 

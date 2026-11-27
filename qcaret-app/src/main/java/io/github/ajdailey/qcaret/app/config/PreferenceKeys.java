@@ -6,6 +6,7 @@ import io.github.ajdailey.qcaret.app.theme.ThemeColors;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.edit.NumberSequence;
+import io.github.ajdailey.qcaret.core.hex.HexRows;
 import io.github.ajdailey.qcaret.core.text.LogText;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -57,6 +58,7 @@ final class PreferenceKeys {
   static final String SYNC_SCROLL = "markdown.syncScroll";
   static final String PREVIEW_ZOOM = "markdown.previewZoom";
   static final String OPEN_MODE = "markdown.openMode";
+  static final String HEX_BYTES_PER_ROW = "hex.bytesPerRow";
   static final String CLOSE_WINDOW_WITH_LAST_TAB = "tabs.closeWindowWithLastTab";
   static final String SEARCH_REGEX = "search.regex";
   static final String SEARCH_CASE = "search.caseSensitive";
@@ -141,6 +143,7 @@ final class PreferenceKeys {
     keys.put(SYNC_SCROLL, Boolean.toString(o.markdownSyncScroll()));
     keys.put(PREVIEW_ZOOM, Integer.toString(o.previewZoom()));
     keys.put(OPEN_MODE, o.markdownOpenMode().key());
+    keys.put(HEX_BYTES_PER_ROW, Integer.toString(o.hexBytesPerRow()));
     keys.put(TAB_WIDTH, Integer.toString(o.tabWidth()));
     keys.put(INSERT_SPACES, Boolean.toString(o.insertSpaces()));
     keys.put(RIGHT_MARGIN, Integer.toString(o.rightMargin()));
@@ -362,7 +365,8 @@ final class PreferenceKeys {
             Options.MAX_PREVIEW_ZOOM,
             d.previewZoom(),
             file),
-        openMode(p, d.markdownOpenMode(), file));
+        openMode(p, d.markdownOpenMode(), file),
+        bytesPerRow(p, d.hexBytesPerRow(), file));
   }
 
   /** Reads a font size: 0, or {@link Options#MIN_FONT_SIZE} to {@link Options#MAX_FONT_SIZE}. */
@@ -398,6 +402,15 @@ final class PreferenceKeys {
     }
     invalid(WORKSPACE_DEFAULT, file);
     return fallback;
+  }
+
+  private static int bytesPerRow(Properties p, int fallback, Path file) {
+    int value = number(p, HEX_BYTES_PER_ROW, 1, Integer.MAX_VALUE, fallback, file);
+    if (!HexRows.WIDTHS.contains(value)) {
+      invalid(HEX_BYTES_PER_ROW, file);
+      return fallback;
+    }
+    return value;
   }
 
   private static MarkdownOpenMode openMode(Properties p, MarkdownOpenMode fallback, Path file) {

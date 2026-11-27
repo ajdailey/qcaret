@@ -42,6 +42,7 @@ final class DocumentEncodings {
     TextEncoding current = d.document.encoding();
     if (!current.charset().equals(charset)) {
       d.document.setEncoding(TextEncoding.of(charset, false));
+      HexPanes.encodingChanged(d);
       d.updateTitle();
       view.documentStateChanged();
     }

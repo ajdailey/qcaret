@@ -45,7 +45,10 @@ public final class MenuTable {
           CommandId.MARKDOWN_SPLIT,
           CommandId.MARKDOWN_PREVIEW,
           CommandId.PREVIEW_BASIC,
-          CommandId.PREVIEW_BROWSER);
+          CommandId.PREVIEW_BROWSER,
+          CommandId.HEX_TEXT,
+          CommandId.HEX_SPLIT,
+          CommandId.HEX_HEX);
 
   /** Edit > Convert Case, also in the editor menu. */
   private static final List<CommandId> CONVERT_CASE =
@@ -252,6 +255,7 @@ public final class MenuTable {
             CommandId.SET_WORKSPACE,
             CommandId.QUICK_OPEN,
             CommandId.OPEN_PATH_AT_CARET,
+            CommandId.OPEN_IN_HEX_VIEWER,
             null,
             CommandId.SAVE,
             CommandId.SAVE_AS,
@@ -408,6 +412,11 @@ public final class MenuTable {
             null,
             CommandId.MARKDOWN_SYNC_SCROLL,
             CommandId.MARKDOWN_OUTLINE,
+            null,
+            CommandId.HEX_CYCLE,
+            CommandId.HEX_TEXT,
+            CommandId.HEX_SPLIT,
+            CommandId.HEX_HEX,
             null,
             CommandId.ZOOM_IN,
             CommandId.ZOOM_OUT,

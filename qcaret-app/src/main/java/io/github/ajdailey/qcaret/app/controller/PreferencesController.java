@@ -15,6 +15,7 @@ import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.core.document.Document;
+import io.github.ajdailey.qcaret.core.hex.HexRows;
 import java.util.function.Consumer;
 
 /**
@@ -112,7 +113,8 @@ final class PreferencesController implements PreferencesInput {
         o.strictJson(),
         o.previewRenderer().key(),
         o.markdownSyncScroll(),
-        o.markdownOpenMode().key());
+        o.markdownOpenMode().key(),
+        Integer.toString(o.hexBytesPerRow()));
   }
 
   @Override
@@ -283,7 +285,8 @@ final class PreferencesController implements PreferencesInput {
                     renderer(form.previewRenderer()),
                     form.markdownSyncScroll(),
                     settings.current().options().previewZoom(),
-                    openMode(form.markdownOpenMode())));
+                    openMode(form.markdownOpenMode()),
+                    bytesPerRow(form.hexBytesPerRow())));
     PreferencesForm.ViewChecks shown =
         shownView == null ? ViewPreferences.checks(next.state()) : shownView;
     next = next.withState(ViewPreferences.state(next.state(), shown, form.view()));
@@ -312,6 +315,15 @@ final class PreferencesController implements PreferencesInput {
   }
 
   /** Parses the form's Markdown open mode; anything else keeps the current one. */
+  private int bytesPerRow(String text) {
+    for (int width : HexRows.WIDTHS) {
+      if (Integer.toString(width).equals(text.strip())) {
+        return width;
+      }
+    }
+    return settings.current().options().hexBytesPerRow();
+  }
+
   private MarkdownOpenMode openMode(String key) {
     MarkdownOpenMode parsed = MarkdownOpenMode.parse(key);
     return parsed == null ? settings.current().options().markdownOpenMode() : parsed;

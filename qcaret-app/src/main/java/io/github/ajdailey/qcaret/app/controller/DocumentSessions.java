@@ -29,6 +29,7 @@ final class DocumentSessions {
   private final DocumentGrammars grammars;
   private final MarkdownPreviews markdown;
   private final Deque<Path> closedPaths;
+  private final HexPanes hex;
   private DocumentController.FileMemory memory;
 
   DocumentSessions(
@@ -38,7 +39,8 @@ final class DocumentSessions {
       MainView view,
       DocumentGrammars grammars,
       MarkdownPreviews markdown,
-      Deque<Path> closedPaths) {
+      Deque<Path> closedPaths,
+      HexPanes hex) {
     this.owner = owner;
     this.documents = documents;
     this.selected = selected;
@@ -46,6 +48,7 @@ final class DocumentSessions {
     this.grammars = grammars;
     this.markdown = markdown;
     this.closedPaths = closedPaths;
+    this.hex = hex;
   }
 
   /** {@link DocumentController#setFileMemory}. */
@@ -93,6 +96,7 @@ final class DocumentSessions {
     }
     SelectionSet set = SessionText.selections(state.selections(), d.document.text().length());
     d.editor.restoreView(set, state.top(), new int[0]);
+    hex.restore(d, state.hex());
     view.documentStateChanged();
   }
 
@@ -135,6 +139,7 @@ final class DocumentSessions {
       d.editor = d.editors.get(Math.min(tab.focused(), d.editors.size() - 1));
       d.editor.view().focus();
     }
+    hex.restore(d, tab.hex());
     if (tab.readOnly() && !d.document.isReadOnly()) {
       d.document.clearPreedit();
       d.document.setReadOnly(true);
@@ -173,7 +178,8 @@ final class DocumentSessions {
         SessionText.numbers(d.bookmarks.lines()),
         comments,
         d.document.isReadOnly(),
-        MarkdownPreviews.saved(d));
+        MarkdownPreviews.saved(d),
+        HexPanes.saved(d));
   }
 
   /** Keeps a closing file's state in the {@link DocumentController.FileMemory}. */
@@ -192,7 +198,8 @@ final class DocumentSessions {
               d.document.insertSpaces(),
               SessionText.selections(e.selections().selections()),
               e.topLine(),
-              MarkdownPreviews.saved(d)));
+              MarkdownPreviews.saved(d),
+              HexPanes.saved(d)));
     }
   }
 

@@ -21,7 +21,8 @@ public interface MainView
         WorkspaceView,
         CompareView,
         SessionView,
-        OutlineView {
+        OutlineView,
+        HexViews {
   /** Hides the window while shutdown completes. */
   void hide();
 

@@ -56,6 +56,9 @@ final class OpenDocument implements DocumentListener {
    */
   boolean markdownPicked;
 
+  /** The hex pane's state, created on first use by {@link HexPanes}; null before. */
+  HexTab hex;
+
   /** The running reopen of this document, or null. */
   DocumentController.Open reopen;
 

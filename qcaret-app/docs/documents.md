@@ -40,8 +40,10 @@ Open goes through `DocumentOpener`:
   read-only with a notice (`bytesGuarded`), and Save refuses it with a notice
   while it stays read-only. Save As writes a converted copy, and clearing
   Read-Only lets Save convert the file.
-- A binary file opens only after the user accepts the prompt, as a read-only
-  ISO-8859-1 view whose tab and status bar say so. Save and Save As refuse it
+- A binary file asks Open in Hex Viewer (the default), Open as Text or Cancel
+  (`HexViews.askBinaryOpen`); Open as Text gives a read-only ISO-8859-1 view
+  whose tab and status bar say so. A file the heap budget refuses shows the
+  refusal with an Open in Hex Viewer button (`HexViews.showTooLarge`). Save and Save As refuse it
   in the controller, whichever command path calls them, and the editor refuses
   its edits; the view stays read-only.
 
@@ -536,6 +538,58 @@ the document.
 - `openLink` checks on a `qcaret-io-` worker for a regular file named with the
   whole `name#id` (`HeadingPath.whole`); one that exists opens with no
   heading.
+
+### Hex view
+
+`HexController` drives one hex view over a `core.hex` source: a tab's pane
+over the document as Save writes it (`EncodedHexSource`), or a Hex Viewer
+window over the file on disk (`FileHexSource`). The SWT view implements
+`HexView`, forwards input through `HexInput` and paints the rows `row` returns.
+
+- A missing row paints blank and starts a read of the visible rows on a
+  worker, without the busy cursor; one read runs per view and a newer range
+  replaces a waiting one. Reads, finds and copies carry the source's
+  generation, and `setSource` moves it on, so a result for a replaced source
+  is dropped.
+- `HexCursor` holds the caret as a position from 0 to the size; a drag or
+  Shift+click selects both end bytes. Copy (`HexCopier`) acts on the caret's
+  column: hex pairs, or text. A pane's text is the document's chars that the
+  bytes touch; a viewer's is ISO-8859-1. A selection over 16 MiB is refused.
+- Go to Offset takes decimal, `0x` hex, or `+n` and `-n` from the caret
+  (`HexOffsetText.parse`). Find (`HexFind`) takes hex pairs with `??`, or text
+  encoded in the source's charset, and searches from the selection with wrap
+  under the busy cursor; Esc cancels it.
+- While a pane shows and holds the focus, `HexCommands.runFocused` takes Copy,
+  Select All, Go to Line, Find, Find Next, Find Previous and Esc from the
+  editor.
+
+`HexPanes` keeps each tab's `HexTab` (`HexMode`: Text, Split, Hex), created
+on first use; `DocumentController.setHexMode` and View > Hex View set the
+selected tab's mode. A tab shows the hex pane or the Markdown preview, never
+both: leaving Text sets the Markdown mode to Source, a Markdown mode other
+than Source sets Text, and `markdown.openMode` does not apply to a tab in
+Split or Hex. The session tab and the per-file state keep a picked mode as
+`hex` (`text`, `split`, `hex`); a tab moved to another window keeps it.
+
+- `HexText` builds the pane's `ByteOffsets` under the busy cursor on leaving
+  Text. An edit dims the rows at once and rebuilds 300 ms after the last edit
+  without the busy cursor, from the block before the first changed char; a
+  build an edit overtook is dropped, and Save with Encoding builds again.
+  There is no partial index, so the rows stay dimmed until a build lands.
+- In Split and Hex the focused editor's primary selection selects the bytes
+  of its chars; a hex caret or selection selects the chars covering its bytes
+  in the editor, a continuation or BOM byte mapping to its char's start. A
+  hex move made while the bytes are stale applies once the build lands.
+- A document opened read-only because its bytes do not round-trip shows a
+  pane notice whose button opens the file in a Hex Viewer.
+
+`HexViewers` opens Hex Viewer windows from the binary prompt, the too-large
+refusal, File > Open Bytes in Hex Viewer and the Workspace row action
+(`WorkspaceInput.openInHexViewer`). It resolves the path through `SafePaths`
+on a `qcaret-io-` worker; a read that finds the file changed, or a stamp check
+when the window gains the focus, shows a notice whose Reload opens it again.
+Sessions do not restore the windows. `hex.bytesPerRow` sets the rows of every
+pane and window.
 
 ## Printing
 
