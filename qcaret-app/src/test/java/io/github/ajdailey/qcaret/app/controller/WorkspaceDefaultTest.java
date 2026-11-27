@@ -194,7 +194,7 @@ class WorkspaceDefaultTest {
   @Test
   void aMovedPortableInstallKeepsItsTabsRecentsStateAndWorkspace() throws Exception {
     Path install = Files.createDirectories(temp.resolve("install"));
-    Files.createFile(install.resolve(SettingsLocation.MARKER));
+    Files.createFile(install.resolve(SettingsLocation.SETTINGS_FILE));
     Path logs = Files.createDirectories(install.resolve("logs"));
     Path a = Files.writeString(logs.resolve("a.log"), "alpha\nbeta\n").toRealPath();
     Path b = Files.writeString(logs.resolve("b.log"), "one\ntwo\n").toRealPath();

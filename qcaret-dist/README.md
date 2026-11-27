@@ -31,8 +31,8 @@ every target runs the jar that was tested.
 
 | Target | Archive | Layout |
 |---|---|---|
-| Linux | `.tar.gz` | `qcaret/bin/{qcaret, install-desktop-entry}`, `qcaret/share/{qcaret.desktop, qcaret.svg}`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
-| Windows | `.zip` | `qcaret/qcaret.exe`, `qcaret/qcaret.cmd`, `qcaret/register-associations.cmd`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/` |
+| Linux | `-portable.tar.gz` | `qcaret/bin/{qcaret, install-desktop-entry}`, `qcaret/share/{qcaret.desktop, qcaret.svg}`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/`, `qcaret/portable.txt` |
+| Windows | `-portable.zip` | `qcaret/qcaret.exe`, `qcaret/qcaret.cmd`, `qcaret/register-associations.cmd`, `qcaret/lib/qcaret.jar`, `qcaret/lib/swt/`, `qcaret/runtime/`, `qcaret/portable.txt` |
 | macOS | `.zip` | `QCaret.app/Contents/{Info.plist, MacOS/QCaret, app/QCaret.cfg, app/lib/qcaret.jar, runtime/, Resources/QCaret.icns, Resources/swt/}` |
 
 `lib/swt/` holds the target's natives, `about.html` and `about_files/`,
@@ -43,9 +43,15 @@ the jnilib bytes, so the bootstrap extracts the natives from the jar into the
 user cache on first start, with Eclipse's signatures intact. The SWT notices
 are in `Resources/swt/`.
 
-A `qcaret.conf` in `qcaret/` selects portable mode on Linux and Windows; on
-Linux one in `qcaret/bin/`, beside the script, also does, and `qcaret/` wins
-when both exist. Modes are in the root `README.md` under "Settings directory".
+`portable.txt` (from `src/dist/`, CRLF in the Windows zip) or `qcaret.conf` in
+`qcaret/` selects portable mode on Linux and Windows; on Linux either in
+`qcaret/bin/`, beside the script, also does, and `qcaret/` wins when both
+directories hold one. Modes are in the root `README.md` under "Settings
+directory". Only the archives hold the marker: `posix-bundle` adds it to the
+tree for `tar` and deletes it before the packages are built, and the Windows
+zip adds it from outside the tree, which the setup lists whole. No archive
+holds `qcaret.conf`, which QCaret writes at its first save, so unpacking a
+newer archive over a portable folder keeps the settings.
 
 The runtime is linked by the build JDK's `jlink` from the target JDK's jmods
 (Temurin 21.0.13.1+2, and 21.0.12.1+1 for windows-aarch64, which has no
@@ -115,10 +121,11 @@ start, and for anyone else the all-users choice is disabled.
 |---|---|---|
 | All users (`/MACHINE`) | `$PROGRAMFILES64\QCaret` | `uninstall.exe`; `HKLM` Installed apps entry (`DisplayIcon` `qcaret.exe`, publisher, version, size), Start menu `QCaret.lnk` for all users, `QCaret.File` ProgID listed in the `OpenWithProgids` of each extension `register-associations.cmd` lists, and `Applications\qcaret.exe` |
 | Current user (`/USER`) | `$LOCALAPPDATA\Programs\QCaret` | The same under `HKCU` and the user's Start menu |
-| Portable (`/PORTABLE`) | `$DOCUMENTS\QCaret` by default | An empty `qcaret.conf`, unless one exists; nothing else |
+| Portable (`/PORTABLE`) | `$DOCUMENTS\QCaret` by default | `portable.txt`, the archives' marker, unless one exists; nothing else |
 
 - The license page shows `LICENSE` (Apache-2.0) with a Next button and asks
-  for no acceptance.
+  for no acceptance; the line above the text reads "Press Page Down to see the
+  rest of the license."
 - The finish page has Run QCaret, checked, and Create a desktop shortcut,
   unchecked and hidden for portable; `/DESKTOP` selects the shortcut in a
   silent install. The shortcut goes on the common desktop for all users and on
@@ -131,11 +138,12 @@ start, and for anyone else the all-users choice is disabled.
   regular install in another folder of the same scope is uninstalled first.
 - When `lib\qcaret.jar` exists, setup deletes `lib\` and `runtime\` before
   copying, so an upgrade leaves no file of the older version. Settings,
-  `logs\` and `qcaret.conf` in a portable folder stay.
+  `logs\`, `portable.txt` and `qcaret.conf` in a portable folder stay.
 - The directory page refuses a regular install into a folder holding
-  `qcaret.conf`, which would run portable, and a portable copy into a folder
-  holding `uninstall.exe`, under `$PROGRAMFILES64`, `$PROGRAMFILES32` or
-  `$WINDIR`, or one it cannot write. Silent setup exits 2 instead.
+  `portable.txt` or `qcaret.conf`, which would run portable, and a portable
+  copy into a folder holding `uninstall.exe`, under `$PROGRAMFILES64`,
+  `$PROGRAMFILES32` or `$WINDIR`, or one it cannot write. Silent setup exits 2
+  instead.
 - `qcaret.nsi` repeats the extension list of `register-associations.cmd`;
   `check-installer.ps1` reads the `.cmd` list and fails on an extension setup
   did not register. Neither list holds `.bat` or `.cmd`: with `QCaret.File` in
@@ -173,9 +181,9 @@ the version changes):
 - `jar` and `zip` take `modificationtime` from `archive.time`, the instant's
   UTC wall time. Ant writes DOS entry times in the host time zone, so every
   host then writes the same fields.
-- The `.tar.gz` bundles are written by GNU `tar` with entries sorted by name,
-  one mtime, owner and group 0, and modes set by `chmod` beforehand, then
-  compressed by Ant's `gzip`. Ant's `tar` has no `modificationtime`.
+- The `-portable.tar.gz` bundles are written by GNU `tar` with entries sorted
+  by name, one mtime, owner and group 0, and modes set by `chmod` beforehand,
+  then compressed by Ant's `gzip`. Ant's `tar` has no `modificationtime`.
 - `qcaret.jar` is byte-identical across build hosts under one JDK: `dist.xml`
   rewrites the native digests to LF and sorts the `index.properties` lists by
   name, case-sensitive.
@@ -282,7 +290,8 @@ The module's other test classes and probes:
 
 The CI `bundle` job runs each archive on its own runner through
 `.github/scripts/check-bundle.sh` (Linux, macOS) or `check-bundle.ps1`
-(Windows). For the target's bundle and then the universal zip:
+(Windows). A Linux or Windows archive must hold `portable.txt` and no
+`qcaret.conf`. For the target's bundle and then the universal zip:
 
 | Check | Linux, macOS | Windows |
 |---|---|---|
@@ -290,7 +299,7 @@ The CI `bundle` job runs each archive on its own runner through
 | Log read | `-d 1` on stderr | `-l`, `logs\qcaret.log`: `javaw` output is not captured |
 | Started | `Main window open`, `Grammars read: 0 skipped`, no `Unhandled failure` or `UI task failed` | The same |
 | Handoff | A second `bin/qcaret` or `QCaret` exits 0; the primary logs `Handoff of 1 files taken` | The same, the second launch through `javaw.exe`: `qcaret.exe` exits 0 whatever the child's status (measured: `qcaret.exe --bogus` exits 0) |
-| Native access | No `WARNING: A restricted` in either launch's output | None: no `java.lang.foreign` class loads |
+| Native access | No `WARNING: A restricted` in either launch's output | The child's command line holds `--enable-native-access=ALL-UNNAMED`; two more handoffs through `java.exe` with standard error captured: with the flag no `restricted method`, without it the warning, which shows the foreground grant linked |
 | `qcaret.cmd` | None | Started and Handoff through `qcaret.cmd`. In the bundle, over `LauncherProbe`: from folders named `with space` and `amp & pct 100%`, the folder's `runtime`, its `lib\qcaret.jar`, `--enable-native-access=ALL-UNNAMED`, `-XX:MaxRAMPercentage=50`, `-Dqcaret.launcher=cmd` and 11 quoted arguments holding a space, `&`, `^`, `%`, `!`, `(`, `)`, `'` or nothing; through ShellExecute, as Explorer drops them, unquoted `<folder>\a&mark`, `c^d.txt`, `e!f.txt`, `g%h%.txt` with `h` defined, `(p).txt`, `café.txt` and a quoted `"x y&mark.txt"`; at a command prompt, `a^&mark`, `c^^d.txt`, `e!f.txt`, `g%q9z%.txt`, `i^\|mark`, `k^>l.txt`, `"x&y.txt"`, `(p).txt` and the 11 quoted arguments. Each name arrives unchanged and `mark.cmd` never runs; without `runtime`, `JAVA_HOME` before `PATH`, and exit 1 without either; `-v` prints the version |
 | Names outside the ANSI code page | None | A CJK name beside a decoy `zz.txt` through `qcaret.exe` and `qcaret.cmd`, unquoted and quoted, by ShellExecute and from a console batch file under code page 65001, with `-l -d 2`: `qcaret.cmd` logs `Command-line file: <the name>`; `qcaret.exe` logs the expansion message unquoted and `Not opened: <folder>\??.txt.` quoted; no log names `zz.txt`. With an instance running, an unquoted `qcaret.exe` launch opens its own window with the message and hands nothing over |
 | `call qcaret.cmd` | None | Batch files with echo on and with echo off call `qcaret.cmd` with output captured through a pipe: echo keeps its state after the call, and the pipe ends while QCaret runs |
@@ -302,6 +311,6 @@ The same job then checks the installers and packages on that runner:
 
 | Script | Checks |
 |---|---|
-| `check-linux-packages.sh` | Installs the `.deb` with `apt`: version, `/usr/bin/qcaret` link, no `qcaret.conf`, `desktop-file-validate`, `StartupWMClass=QCaret`, every icon. Runs `check-bundle.sh` with `QCARET_HOME=/opt/qcaret` through `/usr/bin/qcaret`, which also requires a main window with `WM_CLASS` `"QCaret", "QCaret"`. Removes the package and checks the files are gone. Then, in `fedora:44` pinned by digest: `dnf install` of the `.rpm`, `rpm -V`, `qcaret -v`, no `qcaret.conf`, `dnf remove` |
+| `check-linux-packages.sh` | Installs the `.deb` with `apt`: version, `/usr/bin/qcaret` link, no `qcaret.conf` or `portable.txt`, `desktop-file-validate`, `StartupWMClass=QCaret`, every icon. Runs `check-bundle.sh` with `QCARET_HOME=/opt/qcaret` through `/usr/bin/qcaret`, which also requires a main window with `WM_CLASS` `"QCaret", "QCaret"`. Removes the package and checks the files are gone. Then, in `fedora:44` pinned by digest: `dnf install` of the `.rpm`, `rpm -V`, `qcaret -v`, no `qcaret.conf` or `portable.txt`, `dnf remove` |
 | `installer-screenshots.ps1` | Walks the setup's pages by window message (all-users install with the desktop shortcut ticked, its uninstaller, a portable install) and saves each with `PrintWindow` to `installer-screenshots\`, uploaded as `installer-screenshots-<target>`. After each install an `explorer.exe` must have started `qcaret.exe`, and QCaret must have the shell's token elevation (0 for an unelevated shell; the hosted runners' shell is elevated); the all-users walk must write the common desktop shortcut and its uninstaller remove it, and the portable walk writes none |
-| `check-installer.ps1` | For `/MACHINE` and then `/USER`: the Installed apps entry, the shortcut target, no desktop shortcut, `QCaret.File` in the `OpenWithProgids` of every extension `register-associations.cmd` lists with each default handler unchanged, a `.cmd` that ShellExecute still runs, no `qcaret.conf`, no QCaret process from the folder 5 s after setup exits; `check-bundle.ps1` with `QCARET_HOME` set to the installed folder; an install over it with `/DESKTOP` removes a stale runtime file, adds no `qcaret.conf`, and writes the shortcut to that scope's desktop only; a silent uninstall removes the folder, shortcuts and keys and keeps `%APPDATA%\QCaret`. Then `/PORTABLE /DESKTOP`: an empty `qcaret.conf`, no registry entry, no Start menu or desktop shortcut, no QCaret started, QCaret writes its `-l` log in the folder, and an install over it keeps `qcaret.conf` and `logs\`. Exit 2 for `/USER` into the portable folder and `/PORTABLE` under Program Files |
+| `check-installer.ps1` | For `/MACHINE` and then `/USER`: the Installed apps entry, the shortcut target, no desktop shortcut, `QCaret.File` in the `OpenWithProgids` of every extension `register-associations.cmd` lists with each default handler unchanged, a `.cmd` that ShellExecute still runs, no `qcaret.conf` or `portable.txt`, no QCaret process from the folder 5 s after setup exits; `check-bundle.ps1` with `QCARET_HOME` set to the installed folder; an install over it with `/DESKTOP` removes a stale runtime file, adds no `qcaret.conf`, and writes the shortcut to that scope's desktop only; a silent uninstall removes the folder, shortcuts and keys and keeps `%APPDATA%\QCaret`. Then `/PORTABLE /DESKTOP`: a one-line `portable.txt` and no `qcaret.conf`, no registry entry, no Start menu or desktop shortcut, no QCaret started, QCaret writes its `-l` log in the folder, and an install over it keeps `portable.txt`, `qcaret.conf` and `logs\`. Exit 2 for `/USER` into the portable folder, into a folder holding only `qcaret.conf`, and for `/PORTABLE` under Program Files |

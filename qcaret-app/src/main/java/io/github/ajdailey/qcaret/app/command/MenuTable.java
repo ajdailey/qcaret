@@ -483,6 +483,7 @@ public final class MenuTable {
             CommandId.OPEN_SETTINGS_FOLDER,
             null,
             CommandId.REPORT_ISSUE,
+            CommandId.CHECK_FOR_UPDATES,
             null,
             CommandId.ABOUT));
     return m;

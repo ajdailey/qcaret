@@ -5,8 +5,8 @@ public enum SettingsMode {
   /** {@code --settings <dir>}. */
   EXPLICIT,
   /**
-   * {@code qcaret.conf} exists in the installation directory or, on Linux, beside the launcher
-   * script; that directory holds the settings.
+   * {@code portable.txt} or {@code qcaret.conf} exists in the installation directory or, on Linux,
+   * beside the launcher script; that directory holds the settings.
    */
   PORTABLE,
   /** The per-user configuration directory of the OS. */

@@ -93,6 +93,11 @@ class BootTest {
                 "/u")
             .dir());
 
+    Files.createFile(home.resolve("portable.txt"));
+    assertEquals(
+        home.resolve("cache").resolve("swt").resolve("3.135.0-windows-x86_64"),
+        NativesLocation.resolve(home, null, Target.WINDOWS_X86_64, "3.135.0", env, "/u").dir());
+    Files.delete(home.resolve("portable.txt"));
     Files.createFile(home.resolve("qcaret.conf"));
     assertEquals(
         home.resolve("cache").resolve("swt").resolve("3.135.0-linux-x86_64"),
@@ -133,6 +138,7 @@ class BootTest {
         List.of(
             "/j/bin/java",
             "-XstartOnFirstThread",
+            "--enable-native-access=ALL-UNNAMED",
             "-Dqcaret.relaunched=true",
             "-jar",
             Path.of("/q/lib/qcaret.jar").toString(),

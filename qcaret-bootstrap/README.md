@@ -70,8 +70,8 @@ itself (its own extraction runs `chmod` through `Runtime.exec`).
 |---|---|---|
 | Linux or Windows bundle: `<qcaret.home>/lib/swt/` exists | `<qcaret.home>/lib/swt/` | Verify; never write |
 | `--settings <dir>` | `<dir>/cache/swt/<swt version>-<target>/` | Verify; extract when missing or mismatched |
-| Portable: `<qcaret.home>/qcaret.conf` exists | `<qcaret.home>/cache/swt/<swt version>-<target>/` | Verify; extract |
-| Portable on Linux: only `<qcaret.home>/bin/qcaret.conf` exists | `<qcaret.home>/bin/cache/swt/<swt version>-<target>/` | Verify; extract |
+| Portable: `<qcaret.home>` holds `portable.txt` or `qcaret.conf` | `<qcaret.home>/cache/swt/<swt version>-<target>/` | Verify; extract |
+| Portable on Linux: only `<qcaret.home>/bin` holds either | `<qcaret.home>/bin/cache/swt/<swt version>-<target>/` | Verify; extract |
 | Linux | `${XDG_CACHE_HOME:-~/.cache}/qcaret/swt/<swt version>-<target>/` | Verify; extract |
 | Windows | `%LOCALAPPDATA%\QCaret\cache\swt\<swt version>-<target>\`, the variable's name matched ignoring case | Verify; extract |
 | macOS | `~/Library/Caches/io.github.ajdailey.qcaret/swt/<swt version>-<target>/` | Verify; extract |
@@ -94,9 +94,9 @@ that still mismatches after one extraction, or any mismatch in a bundle, prints
 SWT on macOS must create its Display on the process main thread, which needs
 `-XstartOnFirstThread`. The JDK launcher sets
 `JAVA_STARTED_ON_FIRST_THREAD_<pid>=1` with the flag. Without it, the
-bootstrap runs this JVM's own binary again with
-`-XstartOnFirstThread -Dqcaret.relaunched=true -jar <qcaret.jar>` and the original
-arguments as separate list elements, without a shell, and exits with the
+bootstrap runs this JVM's own binary again with `-XstartOnFirstThread
+--enable-native-access=ALL-UNNAMED -Dqcaret.relaunched=true -jar <qcaret.jar>`
+and the original arguments as separate list elements, without a shell, and exits with the
 child's status. A relaunched process that is still off the main thread prints
 `QCaret could not start on the macOS main thread.` and exits 2. JVM options of
 the first process are not carried over.
@@ -117,7 +117,7 @@ error are inherited.
 |---|---|
 | `MainTest` | Java 21 and later accepted, the message naming the running Java, `Main` compiled as Java 8 bytecode; `java8PrintsMessageAndExits2` runs `Main` under the Java 8 binary `-Dqcaret.test.java8=<path to java>` names and skips without it |
 | `TargetTest` | Supported `os.name` and `os.arch` pairs, other pairs refused with both properties named, `current` matching this JVM |
-| `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (a Linux marker beside `bin/qcaret`, the installation directory's winning), `LocalAppData` matched ignoring case, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
+| `BootTest` | `--settings` found before `--`, `qcaret.home` as the parent of `lib/`, a created settings directory owner-only and an existing one keeping its permissions, the natives location precedence (either portable marker, a Linux marker beside `bin/qcaret`, the installation directory's winning), `LocalAppData` matched ignoring case, a relative `XDG_CACHE_HOME` ignored, the macOS relaunch decision and its command keeping each argument |
 | `CmdArgumentsTest` | Microsoft's examples of the C runtime rules, empty quoted arguments, wildcards and CJK passed unchanged, the variable read only under `qcaret.cmd` with no arguments |
 | `NativesTest` | Extraction into an owner-only directory, a tampered library extracted again, a failed move over a matching library succeeding and over a mismatched one failing, a bundle directory verified and never written, names outside the directory refused |
 | `NestedJarClassLoaderTest` | Classes and resources loaded from nested jars |

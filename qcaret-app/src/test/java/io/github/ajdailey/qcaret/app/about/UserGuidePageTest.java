@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.editor.MarkdownPage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,6 +72,18 @@ class UserGuidePageTest {
       }
     }
     assertTrue(images > 0, "images are embedded");
+  }
+
+  @Test
+  void thePageCarriesThePreviewPolicy() throws IOException {
+    String page = page();
+    int policy =
+        page.indexOf(
+            "<meta http-equiv=\"Content-Security-Policy\" content=\""
+                + MarkdownPage.POLICY
+                + "\">");
+    assertTrue(policy > 0, "the policy meta");
+    assertTrue(policy < page.indexOf("<style>"), "the policy precedes the styles");
   }
 
   @Test

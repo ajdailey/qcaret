@@ -1,0 +1,1 @@
+While this file is here, QCaret keeps its settings, logs and cache in this folder.

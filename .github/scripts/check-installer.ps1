@@ -2,14 +2,14 @@
 # user. Each time it checks the Installed apps entry, the Start menu shortcut, no desktop
 # shortcut, Open With for each extension register-associations.cmd lists with its default
 # handler unchanged, that a .cmd still runs through ShellExecute, that the folder holds no
-# qcaret.conf and that no QCaret process starts; runs check-bundle.ps1 against the
+# qcaret.conf or portable.txt and that no QCaret process starts; runs check-bundle.ps1 against the
 # installed folder; installs again with /DESKTOP over a stale runtime file, which the upgrade
 # removes, and checks the desktop shortcut on that scope's desktop only; then uninstalls
 # silently and checks that every file, shortcut and registry entry is gone and the per-user
-# settings stay. A portable install with /DESKTOP then gets an empty qcaret.conf, no registry
-# entry and no shortcut, starts with its settings in the folder, and an install over it keeps
-# qcaret.conf. Setup refuses a portable folder under Program Files and a regular install into a
-# portable folder. Run from the repository root with no QCaret installed.
+# settings stay. A portable install with /DESKTOP then gets portable.txt and no qcaret.conf, no
+# registry entry and no shortcut, starts with its settings in the folder, and an install over it
+# keeps both files. Setup refuses a portable folder under Program Files and a regular install into
+# a folder holding portable.txt or qcaret.conf. Run from the repository root with no QCaret installed.
 $ErrorActionPreference = 'Stop'
 
 $setup = (Get-Item "dist\qcaret-*-$env:TARGET-setup.exe").FullName
@@ -118,7 +118,9 @@ function Test-Scope([string] $Scope) {
   foreach ($file in @('qcaret.exe', 'qcaret.cmd', 'uninstall.exe', 'lib\qcaret.jar', 'runtime\bin\javaw.exe', 'LICENSE')) {
     if (-not (Test-Path (Join-Path $dir $file))) { throw "$Scope install lacks $file" }
   }
-  if (Test-Path (Join-Path $dir 'qcaret.conf')) { throw "$Scope install holds qcaret.conf" }
+  foreach ($file in @('qcaret.conf', 'portable.txt')) {
+    if (Test-Path (Join-Path $dir $file)) { throw "$Scope install holds $file" }
+  }
   if ((Get-ShortcutTarget $shortcut) -ne "$dir\qcaret.exe") { throw "$Scope shortcut $shortcut does not start $dir\qcaret.exe" }
   foreach ($path in @($commonDesktop, $userDesktop)) {
     if (Test-Path $path) { throw "$Scope install without /DESKTOP wrote $path" }
@@ -178,14 +180,16 @@ function Test-Scope([string] $Scope) {
 Test-Scope 'machine'
 Test-Scope 'user'
 
-# Portable: an empty qcaret.conf, nothing registered, settings in the folder.
+# Portable: portable.txt, nothing registered, settings in the folder.
 $portable = Join-Path $work 'QCaret Portable'
 $code = Invoke-Setup @('/S', '/PORTABLE', '/DESKTOP', "/D=$portable")
 if ($code -ne 0) { throw "portable setup exited $code" }
 Assert-NotRunning $portable 'silent portable setup'
+$marker = Join-Path $portable 'portable.txt'
 $conf = Join-Path $portable 'qcaret.conf'
-if (-not (Test-Path $conf)) { throw 'portable install wrote no qcaret.conf' }
-if ((Get-Item $conf).Length -ne 0) { throw 'portable qcaret.conf is not empty' }
+if (-not (Test-Path -PathType Leaf $marker)) { throw 'portable install wrote no portable.txt' }
+if (@(Get-Content -LiteralPath $marker).Count -ne 1) { throw 'portable.txt is not one line' }
+if (Test-Path $conf) { throw 'portable install wrote qcaret.conf' }
 if (Test-Path (Join-Path $portable 'uninstall.exe')) { throw 'portable install wrote uninstall.exe' }
 foreach ($hive in @('HKLM:', 'HKCU:')) {
   if (Test-Path "$hive\$uninstallKey") { throw "portable install wrote $hive\$uninstallKey" }
@@ -205,7 +209,7 @@ try {
     Where-Object { $before -notcontains [int] $_.ProcessId } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
-Write-Output "PASS: portable install with /DESKTOP wrote an empty qcaret.conf, registered nothing, wrote no shortcut, and QCaret kept its log in $portable"
+Write-Output "PASS: portable install with /DESKTOP wrote portable.txt and no qcaret.conf, registered nothing, wrote no shortcut, and QCaret kept its log in $portable"
 
 Set-Content -LiteralPath $conf -Value 'ui.theme=dark'
 $stale = Join-Path $portable 'runtime\bin\stale.dll'
@@ -213,16 +217,25 @@ Set-Content -LiteralPath $stale -Value 'mock'
 $code = Invoke-Setup @('/S', '/PORTABLE', "/D=$portable")
 if ($code -ne 0) { throw "portable setup over the portable folder exited $code" }
 if ((Get-Content -LiteralPath $conf -Raw).Trim() -ne 'ui.theme=dark') { throw 'portable upgrade changed qcaret.conf' }
+if (-not (Test-Path $marker)) { throw 'portable upgrade removed portable.txt' }
 if (-not (Test-Path $log)) { throw 'portable upgrade removed the logs' }
 if (Test-Path $stale) { throw "portable upgrade left $stale" }
-Write-Output 'PASS: portable install over the folder kept qcaret.conf and the logs and replaced the runtime'
+Write-Output 'PASS: portable install over the folder kept portable.txt, qcaret.conf and the logs and replaced the runtime'
 
-$code = Invoke-Setup @('/S', '/USER', "/D=$portable")
-if ($code -ne 2) { throw "a per-user install into the portable folder exited $code, expected 2" }
-if (Test-Path "HKCU:\$uninstallKey") { throw 'the refused per-user install wrote its Installed apps entry' }
+# A folder holding either file is portable, so a regular install refuses it.
+Remove-Item -LiteralPath $conf
+$legacy = Join-Path $work 'QCaret Legacy'
+New-Item -ItemType Directory -Path $legacy | Out-Null
+New-Item -ItemType File -Path (Join-Path $legacy 'qcaret.conf') | Out-Null
+foreach ($folder in @($portable, $legacy)) {
+  $code = Invoke-Setup @('/S', '/USER', "/D=$folder")
+  if ($code -ne 2) { throw "a per-user install into $folder exited $code, expected 2" }
+  if (Test-Path "HKCU:\$uninstallKey") { throw "the refused per-user install into $folder wrote its Installed apps entry" }
+}
+if (Test-Path (Join-Path $legacy 'qcaret.exe')) { throw "the refused per-user install wrote into $legacy" }
 $refused = Join-Path $env:ProgramFiles 'QCaret Portable'
 $code = Invoke-Setup @('/S', '/PORTABLE', "/D=$refused")
 if ($code -ne 2) { throw "a portable install under Program Files exited $code, expected 2" }
 if (Test-Path $refused) { throw "the refused portable install created $refused" }
-Write-Output 'PASS: setup refused a per-user install into a portable folder and a portable folder under Program Files'
-Remove-Item -Recurse -Force $portable
+Write-Output 'PASS: setup refused a per-user install into a folder holding portable.txt or qcaret.conf and a portable folder under Program Files'
+Remove-Item -Recurse -Force $portable, $legacy

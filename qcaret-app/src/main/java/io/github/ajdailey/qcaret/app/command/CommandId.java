@@ -247,6 +247,8 @@ public enum CommandId {
   OPEN_SETTINGS_FOLDER(CommandGroup.HELP, UiText.COMMAND_OPEN_SETTINGS_FOLDER, false, null),
   /** Copy the runtime details and open the project's issue page in the browser. */
   REPORT_ISSUE(CommandGroup.HELP, UiText.COMMAND_REPORT_ISSUE, false, null),
+  /** Open the project's latest release page in the browser. */
+  CHECK_FOR_UPDATES(CommandGroup.HELP, UiText.COMMAND_CHECK_FOR_UPDATES, false, null),
   /** Show the About dialog. */
   ABOUT(CommandGroup.HELP, UiText.COMMAND_ABOUT, false, null),
   /** Sort the touched lines, or every line, by code unit. */

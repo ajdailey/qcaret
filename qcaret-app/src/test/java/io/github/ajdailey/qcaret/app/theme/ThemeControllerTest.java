@@ -265,7 +265,8 @@ class ThemeControllerTest {
 
   @Test
   void themeRoundTripsInPortableMode() throws Exception {
-    Files.writeString(temp.resolve(SettingsLocation.MARKER), "", StandardCharsets.ISO_8859_1);
+    Files.writeString(
+        temp.resolve(SettingsLocation.SETTINGS_FILE), "", StandardCharsets.ISO_8859_1);
     SettingsLocation location =
         SettingsLocation.resolve(
             null,
@@ -280,9 +281,10 @@ class ThemeControllerTest {
     store.save(loaded, loaded.withTheme(ThemeMode.SYSTEM));
     assertEquals(ThemeMode.SYSTEM, new ConfigStore(location).load().theme());
     List<String> lines =
-        Files.readAllLines(temp.resolve(SettingsLocation.MARKER), StandardCharsets.ISO_8859_1);
+        Files.readAllLines(
+            temp.resolve(SettingsLocation.SETTINGS_FILE), StandardCharsets.ISO_8859_1);
     assertTrue(lines.contains("ui.theme=system"));
-    assertEquals(List.of(SettingsLocation.MARKER), names(temp));
+    assertEquals(List.of(SettingsLocation.SETTINGS_FILE), names(temp));
   }
 
   private static List<String> names(Path dir) throws java.io.IOException {

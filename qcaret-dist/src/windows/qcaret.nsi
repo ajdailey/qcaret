@@ -3,15 +3,16 @@
 ;   VI_VERSION  four numbers for the file properties (0.2.0.0)
 ;   FILES       the include NsisFiles.java writes for the bundle tree
 ;   ART, ICON, LICENSE, OUTFILE
+;   PORTABLE    the portable.txt marker the portable choice writes
 ; Optional SIGN_INSTALLER and SIGN_UNINSTALLER name a command makensis runs
 ; on the build host with the file as its argument.
 ;
 ; Silent use: /S plus /MACHINE, /USER or /PORTABLE, optionally /DESKTOP, and
 ; optionally /D=<folder> as the last argument. /S alone installs for the
 ; current user. /DESKTOP adds the desktop shortcut to a regular install. A
-; silent install never starts QCaret. A per-machine or per-user install never
-; holds qcaret.conf, whose presence selects portable mode; only /PORTABLE writes
-; it, empty, and keeps an existing one.
+; silent install never starts QCaret. portable.txt or qcaret.conf in the folder
+; selects portable mode, so a per-machine or per-user install refuses a folder
+; holding either; only /PORTABLE writes portable.txt, and keeps an existing one.
 
 Unicode true
 Target amd64-unicode
@@ -111,6 +112,7 @@ VIAddVersionKey "OriginalFilename" "qcaret-setup.exe"
 ; Apache-2.0 asks nothing of the user, so the license page asks for no
 ; acceptance.
 !define MUI_LICENSEPAGE_BUTTON "$(^NextBtn)"
+!define MUI_LICENSEPAGE_TEXT_TOP "Press Page Down to see the rest of the license."
 !define MUI_LICENSEPAGE_TEXT_BOTTOM "QCaret is distributed under the Apache License 2.0. Click Next to continue."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "&Run QCaret"
@@ -166,7 +168,9 @@ FunctionEnd
 Function CheckDir
   StrCpy $R9 ""
   ${If} $Mode != portable
-    ${If} ${FileExists} "$INSTDIR\qcaret.conf"
+    ${If} ${FileExists} "$INSTDIR\portable.txt"
+      StrCpy $R9 "$INSTDIR holds a portable QCaret (portable.txt). Choose another folder, or install as portable."
+    ${ElseIf} ${FileExists} "$INSTDIR\qcaret.conf"
       StrCpy $R9 "$INSTDIR holds a portable QCaret (qcaret.conf). Choose another folder, or install as portable."
     ${EndIf}
     Return
@@ -403,9 +407,8 @@ Section "QCaret"
   !insertmacro QCARET_INSTALL_FILES
 
   ${If} $Mode == portable
-    ${IfNot} ${FileExists} "$INSTDIR\qcaret.conf"
-      FileOpen $0 "$INSTDIR\qcaret.conf" w
-      FileClose $0
+    ${IfNot} ${FileExists} "$INSTDIR\portable.txt"
+      File "/oname=$INSTDIR\portable.txt" "${PORTABLE}"
     ${EndIf}
     Return
   ${EndIf}

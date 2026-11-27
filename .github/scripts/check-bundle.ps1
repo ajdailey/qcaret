@@ -1,12 +1,14 @@
-# Unpacks the $env:TARGET bundle from dist\, checks that its runtime reports
-# os.arch $env:EXPECTED_ARCH, has jdk.charsets, jdk.localedata, java.xml and java.management and no
+# Unpacks the $env:TARGET bundle from dist\, checks that it holds portable.txt and no qcaret.conf
+# and that its runtime reports os.arch $env:EXPECTED_ARCH, has jdk.charsets, jdk.localedata, java.xml and java.management and no
 # bin\keytool.exe, then starts qcaret.exe and
 # finds the javaw.exe it starts. Passes only when that child runs runtime\bin\javaw.exe from the
-# bundle and the image's PE machine is $env:EXPECTED_MACHINE. An ARM64 image
+# bundle with --enable-native-access=ALL-UNNAMED and the image's PE machine is
+# $env:EXPECTED_MACHINE. An ARM64 image
 # cannot run under x86 or x64 emulation, so ARM64 proves a native arm64 JVM.
 # javaw output is not captured, so the run uses -l and reads logs\qcaret.log: the main window
 # opens, the grammars are read with 0 skipped and no unhandled failure is logged. A second launch
-# then hands a file to the running instance and exits 0. qcaret.cmd then runs the same check; it
+# then hands a file to the running instance and exits 0. Two more handoffs through java.exe: with
+# the flag, no restricted-method warning on stderr; without it, the warning. qcaret.cmd then runs the same check; it
 # also runs LauncherProbe in place of qcaret.jar to check the Java it picks, the JVM options and
 # the arguments it passes, unquoted names as Explorer drops them and escaped ones typed at a
 # prompt, none of which may run a command, and its -v must print the version. A CJK file name
@@ -69,6 +71,7 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
   if (Test-Path $settings) { Remove-Item -Recurse -Force $settings }
   $logFile = Join-Path $settings 'logs\qcaret.log'
   $jar = Join-Path (Split-Path $Exe) 'lib\qcaret.jar'
+  $java = Join-Path (Split-Path $Javaw) 'java.exe'
   $exeName = Split-Path -Leaf $Exe
   if ($exeName -like '*.exe') { Write-Output "$Name $exeName image: $(Get-PeMachine $Exe)" }
   $launcher = Start-Process -FilePath $Exe -ArgumentList @('-l', '--settings', "`"$settings`"", "`"$log`"") -PassThru
@@ -102,6 +105,9 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
     $ended = $second.WaitForExit(60000)
     if (-not $ended) { Stop-Process -Id $second.Id -Force -ErrorAction SilentlyContinue }
     Wait-LogLine $logFile 'Handoff of 1 files'
+    $flagged = Invoke-Handoff $java @('--enable-native-access=ALL-UNNAMED') $jar $settings (Join-Path $work "$Name-flagged.err")
+    # Without the flag, the foreground grant's first link prints the restricted-method warning.
+    $control = Invoke-Handoff $java @() $jar $settings (Join-Path $work "$Name-control.err")
     $text = Read-Log $logFile
   } finally {
     Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
@@ -118,10 +124,33 @@ function Test-Launcher([string] $Exe, [string] $Javaw, [string] $Name) {
   if (-not $text.Contains('Grammars read: 0 skipped')) { throw "$Name did not read every grammar within 60 s" }
   if (-not $ended) { throw "$Name second launch did not exit within 60 s" }
   if ($second.ExitCode -ne 0) { throw "$Name second launch exited $($second.ExitCode)" }
+  if (-not $child.CommandLine.Contains('--enable-native-access=ALL-UNNAMED')) { throw "$Name $exeName started Java without --enable-native-access=ALL-UNNAMED" }
+  foreach ($launch in @($flagged, $control)) {
+    if (-not $launch.Ended) { throw "$Name $($launch.Label) launch did not exit within 60 s" }
+    if ($launch.ExitCode -ne 0) { throw "$Name $($launch.Label) launch exited $($launch.ExitCode)" }
+  }
+  if ($flagged.Stderr.Contains('restricted method')) { throw "$Name handoff with the flag printed a restricted-method warning:`n$($flagged.Stderr)" }
+  if (-not $control.Stderr.Contains('restricted method')) { throw "$Name handoff without the flag printed no restricted-method warning, so the grant did not link:`n$($control.Stderr)" }
   if (-not $text.Contains('Handoff of 1 files taken')) { throw "$Name primary took no handoff" }
   if ($text.Contains('Unhandled failure')) { throw "$Name logged an unhandled failure" }
   if ($text.Contains('UI task failed')) { throw "$Name logged a UI task failure" }
-  Write-Output "PASS: $Name $exeName started the $machine runtime $path, read the grammars and took a handoff"
+  Write-Output "PASS: $Name $exeName started the $machine runtime $path with native access, read the grammars and took three handoffs, a restricted-method warning only without the flag"
+}
+
+# Hands $handed to the instance using $Settings through $Java with $Options and returns whether it
+# exited within 60 s, its exit code and its stderr. A failed handoff opens its own window and never
+# exits, so the wait is bounded.
+function Invoke-Handoff([string] $Java, [string[]] $Options, [string] $Jar, [string] $Settings, [string] $ErrFile) {
+  $arguments = $Options + @('-XX:MaxRAMPercentage=50', '-jar', "`"$Jar`"", '--settings', "`"$Settings`"", "`"$handed`"")
+  $launch = Start-Process -FilePath $Java -ArgumentList $arguments -RedirectStandardError $ErrFile -NoNewWindow -PassThru
+  # ExitCode reads null unless the handle was taken while the process ran.
+  $null = $launch.Handle
+  $ended = $launch.WaitForExit(60000)
+  if (-not $ended) { Stop-Process -Id $launch.Id -Force -ErrorAction SilentlyContinue }
+  $stderr = if (Test-Path -LiteralPath $ErrFile) { [IO.File]::ReadAllText($ErrFile) } else { '' }
+  $label = if ($Options.Count -gt 0) { 'flagged' } else { 'control' }
+  Write-Output "$label handoff stderr: $stderr" | Out-Host
+  [pscustomobject] @{ Label = $label; Ended = $ended; ExitCode = $launch.ExitCode; Stderr = $stderr }
 }
 
 # Runs cmd.exe /d /s /c "$Line" with $Line passed as given, standard input closed and each
@@ -460,8 +489,8 @@ function Test-CmdCall([string] $Bundle) {
 
 $work = Join-Path $PWD 'bundle-run'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
-$archive = Get-Item "dist\qcaret-*-$env:TARGET.zip"
-$version = $archive.Name.Substring(7, $archive.Name.Length - 7 - "-$env:TARGET.zip".Length)
+$archive = Get-Item "dist\qcaret-*-$env:TARGET-portable.zip"
+$version = $archive.Name.Substring(7, $archive.Name.Length - 7 - "-$env:TARGET-portable.zip".Length)
 # QCARET_HOME names an installed tree to check in place of the zip; the universal zip is then skipped.
 if ($env:QCARET_HOME) {
   New-Item -ItemType Directory -Path $work | Out-Null
@@ -469,6 +498,8 @@ if ($env:QCARET_HOME) {
 } else {
   Expand-Archive -Path $archive.FullName -DestinationPath $work
   $bundle = (Resolve-Path (Join-Path $work 'qcaret')).Path
+  if (-not (Test-Path -PathType Leaf (Join-Path $bundle 'portable.txt'))) { throw 'the zip lacks portable.txt' }
+  if (Test-Path (Join-Path $bundle 'qcaret.conf')) { throw 'the zip holds qcaret.conf' }
 }
 
 $arch = & (Join-Path $bundle 'runtime\bin\java.exe') -XshowSettings:properties -version 2>&1 |

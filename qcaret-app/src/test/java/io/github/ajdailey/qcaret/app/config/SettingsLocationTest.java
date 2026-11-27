@@ -49,9 +49,30 @@ class SettingsLocationTest {
   }
 
   @Test
+  void portableTxtSelectsPortable() throws IOException {
+    Path home = Files.createDirectory(temp.resolve("home"));
+    Path bin = Files.createDirectory(home.resolve("bin"));
+    Files.createFile(bin.resolve("portable.txt"));
+    assertEquals(
+        new SettingsLocation(SettingsMode.PORTABLE, bin, home),
+        resolve(null, home, "Linux", Map.of()));
+    assertEquals(SettingsMode.PER_USER, resolve(null, home, "Windows 11", Map.of()).mode());
+    Files.createFile(home.resolve("portable.txt"));
+    assertEquals(
+        new SettingsLocation(SettingsMode.PORTABLE, home, home),
+        resolve(null, home, "Windows 11", Map.of()));
+    // Both markers: still the installation directory.
+    Files.createFile(home.resolve("qcaret.conf"));
+    assertEquals(
+        new SettingsLocation(SettingsMode.PORTABLE, home, home),
+        resolve(null, home, "Linux", Map.of()));
+  }
+
+  @Test
   void withoutTheMarkerTheDirectoryIsPerUser() throws IOException {
     Path home = Files.createDirectory(temp.resolve("home"));
     Files.createDirectory(home.resolve("qcaret.conf"));
+    Files.createDirectory(home.resolve("portable.txt"));
     assertEquals(
         new SettingsLocation(
             SettingsMode.PER_USER, temp.resolve(".config").resolve("qcaret"), home),

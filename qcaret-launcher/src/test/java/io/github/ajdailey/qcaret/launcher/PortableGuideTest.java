@@ -44,7 +44,7 @@ class PortableGuideTest {
   @Test
   void theGuideInAPortableRunWritesNothingUnderTheHome() throws Exception {
     Path bundle = Files.createDirectories(temp.resolve("bundle"));
-    Files.createFile(bundle.resolve(SettingsLocation.MARKER));
+    Files.createFile(bundle.resolve(SettingsLocation.SETTINGS_FILE));
     Path home = Files.createDirectories(temp.resolve("home"));
     List<Path> links = new ArrayList<Path>();
     Path out = temp.resolve("out.txt");

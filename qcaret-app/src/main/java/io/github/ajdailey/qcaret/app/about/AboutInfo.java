@@ -31,11 +31,17 @@ public record AboutInfo(
     String toolkit,
     Path settingsDirectory,
     SettingsMode settingsMode) {
-  /** The project page; QCaret opens it, or {@link #ISSUES_URL}, only on the user's action. */
+  /**
+   * The project page; QCaret opens it, {@link #ISSUES_URL} or {@link #RELEASES_URL} only on the
+   * user's action.
+   */
   public static final String PROJECT_URL = "https://github.com/ajdailey/qcaret";
 
   /** The project's issue page, which Help > Report an Issue opens. */
   public static final String ISSUES_URL = PROJECT_URL + "/issues";
+
+  /** The latest release's page, which Help > Check for Updates opens. */
+  public static final String RELEASES_URL = PROJECT_URL + "/releases/latest";
 
   private static final String[] LICENSE_FILES = {"LICENSE", "NOTICE", "THIRD-PARTY.txt"};
   private static final int MAX_LICENSE_BYTES = 1 << 20;

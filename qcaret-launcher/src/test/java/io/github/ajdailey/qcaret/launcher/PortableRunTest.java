@@ -48,7 +48,7 @@ class PortableRunTest {
   @Test
   void aPortableRunWritesOnlyInsideItsBundle() throws Exception {
     Path bundle = Files.createDirectories(temp.resolve("bundle"));
-    Files.createFile(bundle.resolve(SettingsLocation.MARKER));
+    Files.createFile(bundle.resolve(SettingsLocation.SETTINGS_FILE));
     Path home = Files.createDirectories(temp.resolve("home"));
     SettingsLocation location =
         SettingsLocation.resolve(
@@ -78,7 +78,8 @@ class PortableRunTest {
     assertEquals(List.of(), outside);
     assertEquals(List.of(), List.copyOf(files(home).keySet()));
     String settings =
-        Files.readString(bundle.resolve(SettingsLocation.MARKER), StandardCharsets.ISO_8859_1);
+        Files.readString(
+            bundle.resolve(SettingsLocation.SETTINGS_FILE), StandardCharsets.ISO_8859_1);
     assertTrue(settings.contains("ui.theme=dark\n"), settings);
     assertTrue(settings.contains("window.width="), settings);
   }

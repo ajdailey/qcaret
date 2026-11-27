@@ -11,8 +11,12 @@ height="96"> </picture>
 [![Continuous build](https://img.shields.io/github/release-date-pre/ajdailey/qcaret?label=continuous)](https://github.com/ajdailey/qcaret/releases/tag/continuous)
 
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
-SWT. It makes no outbound network connections; its only socket is a loopback
-endpoint that passes files from a second launch to the running instance.
+SWT. It has no telemetry or account, never checks for updates on its own (Help
+> Check for Updates opens the releases page in the browser), and needs no
+network to run; its only socket is a loopback endpoint that passes files from a
+second launch to the running instance. The optional Browser Markdown preview
+uses the system web engine (WebKitGTK, WebView2, WebKit) and loads no remote
+content.
 
 QCaret runs no macros, scripts or plugins.
 
@@ -45,7 +49,7 @@ search results" width="880"> </picture>
 | Windows and single instance | Several windows with live tab moves; Always on Top per window; Full Screen; a second launch hands its files to the running instance; file associations | [Windows](docs/user-guide.md#windows-and-the-running-instance) |
 | Large files | Loads with progress and Cancel; a file must fit the heap; no file over 2 GiB opens; a status bar memory indicator | [Large files](docs/user-guide.md#large-files) |
 | Preferences and themes | Preferences applied without a restart, key bindings, editor font, light, dark and system themes, bundled editor color schemes, theme files | [Preferences](docs/user-guide.md#preferences) |
-| Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Tip of the Day, Show Log with a warning marker, debug log file, Report an Issue, About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
+| Help | Keyboard Shortcuts, Command-Line Options, the user guide in its own window, Tip of the Day, Show Log with a warning marker, debug log file, Report an Issue, Check for Updates (opens the releases page), About and Licenses | [Help](docs/user-guide.md#help-and-logs) |
 
 Every key binding is listed under Help > Keyboard Shortcuts.
 
@@ -142,7 +146,7 @@ archive when the runner image lacks them.
 | `test-gtk4` | `ubuntu-24.04` | `verify` of `qcaret-ui-swt`, `qcaret-launcher`, `qcaret-dist` (the distribution tests) and the modules they need, with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
 | `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives, two Windows installers, four Linux packages and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
-| `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK. Linux and Windows runners then check the target's packages or setup |
+| `bundle` | the six `test` runners | Unpacks the target's bundle, checks that a Linux or Windows archive holds `portable.txt` and no `qcaret.conf`, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK. Linux and Windows runners then check the target's packages or setup |
 | `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, optionally followed by `-rc<N>`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's 13 archives, installers and packages, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
 | `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
 
@@ -170,7 +174,7 @@ check that the finish page starts QCaret through Explorer, then install
 silently for all users and for the current user, check the Installed apps
 entry, shortcut and Open With, run the same launch checks against the
 installed folder, install over it, uninstall and check removal; then a
-portable install, an install over it, and two refused folders. Details are in
+portable install, an install over it, and three refused folders. Details are in
 [qcaret-dist](qcaret-dist/README.md#ci-bundle-check).
 
 The `package` job caches the JDK archives, `rcodesign`, `nfpm` and NSIS under
@@ -271,10 +275,10 @@ To fix a bad draft, delete the draft and the tag
 
 | Target | SWT fragment | Bundle | Installer or package |
 |---|---|---|---|
-| linux-x86_64 | `gtk.linux.x86_64` | `qcaret-<version>-linux-x86_64.tar.gz` | `qcaret-<version>-linux-x86_64.deb`, `.rpm` |
-| linux-aarch64 | `gtk.linux.aarch64` | `qcaret-<version>-linux-aarch64.tar.gz` | `qcaret-<version>-linux-aarch64.deb`, `.rpm` |
-| windows-x86_64 | `win32.win32.x86_64` | `qcaret-<version>-windows-x86_64.zip` | `qcaret-<version>-windows-x86_64-setup.exe` |
-| windows-aarch64 | `win32.win32.aarch64` | `qcaret-<version>-windows-aarch64.zip` | `qcaret-<version>-windows-aarch64-setup.exe` |
+| linux-x86_64 | `gtk.linux.x86_64` | `qcaret-<version>-linux-x86_64-portable.tar.gz` | `qcaret-<version>-linux-x86_64.deb`, `.rpm` |
+| linux-aarch64 | `gtk.linux.aarch64` | `qcaret-<version>-linux-aarch64-portable.tar.gz` | `qcaret-<version>-linux-aarch64.deb`, `.rpm` |
+| windows-x86_64 | `win32.win32.x86_64` | `qcaret-<version>-windows-x86_64-portable.zip` | `qcaret-<version>-windows-x86_64-setup.exe` |
+| windows-aarch64 | `win32.win32.aarch64` | `qcaret-<version>-windows-aarch64-portable.zip` | `qcaret-<version>-windows-aarch64-setup.exe` |
 | macos-x86_64 | `cocoa.macosx.x86_64` | `qcaret-<version>-macos-x86_64.zip` (`QCaret.app`) | None |
 | macos-aarch64 | `cocoa.macosx.aarch64` | `qcaret-<version>-macos-aarch64.zip` (`QCaret.app`) | None |
 
@@ -282,7 +286,9 @@ To fix a bad draft, delete the draft and the tag
   all six targets under an installed Java 21, with `bin/qcaret`, `qcaret.exe`
   and `qcaret.cmd`.
 - Each bundle adds a Java runtime for its target, so it needs no installed
-  Java.
+  Java. The Linux and Windows bundles hold `portable.txt` and run in
+  [portable mode](#settings-directory); the universal zip and the macOS
+  bundles hold no marker.
 - Linux targets need the system GTK 3 libraries. GTK 4 is an experimental
   opt-in on linux-x86_64: start QCaret with `bin/qcaret --gtk4` or
   `SWT_GTK4=1`; without the GTK 4 libraries it starts on GTK 3 and logs a warning. Under GTK 4 Help > User Guide shows no guide window; a notice
@@ -309,14 +315,15 @@ The installers and packages hold the same tree as the target's bundle.
 | `.deb` (Debian, Ubuntu), `.rpm` (Fedora, RHEL) | `/opt/qcaret`, `/usr/bin/qcaret`, a desktop entry with the icon at every size, and Open With for the text and source types its `MimeType` lists. Needs GTK 3: `libgtk-3-0t64` or `libgtk-3-0`, or `gtk3`. Removing the package removes them and keeps the settings in `~/.config/qcaret` |
 | `-setup.exe`, for all users | `C:\Program Files\QCaret`, with administrator rights |
 | `-setup.exe`, for me only | `%LOCALAPPDATA%\Programs\QCaret` |
-| `-setup.exe`, portable | A folder you choose and can write to, outside Program Files and Windows, with an empty `qcaret.conf`, so the settings stay in that folder. Nothing is registered with Windows; delete the folder to remove it |
+| `-setup.exe`, portable | A folder you choose and can write to, outside Program Files and Windows, with `portable.txt`, so the settings stay in that folder. Nothing is registered with Windows; delete the folder to remove it |
 
 The all-users and current-user installs add a Start menu shortcut, Open With
 for the extensions `register-associations.cmd` lists (never the default
 program) and an Installed apps entry, and a desktop shortcut when chosen on the
 finish page. Uninstalling removes them and keeps the settings in
 `%APPDATA%\QCaret`. Running setup again upgrades in place, release candidates
-included; over a portable folder it keeps `qcaret.conf` and the settings. The
+included; over a portable folder it keeps `portable.txt` and the settings. A
+regular install refuses a folder holding `portable.txt` or `qcaret.conf`. The
 finish page starts QCaret as the signed-in user, without administrator rights.
 The pages are shown in the [user guide](docs/user-guide.md#installing).
 
@@ -397,12 +404,14 @@ QCaret keeps its files in the first directory that applies:
 | Mode | When | Directory |
 |---|---|---|
 | Explicit | `--settings <dir>` | `<dir>` |
-| Portable | `qcaret.conf` exists in the installation directory, the parent of `lib/` | The installation directory |
-| Portable (Linux) | `qcaret.conf` exists beside the `bin/qcaret` script and not in the installation directory | `bin/` |
+| Portable | `portable.txt` or `qcaret.conf` exists in the installation directory, the parent of `lib/` | The installation directory |
+| Portable (Linux) | `portable.txt` or `qcaret.conf` exists beside the `bin/qcaret` script, and neither in the installation directory | `bin/` |
 | Per-user | Otherwise | Linux `$XDG_CONFIG_HOME/qcaret` (default `~/.config/qcaret`), Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
-An empty `qcaret.conf` in either place selects portable mode. The
-macOS bundle is sealed, so portable use there goes through `--settings`.
+Either file selects portable mode whatever it holds, so an empty `qcaret.conf`
+does too. QCaret writes `qcaret.conf` at its first save; an archive never holds
+one, so unpacking a newer archive over a portable folder keeps the settings.
+The macOS bundle is sealed, so portable use there goes through `--settings`.
 
 | File | Contents |
 |---|---|

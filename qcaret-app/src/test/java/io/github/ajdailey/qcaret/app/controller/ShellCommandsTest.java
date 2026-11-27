@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.config.Options;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -532,6 +533,18 @@ class ShellCommandsTest {
         List.of(guide.toString(), "https://github.com/ajdailey/qcaret/issues"),
         harness.view.launched);
     assertTrue(harness.view.clipboard.contains("Java"), harness.view.clipboard);
+  }
+
+  @Test
+  void checkForUpdatesOpensTheLatestReleasePage() {
+    harness.application.execute(CommandId.CHECK_FOR_UPDATES);
+    assertEquals(List.of(AboutInfo.RELEASES_URL), harness.view.launched);
+    assertEquals(
+        "https://github.com/ajdailey/qcaret/releases/latest", harness.view.launched.get(0));
+    assertTrue(harness.view.notices.isEmpty(), harness.view.notices.toString());
+    harness.view.launchFails = true;
+    harness.application.execute(CommandId.CHECK_FOR_UPDATES);
+    assertEquals(List.of(UiText.NOTICE_LAUNCH_FAILED.text()), harness.view.notices);
   }
 
   @Test

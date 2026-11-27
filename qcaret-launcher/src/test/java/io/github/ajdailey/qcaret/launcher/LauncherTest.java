@@ -160,7 +160,7 @@ class LauncherTest {
       assertWebView2(roaming.resolve("QCaret"), perUser);
 
       Path installed = Files.createDirectories(temp.resolve("installed"));
-      Files.writeString(installed.resolve(SettingsLocation.MARKER), "");
+      Files.writeString(installed.resolve(SettingsLocation.SETTINGS_FILE), "");
       SettingsLocation portable =
           SettingsLocation.resolve(
               null,

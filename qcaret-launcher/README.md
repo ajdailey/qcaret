@@ -258,7 +258,7 @@ classes, so the rules over the main classes never see them.
 | `core.util` depends on no other QCaret package | Utilities stay leaf classes |
 | Every `UiText` constant is read outside `UiText` | No unused bundle entry |
 | `java.util.logging` and `org.slf4j.jul` only in `launcher` | Everything else logs through slf4j; only the launcher sets handlers, levels or the `LogManager` |
-| No `java.net.http`, `URLConnection`, `Socket`, `ServerSocket`, `DatagramSocket`, `DatagramChannel`, `AsynchronousSocketChannel`, `URL.openStream` or `getContent`, or `InetAddress.getByName` or `getAllByName`; `SocketChannel` and `ServerSocketChannel` only in `app.ipc` | No outbound network |
+| No `java.net.http`, `URLConnection`, `Socket`, `ServerSocket`, `DatagramSocket`, `DatagramChannel`, `AsynchronousSocketChannel`, `URL.openStream` or `getContent`, or `InetAddress.getByName` or `getAllByName`; `SocketChannel` and `ServerSocketChannel` only in `app.ipc` | No network calls from QCaret's own code |
 | No `ProcessBuilder`, any `Runtime.exec` overload, object streams, `XMLDecoder`, or `java.util.Random` and its subtypes other than `SecureRandom` | Security |
 | `System.exit`, `Runtime.exit` and `Runtime.halt` only in `launcher.Main` | One exit point: `Main` exits with the nonzero status `Launcher.run` returns |
 | No `Display.syncExec` or `syncCall`; `Display.asyncExec`, `timerExec` and `execute` only in `SwtUiDispatcher` | A worker never waits on the UI thread; submissions after disposal are dropped |

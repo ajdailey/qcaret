@@ -102,7 +102,7 @@ class ConfigStoreTest {
   void anInvalidThemeFileFontFamilyOrEditorColorsFallsBackToTheDefault() throws Exception {
     Files.createDirectories(temp);
     Files.writeString(
-        temp.resolve(SettingsLocation.MARKER),
+        temp.resolve(SettingsLocation.SETTINGS_FILE),
         "ui.themeFile=../up\nui.editorColors=../navy\neditor.fontFamily=" + "x".repeat(129) + "\n",
         StandardCharsets.ISO_8859_1);
     assertEquals(Appearance.DEFAULTS, store(temp).load().appearance());

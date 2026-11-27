@@ -1,8 +1,10 @@
 # QCaret User Guide
 
-QCaret is a programmer's text editor. It makes no outbound network
-connections; a second launch passes its files to the running instance over a
-loopback connection. On macOS, `Ctrl` in this guide is `Cmd` unless a key is named for
+QCaret is a programmer's text editor. It has no telemetry or account, never
+checks for updates on its own, and needs no network to run; a second launch
+passes its files to the running instance over a loopback connection. The
+optional Browser Markdown preview uses the system web engine and loads no
+remote content. On macOS, `Ctrl` in this guide is `Cmd` unless a key is named for
 macOS; Help > Keyboard Shortcuts lists every key for your platform and Tools >
 Preferences, Keys changes them.
 
@@ -35,7 +37,8 @@ Preferences, Keys changes them.
 | Windows | `qcaret-<version>-windows-<arch>-setup.exe` | Setup asks for all users (Program Files, administrator rights), for you only (your profile), or portable (a folder you choose, with the settings kept in it). The first two add a Start menu shortcut, QCaret under Open With for text and source files and an Installed apps entry, and a desktop shortcut when you tick it on the last page; a portable copy registers nothing, and deleting its folder removes it. Run QCaret on the last page starts QCaret without administrator rights |
 | Debian, Ubuntu | `qcaret-<version>-linux-<arch>.deb` | `sudo apt install ./<file>.deb`: `qcaret` on the path, QCaret in the applications menu and under Open With for text and source files |
 | Fedora, RHEL | `qcaret-<version>-linux-<arch>.rpm` | `sudo dnf install ./<file>.rpm`, the same |
-| Any, no install | The `.zip` or `.tar.gz` for your system | Extract it and run `qcaret.exe`, `bin/qcaret` or `QCaret.app` |
+| Windows, Linux, no install | `qcaret-<version>-windows-<arch>-portable.zip`, `qcaret-<version>-linux-<arch>-portable.tar.gz` | Extract it and run `qcaret.exe` or `bin/qcaret`. The folder holds `portable.txt`, so QCaret keeps its settings, logs and cache there; extracting a newer version over it keeps the settings |
+| macOS | `qcaret-<version>-macos-<arch>.zip` | Extract it and run `QCaret.app`; settings are per user |
 
 Running a newer setup or package upgrades QCaret in place. Uninstalling keeps
 your settings, and an upgrade of a portable copy keeps the settings in its
@@ -1280,13 +1283,14 @@ A theme file sets colors only: bold, italic and underline stay as built in.
 
 ### Settings directory
 
-Settings are in `qcaret.conf`, in the first of these that applies:
+Settings are in `qcaret.conf`, in the first of these that applies;
+`portable.txt` and `qcaret.conf` select portable mode whatever they hold:
 
 | Mode | When | Directory |
 |---|---|---|
 | Explicit | `--settings <dir>` | `<dir>` |
-| Portable | `qcaret.conf` exists in the installation directory | The installation directory |
-| Portable (Linux) | `qcaret.conf` exists in `bin/`, beside the `qcaret` script, and not in the installation directory | `bin/` |
+| Portable | `portable.txt` or `qcaret.conf` exists in the installation directory | The installation directory |
+| Portable (Linux) | `portable.txt` or `qcaret.conf` exists in `bin/`, beside the `qcaret` script, and neither in the installation directory | `bin/` |
 | Per-user | Otherwise | Linux `$XDG_CONFIG_HOME/qcaret` (default `~/.config/qcaret`), Windows `%APPDATA%\QCaret`, macOS `~/Library/Application Support/QCaret` |
 
 In explicit and portable mode on Linux, User Guide opens the guide in the
@@ -1332,9 +1336,12 @@ first copies the file to `qcaret.conf.invalid` in the same directory.
 - Debug Log File writes the log at DEBUG to `logs/` in the settings directory
   until turned off. Open Log Folder and Open Settings Folder open those folders.
 - Report an Issue copies the About details to the clipboard and opens the
-  project's issue page in the system browser. QCaret opens a web address only
-  when you pick Report an Issue, the project link in About or a web link in a
-  Markdown preview, and asks first for a preview link.
+  project's issue page in the system browser.
+- Check for Updates opens the project's latest release page in the system
+  browser; QCaret itself connects to nothing.
+- QCaret opens a web address only when you pick Report an Issue, Check for
+  Updates, the project link in About or a web link in a Markdown preview, and
+  asks first for a preview link.
 - About shows the version, runtime and settings directory; Licenses shows the
   license notices and Copy Details copies the details.
 

@@ -679,6 +679,8 @@ public enum UiText {
   COMMAND_OPEN_SETTINGS_FOLDER,
   /** Command label. */
   COMMAND_REPORT_ISSUE,
+  /** Command label. */
+  COMMAND_CHECK_FOR_UPDATES,
   /** Editor key, in Keyboard Shortcuts. */
   COMMAND_NEWLINE,
   /** Editor key, in Keyboard Shortcuts. */

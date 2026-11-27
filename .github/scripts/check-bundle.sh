@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Unpacks the $TARGET bundle from dist/, verifies a macOS bundle's signature,
+# Unpacks the $TARGET bundle from dist/, checks that a Linux archive holds
+# portable.txt and no qcaret.conf, verifies a macOS bundle's signature,
 # checks that its runtime reports os.arch $EXPECTED_ARCH, has jdk.charsets,
 # jdk.localedata, java.xml and java.management and no bin/keytool, and starts the bundle's launcher until
 # the main window opens and the grammars are read, with no unhandled failure. A second launch then
@@ -23,7 +24,9 @@ case "${QCARET_HOME:+installed-}$TARGET" in
     runtime="$QCARET_HOME/runtime"
     ;;
   linux-*)
-    tar -xzf dist/qcaret-*-"$TARGET".tar.gz -C "$work"
+    tar -xzf dist/qcaret-*-"$TARGET"-portable.tar.gz -C "$work"
+    [ -f "$work/qcaret/portable.txt" ] && [ ! -e "$work/qcaret/qcaret.conf" ] \
+      || { echo "FAIL: the archive lacks portable.txt or holds qcaret.conf" >&2; exit 1; }
     launcher="$work/qcaret/bin/qcaret"
     runtime="$work/qcaret/runtime"
     ;;

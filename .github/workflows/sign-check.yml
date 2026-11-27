@@ -24,8 +24,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download continuous --repo "$GITHUB_REPOSITORY" --pattern '*-windows-x86_64.zip'
-          unzip -q -j ./*-windows-x86_64.zip '*/qcaret.exe' -d out
+          gh release download continuous --repo "$GITHUB_REPOSITORY" --pattern '*-windows-x86_64*.zip'
+          unzip -q -j ./*-windows-x86_64*.zip '*/qcaret.exe' -d out
       - name: Fetch jsign
         run: |
           curl -sSfLo jsign.jar "https://repo1.maven.org/maven2/net/jsign/jsign/${JSIGN_VERSION}/jsign-${JSIGN_VERSION}.jar"

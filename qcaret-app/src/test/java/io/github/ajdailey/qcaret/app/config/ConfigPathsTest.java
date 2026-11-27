@@ -85,12 +85,12 @@ class ConfigPathsTest {
     Path install = Files.createDirectories(temp.resolve("install"));
     Files.createDirectories(install.resolve("logs"));
     Files.createDirectories(install.resolve("data"));
-    Files.createFile(install.resolve(SettingsLocation.MARKER));
+    Files.createFile(install.resolve(SettingsLocation.SETTINGS_FILE));
     Path outside = Files.createDirectories(temp.resolve("outside"));
     ConfigStore store =
         new ConfigStore(new SettingsLocation(SettingsMode.PORTABLE, install, install));
     assertTrue(store.save(Preferences.DEFAULTS, withPaths(install, outside)));
-    Properties written = keys(install.resolve(SettingsLocation.MARKER));
+    Properties written = keys(install.resolve(SettingsLocation.SETTINGS_FILE));
     assertEquals("logs", written.getProperty("workspace.favorite.0"));
     assertEquals(outside.toString(), written.getProperty("workspace.favorite.1"));
     assertEquals("data", written.getProperty("search.history.directory.0"));
@@ -114,12 +114,12 @@ class ConfigPathsTest {
     Path outside = Files.createDirectories(temp.resolve("outside"));
     SettingsLocation location = new SettingsLocation(SettingsMode.PER_USER, settings, install);
     assertTrue(new ConfigStore(location).save(Preferences.DEFAULTS, withPaths(install, outside)));
-    Properties written = keys(settings.resolve(SettingsLocation.MARKER));
+    Properties written = keys(settings.resolve(SettingsLocation.SETTINGS_FILE));
     assertEquals(install.resolve("logs").toString(), written.getProperty("workspace.favorite.0"));
     assertEquals(install.resolve("logs").toString(), written.getProperty("workspace.default"));
 
     Files.writeString(
-        settings.resolve(SettingsLocation.MARKER),
+        settings.resolve(SettingsLocation.SETTINGS_FILE),
         "workspace.default=logs\nworkspace.favorite.0=data\n",
         StandardCharsets.ISO_8859_1);
     Preferences loaded = new ConfigStore(location).load();
@@ -131,7 +131,7 @@ class ConfigPathsTest {
   @Test
   void anInvalidDefaultReadsAsNone() throws IOException {
     Files.writeString(
-        temp.resolve(SettingsLocation.MARKER),
+        temp.resolve(SettingsLocation.SETTINGS_FILE),
         "workspace.default=/mock\\u0001folder\n",
         StandardCharsets.ISO_8859_1);
     Preferences loaded = new ConfigStore(new SettingsLocation(SettingsMode.EXPLICIT, temp)).load();
@@ -142,7 +142,7 @@ class ConfigPathsTest {
   void anUpgradedPortableFileIsRewrittenRelativeOnceAndSurvivesAMove() throws IOException {
     Path install = install();
     Path outside = Files.createDirectories(temp.resolve("outside"));
-    Path conf = install.resolve(SettingsLocation.MARKER);
+    Path conf = install.resolve(SettingsLocation.SETTINGS_FILE);
     upgraded(conf, install, outside);
     new ConfigStore(new SettingsLocation(SettingsMode.PORTABLE, install, install)).load();
     Properties written = keys(conf);
@@ -175,7 +175,7 @@ class ConfigPathsTest {
   void perUserModeLeavesAnUpgradedFileAsItIs() throws IOException {
     Path install = install();
     Path settings = Files.createDirectories(temp.resolve("settings"));
-    Path conf = settings.resolve(SettingsLocation.MARKER);
+    Path conf = settings.resolve(SettingsLocation.SETTINGS_FILE);
     upgraded(conf, install, Files.createDirectories(temp.resolve("outside")));
     byte[] before = Files.readAllBytes(conf);
     FileTime old = age(conf);
@@ -188,7 +188,7 @@ class ConfigPathsTest {
   void aReadOnlySettingsDirectorySkipsTheRewrite() throws IOException {
     assumeTrue(temp.getFileSystem().supportedFileAttributeViews().contains("posix"), "no POSIX");
     Path install = install();
-    Path conf = install.resolve(SettingsLocation.MARKER);
+    Path conf = install.resolve(SettingsLocation.SETTINGS_FILE);
     upgraded(conf, install, Files.createDirectories(temp.resolve("outside")));
     byte[] before = Files.readAllBytes(conf);
     Files.setPosixFilePermissions(install, PosixFilePermissions.fromString("r-x------"));

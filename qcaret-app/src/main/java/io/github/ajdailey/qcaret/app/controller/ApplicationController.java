@@ -1021,6 +1021,7 @@ public final class ApplicationController {
       case OPEN_LOG_FOLDER -> help.openLogFolder();
       case OPEN_SETTINGS_FOLDER -> help.openSettingsFolder();
       case REPORT_ISSUE -> help.reportIssue();
+      case CHECK_FOR_UPDATES -> help.openReleasesPage();
       case ABOUT -> help.showAbout();
     }
   }

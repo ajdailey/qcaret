@@ -290,7 +290,8 @@ class SmokeTest {
     assumeTrue("linux-x86_64".equals(target), "the host bundle is " + target);
     Path archive =
         Path.of(System.getProperty("qcaret.dist.dir"))
-            .resolve("qcaret-" + System.getProperty("qcaret.version") + "-linux-x86_64.tar.gz");
+            .resolve(
+                "qcaret-" + System.getProperty("qcaret.version") + "-linux-x86_64-portable.tar.gz");
     assertTrue(Files.isRegularFile(archive), archive.toString());
     Path unpacked = Files.createDirectory(temp.resolve("unpacked"));
     Process tar =
@@ -300,6 +301,13 @@ class SmokeTest {
     assertTrue(tar.waitFor(BOUND_SECONDS, TimeUnit.SECONDS));
     assertEquals(0, tar.exitValue());
     return unpacked.resolve("qcaret");
+  }
+
+  @Test
+  void linuxBundleCarriesThePortableMarker() throws Exception {
+    Path home = unpackLinuxBundle();
+    assertEquals(1, Files.readAllLines(home.resolve("portable.txt")).size());
+    assertFalse(Files.exists(home.resolve("qcaret.conf")), "the archive holds qcaret.conf");
   }
 
   @Test

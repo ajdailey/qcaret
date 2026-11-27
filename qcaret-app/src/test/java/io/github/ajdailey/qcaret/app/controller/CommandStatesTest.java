@@ -138,6 +138,7 @@ class CommandStatesTest {
           "OPEN_LOG_FOLDER -e -e -e",
           "OPEN_SETTINGS_FOLDER -e -e -e",
           "REPORT_ISSUE -e -e -e",
+          "CHECK_FOR_UPDATES -e -e -e",
           "ABOUT -e -e -e",
           "SORT_LINES_ASCENDING -- -e --",
           "SORT_LINES_DESCENDING -- -e --",

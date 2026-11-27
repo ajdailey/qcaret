@@ -106,7 +106,7 @@ public final class ConfigStore {
       if (Files.isDirectory(dir) && !Files.isWritable(dir)) {
         disableSaving();
       }
-      Path file = SafePaths.child(dir, SettingsLocation.MARKER);
+      Path file = SafePaths.child(dir, SettingsLocation.SETTINGS_FILE);
       Properties properties = read(file);
       if (properties == null) {
         return Preferences.DEFAULTS;
@@ -165,7 +165,7 @@ public final class ConfigStore {
       if (location.mode() == SettingsMode.PER_USER && !Files.isDirectory(dir)) {
         SafePaths.settingsDirectory(dir);
       }
-      Path file = SafePaths.child(dir, SettingsLocation.MARKER);
+      Path file = SafePaths.child(dir, SettingsLocation.SETTINGS_FILE);
       Map<String, String> changed = changes(before, after);
       Properties properties = read(file);
       if (properties == null) {
@@ -186,11 +186,11 @@ public final class ConfigStore {
       properties.setProperty(VERSION_KEY, VERSION);
       byte[] bytes = format(properties);
       if (bytes.length > MAX_BYTES) {
-        LOG.warn("Settings not saved: {} would be over 1 MiB", SettingsLocation.MARKER);
+        LOG.warn("Settings not saved: {} would be over 1 MiB", SettingsLocation.SETTINGS_FILE);
         return false;
       }
       if (keepInvalid && Files.exists(file)) {
-        Path invalid = SafePaths.child(dir, SettingsLocation.MARKER + INVALID_SUFFIX);
+        Path invalid = SafePaths.child(dir, SettingsLocation.SETTINGS_FILE + INVALID_SUFFIX);
         Files.copy(file, invalid, StandardCopyOption.REPLACE_EXISTING);
       }
       keepInvalid = false;
@@ -232,7 +232,8 @@ public final class ConfigStore {
     try {
       AtomicFiles.write(file, format(rewritten));
       LOG.info(
-          "Path keys under the installation rewritten relative in {}", SettingsLocation.MARKER);
+          "Path keys under the installation rewritten relative in {}",
+          SettingsLocation.SETTINGS_FILE);
     } catch (IOException e) {
       saveFailed(e);
     }
@@ -274,7 +275,7 @@ public final class ConfigStore {
         keys.setProperty(entry.getKey(), entry.getValue());
       }
     }
-    return PreferenceKeys.read(keys, Path.of(SettingsLocation.MARKER));
+    return PreferenceKeys.read(keys, Path.of(SettingsLocation.SETTINGS_FILE));
   }
 
   /** Returns the keys that differ, each with its new value or null when it goes. */
@@ -359,7 +360,7 @@ public final class ConfigStore {
       LOG.warn(
           "Malformed settings file {}; defaults apply and it is kept as {} before the next save",
           LogText.oneLine(file),
-          SettingsLocation.MARKER + INVALID_SUFFIX);
+          SettingsLocation.SETTINGS_FILE + INVALID_SUFFIX);
     }
     keepInvalid = true;
   }

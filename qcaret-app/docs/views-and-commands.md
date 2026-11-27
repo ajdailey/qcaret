@@ -176,7 +176,7 @@ ampersand), and no two in one menu share one (`MenuTableTest`,
 | Encoding | The view's charset cascades \| Line Endings |
 | Tools | A cascade per checksum algorithm \| Verify Checksums \| Document Statistics \| Preferences ([Tools](tools.md)) |
 | Window | Minimize, Zoom (macOS) \| New Window, Move to New Window \| Next Tab, Previous Tab, Switch Document; the view lists the windows and documents |
-| Help | User Guide, Keyboard Shortcuts, Command-Line Options, Tip of the Day \| logs and folders \| Report an Issue \| About |
+| Help | User Guide, Keyboard Shortcuts, Command-Line Options, Tip of the Day \| logs and folders \| Report an Issue, Check for Updates \| About |
 
 The `EDITOR` group holds the caret moves, block selection keys, Tab, Enter,
 Backspace, Delete and Esc, which have no menu. Where the system supplies an

@@ -25,10 +25,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The main window's Help commands: Keyboard Shortcuts, Command-Line Options, the user guide, Show
- * Log and its warning marker, Debug Log File, the log and settings folders, Report an Issue, About
- * and the license notices. Confined to the UI thread; each file or jar read runs on a {@code
- * qcaret-lifecycle-} worker, and its result is shown only while the window is open. Report an Issue
- * is the only command that opens a web address, and only when the user runs it.
+ * Log and its warning marker, Debug Log File, the log and settings folders, Report an Issue, Check
+ * for Updates, About and the license notices. Confined to the UI thread; each file or jar read runs
+ * on a {@code qcaret-lifecycle-} worker, and its result is shown only while the window is open.
+ * Report an Issue and Check for Updates are the only commands that open a web address, and only
+ * when the user runs them.
  */
 final class HelpController {
   private static final Logger LOG = LoggerFactory.getLogger(HelpController.class);
@@ -269,6 +270,17 @@ final class HelpController {
                 });
           }
         });
+  }
+
+  /**
+   * Opens the latest release's page in the system browser; a failure shows a notice. QCaret makes
+   * no connection itself.
+   */
+  void openReleasesPage() {
+    if (!LaunchCursor.launchUrl(view, ui, AboutInfo.RELEASES_URL)) {
+      LOG.warn("No application opened the releases page");
+      view.showNotice(UiText.NOTICE_LAUNCH_FAILED.text());
+    }
   }
 
   /**

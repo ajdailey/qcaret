@@ -72,6 +72,7 @@ final class MacRelaunch {
     List<String> command = new ArrayList<String>();
     command.add(java);
     command.add("-XstartOnFirstThread");
+    command.add("--enable-native-access=ALL-UNNAMED");
     command.add("-D" + RELAUNCHED + "=true");
     command.add("-jar");
     command.add(jar.toString());

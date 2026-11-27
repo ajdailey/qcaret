@@ -11,9 +11,8 @@ import java.util.Map;
  * <ol>
  *   <li>a bundle's {@code <qcaret.home>/lib/swt}, verified and never written;
  *   <li>{@code <settings>/cache/swt/<swt version>-<target>} for {@code --settings <dir>}, or with
- *       the portable settings directory: {@code <qcaret.home>} when {@code
- *       <qcaret.home>/qcaret.conf} exists, else on Linux {@code <qcaret.home>/bin} when {@code
- *       qcaret.conf} exists there;
+ *       the portable settings directory: {@code <qcaret.home>} when it holds {@code portable.txt}
+ *       or {@code qcaret.conf}, else on Linux {@code <qcaret.home>/bin} when that holds either;
  *   <li>the per-user cache: {@code ${XDG_CACHE_HOME:-~/.cache}/qcaret/swt} on Linux, {@code
  *       %LOCALAPPDATA%\QCaret\cache\swt} on Windows, {@code
  *       ~/Library/Caches/io.github.ajdailey.qcaret/swt} on macOS, each with a {@code <swt
@@ -58,21 +57,26 @@ record NativesLocation(Path dir, boolean writable) {
   }
 
   /**
-   * Returns the portable settings directory: {@code <home>} when it holds {@code qcaret.conf}, else
-   * on Linux {@code <home>/bin} when that holds one; null otherwise. Follows {@code
-   * SettingsLocation}, which the bootstrap cannot load.
+   * Returns the portable settings directory: {@code <home>} when it holds {@code portable.txt} or
+   * {@code qcaret.conf}, else on Linux {@code <home>/bin} when that holds either; null otherwise.
+   * Follows {@code SettingsLocation}, which the bootstrap cannot load.
    */
   private static Path portable(Path home, Target target) {
-    if (Files.isRegularFile(home.resolve("qcaret.conf"))) {
+    if (marks(home)) {
       return home;
     }
     if (!target.isWindows() && !target.isMac()) {
       Path bin = home.resolve("bin");
-      if (Files.isRegularFile(bin.resolve("qcaret.conf"))) {
+      if (marks(bin)) {
         return bin;
       }
     }
     return null;
+  }
+
+  private static boolean marks(Path dir) {
+    return Files.isRegularFile(dir.resolve("portable.txt"))
+        || Files.isRegularFile(dir.resolve("qcaret.conf"));
   }
 
   private static Path userCache(Target target, Map<String, String> env, String userHome) {

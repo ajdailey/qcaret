@@ -17,7 +17,8 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 | Show Log | Shows the `RecentLog` lines and clears the status-bar marker, which a WARN or ERROR line on any thread shows through one posted task at a time |
 | Debug Log File | Attaches or detaches the log file on a worker and saves `log.debugFile`; its check follows `LogFiles.attached` |
 | Open Log Folder, Open Settings Folder | Create the folder owner-only when missing |
-| Report an Issue | Copies the About details to the clipboard and opens the issue page. QCaret opens a web address only when the user picks this, the project link in About or a Markdown preview's web link, which asks first |
+| Report an Issue | Copies the About details to the clipboard and opens the issue page. QCaret opens a web address only when the user picks this, Check for Updates, the project link in About or a Markdown preview's web link, which asks first |
+| Check for Updates | Opens `AboutInfo.RELEASES_URL` through `MainView.launchUrl`, with `NOTICE_LAUNCH_FAILED` when no application takes it; QCaret makes no connection itself |
 | About, Licenses | Read on workers; `showLicenses` reads `LICENSE`, `NOTICE` and `THIRD-PARTY.txt` from the jar and shows them through `MainView.showText` |
 
 ## View settings from the controller
@@ -80,6 +81,10 @@ commonmark and its tables extension, which `maven-dependency-plugin` copies to
   subclass of `HtmlInline` renders as nothing.
 - A link leaving the page, a `#link` naming no heading and an image that is not
   a PNG beside the guide fail the build.
+- The page carries the Markdown preview's content security policy
+  (`MarkdownPage.POLICY`, repeated in `GuideRenderer.POLICY`, which cannot load
+  app classes) as a meta tag before the styles, so raw HTML in the guide loads
+  nothing remote; `UserGuidePageTest` fails when the two differ.
 
 ## Themes
 

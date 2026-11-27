@@ -23,8 +23,9 @@ dpkg-query -W -f '${Version}\n' qcaret | grep -qxF "${version//-/\~}-1" \
   || { echo "FAIL: package version is not ${version//-/\~}-1" >&2; exit 1; }
 [ "$(readlink /usr/bin/qcaret)" = /opt/qcaret/bin/qcaret ] \
   || { echo "FAIL: /usr/bin/qcaret does not link to /opt/qcaret/bin/qcaret" >&2; exit 1; }
-[ ! -e /opt/qcaret/qcaret.conf ] && [ ! -e /opt/qcaret/bin/qcaret.conf ] \
-  || { echo "FAIL: the package holds qcaret.conf" >&2; exit 1; }
+for marker in qcaret.conf bin/qcaret.conf portable.txt bin/portable.txt; do
+  [ ! -e "/opt/qcaret/$marker" ] || { echo "FAIL: the package holds $marker" >&2; exit 1; }
+done
 desktop-file-validate /usr/share/applications/qcaret.desktop
 grep -qx 'StartupWMClass=QCaret' /usr/share/applications/qcaret.desktop \
   || { echo "FAIL: the desktop entry lacks StartupWMClass=QCaret" >&2; exit 1; }
@@ -51,7 +52,7 @@ docker run --rm -v "$PWD/dist:/dist:ro" -e RPM="/$rpm" "$fedora" sh -euc '
   dnf install -y -q "$RPM"
   rpm -V qcaret
   /usr/bin/qcaret -v
-  [ ! -e /opt/qcaret/qcaret.conf ]
+  [ ! -e /opt/qcaret/qcaret.conf ] && [ ! -e /opt/qcaret/portable.txt ]
   dnf remove -y -q qcaret
   [ ! -e /opt/qcaret ] && [ ! -e /usr/bin/qcaret ]
 '
