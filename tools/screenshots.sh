@@ -14,7 +14,8 @@
 # "screenshots.sh installer [<run-id>]" instead copies the Windows setup pages
 # the guide shows from the installer-screenshots-windows-x86_64 artifact of CI
 # run <run-id>, by default the latest successful CI run on main, into
-# docs/images/guide/installer-{type,folder,finish}.png. Needs gh and network.
+# docs/images/guide/installer-{type,components,folder,finish}.png. Needs gh and
+# network.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,8 +28,8 @@ if [ "${1:-}" = installer ]; then
     pages=$(mktemp -d)
     trap 'rm -rf "$pages"' EXIT
     gh run download "$run" -n installer-screenshots-windows-x86_64 -D "$pages"
-    # The setup walk's pages 3, 4 and 6: installation type, folder, finish.
-    for pair in 3:type 4:folder 6:finish; do
+    # Setup walk pages: installation type, components, folder, finish.
+    for pair in 3:type 4:components 5:folder 7:finish; do
         set -- "$pages"/[0-9][0-9]-setup-"${pair%%:*}".png
         [ $# -eq 1 ] && [ -f "$1" ] || { echo "run $run has no setup page ${pair%%:*}" >&2; exit 1; }
         cp "$1" "docs/images/guide/installer-${pair#*:}.png"

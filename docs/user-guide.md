@@ -34,18 +34,26 @@ Preferences, Keys changes them.
 
 | System | Download | Result |
 |---|---|---|
-| Windows | `qcaret-<version>-windows-<arch>-setup.exe` | Setup asks for all users (Program Files, administrator rights), for you only (your profile), or portable (a folder you choose, with the settings kept in it). The first two add a Start menu shortcut, QCaret under Open With for text and source files and an Installed apps entry, and a desktop shortcut when you tick it on the last page; a portable copy registers nothing, and deleting its folder removes it. Run QCaret on the last page starts QCaret without administrator rights |
+| Windows | `qcaret-<version>-windows-<arch>-setup.exe` | Setup asks for all users (Program Files; Windows then asks for administrator approval), for you only (your profile), or portable (a folder you choose, with the settings kept in it). The first two add a Start menu shortcut, QCaret under Open With for text and source files, an Installed apps entry, Edit in QCaret on the right-click menu of every file unless you clear it on the components page, and a desktop shortcut when you tick it on the last page; a portable copy registers nothing, and deleting its folder removes it. Run QCaret on the last page starts QCaret without administrator rights |
 | Debian, Ubuntu | `qcaret-<version>-linux-<arch>.deb` | `sudo apt install ./<file>.deb`: `qcaret` on the path, QCaret in the applications menu and under Open With for text and source files |
 | Fedora, RHEL | `qcaret-<version>-linux-<arch>.rpm` | `sudo dnf install ./<file>.rpm`, the same |
-| Windows, Linux, no install | `qcaret-<version>-windows-<arch>-portable.zip`, `qcaret-<version>-linux-<arch>-portable.tar.gz` | Extract it and run `qcaret.exe` or `bin/qcaret`. The folder holds `portable.txt`, so QCaret keeps its settings, logs and cache there; extracting a newer version over it keeps the settings |
+| Windows, Linux, no install | `qcaret-<version>-windows-<arch>-portable.zip`, `qcaret-<version>-linux-<arch>-portable.tar.gz` | Extract it and run `qcaret.exe` or `bin/qcaret`. The folder holds `portable.txt`, so QCaret keeps its settings, logs and cache there; extracting a newer version over it keeps the settings. On Windows, `register-associations.cmd` in the folder adds Open With and Edit in QCaret for your account, and `register-associations /u` removes them |
 | macOS | `qcaret-<version>-macos-<arch>.zip` | Extract it and run `QCaret.app`; settings are per user |
 
 Running a newer setup or package upgrades QCaret in place. Uninstalling keeps
 your settings, and an upgrade of a portable copy keeps the settings in its
 folder. Installing QCaret does not set it as the default program for any file
-type.
+type. Where one of those file types has programs but no default chosen,
+Windows asks which app to open it with the next time you open such a file;
+where it has no program of its own, such a file opens in QCaret.
+
+Edit in QCaret opens the file in the running QCaret. With several files
+selected, each opens in its own tab of one window. On Windows 11 it is under
+Show more options.
 
 ![Windows setup: installation type](images/guide/installer-type.png)
+
+![Windows setup: components page with Add to Explorer right-click menu](images/guide/installer-components.png)
 
 ![Windows setup: install folder](images/guide/installer-folder.png)
 

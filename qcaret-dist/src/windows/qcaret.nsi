@@ -7,17 +7,24 @@
 ; Optional SIGN_INSTALLER and SIGN_UNINSTALLER name a command makensis runs
 ; on the build host with the file as its argument.
 ;
-; Silent use: /S plus /MACHINE, /USER or /PORTABLE, optionally /DESKTOP, and
-; optionally /D=<folder> as the last argument. /S alone installs for the
-; current user. /DESKTOP adds the desktop shortcut to a regular install. A
-; silent install never starts QCaret. portable.txt or qcaret.conf in the folder
+; Silent use: /S plus /MACHINE, /USER or /PORTABLE, optionally /DESKTOP and
+; /NOEXPLORERMENU, and optionally /D=<folder> as the last argument. /S alone
+; installs for the current user. /DESKTOP adds the desktop shortcut to a
+; regular install; /NOEXPLORERMENU clears the Explorer menu component. A
+; silent install never starts QCaret; /MACHINE needs an elevated caller and
+; otherwise exits 5 with a message on standard error.
+;
+; Setup runs unelevated. Choosing all users on the type page starts setup
+; again through ShellExecute's runas verb with /MACHINE /ELEVATED and the
+; switches given, and this instance exits; /ELEVATED starts the elevated one
+; at the components page. portable.txt or qcaret.conf in the folder
 ; selects portable mode, so a per-machine or per-user install refuses a folder
 ; holding either; only /PORTABLE writes portable.txt, and keeps an existing one.
 
 Unicode true
 Target amd64-unicode
 ManifestDPIAware true
-RequestExecutionLevel highest
+RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
 !ifdef SIGN_UNINSTALLER
@@ -31,11 +38,13 @@ SetCompressor /SOLID lzma
 !include LogicLib.nsh
 !include FileFunc.nsh
 !include nsDialogs.nsh
+!include Sections.nsh
 !include "${FILES}"
 
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\QCaret"
 !define PROGID "QCaret.File"
 !define APPKEY "Software\Classes\Applications\qcaret.exe"
+!define VERBKEY "Software\Classes\*\shell\QCaret.Edit"
 
 ; Runs macro m once per extension QCaret is offered for in Open With: the list
 ; in register-associations.cmd. No .bat or .cmd: with QCaret.File in their
@@ -129,12 +138,20 @@ Var ScopeMachine
 Var ScopeUser
 Var ScopePortable
 Var DesktopSwitch ; 1 when /DESKTOP was given
+Var NoMenuSwitch ; 1 when /NOEXPLORERMENU was given
+Var Elevated ; 1 in the elevated instance the type page started
 
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipWhenElevated
 !insertmacro MUI_PAGE_WELCOME
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipWhenElevated
 !define MUI_PAGE_HEADER_TEXT "License"
 !define MUI_PAGE_HEADER_SUBTEXT "The terms under which QCaret is distributed."
 !insertmacro MUI_PAGE_LICENSE "${LICENSE}"
 Page custom ScopePage ScopePageLeave
+!define MUI_PAGE_CUSTOMFUNCTION_PRE ComponentsPre
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW ComponentsShow
+!define MUI_COMPONENTSPAGE_NODESC
+!insertmacro MUI_PAGE_COMPONENTS
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirectoryLeave
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -146,6 +163,42 @@ Page custom ScopePage ScopePageLeave
 !insertmacro MUI_UNPAGE_FINISH
 
 !insertmacro MUI_LANGUAGE "English"
+
+LangString ExplorerMenu ${LANG_ENGLISH} "Add to Explorer right-click menu"
+
+; Writes the message on the stack and a line break to standard error: the
+; inherited handle, else the calling console. Writes nothing without either.
+!macro WRITE_STDERR UN
+Function ${UN}WriteStderr
+  Exch $0
+  Push $1
+  Push $2
+  StrCpy $0 "$0$\r$\n"
+  System::Call 'kernel32::GetStdHandle(i -12) p .r1'
+  ${If} $1 == 0
+  ${OrIf} $1 == -1
+    System::Call 'kernel32::AttachConsole(i -1)'
+    System::Call 'kernel32::GetStdHandle(i -12) p .r1'
+  ${EndIf}
+  ${If} $1 != 0
+  ${AndIf} $1 != -1
+    StrLen $2 $0
+    System::Call 'kernel32::WriteFile(p r1, m r0, i r2, *i .r2, p 0)'
+  ${EndIf}
+  Pop $2
+  Pop $1
+  Pop $0
+FunctionEnd
+!macroend
+!insertmacro WRITE_STDERR ""
+!insertmacro WRITE_STDERR "un."
+
+; The Explorer menu verb, then its parents when nothing else is under them.
+!macro DELETE_VERB
+  DeleteRegKey SHCTX "${VERBKEY}"
+  DeleteRegKey /ifempty SHCTX "Software\Classes\*\shell"
+  DeleteRegKey /ifempty SHCTX "Software\Classes\*"
+!macroend
 
 ; Pushes 1 when $INSTDIR is $0 or under it, else 0.
 Function IsUnder
@@ -269,7 +322,27 @@ Function .onInit
   ${IfNot} ${Errors}
     StrCpy $DesktopSwitch 1
   ${EndIf}
+  StrCpy $NoMenuSwitch 0
+  ClearErrors
+  ${GetOptions} $R0 "/NOEXPLORERMENU" $R1
+  ${IfNot} ${Errors}
+    StrCpy $NoMenuSwitch 1
+  ${EndIf}
+  Call ApplyMenuSwitch
+  StrCpy $Elevated 0
+  ClearErrors
+  ${GetOptions} $R0 "/ELEVATED" $R1
+  ${IfNot} ${Errors}
+  ${AndIf} $Mode == machine
+  ${AndIf} $IsAdmin == 1
+  ${AndIfNot} ${Silent}
+    StrCpy $Elevated 1
+  ${EndIf}
 
+  ; The default choice: an existing install, the all-users one first when
+  ; elevated and the per-user one first otherwise; with neither, all users
+  ; when elevated, else the current user. Silent and unelevated, always the
+  ; current user.
   ${If} $Mode == ""
     ReadRegStr $0 HKLM "${UNINSTKEY}" "InstallLocation"
     ReadRegStr $1 HKCU "${UNINSTKEY}" "InstallLocation"
@@ -278,8 +351,10 @@ Function .onInit
       StrCpy $Mode machine
     ${ElseIf} $1 != ""
       StrCpy $Mode user
-    ${ElseIf} $IsAdmin == 1
-    ${AndIfNot} ${Silent}
+    ${ElseIf} ${Silent}
+      StrCpy $Mode user
+    ${ElseIf} $0 != ""
+    ${OrIf} $IsAdmin == 1
       StrCpy $Mode machine
     ${Else}
       StrCpy $Mode user
@@ -288,11 +363,11 @@ Function .onInit
 
   ${If} $Mode == machine
   ${AndIf} $IsAdmin != 1
-    ${If} ${Silent}
-      SetErrorLevel 5
-      Quit
-    ${EndIf}
-    StrCpy $Mode user
+  ${AndIf} ${Silent}
+    Push "QCaret setup: /MACHINE needs an elevated caller. Run setup from an elevated prompt, or use /USER."
+    Call WriteStderr
+    SetErrorLevel 5
+    Quit
   ${EndIf}
 
   Call ApplyModeDir
@@ -305,7 +380,16 @@ Function .onInit
   ${EndIf}
 FunctionEnd
 
+Function SkipWhenElevated
+  ${If} $Elevated == 1
+    Abort
+  ${EndIf}
+FunctionEnd
+
 Function ScopePage
+  ${If} $Elevated == 1
+    Abort
+  ${EndIf}
   !insertmacro MUI_HEADER_TEXT "Installation Type" "Choose who uses QCaret on this computer, or make a portable copy."
   nsDialogs::Create 1018
   Pop $0
@@ -324,9 +408,6 @@ Function ScopePage
   Pop $ScopePortable
   ${NSD_CreateLabel} 12u 89u -12u 26u "Copies QCaret into a folder you choose and keeps its settings there. Nothing is registered with Windows: delete the folder to remove it."
   Pop $0
-  ${If} $IsAdmin != 1
-    EnableWindow $ScopeMachine 0
-  ${EndIf}
   ${If} $Mode == machine
     ${NSD_Check} $ScopeMachine
   ${ElseIf} $Mode == user
@@ -348,6 +429,32 @@ Function ScopePageLeave
     StrCpy $Mode user
   ${EndIf}
   Call ApplyModeDir
+  ${If} $Mode == machine
+  ${AndIf} $IsAdmin != 1
+    Call Elevate
+    ${If} $0 == 1
+      SetErrorLevel 0
+      Quit
+    ${EndIf}
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Installing for all users needs administrator rights, and Windows did not grant them. Choose For me only or Portable, or choose For all users again."
+    Abort
+  ${EndIf}
+FunctionEnd
+
+; A portable copy registers nothing, so it skips the components page.
+Function ComponentsPre
+  ${If} $Mode == portable
+    Abort
+  ${EndIf}
+FunctionEnd
+
+; The elevated instance skips the pages before this one, so Back would leave
+; setup.
+Function ComponentsShow
+  ${If} $Elevated == 1
+    GetDlgItem $0 $HWNDPARENT 3
+    EnableWindow $0 0
+  ${EndIf}
 FunctionEnd
 
 ; A portable copy gets no desktop shortcut.
@@ -377,7 +484,7 @@ Function DirectoryLeave
   ${EndIf}
 FunctionEnd
 
-Section "QCaret"
+Section "-QCaret"
   ${If} $Mode == machine
     SetShellVarContext all
   ${Else}
@@ -427,6 +534,8 @@ Section "QCaret"
   WriteRegStr SHCTX "${APPKEY}\DefaultIcon" "" "$INSTDIR\qcaret.exe,0"
   WriteRegStr SHCTX "${APPKEY}\shell\open\command" "" '"$INSTDIR\qcaret.exe" "%1"'
   !insertmacro FOR_EACH_EXTENSION ADD_OPEN_WITH
+  ; The Explorer menu section writes the verb again when it is selected.
+  !insertmacro DELETE_VERB
 
   WriteRegStr SHCTX "${UNINSTKEY}" "DisplayName" "QCaret"
   WriteRegStr SHCTX "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
@@ -445,14 +554,71 @@ Section "QCaret"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
+; A static verb under * on every file. It is not the default verb of any type,
+; so double-click and ShellExecute's open stay with each type's own handler.
+Section "$(ExplorerMenu)" SecExplorerMenu
+  ${If} $Mode == portable
+    Return
+  ${EndIf}
+  WriteRegStr SHCTX "${VERBKEY}" "MUIVerb" "Edit in QCaret"
+  WriteRegStr SHCTX "${VERBKEY}" "Icon" '"$INSTDIR\qcaret.exe",0'
+  WriteRegStr SHCTX "${VERBKEY}\command" "" '"$INSTDIR\qcaret.exe" "%1"'
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+SectionEnd
+
+Function ApplyMenuSwitch
+  ${If} $NoMenuSwitch == 1
+    !insertmacro UnselectSection ${SecExplorerMenu}
+  ${EndIf}
+FunctionEnd
+
+; Starts this setup elevated for all users with the choices made so far as
+; switches. Sets $0 to 1 when it started, 0 when Windows refused or the user
+; declined the UAC prompt.
+Function Elevate
+  StrCpy $0 "/MACHINE /ELEVATED"
+  ${If} $DesktopSwitch == 1
+    StrCpy $0 "$0 /DESKTOP"
+  ${EndIf}
+  ${IfNot} ${SectionIsSelected} ${SecExplorerMenu}
+    StrCpy $0 "$0 /NOEXPLORERMENU"
+  ${EndIf}
+  ${If} $DirGiven == 1
+    StrCpy $0 "$0 /D=$INSTDIR"
+  ${EndIf}
+  StrCpy $OUTDIR $EXEDIR
+  ClearErrors
+  ExecShell "runas" "$EXEPATH" "$0"
+  ${If} ${Errors}
+    StrCpy $0 0
+  ${Else}
+    StrCpy $0 1
+  ${EndIf}
+FunctionEnd
+
+; An all-users install's uninstaller starts itself elevated from the folder
+; when it runs unelevated; a silent one exits 5 instead.
 Function un.onInit
   ReadRegStr $0 HKLM "${UNINSTKEY}" "InstallLocation"
   ${If} $0 == $INSTDIR
     UserInfo::GetAccountType
     Pop $1
     ${If} $1 != "Admin"
-      MessageBox MB_OK|MB_ICONSTOP "Removing QCaret for all users needs administrator rights." /SD IDOK
-      SetErrorLevel 5
+      ${If} ${Silent}
+        Push "QCaret uninstall: removing QCaret for all users needs an elevated caller."
+        Call un.WriteStderr
+        SetErrorLevel 5
+        Quit
+      ${EndIf}
+      StrCpy $OUTDIR $INSTDIR
+      ClearErrors
+      ExecShell "runas" "$INSTDIR\uninstall.exe"
+      ${If} ${Errors}
+        MessageBox MB_OK|MB_ICONSTOP "Removing QCaret for all users needs administrator rights, and Windows did not grant them."
+        SetErrorLevel 5
+      ${Else}
+        SetErrorLevel 0
+      ${EndIf}
       Quit
     ${EndIf}
     SetShellVarContext all
@@ -492,6 +658,7 @@ Section "Uninstall"
 
   DeleteRegKey SHCTX "Software\Classes\${PROGID}"
   DeleteRegKey SHCTX "${APPKEY}"
+  !insertmacro DELETE_VERB
   !insertmacro FOR_EACH_EXTENSION REMOVE_OPEN_WITH
   DeleteRegKey SHCTX "${UNINSTKEY}"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'

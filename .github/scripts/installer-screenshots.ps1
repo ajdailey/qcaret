@@ -1,10 +1,14 @@
 # Walks the $env:TARGET setup interactively and saves each page as a PNG in
-# installer-screenshots\: a per-machine install that ticks the desktop
-# shortcut box and leaves Run QCaret checked, its uninstaller, then a portable
-# install into a temporary folder. After each install the finish page must
+# installer-screenshots\: a per-machine install that keeps the Explorer menu
+# component, ticks the desktop shortcut box and leaves Run QCaret checked, its
+# uninstaller, then a portable install into a temporary folder, which skips
+# the components page, then the elevated instance the type page starts for
+# all users (/MACHINE /ELEVATED /NOEXPLORERMENU), which must open on the
+# components page with Back disabled. After each install the finish page must
 # have started qcaret.exe from an explorer.exe, with QCaret's token elevation
 # equal to the shell's, and the per-machine install must have written the
-# common desktop shortcut; QCaret is then stopped. A shell with elevation 0
+# common desktop shortcut and the HKLM QCaret.Edit verb, which its uninstaller
+# removes; QCaret is then stopped. A shell with elevation 0
 # makes this the unelevated check; on a runner whose shell is elevated it
 # checks the launch path only. Pages are driven by window messages (the Next button's
 # WM_COMMAND, BM_CLICK on a radio button or check box, WM_SETTEXT on the
@@ -111,6 +115,11 @@ public static class SetupUi {
   public static bool NextEnabled(IntPtr hwnd) {
     IntPtr next = GetDlgItem(hwnd, 1);
     return next != IntPtr.Zero && IsWindowEnabled(next);
+  }
+
+  public static bool BackEnabled(IntPtr hwnd) {
+    IntPtr back = GetDlgItem(hwnd, 3);
+    return back != IntPtr.Zero && IsWindowVisible(back) && IsWindowEnabled(back);
   }
 
   [DllImport("user32.dll")]
@@ -307,11 +316,14 @@ Invoke-Walk 'QCaret Setup' 'setup' {
 Test-Launched $installed 'setup-start'
 $desktop = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'QCaret.lnk'
 if ((New-Object -ComObject WScript.Shell).CreateShortcut($desktop).TargetPath -ne "$installed\qcaret.exe") { throw "the desktop shortcut box wrote no $desktop for $installed\qcaret.exe" }
+$verb = 'HKLM:\Software\Classes\*\shell\QCaret.Edit'
+if (-not (Test-Path -LiteralPath $verb)) { throw "the components page left the Explorer menu unchecked: no $verb" }
 
 # The uninstaller runs from a copy in %TEMP%; its window is found by title.
 Start-Process -FilePath (Join-Path $env:ProgramFiles 'QCaret\uninstall.exe') | Out-Null
 Invoke-Walk 'QCaret Uninstall' 'uninstall' $null
 if (Test-Path $desktop) { throw "the uninstaller left $desktop" }
+if (Test-Path -LiteralPath $verb) { throw "the uninstaller left $verb" }
 
 # The portable walk picks Portable on the type page and a temporary folder on
 # the folder page (control 1019).
@@ -344,4 +356,30 @@ while ($true) {
     Start-Sleep -Milliseconds 500
   }
 }
+
+# The elevated instance: this shell is elevated already, so it starts setup
+# with the switches the type page passes.
+Write-Host "starting $setup /MACHINE /ELEVATED /NOEXPLORERMENU"
+Watch-Starts 'elevated-start'
+Start-Process -FilePath $setup -ArgumentList '/MACHINE', '/ELEVATED', '/NOEXPLORERMENU' | Out-Null
+$script:elevatedPage = 0
+Invoke-Walk 'QCaret Setup' 'elevated' {
+  param($hwnd)
+  $script:elevatedPage++
+  if ($script:elevatedPage -eq 1) {
+    $text = [SetupUi]::Texts($hwnd)
+    if (-not $text.Contains('Choose Components')) { throw "the elevated setup opened on another page than the components page:`n$text" }
+    if ([SetupUi]::BackEnabled($hwnd)) { throw 'the elevated setup left Back enabled on the components page' }
+  }
+  $false
+}
+Test-Launched $installed 'elevated-start'
+if (Test-Path -LiteralPath $verb) { throw "the elevated setup wrote $verb despite /NOEXPLORERMENU" }
+Start-Process -FilePath (Join-Path $installed 'uninstall.exe') -ArgumentList '/S' -Wait
+$deadline = (Get-Date).AddSeconds(120)
+while (Test-Path $installed) {
+  if ((Get-Date) -gt $deadline) { throw "the silent uninstall left $installed" }
+  Start-Sleep -Milliseconds 500
+}
+Write-Output 'PASS: the elevated instance opened on the components page with Back disabled, kept /NOEXPLORERMENU, and installed for all users'
 Write-Output "PASS: saved $script:n installer pages in $out"

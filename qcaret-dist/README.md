@@ -89,7 +89,7 @@ system Universal C Runtime even when an app-local copy exists. The bundle keeps
 |---|---|---|
 | macOS | `src/macos/Info.plist` `CFBundleDocumentTypes` | QCaret is an Alternate editor for text, source, XML, JSON, YAML and Markdown; files arrive as `SWT.OpenDocument` |
 | Linux | `src/linux/install-desktop-entry`, `src/linux/qcaret.desktop` | Per user: writes the entry, with this tree's `bin/qcaret` in `Exec`, and the icon under `XDG_DATA_HOME`; `--uninstall` removes them |
-| Windows | `src/windows/register-associations.cmd` | Per user, `HKCU` only: adds `QCaret.File` to each listed extension's `OpenWithProgids`; `/u` removes it |
+| Windows | `src/windows/register-associations.cmd` | Per user, `HKCU` only: adds `QCaret.File` to each listed extension's `OpenWithProgids` and the `QCaret.Edit` Explorer menu verb; `/u` removes them, then `*\shell` and `*` when `reg query` lists nothing under them (`reg` has no `/ifempty`) |
 
 None takes a default away from the user's current program. Each opens the file
 through the normal launch, so a running instance receives it through the
@@ -113,13 +113,28 @@ change them.
 ### Windows setup
 
 `qcaret.nsi` builds an `amd64-unicode` installer for both Windows targets; on
-arm64 it runs under x64 emulation and installs the arm64 runtime. It runs with
-`RequestExecutionLevel highest`: an administrator gets the UAC prompt at
-start, and for anyone else the all-users choice is disabled.
+arm64 it runs under x64 emulation and installs the arm64 runtime.
+
+Setup and its uninstaller run unelevated (`RequestExecutionLevel user`,
+manifest `asInvoker`); per-user and portable installs never raise UAC. When
+setup is not elevated, Next on the type page with All users selected starts
+setup again through `ExecShell` with the `runas` verb, which raises UAC, and
+exits. The new instance gets `/MACHINE /ELEVATED`, plus `/DESKTOP`,
+`/NOEXPLORERMENU` and `/D=<folder>` when given or chosen, and `/ELEVATED`
+skips the welcome, license and type pages: it opens on the components page
+with Back disabled. A declined prompt keeps the type page and says so.
+`ExecShell` is stock NSIS, so setup needs no UAC plugin. An all-users
+uninstaller started unelevated starts `uninstall.exe` again the same way.
+Silent `/MACHINE` from an unelevated caller, install or uninstall, exits 5
+and writes the reason to standard error (the inherited handle, else the
+calling console). Without elevation the default choice is an existing
+per-user install, then an existing all-users one (not for `/S`), then the
+current user; elevated, an existing all-users install, then a per-user one,
+then all users (the current user for `/S`).
 
 | Choice | Folder | Writes |
 |---|---|---|
-| All users (`/MACHINE`) | `$PROGRAMFILES64\QCaret` | `uninstall.exe`; `HKLM` Installed apps entry (`DisplayIcon` `qcaret.exe`, publisher, version, size), Start menu `QCaret.lnk` for all users, `QCaret.File` ProgID listed in the `OpenWithProgids` of each extension `register-associations.cmd` lists, and `Applications\qcaret.exe` |
+| All users (`/MACHINE`) | `$PROGRAMFILES64\QCaret` | `uninstall.exe`; `HKLM` Installed apps entry (`DisplayIcon` `qcaret.exe`, publisher, version, size), Start menu `QCaret.lnk` for all users, `QCaret.File` ProgID listed in the `OpenWithProgids` of each extension `register-associations.cmd` lists, `Applications\qcaret.exe`, and the Explorer menu verb |
 | Current user (`/USER`) | `$LOCALAPPDATA\Programs\QCaret` | The same under `HKCU` and the user's Start menu |
 | Portable (`/PORTABLE`) | `$DOCUMENTS\QCaret` by default | `portable.txt`, the archives' marker, unless one exists; nothing else |
 
@@ -150,6 +165,18 @@ start, and for anyone else the all-users choice is disabled.
   did not register. Neither list holds `.bat` or `.cmd`: with `QCaret.File` in
   their `OpenWithProgids`, ShellExecute fails to run a batch file (measured on
   both Windows CI runners).
+- The components page holds one choice, "Add to Explorer right-click menu"
+  (the `ExplorerMenu` string), checked; portable skips the page, and
+  `/NOEXPLORERMENU` clears it in a silent install. It writes the static verb
+  `Software\Classes\*\shell\QCaret.Edit` (`MUIVerb` "Edit in QCaret", `Icon`
+  `"<folder>\qcaret.exe",0`, `command` `"<folder>\qcaret.exe" "%1"`). Every
+  regular install deletes the key before the section runs, so clearing the
+  choice on an upgrade removes it, and the uninstaller always deletes it.
+  Either then deletes `*\shell` and `*` when they hold no value or subkey
+  (`DeleteRegKey /ifempty`). A verb under `*` is no type's default verb, so
+  double-click and ShellExecute's `open` keep each type's handler. Explorer
+  starts `qcaret.exe` once per selected file, and each launch hands its file to
+  the running instance.
 - `NsisFiles.java` writes `files.nsh`: a `File` per bundle file and a
   `Delete` and `RMDir` per file and folder for the uninstaller, sorted by
   name. The uninstaller removes exactly those, `uninstall.exe`, the shortcuts
@@ -313,5 +340,5 @@ The same job then checks the installers and packages on that runner:
 | Script | Checks |
 |---|---|
 | `check-linux-packages.sh` | Installs the `.deb` with `apt`: version, `/usr/bin/qcaret` link, no `qcaret.conf` or `portable.txt`, `desktop-file-validate`, `StartupWMClass=QCaret`, every icon. Runs `check-bundle.sh` with `QCARET_HOME=/opt/qcaret` through `/usr/bin/qcaret`, which also requires a main window with `WM_CLASS` `"QCaret", "QCaret"`. Removes the package and checks the files are gone. Then, in `fedora:44` pinned by digest: `dnf install` of the `.rpm`, `rpm -V`, `qcaret -v`, no `qcaret.conf` or `portable.txt`, `dnf remove` |
-| `installer-screenshots.ps1` | Walks the setup's pages by window message (all-users install with the desktop shortcut ticked, its uninstaller, a portable install) and saves each with `PrintWindow` to `installer-screenshots\`, uploaded as `installer-screenshots-<target>`. After each install an `explorer.exe` must have started `qcaret.exe`, and QCaret must have the shell's token elevation (0 for an unelevated shell; the hosted runners' shell is elevated); the all-users walk must write the common desktop shortcut and its uninstaller remove it, and the portable walk writes none |
-| `check-installer.ps1` | For `/MACHINE` and then `/USER`: the Installed apps entry, the shortcut target, no desktop shortcut, `QCaret.File` in the `OpenWithProgids` of every extension `register-associations.cmd` lists with each default handler unchanged, a `.cmd` that ShellExecute still runs, no `qcaret.conf` or `portable.txt`, no QCaret process from the folder 5 s after setup exits; `check-bundle.ps1` with `QCARET_HOME` set to the installed folder; an install over it with `/DESKTOP` removes a stale runtime file, adds no `qcaret.conf`, and writes the shortcut to that scope's desktop only; a silent uninstall removes the folder, shortcuts and keys and keeps `%APPDATA%\QCaret`. Then `/PORTABLE /DESKTOP`: a one-line `portable.txt` and no `qcaret.conf`, no registry entry, no Start menu or desktop shortcut, no QCaret started, QCaret writes its `-l` log in the folder, and an install over it keeps `portable.txt`, `qcaret.conf` and `logs\`. Exit 2 for `/USER` into the portable folder, into a folder holding only `qcaret.conf`, and for `/PORTABLE` under Program Files |
+| `installer-screenshots.ps1` | Walks the setup's pages by window message (all-users install with the desktop shortcut ticked, its uninstaller, a portable install) and saves each with `PrintWindow` to `installer-screenshots\`, uploaded as `installer-screenshots-<target>`. After each install an `explorer.exe` must have started `qcaret.exe`, and QCaret must have the shell's token elevation (0 for an unelevated shell; the hosted runners' shell is elevated); the all-users walk must write the common desktop shortcut and the `HKLM` `QCaret.Edit` verb and its uninstaller remove both, and the portable walk writes no shortcut. A fourth walk starts `/MACHINE /ELEVATED /NOEXPLORERMENU`, which must open on the components page with Back disabled and write no verb |
+| `check-installer.ps1` | The setup and each installed `uninstall.exe` request `asInvoker`. For `/MACHINE` and then `/USER`: the Installed apps entry, the shortcut target, no desktop shortcut, `QCaret.File` in the `OpenWithProgids` of every extension `register-associations.cmd` lists with each default handler unchanged, a `.cmd` that ShellExecute still runs, no `qcaret.conf` or `portable.txt`, no QCaret process from the folder 5 s after setup exits; `check-bundle.ps1` with `QCARET_HOME` set to the installed folder; an install over it with `/DESKTOP` removes a stale runtime file, adds no `qcaret.conf`, and writes the shortcut to that scope's desktop only; a silent uninstall removes the folder, shortcuts and keys and keeps `%APPDATA%\QCaret`. A standard local user then runs `/S /USER`, which must run at medium integrity unelevated and install, `/S /MACHINE`, which must exit 5 with its message on standard error and write nothing to Program Files, and the uninstaller. Then `/PORTABLE /DESKTOP`: a one-line `portable.txt` and no `qcaret.conf`, no registry entry, no Start menu or desktop shortcut, no QCaret started, QCaret writes its `-l` log in the folder, and an install over it keeps `portable.txt`, `qcaret.conf` and `logs\`. Exit 2 for `/USER` into the portable folder, into a folder holding only `qcaret.conf`, and for `/PORTABLE` under Program Files. Each regular install and uninstall checks the `QCaret.Edit` key, its `Icon` and `command`, and that each listed extension's default verb (`AssocQueryString` `ASSOCSTR_COMMAND`) is the one read before any install. While installed it may also be `OpenWith.exe`, and QCaret's command where the type had no command or `OpenWith.exe` before: with no user choice, a type whose `OpenWithProgids` gains `QCaret.File` resolves to the Windows app picker when it has a program of its own and to `QCaret.File` when it has none (measured on both Windows runners). `/NOEXPLORERMENU` over a per-user install removes the key, keeps Open With, and leaves the default verbs as they read with the key. Then `register-associations.cmd` from the portable zip, unpacked into `Q & Caret (zip)`: its keys under `HKCU` only, default verbs unchanged, a `.cmd` still runs, Edit in QCaret in the context menu of a `.log`, the verb on a two-file selection (`FolderItems.InvokeVerbEx`) hands both files to the running QCaret, and `/u` removes every key. No uninstall, `/NOEXPLORERMENU` install or `/u` leaves a `Software\Classes\*` or `*\shell` key absent before the first install |

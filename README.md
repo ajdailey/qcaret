@@ -173,8 +173,12 @@ setup's pages and upload each as a PNG (`installer-screenshots-<target>`),
 check that the finish page starts QCaret through Explorer, then install
 silently for all users and for the current user, check the Installed apps
 entry, shortcut and Open With, run the same launch checks against the
-installed folder, install over it, uninstall and check removal; then a
-portable install, an install over it, and three refused folders. Details are in
+installed folder, install over it, uninstall and check removal; then, as a
+standard local user, an unelevated per-user install and a refused silent
+`/MACHINE`; then a portable install, an install over it, and three refused
+folders; then `/NOEXPLORERMENU`, and `register-associations.cmd` from the zip,
+where Edit in QCaret on two selected files must hand both to the running
+QCaret. Details are in
 [qcaret-dist](qcaret-dist/README.md#ci-bundle-check).
 
 The `package` job caches the JDK archives, `rcodesign`, `nfpm` and NSIS under
@@ -308,7 +312,9 @@ To fix a bad draft, delete the draft and the tag
   [First launch of an unsigned build](#first-launch-of-an-unsigned-build).
 - File associations: on Linux run `bin/install-desktop-entry`, on Windows
   `register-associations.cmd`, each per user; the macOS bundle declares its
-  document types; the installers and packages register them. Details are in
+  document types; the installers and packages register them. On Windows the
+  script and the setup also add Edit in QCaret to the Explorer right-click
+  menu. Details are in
   [qcaret-dist](qcaret-dist/README.md#file-associations).
 
 ### Installing
@@ -318,25 +324,31 @@ The installers and packages hold the same tree as the target's bundle.
 | Download | Installs |
 |---|---|
 | `.deb` (Debian, Ubuntu), `.rpm` (Fedora, RHEL) | `/opt/qcaret`, `/usr/bin/qcaret`, a desktop entry with the icon at every size, and Open With for the text and source types its `MimeType` lists. Needs GTK 3: `libgtk-3-0t64` or `libgtk-3-0`, or `gtk3`. Removing the package removes them and keeps the settings in `~/.config/qcaret` |
-| `-setup.exe`, for all users | `C:\Program Files\QCaret`, with administrator rights |
+| `-setup.exe`, for all users | `C:\Program Files\QCaret`; Windows asks for administrator approval when Next leaves the type page |
 | `-setup.exe`, for me only | `%LOCALAPPDATA%\Programs\QCaret` |
 | `-setup.exe`, portable | A folder you choose and can write to, outside Program Files and Windows, with `portable.txt`, so the settings stay in that folder. Nothing is registered with Windows; delete the folder to remove it |
 
 The all-users and current-user installs add a Start menu shortcut, Open With
 for the extensions `register-associations.cmd` lists (never the default
-program) and an Installed apps entry, and a desktop shortcut when chosen on the
-finish page. Uninstalling removes them and keeps the settings in
-`%APPDATA%\QCaret`. Running setup again upgrades in place, release candidates
-included; over a portable folder it keeps `portable.txt` and the settings. A
-regular install refuses a folder holding `portable.txt` or `qcaret.conf`. The
-finish page starts QCaret as the signed-in user, without administrator rights.
-The pages are shown in the [user guide](docs/user-guide.md#installing).
+program), an Installed apps entry, Edit in QCaret on the Explorer right-click
+menu of every file unless the components page clears it (on Windows 11 under
+Show more options), and a desktop shortcut when chosen on the finish page.
+Uninstalling removes them and keeps the settings in `%APPDATA%\QCaret`.
+Running setup again upgrades in place, release candidates included; over a
+portable folder it keeps `portable.txt` and the settings. A regular install
+refuses a folder holding `portable.txt` or `qcaret.conf`. Setup starts without
+administrator rights, and per-user and portable installs never ask for them.
+The finish page starts QCaret as the signed-in user, without administrator
+rights. The pages are shown in the [user guide](docs/user-guide.md#installing).
 
 Silent setup takes `/S` with `/MACHINE`, `/USER` or `/PORTABLE`, `/DESKTOP`
-for the desktop shortcut (ignored for portable), and `/D=<folder>` last and
-unquoted; `/S` alone installs for the current user. It never starts QCaret. It
-exits 2 when the folder is refused and 5 for `/MACHINE` without administrator
-rights. `"<folder>\uninstall.exe" /S` uninstalls silently.
+for the desktop shortcut (ignored for portable), `/NOEXPLORERMENU` to leave out
+Edit in QCaret, and `/D=<folder>` last and unquoted; `/S` alone installs for
+the current user. It never starts QCaret. It exits 2 when the folder is
+refused. `/MACHINE` needs an elevated caller, such as an administrator command
+prompt; otherwise setup exits 5 and writes the reason to standard error,
+without a UAC prompt. `"<folder>\uninstall.exe" /S` uninstalls silently, with
+the same rule for an all-users install.
 
 Package versions replace `-` with `~`, so `0.2.0-rc1` is `0.2.0~rc1` and sorts
 before `0.2.0`.
