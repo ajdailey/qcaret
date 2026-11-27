@@ -333,7 +333,9 @@ for the extensions `register-associations.cmd` lists (never the default
 program), an Installed apps entry, Edit in QCaret on the Explorer right-click
 menu of every file unless the components page clears it (on Windows 11 under
 Show more options), and a desktop shortcut when chosen on the finish page.
-Uninstalling removes them and keeps the settings in `%APPDATA%\QCaret`.
+Installed apps lists an all-users install as QCaret and a current-user
+install as QCaret (current user). Uninstalling removes them and keeps the
+settings in `%APPDATA%\QCaret`.
 Running setup again upgrades in place, release candidates included; over a
 portable folder it keeps `portable.txt` and the settings. A regular install
 refuses a folder holding `portable.txt` or `qcaret.conf`. Setup starts without
@@ -345,7 +347,8 @@ Silent setup takes `/S` with `/MACHINE`, `/USER` or `/PORTABLE`, `/DESKTOP`
 for the desktop shortcut (ignored for portable), `/NOEXPLORERMENU` to leave out
 Edit in QCaret, and `/D=<folder>` last and unquoted; `/S` alone installs for
 the current user. It never starts QCaret. It exits 2 when the folder is
-refused. `/MACHINE` needs an elevated caller, such as an administrator command
+refused, and 3 for the current user when Windows gives the account no
+`%LOCALAPPDATA%`. `/MACHINE` needs an elevated caller, such as an administrator command
 prompt; otherwise setup exits 5 and writes the reason to standard error,
 without a UAC prompt. `"<folder>\uninstall.exe" /S` uninstalls silently, with
 the same rule for an all-users install.

@@ -12,7 +12,8 @@
 ; installs for the current user. /DESKTOP adds the desktop shortcut to a
 ; regular install; /NOEXPLORERMENU clears the Explorer menu component. A
 ; silent install never starts QCaret; /MACHINE needs an elevated caller and
-; otherwise exits 5 with a message on standard error.
+; otherwise exits 5 with a message on standard error. A per-user install exits
+; 3 with a message when Windows gives no $LOCALAPPDATA.
 ;
 ; Setup runs unelevated. Choosing all users on the type page starts setup
 ; again through ShellExecute's runas verb with /MACHINE /ELEVATED and the
@@ -41,7 +42,11 @@ SetCompressor /SOLID lzma
 !include Sections.nsh
 !include "${FILES}"
 
+; The Installed apps keys: HKLM QCaret for all users, HKCU QCaret.User for the
+; current user. Windows merges two entries with the same key name, DisplayName
+; and version into one.
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\QCaret"
+!define USER_UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\QCaret.User"
 !define PROGID "QCaret.File"
 !define APPKEY "Software\Classes\Applications\qcaret.exe"
 !define VERBKEY "Software\Classes\*\shell\QCaret.Edit"
@@ -140,6 +145,7 @@ Var ScopePortable
 Var DesktopSwitch ; 1 when /DESKTOP was given
 Var NoMenuSwitch ; 1 when /NOEXPLORERMENU was given
 Var Elevated ; 1 in the elevated instance the type page started
+Var UninstKey ; UNINSTKEY or USER_UNINSTKEY, for $Mode or the uninstaller's scope
 
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipWhenElevated
 !insertmacro MUI_PAGE_WELCOME
@@ -165,6 +171,7 @@ Page custom ScopePage ScopePageLeave
 !insertmacro MUI_LANGUAGE "English"
 
 LangString ExplorerMenu ${LANG_ENGLISH} "Add to Explorer right-click menu"
+LangString UserEntryName ${LANG_ENGLISH} "QCaret (current user)"
 
 ; Writes the message on the stack and a line break to standard error: the
 ; inherited handle, else the calling console. Writes nothing without either.
@@ -265,6 +272,17 @@ Function CheckDir
   Delete "$INSTDIR\qcaret-setup.tmp"
 FunctionEnd
 
+; Pushes the per-user install's folder from its key, else from the HKCU QCaret
+; key an earlier version wrote; "" when neither names one.
+Function UserInstallLocation
+  Push $0
+  ReadRegStr $0 HKCU "${USER_UNINSTKEY}" "InstallLocation"
+  ${If} $0 == ""
+    ReadRegStr $0 HKCU "${UNINSTKEY}" "InstallLocation"
+  ${EndIf}
+  Exch $0
+FunctionEnd
+
 ; Sets $INSTDIR to the folder for $Mode unless /D gave one: the existing
 ; install's folder, else the default.
 Function ApplyModeDir
@@ -277,7 +295,8 @@ Function ApplyModeDir
       StrCpy $0 "$PROGRAMFILES64\QCaret"
     ${EndIf}
   ${ElseIf} $Mode == user
-    ReadRegStr $0 HKCU "${UNINSTKEY}" "InstallLocation"
+    Call UserInstallLocation
+    Pop $0
     ${If} $0 == ""
       StrCpy $0 "$LOCALAPPDATA\Programs\QCaret"
     ${EndIf}
@@ -345,7 +364,8 @@ Function .onInit
   ; current user.
   ${If} $Mode == ""
     ReadRegStr $0 HKLM "${UNINSTKEY}" "InstallLocation"
-    ReadRegStr $1 HKCU "${UNINSTKEY}" "InstallLocation"
+    Call UserInstallLocation
+    Pop $1
     ${If} $0 != ""
     ${AndIf} $IsAdmin == 1
       StrCpy $Mode machine
@@ -367,6 +387,14 @@ Function .onInit
     Push "QCaret setup: /MACHINE needs an elevated caller. Run setup from an elevated prompt, or use /USER."
     Call WriteStderr
     SetErrorLevel 5
+    Quit
+  ${EndIf}
+  ${If} $Mode == user
+  ${AndIf} $LOCALAPPDATA == ""
+  ${AndIf} ${Silent}
+    Push "QCaret setup: Windows gives this account no local application data folder (LOCALAPPDATA), so QCaret cannot be installed for the current user. Run setup from the account's own sign-in, or use /MACHINE or /PORTABLE."
+    Call WriteStderr
+    SetErrorLevel 3
     Quit
   ${EndIf}
 
@@ -428,6 +456,11 @@ Function ScopePageLeave
   ${Else}
     StrCpy $Mode user
   ${EndIf}
+  ${If} $Mode == user
+  ${AndIf} $LOCALAPPDATA == ""
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Windows gives this account no local application data folder, so QCaret cannot be installed for you only. Choose For all users or Portable, or run setup from the account's own sign-in."
+    Abort
+  ${EndIf}
   Call ApplyModeDir
   ${If} $Mode == machine
   ${AndIf} $IsAdmin != 1
@@ -487,14 +520,21 @@ FunctionEnd
 Section "-QCaret"
   ${If} $Mode == machine
     SetShellVarContext all
+    StrCpy $UninstKey "${UNINSTKEY}"
   ${Else}
     SetShellVarContext current
+    StrCpy $UninstKey "${USER_UNINSTKEY}"
   ${EndIf}
 
   ; A regular install elsewhere in the same scope is removed first, so the
   ; registry names one folder.
   ${If} $Mode != portable
-    ReadRegStr $0 SHCTX "${UNINSTKEY}" "InstallLocation"
+    ${If} $Mode == machine
+      ReadRegStr $0 HKLM "${UNINSTKEY}" "InstallLocation"
+    ${Else}
+      Call UserInstallLocation
+      Pop $0
+    ${EndIf}
     ${If} $0 != ""
     ${AndIf} $0 != $INSTDIR
     ${AndIf} ${FileExists} "$0\uninstall.exe"
@@ -537,20 +577,27 @@ Section "-QCaret"
   ; The Explorer menu section writes the verb again when it is selected.
   !insertmacro DELETE_VERB
 
-  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayName" "QCaret"
-  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
-  WriteRegStr SHCTX "${UNINSTKEY}" "Publisher" "QCaret"
-  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayIcon" "$INSTDIR\qcaret.exe,0"
-  WriteRegStr SHCTX "${UNINSTKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegStr SHCTX "${UNINSTKEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
-  WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "https://github.com/ajdailey/qcaret"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" 1
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" 1
+  ${If} $Mode == machine
+    WriteRegStr SHCTX $UninstKey "DisplayName" "QCaret"
+  ${Else}
+    WriteRegStr SHCTX $UninstKey "DisplayName" "$(UserEntryName)"
+    ; The per-user key of an earlier version, which Installed apps would merge
+    ; with the all-users entry.
+    DeleteRegKey HKCU "${UNINSTKEY}"
+  ${EndIf}
+  WriteRegStr SHCTX $UninstKey "DisplayVersion" "${VERSION}"
+  WriteRegStr SHCTX $UninstKey "Publisher" "QCaret"
+  WriteRegStr SHCTX $UninstKey "DisplayIcon" "$INSTDIR\qcaret.exe,0"
+  WriteRegStr SHCTX $UninstKey "InstallLocation" "$INSTDIR"
+  WriteRegStr SHCTX $UninstKey "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr SHCTX $UninstKey "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
+  WriteRegStr SHCTX $UninstKey "URLInfoAbout" "https://github.com/ajdailey/qcaret"
+  WriteRegDWORD SHCTX $UninstKey "NoModify" 1
+  WriteRegDWORD SHCTX $UninstKey "NoRepair" 1
   SetDetailsPrint none
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   SetDetailsPrint lastused
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" $0
+  WriteRegDWORD SHCTX $UninstKey "EstimatedSize" $0
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
@@ -601,6 +648,7 @@ FunctionEnd
 Function un.onInit
   ReadRegStr $0 HKLM "${UNINSTKEY}" "InstallLocation"
   ${If} $0 == $INSTDIR
+    StrCpy $UninstKey "${UNINSTKEY}"
     UserInfo::GetAccountType
     Pop $1
     ${If} $1 != "Admin"
@@ -624,6 +672,7 @@ Function un.onInit
     SetShellVarContext all
   ${Else}
     SetShellVarContext current
+    StrCpy $UninstKey "${USER_UNINSTKEY}"
   ${EndIf}
 FunctionEnd
 
@@ -660,6 +709,6 @@ Section "Uninstall"
   DeleteRegKey SHCTX "${APPKEY}"
   !insertmacro DELETE_VERB
   !insertmacro FOR_EACH_EXTENSION REMOVE_OPEN_WITH
-  DeleteRegKey SHCTX "${UNINSTKEY}"
+  DeleteRegKey SHCTX $UninstKey
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd

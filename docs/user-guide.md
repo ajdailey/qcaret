@@ -40,7 +40,9 @@ Preferences, Keys changes them.
 | Windows, Linux, no install | `qcaret-<version>-windows-<arch>-portable.zip`, `qcaret-<version>-linux-<arch>-portable.tar.gz` | Extract it and run `qcaret.exe` or `bin/qcaret`. The folder holds `portable.txt`, so QCaret keeps its settings, logs and cache there; extracting a newer version over it keeps the settings. On Windows, `register-associations.cmd` in the folder adds Open With and Edit in QCaret for your account, and `register-associations /u` removes them |
 | macOS | `qcaret-<version>-macos-<arch>.zip` | Extract it and run `QCaret.app`; settings are per user |
 
-Running a newer setup or package upgrades QCaret in place. Uninstalling keeps
+Running a newer setup or package upgrades QCaret in place. On Windows,
+Installed apps lists an install for all users as QCaret and one for you only
+as QCaret (current user); each uninstalls only itself. Uninstalling keeps
 your settings, and an upgrade of a portable copy keeps the settings in its
 folder. Installing QCaret does not set it as the default program for any file
 type. Where one of those file types has programs but no default chosen,
