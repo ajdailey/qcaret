@@ -83,9 +83,18 @@ row (`Win32ComboLeverProbe`, measured on both). Every combo is created with
 list window (SWT's `internal.Callback` and `internal.win32.OS`, a listed
 `ArchitectureTest` exception) and, while the dark native setting is on, paints
 the selected row in `Palette.DARK`'s selection with white text after each
-`WM_PAINT` and after each selection move, which the list draws without one. The
-setting is read per message, so a live switch applies at the next paint; under
-the light setting the native selection stays. Disposing the combo restores the
+`WM_PAINT` and `WM_TIMER`, after each selection move, which the list draws
+without one, and into the `WM_PRINTCLIENT` DC. The opening slide renders the
+list through `WM_PRINT`/`WM_PRINTCLIENT` and shows it before any `WM_PAINT`
+(traced at 150% on build 26300), so the hook also posts the list a private
+message (`WM_APP + 0xf42`) when it shows and invalidates the list when that
+arrives; a combo `SWT.Selection` on the open list (a keyboard move) invalidates
+it too. The setting is read per message, so a live switch applies at the next
+paint; under the light setting the native selection stays. After a live switch
+without a window rebuild (a dialog open during the switch), the list keeps its
+light ground and text and only the selected row is dark, as other native
+controls keep their creation theme ([theme
+rebuild](main-window.md#theme-rebuild)). Disposing the combo restores the
 window procedure and frees the callback. If an SWT upgrade drops a member, one
 WARN is logged, the native selection stays, and `Win32ComboListSelectionTest`
 fails on win32.
