@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.hex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
@@ -192,6 +193,8 @@ class HexCanvasSurfaceTest {
 
   @Test
   void cellsTakeTheirColors() {
+    int zoom = readbackZoom();
+    assumeTrue(zoom > 0, "cocoa reads no Image back at device zoom " + deviceZoom());
     HexRows rows = new HexRows(SIZE, 16);
     Image image = new Image(display, 900, 120);
     GC gc = new GC(image);
@@ -208,12 +211,12 @@ class HexCanvasSurfaceTest {
           120,
           new HexPainter.View(grid, 0, 3, new HexSelection(2, 4, false), true, false),
           input);
-      ImageData pixels = image.getImageData();
+      Pixels pixels = new Pixels(image.getImageData(zoom), zoom);
       Palette p = Palette.LIGHT;
-      assertEquals(rgb(p.background()), at(pixels, 890, 110));
-      assertEquals(rgb(p.gutter()), at(pixels, 1, line + 1));
-      assertEquals(rgb(p.selection()), at(pixels, grid.x(rows.hexColumn(2)), line + 1));
-      assertEquals(rgb(p.selection()), at(pixels, grid.x(rows.textColumn(3)), line + 1));
+      assertEquals(rgb(p.background()), pixels.at(890, 110));
+      assertEquals(rgb(p.gutter()), pixels.at(1, line + 1));
+      assertEquals(rgb(p.selection()), pixels.at(grid.x(rows.hexColumn(2)), line + 1));
+      assertEquals(rgb(p.selection()), pixels.at(grid.x(rows.textColumn(3)), line + 1));
       // Byte 0x00 at 0 prints as '.' in the box ink; byte 0x41 at 1 as 'A' in the text color.
       assertTrue(has(pixels, grid, rows.textColumn(0), 0, ink(p)), "dot ink");
       assertTrue(has(pixels, grid, rows.textColumn(1), 0, rgb(p.text())), "text");
@@ -228,8 +231,8 @@ class HexCanvasSurfaceTest {
           120,
           new HexPainter.View(grid, 0, 3, new HexSelection(6, 6, false), true, false),
           input);
-      pixels = image.getImageData();
-      assertEquals(rgb(p.occurrence()), at(pixels, grid.x(rows.textColumn(6)), line + 1));
+      pixels = new Pixels(image.getImageData(zoom), zoom);
+      assertEquals(rgb(p.occurrence()), pixels.at(grid.x(rows.textColumn(6)), line + 1));
       painter.setPalette(Palette.DARK);
       painter.paint(
           gc,
@@ -237,7 +240,8 @@ class HexCanvasSurfaceTest {
           120,
           new HexPainter.View(grid, 0, 3, new HexSelection(0, 0, false), true, true),
           input);
-      assertEquals(rgb(Palette.DARK.background()), at(image.getImageData(), 890, 110));
+      assertEquals(
+          rgb(Palette.DARK.background()), new Pixels(image.getImageData(zoom), zoom).at(890, 110));
     } finally {
       gc.dispose();
       image.dispose();
@@ -284,21 +288,50 @@ class HexCanvasSurfaceTest {
     return rgb(ControlBoxes.ink(p.text(), p.background()));
   }
 
-  private static RGB at(ImageData pixels, int x, int y) {
-    return pixels.palette.getRGB(pixels.getPixel(x, y));
+  private static int deviceZoom() {
+    return Integer.getInteger("org.eclipse.swt.internal.deviceZoom", 100);
+  }
+
+  /**
+   * Returns the zoom an Image's drawn pixels read back at, or 0 where none does. GTK draws an Image
+   * at 100. win32 draws at the device zoom; a read at another zoom while the GC is open replays the
+   * drawing into a new handle, which does not match it. cocoa draws at the device zoom and reads
+   * back only at 100 and 200; any other read replaces the drawn representation with a blank one.
+   */
+  private static int readbackZoom() {
+    int device = deviceZoom();
+    return switch (SWT.getPlatform()) {
+      case "gtk" -> 100;
+      case "cocoa" -> device == 100 || device == 200 ? device : 0;
+      default -> device;
+    };
   }
 
   /** Reports whether a cell of a row holds a pixel of a color. */
-  private static boolean has(ImageData pixels, HexGrid grid, int column, int row, RGB color) {
-    int y0 = grid.y(row);
-    for (int y = y0; y < y0 + grid.lineHeight(); y++) {
-      for (int x = grid.x(column); x < grid.x(column + 1); x++) {
-        if (color.equals(at(pixels, x, y))) {
+  private static boolean has(Pixels pixels, HexGrid grid, int column, int row, RGB color) {
+    int y0 = pixels.pixel(grid.y(row));
+    int y1 = pixels.pixel(grid.y(row) + grid.lineHeight());
+    for (int y = y0; y < y1; y++) {
+      for (int x = pixels.pixel(grid.x(column)); x < pixels.pixel(grid.x(column + 1)); x++) {
+        if (color.equals(pixels.data().palette.getRGB(pixels.data().getPixel(x, y)))) {
           return true;
         }
       }
     }
     return false;
+  }
+
+  /** An Image's pixels at a zoom, addressed in points. */
+  private record Pixels(ImageData data, int zoom) {
+    /** Returns the first pixel at or after a point. */
+    int pixel(int point) {
+      return (int) Math.ceil(point * zoom / 100.0);
+    }
+
+    /** Returns the color of a point's first pixel. */
+    RGB at(int x, int y) {
+      return data.palette.getRGB(data.getPixel(pixel(x), pixel(y)));
+    }
   }
 
   /** Records the calls; row 0 holds 0x00, 'A', then rising values, byte 21 replaced. */
