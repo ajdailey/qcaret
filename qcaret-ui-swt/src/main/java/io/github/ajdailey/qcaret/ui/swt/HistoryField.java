@@ -250,6 +250,7 @@ final class HistoryField {
           new Table(
               popup, SWT.BORDER | SWT.SINGLE | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.NO_FOCUS);
       table.setFont(text.getFont());
+      PopupSelection.draw(table);
       table.addListener(
           SWT.Selection,
           new Listener() {

@@ -63,7 +63,7 @@
 @set "QCARET_CMDLINE=!rest!"
 @rem /b gives Java this console's output, so -v, -h and errors print there
 @rem when it is redirected or piped. QCaret closes it once its window opens.
-@start "" /b "!javaw!" -XX:MaxRAMPercentage=50 -Dqcaret.launcher=cmd -jar "!jar!"
+@start "" /b "!javaw!" --enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=50 -Dqcaret.launcher=cmd -jar "!jar!"
 @%quit% 0
 
 :nojava

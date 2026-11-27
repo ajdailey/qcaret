@@ -178,7 +178,7 @@ function Invoke-Probe([string] $Tree, [string] $Arguments, [hashtable] $Environm
 # Fails unless $Lines name $JavaHome, $Tree\lib\qcaret.jar, the JVM options of qcaret.exe plus
 # -Dqcaret.launcher=cmd, and exactly $Expected as the arguments the bootstrap reads.
 function Assert-Probe([string[]] $Lines, [string] $Tree, [string] $JavaHome, [string[]] $Expected) {
-  $want = @("home=$JavaHome", "jar=$(Join-Path $Tree 'lib\qcaret.jar')", 'opt=-XX:MaxRAMPercentage=50', 'opt=-Dqcaret.launcher=cmd')
+  $want = @("home=$JavaHome", "jar=$(Join-Path $Tree 'lib\qcaret.jar')", 'opt=--enable-native-access=ALL-UNNAMED', 'opt=-XX:MaxRAMPercentage=50', 'opt=-Dqcaret.launcher=cmd')
   foreach ($arg in $Expected) { $want += "arg=$arg" }
   $got = $Lines -join "`n"
   if ($got -cne ($want -join "`n")) { throw "qcaret.cmd in $Tree passed`n$got`nexpected`n$($want -join "`n")" }

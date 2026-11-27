@@ -235,7 +235,10 @@ field, Match case, Whole word, Regex, Previous, Next, the notice and Close,
 plus a replace row (field, Replace, Replace All) for Replace. Both fields are
 `HistoryField`s listing the saved history from `FindState`: a `Text`, an arrow
 button, and a list in an `SWT.ON_TOP | SWT.NO_FOCUS` shell, as `CompletionPopup`
-uses, so the field keeps the keyboard. The `Text` sits inside the field's
+uses, so the field keeps the keyboard. On a dark list `PopupSelection` draws the
+highlighted row in the dark palette's selection colors, white on `#2f5f88`: the
+native selection of a table that never takes focus is `#252525` on the win32
+dialog field `#2b2b2b` (measured on Windows 11). The `Text` sits inside the field's
 composite, not beside its label, so `HistoryField` names it for screen readers
 from the `Label` created just before it in the same parent, and names the arrow
 `FIND_HISTORY`. Do not replace it with a drop-down

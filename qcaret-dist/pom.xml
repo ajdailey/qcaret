@@ -182,6 +182,7 @@
                                 <minVersion>21.0.0</minVersion>
                                 <requires64Bit>true</requires64Bit>
                                 <opts>
+                                    <opt>--enable-native-access=ALL-UNNAMED</opt>
                                     <opt>-XX:MaxRAMPercentage=50</opt>
                                 </opts>
                             </jre>
