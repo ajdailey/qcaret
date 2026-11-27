@@ -28,28 +28,29 @@ import org.eclipse.swt.widgets.Tree;
 /**
  * The main window's surfaces on win32, where the dark native theme leaves a {@code ToolBar}, {@code
  * Composite}, {@code Label}, {@code Link}, {@link Text}, {@link Tree} and {@link Table} light.
- * While {@code ui.theme} resolves to dark, each control under a surface takes {@link
- * Palette#DARK}'s gutter, the tab strip's background, and its text; a {@link Link} takes its link
- * color raised to 4.5 contrast, and each composite passes its background to push button corners
- * ({@code SWT.INHERIT_DEFAULT}). A {@link Text}, a {@link Tree} and a {@link Table} take {@link
- * Palette#DARK}'s background and text, a tree's or table's header the gutter, and a field's {@link
- * ChromeColors.Hint} the palette's unselected tab label color, 5.9:1 on the field. While it
- * resolves to light every such color is null and composites take {@code SWT.INHERIT_NONE}. Both
- * directions apply live.
+ * While {@code ui.theme} resolves to dark, each control under a surface takes {@link #BACKGROUND}
+ * and {@link #TEXT}, the neutral grays of {@link Win32DialogColors}, whatever the {@code
+ * ui.editorColors} scheme; a {@link Link} takes its link color raised to 4.5 contrast, and each
+ * composite passes its background to push button corners ({@code SWT.INHERIT_DEFAULT}). A {@link
+ * Text}, a {@link Tree} and a {@link Table} take {@link #FIELD}, a tree's or table's header {@link
+ * #BACKGROUND}, and a read-only {@link Combo} {@link #FACE}, since the dark native theme leaves its
+ * drop-down list white without colors. While it resolves to light every such color is null and
+ * composites take {@code SWT.INHERIT_NONE}. Both directions apply live.
  *
  * <p>Under the dark native setting ({@link DialogColors#nativeDark}) a field holding text keeps the
  * dark colors on the light side until its window is rebuilt, because the dark native field draws
  * near-black with dark text under any light colors; an empty field takes the system list colors,
- * set explicitly, and {@link Win32EmptyField} paints it while unfocused, since the dark native
+ * set explicitly. {@link Win32EmptyField} paints an empty field in its background while unfocused,
+ * on either side, with its hint in {@link Win32DialogColors#HINT} under dark, since the dark native
  * field draws {@code #212121} there under any colors. A field is colored again when it becomes
  * empty or takes text ({@code SWT.Modify}). A tree or table whose side differs from the native
  * start draws its selected row in the palette's selection colors ({@link #selection}) on {@link
  * SWT#EraseItem}; the native expander keeps the native setting's colors.
  *
- * <p>Push and arrow buttons, combos, lists, spinners, progress bars, a {@link StyledText}, a {@link
- * Browser}, a {@link CTabFolder} and a control with {@link #PALETTE_COLORED} keep their colors, and
- * the walk does not descend into them. A control created later under a surface takes the colors at
- * its {@link SWT#Skin} event.
+ * <p>Push and arrow buttons, editable combos, lists, spinners, progress bars, a {@link StyledText},
+ * a {@link Browser}, a {@link CTabFolder} and a control with {@link #PALETTE_COLORED} keep their
+ * colors, and the walk does not descend into them. A control created later under a surface takes
+ * the colors at its {@link SWT#Skin} event.
  *
  * <p>Each {@link #apply} colors the surfaces first and then re-inks every icon set, since the ink
  * is read from a colored tool bar; under dark a set's disabled items show faded copies. A checked
@@ -57,17 +58,17 @@ import org.eclipse.swt.widgets.Tree;
  * the light one, so a checked item takes the light ink only under the dark setting.
  */
 final class Win32ChromeColors implements ChromeColors {
-  /** Background of every surface under dark. */
-  static final Rgb BACKGROUND = Palette.DARK.gutter();
+  /** Background of every surface under dark: {@link Win32DialogColors#WINDOW}. */
+  static final Color BACKGROUND = Win32DialogColors.WINDOW;
 
-  /** Text under dark. */
-  static final Rgb TEXT = Palette.DARK.text();
+  /** Text under dark: {@link Win32DialogColors#TEXT}. */
+  static final Color TEXT = Win32DialogColors.TEXT;
 
-  /** Field and tree background under dark. */
-  static final Rgb FIELD = Palette.DARK.background();
+  /** Field, tree and table background under dark: {@link Win32DialogColors#FIELD}. */
+  static final Color FIELD = Win32DialogColors.FIELD;
 
-  /** Field hint under dark. */
-  static final Rgb HINT_TEXT = Palette.DARK.accents().tabText();
+  /** Read-only combo background under dark: {@link Win32DialogColors#FACE}. */
+  static final Color FACE = Win32DialogColors.FACE;
 
   /** Control data key: set on a field once it follows {@code SWT.Modify}. */
   private static final String FOLLOWED = Win32ChromeColors.class.getName() + ".followed";
@@ -90,14 +91,18 @@ final class Win32ChromeColors implements ChromeColors {
       };
 
   /**
-   * The light side under the dark native setting: {@link Win32EmptyField} fills an empty field with
-   * its system background and draws the hint in the system gray raised to {@link Contrast#LINK}.
+   * {@link Win32EmptyField} fills an empty field with its background: under dark with the hint in
+   * {@link Win32DialogColors#HINT}; on the light side under the dark native setting with the hint
+   * in the system gray raised to {@link Contrast#LINK}.
    */
-  private final Win32EmptyField.Ink lightInk =
+  private final Win32EmptyField.Ink ink =
       new Win32EmptyField.Ink() {
         @Override
         public Color hint(Text text) {
-          if (dark || !nativeDark()) {
+          if (dark) {
+            return Win32DialogColors.HINT;
+          }
+          if (!nativeDark()) {
             return null;
           }
           RGB gray = display.getSystemColor(SWT.COLOR_WIDGET_DISABLED_FOREGROUND).getRGB();
@@ -187,6 +192,11 @@ final class Win32ChromeColors implements ChromeColors {
     if (keeps(control)) {
       return;
     }
+    if (control instanceof Combo) {
+      control.setBackground(dark ? FACE : null);
+      control.setForeground(dark ? TEXT : null);
+      return;
+    }
     if (control instanceof Text field) {
       colorField(field);
       return;
@@ -195,8 +205,8 @@ final class Win32ChromeColors implements ChromeColors {
       colorList((Composite) control);
       return;
     }
-    control.setBackground(dark ? color(BACKGROUND) : null);
-    control.setForeground(dark ? color(TEXT) : null);
+    control.setBackground(dark ? BACKGROUND : null);
+    control.setForeground(dark ? TEXT : null);
     if (control instanceof Link link) {
       link.setLinkForeground(dark ? linkColor(display) : null);
     }
@@ -210,10 +220,10 @@ final class Win32ChromeColors implements ChromeColors {
 
   /** Colors a {@link Tree} or {@link Table} and its header, and draws its selection once. */
   private void colorList(Composite list) {
-    list.setBackground(dark ? color(FIELD) : null);
-    list.setForeground(dark ? color(TEXT) : null);
-    Color header = dark ? color(BACKGROUND) : null;
-    Color headerText = dark ? color(TEXT) : null;
+    list.setBackground(dark ? FIELD : null);
+    list.setForeground(dark ? TEXT : null);
+    Color header = dark ? BACKGROUND : null;
+    Color headerText = dark ? TEXT : null;
     if (list instanceof Tree tree) {
       tree.setHeaderBackground(header);
       tree.setHeaderForeground(headerText);
@@ -263,16 +273,13 @@ final class Win32ChromeColors implements ChromeColors {
     // An empty field with no colors draws the dark native field under the dark setting.
     Color light = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_BACKGROUND) : null;
     Color lightText = nativeDark ? display.getSystemColor(SWT.COLOR_LIST_FOREGROUND) : null;
-    field.setBackground(darkField ? color(FIELD) : light);
-    field.setForeground(darkField ? color(TEXT) : lightText);
-    if (field.getData(HINT) instanceof Hint hint) {
-      hint.setColor(darkField ? color(HINT_TEXT) : null);
-    }
+    field.setBackground(darkField ? FIELD : light);
+    field.setForeground(darkField ? TEXT : lightText);
     if (field.getData(FOLLOWED) != null) {
       return;
     }
     field.setData(FOLLOWED, Boolean.TRUE);
-    Win32EmptyField.draw(field, lightInk);
+    Win32EmptyField.draw(field, ink);
     field.addListener(
         SWT.Modify,
         new Listener() {
@@ -310,8 +317,10 @@ final class Win32ChromeColors implements ChromeColors {
     if (control instanceof Button) {
       return (control.getStyle() & (SWT.CHECK | SWT.RADIO)) == 0;
     }
-    return control instanceof Combo
-        || control instanceof org.eclipse.swt.widgets.List
+    if (control instanceof Combo) {
+      return (control.getStyle() & SWT.READ_ONLY) == 0;
+    }
+    return control instanceof org.eclipse.swt.widgets.List
         || control instanceof Spinner
         || control instanceof ProgressBar
         || control instanceof StyledText
@@ -327,7 +336,7 @@ final class Win32ChromeColors implements ChromeColors {
    */
   static Color linkColor(Display display) {
     RGB theme = display.getSystemColor(SWT.COLOR_LINK_FOREGROUND).getRGB();
-    return new Color(Contrast.readable(theme, color(BACKGROUND).getRGB()));
+    return new Color(Contrast.readable(theme, BACKGROUND.getRGB()));
   }
 
   private static Color color(Rgb rgb) {

@@ -33,8 +33,6 @@ final class BrowseBar {
   private final ToolItem workspace;
   private final Text path;
   private final Text filter;
-  private final FieldHint pathHint;
-  private final FieldHint filterHint;
   private final Button hidden;
   private final ToolIcons icons;
   private Menu menu;
@@ -63,10 +61,8 @@ final class BrowseBar {
     root.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     path = new Text(root, SWT.SINGLE | SWT.BORDER);
     path.setLayoutData(field(2));
-    pathHint = new FieldHint(path);
     filter = new Text(root, SWT.SINGLE | SWT.BORDER);
-    filterHint = new FieldHint(filter);
-    filterHint.setHint(UiText.BROWSE_FILTER_HINT.text());
+    filter.setMessage(UiText.BROWSE_FILTER_HINT.text());
     filter.setLayoutData(field(1));
     hidden = SwtThemeService.check(root);
     hidden.setText(UiText.BROWSE_HIDDEN.text());
@@ -129,7 +125,7 @@ final class BrowseBar {
     String shown = on ? input.shownFolder() : "";
     path.setText(shown);
     boolean none = workspaceFolder.equals(UiText.WORKSPACE_NONE.text());
-    pathHint.setHint(none ? workspaceFolder : UiText.BROWSE_PATH_HINT.text());
+    path.setMessage(none ? workspaceFolder : UiText.BROWSE_PATH_HINT.text());
     String tip = null;
     if (!shown.isEmpty()) {
       if (!input.browsing()) {
@@ -253,15 +249,6 @@ final class BrowseBar {
    */
   Text filter() {
     return filter;
-  }
-
-  /**
-   * Returns the path and filter fields' hints.
-   *
-   * @return the hints
-   */
-  FieldHint[] hints() {
-    return new FieldHint[] {pathHint, filterHint};
   }
 
   /**

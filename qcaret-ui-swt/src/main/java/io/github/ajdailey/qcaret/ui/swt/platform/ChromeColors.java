@@ -1,6 +1,5 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Control;
 
 /**
@@ -16,9 +15,6 @@ public interface ChromeColors {
    * colors leave it and its children alone.
    */
   String PALETTE_COLORED = "qcaret.paletteColored";
-
-  /** Control data key on a text field: its {@link Hint}. */
-  String HINT = ChromeColors.class.getName() + ".hint";
 
   /**
    * Colors a surface and its controls for the current side, and again at each {@link #apply}, until
@@ -63,15 +59,5 @@ public interface ChromeColors {
      * @param on false to draw checked items in the dark ink whatever the row's ink
      */
     void lightChecked(boolean on);
-  }
-
-  /** A text field's hint drawn by the application instead of the native message. */
-  interface Hint {
-    /**
-     * Sets the color the hint is drawn in.
-     *
-     * @param color the color, or null for the native message
-     */
-    void setColor(Color color);
   }
 }

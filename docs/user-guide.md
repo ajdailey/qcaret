@@ -410,7 +410,9 @@ apply (measured on Linux, one million lines):
 - Editor colors, on the Editor tab of Tools > Preferences, colors the editors,
   the tab strip, comparison windows and the replace preview, as a terminal
   profile colors only its text area; see [Editor colors](#editor-colors). Menus,
-  docks, dialogs and title bars keep following View > Theme.
+  docks, dialogs and title bars keep following View > Theme. On Windows under
+  Dark, the toolbar, find bar, status bar and docks are the gray of the title
+  bar under every scheme.
 - View > Command Palette (`Ctrl+Shift+P`) finds and runs any menu command by
   name, Window > Minimize and Zoom included on every platform.
 
@@ -1334,7 +1336,7 @@ keeps the built-in value; a key QCaret does not know is ignored.
 | `lineNumbers`, `gutter` | Line numbers and the gutter; `gutter` also colors the tab strip |
 | `caret`, `whitespace` | Carets and whitespace marks |
 | `findMatch`, `occurrence`, `bracket` | Backgrounds of a find match, the word at the caret, a matching bracket |
-| `tabText` | An unselected tab's label |
+| `tabText` | The hidden-tab count beside the tab list button |
 | `overviewFind`, `overviewSearch` | Overview strip marks of a find match and a HyperSearch match |
 | `bookmarkComment` | The gutter mark of a bookmark with a comment |
 | `diffRemoved`, `diffAdded`, `diffChanged` | Comparison window line backgrounds |

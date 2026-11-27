@@ -46,7 +46,7 @@ public record Palette(
   /**
    * The colors outside the text views' own.
    *
-   * @param tabText the label of an unselected tab
+   * @param tabText the hidden-tab count beside the tab strip's list button
    * @param overviewFind the overview strip's mark of a find-bar match
    * @param overviewSearch the overview strip's mark of a HyperSearch match
    * @param bookmarkComment the gutter mark of a bookmark with a comment
@@ -195,8 +195,7 @@ public record Palette(
   }
 
   /**
-   * Returns the label of an unselected tab on the {@link #gutter} strip, dimmer than {@link
-   * #selectionText} so the selected tab stays apparent while it has the strip's background.
+   * Returns the hidden-tab count beside the tab strip's list button, on {@link #gutter}.
    *
    * @return the color
    */

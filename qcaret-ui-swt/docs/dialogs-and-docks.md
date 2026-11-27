@@ -174,13 +174,13 @@ the dialog cancels a running match.
   `favorites()`.
 - On win32 the window's `ChromeColors` color the tree, its header and the two
   fields, which draw light under the dark theme: while `ThemeController.dark`
-  holds they take `Palette.DARK`'s background and text, the header its gutter,
+  holds they take `#2b2b2b` and white, the header `#202020`,
   and after a switch to light they return to the system colors; under the dark
   native setting a field holding text stays dark until its window is rebuilt,
   and an empty one takes the system colors, colored again when it takes text or empties. A dark
-  field's empty, unfocused hint is drawn by `FieldHint` in `Palette.DARK`'s
-  unselected tab label color (5.9:1), since Windows draws the native hint in
-  the theme's gray (1.9:1). The Hidden check box keeps the native theme
+  field's empty, unfocused hint is drawn by `Win32EmptyField` in `#9a9a9a`
+  (5.03:1), since Windows draws the native hint in the theme's gray (1.9:1).
+  The Hidden check box keeps the native theme
   ([theme and icons](theme-and-icons.md#win32)).
 - `BrowserColumns`: Size and Modified start as wide as their headers and widen
   to the widest text a fill adds; Name takes the rest of the tree's width at

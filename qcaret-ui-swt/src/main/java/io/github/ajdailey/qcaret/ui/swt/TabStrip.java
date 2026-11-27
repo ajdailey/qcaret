@@ -333,18 +333,19 @@ final class TabStrip {
   }
 
   /**
-   * Colors the strip. {@code CTabFolder} otherwise keeps the system list colors of its creation for
-   * the selected tab, whatever the theme. It draws the selection background only while focus is
-   * inside the folder; elsewhere the selected tab has the strip's background, and the label and
-   * close button keep the selection foreground.
+   * Colors the strip: the palette's {@code gutter} behind it, {@code background} behind the
+   * selected tab and {@code text} on every tab. {@code CTabFolder} otherwise keeps the system list
+   * colors of its creation for the selected tab, whatever the theme. It draws the selection
+   * background only while focus is inside the folder and keeps one selection foreground, so that
+   * foreground must read on both.
    *
    * @param next the palette
    */
   void colorTabs(Palette next) {
     tabs.setBackground(color(next.gutter()));
-    tabs.setForeground(color(next.tabText()));
-    tabs.setSelectionBackground(color(next.selection()));
-    tabs.setSelectionForeground(color(next.selectionText()));
+    tabs.setForeground(color(next.text()));
+    tabs.setSelectionBackground(color(next.background()));
+    tabs.setSelectionForeground(color(next.text()));
   }
 
   /**

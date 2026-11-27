@@ -12,7 +12,6 @@ import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.theme.Palette;
-import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
@@ -41,17 +40,21 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * On win32 the Workspace Browser's tree, header and fields take {@link Palette#DARK}'s colors under
- * a dark start; the tree and header follow live theme switches to light and back, and on the light
- * side a field holding text stays dark while an empty one takes the system colors. The path field's
- * drawn color is read from a print, since Windows can draw a field under the dark Explorer theme in
- * a color {@code getBackground} does not report. The empty filter field's hint is read from the
- * screen, where its Paint listener's drawing shows.
+ * On win32 the Workspace Browser's tree, header and fields take the neutral grays of the dark
+ * chrome under a dark start; the tree and header follow live theme switches to light and back, and
+ * on the light side a field holding text stays dark while an empty one takes the system colors. The
+ * path field's drawn color is read from a print, since Windows can draw a field under the dark
+ * Explorer theme in a color {@code getBackground} does not report. The empty filter field's hint is
+ * read from the screen, where its Paint listener's drawing shows.
  */
 @Tag("swt")
 @EnabledOnOs(OS.WINDOWS)
 class Win32DarkBrowserTest {
   private static final Duration BOUND = Duration.ofSeconds(10);
+  // The neutral grays of the dark win32 chrome.
+  private static final RGB PANEL = new RGB(0x20, 0x20, 0x20);
+  private static final RGB FIELD = new RGB(0x2b, 0x2b, 0x2b);
+  private static final RGB TEXT = new RGB(0xff, 0xff, 0xff);
 
   @TempDir Path temp;
 
@@ -72,10 +75,6 @@ class Win32DarkBrowserTest {
     } finally {
       assertNull(failure.get());
     }
-  }
-
-  private static RGB rgb(Rgb rgb) {
-    return new RGB(rgb.red(), rgb.green(), rgb.blue());
   }
 
   /** Returns the most frequent color inside a control's 3-pixel inset, its drawn background. */
@@ -134,7 +133,7 @@ class Win32DarkBrowserTest {
         lightest = Math.max(lightest, luminance(data.palette.getRGB(data.getPixel(x, y))));
       }
     }
-    return (lightest + 0.05) / (luminance(rgb(Palette.DARK.background())) + 0.05);
+    return (lightest + 0.05) / (luminance(FIELD) + 0.05);
   }
 
   private MainWindow openDark() {
@@ -195,10 +194,10 @@ class Win32DarkBrowserTest {
     MainWindow window = openDark();
     final WorkspaceDock dock = window.workspaceDock();
     final Tree tree = dock.tree();
-    final RGB dark = rgb(Palette.DARK.background());
+    final RGB dark = FIELD;
     assertEquals(dark, tree.getBackground().getRGB());
-    assertEquals(rgb(Palette.DARK.gutter()), tree.getHeaderBackground().getRGB());
-    assertEquals(rgb(Palette.DARK.text()), tree.getHeaderForeground().getRGB());
+    assertEquals(PANEL, tree.getHeaderBackground().getRGB());
+    assertEquals(TEXT, tree.getHeaderForeground().getRGB());
     assertEquals(dark, dock.bar().path().getBackground().getRGB());
     assertEquals(dark, dock.bar().filter().getBackground().getRGB());
     // Windows draws an unfocused field differently from a focused one under the dark theme.
@@ -211,7 +210,7 @@ class Win32DarkBrowserTest {
     filter.setText("*.md");
     assertEquals(dark, filter.getBackground().getRGB());
     final RGB system = display.getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB();
-    final RGB text = rgb(Palette.DARK.text());
+    final RGB text = TEXT;
     controller.execute(CommandId.THEME_LIGHT);
     await(
         new BooleanSupplier() {

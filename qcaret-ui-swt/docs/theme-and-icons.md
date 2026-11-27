@@ -117,15 +117,16 @@ near-black (33,33,33) with dark text under null and explicit light colors
 alike. `ChromeColors` gives the main window's fields (find and replace, the
 Workspace Browser's path and filter), trees (the Workspace Browser's and the
 Outline's) and tables (Search Results and Bookmarks), with their headers,
-`Palette.DARK`'s colors while `ui.theme`
-resolves to dark, at once after a live switch, and `FieldHint` draws a field's
-hint in `Palette.DARK`'s unselected tab label color. Under the dark native
-setting a field holding text keeps `Palette.DARK`'s colors on the light side
-until its window is rebuilt; an empty one, such as the path field while no workspace folder is set,
-takes the system list colors, set explicitly. The dark native field still draws
-an empty editable field `#212121` while unfocused under those colors (measured
-on Windows 11), so `Win32EmptyField` fills it with its background from an
-`SWT.Paint` listener and draws its hint in the system gray raised to 4.5:1. A
+the dark chrome colors while `ui.theme` resolves to dark, at once after a live
+switch ([chrome colors](#chrome-colors)). Under the dark native setting a field
+holding text keeps them on the light side until its window is rebuilt; an empty
+one, such as the path field while no workspace folder is set, takes the system
+list colors, set explicitly. The dark native field draws an empty editable
+field `#212121` while unfocused under any colors (measured on Windows 11), so
+while a field is empty and unfocused `Win32EmptyField` fills it with its
+background from an `SWT.Paint` listener and draws its hint: under dark in
+`Win32DialogColors.HINT` (`#9a9a9a`, 5.03:1 on `#2b2b2b`), on the light side
+under the dark native setting in the system gray raised to 4.5:1. A
 field is colored again when it becomes empty or takes text, typed or set
 through `setText` alike ([dialogs and
 docks](dialogs-and-docks.md#workspace-browser)). `Win32ChromeColors` reads the
@@ -167,11 +168,12 @@ as the column's tool tip. `HeaderTexts.full` returns the whole text, which
 `MainWindow` takes a `ChromeColors` from `PlatformTraits.chromeColors` and
 calls it on every platform; `NativeChromeColors` on GTK and cocoa sets nothing.
 On win32 `Win32ChromeColors` colors the main window's own surfaces while
-`ui.theme` resolves to dark, at once after a live switch either way:
-`Palette.DARK`'s `gutter` (`#162638`, the tab strip's) as background and its
-`text` as foreground, a link its link color raised to 4.5 contrast, and
-`SWT.INHERIT_DEFAULT` on each composite so push button corners match. On the
-light side every such color is null. `MainWindow` registers the toolbar row
+`ui.theme` resolves to dark, at once after a live switch either way, in the
+neutral grays of `Win32DialogColors` whatever the `ui.editorColors` scheme:
+`WINDOW` (`#202020`, the dark title bar's) as background and `TEXT`
+(`#ffffff`, 16.29:1) as foreground, a link its link color raised to 4.5
+contrast, and `SWT.INHERIT_DEFAULT` on each composite so push button corners
+match. On the light side every such color is null. `MainWindow` registers the toolbar row
 (its clip, the `ToolBar` and the More button's bar), the status bar, the find
 bar, the load and print rows, the side sash with every dock under it, and each
 preview's notice strip; a control created later under one takes its colors from
@@ -179,13 +181,14 @@ preview's notice strip; a control created later under one takes its colors from
 
 | Control | Under dark |
 |---|---|
-| `Composite`, `SashForm`, `Label`, `Link`, `ToolBar`, `Canvas` (the memory gauge), check box | Palette colors |
-| `Text`, `Tree`, `Table` | `Palette.DARK`'s `background` and `text`; a tree or table header the `gutter`; the field rule above |
-| Push and arrow `Button`, `Combo`, `List`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into |
+| `Composite`, `SashForm`, `Label`, `Link`, `ToolBar`, `Canvas` (the memory gauge), check box | `WINDOW` and `TEXT` |
+| `Text`, `Tree`, `Table` | `FIELD` (`#2b2b2b`, 14.16:1) and `TEXT`; a tree or table header `WINDOW`; the field rule above |
+| Read-only `Combo` | `FACE` (`#333333`, the push button face, 12.63:1) and `TEXT`: the dark native theme draws its closed field and leaves its drop-down list white without colors |
+| Push and arrow `Button`, editable `Combo`, `List`, `Spinner`, `ProgressBar`, `StyledText`, `Browser` | Unchanged, not descended into |
 | `CTabFolder`, a control with `ChromeColors.PALETTE_COLORED` | Unchanged, not descended into |
 
 A check box keeps `DialogColors.check`'s light-theme creation, so under the
-dark palette its enabled label takes the palette text; a disabled label stays
+dark chrome its enabled label takes `TEXT`; a disabled label stays
 system gray. win32 `ToolBar` passes its foreground to text items (Source,
 Split, Preview) through `NMTBCUSTOMDRAW.clrText`, and an item's own foreground
 first (`ToolBar.getForegroundPixel(ToolItem)`, SWT 3.135.0 source).
@@ -193,7 +196,7 @@ first (`ToolBar.getForegroundPixel(ToolItem)`, SWT 3.135.0 source).
 A checked tool item draws the checked background of the native setting
 whatever the bar's color, measured on Windows 11: `#455160` under the dark
 setting, `#c0c0c0` under the dark setting on the light side, `#cce8ff` under the
-light setting. The light text (`#dce6f0`) on `#cce8ff` computes to 1.0:1, so
+light setting. `TEXT` on `#cce8ff` computes to 1.27:1, so
 under the light setting `Win32ChromeColors` calls `ToolIcons.lightChecked(false)`: while the set
 takes the light ink, a checked item given to `applyChecked` (Source, Split,
 Preview) takes `Palette.LIGHT`'s text (`#1b2e44`, 10.9:1) as its foreground.
@@ -207,9 +210,9 @@ Browser's `ToolIcons` from the toolbar's background and calls
 `setDisabledImage`. SWT's own disabled copy (`ImageColorTransformer`, gray
 `0.2 * (2.9 * gray - 128) + 128`) maps the light ink `#d4d4d4` to `#e1e1e1`,
 brighter than the enabled icon, so a disabled item would look enabled.
-Measured by `ChromeColorsTest` on `#162638` with SWT 3.135.0 (the transformer is
-shared by GTK and win32): the enabled icons 9.1 or more, SWT's copy 10.1 or
-more, the faded copy 2.6 to 2.9. Menu icons take the ink of the side the popup
+Measured by `ChromeColorsTest` on `#202020` with SWT 3.135.0 on `windows-2025`
+and `windows-11-arm`: the enabled icons 9.64 or more, SWT's copy 10.88 or more,
+the faded copy 2.67 to 2.92. Menu icons take the ink of the side the popup
 menus show (`MenuBehavior.ink`, `Win32MenuBehavior`,
 `Win32MenuThemes.shownDark`); ink from the window's side on menus of the other
 side gave `#3e3e3e` on `#2c2c2c` (1.31; measured on Windows 11 at 150 %).
@@ -427,9 +430,15 @@ setting.
 
 | Tab | Background | Label and close button |
 |---|---|---|
-| Selected, focus inside the folder | `selection` | `selectionText` |
-| Selected, focus in a dock or another shell | `gutter` | `selectionText` |
-| Unselected | `gutter` | `Palette.tabText` |
+| Selected, focus inside the folder | `background` | `text` |
+| Selected, focus in a dock or another shell | `gutter` | `text` |
+| Unselected | `gutter` | `text` |
+
+`CTabFolder` draws the selection background only while focus is inside the
+folder and keeps one selection foreground for both cases, so that foreground
+must read on `gutter` and on the selection background. `text` reads at 4.5:1 or
+more on both in every bundled scheme (`PaletteTest`); the lowest are Sandstone
+(4.63 on `gutter`) and Nightwater (4.80).
 
 The 2 px bar on the selected tab is the `CTabFolder` default: the system's list
 selection color, gray with focus outside the folder. SWT has no setter for its

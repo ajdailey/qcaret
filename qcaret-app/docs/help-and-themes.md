@@ -108,7 +108,7 @@ background, selection and selected text, current line, gutter and line numbers,
 caret, whitespace marks, the find-match, occurrence and bracket backgrounds, the
 overview strip's find and HyperSearch marks, the commented-bookmark mark, the
 comparison window's row backgrounds
-(`diffRemoved`, `diffAdded`, `diffChanged`), the unselected tab label
+(`diffRemoved`, `diffAdded`, `diffChanged`), the hidden-tab count beside the tab list button
 (`tabText`), the right margin line (`rightMargin`), the indent guides
 (`indentGuide`), the modified-line marks (`lineAdded`, `lineChanged`,
 `lineRemoved`, each at a contrast ratio of 3 on the background and the current

@@ -209,7 +209,7 @@ class ThemeAndDialogsTest {
         last.y + last.height / 2,
         tabs.getBackground().getRGB(),
         "the folder's print right of the last tab");
-    assertTab(focused, selected, palette.selection(), true);
+    assertTab(focused, selected, palette.background(), true);
     assertTab(focused, other, palette.gutter(), false);
     tabs.notifyListeners(SWT.Deactivate, new Event());
     assertTab(printed(tabs), selected, palette.gutter(), true);

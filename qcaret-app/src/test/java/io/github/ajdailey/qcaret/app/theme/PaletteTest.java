@@ -75,7 +75,7 @@ class PaletteTest {
       assertTrue(contrast(palette.lineNumbers(), palette.gutter()) >= 3);
       assertTrue(contrast(palette.bookmarkComment(), palette.gutter()) >= 3);
       assertTrue(contrast(palette.tabText(), palette.gutter()) >= 4.5);
-      assertTrue(contrast(palette.selectionText(), palette.gutter()) >= 4.5);
+      assertTrue(contrast(palette.text(), palette.gutter()) >= 4.5, "tab text on the strip");
       for (Rgb row :
           new Rgb[] {palette.diffRemoved(), palette.diffAdded(), palette.diffChanged()}) {
         assertTrue(contrast(palette.text(), row) >= 4.5, "text on " + row);

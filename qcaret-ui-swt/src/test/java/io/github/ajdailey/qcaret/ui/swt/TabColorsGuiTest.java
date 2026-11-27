@@ -5,13 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.config.ConfigStore;
 import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SettingsLocation;
 import io.github.ajdailey.qcaret.app.config.SettingsMode;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
+import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeListener;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.theme.ThemeService;
@@ -60,6 +63,10 @@ class TabColorsGuiTest {
   private static final double DARK_LUMINANCE = 0.2;
   private static final double LIGHT_LUMINANCE = 0.5;
   private static final boolean WIN32 = "win32".equals(SWT.getPlatform());
+  // The neutral grays of the dark win32 chrome.
+  private static final RGB PANEL = new RGB(0x20, 0x20, 0x20);
+  private static final RGB FIELD = new RGB(0x2b, 0x2b, 0x2b);
+  private static final int TEXT_TOLERANCE = 16;
 
   @TempDir Path temp;
 
@@ -185,6 +192,121 @@ class TabColorsGuiTest {
     settle();
     checkChrome("dark-light-dark", true);
     assertTrue(faults.isEmpty(), faults.toString());
+  }
+
+  /**
+   * win32 under Dark: the tool bar, the status bar and the Workspace Browser's path field keep the
+   * neutral grays under two schemes, and the tab strip takes each scheme's colors.
+   */
+  @Test
+  void darkWin32PanelsKeepTheirGraysAndTheTabsFollowTheScheme() {
+    assumeTrue(WIN32, "the win32 chrome");
+    open(ThemeMode.DARK);
+    controller.execute(CommandId.WORKSPACE_BROWSER);
+    for (String scheme : new String[] {EditorSchemes.GRAPHITE, EditorSchemes.NIGHTWATER}) {
+      controller.theme().setEditorColors(scheme);
+      settle();
+      checkPanels(scheme);
+    }
+    assertTrue(faults.isEmpty(), faults.toString());
+  }
+
+  private void checkPanels(String scheme) {
+    Palette palette = EditorSchemes.palette(scheme, ThemeMode.DARK, true);
+    window.shell().forceActive();
+    settle();
+    window.shell().forceFocus();
+    settle();
+    expectGround(scheme + " tool bar", window.toolbarRow().bar(), PANEL);
+    expectGround(scheme + " status bar", window.statusBar(), PANEL);
+    expectGround(scheme + " path field", window.workspaceDock().bar().path(), FIELD);
+    CTabFolder tabs = window.tabs();
+    ImageData strip = read(tabs);
+    CTabItem selected = tabs.getSelection();
+    Rectangle end = tabs.getItem(tabs.getItemCount() - 1).getBounds();
+    expect(
+        scheme + " strip",
+        mode(strip, new Rectangle(end.x + end.width + 8, end.y + 3, 24, end.height - 6)),
+        rgb(palette.gutter()));
+    for (CTabItem item : tabs.getItems()) {
+      if (item != selected) {
+        Rectangle tab = inset(item.getBounds());
+        expect(scheme + " unselected tab", mode(strip, tab), rgb(palette.gutter()));
+        expectText(scheme + " unselected tab", strip, tab, rgb(palette.text()));
+      }
+    }
+    tabs.forceFocus();
+    settle();
+    strip = read(tabs);
+    Rectangle tab = inset(selected.getBounds());
+    expect(scheme + " focused selected tab", mode(strip, tab), rgb(palette.background()));
+    expectText(scheme + " focused selected tab", strip, tab, rgb(palette.text()));
+  }
+
+  private void expectGround(String step, Control control, RGB expected) {
+    ImageData data = read(control);
+    expect(step, mode(data, inset(new Rectangle(0, 0, data.width, data.height))), expected);
+  }
+
+  private void expect(String step, RGB seen, RGB expected) {
+    if (Math.abs(seen.red - expected.red) > 2
+        || Math.abs(seen.green - expected.green) > 2
+        || Math.abs(seen.blue - expected.blue) > 2) {
+      faults.add(step + ": " + seen + ", expected " + expected);
+    }
+  }
+
+  /** Records a fault unless a pixel of the area is within {@link #TEXT_TOLERANCE} of a color. */
+  private void expectText(String step, ImageData data, Rectangle area, RGB expected) {
+    for (int y = area.y; y < Math.min(data.height, area.y + area.height); y++) {
+      for (int x = area.x; x < Math.min(data.width, area.x + area.width); x++) {
+        RGB seen = data.palette.getRGB(data.getPixel(x, y));
+        if (Math.abs(seen.red - expected.red) <= TEXT_TOLERANCE
+            && Math.abs(seen.green - expected.green) <= TEXT_TOLERANCE
+            && Math.abs(seen.blue - expected.blue) <= TEXT_TOLERANCE) {
+          return;
+        }
+      }
+    }
+    faults.add(step + ": no text near " + expected);
+  }
+
+  /** Returns the most frequent color in an area of the pixels. */
+  private static RGB mode(ImageData data, Rectangle area) {
+    Map<Integer, Integer> counts = new HashMap<Integer, Integer>();
+    int best = data.getPixel(Math.max(0, area.x), Math.max(0, area.y));
+    for (int y = Math.max(0, area.y); y < Math.min(data.height, area.y + area.height); y++) {
+      for (int x = Math.max(0, area.x); x < Math.min(data.width, area.x + area.width); x++) {
+        int pixel = data.getPixel(x, y);
+        int count = counts.merge(pixel, 1, Integer::sum);
+        if (count > counts.getOrDefault(best, 0)) {
+          best = pixel;
+        }
+      }
+    }
+    return data.palette.getRGB(best);
+  }
+
+  private static Rectangle inset(Rectangle area) {
+    return new Rectangle(area.x + 3, area.y + 3, area.width - 6, area.height - 6);
+  }
+
+  /** Reads a control's pixels from the screen, or through {@code Control.print} on win32. */
+  private ImageData read(Control control) {
+    control.redraw();
+    control.update();
+    if (!screenShowsWindows) {
+      ImageData printed = ControlPrint.of(display, control);
+      assertTrue(printed != null, "print " + control);
+      return printed;
+    }
+    Point at = control.toDisplay(0, 0);
+    Point size = control.getSize();
+    return capture(new Rectangle(at.x, at.y, size.x, size.y));
+  }
+
+  private static RGB rgb(Rgb rgb) {
+    return new RGB(rgb.red(), rgb.green(), rgb.blue());
   }
 
   /** Native chrome follows a switch on GTK only; win32 waits for a restart and cocoa the system. */

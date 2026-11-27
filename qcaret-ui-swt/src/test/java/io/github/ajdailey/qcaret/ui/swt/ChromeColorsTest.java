@@ -7,8 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.ajdailey.qcaret.app.theme.Palette;
-import io.github.ajdailey.qcaret.app.theme.Rgb;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
 import io.github.ajdailey.qcaret.ui.swt.platform.ChromeColors;
@@ -57,9 +55,12 @@ import org.junit.jupiter.api.Test;
 class ChromeColorsTest {
   private static final Duration BOUND = Duration.ofSeconds(30);
   private static final PlatformTraits WIN32 = PlatformTraits.of("win32", false);
-  private static final RGB BACKGROUND = rgb(Palette.DARK.gutter());
-  private static final RGB TEXT = rgb(Palette.DARK.text());
-  private static final RGB FIELD = rgb(Palette.DARK.background());
+  // The neutral grays of the dark win32 chrome.
+  private static final RGB BACKGROUND = new RGB(0x20, 0x20, 0x20);
+  private static final RGB TEXT = new RGB(0xff, 0xff, 0xff);
+  private static final RGB FIELD = new RGB(0x2b, 0x2b, 0x2b);
+  private static final RGB FACE = new RGB(0x33, 0x33, 0x33);
+  private static final RGB HINT = new RGB(0x9a, 0x9a, 0x9a);
   private static final RGB OWN_BACKGROUND = new RGB(0x10, 0x20, 0x30);
   private static final RGB OWN_TEXT = new RGB(0x40, 0x50, 0x60);
 
@@ -77,7 +78,6 @@ class ChromeColorsTest {
   private Button check;
   private Canvas gauge;
   private Text field;
-  private FieldHint hint;
   private Tree tree;
   private Table table;
   private List<Control> kept;
@@ -98,8 +98,7 @@ class ChromeColorsTest {
     check = new Button(surface, SWT.CHECK);
     gauge = new Canvas(surface, SWT.NONE);
     field = new Text(surface, SWT.SINGLE);
-    hint = new FieldHint(field);
-    hint.setHint("filter");
+    field.setMessage("filter");
     tree = new Tree(surface, SWT.NONE);
     tree.setHeaderVisible(true);
     table = new Table(surface, SWT.NONE);
@@ -165,10 +164,6 @@ class ChromeColorsTest {
       }
     }
     return names;
-  }
-
-  private static RGB rgb(Rgb rgb) {
-    return new RGB(rgb.red(), rgb.green(), rgb.blue());
   }
 
   private List<Control> painted() {
@@ -329,8 +324,20 @@ class ChromeColorsTest {
     assertEquals(List.of(FIELD, TEXT), fieldColors());
     assertEquals(
         List.of(FIELD, TEXT, BACKGROUND, TEXT, FIELD, TEXT, BACKGROUND, TEXT), treeColors());
-    assertEquals("", field.getMessage());
-    assertEquals(rgb(Palette.DARK.accents().tabText()), hint.color().getRGB());
+  }
+
+  /** A read-only combo, whose list the theme leaves white, takes the button face under dark. */
+  @Test
+  void aReadOnlyComboTakesTheButtonFaceUnderDark() {
+    Combo readOnly = new Combo(surface, SWT.READ_ONLY);
+    RGB background = readOnly.getBackground().getRGB();
+    RGB foreground = readOnly.getForeground().getRGB();
+    ChromeColors chrome = chrome(WIN32, false);
+    for (boolean dark : new boolean[] {true, false, true}) {
+      chrome.apply(dark);
+      assertEquals(dark ? FACE : background, readOnly.getBackground().getRGB(), "dark " + dark);
+      assertEquals(dark ? TEXT : foreground, readOnly.getForeground().getRGB(), "dark " + dark);
+    }
   }
 
   @Test
@@ -350,7 +357,6 @@ class ChromeColorsTest {
         assertEquals(systemField, fieldColors());
         assertEquals(systemTree, treeColors());
         assertEquals(SWT.INHERIT_NONE, surface.getBackgroundMode());
-        assertNull(hint.color());
       }
     }
   }
@@ -358,8 +364,8 @@ class ChromeColorsTest {
   /**
    * After a dark start a field holding text stays dark on the light side, while the tree follows
    * the theme; an empty field, such as the path field with no workspace folder, takes the system
-   * list colors, set explicitly, and its native message. With no colors the find and replace fields
-   * drew the dark native field, {@code #212121} (Windows 11, OBERON G1).
+   * list colors, set explicitly. With no colors the find and replace fields drew the dark native
+   * field, {@code #212121} (Windows 11, OBERON G1).
    */
   @Test
   void afterADarkStartOnlyAFieldHoldingTextStaysDarkOnTheLightSide() {
@@ -373,23 +379,20 @@ class ChromeColorsTest {
     chrome.apply(false);
     assertEquals(systemField, fieldColors());
     assertEquals(systemTree, treeColors());
-    assertEquals("filter", field.getMessage());
     field.setText("mock");
     assertEquals(List.of(FIELD, TEXT), fieldColors(), "takes text");
-    assertEquals("", field.getMessage());
     field.setText("");
     assertEquals(systemField, fieldColors(), "empties");
-    assertEquals("filter", field.getMessage());
   }
 
   /**
-   * After a dark start an empty, unfocused field on the light side is painted in its system
-   * background, with its hint at 4.5:1 or more: the dark native field drew {@code #212121} there
-   * under explicit light colors (find and replace fields, Windows 11, OBERON G1). A field holding
-   * text, the dark side and a light start leave the native drawing.
+   * After a dark start an empty, unfocused field is painted in its background, the system one on
+   * the light side and the field gray under dark, with its hint at 4.5:1 or more: the dark native
+   * field drew {@code #212121} there under any colors (find and replace fields, Windows 11, OBERON
+   * G1). A field holding text keeps the native drawing.
    */
   @Test
-  void afterADarkStartAnEmptyFieldOnTheLightSideIsPaintedInItsSystemColors() {
+  void afterADarkStartAnEmptyFieldIsPaintedInItsBackground() {
     Text find = new Text(surface, SWT.SINGLE);
     field.setSize(200, 30);
     find.setSize(200, 30);
@@ -408,16 +411,20 @@ class ChromeColorsTest {
     find.setText("mock");
     assertEquals(OWN_BACKGROUND, TextPaint.at(TextPaint.paint(find, OWN_BACKGROUND), 1, 1));
     chrome.apply(true);
-    // FieldHint draws the dark side's hint with no fill, so the far corner keeps the image color.
     ImageData dark = TextPaint.paint(field, OWN_BACKGROUND);
-    assertEquals(OWN_BACKGROUND, TextPaint.at(dark, dark.width - 2, dark.height - 2), "dark side");
+    assertEquals(FIELD, TextPaint.at(dark, dark.width - 2, dark.height - 2), "dark side");
+    assertEquals(HINT, TextPaint.ink(field, OWN_BACKGROUND), "dark hint");
+    assertTrue(Contrast.ratio(HINT, FIELD) >= 4.5);
   }
 
+  /** After a light start an empty field is painted only under dark; the light side stays native. */
   @Test
-  void aLightStartLeavesAnEmptyFieldToTheNativeDrawing() {
+  void aLightStartPaintsAnEmptyFieldUnderDarkOnly() {
     field.setSize(200, 30);
     ChromeColors chrome = chrome(WIN32, false);
     chrome.apply(true);
+    ImageData dark = TextPaint.paint(field, OWN_BACKGROUND);
+    assertEquals(FIELD, TextPaint.at(dark, dark.width - 2, dark.height - 2), "dark side");
     chrome.apply(false);
     ImageData drawn = TextPaint.paint(field, OWN_BACKGROUND);
     assertEquals(OWN_BACKGROUND, TextPaint.at(drawn, drawn.width - 2, drawn.height - 2));

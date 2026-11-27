@@ -221,8 +221,8 @@ class DockShotsTest {
   }
 
   /**
-   * On win32 under dark, reads a pixel in each dock table's empty area: the table draws {@code
-   * Palette.DARK}'s background, not the native white. Skipped where another window covers the shell
+   * On win32 under dark, reads a pixel in each dock table's empty area: the table draws the dark
+   * chrome's field gray, not the native white. Skipped where another window covers the shell
    * ({@link ScreenProbe}).
    */
   private void checkTables(boolean dark) {
@@ -231,11 +231,7 @@ class DockShotsTest {
         || !ScreenProbe.shows(window.shell())) {
       return;
     }
-    RGB field =
-        new RGB(
-            Palette.DARK.background().red(),
-            Palette.DARK.background().green(),
-            Palette.DARK.background().blue());
+    RGB field = new RGB(0x2b, 0x2b, 0x2b);
     for (Table table : new Table[] {window.bookmarksDock().table(), window.resultsDock().table()}) {
       Rectangle client = table.getClientArea();
       Point at = table.toDisplay(client.x + 3, client.y + client.height - 4);

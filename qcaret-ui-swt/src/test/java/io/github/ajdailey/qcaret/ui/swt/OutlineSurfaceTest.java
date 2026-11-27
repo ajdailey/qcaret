@@ -378,11 +378,8 @@ class OutlineSurfaceTest {
     openFile("guide.md", GUIDE, true);
     showOutline();
     final Tree tree = window.outlineDock().tree();
-    final RGB dark =
-        new RGB(
-            Palette.DARK.background().red(),
-            Palette.DARK.background().green(),
-            Palette.DARK.background().blue());
+    // The dark win32 chrome's field gray.
+    final RGB dark = new RGB(0x2b, 0x2b, 0x2b);
     // Only win32's chrome colors paint the tree; the native tree follows the theme elsewhere.
     final boolean painted = "win32".equals(PlatformTraits.PLATFORM.name());
     controller.execute(CommandId.THEME_DARK);
