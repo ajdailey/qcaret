@@ -303,7 +303,7 @@ final class TabStripButtons {
 
   private static String tip(CommandId command, Keymap keymap) {
     String keys = keymap.keysText(command);
-    return keys.isEmpty() ? command.title() : command.title() + " (" + keys + ")";
+    return keys.isEmpty() ? command.title() : UiText.TOOL_TIP_KEYS.format(command.title(), keys);
   }
 
   /**

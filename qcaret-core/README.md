@@ -78,7 +78,7 @@ The layer 7 packages do not use each other.
   the cache and never blocks. A `HexSourceChangedException` from `load` clears
   the cache, and a block read before a `clear` is dropped.
 - `HexRows` lays a row out in character cells: offset (8 hex digits, 16 above
-  4 GiB), hex pairs in groups of 8, then one text cell per byte, ASCII 0x20 to
+  4 GiB, widened to a longer column heading the caller passes), hex pairs in groups of 8, then one text cell per byte, ASCII 0x20 to
   0x7E and `.` otherwise. Bytes per row is 8, 16 or 32. `row` builds a `HexRow`
   from the cache, or returns null when a block is missing.
 - `HexViewport` maps `long` rows onto an `int` scroll bar: one unit per row up

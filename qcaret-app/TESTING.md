@@ -245,6 +245,9 @@ after the change.
 and the lock held elsewhere), `SettingsLocationTest` (`portable.txt` and `qcaret.conf` alike), `WindowGeometryTest`,
 `ThemeControllerTest`, `PaletteTest`, `ThemeColorsTest`, `FontFilesTest`
 (generated sfnt files; the user font folders under `qcaret.userHome`),
-`AboutInfoTest`, `UiTextTest` (window titles without a mnemonic or ellipsis), `RecentLogTest` and
+`AboutInfoTest`, `UiTextTest` (window titles without a mnemonic or ellipsis),
+`PseudoBundleTest` (the `en-XA` pseudo bundle found for its locale, with the
+English keys and every value bracketed, accented and longer, its specifiers and
+mnemonic intact), `RecentLogTest` and
 `EventLoopWatchdogTest` cover the rest, and `ManualUiDispatcherTest` the
 harness dispatcher.

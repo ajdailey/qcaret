@@ -58,6 +58,18 @@ class HexRowsTest {
     assertEquals(16 + 2, huge.hexColumn(0));
   }
 
+  /** A heading longer than the digits widens the offset column and moves every cell after it. */
+  @Test
+  void theOffsetColumnFitsItsHeading() {
+    HexRows rows = new HexRows(64, 16, 12);
+    assertEquals(8, rows.offsetDigits());
+    assertEquals(12, rows.offsetColumn());
+    assertEquals(12 + 2, rows.hexColumn(0));
+    assertEquals(0, rows.hexByteAt(12 + 2));
+    assertEquals(-1, rows.hexByteAt(8 + 2));
+    assertEquals(8, new HexRows(64, 16, 6).offsetColumn());
+  }
+
   @Test
   void theLastRowIsPartial() {
     HexRows rows = new HexRows(37, 16);

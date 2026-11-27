@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -113,7 +114,7 @@ final class MarkdownSwitch {
     for (int i = 0; i < items.length; i++) {
       String keys = keymap.keysText(MODES[i]);
       String title = MODES[i].qualifiedTitle();
-      items[i].setToolTipText(keys.isEmpty() ? title : title + " (" + keys + ")");
+      items[i].setToolTipText(keys.isEmpty() ? title : UiText.TOOL_TIP_KEYS.format(title, keys));
     }
   }
 

@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.CommandStates;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.util.EnumMap;
 import java.util.Map;
 import org.eclipse.swt.SWT;
@@ -107,7 +108,10 @@ final class MainToolBar {
       String keys = keymap.keysText(command);
       entry
           .getValue()
-          .setToolTipText(keys.isEmpty() ? command.title() : command.title() + " (" + keys + ")");
+          .setToolTipText(
+              keys.isEmpty()
+                  ? command.title()
+                  : UiText.TOOL_TIP_KEYS.format(command.title(), keys));
     }
   }
 

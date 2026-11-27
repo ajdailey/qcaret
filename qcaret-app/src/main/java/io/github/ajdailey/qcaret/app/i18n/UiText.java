@@ -2118,6 +2118,10 @@ public enum UiText {
   MARKDOWN_ACTIONS,
   /** Tool tip and name of the button listing the toolbar buttons a narrow window hides. */
   TOOLBAR_MORE,
+  /** A command's tool tip with its keys: the title, the keys. */
+  TOOL_TIP_KEYS,
+  /** A command outside its menu: the cascade's title, the command's title. */
+  COMMAND_IN_CASCADE,
   /** Notice: a {@code file.md#id} target names no heading of the file; the id, the file's name. */
   MARKDOWN_NO_HEADING,
   /** Notice: a {@code file.md#id} target in a file too large to look in; name, limit, id. */

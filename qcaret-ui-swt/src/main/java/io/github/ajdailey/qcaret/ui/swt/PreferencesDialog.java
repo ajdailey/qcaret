@@ -681,8 +681,9 @@ final class PreferencesDialog {
     keys.select(index);
   }
 
+  /** Opens the dialog 640 wide, or wider where a page's labels need it. */
   void open() {
-    Dialogs.open(shell, 640, 600);
+    Dialogs.open(shell, Math.max(640, shell.computeSize(SWT.DEFAULT, SWT.DEFAULT).x), 600);
   }
 
   Shell shell() {

@@ -112,7 +112,12 @@ final class HexController implements HexInput {
                 message(UiText.HEX_READ_FAILED.format(LogText.oneLine(error.getMessage())));
               }
             });
-    this.rows = new HexRows(0, bytesPerRow);
+    this.rows = rows(0, bytesPerRow);
+  }
+
+  /** The layout, its offset column wide enough for the column's heading. */
+  private static HexRows rows(long size, int bytesPerRow) {
+    return new HexRows(size, bytesPerRow, UiText.HEX_HEADER_OFFSET.text().length());
   }
 
   /**
@@ -127,7 +132,7 @@ final class HexController implements HexInput {
     source = next;
     blocks = new HexBlocks(next);
     reads.reset(blocks);
-    rows = new HexRows(next.size(), viewport.bytesPerRow());
+    rows = rows(next.size(), viewport.bytesPerRow());
     viewport.setSize(next.size());
     cursor.setSize(next.size());
     if (view != null) {
@@ -156,7 +161,7 @@ final class HexController implements HexInput {
     }
     viewport.setBytesPerRow(bytesPerRow);
     cursor.setBytesPerRow(bytesPerRow);
-    rows = new HexRows(rows.size(), bytesPerRow);
+    rows = rows(rows.size(), bytesPerRow);
     if (view != null) {
       view.showLayout(rows);
       showScroll();

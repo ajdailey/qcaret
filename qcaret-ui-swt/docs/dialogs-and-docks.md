@@ -95,7 +95,7 @@ colors](theme-and-icons.md#dialog-colors)).
 
 Tools > Preferences (the application menu on macOS) opens `PreferencesDialog`, a
 modeless window with one tab per `PreferencesForm.Group`, over
-`PreferencesInput`. The tab folder comes from `Dialogs.tabs`: a dark
+`PreferencesInput`, 640 px wide or wider where a tab's labels need it. The tab folder comes from `Dialogs.tabs`: a dark
 `CTabFolder` after a dark win32 start, else the native `TabFolder` ([Dialog
 tabs](theme-and-icons.md#dialog-tabs)). After a dark start the selected tab
 shows its own color only while focus is in the folder.
@@ -145,7 +145,8 @@ command on the next UI turn, after the editor has its focus back. It is fitted
 to its columns as Keyboard Shortcuts is, at least 520 px wide.
 
 File > Quick Open and Window > Switch Document open `QuickOpenWindow`, the same
-kind of dialog over `QuickOpenInput`: name and path columns and a summary line,
+kind of dialog over `QuickOpenInput`, widened past 640 px where the filter's
+hint needs it: name and path columns and a summary line,
 refilled on each field change and on `quickOpenChanged`; an open document's row
 is in bold. Enter passes the row to the controller on the next UI turn; closing
 the dialog cancels a running match.
@@ -164,7 +165,7 @@ the dialog cancels a running match.
   and Enter also does on win32. The row is a wrapping `RowLayout`, so a dock too
   narrow for one row puts the rest on a second. `BrowserSideWidth` sets the
   dock's default width: a quarter of the window, widened to the row's one-row
-  width, up to half. The default follows each resize until session weights are
+  width and to the filter row with its whole hint, up to half. The default follows each resize until session weights are
   restored or a sash drag changes them (`WorkspaceSurfaceTest`). The row is
   the icons' `ToolIcons` owner; `MainWindow` re-inks it after a theme change
   and when the dock shows.

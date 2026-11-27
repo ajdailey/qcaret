@@ -593,7 +593,7 @@ public enum CommandId {
     if (title.equals(cascade) || title.startsWith(cascade + " ")) {
       return title;
     }
-    return cascade + ": " + title;
+    return UiText.COMMAND_IN_CASCADE.format(cascade, title);
   }
 
   /**

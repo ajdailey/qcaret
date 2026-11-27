@@ -547,7 +547,7 @@ public final class MainWindow implements MainView {
     center.setMaximizedControl(body);
     workspaceDock = new WorkspaceDock(side, toolBar);
     workspaceDock.control().moveAbove(center);
-    browserWidth = new BrowserSideWidth(side, workspaceDock.buttons());
+    browserWidth = new BrowserSideWidth(side, workspaceDock.buttons(), workspaceDock.bar());
     side.setMaximizedControl(center);
     if (menuBar.states().checked(CommandId.WORKSPACE_BROWSER)) {
       showWorkspace(owner.workspace(), true);

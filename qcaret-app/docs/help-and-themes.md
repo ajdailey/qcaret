@@ -62,7 +62,10 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 
 `UiText` names every string the UI shows; the English bundle
 `messages.properties` holds them, and `ArchitectureTest.everyUiTextIsUsed` in
-`qcaret-launcher` fails on a constant nothing reads. `AboutInfo` collects the version, Java, OS,
+`qcaret-launcher` fails on a constant nothing reads. Text built from parts is
+one pattern, never concatenated, so a translation can reorder the parts: a tool
+tip with keys is `TOOL_TIP_KEYS`, a command listed outside its menu
+`COMMAND_IN_CASCADE`. `AboutInfo` collects the version, Java, OS,
 toolkit and settings directory for About and Copy Details.
 
 `RecentLog` keeps the last log lines for the launcher's `RecentHandler`,

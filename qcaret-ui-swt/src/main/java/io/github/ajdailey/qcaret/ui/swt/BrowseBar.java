@@ -83,6 +83,19 @@ final class BrowseBar {
   }
 
   /** Fills the row's width without asking for the text's width, so a long path never widens it. */
+  /**
+   * Returns the width of the filter row with the filter field showing its whole hint.
+   *
+   * @return the width in pixels
+   */
+  int filterRowWidth() {
+    GridLayout layout = (GridLayout) root.getLayout();
+    return Dialogs.hintWidth(filter)
+        + layout.horizontalSpacing
+        + hidden.computeSize(SWT.DEFAULT, SWT.DEFAULT).x
+        + 2 * layout.marginWidth;
+  }
+
   private static GridData field(int span) {
     GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1);
     data.widthHint = 0;

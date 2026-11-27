@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -20,6 +21,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.Text;
 
 /**
  * Shared pieces of QCaret's dialogs. Every dialog opens without a nested event loop: {@code open}
@@ -200,6 +202,22 @@ final class Dialogs {
     Point size = shell.computeSize(width, height);
     center(shell, size.x, size.y, workArea);
     shell.open();
+  }
+
+  /**
+   * Returns the width a field needs to show its whole hint.
+   *
+   * @param field a field with a hint
+   * @return the outer width in pixels
+   */
+  static int hintWidth(Text field) {
+    GC gc = new GC(field);
+    try {
+      gc.setFont(field.getFont());
+      return field.computeTrim(0, 0, gc.textExtent(field.getMessage()).x, 0).width;
+    } finally {
+      gc.dispose();
+    }
   }
 
   /**

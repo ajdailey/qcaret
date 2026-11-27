@@ -9,13 +9,15 @@ import org.eclipse.swt.widgets.Listener;
 
 /**
  * The workspace browser's default width in the window's side {@link SashForm}: a quarter of the
- * width, widened to the browser's button row in one row, up to half the width. The default follows
- * every resize until weights are restored or a sash drag changes them; after that the sash keeps
- * its proportions and a narrower browser wraps the row. Call on the UI thread.
+ * width, widened to the browser's button row in one row and to its filter row with the whole filter
+ * hint, up to half the width. The default follows every resize until weights are restored or a sash
+ * drag changes them; after that the sash keeps its proportions and a narrower browser wraps the
+ * row. Call on the UI thread.
  */
 final class BrowserSideWidth {
   private final SashForm side;
   private final Composite buttons;
+  private final BrowseBar bar;
   private int[] applied;
 
   /**
@@ -23,10 +25,12 @@ final class BrowserSideWidth {
    *
    * @param side the sash with the browser first and the editors second
    * @param buttons the browser's button row
+   * @param bar the browser's path and filter fields
    */
-  BrowserSideWidth(SashForm side, Composite buttons) {
+  BrowserSideWidth(SashForm side, Composite buttons, BrowseBar bar) {
     this.side = side;
     this.buttons = buttons;
+    this.bar = bar;
     side.setWeights(new int[] {1, 3});
     applied = side.getWeights();
     side.addListener(
@@ -60,7 +64,7 @@ final class BrowserSideWidth {
       return;
     }
     // SashForm rounds each weight up to 1/65536 and the share down, losing up to 1 pixel.
-    int row = buttons.computeSize(SWT.DEFAULT, SWT.DEFAULT).x + 1;
+    int row = Math.max(buttons.computeSize(SWT.DEFAULT, SWT.DEFAULT).x, bar.filterRowWidth()) + 1;
     int browser = Math.min(Math.max(total / 4, row), total / 2);
     side.setWeights(new int[] {browser, total - browser});
     applied = side.getWeights();

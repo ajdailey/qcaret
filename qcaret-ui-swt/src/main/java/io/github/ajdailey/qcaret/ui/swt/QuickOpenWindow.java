@@ -160,8 +160,11 @@ final class QuickOpenWindow {
         });
   }
 
+  /** Opens the window 640 wide, or wider where the filter's hint needs it. */
   void open() {
-    Dialogs.open(shell, 640, 440);
+    shell.pack();
+    int needed = shell.getSize().x - filter.getSize().x + Dialogs.hintWidth(filter);
+    Dialogs.open(shell, Math.max(640, needed), 440);
     filter.setFocus();
   }
 

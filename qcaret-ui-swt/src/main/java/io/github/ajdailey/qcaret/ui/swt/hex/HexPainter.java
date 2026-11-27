@@ -105,7 +105,7 @@ final class HexPainter {
     int line = grid.lineHeight();
     gc.setBackground(background);
     gc.fillRectangle(0, 0, width, height);
-    int offsetEnd = grid.x(rows.offsetDigits() + 1);
+    int offsetEnd = grid.x(rows.offsetColumn() + 1);
     gc.setBackground(gutter);
     gc.fillRectangle(0, 0, offsetEnd, height);
     gc.fillRectangle(offsetEnd, 0, width - offsetEnd, line);

@@ -22,9 +22,10 @@ public final class HexRows {
   private final long size;
   private final int bytesPerRow;
   private final int offsetDigits;
+  private final int offsetColumn;
 
   /**
-   * Creates the layout.
+   * Creates the layout with an offset column as wide as its digits.
    *
    * @param size the source's byte count
    * @param bytesPerRow one of {@link #WIDTHS}
@@ -32,12 +33,26 @@ public final class HexRows {
    *     negative
    */
   public HexRows(long size, int bytesPerRow) {
+    this(size, bytesPerRow, 0);
+  }
+
+  /**
+   * Creates the layout.
+   *
+   * @param size the source's byte count
+   * @param bytesPerRow one of {@link #WIDTHS}
+   * @param minOffsetColumn the fewest cells of the offset column, such as its heading's length
+   * @throws IllegalArgumentException when the width is not one of {@link #WIDTHS} or the size is
+   *     negative
+   */
+  public HexRows(long size, int bytesPerRow, int minOffsetColumn) {
     if (size < 0) {
       throw new IllegalArgumentException("size " + size);
     }
     this.size = size;
     this.bytesPerRow = checkWidth(bytesPerRow);
     this.offsetDigits = size > FOUR_GIB ? 16 : 8;
+    this.offsetColumn = Math.max(offsetDigits, minOffsetColumn);
   }
 
   /**
@@ -133,6 +148,15 @@ public final class HexRows {
   }
 
   /**
+   * Returns the cells of the offset column: its digits, or more for a longer heading.
+   *
+   * @return the cells
+   */
+  public int offsetColumn() {
+    return offsetColumn;
+  }
+
+  /**
    * Formats an offset for the offset column.
    *
    * @param offset a byte offset
@@ -155,7 +179,7 @@ public final class HexRows {
    * @return the column
    */
   public int hexColumn(int index) {
-    return offsetDigits + 2 + index * 3 + index / GROUP;
+    return offsetColumn + 2 + index * 3 + index / GROUP;
   }
 
   /**
@@ -184,7 +208,7 @@ public final class HexRows {
    * @return the byte's index in the row, or -1 outside the hex digits
    */
   public int hexByteAt(int column) {
-    int index = column - offsetDigits - 2;
+    int index = column - offsetColumn - 2;
     if (index < 0) {
       return -1;
     }
