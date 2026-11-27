@@ -112,11 +112,22 @@ final class DateTimeInsert {
     if (editor == null || editor.document().isReadOnly()) {
       return;
     }
-    editor.insertText(DateTimeFormatter.ofPattern(pattern).format(ZonedDateTime.now(clock)));
+    documents.macroHooks().dateTimeChosen(documents, pattern);
+    insertAt(editor, pattern);
     Preferences current = settings.current();
     if (!pattern.equals(current.state().lastDateFormat())) {
       settings.set(current.withState(current.state().withLastDateFormat(pattern)));
     }
+  }
+
+  /**
+   * Inserts the current time in a format at every caret of an editor, as one undo step.
+   *
+   * @param editor the editor
+   * @param pattern a valid {@link DateTimeFormatter} pattern
+   */
+  void insertAt(EditorController editor, String pattern) {
+    editor.insertText(DateTimeFormatter.ofPattern(pattern).format(ZonedDateTime.now(clock)));
   }
 
   /**

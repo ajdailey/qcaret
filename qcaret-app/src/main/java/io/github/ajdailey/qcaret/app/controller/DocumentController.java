@@ -1139,6 +1139,7 @@ public final class DocumentController {
             }
           }
         });
+    editor.macros().setHooks(macros);
   }
 
   private TabInput tabInput(final OpenDocument d) {
@@ -1615,6 +1616,18 @@ public final class DocumentController {
   }
 
   private ViewListener viewListener;
+  private MacroHooks macros = new MacroHooks();
+
+  /** Sets the window set's macro hooks; call before the first document opens. */
+  void setMacroHooks(MacroHooks hooks) {
+    macros = hooks;
+  }
+
+  /** Returns the macro hooks the window's controllers report to. */
+  MacroHooks macroHooks() {
+    return macros;
+  }
+
   private final List<Runnable> activeListeners = new ArrayList<Runnable>();
 
   /** Sets the one listener for view changes. */
@@ -1931,6 +1944,7 @@ public final class DocumentController {
           @Override
           public void accept(int columns) {
             if (active == d) {
+              macros.tabWidthChosen(DocumentController.this, columns);
               setTabWidth(columns);
             }
           }
@@ -1983,6 +1997,7 @@ public final class DocumentController {
             if (position.length == 0) {
               view.showNotice(UiText.GO_TO_INVALID.format(input.strip()));
             } else {
+              macros.lineChosen(DocumentController.this, position[0], position[1]);
               d.editor.goTo(position[0] - 1, position[1] - 1);
             }
           }

@@ -301,7 +301,7 @@ final class SelectionCommands {
       return;
     }
     if (document.revision() != revision) {
-      editor.notice(UiText.OCCURRENCES_STALE.text());
+      editor.macros().failed(UiText.OCCURRENCES_STALE.text());
     } else if (set.equals(selections.selections())) {
       apply.apply(found);
     }

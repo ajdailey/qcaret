@@ -105,6 +105,7 @@ public final class WindowSet {
   private final TabTransfer transfer;
   private final WorkspaceDefault workspaceDefault;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
+  private final MacroHooks macros = new MacroHooks();
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
   private final List<StartupRequest> handed = new ArrayList<StartupRequest>();
@@ -508,6 +509,10 @@ public final class WindowSet {
 
   Keymap defaultKeymap() {
     return defaultKeymap;
+  }
+
+  MacroHooks macros() {
+    return macros;
   }
 
   RecoveryController recovery() {

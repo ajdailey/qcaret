@@ -57,7 +57,7 @@ final class CodecRuns {
     }
     final SelectionSet set = selections.selections();
     if (!CodecEdits.hasRange(set)) {
-      editor.notice(UiText.CODEC_NO_SELECTION.text());
+      editor.macros().failed(UiText.CODEC_NO_SELECTION.text());
       return;
     }
     final TextCodec codec = codec(command);
@@ -104,12 +104,12 @@ final class CodecRuns {
     }
     if (document.revision() != revision) {
       if (edit != null || refused != null) {
-        editor.notice(UiText.CODEC_STALE.text());
+        editor.macros().failed(UiText.CODEC_STALE.text());
       }
       return;
     }
     if (refused != null) {
-      editor.notice(refusal(refused));
+      editor.macros().failed(refusal(refused));
       return;
     }
     if (edit == null) {

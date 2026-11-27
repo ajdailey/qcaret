@@ -227,12 +227,20 @@ final class CompletionInput {
     }
   }
 
-  /**
-   * Replaces the typed prefix before every caret that ends with it, ignoring case, with a listed
-   * word, as one undo step, and closes the list.
-   */
+  /** Reports the list's word at an index to a macro recording, then inserts it. */
   private void acceptCompletion(int index) {
     String word = completionShown.get(index);
+    editor.macros().completionAccepted(word);
+    insertWord(word);
+  }
+
+  /**
+   * Closes the list and replaces the typed prefix before every caret that ends with it, ignoring
+   * case, with a word, as one undo step.
+   *
+   * @param word the word
+   */
+  void insertWord(String word) {
     String prefix = prefixAt(selections.selections().primary().caret());
     closeCompletion();
     if (document.isReadOnly()) {
@@ -262,6 +270,11 @@ final class CompletionInput {
     editor.applyEdit(
         new Edit(
             EditBatch.of(EditBatch.Kind.COMMAND, out), SelectionSet.of(after, set.primaryIndex())));
+  }
+
+  /** Closes the list. */
+  void close() {
+    closeCompletion();
   }
 
   private void closeCompletion() {

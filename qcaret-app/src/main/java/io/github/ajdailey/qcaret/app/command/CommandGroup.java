@@ -18,6 +18,8 @@ public enum CommandGroup {
   ENCODING(UiText.GROUP_ENCODING, true),
   /** Tools menu: checksums, Document Statistics and Preferences. */
   TOOLS(UiText.GROUP_TOOLS, true),
+  /** Macros menu: recording and playback. */
+  MACROS(UiText.GROUP_MACROS, false),
   /** Window menu; the menu lists the open documents after its commands. */
   WINDOW(UiText.GROUP_WINDOW, true),
   /** Help menu. */

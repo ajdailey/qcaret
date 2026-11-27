@@ -92,9 +92,9 @@ final class CaretPathRuns {
       return;
     }
     if (document.revision() != revision) {
-      editor.notice(UiText.PATH_STALE.text());
+      editor.macros().failed(UiText.PATH_STALE.text());
     } else if (result.error() != null) {
-      editor.notice(FormatRuns.errorNotice(document, language.name(), result.error()));
+      editor.macros().failed(FormatRuns.errorNotice(document, language.name(), result.error()));
     } else {
       editor.copyText(result.path());
       editor.notice(UiText.PATH_COPIED.format(result.path()));

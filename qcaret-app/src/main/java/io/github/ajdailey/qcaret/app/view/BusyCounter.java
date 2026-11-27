@@ -1,10 +1,14 @@
 package io.github.ajdailey.qcaret.app.view;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * An {@link ActivityIndicator} that counts overlapping operations on the UI thread. Calls from any
  * thread are posted through the {@link UiDispatcher}; the first active call turns the indicator on
  * and the last idle call turns it off, so one operation ending does not clear another's indicator.
- * An idle call with nothing active is ignored.
+ * An idle call with nothing active is ignored. {@link #whenIdle} runs a task once nothing is
+ * active.
  */
 public final class BusyCounter implements ActivityIndicator {
   /** Receives the indicator state on the UI thread. */
@@ -33,6 +37,7 @@ public final class BusyCounter implements ActivityIndicator {
           change(-1);
         }
       };
+  private final List<Runnable> idleTasks = new ArrayList<Runnable>();
   private int active;
 
   /**
@@ -65,6 +70,27 @@ public final class BusyCounter implements ActivityIndicator {
     return active;
   }
 
+  /**
+   * Runs a task on the UI thread once no operation is active, counting every change posted before
+   * this call: a worker command started on the UI thread just before counts as active. The task
+   * runs once.
+   *
+   * @param task the task
+   */
+  public void whenIdle(final Runnable task) {
+    ui.asyncExec(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (active == 0) {
+              task.run();
+            } else {
+              idleTasks.add(task);
+            }
+          }
+        });
+  }
+
   private void change(int delta) {
     if (delta < 0 && active == 0) {
       return;
@@ -74,6 +100,11 @@ public final class BusyCounter implements ActivityIndicator {
       indicator.busyChanged(true);
     } else if (active == 0) {
       indicator.busyChanged(false);
+      List<Runnable> idle = new ArrayList<Runnable>(idleTasks);
+      idleTasks.clear();
+      for (Runnable task : idle) {
+        task.run();
+      }
     }
   }
 }

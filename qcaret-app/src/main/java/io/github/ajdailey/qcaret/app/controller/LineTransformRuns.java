@@ -139,7 +139,7 @@ final class LineTransformRuns {
       return;
     }
     if (document.revision() != revision) {
-      editor.notice(UiText.LINES_STALE.text());
+      editor.macros().failed(UiText.LINES_STALE.text());
       return;
     }
     document.clearPreedit();

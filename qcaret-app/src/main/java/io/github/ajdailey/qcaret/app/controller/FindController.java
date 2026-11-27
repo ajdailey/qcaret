@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.SearchToggles;
 import io.github.ajdailey.qcaret.app.config.UiState;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
+import io.github.ajdailey.qcaret.app.macro.MacroStep;
 import io.github.ajdailey.qcaret.app.view.FindListener;
 import io.github.ajdailey.qcaret.app.view.FindState;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
@@ -188,6 +189,7 @@ public final class FindController implements DocumentController.ViewListener {
     compile();
     highlights.refresh();
     if (seeded && matcher != null) {
+      record(MacroStep.Direction.INCREMENTAL);
       find(true, anchor, false);
     } else {
       changed();
@@ -278,6 +280,7 @@ public final class FindController implements DocumentController.ViewListener {
     compile();
     highlights.refresh();
     if (matcher != null && open) {
+      record(MacroStep.Direction.INCREMENTAL);
       find(true, anchor, false);
     } else {
       cancelFind();
@@ -364,17 +367,39 @@ public final class FindController implements DocumentController.ViewListener {
       return;
     }
     remember(false);
+    record(forward ? MacroStep.Direction.FORWARD : MacroStep.Direction.BACKWARD);
     Selection primary = editor.selections().selections().primary();
     find(forward, forward ? primary.end() : primary.start(), true);
+  }
+
+  /** Reports a find to a macro recording, with the options it runs with. */
+  private void record(MacroStep.Direction direction) {
+    documents.macroHooks().found(documents, new MacroStep.Find(text, direction, options()));
+  }
+
+  private MacroStep.Options options() {
+    SearchToggles toggles = toggles();
+    return new MacroStep.Options(toggles.caseSensitive(), toggles.wholeWord(), toggles.regex());
+  }
+
+  /** Reports whether a macro run holds an editor's document; the bar's commands do nothing. */
+  private boolean held(EditorController editor) {
+    return documents.macroHooks().held(editor.document());
   }
 
   /** Replaces the selection when it is a match, then selects the next match. */
   public void replace() {
     final EditorController editor = documents.activeEditor();
-    final ReplaceTemplate template = template();
-    if (editor == null || template == null || editor.document().isReadOnly()) {
+    if (editor == null || held(editor)) {
       return;
     }
+    final ReplaceTemplate template = template();
+    if (template == null || editor.document().isReadOnly()) {
+      return;
+    }
+    documents
+        .macroHooks()
+        .replaced(documents, new MacroStep.Replace(text, replacement, options(), false));
     remember(true);
     final Selection primary = editor.selections().selections().primary();
     final Document document = editor.document();
@@ -421,10 +446,16 @@ public final class FindController implements DocumentController.ViewListener {
    */
   public void replaceAll() {
     EditorController editor = documents.activeEditor();
-    ReplaceTemplate template = template();
-    if (editor == null || template == null || editor.document().isReadOnly()) {
+    if (editor == null || held(editor)) {
       return;
     }
+    ReplaceTemplate template = template();
+    if (template == null || editor.document().isReadOnly()) {
+      return;
+    }
+    documents
+        .macroHooks()
+        .replaced(documents, new MacroStep.Replace(text, replacement, options(), true));
     remember(true);
     cancelFind();
     replaceAll.start(editor, matcher, template);
@@ -483,7 +514,7 @@ public final class FindController implements DocumentController.ViewListener {
    */
   private void find(final boolean forward, final int from, final boolean move) {
     final EditorController editor = documents.activeEditor();
-    if (editor == null || matcher == null) {
+    if (editor == null || matcher == null || held(editor)) {
       return;
     }
     final Document document = editor.document();

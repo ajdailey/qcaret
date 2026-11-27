@@ -162,6 +162,7 @@ public final class ApplicationController {
     MemoryBudget budget = set.budget();
     Preferences preferences = settings.current();
     this.documents = new DocumentController(workers, ui, view, budget, LoadOptions.DEFAULTS);
+    documents.setMacroHooks(set.macros());
     this.dropped =
         new DroppedFiles(
             workers,
@@ -550,6 +551,11 @@ public final class ApplicationController {
     return tips;
   }
 
+  /** Returns Insert Date and Time, which a macro's date-time step inserts through. */
+  DateTimeInsert dateTime() {
+    return dateTime;
+  }
+
   /** Returns Go Back and Go Forward's positions; for {@link CommandStates}. */
   NavigationHistory history() {
     return history;
@@ -787,17 +793,29 @@ public final class ApplicationController {
   }
 
   /**
-   * Runs a command.
+   * Runs a command. While a macro runs in the window, only view and help commands run, and {@link
+   * CommandId#CANCEL} stops the run. A command the focused hex pane takes is not recorded.
    *
    * @param command the command
    */
   public void execute(CommandId command) {
-    if (quitting) {
+    MacroHooks macros = set.macros();
+    if (quitting || macros.drops(this, command)) {
       return;
     }
-    if (hex.runFocused(command)) {
+    if (!macros.stepping(this) && hex.runFocused(command)) {
+      macros.notRecorded(this, command);
       return;
     }
+    macros.commandStarting(this, command);
+    try {
+      run(command);
+    } finally {
+      macros.commandEnded(this);
+    }
+  }
+
+  private void run(CommandId command) {
     switch (command) {
       case NEW -> documents.newDocument();
       case OPEN -> documents.open();
@@ -1023,6 +1041,8 @@ public final class ApplicationController {
       case REPORT_ISSUE -> help.reportIssue();
       case CHECK_FOR_UPDATES -> help.openReleasesPage();
       case ABOUT -> help.showAbout();
+      case RECORD_MACRO -> set.macros().toggleRecording(this);
+      case PLAY_RECORDED_MACRO -> set.macros().playRecorded(this);
     }
   }
 
@@ -1353,6 +1373,7 @@ public final class ApplicationController {
 
   /** Stops the window's controllers and closes its documents without asking. */
   void stop() {
+    set.macros().windowStopped(this);
     quitting = true;
     settings.removeListener(settingsListener);
     theme.removeListener(markdownPalette);

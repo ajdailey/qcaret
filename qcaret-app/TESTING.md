@@ -154,6 +154,16 @@ after the change.
 | `BookmarkListTest` | Edit Bookmark Comment (cleaned text, an empty answer, a cancel, a refusal, the prompt's line followed through an edit); the list following an insert, undo, a tab change and close; Go To into a collapsed region; Edit Comment and Remove from the list; the row limit, text cut and a budget refusal |
 | `OverviewTest`, `OverviewMarksTest` | Find, HyperSearch, bookmark and format error marks recomputed after an edit, a hidden strip computing nothing; the line and row mapping |
 
+### Macros
+
+| Class | Covers |
+|---|---|
+| `MacroPlaybackTest` | Every step kind recorded through the real entry points (editor keys, window commands, the find bar, the Go to Line, Tab Width, Number Sequence and completion answers, an input method commit, a block) replaying to the same text and selections on a copy, and again after a write and parse of the text format; worker steps (Select All Occurrences, Add Next Occurrence, an encode, a sort) applying before the next step; one Undo after a completed, failed and canceled run restoring the text and selections; a disabled command, a find with no match and a decode refusal failing their step with the notice; the input hold over both views of a split, the window's commands and the find bar; a closed or unselected tab and a window stop ending the run and its group; counted runs, runs to the end ending at a find with no match, without progress after one iteration, and across a 1.2 MB document; a recording with Undo replaying without the group; disabled, `NOTICE` and mouse actions left out with notices; refusals while recording, on a read-only document and without a recorded macro |
+| `MacroRandomTest` | Live equals replay over 36 seeded runs of 40 actions: editor-key and window commands, typed brackets, quotes and surrogate pairs with auto-close and smart indent, starting from one caret, three selections or a block, worker commands, Cut, Copy and Paste with the clipboard reset for the replay, Find Next without a wrap, and Undo and Redo in 12 runs, replayed after a write and parse of the text format |
+| `MacroFormatTest` | Every step kind round-tripping with control chars, CR, LF, tabs, quotes and surrogate pairs, LF and CRLF; comments, blank lines and a byte order mark; each malformed line refusing the text with its line number; the header and one step required; a lone surrogate not written; 200 generated step lists round-tripping |
+| `MacroStoreTest` | Write and list round trip ordered ignoring case, a replace leaving no temporary file, unreadable files (bad text, not UTF-8, over 1 MiB, a bad name, a second name equal ignoring case where the file system keeps both) listed with a reason, names refused on write, rename and delete, every file under the settings folder, the asynchronous operations reporting on the UI executor |
+| `MacroNamesTest`, `MacroRecorderTest`, `RecordabilityTest` | Name length, chars, outer spaces, device names and case clashes; typed runs merging, incremental finds collapsing, `NOTICE` commands and mouse actions noticed; each command group's class against the recording table |
+
 ### Display projection and folding
 
 | Class | Covers |

@@ -2121,7 +2121,53 @@ public enum UiText {
   /** Notice: a {@code file.md#id} target in a file too large to look in; name, limit, id. */
   MARKDOWN_HEADING_TOO_LARGE,
   /** Basic preview: the line shown in place of a table too wide for the pane. */
-  MARKDOWN_TABLE_TOO_WIDE;
+  MARKDOWN_TABLE_TOO_WIDE,
+  /** Macros menu. */
+  GROUP_MACROS,
+  /** Command label. */
+  COMMAND_RECORD_MACRO,
+  /** Command label. */
+  COMMAND_PLAY_RECORDED_MACRO,
+  /** Notice: a recording started. */
+  MACRO_RECORDING,
+  /** Notice: a recording stopped; its step count. */
+  MACRO_RECORDED,
+  /** A count of one macro step. */
+  COUNT_STEP,
+  /** A count of macro steps. */
+  COUNT_STEPS,
+  /** Notice: a command a recording leaves out; its title. */
+  MACRO_NOT_RECORDED,
+  /** Notice: a mouse action a recording leaves out. */
+  MACRO_NOT_RECORDED_MOUSE,
+  /** Notice: Play Recorded Macro without one. */
+  MACRO_NONE,
+  /** Notice: a macro without steps. */
+  MACRO_EMPTY,
+  /** Notice: a macro refused on a read-only document. */
+  MACRO_READ_ONLY,
+  /** Notice: a macro refused while another records or runs. */
+  MACRO_BUSY,
+  /** Notice: a finished run; its iteration count. */
+  MACRO_RAN,
+  /** A count of one macro iteration. */
+  COUNT_TIME,
+  /** A count of macro iterations. */
+  COUNT_TIMES,
+  /** Notice: a counted run stopped; iteration, count, step, reason. */
+  MACRO_STOPPED,
+  /** Notice: a run to the end stopped; iteration, step, reason. */
+  MACRO_STOPPED_TO_END,
+  /** Stop reason: the step's command is disabled; its title. */
+  MACRO_DISABLED,
+  /** Stop reason: a find step found no match. */
+  MACRO_NO_MATCH,
+  /** Stop reason: a replace step found no next match. */
+  MACRO_NO_NEXT_MATCH,
+  /** Stop reason: Esc. */
+  MACRO_CANCELED,
+  /** Stop reason: the run's tab closed or another tab was selected. */
+  MACRO_TAB_CHANGED;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

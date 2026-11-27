@@ -9,7 +9,6 @@ import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.PatternIndentRules;
 import io.github.ajdailey.qcaret.app.editor.SmartIndent;
 import io.github.ajdailey.qcaret.app.editor.TokenBracketFilter;
-import io.github.ajdailey.qcaret.app.view.ActivityIndicator;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
@@ -212,7 +211,9 @@ public final class EditorController implements EditorInput {
   void commitComposition() {
     int[] range = document.preeditRange();
     if (range != null && !disposed && !document.isReadOnly()) {
-      type(document.text().subSequence(range[0], range[0] + range[1]).toString());
+      String text = document.text().subSequence(range[0], range[0] + range[1]).toString();
+      macros.viewReplaced(text, true);
+      typeText(text);
     }
   }
 
@@ -395,12 +396,19 @@ public final class EditorController implements EditorInput {
 
   @Override
   public boolean execute(CommandId command) {
+    if (macros.held()) {
+      if (command == CommandId.CANCEL) {
+        macros.cancelRun();
+      }
+      return true;
+    }
     if (!document.isReadOnly()) {
       document.clearPreedit();
     }
-    if (completions.key(command)) {
+    if (!macros.playing() && completions.key(command)) {
       return true;
     }
+    macros.command(command);
     switch (command) {
       case UNDO -> undo();
       case REDO -> redo();
@@ -609,7 +617,7 @@ public final class EditorController implements EditorInput {
   }
 
   /** Returns the counter behind the view's busy cursor for this editor's worker commands. */
-  ActivityIndicator busyCursor() {
+  BusyCounter busyCursor() {
     return busy;
   }
 
@@ -685,6 +693,14 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void type(String typed) {
+    if (disposed || document.isReadOnly() || macros.held()) {
+      return;
+    }
+    macros.typed(typed);
+    typeText(typed);
+  }
+
+  private void typeText(String typed) {
     if (disposed || document.isReadOnly()) {
       return;
     }
@@ -721,7 +737,9 @@ public final class EditorController implements EditorInput {
     } else {
       replaceSelections(text, EditBatch.Kind.TYPING);
     }
-    completions.typed(text);
+    if (!macros.playing()) {
+      completions.typed(text);
+    }
   }
 
   /**
@@ -895,11 +913,7 @@ public final class EditorController implements EditorInput {
   @Override
   public void cancel() {
     cancelSave.run();
-    lineRuns.cancel();
-    codecRuns.cancel();
-    formatRuns.cancel();
-    pathRuns.cancel();
-    selectionCommands.cancel();
+    cancelWork();
     SelectionSet set = selections.selections();
     if (set.size() > 1 || selections.block() != null) {
       selections.set(SelectionSet.of(List.of(set.primary()), 0));
@@ -919,9 +933,10 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void replaceFromView(int start, int end, String text) {
-    if (document.isReadOnly()) {
+    if (document.isReadOnly() || macros.held()) {
       return;
     }
+    macros.viewReplaced(text, document.preeditRange() != null);
     document.clearPreedit();
     int from = projection.toModel(start);
     int to = Math.max(from, projection.toModel(end));
@@ -932,15 +947,22 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void selectFromView(int anchor, int caret) {
+    if (macros.held()) {
+      return;
+    }
     Selection selection = Selection.of(projection.toModel(anchor), projection.toModel(caret));
     SelectionSet set = SelectionSet.of(List.of(selection), 0);
     if (!set.equals(selections.selections()) || selections.block() != null) {
+      macros.mouse();
       selections.set(set);
     }
   }
 
   @Override
   public void selectWordFromView(int offset, boolean onChar) {
+    if (!macros.mouse()) {
+      return;
+    }
     TextSnapshot text = document.text();
     int at = projection.toModel(offset);
     if (onChar && (at >= text.length() || !Words.isWordAt(text, at))) {
@@ -970,7 +992,8 @@ public final class EditorController implements EditorInput {
       list.add(Selection.of(projection.toModel(ranges[i]), projection.toModel(ranges[i + 1])));
     }
     SelectionSet set = SelectionSet.of(list, primary);
-    if (!set.equals(selections.selections())) {
+    if (!macros.held() && !set.equals(selections.selections())) {
+      macros.mouse();
       selections.set(set);
     }
   }
@@ -980,7 +1003,7 @@ public final class EditorController implements EditorInput {
   @Override
   public void blockFromView(int anchorX, int anchorY, int x, int y) {
     ViewLayout layout = layout();
-    if (layout == null) {
+    if (layout == null || !macros.mouse()) {
       return;
     }
     int anchorRow = layout.rowAt(anchorY);
@@ -996,7 +1019,7 @@ public final class EditorController implements EditorInput {
   @Override
   public void extendBlockFromView(int x, int y) {
     ViewLayout layout = layout();
-    if (layout == null) {
+    if (layout == null || !macros.mouse()) {
       return;
     }
     BlockSelection block = selections.block();
@@ -1017,6 +1040,9 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void toggleCaretFromView(int offset) {
+    if (!macros.mouse()) {
+      return;
+    }
     int at = projection.toModel(offset);
     SelectionSet set = selections.selections();
     beforeToggle = set;
@@ -1037,7 +1063,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void addSelectionFromView(int anchor, int caret) {
-    if (beforeToggle == null) {
+    if (beforeToggle == null || !macros.mouse()) {
       return;
     }
     List<Selection> list = new ArrayList<Selection>(beforeToggle.selections());
@@ -1050,7 +1076,7 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void preeditFromView(String text) {
-    if (!disposed && !document.isReadOnly()) {
+    if (!disposed && !document.isReadOnly() && !macros.held()) {
       document.preedit(selections.selections().primary().start(), text);
     }
   }
@@ -1183,7 +1209,9 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void toggleFoldFromView(int row) {
-    folds.toggleFromView(row);
+    if (macros.mouse()) {
+      folds.toggleFromView(row);
+    }
   }
 
   // Selections.
@@ -1289,7 +1317,7 @@ public final class EditorController implements EditorInput {
     }
     BlockSelection block = selections.block();
     if (block != null) {
-      type(document.insertSpaces() ? " ".repeat(document.tabWidth()) : "\t");
+      typeText(document.insertSpaces() ? " ".repeat(document.tabWidth()) : "\t");
       return;
     }
     applyEdit(
@@ -1533,7 +1561,9 @@ public final class EditorController implements EditorInput {
 
   @Override
   public void completionChosen(int index) {
-    completions.chosen(index);
+    if (!macros.held()) {
+      completions.chosen(index);
+    }
   }
 
   /**
@@ -1849,6 +1879,29 @@ public final class EditorController implements EditorInput {
       selections.set(SelectionSet.of(out, set.primaryIndex()));
       showCaret();
     }
+  }
+
+  // Macros.
+
+  private final EditorMacros macros = new EditorMacros(this);
+
+  /** Returns the editor's macro hooks. */
+  EditorMacros macros() {
+    return macros;
+  }
+
+  /** Returns the word completion input. */
+  CompletionInput completions() {
+    return completions;
+  }
+
+  /** Cancels the worker commands; their results never apply. */
+  void cancelWork() {
+    lineRuns.cancel();
+    codecRuns.cancel();
+    formatRuns.cancel();
+    pathRuns.cancel();
+    selectionCommands.cancel();
   }
 
   /** Rewrites every CR LF, CR and LF in {@code text} as {@code ending}. */

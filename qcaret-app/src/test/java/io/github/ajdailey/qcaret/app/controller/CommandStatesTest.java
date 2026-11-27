@@ -260,6 +260,8 @@ class CommandStatesTest {
           "CLOSE_LEFT -- -- -e",
           "CLOSE_RIGHT -- -- --",
           "EXPORT_HTML -- -- --",
+          "RECORD_MACRO -- -e -e",
+          "PLAY_RECORDED_MACRO -- -- --",
           "reopen - e -",
           "saveEncoding - e -");
 

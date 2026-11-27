@@ -517,7 +517,11 @@ public enum CommandId {
   /** Close the tabs right of the selected one, asking about each unsaved one. */
   CLOSE_RIGHT(CommandGroup.FILE, UiText.TAB_CLOSE_RIGHT, false, UiText.MENU_CLOSE_MULTIPLE),
   /** Write the selected Markdown tab as one HTML page that opens offline. */
-  EXPORT_HTML(CommandGroup.FILE, UiText.COMMAND_EXPORT_HTML, false, null);
+  EXPORT_HTML(CommandGroup.FILE, UiText.COMMAND_EXPORT_HTML, false, null),
+  /** Start recording the window's editing as the recorded macro, or stop the recording. */
+  RECORD_MACRO(CommandGroup.MACROS, UiText.COMMAND_RECORD_MACRO, true, null),
+  /** Play the recorded macro once in the selected editor. */
+  PLAY_RECORDED_MACRO(CommandGroup.MACROS, UiText.COMMAND_PLAY_RECORDED_MACRO, false, null);
 
   private final CommandGroup group;
   private final UiText label;

@@ -136,7 +136,7 @@ final class FormatRuns {
       return;
     }
     if (document.revision() != revision) {
-      editor.notice(UiText.FORMAT_STALE.text());
+      editor.macros().failed(UiText.FORMAT_STALE.text());
       return;
     }
     String name = language.name();
@@ -166,7 +166,7 @@ final class FormatRuns {
   }
 
   private void showError(String name, FormatError error) {
-    editor.notice(errorNotice(document, name, error));
+    editor.macros().failed(errorNotice(document, name, error));
     mark.set(error.offset());
     selections.set(SelectionSet.caret(error.offset()));
     editor.showCaret();

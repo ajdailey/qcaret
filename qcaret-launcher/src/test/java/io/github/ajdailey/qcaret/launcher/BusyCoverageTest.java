@@ -168,6 +168,12 @@ class BusyCoverageTest {
         "controller.PrintController#showProgress",
         "showPrintProgress");
     row("controller.StatisticsController#refresh", Shows.OWN_PROGRESS, null, "showProgress");
+    // A macro run's find steps; the run reports through its listener once per UI turn.
+    row(
+        "controller.MacroFind#search",
+        Shows.OWN_PROGRESS,
+        "controller.MacroPlayer#progress",
+        "progress");
     String results = "controller.ResultsDockModel#set";
     row("search.FileRerun#searchDocument", Shows.OWN_PROGRESS, results, "SEARCH_RERUNNING");
     row("search.FileRerun#searchFile", Shows.OWN_PROGRESS, results, "SEARCH_RERUNNING");
@@ -188,7 +194,10 @@ class BusyCoverageTest {
       "controller.Settings#refresh",
       "controller.TextChecksum#textChanged",
       "controller.WindowSet#loadChoices",
-      "controller.WordCompletion#request"
+      "controller.WordCompletion#request",
+      // The macro folder: files of at most MacroStore.MAX_BYTES, and one file per change.
+      "macro.MacroStore#list",
+      "macro.MacroStore#run"
     };
     for (String site : quick) {
       row(site, Shows.QUICK, null, null);

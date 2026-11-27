@@ -255,6 +255,7 @@ public final class CommandStates {
           application.markdown().checked(command);
       case MARKDOWN_OUTLINE -> application.outline().shown();
       case HEX_TEXT, HEX_SPLIT, HEX_HEX -> application.hex().checked(command);
+      case RECORD_MACRO -> application.windowSet().macros().recording(application);
       default -> false;
     };
   }
@@ -289,6 +290,9 @@ public final class CommandStates {
         case PREVIEW_BASIC, PREVIEW_BROWSER -> application.markdown().enabled(command);
         default -> true;
       };
+    }
+    if (command.group() == CommandGroup.MACROS) {
+      return application.windowSet().macros().enabled(application, command);
     }
     DocumentController documents = application.documents();
     Document document = documents.activeDocument();

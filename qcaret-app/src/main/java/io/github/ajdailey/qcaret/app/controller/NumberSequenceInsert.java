@@ -98,6 +98,7 @@ final class NumberSequenceInsert {
     if (editor == null) {
       return;
     }
+    documents.macroHooks().sequenceChosen(documents, sequence);
     try {
       insertInto(editor, sequence);
     } catch (ArithmeticException e) {
@@ -113,7 +114,7 @@ final class NumberSequenceInsert {
    * @param sequence the numbers
    * @throws ArithmeticException when a number lies outside {@code long}; nothing changes
    */
-  private static void insertInto(EditorController editor, NumberSequence sequence) {
+  static void insertInto(EditorController editor, NumberSequence sequence) {
     Document document = editor.document();
     if (document.isReadOnly()) {
       return;
