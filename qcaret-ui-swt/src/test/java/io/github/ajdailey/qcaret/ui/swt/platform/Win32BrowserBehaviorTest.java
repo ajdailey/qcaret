@@ -1,12 +1,14 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.SWTError;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -63,7 +65,12 @@ class Win32BrowserBehaviorTest {
     Display display = new Display();
     try {
       Shell shell = new Shell(display);
-      Browser browser = new Browser(shell, SWT.NONE);
+      Browser browser;
+      try {
+        browser = new Browser(shell, SWT.NONE);
+      } catch (SWTError e) {
+        browser = abort("no Browser: " + e.getMessage());
+      }
       final List<Runnable> posted = new ArrayList<Runnable>();
       new Win32BrowserBehavior().menuMnemonics(browser, new Posts(posted));
       Event plain = key('f', SWT.ALT | SWT.SHIFT);

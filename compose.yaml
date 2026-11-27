@@ -2,7 +2,7 @@
 # and scripts/container.bat wrap it.
 #
 #   docker compose build                  # the build image
-#   docker compose run --rm build         # archives, installers and packages into dist/
+#   docker compose run --rm build         # archives, installers, packages and SBOM into dist/
 #   docker compose run --rm build ./mvnw -B spotless:check
 
 name: qcaret
@@ -28,12 +28,11 @@ services:
       # The archives go through this mount; the build never deletes dist/.
       - ${QCARET_OUT:-./dist}:/work/dist
       - maven:/opt/qcaret/.m2
+      - tools:/opt/qcaret/.cache/qcaret-build
     environment:
       MAVEN_USER_HOME: /opt/qcaret/.m2
-      # The JDK and rcodesign cache lives in the volume as well.
-      MAVEN_OPTS: >-
-        -Dmaven.repo.local=/opt/qcaret/.m2/repository -Duser.home=/opt/qcaret
-        -Dqcaret.cache.dir=/opt/qcaret/.m2/qcaret-build
+      # user.home places dist.xml's download cache in the tools volume.
+      MAVEN_OPTS: -Dmaven.repo.local=/opt/qcaret/.m2/repository -Duser.home=/opt/qcaret
       # The bind-mounted tree belongs to a uid git does not recognize; without
       # this, git refuses the repository and Spotless loses .gitattributes.
       GIT_CONFIG_COUNT: "1"
@@ -44,3 +43,5 @@ services:
 volumes:
   maven:
     name: qcaret-maven-repo
+  tools:
+    name: qcaret-build-tools

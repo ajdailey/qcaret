@@ -50,7 +50,7 @@ jobs:
             ~/.m2/wrapper
           key: maven-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml', '.mvn/wrapper/maven-wrapper.properties') }}
           restore-keys: maven-${{ runner.os }}-${{ runner.arch }}-
-      - name: Xvfb and GTK 3
+      - name: Xvfb, GTK 3 and X11 utilities
         if: runner.os == 'Linux'
         run: .github/scripts/linux-display-deps.sh
       # The WebKitGTK SWT's Browser loads on GTK 3, so the Browser preview tests run.
@@ -107,7 +107,7 @@ jobs:
             ~/.m2/wrapper
           key: maven-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml', '.mvn/wrapper/maven-wrapper.properties') }}
           restore-keys: maven-${{ runner.os }}-${{ runner.arch }}-
-      - name: Xvfb and GTK 3
+      - name: Xvfb, GTK 3 and X11 utilities
         run: .github/scripts/linux-display-deps.sh
       - name: GTK 4
         run: |
@@ -140,7 +140,7 @@ jobs:
             ~/.m2/wrapper
           key: maven-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml', '.mvn/wrapper/maven-wrapper.properties') }}
           restore-keys: maven-${{ runner.os }}-${{ runner.arch }}-
-      - name: Xvfb and GTK 3
+      - name: Xvfb, GTK 3 and X11 utilities
         run: .github/scripts/linux-display-deps.sh
       - name: IBus
         run: |
@@ -257,7 +257,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ matrix.jdk || '21.0.13.1+2' }}
-      - name: Xvfb and GTK 3
+      - name: Xvfb, GTK 3 and X11 utilities
         if: runner.os == 'Linux'
         run: .github/scripts/linux-display-deps.sh
       - name: Run the bundle (Linux, macOS)

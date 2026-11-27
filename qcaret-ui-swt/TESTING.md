@@ -85,8 +85,9 @@ test case.
 The Browser preview tests that need a real browser skip through
 `BrowserHosts.assumeBrowser`: it creates a browser with the product's factory
 and skips with `BrowserPreview.unavailable`'s reason when that fails, as on a
-Linux host without WebKitGTK 4.1. The Linux CI test jobs install
-`libwebkit2gtk-4.1-0`, so these tests run there.
+Linux host without WebKitGTK 4.1. `Win32BrowserBehaviorTest` skips the same
+way when `new Browser` throws. The Linux CI test jobs and the build image
+install `libwebkit2gtk-4.1-0`, so these tests run there.
 
 ## Coverage
 

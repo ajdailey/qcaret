@@ -240,6 +240,7 @@ class BrowserPreviewSurfaceTest {
   @Test
   void aBrowserThatFailsToCreateLeavesBasicWithTheReason() throws Exception {
     assumeTrue(!RunningPlatform.GTK4, "no Browser under GTK 4");
+    BrowserHosts.assumeBrowser(window.shell());
     window.setPreviewBrowserFactory(
         new GuideWindow.BrowserFactory() {
           @Override

@@ -16,7 +16,8 @@ usage() {
   cat <<'USAGE'
 usage: container.sh [--rebuild] [--out DIR] [command]
 
-  (no command)   clean package -Pall-targets: archives, installers, packages into dist/
+  (no command)   clean package -Pall-targets,sbom: archives, installers, packages
+                 and the SBOM into dist/
   build          same as no command
   check          xvfb-run ./mvnw clean verify at 1280x1024: every test, SWT included
   clean          ./mvnw clean, and empty dist/

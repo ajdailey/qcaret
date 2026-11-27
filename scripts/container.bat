@@ -2,7 +2,7 @@
 rem Runs the containerized build from cmd, PowerShell or a double-click.
 rem compose.yaml holds the configuration; WSL uses scripts/container.sh.
 rem
-rem   container.bat                 archives, installers, packages into dist\
+rem   container.bat                 archives, installers, packages, SBOM into dist\
 rem   container.bat --out D:\rel    write the archives to D:\rel
 rem   container.bat check           every test, SWT included, under Xvfb
 rem   container.bat clean           mvnw clean, and empty dist\

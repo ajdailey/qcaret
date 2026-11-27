@@ -262,9 +262,12 @@ natives.macos-aarch64=${natives.macos-aarch64}
     <attribute name="output"/>
     <sequential>
       <delete dir="@{output}"/>
-      <!-- jlink writes a different lib/modules under a non-UTF-8 locale. -->
+      <!-- jlink writes a different lib/modules under a non-UTF-8 locale, and
+           under a different CDS archive: whether the classes it generates
+           carry SourceFile follows the build JDK's classes.jsa. -->
       <exec executable="${java.home}/bin/jlink" failonerror="true">
         <env key="LC_ALL" value="C.UTF-8"/>
+        <arg value="-J-Xshare:off"/>
         <arg value="--module-path"/>
         <arg file="@{jmods}"/>
         <arg value="--add-modules"/>
