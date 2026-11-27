@@ -11,19 +11,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import javax.imageio.ImageIO;
 
 /**
  * Renders the installer and package images from the application icon SVG: {@code
  * hicolor/<n>x<n>/apps/qcaret.png} at each freedesktop size, and the NSIS bitmaps {@code
- * nsis/welcome.bmp} (164 x 314, the welcome and finish pages) and {@code nsis/header.bmp} (150 x 57,
- * the page header). Run at build time with the source launcher: {@code java -cp jsvg.jar
- * InstallerArt.java <qcaret.svg> <out dir>}. The images hold no text, so the output does not depend on
- * the host's fonts.
+ * nsis/welcome-<scale>.bmp} (164 x 314 at 100%, the welcome and finish pages) and {@code
+ * nsis/header-<scale>.bmp} (150 x 57 at 100%, the page header) at each Windows display scale in
+ * percent, plus {@code nsis/art.nsh}, which defines the scales, the 100% sizes and the backgrounds
+ * for setup. A size at scale s is {@code (size * s + 50) / 100}, the rounding setup uses. Run at
+ * build time with the source launcher: {@code java -cp jsvg.jar InstallerArt.java <qcaret.svg> <out
+ * dir>}. The images hold no text, so the output does not depend on the host's fonts.
  */
 public final class InstallerArt {
   private static final int[] HICOLOR_SIZES = {16, 22, 24, 32, 48, 64, 128, 256, 512};
+  private static final int[] SCALES = {100, 125, 150, 175, 200, 250, 300};
+  private static final int WELCOME_WIDTH = 164;
+  private static final int WELCOME_HEIGHT = 314;
+  private static final int HEADER_WIDTH = 150;
+  private static final int HEADER_HEIGHT = 57;
   private static final Color WELCOME_BACKGROUND = new Color(0x0e, 0x1a, 0x27);
+  private static final Color HEADER_BACKGROUND = Color.WHITE;
 
   private InstallerArt() {}
 
@@ -48,17 +57,55 @@ public final class InstallerArt {
     }
     Path nsis = out.resolve("nsis");
     Files.createDirectories(nsis);
-    BufferedImage welcome = new BufferedImage(164, 314, BufferedImage.TYPE_INT_RGB);
-    draw(icon, welcome, WELCOME_BACKGROUND, 18, 40, 128);
-    write(welcome, "bmp", nsis.resolve("welcome.bmp"));
-    BufferedImage header = new BufferedImage(150, 57, BufferedImage.TYPE_INT_RGB);
-    draw(icon, header, Color.WHITE, 96, 4, 49);
-    write(header, "bmp", nsis.resolve("header.bmp"));
+    StringBuilder nsh = new StringBuilder();
+    nsh.append("!define ART_WELCOME_WIDTH ").append(WELCOME_WIDTH).append('\n');
+    nsh.append("!define ART_WELCOME_BACKGROUND ").append(hex(WELCOME_BACKGROUND)).append('\n');
+    nsh.append("!define ART_HEADER_WIDTH ").append(HEADER_WIDTH).append('\n');
+    nsh.append("!define ART_HEADER_BACKGROUND ").append(hex(HEADER_BACKGROUND)).append('\n');
+    nsh.append("!macro ART_FOR_EACH_SCALE m arg\n");
+    for (int scale : SCALES) {
+      BufferedImage welcome =
+          new BufferedImage(
+              scaled(WELCOME_WIDTH, scale),
+              scaled(WELCOME_HEIGHT, scale),
+              BufferedImage.TYPE_INT_RGB);
+      draw(icon, welcome, WELCOME_BACKGROUND, 18, 40, 128, scale);
+      write(welcome, "bmp", nsis.resolve("welcome-" + scale + ".bmp"));
+      BufferedImage header =
+          new BufferedImage(
+              scaled(HEADER_WIDTH, scale), scaled(HEADER_HEIGHT, scale), BufferedImage.TYPE_INT_RGB);
+      draw(icon, header, HEADER_BACKGROUND, 96, 4, 49, scale);
+      write(header, "bmp", nsis.resolve("header-" + scale + ".bmp"));
+      nsh.append("  !insertmacro ${m} ${arg} ").append(scale).append('\n');
+    }
+    nsh.append("!macroend\n");
+    Files.writeString(nsis.resolve("art.nsh"), nsh.toString());
+  }
+
+  private static int scaled(int size, int scale) {
+    return (size * scale + 50) / 100;
+  }
+
+  private static String hex(Color color) {
+    return String.format(Locale.ROOT, "%06X", color.getRGB() & 0xffffff);
+  }
+
+  /** Draws the icon placed at x, y with the given size at 100%, scaled to {@code scale} percent. */
+  private static void draw(
+      SVGDocument icon,
+      BufferedImage image,
+      Color background,
+      int x,
+      int y,
+      int size,
+      int scale) {
+    float factor = scale / 100f;
+    draw(icon, image, background, x * factor, y * factor, size * factor);
   }
 
   /** Fills {@code image} with {@code background} unless null, then draws the icon at x, y. */
   private static void draw(
-      SVGDocument icon, BufferedImage image, Color background, int x, int y, int size) {
+      SVGDocument icon, BufferedImage image, Color background, float x, float y, float size) {
     Graphics2D g = image.createGraphics();
     try {
       g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

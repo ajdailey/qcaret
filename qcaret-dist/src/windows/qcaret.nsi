@@ -2,7 +2,8 @@
 ;   VERSION     the version text (0.2.0-rc1)
 ;   VI_VERSION  four numbers for the file properties (0.2.0.0)
 ;   FILES       the include NsisFiles.java writes for the bundle tree
-;   ART, ICON, LICENSE, OUTFILE
+;   ART         the folder InstallerArt.java writes the bitmaps and art.nsh to
+;   ICON, LICENSE, OUTFILE
 ;   PORTABLE    the portable.txt marker the portable choice writes
 ; Optional SIGN_INSTALLER and SIGN_UNINSTALLER name a command makensis runs
 ; on the build host with the file as its argument.
@@ -41,6 +42,7 @@ SetCompressor /SOLID lzma
 !include nsDialogs.nsh
 !include Sections.nsh
 !include "${FILES}"
+!include "${ART}/art.nsh"
 
 ; The Installed apps keys: HKLM QCaret for all users, HKCU QCaret.User for the
 ; current user. Windows merges two entries with the same key name, DisplayName
@@ -114,12 +116,16 @@ VIAddVersionKey "OriginalFilename" "qcaret-setup.exe"
 
 !define MUI_ICON "${ICON}"
 !define MUI_UNICON "${ICON}"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "${ART}/welcome.bmp"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${ART}/welcome.bmp"
+; MUI loads the 100% bitmaps; HeaderArtGuiInit and the welcome and finish show
+; functions replace them with the display scale's.
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${ART}/welcome-100.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${ART}/welcome-100.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
-!define MUI_HEADERIMAGE_BITMAP "${ART}/header.bmp"
-!define MUI_HEADERIMAGE_UNBITMAP "${ART}/header.bmp"
+!define MUI_HEADERIMAGE_BITMAP "${ART}/header-100.bmp"
+!define MUI_HEADERIMAGE_UNBITMAP "${ART}/header-100.bmp"
+!define MUI_CUSTOMFUNCTION_GUIINIT HeaderArtGuiInit
+!define MUI_CUSTOMFUNCTION_UNGUIINIT un.HeaderArtGuiInit
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
@@ -148,6 +154,7 @@ Var Elevated ; 1 in the elevated instance the type page started
 Var UninstKey ; UNINSTKEY or USER_UNINSTKEY, for $Mode or the uninstaller's scope
 
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipWhenElevated
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW WelcomeShow
 !insertmacro MUI_PAGE_WELCOME
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipWhenElevated
 !define MUI_PAGE_HEADER_TEXT "License"
@@ -166,6 +173,7 @@ Page custom ScopePage ScopePageLeave
 
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW un.FinishShow
 !insertmacro MUI_UNPAGE_FINISH
 
 !insertmacro MUI_LANGUAGE "English"
@@ -199,6 +207,86 @@ FunctionEnd
 !macroend
 !insertmacro WRITE_STDERR ""
 !insertmacro WRITE_STDERR "un."
+
+; SCALED_ART defines ${UN}${FUNC}: sets the static control on the stack to
+; FILE-<scale>.bmp unstretched, for the scale whose width (WIDTH at 100%) is
+; nearest the control's client width, deletes the control's previous bitmap
+; and pushes the new one. SS_CENTERIMAGE keeps the control's size and centers
+; the bitmap; BACKGROUND, the bitmap's own, fills any margin.
+!macro ART_NEAREST width scale
+  IntOp $4 ${width} * ${scale}
+  IntOp $4 $4 + 50
+  IntOp $4 $4 / 100
+  IntOp $4 $4 - $2
+  ${If} $4 < 0
+    IntOp $4 0 - $4
+  ${EndIf}
+  ; Ascending scales: a tie takes the larger bitmap.
+  ${If} $4 <= $5
+    StrCpy $5 $4
+    StrCpy $3 ${scale}
+  ${EndIf}
+!macroend
+
+!macro ART_EXTRACT file scale
+  ${If} $3 == ${scale}
+    File "/oname=$PLUGINSDIR\${file}-${scale}.bmp" "${ART}/${file}-${scale}.bmp"
+  ${EndIf}
+!macroend
+
+!macro SCALED_ART UN FUNC FILE WIDTH BACKGROUND
+Function ${UN}${FUNC}
+  System::Store "S"
+  Pop $0
+  System::Call 'user32::GetClientRect(pr0,@r1)'
+  System::Call '*$1(i,i,i.r2,i)'
+  StrCpy $3 100
+  StrCpy $5 999999
+  !insertmacro ART_FOR_EACH_SCALE ART_NEAREST ${WIDTH}
+  InitPluginsDir
+  !insertmacro ART_FOR_EACH_SCALE ART_EXTRACT ${FILE}
+  ${NSD_AddStyle} $0 ${SS_CENTERIMAGE}
+  SetCtlColors $0 "" ${BACKGROUND}
+  System::Call 'user32::LoadImageW(p 0, w "$PLUGINSDIR\${FILE}-$3.bmp", i ${IMAGE_BITMAP}, i 0, i 0, i ${LR_LOADFROMFILE}) p .r1'
+  SendMessage $0 ${STM_SETIMAGE} ${IMAGE_BITMAP} $1 $2
+  ${If} $2 P<> 0
+    System::Call 'gdi32::DeleteObject(p r2)'
+  ${EndIf}
+  Push $1
+  System::Store "L"
+FunctionEnd
+!macroend
+!insertmacro SCALED_ART "" SetWelcomeArt welcome ${ART_WELCOME_WIDTH} ${ART_WELCOME_BACKGROUND}
+!insertmacro SCALED_ART "un." SetWelcomeArt welcome ${ART_WELCOME_WIDTH} ${ART_WELCOME_BACKGROUND}
+!insertmacro SCALED_ART "" SetHeaderArt header ${ART_HEADER_WIDTH} ${ART_HEADER_BACKGROUND}
+!insertmacro SCALED_ART "un." SetHeaderArt header ${ART_HEADER_WIDTH} ${ART_HEADER_BACKGROUND}
+
+; The header bitmap (control 1046) lasts as long as the window, as MUI's does.
+!macro HEADER_ART_GUIINIT UN
+Function ${UN}HeaderArtGuiInit
+  Push $0
+  GetDlgItem $0 $HWNDPARENT 1046
+  Push $0
+  Call ${UN}SetHeaderArt
+  Pop $0
+  Pop $0
+FunctionEnd
+!macroend
+!insertmacro HEADER_ART_GUIINIT ""
+!insertmacro HEADER_ART_GUIINIT "un."
+
+; MUI deletes the page's bitmap variable when the page closes.
+Function WelcomeShow
+  Push $mui.WelcomePage.Image
+  Call SetWelcomeArt
+  Pop $mui.WelcomePage.Image.Bitmap
+FunctionEnd
+
+Function un.FinishShow
+  Push $mui.FinishPage.Image
+  Call un.SetWelcomeArt
+  Pop $mui.FinishPage.Image.Bitmap
+FunctionEnd
 
 ; The Explorer menu verb, then its parents when nothing else is under them.
 !macro DELETE_VERB
@@ -492,6 +580,9 @@ FunctionEnd
 
 ; A portable copy gets no desktop shortcut.
 Function FinishShow
+  Push $mui.FinishPage.Image
+  Call SetWelcomeArt
+  Pop $mui.FinishPage.Image.Bitmap
   ${If} $Mode == portable
     ShowWindow $mui.FinishPage.ShowReadme ${SW_HIDE}
   ${EndIf}

@@ -8,7 +8,9 @@
 # have started qcaret.exe from an explorer.exe, with QCaret's token elevation
 # equal to the shell's, and the per-machine install must have written the
 # common desktop shortcut and the HKLM QCaret.Edit verb, which its uninstaller
-# removes; QCaret is then stopped. A shell with elevation 0
+# removes; QCaret is then stopped. Each page must show a bitmap, and every
+# visible bitmap control must have SS_CENTERIMAGE, which setup's scaled-art
+# functions set; the walk prints each one's size and the window DPI. A shell with elevation 0
 # makes this the unelevated check; on a runner whose shell is elevated it
 # checks the launch path only. Pages are driven by window messages (the Next button's
 # WM_COMMAND, BM_CLICK on a radio button or check box, WM_SETTEXT on the
@@ -168,6 +170,28 @@ public static class SetupUi {
     return true;
   }
 
+  [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hwnd, out Rect rect);
+  [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr hwnd, int index);
+  [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hwnd);
+
+  // Each visible bitmap static under hwnd, one per line: control id, client
+  // size, and "centered" when it has SS_CENTERIMAGE.
+  public static string Art(IntPtr hwnd) {
+    StringBuilder all = new StringBuilder();
+    EnumChildWindows(hwnd, delegate(IntPtr child, IntPtr data) {
+      StringBuilder cls = new StringBuilder(64);
+      GetClassName(child, cls, cls.Capacity);
+      int style = GetWindowLong(child, -16);
+      if (IsWindowVisible(child) && cls.ToString() == "Static" && (style & 0x1F) == 0x0E) {
+        Rect rect;
+        GetClientRect(child, out rect);
+        all.AppendFormat("{0} {1}x{2}{3}\n", GetDlgCtrlID(child), rect.Right, rect.Bottom, (style & 0x200) != 0 ? " centered" : "");
+      }
+      return true;
+    }, IntPtr.Zero);
+    return all.ToString();
+  }
+
   public static void Capture(IntPtr hwnd, string path) {
     Rect rect;
     GetWindowRect(hwnd, out rect);
@@ -253,6 +277,10 @@ function Invoke-Walk([string] $Title, [string] $Prefix, [scriptblock] $OnPage) {
     if ($null -eq $text) { return }
     Write-Host "page $page`: $(($text -split "`n" | Where-Object { $_ }) -join ' | ')"
     Save-Window $hwnd ('{0}-{1}' -f $Prefix, $page)
+    $art = @([SetupUi]::Art($hwnd) -split "`n" | Where-Object { $_ })
+    Write-Host "page $page bitmaps at $([SetupUi]::GetDpiForWindow($hwnd)) DPI: $($art -join ', ')"
+    if ($art.Count -eq 0) { throw "page $page shows no bitmap" }
+    if (@($art | Where-Object { -not $_.EndsWith(' centered') }).Count -gt 0) { throw "page $page shows a bitmap the scaled art did not set: $($art -join ', ')" }
     if ($OnPage -and (& $OnPage $hwnd)) {
       Start-Sleep -Milliseconds 800
       Save-Window $hwnd ('{0}-{1}-set' -f $Prefix, $page)

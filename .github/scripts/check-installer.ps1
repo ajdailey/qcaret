@@ -1,5 +1,6 @@
-# Installs the $env:TARGET setup from dist\ silently for all users and then for the current
-# user. Each time it checks the Installed apps entry, the Start menu shortcut, no desktop
+# Checks with 7-Zip that the $env:TARGET setup from dist\ holds the welcome and header bitmaps
+# at every display scale, sized (100% size * scale + 50) / 100 as InstallerArt renders them.
+# Installs it silently for all users and then for the current user. Each time it checks the Installed apps entry, the Start menu shortcut, no desktop
 # shortcut, Open With for each extension register-associations.cmd lists with its default
 # handler unchanged, the Explorer menu verb QCaret.Edit with each extension's default verb
 # unchanged, that a .cmd still runs through ShellExecute, that the folder holds no
@@ -37,6 +38,27 @@ $verbKey = 'Software\Classes\*\shell\QCaret.Edit'
 $work = Join-Path $env:RUNNER_TEMP 'installer-run'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 New-Item -ItemType Directory -Path $work | Out-Null
+
+$sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
+if (-not $sevenZip) { $sevenZip = Join-Path $env:ProgramFiles '7-Zip\7z.exe' }
+if (-not (Test-Path -LiteralPath $sevenZip)) { throw "no 7-Zip to list $setup" }
+$art = Join-Path $work 'art'
+& $sevenZip e -y "-o$art" $setup 'welcome-*.bmp' 'header-*.bmp' -r | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "7-Zip exited $LASTEXITCODE extracting the bitmaps from $setup" }
+$scales = @(100, 125, 150, 175, 200, 250, 300)
+foreach ($image in @(@('welcome', 164, 314), @('header', 150, 57))) {
+  foreach ($scale in $scales) {
+    $file = Join-Path $art "$($image[0])-$scale.bmp"
+    if (-not (Test-Path -LiteralPath $file)) { throw "$setup holds no $($image[0])-$scale.bmp" }
+    $bytes = [IO.File]::ReadAllBytes($file)
+    $size = '{0} x {1}' -f [BitConverter]::ToInt32($bytes, 18), [BitConverter]::ToInt32($bytes, 22)
+    $expected = '{0} x {1}' -f [Math]::Floor(($image[1] * $scale + 50) / 100), [Math]::Floor(($image[2] * $scale + 50) / 100)
+    if ($size -ne $expected) { throw "$($image[0])-$scale.bmp is $size, expected $expected" }
+  }
+}
+$count = @(Get-ChildItem -LiteralPath $art -Filter '*.bmp').Count
+if ($count -ne 2 * $scales.Count) { throw "$setup holds $count welcome and header bitmaps, expected $(2 * $scales.Count)" }
+Write-Output "PASS: setup holds the welcome and header bitmaps at $($scales -join ', ')% with the expected sizes"
 
 # Runs setup with $Arguments and returns its exit code.
 function Invoke-Setup([string[]] $Arguments) {
