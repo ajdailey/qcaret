@@ -11,8 +11,8 @@ height="96"> </picture>
 [![Continuous build](https://img.shields.io/github/release-date-pre/ajdailey/qcaret?label=continuous)](https://github.com/ajdailey/qcaret/releases/tag/continuous)
 
 QCaret is a cross-platform programmer's text editor, written in Java 21 with
-SWT. It has no telemetry or account, never checks for updates on its own (Help
-> Check for Updates opens the releases page in the browser), and needs no
+SWT. It has no telemetry or account, never checks for updates on its own
+(Help > Check for Updates opens the releases page in the browser), and needs no
 network to run; its only socket is a loopback endpoint that passes files from a
 second launch to the running instance. The optional Browser Markdown preview
 uses the system web engine (WebKitGTK, WebView2, WebKit) and loads no remote
