@@ -951,6 +951,8 @@ In a hex pane or a Hex Viewer:
   also work with the cursor in the find field.
 - The status line shows the caret's offset and the size, each in hex and in
   decimal, and the selection's length.
+- In a narrow view the find bar's controls, its message and the status line
+  wrap onto further rows.
 
 Tools > Preferences, Appearance, Bytes per row in hex views sets 8, 16 or 32
 bytes per row for every hex view (16 by default).

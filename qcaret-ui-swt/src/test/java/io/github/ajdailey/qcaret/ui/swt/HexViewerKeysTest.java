@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,8 +55,8 @@ import org.junit.jupiter.api.io.TempDir;
  * viewer, built through {@code CocoaMenuBehavior} on any host, run Select All, Copy, Find, Find
  * Next, Go to Line and Close on the viewer, each item holding its key's accelerator, since on cocoa
  * a menu accelerator fires before the key reaches the focused control. On GTK 3 and win32 posted
- * Ctrl+F, Ctrl+G and Ctrl+W reach the active viewer; GTK 4 does not implement posted keys and cocoa
- * needs an accessibility grant.
+ * Ctrl+F, Ctrl+G and Ctrl+W reach the active viewer. Posted Esc in the find field closes the bar
+ * wherever posted keys arrive, the macOS CI runners included; GTK 4 does not implement posted keys.
  */
 @Tag("swt")
 class HexViewerKeysTest {
@@ -287,6 +288,63 @@ class HexViewerKeysTest {
     } finally {
       clipboard.dispose();
     }
+  }
+
+  @Test
+  void escapeInTheFindFieldClosesTheBar() {
+    assumeTrue(
+        !"1".equals(System.getenv("SWT_GTK4")), "GTK 4 does not implement Display.post keys");
+    activateViewer();
+    assumeTrue(postedKeysArrive(), "posted keys do not reach this desktop");
+    viewer.pane().run(CommandId.FIND);
+    drain();
+    Text field = null;
+    for (Control child : viewer.pane().findBar().getChildren()) {
+      if (child instanceof Text text) {
+        field = text;
+      }
+    }
+    assertNotNull(field);
+    final Text focused = field;
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return focused.isFocusControl();
+          }
+        },
+        "the find field focused");
+    final List<String> seen = new ArrayList<String>();
+    Listener record =
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            seen.add(
+                (event.type == SWT.Traverse ? "Traverse " + event.detail : "KeyDown")
+                    + " "
+                    + event.keyCode
+                    + " "
+                    + event.doit
+                    + " bar "
+                    + viewer.pane().findBar().getVisible());
+          }
+        };
+    field.addListener(SWT.Traverse, record);
+    field.addListener(SWT.KeyDown, record);
+    post(SWT.KeyDown, SWT.ESC, 0);
+    post(SWT.KeyUp, SWT.ESC, 0);
+    drain();
+    EventLoop.runUntil(
+        display,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return !viewer.pane().findBar().getVisible() && viewer.pane().canvas().isFocusControl();
+          }
+        },
+        Duration.ofSeconds(5));
+    assertFalse(viewer.pane().findBar().getVisible(), "Esc closes the bar: " + seen);
+    assertTrue(viewer.pane().canvas().isFocusControl(), "the rows focused: " + seen);
   }
 
   @Test

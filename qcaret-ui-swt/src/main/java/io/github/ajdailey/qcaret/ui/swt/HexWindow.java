@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Event;
@@ -20,8 +21,8 @@ import org.eclipse.swt.widgets.Shell;
  * A Hex Viewer window: a modeless shell owned by the main window holding one {@link HexPane}, which
  * runs the window keys itself (Find, Find Next and Previous, Go to Line, Close). The main menus on
  * the window (cocoa) run {@link HexPane#WINDOW_COMMANDS} on the pane. It opens as wide as a row and
- * {@value #HEIGHT} px high, and closes with its owner. Activation focuses the rows. Call on the UI
- * thread.
+ * {@value #HEIGHT} px high, no narrower than the widest find bar control, and closes with its
+ * owner. Activation focuses the rows. Call on the UI thread.
  */
 final class HexWindow {
   /** Initial height. */
@@ -80,6 +81,9 @@ final class HexWindow {
             },
             true);
     pane.control().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    Point minimum = shell.getMinimumSize();
+    shell.setMinimumSize(
+        Math.max(minimum.x, shell.computeTrim(0, 0, pane.minimumWidth(), 0).width), minimum.y);
     shell.addListener(
         SWT.Activate,
         new Listener() {

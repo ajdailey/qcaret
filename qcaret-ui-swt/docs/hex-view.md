@@ -81,6 +81,15 @@ focus loss. The context menu is built on its first `MenuDetect`.
 
 In a Hex Viewer, the find field's `KeyDown` runs the window keys of Find Next
 and Previous, Go to Line and Close (`HexGestures.findFieldKey`) and cancels the
-key, so it is not typed; Find and Replace stay with the field. `HexFindBar`
-shows the find message on its own row, wrapped to the bar's width, and leaves
-the row out while the message is empty.
+key, so it is not typed; Find and Replace stay with the field.
+
+## Narrow widths
+
+`HexBarLayout` lays out the find bar: its controls left to right, starting a
+new row where the next does not fit, the field narrowed to the bar where it is
+wider; then the find message on its own row, wrapped to the bar's width and
+left out while empty. The status line is a wrapping `Label`, and
+`HexPane.showStatus` lays the pane out again when its line count changes. A Hex
+Viewer window's minimum width is at least `HexPane.minimumWidth`, the widest
+find bar control (the field), since GTK sets no native minimum. A tab's pane
+has no minimum, as the main window has none, so there the field narrows.

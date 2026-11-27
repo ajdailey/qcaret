@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -29,9 +30,10 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * A {@link HexView}: the notice bar, the rows ({@link HexCanvas}), the find bar ({@link
- * HexFindBar}) and the status line, top to bottom. A tab's hex pane and a Hex Viewer window each
- * hold one. The busy cursor counts overlapping operations. Disposing the pane detaches it from its
- * controller. Call on the UI thread.
+ * HexFindBar}) and the status line, top to bottom. The find bar and the status line wrap to the
+ * pane's width. A tab's hex pane and a Hex Viewer window each hold one. The busy cursor counts
+ * overlapping operations. Disposing the pane detaches it from its controller. Call on the UI
+ * thread.
  */
 public final class HexPane implements HexView {
   /** The menu commands a Hex Viewer window's pane runs ({@link #run}). */
@@ -166,7 +168,7 @@ public final class HexPane implements HexView {
                 }
               }
             });
-    status = new Label(root, SWT.NONE);
+    status = new Label(root, SWT.WRAP);
     GridData statusData = new GridData(SWT.FILL, SWT.CENTER, true, false);
     statusData.horizontalIndent = 4;
     status.setLayoutData(statusData);
@@ -238,6 +240,11 @@ public final class HexPane implements HexView {
   /** Returns the layout shown. */
   public HexRows rows() {
     return rows.rows();
+  }
+
+  /** Returns the narrowest width at which every find bar control keeps its preferred width. */
+  public int minimumWidth() {
+    return find.minimumWidth();
   }
 
   /** Returns the width a full row and the scroll bar need. */
@@ -324,6 +331,10 @@ public final class HexPane implements HexView {
   public void showStatus(String text) {
     if (!root.isDisposed()) {
       status.setText(text);
+      Point size = status.getSize();
+      if (size.x > 0 && status.computeSize(size.x, SWT.DEFAULT).y != size.y) {
+        root.layout(true, true);
+      }
     }
   }
 
