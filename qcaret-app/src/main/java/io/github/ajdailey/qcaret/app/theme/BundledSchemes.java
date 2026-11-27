@@ -3,7 +3,8 @@ package io.github.ajdailey.qcaret.app.theme;
 /**
  * The bundled editor color schemes. Each starts from a published terminal palette or a plain pair
  * of colors; a color below a {@code PaletteTest} floor moves toward black on a light background or
- * white on a dark one, only as far as the floor needs. Token colors are measured on the background,
+ * white on a dark one, only as far as the floor needs; line numbers go to 4.75 on the gutter and
+ * the background, a margin over their floor of 4.5. Token colors are measured on the background,
  * the current line, a find match, an occurrence and a bracket highlight.
  */
 final class BundledSchemes {
@@ -16,7 +17,7 @@ final class BundledSchemes {
           Rgb.of(0xcfe2ec),
           Rgb.of(0x073642),
           Rgb.of(0xeee8d5),
-          Rgb.of(0x7b8787),
+          Rgb.of(0x5d6767),
           Rgb.of(0xeee8d5),
           Rgb.of(0x657b83),
           Rgb.of(0xd6cfba),
@@ -65,7 +66,7 @@ final class BundledSchemes {
           Rgb.of(0x0f5a6e),
           Rgb.of(0xfdf6e3),
           Rgb.of(0x073642),
-          Rgb.of(0x6a7d83),
+          Rgb.of(0x8fa0a5),
           Rgb.of(0x073642),
           Rgb.of(0x93a1a1),
           Rgb.of(0x24505b),
@@ -114,7 +115,7 @@ final class BundledSchemes {
           Rgb.of(0xc5d6ea),
           Rgb.of(0x2e3436),
           Rgb.of(0xe2e2df),
-          Rgb.of(0x81837e),
+          Rgb.of(0x62635f),
           Rgb.of(0xe4e4e1),
           Rgb.of(0x2e3436),
           Rgb.of(0xc6c8c2),
@@ -163,7 +164,7 @@ final class BundledSchemes {
           Rgb.of(0x204a87),
           Rgb.of(0xeeeeec),
           Rgb.of(0x383e40),
-          Rgb.of(0x888a85),
+          Rgb.of(0x9ea09c),
           Rgb.of(0x262b2d),
           Rgb.of(0xfce94f),
           Rgb.of(0x4a5052),
@@ -212,7 +213,7 @@ final class BundledSchemes {
           Rgb.of(0xb5cdf0),
           Rgb.of(0x000000),
           Rgb.of(0xf4f4cc),
-          Rgb.of(0x7a7a60),
+          Rgb.of(0x696953),
           Rgb.of(0xf0f0c8),
           Rgb.of(0x000000),
           Rgb.of(0xd0d0a8),
@@ -261,7 +262,7 @@ final class BundledSchemes {
           Rgb.of(0xb5cdf0),
           Rgb.of(0x000000),
           Rgb.of(0xeef3fb),
-          Rgb.of(0x8a8a8a),
+          Rgb.of(0x6b6b6b),
           Rgb.of(0xf3f3f3),
           Rgb.of(0x000000),
           Rgb.of(0xcccccc),
@@ -359,7 +360,7 @@ final class BundledSchemes {
           Rgb.of(0x1f5f1f),
           Rgb.of(0x00ff00),
           Rgb.of(0x0c1f0c),
-          Rgb.of(0x2e8b2e),
+          Rgb.of(0x319331),
           Rgb.of(0x081408),
           Rgb.of(0x00ff00),
           Rgb.of(0x1f4a1f),
@@ -408,7 +409,7 @@ final class BundledSchemes {
           Rgb.of(0x4a4a4a),
           Rgb.of(0xffffff),
           Rgb.of(0x1c1c1c),
-          Rgb.of(0x707070),
+          Rgb.of(0x828282),
           Rgb.of(0x141414),
           Rgb.of(0xffffff),
           Rgb.of(0x333333),

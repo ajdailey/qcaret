@@ -1314,7 +1314,8 @@ and then your theme files. A choice applies at once.
 | Graphite | Gray on black |
 
 Every scheme keeps syntax colors at a contrast ratio of at least 4.5 to 1 on
-the background, the current line and the find and bracket highlights.
+the background, the current line and the find and bracket highlights, and
+line numbers at the same ratio on the gutter.
 
 ### Theme files
 

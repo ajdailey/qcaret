@@ -72,7 +72,11 @@ class PaletteTest {
       }
       assertTrue(contrast(palette.selectionText(), palette.selection()) >= 4.5);
       assertTrue(contrast(palette.caret(), palette.background()) >= 3);
-      assertTrue(contrast(palette.lineNumbers(), palette.gutter()) >= 3);
+      for (Rgb back : new Rgb[] {palette.gutter(), palette.background()}) {
+        double ratio = contrast(palette.lineNumbers(), back);
+        assertTrue(
+            ratio >= 4.5, "line numbers on " + back + " in " + palette.text() + ": " + ratio);
+      }
       assertTrue(contrast(palette.bookmarkComment(), palette.gutter()) >= 3);
       assertTrue(contrast(palette.tabText(), palette.gutter()) >= 4.5);
       assertTrue(contrast(palette.text(), palette.gutter()) >= 4.5, "tab text on the strip");

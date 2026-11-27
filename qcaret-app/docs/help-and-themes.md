@@ -126,13 +126,15 @@ brand navy `#1B2E44`, cyan `#56C1F0` and amber `#F3B65B`.
 | Selected text | Selection, gutter | 4.5 |
 | Unselected tab label | Gutter | 4.5 |
 | Text | Comparison rows | 4.5 |
-| Line numbers, bookmark mark | Gutter | 3 |
+| Line numbers | Gutter, background | 4.5 |
+| Bookmark mark | Gutter | 3 |
 | Caret | Background | 3 |
 | Modified-line marks | Background, current line | 3 |
 
 `BundledSchemes` start from published terminal palettes and plain pairs; a
 color below its floor moves toward black on a light background or white on a
-dark one, only as far as the floor needs. No palette file is copied.
+dark one, only as far as the floor needs. Line numbers in every scheme measure
+4.75 or more, a margin over their floor. No palette file is copied.
 
 ### Theme files
 
