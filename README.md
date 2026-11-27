@@ -178,12 +178,17 @@ portable install, an install over it, and three refused folders. Details are in
 [qcaret-dist](qcaret-dist/README.md#ci-bundle-check).
 
 The `package` job caches the JDK archives, `rcodesign`, `nfpm` and NSIS under
-`~/.cache/qcaret-build`, apart from the Maven cache, keyed on
-`qcaret-dist/src/build/dist.xml`; the `release` job shares that cache. Only the
-`test` jobs save the Maven cache; `test-gtk4`, `test-ibus`, `package` and
-`release` restore it, since a cache saved by a job that skips `verify` or builds
-part of the reactor would lack plugins and send every later job to Maven Central
-for them.
+`~/.cache/qcaret-build`, keyed on `qcaret-dist/src/build/dist.xml`; the
+`release` job shares that cache. The Maven cache (`~/.m2/repository` and
+`~/.m2/wrapper`, no JDK) has one entry per OS and architecture, keyed on every
+`pom.xml` and `maven-wrapper.properties`; a key miss restores the newest entry
+with the same OS and architecture, so a pom change downloads only what changed.
+Only the `test` jobs save it, and `test linux-x86_64` also resolves the
+CycloneDX plugin for `package`. `test-gtk4`, `test-ibus`, `package` and
+`release` only restore it: a cache saved by a job that skips `verify` or builds
+part of the reactor would lack plugins and send every later job to Maven
+Central for them. Maven logs each download, so a job log shows what came from
+Central.
 
 #### Releases
 
