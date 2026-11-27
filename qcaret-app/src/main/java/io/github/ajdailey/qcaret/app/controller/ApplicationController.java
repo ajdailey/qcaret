@@ -101,6 +101,7 @@ public final class ApplicationController {
   private final DroppedFiles dropped;
   private final TipOfTheDay tips;
   private final WindowCommands windowCommands;
+  private final MacroController macroCommands;
   private final PaletteListener markdownPalette =
       new PaletteListener() {
         @Override
@@ -229,6 +230,7 @@ public final class ApplicationController {
     this.alwaysOnTop = new AlwaysOnTop(view, documents);
     this.compare = new CompareController(documents, workers, ui, view, budget);
     this.windowCommands = new WindowCommands(this, set, view, settings, documents, compare);
+    this.macroCommands = new MacroController(this, set.macros());
     this.print = new PrintController(documents, workers, ui, view);
     documents.setCompare(compare);
     documents.setOverviewSources(
@@ -276,7 +278,7 @@ public final class ApplicationController {
         new PreferencesController(
             settings,
             view,
-            set.defaultKeymap(),
+            set::defaultKeymap,
             set::forgetHistory,
             set::loadChoices,
             set::loadTheme);
@@ -382,9 +384,14 @@ public final class ApplicationController {
     documents.setMarkdownZoom(now.previewZoom());
     documents.setHexBytesPerRow(now.hexBytesPerRow());
     if (!after.shortcuts().equals(before.shortcuts())) {
-      help.setKeymap(set.keymap());
-      view.setKeymap(set.keymap());
+      keymapChanged();
     }
+  }
+
+  /** Gives the window's keys, menus and Keyboard Shortcuts the set's keymap. */
+  void keymapChanged() {
+    help.setKeymap(set.keymap());
+    view.setKeymap(set.keymap());
   }
 
   private void rememberGrammar(String id) {
@@ -1043,6 +1050,9 @@ public final class ApplicationController {
       case ABOUT -> help.showAbout();
       case RECORD_MACRO -> set.macros().toggleRecording(this);
       case PLAY_RECORDED_MACRO -> set.macros().playRecorded(this);
+      case RUN_MACRO_MULTIPLE -> macroCommands.runMultiple();
+      case SAVE_RECORDED_MACRO -> macroCommands.saveRecorded();
+      case MANAGE_MACROS -> macroCommands.manage();
     }
   }
 
@@ -1360,6 +1370,18 @@ public final class ApplicationController {
   /** Returns the window's view; for the session and the recovery files. */
   MainView view() {
     return view;
+  }
+
+  /**
+   * Runs a saved macro once in the selected editor, as its menu item, palette row or key does;
+   * refused with a notice while the window records or runs a macro.
+   *
+   * @param name the macro's name
+   */
+  public void runMacro(String name) {
+    if (!quitting) {
+      macroCommands.runSaved(name);
+    }
   }
 
   void showNotice(String notice) {

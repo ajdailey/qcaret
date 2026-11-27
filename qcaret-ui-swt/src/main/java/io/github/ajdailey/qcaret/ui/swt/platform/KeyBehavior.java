@@ -1,7 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.KeyTarget;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import org.eclipse.swt.widgets.Control;
 
@@ -14,10 +14,11 @@ import org.eclipse.swt.widgets.Control;
  *   <caption>Implementation per platform</caption>
  *   <tr><th>Platform</th><th>Class</th><th>Alt types</th><th>Filter runs</th></tr>
  *   <tr><td>win32</td><td>{@link Win32KeyBehavior}</td><td>no</td>
- *       <td>second keys; every binding in a {@code Browser}</td></tr>
+ *       <td>second keys; every binding and macro key in a {@code Browser}</td></tr>
  *   <tr><td>cocoa</td><td>{@link CocoaKeyBehavior}</td><td>yes</td><td>second keys</td></tr>
  *   <tr><td>GTK 3</td><td>{@link Gtk3KeyBehavior}</td><td>no</td><td>second keys</td></tr>
- *   <tr><td>GTK 4</td><td>{@link Gtk4KeyBehavior}</td><td>no</td><td>every binding</td></tr>
+ *   <tr><td>GTK 4</td><td>{@link Gtk4KeyBehavior}</td><td>no</td>
+ *       <td>every binding and macro key</td></tr>
  * </table>
  */
 public interface KeyBehavior {
@@ -34,17 +35,18 @@ public interface KeyBehavior {
   boolean types(int modifiers);
 
   /**
-   * Returns the command a main window's Display filter runs for a key, consuming the key. The
-   * filter runs window bindings that are not a menu item's accelerator, such as a command's second
-   * key. On GTK 4 it runs the accelerators too: SWT runs them from the window's shortcut
-   * controller, after the focused control, so a {@code StyledText} would insert Ctrl+Shift+M's CR.
-   * On win32 it runs every binding for a key in a {@code Browser}: SWT's Edge sends keys from
+   * Returns what a main window's Display filter runs for a key, consuming the key: a command, or a
+   * saved macro. The filter runs window bindings that are not a menu item's accelerator, such as a
+   * command's second key; a saved macro's key is its menu item's accelerator. On GTK 4 it runs the
+   * accelerators and the macro keys too: SWT runs them from the window's shortcut controller, after
+   * the focused control, so a {@code StyledText} would insert Ctrl+Shift+M's CR. On win32 it runs
+   * every binding and macro key for a key in a {@code Browser}: SWT's Edge sends keys from
    * WebView2's process, so the window's native accelerators never see them.
    *
    * @param keymap the window's keymap
    * @param stroke the key
    * @param focus the control the key went to
-   * @return the command, or null
+   * @return the target, or null
    */
-  CommandId windowCommand(Keymap keymap, KeyStroke stroke, Control focus);
+  KeyTarget windowTarget(Keymap keymap, KeyStroke stroke, Control focus);
 }

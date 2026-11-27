@@ -22,7 +22,8 @@ public interface MainView
         CompareView,
         SessionView,
         OutlineView,
-        HexViews {
+        HexViews,
+        MacroDialogs {
   /** Hides the window while shutdown completes. */
   void hide();
 

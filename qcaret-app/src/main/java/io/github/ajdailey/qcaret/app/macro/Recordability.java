@@ -206,7 +206,10 @@ public enum Recordability {
           SHA512_SELECTION,
           VERIFY_CHECKSUMS,
           OPEN_IN_HEX_VIEWER,
-          PLAY_RECORDED_MACRO ->
+          PLAY_RECORDED_MACRO,
+          RUN_MACRO_MULTIPLE,
+          SAVE_RECORDED_MACRO,
+          MANAGE_MACROS ->
           NOTICE;
       case WORD_WRAP,
           ZOOM_IN,

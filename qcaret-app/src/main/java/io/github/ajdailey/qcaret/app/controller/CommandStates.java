@@ -261,6 +261,15 @@ public final class CommandStates {
   }
 
   /**
+   * Reports whether a saved macro's menu item, palette row and key run.
+   *
+   * @return true with an editable document selected and no macro recording or running here
+   */
+  public boolean savedMacroEnabled() {
+    return application.windowSet().macros().savedEnabled(application);
+  }
+
+  /**
    * Reports whether a command's item is enabled.
    *
    * @param command any command

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -477,5 +478,75 @@ class KeymapTest {
     assertEquals(
         KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, '2'),
         keymap.accelerator(CommandId.MARKDOWN_SPLIT));
+  }
+
+  @Test
+  void recordAndPlayTakeModShiftRAndE() {
+    for (Keymap keymap :
+        new Keymap[] {
+          Keymap.defaults(false, true), Keymap.defaults(false), Keymap.defaults(true)
+        }) {
+      assertEquals(
+          KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'r'),
+          keymap.accelerator(CommandId.RECORD_MACRO));
+      assertEquals(
+          KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, 'e'),
+          keymap.accelerator(CommandId.PLAY_RECORDED_MACRO));
+      assertEquals("", keymap.keysText(CommandId.MANAGE_MACROS));
+    }
+  }
+
+  /**
+   * A saved macro's key is a window key and its menu item's accelerator; a binding holding the same
+   * key keeps it. A macro key off macOS refuses Ctrl+Alt, which Windows sends for AltGr.
+   */
+  @Test
+  void macroKeysRunFromTheWindowAndAvoidBindingsAndAltGr() {
+    KeyStroke one = KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, '1');
+    KeyStroke copy = KeyStroke.of(KeyStroke.PRIMARY, 'c');
+    Keymap keymap =
+        Keymap.defaults(false)
+            .withMacroKeys(
+                new MacroKeys(
+                    List.of(
+                        new MacroKeys.Entry("Wrap", one),
+                        new MacroKeys.Entry("Clash", copy),
+                        new MacroKeys.Entry("Again", one),
+                        new MacroKeys.Entry("Plain", null),
+                        new MacroKeys.Entry("Typed", KeyStroke.of(0, 'q')))));
+    assertEquals(KeyTarget.macro("Wrap"), keymap.macros().windowBindingTarget(one));
+    assertNull(keymap.macros().windowTarget(one));
+    assertNull(keymap.editorCommand(one));
+    assertEquals(one, keymap.macros().accelerator("Wrap"));
+    assertNull(keymap.macros().accelerator("Again"));
+    assertNull(keymap.macros().accelerator("Clash"));
+    assertNull(keymap.macros().accelerator("Plain"));
+    assertNull(keymap.macros().accelerator("Typed"));
+    assertNull(keymap.macros().windowBindingTarget(KeyStroke.of(0, 'q')));
+    assertNull(keymap.macros().macro(copy));
+    assertEquals(
+        List.of("Ctrl+C: Copy, Macros: Clash", "Ctrl+Shift+1: Macros: Wrap, Macros: Again"),
+        keymap.conflicts());
+    assertTrue(keymap.reference("wrap").contains("Macros\n  Macros: Wrap\tCtrl+Shift+1"));
+    assertEquals(
+        UiText.MACRO_KEY_ALTGR.format("Ctrl+Alt+K"),
+        keymap.macros().keyProblem(KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.ALT, 'k'), "Wrap"));
+    assertNull(
+        Keymap.defaults(true)
+            .macros()
+            .keyProblem(KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.ALT, 'k'), "Wrap"));
+    assertNull(
+        keymap.macros().keyProblem(KeyStroke.of(KeyStroke.PRIMARY | KeyStroke.SHIFT, '2'), "Wrap"));
+    assertEquals(
+        UiText.PREFERENCES_KEY_TAKEN.format("Ctrl+Shift+1", "Macros: Wrap"),
+        keymap.macros().keyProblem(one, "Other"));
+    assertEquals(
+        UiText.PREFERENCES_KEY_TAKEN.format("Ctrl+C", CommandId.COPY.title()),
+        keymap.macros().keyProblem(copy, "Other"));
+    assertEquals(
+        UiText.PREFERENCES_KEY_TYPES.format("Shift+A"),
+        keymap.macros().keyProblem(KeyStroke.of(KeyStroke.SHIFT, 'a'), "Other"));
+    Keymap overridden = keymap.withOverrides(ShortcutOverrides.NONE);
+    assertEquals(keymap.macros().keys(), overridden.macros().keys());
   }
 }

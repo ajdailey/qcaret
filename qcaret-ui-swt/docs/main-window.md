@@ -139,12 +139,13 @@ scroll.
   checks.
 - A Display key filter runs window bindings that are not accelerators (Ctrl
   plus keypad +), when enabled, whichever control of the shell has focus;
-  `KeyBehavior.windowCommand` names the command. On GTK 4 (`Gtk4KeyBehavior`) it runs
-  the accelerators too and consumes the key: SWT runs a GTK 4 accelerator from
+  `KeyBehavior.windowTarget` names the command, or a saved macro, which
+  `ApplicationController.runMacro` runs. On GTK 4 (`Gtk4KeyBehavior`) it runs
+  the accelerators and the saved macros' keys too and consumes the key: SWT runs a GTK 4 accelerator from
   the window's shortcut controller after the focused control, and the editor's
   `StyledText` inserted the CR that Ctrl+Shift+M carries. On win32
   (`Win32KeyBehavior`) it runs the
-  accelerators too for a key in a `Browser`: SWT's Edge sends a key with Ctrl
+  accelerators and the saved macros' keys too for a key in a `Browser`: SWT's Edge sends a key with Ctrl
   or Alt, or one that types no character, to the `Browser` from WebView2's
   `AcceleratorKeyPressed`, and the window's native accelerators never see it.
   The consumed key is marked handled, so WebView2 does not act on it as well
@@ -165,6 +166,14 @@ scroll.
   cascade disabled until `EncodingChoices` arrives from a worker, filled again
   when a keymap change rebuilds the menus. Reopen with Encoding starts with
   Automatic Detection, which calls `ApplicationController.reopenWithDetection`.
+- The Macros menu lists the saved macros after a separator (`SavedMacroItems`),
+  each with its key as the item's accelerator, built with the menu bar rather
+  than on `Show` so the keys work before the menu first opens. The items are
+  enabled from `CommandStates.savedMacroEnabled` with the other items. A
+  keymap that differs only in its saved macros replaces those items and keeps
+  the bar (`MainMenuBar.apply`): on GTK 4 a replaced bar followed by a dialog
+  closing crashed the JVM in `gtk_widget_has_focus` (5 of 5 runs of
+  `MacroGuiTest` under Xvfb; 0 of 5 with the bar kept).
 - The Window menu lists the windows, when there are several, and the open
   documents, numbered in that order, the first nine as mnemonics. On cocoa it
   starts with Minimize (`CommandId.MINIMIZE`, `Cmd+M`) and Zoom
@@ -292,7 +301,10 @@ empty icon slot and the row grows 15 px for a Markdown tab.
 The status bar shows a notice for 8 s, the Warnings link to Show Log while a
 WARN or ERROR line is unseen, and the selected document's read-only marker,
 line and column, selection, encoding, line endings, language and, while a
-Markdown preview shows, its renderer (`StatusFields`). A caret move or state change schedules one read on the next
+Markdown preview shows, its renderer (`StatusFields`). Left of the read-only
+marker, `WindowMacroDialogs` shows the macro field `MainView.showMacroStatus`
+sets: the recording marker or a run's progress; it takes no room while empty.
+A caret move or state change schedules one read on the next
 UI turn; further changes before it share that read. While the `BusyCounter`
 counts an active operation, `WindowBusyCursor` shows `PlatformTraits.busyCursor` over
 the shell, each editor (`EditorPane.setWindowBusy`) and each shell the window
@@ -638,7 +650,7 @@ default method carries behavior.
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
 | `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the side pop-up menus show (`Win32MenuThemes.shownDark`); reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: no menu icons (SWT ignores `setImage`); a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |
 | `ToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `NativeToolItemSizing` | `Gtk4ToolItemSizing`: a tool item's picture keeps the icon's size through SWT internals | `ToolIcons` (see [Icons](theme-and-icons.md#icons)) |
-| `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
+| `KeyBehavior` | `Win32KeyBehavior`: the window filter runs every binding and macro key for a key in a `Browser` | `CocoaKeyBehavior`: Alt (Option) and a key types the character | `Gtk3KeyBehavior` | `Gtk4KeyBehavior`: the window filter runs the accelerators and macro keys | `EditorPane.route`, `MainWindow.dispatchWindowKeys` (see [Menus](#menus)) |
 | `BrowserBehavior` | `Win32BrowserBehavior`: follows a top-frame link with no gesture; sends Alt and a letter or digit from the page to the shell as a menu mnemonic | `CocoaBrowserBehavior` | `Gtk3BrowserBehavior`: scrolls to anchors; checks for a stray `about:blank` page | `Gtk4BrowserBehavior`: as GTK 3, and no `Browser` may be created | `BrowserPane`, `LinkGestures`, `BrowserPreview` (see [Markdown preview](markdown-preview.md#browser-pane)) |
 | `GuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `BrowserGuideDisplay` | `NoticeGuideDisplay`: a notice names the file | `MainWindow.showGuide` |
 | `PrintSupport` | `Win32PrintSupport`: an empty printer list shows a notice; the dialog opens on its default scope | `CocoaPrintSupport`: the empty-list notice; names the job (`CocoaPrintJobNaming`), dialog on a selection | `Gtk3PrintSupport`: dialog on a selection | `Gtk4PrintSupport`: a PDF file instead of the dialog | `MainWindow.choosePrinter` (see [Printing](printing.md)) |

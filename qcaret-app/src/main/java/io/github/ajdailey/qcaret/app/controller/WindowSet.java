@@ -9,6 +9,7 @@ import io.github.ajdailey.qcaret.app.config.Preferences;
 import io.github.ajdailey.qcaret.app.config.WindowState;
 import io.github.ajdailey.qcaret.app.log.LogFiles;
 import io.github.ajdailey.qcaret.app.log.RecentLog;
+import io.github.ajdailey.qcaret.app.macro.MacroStore;
 import io.github.ajdailey.qcaret.app.session.Session;
 import io.github.ajdailey.qcaret.app.session.SessionRewrite;
 import io.github.ajdailey.qcaret.app.session.SessionStore;
@@ -105,7 +106,7 @@ public final class WindowSet {
   private final TabTransfer transfer;
   private final WorkspaceDefault workspaceDefault;
   private final List<ApplicationController> windows = new ArrayList<ApplicationController>();
-  private final MacroHooks macros = new MacroHooks();
+  private final MacroHooks macros;
   private final List<ApplicationController> activations = new ArrayList<ApplicationController>();
   private final List<Path> recentPaths = new ArrayList<Path>();
   private final List<StartupRequest> handed = new ArrayList<StartupRequest>();
@@ -236,6 +237,11 @@ public final class WindowSet {
         new ThemeController(system, preferences.theme(), preferences.appearance().editorColors());
     this.defaultKeymap = keymap;
     this.keymap = keymap.withOverrides(preferences.shortcuts());
+    this.macros =
+        new MacroHooks(
+            new SavedMacros(
+                new MacroStore(config.location().directory(), workers, ui::asyncExec),
+                this::macrosChanged));
     this.grammars =
         new GrammarLibrary(
             workers,
@@ -274,6 +280,16 @@ public final class WindowSet {
           }
         });
     logConflicts();
+    macros.saved().reload(null);
+  }
+
+  /** Gives every window the saved macros' keys and menu items once the macros folder changed. */
+  private void macrosChanged() {
+    keymap = keymap.withMacroKeys(macros.saved().keys());
+    logConflicts();
+    for (ApplicationController window : windows) {
+      window.keymapChanged();
+    }
   }
 
   /** Brings what the windows share in line first; each window's listener runs after this one. */
@@ -287,7 +303,7 @@ public final class WindowSet {
       recovery.setKeepDays(now.recoveryKeepDays());
     }
     if (!after.shortcuts().equals(before.shortcuts())) {
-      keymap = defaultKeymap.withOverrides(after.shortcuts());
+      keymap = defaultKeymap.withOverrides(after.shortcuts()).withMacroKeys(macros.saved().keys());
       logConflicts();
     }
     if (after.theme() != before.theme()) {
@@ -508,7 +524,7 @@ public final class WindowSet {
   }
 
   Keymap defaultKeymap() {
-    return defaultKeymap;
+    return defaultKeymap.withMacroKeys(macros.saved().keys());
   }
 
   MacroHooks macros() {

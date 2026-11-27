@@ -16,6 +16,8 @@ import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.HexInput;
 import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.HexView;
+import io.github.ajdailey.qcaret.app.view.MacroManagerDisplay;
+import io.github.ajdailey.qcaret.app.view.MacroManagerInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
 import io.github.ajdailey.qcaret.app.view.OutlineInput;
@@ -27,6 +29,8 @@ import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.app.view.RunMacroForm;
+import io.github.ajdailey.qcaret.app.view.SaveMacroForm;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
@@ -44,6 +48,7 @@ import io.github.ajdailey.qcaret.core.util.os.OsTraits;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 
@@ -77,6 +82,7 @@ public final class MainWindowSlot implements MainView {
   private Boolean memoryShown;
   private MemoryFields memory;
   private boolean warningMarker;
+  private String macroStatus = "";
   private Boolean onTop;
   private Progress print;
   private Progress load;
@@ -159,6 +165,7 @@ public final class MainWindowSlot implements MainView {
       next.showMemory(memory);
     }
     next.showWarningMarker(warningMarker);
+    next.showMacroStatus(macroStatus);
     if (workspace != null) {
       next.showWorkspace(workspace, workspaceShown);
       next.workspaceChanged(null);
@@ -577,6 +584,31 @@ public final class MainWindowSlot implements MainView {
   @Override
   public void editStateChanged() {
     view.editStateChanged();
+  }
+
+  @Override
+  public void showMacroStatus(String text) {
+    macroStatus = text;
+    view.showMacroStatus(text);
+  }
+
+  @Override
+  public void askRunMacro(
+      RunMacroForm initial, Function<RunMacroForm, String> problem, Consumer<RunMacroForm> answer) {
+    view.askRunMacro(initial, problem, answer);
+  }
+
+  @Override
+  public void askSaveMacro(
+      SaveMacroForm initial,
+      Function<SaveMacroForm, String> problem,
+      Consumer<SaveMacroForm> answer) {
+    view.askSaveMacro(initial, problem, answer);
+  }
+
+  @Override
+  public MacroManagerDisplay showManageMacros(MacroManagerInput input) {
+    return view.showManageMacros(input);
   }
 
   @Override

@@ -76,6 +76,9 @@ transient parent.
 | `HashTextDialog` | Tools > *algorithm* > Generate: modeless; a single-line field (the same text on every platform, unlike a multi-line `Text`), its hash in a read-only monospace field, Copy and Close; Esc closes it |
 | `ChecksumDialog` | Tools > *algorithm* > Generate from Files and Verify Checksums: modeless; the source, the lines in a read-only monospace field, a `ProgressRow` with Cancel, a status line, Choose, Copy, Save As and Close; Esc cancels a run while the row shows and closes the window otherwise |
 | `TipDialog` | Help > Tip of the Day: modeless; the tip in a read-only text area, the Show tips on startup check box, Next Tip and Close; Esc closes it and closing calls `TipInput.closed` |
+| `RunMacroDialog` | Macros > Run Multiple Times: a modal macro list and a count or Run to the end of the document, returned as a `RunMacroForm`; OK is enabled while the controller's check returns no problem, which shows under the fields |
+| `SaveMacroDialog` | Macros > Save Recorded Macro: a modal name field and a `KeyField`, returned as a `SaveMacroForm`, checked as `RunMacroDialog` is |
+| `ManageMacrosDialog` | Macros > Manage Macros: modal; the macros folder's files with their keys and problems, the selected macro's name and `KeyField`, Rename, Clear, Set Key, Run (closes the dialog first), Delete (asks through `DeleteDialog`) and Close; a refusal or a failed write shows under the fields, and `rowsChanged` lists the rows again |
 | `BookmarkCommentDialog` | A modal one-line field limited to the comment length, starting with the current comment selected; OK answers its text, and Cancel, Esc and closing answer null |
 
 ## Shortcuts and Preferences
@@ -113,9 +116,11 @@ shows its own color only while focus is in the folder.
   `ClearHistoryDialog`, then clears the saved histories, HyperSearch's last run
   and the session's retained searches at once; Cancel on the dialog does not
   restore them.
-- The Keys tab lists every command; the key field records one stroke and Clear
-  empties it. Add refuses a stroke that types or that another command holds
-  and names that command; Remove and Default Keys edit the selected command,
+- The Keys tab lists every command, then each saved macro under Macros; the key
+  field records one stroke and Clear empties it. A macro's row has no command,
+  so the key buttons leave it alone and the tab names Manage Macros. Add
+  refuses a stroke that types or that another command or a saved macro holds
+  and names it; Remove and Default Keys edit the selected command,
   and Restore All Defaults drops every override. The tab's mnemonics differ
   from each other and from the dialog buttons'.
 - `setKeymap` rebuilds the menu bar and hands the keymap to every `EditorPane`

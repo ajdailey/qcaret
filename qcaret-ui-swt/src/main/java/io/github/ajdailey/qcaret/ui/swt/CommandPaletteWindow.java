@@ -122,19 +122,24 @@ final class CommandPaletteWindow {
     }
   }
 
-  /** Closes the dialog and runs the selected row's command. */
+  /** Closes the dialog and runs the selected row's command or saved macro. */
   private void choose() {
     int index = table.getSelectionIndex();
     if (index < 0 || index >= entries.size() || !entries.get(index).enabled()) {
       return;
     }
     final CommandId command = entries.get(index).command();
+    final String macro = entries.get(index).macro();
     shell.dispose();
     ui.asyncExec(
         new Runnable() {
           @Override
           public void run() {
-            input.run(command);
+            if (macro != null) {
+              input.runMacro(macro);
+            } else {
+              input.run(command);
+            }
           }
         });
   }

@@ -625,7 +625,12 @@ class ToolbarAndMenusTest {
     drain();
     assertEquals(tabs + 1, window.tabs().getItemCount());
     Menu before = tool.getMenuBar();
-    menus.rebuild(controller.keymap());
+    menus.rebuild(
+        controller
+            .keymap()
+            .withOverrides(
+                ShortcutOverrides.NONE.with(
+                    CommandId.RELOAD, List.of(new KeyStroke(0, KeyStroke.F1 + 4)))));
     assertTrue(before.isDisposed());
     assertNotNull(tool.getMenuBar().getItem(0).getMenu());
     nested.dispose();

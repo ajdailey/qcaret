@@ -7,8 +7,9 @@ not from keys or widget events. `app.macro` holds the step model (`MacroStep`,
 (`MacroRecorder`). `MacroHooks`, one per `WindowSet`, owns the recording and
 the runs and takes the controllers' hook calls, an editor's through its
 `EditorMacros`; `MacroPlayer` runs a macro and `MacroFind` runs its find steps.
-Record Macro (a check command) and Play Recorded Macro are `CommandGroup.MACROS`
-commands with no menu entry or default key.
+`MacroHooks` also holds `SavedMacros`, the last listing of the macros folder.
+The Macros menu's commands are `CommandGroup.MACROS` commands; `MacroController`,
+one per window, runs the three that open a dialog and a saved macro by name.
 
 ## Recording
 
@@ -39,7 +40,7 @@ with no `default`:
 |---|---|---|
 | `COMMAND` | caret, selection and block moves, multi-caret, line, case, comment, indent, sort, codec, format, fold and bookmark commands, Cut, Copy, Paste, Delete, Newline, Tab, Undo, Redo, Undo and Redo Selection, line-ending conversions, tab widths 2, 4 and 8, Indent with Spaces, Column Mode, Esc | a `command` step |
 | `OWN_STEP` | Find, Replace, Find Next, Find Previous, Go to Line, Tab Width > Other, Insert Date and Time, Insert Number Sequence, Complete Word | the step its result produces |
-| `NOTICE` | file, print, export, compare, HyperSearch and results, checksum, tab and window switching, Read Only, Preferences, Play Recorded Macro | nothing; the status bar names the command |
+| `NOTICE` | file, print, export, compare, HyperSearch and results, checksum, tab and window switching, Read Only, Preferences, Play Recorded Macro, Run Multiple Times, Save Recorded Macro, Manage Macros | nothing; the status bar names the command |
 | `SILENT` | view, theme, zoom, split, Markdown mode, palette and help commands, Record Macro | nothing |
 
 An `incremental` find replays forward from the primary selection's start, where
@@ -120,3 +121,62 @@ line that does not parse refuses the file.
 | `tab-width 6` | 1 to 16 |
 | `date-time "yyyy-MM-dd"` | a `DateTimeFormatter` pattern |
 | `number-sequence start=1 step=1 pad=3 base=decimal` | `decimal`, `hexUpper` or `hexLower` |
+
+## Macros menu
+
+| Command | Default key | Enabled | Runs |
+|---|---|---|---|
+| Record Macro (check) | `Mod+Shift+R` | a document is selected and no run is active; always while this window records | `MacroHooks.toggleRecording` |
+| Play Recorded Macro | `Mod+Shift+E` | a recorded macro exists and a saved macro could run (below) | `MacroHooks.playRecorded` |
+| Run Multiple Times | none | a recorded or saved macro exists and a saved macro could run | `MacroController.runMultiple`: `MacroDialogs.askRunMacro`, then a run of 1 to 999,999 iterations or to the end |
+| Save Recorded Macro | none | a recorded macro exists and the window does not record | `MacroController.saveRecorded`: `askSaveMacro`, then `MacroStore.save` |
+| Manage Macros | none | no run is active | `MacroController.manage`: `SavedMacros.reload`, then `showManageMacros` with a `MacroManager` |
+
+A saved macro's menu item, palette row (`Macros: <name>`) and key call
+`ApplicationController.runMacro`, enabled by `CommandStates.savedMacroEnabled`:
+no recording or run in the window and an editable document selected. The
+dialogs' checks are `MacroController.nameProblem` (`MacroNames`) and
+`MacroBindings.keyProblem`; a refused field disables OK and shows the reason.
+IBus 1.5.29 binds only `Ctrl+Shift+U` (Unicode input; emoji input is
+`Super+period`), so Play keeps `Ctrl+Shift+E` on Linux; older IBus releases
+bound it to emoji input.
+
+`MacroHooks` sets the status bar's macro field (`MacroDialogs.showMacroStatus`):
+`Recording macro` in the recording window while it records, and during a run
+`MacroStatus`, the listener every run gets, shows `Macro 12 of 50` or, for a
+run to the end, `Macro 37, 45%` once per UI turn and clears the field at the
+end. A run that ends within its first turn shows no progress.
+
+## Saved macros and keys
+
+`SavedMacros` keeps the last `MacroStore.list` of the folder. `reload` lists it
+again after Save, Rename, Delete, Set Key and when Manage Macros opens; when
+the readable macros or their keys change, `WindowSet` rebuilds its keymap with
+`Keymap.withMacroKeys(MacroKeys)` and gives every window the new keymap, whose
+menu bar replaces its saved macro items. `Keymap.macros` returns the
+`MacroBindings` that resolve the keys over the keymap's bindings. A set without a macros folder lists nothing. Setting a
+key in Manage Macros writes the file from its parsed steps, so comment lines
+are dropped.
+
+`MacroKeys` lists the readable macros in menu order, each with its key or none.
+A macro key is a window key: `SavedMacroItems` sets it as the macro's menu item
+accelerator, so the items exist from `MainMenuBar.build` on.
+`MacroBindings.macro` resolves a stroke to a macro name:
+
+| Key in the macro file | Result |
+|---|---|
+| held by a binding of any scope | the binding keeps it; `Keymap.conflicts` lists it, logged at start and on a change |
+| held by an earlier macro | the earlier macro keeps it; listed as a conflict |
+| types text, or holds Ctrl and Alt off macOS | runs nothing |
+| otherwise | runs the macro |
+
+`KeyBehavior.windowTarget` returns a `KeyTarget`, a command or a macro name, for
+the main window's Display filter: GTK 4, and win32 in a `Browser`, run every
+window binding there, so they ask `MacroBindings.windowBindingTarget`, which includes
+the macro keys; GTK 3, cocoa and win32 elsewhere run only a command's second
+keys (`MacroBindings.windowTarget`) and leave macro keys to the menu accelerators.
+
+Help > Keyboard Shortcuts (`Keymap.reference`) lists each macro with a key
+under Macros as `Macros: <name>`. The Preferences Shortcuts page lists every
+saved macro as a row without key buttons; selecting one says that Manage Macros
+sets the key, and Add refuses a key a macro holds.

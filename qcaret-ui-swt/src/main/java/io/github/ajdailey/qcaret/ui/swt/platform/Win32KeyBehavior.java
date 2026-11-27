@@ -1,7 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.KeyTarget;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.widgets.Control;
@@ -18,7 +18,9 @@ final class Win32KeyBehavior implements KeyBehavior {
   }
 
   @Override
-  public CommandId windowCommand(Keymap keymap, KeyStroke stroke, Control focus) {
-    return focus instanceof Browser ? keymap.windowBinding(stroke) : keymap.windowCommand(stroke);
+  public KeyTarget windowTarget(Keymap keymap, KeyStroke stroke, Control focus) {
+    return focus instanceof Browser
+        ? keymap.macros().windowBindingTarget(stroke)
+        : keymap.macros().windowTarget(stroke);
   }
 }

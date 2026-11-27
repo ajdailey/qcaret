@@ -671,6 +671,8 @@ public enum UiText {
   TIP_PRINT_MARKDOWN,
   /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
   TIP_HEX_VIEW,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_MACROS,
   /** Command label. */
   COMMAND_SHOW_LOG,
   /** Command label. */
@@ -2167,7 +2169,73 @@ public enum UiText {
   /** Stop reason: Esc. */
   MACRO_CANCELED,
   /** Stop reason: the run's tab closed or another tab was selected. */
-  MACRO_TAB_CHANGED;
+  MACRO_TAB_CHANGED,
+  /** Command label. */
+  COMMAND_RUN_MACRO_MULTIPLE,
+  /** Command label. */
+  COMMAND_SAVE_RECORDED_MACRO,
+  /** Command label. */
+  COMMAND_MANAGE_MACROS,
+  /** A saved macro's row in the palette, Keyboard Shortcuts and Preferences; its name. */
+  MACRO_ROW,
+  /** Refused macro key: Ctrl+Alt, which Windows sends for AltGr; the key. */
+  MACRO_KEY_ALTGR,
+  /** Status bar macro field while recording. */
+  MACRO_STATUS_RECORDING,
+  /** Status bar macro field during a counted run; the running iteration, count. */
+  MACRO_STATUS_COUNT,
+  /** Status bar macro field during a run to the end; the running iteration, percent. */
+  MACRO_STATUS_TO_END,
+  /** Run Multiple Times: the recorded macro's entry in the macro list. */
+  MACRO_RECORDED_CHOICE,
+  /** Run Multiple Times dialog title. */
+  RUN_MACRO_TITLE,
+  /** Run Multiple Times: macro field label. */
+  RUN_MACRO_MACRO,
+  /** Run Multiple Times: count choice. */
+  RUN_MACRO_TIMES,
+  /** Run Multiple Times: run to the end choice. */
+  RUN_MACRO_TO_END,
+  /** Run Multiple Times: the count is out of range; the largest count. */
+  RUN_MACRO_COUNT_RANGE,
+  /** Save Recorded Macro dialog title. */
+  SAVE_MACRO_TITLE,
+  /** Save Recorded Macro: name field label. */
+  SAVE_MACRO_NAME,
+  /** Save Recorded Macro and Manage Macros: key field label. */
+  SAVE_MACRO_KEY,
+  /** Refused macro name: its length; the longest name. */
+  MACRO_NAME_LENGTH,
+  /** Refused macro name: a char other than a letter, digit, space, - or _, or an outer space. */
+  MACRO_NAME_CHARS,
+  /** Refused macro name: a Windows device name; the name. */
+  MACRO_NAME_DEVICE,
+  /** Refused macro name: another macro has it, ignoring case; the other name. */
+  MACRO_NAME_TAKEN,
+  /** Notice: a macro saved; its name. */
+  MACRO_SAVED,
+  /** Notice and Manage Macros message: a macros folder write failed; the reason. */
+  MACRO_FILE_FAILED,
+  /** Manage Macros: a key set on an unreadable file. */
+  MACRO_UNREADABLE_KEY,
+  /** Manage Macros dialog title. */
+  MANAGE_MACROS_TITLE,
+  /** Manage Macros: name column. */
+  MANAGE_MACROS_NAME,
+  /** Manage Macros: key column. */
+  MANAGE_MACROS_KEY,
+  /** Manage Macros: column with why a file is unreadable. */
+  MANAGE_MACROS_PROBLEM,
+  /** Manage Macros: asked before a delete; the name. */
+  MACRO_DELETE_ASK,
+  /** Button. */
+  BUTTON_RUN,
+  /** Button. */
+  BUTTON_RENAME,
+  /** Button. */
+  BUTTON_SET_KEY,
+  /** Preferences Shortcuts page: a saved macro's row is selected. */
+  PREFERENCES_MACRO_KEY;
 
   private static final String BUNDLE = "io.github.ajdailey.qcaret.app.i18n.messages";
 

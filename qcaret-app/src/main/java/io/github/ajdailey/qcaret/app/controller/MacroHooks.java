@@ -18,18 +18,44 @@ import java.util.function.Consumer;
  * and takes the steps of that window's selected editor. Stopping keeps it as the recorded macro
  * until a new recording replaces it. Each window runs at most one macro ({@link MacroPlayer});
  * while one runs, input to its document's views is dropped and the window runs only {@link
- * Recordability#SILENT} commands. Confined to the UI thread.
+ * Recordability#SILENT} commands. The recording window's status bar shows the recording marker and
+ * a run's window the run's progress ({@link MacroStatus}). It also holds the {@link SavedMacros}.
+ * Confined to the UI thread.
  *
  * <p>A command is recorded once, by the first hook it passes: {@link #commandStarting} for {@link
  * ApplicationController#execute}, {@link #editorCommand} for a key the editor runs itself. A
  * disabled command is not recorded, so playback never fails on a step the recording ran as a no-op.
  */
 final class MacroHooks {
+  private final SavedMacros saved;
   private ApplicationController recordingWindow;
   private MacroRecorder recorder;
   private Macro recorded;
   private int dispatching;
   private final List<MacroPlayer> runs = new ArrayList<MacroPlayer>();
+
+  /**
+   * Creates the hooks.
+   *
+   * @param saved the saved macros
+   */
+  MacroHooks(SavedMacros saved) {
+    this.saved = saved;
+  }
+
+  /** Creates a stand-in for a controller not yet in a window set: no saved macros. */
+  MacroHooks() {
+    this(new SavedMacros(null, null));
+  }
+
+  /**
+   * Returns the saved macros.
+   *
+   * @return the list
+   */
+  SavedMacros saved() {
+    return saved;
+  }
 
   // Recording.
 
@@ -90,6 +116,7 @@ final class MacroHooks {
               }
             });
     window.showNotice(UiText.MACRO_RECORDING.text());
+    window.view().showMacroStatus(UiText.MACRO_STATUS_RECORDING.text());
     return true;
   }
 
@@ -106,6 +133,7 @@ final class MacroHooks {
     ApplicationController window = recordingWindow;
     recorder = null;
     recordingWindow = null;
+    window.view().showMacroStatus("");
     Macro macro = new Macro(null, null, steps);
     if (!steps.isEmpty()) {
       recorded = macro;
@@ -133,7 +161,8 @@ final class MacroHooks {
 
   /**
    * Starts a macro in a window's selected editor; refused with a notice while the window records or
-   * runs a macro, on a read-only document and for a macro without steps.
+   * runs a macro, on a read-only document and for a macro without steps. The window's status bar
+   * shows the run's progress.
    *
    * @param window the window
    * @param macro the macro
@@ -151,7 +180,8 @@ final class MacroHooks {
       window.showNotice(UiText.MACRO_BUSY.text());
       return null;
     }
-    MacroPlayer player = new MacroPlayer(window, editor, macro, count, this, listener);
+    MacroPlayer player =
+        new MacroPlayer(window, editor, macro, count, this, new MacroStatus(window, listener));
     runs.add(player);
     if (!player.start()) {
       runs.remove(player);
@@ -164,7 +194,7 @@ final class MacroHooks {
    * Reports whether a macro command is enabled in a window.
    *
    * @param window the window
-   * @param command {@link CommandId#RECORD_MACRO} or {@link CommandId#PLAY_RECORDED_MACRO}
+   * @param command a {@link io.github.ajdailey.qcaret.app.command.CommandGroup#MACROS} command
    * @return true when it runs
    */
   boolean enabled(ApplicationController window, CommandId command) {
@@ -175,10 +205,25 @@ final class MacroHooks {
     boolean free = run(window) == null && !recording(window);
     return switch (command) {
       case RECORD_MACRO -> free && document != null;
-      case PLAY_RECORDED_MACRO ->
-          free && recorded != null && document != null && !document.isReadOnly();
+      case PLAY_RECORDED_MACRO -> recorded != null && savedEnabled(window);
+      case RUN_MACRO_MULTIPLE ->
+          (recorded != null || !saved.keys().entries().isEmpty()) && savedEnabled(window);
+      case SAVE_RECORDED_MACRO -> recorded != null && !recording(window);
+      case MANAGE_MACROS -> run(window) == null;
       default -> true;
     };
+  }
+
+  /**
+   * Reports whether a saved macro runs in a window: no recording or run there, and a selected
+   * document that is not read-only.
+   *
+   * @param window the window
+   * @return true when a saved macro's menu item is enabled
+   */
+  boolean savedEnabled(ApplicationController window) {
+    Document document = window.documents().activeDocument();
+    return run(window) == null && !recording(window) && document != null && !document.isReadOnly();
   }
 
   /** Returns a window's run, or null. */

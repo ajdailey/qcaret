@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.command.MacroKeys;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
@@ -570,11 +571,13 @@ final class PreferencesDialog {
     String keyText = captured.text(PlatformTraits.PLATFORM.macKeys());
     Keymap current = working();
     CommandId holder = current.holder(captured, command);
-    if (captured.types() || holder != null) {
+    String macro = current.macros().holder(captured, null);
+    if (captured.types() || holder != null || macro != null) {
       keyMessage.setText(
           captured.types()
               ? UiText.PREFERENCES_KEY_TYPES.format(keyText)
-              : UiText.PREFERENCES_KEY_TAKEN.format(keyText, holder.title()));
+              : UiText.PREFERENCES_KEY_TAKEN.format(
+                  keyText, holder != null ? holder.title() : UiText.MACRO_ROW.format(macro)));
       keyMessage.getParent().layout(true);
       return;
     }
@@ -628,12 +631,37 @@ final class PreferencesDialog {
           }
         }
       }
+      if (group == CommandGroup.MACROS) {
+        macroRows(current, needle);
+      }
     }
     showKeys();
   }
 
+  /**
+   * Lists the saved macros matching the filter with their keys; a macro's row has no command, so
+   * the key buttons leave it alone and the key message names Manage Macros.
+   */
+  private void macroRows(Keymap current, String needle) {
+    for (MacroKeys.Entry entry : current.macros().keys().entries()) {
+      String[] row = {
+        CommandGroup.MACROS.title(),
+        UiText.MACRO_ROW.format(entry.name()),
+        current.macros().keyText(entry.name())
+      };
+      if (String.join(" ", row).toLowerCase(Locale.ROOT).contains(needle)) {
+        new TableItem(commands, SWT.NONE).setText(row);
+        rows.add(null);
+      }
+    }
+  }
+
   private void showKeys() {
     keys.removeAll();
+    int index = commands.getSelectionIndex();
+    boolean macro = index >= 0 && index < rows.size() && rows.get(index) == null;
+    keyMessage.setText(macro ? UiText.PREFERENCES_MACRO_KEY.text() : "");
+    keyMessage.getParent().layout(true);
     CommandId command = selected();
     if (command != null) {
       for (KeyStroke stroke : working().strokes(command)) {

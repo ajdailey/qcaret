@@ -4,16 +4,18 @@ import io.github.ajdailey.qcaret.app.command.CommandGroup;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Fuzzy;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.command.MacroKeys;
+import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.PaletteEntry;
 import io.github.ajdailey.qcaret.app.view.PaletteInput;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The command palette: every menu command, filtered with {@link Fuzzy} on its title and then on its
- * menu and title, best score first and menu order among equals. A row shows the command's keys and
- * whether {@link CommandStates} enables it; only an enabled command runs. Confined to the UI
- * thread.
+ * The command palette: every menu command and each saved macro as {@code Macros: <name>}, filtered
+ * with {@link Fuzzy} on its title and then on its menu and title, best score first and menu order
+ * among equals. A row shows the command's keys and whether {@link CommandStates} enables it; only
+ * an enabled command runs. Confined to the UI thread.
  */
 final class CommandPalette implements PaletteInput {
   private final ApplicationController application;
@@ -54,10 +56,47 @@ final class CommandPalette implements PaletteInput {
         entries.add(
             at,
             new PaletteEntry(
-                command, title, group.title(), keymap.keysText(command), states.enabled(command)));
+                command,
+                title,
+                group.title(),
+                keymap.keysText(command),
+                states.enabled(command),
+                null));
+      }
+      if (group == CommandGroup.MACROS) {
+        macroRows(query, entries, scores);
       }
     }
     return entries;
+  }
+
+  /** Adds the saved macros that match a query, by score after the commands of equal score. */
+  private void macroRows(String query, List<PaletteEntry> entries, List<Integer> scores) {
+    boolean enabled = states.savedMacroEnabled();
+    String group = CommandGroup.MACROS.title();
+    for (MacroKeys.Entry macro : keymap.macros().keys().entries()) {
+      String title = UiText.MACRO_ROW.format(macro.name());
+      int score = Fuzzy.score(query, title);
+      if (score < 0) {
+        continue;
+      }
+      int at = 0;
+      while (at < scores.size() && scores.get(at) >= score) {
+        at++;
+      }
+      scores.add(at, score);
+      entries.add(
+          at,
+          new PaletteEntry(
+              null, title, group, keymap.macros().keyText(macro.name()), enabled, macro.name()));
+    }
+  }
+
+  @Override
+  public void runMacro(String name) {
+    if (states.savedMacroEnabled()) {
+      application.runMacro(name);
+    }
   }
 
   @Override

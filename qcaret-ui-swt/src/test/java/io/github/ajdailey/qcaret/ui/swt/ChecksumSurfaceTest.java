@@ -164,7 +164,7 @@ class ChecksumSurfaceTest {
   }
 
   @Test
-  void theToolsMenuSitsBeforeWindowWithACascadePerAlgorithm() {
+  void theToolsMenuSitsBeforeMacrosAndWindowWithACascadePerAlgorithm() {
     List<String> headers = new ArrayList<String>();
     MenuItem tools = null;
     for (MenuItem header : window.shell().getMenuBar().getItems()) {
@@ -174,8 +174,12 @@ class ChecksumSurfaceTest {
       }
     }
     assertEquals(
-        headers.indexOf(CommandGroup.WINDOW.label()) - 1,
+        headers.indexOf(CommandGroup.MACROS.label()) - 1,
         headers.indexOf(CommandGroup.TOOLS.label()),
+        headers.toString());
+    assertEquals(
+        headers.indexOf(CommandGroup.WINDOW.label()) - 1,
+        headers.indexOf(CommandGroup.MACROS.label()),
         headers.toString());
     List<String> cascades = new ArrayList<String>();
     for (MenuItem item : tools.getMenu().getItems()) {

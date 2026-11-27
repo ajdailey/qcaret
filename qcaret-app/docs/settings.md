@@ -144,7 +144,8 @@ command without any. `ShortcutOverrides.parse` refuses a value with a stroke
 that does not parse or that types text (`KeyStroke.types`), with one WARN
 naming the key; a key naming no command stays in the file. `KeyStroke.stored`
 is the platform-free form: `Mod+Alt+K`. The dialog refuses a key another
-command holds. `Keymap.conflicts`, such as a conflict written by hand, is
+command or a saved macro holds. A saved macro's key is in its macro file, not in
+`qcaret.conf` ([Macros](macros.md#saved-macros-and-keys)). `Keymap.conflicts`, such as a conflict written by hand, is
 logged at start and on a change and listed at the end of Help > Keyboard
 Shortcuts.
 

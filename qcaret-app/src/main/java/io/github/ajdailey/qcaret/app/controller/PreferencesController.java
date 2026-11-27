@@ -17,6 +17,7 @@ import io.github.ajdailey.qcaret.app.view.PreferencesInput;
 import io.github.ajdailey.qcaret.core.document.Document;
 import io.github.ajdailey.qcaret.core.hex.HexRows;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Tools > Preferences: {@link #open} reads {@code qcaret.conf} on a worker through {@link
@@ -27,7 +28,7 @@ import java.util.function.Consumer;
 final class PreferencesController implements PreferencesInput {
   private final Settings settings;
   private final MainView view;
-  private final Keymap defaults;
+  private final Supplier<Keymap> defaults;
   private final Consumer<Consumer<SessionRewrite.Result>> forgetHistory;
   private final Consumer<Consumer<AppearanceChoices>> loadChoices;
   private final Runnable loadTheme;
@@ -41,7 +42,7 @@ final class PreferencesController implements PreferencesInput {
   PreferencesController(
       Settings settings,
       MainView view,
-      Keymap defaults,
+      Supplier<Keymap> defaults,
       Consumer<Consumer<SessionRewrite.Result>> forgetHistory,
       Consumer<Consumer<AppearanceChoices>> loadChoices,
       Runnable loadTheme) {
@@ -124,7 +125,7 @@ final class PreferencesController implements PreferencesInput {
 
   @Override
   public Keymap keymap(ShortcutOverrides overrides) {
-    return defaults.withOverrides(overrides);
+    return defaults.get().withOverrides(overrides);
   }
 
   @Override

@@ -1,7 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.KeyTarget;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Control;
@@ -14,8 +14,8 @@ class Gtk3KeyBehavior implements KeyBehavior {
   }
 
   @Override
-  public CommandId windowCommand(Keymap keymap, KeyStroke stroke, Control focus) {
-    return keymap.windowCommand(stroke);
+  public KeyTarget windowTarget(Keymap keymap, KeyStroke stroke, Control focus) {
+    return keymap.macros().windowTarget(stroke);
   }
 
   /**

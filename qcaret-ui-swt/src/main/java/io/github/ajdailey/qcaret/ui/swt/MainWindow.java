@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
+import io.github.ajdailey.qcaret.app.command.KeyTarget;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.MenuTable;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
@@ -26,6 +27,8 @@ import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.HexInput;
 import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.HexView;
+import io.github.ajdailey.qcaret.app.view.MacroManagerDisplay;
+import io.github.ajdailey.qcaret.app.view.MacroManagerInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MemoryFields;
@@ -38,6 +41,8 @@ import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.app.view.RunMacroForm;
+import io.github.ajdailey.qcaret.app.view.SaveMacroForm;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
@@ -73,6 +78,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -177,6 +183,7 @@ public final class MainWindow implements MainView {
   private final ChromeColors chrome;
   private final SwtUiDispatcher dispatcher;
   private final WindowHexViews hexViews;
+  private final WindowMacroDialogs macroDialogs;
 
   private final Composite statusBar;
   private ProgressRow printBar;
@@ -374,7 +381,7 @@ public final class MainWindow implements MainView {
     font = new Font(display, fontName, fontPoints, SWT.NORMAL);
     statusBar = new Composite(shell, SWT.NONE);
     statusBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    GridLayout statusLayout = new GridLayout(10, false);
+    GridLayout statusLayout = new GridLayout(11, false);
     statusLayout.marginHeight = 1;
     statusLayout.marginWidth = 6;
     statusLayout.horizontalSpacing = 14;
@@ -399,6 +406,7 @@ public final class MainWindow implements MainView {
             }
           }
         });
+    macroDialogs = new WindowMacroDialogs(shell, statusBar);
     readOnly = statusLabel();
     position = statusLabel();
     selection = statusLabel();
@@ -478,6 +486,7 @@ public final class MainWindow implements MainView {
     controller = owner;
     keymap = owner.keymap();
     hexViews.setKeymap(keymap);
+    macroDialogs.setKeymap(keymap);
     menuBar = new MainMenuBar(shell, owner, menuIcons);
     tabMenu = new TabMenu(shell, owner, menuBar.states());
     menuBar.build(keymap);
@@ -1308,6 +1317,50 @@ public final class MainWindow implements MainView {
     return hexViews.openHexViewer(title, input);
   }
 
+  @Override
+  public void showMacroStatus(String text) {
+    macroDialogs.showStatus(text);
+  }
+
+  @Override
+  public void askRunMacro(
+      RunMacroForm initial, Function<RunMacroForm, String> problem, Consumer<RunMacroForm> answer) {
+    macroDialogs.askRunMacro(modalOwner(), initial, problem, answer);
+  }
+
+  @Override
+  public void askSaveMacro(
+      SaveMacroForm initial,
+      Function<SaveMacroForm, String> problem,
+      Consumer<SaveMacroForm> answer) {
+    macroDialogs.askSaveMacro(modalOwner(), initial, problem, answer);
+  }
+
+  @Override
+  public MacroManagerDisplay showManageMacros(MacroManagerInput input) {
+    return macroDialogs.showManageMacros(modalOwner(), input);
+  }
+
+  /**
+   * Returns the window's Macros dialogs and status-bar macro field.
+   *
+   * @return the dialogs
+   */
+  WindowMacroDialogs macroDialogs() {
+    return macroDialogs;
+  }
+
+  /** Runs a key's command or saved macro when it is enabled. */
+  void runKey(KeyTarget target) {
+    if (target.command() != null) {
+      if (menuBar.states().enabled(target.command())) {
+        controller.execute(target.command());
+      }
+    } else if (menuBar.states().savedMacroEnabled()) {
+      controller.runMacro(target.macro());
+    }
+  }
+
   /**
    * Returns the window's hex panes and Hex Viewer windows.
    *
@@ -1585,8 +1638,9 @@ public final class MainWindow implements MainView {
   }
 
   /**
-   * Runs the window command {@link KeyBehavior#windowCommand} names for a key from a Display filter
-   * while this window has a key event. The key is consumed; a disabled command does not run.
+   * Runs the window command or saved macro {@link KeyBehavior#windowTarget} names for a key from a
+   * Display filter while this window has a key event. The key is consumed; a disabled command or
+   * macro does not run.
    */
   private void dispatchWindowKeys() {
     final Display display = shell.getDisplay();
@@ -1601,14 +1655,12 @@ public final class MainWindow implements MainView {
               return;
             }
             KeyStroke stroke = SwtKeys.stroke(event.stateMask, event.keyCode, event.character);
-            CommandId command =
-                stroke == null ? null : KeyBehavior.PLATFORM.windowCommand(keymap, stroke, control);
-            if (command != null) {
+            KeyTarget target =
+                stroke == null ? null : KeyBehavior.PLATFORM.windowTarget(keymap, stroke, control);
+            if (target != null) {
               event.type = SWT.None;
               event.doit = false;
-              if (menuBar.states().enabled(command)) {
-                controller.execute(command);
-              }
+              runKey(target);
             }
           }
         };
@@ -1974,7 +2026,7 @@ public final class MainWindow implements MainView {
       return;
     }
     keymap = bindings;
-    menuBar.build(bindings);
+    menuBar.apply(bindings);
     toolMenus.rebuild(bindings);
     mainToolBar.setKeymap(bindings);
     tabButtons.setKeymap(bindings);
@@ -1985,6 +2037,7 @@ public final class MainWindow implements MainView {
     }
     dialogs.setKeymap(bindings);
     hexViews.setKeymap(bindings);
+    macroDialogs.setKeymap(bindings);
   }
 
   // Command palette.

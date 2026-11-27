@@ -15,6 +15,7 @@ Preferences, Keys changes them.
 - [Multiple carets and block selection](#multiple-carets-and-block-selection)
 - [Search and HyperSearch](#search-and-hypersearch)
 - [Replace](#replace)
+- [Macros](#macros)
 - [Bookmarks](#bookmarks)
 - [Folding](#folding)
 - [Syntax highlighting](#syntax-highlighting)
@@ -684,6 +685,109 @@ writes a run's backups back, and refuses a file changed since the run. A file
 whose write failed partway keeps its backup, and Restore Run puts the original
 back.
 
+## Macros
+
+A macro replays editing you recorded: commands, typed text, finds and
+replaces, and the answers you gave Go to Line, Tab Width > Other, Insert Date
+and Time and Insert Number Sequence. It records the commands, not the keys, so
+a command chosen from the menu, a key or the command palette replays the same.
+
+![The Macros menu with three saved macros](images/guide/macros-menu.png)
+
+| Macros menu | Does |
+|---|---|
+| Record Macro (`Ctrl+Shift+R`) | Starts recording in the window; choose it again to stop. The status bar shows "Recording macro" meanwhile. The recording is kept as the recorded macro until the next recording or until QCaret exits |
+| Play Recorded Macro (`Ctrl+Shift+E`) | Plays the recorded macro once in the selected tab |
+| Run Multiple Times | Plays the recorded macro or a saved one 1 to 999,999 times, or to the end of the document |
+| Save Recorded Macro | Saves the recorded macro under a name, with an optional key |
+| Manage Macros | Runs, renames and deletes saved macros and sets their keys |
+| The saved macros, after the separator | Each plays its macro once; its key shows beside it |
+
+The command palette lists each saved macro as "Macros: name".
+
+A run is one undo step: one Undo restores the text and selections from before
+it. A macro that recorded Undo or Redo runs without that single step. While a
+macro runs, its document takes no typing and the window runs only view
+commands; `Esc` stops the run. The status bar shows the iteration, such as
+"Macro 12 of 50", and for a run to the end the share of the document behind the
+caret. A run never wraps a find. It stops at a step that cannot run: a disabled
+command, a find with no match, or a command that fails. The notice names the
+iteration and the step, and the steps before it stay done. A run to the end
+ends when a find finds no match, at the end of the document, or after an
+iteration that did not bring the caret closer to the end.
+
+These run but are not recorded, and the status bar names each one:
+
+- Mouse clicks, drags and drops, and middle-click paste in the text.
+- Switching tabs or windows, Go Back and Go Forward, Quick Open, Go to Symbol
+  and Switch Document.
+- File commands, printing, Export as HTML, Compare, HyperSearch and its
+  results, checksums, Read Only, encodings, Preferences and the Macros menu's
+  commands.
+
+View and help commands, such as zoom, theme, word wrap, split and the command
+palette, are not recorded and show no notice. Paste pastes the clipboard as it
+is when the macro runs, and Insert Date and Time inserts the time of the run.
+The result also depends on the settings that shape typing: auto-close, the
+syntax's indent rules, tab width, Indent with Spaces, folds and the word wrap
+width.
+
+### Saved macros
+
+A name is 1 to 64 letters, digits, spaces, `-` and `_`, with no space at either
+end. Names ignore case, so `Wrap` and `wrap` cannot both exist, and a Windows
+device name such as `CON` or `COM1` is refused. To give a macro a key, click
+the Key field and press the key. A key needs `Ctrl`, `Alt` or `Cmd`; off macOS it
+cannot hold both `Ctrl` and `Alt`, which Windows sends for AltGr; and no command
+or other macro may hold it. A macro's key works anywhere in the window. Help >
+Keyboard Shortcuts and Tools > Preferences, Keys list it; Manage Macros changes
+it.
+
+![Manage Macros with a readable macro selected and an unreadable file](images/guide/manage-macros.png)
+
+Manage Macros reads the `macros` folder again each time it opens. Select a
+macro to fill its Name and Key: Rename gives it the name typed, Set Key gives
+it the key shown (Clear, then Set Key, removes it), Run closes the dialog and
+plays it, and Delete asks, then deletes its file. A file QCaret cannot read
+shows why under Problem and is left out of the Macros menu.
+
+### Macro files
+
+Each saved macro is a UTF-8 text file, `<name>.qcmacro`, in the `macros` folder
+of the [settings directory](#settings-directory). The file name is the macro's
+name. You can write or change one in any editor; Manage Macros reads the folder
+again. Setting a key in Manage Macros writes the file again and drops its
+comment lines.
+
+```text
+qcaret-macro 1
+# Quote the line and move to the next.
+key Mod+Shift+1
+command LINE_START
+type "> "
+command CARET_DOWN
+```
+
+The first line is `qcaret-macro 1`, then one step per line. Lines starting with
+`#` and blank lines are skipped. Text is in double quotes with JSON escapes such
+as `\"`, `\\`, `\n`, `\t` and `é`. A line QCaret cannot read makes the
+whole file unreadable, and Manage Macros shows the line's number. A file holds
+at most 1 MiB.
+
+| Line | Step |
+|---|---|
+| `key Mod+Shift+1` | The macro's key, once; `Mod` is `Ctrl`, or `Cmd` on macOS |
+| `command CARET_DOWN` | A command, by the name `shortcut.` lines in `qcaret.conf` use |
+| `type "text"` | Typed text; auto-close and indent act as when typed |
+| `insert "text"` | Text an input method committed |
+| `complete "word"` | A word chosen from the completion list |
+| `find "text" forward case=on word=off regex=off` | A find: `forward`, `backward`, or `incremental` (forward from the selection's start) |
+| `replace "find" "with" case=off word=off regex=off` | Replace; `replace-all` for Replace All |
+| `go-to-line 120`, `go-to-line 120:5` | Go to Line, with a column after `:` |
+| `tab-width 6` | Tab Width > Other, 1 to 16 |
+| `date-time "yyyy-MM-dd"` | Insert Date and Time with a format |
+| `number-sequence start=1 step=1 pad=3 base=decimal` | Insert Number Sequence; `pad` is the zero-padded width, `base` is `decimal`, `hexUpper` or `hexLower` |
+
 ## Bookmarks
 
 | Keys | Action |
@@ -1277,11 +1381,11 @@ so the keys repeat.
 | Files | Seconds between file checks, reload without asking, recovery interval and keep time, quit without asking, restore the session at start, close the window with its last tab, show the last used tab after a close |
 | Search and Workspace | Longest line searched, days a replace run's backups are kept, excluded directories, default workspace folder, Clear History |
 | Appearance | Theme, editor font size, editor font, Markdown preview renderer, Sync Scrolling, the mode Markdown files open in |
-| Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults |
+| Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults; each saved macro's key, which Manage Macros sets |
 
 Restore Defaults fills every tab with the default values; nothing changes until
-OK or Apply. Add refuses a key that types text or that another command holds,
-and names that command; a changed command reads "(changed)". Restore All
+OK or Apply. Add refuses a key that types text or that another command or a
+saved macro holds, and names it; a changed command reads "(changed)". Restore All
 Defaults drops every key change on OK or Apply. Clear History removes the
 saved search texts, replacements, directories
 and masks, and the searches kept in the session. When another QCaret window owns

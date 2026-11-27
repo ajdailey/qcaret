@@ -39,7 +39,8 @@ import org.eclipse.swt.widgets.Shell;
  * for a new keymap. The View menu's Syntax cascade holds the {@link SyntaxMenu} entries above
  * Reload Grammars, rebuilt each time the View menu shows; {@link #showSyntaxMenu} pops up the same
  * entries. {@link RecentMenus} rebuilds the File menu's Recent Files and Recently Closed listings
- * each time the File menu shows. {@link MenuIcons} gives the command items their icons; the listing
+ * each time the File menu shows. {@link SavedMacroItems} adds the saved macros to the Macros menu
+ * when the bar is built. {@link MenuIcons} gives the command items their icons; the listing
  * cascades carry none. Call on the UI thread.
  */
 final class MainMenuBar {
@@ -62,6 +63,7 @@ final class MainMenuBar {
   private final EncodingCascade saveAs;
   private final RecentMenus recent;
   private EncodingChoices encodings;
+  private Keymap built;
 
   // Tool window menus.
   private Shell closes;
@@ -127,6 +129,7 @@ final class MainMenuBar {
    * @param keymap the key bindings
    */
   void build(Keymap keymap) {
+    built = keymap;
     Menu old = shell.getMenuBar();
     items.clear();
     menus.clear();
@@ -204,6 +207,9 @@ final class MainMenuBar {
         }
       }
       icons.decorate(menu);
+      if (group == CommandGroup.MACROS) {
+        SavedMacroItems.fill(menu, keymap, controller);
+      }
       menu.addListener(
           SWT.Show,
           new Listener() {
@@ -221,6 +227,25 @@ final class MainMenuBar {
       encodingsLoaded(encodings);
     }
     syncAll();
+  }
+
+  /**
+   * Applies a keymap: when only its saved macros differ from the one built, replaces the Macros
+   * menu's saved macro items and keeps the bar; otherwise {@link #build}. On GTK 4 a replaced bar
+   * followed by a dialog closing crashed the process in {@code gtk_widget_has_focus} (measured
+   * under Xvfb), so a change of the macros folder does not replace the bar.
+   *
+   * @param keymap the key bindings
+   */
+  void apply(Keymap keymap) {
+    Menu macros = menus.get(CommandGroup.MACROS);
+    if (built == null || !built.sameBindings(keymap) || macros == null || macros.isDisposed()) {
+      build(keymap);
+      return;
+    }
+    built = keymap;
+    SavedMacroItems.replace(macros, keymap, controller);
+    SavedMacroItems.sync(macros, states);
   }
 
   /**
@@ -248,6 +273,9 @@ final class MainMenuBar {
     }
     if (group == CommandGroup.WINDOW) {
       syncDocuments();
+    }
+    if (group == CommandGroup.MACROS) {
+      SavedMacroItems.sync(menus.get(group), states);
     }
     if (group == CommandGroup.VIEW) {
       syncSyntax();
@@ -416,6 +444,7 @@ final class MainMenuBar {
       setEnabled(reopen.holder(), states.reopenEnabled());
       setEnabled(saveAs.holder(), states.saveEncodingEnabled());
     }
+    SavedMacroItems.sync(menus.get(CommandGroup.MACROS), states);
   }
 
   /** Enables the items of {@link CommandStates#EDIT_STATE}. */

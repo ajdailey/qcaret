@@ -521,7 +521,13 @@ public enum CommandId {
   /** Start recording the window's editing as the recorded macro, or stop the recording. */
   RECORD_MACRO(CommandGroup.MACROS, UiText.COMMAND_RECORD_MACRO, true, null),
   /** Play the recorded macro once in the selected editor. */
-  PLAY_RECORDED_MACRO(CommandGroup.MACROS, UiText.COMMAND_PLAY_RECORDED_MACRO, false, null);
+  PLAY_RECORDED_MACRO(CommandGroup.MACROS, UiText.COMMAND_PLAY_RECORDED_MACRO, false, null),
+  /** Run the recorded macro or a saved one a chosen number of times or to the document's end. */
+  RUN_MACRO_MULTIPLE(CommandGroup.MACROS, UiText.COMMAND_RUN_MACRO_MULTIPLE, false, null),
+  /** Save the recorded macro under a name, with an optional key. */
+  SAVE_RECORDED_MACRO(CommandGroup.MACROS, UiText.COMMAND_SAVE_RECORDED_MACRO, false, null),
+  /** Run, rename, delete and set the keys of the saved macros. */
+  MANAGE_MACROS(CommandGroup.MACROS, UiText.COMMAND_MANAGE_MACROS, false, null);
 
   private final CommandGroup group;
   private final UiText label;

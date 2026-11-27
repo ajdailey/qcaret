@@ -221,6 +221,12 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 | `HexCanvasSurfaceTest` (`ui.swt.hex`) | A pane over a recording controller: clicks in both columns, Shift+click, a click below the last byte and a drag; caret keys, Tab, Copy, Select All and Esc, and the window keys run only in a Hex Viewer; F3, Shift+F3, Go to Line and Close from a Hex Viewer's find field, canceled so they are not typed, with Find left to the field, and none of them from a tab pane's; a long find message wrapping inside a bar as wide as its controls; painted colors read back with antialiasing off (background, gutter, selection in both columns, caret twin, the `.` in the box ink, a replaced byte in the invalid color, the dark palette); every column against the extent of a run of zeros. Also run at `-Dswt.autoScale=150` |
 | `HexPaintTimeTest` (`ui.swt.hex`) | With `-Dqcaret.hex.paint=<file>`, the time of 300 off-screen paints of 60 full rows |
 
+### Macros
+
+| Class | Covers |
+|---|---|
+| `MacroGuiTest` | The Macros menu's items, keys and separator, the saved macro's accelerator, Record Macro's check and the status-bar field; a posted saved macro key running the macro (GTK only); Run Multiple Times' count check and run; Save Recorded Macro refusing a held key and writing the file; Manage Macros refusing a device name, renaming, and deleting after `DeleteDialog`; a palette row running a macro, the shortcut reference row, and Preferences refusing a key a macro holds; commands and typing during a recording under a real pane showing no mouse notice |
+
 ### Theme
 
 | Class | Covers |
@@ -252,10 +258,12 @@ Linux host without WebKitGTK 4.1. The Linux CI test jobs install
 
 ### Screenshots
 
-`GuideScreenshotsTest`, `MarkdownGuideShotsTest` and `HexShotsTest` run only
-with `-Dqcaret.guide.shots=<dir>` (`tools/screenshots.sh`) and write the user
-guide's images from generated mock files, `HexShotsTest` its dark pair to
-`-Dqcaret.rm.out=<dir>`; `MarkdownGuideShotsTest` fails when the
+`GuideScreenshotsTest`, `MarkdownGuideShotsTest`, `HexShotsTest` and
+`MacroShotsTest` run only with `-Dqcaret.guide.shots=<dir>`
+(`tools/screenshots.sh`) and write the user guide's images from generated mock
+files, `HexShotsTest` and `MacroShotsTest` their light and dark pairs to
+`-Dqcaret.rm.out=<dir>`; `MacroShotsTest` opens the Macros menu with a posted
+Alt+M and runs on GTK 3 only; `MarkdownGuideShotsTest` fails when the
 Browser renderer cannot run. `EditorSchemeShotsTest` writes `editor-colors.png` there, and with
 `-Dqcaret.scheme.shots=<dir>` one PNG per editor color scheme of a Java,
 Markdown, XML and shell file. With `-Dqcaret.rm.out=<dir>`,

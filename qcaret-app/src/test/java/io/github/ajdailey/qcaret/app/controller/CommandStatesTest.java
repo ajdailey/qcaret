@@ -262,6 +262,9 @@ class CommandStatesTest {
           "EXPORT_HTML -- -- --",
           "RECORD_MACRO -- -e -e",
           "PLAY_RECORDED_MACRO -- -- --",
+          "RUN_MACRO_MULTIPLE -- -- --",
+          "SAVE_RECORDED_MACRO -- -- --",
+          "MANAGE_MACROS -e -e -e",
           "reopen - e -",
           "saveEncoding - e -");
 

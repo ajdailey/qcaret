@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -145,7 +146,12 @@ class PreferencesControllerTest {
         new PreferencesController(
             harness.application.settings(),
             harness.view,
-            Keymap.defaults(false),
+            new Supplier<Keymap>() {
+              @Override
+              public Keymap get() {
+                return Keymap.defaults(false);
+              }
+            },
             new Consumer<Consumer<SessionRewrite.Result>>() {
               @Override
               public void accept(Consumer<SessionRewrite.Result> done) {

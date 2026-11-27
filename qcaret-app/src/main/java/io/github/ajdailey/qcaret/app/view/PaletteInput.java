@@ -19,4 +19,11 @@ public interface PaletteInput {
    * @param command the command
    */
   void run(CommandId command);
+
+  /**
+   * Runs a saved macro when one can run; the view closes first.
+   *
+   * @param name the macro's name
+   */
+  void runMacro(String name);
 }

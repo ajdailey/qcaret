@@ -458,6 +458,15 @@ public final class MenuTable {
             null,
             CommandId.PREFERENCES));
     m.put(
+        CommandGroup.MACROS,
+        Arrays.asList(
+            CommandId.RECORD_MACRO,
+            CommandId.PLAY_RECORDED_MACRO,
+            CommandId.RUN_MACRO_MULTIPLE,
+            null,
+            CommandId.SAVE_RECORDED_MACRO,
+            CommandId.MANAGE_MACROS));
+    m.put(
         CommandGroup.WINDOW,
         Arrays.asList(
             CommandId.MINIMIZE,

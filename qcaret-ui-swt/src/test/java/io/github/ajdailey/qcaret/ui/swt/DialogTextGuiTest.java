@@ -124,7 +124,7 @@ class DialogTextGuiTest {
       if (!keys.isEmpty()) {
         entries.add(
             new PaletteEntry(
-                command, command.qualifiedTitle(), command.group().title(), keys, true));
+                command, command.qualifiedTitle(), command.group().title(), keys, true, null));
       }
     }
     CommandPaletteWindow palette =
@@ -138,6 +138,11 @@ class DialogTextGuiTest {
 
               @Override
               public void run(CommandId command) {
+                // Not chosen.
+              }
+
+              @Override
+              public void runMacro(String name) {
                 // Not chosen.
               }
             },

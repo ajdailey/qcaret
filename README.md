@@ -18,7 +18,7 @@ second launch to the running instance. The optional Browser Markdown preview
 uses the system web engine (WebKitGTK, WebView2, WebKit) and loads no remote
 content.
 
-QCaret runs no macros, scripts or plugins.
+QCaret records and replays editor commands; it runs no scripts or plugins.
 
 <picture> <source media="(prefers-color-scheme: dark)"
 srcset="docs/images/qcaret-dark.png"> <img src="docs/images/qcaret-light.png"
@@ -39,6 +39,7 @@ search results" width="880"> </picture>
 | Markdown preview | Source, Split and Preview per tab; Basic and Browser renderers, tables fitted to the pane, Sync Scrolling, an Outline dock, a zoom of its own, Export as HTML, Print Rendered Markdown; a web link asks before it opens | [Markdown preview](docs/user-guide.md#markdown-preview) |
 | Search and HyperSearch | Find bar with incremental find and history; HyperSearch over a document, a selection, the open documents, the workspace folder or a directory tree, into a results dock that keeps ten sets, marks stale matches and copies matches as `path:line: text` | [Search](docs/user-guide.md#search-and-hypersearch) |
 | Replace across files | Replace in a finished result set with a preview, a report per file, backups and a restore | [Replace](docs/user-guide.md#replace) |
+| Macros | Record editing and replay it as one undo step, a number of times or to the end of the document; saved macros with a name and a key, kept as text files | [Macros](docs/user-guide.md#macros) |
 | Bookmarks and navigation | Bookmarks with comments and a Bookmarks list, Go Back and Go Forward, Go to Line, the overview strip | [Bookmarks](docs/user-guide.md#bookmarks), [Main window](docs/user-guide.md#the-main-window) |
 | Workspace and Quick Open | A workspace folder per window; a browser that shows any folder, with favorites, a filter, Size and Modified columns, several rows selected at once, drag to open or copy, Search in Folder, New File, New Folder, Rename and Delete; Quick Open over the open documents, the folder's files and Recent Files; Switch Document; Go to Symbol; Open Path at Caret, honoring a `:line` suffix | [Workspace](docs/user-guide.md#workspace), [Quick Open](docs/user-guide.md#quick-open), [Opening files](docs/user-guide.md#opening-files) |
 | Checksums | MD5, SHA-1, SHA-256 and SHA-512 of typed text, files or the selection; Verify Checksums over a `sha256sum` list | [Checksums](docs/user-guide.md#checksums) |

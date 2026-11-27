@@ -23,6 +23,7 @@ public final class Keymap {
 
   private final List<Binding> bindings;
   private final boolean mac;
+  private final MacroKeys macros;
 
   /**
    * Creates a keymap.
@@ -31,8 +32,13 @@ public final class Keymap {
    * @param mac true when keys are written with macOS names
    */
   public Keymap(List<Binding> bindings, boolean mac) {
+    this(bindings, mac, MacroKeys.NONE);
+  }
+
+  private Keymap(List<Binding> bindings, boolean mac, MacroKeys macros) {
     this.bindings = Collections.unmodifiableList(new ArrayList<Binding>(bindings));
     this.mac = mac;
+    this.macros = macros;
   }
 
   /**
@@ -58,7 +64,7 @@ public final class Keymap {
    * Command+Shift+G first there, so their menu items show them. Fold All and Unfold All are Alt+[
    * and Alt+] off macOS, since Windows delivers AltGr as Ctrl+Alt, and Command+Option+[ and ] on
    * macOS. Full Screen is F11, and Control+Command+F on macOS. Minimize is Command+M on macOS only;
-   * Zoom has no key.
+   * Zoom has no key. Record Macro is Mod+Shift+R and Play Recorded Macro Mod+Shift+E.
    *
    * @param mac true for macOS
    * @param linux true for Linux
@@ -100,6 +106,8 @@ public final class Keymap {
     }
     window(b, CommandId.MARKDOWN_CYCLE, P | S, 'm');
     window(b, CommandId.HEX_CYCLE, P | S, 'x');
+    window(b, CommandId.RECORD_MACRO, P | S, 'r');
+    window(b, CommandId.PLAY_RECORDED_MACRO, P | S, 'e');
     // Minimize: the Window menu item exists on macOS only.
     if (mac) {
       window(b, CommandId.MINIMIZE, P, 'm');
@@ -365,6 +373,9 @@ public final class Keymap {
         }
         text.append("  ").append(command.title()).append('\t').append(keys).append('\n');
       }
+      if (group == CommandGroup.MACROS) {
+        macros().referenceRows(text, needle, header);
+      }
     }
     List<String> conflicts = conflicts();
     if (!conflicts.isEmpty() && needle.isEmpty()) {
@@ -446,7 +457,7 @@ public final class Keymap {
         }
       }
     }
-    return new Keymap(merged, mac);
+    return new Keymap(merged, mac, macros);
   }
 
   private Binding.Scope scope(CommandId command) {
@@ -509,6 +520,7 @@ public final class Keymap {
         }
       }
     }
+    found.addAll(macros().conflicts());
     return found;
   }
 
@@ -528,5 +540,51 @@ public final class Keymap {
       }
     }
     return found;
+  }
+
+  // Saved macros.
+
+  /**
+   * Returns the keymap with a table of saved macros; {@link #macros} resolves their keys.
+   *
+   * @param keys the saved macros
+   * @return the keymap
+   */
+  public Keymap withMacroKeys(MacroKeys keys) {
+    return new Keymap(bindings, mac, keys);
+  }
+
+  /**
+   * Returns the saved macros' keys over this keymap's bindings.
+   *
+   * @return the macro bindings
+   */
+  public MacroBindings macros() {
+    return new MacroBindings(this, macros);
+  }
+
+  /**
+   * Reports whether another keymap has the same bindings and key names, whatever its saved macros.
+   *
+   * @param other the other keymap
+   * @return true when only the saved macros may differ
+   */
+  public boolean sameBindings(Keymap other) {
+    return other.mac == mac && other.bindings.equals(bindings);
+  }
+
+  /**
+   * Returns a key as the platform writes it.
+   *
+   * @param stroke the key
+   * @return for example {@code Ctrl+Shift+1}
+   */
+  public String keyText(KeyStroke stroke) {
+    return stroke.text(mac);
+  }
+
+  /** Reports whether keys take macOS names. */
+  boolean mac() {
+    return mac;
   }
 }

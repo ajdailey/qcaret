@@ -20,6 +20,8 @@ import io.github.ajdailey.qcaret.app.view.HashTextInput;
 import io.github.ajdailey.qcaret.app.view.HexInput;
 import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.HexView;
+import io.github.ajdailey.qcaret.app.view.MacroManagerDisplay;
+import io.github.ajdailey.qcaret.app.view.MacroManagerInput;
 import io.github.ajdailey.qcaret.app.view.MainView;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
@@ -35,6 +37,8 @@ import io.github.ajdailey.qcaret.app.view.RecoveryInput;
 import io.github.ajdailey.qcaret.app.view.ReplaceInput;
 import io.github.ajdailey.qcaret.app.view.ReportInput;
 import io.github.ajdailey.qcaret.app.view.ResultsInput;
+import io.github.ajdailey.qcaret.app.view.RunMacroForm;
+import io.github.ajdailey.qcaret.app.view.SaveMacroForm;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.StatisticsDisplay;
@@ -56,6 +60,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 
@@ -1570,5 +1575,66 @@ final class FakeView implements MainView {
     FakeHexView window = new FakeHexView(input, title);
     hexViewers.add(window);
     return window;
+  }
+
+  /** Every text {@link #showMacroStatus} showed, in order. */
+  final List<String> macroStatus = new ArrayList<String>();
+
+  /** The last Run Multiple Times or Save Recorded Macro fields, check and answer. */
+  RunMacroForm runMacroShown;
+
+  Function<RunMacroForm, String> runMacroProblem;
+  Consumer<RunMacroForm> runMacroAnswer;
+  SaveMacroForm saveMacroShown;
+  Function<SaveMacroForm, String> saveMacroProblem;
+  Consumer<SaveMacroForm> saveMacroAnswer;
+
+  /** The open Manage Macros dialog's input, rows refreshes and messages. */
+  MacroManagerInput macroManager;
+
+  int macroRowsChanged;
+  final List<String> macroMessages = new ArrayList<String>();
+
+  @Override
+  public void showMacroStatus(String text) {
+    ui.checkUiThread();
+    macroStatus.add(text);
+  }
+
+  @Override
+  public void askRunMacro(
+      RunMacroForm initial, Function<RunMacroForm, String> problem, Consumer<RunMacroForm> answer) {
+    ui.checkUiThread();
+    runMacroShown = initial;
+    runMacroProblem = problem;
+    runMacroAnswer = answer;
+  }
+
+  @Override
+  public void askSaveMacro(
+      SaveMacroForm initial,
+      Function<SaveMacroForm, String> problem,
+      Consumer<SaveMacroForm> answer) {
+    ui.checkUiThread();
+    saveMacroShown = initial;
+    saveMacroProblem = problem;
+    saveMacroAnswer = answer;
+  }
+
+  @Override
+  public MacroManagerDisplay showManageMacros(MacroManagerInput input) {
+    ui.checkUiThread();
+    macroManager = input;
+    return new MacroManagerDisplay() {
+      @Override
+      public void rowsChanged() {
+        macroRowsChanged++;
+      }
+
+      @Override
+      public void showMessage(String text) {
+        macroMessages.add(text);
+      }
+    };
   }
 }
