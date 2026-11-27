@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.hex;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.ColumnMetrics;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
@@ -134,6 +135,16 @@ final class HexCanvas {
   /** Returns the context menu, or null before it first showed. */
   Menu menu() {
     return gestures.menu();
+  }
+
+  /** Runs a command as its key would; see {@link HexGestures#command}. */
+  boolean command(CommandId command) {
+    return gestures.command(command);
+  }
+
+  /** Runs a window key pressed in the find field; see {@link HexGestures#findFieldKey}. */
+  boolean findFieldKey(Event event) {
+    return gestures.findFieldKey(event);
   }
 
   Color background() {

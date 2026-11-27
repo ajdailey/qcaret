@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.hex;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.HexInput;
@@ -8,6 +9,7 @@ import io.github.ajdailey.qcaret.app.view.HexSelection;
 import io.github.ajdailey.qcaret.app.view.HexView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.hex.HexRows;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
@@ -32,6 +34,18 @@ import org.eclipse.swt.widgets.Shell;
  * controller. Call on the UI thread.
  */
 public final class HexPane implements HexView {
+  /** The menu commands a Hex Viewer window's pane runs ({@link #run}). */
+  public static final Set<CommandId> WINDOW_COMMANDS =
+      Set.of(
+          CommandId.COPY,
+          CommandId.SELECT_ALL,
+          CommandId.FIND,
+          CommandId.REPLACE,
+          CommandId.FIND_NEXT,
+          CommandId.FIND_PREVIOUS,
+          CommandId.GO_TO_LINE,
+          CommandId.CLOSE);
+
   /** The window around the pane. */
   public interface Host {
     /**
@@ -141,6 +155,17 @@ public final class HexPane implements HexView {
               }
             });
     bar[0] = find;
+    find.field()
+        .addListener(
+            SWT.KeyDown,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (rows.findFieldKey(event)) {
+                  event.doit = false;
+                }
+              }
+            });
     status = new Label(root, SWT.NONE);
     GridData statusData = new GridData(SWT.FILL, SWT.CENTER, true, false);
     statusData.horizontalIndent = 4;
@@ -247,6 +272,17 @@ public final class HexPane implements HexView {
   /** Takes changed key bindings. */
   public void setKeymap(Keymap keymap) {
     rows.setKeymap(keymap);
+  }
+
+  /**
+   * Runs a menu command as its key would: Copy and Select All in any pane, the rest of {@link
+   * #WINDOW_COMMANDS} in a Hex Viewer window.
+   *
+   * @param command the command
+   * @return false when the pane has no such command
+   */
+  public boolean run(CommandId command) {
+    return !root.isDisposed() && rows.command(command);
   }
 
   @Override

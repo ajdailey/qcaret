@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
@@ -30,11 +31,15 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Text;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -189,6 +194,78 @@ class HexCanvasSurfaceTest {
     key(canvas, SWT.F3, '\0', 0);
     assertEquals(List.of("find 4D 5A true true"), input.calls);
     assertTrue(pane.findBar().getVisible());
+  }
+
+  @Test
+  void aHexViewerFindFieldRunsTheWindowKeysAndLeavesFindToTheField() {
+    Keymap keymap = Keymap.defaults(PlatformTraits.PLATFORM.macKeys());
+    char goTo = (char) keymap.accelerator(CommandId.GO_TO_LINE).key();
+    HexPane viewer = pane(true);
+    viewer.showFind("4D 5A", true);
+    Text field = field(viewer);
+    assertFalse(fieldKey(field, SWT.F3, '\0', 0));
+    assertFalse(fieldKey(field, SWT.F3, '\0', SWT.SHIFT));
+    assertFalse(fieldKey(field, goTo, goTo, SWT.MOD1));
+    assertTrue(fieldKey(field, 'f', 'f', SWT.MOD1));
+    assertFalse(fieldKey(field, 'w', 'w', SWT.MOD1));
+    assertEquals(
+        List.of("find 4D 5A true true", "find 4D 5A true false", "goToOffset", "close"),
+        input.calls);
+    viewer.control().dispose();
+
+    HexPane tab = pane(false);
+    tab.showFind("4D 5A", true);
+    input.calls.clear();
+    assertTrue(fieldKey(field(tab), SWT.F3, '\0', 0));
+    assertTrue(fieldKey(field(tab), goTo, goTo, SWT.MOD1));
+    assertEquals(List.of(), input.calls);
+  }
+
+  @Test
+  void aLongFindMessageWrapsInsideTheBar() {
+    HexPane pane = pane(true);
+    pane.showFind("4D 5A", true);
+    int controls = pane.findBar().computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+    pane.control().setBounds(0, 0, controls + 10, 300);
+    pane.control().layout(true, true);
+    Label message = pane.findMessage();
+    assertFalse(message.getVisible());
+    String sentence = "A hex digit without its pair; use pairs such as 4D 5A, or ?? for any byte.";
+    String text = sentence;
+    message.setText(text);
+    while (message.computeSize(SWT.DEFAULT, SWT.DEFAULT).x < 2 * controls) {
+      text = text + " " + sentence;
+      message.setText(text);
+    }
+    pane.showMessage(text);
+    Point size = message.getSize();
+    int lines = message.computeSize(size.x, SWT.DEFAULT).y;
+    assertTrue(message.getVisible());
+    assertTrue(message.getBounds().x + size.x <= pane.findBar().getClientArea().width, "" + size);
+    assertTrue(size.y >= lines, "every line shows: " + size);
+    assertTrue(size.y > message.computeSize(SWT.DEFAULT, SWT.DEFAULT).y, "wrapped: " + size);
+    pane.showMessage("");
+    assertFalse(message.getVisible());
+  }
+
+  private static Text field(HexPane pane) {
+    for (Control child : pane.findBar().getChildren()) {
+      if (child instanceof Text text) {
+        return text;
+      }
+    }
+    throw new AssertionError("no find field");
+  }
+
+  /** Sends a key to the find field and returns its {@code doit}. */
+  private static boolean fieldKey(Text field, int keyCode, char character, int state) {
+    Event event = new Event();
+    event.keyCode = keyCode;
+    event.character = character;
+    event.stateMask = state;
+    event.doit = true;
+    field.notifyListeners(SWT.KeyDown, event);
+    return event.doit;
   }
 
   @Test

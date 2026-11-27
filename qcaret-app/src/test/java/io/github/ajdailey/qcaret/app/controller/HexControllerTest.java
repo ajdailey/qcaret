@@ -289,6 +289,9 @@ class HexControllerTest {
     awaitIdle(v[0]);
     assertEquals("ok", host.clipboard);
     c.copy(HexCopy.OFFSET);
+    assertEquals("00000004", host.clipboard);
+    c.select(6, 6);
+    c.copy(HexCopy.OFFSET);
     assertEquals("00000006", host.clipboard);
   }
 

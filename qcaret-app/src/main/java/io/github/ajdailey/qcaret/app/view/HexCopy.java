@@ -8,6 +8,6 @@ public enum HexCopy {
   HEX,
   /** The selected bytes decoded in the source's charset. */
   TEXT,
-  /** The caret's offset in hex. */
+  /** The selection's first offset in hex, or the caret's without a selection. */
   OFFSET
 }

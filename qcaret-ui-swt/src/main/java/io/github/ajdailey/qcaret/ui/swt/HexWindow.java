@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.HexInput;
@@ -17,9 +18,10 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * A Hex Viewer window: a modeless shell owned by the main window holding one {@link HexPane}, which
- * runs the window keys itself (Find, Find Next and Previous, Go to Line, Close). It opens as wide
- * as a row and {@value #HEIGHT} px high, and closes with its owner. Activation focuses the rows.
- * Call on the UI thread.
+ * runs the window keys itself (Find, Find Next and Previous, Go to Line, Close). The main menus on
+ * the window (cocoa) run {@link HexPane#WINDOW_COMMANDS} on the pane. It opens as wide as a row and
+ * {@value #HEIGHT} px high, and closes with its owner. Activation focuses the rows. Call on the UI
+ * thread.
  */
 final class HexWindow {
   /** Initial height. */
@@ -36,7 +38,22 @@ final class HexWindow {
       Font font,
       Keymap keymap,
       UiDispatcher timers) {
-    shell = Dialogs.shell(parent, title, SWT.SHELL_TRIM);
+    shell =
+        Dialogs.shell(
+            parent,
+            title,
+            SWT.SHELL_TRIM,
+            new ToolCommands() {
+              @Override
+              public boolean runs(CommandId command) {
+                return HexPane.WINDOW_COMMANDS.contains(command);
+              }
+
+              @Override
+              public void run(CommandId command) {
+                pane.run(command);
+              }
+            });
     GridLayout layout = new GridLayout(1, false);
     layout.marginWidth = 0;
     layout.marginHeight = 0;

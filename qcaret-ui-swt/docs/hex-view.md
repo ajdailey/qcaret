@@ -29,7 +29,14 @@ editor.
 `HexWindow` is a modeless `SHELL_TRIM` shell owned by the main window, opened as
 wide as a row and closed with its owner. Its pane runs the window keys itself
 (`HexGestures`); in a main window the menu runs them and
-`HexCommands.runFocused` routes them to the focused pane.
+`HexCommands.runFocused` routes them to the focused pane. On cocoa the window
+carries the main menus (`ToolMenuBars`), and a menu accelerator fires before
+the key reaches the canvas, so `HexWindow` passes `Dialogs.shell` a
+`ToolCommands` that runs `HexPane.WINDOW_COMMANDS` (Copy, Select All, Find,
+Replace, Find Next and Previous, Go to Line, Close) on the pane; their items
+stay enabled. Every other item acts on the main window. On win32 and GTK the
+window has no menu bar and its own shell's accelerators only, so the keys reach
+the canvas.
 
 `BinaryDialog` answers Open in Hex Viewer (the default button), Open as Text or
 Cancel, once; closing it answers Cancel. The too-large refusal is an
@@ -71,3 +78,9 @@ controller. A press, Shift+press and drag
 hit-test through `HexGrid.offsetAt`; a drag held above or below the rows
 scrolls a row every 50 ms on a `UiDispatcher` timer, stopped on release and
 focus loss. The context menu is built on its first `MenuDetect`.
+
+In a Hex Viewer, the find field's `KeyDown` runs the window keys of Find Next
+and Previous, Go to Line and Close (`HexGestures.findFieldKey`) and cancels the
+key, so it is not typed; Find and Replace stay with the field. `HexFindBar`
+shows the find message on its own row, wrapped to the bar's width, and leaves
+the row out while the message is empty.

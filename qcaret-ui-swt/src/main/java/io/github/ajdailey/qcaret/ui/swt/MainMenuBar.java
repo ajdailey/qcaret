@@ -65,19 +65,24 @@ final class MainMenuBar {
 
   // Tool window menus.
   private Shell closes;
+  private ToolCommands own;
 
   /**
-   * Makes Close close a tool window that carries this bar, always enabled; every other item still
-   * runs on the controller. Call before {@link #build}.
+   * Makes Close close a tool window that carries this bar, and the tool window's {@link
+   * ToolCommands} run on it; those items stay enabled. Every other item still runs on the
+   * controller. Call before {@link #build}.
    *
    * @param tool the tool window the bar is on
    */
   void closesToolWindow(Shell tool) {
     closes = tool;
+    own = tool.getData(ToolCommands.KEY) instanceof ToolCommands commands ? commands : null;
   }
 
   private void run(CommandId command) {
-    if (command == CommandId.CLOSE && closes != null) {
+    if (own != null && own.runs(command)) {
+      own.run(command);
+    } else if (command == CommandId.CLOSE && closes != null) {
       closes.close();
     } else {
       controller.execute(command);
@@ -85,7 +90,9 @@ final class MainMenuBar {
   }
 
   private boolean enabled(CommandId command) {
-    return (command == CommandId.CLOSE && closes != null) || states.enabled(command);
+    return (own != null && own.runs(command))
+        || (command == CommandId.CLOSE && closes != null)
+        || states.enabled(command);
   }
 
   /**
@@ -416,7 +423,7 @@ final class MainMenuBar {
     for (CommandId command : CommandStates.EDIT_STATE) {
       MenuItem item = items.get(command);
       if (item != null && !item.isDisposed()) {
-        setEnabled(item, states.enabled(command));
+        setEnabled(item, enabled(command));
       }
     }
   }

@@ -910,7 +910,10 @@ The Hex Viewer is a window that shows a file's bytes as they are on disk,
 reading only the part on screen, so a file of any size opens at once. File >
 Open Bytes in Hex Viewer and the Workspace Browser's Open in Hex Viewer open
 one per file. When the file changes on disk, a bar with Reload shows. A session
-does not reopen Hex Viewer windows.
+does not reopen Hex Viewer windows. On macOS, while a Hex Viewer is the front
+window, the menu bar's Copy, Select All, Find, Replace, Find Next, Find
+Previous, Go to Line and Close act on it, and its other items act on the main
+window.
 
 ![A Hex Viewer window over a binary file](images/guide/hex-viewer.png)
 
@@ -923,7 +926,8 @@ In a hex pane or a Hex Viewer:
   column.
 - Copy (`Ctrl+C`) copies the selection from the caret's column: hex pairs such
   as `4D 5A 90 00`, or text. The right-click menu also has Copy as Hex, Copy as
-  Text and Copy Offset. A hex pane's text is the document's chars; a Hex
+  Text and Copy Offset, which copies the selection's first offset, or the
+  caret's without a selection. A hex pane's text is the document's chars; a Hex
   Viewer's is one ISO-8859-1 char per byte. A selection over 16 MiB is not
   copied.
 - Go to Line (`Ctrl+G`, `Cmd+L` on macOS) opens Go to Offset, which takes a
@@ -933,7 +937,8 @@ In a hex pane or a Hex Viewer:
   otherwise it is text, encoded as the view's bytes are. Enter and Next find
   forward from the selection, `Shift+Enter` and Previous backward, F3 and
   `Shift+F3` again, continuing from the other end. `Esc` stops a long search
-  and closes the bar.
+  and closes the bar. In a Hex Viewer, F3, `Shift+F3`, Go to Line and Close
+  also work with the cursor in the find field.
 - The status line shows the caret's offset and the size, each in hex and in
   decimal, and the selection's length.
 

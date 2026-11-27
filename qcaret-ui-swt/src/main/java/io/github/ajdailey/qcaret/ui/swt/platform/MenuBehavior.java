@@ -187,8 +187,8 @@ public interface MenuBehavior {
   /** Builds a main window's menus on one of its tool windows. */
   interface ToolMenus {
     /**
-     * Sets the owner's menus as the tool window's menu bar; Close closes the tool window and every
-     * other item acts on the owner.
+     * Sets the owner's menus as the tool window's menu bar; Close and the commands the tool window
+     * runs itself act on the tool window, every other item on the owner.
      *
      * @param tool the tool window
      */

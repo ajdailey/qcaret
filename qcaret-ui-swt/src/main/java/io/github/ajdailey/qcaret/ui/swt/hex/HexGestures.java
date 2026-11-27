@@ -23,9 +23,11 @@ import org.eclipse.swt.widgets.MenuItem;
  *   <li>The editor bindings of the caret moves move the hex caret: a char or line move by a byte or
  *       a row, line start and end to the row's, document start and end to the source's, page moves
  *       by a page; the select variants extend. Tab switches the column.
- *   <li>The editor keys of Copy, Select All and Esc act on the view. In a Hex Viewer window, whose
- *       shell has no main menu, the window keys of Find, Replace, Find Next and Previous, Go to
- *       Line and Close run too; in a main window its menu runs them.
+ *   <li>The editor keys of Copy, Select All and Esc act on the view. In a Hex Viewer window the
+ *       window keys of Find, Replace, Find Next and Previous, Go to Line and Close run too; in a
+ *       main window its menu runs them. On cocoa a menu accelerator fires before the key reaches
+ *       the canvas, so the main menus on a Hex Viewer window run the same commands through {@link
+ *       #command}.
  *   <li>A press selects a byte, Shift+press extends, a drag selects from the pressed byte. A drag
  *       held above or below the rows scrolls a row every {@link #AUTOSCROLL_MILLIS}.
  *   <li>The wheel scrolls; the context menu is built on its first {@code MenuDetect}.
@@ -201,6 +203,34 @@ final class HexGestures {
       }
     }
     return true;
+  }
+
+  /**
+   * Runs a command as its key would: Copy and Select All, and in a Hex Viewer window the window
+   * keys.
+   *
+   * @param command the command
+   * @return false when the view has no such command
+   */
+  boolean command(CommandId command) {
+    return command != CommandId.CANCEL
+        && (editorKey(command) || (windowKeys && windowKey(command)));
+  }
+
+  /**
+   * Runs the window key of Find Next and Previous, Go to Line or Close pressed in the find field of
+   * a Hex Viewer window. Find and Replace stay with the field.
+   *
+   * @param event the field's {@code KeyDown}
+   * @return true when a command ran
+   */
+  boolean findFieldKey(Event event) {
+    if (!windowKeys) {
+      return false;
+    }
+    KeyStroke stroke = SwtKeys.stroke(event.stateMask, event.keyCode, event.character);
+    CommandId command = stroke == null ? null : keymap.windowBinding(stroke);
+    return command != CommandId.FIND && command != CommandId.REPLACE && windowKey(command);
   }
 
   private boolean editorKey(CommandId command) {

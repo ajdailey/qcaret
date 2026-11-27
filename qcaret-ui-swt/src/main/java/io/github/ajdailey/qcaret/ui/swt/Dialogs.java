@@ -51,8 +51,23 @@ final class Dialogs {
    * @return the shell, laid out as one grid column
    */
   static Shell shell(Shell parent, String title, int style) {
+    return shell(parent, title, style, null);
+  }
+
+  /**
+   * Creates a dialog shell as {@link #shell(Shell, String, int)} does, whose main menus run some
+   * commands on the shell.
+   *
+   * @param parent the owning shell
+   * @param title the title
+   * @param style the {@link Shell} style
+   * @param commands the commands the tool window runs, or null for Close only
+   * @return the shell, laid out as one grid column
+   */
+  static Shell shell(Shell parent, String title, int style, ToolCommands commands) {
     Shell shell = new Shell(parent, style);
     shell.setText(title);
+    shell.setData(ToolCommands.KEY, commands);
     inheritIcons(shell, parent);
     if ((style & (SWT.APPLICATION_MODAL | SWT.PRIMARY_MODAL | SWT.SYSTEM_MODAL)) == 0) {
       MenuBehavior.PLATFORM.toolWindowMenus(shell, ToolMenuBars.of(parent));

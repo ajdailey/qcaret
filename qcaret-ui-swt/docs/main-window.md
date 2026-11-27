@@ -235,7 +235,9 @@ leaves out: About, Preferences and Quit on cocoa, Minimize and Zoom elsewhere.
   `MainMenuBar` over the main window's controller; other platforms build
   none. Its items act on the main window, except Close (`Cmd+W`,
   `MainMenuBar.closesToolWindow`), which closes the tool window and stays
-  enabled. Minimize and Zoom act on the tool window, the active shell its main
+  enabled, and the `ToolCommands` a tool window passes `Dialogs.shell`, which
+  run on the tool window and stay enabled (a Hex Viewer's, in
+  [Hex view](hex-view.md)). Minimize and Zoom act on the tool window, the active shell its main
   window owns (Minimize through
   [`WindowStacking.minimize`](#always-on-top)). The bars sync
   enablement with the main window's and are rebuilt on a keymap change. A

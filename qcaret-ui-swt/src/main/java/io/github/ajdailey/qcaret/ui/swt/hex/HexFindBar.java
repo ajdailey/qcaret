@@ -15,7 +15,8 @@ import org.eclipse.swt.widgets.Text;
 /**
  * A hex view's find bar: the pattern, the Hex bytes box (off: text in the source's charset),
  * Previous and Next, and the find message. Enter finds the next match and Shift+Enter the previous;
- * Esc stops a running find, hides the bar and focuses the rows. Hidden and left out of the layout
+ * Esc stops a running find, hides the bar and focuses the rows. The message takes its own row,
+ * wrapped to the bar's width, and only while it is not empty. Hidden and left out of the layout
  * until {@link #show}. Call on the UI thread.
  */
 final class HexFindBar {
@@ -42,8 +43,12 @@ final class HexFindBar {
     hex.setText(UiText.HEX_FIND_AS_HEX.text());
     button(UiText.BUTTON_PREVIOUS, false);
     button(UiText.BUTTON_NEXT, true);
-    message = new Label(bar, SWT.NONE);
-    message.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    message = new Label(bar, SWT.WRAP);
+    GridData messageData = new GridData(SWT.FILL, SWT.CENTER, true, false, 6, 1);
+    messageData.widthHint = 1;
+    messageData.exclude = true;
+    message.setLayoutData(messageData);
+    message.setVisible(false);
     field.addListener(
         SWT.Traverse,
         new Listener() {
@@ -110,9 +115,13 @@ final class HexFindBar {
   /** Shows a find message, showing the bar for a message that is not empty. */
   void showMessage(String text) {
     message.setText(text);
-    if (!text.isEmpty()) {
+    boolean any = !text.isEmpty();
+    ((GridData) message.getLayoutData()).exclude = !any;
+    message.setVisible(any);
+    if (any) {
       setShown(true);
     }
+    bar.getParent().layout(true, true);
   }
 
   /**

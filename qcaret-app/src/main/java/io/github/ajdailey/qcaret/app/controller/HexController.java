@@ -311,7 +311,10 @@ final class HexController implements HexInput {
   public void copy(HexCopy kind) {
     HexSelection selection = cursor.selection();
     switch (kind) {
-      case OFFSET -> host.clipboard().setText(rows.offsetText(selection.caret()));
+      case OFFSET ->
+          host.clipboard()
+              .setText(
+                  rows.offsetText(selection.length() > 0 ? selection.start() : selection.caret()));
       case HEX -> copier.copy(target, selection, true);
       case TEXT -> copier.copy(target, selection, false);
       case FOCUSED -> copier.copy(target, selection, !selection.textColumn());
