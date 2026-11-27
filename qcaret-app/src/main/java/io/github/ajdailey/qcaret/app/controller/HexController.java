@@ -234,6 +234,13 @@ final class HexController implements HexInput {
   }
 
   @Override
+  public void detach(HexView value) {
+    if (value != null && value == view) {
+      attach(null);
+    }
+  }
+
+  @Override
   public HexRow row(long row) {
     if (blocks == null || row < 0 || row >= rows.rowCount()) {
       return null;

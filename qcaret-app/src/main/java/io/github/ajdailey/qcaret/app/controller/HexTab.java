@@ -142,6 +142,26 @@ final class HexTab implements HexController.Host, HexText.Target {
     return true;
   }
 
+  /**
+   * Creates the pane again in the tab's new view after a window replacement; in Text the next mode
+   * switch creates it. The replaced pane's later {@code detach} leaves the new one attached.
+   */
+  void rebind() {
+    pane = null;
+    focused = false;
+    if (mode == HexMode.TEXT || d.tab == null) {
+      return;
+    }
+    pane = view.hexPane(d.tab, controller);
+    if (pane == null) {
+      mode = HexMode.TEXT;
+      text.stop();
+      return;
+    }
+    controller.attach(pane);
+    view.showHexMode(d.tab, mode);
+  }
+
   /** Builds again in the document's new encoding. */
   void encodingChanged() {
     text.encodingChanged();

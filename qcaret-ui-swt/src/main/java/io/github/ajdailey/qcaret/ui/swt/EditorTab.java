@@ -8,6 +8,7 @@ import io.github.ajdailey.qcaret.app.editor.TokenSource;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.view.EditorInput;
 import io.github.ajdailey.qcaret.app.view.EditorView;
+import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewInput;
 import io.github.ajdailey.qcaret.app.view.MarkdownPreviewView;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
@@ -32,13 +33,15 @@ import org.eclipse.swt.widgets.Listener;
  * One document tab of a {@link TabStrip}: its item, which a move recreates, and one or two editor
  * views in a {@link SashForm}, one above the other or side by side. The item's control is the
  * frame, a horizontal sash holding the editors' sash and, for a Markdown tab, the {@link
- * PreviewSlot}'s pane. The view focused last is the tab's focused view. Each view's {@code
- * StyledText} takes the tab title as its {@link AccessibleName}. Created and used on the UI thread.
+ * PreviewSlot}'s pane, and the {@link HexSlot}'s pane once the tab showed its bytes. The view
+ * focused last is the tab's focused view. Each view's {@code StyledText} takes the tab title as its
+ * {@link AccessibleName}. Created and used on the UI thread.
  */
 final class EditorTab implements TabView, SelectionListener {
   final SashForm frame;
   final SashForm sash;
   PreviewSlot preview;
+  HexSlot hex;
   final List<EditorPane> panes = new ArrayList<EditorPane>(2);
   final List<View> views = new ArrayList<View>(2);
   final List<SelectionModel> models = new ArrayList<SelectionModel>(2);
@@ -80,6 +83,8 @@ final class EditorTab implements TabView, SelectionListener {
       // In Preview the frame sizes the editors to nothing; a focused editor takes keys unseen.
       if (preview != null && preview.mode() == MarkdownViewMode.PREVIEW) {
         preview.focus();
+      } else if (hex != null && hex.mode() == HexMode.HEX) {
+        hex.pane().focus();
       } else {
         editor.focus();
       }
@@ -301,6 +306,8 @@ final class EditorTab implements TabView, SelectionListener {
       strip.folder().setSelection(item);
       if (preview != null && preview.mode() == MarkdownViewMode.PREVIEW) {
         preview.focus();
+      } else if (hex != null && hex.mode() == HexMode.HEX) {
+        hex.pane().focus();
       } else {
         pane.focus();
       }
@@ -357,6 +364,16 @@ final class EditorTab implements TabView, SelectionListener {
               }
             });
     return preview;
+  }
+
+  /** Returns an action that focuses the tab's focused editor. */
+  Runnable focusEditor() {
+    return new Runnable() {
+      @Override
+      public void run() {
+        pane.focus();
+      }
+    };
   }
 
   @Override

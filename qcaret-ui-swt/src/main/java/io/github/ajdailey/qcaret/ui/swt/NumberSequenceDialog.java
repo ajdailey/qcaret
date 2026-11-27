@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.SequenceForm;
+import io.github.ajdailey.qcaret.ui.swt.platform.ComboListSelection;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.eclipse.swt.SWT;
@@ -56,6 +57,7 @@ final class NumberSequenceDialog {
     width.setValues(initial.width(), 0, MAX_WIDTH, 0, 1, 4);
     label(form, UiText.NUMBER_SEQUENCE_BASE);
     base = new Combo(form, SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(base);
     // In SequenceForm.base order.
     base.add(UiText.NUMBER_SEQUENCE_DECIMAL.text());
     base.add(UiText.NUMBER_SEQUENCE_HEX_UPPER.text());

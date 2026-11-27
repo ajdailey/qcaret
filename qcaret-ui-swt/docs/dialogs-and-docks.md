@@ -62,8 +62,8 @@ transient parent.
 | `FileDialog` (native) | Open, Save As, Save a Copy As, the checksum file choices and Print to PDF (GTK 4); runs a nested event loop |
 | `DirectoryDialog` (native) | File > Set Workspace Folder and the HyperSearch dialog's Browse; runs a nested event loop |
 | `UnsavedDialog` | Save, Don't Save and Cancel answer through a callback; closing it answers Cancel |
-| `BinaryDialog` | Opens the read-only view on Open Read-Only; Cancel is the default and closing it declines |
-| `GoToDialog` | Search > Go to Line; modal, without a nested event loop; OK is enabled while the controller's validator accepts the text |
+| `BinaryDialog` | Open in Hex Viewer (the default), Open as Text or Cancel, answered once; closing it answers Cancel ([Hex view](hex-view.md)) |
+| `GoToDialog` | Search > Go to Line, and Go to Offset in a hex view; modal, without a nested event loop; OK is enabled while the controller's validator accepts the text |
 | `TabWidthDialog` | Edit > Tab Width > Other: a modal width field; OK answers it, Cancel and Esc close without an answer |
 | `ReloadDialog` | Asks before Reload from Disk replaces unsaved changes; modal, Cancel is the default |
 | `OpenLinkDialog` | Asks before a Markdown preview link opens a web address (`MainView.askOpenUrl`): the full address in a read-only field, Open and Cancel; modal, without a nested event loop, Cancel is the default and has the focus |

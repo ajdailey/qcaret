@@ -73,11 +73,22 @@ colors (`#ffffff`, `windows-2025`); a `setBackground` reaches it, so the dialog
 colors (`DialogColors`) make it dark. QCaret has read-only combos only in
 dialogs.
 
-Under the dark native setting at a fractional scale (150 %), every combo's open
-list draws its selected item white on white, whatever the combo's colors:
-native, created light, dialog- or palette-colored, read-only or editable
-(measured on Windows 11 in QLogg). The other items read. No public API sets the
-list's selection colors.
+Under the dark native setting Windows 11 build 26300 draws the selected and
+hover row of a drop-down combo's open list white on white, read-only or
+editable, at 100 % and 150 %, whatever the combo's colors and under a light or
+dark system setting; `windows-2025` draws it `#0078d4` with white text. Neither
+`SetWindowTheme` on the list nor the `WM_CTLCOLORLISTBOX` answer changes that
+row (`Win32ComboLeverProbe`, measured on both). Every combo is created with
+`ComboListSelection.draw`: `Win32ComboListSelection` subclasses the
+list window (SWT's `internal.Callback` and `internal.win32.OS`, a listed
+`ArchitectureTest` exception) and, while the dark native setting is on, paints
+the selected row in `Palette.DARK`'s selection with white text after each
+`WM_PAINT` and after each selection move, which the list draws without one. The
+setting is read per message, so a live switch applies at the next paint; under
+the light setting the native selection stays. Disposing the combo restores the
+window procedure and frees the callback. If an SWT upgrade drops a member, one
+WARN is logged, the native selection stays, and `Win32ComboListSelectionTest`
+fails on win32.
 
 Under the dark native setting win32 draws check box labels near-white while the
 main window's docks and bars stay light, so every check box comes from
@@ -265,7 +276,6 @@ class. If an SWT upgrade drops the key, the dividers draw light and
 
 Public API leaves these light or gray:
 
-- A combo list's selected item at a fractional scale, white on white.
 - `Spinner` arrow buttons.
 - Disabled `Text`, `Label` and check box text, in system gray: `#6d6d6d` on a
   field (2.7 contrast), `#808080` on the body.
@@ -310,10 +320,11 @@ colors it read under the system appearance at Display creation (measured on
 macOS 15 and 27 in QLogg, and on macOS 15 arm64 and Intel in QCaret). `CocoaThemeFollow.watch` creates `CocoaChrome` with that side and
 applies the pinned one; `showOnWindows` pins each new side and passes it to
 `CocoaChrome.apply`. While the pinned side differs from the one SWT read,
-`CocoaChrome` sets each shell's, table's, tree's, list's and field's colors to
-the pinned side, at the change, at `SWT.Show` of a shell and at `SWT.Skin` of a
-new control, since the docks replace their tables while open. On the side SWT
-read it sets those colors to null, the default, check boxes included.
+`CocoaChrome` sets each shell's, table's, tree's, list's and field's colors
+(read-only `Combo` excepted, below) to the pinned side, at the change, at
+`SWT.Show` of a shell and at `SWT.Skin` of a new control, since the docks
+replace their tables while open. On the side SWT read it sets those colors to
+null, the default, check boxes included.
 
 SWT sends `SWT.Skin` from `readAndDispatch` and layout, neither of which runs
 while a menu tracks, so a control a timer creates then keeps the cached side
@@ -351,8 +362,15 @@ with SWT 3.135.0.
   AppKit's link color, and `ProgressBar` and `Slider`, which AppKit draws.
 - `ReplaceDialog` marks its computing note with a style range, because
   `setForeground(null)` returns a field to the startup color.
-- Menus and the menu bar follow the system appearance, not the pinned side.
-  AppKit draws them whole, so they stay readable.
+- A read-only `Combo`, an `NSPopUpButton`, keeps null colors on every side.
+  SWT writes a Combo's foreground into each item title of its menu, and AppKit
+  draws that menu in the pinned appearance, where an explicit white title draws
+  `#656565` on `#323232` (2.2:1). With no color, the closed title draws
+  `#e8e8e8` on `#656565` and the items `#e0e0e0` on `#323232` under a dark pin,
+  `#262626` on white and `#242424` on `#ececec` under a light pin, the native
+  colors. Measured on macOS 15 arm64 and Intel with SWT 3.135.0.
+- AppKit draws menus and the menu bar whole, so they stay readable. Only the
+  read-only `Combo` menu is measured under a pin: it takes the pinned side.
 
 ## Palette application
 

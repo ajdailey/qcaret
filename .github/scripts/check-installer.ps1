@@ -159,8 +159,6 @@ function Test-Scope([string] $Scope) {
   Start-Process -FilePath (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
   Wait-Until { -not (Test-Path $dir) } "$Scope uninstall left $dir"
   Wait-Until { -not (Test-Path "$hive\$uninstallKey") } "$Scope uninstall left the Installed apps entry"
-  # NSIS runs the uninstaller as Au_.exe from %TEMP%; the checks below need it finished.
-  Wait-Until { -not (Get-Process -Name 'Au_' -ErrorAction SilentlyContinue) } "$Scope uninstaller still running"
   Show-Extensions "after $Scope uninstall:"
   Wait-Until { -not (Test-Path $shortcut) } "$Scope uninstall left $shortcut"
   Wait-Until { -not (Test-Path $desktop) } "$Scope uninstall left $desktop"

@@ -32,8 +32,10 @@ import org.eclipse.swt.widgets.Tree;
  * forced onto its children. That inheritance stops at a {@link TabFolder}, so check boxes turn
  * transparent over its native panel, its titles get the text color, and tables, trees, lists and
  * text fields get the list colors. In the appearance SWT read every color returns to the default.
- * Menus stay native, and a {@link Canvas} that paints from the palette keeps its colors, as does a
- * control with {@link ChromeColors#PALETTE_COLORED} set.
+ * Menus stay native, and so does a read-only {@link Combo}, an {@code NSPopUpButton} that AppKit
+ * draws in the pinned appearance: SWT writes a Combo's foreground into each item title of its menu,
+ * where a dark menu draws white as {@code #656565}. A {@link Canvas} that paints from the palette
+ * keeps its colors, as does a control with {@link ChromeColors#PALETTE_COLORED} set.
  *
  * <p>Table and tree headers always carry explicit list colors of the pinned appearance, from
  * creation on: a null header draws blank labels in dark. In the appearance SWT read they are the
@@ -223,7 +225,7 @@ final class CocoaChrome {
     } else if (control instanceof Table
         || control instanceof Tree
         || control instanceof List
-        || control instanceof Combo
+        || (control instanceof Combo && (control.getStyle() & SWT.READ_ONLY) == 0)
         || control instanceof Text
         || control instanceof Spinner
         || control instanceof StyledText) {

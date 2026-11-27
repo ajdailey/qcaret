@@ -172,7 +172,8 @@ class ArchitectureTest {
     ROOT + ".ui.swt.platform.GtkX11Stacking",
     ROOT + ".ui.swt.platform.CocoaPrintJobNaming",
     ROOT + ".ui.swt.platform.Gtk3NativeNames",
-    ROOT + ".ui.swt.platform.Win32BrowserBehavior"
+    ROOT + ".ui.swt.platform.Win32BrowserBehavior",
+    ROOT + ".ui.swt.platform.Win32ComboListSelection"
   };
 
   /** The view class excepted to link the Java 21 foreign-function API by reflection. */
@@ -211,6 +212,8 @@ class ArchitectureTest {
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[5])
         .and()
         .doNotHaveFullyQualifiedName(SWT_REFLECTION[6])
+        .and()
+        .doNotHaveFullyQualifiedName(SWT_REFLECTION[7])
         .and()
         .doNotHaveFullyQualifiedName(VIEW_FOREIGN)
         .and()

@@ -176,6 +176,7 @@ public final class MainWindow implements MainView {
   private final MenuIcons menuIcons;
   private final ChromeColors chrome;
   private final SwtUiDispatcher dispatcher;
+  private final WindowHexViews hexViews;
 
   private final Composite statusBar;
   private ProgressRow printBar;
@@ -441,6 +442,8 @@ public final class MainWindow implements MainView {
     toolIcons = new ToolIcons(toolBar);
     menuIcons = new MenuIcons(toolBar);
     chrome = PlatformTraits.PLATFORM.chromeColors(display);
+    hexViews = new WindowHexViews(shell, dispatcher, chrome);
+    hexViews.setFont(font);
     applyPalette(palette);
     trackWindowState();
     acceptDroppedFiles();
@@ -474,6 +477,7 @@ public final class MainWindow implements MainView {
   public void attach(ApplicationController owner) {
     controller = owner;
     keymap = owner.keymap();
+    hexViews.setKeymap(keymap);
     menuBar = new MainMenuBar(shell, owner, menuIcons);
     tabMenu = new TabMenu(shell, owner, menuBar.states());
     menuBar.build(keymap);
@@ -680,6 +684,7 @@ public final class MainWindow implements MainView {
     for (MarkdownPane pane : tabStrip.allPreviews()) {
       pane.setPalette(next);
     }
+    hexViews.setPalette(next);
     // Native controls restyle after the theme call returns; re-ink the icons on the next turn.
     dispatcher.asyncExec(
         new Runnable() {
@@ -1279,39 +1284,37 @@ public final class MainWindow implements MainView {
   }
 
   @Override
-  public void askBinaryOpen(String name, final Consumer<BinaryChoice> answer) {
-    if (!shell.isDisposed()) {
-      new BinaryDialog(
-              shell,
-              name,
-              new Runnable() {
-                @Override
-                public void run() {
-                  answer.accept(BinaryChoice.TEXT);
-                }
-              })
-          .open();
-    }
+  public void askBinaryOpen(String name, Consumer<BinaryChoice> answer) {
+    hexViews.askBinaryOpen(name, answer);
   }
 
   @Override
   public void showTooLarge(String message, Runnable openInHexViewer) {
-    showInfo(UiText.OPEN_TITLE.text(), message);
+    hexViews.showTooLarge(message, openInHexViewer);
   }
 
   @Override
   public HexView hexPane(TabView tab, HexInput input) {
-    return null;
+    return hexViews.hexPane(tab, input);
   }
 
   @Override
   public void showHexMode(TabView tab, HexMode mode) {
-    // The hex pane is not drawn yet.
+    hexViews.showHexMode(tab, mode);
   }
 
   @Override
   public HexView openHexViewer(String title, HexInput input) {
-    return null;
+    return hexViews.openHexViewer(title, input);
+  }
+
+  /**
+   * Returns the window's hex panes and Hex Viewer windows.
+   *
+   * @return the views
+   */
+  WindowHexViews hexViews() {
+    return hexViews;
   }
 
   @Override
@@ -1492,6 +1495,7 @@ public final class MainWindow implements MainView {
     for (EditorPane pane : allPanes()) {
       pane.setFont(font);
     }
+    hexViews.setFont(font);
     old.dispose();
     if (menuBar != null) {
       syncCommands();
@@ -1980,6 +1984,7 @@ public final class MainWindow implements MainView {
       pane.setKeymap(bindings);
     }
     dialogs.setKeymap(bindings);
+    hexViews.setKeymap(bindings);
   }
 
   // Command palette.

@@ -4,7 +4,8 @@ The SWT views: the main window with its tabs, menus and toolbar, the editor
 (`ui.swt.editor`), the dialogs and docks, the theme service and the UI
 dispatcher. It depends on `qcaret-app`, `qcaret-core` and the build host's SWT
 fragment. It uses public SWT API except in `Gtk4ToolItemSizing`, the `WindowStacking`
-classes, `CocoaPrintJobNaming` and `Gtk3NativeNames`, all in `ui.swt.platform`,
+classes, `CocoaPrintJobNaming`, `Gtk3NativeNames`, `Win32BrowserBehavior` and
+`Win32ComboListSelection`, all in `ui.swt.platform`,
 which reach SWT internals by reflection, and `Win32HeaderLines`, which sets the
 Display data key `org.eclipse.swt.internal.win32.Table.headerLineColor`
 ([Dialog colors](docs/theme-and-icons.md#dialog-colors)).
@@ -22,6 +23,7 @@ Display data key `org.eclipse.swt.internal.win32.Table.headerLineColor`
 | `ui.swt.platform` | `PlatformTraits` and its win32, cocoa, GTK 3 and GTK 4 classes; the seams `ChromeColors`, `DialogColors`, `DialogTabs`, `ThemeFollow`, `MenuBehavior`, `ToolItemSizing`, `KeyBehavior`, `BrowserBehavior`, `GuideDisplay`, `PrintSupport`, `FullScreen`, `WindowStacking`, `WindowPlacement`, `NativeNames`, `AccessibleLabels` and `LaunchDocuments` with their per-platform classes | [Main window](docs/main-window.md#platform-traits) |
 | `ui.swt`, `ui.swt.markdown` | `PrintJob`, `PdfPrinter`, the printer calls; `MarkdownPrinting`, `PrintLines`, `PrintMeasurer` | [Printing](docs/printing.md) |
 | `ui.swt.markdown`, `ui.swt` | `MarkdownPane`, `MarkdownStyler`, `MarkdownPainter`, `TableColumns`, `PaneImages`, `SwtImageDecoder`, `PreviewSlot`, `MarkdownSwitch`, `BrowserPane`, `BrowserPreview`, `MarkdownToolItems` | [Markdown preview](docs/markdown-preview.md) |
+| `ui.swt.hex`, `ui.swt` | `HexPane`, `HexCanvas`, `HexPainter`, `HexGestures`, `HexGrid`, `HexFindBar`; `HexSlot`, `HexWindow`, `WindowHexViews`, `BinaryDialog` | [Hex view](docs/hex-view.md) |
 | `ui.swt`, `ui.swt.platform` | `SwtThemeService`, `CocoaChrome`, `ChromeColors`, `DialogColors`, `DialogTabs`, tab colors, `ToolIcons`, `MenuIcons`, the tool icon set | [Theme and icons](docs/theme-and-icons.md) |
 
 ## UI thread

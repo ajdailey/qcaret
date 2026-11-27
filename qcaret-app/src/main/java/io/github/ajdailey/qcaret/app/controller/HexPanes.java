@@ -133,6 +133,13 @@ final class HexPanes {
     }
   }
 
+  /** Creates a tab's pane again in its new view after a window replacement. */
+  void rebind(OpenDocument d) {
+    if (d.hex != null) {
+      d.hex.rebind();
+    }
+  }
+
   /** Gives a tab moved in from another window the mode it had there. */
   void adopt(OpenDocument d, OpenDocument from) {
     if (from.hex != null) {

@@ -40,8 +40,8 @@ The index and the browser leave out hidden entries and
   directory, following links, on a `qcaret-io-` worker and opens the rest; a
   missing or special path stays in, so the open reports it.
 - A file row opens on activation. The row menu is
-  `WorkspaceSelectionInput.MENU`: Open and Open in Default Application, the
-  file operations below, then Copy Path, Search in Folder and Set as Workspace
+  `WorkspaceSelectionInput.MENU`: Open, Open in Default Application and Open
+  in Hex Viewer, the file operations below, then Copy Path, Search in Folder and Set as Workspace
   Folder.
 - Open in Default Application refuses a file the system would run. The
   controller calls `runsInsteadOfOpening` on a worker, on the `OsTraits` that
@@ -59,7 +59,7 @@ shown folder.
 
 | Action | Several rows selected |
 |---|---|
-| Open, Open in Default Application | every selected file; folders are left out; Open in Default Application asks first above 10 files (`OPEN_UNASKED`) |
+| Open, Open in Default Application, Open in Hex Viewer | every selected file; folders are left out; Open in Default Application asks first above 10 files (`OPEN_UNASKED`) |
 | Copy Path | every selected file and folder path, one per line (`System.lineSeparator()`) |
 | Search in Folder, Rename | disabled |
 | New File, New Folder, Set as Workspace Folder | the focused row, when it is a directory |

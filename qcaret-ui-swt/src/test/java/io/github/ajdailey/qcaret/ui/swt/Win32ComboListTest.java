@@ -1,15 +1,22 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
+import io.github.ajdailey.qcaret.ui.swt.platform.ComboListSelection;
+import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
+import io.github.ajdailey.qcaret.ui.swt.platform.WindowRebuild;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -28,9 +35,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * On win32 the open list of a read-only {@link Combo} in a {@link Dialogs#shell} dialog shows its
- * selected row on a ground of its own with text at 4.5 contrast, under a dark and a light start,
- * read from the screen below the combo. Each case saves the list and its row readings to {@code
+ * On win32 the open list of a read-only or editable {@link Combo} in a {@link Dialogs#shell}
+ * dialog, drawn through {@link ComboListSelection}, shows its selected row on a ground of its own
+ * with text at 4.5 contrast, read from the screen below the combo: in {@link Palette#DARK}'s
+ * selection under a dark start and after a live switch to dark, natively under a light start, under
+ * the host's system theme setting. Each case saves the list and its row readings to {@code
  * target/diagnostics/win32-combo-list/}. Skipped where the screen does not show the test window or
  * the list.
  */
@@ -40,6 +49,16 @@ class Win32ComboListTest {
 
   /** WCAG AA contrast for normal text. */
   private static final double TEXT_CONTRAST = 4.5;
+
+  /** Logical pixels skipped at each edge of the selected band: the frame and focus outline. */
+  private static final int EDGE = 2;
+
+  /** {@link Palette#DARK}'s selection, which the dark list's selected row is filled with. */
+  private static final RGB DARK_SELECTION =
+      new RGB(
+          Palette.DARK.selection().red(),
+          Palette.DARK.selection().green(),
+          Palette.DARK.selection().blue());
 
   /** Rows the list shows: the combo's items. */
   private static final String[] ITEMS = {"Alpha item", "Beta item", "Gamma item", "Delta item"};
@@ -57,15 +76,37 @@ class Win32ComboListTest {
 
   @Test
   void theSelectedRowReadsUnderADarkStart() {
-    check(ThemeMode.DARK, "dark");
+    assertEquals(DARK_SELECTION, check(SWT.READ_ONLY, ThemeMode.DARK, false, "dark"));
   }
 
   @Test
   void theSelectedRowReadsUnderALightStart() {
-    check(ThemeMode.LIGHT, "light");
+    assertNotEquals(DARK_SELECTION, check(SWT.READ_ONLY, ThemeMode.LIGHT, false, "light"));
   }
 
-  private void check(ThemeMode mode, String name) {
+  @Test
+  void theSelectedRowReadsAfterALiveSwitchToDark() {
+    assertEquals(DARK_SELECTION, check(SWT.READ_ONLY, ThemeMode.LIGHT, true, "light-to-dark"));
+  }
+
+  @Test
+  void anEditableComboSelectedRowReadsUnderADarkStart() {
+    assertEquals(DARK_SELECTION, check(SWT.DROP_DOWN, ThemeMode.DARK, false, "editable-dark"));
+  }
+
+  @Test
+  void anEditableComboSelectedRowReadsAfterALiveSwitchToDark() {
+    assertEquals(
+        DARK_SELECTION, check(SWT.DROP_DOWN, ThemeMode.LIGHT, true, "editable-light-to-dark"));
+  }
+
+  /**
+   * Opens the list and checks its selected row; returns the row's fill.
+   *
+   * @param style {@code SWT.READ_ONLY} or {@code SWT.DROP_DOWN}, an editable combo
+   * @param switchToDark sets the dark native setting after the combo exists, as a live switch does
+   */
+  private RGB check(int style, ThemeMode mode, boolean switchToDark, String name) {
     assumeTrue("win32".equals(SWT.getPlatform()), "win32 combo list");
     display = new Display();
     SwtThemeService.open(display, mode);
@@ -73,7 +114,8 @@ class Win32ComboListTest {
     parent.setBounds(20, 20, 200, 100);
     parent.open();
     Shell dialog = Dialogs.shell(parent, "Combo list", true);
-    final Combo combo = new Combo(dialog, SWT.READ_ONLY);
+    final Combo combo = new Combo(dialog, style);
+    ComboListSelection.PLATFORM.draw(combo);
     combo.setItems(ITEMS);
     combo.select(1);
     dialog.setBounds(60, 60, 320, 220);
@@ -81,21 +123,31 @@ class Win32ComboListTest {
     dialog.forceActive();
     settle();
     ScreenProbe.assumeShows(dialog);
+    if (switchToDark) {
+      PlatformTraits.PLATFORM.themeFollow(display).showOnWindows(true, WindowRebuild.NONE);
+    }
+    // A pointer left over the list by an earlier test would move its selection.
+    display.setCursorLocation(parent.toDisplay(0, 0));
     combo.setFocus();
     final RGB body = mostRows(capture(combo));
     combo.setListVisible(true);
     final ImageData[] list = {null};
     final int[][] selected = {null};
+    // Two equal reads in a row, so the list has finished opening and painting.
     EventLoop.runUntil(
         display,
         new BooleanSupplier() {
           @Override
           public boolean getAsBoolean() {
             display.update();
+            ImageData previous = list[0];
             list[0] = capture(combo);
             report.setLength(0);
             selected[0] = selectedBand(list[0], mostRows(list[0]));
-            return !mostRows(list[0]).equals(body) && selected[0] != null;
+            return !mostRows(list[0]).equals(body)
+                && selected[0] != null
+                && previous != null
+                && Arrays.equals(previous.data, list[0].data);
           }
         },
         BOUND);
@@ -104,11 +156,13 @@ class Win32ComboListTest {
         !mostRows(list[0]).equals(body),
         "the screen does not show the open list below the combo; body " + hex(body));
     assertTrue(selected[0] != null, "no row on its own ground\n" + report);
-    RGB fill = rowMode(list[0], selected[0][0]);
+    // The band's middle row: its edge rows carry the focus outline, XORed over the fill.
+    RGB fill = rowMode(list[0], (selected[0][0] + selected[0][1]) / 2);
     double contrast = SwtThemeService.contrast(strongest(list[0], selected[0], fill), fill);
     report.append(String.format("selected %s contrast=%.2f%n", hex(fill), contrast));
     save(name, list[0]);
     assertTrue(contrast >= TEXT_CONTRAST, "selected row text\n" + report);
+    return fill;
   }
 
   /** Reads the screen below the combo, where its list opens, four rows and a margin high. */
@@ -168,11 +222,15 @@ class Win32ComboListTest {
     return best;
   }
 
+  /**
+   * Returns the pixel that contrasts most with the fill, inside the band's edges: the keyboard
+   * focus outline is dotted along them and reads as ink on a row with no text.
+   */
   private static RGB strongest(ImageData data, int[] rows, RGB fill) {
     RGB best = fill;
     double max = 1;
-    for (int y = rows[0]; y <= rows[1]; y++) {
-      for (int x = 3; x < data.width - 3; x++) {
+    for (int y = rows[0] + EDGE; y <= rows[1] - EDGE; y++) {
+      for (int x = EDGE + 1; x < data.width - EDGE - 1; x++) {
         RGB rgb = data.palette.getRGB(data.getPixel(x, y));
         double contrast = SwtThemeService.contrast(rgb, fill);
         if (contrast > max) {

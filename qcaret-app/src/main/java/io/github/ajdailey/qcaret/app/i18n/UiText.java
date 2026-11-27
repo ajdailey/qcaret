@@ -669,6 +669,8 @@ public enum UiText {
   TIP_EXPORT_HTML,
   /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
   TIP_PRINT_MARKDOWN,
+  /** A tip; takes {@link #TIP_KEY} formatted, or empty. */
+  TIP_HEX_VIEW,
   /** Command label. */
   COMMAND_SHOW_LOG,
   /** Command label. */
@@ -843,9 +845,9 @@ public enum UiText {
   /** Title of the binary file prompt. */
   BINARY_TITLE,
   /** Binary file prompt. */
-  BINARY_MESSAGE,
+  BINARY_HEX_MESSAGE,
   /** Binary file prompt button. */
-  BUTTON_OPEN_READ_ONLY,
+  BUTTON_OPEN_AS_TEXT,
   /** Binary file prompt and too-large notice button. */
   BUTTON_OPEN_IN_HEX_VIEWER,
   /** View > Hex View. */
@@ -900,6 +902,30 @@ public enum UiText {
   HEX_PATTERN_UNMAPPABLE,
   /** Hex pane refusal for a charset without an encoder. */
   HEX_NO_ENCODER,
+  /** Title of the Go to Offset prompt. */
+  HEX_GO_TO_OFFSET_TITLE,
+  /** Go to Offset prompt. */
+  HEX_GO_TO_OFFSET_LABEL,
+  /** Preferences label. */
+  PREFERENCES_HEX_BYTES_PER_ROW,
+  /** Hex view header over the offset column. */
+  HEX_HEADER_OFFSET,
+  /** Hex view menu item. */
+  HEX_MENU_COPY_HEX,
+  /** Hex view menu item. */
+  HEX_MENU_COPY_TEXT,
+  /** Hex view menu item. */
+  HEX_MENU_COPY_OFFSET,
+  /** Hex view menu item. */
+  HEX_MENU_GO_TO_OFFSET,
+  /** Hex view menu item. */
+  HEX_MENU_FIND,
+  /** Hex find bar box: the pattern is hex pairs. */
+  HEX_FIND_AS_HEX,
+  /** Accessible name of a hex view's rows. */
+  ACCESSIBLE_HEX_VIEW,
+  /** Workspace browser menu item. */
+  WORKSPACE_OPEN_HEX,
   /** Title of the key binding list. */
   SHORTCUTS_TITLE,
   /** Title of the command-line usage. */

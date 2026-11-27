@@ -11,8 +11,10 @@ import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.AppearanceChoices;
 import io.github.ajdailey.qcaret.app.view.PreferencesForm;
 import io.github.ajdailey.qcaret.app.view.PreferencesInput;
+import io.github.ajdailey.qcaret.core.hex.HexRows;
 import io.github.ajdailey.qcaret.core.text.TextEncoding;
 import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
+import io.github.ajdailey.qcaret.ui.swt.platform.ComboListSelection;
 import io.github.ajdailey.qcaret.ui.swt.platform.DialogTabs;
 import io.github.ajdailey.qcaret.ui.swt.platform.PlatformTraits;
 import java.util.ArrayList;
@@ -96,6 +98,7 @@ final class PreferencesDialog {
   private Combo previewRenderer;
   private Button syncScroll;
   private Combo openMode;
+  private Combo bytesPerRow;
   private PreferencesViewTab view;
   private WorkspaceDefaultRow workspaceDefault;
 
@@ -252,6 +255,7 @@ final class PreferencesDialog {
   private void appearance(Composite page) {
     new Label(page, SWT.NONE).setText(UiText.PREFERENCES_THEME.text());
     theme = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(theme);
     theme.add(UiText.PREFERENCES_THEME_LIGHT.text());
     theme.add(UiText.PREFERENCES_THEME_DARK.text());
     theme.add(UiText.PREFERENCES_THEME_SYSTEM.text());
@@ -266,11 +270,16 @@ final class PreferencesDialog {
     openMode.add(UiText.MARKDOWN_OPEN_SOURCE.text());
     openMode.add(UiText.MARKDOWN_OPEN_SPLIT.text());
     openMode.add(UiText.MARKDOWN_OPEN_PREVIEW.text());
+    bytesPerRow = list(page, UiText.PREFERENCES_HEX_BYTES_PER_ROW);
+    for (int width : HexRows.WIDTHS) {
+      bytesPerRow.add(Integer.toString(width));
+    }
   }
 
   private static Combo list(Composite page, UiText label) {
     new Label(page, SWT.NONE).setText(label.text());
     Combo combo = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(combo);
     combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     return combo;
   }
@@ -279,6 +288,7 @@ final class PreferencesDialog {
   private static Combo choice(Composite page, UiText label, UiText first) {
     new Label(page, SWT.NONE).setText(label.text());
     Combo combo = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(combo);
     combo.add(first.text());
     combo.select(0);
     combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
@@ -463,6 +473,7 @@ final class PreferencesDialog {
     previewRenderer.select(Math.max(0, List.of(RENDERERS).indexOf(form.previewRenderer())));
     syncScroll.setSelection(form.markdownSyncScroll());
     openMode.select(Math.max(0, List.of(OPEN_MODES).indexOf(form.markdownOpenMode())));
+    bytesPerRow.select(bytesPerRow.indexOf(form.hexBytesPerRow()));
     view.show(form.view());
     workspaceDefault.show(form.workspaceDefault());
     for (TableColumn column : commands.getColumns()) {
@@ -509,7 +520,8 @@ final class PreferencesDialog {
         strictJson.getSelection(),
         RENDERERS[Math.max(0, previewRenderer.getSelectionIndex())],
         syncScroll.getSelection(),
-        OPEN_MODES[Math.max(0, openMode.getSelectionIndex())]);
+        OPEN_MODES[Math.max(0, openMode.getSelectionIndex())],
+        bytesPerRow.getSelectionIndex() < 0 ? "" : bytesPerRow.getText());
   }
 
   /** Fills every tab with the defaults; nothing changes until OK or Apply. */
@@ -707,6 +719,10 @@ final class PreferencesDialog {
 
   Combo openMode() {
     return openMode;
+  }
+
+  Combo bytesPerRow() {
+    return bytesPerRow;
   }
 
   PreferencesViewTab view() {

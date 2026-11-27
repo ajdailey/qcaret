@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
+import io.github.ajdailey.qcaret.ui.swt.platform.ComboListSelection;
 import java.util.List;
 import java.util.function.Consumer;
 import org.eclipse.swt.SWT;
@@ -66,6 +67,7 @@ final class SearchDialog {
     regex = check(options, UiText.FIND_REGEX, form.regex());
     label(fields, UiText.SEARCH_SCOPE_LABEL);
     scope = new Combo(fields, SWT.DROP_DOWN | SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(scope);
     for (SearchScope s : SearchScope.values()) {
       scope.add(s.label());
     }

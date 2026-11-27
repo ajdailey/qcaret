@@ -307,7 +307,7 @@ class ShellWindowTest {
     Shell prompt = window.shell().getShells()[0];
     Button open = null;
     for (Control child : prompt.getChildren()) {
-      open = open != null ? open : find(child, UiText.BUTTON_OPEN_READ_ONLY.text());
+      open = open != null ? open : find(child, UiText.BUTTON_OPEN_AS_TEXT.text());
     }
     assertNotNull(open);
     open.notifyListeners(SWT.Selection, new Event());

@@ -121,8 +121,9 @@ A file that cannot be written back byte for byte in its encoding opens
 read-only with a notice, and Save stays off. Save As writes a converted copy;
 turning off Read-Only lets Save convert the file itself. A reload that brings in
 such bytes does the same, and a later reload of bytes that write back ends it. A
-binary file asks first: Open Read-Only shows it as
-ISO-8859-1 text, with editing and saving off.
+binary file asks first: Open in Hex Viewer, the default, shows its bytes in a
+[Hex Viewer](#hex-view) window, and Open as Text shows it as ISO-8859-1 text,
+with editing and saving off.
 
 ### Per-file settings
 
@@ -211,7 +212,8 @@ A file opens only when its memory cost fits the 60% of the Java heap that open
 documents share. The cost is 1 byte per file byte when the first 64 KiB are
 ASCII and 2 otherwise, plus undo room of the same size, at most 64 MiB. A file
 that does not fit is refused unread, and the notice names its size, the memory
-it needs and the `-Xmx` value to start with. A file whose text costs more past
+it needs and the `-Xmx` value to start with; its Open in Hex Viewer button shows
+the file's bytes instead. A file whose text costs more past
 its first 64 KiB is refused while it loads when the memory is not there. No
 file over 2 GiB opens.
 
@@ -400,10 +402,7 @@ apply (measured on Linux, one million lines):
   while windows it owns, such as Show Log, Statistics or a comparison, close,
   and a running Statistics count or Checksums run stops.
   A window with an open dialog, Preferences included, or an open menu changes
-  once it closes. Under dark, dialogs are dark, fields included;
-  on Windows at a display scale such as 150% the selected item of an open
-  drop-down list, such as Preferences' Theme, is not visible, while the other
-  items read. On macOS menus from
+  once it closes. Under dark, dialogs are dark, fields included. On macOS menus from
   the menu bar keep the system appearance. Under System the theme follows a
   change of the system setting while QCaret runs, on Windows and macOS. On Linux
   a GTK theme with no dark variant keeps native controls light; the editor and
@@ -874,6 +873,71 @@ column; a column keeps its longest word, so a table of long words can stay
 wider than the page. It has no
 default key; progress, Cancel and the one-job limit are as for File > Print.
 
+## Hex view
+
+A hex view shows bytes: each row starts with its offset in hex, then the bytes
+as two hex digits each, then the same bytes as text, where a byte outside
+printable ASCII shows as a dimmed `.`. It only shows bytes; it does not edit
+them.
+
+A tab shows its document's bytes in one of three modes, from View > Hex View:
+
+| Mode | Shows |
+|---|---|
+| Text | The editor alone |
+| Split | The editor with the hex pane on its right; with a split editor, right of both views |
+| Hex | The hex pane alone |
+
+`Ctrl+Shift+X` (`Cmd+Shift+X` on macOS), or View > Hex View > Cycle Hex View,
+steps the tab from Text to Split to Hex and back. The pane shows the bytes Save
+would write: the text encoded in the document's encoding, a BOM first, unsaved
+edits included. After an edit the rows dim until the bytes are encoded again,
+0.3 seconds after you stop typing. A char the encoding cannot hold shows its
+replacement bytes in red, since Save refuses it. A tab shows the hex pane or the
+Markdown preview, not both: Split or Hex switches a Markdown tab to Source, and
+Split or Preview returns the tab to Text. Once you pick a mode for a file, it
+opens in that mode from then on, and a session restores each tab's mode.
+
+![A file in Split with the hex pane right of the editor and a selection in both](images/guide/hex-pane.png)
+
+In Split and Hex the caret and selection follow the editor's: selecting chars
+selects their bytes, and a click or selection in the pane moves the editor to
+the chars those bytes belong to. Only the main caret takes part.
+
+The Hex Viewer is a window that shows a file's bytes as they are on disk,
+reading only the part on screen, so a file of any size opens at once. File >
+Open Bytes in Hex Viewer and the Workspace Browser's Open in Hex Viewer open
+one per file. When the file changes on disk, a bar with Reload shows. A session
+does not reopen Hex Viewer windows.
+
+![A Hex Viewer window over a binary file](images/guide/hex-viewer.png)
+
+In a hex pane or a Hex Viewer:
+
+- The arrow keys, Page Up, Page Down, Home and End move the caret, and with
+  `Shift` select; `Ctrl+Home` and `Ctrl+End` (`Cmd+Up` and `Cmd+Down` on macOS)
+  go to the first and last byte. Click a byte to put the caret on it, and drag
+  or `Shift`+click to select. Tab moves the caret between the hex and the text
+  column.
+- Copy (`Ctrl+C`) copies the selection from the caret's column: hex pairs such
+  as `4D 5A 90 00`, or text. The right-click menu also has Copy as Hex, Copy as
+  Text and Copy Offset. A hex pane's text is the document's chars; a Hex
+  Viewer's is one ISO-8859-1 char per byte. A selection over 16 MiB is not
+  copied.
+- Go to Line (`Ctrl+G`, `Cmd+L` on macOS) opens Go to Offset, which takes a
+  decimal offset, `0x` and hex digits, or `+n` or `-n` bytes from the caret.
+- Find (`Ctrl+F`) opens a find bar below the rows. With Hex bytes checked, the
+  pattern is hex pairs, with `??` for any byte, such as `4D 5A ?? 00`;
+  otherwise it is text, encoded as the view's bytes are. Enter and Next find
+  forward from the selection, `Shift+Enter` and Previous backward, F3 and
+  `Shift+F3` again, continuing from the other end. `Esc` stops a long search
+  and closes the bar.
+- The status line shows the caret's offset and the size, each in hex and in
+  decimal, and the selection's length.
+
+Tools > Preferences, Appearance, Bytes per row in hex views sets 8, 16 or 32
+bytes per row for every hex view (16 by default).
+
 ## External changes
 
 QCaret checks each open file every 5 seconds and when a window activates. On
@@ -908,8 +972,8 @@ another program copies the file. Hover over a row for its full path, size and
 modified date and time. The icons above the tree show their names when you
 hover over them. Tab reaches each icon and Space runs it. Refresh lists the folder
 again, Reveal Active File selects the current document's file, and Hide Browser
-hides the browser. A row's menu offers Open, Open in Default Application, New
-File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
+hides the browser. A row's menu offers Open, Open in Default Application, Open
+in Hex Viewer, New File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
 Workspace Folder; right-click empty space in the browser to act on the shown
 folder itself. Open in Default Application refuses a file the system would run
 and shows a notice: on Windows a program, script, shortcut, installer or other
@@ -920,8 +984,8 @@ execute permission; on Linux a file with the execute permission. Open such a
 file in QCaret instead.
 
 Ctrl-click (Cmd-click on macOS) adds or removes a row, and Shift-click selects
-a range. With several rows selected, Open, Open in Default Application and
-dragging take every selected file (on GTK 4 a drag takes only the row pressed),
+a range. With several rows selected, Open, Open in Default Application, Open
+in Hex Viewer and dragging take every selected file (on GTK 4 a drag takes only the row pressed),
 and Open in Default Application asks first for more than 10 files; Copy Path
 copies every path, one per line; Delete deletes every selected file and folder
 after one prompt. New File, New Folder, Set as Workspace Folder and Enter act

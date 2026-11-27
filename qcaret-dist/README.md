@@ -130,7 +130,8 @@ start, and for anyone else the all-users choice is disabled.
   unchecked and hidden for portable; `/DESKTOP` selects the shortcut in a
   silent install. The shortcut goes on the common desktop for all users and on
   the user's desktop for the current user. Setup never removes one; the
-  uninstaller does. Run QCaret executes `explorer.exe <folder>\qcaret.exe`:
+  uninstaller does, retrying each shortcut for up to 10 s while another
+  process holds it open. Run QCaret executes `explorer.exe <folder>\qcaret.exe`:
   Explorer hands the file to the running shell, which starts it with the
   signed-in user's unelevated token, so an all-users install started as
   administrator does not run QCaret elevated. A silent install starts nothing.

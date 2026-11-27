@@ -9,11 +9,12 @@ import java.util.List;
 
 /**
  * The workspace browser's row menu and keys over several selected rows. Open, Open in Default
- * Application and Copy Path take every selected file (and, for Copy Path, directory), and Open in
- * Default Application asks first for more than {@value #OPEN_UNASKED} files; Delete takes every
- * selected entry below the shown folder through one prompt ({@link SelectionDelete}); Search in
- * Folder and Rename take a single row; Set as Workspace Folder, New File and New Folder take the
- * focused row. An empty selection stands for the shown folder. Confined to the UI thread.
+ * Application, Open in Hex Viewer and Copy Path take every selected file (and, for Copy Path,
+ * directory), and Open in Default Application asks first for more than {@value #OPEN_UNASKED}
+ * files; Delete takes every selected entry below the shown folder through one prompt ({@link
+ * SelectionDelete}); Search in Folder and Rename take a single row; Set as Workspace Folder, New
+ * File and New Folder take the focused row. An empty selection stands for the shown folder.
+ * Confined to the UI thread.
  */
 final class WorkspaceSelection implements WorkspaceSelectionInput {
   /** Files Open in Default Application opens without asking. */
@@ -39,7 +40,7 @@ final class WorkspaceSelection implements WorkspaceSelectionInput {
     WorkspaceNode focus = focused != null && rows.contains(focused) ? focused : rows.get(0);
     boolean single = rows.size() == 1;
     return switch (action) {
-      case OPEN, OPEN_DEFAULT -> !files(rows).isEmpty();
+      case OPEN, OPEN_DEFAULT, OPEN_HEX -> !files(rows).isEmpty();
       case SET_FOLDER -> focus.expands() && (below(focus) || browsing());
       case NEW_FILE, NEW_FOLDER -> focus.expands();
       case COPY_PATH -> !paths(rows).isEmpty();
@@ -59,6 +60,7 @@ final class WorkspaceSelection implements WorkspaceSelectionInput {
     switch (action) {
       case OPEN -> documents.open(paths(files(rows)));
       case OPEN_DEFAULT -> openInDefaultApplications(files(rows));
+      case OPEN_HEX -> openInHexViewers(files(rows));
       case SET_FOLDER -> workspace.setWorkspace(focus);
       case COPY_PATH -> view.setText(String.join(System.lineSeparator(), text(paths(rows))));
       case SEARCH_FOLDER -> workspace.files().searchInFolder(focus);
@@ -84,6 +86,12 @@ final class WorkspaceSelection implements WorkspaceSelectionInput {
       view.askOpenMany(files.size(), open);
     } else {
       open.run();
+    }
+  }
+
+  private void openInHexViewers(List<WorkspaceNode> files) {
+    for (WorkspaceNode file : files) {
+      workspace.openInHexViewer(file);
     }
   }
 

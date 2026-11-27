@@ -76,6 +76,7 @@ public final class TipList {
     add(list, UiText.TIP_MARKDOWN_OUTLINE, CommandId.MARKDOWN_OUTLINE);
     add(list, UiText.TIP_EXPORT_HTML, CommandId.EXPORT_HTML);
     add(list, UiText.TIP_PRINT_MARKDOWN, CommandId.PRINT_MARKDOWN);
+    add(list, UiText.TIP_HEX_VIEW, CommandId.HEX_CYCLE);
     return List.copyOf(list);
   }
 

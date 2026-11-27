@@ -2750,8 +2750,10 @@ public final class DocumentController {
       if (d.markdown != null) {
         d.markdown.attach(d.tab.markdownView(d.markdown));
       }
+      hex.rebind(d);
       scrollLater(d, rows);
     }
+    hexViewers.rebind();
     active = shown;
     if (shown != null) {
       shown.tab.select();

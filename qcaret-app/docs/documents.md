@@ -591,6 +591,13 @@ when the window gains the focus, shows a notice whose Reload opens it again.
 Sessions do not restore the windows. `hex.bytesPerRow` sets the rows of every
 pane and window.
 
+A window replacement (`rebindViews`) creates each shown pane again in the
+tab's new view (`HexTab.rebind`) and opens every viewer again in the new
+window (`HexViewers.rebind`), keeping the caret, selection and scroll. A
+disposed view calls `HexInput.detach`, which does nothing unless that view is
+the attached one, so the replaced window's late disposal leaves the new views
+attached.
+
 ## Printing
 
 `PrintController` runs File > Print, File > Print Selection and File > Print

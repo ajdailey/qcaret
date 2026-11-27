@@ -23,10 +23,12 @@ import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.FindState;
+import io.github.ajdailey.qcaret.app.view.HexMode;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
 import io.github.ajdailey.qcaret.app.view.SearchForm;
 import io.github.ajdailey.qcaret.app.view.SearchScope;
 import io.github.ajdailey.qcaret.app.view.WindowGeometry;
+import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
 import io.github.ajdailey.qcaret.core.concurrent.MemoryBudget;
 import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Document;
@@ -515,6 +517,42 @@ class LiveThemeGuiTest {
     assertFalse(modes[0].getSelection(), "Source");
     assertTrue(modes[1].getSelection(), "Split");
     assertNotNull(slots.get(0).window().activePreview());
+  }
+
+  /** The tab's hex pane and a Hex Viewer window are created again in the new window. */
+  @Test
+  void aHexPaneAndAHexViewerShowAgainAfterARebuild() throws Exception {
+    final ApplicationController controller = first();
+    open(controller, "bytes.txt");
+    final long size = Files.size(temp.resolve("bytes.txt"));
+    assertTrue(controller.documents().setHexMode(HexMode.SPLIT));
+    controller
+        .workspace()
+        .openInHexViewer(
+            new WorkspaceNode(temp.resolve("bytes.txt"), "bytes.txt", WorkspaceNode.Kind.FILE));
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                WindowHexViews hex = slots.get(0).window().hexViews();
+                return hex.windows().size() == 1
+                    && hex.panes().size() == 1
+                    && hex.panes().get(0).rows().size() == size;
+              }
+            }),
+        "pane and viewer");
+
+    toggle();
+    settle();
+
+    final WindowHexViews hex = slots.get(0).window().hexViews();
+    assertEquals(HexMode.SPLIT, controller.documents().hexMode());
+    assertEquals(1, hex.panes().size());
+    assertTrue(hex.panes().get(0).control().getVisible());
+    assertEquals(size, hex.panes().get(0).rows().size());
+    assertEquals(1, hex.windows().size());
+    assertEquals(size, hex.windows().get(0).pane().rows().size());
   }
 
   @Test

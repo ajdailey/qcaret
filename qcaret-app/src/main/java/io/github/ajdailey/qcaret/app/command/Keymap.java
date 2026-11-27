@@ -99,6 +99,7 @@ public final class Keymap {
       window(b, CommandId.FULL_SCREEN, 0, F11);
     }
     window(b, CommandId.MARKDOWN_CYCLE, P | S, 'm');
+    window(b, CommandId.HEX_CYCLE, P | S, 'x');
     // Minimize: the Window menu item exists on macOS only.
     if (mac) {
       window(b, CommandId.MINIMIZE, P, 'm');

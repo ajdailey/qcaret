@@ -226,6 +226,7 @@ Platform choices in the defaults, with the conflict each avoids:
 | Expand Selection | Mod+Shift+Space; Control+Command+Shift+Right on macOS | macOS Cmd+Shift+Space opens the Ask Siri panel |
 | Full Screen | F11; Control+Command+F on macOS | Each platform's full-screen key |
 | Cycle Markdown View | Mod+Shift+M | Ctrl+Alt+letter is AltGr on Windows; Cmd+M is Minimize on macOS; Mod+Shift+V is paste without formatting in other programs |
+| Cycle Hex View | Mod+Shift+X | Mod+Shift+H is Replace in Results; IBus takes Ctrl+Shift+U (IBus 1.5.29 binds no other Ctrl+Shift letter); Ctrl+Alt+letter is AltGr on Windows |
 | Minimize | Cmd+M on macOS only | The macOS Window menu key; elsewhere the item is in the title bar |
 
 Other defaults: Find Mod+F; F6 focuses the other split view; Fold and Unfold
@@ -237,7 +238,7 @@ Mod+P and Switch Document Mod+Shift+O; Go to Symbol Mod+R. Select All
 Occurrences Alt+Enter and Skip Occurrence Mod+K, as editor bindings.
 
 Commands with no default key include the split commands, the Markdown View
-modes, Basic and Browser, Sync Scrolling, Outline, Toggle Fold, Sort,
+and Hex View modes, Open Bytes in Hex Viewer, Basic and Browser, Sync Scrolling, Outline, Toggle Fold, Sort,
 Reverse Lines, Remove Duplicate and Blank Lines, Trim Leading and Trailing
 Whitespace, Wrap Paragraph, Convert Indentation, every Encode/Decode Text
 command, Title Case, Swap Case, the Edit > Format XML and JSON commands,

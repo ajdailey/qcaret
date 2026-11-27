@@ -144,4 +144,9 @@ final class CocoaTraits implements PlatformTraits {
   public CaretPlacement caretPlacement() {
     return new CocoaCaretPlacement();
   }
+
+  @Override
+  public ComboListSelection comboListSelection() {
+    return new NativeComboListSelection();
+  }
 }

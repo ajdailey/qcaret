@@ -12,6 +12,14 @@ public interface HexInput {
   void attach(HexView view);
 
   /**
+   * Disconnects a disposed view. Does nothing when another view is attached, as after a window
+   * replacement created the pane or window again.
+   *
+   * @param view the disposed view
+   */
+  void detach(HexView view);
+
+  /**
    * Returns a row to paint. A row not cached yet returns null, and the controller reads it on a
    * worker and calls {@link HexView#redraw} once it lands.
    *

@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -25,7 +26,8 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link CocoaChrome} on any platform, for a control created while {@link SWT#Skin} is held back,
  * as cocoa holds it while a menu tracks. A Display filter drops every Skin event, so only the
- * chrome's Show path and its sweep while a menu shows can color the control.
+ * chrome's Show path and its sweep while a menu shows can color the control. A read-only {@link
+ * Combo} keeps its default foreground.
  */
 @Tag("swt")
 class CocoaChromeTest {
@@ -122,6 +124,18 @@ class CocoaChromeTest {
     Text underBar = new Text(shell, SWT.SINGLE);
     runPastSweeps();
     assertNotEquals(DARK_LIST, underBar.getBackground().getRGB());
+  }
+
+  @Test
+  void aReadOnlyComboKeepsItsDefaultForeground() {
+    Combo readOnly = new Combo(shell, SWT.READ_ONLY);
+    Combo editable = new Combo(shell, SWT.DROP_DOWN);
+    RGB before = readOnly.getForeground().getRGB();
+    CocoaChrome chrome = new CocoaChrome(display, false, new SwtUiDispatcher(display));
+    chrome.apply(true);
+    assertEquals(before, readOnly.getForeground().getRGB());
+    assertEquals(DARK_LIST, editable.getBackground().getRGB());
+    assertEquals(new RGB(0xff, 0xff, 0xff), editable.getForeground().getRGB());
   }
 
   @Test

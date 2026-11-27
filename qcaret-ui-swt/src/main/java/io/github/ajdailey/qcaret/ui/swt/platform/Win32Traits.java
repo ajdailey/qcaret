@@ -154,4 +154,9 @@ final class Win32Traits implements PlatformTraits {
   public CaretPlacement caretPlacement() {
     return new NativeCaretPlacement();
   }
+
+  @Override
+  public ComboListSelection comboListSelection() {
+    return new Win32ComboListSelection();
+  }
 }

@@ -115,4 +115,9 @@ abstract class GtkTraits implements PlatformTraits {
   public final CaretPlacement caretPlacement() {
     return new NativeCaretPlacement();
   }
+
+  @Override
+  public final ComboListSelection comboListSelection() {
+    return new NativeComboListSelection();
+  }
 }

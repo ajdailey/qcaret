@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
+import io.github.ajdailey.qcaret.ui.swt.platform.ComboListSelection;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.swt.SWT;
@@ -17,6 +18,7 @@ final class EditorColorsChoice {
 
   EditorColorsChoice(Composite page) {
     combo = new Combo(page, SWT.DROP_DOWN | SWT.READ_ONLY);
+    ComboListSelection.PLATFORM.draw(combo);
     for (String scheme : EditorSchemes.names()) {
       combo.add(EditorSchemes.label(scheme));
       values.add(scheme);

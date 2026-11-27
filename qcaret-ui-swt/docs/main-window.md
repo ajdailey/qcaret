@@ -646,6 +646,7 @@ default method carries behavior.
 | `NativeNames` | `NoNativeNames` | `NoNativeNames` | `Gtk3NativeNames`: names native widgets through ATK | `NoNativeNames` | `ToolBarNames`, `OutlineDock` (see [Accessible names](#accessible-names)) |
 | `AccessibleLabels` | `NativeAccessibleLabels` | `CocoaAccessibleLabels`: the name is also the description; group role | `NativeAccessibleLabels` | `NativeAccessibleLabels` | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `LaunchDocuments` | `NativeLaunchDocuments` | `CocoaLaunchDocuments`: collects open-document events at start and before a handoff (`DocumentEventLoop`) | `NativeLaunchDocuments` | `NativeLaunchDocuments` | `Gui`, `HandoffDocuments` (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |
+| `ComboListSelection` | `Win32ComboListSelection`: paints a drop-down combo's open list selection under the dark native setting | `NativeComboListSelection` | `NativeComboListSelection` | `NativeComboListSelection` | every `Combo` at creation (see [win32](theme-and-icons.md#win32)) |
 
 Operating-system checks outside the views go through `OsTraits`
 (`core.util.os`). Its values: `fileNamesIgnoreCase`, `fileLock`,

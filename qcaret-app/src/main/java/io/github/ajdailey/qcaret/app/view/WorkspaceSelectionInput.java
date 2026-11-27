@@ -17,6 +17,8 @@ public interface WorkspaceSelectionInput {
     OPEN(UiText.WORKSPACE_OPEN),
     /** Opens every selected file in the system's application. */
     OPEN_DEFAULT(UiText.WORKSPACE_OPEN_DEFAULT),
+    /** Opens every selected file in a Hex Viewer window. */
+    OPEN_HEX(UiText.WORKSPACE_OPEN_HEX),
     /** Makes the focused directory the workspace folder. */
     SET_FOLDER(UiText.WORKSPACE_SET_FOLDER),
     /** Copies every selected path, one per line. */
@@ -54,6 +56,7 @@ public interface WorkspaceSelectionInput {
           Arrays.asList(
               Action.OPEN,
               Action.OPEN_DEFAULT,
+              Action.OPEN_HEX,
               null,
               Action.NEW_FILE,
               Action.NEW_FOLDER,

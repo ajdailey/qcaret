@@ -109,6 +109,21 @@ final class HexViewers {
     return list;
   }
 
+  /**
+   * Opens every viewer again in the window's new view after a window replacement; the replaced
+   * windows close with the replaced main window.
+   */
+  void rebind() {
+    for (Viewer viewer : new ArrayList<Viewer>(open)) {
+      HexView window = view.openHexViewer(viewer.title, viewer.controller);
+      if (window == null) {
+        viewer.viewClosed();
+      } else {
+        viewer.controller.attach(window);
+      }
+    }
+  }
+
   /** Stops every viewer's work; results arriving later are dropped. */
   void dispose() {
     disposed = true;
@@ -122,8 +137,7 @@ final class HexViewers {
     Viewer viewer = new Viewer(source);
     open.add(viewer);
     viewer.controller.setSource(source);
-    String name = String.valueOf(source.file().getFileName());
-    HexView window = view.openHexViewer(UiText.HEX_VIEWER_TITLE.format(name), viewer.controller);
+    HexView window = view.openHexViewer(viewer.title, viewer.controller);
     if (window == null) {
       viewer.viewClosed();
       return;
@@ -134,6 +148,7 @@ final class HexViewers {
   /** One Hex Viewer window. */
   private final class Viewer implements HexController.Host {
     final HexController controller;
+    final String title;
     private FileHexSource source;
     private boolean checking;
     private boolean recheck;
@@ -141,6 +156,7 @@ final class HexViewers {
     Viewer(FileHexSource source) {
       this.source = source;
       this.controller = new HexController(workers, ui, this, true, bytesPerRow);
+      this.title = UiText.HEX_VIEWER_TITLE.format(String.valueOf(source.file().getFileName()));
     }
 
     /** Opens the file again and shows its bytes. */
