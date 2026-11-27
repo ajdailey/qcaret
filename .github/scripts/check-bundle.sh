@@ -7,12 +7,21 @@
 # JDK's native-access warning. The same run follows with the
 # universal zip's bin/qcaret, which has no runtime, on $JAVA_HOME. Linux uses a
 # private Xvfb display.
+#
+# With QCARET_HOME set (an installed /opt/qcaret), the checks run against that
+# tree through the launcher $QCARET_LAUNCHER instead, the main window's
+# WM_CLASS must be QCaret (the desktop entry's StartupWMClass), and the
+# universal zip is skipped.
 set -euo pipefail
 
 work="$PWD/bundle-run"
 rm -rf "$work"
 mkdir -p "$work"
-case "$TARGET" in
+case "${QCARET_HOME:+installed-}$TARGET" in
+  installed-linux-*)
+    launcher="$QCARET_LAUNCHER"
+    runtime="$QCARET_HOME/runtime"
+    ;;
   linux-*)
     tar -xzf dist/qcaret-*-"$TARGET".tar.gz -C "$work"
     launcher="$work/qcaret/bin/qcaret"
@@ -68,6 +77,20 @@ await_line() {
   done
 }
 
+# Fails unless a top-level window whose title holds QCaret has WM_CLASS
+# "QCaret", "QCaret".
+check_wm_class() {
+  local w classes=""
+  for w in $(xwininfo -root -children | sed -n 's/^ *\(0x[0-9a-f]*\) ".*QCaret.*/\1/p'); do
+    classes="$classes$(xprop -id "$w" WM_CLASS)
+"
+  done
+  echo "--- WM_CLASS of the QCaret windows"
+  printf '%s' "$classes"
+  printf '%s' "$classes" | grep -qF 'WM_CLASS(STRING) = "QCaret", "QCaret"' \
+    || { echo "FAIL: no QCaret window has WM_CLASS QCaret" >&2; exit 1; }
+}
+
 # Runs launcher $1 until the main window opens and the grammars are read, then
 # hands it a file from a second launch; passes when QCaret reports java.home
 # $2. $3 names the run's settings directory and output.
@@ -78,6 +101,9 @@ check_launcher() {
   local app=$!
   await_line "$out" 'Main window open' "$app"
   await_line "$out" 'Grammars read' "$app"
+  if [ -n "${QCARET_HOME:-}" ]; then
+    check_wm_class
+  fi
 
   # A failed handoff opens its own window and never exits, so the wait is bounded.
   "$1" --settings "$settings" "$work/handed.txt" >"$second_out" 2>&1 &
@@ -126,6 +152,7 @@ check_launcher() {
 
 check_launcher "$launcher" "$runtime" bundle
 echo "PASS: $TARGET launcher ran $runtime (os.arch $arch), opened the main window and took a handoff"
+[ -z "${QCARET_HOME:-}" ] || exit 0
 
 universal="$(ls dist/qcaret-*.zip | grep -Ev -- '-(linux|macos|windows)-')"
 unzip -q "$universal" -d "$work/universal"

@@ -103,6 +103,26 @@
                             </artifactItems>
                         </configuration>
                     </execution>
+                    <!-- Build only: InstallerArt renders the package icons
+                         and installer bitmaps with it. -->
+                    <execution>
+                        <id>installer-tools</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/installer-tools</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.github.weisj</groupId>
+                                    <artifactId>jsvg</artifactId>
+                                    <version>${jsvg.version}</version>
+                                    <destFileName>jsvg.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
                     <!-- All six fragments, named by target. -->
                     <execution>
                         <id>stage-swt</id>

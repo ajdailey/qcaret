@@ -6,7 +6,8 @@ set "exe=%~dp0qcaret.exe"
 rem !exe! expands after cmd splits the line, so & ( ) ^ in the path stay literal.
 setlocal EnableDelayedExpansion
 set "classes=HKCU\Software\Classes"
-set "extensions=.txt .md .log .csv .xml .json .yml .yaml .ini .conf .cfg .properties .c .h .cpp .hpp .cs .java .py .rb .js .ts .css .html .sh .bat .cmd .ps1 .sql"
+rem No .bat or .cmd: with QCaret.File in their OpenWithProgids, ShellExecute fails to run them.
+set "extensions=.txt .md .log .csv .xml .json .yml .yaml .ini .conf .cfg .properties .c .h .cpp .hpp .cs .java .py .rb .js .ts .css .html .sh .ps1 .sql"
 
 if /i "%~1"=="/u" goto remove
 if not "%~1"=="" goto usage

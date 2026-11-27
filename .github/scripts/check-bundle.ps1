@@ -462,8 +462,14 @@ $work = Join-Path $PWD 'bundle-run'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 $archive = Get-Item "dist\qcaret-*-$env:TARGET.zip"
 $version = $archive.Name.Substring(7, $archive.Name.Length - 7 - "-$env:TARGET.zip".Length)
-Expand-Archive -Path $archive.FullName -DestinationPath $work
-$bundle = (Resolve-Path (Join-Path $work 'qcaret')).Path
+# QCARET_HOME names an installed tree to check in place of the zip; the universal zip is then skipped.
+if ($env:QCARET_HOME) {
+  New-Item -ItemType Directory -Path $work | Out-Null
+  $bundle = (Resolve-Path $env:QCARET_HOME).Path
+} else {
+  Expand-Archive -Path $archive.FullName -DestinationPath $work
+  $bundle = (Resolve-Path (Join-Path $work 'qcaret')).Path
+}
 
 $arch = & (Join-Path $bundle 'runtime\bin\java.exe') -XshowSettings:properties -version 2>&1 |
   ForEach-Object { "$_" } |
@@ -507,6 +513,7 @@ Test-CmdPrompt $bundle
 Test-UnicodeNames $bundle
 Test-UnicodeHandoff $bundle
 Test-CmdCall $bundle
+if ($env:QCARET_HOME) { return }
 
 $universal = Get-ChildItem dist -Filter 'qcaret-*.zip' |
   Where-Object { $_.Name -notmatch '-(linux|macos|windows)-' } |

@@ -84,19 +84,20 @@ Tests tagged `swt` open windows.
 
 ### Archives
 
-Archives are written to `dist/`, which no build step deletes. They are built on
-Linux x86_64 only, because packaging runs `tar`, `jlink`, `jmod`, launch4j's
-x86-64 Linux linker and `rcodesign`. On any other host `qcaret-dist` builds and
-smoke-tests `qcaret.jar` and writes no archive.
+Archives, installers and packages are written to `dist/`, which no build step
+deletes. They are built on Linux x86_64 only, because packaging runs `tar`,
+`jlink`, `jmod`, launch4j's x86-64 Linux linker, `rcodesign`, `nfpm`, and
+`makensis` unpacked from Ubuntu's `nsis` packages with `dpkg-deb`. On any other
+host `qcaret-dist` builds and smoke-tests `qcaret.jar` and writes no archive.
 
-The Temurin JDK archives and `rcodesign` are downloaded once into
-`~/.cache/qcaret-build/` (`-Dqcaret.cache.dir` overrides it) and checked
-against pinned SHA-256 digests.
+The Temurin JDK archives, `rcodesign`, `nfpm` and the `nsis` packages are
+downloaded once into `~/.cache/qcaret-build/` (`-Dqcaret.cache.dir` overrides
+it) and checked against pinned SHA-256 digests.
 
 Builds are reproducible: with the same JDK (CI's Temurin 21.0.13.1+2), two
-builds of one commit write byte-identical jars, `qcaret.exe` and archives,
-every entry dated
-`project.build.outputTimestamp` from the parent POM.
+builds of one commit write byte-identical jars, `qcaret.exe`, archives,
+installers and packages, every entry dated `project.build.outputTimestamp`
+from the parent POM.
 `.github/scripts/check-reproducible.sh` builds twice and compares SHA-256.
 
 ### Container build
@@ -106,7 +107,7 @@ A host with Docker (or Podman with compose) and no JDK builds in the image
 holds the mounts and environment and runs the same `./mvnw`.
 
 ```sh
-scripts/container.sh               # clean package -Pall-targets: seven archives into dist/
+scripts/container.sh               # clean package -Pall-targets: archives, installers, packages into dist/
 scripts/container.sh check         # xvfb-run ./mvnw clean verify at 1280x1024, SWT tests included
 scripts/container.sh clean         # ./mvnw clean, and empty dist/
 scripts/container.sh shell         # a shell in the build image
@@ -140,9 +141,9 @@ archive when the runner image lacks them.
 | `test` | `ubuntu-24.04`, `ubuntu-24.04-arm`, `windows-2025`, `windows-11-arm`, `macos-15-intel`, `macos-15` | `./mvnw -B verify` on each target natively, SWT tests included (Linux under `xvfb-run`); Linux installs `libwebkit2gtk-4.1-0` for the Browser preview tests |
 | `test-gtk4` | `ubuntu-24.04` | `verify` of `qcaret-ui-swt`, `qcaret-launcher`, `qcaret-dist` (the distribution tests) and the modules they need, with `SWT_GTK4=1`; gating, with a test that hits a known SWT GTK 4 defect skipped there and the issue named |
 | `test-ibus` | `ubuntu-24.04` | `IBusCompositionTest` with `-Dqcaret.ibus.required=true`: a real IBus engine through GTK 3 ([qcaret-ui-swt testing](qcaret-ui-swt/TESTING.md#ibus-test)); `continue-on-error`, outside `release` |
-| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
-| `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK |
-| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, optionally followed by `-rc<N>`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's archives, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
+| `package` | `ubuntu-24.04` | `./mvnw -B package -Pall-targets,sbom -DskipTests org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Drevision=<version>`, then `sbom-components.sh`; uploads the seven archives, two Windows installers, four Linux packages and the SBOM as `qcaret-archives`, kept 90 days for a tag and 14 otherwise |
+| `bundle` | the six `test` runners | Unpacks the target's bundle, checks the runtime's `os.arch`, and starts the bundle's launcher until the main window opens; then starts the universal zip's launcher, which has no runtime, with setup-java's JDK. Linux and Windows runners then check the target's packages or setup |
+| `release` | `ubuntu-24.04` | `v*` tags only, after every `test`, `test-gtk4` and `bundle` job passes: fails unless the tag is `v` plus `<revision>` without `-SNAPSHOT`, optionally followed by `-rc<N>`, runs `check-reproducible.sh` with the tag's `-Drevision`, writes `SHA256SUMS` over the `package` job's 13 archives, installers and packages, checks the rebuild against it, and creates a draft GitHub Release, marked pre-release when the tag has a suffix (`v0.2.0-rc1`) |
 | `continuous` | `ubuntu-24.04` | Pushes to `main` only, after the same jobs as `release`: writes `SHA256SUMS` over the `package` job's archives and runs `publish-continuous.sh`, which replaces the `continuous` pre-release with them, the SBOM and `SHA256SUMS` and moves the `continuous` tag to the commit |
 
 On Windows the `bundle` job starts `qcaret.exe`, finds the `javaw.exe` child
@@ -159,7 +160,20 @@ the decoy opens or the launch neither opens the name nor shows its message. On
 macOS it also runs
 `codesign --verify --deep --strict` on `QCaret.app`.
 
-The `package` job caches the JDK archives and `rcodesign` under
+Linux runners then install the `.deb` with `apt`, check its files, desktop
+entry and icons, run the same launch against `/opt/qcaret` through
+`/usr/bin/qcaret` with the main window's `WM_CLASS` checked against
+`StartupWMClass`, remove it, and install, verify (`rpm -V`), run `qcaret -v`
+and remove the `.rpm` in a Fedora 44 container. Windows runners walk the
+setup's pages and upload each as a PNG (`installer-screenshots-<target>`),
+check that the finish page starts QCaret through Explorer, then install
+silently for all users and for the current user, check the Installed apps
+entry, shortcut and Open With, run the same launch checks against the
+installed folder, install over it, uninstall and check removal; then a
+portable install, an install over it, and two refused folders. Details are in
+[qcaret-dist](qcaret-dist/README.md#ci-bundle-check).
+
+The `package` job caches the JDK archives, `rcodesign`, `nfpm` and NSIS under
 `~/.cache/qcaret-build`, apart from the Maven cache, keyed on
 `qcaret-dist/src/build/dist.xml`; the `release` job shares that cache. Only the
 `test` jobs save the Maven cache; `test-gtk4`, `test-ibus`, `package` and
@@ -169,8 +183,8 @@ for them.
 
 #### Releases
 
-The draft Release carries the seven archives the `bundle` jobs ran,
-`SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
+The draft Release carries the archives, installers and packages the `bundle`
+jobs ran, `SHA256SUMS` and `qcaret-<version>-sbom.cdx.json`, with GitHub's generated
 release notes. A tag with a suffix (`v0.2.0-rc1`) drafts a pre-release, which
 never becomes the repository's latest release. Only the `release` and
 `continuous` jobs have `contents: write`.
@@ -255,14 +269,14 @@ To fix a bad draft, delete the draft and the tag
 
 ## Targets
 
-| Target | SWT fragment | Bundle |
-|---|---|---|
-| linux-x86_64 | `gtk.linux.x86_64` | `qcaret-<version>-linux-x86_64.tar.gz` |
-| linux-aarch64 | `gtk.linux.aarch64` | `qcaret-<version>-linux-aarch64.tar.gz` |
-| windows-x86_64 | `win32.win32.x86_64` | `qcaret-<version>-windows-x86_64.zip` |
-| windows-aarch64 | `win32.win32.aarch64` | `qcaret-<version>-windows-aarch64.zip` |
-| macos-x86_64 | `cocoa.macosx.x86_64` | `qcaret-<version>-macos-x86_64.zip` (`QCaret.app`) |
-| macos-aarch64 | `cocoa.macosx.aarch64` | `qcaret-<version>-macos-aarch64.zip` (`QCaret.app`) |
+| Target | SWT fragment | Bundle | Installer or package |
+|---|---|---|---|
+| linux-x86_64 | `gtk.linux.x86_64` | `qcaret-<version>-linux-x86_64.tar.gz` | `qcaret-<version>-linux-x86_64.deb`, `.rpm` |
+| linux-aarch64 | `gtk.linux.aarch64` | `qcaret-<version>-linux-aarch64.tar.gz` | `qcaret-<version>-linux-aarch64.deb`, `.rpm` |
+| windows-x86_64 | `win32.win32.x86_64` | `qcaret-<version>-windows-x86_64.zip` | `qcaret-<version>-windows-x86_64-setup.exe` |
+| windows-aarch64 | `win32.win32.aarch64` | `qcaret-<version>-windows-aarch64.zip` | `qcaret-<version>-windows-aarch64-setup.exe` |
+| macos-x86_64 | `cocoa.macosx.x86_64` | `qcaret-<version>-macos-x86_64.zip` (`QCaret.app`) | None |
+| macos-aarch64 | `cocoa.macosx.aarch64` | `qcaret-<version>-macos-aarch64.zip` (`QCaret.app`) | None |
 
 - `qcaret-<version>.zip` holds the universal `lib/qcaret.jar`, which runs on
   all six targets under an installed Java 21, with `bin/qcaret`, `qcaret.exe`
@@ -283,17 +297,46 @@ To fix a bad draft, delete the draft and the tag
   [First launch of an unsigned build](#first-launch-of-an-unsigned-build).
 - File associations: on Linux run `bin/install-desktop-entry`, on Windows
   `register-associations.cmd`, each per user; the macOS bundle declares its
-  document types. Details are in
+  document types; the installers and packages register them. Details are in
   [qcaret-dist](qcaret-dist/README.md#file-associations).
+
+### Installing
+
+The installers and packages hold the same tree as the target's bundle.
+
+| Download | Installs |
+|---|---|
+| `.deb` (Debian, Ubuntu), `.rpm` (Fedora, RHEL) | `/opt/qcaret`, `/usr/bin/qcaret`, a desktop entry with the icon at every size, and Open With for the text and source types its `MimeType` lists. Needs GTK 3: `libgtk-3-0t64` or `libgtk-3-0`, or `gtk3`. Removing the package removes them and keeps the settings in `~/.config/qcaret` |
+| `-setup.exe`, for all users | `C:\Program Files\QCaret`, with administrator rights |
+| `-setup.exe`, for me only | `%LOCALAPPDATA%\Programs\QCaret` |
+| `-setup.exe`, portable | A folder you choose and can write to, outside Program Files and Windows, with an empty `qcaret.conf`, so the settings stay in that folder. Nothing is registered with Windows; delete the folder to remove it |
+
+The all-users and current-user installs add a Start menu shortcut, Open With
+for the extensions `register-associations.cmd` lists (never the default
+program) and an Installed apps entry, and a desktop shortcut when chosen on the
+finish page. Uninstalling removes them and keeps the settings in
+`%APPDATA%\QCaret`. Running setup again upgrades in place, release candidates
+included; over a portable folder it keeps `qcaret.conf` and the settings. The
+finish page starts QCaret as the signed-in user, without administrator rights.
+The pages are shown in the [user guide](docs/user-guide.md#installing).
+
+Silent setup takes `/S` with `/MACHINE`, `/USER` or `/PORTABLE`, `/DESKTOP`
+for the desktop shortcut (ignored for portable), and `/D=<folder>` last and
+unquoted; `/S` alone installs for the current user. It never starts QCaret. It
+exits 2 when the folder is refused and 5 for `/MACHINE` without administrator
+rights. `"<folder>\uninstall.exe" /S` uninstalls silently.
+
+Package versions replace `-` with `~`, so `0.2.0-rc1` is `0.2.0~rc1` and sorts
+before `0.2.0`.
 
 ### First launch of an unsigned build
 
-`qcaret.exe` carries no Authenticode signature, and `QCaret.app` is ad-hoc
-signed and not notarized. A downloaded copy therefore needs one approval:
+`qcaret.exe` and the setup carry no Authenticode signature, and `QCaret.app` is
+ad-hoc signed and not notarized. A downloaded copy therefore needs one approval:
 
 | Platform | First launch |
 |---|---|
-| Windows | `qcaret.exe`: SmartScreen shows "Windows protected your PC"; choose More info, then Run anyway. `qcaret.cmd`: "Open File - Security Warning", "The publisher could not be verified"; choose Run. |
+| Windows | `qcaret.exe` and the setup: SmartScreen shows "Windows protected your PC"; choose More info, then Run anyway. `qcaret.cmd`: "Open File - Security Warning", "The publisher could not be verified"; choose Run. |
 | macOS | macOS refuses the first open. Open System Settings > Privacy & Security and choose Open Anyway for QCaret, or run `xattr -dr com.apple.quarantine QCaret.app` before the first launch. |
 
 On Windows, unblock the downloaded zip before extracting it (Properties,
@@ -396,14 +439,14 @@ macOS bundle is sealed, so portable use there goes through `--settings`.
 | `qcaret-app/` | Command line, commands and menus, controllers, the display projection, view contracts, settings, theme, About facts; no SWT |
 | `qcaret-ui-swt/` | SWT views: main window and tabs, the editor over `StyledText`, dialogs, theme service; the main toolbar and its icon set (`src/icons/*.svg`), rendered to PNG at build time |
 | `qcaret-launcher/` | Composition, logging configuration, architecture rules |
-| `qcaret-dist/` | Universal jar, launchers, runtimes and archives; icons |
+| `qcaret-dist/` | Universal jar, launchers, runtimes, archives, Windows installers and Linux packages; icons |
 | `qcaret-bench/` | Benchmarks; not shipped |
 | `config/` | Checkstyle, SpotBugs, find-sec-bugs and dependency-check configuration |
 | `docker/`, `compose.yaml`, `scripts/` | Container build |
 | `.github/` | CI workflows, Dependabot and the scripts the CI steps run |
 | `tools/icons.sh` | Renders the application icon from `qcaret-dist/src/icons/*.svg` |
 | `docs/user-guide.md`, `docs/images/guide/` | The user guide; the build converts it to the page Help > User Guide shows |
-| `tools/screenshots.sh`, `docs/images/` | Writes the light and dark screenshots and the user guide's images under Xvfb from generated mock files |
+| `tools/screenshots.sh`, `docs/images/` | Writes the light and dark screenshots and the user guide's images under Xvfb from generated mock files. `tools/screenshots.sh installer [<run-id>]` runs separately: it needs `gh` and network, and copies the user guide's Windows setup pages from the `installer-screenshots-windows-x86_64` artifact of a CI run, by default the latest successful one on `main` |
 
 ## Documents
 

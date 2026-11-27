@@ -47,7 +47,7 @@ jobs:
       - name: WebKitGTK
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          .github/scripts/apt-update.sh
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0
       - name: Verify (Linux)
         if: runner.os == 'Linux'
@@ -92,7 +92,7 @@ jobs:
         run: .github/scripts/linux-display-deps.sh
       - name: GTK 4
         run: |
-          sudo apt-get update
+          .github/scripts/apt-update.sh
           sudo apt-get install -y --no-install-recommends libgtk-4-1
       - name: Verify the SWT modules and the distribution
         run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -pl qcaret-ui-swt,qcaret-launcher,qcaret-dist -am
@@ -118,7 +118,7 @@ jobs:
         run: .github/scripts/linux-display-deps.sh
       - name: IBus
         run: |
-          sudo apt-get update
+          .github/scripts/apt-update.sh
           sudo apt-get install -y --no-install-recommends \
             dbus ibus ibus-gtk3 ibus-table ibus-table-cangjie5 xdotool
       - name: Verify with IBus required
@@ -137,8 +137,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The seven archives and the SBOM; qcaret-dist builds the archives on
-  # x86-64 Linux only.
+  # The seven archives, the two Windows installers, the four Linux packages
+  # and the SBOM; qcaret-dist builds them on x86-64 Linux only.
   package:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -152,7 +152,7 @@ jobs:
           java-version: "21.0.13.1+2"
           cache: maven
           cache-read-only: true
-      # JDK archives and rcodesign, outside the Maven cache.
+      # JDK archives, rcodesign, nfpm and NSIS, outside the Maven cache.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/qcaret-build
@@ -188,11 +188,16 @@ jobs:
   # Each bundle on its own target: the runtime reports the target's os.arch,
   # and the bundle's launcher opens the main window with that runtime. The
   # universal zip, which has no runtime, then starts with setup-java's JDK.
+  # Linux then installs the .deb and runs the same check against /opt/qcaret,
+  # and installs the .rpm in a Fedora container. Windows installs the setup
+  # silently for all users and for the current user, checks each installed
+  # folder the same way, uninstalls, checks a portable install, and saves
+  # every setup page as a PNG.
   bundle:
     name: bundle ${{ matrix.target }}
     needs: package
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -229,6 +234,25 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: .github/scripts/check-bundle.ps1
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: .github/scripts/check-linux-packages.sh
+      - name: Installer screenshots
+        if: runner.os == 'Windows'
+        shell: powershell
+        timeout-minutes: 10
+        run: .github/scripts/installer-screenshots.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: runner.os == 'Windows' && !cancelled()
+        with:
+          name: installer-screenshots-${{ matrix.target }}
+          path: installer-screenshots/
+          if-no-files-found: warn
+      - name: Installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 20
+        run: .github/scripts/check-installer.ps1
 
   # A v* tag: check the tag against the POM revision, rebuild twice to check
   # reproducibility, check that the rebuild matches the archives the bundle
@@ -279,9 +303,9 @@ jobs:
       - name: SHA256SUMS
         run: |
           cd release
-          sha256sum -- *.zip *.tar.gz > SHA256SUMS
+          sha256sum -- *.zip *.tar.gz *.exe *.deb *.rpm > SHA256SUMS
           cat SHA256SUMS
-          test "$(wc -l < SHA256SUMS)" -eq 7
+          test "$(wc -l < SHA256SUMS)" -eq 13
           cd ../dist/reproducible/dist1
           sha256sum -c ../../../release/SHA256SUMS
       - name: Draft release
@@ -320,9 +344,9 @@ jobs:
       - name: SHA256SUMS
         run: |
           cd release
-          sha256sum -- *.zip *.tar.gz > SHA256SUMS
+          sha256sum -- *.zip *.tar.gz *.exe *.deb *.rpm > SHA256SUMS
           cat SHA256SUMS
-          test "$(wc -l < SHA256SUMS)" -eq 7
+          test "$(wc -l < SHA256SUMS)" -eq 13
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

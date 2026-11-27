@@ -2,7 +2,7 @@
 # and scripts/container.bat wrap it.
 #
 #   docker compose build                  # the build image
-#   docker compose run --rm build         # all seven archives into dist/
+#   docker compose run --rm build         # archives, installers and packages into dist/
 #   docker compose run --rm build ./mvnw -B spotless:check
 
 name: qcaret

@@ -1,12 +1,13 @@
 # qcaret-dist
 
-Builds the universal jar and zip, the six per-target bundles and the
-launchers. Packaging is `src/build/dist.xml`, run by maven-antrun-plugin at
-`package` after the dependency plugin stages the jars and launch4j builds
-`qcaret.exe`. Archives go to the top-level `dist/`, which no build step deletes.
+Builds the universal jar and zip, the six per-target bundles, the Windows
+installers, the Linux packages and the launchers. Packaging is
+`src/build/dist.xml`, run by maven-antrun-plugin at `package` after the
+dependency plugin stages the jars and launch4j builds `qcaret.exe`. Archives go
+to the top-level `dist/`, which no build step deletes.
 
-`qcaret.exe` and the archives need an x86-64 Linux build host; the
-`archive-host` profile (`os.name` Linux, `os.arch` amd64) turns them on. On
+`qcaret.exe`, the archives, installers and packages need an x86-64 Linux build
+host; the `archive-host` profile (`os.name` Linux, `os.arch` amd64) turns them on. On
 any other host the module builds `target/qcaret.jar` only, and `SmokeTest`
 runs against it.
 
@@ -86,7 +87,82 @@ system Universal C Runtime even when an app-local copy exists. The bundle keeps
 
 None takes a default away from the user's current program. Each opens the file
 through the normal launch, so a running instance receives it through the
-handoff.
+handoff. The Windows setup and the Linux packages register the same lists
+([Installers and packages](#installers-and-packages)).
+
+## Installers and packages
+
+Each is built from its target's bundle tree after the bundle archive, by the
+`windows-installer` and `linux-packages` macros. `InstallerArt.java`, run with
+jsvg at build time, renders the hicolor PNGs (16 to 512 px) and the NSIS
+welcome (164 x 314) and header (150 x 57) bitmaps from `src/icons/qcaret.svg`
+into `target/installer/art`; the images hold no text, so host fonts do not
+change them.
+
+| Output | Tool | Contents |
+|---|---|---|
+| `qcaret-<version>-windows-<arch>-setup.exe` | `makensis` 3.09 from Ubuntu 24.04's `nsis` and `nsis-common` packages, unpacked with `dpkg-deb`; `src/windows/qcaret.nsi` | The bundle tree, installed per machine, per user or portable |
+| `qcaret-<version>-linux-<arch>.deb`, `.rpm` | `nfpm` 2.48.0; `src/linux/nfpm.yaml` | `/opt/qcaret` (the bundle tree), `/usr/bin/qcaret` linking to `/opt/qcaret/bin/qcaret`, `/usr/share/applications/qcaret.desktop`, `/usr/share/icons/hicolor/*/apps/qcaret.png` and `scalable/apps/qcaret.svg` |
+
+### Windows setup
+
+`qcaret.nsi` builds an `amd64-unicode` installer for both Windows targets; on
+arm64 it runs under x64 emulation and installs the arm64 runtime. It runs with
+`RequestExecutionLevel highest`: an administrator gets the UAC prompt at
+start, and for anyone else the all-users choice is disabled.
+
+| Choice | Folder | Writes |
+|---|---|---|
+| All users (`/MACHINE`) | `$PROGRAMFILES64\QCaret` | `uninstall.exe`; `HKLM` Installed apps entry (`DisplayIcon` `qcaret.exe`, publisher, version, size), Start menu `QCaret.lnk` for all users, `QCaret.File` ProgID listed in the `OpenWithProgids` of each extension `register-associations.cmd` lists, and `Applications\qcaret.exe` |
+| Current user (`/USER`) | `$LOCALAPPDATA\Programs\QCaret` | The same under `HKCU` and the user's Start menu |
+| Portable (`/PORTABLE`) | `$DOCUMENTS\QCaret` by default | An empty `qcaret.conf`, unless one exists; nothing else |
+
+- The license page shows `LICENSE` (Apache-2.0) with a Next button and asks
+  for no acceptance.
+- The finish page has Run QCaret, checked, and Create a desktop shortcut,
+  unchecked and hidden for portable; `/DESKTOP` selects the shortcut in a
+  silent install. The shortcut goes on the common desktop for all users and on
+  the user's desktop for the current user. Setup never removes one; the
+  uninstaller does. Run QCaret executes `explorer.exe <folder>\qcaret.exe`:
+  Explorer hands the file to the running shell, which starts it with the
+  signed-in user's unelevated token, so an all-users install started as
+  administrator does not run QCaret elevated. A silent install starts nothing.
+- An existing install sets the default folder and the default choice. A
+  regular install in another folder of the same scope is uninstalled first.
+- When `lib\qcaret.jar` exists, setup deletes `lib\` and `runtime\` before
+  copying, so an upgrade leaves no file of the older version. Settings,
+  `logs\` and `qcaret.conf` in a portable folder stay.
+- The directory page refuses a regular install into a folder holding
+  `qcaret.conf`, which would run portable, and a portable copy into a folder
+  holding `uninstall.exe`, under `$PROGRAMFILES64`, `$PROGRAMFILES32` or
+  `$WINDIR`, or one it cannot write. Silent setup exits 2 instead.
+- `qcaret.nsi` repeats the extension list of `register-associations.cmd`;
+  `check-installer.ps1` reads the `.cmd` list and fails on an extension setup
+  did not register. Neither list holds `.bat` or `.cmd`: with `QCaret.File` in
+  their `OpenWithProgids`, ShellExecute fails to run a batch file (measured on
+  both Windows CI runners).
+- `NsisFiles.java` writes `files.nsh`: a `File` per bundle file and a
+  `Delete` and `RMDir` per file and folder for the uninstaller, sorted by
+  name. The uninstaller removes exactly those, `uninstall.exe`, the shortcuts
+  and the registry keys; the settings under `%APPDATA%\QCaret` stay.
+- The file properties carry the version, `QCaret` as company and the
+  copyright. The installer and uninstaller use `qcaret.ico`.
+- Signing: `qcaret.exe` is in the bundle tree before the macro runs, so a
+  signing step goes between `exe` and the bundles. `-DSIGN_UNINSTALLER=<cmd>`
+  and `-DSIGN_INSTALLER=<cmd>` turn on `!uninstfinalize` and `!finalize`,
+  which run the command on the file; dist.xml passes neither.
+
+### Linux packages
+
+The package version is the project version with `-` replaced by `~`
+(`0.2.0-rc1` as `0.2.0~rc1`, release `1`), so a release candidate sorts before
+its release. The `.deb` depends on `libgtk-3-0t64 | libgtk-3-0`, the `.rpm`
+on `gtk3`. The packaged desktop entry is `src/linux/qcaret.desktop` with
+`Exec=/opt/qcaret/bin/qcaret %F`. Its `StartupWMClass=QCaret` is the main
+window's `WM_CLASS` under GTK 3 (measured with `xprop`, and checked by CI), so
+the GNOME dock shows the QCaret icon; its `MimeType` list gives Open With. The
+package scripts are empty: the icon cache and desktop database update through
+the distributions' file triggers.
 
 ## Reproducible output
 
@@ -103,6 +179,11 @@ the version changes):
 - `qcaret.jar` is byte-identical across build hosts under one JDK: `dist.xml`
   rewrites the native digests to LF and sorts the `index.properties` lists by
   name, case-sensitive.
+- The installers and packages store file times. Before `nfpm` and `makensis`
+  run, the `date-tree` macro dates the bundle tree, the packaged desktop entry
+  and the installer bitmaps `project.build.outputTimestamp`; `nfpm.yaml` sets
+  that time and umask 022 for the files outside the tree. `NsisFiles` sorts the
+  installer's file list, and `nfpm` sorts its own.
 - launch4j's `ld` stamps `qcaret.exe` with the link time. `PeTimestamp.java`
   rewrites the COFF time stamp and the PE checksum to the values `ld` writes
   with `SOURCE_DATE_EPOCH` set, which cannot reach `ld` inside the Maven JVM.
@@ -111,7 +192,7 @@ The jlink runtimes and the ad-hoc rcodesign signature hold no build time.
 jlink runs under `LC_ALL=C.UTF-8`: under a non-UTF-8 locale it writes a
 different `lib/modules`. `.github/scripts/check-reproducible.sh` builds twice,
 the second time under another time zone, umask and locale, and compares the
-SHA-256 of every archive, `qcaret.exe` and module jar.
+SHA-256 of every archive, installer, package, `qcaret.exe` and module jar.
 
 ## Release artifacts
 
@@ -123,10 +204,11 @@ jars from the reactor. Do not bind it to `package`: the parent's `package` runs
 before the modules build, so the goal requests their jars from Maven Central. The
 `sbom` profile here adds the six SWT fragments as dependencies so the SBOM
 lists them; `stage-lib` excludes `org.eclipse.platform`, so the archives are
-unchanged.
+unchanged. In CI, `.github/scripts/sbom-components.sh` adds the Temurin
+releases `dist.xml` downloads, launch4j's header and NSIS.
 
 A pushed `v*` tag ends in a draft GitHub Release holding the seven archives,
-`SHA256SUMS` and the SBOM, a pre-release when the tag has a suffix
+the two installers, the four packages, `SHA256SUMS` and the SBOM, a pre-release when the tag has a suffix
 (`v0.2.0-rc1`); the maintainer reviews and publishes it. Steps and
 recovery are in the root [README](../README.md#releases).
 
@@ -169,7 +251,9 @@ The `bundle` CI job runs `codesign --verify
 `src/icons/qcaret.svg` is the OS-facing icon (window, taskbar, Dock, `.exe`,
 `.icns`); `qcaret-light.svg` is for in-app use with the light palette.
 `tools/icons.sh` renders `qcaret.ico`, `QCaret.icns` and the PNGs in
-`qcaret-ui-swt` from them; the build uses the committed outputs.
+`qcaret-ui-swt` from them; the build uses the committed outputs. The package
+icons and installer bitmaps are rendered at build time
+([Installers and packages](#installers-and-packages)).
 
 ## Testing
 
@@ -213,3 +297,11 @@ The CI `bundle` job runs each archive on its own runner through
 
 A failed handoff opens its own window and does not exit, so each script bounds
 the second launch at 60 s.
+
+The same job then checks the installers and packages on that runner:
+
+| Script | Checks |
+|---|---|
+| `check-linux-packages.sh` | Installs the `.deb` with `apt`: version, `/usr/bin/qcaret` link, no `qcaret.conf`, `desktop-file-validate`, `StartupWMClass=QCaret`, every icon. Runs `check-bundle.sh` with `QCARET_HOME=/opt/qcaret` through `/usr/bin/qcaret`, which also requires a main window with `WM_CLASS` `"QCaret", "QCaret"`. Removes the package and checks the files are gone. Then, in `fedora:44` pinned by digest: `dnf install` of the `.rpm`, `rpm -V`, `qcaret -v`, no `qcaret.conf`, `dnf remove` |
+| `installer-screenshots.ps1` | Walks the setup's pages by window message (all-users install with the desktop shortcut ticked, its uninstaller, a portable install) and saves each with `PrintWindow` to `installer-screenshots\`, uploaded as `installer-screenshots-<target>`. After each install an `explorer.exe` must have started `qcaret.exe`, and QCaret must have the shell's token elevation (0 for an unelevated shell; the hosted runners' shell is elevated); the all-users walk must write the common desktop shortcut and its uninstaller remove it, and the portable walk writes none |
+| `check-installer.ps1` | For `/MACHINE` and then `/USER`: the Installed apps entry, the shortcut target, no desktop shortcut, `QCaret.File` in the `OpenWithProgids` of every extension `register-associations.cmd` lists with each default handler unchanged, a `.cmd` that ShellExecute still runs, no `qcaret.conf`, no QCaret process from the folder 5 s after setup exits; `check-bundle.ps1` with `QCARET_HOME` set to the installed folder; an install over it with `/DESKTOP` removes a stale runtime file, adds no `qcaret.conf`, and writes the shortcut to that scope's desktop only; a silent uninstall removes the folder, shortcuts and keys and keeps `%APPDATA%\QCaret`. Then `/PORTABLE /DESKTOP`: an empty `qcaret.conf`, no registry entry, no Start menu or desktop shortcut, no QCaret started, QCaret writes its `-l` log in the folder, and an install over it keeps `qcaret.conf` and `logs\`. Exit 2 for `/USER` into the portable folder and `/PORTABLE` under Program Files |

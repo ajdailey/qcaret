@@ -6,6 +6,7 @@ loopback connection. On macOS, `Ctrl` in this guide is `Cmd` unless a key is nam
 macOS; Help > Keyboard Shortcuts lists every key for your platform and Tools >
 Preferences, Keys changes them.
 
+- [Installing](#installing)
 - [Opening files](#opening-files)
 - [The main window](#the-main-window)
 - [Editing](#editing)
@@ -26,6 +27,26 @@ Preferences, Keys changes them.
 - [Help and logs](#help-and-logs)
 - [Command line](#command-line)
 - [Known issues](#known-issues)
+
+## Installing
+
+| System | Download | Result |
+|---|---|---|
+| Windows | `qcaret-<version>-windows-<arch>-setup.exe` | Setup asks for all users (Program Files, administrator rights), for you only (your profile), or portable (a folder you choose, with the settings kept in it). The first two add a Start menu shortcut, QCaret under Open With for text and source files and an Installed apps entry, and a desktop shortcut when you tick it on the last page; a portable copy registers nothing, and deleting its folder removes it. Run QCaret on the last page starts QCaret without administrator rights |
+| Debian, Ubuntu | `qcaret-<version>-linux-<arch>.deb` | `sudo apt install ./<file>.deb`: `qcaret` on the path, QCaret in the applications menu and under Open With for text and source files |
+| Fedora, RHEL | `qcaret-<version>-linux-<arch>.rpm` | `sudo dnf install ./<file>.rpm`, the same |
+| Any, no install | The `.zip` or `.tar.gz` for your system | Extract it and run `qcaret.exe`, `bin/qcaret` or `QCaret.app` |
+
+Running a newer setup or package upgrades QCaret in place. Uninstalling keeps
+your settings, and an upgrade of a portable copy keeps the settings in its
+folder. Installing QCaret does not set it as the default program for any file
+type.
+
+![Windows setup: installation type](images/guide/installer-type.png)
+
+![Windows setup: install folder](images/guide/installer-folder.png)
+
+![Windows setup: last page with Run QCaret and the desktop shortcut box](images/guide/installer-finish.png)
 
 ## Opening files
 

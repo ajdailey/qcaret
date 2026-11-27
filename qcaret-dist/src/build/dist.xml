@@ -35,6 +35,18 @@
   <property name="rcodesign.sha256" value="dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002"/>
   <property name="rcodesign.url"
       value="https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.29.0"/>
+  <!-- nfpm writes the .deb and .rpm; makensis, from Ubuntu 24.04's nsis and
+       nsis-common packages, the Windows installers. -->
+  <property name="nfpm.archive" value="nfpm_2.48.0_Linux_x86_64.tar.gz"/>
+  <property name="nfpm.sha256" value="6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750"/>
+  <property name="nfpm.url" value="https://github.com/goreleaser/nfpm/releases/download/v2.48.0"/>
+  <property name="nsis.url" value="http://archive.ubuntu.com/ubuntu/pool/universe/n/nsis"/>
+  <property name="nsis.deb" value="nsis_3.09-4ubuntu1_amd64.deb"/>
+  <property name="nsis.deb.sha256" value="9e061bef1a8b611aeb2ea76d9a3bd7722b960ca1a9dff8e38d2ab51e5a8f5e5b"/>
+  <property name="nsis-common.deb" value="nsis-common_3.09-4ubuntu1_all.deb"/>
+  <property name="nsis-common.deb.sha256" value="49471b9debdee4751ebb4caf6b705cc4c678eebfaecefbe56362258893f85859"/>
+  <property name="pkg.arch.linux-x86_64" value="amd64"/>
+  <property name="pkg.arch.linux-aarch64" value="arm64"/>
   <!-- jdeps over the application jars reports java.desktop (SWT_AWT only,
        unused), java.logging, java.naming and java.xml; jdk.zipfs serves the bootstrap's
        nested-jar loader; jdk.charsets holds the legacy encodings (Big5, EUC-JP,
@@ -341,6 +353,7 @@ natives.macos-aarch64=${natives.macos-aarch64}
         <arg value="qcaret"/>
       </exec>
       <gzip src="${build}/bundles/@{target}.tar" destfile="${out}/qcaret-${project.version}-@{target}.tar.gz"/>
+      <linux-packages target="@{target}"/>
     </sequential>
   </macrodef>
 
@@ -368,6 +381,164 @@ natives.macos-aarch64=${natives.macos-aarch64}
           modificationtime="${archive.time}">
         <zipfileset dir="${build}/bundles/@{target}"/>
       </zip>
+      <windows-installer target="@{target}"/>
+    </sequential>
+  </macrodef>
+
+  <!-- Renders the hicolor icons and the NSIS bitmaps from qcaret.svg into
+       ${build}/installer/art, once per build. -->
+  <macrodef name="installer-art">
+    <sequential>
+      <exec unless:set="installer.art.done" executable="${java.home}/bin/java" failonerror="true">
+        <arg value="-Djava.awt.headless=true"/>
+        <arg value="-cp"/>
+        <arg file="${build}/installer-tools/jsvg.jar"/>
+        <arg file="${basedir}/src/build/InstallerArt.java"/>
+        <arg file="${basedir}/src/icons/qcaret.svg"/>
+        <arg file="${build}/installer/art"/>
+      </exec>
+      <property name="installer.art.done" value="true"/>
+    </sequential>
+  </macrodef>
+
+  <!-- Dates every file and directory under dir, links included,
+       project.build.outputTimestamp: nfpm and makensis store each file's
+       time. -->
+  <macrodef name="date-tree">
+    <attribute name="dir"/>
+    <sequential>
+      <exec executable="find" failonerror="true">
+        <arg file="@{dir}"/>
+        <arg value="-exec"/>
+        <arg value="touch"/>
+        <arg value="-h"/>
+        <arg value="--date=${project.build.outputTimestamp}"/>
+        <arg value="{}"/>
+        <arg value="+"/>
+      </exec>
+    </sequential>
+  </macrodef>
+
+  <!-- The .deb and .rpm of a Linux target from its bundle tree, which
+       posix-bundle has already given fixed modes: /opt/qcaret, /usr/bin/qcaret,
+       the desktop entry with Exec /opt/qcaret/bin/qcaret, and the hicolor icons. The package version is the
+       project version with - as ~, so 0.2.0-rc1 sorts before 0.2.0. -->
+  <macrodef name="linux-packages">
+    <attribute name="target"/>
+    <sequential>
+      <installer-art/>
+      <fetch url="${nfpm.url}" name="${nfpm.archive}" sha256="${nfpm.sha256}"/>
+      <mkdir dir="${build}/tools/nfpm"/>
+      <exec executable="tar" failonerror="true">
+        <arg value="-xzf"/>
+        <arg file="${qcaret.cache.dir}/${nfpm.archive}"/>
+        <arg value="-C"/>
+        <arg file="${build}/tools/nfpm"/>
+        <arg value="nfpm"/>
+      </exec>
+      <date-tree dir="${build}/bundles/@{target}/qcaret"/>
+      <local name="pkg.version"/>
+      <loadresource property="pkg.version">
+        <propertyresource name="project.version"/>
+        <filterchain><tokenfilter><replacestring from="-" to="~"/></tokenfilter></filterchain>
+      </loadresource>
+      <local name="config"/>
+      <property name="config" location="${build}/packages/@{target}/nfpm.yaml"/>
+      <copy file="${basedir}/src/linux/nfpm.yaml" tofile="${config}" overwrite="true">
+        <filterchain>
+          <replacetokens>
+            <token key="ARCH" value="${pkg.arch.@{target}}"/>
+            <token key="VERSION" value="${pkg.version}"/>
+            <token key="MTIME" value="${project.build.outputTimestamp}"/>
+            <token key="HOME" value="${build}/bundles/@{target}/qcaret"/>
+            <token key="SRC" value="${build}/packages/@{target}"/>
+            <token key="ICONS" value="${basedir}/src/icons"/>
+            <token key="ART" value="${build}/installer/art"/>
+          </replacetokens>
+        </filterchain>
+      </copy>
+      <copy file="${basedir}/src/linux/qcaret.desktop" todir="${build}/packages/@{target}"
+          overwrite="true">
+        <filterchain>
+          <replacetokens><token key="EXEC" value="/opt/qcaret/bin/qcaret"/></replacetokens>
+        </filterchain>
+      </copy>
+      <date-tree dir="${build}/packages/@{target}"/>
+      <exec executable="${build}/tools/nfpm/nfpm" failonerror="true">
+        <arg value="package"/>
+        <arg value="--config"/>
+        <arg file="${config}"/>
+        <arg value="--packager"/>
+        <arg value="deb"/>
+        <arg value="--target"/>
+        <arg file="${out}/qcaret-${project.version}-@{target}.deb"/>
+      </exec>
+      <exec executable="${build}/tools/nfpm/nfpm" failonerror="true">
+        <arg value="package"/>
+        <arg value="--config"/>
+        <arg file="${config}"/>
+        <arg value="--packager"/>
+        <arg value="rpm"/>
+        <arg value="--target"/>
+        <arg file="${out}/qcaret-${project.version}-@{target}.rpm"/>
+      </exec>
+    </sequential>
+  </macrodef>
+
+  <!-- qcaret-<version>-<target>-setup.exe from the Windows bundle tree, its
+       files listed by NsisFiles in name order. A signed qcaret.exe goes into
+       the tree before this macro. -->
+  <macrodef name="windows-installer">
+    <attribute name="target"/>
+    <sequential>
+      <installer-art/>
+      <fetch url="${nsis.url}" name="${nsis.deb}" sha256="${nsis.deb.sha256}"/>
+      <fetch url="${nsis.url}" name="${nsis-common.deb}" sha256="${nsis-common.deb.sha256}"/>
+      <local name="nsis"/>
+      <property name="nsis" location="${build}/tools/nsis"/>
+      <delete dir="${nsis}"/>
+      <mkdir dir="${nsis}"/>
+      <exec executable="dpkg-deb" failonerror="true">
+        <arg value="-x"/>
+        <arg file="${qcaret.cache.dir}/${nsis.deb}"/>
+        <arg file="${nsis}"/>
+      </exec>
+      <exec executable="dpkg-deb" failonerror="true">
+        <arg value="-x"/>
+        <arg file="${qcaret.cache.dir}/${nsis-common.deb}"/>
+        <arg file="${nsis}"/>
+      </exec>
+      <local name="work"/>
+      <property name="work" location="${build}/installer/@{target}"/>
+      <delete dir="${work}"/>
+      <mkdir dir="${work}"/>
+      <copy file="${qcaret.root}/LICENSE" tofile="${work}/LICENSE.txt">
+        <filterchain><fixcrlf eol="crlf"/></filterchain>
+      </copy>
+      <!-- MUI2 stores the bitmaps with File too. -->
+      <date-tree dir="${build}/installer"/>
+      <date-tree dir="${build}/bundles/@{target}/qcaret"/>
+      <exec executable="${java.home}/bin/java" failonerror="true">
+        <arg file="${basedir}/src/build/NsisFiles.java"/>
+        <arg file="${build}/bundles/@{target}/qcaret"/>
+        <arg file="${work}/files.nsh"/>
+      </exec>
+      <exec executable="${nsis}/usr/bin/makensis" failonerror="true">
+        <env key="NSISDIR" file="${nsis}/usr/share/nsis"/>
+        <env key="LC_ALL" value="C.UTF-8"/>
+        <arg value="-NOCONFIG"/>
+        <arg value="-V2"/>
+        <arg value="-INPUTCHARSET"/>
+        <arg value="UTF8"/>
+        <arg value="-DVERSION=${project.version}"/>
+        <arg value="-DVI_VERSION=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.0"/>
+        <arg value="-DFILES=${work}/files.nsh"/>
+        <arg value="-DART=${build}/installer/art/nsis"/>
+        <arg value="-DICON=${basedir}/src/icons/qcaret.ico"/>
+        <arg value="-DLICENSE=${work}/LICENSE.txt"/>
+        <arg value="-DOUTFILE=${out}/qcaret-${project.version}-@{target}-setup.exe"/>
+        <arg file="${basedir}/src/windows/qcaret.nsi"/>
+      </exec>
     </sequential>
   </macrodef>
 

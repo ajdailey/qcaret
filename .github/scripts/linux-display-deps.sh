@@ -10,5 +10,5 @@ if [ ${#missing[@]} -eq 0 ]; then
   exit 0
 fi
 echo "Installing: ${missing[*]}"
-sudo apt-get update
+.github/scripts/apt-update.sh
 sudo apt-get install -y --no-install-recommends "${missing[@]}"
