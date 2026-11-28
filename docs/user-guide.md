@@ -710,7 +710,7 @@ it. A macro that recorded Undo or Redo runs without that single step. While a
 macro runs, its document takes no typing and the window runs only view
 commands; `Esc` stops the run. The status bar shows the iteration, such as
 "Macro 12 of 50", and for a run to the end the share of the document behind the
-caret. A run never wraps a find. It stops at a step that cannot run: a disabled
+caret. The editor shows the run's text about ten times a second. A run never wraps a find. It stops at a step that cannot run: a disabled
 command, a find with no match, or a command that fails. The notice names the
 iteration and the step, and the steps before it stay done. A run to the end
 ends when a find finds no match, at the end of the document, or after an

@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.app.controller;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.macro.Macro;
 import io.github.ajdailey.qcaret.app.macro.MacroStep;
+import io.github.ajdailey.qcaret.app.view.EditorView;
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
 import io.github.ajdailey.qcaret.core.document.Document;
 import java.util.List;
@@ -22,7 +23,11 @@ import java.util.function.LongSupplier;
  *       UiDispatcher}; a single step longer than that is not split. After a command step the run
  *       resumes once the editor's {@link io.github.ajdailey.qcaret.app.view.BusyCounter} is idle,
  *       so a worker command's result applies before the next step; find steps resume from {@link
- *       MacroFind}'s outcome.
+ *       MacroFind}'s outcome. A step waits while a rewrap is out, as after a tab-width change in
+ *       wrap mode, so a caret move reads the new rows.
+ *   <li>The run's view holds its redraws ({@link EditorView#holdRedraw}) and shows the run every
+ *       {@link #REFRESH_NANOS} and at the end: the widget's selection and highlight redraws cost
+ *       most of a turn's time.
  *   <li>A step fails when its command is disabled, a find or Replace finds no match, a worker
  *       command ends with an error notice ({@link EditorMacros#failed}), or the run's tab is no
  *       longer selected. The run stops there, the completed steps stay, and a notice names the
@@ -35,6 +40,9 @@ import java.util.function.LongSupplier;
 final class MacroPlayer {
   /** Longest stretch of steps run in one UI turn. */
   static final long TURN_NANOS = 8_000_000L;
+
+  /** Longest time the run's view holds its redraws before it shows the run once. */
+  static final long REFRESH_NANOS = 100_000_000L;
 
   /** Receives a run's progress and end on the UI thread. */
   interface Listener {
@@ -88,6 +96,8 @@ final class MacroPlayer {
         }
       };
   private LongSupplier nanos = System::nanoTime;
+  private EditorView held;
+  private long refreshed;
   private State state = State.READY;
   private boolean grouped;
   private boolean stepping;
@@ -147,6 +157,11 @@ final class MacroPlayer {
       grouped = true;
     }
     distance = distance();
+    held = editor.view();
+    if (held != null) {
+      held.holdRedraw(true);
+      refreshed = System.nanoTime();
+    }
     documents.addActiveListener(viewsChanged);
     ui.asyncExec(turn);
     return true;
@@ -231,12 +246,17 @@ final class MacroPlayer {
       return;
     }
     long started = nanos.getAsLong();
+    refresh();
     while (state == State.RUNNING) {
       if (index == steps.size() && !iterationEnded()) {
         return;
       }
       if (!current()) {
         stop(UiText.MACRO_TAB_CHANGED.text(), false);
+        return;
+      }
+      if (editor.rewrapping()) {
+        awaitWrapped();
         return;
       }
       boolean waits = step(steps.get(index));
@@ -257,6 +277,16 @@ final class MacroPlayer {
     }
     progress();
     ui.asyncExec(turn);
+  }
+
+  /** Shows the run in the held view once {@link #REFRESH_NANOS} passed since it last did. */
+  private void refresh() {
+    long now = System.nanoTime();
+    if (held != null && now - refreshed >= REFRESH_NANOS) {
+      held.holdRedraw(false);
+      held.holdRedraw(true);
+      refreshed = now;
+    }
   }
 
   /** Runs one step; returns true when the run resumes from a callback. */
@@ -321,6 +351,20 @@ final class MacroPlayer {
                 resume(awaited, null);
               }
             });
+  }
+
+  private void awaitWrapped() {
+    final long awaited = beginWait();
+    editor.whenWrapped(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (state == State.RUNNING && awaited == waitId) {
+              waiting = false;
+              turn();
+            }
+          }
+        });
   }
 
   private MacroFind.Outcome outcome() {
@@ -403,6 +447,10 @@ final class MacroPlayer {
     if (grouped) {
       grouped = false;
       document.endGroup();
+    }
+    if (held != null) {
+      held.holdRedraw(false);
+      held = null;
     }
     hooks.runEnded(this);
     notice = text;

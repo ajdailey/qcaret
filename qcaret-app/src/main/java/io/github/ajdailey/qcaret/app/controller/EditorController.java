@@ -261,6 +261,16 @@ public final class EditorController implements EditorInput {
     return projection;
   }
 
+  /** Reports whether a rewrap is out ({@link FoldScheduling#rewrapping}). */
+  boolean rewrapping() {
+    return folds.rewrapping();
+  }
+
+  /** Posts a task once no rewrap is out ({@link FoldScheduling#whenWrapped}). */
+  void whenWrapped(Runnable task) {
+    folds.whenWrapped(task);
+  }
+
   /** Cancels a running rewrap and stops following the document. */
   public void dispose() {
     if (!disposed) {

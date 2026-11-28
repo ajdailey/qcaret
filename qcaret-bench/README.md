@@ -28,6 +28,7 @@ SpotBugs. Input is generated, never read from the repository.
 | `WorkspaceBenchmark` | Quick Open index build of 100,000 files, a 50,000-entry Workspace Browser listing, and `Fuzzy` scoring over the whole index and over the 2,000 paths matched on the UI thread |
 | `MarkdownHarness` | Markdown preview on generated 100 KiB, 1 MiB and 10 MiB documents: `MarkdownRenderer.render` and the code blocks' `SyntaxEngine` pass, median and maximum of 5 after 2 warm-ups |
 | `ByteOffsetsBenchmark` | The hex pane's `ByteOffsets` on 16 and 256 Mi chars of `ASCII` and `MIXED` in UTF-8 and GB18030: `build`, `update` from the middle, `charOffset` of a random byte, and `readPage`, one 64 KiB `EncodedHexSource` read |
+| `MacroHarness` | Macro playback with a fake view: each `MacroBench.Workload` (typing, typing wrapped at 60 columns, caret moves, find and type, Replace, line commands) over generated 256 KiB, 1 MiB and 4 MiB documents, 1,000 times and to the end. A `PlaybackTimer` times each UI task: turns, the tasks that ran steps, against the 8 ms budget, with the longest step, and the other tasks |
 | `SymbolHarness` | Go to Symbol on generated 1,000,000-line `JAVA` (a definition every 7 lines), `JAVA_SPARSE` (every 200) and `MARKDOWN` (a heading every 120): the first scan, the filter and sort a cached list leaves, `rescan` and a whole scan after one-line edits at lines 1,006 and 500,006, clear of the Markdown fences, with their results compared, and a `SymbolScan`'s live heap against its charge |
 
 ## Running
@@ -56,6 +57,8 @@ java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.SymbolHarness [JAVA JAVA_SPARSE MARKDOWN]
 java -cp qcaret-bench/target/benchmarks.jar \
   io.github.ajdailey.qcaret.bench.MarkdownHarness [KIB...]
+java -cp qcaret-bench/target/benchmarks.jar \
+  io.github.ajdailey.qcaret.bench.MacroHarness [WORKLOAD...]
 ```
 
 `java` is Java 21. Add `-p corpus=LONGLINE -p sizeMiB=4` to a `BuildBenchmark`
@@ -66,7 +69,7 @@ reproduce.
 
 ### Heap
 
-`StorageHarness`, `SearchHarness`, `SymbolHarness`, `FoldHarness` and `MarkdownHarness` run at the shipped launchers'
+`StorageHarness`, `SearchHarness`, `SymbolHarness`, `FoldHarness`, `MarkdownHarness` and `MacroHarness` run at the shipped launchers'
 `-XX:MaxRAMPercentage=50`: a JVM started without a heap option relaunches the
 harness with it, and the first output line prints the options in force. A heap option on the command line
 (`-Xmx`, `-XX:MaxRAMPercentage`, `-XX:MaxRAM`, `-XX:MaxHeapSize`) runs in place;
@@ -130,6 +133,23 @@ xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=OpenTabsProbe \
   -Dsurefire.failIfNoSpecifiedTests=false -Dqcaret.bench.open=25,100,100
 ```
 
+### Macro playback in a window
+
+`MacroPlaybackProbe` in `qcaret-ui-swt` plays the `MacroBench` workloads in a
+shown window at `qcaret.bench.kib` (256 by default) and `qcaret.bench.count` (0,
+to the end, by default), after two untimed runs, once as shipped and once with
+every `StyledText` under `setRedraw(false)`. Besides the `PlaybackTimer` line it
+prints `events`, the event loop time outside the timed tasks, and the UI thread
+sampled every millisecond by its innermost SWT or QCaret frame (`swt`, `view`,
+`model`, `idle`), with the QCaret caller of each `swt` sample.
+
+```sh
+xvfb-run -a env GDK_BACKEND=x11 ./mvnw -pl qcaret-ui-swt -am package \
+  -Dtest=MacroPlaybackProbe -Dsurefire.failIfNoSpecifiedTests=false \
+  -Dqcaret.bench.macro=TYPING,CARETS -Dqcaret.bench.kib=256 \
+  -Dqcaret.bench.count=1000 -Dqcaret.test.hangSeconds=7200
+```
+
 ## Workload notes
 
 - The harness reads the live heap after three `System.gc()` calls, which are
@@ -156,4 +176,5 @@ xvfb-run -a ./mvnw -pl qcaret-ui-swt -am package -Dtest=OpenTabsProbe \
 |---|---|
 | `StorageHarnessTest` | Which JVM options count as heap options, so the harness runs in place instead of relaunching |
 | `BenchmarkSetupTest` | Every JMH benchmark's setup at a small size through its package-private size field, and one call of each benchmark method, without JMH |
+| `MacroHarnessTest` | Each playback workload on an 8 KiB document running its count of 5 and to the end |
 | `SearchTreeTest` | The rare word in every hundredth file and each large file of `SearchTree`, and the tree deleted afterwards |

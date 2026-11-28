@@ -161,6 +161,7 @@ install `libwebkit2gtk-4.1-0`, so these tests run there.
 | `CaretInkTest` | The caret image color under each operator for both palettes |
 | `EditorAdditionsSurfaceTest` | The right margin line at its column through a scroll, zoom, word wrap and a theme switch, in a split view and a later tab; Document Statistics counting a selection and refreshing; the date format chooser inserting the chosen format |
 | `EditorAidsSurfaceTest` | Indent guides at each level with spaces and tabs at several tab widths and on a wrapped line's first row only; modified-line marks after an edit and cleared by a save; the gutter tooltip of a document over the mark limit; eleven selections on one row styled; a tab's whitespace arrow; secondary carets and a block painted only on visible rows |
+| `RedrawHoldSurfaceTest` | A held pane takes a typed char but leaves the widget's caret at 0 after Document End; the release moves it to the model's caret |
 | `FormatErrorMarkSurfaceTest` | After a failed Pretty Print, the wavy line under the token at the error, at the widget's offsets and in the `INVALID` color, and the overview strip's error row, both gone after an edit; with `-Dqcaret.rm.out=<dir>`, light and dark windows |
 | `EditorColorsSurfaceTest` | Editor colors from Preferences in printed pixels: a dark scheme in the light theme painting the editor and tab strip and switching back live, every bundled scheme leaving native controls alone, a light scheme in the dark theme, the replace preview taking the palette |
 

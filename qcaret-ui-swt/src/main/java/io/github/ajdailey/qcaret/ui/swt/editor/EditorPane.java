@@ -175,6 +175,7 @@ public final class EditorPane implements EditorView {
   private final Caret primaryCaret;
   private Image caretImage;
   private final PaneHighlights highlights;
+  private final RedrawHold hold = new RedrawHold();
   private final PanePainter painter;
   private final ControlBoxes boxes;
   private int pendingTop = -1;
@@ -626,7 +627,7 @@ public final class EditorPane implements EditorView {
   /** Scrolls so the primary caret shows. */
   @Override
   public void showCaret() {
-    if (!text.isDisposed()) {
+    if (!text.isDisposed() && !hold.defer(RedrawHold.CARET)) {
       text.showSelection();
     }
   }
@@ -843,7 +844,7 @@ public final class EditorPane implements EditorView {
 
   /** Sets the widget's selection to the model's primary and repaints the secondary ones. */
   private void syncWidget() {
-    if (text.isDisposed()) {
+    if (text.isDisposed() || hold.defer(RedrawHold.SYNC)) {
       return;
     }
     Selection primary = selections.selections().primary();
@@ -1218,7 +1219,7 @@ public final class EditorPane implements EditorView {
   @Override
   public void showMatches(int[] ranges) {
     highlights.setMatches(ranges);
-    if (!text.isDisposed()) {
+    if (!text.isDisposed() && !hold.defer(RedrawHold.REDRAW)) {
       text.redraw();
     }
   }
@@ -1285,7 +1286,7 @@ public final class EditorPane implements EditorView {
   @Override
   public void showBrackets(int[] ranges) {
     highlights.setBrackets(ranges);
-    if (!text.isDisposed()) {
+    if (!text.isDisposed() && !hold.defer(RedrawHold.REDRAW)) {
       text.redraw();
     }
   }
@@ -1293,8 +1294,31 @@ public final class EditorPane implements EditorView {
   @Override
   public void showOccurrences(int[] ranges) {
     highlights.setOccurrences(ranges);
-    if (!text.isDisposed()) {
+    if (!text.isDisposed() && !hold.defer(RedrawHold.REDRAW)) {
       text.redraw();
+    }
+  }
+
+  @Override
+  public void holdRedraw(boolean held) {
+    if (held == hold.held()) {
+      return;
+    }
+    int deferred = hold.set(held);
+    if (text.isDisposed()) {
+      return;
+    }
+    text.setRedraw(!held);
+    if (held) {
+      return;
+    }
+    if ((deferred & RedrawHold.SYNC) != 0) {
+      syncWidget();
+    } else {
+      text.redraw();
+    }
+    if ((deferred & RedrawHold.CARET) != 0) {
+      showCaret();
     }
   }
 

@@ -98,6 +98,7 @@ final class FakeView implements MainView {
     boolean overviewShown;
     LineChanges lineChanges = LineChanges.NONE;
     int[] errorMark = {-1, -1};
+    final List<Boolean> held = new ArrayList<Boolean>();
   }
 
   /** One editor view: what the controller asked of it. */
@@ -238,6 +239,12 @@ final class FakeView implements MainView {
     public void showErrorMark(int start, int end) {
       ui.checkUiThread();
       shown.errorMark = new int[] {start, end};
+    }
+
+    @Override
+    public void holdRedraw(boolean held) {
+      ui.checkUiThread();
+      shown.held.add(held);
     }
   }
 
@@ -477,6 +484,12 @@ final class FakeView implements MainView {
     public void showErrorMark(int start, int end) {
       ui.checkUiThread();
       shown.errorMark = new int[] {start, end};
+    }
+
+    @Override
+    public void holdRedraw(boolean held) {
+      ui.checkUiThread();
+      shown.held.add(held);
     }
   }
 

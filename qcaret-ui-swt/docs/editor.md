@@ -97,6 +97,18 @@ Sent to the model, the intermediate state would return through
 `setSelectionRange` and move the widget's anchor to the wrong end of an upward
 drag (`MouseSelectionSurfaceTest`).
 
+### Redraw hold
+
+`EditorPane.holdRedraw(true)` puts the widget under `setRedraw(false)` and
+skips the selection sync, `showCaret` and the highlight redraws, recording
+which it skipped (`RedrawHold`); text changes still reach the widget. The
+release runs each skipped kind once. A macro run holds its view: each
+`StyledText.redraw()` recomputes the text layouts of every visible line, even
+under `setRedraw(false)`. Measured with `MacroPlaybackProbe` (GTK 3, Xvfb), a
+typing macro run 1,000 times spent 91% of the UI thread's samples in SWT, with
+turns of 63 ms at the 99th percentile; with the hold the run took 3.2 s instead
+of 27.6 s and the 99th percentile turn 5 ms.
+
 ### Mouse gestures
 
 `EditorGestures`, a Display filter, takes the editor's mouse gestures before

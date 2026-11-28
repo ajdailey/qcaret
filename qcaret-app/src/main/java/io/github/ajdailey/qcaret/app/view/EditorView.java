@@ -142,4 +142,13 @@ public interface EditorView {
    * @param end the offset after it; equal to start for a mark one char wide at a line end
    */
   void showErrorMark(int start, int end);
+
+  /**
+   * Holds or releases the view's redraws. While held, the view applies text changes but paints
+   * nothing and defers the selection, caret scrolling and highlight redraws to the release, which
+   * shows them once.
+   *
+   * @param held true to hold, false to release
+   */
+  void holdRedraw(boolean held);
 }

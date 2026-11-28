@@ -38,7 +38,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-        <!-- The en-XA pseudo bundle. -->
+        <!-- The en-XA pseudo bundle; MacroPlaybackProbe's MacroBench and PlaybackTimer. -->
         <dependency>
             <groupId>io.github.ajdailey.qcaret</groupId>
             <artifactId>qcaret-app</artifactId>

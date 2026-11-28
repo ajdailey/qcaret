@@ -29,6 +29,7 @@ import java.util.concurrent.RejectedExecutionException;
  *
  * <ul>
  *   <li>Each rewrap runs on a {@code qcaret-cpu-} worker; a newer request cancels the running one.
+ *       {@link #whenWrapped} runs a task once no rewrap is out.
  *   <li>Fold regions come from a {@link FoldRegionSource} on a {@code qcaret-cpu-} worker, {@value
  *       #FOLD_DELAY_MILLIS} ms after the last change, one run at a time; a result for an older
  *       revision is dropped and the regions requested again.
@@ -49,6 +50,7 @@ final class FoldScheduling {
   private final Workers workers;
   private final UiDispatcher ui;
   private CancellationToken rewrap;
+  private final List<Runnable> wrappedTasks = new ArrayList<Runnable>();
   private FoldRegionSource foldSource;
 
   /** True when indentation regions join {@link #foldSource}'s, or stand alone without one. */
@@ -125,6 +127,7 @@ final class FoldScheduling {
     if (rewrap != null) {
       rewrap.cancel();
     }
+    wrappedTasks.clear();
     ui.cancelTimer(foldTimer);
     selections.removeListener(revealer);
     document.removeListener(foldFollower);
@@ -187,6 +190,31 @@ final class FoldScheduling {
     return restoredTop;
   }
 
+  /** Reports whether a rewrap is out: until it installs, the rows lag the wrap or tab width. */
+  boolean rewrapping() {
+    return rewrap != null;
+  }
+
+  /**
+   * Posts a task to the UI thread once no rewrap is out: at once when none is, else after the last
+   * one installs. Dropped when the view is disposed.
+   *
+   * @param task the task
+   */
+  void whenWrapped(Runnable task) {
+    wrappedTasks.add(task);
+    if (rewrap == null) {
+      postWrapped();
+    }
+  }
+
+  private void postWrapped() {
+    for (Runnable task : wrappedTasks) {
+      ui.asyncExec(task);
+    }
+    wrappedTasks.clear();
+  }
+
   /** Starts the rewrap the projection needs, canceling the running one. */
   void scheduleRewrap() {
     if (editor.disposed()) {
@@ -226,6 +254,9 @@ final class FoldScheduling {
                         if (wrapTop >= 0 && view != null) {
                           view.scrollToRow(projection.rowOfLine(wrapTop));
                         }
+                        if (rewrap == null) {
+                          postWrapped();
+                        }
                       }
                     }
                   });
@@ -233,6 +264,7 @@ final class FoldScheduling {
           });
     } catch (RejectedExecutionException e) {
       rewrap = null;
+      postWrapped();
     }
   }
 

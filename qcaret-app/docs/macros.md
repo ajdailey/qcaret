@@ -70,7 +70,13 @@ a macro.
   After a command step the run resumes through `BusyCounter.whenIdle` on the
   editor's busy cursor, which counts every worker command from command to
   apply, so a sort or codec result applies before the next step. A find step
-  resumes from `MacroFind`'s outcome.
+  resumes from `MacroFind`'s outcome. While a rewrap of the run's view is out,
+  as after a tab-width change in wrap mode, the next step waits for
+  `FoldScheduling.whenWrapped`, so Up and Down read the new rows.
+- The run's view holds its redraws (`EditorView.holdRedraw`) from start to
+  end and shows the run once every `MacroPlayer.REFRESH_NANOS` (100 ms), inside
+  a turn's budget. The widget's selection and highlight redraws otherwise
+  take most of each turn (measurements in `qcaret-ui-swt/docs/editor.md`).
 - A step fails when its command is disabled, a find or Replace finds no match
   (playback never wraps), a worker command ends with an error notice
   (`EditorMacros.failed`: a stale result, a codec refusal, a format or path
