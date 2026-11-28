@@ -13,8 +13,9 @@ import org.eclipse.swt.widgets.Text;
 
 /**
  * A read-only field that takes the next key pressed in it as a {@link KeyStroke} and shows it as
- * the platform writes it. Enter and Esc are taken as keys, not as the dialog's default button and
- * close. Call on the UI thread.
+ * the platform writes it. While it has focus it takes every key stroke but Tab and Shift+Tab
+ * ({@link KeyCapture}): Enter and Esc are taken as keys, not as the dialog's default button and
+ * close, and a menu item's key as a key, not as its command. Call on the UI thread.
  */
 final class KeyField {
   private final Text text;
@@ -37,6 +38,7 @@ final class KeyField {
     GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false);
     data.widthHint = 160;
     text.setLayoutData(data);
+    KeyCapture.install(text);
     text.addListener(
         SWT.KeyDown,
         new Listener() {

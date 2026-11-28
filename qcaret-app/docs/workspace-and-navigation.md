@@ -32,7 +32,9 @@ The index and the browser leave out hidden entries and
   and time for the row's tool tip (`WorkspaceNode.modifiedTime`). A directory
   has no size.
 - Refresh lists every listed directory again, keeping the old rows until the
-  new ones arrive, and rebuilds the index.
+  new ones arrive, and rebuilds the index. A listing whose rows and their Size
+  and Modified texts equal the shown ones calls no `workspaceChanged`
+  (`BrowserRows.same`).
 - Activating a window lists its shown browser's directories again the same way,
   without the index build or the other windows (`BrowserActivation`, from
   `ApplicationController.windowActivated`). A directory whose read still runs

@@ -100,4 +100,32 @@ final class BrowserRows {
     }
     return rows;
   }
+
+  /**
+   * Reports whether two listings' rows show the same: equal rows with equal Size and Modified
+   * texts, in the same order.
+   *
+   * @param shown the rows shown, or null
+   * @param read the rows read, or null
+   * @return true when both are null or every row and text matches
+   */
+  static boolean same(List<WorkspaceNode> shown, List<WorkspaceNode> read) {
+    if (shown == null || read == null) {
+      return shown == read;
+    }
+    if (shown.size() != read.size()) {
+      return false;
+    }
+    for (int i = 0; i < shown.size(); i++) {
+      WorkspaceNode a = shown.get(i);
+      WorkspaceNode b = read.get(i);
+      if (!a.equals(b)
+          || !a.size().equals(b.size())
+          || !a.modified().equals(b.modified())
+          || !a.modifiedTime().equals(b.modifiedTime())) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

@@ -32,7 +32,8 @@ import org.eclipse.swt.widgets.TreeItem;
  * selected files is a {@link BrowserDrag}. A click on a column header sorts by it, a second click
  * reverses the order. A directory row holds an empty placeholder child until it first expands,
  * which asks the input to list it; its rows replace the placeholder when the input reports the
- * change. A refill keeps the expanded state of rows that remain. The tree selects several rows
+ * change. A reported change updates the rows in place ({@link BrowserTreeSync}), keeping the
+ * expansion and selection of rows that remain and the top row. The tree selects several rows
  * ({@link BrowserSelection}). Enter or a double click opens a file, shows more entries on a "more"
  * row, and expands or collapses a directory, for the focused row. One context menu, built on the
  * first right click, offers {@link WorkspaceSelectionInput#MENU} for the selected rows, or for the
@@ -49,6 +50,7 @@ final class WorkspaceDock {
   private final BrowserDrag drag;
   private final BrowserSelection selection;
   private final BrowserColumns columns;
+  private final BrowserTreeSync sync;
   private Menu menu;
   private WorkspaceInput input;
 
@@ -88,6 +90,7 @@ final class WorkspaceDock {
     tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
     tree.setHeaderVisible(true);
     columns = new BrowserColumns(this, tree);
+    sync = new BrowserTreeSync(tree, columns);
     rowTip = new BrowserRowTip(tree);
     drag = new BrowserDrag(tree);
     selection = new BrowserSelection(tree);
@@ -263,7 +266,7 @@ final class WorkspaceDock {
     rebuild();
   }
 
-  /** Rebuilds the whole tree from the root's rows. */
+  /** Brings the whole tree in line with the root's rows. */
   void rebuild() {
     if (tree.isDisposed()) {
       return;
@@ -271,20 +274,15 @@ final class WorkspaceDock {
     browseBar.update(input == null ? UiText.WORKSPACE_NONE.text() : input.title());
     columns.showSort(input == null ? null : input.browse());
     WorkspaceNode top = input == null ? null : input.rootNode();
-    tree.setRedraw(false);
-    try {
-      Set<WorkspaceNode> open = expandedNodes(tree.getItems());
-      tree.removeAll();
-      if (top != null) {
-        fill(null, input.children(top), open);
-      }
-    } finally {
-      tree.setRedraw(true);
-    }
+    sync.sync(
+        input,
+        null,
+        top == null ? List.<WorkspaceNode>of() : input.children(top),
+        expandedNodes(tree.getItems()));
   }
 
   /**
-   * Refills a directory's rows wherever the tree shows them.
+   * Brings a directory's rows in line wherever the tree shows them.
    *
    * @param directory the directory, or null for the whole tree
    */
@@ -298,14 +296,7 @@ final class WorkspaceDock {
       return;
     }
     if (directory.equals(top)) {
-      tree.setRedraw(false);
-      try {
-        Set<WorkspaceNode> open = expandedNodes(tree.getItems());
-        tree.removeAll();
-        fill(null, input.children(top), open);
-      } finally {
-        tree.setRedraw(true);
-      }
+      sync.sync(input, null, input.children(top), expandedNodes(tree.getItems()));
       return;
     }
     TreeItem item = find(tree.getItems(), directory);
@@ -316,47 +307,11 @@ final class WorkspaceDock {
 
   /** Reports whether a directory row holds only its placeholder. */
   private static boolean isPlaceholder(TreeItem item) {
-    TreeItem[] children = item.getItems();
-    return children.length == 1 && children[0].getData() == null;
+    return BrowserTreeSync.placeholder(item);
   }
 
   private void refill(TreeItem item) {
-    tree.setRedraw(false);
-    try {
-      Set<WorkspaceNode> open = expandedNodes(item.getItems());
-      for (TreeItem child : item.getItems()) {
-        child.dispose();
-      }
-      fill(item, input.children(node(item)), open);
-    } finally {
-      tree.setRedraw(true);
-    }
-  }
-
-  /** Adds rows under a parent row, or at the top for null; re-expands the rows in {@code open}. */
-  private void fill(TreeItem parent, List<WorkspaceNode> rows, Set<WorkspaceNode> open) {
-    columns.widen(rows);
-    for (WorkspaceNode row : rows) {
-      TreeItem item =
-          parent == null ? new TreeItem(tree, SWT.NONE) : new TreeItem(parent, SWT.NONE);
-      item.setText(
-          new String[] {
-            row.kind() == WorkspaceNode.Kind.DIRECTORY ? row.name() + "/" : row.name(),
-            row.size(),
-            row.modified()
-          });
-      item.setData(row);
-      if (!row.expands()) {
-        continue;
-      }
-      List<WorkspaceNode> children = input.children(row);
-      if (open.contains(row) && !children.isEmpty()) {
-        fill(item, children, open);
-        item.setExpanded(true);
-      } else {
-        new TreeItem(item, SWT.NONE);
-      }
-    }
+    sync.sync(input, item, input.children(node(item)), expandedNodes(item.getItems()));
   }
 
   private static Set<WorkspaceNode> expandedNodes(TreeItem[] items) {

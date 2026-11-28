@@ -44,10 +44,10 @@ import org.eclipse.swt.widgets.Text;
  * tab and keeps the dialog open. Restore Defaults fills every tab and changes nothing until OK or
  * Apply. Clear History asks, then clears the saved search histories and HyperSearch's last run at
  * once, whatever OK, Apply or Cancel do afterwards. The Keys tab edits overrides on top of the
- * default keymap: the key field records one stroke, Add refuses a stroke that types or that another
- * command holds, Default Keys returns the selected command to its defaults and Restore All Defaults
- * drops every override. The theme files in Editor colors and the font family list fill when a
- * worker has listed them. Modeless; it returns at once.
+ * default keymap: the key field records one stroke, a menu key included ({@link KeyCapture}), Add
+ * refuses a stroke that types or that another command holds, Default Keys returns the selected
+ * command to its defaults and Restore All Defaults drops every override. The theme files in Editor
+ * colors and the font family list fill when a worker has listed them. Modeless; it returns at once.
  */
 final class PreferencesDialog {
   private static final ThemeMode[] THEMES = {ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM};
@@ -351,6 +351,7 @@ final class PreferencesDialog {
     GridData captureData = new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1);
     captureData.widthHint = 160;
     capture.setLayoutData(captureData);
+    KeyCapture.install(capture);
     Dialogs.button(
         editor,
         UiText.BUTTON_CLEAR_KEY.text(),

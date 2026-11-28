@@ -191,11 +191,16 @@ class WorkspaceDockLayoutTest {
   /**
    * Clicks a top-level row's expander with posted mouse events. GTK 4 SWT does not implement {@link
    * Display#post}, so there the events go through the X server's XTest extension from {@code
-   * python3}; its item bounds start below the header, GTK 3's at the header.
+   * python3}; its item bounds start below the header, GTK 3's at the header. The row is scrolled
+   * into view first and read after a pause: GTK gives rows added above it their height only when it
+   * lays the rows out, and until then the row's bounds are those before the rows came.
    */
   private void clickExpander(WorkspaceDock dock, String text) {
     TreeItem item = row(dock, text);
     assertNotNull(item, text);
+    pause(300);
+    dock.tree().showItem(item);
+    pause(300);
     Rectangle bounds = item.getBounds();
     int header = gtk4() ? dock.tree().getHeaderHeight() : 0;
     Point at = dock.tree().toDisplay(bounds.x / 2, header + bounds.y + bounds.height / 2);

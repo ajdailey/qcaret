@@ -21,6 +21,7 @@ import org.eclipse.swt.widgets.Shell;
 final class WindowMacroDialogs {
   private final Shell shell;
   private final Label status;
+  private final StatusText statusText;
   private Keymap keymap;
   private RunMacroDialog runDialog;
   private SaveMacroDialog saveDialog;
@@ -31,14 +32,17 @@ final class WindowMacroDialogs {
    *
    * @param shell the main window
    * @param statusBar the status bar, laid out with a grid
+   * @param statusText sets the bar's texts
    */
-  WindowMacroDialogs(Shell shell, Composite statusBar) {
+  WindowMacroDialogs(Shell shell, Composite statusBar, StatusText statusText) {
     this.shell = shell;
+    this.statusText = statusText;
     status = new Label(statusBar, SWT.NONE);
     GridData data = new GridData(SWT.END, SWT.CENTER, false, false);
     data.exclude = true;
     status.setLayoutData(data);
     status.setVisible(false);
+    statusText.counter(status);
   }
 
   /** Sets the keys the key fields write. */
@@ -47,14 +51,9 @@ final class WindowMacroDialogs {
   }
 
   void showStatus(String text) {
-    if (status.isDisposed() || status.getText().equals(text)) {
-      return;
+    if (!status.isDisposed()) {
+      statusText.showOrHide(status, text);
     }
-    boolean shown = !text.isEmpty();
-    status.setText(text);
-    status.setVisible(shown);
-    ((GridData) status.getLayoutData()).exclude = !shown;
-    StatusUpdates.layout(status.getParent());
   }
 
   void askRunMacro(

@@ -739,7 +739,8 @@ width.
 A name is 1 to 64 letters, digits, spaces, `-` and `_`, with no space at either
 end. Names ignore case, so `Wrap` and `wrap` cannot both exist, and a Windows
 device name such as `CON` or `COM1` is refused. To give a macro a key, click
-the Key field and press the key. A key needs `Ctrl`, `Alt` or `Cmd`; off macOS it
+the Key field and press the key; while the field has focus it takes every key,
+a menu key such as `Ctrl+S` included. A key needs `Ctrl`, `Alt` or `Cmd`; off macOS it
 cannot hold both `Ctrl` and `Alt`, which Windows sends for AltGr; and no command
 or other macro may hold it. A macro's key works anywhere in the window. Help >
 Keyboard Shortcuts and Tools > Preferences, Keys list it; Manage Macros changes
@@ -1099,7 +1100,9 @@ another program copies the file. Hover over a row for its full path, size and
 modified date and time. The icons above the tree show their names when you
 hover over them. Tab reaches each icon and Space runs it. Refresh lists the folder
 again; switching to a QCaret window also lists it again,
-so files other programs created or removed show. Reveal Active File selects the current document's file, and Hide Browser
+so files other programs created or removed show. Both keep the selected row,
+the expanded folders and the scroll position; a selected file that went leaves
+the selection on the row in its place. Reveal Active File selects the current document's file, and Hide Browser
 hides the browser. A row's menu offers Open, Open in Default Application, Open
 in Hex Viewer, New File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
 Workspace Folder; right-click empty space in the browser to act on the shown

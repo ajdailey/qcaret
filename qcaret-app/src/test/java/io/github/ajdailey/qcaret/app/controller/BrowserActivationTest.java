@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.app.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.view.WorkspaceNode;
@@ -18,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * {@link BrowserActivation}: window activation lists the browser's directories again, and an
- * activation while a read runs starts none.
+ * {@link BrowserActivation}: window activation lists the browser's directories again, an activation
+ * while a read runs starts none, and one with no file change reports no change.
  */
 class BrowserActivationTest {
   @TempDir Path temp;
@@ -97,6 +98,41 @@ class BrowserActivationTest {
         },
         "reads done");
     assertEquals(2, reads.get());
+  }
+
+  @Test
+  void anActivationWithNoFileChangeReportsNoChangeToTheView() throws Exception {
+    int changes = activate();
+    assertEquals(0, changes, "changes without a file change");
+    Files.writeString(root.resolve("src").resolve("Added.java"), "class Added {}\n");
+    changes = activate();
+    assertTrue(changes >= 1, "changes after a file was added: " + changes);
+  }
+
+  /** Activates the window, waits for both reads, and returns the view changes they reported. */
+  private int activate() throws InterruptedException {
+    final AtomicInteger reads = new AtomicInteger();
+    workspace
+        .listings()
+        .setBeforeList(
+            new Runnable() {
+              @Override
+              public void run() {
+                reads.incrementAndGet();
+              }
+            });
+    int before = harness.view.workspaceChanges.size();
+    harness.application.windowActivated();
+    harness.await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return reads.get() == 2 && workspace.listings().idleDirectories().size() == 2;
+          }
+        },
+        "reads done");
+    harness.ui.runPending();
+    return harness.view.workspaceChanges.size() - before;
   }
 
   /** Waits until a directory lists a number of rows that are not a loading row. */

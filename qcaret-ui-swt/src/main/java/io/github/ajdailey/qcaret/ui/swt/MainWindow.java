@@ -237,6 +237,7 @@ public final class MainWindow implements MainView {
   private TextWindow logWindow;
   private GuideWindow guide;
   private final StatusUpdates statusUpdates;
+  private final StatusText statusText;
   private long noticeGeneration;
   private PaletteListener paletteListener;
   private Palette palette;
@@ -413,10 +414,13 @@ public final class MainWindow implements MainView {
             }
           }
         });
-    macroDialogs = new WindowMacroDialogs(shell, statusBar);
+    statusText = new StatusText(statusBar);
+    macroDialogs = new WindowMacroDialogs(shell, statusBar, statusText);
     readOnly = statusLabel();
     position = statusLabel();
     selection = statusLabel();
+    statusText.counter(position);
+    statusText.counter(selection);
     encoding = statusLabel();
     lineEnding = statusLabel();
     language = statusLabel();
@@ -1115,24 +1119,16 @@ public final class MainWindow implements MainView {
       shell.setText(title);
     }
     StatusFields fields = menuBar.states().status();
-    boolean changed = set(position, fields.position());
-    changed |= set(selection, fields.selection());
-    changed |= set(encoding, fields.encoding());
-    changed |= set(lineEnding, fields.lineEnding());
-    changed |= set(language, fields.language());
-    changed |= set(readOnly, fields.readOnly());
-    changed |= set(preview, fields.preview());
-    if (changed) {
-      StatusUpdates.layout(statusBar);
-    }
-  }
-
-  private static boolean set(Label label, String text) {
-    if (label.getText().equals(text)) {
-      return false;
-    }
-    label.setText(text.replace("&", "&&"));
-    return true;
+    statusText.show(
+        List.of(position, selection, encoding, lineEnding, language, readOnly, preview),
+        List.of(
+            fields.position(),
+            fields.selection(),
+            fields.encoding(),
+            fields.lineEnding(),
+            fields.language(),
+            fields.readOnly(),
+            fields.preview()));
   }
 
   /**

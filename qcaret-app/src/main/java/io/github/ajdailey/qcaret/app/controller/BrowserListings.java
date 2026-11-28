@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 
 /**
@@ -27,7 +28,8 @@ import java.util.concurrent.CancellationException;
  * directory is listed on a {@code qcaret-io-} worker the first time it expands ({@link
  * DirectoryListing} with the workspace's {@link WalkRules} and {@link WorkspaceBrowse#options}),
  * with the rows' Size and Modified texts ({@link BrowserRows}), and shows {@value #PAGE} entries at
- * a time behind a "more" row. Listing again keeps the old rows until the new ones arrive; dropping
+ * a time behind a "more" row. Listing again keeps the old rows until the new ones arrive, and a
+ * listing whose rows, texts included, equal the shown ones reports no change to the view; dropping
  * a listing cancels its read, and a result for a dropped or replaced listing is dropped. Confined
  * to the UI thread.
  */
@@ -319,14 +321,24 @@ final class BrowserListings {
     if (read == null && error == null) {
       return;
     }
+    boolean same =
+        Objects.equals(error, listing.error)
+            && BrowserRows.same(listing.rows, rows)
+            && truncated(listing.entries) == truncated(read);
     listing.entries = read;
     listing.rows = rows;
     listing.error = error;
-    view.workspaceChanged(directoryNode(dir));
+    if (!same) {
+      view.workspaceChanged(directoryNode(dir));
+    }
     if (revealing != null) {
       reveal();
     }
     expandRestored();
+  }
+
+  private static boolean truncated(DirectoryListing read) {
+    return read != null && read.truncated();
   }
 
   /**

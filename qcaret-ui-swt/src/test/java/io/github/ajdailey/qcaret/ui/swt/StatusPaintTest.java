@@ -19,11 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * A status field whose text changes width moves the fields after it, and the status bar paints
- * before the update returns, with no paint left for the event loop: a paint inside {@link
- * StatusUpdates#layout}, from a later update the loop runs, counts as painted at once; any other
- * names its nearest QCaret caller. On win32 a label paints its new text as it is set; a paint left
- * for later showed the old text beside the new for a frame during a macro run ("Col 1717
+ * A status update paints the status bar before it returns, with no paint left for the event loop: a
+ * paint inside {@link StatusText}, from a later update the loop runs, counts as painted at once;
+ * any other names its nearest QCaret caller. On win32 a label paints its new text as it is set; a
+ * paint left for later showed the old text beside the new for a frame during a macro run ("Col 1717
  * UTF-8`-8CRLFLF"). Checked on win32, where {@code Control.update} paints at once.
  */
 @Tag("swt")
@@ -39,8 +38,7 @@ class StatusPaintTest {
           String caller = "";
           for (StackTraceElement frame : new Throwable().getStackTrace()) {
             String type = frame.getClassName();
-            if (type.equals(StatusUpdates.class.getName())
-                && frame.getMethodName().equals("layout")) {
+            if (type.equals(StatusText.class.getName())) {
               return;
             }
             if (caller.isEmpty()

@@ -1,8 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import io.github.ajdailey.qcaret.app.view.UiDispatcher;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
 
 /**
  * Schedules a window's status update: the title, the status fields and the menu and toolbar edit
@@ -71,21 +69,6 @@ final class StatusUpdates {
     if (deferred) {
       deferred = false;
       post();
-    }
-  }
-
-  /**
-   * Lays out a status bar after a field's text changed and paints the bar and its fields before
-   * returning. On win32 a label paints its new text when it is set, and the area a moved field
-   * uncovers keeps the old text until the bar paints, which a macro run's turns delay.
-   *
-   * @param bar the status bar
-   */
-  static void layout(Composite bar) {
-    bar.layout(true);
-    bar.update();
-    for (Control child : bar.getChildren()) {
-      child.update();
     }
   }
 

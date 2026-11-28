@@ -123,7 +123,12 @@ shows its own color only while focus is in the folder.
   and the session's retained searches at once; Cancel on the dialog does not
   restore them.
 - The Keys tab lists every command, then each saved macro under Macros; the key
-  field records one stroke and Clear empties it. A macro's row has no command,
+  field records one stroke and Clear empties it. The key field, and each
+  `KeyField`, takes every key stroke while it has focus (`KeyCapture`): every
+  menu item of the display's menu bars holds no accelerator from its focus in
+  to its focus out, and a traversal key other than Tab and Shift+Tab reaches it
+  as a key. On macOS the menu bar takes a key equivalent such as Cmd+S before
+  the focused control sees the key. A macro's row has no command,
   so the key buttons leave it alone and the tab names Manage Macros. Add
   (`ShortcutAdd` in qcaret-app) changes nothing and shows why when no command
   is selected, the key field is empty, the stroke types, another command or a
@@ -209,8 +214,17 @@ the dialog cancels a running match.
   already sorts ascending; the tree shows the sort column and direction.
 - A directory row holds an empty placeholder child until it first expands,
   which asks `WorkspaceInput.expand` to list it; the listed rows replace the
-  placeholder on `workspaceChanged`, and a refill keeps the expansion of rows
-  that remain. `reveal` expands the chain's directories but not its last row: a
+  placeholder on `workspaceChanged`. A change updates the rows in place
+  (`BrowserTreeSync`): a remaining row keeps its item, so its expansion and
+  selection stay, a row that went is disposed and a new one inserted at its
+  place. A selected row that went leaves the selection on the row with its path,
+  else the row at its place, else the last row of its level, else its parent.
+  A remaining top row the change moved is scrolled back to the top: the tree
+  keeps its scroll offset, so a row added above moves the top row. GTK 3
+  measures a new row after the change's turn, so there a row added above the
+  top row still moves the rows down one row (measured). A change that alters no row touches no item and holds no
+  redraw. Do not rebuild a level with `removeAll`: it clears the selection on
+  cocoa and win32 and scrolls win32 to the top. `reveal` expands the chain's directories but not its last row: a
   renamed or new folder it selects is not listed, and a refill would leave the
   row no child and so no expand arrow.
 - The tree is `SWT.MULTI`: Ctrl-click (Cmd-click on macOS) toggles a row and
