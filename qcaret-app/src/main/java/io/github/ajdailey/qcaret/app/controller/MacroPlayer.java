@@ -27,7 +27,10 @@ import java.util.function.LongSupplier;
  *       wrap mode, so a caret move reads the new rows.
  *   <li>The run's view holds its redraws ({@link EditorView#holdRedraw}) and shows the run every
  *       {@link #REFRESH_NANOS} and at the end: the widget's selection and highlight redraws cost
- *       most of a turn's time.
+ *       most of a turn's time. A refresh turn releases the view, runs no step and posts the next
+ *       turn after the view paints ({@link EditorView#afterPaint}, at most {@link
+ *       #PAINT_TIMEOUT_MILLIS}), which holds it again: while turns follow each other with no idle
+ *       event loop, cocoa paints nothing until the run ends.
  *   <li>A step fails when its command is disabled, a find or Replace finds no match, a worker
  *       command ends with an error notice ({@link EditorMacros#failed}), or the run's tab is no
  *       longer selected. The run stops there, the completed steps stay, and a notice names the
@@ -43,6 +46,9 @@ final class MacroPlayer {
 
   /** Longest time the run's view holds its redraws before it shows the run once. */
   static final long REFRESH_NANOS = 100_000_000L;
+
+  /** Longest wait after a refresh for the released view to paint. */
+  static final int PAINT_TIMEOUT_MILLIS = 50;
 
   /** Receives a run's progress and end on the UI thread. */
   interface Listener {
@@ -98,10 +104,12 @@ final class MacroPlayer {
   private LongSupplier nanos = System::nanoTime;
   private EditorView held;
   private long refreshed;
+  private boolean released;
   private State state = State.READY;
   private boolean grouped;
   private boolean stepping;
   private boolean waiting;
+  private boolean stepAwaited;
   private long waitId;
   private int index;
   private int iterations;
@@ -130,9 +138,10 @@ final class MacroPlayer {
     this.states = new CommandStates(window);
   }
 
-  /** Replaces the clock the turn budget reads; for tests. */
+  /** Replaces the clock the turn budget and the refresh read, and restarts the refresh interval. */
   void setNanos(LongSupplier clock) {
     nanos = clock;
+    refreshed = clock.getAsLong();
   }
 
   /**
@@ -160,7 +169,7 @@ final class MacroPlayer {
     held = editor.view();
     if (held != null) {
       held.holdRedraw(true);
-      refreshed = System.nanoTime();
+      refreshed = nanos.getAsLong();
     }
     documents.addActiveListener(viewsChanged);
     ui.asyncExec(turn);
@@ -210,12 +219,22 @@ final class MacroPlayer {
     return notice;
   }
 
-  /** Stops the run at the current step: Esc. */
+  /**
+   * Stops the run at the current step: Esc. The notice names the awaited step, else the next step
+   * to run; after an iteration's last step, the first step of the next iteration, or the run ends
+   * as that iteration's end check decides.
+   */
   void cancel() {
-    if (state == State.RUNNING) {
-      editor.cancelWork();
-      stop(UiText.MACRO_CANCELED.text(), false);
+    if (state != State.RUNNING) {
+      return;
     }
+    editor.cancelWork();
+    if (stepAwaited) {
+      index--;
+    } else if (index == steps.size() && !iterationEnded()) {
+      return;
+    }
+    stop(UiText.MACRO_CANCELED.text(), false);
   }
 
   /** Ends the run with no notice: its window is closing. */
@@ -246,7 +265,17 @@ final class MacroPlayer {
       return;
     }
     long started = nanos.getAsLong();
-    refresh();
+    if (released) {
+      released = false;
+      held.holdRedraw(true);
+      refreshed = started;
+    } else if (held != null && started - refreshed >= REFRESH_NANOS) {
+      held.holdRedraw(false);
+      released = true;
+      progress();
+      held.afterPaint(PAINT_TIMEOUT_MILLIS, turn);
+      return;
+    }
     while (state == State.RUNNING) {
       if (index == steps.size() && !iterationEnded()) {
         return;
@@ -269,6 +298,7 @@ final class MacroPlayer {
       }
       index++;
       if (waits) {
+        stepAwaited = true;
         return;
       }
       if (nanos.getAsLong() - started >= TURN_NANOS) {
@@ -277,16 +307,6 @@ final class MacroPlayer {
     }
     progress();
     ui.asyncExec(turn);
-  }
-
-  /** Shows the run in the held view once {@link #REFRESH_NANOS} passed since it last did. */
-  private void refresh() {
-    long now = System.nanoTime();
-    if (held != null && now - refreshed >= REFRESH_NANOS) {
-      held.holdRedraw(false);
-      held.holdRedraw(true);
-      refreshed = now;
-    }
   }
 
   /** Runs one step; returns true when the run resumes from a callback. */
@@ -387,6 +407,7 @@ final class MacroPlayer {
       return;
     }
     waiting = false;
+    stepAwaited = false;
     if (text != null && failure == null) {
       failure = text;
     }

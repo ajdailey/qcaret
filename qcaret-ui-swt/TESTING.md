@@ -161,6 +161,7 @@ install `libwebkit2gtk-4.1-0`, so these tests run there.
 | `CaretInkTest` | The caret image color under each operator for both palettes |
 | `EditorAdditionsSurfaceTest` | The right margin line at its column through a scroll, zoom, word wrap and a theme switch, in a split view and a later tab; Document Statistics counting a selection and refreshing; the date format chooser inserting the chosen format |
 | `EditorAidsSurfaceTest` | Indent guides at each level with spaces and tabs at several tab widths and on a wrapped line's first row only; modified-line marks after an edit and cleared by a save; the gutter tooltip of a document over the mark limit; eleven selections on one row styled; a tab's whitespace arrow; secondary carets and a block painted only on visible rows |
+| `PaintWaitSurfaceTest` (`ui.swt.editor`) | A paint wait's task running after a paint, with a timeout longer than the test's bound, and after the timeout for a control that is not shown |
 | `RedrawHoldSurfaceTest` | A held pane takes a typed char but leaves the widget's caret at 0 after Document End; the release moves it to the model's caret |
 | `FormatErrorMarkSurfaceTest` | After a failed Pretty Print, the wavy line under the token at the error, at the widget's offsets and in the `INVALID` color, and the overview strip's error row, both gone after an edit; with `-Dqcaret.rm.out=<dir>`, light and dark windows |
 | `EditorColorsSurfaceTest` | Editor colors from Preferences in printed pixels: a dark scheme in the light theme painting the editor and tab strip and switching back live, every bundled scheme leaving native controls alone, a light scheme in the dark theme, the replace preview taking the palette |
@@ -230,7 +231,8 @@ install `libwebkit2gtk-4.1-0`, so these tests run there.
 
 | Class | Covers |
 |---|---|
-| `MacroGuiTest` | The Macros menu's items, keys and separator, the saved macro's accelerator, Record Macro's check and the status-bar field; a posted saved macro key running the macro (GTK only); Run Multiple Times' count check and run; Save Recorded Macro refusing a held key and writing the file; Manage Macros refusing a device name, renaming, and deleting after `DeleteDialog`; a palette row running a macro, the shortcut reference row, and Preferences refusing a key a macro holds; commands and typing during a recording under a real pane showing no mouse notice |
+| `MacroGuiTest` | The Macros menu's items, keys and separator, the saved macro's accelerator, Record Macro's check and the status-bar field; a posted saved macro key running the macro (GTK only); Run Multiple Times' count check and run; Save Recorded Macro refusing a held key and writing the file; Manage Macros refusing a device name, renaming, and deleting after `DeleteDialog`; a palette row running a macro, the shortcut reference row, and Preferences refusing a key a macro holds; commands and typing during a recording under a real pane showing no mouse notice; a run of 1,000 steps showing the final caret and enabling the toolbar's Undo, with one status update per hold release, not one per step, and the editor and the macro progress field painting during the run |
+| `StatusUpdatesTest` | Status requests sharing one posted update; requests under a hold waiting for the release, which posts one; an update posted before a hold waiting for the release; a release with nothing waiting posting nothing |
 
 ### Theme
 

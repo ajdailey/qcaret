@@ -236,7 +236,7 @@ public final class MainWindow implements MainView {
   private TabMenu tabMenu;
   private TextWindow logWindow;
   private GuideWindow guide;
-  private boolean statusPending;
+  private final StatusUpdates statusUpdates;
   private long noticeGeneration;
   private PaletteListener paletteListener;
   private Palette palette;
@@ -264,6 +264,7 @@ public final class MainWindow implements MainView {
     this.palette = palette;
     this.dispatcher = new SwtUiDispatcher(display);
     this.browserDispatcher = dispatcher;
+    this.statusUpdates = new StatusUpdates(dispatcher, this::showStatus);
     shell = new Shell(display, SWT.SHELL_TRIM);
     fullScreen = PlatformTraits.PLATFORM.fullScreen(shell, dispatcher);
     shell.setText(UiText.WINDOW_TITLE.text());
@@ -347,6 +348,11 @@ public final class MainWindow implements MainView {
               @Override
               public void scheduleStatus() {
                 MainWindow.this.scheduleStatus();
+              }
+
+              @Override
+              public void holdStatus(boolean held) {
+                statusUpdates.hold(held);
               }
 
               @Override
@@ -1086,20 +1092,11 @@ public final class MainWindow implements MainView {
     return dateFormatChooser;
   }
 
-  /** Shows the status fields on a later UI turn; calls before then share that one read. */
+  /** Shows the status fields on a later UI turn, deferred while an editor holds its redraws. */
   private void scheduleStatus() {
-    if (statusPending || shell.isDisposed()) {
-      return;
+    if (!shell.isDisposed()) {
+      statusUpdates.request();
     }
-    statusPending = true;
-    dispatcher.asyncExec(
-        new Runnable() {
-          @Override
-          public void run() {
-            statusPending = false;
-            showStatus();
-          }
-        });
   }
 
   /** Shows the title and the status fields now, before the event loop runs. */
@@ -1590,6 +1587,15 @@ public final class MainWindow implements MainView {
    */
   MainMenuBar menuBar() {
     return menuBar;
+  }
+
+  /**
+   * Returns the status update schedule.
+   *
+   * @return the schedule
+   */
+  StatusUpdates statusUpdates() {
+    return statusUpdates;
   }
 
   /**

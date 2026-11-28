@@ -109,6 +109,10 @@ typing macro run 1,000 times spent 91% of the UI thread's samples in SWT, with
 turns of 63 ms at the 99th percentile; with the hold the run took 3.2 s instead
 of 27.6 s and the 99th percentile turn 5 ms.
 
+`EditorPane.afterPaint` posts a task for the turn after the widget's next
+`SWT.Paint`, or after a timeout when it does not paint (`PaintWait`); a macro
+run waits on it after each refresh release.
+
 ### Mouse gestures
 
 `EditorGestures`, a Display filter, takes the editor's mouse gestures before

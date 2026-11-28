@@ -141,7 +141,10 @@ to the end, by default), after two untimed runs, once as shipped and once with
 every `StyledText` under `setRedraw(false)`. Besides the `PlaybackTimer` line it
 prints `events`, the event loop time outside the timed tasks, and the UI thread
 sampled every millisecond by its innermost SWT or QCaret frame (`swt`, `view`,
-`model`, `idle`), with the QCaret caller of each `swt` sample.
+`model`, `idle`), with the QCaret caller of each `swt` sample. The `untimed`
+lines count the samples outside the timed tasks by their outermost and innermost
+QCaret frames, or, with no QCaret frame, by the innermost frame and SWT event
+handler.
 
 ```sh
 xvfb-run -a env GDK_BACKEND=x11 ./mvnw -pl qcaret-ui-swt -am package \

@@ -247,6 +247,12 @@ final class FakeView implements MainView {
       ui.checkUiThread();
       shown.held.add(held);
     }
+
+    @Override
+    public void afterPaint(int timeoutMillis, Runnable task) {
+      ui.checkUiThread();
+      ui.asyncExec(task);
+    }
   }
 
   /** A tab: its title, its views and what the controller asked of it. */
@@ -491,6 +497,12 @@ final class FakeView implements MainView {
     public void holdRedraw(boolean held) {
       ui.checkUiThread();
       shown.held.add(held);
+    }
+
+    @Override
+    public void afterPaint(int timeoutMillis, Runnable task) {
+      ui.checkUiThread();
+      ui.asyncExec(task);
     }
   }
 

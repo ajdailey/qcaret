@@ -57,6 +57,7 @@ final class EditorTab implements TabView, SelectionListener {
   /** A view as its controller sees it; focusing it makes it the tab's focused view. */
   private final class View implements EditorView {
     final EditorPane editor;
+    private boolean held;
 
     View(EditorPane editor) {
       this.editor = editor;
@@ -171,8 +172,17 @@ final class EditorTab implements TabView, SelectionListener {
     }
 
     @Override
+    public void afterPaint(int timeoutMillis, Runnable task) {
+      editor.afterPaint(timeoutMillis, task);
+    }
+
+    @Override
     public void holdRedraw(boolean held) {
       editor.holdRedraw(held);
+      if (held != this.held) {
+        this.held = held;
+        host.holdStatus(held);
+      }
     }
   }
 

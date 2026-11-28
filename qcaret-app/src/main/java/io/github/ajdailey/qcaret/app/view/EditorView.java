@@ -151,4 +151,13 @@ public interface EditorView {
    * @param held true to hold, false to release
    */
   void holdRedraw(boolean held);
+
+  /**
+   * Posts a task for the UI turn after the view next paints, or after a timeout when it does not
+   * paint by then; the task runs once.
+   *
+   * @param timeoutMillis the longest wait
+   * @param task the task
+   */
+  void afterPaint(int timeoutMillis, Runnable task);
 }

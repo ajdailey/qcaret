@@ -41,6 +41,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
@@ -337,6 +338,88 @@ class MacroGuiTest {
     PostedInput.ctrlShift(display, 'r');
     awaitRecording(true);
     controller.execute(CommandId.RECORD_MACRO);
+  }
+
+  /**
+   * A run updates the status at its view's refreshes and after its end, not once per step, and the
+   * editor and the macro progress field paint while it runs (macOS and Windows gates MC-5: they
+   * painted only after the run ended).
+   */
+  @Test
+  void aRunUpdatesAndPaintsTheStatusAtEachReleaseAndShowsTheFinalCaretAfterItEnds() {
+    final StatusUpdates status = window.statusUpdates();
+    final ToolItem undo = window.mainToolBar().item(CommandId.UNDO);
+    final int[] paints = new int[2];
+    final boolean[] running = new boolean[1];
+    window
+        .activeText()
+        .addListener(
+            SWT.Paint,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (running[0] && !window.menuBar().states().savedMacroEnabled()) {
+                  paints[0]++;
+                }
+              }
+            });
+    window
+        .macroDialogs()
+        .status()
+        .addListener(
+            SWT.Paint,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                if (running[0] && !window.menuBar().states().savedMacroEnabled()) {
+                  paints[1]++;
+                }
+              }
+            });
+    controller.execute(CommandId.RUN_MACRO_MULTIPLE);
+    RunMacroDialog dialog = window.macroDialogs().runDialog();
+    dialog.count().setText("1000");
+    flush();
+    int requests = status.requests();
+    int shown = status.shown();
+    int releases = status.releases();
+    running[0] = true;
+    dialog.submit();
+    // The macOS x86_64 runner takes about 20 s for this run.
+    final String expected = "<".repeat(1000) + "one\ntwo\nthree\n";
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return text().equals(expected) && window.menuBar().states().savedMacroEnabled();
+              }
+            },
+            Duration.ofSeconds(120)),
+        "the run ends");
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.statusText().contains(window.menuBar().states().status().position())
+                    && undo.getEnabled();
+              }
+            }),
+        "the status shows the final caret and the toolbar's Undo enables: " + window.statusText());
+    assertTrue(window.statusText().contains("1001"), window.statusText());
+    int released = status.releases() - releases;
+    assertTrue(released > 0, "the run's view released its hold");
+    assertTrue(status.requests() - requests >= 1000, "a request per step");
+    // One update per release, the end's included, and up to two from requests after the run.
+    assertTrue(
+        status.shown() - shown <= released + 2,
+        (status.shown() - shown) + " updates for " + released + " releases");
+    // Every refresh release paints before the next turn; the end's release paints after the run.
+    assertTrue(
+        paints[0] >= released - 1, paints[0] + " editor paints for " + released + " releases");
+    assertTrue(paints[1] > 0, "the macro progress field painted during the run");
   }
 
   @Test

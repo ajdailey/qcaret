@@ -341,8 +341,13 @@ background (`SwtThemeService.readable`): after a live change on cocoa SWT can
 report a foreground close to the background. A left click calls `ApplicationController.collectGarbage`. Its width only
 grows, so a refresh does not move the fields beside it.
 
-The window title is `CommandStates.windowTitle`, set with the status fields on
-the UI turn after a state change. `Gui` calls `showStatusNow` after
+The window title is `CommandStates.windowTitle`, set with the status fields and
+the menu and toolbar edit state on the UI turn after a state change; requests
+before then share that update (`StatusUpdates`). While an editor holds its
+redraws (`EditorView.holdRedraw`), updates wait for the release, which posts
+one. A macro run releases its view for one turn at each refresh
+(`qcaret-app/docs/macros.md`), so the status bar updates and paints with the
+editor there and once after the run, not once per turn. `Gui` calls `showStatusNow` after
 `startSession`, so the untitled document's title does not wait for the startup
 events to drain.
 

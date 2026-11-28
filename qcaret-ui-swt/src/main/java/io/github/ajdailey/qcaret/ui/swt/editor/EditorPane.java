@@ -1300,6 +1300,11 @@ public final class EditorPane implements EditorView {
   }
 
   @Override
+  public void afterPaint(int timeoutMillis, Runnable task) {
+    PaintWait.start(text, ui, timeoutMillis, task);
+  }
+
+  @Override
   public void holdRedraw(boolean held) {
     if (held == hold.held()) {
       return;

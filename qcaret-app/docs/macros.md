@@ -63,7 +63,10 @@ a macro.
   completion choice for every view of the document, and the find bar's search,
   Replace and Replace All do nothing on it. `ApplicationController.execute`
   runs only `SILENT` commands. Esc (`CANCEL`) in a view of the document stops
-  the run and cancels its worker commands. The player's own steps pass the
+  the run and cancels its worker commands; the notice names the awaited
+  command or find step, else the next step to run, which after an iteration's
+  last step is step 1 of the next iteration (a counted run whose count is done
+  ends as completed). The player's own steps pass the
   hold. The completion list stays closed.
 - Steps run in UI turns of at most `MacroPlayer.TURN_NANOS` (8 ms), each turn
   posted through the `UiDispatcher`; one step longer than that is not split.
@@ -74,9 +77,16 @@ a macro.
   as after a tab-width change in wrap mode, the next step waits for
   `FoldScheduling.whenWrapped`, so Up and Down read the new rows.
 - The run's view holds its redraws (`EditorView.holdRedraw`) from start to
-  end and shows the run once every `MacroPlayer.REFRESH_NANOS` (100 ms), inside
-  a turn's budget. The widget's selection and highlight redraws otherwise
-  take most of each turn (measurements in `qcaret-ui-swt/docs/editor.md`).
+  end and shows the run once every `MacroPlayer.REFRESH_NANOS` (100 ms). The
+  widget's selection and highlight redraws otherwise take most of each turn
+  (measurements in `qcaret-ui-swt/docs/editor.md`). A refresh turn releases
+  the view, runs no step and posts the next turn after the view paints
+  (`EditorView.afterPaint`, at most `MacroPlayer.PAINT_TIMEOUT_MILLIS`, 50 ms,
+  as for a hidden window), which holds it again. While turns follow
+  each other with no idle event loop, cocoa paints neither the editor nor the
+  status bar and win32 leaves the macro progress field unpainted.
+  The window's status fields, title and edit state update in the refresh
+  turns and once after the run (`qcaret-ui-swt/docs/main-window.md`).
 - A step fails when its command is disabled, a find or Replace finds no match
   (playback never wraps), a worker command ends with an error notice
   (`EditorMacros.failed`: a stale result, a codec refusal, a format or path

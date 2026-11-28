@@ -44,7 +44,8 @@ import org.junit.jupiter.api.io.TempDir;
  * the {@link PlaybackTimer} summary of the UI tasks, {@code events}: event loop time outside those
  * tasks (paints, layout, input), and the UI thread sampled every millisecond by its innermost SWT
  * or QCaret frame: {@code swt}, {@code view} ({@code ui.swt}), {@code model} (app and core), {@code
- * idle} in {@code Display.sleep}, with the QCaret caller of the {@code swt} samples.
+ * idle} in {@code Display.sleep}, with the QCaret caller of the {@code swt} samples and, for
+ * samples outside the timed tasks ({@code untimed}), the outermost and innermost QCaret frames.
  */
 @Tag("swt")
 @EnabledIfSystemProperty(named = "qcaret.bench.macro", matches = ".+")
@@ -172,6 +173,7 @@ class MacroPlaybackProbe {
   private static final class Shares extends Thread {
     private final Thread target;
     private final Map<String, Integer> callers = new HashMap<String, Integer>();
+    private final Map<String, Integer> untimed = new HashMap<String, Integer>();
     private volatile boolean running = true;
     volatile boolean sampling;
     private int swt;
@@ -201,6 +203,7 @@ class MacroPlaybackProbe {
 
     private void sample(StackTraceElement[] stack) {
       int owner = -1;
+      boolean timed = false;
       for (int i = 0; i < stack.length; i++) {
         String name = stack[i].getClassName();
         if (name.equals("org.eclipse.swt.widgets.Display")
@@ -208,6 +211,7 @@ class MacroPlaybackProbe {
           idle++;
           return;
         }
+        timed |= name.contains("PlaybackTimer");
         if (owner < 0
             && (name.startsWith("org.eclipse.swt.") || name.startsWith("io.github.ajdailey."))) {
           owner = i;
@@ -230,9 +234,52 @@ class MacroPlaybackProbe {
             break;
           }
         }
-        Integer now = callers.get(caller);
-        callers.put(caller, now == null ? 1 : now + 1);
+        count(callers, caller);
       }
+      if (!timed) {
+        count(untimed, entry(stack));
+      }
+    }
+
+    /** Names the outermost QCaret frame under the event loop and the innermost QCaret frame. */
+    private static String entry(StackTraceElement[] stack) {
+      String inner = null;
+      String outer = "(event loop)";
+      for (int i = 0; i < stack.length; i++) {
+        String frame = stack[i].getClassName();
+        if (frame.startsWith("io.github.ajdailey.") && !frame.contains("MacroPlaybackProbe")) {
+          String name =
+              frame.substring(frame.lastIndexOf('.') + 1) + "." + stack[i].getMethodName();
+          if (inner == null) {
+            inner = name;
+          }
+          outer = name;
+        }
+      }
+      if (inner != null) {
+        return outer + " > " + inner;
+      }
+      // No QCaret frame: the innermost frame and the innermost SWT event handler.
+      String handler = "-";
+      for (int i = 0; i < stack.length; i++) {
+        String method = stack[i].getMethodName();
+        if (method.startsWith("gtk_") || method.startsWith("handle") || method.startsWith("WM")) {
+          handler = stack[i].getClassName() + "." + method;
+          break;
+        }
+      }
+      return outer
+          + " > "
+          + stack[0].getClassName()
+          + "."
+          + stack[0].getMethodName()
+          + " < "
+          + handler;
+    }
+
+    private static void count(Map<String, Integer> map, String key) {
+      Integer now = map.get(key);
+      map.put(key, now == null ? 1 : now + 1);
     }
 
     void halt() throws InterruptedException {
@@ -249,8 +296,13 @@ class MacroPlaybackProbe {
               view,
               model,
               idle));
+      top("probe.macro.swt ", callers, 12);
+      top("probe.macro.untimed ", untimed, 20);
+    }
+
+    private static void top(String prefix, Map<String, Integer> map, int limit) {
       List<Map.Entry<String, Integer>> entries =
-          new ArrayList<Map.Entry<String, Integer>>(callers.entrySet());
+          new ArrayList<Map.Entry<String, Integer>>(map.entrySet());
       entries.sort(
           new Comparator<Map.Entry<String, Integer>>() {
             @Override
@@ -258,9 +310,8 @@ class MacroPlaybackProbe {
               return Integer.compare(b.getValue(), a.getValue());
             }
           });
-      for (int i = 0; i < Math.min(12, entries.size()); i++) {
-        System.out.println(
-            "probe.macro.swt " + entries.get(i).getValue() + " " + entries.get(i).getKey());
+      for (int i = 0; i < Math.min(limit, entries.size()); i++) {
+        System.out.println(prefix + entries.get(i).getValue() + " " + entries.get(i).getKey());
       }
     }
   }

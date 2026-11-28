@@ -245,6 +245,51 @@ class MacroPlaybackTest {
     assertEquals("abc\n", MacroTesting.text(editor));
   }
 
+  /** macOS gate MC-5: Esc after a 2-step iteration named step 3. */
+  @Test
+  void escAfterAnIterationsLastStepNamesTheNextIterationsFirstStep() throws Exception {
+    EditorController editor = t.open("abc\n");
+    MacroPlayer run =
+        t.macros().play(t.app, macro(new MacroStep.Typed("x"), new MacroStep.Typed("y")), 3, null);
+    oneStepPerTurn(run);
+    t.harness.ui.runQueued();
+    t.harness.ui.runQueued();
+    assertEquals("xyabc\n", MacroTesting.text(editor));
+    editor.execute(CommandId.CANCEL);
+    assertEquals(UiText.MACRO_STOPPED.format(2, 3, 1, UiText.MACRO_CANCELED.text()), run.notice());
+  }
+
+  @Test
+  void escAfterAnIterationsLastStepOfTheCountEndsTheRunNormally() throws Exception {
+    EditorController editor = t.open("abc\n");
+    MacroPlayer run =
+        t.macros().play(t.app, macro(new MacroStep.Typed("x"), new MacroStep.Typed("y")), 1, null);
+    oneStepPerTurn(run);
+    t.harness.ui.runQueued();
+    t.harness.ui.runQueued();
+    editor.execute(CommandId.CANCEL);
+    assertEquals(
+        UiText.MACRO_RAN.format(UiText.count(1, UiText.COUNT_TIME, UiText.COUNT_TIMES)),
+        run.notice());
+  }
+
+  @Test
+  void escWhileACommandStepIsAwaitedNamesThatStep() throws Exception {
+    EditorController editor = t.open("abc\n");
+    MacroPlayer run =
+        t.macros()
+            .play(
+                t.app,
+                macro(new MacroStep.Typed("x"), new MacroStep.Command(CommandId.SELECT_LINE)),
+                1,
+                null);
+    oneStepPerTurn(run);
+    t.harness.ui.runQueued();
+    t.harness.ui.runQueued();
+    editor.execute(CommandId.CANCEL);
+    assertEquals(UiText.MACRO_STOPPED.format(1, 1, 2, UiText.MACRO_CANCELED.text()), run.notice());
+  }
+
   @Test
   void inputToTheHeldDocumentIsDroppedInEveryView() throws Exception {
     EditorController editor = t.open("abc\n");

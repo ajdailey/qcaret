@@ -91,6 +91,13 @@ final class TabStrip {
     void scheduleStatus();
 
     /**
+     * Reports an editor's redraw hold or release, which defers or posts the status update.
+     *
+     * @param held true for a hold
+     */
+    void holdStatus(boolean held);
+
+    /**
      * Returns the window's controller.
      *
      * @return the controller, or null before the window is attached
