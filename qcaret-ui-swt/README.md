@@ -5,7 +5,7 @@ The SWT views: the main window with its tabs, menus and toolbar, the editor
 dispatcher. It depends on `qcaret-app`, `qcaret-core` and the build host's SWT
 fragment. It uses public SWT API except in `Gtk4ToolItemSizing`, the `WindowStacking`
 classes, `CocoaPrintJobNaming`, `Gtk3NativeNames`, `Win32BrowserBehavior` and
-`Win32ComboListSelection`, all in `ui.swt.platform`,
+`Win32ListBox` (the combo list and list selection), all in `ui.swt.platform`,
 which reach SWT internals by reflection, and `Win32HeaderLines`, which sets the
 Display data key `org.eclipse.swt.internal.win32.Table.headerLineColor`
 ([Dialog colors](docs/theme-and-icons.md#dialog-colors)).

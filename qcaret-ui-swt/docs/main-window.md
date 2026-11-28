@@ -676,6 +676,7 @@ default method carries behavior.
 | `AccessibleLabels` | `NativeAccessibleLabels` | `CocoaAccessibleLabels`: the name is also the description; group role | `NativeAccessibleLabels` | `NativeAccessibleLabels` | `AccessibleName` (see [Accessible names](#accessible-names)) |
 | `LaunchDocuments` | `NativeLaunchDocuments` | `CocoaLaunchDocuments`: collects open-document events at start and before a handoff (`DocumentEventLoop`) | `NativeLaunchDocuments` | `NativeLaunchDocuments` | `Gui`, `HandoffDocuments` (see [qcaret-launcher](../../qcaret-launcher/README.md#startup-and-exit)) |
 | `ComboListSelection` | `Win32ComboListSelection`: paints a drop-down combo's open list selection under the dark native setting | `NativeComboListSelection` | `NativeComboListSelection` | `NativeComboListSelection` | every `Combo` at creation (see [win32](theme-and-icons.md#win32)) |
+| `ListSelection` | `Win32ListSelection`: paints a single-selection list's selected row under the dark native setting | `NativeListSelection` | `NativeListSelection` | `NativeListSelection` | `Dialogs.list` (see [win32](theme-and-icons.md#win32)) |
 
 Operating-system checks outside the views go through `OsTraits`
 (`core.util.os`). Its values: `fileNamesIgnoreCase`, `fileLock`,

@@ -1,7 +1,10 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Control;
 
@@ -52,5 +55,30 @@ final class Pixels {
       }
     }
     return logical;
+  }
+
+  /** Returns the most frequent color. */
+  static RGB mode(ImageData data) {
+    return mode(data, new Rectangle(0, 0, data.width, data.height));
+  }
+
+  /** Returns the most frequent color inside an area. */
+  static RGB mode(ImageData data, Rectangle area) {
+    Map<Integer, Integer> counts = new HashMap<Integer, Integer>();
+    int best = 0;
+    int bestCount = -1;
+    for (int y = Math.max(0, area.y); y < Math.min(data.height, area.y + area.height); y++) {
+      for (int x = Math.max(0, area.x); x < Math.min(data.width, area.x + area.width); x++) {
+        int pixel = data.getPixel(x, y);
+        Integer count = counts.get(pixel);
+        int next = count == null ? 1 : count + 1;
+        counts.put(pixel, next);
+        if (next > bestCount) {
+          best = pixel;
+          bestCount = next;
+        }
+      }
+    }
+    return data.palette.getRGB(best);
   }
 }

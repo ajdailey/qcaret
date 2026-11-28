@@ -16,20 +16,14 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
 /**
- * {@link Win32ComboListSelection}: the SWT internals it reflects on still exist in this SWT, a
- * read-only or editable combo's list window takes another window procedure until the combo is
- * disposed, which restores the native one, and a {@code SWT.SIMPLE} combo's keeps its own. A
- * failing resolution test after an SWT upgrade names the member that went away. The painted row is
- * checked on the screen by {@code Win32ComboListTest}.
+ * {@link Win32ComboListSelection}: a read-only or editable combo's list window takes another window
+ * procedure until the combo is disposed, which restores the native one, and a {@code SWT.SIMPLE}
+ * combo's keeps its own. {@code Win32ListSelectionTest} resolves the SWT internals; the painted row
+ * is checked on the screen by {@code Win32ComboListTest}.
  */
 @Tag("swt")
 @EnabledOnOs(OS.WINDOWS)
 class Win32ComboListSelectionTest {
-  @Test
-  void theWin32MembersResolve() throws ReflectiveOperationException {
-    Win32ComboListSelection.resolve();
-  }
-
   @Test
   void aReadOnlyComboListIsSubclassedUntilTheComboIsDisposed() throws ReflectiveOperationException {
     subclassedUntilDisposed(SWT.READ_ONLY);

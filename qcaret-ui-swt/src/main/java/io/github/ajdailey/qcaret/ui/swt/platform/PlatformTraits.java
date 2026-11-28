@@ -252,4 +252,11 @@ public interface PlatformTraits {
    * @return {@link Win32ComboListSelection} on win32, else {@link NativeComboListSelection}
    */
   ComboListSelection comboListSelection();
+
+  /**
+   * Returns how a single-selection list draws its selected row.
+   *
+   * @return {@link Win32ListSelection} on win32, else {@link NativeListSelection}
+   */
+  ListSelection listSelection();
 }

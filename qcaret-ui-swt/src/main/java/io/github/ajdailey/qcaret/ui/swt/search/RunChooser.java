@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt.search;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -30,8 +31,13 @@ public final class RunChooser {
    * @param shell the dialog's empty shell, owned by the main window and laid out as one grid column
    * @param runs one line per run
    * @param chosen receives the chosen run's index
+   * @param lists creates the run list in its parent
    */
-  public RunChooser(Shell shell, List<String> runs, Consumer<Integer> chosen) {
+  public RunChooser(
+      Shell shell,
+      List<String> runs,
+      Consumer<Integer> chosen,
+      Function<Composite, org.eclipse.swt.widgets.List> lists) {
     this.chosen = chosen;
     this.shell = shell;
     Label label = new Label(shell, SWT.WRAP);
@@ -39,7 +45,7 @@ public final class RunChooser {
     GridData labelData = new GridData(SWT.FILL, SWT.CENTER, true, false);
     labelData.widthHint = 420;
     label.setLayoutData(labelData);
-    list = new org.eclipse.swt.widgets.List(shell, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
+    list = lists.apply(shell);
     GridData listData = new GridData(SWT.FILL, SWT.FILL, true, true);
     listData.heightHint = 200;
     list.setLayoutData(listData);

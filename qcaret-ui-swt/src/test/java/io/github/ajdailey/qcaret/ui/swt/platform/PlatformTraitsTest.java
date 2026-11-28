@@ -290,6 +290,14 @@ class PlatformTraitsTest {
     assertInstanceOf(NativeComboListSelection.class, GTK4.comboListSelection());
   }
 
+  @Test
+  void onlyWin32PaintsTheListSelection() {
+    assertInstanceOf(Win32ListSelection.class, WIN32.listSelection());
+    assertInstanceOf(NativeListSelection.class, COCOA.listSelection());
+    assertInstanceOf(NativeListSelection.class, GTK3.listSelection());
+    assertInstanceOf(NativeListSelection.class, GTK4.listSelection());
+  }
+
   /**
    * Behavior that differs by platform sits behind a seam: every boolean {@code PlatformTraits}
    * method is a value trait. A new boolean that switches behavior fails here and in {@code

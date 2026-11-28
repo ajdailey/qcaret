@@ -173,7 +173,7 @@ class ArchitectureTest {
     ROOT + ".ui.swt.platform.CocoaPrintJobNaming",
     ROOT + ".ui.swt.platform.Gtk3NativeNames",
     ROOT + ".ui.swt.platform.Win32BrowserBehavior",
-    ROOT + ".ui.swt.platform.Win32ComboListSelection"
+    ROOT + ".ui.swt.platform.Win32ListBox"
   };
 
   /** The view class excepted to link the Java 21 foreign-function API by reflection. */
@@ -1171,6 +1171,29 @@ class ArchitectureTest {
         .should()
         .callConstructorWhere(newInstanceOf(org.eclipse.swt.widgets.TabFolder.class))
         .because("a native TabFolder keeps a light tab row under a dark win32 start");
+  }
+
+  /** Only {@code Dialogs.list} creates a {@code List}, so every list draws its selection. */
+  @Test
+  void listsOnlyThroughDialogs() {
+    listsOnlyThroughDialogsRule().check(classes);
+  }
+
+  @Test
+  void listsRuleFailsOnItsFixture() throws ClassNotFoundException {
+    assertViolations(
+        listsOnlyThroughDialogsRule(),
+        ROOT + ".ui.swt.archfixture.ViewViolations$CreatesList",
+        "CreatesList.open");
+  }
+
+  private static ArchRule listsOnlyThroughDialogsRule() {
+    return noClasses()
+        .that()
+        .doNotHaveFullyQualifiedName(ROOT + ".ui.swt.Dialogs")
+        .should()
+        .callConstructorWhere(newInstanceOf(org.eclipse.swt.widgets.List.class))
+        .because("win32 draws a List's selected row white under the dark theme; use Dialogs.list");
   }
 
   @Test

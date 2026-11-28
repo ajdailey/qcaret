@@ -24,7 +24,7 @@ final class DocumentChooser {
     this.chosen = chosen;
     shell = Dialogs.shell(parent, UiText.COMPARE_CHOOSE_TITLE.text(), true);
     Dialogs.label(shell, UiText.COMPARE_CHOOSE_LABEL.text());
-    list = new org.eclipse.swt.widgets.List(shell, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
+    list = Dialogs.list(shell);
     GridData data = new GridData(SWT.FILL, SWT.FILL, true, true);
     data.heightHint = 200;
     data.widthHint = 460;

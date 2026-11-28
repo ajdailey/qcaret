@@ -140,6 +140,13 @@ final class ViewViolations {
     }
   }
 
+  /** Creates a list outside {@code Dialogs.list}. */
+  static final class CreatesList {
+    org.eclipse.swt.widgets.List open(Shell parent) {
+      return new org.eclipse.swt.widgets.List(parent, SWT.SINGLE);
+    }
+  }
+
   /** Shows a table's grid lines outside the platform package. */
   static final class ShowsGridLines {
     void open(org.eclipse.swt.widgets.Table table) {

@@ -159,4 +159,9 @@ final class Win32Traits implements PlatformTraits {
   public ComboListSelection comboListSelection() {
     return new Win32ComboListSelection();
   }
+
+  @Override
+  public ListSelection listSelection() {
+    return new Win32ListSelection();
+  }
 }

@@ -248,7 +248,7 @@ classes, so the rules over the main classes never see them.
 |---|---|
 | SWT only in `ui.swt` and `launcher` | Model and controllers test without a display |
 | No dependency on `org.eclipse.swt.internal` | Public SWT API only, so GTK3 and GTK4 behave the same |
-| `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `Gtk4ToolItemSizing`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking`, `CocoaPrintJobNaming`, `Gtk3NativeNames`, `Win32BrowserBehavior`, `Win32ComboListSelection` (all `ui.swt.platform`) and `core.io.Flock` | SWT internals differ per platform, and `Flock` links the Java 21 foreign-function API; only these classes reach them by reflection |
+| `Class.forName`, `getDeclared*`, `getField`, `getMethod` and `setAccessible` only in `Gtk4ToolItemSizing`, `Win32Stacking`, `CocoaStacking`, `GtkX11Stacking`, `CocoaPrintJobNaming`, `Gtk3NativeNames`, `Win32BrowserBehavior`, `Win32ListBox` (all `ui.swt.platform`) and `core.io.Flock` | SWT internals differ per platform, and `Flock` links the Java 21 foreign-function API; only these classes reach them by reflection |
 | `SWT.getPlatform()` only in `ui.swt.platform`; `System.getenv` in `ui.swt` and `launcher` only there | Each view-layer platform difference goes through `PlatformTraits`: a value or a seam it chooses |
 | A string starting `org.eclipse.swt.internal.` only in `ui.swt.platform` and the reflection classes above | SWT internal properties and class names go through `PlatformTraits`; the check reads each class file's constant pool |
 | `core` does not depend on `app`, `ui` or `launcher`; `app` not on `ui` or `launcher` | Layering |
@@ -273,6 +273,7 @@ classes, so the rules over the main classes never see them.
 | `setImage` on `ToolItem`, `MenuItem`, `Button`, `TableItem`, `TreeItem`, `Item` and `CTabItem` only in `ToolIcons` | `ToolIcons` picks the icon's ink for the background it shows on |
 | A code unit that creates a `Shell` calls `Dialogs.inheritIcons` and `DialogColors.apply`, except `MainWindow`'s top-level shell and `CompletionPopup` | Every dialog carries the application icon and the platform's dialog colors |
 | A native `TabFolder` is created only in `ui.swt.platform` (`tabFoldersOnlyThroughDialogTabs`) | A dialog takes its folder from `PlatformTraits.dialogTabs`: `Win32DialogTabs` while win32's native theme is dark, `NativeDialogTabs` or `CocoaDialogTabs` otherwise |
+| A `List` is created only in `Dialogs.list` (`listsOnlyThroughDialogs`) | Every list draws its selected row through `ListSelection`, readable under a dark win32 start |
 | `Table.setLinesVisible` is called only in `ui.swt.platform` (`gridLinesOnlyThroughDialogColors`) | A table shows its lines through `Dialogs.gridLines`, drawn dark in a dark win32 dialog |
 | A string starting `org.eclipse.swt.internal.win32.Table` only in `Win32HeaderLines` (`headerLineKeyOnlyInWin32HeaderLines`) | The header divider color key is a Public SWT API exception confined to one class |
 | `Dialog.open` is called only in `ui.swt.NativeDialogs` (`nativeChoosersOnlyThroughNativeDialogs`) | A window rebuild waits only for a native dialog `NativeDialogs` counts |

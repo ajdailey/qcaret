@@ -25,7 +25,7 @@ final class DateFormatChooser {
     this.chosen = chosen;
     shell = Dialogs.shell(parent, UiText.DATE_FORMAT_TITLE.text(), true);
     Dialogs.label(shell, UiText.DATE_FORMAT_LABEL.text());
-    list = new org.eclipse.swt.widgets.List(shell, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
+    list = Dialogs.list(shell);
     GridData data = new GridData(SWT.FILL, SWT.FILL, true, true);
     data.widthHint = 460;
     list.setLayoutData(data);

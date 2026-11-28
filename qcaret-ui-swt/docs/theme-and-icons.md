@@ -80,8 +80,9 @@ dark system setting; `windows-2025` draws it `#0078d4` with white text. Neither
 `SetWindowTheme` on the list nor the `WM_CTLCOLORLISTBOX` answer changes that
 row (`Win32ComboLeverProbe`, measured on both). Every combo is created with
 `ComboListSelection.draw`: `Win32ComboListSelection` subclasses the
-list window (SWT's `internal.Callback` and `internal.win32.OS`, a listed
-`ArchitectureTest` exception) and, while the dark native setting is on, paints
+list window through `Win32ListBox` (SWT's `internal.Callback` and
+`internal.win32.OS`, a listed `ArchitectureTest` exception) and, while the dark
+native setting is on, paints
 the selected row in `Palette.DARK`'s selection with white text after each
 `WM_PAINT` and `WM_TIMER`, after each selection move, which the list draws
 without one, and into the `WM_PRINTCLIENT` DC. The opening slide renders the
@@ -96,8 +97,28 @@ light ground and text and only the selected row is dark, as other native
 controls keep their creation theme ([theme
 rebuild](main-window.md#theme-rebuild)). Disposing the combo restores the
 window procedure and frees the callback. If an SWT upgrade drops a member, one
-WARN is logged, the native selection stays, and `Win32ComboListSelectionTest`
+WARN is logged, the native selection stays, and `Win32ListSelectionTest`
 fails on win32.
+
+Under the dark native setting Windows 11 draws the selected row of a `List`
+solid `#ffffff` below white text, focused or not (measured on QLogg, OBERON, at
+150% and 100%); `windows-2025` draws it `#0078d4` with white text. Every `List` is created with `Dialogs.list`, which calls
+`ListSelection.PLATFORM.draw`; `ArchitectureTest.listsOnlyThroughDialogs`
+rejects `new List` elsewhere. `Win32ListSelection` subclasses the ListBox
+window through `Win32ListBox` and, when `Win32DialogColors` colored the list's
+dialog dark, paints the selected row `#626262` with focus and
+`Win32UnfocusedSelection.BACKGROUND` (`#747474`) without, white text, as a dark
+dialog tree draws its rows. It paints after each `WM_PAINT`, into the
+`WM_PRINTCLIENT` DC, and after any message that moves the selection or the
+focus. The side is taken once, when `Dialogs.list` creates the list: a dialog
+keeps the colors it was created with across a live switch, so a list in a dark
+dialog stays painted and one in a light dialog stays native. A combo list reads
+`DialogColors.nativeDark` per message instead, since main-window combos follow
+a live switch. The painted row covers
+the native focus outline. Disposing the list restores the window procedure; a
+`SWT.MULTI` list is left native. If an SWT upgrade drops a member, one WARN is
+logged, the native selection stays and `Win32ListSelectionTest` fails on win32.
+`NativeListSelection` does nothing on GTK and cocoa.
 
 Under the dark native setting a selected row in a table or tree without focus
 draws `#252525` on the `#2b2b2b` field, 1.1:1. `Win32UnfocusedSelection` draws

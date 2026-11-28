@@ -352,7 +352,7 @@ final class WindowDialogs {
               shell,
               UiText.RESTORE_CHOOSE_TITLE.text(),
               SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
-      new RunChooser(dialog, runs, chosen).open();
+      new RunChooser(dialog, runs, chosen, Dialogs::list).open();
       Point size = dialog.getSize();
       Dialogs.center(dialog, size.x, size.y);
     }
