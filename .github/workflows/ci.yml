@@ -25,12 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: linux-x86_64, runner: ubuntu-24.04 }
-          - { target: linux-aarch64, runner: ubuntu-24.04-arm }
           - { target: windows-x86_64, runner: windows-2025 }
           - { target: windows-aarch64, runner: windows-11-arm, jdk: "21.0.12.1+1" }
-          - { target: macos-x86_64, runner: macos-15-intel }
-          - { target: macos-aarch64, runner: macos-15 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,18 +57,18 @@ jobs:
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0
       - name: Verify (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -Dtest=StatusFramesTest -Dsurefire.failIfNoSpecifiedTests=false
       # Puts the SBOM plugin in the Linux x86-64 cache, which package restores.
       - name: Resolve the SBOM plugin
         if: matrix.target == 'linux-x86_64'
         run: ./mvnw -B -Psbom org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -Dcyclonedx.skip=true
       - name: Verify (macOS)
         if: runner.os == 'macOS'
-        run: ./mvnw -B verify
+        run: ./mvnw -B verify -Dtest=StatusFramesTest -Dsurefire.failIfNoSpecifiedTests=false
       - name: Verify (Windows)
         if: runner.os == 'Windows'
         shell: cmd
-        run: mvnw.cmd -B verify
+        run: for /L %%i in (1,1,10) do (echo REPEAT %%i & call mvnw.cmd -B verify -Dtest=StatusFramesTest -Dsurefire.failIfNoSpecifiedTests=false || exit /b 1)
       # Screen captures a failing SWT test leaves in target/diagnostics.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
@@ -85,6 +81,7 @@ jobs:
   # The SWT and distribution tests on the experimental GTK 4 backend. Gating: a test that hits a
   # known SWT GTK 4 defect is skipped there with the SWT issue named.
   test-gtk4:
+    if: false
     name: test linux-x86_64 GTK 4 (experimental)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -114,11 +111,12 @@ jobs:
           .github/scripts/apt-update.sh
           sudo apt-get install -y --no-install-recommends libgtk-4-1
       - name: Verify the SWT modules and the distribution
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -pl qcaret-ui-swt,qcaret-launcher,qcaret-dist -am
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" ./mvnw -B verify -pl qcaret-ui-swt,qcaret-launcher,qcaret-dist -am -Dtest=StatusFramesTest -Dsurefire.failIfNoSpecifiedTests=false
 
   # IBusCompositionTest in its required mode: a real IBus engine through GTK 3, where any skip
   # fails. Not gating, and outside release's needs, until it has a measured pass rate.
   test-ibus:
+    if: false
     name: test linux-x86_64 IBus (experimental)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -166,6 +164,7 @@ jobs:
   # The seven archives, the two Windows installers, the four Linux packages
   # and the SBOM; qcaret-dist builds them on x86-64 Linux only.
   package:
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

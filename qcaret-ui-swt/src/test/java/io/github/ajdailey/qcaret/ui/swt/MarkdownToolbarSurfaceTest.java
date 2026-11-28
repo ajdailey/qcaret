@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolItem;
@@ -72,7 +71,7 @@ class MarkdownToolbarSurfaceTest {
   }
 
   private Menu renderers() {
-    Label field = w.window.previewField();
+    StatusField field = w.window.previewField();
     Event event = new Event();
     event.button = 1;
     field.notifyListeners(SWT.MouseUp, event);

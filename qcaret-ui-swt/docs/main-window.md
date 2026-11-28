@@ -353,10 +353,12 @@ and the field painted, with no layout. The position, selection and macro
 fields keep the widest width they have shown, so a shorter count fits; any
 other field fits only at its exact width. A text that does not fit sets every
 text and lays the bar out under the bar's redraw hold, then paints the bar and
-its fields before returning. On win32 a label paints its new text at its old
-size as it is set, and a moved field paints after the move, so texts set
-before a layout without the hold show cut ("Ln 10178, Col 1") or beside old
-text ("Macro 57 of 20,00000") for a frame. `Gui` calls `showStatusNow` after
+its fields before returning. On win32 a moved field paints after the move, so
+texts laid out without the hold show cut ("Ln 10178, Col 1") or beside old
+text ("Macro 57 of 20,00000") for a frame. Each field is a `StatusField`, a
+canvas that draws its background and text into one buffer: a win32 `Label`
+fills its background and then draws its text as the text is set, and a frame
+composed between the two showed the field empty. `Gui` calls `showStatusNow` after
 `startSession`, so the untitled document's title does not wait for the startup
 events to drain.
 
