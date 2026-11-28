@@ -267,6 +267,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: .github/scripts/check-bundle.ps1
+      - name: Container script arguments
+        if: runner.os == 'Windows' || matrix.target == 'linux-x86_64'
+        shell: pwsh
+        run: .github/scripts/check-container-args.ps1
       - name: Linux packages
         if: runner.os == 'Linux'
         run: .github/scripts/check-linux-packages.sh

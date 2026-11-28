@@ -126,8 +126,12 @@ scripts/container.sh env SWT_GTK4=1 xvfb-run -a ./mvnw -B verify -pl qcaret-ui-s
 ```
 
 - Any other command runs verbatim in the image at the repository root.
-- Windows uses `scripts\container.bat` with the same arguments; WSL uses the
-  Linux script.
+- Windows uses `scripts\container.bat` with the same arguments, from cmd or
+  PowerShell; commas, `=` and quoted arguments reach the image as typed. WSL
+  uses the Linux script. `container.bat` turns `%Q` inside an argument into
+  `1` and drops a `!` from an `--out` path.
+- `QCARET_CONTAINER_DRYRUN=1` prints the output directory and the
+  `docker compose run` line, and runs nothing.
 - The output directory is bind-mounted over `dist/`, so `clean` empties it and
   never removes it.
 - The Maven repository and the wrapper's Maven live in the named volume
@@ -171,6 +175,11 @@ file name beside a decoy then goes through both launchers, and the job fails if
 the decoy opens or the launch neither opens the name nor shows its message. On
 macOS it also runs
 `codesign --verify --deep --strict` on `QCaret.app`.
+
+Windows runners and `linux-x86_64` then run `check-container-args.ps1`: under
+`QCARET_CONTAINER_DRYRUN=1`, `container.bat` or `container.sh` must print the
+`docker compose run` line with commas, `=`, quoted spaces, `%`, `!` and `^`
+unchanged, and the `--out` directory with a space.
 
 Linux runners then install the `.deb` with `apt`, check its files, desktop
 entry and icons, run the same launch against `/opt/qcaret` through

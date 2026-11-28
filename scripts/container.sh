@@ -31,6 +31,8 @@ environment:
   QCARET_IMAGE              build image name (default qcaret-build:local)
   QCARET_CONTAINER_ENGINE   docker or podman (default: whichever is on PATH)
   QCARET_OUT                output directory, as --out
+  QCARET_CONTAINER_DRYRUN   1: print the output directory and the compose run
+                            line, and run nothing
 USAGE
 }
 
@@ -40,15 +42,20 @@ case "$(uname -s)" in
     die "run scripts/container.bat on Windows; this script is for Linux and WSL" ;;
 esac
 
+DRYRUN="${QCARET_CONTAINER_DRYRUN:-}"
 ENGINE="${QCARET_CONTAINER_ENGINE:-}"
 if [ -z "$ENGINE" ]; then
   for candidate in docker podman; do
     if command -v "$candidate" >/dev/null 2>&1; then ENGINE="$candidate"; break; fi
   done
 fi
-[ -n "$ENGINE" ] || die "no docker or podman on PATH"
-"$ENGINE" compose version >/dev/null 2>&1 \
-  || die "$ENGINE has no compose support; install the compose plugin"
+if [ "$DRYRUN" = 1 ]; then
+  ENGINE="${ENGINE:-docker}"
+else
+  [ -n "$ENGINE" ] || die "no docker or podman on PATH"
+  "$ENGINE" compose version >/dev/null 2>&1 \
+    || die "$ENGINE has no compose support; install the compose plugin"
+fi
 
 REBUILD=0
 OUT_DIR="${QCARET_OUT:-dist}"
@@ -75,6 +82,19 @@ case "$SUB" in
   *) CMD=("$@") ;;
 esac
 
+run=("$ENGINE" compose run --rm)
+# compose refuses a TTY when either end is not a terminal.
+if [ "$INTERACTIVE" -eq 0 ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
+  run+=(-T)
+fi
+
+if [ "$DRYRUN" = 1 ]; then
+  printf 'QCARET_OUT=%s\n' "$(realpath -m "$OUT_DIR")"
+  printf '%q ' "${run[@]}" "$SERVICE" ${CMD[@]+"${CMD[@]}"}
+  printf '\n'
+  exit 0
+fi
+
 # A mount source must exist; one the engine creates belongs to root.
 mkdir -p dist "$OUT_DIR"
 QCARET_OUT="$(cd "$OUT_DIR" && pwd)"
@@ -88,12 +108,6 @@ if [ "$REBUILD" -eq 1 ] || ! "$ENGINE" image inspect "$IMAGE" >/dev/null 2>&1; t
 elif [ "$(stat -c %Y docker/Dockerfile)" -gt \
        "$(date -d "$("$ENGINE" image inspect -f '{{.Created}}' "$IMAGE")" +%s)" ]; then
   say "Note: $IMAGE is older than docker/Dockerfile; --rebuild refreshes it"
-fi
-
-run=("$ENGINE" compose run --rm)
-# compose refuses a TTY when either end is not a terminal.
-if [ "$INTERACTIVE" -eq 0 ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
-  run+=(-T)
 fi
 
 if [ "$SUB" = "build" ]; then
