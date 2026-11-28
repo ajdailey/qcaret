@@ -17,6 +17,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -139,6 +140,158 @@ class StatusFramesTest {
           });
     }
     assertEquals(List.of(), torn, "mixed frames");
+  }
+
+  @Test
+  void aShownFieldIsNeverBlankOnScreen() throws Exception {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < LINES; i++) {
+      text.append("x".repeat(20)).append('\n');
+    }
+    w.open("notes.txt", text.toString(), false);
+    w.window.showMacroStatus(progress(9_000));
+    caret(9_000, 0);
+    settle();
+    w.window.shell().forceActive();
+    settle();
+    final Label macro = field("Macro ");
+    final Label place = field("Ln ");
+    System.setProperty("sun.java2d.uiScale", "1");
+    final java.awt.Robot robot = new java.awt.Robot();
+    final int[][] rects = new int[1][];
+    rects[0] = rects(macro, place);
+    int[] rest = rects[0];
+    java.awt.image.BufferedImage still =
+        robot.createScreenCapture(new java.awt.Rectangle(rest[0], rest[1], rest[2], rest[3]));
+    assertEquals(
+        List.of(false, false),
+        List.of(blank(still, rest, 4), blank(still, rest, 8)),
+        "the screen read sees both fields at " + java.util.Arrays.toString(rest));
+    final java.util.concurrent.atomic.AtomicBoolean stop =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    final java.util.concurrent.atomic.AtomicInteger reads =
+        new java.util.concurrent.atomic.AtomicInteger();
+    final List<String> blanks = java.util.Collections.synchronizedList(new ArrayList<String>());
+    final java.util.concurrent.atomic.AtomicReference<String> shownText =
+        new java.util.concurrent.atomic.AtomicReference<String>("");
+    Thread reader =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                while (!stop.get()) {
+                  int[] r = rects[0];
+                  String at = shownText.get();
+                  java.awt.image.BufferedImage image =
+                      robot.createScreenCapture(new java.awt.Rectangle(r[0], r[1], r[2], r[3]));
+                  if (r != rects[0]) {
+                    continue;
+                  }
+                  reads.incrementAndGet();
+                  if (blank(image, r, 4)) {
+                    blanks.add("macro blank near " + at);
+                  }
+                  if (blank(image, r, 8)) {
+                    blanks.add("position blank near " + at);
+                  }
+                }
+              }
+            },
+            "status-screen-read");
+    reader.setDaemon(true);
+    reader.start();
+    long start = System.nanoTime();
+    int updates = 0;
+    try {
+      for (int count = 9_000; count < 11_000; count++) {
+        shownText.set(progress(count));
+        w.window.showMacroStatus(progress(count));
+        caret(count, count % 17);
+        w.window.showStatusNow();
+        int[] next = rects(macro, place);
+        if (!java.util.Arrays.equals(next, rects[0])) {
+          rects[0] = next;
+        }
+        w.flush();
+        updates++;
+      }
+    } finally {
+      stop.set(true);
+      reader.join(10_000);
+    }
+    long ms = (System.nanoTime() - start) / 1_000_000;
+    System.out.println(
+        "StatusFramesTest screen: "
+            + updates
+            + " updates in "
+            + ms
+            + " ms, "
+            + reads.get()
+            + " reads, "
+            + blanks.size()
+            + " blank");
+    List<String> first = new ArrayList<String>(blanks.subList(0, Math.min(10, blanks.size())));
+    assertEquals(List.of(), first, blanks.size() + " blank of " + reads.get() + " reads");
+  }
+
+  private Label field(String prefix) {
+    for (Control child : bar.getChildren()) {
+      if (child instanceof Label label
+          && child.getVisible()
+          && label.getText().startsWith(prefix)) {
+        return label;
+      }
+    }
+    throw new AssertionError("no field " + prefix);
+  }
+
+  /** Returns the bar's screen rectangle and the two fields' rectangles in it, in pixels. */
+  private int[] rects(Label macro, Label place) {
+    int zoom = zoom();
+    Rectangle b = w.display.map(bar.getParent(), null, bar.getBounds());
+    Rectangle m = macro.getBounds();
+    Rectangle p = place.getBounds();
+    return new int[] {
+      px(b.x, zoom), px(b.y, zoom), px(b.width, zoom), px(b.height, zoom),
+      px(m.x, zoom), px(m.y, zoom), px(m.width, zoom), px(m.height, zoom),
+      px(p.x, zoom), px(p.y, zoom), px(p.width, zoom), px(p.height, zoom)
+    };
+  }
+
+  private int zoom() {
+    String scale = System.getProperty("swt.autoScale");
+    if (scale != null) {
+      try {
+        return Integer.parseInt(scale.trim());
+      } catch (NumberFormatException named) {
+        return bar.getMonitor().getZoom();
+      }
+    }
+    return bar.getMonitor().getZoom();
+  }
+
+  private static int px(int points, int zoom) {
+    return Math.round(points * zoom / 100f);
+  }
+
+  /** Returns whether the field at {@code at} in a read of the bar is one color. */
+  private static boolean blank(java.awt.image.BufferedImage image, int[] r, int at) {
+    int x0 = r[at];
+    int y0 = r[at + 1];
+    int width = Math.min(r[at + 2], image.getWidth() - x0);
+    int height = Math.min(r[at + 3], image.getHeight() - y0);
+    if (width <= 0 || height <= 0) {
+      return false;
+    }
+    int ground = image.getRGB(x0, y0);
+    for (int y = y0; y < y0 + height; y++) {
+      for (int x = x0; x < x0 + width; x++) {
+        if (image.getRGB(x, y) != ground) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   private static String progress(int count) {
