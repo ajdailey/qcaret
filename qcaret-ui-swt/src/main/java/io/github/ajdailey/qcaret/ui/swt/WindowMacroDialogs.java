@@ -10,7 +10,6 @@ import java.util.function.Function;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 
 /**
@@ -20,7 +19,7 @@ import org.eclipse.swt.widgets.Shell;
  */
 final class WindowMacroDialogs {
   private final Shell shell;
-  private final Label status;
+  private final StatusField status;
   private final StatusText statusText;
   private Keymap keymap;
   private RunMacroDialog runDialog;
@@ -37,7 +36,7 @@ final class WindowMacroDialogs {
   WindowMacroDialogs(Shell shell, Composite statusBar, StatusText statusText) {
     this.shell = shell;
     this.statusText = statusText;
-    status = new Label(statusBar, SWT.NONE);
+    status = new StatusField(statusBar);
     GridData data = new GridData(SWT.END, SWT.CENTER, false, false);
     data.exclude = true;
     status.setLayoutData(data);
@@ -97,7 +96,7 @@ final class WindowMacroDialogs {
     return manageDialog;
   }
 
-  Label status() {
+  StatusField status() {
     return status;
   }
 

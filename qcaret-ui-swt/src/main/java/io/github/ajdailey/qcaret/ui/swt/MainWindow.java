@@ -190,17 +190,17 @@ public final class MainWindow implements MainView {
   private ProgressRow printBar;
   private Supplier<PrinterData> printerChooser;
   private Supplier<String> pdfChooser;
-  private final Label position;
-  private final Label selection;
-  private final Label encoding;
-  private final Label lineEnding;
-  private final Label language;
-  private final Label preview;
+  private final StatusField position;
+  private final StatusField selection;
+  private final StatusField encoding;
+  private final StatusField lineEnding;
+  private final StatusField language;
+  private final StatusField preview;
   private MarkdownSwitch markdownSwitch;
   private GuideWindow.BrowserFactory browserFactory = GuideWindow.BROWSER;
   private UiDispatcher browserDispatcher;
   private final MemoryGauge memoryGauge;
-  private final Label readOnly;
+  private final StatusField readOnly;
   private final Label notice;
   private final Link warnings;
   private final BusyCounter busy;
@@ -416,16 +416,16 @@ public final class MainWindow implements MainView {
         });
     statusText = new StatusText(statusBar);
     macroDialogs = new WindowMacroDialogs(shell, statusBar, statusText);
-    readOnly = statusLabel();
-    position = statusLabel();
-    selection = statusLabel();
+    readOnly = statusField();
+    position = statusField();
+    selection = statusField();
     statusText.counter(position);
     statusText.counter(selection);
-    encoding = statusLabel();
-    lineEnding = statusLabel();
-    language = statusLabel();
+    encoding = statusField();
+    lineEnding = statusField();
+    language = statusField();
     language.setToolTipText(UiText.STATUS_LANGUAGE_TIP.text());
-    preview = statusLabel();
+    preview = statusField();
     language.addListener(
         SWT.MouseUp,
         new Listener() {
@@ -684,8 +684,8 @@ public final class MainWindow implements MainView {
     return statusBar;
   }
 
-  private Label statusLabel() {
-    Label label = new Label(statusBar, SWT.NONE);
+  private StatusField statusField() {
+    StatusField label = new StatusField(statusBar);
     label.setLayoutData(new GridData(SWT.END, SWT.CENTER, false, false));
     return label;
   }
@@ -842,10 +842,10 @@ public final class MainWindow implements MainView {
   /**
    * Returns the status bar's encoding field and line-ending field.
    *
-   * @return the two labels
+   * @return the two fields
    */
-  Label[] encodingFields() {
-    return new Label[] {encoding, lineEnding};
+  StatusField[] encodingFields() {
+    return new StatusField[] {encoding, lineEnding};
   }
 
   /**
@@ -905,9 +905,9 @@ public final class MainWindow implements MainView {
   /**
    * Returns the status bar's preview field.
    *
-   * @return the label
+   * @return the field
    */
-  Label previewField() {
+  StatusField previewField() {
     return preview;
   }
 
