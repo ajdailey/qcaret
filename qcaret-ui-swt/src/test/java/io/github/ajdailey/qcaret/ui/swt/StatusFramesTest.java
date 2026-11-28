@@ -2,13 +2,22 @@ package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.ui.swt.platform.RunningPlatform;
+import java.awt.AWTException;
+import java.awt.Robot;
+import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
@@ -17,6 +26,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -139,6 +149,205 @@ class StatusFramesTest {
           });
     }
     assertEquals(List.of(), torn, "mixed frames");
+  }
+
+  /**
+   * Reads the screen on a second thread while 3,000 macro and position updates run, each followed
+   * by an event-loop turn, and fails on a read that shows the macro or position field as one color.
+   * A screen read sees the composed frame; a read from the bar's own window does not. The macro
+   * text is longer than a real one so that the time a field spends between its fill and its text,
+   * where a label left it blank, is long enough to be read; the count still crosses 9,999 to
+   * 10,000.
+   */
+  @Test
+  void aShownFieldIsNeverBlankOnScreen() throws Exception {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < LINES; i++) {
+      text.append("x".repeat(20)).append('\n');
+    }
+    w.open("notes.txt", text.toString(), false);
+    w.window.showMacroStatus(longProgress(8_500));
+    caret(8_500, 0);
+    settle();
+    w.window.shell().forceActive();
+    settle();
+    Label macro = field("Macro ");
+    Label place = field("Ln ");
+    ScreenReads reads = new ScreenReads(rects(macro, place));
+    assertEquals(List.of(), reads.readOnce(), "a screen read at rest shows both fields");
+    reads.start();
+    try {
+      for (int count = 8_500; count < 11_500; count++) {
+        reads.at(longProgress(count));
+        w.window.showMacroStatus(longProgress(count));
+        caret(count, count % 17);
+        w.window.showStatusNow();
+        reads.place(rects(macro, place));
+        w.flush();
+      }
+    } finally {
+      reads.stop();
+    }
+    List<String> blanks = reads.blanks();
+    System.out.println(
+        "StatusFramesTest screen: " + reads.count() + " reads, " + blanks.size() + " blank");
+    assertTrue(reads.count() > 50, reads.count() + " screen reads");
+    assertEquals(
+        List.of(),
+        blanks.subList(0, Math.min(10, blanks.size())),
+        blanks.size() + " blank of " + reads.count() + " screen reads");
+  }
+
+  private static String longProgress(int count) {
+    return progress(count) + ", " + "step ".repeat(14).trim();
+  }
+
+  private Label field(String prefix) {
+    for (Control child : bar.getChildren()) {
+      if (child instanceof Label field
+          && child.getVisible()
+          && field.getText().startsWith(prefix)) {
+        return field;
+      }
+    }
+    throw new AssertionError("no field " + prefix);
+  }
+
+  /**
+   * Returns the bar's screen rectangle, then the macro field's and the position field's rectangles
+   * in it, each as x, y, width and height in pixels.
+   */
+  private int[] rects(Label macro, Label place) {
+    int zoom = zoom();
+    Rectangle b = w.display.map(bar.getParent(), null, bar.getBounds());
+    Rectangle m = macro.getBounds();
+    Rectangle p = place.getBounds();
+    return new int[] {
+      px(b.x, zoom), px(b.y, zoom), px(b.width, zoom), px(b.height, zoom),
+      px(m.x, zoom), px(m.y, zoom), px(m.width, zoom), px(m.height, zoom),
+      px(p.x, zoom), px(p.y, zoom), px(p.width, zoom), px(p.height, zoom)
+    };
+  }
+
+  /** Returns a numeric {@code swt.autoScale} value, else the bar's monitor zoom. */
+  private int zoom() {
+    String scale = System.getProperty("swt.autoScale");
+    if (scale != null) {
+      try {
+        return Integer.parseInt(scale.trim());
+      } catch (NumberFormatException named) {
+        return bar.getMonitor().getZoom();
+      }
+    }
+    return bar.getMonitor().getZoom();
+  }
+
+  private static int px(int points, int zoom) {
+    return Math.round(points * zoom / 100f);
+  }
+
+  /**
+   * Reads the bar from the screen with {@link Robot} on its own thread. A read counts only when the
+   * field rectangles the UI thread published are the same before and after it.
+   */
+  private static final class ScreenReads implements Runnable {
+    private final Robot robot;
+    private final AtomicReference<int[]> rects;
+    private final AtomicReference<String> at = new AtomicReference<String>("");
+    private final AtomicBoolean stopped = new AtomicBoolean();
+    private final AtomicInteger count = new AtomicInteger();
+    private final List<String> blanks = new CopyOnWriteArrayList<String>();
+    private final Thread thread = new Thread(this, "status-screen-reads");
+
+    ScreenReads(int[] rects) throws AWTException {
+      System.setProperty("sun.java2d.uiScale", "1");
+      robot = new Robot();
+      this.rects = new AtomicReference<int[]>(rects);
+      thread.setDaemon(true);
+    }
+
+    /** Reads once on the calling thread and returns the blank fields. */
+    List<String> readOnce() {
+      int[] r = rects.get();
+      return blank(read(r), r);
+    }
+
+    void start() {
+      thread.start();
+    }
+
+    void stop() throws InterruptedException {
+      stopped.set(true);
+      thread.join(10_000);
+    }
+
+    void at(String text) {
+      at.set(text);
+    }
+
+    void place(int[] next) {
+      if (!Arrays.equals(next, rects.get())) {
+        rects.set(next);
+      }
+    }
+
+    int count() {
+      return count.get();
+    }
+
+    List<String> blanks() {
+      return new ArrayList<String>(blanks);
+    }
+
+    @Override
+    public void run() {
+      while (!stopped.get()) {
+        int[] r = rects.get();
+        String near = at.get();
+        BufferedImage image = read(r);
+        if (r == rects.get()) {
+          count.incrementAndGet();
+          for (String field : blank(image, r)) {
+            blanks.add(field + " near " + near);
+          }
+        }
+      }
+    }
+
+    private BufferedImage read(int[] r) {
+      return robot.createScreenCapture(new java.awt.Rectangle(r[0], r[1], r[2], r[3]));
+    }
+
+    private static List<String> blank(BufferedImage image, int[] r) {
+      List<String> found = new ArrayList<String>();
+      if (oneColor(image, r, 4)) {
+        found.add("macro field blank");
+      }
+      if (oneColor(image, r, 8)) {
+        found.add("position field blank");
+      }
+      return found;
+    }
+
+    /** Returns whether the rectangle at {@code at} in {@code r} is one color in a read. */
+    private static boolean oneColor(BufferedImage image, int[] r, int at) {
+      int x0 = r[at];
+      int y0 = r[at + 1];
+      int width = Math.min(r[at + 2], image.getWidth() - x0);
+      int height = Math.min(r[at + 3], image.getHeight() - y0);
+      if (width <= 0 || height <= 0) {
+        return false;
+      }
+      int ground = image.getRGB(x0, y0);
+      for (int y = y0; y < y0 + height; y++) {
+        for (int x = x0; x < x0 + width; x++) {
+          if (image.getRGB(x, y) != ground) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
   }
 
   private static String progress(int count) {
