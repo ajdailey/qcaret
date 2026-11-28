@@ -143,6 +143,11 @@ A saved macro's menu item, palette row (`Macros: <name>`) and key call
 no recording or run in the window and an editable document selected. The
 dialogs' checks are `MacroController.nameProblem` (`MacroNames`) and
 `MacroBindings.keyProblem`; a refused field disables OK and shows the reason.
+A recording's start and stop and a run's start and end call
+`documentStateChanged`, so the window syncs the items: a sync while a run is
+active disables them (the Play item syncs its menu after it runs, the run's
+first edit changes the dirty state), and a disabled item's accelerator does
+not fire.
 IBus 1.5.29 binds only `Ctrl+Shift+U` (Unicode input; emoji input is
 `Super+period`), so Play keeps `Ctrl+Shift+E` on Linux; older IBus releases
 bound it to emoji input.

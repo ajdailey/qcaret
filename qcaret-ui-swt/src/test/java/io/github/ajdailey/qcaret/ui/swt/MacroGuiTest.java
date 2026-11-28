@@ -251,6 +251,94 @@ class MacroGuiTest {
         "the toolbar's Undo enables");
   }
 
+  private MenuItem savedItem() {
+    return macrosMenu().getItem(macrosMenu().getItemCount() - 1);
+  }
+
+  private void awaitEnabled(final MenuItem item, String what) {
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return item.getEnabled();
+              }
+            }),
+        what);
+  }
+
+  private void awaitRecording(final boolean recording) {
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.menuBar().states().checked(CommandId.RECORD_MACRO) == recording;
+              }
+            }),
+        recording ? "recording starts" : "recording stops");
+  }
+
+  /**
+   * G2 MACROKEYS: a run's first edit synced the menu with the run active, which disabled the Macros
+   * items, and nothing enabled them after the run, so their accelerators did not fire.
+   */
+  @Test
+  void theMacrosItemsEnableAfterARunAndARecording() {
+    MenuItem record = window.menuBar().item(CommandId.RECORD_MACRO);
+    MenuItem play = window.menuBar().item(CommandId.PLAY_RECORDED_MACRO);
+    awaitEnabled(savedItem(), "the saved macro's item enables with the document");
+    controller.runMacro("Wrap");
+    awaitText("<one\ntwo\nthree\n");
+    flush();
+    assertTrue(record.getEnabled(), "Record Macro after a run");
+    assertTrue(savedItem().getEnabled(), "the saved macro after a run");
+    controller.execute(CommandId.RECORD_MACRO);
+    editor.type("a");
+    controller.execute(CommandId.RECORD_MACRO);
+    flush();
+    assertTrue(play.getEnabled(), "Play Recorded Macro after a recording");
+    assertTrue(savedItem().getEnabled(), "the saved macro after a recording");
+    controller.execute(CommandId.PLAY_RECORDED_MACRO);
+    awaitText("<aaone\ntwo\nthree\n");
+    flush();
+    assertTrue(play.getEnabled(), "Play Recorded Macro after a run");
+    assertTrue(record.getEnabled(), "Record Macro after a run");
+    assertTrue(savedItem().getEnabled(), "the saved macro after a run");
+  }
+
+  /** G2 MACROKEYS: the play, saved macro and record keys act after a keyed run. */
+  @Test
+  void theMacroKeysActAfterAKeyedRun() {
+    PostedInput.assumeGtk();
+    window.shell().forceActive();
+    window.activeText().setFocus();
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return window.activeText().isFocusControl();
+              }
+            }),
+        "editor focused");
+    awaitEnabled(savedItem(), "the saved macro's item enables with the document");
+    PostedInput.ctrlShift(display, 'j');
+    awaitText("<one\ntwo\nthree\n");
+    PostedInput.ctrlShift(display, 'j');
+    awaitText("<<one\ntwo\nthree\n");
+    PostedInput.ctrlShift(display, 'r');
+    awaitRecording(true);
+    editor.type("a");
+    PostedInput.ctrlShift(display, 'r');
+    awaitRecording(false);
+    PostedInput.ctrlShift(display, 'e');
+    awaitText("<<aaone\ntwo\nthree\n");
+    PostedInput.ctrlShift(display, 'r');
+    awaitRecording(true);
+    controller.execute(CommandId.RECORD_MACRO);
+  }
+
   @Test
   void runMultipleTimesChecksTheCountAndRunsTheChosenMacro() {
     controller.execute(CommandId.RUN_MACRO_MULTIPLE);

@@ -10,11 +10,12 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolItem;
 
 /**
- * The main window's minimum width, measured from its content: the find bar's widest control, the
- * status bar's shown fields without the notice, and the toolbar's More button, since the toolbar
- * narrows to it. Without it the shell's minimum is its trim, and macOS narrowed the window to 82
- * pt, clipping every control. The find bar's full row is not the minimum, since it is wider than
- * the window sizes in use; its controls past the window's edge clip. Call on the UI thread.
+ * The main window's minimum width, measured from its content: the find row from its left edge
+ * through the find field and its Show history button, the status bar's shown fields without the
+ * notice, and the toolbar's More button, since the toolbar narrows to it. Without it the shell's
+ * minimum is its trim, and macOS narrowed the window to 82 pt, clipping every control. The find
+ * row's controls after the field are not in the minimum, since the full row is wider than the
+ * window sizes in use; they clip past the window's edge. Call on the UI thread.
  */
 final class MainWindowMinimum {
   private MainWindowMinimum() {}
@@ -24,13 +25,13 @@ final class MainWindowMinimum {
    *
    * @param shell the main window's shell
    * @param more the toolbar's More button, or null
-   * @param findBar the find bar
+   * @param findField the find field's control, in a find bar row laid out by a {@link GridLayout}
    * @param statusBar the status bar, laid out by a {@link GridLayout}
    * @param notice the status bar's notice, which takes the room left over
    */
   static void apply(
-      Shell shell, ToolItem more, Composite findBar, Composite statusBar, Control notice) {
-    int width = Math.max(widest(findBar), statusWidth(statusBar, notice));
+      Shell shell, ToolItem more, Control findField, Composite statusBar, Control notice) {
+    int width = Math.max(throughField(findField), statusWidth(statusBar, notice));
     if (more != null && !more.isDisposed()) {
       width = Math.max(width, more.getParent().computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
     }
@@ -38,21 +39,32 @@ final class MainWindowMinimum {
     shell.setMinimumSize(Math.max(minimum.x, shell.computeTrim(0, 0, width, 0).width), minimum.y);
   }
 
-  /** Returns the widest control in a find bar's rows, with the bar's horizontal margins. */
-  static int widest(Composite findBar) {
-    int widest = 0;
-    for (Control row : findBar.getChildren()) {
-      Control[] controls = row instanceof Composite composite ? composite.getChildren() : null;
-      if (controls == null) {
-        widest = Math.max(widest, row.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
-        continue;
+  /**
+   * Returns the find bar's width from its left edge through a field's right edge: the row's
+   * controls up to the field at their {@link GridLayout} widths, and the bar's margins on both
+   * sides.
+   *
+   * @param field a control in a row of the find bar
+   * @return the width in pixels
+   */
+  static int throughField(Control field) {
+    Composite row = field.getParent();
+    GridLayout rowLayout = (GridLayout) row.getLayout();
+    int width = rowLayout.marginLeft + rowLayout.marginWidth;
+    for (Control child : row.getChildren()) {
+      int hint = SWT.DEFAULT;
+      if (child.getLayoutData() instanceof GridData data) {
+        hint = data.widthHint;
+        width += data.horizontalIndent;
       }
-      for (Control control : controls) {
-        widest = Math.max(widest, control.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+      width += child.computeSize(hint, SWT.DEFAULT).x;
+      if (child == field) {
+        break;
       }
+      width += rowLayout.horizontalSpacing;
     }
-    GridLayout layout = (GridLayout) findBar.getLayout();
-    return widest + 2 * layout.marginWidth;
+    GridLayout barLayout = (GridLayout) row.getParent().getLayout();
+    return width + 2 * barLayout.marginWidth + barLayout.marginLeft + barLayout.marginRight;
   }
 
   /** Returns the width of the status bar's shown fields, the notice left out. */

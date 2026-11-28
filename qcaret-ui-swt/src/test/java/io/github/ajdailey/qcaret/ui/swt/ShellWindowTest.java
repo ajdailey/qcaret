@@ -45,7 +45,9 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -209,13 +211,29 @@ class ShellWindowTest {
     assertEquals("two.txt", window.clipboardText());
   }
 
-  /** G2 H2c: macOS narrowed the main window to 82 pt, clipping every control. */
+  /**
+   * G2 H2c: macOS narrowed the main window to 82 pt, clipping every control. G2 M1: a minimum of
+   * the field's width alone cut the field's end and Show history, since the label is before it.
+   */
   @Test
   void theMinimumWidthHoldsTheFindBarTheStatusFieldsAndMore() {
     Shell shell = window.shell();
     int minimum = shell.getMinimumSize().x;
-    int find = MainWindowMinimum.widest(window.findBar().control());
-    assertTrue(find >= FindBar.FIELD_WIDTH, "the find field " + find);
+    Composite bar = window.findBar().control();
+    bar.setSize(bar.computeSize(SWT.DEFAULT, SWT.DEFAULT));
+    bar.layout(true, true);
+    Button history = window.findBar().fieldHistory().arrow();
+    Composite field = history.getParent();
+    Composite row = field.getParent();
+    int find =
+        row.getLocation().x
+            + field.getLocation().x
+            + history.getLocation().x
+            + history.getSize().x
+            + ((GridLayout) bar.getLayout()).marginWidth;
+    assertTrue(find > FindBar.FIELD_WIDTH, "Show history's right edge " + find);
+    int measured = MainWindowMinimum.throughField(field);
+    assertTrue(measured >= find, measured + " < Show history's right edge " + find);
     Control notice = window.statusBar().getChildren()[0];
     int status = MainWindowMinimum.statusWidth(window.statusBar(), notice);
     assertTrue(status > 0);

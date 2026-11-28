@@ -32,11 +32,12 @@ by side. Below them are the find bar, the `ProgressRow` rows and a status bar.
 - `MainWindow` asks the controller to check the open files whenever the shell
   is activated.
 - `open` sets the shell's minimum width from its content
-  (`MainWindowMinimum`): the find bar's widest control (the field), the status
-  bar's shown fields without the notice, and the toolbar's More button, since
-  the toolbar narrows to it. The find bar's full row is wider than the window
-  sizes in use, so its controls past the edge clip. Without it the minimum is the trim, and macOS
-  narrowed the window to 82 pt.
+  (`MainWindowMinimum`): the find row from its left edge through the find
+  field's Show history button, the status bar's shown fields without the
+  notice, and the toolbar's More button, since the toolbar narrows to it. The
+  find bar's full row is wider than the window sizes in use, so the controls
+  after the field clip past the edge. Without it the minimum is the trim, and
+  macOS narrowed the window to 82 pt.
 
 ## Tabs
 

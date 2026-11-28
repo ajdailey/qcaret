@@ -117,6 +117,7 @@ final class MacroHooks {
             });
     window.showNotice(UiText.MACRO_RECORDING.text());
     window.view().showMacroStatus(UiText.MACRO_STATUS_RECORDING.text());
+    commandsChanged(window);
     return true;
   }
 
@@ -138,6 +139,7 @@ final class MacroHooks {
     if (!steps.isEmpty()) {
       recorded = macro;
     }
+    commandsChanged(window);
     window.showNotice(
         UiText.MACRO_RECORDED.format(
             UiText.count(steps.size(), UiText.COUNT_STEP, UiText.COUNT_STEPS)));
@@ -187,6 +189,7 @@ final class MacroHooks {
       runs.remove(player);
       return null;
     }
+    commandsChanged(window);
     return player;
   }
 
@@ -290,6 +293,16 @@ final class MacroHooks {
   /** Forgets a run that ended. */
   void runEnded(MacroPlayer player) {
     runs.remove(player);
+    commandsChanged(player.window());
+  }
+
+  /**
+   * Syncs the window's command states. A sync while a recording or run is active disables the macro
+   * items (the Play item syncs its menu after it runs, and a run's first edit changes the dirty
+   * state), and a disabled item's accelerator does not fire.
+   */
+  private static void commandsChanged(ApplicationController window) {
+    window.view().documentStateChanged();
   }
 
   /** Stops a closing window's recording and run, without a notice for the run. */

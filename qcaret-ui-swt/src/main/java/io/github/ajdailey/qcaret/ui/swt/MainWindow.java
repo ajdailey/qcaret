@@ -1773,7 +1773,8 @@ public final class MainWindow implements MainView {
   public void open() {
     boolean maximized = shell.getMaximized();
     if (findBar != null) {
-      MainWindowMinimum.apply(shell, toolbarRow.more(), findBar.control(), statusBar, notice);
+      MainWindowMinimum.apply(
+          shell, toolbarRow.more(), findBar.fieldHistory().control(), statusBar, notice);
     }
     shell.open();
     WindowPlacement.PLATFORM.afterOpen(shell, maximized);
