@@ -164,7 +164,7 @@
                             <goal>test</goal>
                         </goals>
                         <configuration>
-                            <test>TableFitSurfaceTest,BoxDriftSurfaceTest,HexCanvasSurfaceTest</test>
+                            <test>TableFitSurfaceTest,BoxDriftSurfaceTest,HexCanvasSurfaceTest,StatusFramesTest</test>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <argLine>-Duser.home=${project.build.directory}/${qcaret.test.home} --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs} -Dswt.autoScale=150 -Dswt.autoScale.updateOnRuntime=false</argLine>
                         </configuration>
